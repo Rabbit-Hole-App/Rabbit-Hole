@@ -1,5 +1,7 @@
 import { subscriptionTransport } from './subscription-transport.js';
 import { platformCaps, spendEnforced, spendTransport, spendMessage } from './learn-spend.js';
+import { refusalBody } from './learn-spend-ledger.js';
+import { usageRefusal } from './learn-usage.js';
 import { researchAnswer } from './learn-research.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { base64 } from './token.js';
@@ -498,7 +500,8 @@ ${research.system}` : system;
     } catch (e) {
       // ponytail: a stopped partial is kept only while the worker still runs after the disconnect (no waitUntil).
       if (research && full && !finished) await Promise.resolve(onDone?.(full, true)).catch(() => {});
-      await send('error', { error: e?.message || 'stream stopped' }).catch(() => {});
+      // A refused admission (monthly allowance or platform limit) answers with its shared refusal body, so the chat names it.
+      await send('error', usageRefusal(env) ? refusalBody(usageRefusal(env)) : { error: e?.message || 'stream stopped' }).catch(() => {});
     } finally {
       await writer.close().catch(() => {});
     }

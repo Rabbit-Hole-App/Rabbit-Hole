@@ -127,7 +127,18 @@ function schema(action, extra = [], domain = NANOGPT) {
   return null;
 }
 // A create_material, suggest_research or suggest_journey request: plain words, 1-1000 characters, no backticks or arrows (maths is fine).
-const plainRequest = request => typeof request === 'string' && !!request.trim() && request.length <= 1000 && !/`|=>/.test(request);
+const NOT_PLAIN = /`|=>/;
+const plainRequest = request => typeof request === 'string' && !!request.trim() && request.length <= 1000 && !NOT_PLAIN.test(request);
+// T11 real-model run (2026-10-21): an explicitly asked-for diagram's request ran to 1006 characters, and the whole material was
+// dropped while respond_text said it was being added. A longer request in plain words is cut at its last sentence within the
+// limit (else its last word); null when it needs no cut or has no plain-word cut, so the schema check still decides.
+const REQUEST_TYPES = ['create_material', 'suggest_research', 'suggest_journey'];
+function trimmedRequest(request) {
+  if (typeof request !== 'string' || request.length <= 1000 || NOT_PLAIN.test(request)) return null;
+  const head = request.slice(0, 1000), sentence = Math.max(...['. ', '! ', '? '].map(mark => head.lastIndexOf(mark)));
+  const end = sentence > 0 ? sentence + 1 : head.lastIndexOf(' ');
+  return end > 0 ? head.slice(0, end).trim() : null;
+}
 
 // Task 11b: the planner's reading fields (inferred_intent, modality_override, clarification_requested, grounding_status,
 // source_types_used), bounded. A value outside its enum or type becomes null (a list keeps its known entries) and logs the
@@ -154,10 +165,14 @@ function readingOf(response, log) {
   return reading;
 }
 
+// The plan's explicit_request counts only as the learner's own words in this turn (a quote they never typed is ignored).
+const quoteOf = response => (typeof response?.explicit_request === 'string' ? response.explicit_request.trim() : '');
+export const explicitRequest = (response, turn) => !!quoteOf(response) && String(turn.raw_user_message || '').toLowerCase().includes(quoteOf(response).toLowerCase());
+
 export function validateActions(response, routed, turn, domain = NANOGPT) {
   const log = [], decisions = [];
-  const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
-  const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
+  const quoted = quoteOf(response);
+  const explicit = explicitRequest(response, turn);
   // The quote is the learner's words: the log (console, the bench's `rejected`) never carries them (Voice privacy).
   if (quoted && !explicit) log.push("explicit_request not in the learner's words");
   // A hook click is the learner's consent for the direction it chose (Professor Next Steps §2.5); never true on a typed turn.
@@ -171,7 +186,9 @@ export function validateActions(response, routed, turn, domain = NANOGPT) {
   const reading = readingOf(response, log); // Task 11b: telemetry, never read by the checks below
   // The avatar action, the handoff (Task 11c-B) and next_section (r29) are known types only on a turn whose route allows them.
   const extra = [AVATAR_ACTION, HANDOFF_ACTION, NEXT_SECTION_ACTION].filter(type => routed.allowed.includes(type));
-  for (const action of Array.isArray(response.actions) ? response.actions : []) {
+  for (let action of Array.isArray(response.actions) ? response.actions : []) {
+    const trimmed = REQUEST_TYPES.includes(action?.type) ? trimmedRequest(action.request) : null;
+    if (trimmed) { log.push(`trimmed ${action.type} request to ${trimmed.length} characters`); action = { ...action, request: trimmed }; }
     const bad = schema(action, extra, domain);
     if (bad) { reject(action, 'schema', bad); continue; }
     if (action.type === 'no_action') continue;

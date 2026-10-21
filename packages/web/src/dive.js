@@ -47,10 +47,11 @@ export function dropPending(storage, name) {
   const { [name]: _, ...rest } = pendingHoles(storage);
   write(storage, PENDING, Object.keys(rest).length ? rest : null);
 }
-// An abandoned hole leaves nothing: its pending record, and every local key Learn wrote for it.
+// An abandoned hole leaves nothing: its pending record, and every local key Learn wrote for it, its Chat and TOC
+// drafts too (chat-draft.js draftKey: rh.chat.draft.<canvas>.<thread>, written by its opening turn or a / command).
 export function discardHole({ session, local, base, name }) {
   dropPending(session, name);
-  try { for (const key of Object.keys(local)) if (key === base || key.startsWith(`${base}:`)) local.removeItem(key); } catch { /* nothing kept */ }
+  try { for (const key of Object.keys(local)) if (key === base || key.startsWith(`${base}:`) || key.startsWith(`rh.chat.draft.${name}.`)) local.removeItem(key); } catch { /* nothing kept */ }
 }
 
 // Where to land when climbing back: the parent reads it once, on its next mount.

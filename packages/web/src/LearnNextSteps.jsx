@@ -3,7 +3,7 @@
 // say('', { nextStep, selectedAt }) while that mode is on (contract §1.4).
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api.js';
-import { goalOf, nextStepsBasis, nextStepsController, nextStepsInput, repositoryBasis, stoppingPoint, viewerStates } from './learn-next-steps.js';
+import { gateHooks, goalOf, hooksTrigger, nextStepsBasis, nextStepsController, nextStepsInput, repositoryBasis, stoppingPoint, viewerStates } from './learn-next-steps.js';
 import { emitDecision, hooksEvent, shownEvent, tracing } from './learn-tutor-trace.js';
 import { loadStore, storeKey } from './learn-tutor-evidence.js';
 
@@ -100,11 +100,14 @@ export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn
 // board: the board name (LearnPage's boardName). canvasVersion: the board revision, for telemetry only.
 // ponytail: one controller per mount (previous hooks and the tab ceiling span board changes inside one LearnPage); key it by
 // app and board if a page ever switches canvases without remounting.
-export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, record = null, access, title = '', graded = 0, canvasVersion = null, board = 'main', describe = null, repositoryCommit = null }) {
+// coaching (owner 3a): { allowed, visible } - hooks are proactive, so they ask only while the Tutor controls allow it and only
+// after a meaningful learner change (gateHooks). Absent, nothing is asked.
+export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, record = null, access, title = '', graded = 0, canvasVersion = null, board = 'main', describe = null, repositoryCommit = null, coaching = null }) {
   const live = useRef(null);
   live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe, repositoryCommit };
   const [steps] = useState(() => ownedSteps(() => live.current));
-  const { basis, stop, semantic, settling = false } = steps.state();
+  const gate = useRef({}).current;
+  const { basis, stop, semantic, settling = false } = gateHooks(gate, steps.state(), { allowed: !!coaching?.allowed, visible: !!coaching?.visible, trigger: hooksTrigger({ lastTurn: tutor?.lastTurn, journey, canvasState, graded }) });
   useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
   return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh };

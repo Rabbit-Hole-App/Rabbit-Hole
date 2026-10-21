@@ -4,6 +4,7 @@ import { createImageEditJobCoordinator } from './inline-image-edit-job.js';
 import { imageEditProvider } from './inline-image-edit-provider.js';
 import { admitSpend, settleSpend } from './learn-spend-ledger.js';
 import { learnMedia } from './learn-storage.js';
+import { withUsage, noteUsageIdentity, settleAttempt, toMicros } from './learn-usage.js';
 const ID = /^ij_[a-f0-9]{32}$/, SOURCE = /^fs_[a-f0-9]{24}$/;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const denied = () => json({ error: 'Not available' }, 404);
@@ -57,6 +58,10 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
     if (typeof body.maxReservedUsd !== 'number' || !Number.isFinite(body.maxReservedUsd) || body.maxReservedUsd <= 0 || Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) > body.maxReservedUsd) return json({ error: 'The configured reservation exceeds the approved amount.', code: 'consent_bound' }, 409);
     const scope = await dependencies.board(req, env, body);
     if (scope instanceof Response) return scope;
+    // The payer is the signed-in requester (owner L12 2026-10-20), never the canvas owner: a member editing a shared
+    // canvas spends their own monthly allowance.
+    const requester = await dependencies.identity(req, env);
+    if (requester instanceof Response) return requester;
     if (!scope?.row || !scope.owner?.org || !scope.owner?.email) return denied();
     const blocks = JSON.parse(scope.row.state_json || '{}').blocks || [];
     const card = blocks.find(entry => entry.id === body.cardId);
@@ -73,7 +78,7 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
       mask = sourceBinding(owned);
     }
     const id = `ij_${(await sha(JSON.stringify([scope.owner.org, scope.owner.email, body.idempotencyKey]))).slice(0, 32)}`;
-    const context = { org: scope.owner.org, email: scope.owner.email, boardId: scope.row.id, app: body.app, board: body.board || 'main', cardId: body.cardId, source: sourceBinding(access.source), ...(mask ? { mask } : {}) };
+    const context = { org: scope.owner.org, email: scope.owner.email, payer: { userId: requester.userId || null, email: requester.email }, boardId: scope.row.id, app: body.app, board: body.board || 'main', cardId: body.cardId, source: sourceBinding(access.source), ...(mask ? { mask } : {}) };
     return call(env, id, 'create', { id, context, request: { id, operation: body.operation, sourceSha256: context.source.sha256, ...(mask ? { maskSha256: mask.sha256, prompt: body.prompt } : {}), reservedUsd: Number(env.INLINE_IMAGE_EDIT_RESERVED_USD) } });
   }
   const [, id, action] = match;
@@ -83,6 +88,12 @@ export async function inlineImageJobsRoute(path, req, env, dependencies = defaul
   return call(env, id, action || 'status', { id, identity: { org: user.org, email: user.email } });
 }
 
+const payerEnv = (env, payer) => {
+  if (!payer?.email) return env;
+  const scoped = withUsage(env, { feature: 'image_edit' });
+  noteUsageIdentity(scoped, payer);
+  return scoped;
+};
 const controllers = new WeakMap();
 function coordinator(state, env, dependencies = {}) {
   if (!controllers.has(state)) controllers.set(state, (async () => {
@@ -90,8 +101,14 @@ function coordinator(state, env, dependencies = {}) {
     if (!context) throw new Error('Image job context missing');
     return createImageEditJobCoordinator({
       storage: state.storage,
-      admitSpend: options => (dependencies.admitSpend || admitSpend)(env.LEARN_DB, env, { ...options, userId: context.email, org: context.org }),
-      settleSpend: (id, options) => (dependencies.settleSpend || settleSpend)(env.LEARN_DB, id, options),
+      // A job stored without its requester has no payer and is refused (payer_unavailable), never platform-funded.
+      admitSpend: options => (dependencies.admitSpend || admitSpend)(env.LEARN_DB, payerEnv(env, context.payer), { ...options, userId: context.email, org: context.org, kind: 'media', provider: 'openai', model: 'gpt-image-2.5-sunburst-2026-09-08' }),
+      // The allowance hold settles with the ledger: a cancel before dispatch releases it (cost 0); a delivered edit has no
+      // provider bill here, so it stays held as unknown cost (learn-usage.js settleAttempt).
+      settleSpend: async (id, options) => {
+        await (dependencies.settleSpend || settleSpend)(env.LEARN_DB, id, options);
+        await settleAttempt(env, id, { status: options.status === 'cancelled' && !options.calls ? 'cancelled' : 'settled', costMicros: toMicros(options.costUsd) });
+      },
       edit: dependencies.edit || (input => imageEditProvider({ apiKey: env.OPENAI_API_KEY }).edit(input)),
       publish: dependencies.publish || (async ({ jobId, sha256, result }) => {
         const sourceId = `fs_${(await sha(`image-edit-output:${jobId}`)).slice(0, 24)}`;

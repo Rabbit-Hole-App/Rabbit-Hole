@@ -162,10 +162,12 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
 
   // Every action's body and reply. A reply that carries the journey (success, 409, a 502 planner failure) replaces it; a
   // replay that carries none falls back to the re-read.
+  // Every action but start names the journey it was meant for (Tutor T1 report limit 5): a parked journey never takes it.
   const run = async (body, revision = s.data.journey?.revision) => {
     set({ busy: BUSY, error: kept() });
+    const named = body.action !== 'start' && s.data.journey?.id && body.journey_id == null ? { journey_id: s.data.journey.id } : {};
     try {
-      const out = await journeyRequest({ ...where, ...body }, revision, payload => fetchJson(JOURNEY, payload));
+      const out = await journeyRequest({ ...where, ...named, ...body }, revision, payload => fetchJson(JOURNEY, payload));
       const fresh = out.d && 'journey' in out.d ? out.d : out.reread;
       if (fresh) take(fresh);
       return out;

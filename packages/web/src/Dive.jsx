@@ -11,6 +11,7 @@ import { Button, ConfirmDialog, Tip, toast } from './ui.jsx';
 import { deviceId } from './home/canvas-local.js';
 import { resolveTarget } from './learn-target.js';
 import { claimChord } from './shortcut-owner.js';
+import { markGuidedEntry } from './learn-opening.js';
 import { anchorBlock, clampSpot, diveRecord, discardHole, dropPending, holeHref, holeRows, keepMapSpot, keepPending, levelHref, mapSpot, meaningful, navigatorRows, newHoleName, pendingHole, pendingHoles, planDive, setReturn, takeReturn } from './dive.js';
 
 // The green portal outline on an originating card, read by the canvas's card chrome.
@@ -62,7 +63,8 @@ function setDraft(text) {
 
 // journeyContext(block) (LP1 Task 14): the live journey's context for a hole from that block (LearnJourney.jsx
 // journeyDiveContext), or null; it rides in the dive record beside origin.
-export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onTitle, referent = () => '', journeyContext = () => null }) {
+// entryControls(): the Tutor controls the learner made a new hole under (owner 4a guided entry), or null.
+export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onTitle, referent = () => '', journeyContext = () => null, entryControls = () => null }) {
   const holeRef = useRef(hole);
   const [persisted, setPersisted] = useState(false);
   const pending = !!hole && !persisted;
@@ -96,6 +98,8 @@ export function useDive({ app, board, hole, canvasApi, canvasState, baseFor, onT
       ...(excerptSeed(block, here.app) ? { seed: excerptSeed(block, here.app) } : {}),
       dive: diveRecord({ name, title, via, parent: here, target: resolveTarget(block), block, view: canvasApi.current?.getView?.(), question: draft.startsWith('/') ? '' : draft, level: current.path.length, journey: journeyContext(block) }),
     });
+    // The learner made this hole: its one opening may run there (owner 4a); a later reload or reopen finds no mark.
+    markGuidedEntry(sessionStorage, name, entryControls());
     // ponytail: the canvas saves 400ms after a change and an unmount drops the timer, so a new
     // anchor card waits for that save before the page leaves. Flush on unmount if this ever races.
     if (anchored) setTimeout(() => navigate(holeHref(here, name)), 600); else navigate(holeHref(here, name));

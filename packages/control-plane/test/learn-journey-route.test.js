@@ -296,6 +296,9 @@ test('path edits, cancel as skip, and the materialized heading', async t => {
   const foreign = await post('section_materialized', { journey_id: 'lj_archived', section_id: 's1', heading_block_id: 'h-old' });
   assert.deepEqual([foreign.status, foreign.body.error, foreign.body.journey.id], [409, 'journey_changed', live.id]);
   assert.equal((await post('section_materialized', { section_id: 's1', heading_block_id: 'h-old' })).status, 409, 'a post naming no journey is refused too');
+  // Tutor T1 report limit 5: any action naming another (parked or replaced) journey is refused before the revision check.
+  const parked = await post('cancel', { journey_id: 'lj_parked', revision: live.revision });
+  assert.deepEqual([parked.status, parked.body.error, parked.body.journey.id], [409, 'journey_changed', live.id]);
   assert.deepEqual(rows()[0], before, 'the row is untouched');
   r = await post('section_materialized', { journey_id: live.id, section_id: 's1', heading_block_id: 'h-s1' });
   assert.equal(r.status, 200);
@@ -562,8 +565,9 @@ test('planner states: two settled named misconceptions reach the path planner as
 // ---- Owner decisions 2026-10-07 (docs/features/professor-next-steps.md §4.5): switching subject during setup ----
 // The Start a learning path chip calls the journey start. During setup (intake, diagnostic, path review) the board already
 // holds a live journey, so the start is 409 live_journey, which opens LP1's continue-or-start (the confirmation naming both
-// subjects). Its Start sends one start with replace: the setup is archived in the insert's transaction.
-test('owner 2026-10-07 (c): a start in intake, diagnostic or path review is 409 live_journey; a replace start archives the setup and starts the new subject', async t => {
+// subjects). Its Start sends one start with replace: the setup is parked in the insert's transaction (owner decision 5a,
+// 2026-10-20, supersedes archiving it: changing goals pauses the old one and never archives it).
+test('owner 2026-10-07 (c) + 5a: a start in intake, diagnostic or path review is 409 live_journey; a replace start parks the setup and starts the new subject', async t => {
   const { post, rows, throughIntake, throughDiagnostic } = setup(t);
   const first = (await post('start', { text: LEARN })).body.journey;
   const states = [];
@@ -583,7 +587,7 @@ test('owner 2026-10-07 (c): a start in intake, diagnostic or path review is 409 
   assert.equal(r.status, 200);
   assert.deepEqual([r.body.journey.state, r.body.journey.request.topic, r.body.tray.slot], ['intake', 'sql', 'goal']);
   assert.notEqual(r.body.journey.id, first.id);
-  assert.deepEqual(rows().map(row => [row.id === first.id, row.archived_at != null]), [[true, true], [false, false]]);
+  assert.deepEqual(rows().map(row => [row.id === first.id, row.board, row.archived_at]), [[true, `parked:${first.id}`, null], [false, 'main', null]]);
 });
 
 test('owner 2026-10-07 (e): a replace start that fails keeps the current setup live', async t => {
@@ -596,9 +600,10 @@ test('owner 2026-10-07 (e): a replace start that fails keeps the current setup l
     assert.deepEqual([r.status, r.body.error], [400, error]);
     assert.deepEqual(live(), [first.id], error);
   }
-  // A database failure on the insert rolls the archive back: one transaction (the fixture's D1 batch, BEGIN/ROLLBACK).
+  // A database failure on the insert rolls the park back: one transaction (the fixture's D1 batch, BEGIN/ROLLBACK). The
+  // insert is the third statement, after the replaced journey's goal row and its park.
   const batch = env.LEARN_DB.batch;
-  env.LEARN_DB.batch = statements => batch(statements.map((s, i) => (i === 1 ? { runNow: () => { throw new Error('D1_ERROR: insert failed'); } } : s)));
+  env.LEARN_DB.batch = statements => batch(statements.map((s, i) => (i === 2 ? { runNow: () => { throw new Error('D1_ERROR: insert failed'); } } : s)));
   await assert.rejects(post('start', { text: 'Teach me SQL', replace: first.id }), /insert failed/);
   env.LEARN_DB.batch = batch;
   assert.deepEqual(live(), [first.id]);
@@ -642,7 +647,8 @@ async function oldJourney(s, phase) {
   const review = await s.throughDiagnostic(await s.throughIntake());
   return (await s.post('accept', { revision: review.body.journey.revision })).body.journey;
 }
-const live = s => s.rows().filter(row => row.archived_at == null);
+// Live on a board: a parked journey (a paused goal, decision 5a) is neither archived nor on the board.
+const live = s => s.rows().filter(row => row.archived_at == null && !row.board.startsWith('parked:'));
 const staged = s => s.rows().filter(row => row.board.startsWith('staged:'));
 const orphans = s => s.sqlite.prepare('SELECT COUNT(*) AS n FROM learning_path_versions WHERE journey_id NOT IN (SELECT id FROM learning_journeys)').get().n;
 
@@ -658,13 +664,14 @@ test('owner 2026-10-07 D2: a fast-start replace whose path or section planner fa
     assert.deepEqual(s.rows().find(row => row.id === old.id), before, `${at}: the old row, its progress and revision, untouched`);
     assert.deepEqual([live(s).map(row => row.id), staged(s).length, orphans(s)], [[old.id], 0, 0], `${at}: no staged row or path version left`);
     assert.equal(s.sqlite.prepare('SELECT COUNT(*) AS n FROM learning_path_versions').get().n, versions, at);
-    // Retry: the same start. One live journey, the new one, active with section 1 planned; the old one archived; no staged row.
+    // Retry: the same start. One live journey, the new one, active with section 1 planned; the old one parked (decision 5a,
+    // never archived); no staged row.
     s.fail.clear();
     r = await s.post('start', { text: FAST, replace: old.id });
     assert.equal(r.status, 200, at);
     assert.deepEqual([r.body.journey.state, r.body.journey.request.topic, r.body.journey.section_plan.section_id, r.body.journey.scope.board], ['active', 'sql', 's1', BOARD], at);
     assert.deepEqual([live(s).map(row => row.id), staged(s).length, orphans(s)], [[r.body.journey.id], 0, 0], at);
-    assert.notEqual(s.rows().find(row => row.id === old.id).archived_at, null, `${at}: archived only by the swap`);
+    assert.deepEqual(['board', 'archived_at'].map(k => s.rows().find(row => row.id === old.id)[k]), [`parked:${old.id}`, null], `${at}: parked only by the swap`);
     assert.deepEqual((await s.call('GET')).body.journey.id, r.body.journey.id, at);
   }
 });

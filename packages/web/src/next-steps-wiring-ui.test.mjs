@@ -87,26 +87,28 @@ test('ask.jsx: a hook carried into a new hole opens it once, keyed by opening.ke
   // Once per tab, not per mount: the dock remounts when the hole's board lands from the server (LearnPage canvasEpoch), and a
   // per-mount ref sent the carried opening twice (curious-context lane, 2026-10-13, next-steps-wiring-check step 13).
   assert.ok(ask.indexOf('const openedHoles = new Set();') >= 0 && ask.indexOf('const openedHoles = new Set();') < ask.indexOf('export function AskPanel('), 'the guard outlives a remount');
-  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;\n[^\n]*\n\s+if \(tutor\.opening\.next_step\) \{ sendStep\(tutor\.opening\.next_step, tutor\.opening\.next_step\.hook\); return; \}/);
+  // Owner 4a: the opening waits for the hole's saved controls; where coaching may not run it waits above the composer.
+  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| chat\?\.coaching\?\.status === 'loading' \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;\n\s+if \(chat\?\.coaching && !openGuided\([^\n]*\{ setWaitingOpening\(tutor\.opening\); return; \}\n\s+sendOpening\(tutor\.opening\);/);
+  assert.match(ask, /\/\/ A hook carried from a shared canvas \(contract §1\.4\): the hole opens on it once, as the step, keyed by opening\.key\.\n\s+if \(opening\.next_step\) \{ sendStep\(opening\.next_step, opening\.next_step\.hook\); return; \}/);
 });
 
 test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat composer, never on a review board, outside the canvas', () => {
   assert.match(page, /const nextStepsHere = learnPreview && \(app\.hosting !== 'aws' \|\| !!app\.app_chat\) && !\(reviewTools && board\);/);
   // The canvas dock is gone (owner brief 2026-10-13 section 4): the right-side Chat is the one main composer.
   assert.doesNotMatch(page, /data-learn-dock|composerOnly dock/);
-  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\} repositoryCommit=\{repository\?\.commit \|\| null\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
+  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\} repositoryCommit=\{repository\?\.commit \|\| null\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
   assert.match(page, /function NextStepsHost\(\{ on, children, \.\.\.props \}\) \{\n\s+return on \? <NextStepsMounted \{\.\.\.props\}>\{children\}<\/NextStepsMounted> : children\(null\);\n\}\nfunction NextStepsMounted\(\{ children, \.\.\.props \}\) \{\n\s+return children\(useNextSteps\(props\)\);/);
   // Voice Mode's caption keeps the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on); the hook card is
   // the bottom strip's lower right, beside the composer (owner, 2026-10-08).
   assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/> : null\}\n\s+hooks=\{steps \? <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : \(chatRef\.current\?\.panels\.openChat\(\), nextStepSend\.current\?\.\(step, hook\.hook\)\)\)\} \/> : null\}/);
-  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot className="w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\]">\{hooks\}<\/div>\}/);
+  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot ref=\{hooksSlot\} className="w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\]">\{hooks\}<\/div>\}/);
   // A hook click opens Chat and sends through the Chat AskPanel's nextStepRef (chatAskProps).
   assert.match(page, /tray: journey\.trayProps, voice, nextStepRef: nextStepSend,/);
   assert.match(canvas, /<div data-left-stack className="absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
 
 test('LearnPage: canvasVersion, graded, no /ask or /teach, the repository detach and the block follow-up Tutor (contract §1.7)', () => {
-  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext \}\);/);
+  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching \}\);/);
   // The board revision is mirrored for render at every place the page learns it.
   assert.equal((page.match(/boardVersion\.current = [^;]+; setCanvasVersion\(/g) || []).length, (page.match(/boardVersion\.current = /g) || []).length);
   assert.match(page, /verdict = parseVerdict\(text\);\n\s+setGraded\(count => count \+ 1\);/);
@@ -131,7 +133,7 @@ test('SharedBoardPage: the shared hooks start the private hole with the step; st
   assert.match(shared, /hooks=\{<SharedNextSteps token=\{token\} card=\{card\?\.id \|\| null\} version=\{shared\.version\} signedIn=\{!!shared\.viewer\} startRef=\{rabbitStart\} \/>\}/);
   assert.match(shared, /let made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\), step \}\);\n\s+if \(made\.stale\) made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\) \}\);/);
   assert.match(shared, /if \(made\.signIn\) \{\n\s+if \(step\) keepPendingStep\(sessionStorage, token, step\);\n\s+window\.location\.href = resumeHref\(window\.location\.pathname, cardId, step \? hookId : null\);/);
-  assert.match(shared, /if \(made\.next_step\) carryStep\(sessionStorage, made\.name, made\.next_step\);\n\s+window\.location\.href = made\.url;/);
+  assert.match(shared, /if \(made\.next_step\) carryStep\(sessionStorage, made\.name, made\.next_step\);\n\s+markGuidedEntry\(sessionStorage, made\.name\);[^\n]*\n\s+window\.location\.href = made\.url;/);
   assert.match(shared, /takeResume\(window\.location, window\.history, \{ hook: true \}\)/);
   assert.match(shared, /run\(resume\.origin, resume\.hook \? takePendingStep\(sessionStorage, token, resume\.hook\) : null, resume\.hook\)/);
 });
@@ -187,7 +189,7 @@ test('Tutor-made material: with describe (describeBlock) the selected card trave
   const fallback = await materialTarget(null);
   assert.equal(fallback.selection.id, 'q1');
   assert.notEqual(fallback.context, described.text, 'cardContext, the pre-wiring text');
-  assert.match(page, /journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext \}\);/);
+  assert.match(page, /journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching \}\);/);
 });
 
 // ---- Owner decision 3: review boards stay apart from real learner boards; ?board=main is not the learner's main ----
@@ -198,7 +200,9 @@ test('a review board named main slugs to review-main, so it never shares the rea
   assert.equal(boardSlug('review-main'), 'review-main');
   assert.equal(boardSlug('!!!'), 'test');
   // The slug is the one name every per-board store and route uses: the server row, the journey, the Tutor store, local copies.
-  assert.match(page, /const board = named \? boardSlug\(named\) : null;/);
+  assert.match(page, /const reviewBoard = hole => \{ const named = hole \|\| !reviewTools \? null : new URLSearchParams\(window\.location\.search\)\.get\('board'\); return named \? boardSlug\(named\) : null; \};/);
+  assert.match(page, /const board = reviewBoard\(hole\);/);
+  assert.match(page, /<ChatWorkspaceProvider canvas=\{hole \? hole\.name : props\.app\.name\} board=\{reviewBoard\(hole\) \|\| 'main'\}>/, 'Tutor controls per board too');
   assert.match(page, /const boardName = board \|\| 'main';/);
   assert.match(page, /const boardPath = `\/api\/learn\/boards\/\$\{encodeURIComponent\(app\.name\)\}\/\$\{encodeURIComponent\(boardName\)\}`;/);
   assert.match(page, /const journey = useJourney\(\{ app, board: boardName,/);

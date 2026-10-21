@@ -6,6 +6,7 @@ import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendO
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
 import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
+import { progressQuestionContext } from './learn-progress-context.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -25,6 +26,7 @@ import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js'
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
+import { withUsage, withSystemUsage, noteUsageIdentity, usageFeature } from './learn-usage.js';
 import { buildRunbook, renderMarkdown, scrubPlatformVars } from './runbook-schema.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
@@ -1208,6 +1210,11 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // what was read. member_board: the member board a canvas member asks on (canvas-comments.js memberContext).
     const fileRefs = (chat.contextRefs || []).filter(ref => ref.kind === 'file');
     const files = fileRefs.length && env.LEARN_DB ? await fileContext(req, env, fileRefs, { user, app: scopedApp?.name ?? scope.app ?? null, member: body.member_board ?? null }).catch(() => null) : null;
+    // A Progress question (Task 10): the learner's own saved evidence for each attached progress scope, read-only, rechecked
+    // for this learner now (learn-progress-context.js). It never assesses; the model is told so.
+    if (chat.contextRefs?.some(ref => ref.kind === 'progress')) context = `${context}
+
+${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
     // An image file ref (a dropped image, a PDF region crop) rides as the picture itself, beside the documents (file-context.js).
     if (files?.images?.length) extraBlocks.push(...files.images);
@@ -2321,7 +2328,8 @@ async function apiRunLog(req, env, ctx, runId) {
           try {
             const run = await env.DB.prepare('SELECT * FROM runs WHERE run_id = ?').bind(runId).first();
             const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
-            const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT, 300, app.org);
+            // The runner's callback has no user session: platform-funded system work, under the platform daily guard.
+            const answer = await askOnce(withSystemUsage(env), await runContext(env, app, run), DIAGNOSIS_PROMPT, 300, app.org);
             await env.DB.prepare('UPDATE runs SET diagnosis = ? WHERE run_id = ?').bind(answer.slice(0, 600), runId).run();
           } catch { /* a failed diagnosis is just a missing hint */ }
         }
@@ -2423,6 +2431,12 @@ export default {
           if (s) user = { email: s.email, uid: s.uid, ...(await workspaceFor(req, env, s.email)) };
         }
         if (!user) return json({ error: 'run small login first' }, 401);
+        // Monthly AI allowance (owner L12 2026-10-20): the signed-in session user pays for any AI call a POST makes here, as on
+        // the app worker's boundary (dev-worker.js). Never a body, header or canvas owner.
+        if (req.method === 'POST') {
+          env = withUsage(env, { feature: usageFeature('POST', path) || 'legacy', req });
+          noteUsageIdentity(env, { userId: user.uid ?? null, email: user.email });
+        }
         // Who is signed in, for the dev and review workers (dev-forwarding.js devIdentity). Reads only:
         // GET /api/apps also answers it, but its sweepStaleRuns writes (docs/features/dev-prod-write-barrier.md).
         // user_id is the session's users.id, the journey key (adaptive-learning-path-v1-architecture.md §10.2); null for a CLI token.

@@ -133,7 +133,7 @@ test('a group of cards is placed as one box in free space in view, never on a ca
 test('the canvas places a group as a grid in one undo step and selects it; a card press takes the keyboard from the companion', () => {
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
   const group = canvas.slice(canvas.indexOf('insertGroup: (list, size) =>'), canvas.indexOf('liveRefs:'));
-  assert.ok(group.includes('refCardSpot({ x: visible.x, y: visible.y }, inlineCanvas.obstacles(), visible, box)'), 'the grid is placed as one box in free space in view');
+  assert.ok(group.includes('refCardSpot({ x: visible.x, y: visible.y }, [...inlineCanvas.obstacles(), ...placementChrome()], visible, box)'), 'the grid is placed as one box in free space in view');
   assert.equal(group.split('snapshot()').length - 1, 1, 'one undo step');
   assert.ok(group.includes('setSelection(added.map(block => block.id))'), 'the new cards are selected');
   const press = canvas.split('\n').find(line => line.includes('onPointerDownCapture={event => { if (event.timeStamp - lastPress.current'));

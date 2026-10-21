@@ -84,7 +84,20 @@ test('Chat\'s tabs hold no viewer: no Context or Files tab', () => {
   assert.match(header, /data-panel-companion aria-label=\{name\} title=\{name\} aria-pressed=\{companion\.open\} onClick=\{companion\.onToggle\}/);
   assert.doesNotMatch(header, /data-panel-viewer|Repository files/);
   assert.match(header, /export const companionLabel = views => \(views\.length > 1 \? `\$\{views\.slice\(0, -1\)\.map\(view => view\.label\)\.join\(', '\)\} and \$\{views\.at\(-1\)\.label\}` : views\[0\]\?\.label \|\| 'Context'\);/, 'its name lists the views it opens: Context, Files and Graph');
-  assert.match(page, /companion=\{\{ views: companionViews, open: panelOpen && companion\.open, onToggle: companion\.toggle \}\}/);
+  // Tutor Task 09: Progress takes the same column from the Chat header's own icon; the viewers' control is not pressed for it.
+  assert.match(page, /companion=\{\{ views: companionViews, open: panelOpen && companion\.open && companionView !== 'progress', onToggle: companion\.toggle \}\}/);
+});
+
+// Tutor Task 09 (draft "Progress UI and access"): a labelled Progress icon in Chat's own header opens the companion column
+// on Progress, left of Chat; it is not a Chat tab and not one of the viewers' tabs.
+test('Progress: an icon in the Chat header, the companion column\'s own view, never a Chat tab or a viewer tab', () => {
+  const pane = readFileSync(new URL('./ChatPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  assert.match(pane, /data-chat-progress aria-label="Progress" title="Progress" aria-pressed=\{panels\.progress\.open\} onClick=\{panels\.progress\.toggle\}/);
+  assert.match(pane, /<ChartColumnIncreasing size=\{16\} strokeWidth=\{1\.8\} aria-hidden \/>/, 'a descriptive icon, never a brand mark');
+  assert.doesNotMatch(header, /'progress'/, 'neither a Chat tab nor a viewer');
+  assert.match(page, /const companionView = companion\.view === 'progress' \? 'progress' :/);
+  assert.match(page, /\{companionView !== 'progress' && <CompanionHeader /);
+  assert.match(page, /shown\.current\.has\('progress'\) && <div className=\{`\$\{companionView === 'progress' \? 'flex' : 'hidden'\} min-h-0 flex-1 flex-col`\}>/, 'kept mounted, so the viewed goal survives a close');
 });
 
 test('pinned by default, and the choice lasts in this browser; storage that throws keeps the default', () => {
