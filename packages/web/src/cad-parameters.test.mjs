@@ -22,10 +22,13 @@ test('each fixture schema validates and yields controls from its own definitions
   assert.equal(kinds(controls.bracket).mounting, 'select');
   assert.deepEqual(controls['plate-holes'].primary.map(p => p.id), ['length', 'width', 'thickness', 'hole_diameter'], 'priority orders, the rest go under More parameters');
   assert.deepEqual(controls['plate-holes'].more.map(p => p.id), ['hole_count', 'hole_spacing', 'edge_margin']);
-  for (const model of Object.values(controls)) {
+  for (const [name, model] of Object.entries(controls)) {
     assert.equal(model.available, true);
-    for (const p of model.parameters) assert.equal(p.provenance, p.role === 'input' ? 'requested' : 'computed');
+    // An input the brief chose (assumed: true in its definition) is Assumed, never Requested.
+    const defs = new Map(controlsOf(name).parameters.map(p => [p.id, p]));
+    for (const p of model.parameters) assert.equal(p.provenance, p.role === 'computed' ? 'computed' : defs.get(p.id).assumed ? 'assumed' : 'requested');
   }
+  assert.deepEqual(controls['plate-holes'].parameters.filter(p => p.provenance === 'assumed').map(p => p.id), ['thickness', 'hole_count', 'hole_spacing']);
 });
 
 test('the same definitions under other ids and labels give the same controls (no name recognition)', () => {
@@ -97,7 +100,8 @@ test('draft values stay apart from measured values; stale measurements are not s
   const model = quickEditModel(manifestFor(controls, { checks }), { draft: { edge: 35 } });
   const edge = model.parameters.find(p => p.id === 'edge');
   assert.equal(edge.value, 20); assert.equal(edge.draft, 35);
-  assert.deepEqual(edge.measured, { status: 'passed', value: 20, expected: 20, unit: 'mm', checkId: 'size_x', revisionId: 'r1' });
+  // kind (and axis, when the report gives one) say what was measured, so a value is not read as the parameter's own.
+  assert.deepEqual(edge.measured, { status: 'passed', kind: 'bounds_mm', value: 20, expected: 20, unit: 'mm', checkId: 'size_x', revisionId: 'r1' });
   assert.equal(model.draft.canPreview, true);
   assert.deepEqual(model.request, { expectedRevisionId: 'r1', values: { edge: 35 } });
   assert.equal(quickEditModel(manifestFor(controls), { draft: { edge: 999 } }).draft.canPreview, false);

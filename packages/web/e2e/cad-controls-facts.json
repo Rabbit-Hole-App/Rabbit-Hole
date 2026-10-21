@@ -1,0 +1,316 @@
+{
+ "_source": "Measured on the local cadgen 0.7.21 / build123d 0.11.1 kernel, 2026-10-20 (C:/s/spec/cad-controls/local-geometry-report.json, lane C backend commit 596a3e9b). Browser fixtures only: real facts for default builds and the plate hole-diameter 9 rebuild; every other preview in cad-controls-check is synthetic.",
+ "linked-cube": {
+  "facts": {
+   "bounds_mm": {
+    "x": 20,
+    "y": 20,
+    "z": 20
+   },
+   "bounds_min_mm": [
+    -10,
+    -10,
+    -10
+   ],
+   "bounds_max_mm": [
+    10,
+    10,
+    10
+   ],
+   "solid_count": 1,
+   "volume_mm3": 7999.999999999998,
+   "circular_diameters_mm": [],
+   "circular_edges": []
+  },
+  "computed": {
+   "face_diagonal": 28.284271247461902
+  }
+ },
+ "plate-holes": {
+  "facts": {
+   "bounds_mm": {
+    "x": 120,
+    "y": 40,
+    "z": 5
+   },
+   "bounds_min_mm": [
+    -60,
+    -20,
+    -2.5
+   ],
+   "bounds_max_mm": [
+    60,
+    20,
+    2.5
+   ],
+   "solid_count": 1,
+   "volume_mm3": 23575.88499176537,
+   "circular_diameters_mm": [
+    6
+   ],
+   "circular_edges": [
+    {
+     "diameter_mm": 6,
+     "center_mm": [
+      -30,
+      0,
+      -2.5
+     ]
+    },
+    {
+     "diameter_mm": 6,
+     "center_mm": [
+      -30,
+      0,
+      2.5
+     ]
+    },
+    {
+     "diameter_mm": 6,
+     "center_mm": [
+      0,
+      0,
+      -2.5
+     ]
+    },
+    {
+     "diameter_mm": 6,
+     "center_mm": [
+      0,
+      0,
+      2.5
+     ]
+    },
+    {
+     "diameter_mm": 6,
+     "center_mm": [
+      30,
+      0,
+      -2.5
+     ]
+    },
+    {
+     "diameter_mm": 6,
+     "center_mm": [
+      30,
+      0,
+      2.5
+     ]
+    }
+   ]
+  },
+  "computed": {
+   "edge_margin": 27
+  }
+ },
+ "plate-holes:hole_diameter=9": {
+  "facts": {
+   "bounds_mm": {
+    "x": 120,
+    "y": 40,
+    "z": 5
+   },
+   "bounds_min_mm": [
+    -60,
+    -20,
+    -2.5
+   ],
+   "bounds_max_mm": [
+    60,
+    20,
+    2.5
+   ],
+   "solid_count": 1,
+   "volume_mm3": 23045.74123147208,
+   "circular_diameters_mm": [
+    9
+   ],
+   "circular_edges": [
+    {
+     "diameter_mm": 9,
+     "center_mm": [
+      -30,
+      0,
+      -2.5
+     ]
+    },
+    {
+     "diameter_mm": 9,
+     "center_mm": [
+      -30,
+      0,
+      2.5
+     ]
+    },
+    {
+     "diameter_mm": 9,
+     "center_mm": [
+      0,
+      0,
+      -2.5
+     ]
+    },
+    {
+     "diameter_mm": 9,
+     "center_mm": [
+      0,
+      0,
+      2.5
+     ]
+    },
+    {
+     "diameter_mm": 9,
+     "center_mm": [
+      30,
+      0,
+      -2.5
+     ]
+    },
+    {
+     "diameter_mm": 9,
+     "center_mm": [
+      30,
+      0,
+      2.5
+     ]
+    }
+   ]
+  },
+  "computed": {
+   "edge_margin": 25.5
+  }
+ },
+ "cylinder": {
+  "facts": {
+   "bounds_mm": {
+    "x": 30,
+    "y": 30,
+    "z": 40
+   },
+   "bounds_min_mm": [
+    -15,
+    -15,
+    -20
+   ],
+   "bounds_max_mm": [
+    15,
+    15,
+    20
+   ],
+   "solid_count": 1,
+   "volume_mm3": 28274.333882308143,
+   "circular_diameters_mm": [
+    30
+   ],
+   "circular_edges": [
+    {
+     "diameter_mm": 30,
+     "center_mm": [
+      0,
+      0,
+      -20
+     ]
+    },
+    {
+     "diameter_mm": 30,
+     "center_mm": [
+      0,
+      0,
+      20
+     ]
+    }
+   ]
+  },
+  "computed": {}
+ },
+ "bracket": {
+  "facts": {
+   "bounds_mm": {
+    "x": 60,
+    "y": 30,
+    "z": 50
+   },
+   "bounds_min_mm": [
+    0,
+    -15,
+    0
+   ],
+   "bounds_max_mm": [
+    60,
+    15,
+    50
+   ],
+   "solid_count": 1,
+   "volume_mm3": 12641.46018366024,
+   "circular_diameters_mm": [
+    5
+   ],
+   "circular_edges": [
+    {
+     "diameter_mm": 5,
+     "center_mm": [
+      32,
+      0,
+      0
+     ]
+    },
+    {
+     "diameter_mm": 5,
+     "center_mm": [
+      32,
+      0,
+      4
+     ]
+    }
+   ]
+  },
+  "computed": {
+   "hole_offset": 32,
+   "inside_height": 46
+  }
+ },
+ "imported-step": {
+  "facts": {
+   "bounds_mm": {
+    "x": 50,
+    "y": 30,
+    "z": 20
+   },
+   "bounds_min_mm": [
+    -25,
+    -15,
+    -5
+   ],
+   "bounds_max_mm": [
+    25,
+    15,
+    15
+   ],
+   "solid_count": 1,
+   "volume_mm3": 17010.61929829754,
+   "circular_diameters_mm": [
+    16
+   ],
+   "circular_edges": [
+    {
+     "diameter_mm": 16,
+     "center_mm": [
+      0,
+      0,
+      5
+     ]
+    },
+    {
+     "diameter_mm": 16,
+     "center_mm": [
+      0,
+      0,
+      15
+     ]
+    }
+   ]
+  },
+  "computed": {}
+ },
+ "rejection": "The 8 holes need 146 mm but the plate is only 120 mm long."
+}

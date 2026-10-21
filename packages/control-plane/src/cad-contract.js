@@ -97,5 +97,7 @@ export function cadBlock(job, accepted = null) {
     status: job.state, title: manifest?.title || job.brief?.title || 'CAD model', units: manifest?.units || job.brief?.units || null,
     briefSummary: (manifest?.assumptions || job.brief?.assumptions || []).filter(x => typeof x === 'string').join('; ').slice(0, 500),
     manifest: manifest || null, acceptedManifest: manifest || null, manifestUrl: `/api/learn/cad/jobs/${encodeURIComponent(job.id)}`, thumbnailUrl: manifest?.artifacts?.find(a => a.kind === 'thumbnail')?.url || null,
-    ...(job.awaitingAccept ? { proposedRevisionId: job.revisionId } : {}), ...(sourceId ? { sourceId, fileRef: { source: { id: sourceId } } } : {}) };
+    ...(job.awaitingAccept ? { proposedRevisionId: job.revisionId } : {}), ...(sourceId ? { sourceId, fileRef: { source: { id: sourceId } } } : {}),
+    // The accepted history (cad-jobs.js revisionEntry): revisions and parameter changes, never a prompt.
+    ...(Array.isArray(accepted?.revisions) ? { revisions: accepted.revisions } : {}) };
 }

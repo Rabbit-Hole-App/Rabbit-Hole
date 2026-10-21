@@ -3,7 +3,7 @@ import { createHash, timingSafeEqual, randomBytes } from 'node:crypto';
 import { mkdir, writeFile, readFile, lstat, rm, chmod } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { validateJob, effectiveLimits, RESULT_SCHEMA, RUNTIME } from './contract.mjs';
+import { validateJob, effectiveLimits, RESULT_SCHEMA, RUNTIME, CAPABILITIES } from './contract.mjs';
 import { detect } from './sandbox/resource-control.mjs';
 import { inspectGlb } from '../web/src/three-d-asset.js';
 import { configuredBudget } from './pilot-budget.mjs';
@@ -143,7 +143,7 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
   const server = createServer(async (req, res) => {
     const send = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
     try {
-      if (req.url === '/health' && req.method === 'GET') return send(200, { ok: !degraded, service: 'cad-execute', runtime: RUNTIME, image, busy: !!active, sandbox: detect().backend, admission, budget: budget?.summary() });
+      if (req.url === '/health' && req.method === 'GET') return send(200, { ok: !degraded, service: 'cad-execute', runtime: RUNTIME, capabilities: CAPABILITIES, image, busy: !!active, sandbox: detect().backend, admission, budget: budget?.summary() });
       if (!auth(req)) return send(401, { error: 'Unauthorized' });
       const match = req.url.match(/^\/jobs\/([A-Za-z0-9_.-]+)\/(\d+)(\/cancel)?$/);
       if (match) {

@@ -26,7 +26,7 @@ def evaluate(facts, checks):
         if actual is None or not numeric(expected) or not numeric(tolerance) or tolerance < 0:
             results.append({'id': str(check.get('id', kind))[:100], 'kind': str(kind)[:40], 'status': 'unchecked', 'passed': False, 'reason': 'Unsupported or underspecified geometric requirement'})
         else:
-            results.append({'id': str(check.get('id', kind))[:100], 'kind': kind, 'status': 'passed' if abs(actual - expected) <= tolerance else 'failed', 'passed': abs(actual - expected) <= tolerance, 'actual': actual, 'expected': expected, 'tolerance': tolerance})
+            results.append({'id': str(check.get('id', kind))[:100], 'kind': kind, 'status': 'passed' if abs(actual - expected) <= tolerance else 'failed', 'passed': abs(actual - expected) <= tolerance, 'actual': actual, 'expected': expected, 'tolerance': tolerance, **({'axis': check['axis']} if kind == 'bounds_mm' else {})})
     return results
 
 

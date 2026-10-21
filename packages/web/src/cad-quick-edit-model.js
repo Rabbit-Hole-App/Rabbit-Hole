@@ -20,13 +20,13 @@ export function quickEditModel(manifest, { draft = {}, primaryCount = 4 } = {}) 
   const parameters = defs.map(p => {
     const check = p.check && checks.get(p.check);
     const measured = check && finite(check.actual)
-      ? { status: check.status, value: check.actual, expected: finite(check.expected) ? check.expected : null, unit: MEASURED_UNIT[check.kind] || null, checkId: p.check, revisionId: manifest.revisionId }
+      ? { status: check.status, kind: check.kind || null, ...(check.axis ? { axis: check.axis } : {}), value: check.actual, expected: finite(check.expected) ? check.expected : null, unit: MEASURED_UNIT[check.kind] || null, checkId: p.check, revisionId: manifest.revisionId }
       : { status: 'not_measured', label: 'Not measured.' };
     const base = { id: p.id, label: p.label, type: p.type, unit: p.unit || null, role: p.role, measured };
     if (p.role === 'computed') return { ...base, control: 'readonly', provenance: 'computed', value: finite(c.computed?.[p.id]) ? c.computed[p.id] : null, dependsOn: p.dependsOn || [], editable: false };
     const editable = bound.has(p.id), has = Object.hasOwn(draft, p.id);
     const control = !editable ? 'readonly' : p.type === 'choice' ? 'select' : p.type === 'boolean' ? 'toggle' : p.type === 'count' ? 'integer' : p.slider ? 'slider' : 'number';
-    return { ...base, control, provenance: 'requested', editable, value: values[p.id], ...(has ? { draft: draft[p.id], problem: valueProblem(p, draft[p.id]) } : {}),
+    return { ...base, control, provenance: p.assumed ? 'assumed' : 'requested', editable, value: values[p.id], ...(has ? { draft: draft[p.id], problem: valueProblem(p, draft[p.id]) } : {}),
       ...(editable ? {} : { reason: 'Not bound to this model\'s source.' }),
       ...['min', 'max', 'step', 'precision', 'choices'].reduce((o, k) => (p[k] !== undefined ? { ...o, [k]: p[k] } : o), {}) };
   });

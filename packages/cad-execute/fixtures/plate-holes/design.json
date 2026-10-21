@@ -13,10 +13,10 @@
       "parameters": [
         { "id": "length", "label": "Length", "role": "input", "type": "length", "unit": "mm", "value": 120, "min": 20, "max": 300, "step": 1, "priority": 0, "check": "size_x" },
         { "id": "width", "label": "Width", "role": "input", "type": "length", "unit": "mm", "value": 40, "min": 10, "max": 200, "step": 1, "priority": 1, "check": "size_y" },
-        { "id": "thickness", "label": "Thickness", "role": "input", "type": "length", "unit": "mm", "value": 5, "min": 1, "max": 20, "step": 0.5, "priority": 2, "check": "size_z" },
+        { "id": "thickness", "label": "Thickness", "role": "input", "assumed": true, "type": "length", "unit": "mm", "value": 5, "min": 1, "max": 20, "step": 0.5, "priority": 2, "check": "size_z" },
         { "id": "hole_diameter", "label": "Hole diameter", "role": "input", "type": "length", "unit": "mm", "value": 6, "min": 1, "max": 30, "step": 0.1, "precision": 1, "priority": 3, "check": "hole_d" },
-        { "id": "hole_count", "label": "Number of holes", "role": "input", "type": "count", "value": 3, "min": 1, "max": 8, "priority": 4 },
-        { "id": "hole_spacing", "label": "Hole spacing", "role": "input", "type": "length", "unit": "mm", "value": 30, "min": 2, "max": 200, "step": 0.5, "priority": 5 },
+        { "id": "hole_count", "label": "Number of holes", "role": "input", "assumed": true, "type": "count", "value": 3, "min": 1, "max": 8, "priority": 4 },
+        { "id": "hole_spacing", "label": "Hole spacing", "role": "input", "assumed": true, "type": "length", "unit": "mm", "value": 30, "min": 2, "max": 200, "step": 0.5, "priority": 5 },
         { "id": "edge_margin", "label": "End margin", "role": "computed", "type": "length", "unit": "mm", "dependsOn": ["length", "hole_count", "hole_spacing", "hole_diameter"], "priority": 20 }
       ],
       "constraints": [

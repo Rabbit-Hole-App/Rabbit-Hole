@@ -57,6 +57,8 @@ export function validateControls(controls) {
       def.choices = p.choices.map(c => { if (!c || !text(c.value, 60) || !text(c.label, 80)) throw invalid(`${where} has an invalid choice.`); return { value: c.value, label: c.label.trim() }; });
       if (new Set(def.choices.map(c => c.value)).size !== def.choices.length) throw invalid(`${where} repeats a choice.`);
     } else if (p.choices !== undefined) throw invalid(`${where} cannot carry choices.`);
+    // assumed: the brief chose this input's value; the person did not state it (shown as Assumed, never as Requested).
+    if (p.assumed !== undefined) { if (typeof p.assumed !== 'boolean' || p.role !== 'input') throw invalid(`${where}: only inputs can be marked assumed.`); if (p.assumed) def.assumed = true; }
     if (p.priority !== undefined) { if (!Number.isInteger(p.priority) || p.priority < 0 || p.priority > 100) throw invalid(`${where} has an invalid priority.`); def.priority = p.priority; }
     if (p.check !== undefined) { if (!text(p.check, 100)) throw invalid(`${where} names an invalid check.`); def.check = p.check; }
     if (p.dependsOn !== undefined) {

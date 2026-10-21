@@ -31,3 +31,20 @@ export function cadDimensions(manifest) {
   });
   return { revisionId, available: true, units: 'mm', overall, features };
 }
+
+// What Show dimensions draws (cad-dimensions-overlay.jsx): one label per overall extent and one per measured feature
+// parameter, each with the input whose check measures it, when a definition maps one: Requested, or Assumed when the brief
+// chose it. The anchor is the label's GLB point (the middle of a bounding edge, or a feature's centre); none: legend only.
+export function dimensionLabels(manifest) {
+  const data = cadDimensions(manifest);
+  if (!data.available) return { ...data, items: [] };
+  const checks = new Map((manifest.validation.checks || []).map(check => [check.id, check]));
+  const controls = manifest.controls?.revisionId === data.revisionId ? manifest.controls : null, defs = controls?.definitions?.parameters || [];
+  const input = p => (p?.role === 'input' ? { id: p.id, label: p.label, value: controls.values?.[p.id], unit: p.unit || null, kind: p.assumed ? 'assumed' : 'requested' } : null);
+  const onAxis = axis => defs.find(p => { const check = p.check && checks.get(p.check); return check?.kind === 'bounds_mm' && check.axis === axis; });
+  const middle = ({ from, to }) => from.map((v, i) => (v + to[i]) / 2);
+  const overall = data.overall.map(o => ({ key: `axis:${o.axis}`, name: o.axis.toUpperCase(), measured: o.status === 'measured' ? o.value : null, point: o.anchor ? glbPoint(middle(o.anchor)) : null, input: input(onAxis(o.axis)) }));
+  const seen = new Set(), features = data.features.filter(f => !seen.has(f.parameterId) && seen.add(f.parameterId))
+    .map(f => ({ key: `feature:${f.parameterId}`, name: '⌀', measured: f.value, point: glbPoint(f.anchor.center), input: input(defs.find(p => p.id === f.parameterId)) }));
+  return { ...data, items: [...overall, ...features] };
+}

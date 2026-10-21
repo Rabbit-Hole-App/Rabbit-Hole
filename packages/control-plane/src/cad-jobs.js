@@ -21,6 +21,16 @@ const LEASE = 90000;
 const secretEnv = env => ({FILE_JOB_SECRET:env.CAD_JOB_SECRET});
 const configured = env => env.CAD_JOBS && env.LEARN_DB && learnMedia(env) && (env.CAD_JOB_SECRET || '').length >= 32 &&
   (/^https:\/\//.test(env.CAD_EXECUTOR_URL || '') || env.SMALL_ENV === 'test' && /^http:\/\/(127\.0\.0\.1|localhost):/.test(env.CAD_EXECUTOR_URL || '')) && env.CAD_EXECUTOR_TOKEN;
+const CAD_REVISIONS = 20;
+const UNSUPPORTED_EXECUTOR = 'The CAD executor running now cannot rebuild from parameter values, so nothing was sent. Use Edit with AI (Ctrl+K) instead.';
+const discarded = job => job.rebuild && job.state === 'cancelled';
+// One accepted revision: parent, kind, and for a parameter rebuild each input that changed (label, unit, from, to).
+function revisionEntry(job, previous) {
+  const inputs = controls => Object.fromEntries((controls?.parameters || []).filter(p => p.role === 'input').map(p => [p.id, p]));
+  const before = inputs(previous?.brief?.controls), after = inputs(job.brief?.controls);
+  const changes = job.rebuild ? Object.values(after).filter(p => before[p.id] && before[p.id].value !== p.value).map(p => ({ id: p.id, label: p.label, ...(p.unit ? { unit: p.unit } : {}), from: before[p.id].value, to: p.value })) : [];
+  return { revisionId: job.revisionId, parentRevisionId: previous?.revisionId || null, kind: job.rebuild ? 'parameters' : previous ? 'ai_edit' : 'generated', changes, at: Date.now() };
+}
 const reply = (job, accepted) => ({job:publicCadJob(job),block:cadBlock(job,accepted)});
 const jobKey = id => `job:${id}`;
 
@@ -144,7 +154,7 @@ export class CadJobs {
   }
   async action({action,id,payload={},board,user,origin}) {
     if(action==='list'){
-      const jobs=[...(await this.state.storage.list({prefix:'job:'})).values()].filter(j=>!j.hidden);
+      const jobs=[...(await this.state.storage.list({prefix:'job:'})).values()].filter(j=>!j.hidden&&!discarded(j));
       // One current job per card; a later edit supersedes the older status card.
       const latest=new Map();for(const j of jobs.sort((a,b)=>a.createdAt-b.createdAt))latest.set(j.cardId,j);
       const items=await Promise.all([...latest.values()].map(async j=>reply(j,await this.accepted(j))));
@@ -207,7 +217,7 @@ export class CadJobs {
     }
     if(action==='cancel'){
       if(job.exportState==='preparing'){job.exportState='failed';job.exportError='Export cancelled.';job.cancelPending=true;job.pendingResult=null;await this.save(job);await this.wake();return this.response(job);}
-      if(job.state==='ready'&&job.awaitingAccept){job.awaitingAccept=false;job.state='cancelled';job.stage='cancelled';await this.save(job);return this.response(job);}
+      if(job.state==='ready'&&job.awaitingAccept||job.rebuild&&job.state==='failed'){job.awaitingAccept=false;job.state='cancelled';job.stage='cancelled';await this.save(job);return this.response(await this.cardJob(job));}
       // Nothing was dispatched for a brief under review: cancel locally, no executor request.
       if(job.state==='awaiting_approval'){job.state='cancelled';job.stage='cancelled';job.approval=null;await this.save(job);return this.response(job);}
       if(!CAD_TERMINAL.has(job.state)){job.state='cancelled';job.stage='cancelled';job.cancelPending=true;job.pendingResult=null;await this.save(job);await this.wake();}
@@ -219,7 +229,7 @@ export class CadJobs {
       // same result instead of a conflict, and changes nothing.
       if(!job.awaitingAccept && job.state==='ready' && current?.revisionId===job.revisionId && [job.baseRevisionId,job.revisionId].includes(payload.expectedRevisionId))return this.acceptedResponse(job,current);
       if(!job.awaitingAccept || job.state!=='ready' || !current || payload.expectedRevisionId!==current.revisionId || job.baseRevisionId!==current.revisionId)throw cadError('The accepted model changed. This preview cannot replace it.',409);
-      await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));job.awaitingAccept=false;await this.save(job);return this.acceptedResponse(job,await this.accepted(job));
+      await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job,current));job.awaitingAccept=false;await this.save(job);return this.acceptedResponse(job,await this.accepted(job));
     }
     if(action==='clarify'){
       if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
@@ -258,7 +268,23 @@ export class CadJobs {
     throw cadError('Unknown CAD action',404);
   }
   // The accepted model keeps the words of the job that made its revision (prompt), private to the owner's job storage.
-  modelRecord(job){return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText,checkSpecs:job.checkSpecs,prompt:job.prompt};}
+  // A parameter-only rebuild has no words of its own, so it keeps the last accepted prompt (tutor-workflow decisions, C UI).
+  // revisions: the accepted history, parent and new revision with any parameter changes; board-visible, so never any words.
+  modelRecord(job,previous=null){
+    const same=previous?.revisionId===job.revisionId;
+    const revisions=same?previous.revisions||[]:[...(previous?.revisions||[]),revisionEntry(job,previous)].slice(-CAD_REVISIONS);
+    return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText,checkSpecs:job.checkSpecs,prompt:job.rebuild?previous?.prompt||'':job.prompt,revisions};
+  }
+  // After a Discard the card follows the job of its accepted revision again (its status, Retry and polling).
+  async cardJob(job){
+    const model=await this.accepted(job);if(!job.rebuild||!model)return job;
+    return [...(await this.state.storage.list({prefix:'job:'})).values()].find(j=>j.cardId===job.cardId&&j.revisionId===model.revisionId&&!discarded(j))||job;
+  }
+  // Executors before cad-controls ignore `parameters` and would rebuild the old values; /health names what this one supports.
+  async executorSupports(capability){
+    try{const response=await fetch(new URL('/health',this.env.CAD_EXECUTOR_URL),{redirect:'manual',signal:AbortSignal.timeout(20000)});const health=response.ok?await response.json():null;return Array.isArray(health?.capabilities)&&health.capabilities.includes(capability);}
+    catch{return false;}
+  }
   // Only Accept returns a revision's words, as the card's prompt (docs/features/card-prompt.md): read from the accepted model,
   // never from a pending job, and only on this owner-only route. Status, list and reject answers never carry them.
   acceptedResponse(job,model){
@@ -276,6 +302,7 @@ export class CadJobs {
     if(!model||payload.expectedRevisionId!==model.revisionId)throw cadError('The accepted model changed. Reload before editing its parameters.',409);
     const controls=model.brief?.controls,bound=model.manifest?.controls?.bindings||[];
     if(!controls||!bound.length||!model.sourceText)throw notDeterministic('This model has no parameters bound to its source, so it cannot be rebuilt deterministically. Use Edit with AI instead.');
+    if(!await this.executorSupports('parameters'))throw Object.assign(cadError(UNSUPPORTED_EXECUTOR,409),{code:'executor_unsupported'});
     const jobs=await this.state.storage.list({prefix:'job:'});
     if(jobs.size>=CAD_LIMITS.jobs)throw cadError('This canvas has reached its CAD job limit.',429);
     if([...jobs.values()].some(j=>j.cardId===job.cardId&&!j.hidden&&(!CAD_TERMINAL.has(j.state)||j.awaitingAccept)))throw cadError('This card already has a change in progress. Accept or discard it first.',409);
@@ -283,7 +310,7 @@ export class CadJobs {
     const {values,problems}=validateValues(controls,payload.values,{bound,current});
     if(problems.length)throw Object.assign(cadError(problems.map(p=>p.message).join(' '),422),{problems});
     if(Object.keys(values).every(key=>values[key]===current[key]))throw cadError('No parameter changed.',422);
-    const nextControls={...controls,parameters:controls.parameters.map(p=>p.role==='input'?{...p,value:values[p.id]}:p)},parameters=controlScope(nextControls);
+    const nextControls={...controls,parameters:controls.parameters.map(({assumed,...p})=>p.role!=='input'?{...p,...(assumed?{assumed}:{})}:{...p,value:values[p.id],...(assumed&&values[p.id]===current[p.id]?{assumed}:{})})},parameters=controlScope(nextControls);
     // Unrelated checks keep their expectation; checks derived from changed inputs follow them (cad-expression).
     const checks=resolveCadChecks(model.checkSpecs||[],parameters);
     const id=newCadId(board.id),now=Date.now(),limits=cadLimits(this.env);
@@ -365,7 +392,7 @@ export class CadJobs {
       if(review){
         if(result?.accepted!==true){if(job.repairs>=Math.min(job.limits.repairs,cadLimits(this.env).repairs))return this.fail(job,'The model did not pass visual review within the repair limit.');job.repairs++;job.repairReason=JSON.stringify(result.problems||[]).slice(0,2000);job.previousSource=job.sourceText;job.previousBrief=job.brief;job.attempt++;job.revisionId=`cr_${crypto.randomUUID().replaceAll('-','')}`;job.state='repairing';job.modelPhase=null;job.dispatchAt=null;job.leaseUntil=null;await this.save(job);return;}
         job.modelPhase=null;job.state='ready';job.stage='ready';job.awaitingAccept=!!job.baseRevisionId;
-        if(!job.awaitingAccept)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));await this.save(job);return;
+        if(!job.awaitingAccept)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job,await this.accepted(job)));await this.save(job);return;
       }
       const interpreting=job.modelPhase==='brief';
       // An approved job's brief and checks are fixed: generation and repair supply source only.
@@ -389,6 +416,7 @@ export class CadJobs {
       job.state='building';job.stage='building';await this.save(job);return;
     }
     if(job.dispatchAt){if(job.leaseUntil<Date.now())return this.fail(job,'The CAD executor stopped responding. Saved artifacts are retained; retry explicitly.');return;}
+    if(job.rebuild&&job.operation!=='export'&&!await this.executorSupports('parameters'))return this.fail(job,`${UNSUPPORTED_EXECUTOR} The accepted model is unchanged.`);
     const exportStep=job.operation==='export'?job.manifest.artifacts.find(a=>a.kind==='step'):null;
     const base=`${job.origin}${PREFIX}/${encodeURIComponent(job.id)}/attempts/${job.attempt}`;
     const callback=await callbackToken(secretEnv(this.env),job.id,job.attempt);
@@ -431,7 +459,7 @@ export class CadJobs {
         job.limitations=body.validation?.unchecked||body.validation?.checks?.filter(c=>c.status==='unchecked').map(c=>c.reason||c.id||c.kind)||[];
         if(job.operation==='export'&&!job.previewRecovery){
           job.exportState='ready';job.operation='build';
-          if((await this.accepted(job))?.revisionId===job.revisionId)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));
+          {const model=await this.accepted(job);if(model?.revisionId===job.revisionId)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job,model));}
         }else{
           job.operation='build';job.previewRecovery=false;
           const missing=['glb','thumbnail'].filter(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));

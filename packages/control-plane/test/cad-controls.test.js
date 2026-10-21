@@ -16,8 +16,8 @@ const PROMPT = 'Make a plate with a row of holes for a small shelf bracket.';
 const request = (extra = {}) => ({ app: 'cad-a', board: 'main', cardId: 'cad-card', requestId: 'req-1', prompt: PROMPT, context: { selected: [] }, confirmed: true, ...extra });
 const BOARD = 'cad-board-a';
 
-async function setup(t, { briefFirst = false, design = plate } = {}) {
-  const calls = [], sent = [];
+async function setup(t, { briefFirst = false, design = plate, env = {} } = {}) {
+  const calls = [], sent = [], executorCaps = ['parameters'];
   const model = async (job, prepared) => {
     calls.push({ phase: job.modelPhase === 'review' ? 'review' : job.modelPhase === 'brief' ? 'brief' : job.approval ? 'source' : 'single', prepared, job });
     if (job.modelPhase === 'review') return { accepted: true, problems: [] };
@@ -26,10 +26,11 @@ async function setup(t, { briefFirst = false, design = plate } = {}) {
     if (job.approval) return { source: '# synthetic source; never executed\n', brief: { ...design().brief, requirements: ['anything goes'] }, checks: [] };
     return { ...design(), source: '# synthetic source; never executed\n' };
   };
-  const f = await startCadAcceptanceStack({ cadRoute, CadJobs, extraEnv: { CAD_TEST_MODEL: model, ...(briefFirst ? { CAD_BRIEF_FIRST: 'true' } : {}) } });
+  const f = await startCadAcceptanceStack({ cadRoute, CadJobs, extraEnv: { CAD_TEST_MODEL: model, ...(briefFirst ? { CAD_BRIEF_FIRST: 'true' } : {}), ...env } });
   t.after(() => f.close());
   const actor = () => f.objects.get(BOARD);
-  const stubExecutor = () => { actor().instance.executor = async (path, body) => { if (path === '/jobs') sent.push(body); return new Response('{}', { status: 202 }); }; };
+  // The executor's /health capability list (cad-execute CAPABILITIES); tests empty it to stand in for an older executor.
+  const stubExecutor = () => { actor().instance.executor = async (path, body) => { if (path === '/jobs') sent.push(body); return new Response('{}', { status: 202 }); }; actor().instance.executorSupports = async c => executorCaps.includes(c); };
   const job = async id => actor().storage.get(`job:${id}`);
   const advance = async id => { stubExecutor(); await actor().instance.advance(await job(id)); return job(id); };
   const post = (path, body, email) => f.request(path, { method: 'POST', body, ...(email !== undefined ? { email } : {}) });
@@ -64,7 +65,7 @@ async function setup(t, { briefFirst = false, design = plate } = {}) {
     assert.equal(ready.state, 'ready'); assert.equal(ready.awaitingAccept, false);
     return { id: created.job.id, revisionId: ready.revisionId };
   }
-  return { f, calls, sent, job, advance, post, api, deliver, acceptedModel, allRead, actor };
+  return { f, calls, sent, job, advance, post, api, deliver, acceptedModel, allRead, actor, executorCaps };
 }
 
 test('CAD brief-first is off by default: one call returns source as today', async t => {
@@ -232,4 +233,70 @@ test('CAD brief-first: Cancel during review spends nothing more and contacts no 
   await s.actor().instance.alarm();
   assert.equal(s.calls.length, 1); assert.equal(s.sent.length, 0);
   assert.equal((await s.post(`${s.api(created.job.id)}/approve`, { briefHash: job.briefHash, confirmed: true })).status, 409);
+});
+
+test('CAD rebuild Accept keeps the last accepted prompt and records the parameter revision', async t => {
+  const s = await setup(t);
+  const base = await s.acceptedModel();
+  const started = await (await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-p', expectedRevisionId: base.revisionId, values: { hole_diameter: 9, hole_count: 4 } })).json();
+  await s.advance(started.job.id); await s.advance(started.job.id); const ready = await s.deliver(started.job.id, { controls: s.allRead });
+  const accepted = await (await s.post(`${s.api(started.job.id)}/accept`, { expectedRevisionId: base.revisionId })).json();
+  assert.equal(accepted.block.promptUsed, PROMPT, 'a parameter-only Accept keeps the prompt');
+  const model = await s.actor().storage.get(`model:${(await s.job(base.id)).modelId}`);
+  assert.equal(model.prompt, PROMPT);
+  assert.deepEqual(model.revisions.map(r => [r.kind, r.parentRevisionId, r.revisionId]), [['generated', null, base.revisionId], ['parameters', base.revisionId, ready.revisionId]]);
+  assert.deepEqual(model.revisions[1].changes, [{ id: 'hole_diameter', label: 'Hole diameter', unit: 'mm', from: 6, to: 9 }, { id: 'hole_count', label: 'Number of holes', from: 3, to: 4 }]);
+  assert.deepEqual(accepted.block.revisions, model.revisions, 'the card gets the history');
+  assert.ok(!JSON.stringify(accepted.block.revisions).includes(PROMPT), 'revisions carry no words');
+});
+
+test('CAD rebuild Discard hands the card back to its accepted job, also after a failure and on reload', async t => {
+  const s = await setup(t);
+  const base = await s.acceptedModel();
+  const started = await (await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-d', expectedRevisionId: base.revisionId, values: { hole_diameter: 9 } })).json();
+  await s.advance(started.job.id); await s.advance(started.job.id); await s.deliver(started.job.id, { controls: s.allRead });
+  const discarded = await (await s.post(`${s.api(started.job.id)}/cancel`, {})).json();
+  assert.equal(discarded.block.jobId, base.id); assert.equal(discarded.block.status, 'ready'); assert.equal(discarded.block.revisionId, base.revisionId);
+  const listed = await (await s.f.request('/api/learn/cad/jobs?app=cad-a&board=main')).json();
+  assert.equal(listed.blocks[0].jobId, base.id, 'a reload restores the accepted job, not the discarded preview');
+  const failing = await (await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-f', expectedRevisionId: base.revisionId, values: { hole_count: 5 } })).json();
+  await s.advance(failing.job.id); await s.advance(failing.job.id);
+  const failed = await s.deliver(failing.job.id, { fail: { error: 'execution_failed', phase: 'build', diagnostics: 'ValueError: too many holes' } });
+  assert.equal(failed.state, 'failed');
+  const dropped = await (await s.post(`${s.api(failing.job.id)}/cancel`, {})).json();
+  assert.equal(dropped.block.jobId, base.id); assert.equal((await s.job(failing.job.id)).state, 'cancelled');
+  assert.equal((await s.actor().storage.get(`model:${(await s.job(base.id)).modelId}`)).revisionId, base.revisionId);
+});
+
+test('CAD rebuild is refused before dispatch when the executor lacks parameter support', async t => {
+  const s = await setup(t);
+  const base = await s.acceptedModel(), sentBefore = s.sent.length;
+  s.executorCaps.length = 0;
+  const refused = await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-u', expectedRevisionId: base.revisionId, values: { hole_diameter: 9 } });
+  assert.equal(refused.status, 409); const body = await refused.json();
+  assert.equal(body.code, 'executor_unsupported'); assert.match(body.error, /cannot rebuild from parameter values.*Edit with AI/);
+  assert.equal((await (await s.f.request('/api/learn/cad/jobs?app=cad-a&board=main')).json()).jobs.length, 1, 'no job was created');
+  // A rebuild accepted by a supporting executor, then retried after the executor was replaced by an older one.
+  s.executorCaps.push('parameters');
+  const started = await (await s.post(`${s.api(base.id)}/rebuild`, { requestId: 'rb-s', expectedRevisionId: base.revisionId, values: { hole_diameter: 9 } })).json();
+  assert.equal(started.job.state, 'building', 'the supported path starts');
+  await s.advance(started.job.id); s.executorCaps.length = 0;
+  const failed = await s.advance(started.job.id);
+  assert.equal(failed.state, 'failed'); assert.match(failed.error, /cannot rebuild from parameter values.*The accepted model is unchanged/);
+  assert.equal(s.sent.length, sentBefore, 'nothing reached the executor');
+  assert.equal((await s.actor().storage.get(`model:${(await s.job(base.id)).modelId}`)).revisionId, base.revisionId);
+});
+
+test('CAD brief-first needs three calls: with the production CAD_MAX_CALLS=2 the job fails before its visual review', async t => {
+  // wrangler.rabbit-hole-prod.jsonc sets CAD_MAX_CALLS 2; brief, source and review are three calls. Ceilings are unchanged here.
+  const s = await setup(t, { briefFirst: true, env: { CAD_MAX_CALLS: '2' } });
+  const created = await (await s.post('/api/learn/cad/jobs', request())).json();
+  const job = await s.advance(created.job.id);
+  const approved = await s.post(`${s.api(created.job.id)}/approve`, { briefHash: job.briefHash, confirmed: true });
+  assert.equal(approved.status, 202);
+  await s.advance(created.job.id); await s.advance(created.job.id); await s.deliver(created.job.id, { controls: s.allRead });
+  await s.actor().instance.alarm();
+  const failed = await s.job(created.job.id);
+  assert.equal(failed.state, 'failed'); assert.match(failed.error, /model-call or spend limit/);
+  assert.deepEqual(s.calls.map(c => c.phase), ['brief', 'source'], 'the review call is never made');
 });

@@ -45,3 +45,9 @@ test('source-reported controls are bounded and filtered, never trusted wholesale
   assert.equal(parseControls(Buffer.from('not json')),null);assert.equal(parseControls(Buffer.from('{"read":"edge","computed":{}}')),null);
   assert.deepEqual(parseControls(Buffer.from(JSON.stringify({read:['edge','edge','Bad',3],computed:{pitch:12.5,bad:'x',Upper:1}}))),{read:['edge'],computed:{pitch:12.5}});
 });
+test('health names parameter support, which the control plane requires before a parameter rebuild', async () => {
+  // cad-jobs.js executorSupports('parameters'): an executor without this list (deployed before cad-controls) is refused.
+  const { CAPABILITIES } = await import('./contract.mjs');
+  assert.deepEqual([...CAPABILITIES], ['parameters']);
+  assert.match(await readFile(new URL('./server.mjs', import.meta.url), 'utf8'), /req\.url === '\/health'[^\n]*capabilities: CAPABILITIES/);
+});

@@ -1,6 +1,8 @@
 // Executor contract: provider credentials and durable ownership stay in the control plane.
 export const SCHEMA = 'cad-execute/1';
 export const RESULT_SCHEMA = 'cad-execute-result/1';
+// What this executor supports beyond cad-execute/1, listed on /health; the control plane refuses a parameter rebuild without it.
+export const CAPABILITIES = Object.freeze(['parameters']);
 export const LIMITS = Object.freeze({ source_bytes: 4 * 1024 ** 2, artifact_bytes: 50 * 1024 ** 2, total_artifact_bytes: 100 * 1024 ** 2, total_seconds: 600, stage_seconds: 300, memory_bytes: 2 * 1024 ** 3, workspace_bytes: 512 * 1024 ** 2 });
 export const RUNTIME = Object.freeze({ cadgen: '0.7.21', build123d: '0.11.1', ocp: '7.9.3.1.1', playwright: '1.63.0', upstream: '24573128ceaab564f497d7c12f995c41784c9539', executor: 'cad-execute/1' });
 const id = /^[A-Za-z0-9_.-]{1,650}$/;
