@@ -6,6 +6,7 @@ import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendO
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
 import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
+import { progressQuestionContext } from './learn-progress-context.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -1209,6 +1210,11 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // what was read. member_board: the member board a canvas member asks on (canvas-comments.js memberContext).
     const fileRefs = (chat.contextRefs || []).filter(ref => ref.kind === 'file');
     const files = fileRefs.length && env.LEARN_DB ? await fileContext(req, env, fileRefs, { user, app: scopedApp?.name ?? scope.app ?? null, member: body.member_board ?? null }).catch(() => null) : null;
+    // A Progress question (Task 10): the learner's own saved evidence for each attached progress scope, read-only, rechecked
+    // for this learner now (learn-progress-context.js). It never assesses; the model is told so.
+    if (chat.contextRefs?.some(ref => ref.kind === 'progress')) context = `${context}
+
+${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
     // An image file ref (a dropped image, a PDF region crop) rides as the picture itself, beside the documents (file-context.js).
     if (files?.images?.length) extraBlocks.push(...files.images);

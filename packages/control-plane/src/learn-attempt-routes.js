@@ -9,8 +9,9 @@
 //        The activity steps to awaiting_feedback, then to feedback_ready once the assessment is final (coaching store).
 //   GET  /api/learn/tutor/attempts/:id?app=&board= -> {attempt, assessment, assessments}
 //        Reconciles stale operations. It makes no model call.
-//   POST /api/learn/tutor/attempts/:id/reassess {app, board, requestKey} -> {attempt, assessment, assessments, replayed}
+//   POST /api/learn/tutor/attempts/:id/reassess {app, board, requestKey, dispute?} -> {attempt, assessment, assessments, replayed}
 //        A deliberate review. It supersedes the last completed assessment; the original attempt and result are kept.
+//        dispute: true is the learner's "Question this feedback" (Task 10): the questioned result is labelled disputed.
 //
 // Errors:
 //   400 invalid_submission, invalid_content, unknown_source, invalid_request_key
@@ -64,7 +65,7 @@ export async function attemptRoute(path, req, env, deps = {}) {
   try {
     if (method === 'GET') return json(await readAttempt(env, actor, id));
     handle = reassess
-      ? await requestReassessment(env, actor, id, body.requestKey)
+      ? await requestReassessment(env, actor, id, body.requestKey, { dispute: body.dispute === true })
       : await acceptAttempt(env, actor, {
         activityId: body.activityId, activityRevision: body.activityRevision, submissionKey: body.submissionKey,
         submittedContent: body.submittedContent, sourceRefs: body.sourceRefs ?? [], assistanceRefs: body.assistanceRefs ?? [],

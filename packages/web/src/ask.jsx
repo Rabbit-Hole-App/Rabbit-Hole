@@ -41,6 +41,7 @@ import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode, tutorTurn } from './chat-route.js';
 import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
+import { fileReviews } from './learn-progress-question.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 import { handleAiRefusal } from './ai-refusal.js';
 
@@ -617,7 +618,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // A turn about one PDF page keeps the Tutor, which reads that page (tutorPage, page_context); several pages go to /api/learn/ask.
     const pdfPage = tutorPage(target, attachedRefs);
     // A PDF excerpt (pdf-excerpt.js) rides as client text the Tutor's plan does not read: like a file, it goes to /api/learn/ask.
-    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt');
+    // So does a progress question (Tutor Task 10): only that route reads the learner's evidence for it, read-only, and the
+    // Tutor's path could take the message for an answer to assess.
+    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress');
     const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode, toc: tocView });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
@@ -666,6 +669,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         }
         return;
       }
+      // "Question this feedback" (Tutor Task 10) files its dispute only here, at Send, once per questioned judgment; the answer
+      // then reads the dispute's actual state from the records. Progress reloads to show it.
+      if (chat && !regenerate && (await fileReviews(attachedRefs, { app: (scopeOverride || scope)?.app, post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }) })).length) window.dispatchEvent(new CustomEvent('rh:progress-changed'));
       const canvasContext = canvasOps?.canvasContext?.({ request: message, ...canvasArgs, inspected: imageId && imageObject ? [imageObject] : [] });
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which

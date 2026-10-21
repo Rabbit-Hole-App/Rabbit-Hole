@@ -663,6 +663,47 @@ test('file refs ride Ask, explicit Tutor and Auto turns: the excerpt and its cov
   assert.deepEqual(seen[1].options, { user: owner, app: 'canvas-0a1b2c3d', member: 'b-1' });
 });
 
+// Progress questions (Tutor Task 10, C:/s/spec/tutor-workflow/draft.md): a progress ref rides Ask, Tutor and Auto turns as a
+// question. The learner's own records for its scope reach the model, read-only; the Tutor turn plans no syllabus; the ref
+// stays with the conversation; nothing is assessed. The resolver is real (learn-progress-context.test.js covers its rules).
+test('a progress ref rides every mode as a read-only question: its evidence reaches the model, no syllabus, nothing assessed', async t => {
+  const f = fixture(t);
+  const { applyCoachingAction, readCoachingState } = await import('../src/learn-coaching-store.js');
+  const { acceptAttempt, claimAssessment, commitAssessment } = await import('../src/learn-attempt-store.js');
+  const { progressQuestionContext } = await import('../src/learn-progress-context.js');
+  const actor = { org: owner.org, userId: 'u-owner-1', app: 'canvas-0a1b2c3d', board: 'main' };
+  let n = 0;
+  const act = async (action, payload) => applyCoachingAction(f.env, actor, { actionId: `a-${++n}`, expectedRevision: (await readCoachingState(f.env, actor)).revision, action, payload });
+  const goalId = (await act('create_goal', { label: 'KNN', criteria: [{ criterionId: 'vote', label: 'Explain the majority vote', requirement: 'Explain why the class wins', requiresReasoning: true }] })).state.activeGoalId;
+  const state = (await act('activate_activity', { activity: { goalId, objective: 'Vote', prompt: 'Predict and explain', responseKind: 'text', criterionRefs: [{ criterionId: 'vote', version: 1 }] } })).state;
+  const activity = state.activities.find(a => a.activityId === state.activeActivityId);
+  const saved = await acceptAttempt(f.env, actor, { activityId: activity.activityId, activityRevision: 1, submissionKey: 'answer-0001', submittedContent: { text: 'A wins because two of three are A.' }, sourceRefs: [], assistanceRefs: ['hint-1'] });
+  const token = await claimAssessment(f.env, actor, saved.assessmentId);
+  await commitAssessment(f.env, actor, { assessmentId: saved.assessmentId, token, attemptId: saved.attemptId, goalId, status: 'completed', observations: [{ criterionId: 'vote', criterionVersion: 1, fit: 'met', reasoning: 'supported', assistance: 'assisted', validity: 'valid', application: 'not_assessed' }] });
+  const PROGRESS = { sourceId: `progress:${goalId}`, kind: 'progress', name: 'KNN · Explain the majority vote', version: '1', range: { goalRefs: [{ goalId, scopeVersion: 1 }], criterionRefs: [{ criterionId: 'vote', version: 1 }], dimensions: [], observationIds: [], summaryRevision: 1 } };
+  const before = JSON.stringify(f.rows('SELECT * FROM learn_assessments').concat(f.rows('SELECT * FROM learn_observations')));
+  const app = { ...canvasApp(f.sqlite.prepare("SELECT * FROM canvases WHERE name='canvas-0a1b2c3d'").get(), owner), user_id: actor.userId };
+  const apiAsk = build(fakeMeta, { progressQuestionContext });
+  for (const mode of ['ask', 'tutor', 'auto']) {
+    f.replies.push('Your explanation was right after a hint.\n<answer_meta>{}</answer_meta>');
+    const res = await apiAsk(new Request('https://dev.test/api/learn/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scope: { app: 'canvas-0a1b2c3d' }, message: 'make me a course on why this says with help', mode, context_refs: [PROGRESS] }) }), f.env, {}, owner, 'learn', canvasAskSeam(f.env, app));
+    assert.equal(res.status, 200, mode);
+    await res.text();
+    const sent = JSON.stringify(f.calls.at(-1));
+    assert.match(sent, /PROGRESS QUESTION \(read-only\)/, `${mode}: the progress block reaches the model`);
+    assert.match(sent, /fit met, reasoning supported, help assisted/, `${mode}: the learner's own observation is in it`);
+    assert.doesNotMatch(sent, /Tutor mode: syllabus creation/, `${mode}: a progress question never plans a syllabus, even worded as a course request`);
+  }
+  assert.equal(JSON.stringify(f.rows('SELECT * FROM learn_assessments').concat(f.rows('SELECT * FROM learn_observations'))), before, 'nothing was assessed');
+  const metas = f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'user'").map(r => JSON.parse(r.meta_json));
+  assert.deepEqual(metas.map(m => [m.mode, m.contextRefs[0].sourceId]), [['ask', PROGRESS.sourceId], ['tutor', PROGRESS.sourceId], ['auto', PROGRESS.sourceId]], 'the chosen mode is kept and the scope stays with the conversation');
+  // A malformed scope is refused before anything runs; the thread state accepts a valid progress ref.
+  assert.throws(() => contextRefs([{ ...PROGRESS, range: { ...PROGRESS.range, owner: 'u-owner-1' } }]), /question scope only/);
+  assert.throws(() => contextRefs([{ ...PROGRESS, range: { ...PROGRESS.range, observationIds: Array.from({ length: 25 }, (_, i) => `ob_${i}`) } }]), /at most 24 observations/);
+  assert.equal(validContextRefs([PROGRESS]), true);
+  assert.equal(validContextRefs([{ ...PROGRESS, range: null }]), false);
+});
+
 // PDF excerpts (C:/s/spec/pdf-excerpts/contract.md "Chat"): payload tests only - they prove what reaches the model request,
 // never that a model understood a figure. An image file ref's picture rides as an image block in the user message, and a
 // text excerpt's 8,000 verbatim characters ride whole; past the cap it is cut and the model is told.
