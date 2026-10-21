@@ -12,7 +12,9 @@ usage (feature `render`), kept out of the learner's AI allowance, and bounded by
 - one render at a time per worker;
 - a 420-second render timeout;
 - a 30-minute wait;
-- no automatic resubmission.
+- no automatic resubmission;
+- the learner's render slot across all canvases and the queue and daily limits, counted apart from the scene worker's
+  (render fairness, [learn-scene-generation.md](learn-scene-generation.md)); a submission that fails gives its slot back.
 
 Authoring the steps is a model call that still needs the allowance. See
 [learn-scene-generation.md](learn-scene-generation.md).

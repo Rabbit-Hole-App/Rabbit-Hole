@@ -7,6 +7,7 @@ import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
 import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext } from './learn-usage.js';
+import { admitRender, releaseRender } from './learn-render-admission.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -123,6 +124,13 @@ export class LearnVideos {
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
           job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER };
+          // A Manim render is platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's
+          // allowance): it takes the learner's render slot across all canvases first (render fairness, 2026-10-21).
+          if (maths) {
+            const admission = await admitRender(this.env, req, { provider: 'manim', model: version, label: 'animation', waitSeconds: MAX_WAIT_MS / 1000 });
+            if (admission.refused) return admission.refused;
+            job.slot = admission.slot;
+          }
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
@@ -131,9 +139,10 @@ export class LearnVideos {
           // started nothing: both stay retryable. Anything else may have started a paid job.
           catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
-          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render is
-          // platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's allowance).
-          if (!motion && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, maths ? 'render' : 'video'), { provider: job.provider, ok: !!job.ticket });
+          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render was
+          // recorded by its admission; a submission that failed gives its slot back.
+          if (maths && !job.ticket) await releaseRender(this.env, job.slot, false);
+          else if (!motion && !maths && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
@@ -188,6 +197,7 @@ export class LearnVideos {
         }
       }
       await this.state.storage.put(key, job);
+      if (job.status !== 'generating') await releaseRender(this.env, job.slot, job.status === 'ready'); // a Manim job's slot
     }
     if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating')) await this.state.storage.setAlarm(Date.now() + POLL_MS);
   }

@@ -25,11 +25,20 @@ The Fly machine has one shared CPU, 2 GB RAM and auto-start/stop. It is separate
 Cost (owner 5A decision C, 2026-10-21): the platform pays for rendering on our own scene and Manim workers. Each queued render is recorded once as platform-funded usage, attributed to the learner (feature `render`, charge class `free`, cost unknown, never 0), and is kept out of the learner's monthly AI allowance. The model call that writes the scene source (`/3d`, `/animate`, board or Tutor) is still admitted against that allowance before any spending, so an exhausted allowance stops it with zero provider and zero renderer calls. Rendering is bounded by the existing job limits:
 
 - runtime: 90-second compile, 15-minute queue wait;
-- concurrency: one active job per learner per canvas, one compile per worker machine (busy answers 429), and a fixed Fly machine pool;
+- concurrency: one active job per canvas, one compile per worker machine (busy answers 429), and a fixed Fly machine pool;
 - retries: deterministic keys, and an explicit retry only;
 - compute budget: the fixed renderer pool. Production `rabbit-hole-lesson-renderer-prod` is one shared-cpu-1x 2 GB machine with autostop and autostart, min 0 (verified 2026-10-21). Autostart never creates machines, so the worst case is that one machine running all month.
 
-There is no app-level per-learner or daily render budget (see `learn-allowance.test.js`, "platform-funded").
+Render fairness (owner, 2026-10-21; `learn-render-admission.js`): before a render is queued it takes a render slot of the signed-in learner, counted across all of their canvases and workspaces, on the `render` rows above (no new table). Admission is one D1 transaction, so concurrent submissions from several canvases cannot overshoot. Each renderer (scene worker, Manim) has its own limits, all server vars with defaults in code:
+
+| Var | Default | Limit |
+|---|---|---|
+| `RENDER_LEARNER_ACTIVE` | 1 | queued or rendering jobs per learner, all canvases: each learner waits with one job, so no learner can fill the queue |
+| `RENDER_QUEUE_MAX` | 8 | queued or rendering jobs across all learners (the worker holds 10 and compiles one at a time for at most 90 s, so 8 finish inside the 15-minute wait) |
+| `RENDER_LEARNER_DAY` | 30 | renders a learner starts in a rolling 24 hours (request limit) |
+| `RENDER_PLATFORM_DAY` | 400 | renders all learners start in a rolling 24 hours (compute limit: at most 400 times the per-render cap) |
+
+A malformed value reads as the default, never as unlimited; 0 stops new renders. A duplicate submission, and a scene already rendered on that canvas, take no slot. The slot is given back when the job is ready, fails, or times out; a job that loses its renderer (a restart) is resubmitted under its key and keeps its slot; a running slot older than the queue wait (a lost Durable Object or a failed release) no longer counts. A refused render answers 429 (503 when the limits cannot be read: no learner or no store, fail closed) with code `render_limited`, a reason (`learner_active`, `queue_full`, `learner_day`, `platform_day`, `unavailable`), a sentence saying why and when to retry, and `Retry-After`. Tests: `learn-allowance.test.js`, "render fairness", "render slots", "render limits".
 
 States are queued, rendering, ready and failed. A busy worker leaves the job queued. A restarted worker can repeat deterministic transient work using its existing job key. Definitive failures require an explicit retry; retries receive a new attempt key. End-to-end queue wait is capped at 15 minutes.
 
