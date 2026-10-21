@@ -80,6 +80,7 @@ import { createSearchSnapshotStore, createEquationSearchDrafts, searchCamera, se
 import './canvas-search-navigation.css';
 import { EXCERPT_CARD, excerptChatRef } from './pdf-excerpt.js';
 import { EXCERPT_DRAG, EXCERPT_EVENT } from './pdf-excerpt-drafts.js';
+import { SEARCH_DRAG, applySearchDrop, paintSearchDrop, searchDrag, searchDropPlan } from './search-drag.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
@@ -2198,6 +2199,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([id]);
         cameraRef.current = { id, frame: true };
       },
+      // A Search result dropped on the canvas (search-drag.js): this same object, its top-left at a world point, one undo step.
+      moveTo: (id, spot) => {
+        const box = boxesOf([id])[0];
+        if (readOnlyRef.current || lockedRef.current.has(id) || !box) return false;
+        snapshot(exchangesRef.current.some(entry => entry.id === id));
+        shift(spot.x - box.x, spot.y - box.y, [id]);
+        setSelection([id]);
+        return true;
+      },
       // A comment's "on ..." link (docs/features/canvas-comments.md section 8): a card as focusBlock does; a shape or a
       // group selected and zoomed to.
       focusObject: id => {
@@ -2243,9 +2253,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // A standalone reference card near `point` (world units: (menuAt.x - view.x) / view.z) or the view's centre, in free
       // space, placed as openInNotebook places (the end of the column, offset to the spot), then selected. Returns its id.
-      insertRefCard: (target, point = null) => {
+      insertRefCard: (target, point = null, at = null) => {
         if (readOnlyRef.current || !target) return null;
-        const spot = refCardSpot(point || viewCenter(), [...inlineCanvas.obstacles(), ...placementChrome()], inlineCanvas.visibleWorld());
+        // at: a Search result's drop (search-drag.js) - the card's top-left exactly there, as the outline showed.
+        const spot = at || refCardSpot(point || viewCenter(), [...inlineCanvas.obstacles(), ...placementChrome()], inlineCanvas.visibleWorld());
         const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
         const added = { id: crypto.randomUUID(), type: 'canvas-ref', dx: Math.round(spot.x - (COLUMN - REF_CARD.w) / 2), dy: Math.round(spot.y - flowY), refs: [{ id: crypto.randomUUID(), target }] };
         snapshot();
@@ -3899,6 +3910,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const box = surface.current.getBoundingClientRect();
     return { x: (event.clientX - box.left - view.x) / view.z, y: (event.clientY - box.top - view.y) / view.z };
   };
+  // A Search result dragged over the canvas (UI-13, search-drag.js): its plan at the pointer drawn as the landing outline (or
+  // the refusal), and done on drop. false: not a Search drag from this page.
+  const searchMark = useRef(null);
+  const searchDragEvent = (event, drop = false) => {
+    const drag = searchDrag.current();
+    if (!drag || ![...(event.dataTransfer?.types || [])].includes(SEARCH_DRAG)) return false;
+    const at = local(event), plan = searchDropPlan(drag.payload, { readOnly: readOnlyRef.current, locked: lockedRef.current, blocks: blocksRef.current, box: id => boxesOf([id])[0] || null });
+    event.preventDefault();
+    drag.refusal = plan.action === 'refuse' ? plan.reason : null;
+    event.dataTransfer.dropEffect = plan.action === 'refuse' ? 'none' : plan.action === 'link' ? 'copy' : 'move';
+    paintSearchDrop(searchMark.current, drop ? null : plan, at, view);
+    if (drop) drag.outcome = applySearchDrop(commandsRef.current, plan, at);
+    return true;
+  };
   // Add comment (docs/features/canvas-comments.md section 5): an anchor at a world point, on the object there (relative
   // to it, so it follows the card, shape or group) or on the canvas. The menu, the Comment tool and C all come here; the
   // page's panel saves.
@@ -5158,12 +5183,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const root = surface.current.getBoundingClientRect();
           setMenuAt({ x: event.clientX - root.left, y: event.clientY - root.top, id, group });
         }}
-        onDragOver={event => { if (!readOnlyRef.current && ([...(event.dataTransfer?.types || [])].includes(EXCERPT_DRAG) || (chatWorkspace?.canvasOps?.insertCard && [...(event.dataTransfer?.types || [])].includes(CODE_DRAG)))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropHover(true); return; } if (onDropFiles && isFileDrag(event.dataTransfer)) { event.preventDefault(); setDropHover(true); } }}
-        onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDropHover(false); }}
-        onDrop={event => { const excerpt = !readOnlyRef.current && event.dataTransfer?.getData(EXCERPT_DRAG); if (excerpt) { event.preventDefault(); setDropHover(false); if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); window.dispatchEvent(new CustomEvent(EXCERPT_EVENT, { detail: { action: 'canvas', draftId: excerpt, at: local(event) } })); return; } const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
+        onDragOver={event => { if (searchDragEvent(event)) return; if (!readOnlyRef.current && ([...(event.dataTransfer?.types || [])].includes(EXCERPT_DRAG) || (chatWorkspace?.canvasOps?.insertCard && [...(event.dataTransfer?.types || [])].includes(CODE_DRAG)))) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setDropHover(true); return; } if (onDropFiles && isFileDrag(event.dataTransfer)) { event.preventDefault(); setDropHover(true); } }}
+        onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) { setDropHover(false); paintSearchDrop(searchMark.current, null); } }}
+        onDrop={event => { if (searchDragEvent(event, true)) return; const excerpt = !readOnlyRef.current && event.dataTransfer?.getData(EXCERPT_DRAG); if (excerpt) { event.preventDefault(); setDropHover(false); if (document.activeElement?.closest?.('[data-companion]')) document.activeElement.blur(); window.dispatchEvent(new CustomEvent(EXCERPT_EVENT, { detail: { action: 'canvas', draftId: excerpt, at: local(event) } })); return; } const code = !readOnlyRef.current && dragSource(event.dataTransfer); if (code) { event.preventDefault(); setDropHover(false); insertCodeCard(chatWorkspace?.canvasOps, repoCodeCard(code), local(event)); return; } if (!onDropFiles || !isFileDrag(event.dataTransfer)) return; event.preventDefault(); setDropHover(false); const at = local(event); droppedFiles(event.dataTransfer).then(files => onDropFiles(files, at), problem => toast(problem.message)); }}
         style={grid ? { background: 'var(--color-white)', backgroundImage: 'radial-gradient(var(--color-line) 1px, transparent 1px)', backgroundSize: `${GRID * view.z}px ${GRID * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` } : undefined}
         className={`relative min-h-0 flex-1 touch-none overflow-hidden ${cursor} ${dropHover ? 'ring-2 ring-accent ring-inset' : ''}`}>
         <LaserPointer on={presenting !== null && laser} />
+        <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}

@@ -123,3 +123,21 @@ test('rows render compact previews: a picture slot with an informative fallback,
   assert.equal((html.match(/data-search-preview=/g) || []).length, 1, 'only the picture row has a thumbnail slot');
   assert.doesNotMatch(html, /aspect-square|<img|<iframe|<video|<canvas/);
 });
+// UI-13 (owner brief 2026-10-21 message 21 item 2): cards and available linked canvases drag onto the canvas; a linked canvas
+// also has the standard Add to canvas (inverse) button where this viewer may insert, the keyboard and touch way.
+test('placeable results are draggable and a linked canvas offers Add to canvas only where insertion is allowed', () => {
+  const results = [
+    { id: 'object:a', objectId: 'a', title: 'Card', kind: 'card' },
+    { id: 'comment:c', objectId: 'a', title: 'Comment', kind: 'comment' },
+    { id: 'link:from:t', kind: 'link', title: 'Graphs', target: { kind: 'link', id: 't' }, link: { direction: 'from', href: '/apps/g', cards: [] } },
+    { id: 'link:from:x', kind: 'link', title: 'Unavailable canvas', target: { kind: 'link', id: 'x' }, link: { direction: 'from', unavailable: true, href: null, cards: [] } }];
+  const html = render({ showLinks: true, results, onAddToCanvas() {} });
+  assert.match(html, /data-find-match="a" data-search-index="0" draggable="true" data-search-drag="object"/);
+  assert.match(html, /data-search-index="1" draggable="false"/);
+  assert.match(html, /data-search-index="2" draggable="true" data-search-drag="link"/);
+  assert.match(html, /data-search-index="3" draggable="false"/);
+  assert.equal((html.match(/data-search-add/g) || []).length, 1, 'only the available link');
+  assert.match(html, /class="[^"]*bg-ink text-surface[^"]*"[^>]*data-search-add|data-search-add[^>]*class="[^"]*bg-ink text-surface/);
+  assert.match(html, />Add to canvas<\/button>/);
+  assert.doesNotMatch(render({ showLinks: true, results }), /data-search-add/, 'a view-only page has no Add to canvas');
+});

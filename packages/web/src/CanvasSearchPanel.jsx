@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Box, ChevronDown, ChevronUp, Code, ExternalLink, FileText, Film, Image, Link2, MessageCircle, Search, Shapes } from 'lucide-react';
 import { openInNewTab, plainClick } from './LinksPanel.jsx';
 import { highlightCode } from './code-lang.js';
+import { Button } from './ui.jsx';
+import { SEARCH_DRAG, searchDrag, searchDragPayload } from './search-drag.js';
 import { SEARCH_FILTERS, searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns } from './canvas-search-panel.js';
 
 const button = 'rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
@@ -79,7 +81,7 @@ function LinkActions({ result, onOpenAction }) {
 
 export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false, inputRef, scrollPositions, query = '', onQueryChange, filter = 'all', onFilterChange,
   includeResolved = false, onIncludeResolvedChange, results = [], counts = {}, status = {}, onRetry,
-  activeId, onActiveIdChange, onActivate, onOpenAction, canGoBack, onGoBack, getPreview }) {
+  activeId, onActiveIdChange, onActivate, onOpenAction, canGoBack, onGoBack, getPreview, onAddToCanvas, onDropNotice }) {
   const scroller = useRef(null), fallbackPositions = useRef(new Map()), pendingFocus = useRef(null);
   const positions = scrollPositions || fallbackPositions.current;
   const [viewport, setViewport] = useState({ width: 320, height: 400, scrollTop: 0 });
@@ -113,6 +115,19 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
   };
   // open false (Enter and the arrows in the field step through results): a link result is only highlighted, never opened.
   const activate = (index, open = true) => { const result = results[index]; if (result) { onActiveIdChange?.(result.id); reveal(index); if (open || result.kind !== 'link') onActivate?.(result); } };
+  // Drag a result onto the canvas (UI-13, search-drag.js): the canvas plans, outlines and does the drop; what it reports - or
+  // why it refused, when the drop ended on it with nothing done - shows in this panel's status line. A click still reveals.
+  const dragStart = (event, payload) => {
+    searchDrag.start(payload);
+    event.dataTransfer.setData(SEARCH_DRAG, JSON.stringify(payload));
+    event.dataTransfer.setData('text/plain', payload.title || '');
+    event.dataTransfer.effectAllowed = 'copyMove';
+  };
+  const dragEnd = event => {
+    const drag = searchDrag.end(), onCanvas = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-canvas-surface]');
+    const message = drag?.outcome ? drag.outcome.message : event.dataTransfer.dropEffect === 'none' && onCanvas ? drag?.refusal : null;
+    if (message) onDropNotice?.(message);
+  };
   const go = step => { if (results.length) activate(current < 0 ? (step > 0 ? 0 : results.length - 1) : (current + step + results.length) % results.length, false); };
   return <div role="tabpanel" aria-label="Find text on canvas" data-canvas-find data-canvas-search className={`${hidden ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
     <div className="flex items-center gap-1">
@@ -137,10 +152,11 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
         {results.slice(layout.start, layout.end).map((result, offset) => {
           const index = layout.start + offset, selected = result.id === activeId, snippet = result.snippet || {}, location = searchLocation(result.location);
           const refs = result.references || [], children = result.rabbitHoles || [], link = result.link, preview = result.preview || {};
-          const lines = preview.kind === 'code' ? preview.lines || [] : [], Icon = iconOf(result);
+          const lines = preview.kind === 'code' ? preview.lines || [] : [], Icon = iconOf(result), payload = searchDragPayload(result);
           return <li key={result.id} aria-posinset={index + 1} aria-setsize={results.length} data-search-result={result.id} data-links-direction={link?.direction} data-unavailable={link?.unavailable || undefined} data-search-layout={lines.length ? 'code' : preview.kind === 'picture' ? 'picture' : 'text'} className="absolute inset-x-0 overflow-hidden pb-2" style={{ top: layout.offsets[index], height: heights[index] }}>
             <div className={`flex h-full flex-col rounded-lg border p-2 ${selected ? 'border-ink-3 bg-hover' : 'border-line'}`}>
-              <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} className={`${button} flex min-h-0 flex-1 items-start gap-2 text-left`} onClick={() => activate(index)} onKeyDown={event => {
+              <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} draggable={!!payload} data-search-drag={payload?.kind}
+                onDragStart={payload ? event => dragStart(event, payload) : undefined} onDragEnd={payload ? dragEnd : undefined} className={`${button} flex min-h-0 flex-1 items-start gap-2 text-left`} onClick={() => activate(index)} onKeyDown={event => {
                 const next = searchKeyIndex(event.key, index, results.length);
                 if (next !== null) { event.preventDefault(); event.stopPropagation(); if (next >= 0) { onActiveIdChange?.(results[next].id); reveal(next, true); } }
                 if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
@@ -156,6 +172,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
               </button>
               {(refs.length > 0 || children.length > 0 || link) && <div className="mt-1 flex max-h-10 shrink-0 gap-1 overflow-x-auto border-t border-line pt-1">
                 {link && <LinkActions result={result} onOpenAction={onOpenAction} />}
+                {payload?.kind === 'link' && onAddToCanvas && <Button variant="inverse" size="sm" data-search-add title={`Add a link card to ${result.title} on this canvas`} onClick={() => onAddToCanvas(result)} className="ml-auto shrink-0">Add to canvas</Button>}
                 {refs.map((reference, at) => <button key={`ref:${reference.id || at}`} type="button" disabled={reference.unavailable} title={reference.unavailable ? 'Source unavailable' : `Open ${labelOf(reference)}`} onClick={() => onOpenAction?.(result, { kind: 'reference', reference })} className={`${button} flex max-w-full shrink-0 items-center gap-1 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2`}><Link2 size={11} aria-hidden /><span className="max-w-24 truncate">{reference.unavailable ? 'Unavailable' : `Open ${labelOf(reference)}`}</span></button>)}
                 {children.map((rabbitHole, at) => <button key={`child:${rabbitHole.name || at}`} type="button" title={rabbitHole.title || rabbitHole.name} onClick={() => onOpenAction?.(result, { kind: 'rabbit-hole', rabbitHole })} className={`${button} shrink-0 bg-hover px-1.5 py-1 text-[10px] leading-3 text-ink-2`}>Open Rabbit Hole</button>)}
               </div>}

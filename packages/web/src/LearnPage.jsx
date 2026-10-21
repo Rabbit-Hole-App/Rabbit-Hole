@@ -1545,7 +1545,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     shown: panelOpen && panelTab === 'find', commentsBase: comments.active ? memberBase(commentBoard) : null,
     links, linkResults: true, onOpenLink: href => refLinks.go(href), children: dive.navigator?.tree?.children,
     onComment: result => { setSearchThread({ scope: searchScope, id: result.target.id }); comments.openPin(result.target.id); },
-    revealDocument: () => setDocView('editor') });
+    revealDocument: () => setDocView('editor'), canInsert: canEditCanvas });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole') return dive.portals.enter(action.rabbitHole.name);
     if (action.kind === 'link-card') return canvasApi.current?.focusBlock(action.objectId);

@@ -8,6 +8,7 @@ import { loadAsset } from './learn-board-assets.js';
 import { apiFetch } from './api.js';
 import { cadReadUrl } from './CadCard.jsx';
 import { ownThumbnail } from './card-thumbnail.js';
+import { linkCardFor } from './search-drag.js';
 
 const EMPTY = { revision: 0, board: {} };
 const EMPTY_COMMENTS = [];
@@ -16,7 +17,8 @@ const initial = () => ({ query: '', filter: 'all', includeResolved: false, activ
 const sessions = new Map();
 // linkResults (LearnPage only, where the Links tab was): the board's links and backlinks are Search results under Links;
 // onOpenLink(href) opens a canvas (the page's go, which saves first). A shared view keeps links to its cards' chips.
-export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, linkResults = false, onOpenLink, children, onComment, revealDocument }) {
+// canInsert: this viewer may add cards here (a link result's Add to canvas, UI-13); a view-only page leaves it off.
+export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, linkResults = false, onOpenLink, children, onComment, revealDocument, canInsert = false }) {
   const [session, setSession] = useState(() => ({ scopeKey, ...sessions.get(scopeKey) || initial() }));
   const current = session.scopeKey === scopeKey ? session : { scopeKey, ...sessions.get(scopeKey) || initial() };
   const patch = useCallback(change => setSession(previous => {
@@ -136,11 +138,19 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
     if (preview.canvas) return ownThumbnail(preview.canvas);
     return result.objectId ? cachedAsset(`poster:${preview.poster || result.objectId}`) : null;
   }, [index]);
+  // Add to canvas on a link result (UI-13, the keyboard and touch way to place it): the canvas's link card where the learner
+  // looks, as Link to canvas... adds one; a link card already here is shown instead, never added twice.
+  const addToCanvas = result => {
+    const api = canvasApi.current, existing = linkCardFor(api?.blocks?.(), result.target?.id);
+    if (existing) { api.focusBlock(existing.id); setNotice({ scopeKey, message: 'A link card to this canvas is already here.' }); return; }
+    setNotice(api?.insertRefCard?.(result.target?.id) ? null : { scopeKey, message: 'This canvas cannot take a link card.' });
+  };
   const status = commentCurrent.state === 'loading' || links?.status === 'loading' ? { state: 'loading', message: 'Searching available content. Comments or references are still loading.' }
     : commentCurrent.state === 'error' ? { state: 'error', error: commentCurrent.error }
     : commentCurrent.state === 'partial' || links?.status === 'error' ? { state: 'partial', message: 'Some comments or references are unavailable. Retry to refresh them.' }
     : linkResults && links?.status === 'none' && current.filter === 'links' ? { state: 'ready', message: 'Links appear once this canvas is saved.' }
     : found.availability.status !== 'ready' ? { state: found.availability.status, message: 'Some sources are only partially searchable. Result badges describe the available content.' }
     : { state: 'ready' };
-  return { registry, scopeKey, panel: { canvasKey: scopeKey, showLinks: linkResults, scrollPositions: current.scrollPositions, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview } };
+  return { registry, scopeKey, panel: { canvasKey: scopeKey, showLinks: linkResults, scrollPositions: current.scrollPositions, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview,
+    onAddToCanvas: canInsert ? addToCanvas : null, onDropNotice: message => setNotice({ scopeKey, message }) } };
 }
