@@ -41,11 +41,11 @@ assert.ok(Number.isSafeInteger(ALLOWANCE) && ALLOWANCE > 0, 'the configured allo
 assert.deepEqual(await tripwire(), [], 'the tripwire answers and has counted nothing yet');
 
 // One past action holding `micros` in this user's month, in the given state (settled spend, or a running reservation).
-const period = usage.period;
+const period = usage.period, run = Date.now().toString(36);
 const seed = (micros, state) => d1(`DELETE FROM usage_attempts WHERE action_id IN (SELECT action_id FROM usage_actions WHERE user_id = '${payer}');
   DELETE FROM usage_actions WHERE user_id = '${payer}';
-  INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed-${state}', '${payer}', 'user', 'signed_in', 'ask', 'would_charge', '${period}', 'completed', 0);
-  INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-${state}-a', 'seed-${state}', 'generation', ${micros}, ${state === 'settled' ? micros : 'NULL'}, '${state}', '${state === 'reserved' ? 'running' : 'settled'}', 0);`);
+  INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at) VALUES ('seed-${run}-${state}', '${payer}', 'user', 'signed_in', 'ask', 'would_charge', '${period}', 'completed', 0);
+  INSERT INTO usage_attempts (attempt_id, action_id, kind, reserved_micros, cost_micros, cost_state, status, started_at) VALUES ('seed-${run}-${state}-a', 'seed-${run}-${state}', 'generation', ${micros}, ${state === 'settled' ? micros : 'NULL'}, '${state}', '${state === 'reserved' ? 'running' : 'settled'}', 0);`);
 
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Allowance ${Date.now().toString(36)}` }) });
 const catalog = await api('/api/apps');
@@ -110,8 +110,8 @@ await check('View usage opens Settings at AI usage, which agrees: nothing remain
   await page.locator('[data-toast-error] [data-toast-action]').filter({ hasText: 'View usage' }).first().click();
   const settings = page.locator('[data-usage-settings]');
   await settings.waitFor({ timeout: 15000 });
-  await page.locator('[data-usage-remaining]').first().waitFor();
-  assert.match(await page.locator('[data-usage-remaining]').first().innerText(), /\$0\.00/);
+  await settings.getByText('No AI allowance remaining.').waitFor({ timeout: 15000 });
+  assert.match(await settings.innerText(), /Used\s*\$50\.00[\s\S]*Remaining\s*No AI allowance remaining\.\s*\$0\.00/);
   assert.equal(await page.locator('[data-usage-note]').count(), 0);
   await shot('view-usage');
   await page.keyboard.press('Escape');
