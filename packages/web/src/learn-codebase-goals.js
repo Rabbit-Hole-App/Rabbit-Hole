@@ -163,3 +163,32 @@ export function showCodebaseMenu({ entry, repository, dismissed = false, typing 
 // commit, hash the SHA-256 of the whole file at that commit, locator the cited lines and the file's role.
 export const REPOSITORY_SOURCE = 'repository_file';
 export const isRepositorySource = ref => ref?.kind === REPOSITORY_SOURCE && typeof ref.locator?.path === 'string';
+
+// Line-backed citations (owner brief 2026-10-21 "Selecting evidence"). A learner cites lines of a file the activity already
+// cites: same repository, commit, path and whole-file hash, inside the cited lines. citationRef builds the immutable ref to store
+// from the activity's own ref (bound: the activity's refs, the server's record) with the learner's narrower lines, or null when
+// anything differs. The browser uses it to offer Use in answer; the attempt store uses it to accept or refuse a submission.
+export const CITATION_MAX = 5;
+export const isCitation = ref => isRepositorySource(ref) && ref.locator.citation === true;
+export function citationRef(bound, claimed) {
+  const { start, end } = claimed?.locator || {};
+  const own = claimed?.kind === REPOSITORY_SOURCE && (bound || []).find(b => isRepositorySource(b) && !isCitation(b) && b.id === claimed.id
+    && b.version === claimed.version && b.hash === claimed.hash && b.locator.path === claimed.locator?.path);
+  if (!own || !Number.isInteger(start) || !Number.isInteger(end) || start > end || start < own.locator.start || end > own.locator.end) return null;
+  return { kind: REPOSITORY_SOURCE, id: own.id, version: own.version, hash: own.hash, locator: { path: own.locator.path, start, end, role: own.locator.role, citation: true } };
+}
+export const citationsOverlap = (a, b) => a.id === b.id && a.version === b.version && a.locator.start <= b.locator.end && b.locator.start <= a.locator.end;
+// Criteria whose requirement is evidence from the source: met only with a citation the evaluator reports as supporting the answer.
+export const SOURCE_EVIDENCE_CRITERIA = new Set(['trace_path', 'supported_hypothesis', 'explain_here']);
+
+// What the learner reads for a source (owner brief 2026-10-21 "Sources"): the file name and its symbol or kind, never a raw
+// path or line list; the lines of a citation; and the source a question starts from (the goal's first role, else the first).
+const ROLE_TEXT = { test: 'tests', config: 'configuration', docs: 'documentation' };
+const fileName = path => String(path).split('/').pop();
+export const linesText = (start, end) => (end > start ? `lines ${start}–${end}` : `line ${start}`);
+export const sourceLabel = ref => [fileName(ref.locator.path), ref.locator.symbol || ROLE_TEXT[ref.locator.role]].filter(Boolean).join(' · ');
+export const citationLabel = ref => `${fileName(ref.locator.path)} · ${linesText(ref.locator.start, ref.locator.end)}`;
+export function startSource(refs, goalId) {
+  const role = goalOf(goalId)?.roles[0];
+  return refs.find(ref => ref.locator.role === role) || refs[0] || null;
+}
