@@ -73,10 +73,19 @@ export const unparkJourneySql = guard => `UPDATE learning_journeys SET board = ?
   WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = 'parked:' || id AND archived_at IS NULL
   AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL) AND ${guard}`;
 
+// The journey the learner replaces (continue-or-start) becomes a paused goal: its goal row is made if missing, then it is
+// parked. Owner decision 5a (2026-10-20) supersedes archiving it (owner 2026-10-07): changing goals never archives.
+const parkReplaced = (env, scope, replace, now) => [
+  env.LEARN_DB.prepare(goalForJourneySql('j.id = ? AND j.org = ? AND j.owner_user_id = ? AND j.app = ? AND j.board = ? AND j.archived_at IS NULL'))
+    .bind(scope.board, now, now, replace, scope.org, scope.owner_user_id, scope.app, scope.board),
+  env.LEARN_DB.prepare("UPDATE learning_journeys SET board = 'parked:' || id, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL")
+    .bind(now, replace, scope.org, scope.owner_user_id, scope.app, scope.board),
+];
+
 // A new journey starts in intake. DO NOTHING covers the live index: no row made means this scope already has one.
-// replace (continue-or-start, owner 2026-10-07): the id of the live journey the learner chose to replace. It is archived in
+// replace (continue-or-start, owner 2026-10-07): the id of the live journey the learner chose to replace. It is parked in
 // the same batch (one transaction) as the insert, so a start that fails leaves it live; an id that is not this scope's live
-// journey archives nothing, and the insert then meets whatever journey is live (live_journey). The new journey becomes the
+// journey parks nothing, and the insert then meets whatever journey is live (live_journey). The new journey becomes the
 // learner's active goal in that batch too; a staged row (stagedScope) does so only when activateStaged swaps it in.
 export async function createJourney(env, scope, { request, grounding, intake }, replace = null) {
   const now = new Date().toISOString(), id = `lj_${crypto.randomUUID()}`;
@@ -89,10 +98,9 @@ export async function createJourney(env, scope, { request, grounding, intake }, 
   const insert = env.LEARN_DB
     .prepare(`INSERT INTO learning_journeys (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')}) ON CONFLICT DO NOTHING`)
     .bind(id, scope.org, scope.owner_user_id, scope.app, scope.board, ...Object.values(cols), 0, now, now);
-  const archive = replace && env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
-    .bind(now, now, replace, scope.org, scope.owner_user_id, scope.app, scope.board);
-  const results = await env.LEARN_DB.batch([...(archive ? [archive] : []), insert, ...(scope.board.startsWith('staged:') ? [] : registerGoal(env, scope, id, now))]);
-  const row = results[archive ? 1 : 0].meta.changes ? await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(id).first() : null;
+  const park = replace ? parkReplaced(env, scope, replace, now) : [];
+  const results = await env.LEARN_DB.batch([...park, insert, ...(scope.board.startsWith('staged:') ? [] : registerGoal(env, scope, id, now))]);
+  const row = results[park.length].meta.changes ? await env.LEARN_DB.prepare('SELECT * FROM learning_journeys WHERE id = ?').bind(id).first() : null;
   if (!row) throw new JourneyConflict('live_journey');
   return fromRow(row);
 }
@@ -113,13 +121,13 @@ export async function dropStaged(env, scope) {
   ]);
 }
 
-// The swap, one batch: the replaced journey archived, then the planned staged row moved onto the board while no journey is
-// live there. null: another journey went live on the board meanwhile (another tab), so nothing changed.
+// The swap, one batch: the replaced journey parked (a paused goal, never archived: owner decision 5a), then the planned
+// staged row moved onto the board while no journey is live there. null: another journey went live on the board meanwhile
+// (another tab), so nothing changed.
 export async function activateStaged(env, staged, replace, scope) {
   const now = new Date().toISOString(), board = [scope.org, scope.owner_user_id, scope.app, scope.board];
-  const [, moved] = await env.LEARN_DB.batch([
-    env.LEARN_DB.prepare('UPDATE learning_journeys SET archived_at = ?, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL')
-      .bind(now, now, replace, ...board),
+  const [, , moved] = await env.LEARN_DB.batch([
+    ...parkReplaced(env, scope, replace, now),
     env.LEARN_DB.prepare(`UPDATE learning_journeys SET board = ?, updated_at = ? WHERE ${OWNED} AND archived_at IS NULL AND NOT EXISTS (SELECT 1 FROM learning_journeys WHERE org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL)`)
       .bind(scope.board, now, ...owned(staged), ...board),
     ...registerGoal(env, scope, staged.id, now),

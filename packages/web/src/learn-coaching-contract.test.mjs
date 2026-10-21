@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CRITERION_STATUS, SHAPES, canCoach, defaultControls, deriveCriterionSummary, deriveGoalCounts, reduceTutorControls, validateCoachingRecord,
+  CRITERION_STATUS, EXPLICIT_ACTIONS, PROACTIVE_ACTIONS, SHAPES, canCoach, defaultControls, deriveCriterionSummary, deriveGoalCounts, mayRun, reduceTutorControls, validateCoachingRecord,
 } from './learn-coaching-contract.js';
 
 const criterion = (over = {}) => ({
@@ -204,6 +204,22 @@ test('controls: revision guard, invalid events and no model effects', () => {
   for (const s of [tutorOn, { ...tutorOn, suggestionsPaused: true }, { ...tutorOn, tutorEnabled: false }, defaultControls()]) {
     for (const e of events) for (const effect of reduceTutorControls(s, e).effects) assert.ok(['persist', 'suspend_coaching', 'show_choices', 'show_undo'].includes(effect.type));
   }
+});
+
+test('proactive actions run only under canCoach; explicit requests run in every mode; unsubmitted work is never assessed', () => {
+  const open = { chatOpen: true, ready: true };
+  const modes = [tutorOn, { ...tutorOn, suggestionsPaused: true }, { ...tutorOn, tutorEnabled: false }, { ...tutorOn, mode: 'auto' }, { ...tutorOn, mode: 'ask' }];
+  for (const kind of EXPLICIT_ACTIONS) for (const c of modes) assert.equal(mayRun(kind, c, open), true, `${kind} in ${JSON.stringify(c)}`);
+  for (const kind of PROACTIVE_ACTIONS.filter(k => k !== 'assess_unsubmitted')) {
+    assert.deepEqual(modes.map(c => mayRun(kind, c, open)), [true, false, false, false, false], kind);
+    assert.equal(mayRun(kind, tutorOn, { ...open, activeInput: true }), false, `${kind} waits for active input`);
+  }
+  for (const c of modes) assert.equal(mayRun('assess_unsubmitted', c, open), false);
+  assert.equal(mayRun('generate_lesson', tutorOn, open), false, 'unknown kinds fail closed');
+  // An explicit guided entry in paused Tutor: start_guided clears the pause, then the opening turn may run.
+  const paused = { ...tutorOn, suggestionsPaused: true };
+  assert.equal(mayRun('hole_opening_turn', reduceTutorControls(paused, { type: 'start_guided' }).state, open), true);
+  assert.equal(mayRun('hole_opening_turn', reduceTutorControls({ ...paused, mode: 'auto' }, { type: 'start_guided' }).state, open), false, 'static prompt outside Tutor');
 });
 
 // --- validation ---

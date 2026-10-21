@@ -211,7 +211,7 @@ async function start(env, scope, body, callModel) {
   if (!STARTS.has(intent.kind)) return json({ error: 'not_a_learning_journey' }, 400);
   if (!intent.topic) return json({ error: 'topic_required', tray: ASK_TOPIC }, 400);
   // replace: the journey continue-or-start confirmed replacing. A start that plans nothing swaps in one batch (createJourney
-  // archives it in the insert's transaction). A fast start that replaces the live journey, in setup or active (owner
+  // parks it, a paused goal, in the insert's transaction: owner decision 5a). A fast start that replaces the live journey, in setup or active (owner
   // 2026-10-07, D2), is staged: made and planned off the board, then swapped in one batch, so a planner failure keeps the
   // old journey live with its progress and answers 502 with it; its Retry is the same start, and no staged row survives.
   if (body.replace != null && (typeof body.replace !== 'string' || !body.replace || body.replace.length > 64)) return json({ error: 'replace must be a journey id' }, 400);

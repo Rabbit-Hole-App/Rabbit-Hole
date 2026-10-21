@@ -1,7 +1,8 @@
 -- Tutor coaching state (C:/s/spec/tutor-workflow/draft.md Task 02 and "Progress data schema"; owner decision 5a,
 -- 2026-10-20): personal Tutor controls, several resumable goals per learner and canvas with one active pointer, versioned
--- milestone criteria, activities, and the tables the attempt store (Task 05) and assessments (Task 06) fill. Additive and
--- re-runnable, CREATE only (scripts/schema-check.test.mjs: schema identity is a learn migration's identity); LEARN_DB only.
+-- milestone criteria and activities. Attempts, assessments and evidence links are learn 0026 (Tasks 05/06, their own lane
+-- and GOs; C:/s/spec/tutor-workflow/migrations.md section 6). Additive and re-runnable, CREATE only
+-- (scripts/schema-check.test.mjs: schema identity is a learn migration's identity); LEARN_DB only.
 -- Applied locally only until its learn-dev GO; production waits for its own GO. 0020 stays reserved by fix/chat-save-unique.
 --
 -- Every row is scoped to owner_user_id (users.id, never an email) and only its owner reads or writes it: a shared or forked
@@ -54,39 +55,3 @@ CREATE TABLE IF NOT EXISTS learn_activities (
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS learn_activities_goal ON learn_activities (goal_id);
-
--- A submitted attempt, immutable once written (Task 05): one per learner-scoped submission key; content_hash is the
--- server's canonical hash of content_json. assistance is the known help the server resolved: none, assisted or unknown.
-CREATE TABLE IF NOT EXISTS learn_attempts (
-  id TEXT PRIMARY KEY, org TEXT NOT NULL, owner_user_id TEXT NOT NULL,
-  goal_id TEXT NOT NULL, activity_id TEXT NOT NULL, activity_revision INTEGER NOT NULL,
-  submission_key TEXT NOT NULL, content_json TEXT NOT NULL, content_hash TEXT NOT NULL,
-  assistance TEXT NOT NULL DEFAULT 'unknown' CHECK (assistance IN ('none', 'assisted', 'unknown')),
-  assistance_refs_json TEXT NOT NULL DEFAULT '[]', source_refs_json TEXT NOT NULL DEFAULT '[]',
-  submitted_at TEXT NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS learn_attempts_key ON learn_attempts (org, owner_user_id, submission_key);
-CREATE INDEX IF NOT EXISTS learn_attempts_activity ON learn_attempts (activity_id);
-
--- An assessment operation and its result (Task 06). status is processing, never a grade. claim_token is set once, by
--- the one dispatch allowed to run; a deliberate reassessment is a new row naming the one it supersedes.
-CREATE TABLE IF NOT EXISTS learn_assessments (
-  id TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, org TEXT NOT NULL, owner_user_id TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'unavailable', 'failed', 'unknown')),
-  rubric_version TEXT, evaluator_version TEXT, provenance_json TEXT NOT NULL DEFAULT '{}',
-  observations_json TEXT NOT NULL DEFAULT '[]', uncertainty_json TEXT, error_json TEXT,
-  supersedes_assessment_id TEXT, claim_token TEXT, claimed_at TEXT,
-  created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS learn_assessments_attempt ON learn_assessments (attempt_id);
-
--- Which criterion version an observation supports (Task 06 writes, Task 08 reads). One observation can support several
--- criteria; it stays one observation of one attempt.
-CREATE TABLE IF NOT EXISTS learn_evidence_links (
-  observation_id TEXT NOT NULL, assessment_id TEXT NOT NULL, attempt_id TEXT NOT NULL,
-  org TEXT NOT NULL, owner_user_id TEXT NOT NULL, goal_id TEXT NOT NULL, criterion_id TEXT NOT NULL, criterion_version INTEGER NOT NULL,
-  applicability TEXT NOT NULL DEFAULT '', validity TEXT NOT NULL DEFAULT 'valid' CHECK (validity IN ('valid', 'disputed', 'superseded')),
-  revision INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-  PRIMARY KEY (observation_id, goal_id, criterion_id, criterion_version)
-);
-CREATE INDEX IF NOT EXISTS learn_evidence_links_goal ON learn_evidence_links (org, owner_user_id, goal_id);

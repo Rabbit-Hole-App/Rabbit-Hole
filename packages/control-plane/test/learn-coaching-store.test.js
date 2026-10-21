@@ -10,11 +10,11 @@ import { CoachingConflict, applyCoachingAction, readCoachingState } from '../src
 import { coachingRoute } from '../src/learn-coaching-routes.js';
 import { archiveJourney, createJourney, loadJourney, loadJourneyById } from '../src/learn-journey-store.js';
 
-const MIGRATION = readFileSync(new URL('../learn-migrations/0025-tutor-coaching.sql', import.meta.url), 'utf8');
+const MIGRATION = readFileSync(new URL('../learn-migrations/0025-tutor-coaching-state.sql', import.meta.url), 'utf8');
 const SCHEMA = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
-const MARK = '-- learn-migrations/0025-tutor-coaching.sql';
+const MARK = '-- learn-migrations/0025-tutor-coaching-state.sql';
 const BEFORE_0025 = SCHEMA.slice(0, SCHEMA.indexOf(MARK));
-const NEW_TABLES = ['learn_coaching_state', 'learn_goals', 'learn_goal_criteria', 'learn_activities', 'learn_attempts', 'learn_assessments', 'learn_evidence_links'];
+const NEW_TABLES = ['learn_coaching_state', 'learn_goals', 'learn_goal_criteria', 'learn_activities'];
 
 const A = { org: 'ws', userId: 'u-ana', app: 'canvas-0000aaaa', board: 'main' };
 const B = { ...A, userId: 'u-ben' };
@@ -126,6 +126,17 @@ test('two_goals_resume_without_archive_loss', async t => {
   assert.ok(sqlite.prepare("SELECT count(*) AS n FROM learn_goals WHERE lifecycle != 'open'").get().n === 0, 'nothing archived');
 });
 
+test('a replace start (continue-or-start) parks the old journey as a paused, resumable goal, even one with no goal row yet', async t => {
+  const { sqlite, env } = migrated(t, db => oldJourney(db, { id: 'lj_before' })); // no coaching row, no goal row
+  const next = await createJourney(env, scopeOf(A), START('SQL'), 'lj_before');
+  assert.deepEqual(journeys(sqlite).find(j => j.id === 'lj_before'), { id: 'lj_before', board: 'parked:lj_before', archived_at: null, revision: 4 });
+  let s = await readCoachingState(env, A);
+  assert.deepEqual(s.goals.map(g => [g.goalId, g.status]).sort(), [['lg_lj_before', 'paused'], [`lg_${next.id}`, 'active']].sort());
+  s = (await act(env, A, 'activate_goal', { goalId: 'lg_lj_before' })).state;
+  assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_before');
+  assert.equal(journeys(sqlite).find(j => j.id === next.id).board, `parked:${next.id}`);
+});
+
 test('stale_revision_preserves_newer_state', async t => {
   const { sqlite, env } = migrated(t);
   const seen = (await readCoachingState(env, A)).revision; // two tabs read the same revision
@@ -177,12 +188,12 @@ test('two users on one canvas keep separate controls, goals and journeys', async
   assert.equal((await loadJourney(env, scopeOf(A))).id, 'lj_ana');
 });
 
-test('legacy_session_record_is_not_mastery: old evidence makes no criterion, attempt or evidence link', async t => {
+test('legacy_session_record_is_not_mastery: old evidence makes no criterion or activity, and the client cannot send progress', async t => {
   const passes = { seq: 2, events: [{ seq: 1, concept: 'lr', claim: 'lr/sigmoid', result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev' }, { seq: 2, concept: 'lr', claim: 'lr/threshold', result: 'pass', kind: 'demonstrated_here', settled: true, evaluator: 'deterministic' }] };
   const { sqlite, env } = migrated(t, db => oldJourney(db, { id: 'lj_rich', evidence: passes }));
   const s = await readCoachingState(env, A);
   assert.deepEqual(s.goals.map(g => [g.goalId, g.scopeVersion, g.criteria]), [['lg_lj_rich', 0, []]]);
-  for (const table of ['learn_goal_criteria', 'learn_activities', 'learn_attempts', 'learn_assessments', 'learn_evidence_links']) assert.equal(sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
+  for (const table of ['learn_goal_criteria', 'learn_activities']) assert.equal(sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 0, table);
   // The client cannot hand the server progress either.
   for (const payload of [{ label: 'x', evidence: passes }, { label: 'x', status: 'demonstrated_independently' }, { label: 'x', criteria: [{ ...CRITERIA[0], status: 'demonstrated_independently' }] }]) {
     await assert.rejects(act(env, A, 'create_goal', payload), e => e instanceof CoachingConflict && e.status === 400);

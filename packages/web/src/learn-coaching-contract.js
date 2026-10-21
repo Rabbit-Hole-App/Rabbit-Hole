@@ -164,6 +164,16 @@ export const canCoach = (controls, { chatOpen = false, ready = false, activeInpu
   controls?.mode === 'tutor' && controls.tutorEnabled === true && controls.suggestionsPaused === false && chatOpen && ready && !activeInput;
 const proactive = c => c.mode === 'tutor' && c.tutorEnabled && !c.suggestionsPaused;
 
+// Which actions are proactive (C:/s/spec/tutor-workflow/conflicts.md Q5, the research lane's recommendation, pending the
+// owner's answer): what the Tutor starts on its own runs only under canCoach; what the learner explicitly asks for runs in
+// every mode, once, without changing the controls. Assessing work that was not explicitly submitted never runs (owner 3a).
+// An explicit guided Rabbit Hole entry (owner 4a) is start_guided (it may clear a pause in selected, enabled Tutor), then
+// hole_opening_turn under canCoach; otherwise the static prompt. An unknown kind runs nowhere.
+export const PROACTIVE_ACTIONS = ['hook', 'opening_turn', 'hole_opening_turn', 'unrequested_question', 'suggest_practice', 'unrequested_material', 'next_step_offer', 'assess_unsubmitted'];
+export const EXPLICIT_ACTIONS = ['answer', 'requested_material', 'check_review', 'slash_command'];
+export const mayRun = (kind, controls, context) => EXPLICIT_ACTIONS.includes(kind)
+  || (PROACTIVE_ACTIONS.includes(kind) && kind !== 'assess_unsubmitted' && canCoach(controls, context));
+
 // One reducer for the browser and the Worker (owner 3a; "Tutor controls and dismissal"). No effect ever asks for a model
 // call: show_choices shows saved or static choices only. Every change bumps revision; an event carrying expectedRevision
 // that does not match is refused unchanged ('stale_revision'), as is an event that makes no sense ('invalid').
