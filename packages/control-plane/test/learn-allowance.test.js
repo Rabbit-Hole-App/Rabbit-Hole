@@ -729,3 +729,56 @@ test('a refused, cached or duplicate scene request asks the renderer nothing, no
   assert.equal((await new LearnScenes(durable('bob-2'), { ...env, RENDER_LEARNER_DAY: '1' }).fetch(sceneAs('u-bob'))).status, 202, 'the cancelled slot is free and not in the daily count');
   assert.deepEqual(rows(sqlite, 'usage_attempts').filter(a => a.provider === 'fly_scene_worker').map(a => a.model), ['render-test', 'render-test', null, 'render-test'], 'the version is recorded once the renderer says it');
 });
+
+test('queue fairness: one learner flooding eight canvases cannot hold every queue position; a second learner is admitted at once, a third when a position frees, and the flooder cannot refill it', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const flood = name => Array.from({ length: 8 }, (_, i) => new LearnScenes(durable(`${name}-${i}`), env));
+  const op = i => ({ operation: { ...sceneExample, duration: 3 + i } }); // eight different scenes (1 s is too short for its animation)
+  // Default limits: one position per learner, so the flood takes one and the rest are told why.
+  let env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { posts } = renderer(t);
+  const def = await Promise.all(flood('dflt').map((actor, i) => actor.fetch(sceneAs('u-zed', op(i)))));
+  assert.deepEqual([def.filter(r => r.status === 202).length, (await Promise.all(def.filter(r => r.status === 429).map(async r => (await r.json()).reason))).join()], [1, Array(7).fill('learner_active').join()]);
+  sqlite.prepare("UPDATE usage_attempts SET status = 'settled' WHERE status = 'running'").run();
+  // The queue itself: RENDER_LEARNER_ACTIVE raised to the queue size, 8.
+  env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket(), RENDER_LEARNER_ACTIVE: '8', RENDER_QUEUE_MAX: '8' });
+  const alice = flood('alice');
+  const first = await Promise.all(alice.map((actor, i) => actor.fetch(sceneAs('u-alice', op(i)))));
+  assert.equal(first.filter(r => r.status === 202).length, 7, 'one position stays free');
+  const fair = await busyOf(first.find(r => r.status === 429));
+  assert.deepEqual([fair.status, fair.reason, fair.retryAfter], [429, 'fair_share', '60']);
+  assert.match(fair.error, /^You already have 7 scene renders waiting\. One place in the queue stays free for other learners/);
+  const bob = new LearnScenes(durable('bob-0'), env);
+  assert.equal((await bob.fetch(sceneAs('u-bob'))).status, 202, 'the second learner is admitted at once');
+  const full = await busyOf(await new LearnScenes(durable('carol-0'), env).fetch(sceneAs('u-carol')));
+  assert.deepEqual([full.status, full.reason], [429, 'queue_full']);
+  assert.deepEqual([running(sqlite, 'u-alice'), running(sqlite, 'u-bob'), running(sqlite, 'u-carol')], [7, 1, 0]);
+  // One of Alice's renders finishes; she cannot take the freed position back while others are queued, Carol gets it.
+  const done = alice[first.findIndex(r => r.status === 202)];
+  await done.alarm(); await done.alarm();
+  assert.equal(running(sqlite, 'u-alice'), 6);
+  const again = alice[first.findIndex(r => r.status === 429)];
+  assert.equal((await busyOf(await again.fetch(sceneAs('u-alice', op(first.findIndex(r => r.status === 429)))))).reason, 'fair_share');
+  assert.equal((await new LearnScenes(durable('carol-1'), env).fetch(sceneAs('u-carol'))).status, 202, 'the third learner gets the freed position');
+  assert.deepEqual([running(sqlite, 'u-alice'), running(sqlite, 'u-bob'), running(sqlite, 'u-carol')], [6, 1, 1]);
+  // Bob's job is dispatched like Alice's: its first alarm sends it to the renderer.
+  const sent = posts().length;
+  await bob.alarm();
+  assert.equal(posts().length, sent + 1);
+});
+
+test('three concurrent explicit retries of one failed scene make exactly one new render', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { worker, posts } = renderer(t);
+  const actor = new LearnScenes(durable('alice-retry'), env);
+  worker.status = 'failed';
+  await actor.fetch(sceneAs('u-alice')); await actor.alarm(); await actor.alarm();
+  assert.equal((await actor.list()).scenes[0].status, 'failed');
+  worker.status = 'ready';
+  assert.deepEqual((await Promise.all([1, 2, 3].map(() => actor.fetch(sceneAs('u-alice', { retry: true }))))).map(r => r.status), [202, 202, 202]);
+  await actor.alarm(); await actor.alarm();
+  assert.equal((await actor.list()).scenes[0].status, 'ready');
+  assert.deepEqual([posts().length, new Set(posts().map(call => call.split(' ').pop())).size], [2, 2], 'the first render and one retry, each under its own key');
+  assert.deepEqual(renderRows(sqlite, 'u-alice').map(r => r[0]), ['failed', 'settled']);
+});
