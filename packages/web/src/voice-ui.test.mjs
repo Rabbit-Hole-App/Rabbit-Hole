@@ -166,8 +166,9 @@ test('the breathing ring stops under reduced motion and leaves a static ring', (
 test('a Rabbit Hole opening in Voice Mode is a voice turn, never a chat bubble (ask.jsx)', () => {
   // The opening goes to voice.say when Voice Mode is on (or turning on after the move); send() - the chat path that
   // draws the bubble and the typed reply - runs only when Voice Mode is off.
-  const say = ask.indexOf('if ((dock || chat) && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;');
-  const typed = ask.indexOf('send(tutor.opening.question, undefined, { opening: true });');
+  // Tutor Task 04 (owner 4a): the same steps live in sendOpening(opening), which the guided opening and its waiting prompt share.
+  const say = ask.indexOf('if ((dock || chat) && voice?.on && voice.say(opening.question, { opening: true })) return;');
+  const typed = ask.indexOf('send(opening.question, undefined, { opening: true });');
   assert.ok(say > 0 && typed > say && ask.slice(say, typed).split('\n').length === 2, 'voice.say first; send only when it does not take the turn');
 });
 
