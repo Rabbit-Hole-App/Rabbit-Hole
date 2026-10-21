@@ -163,9 +163,12 @@ export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   }
   // 4. find|search <text>
   if ((m = message.match(/^(?:find|search)\s+(?:for\s+)?(.+)$/i))) return command('search_resources', { text: m[1].trim() });
-  // 5. connect <provider>: only a row of the Connections catalog (connections.js); anything else is a question.
+  // 5. connect <provider>: only a row of the Connections catalog (connections.js); anything else is a question. GitHub is the
+  // Start dialog's repository path (owner L11: it is no connected-account setting); the others open Settings, whose notice
+  // says a planned provider was not connected.
   m = message.match(/^connect\s+(?:to\s+)?(.+)$/i);
   const provider = m && findConnection(m[1]);
+  if (provider?.id === 'github') return command('open_start', { path: 'repository' });
   if (provider) return command('open_settings', { tab: 'connections', focus: provider.id });
   // 6. settings|preferences|connections|theme
   if (SETTINGS[message.toLowerCase()]) return command('open_settings', SETTINGS[message.toLowerCase()]);

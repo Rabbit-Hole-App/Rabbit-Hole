@@ -335,6 +335,19 @@ export const HELD_SUM = "COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'un
 
 // GET /api/learn/usage's sums for one user and period. Settled cost is used; reservations (running) and unknown attempts are
 // reserved, never used; estimates are reported apart and are not in the balance. Throws on a read failure.
+// The same sums split by feature (Settings > AI usage, "This month by feature"), largest first; the parts add up to usageTotals.
+// Only features with a settled, reserved or unknown amount are listed. Throws on a read failure.
+export async function usageByFeature(db, userId, period) {
+  const { results } = await db.prepare(`SELECT a.feature,
+      ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
+      COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts
+    ${BALANCE_SCOPE}
+    GROUP BY a.feature`).bind(userId, period).all();
+  return (results || []).map(row => ({ feature: row.feature, usedMicros: Number(row.used || 0), reservedMicros: Number(row.reserved || 0), unknownAttempts: Number(row.unknown_attempts || 0) }))
+    .filter(row => row.usedMicros || row.reservedMicros || row.unknownAttempts)
+    .sort((a, b) => b.usedMicros - a.usedMicros || b.reservedMicros - a.reservedMicros || a.feature.localeCompare(b.feature));
+}
+
 export async function usageTotals(db, userId, period) {
   const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
       COALESCE(SUM(CASE WHEN t.cost_state = 'estimated' THEN t.cost_micros END), 0) AS estimated,

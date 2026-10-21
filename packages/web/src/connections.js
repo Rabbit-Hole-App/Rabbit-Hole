@@ -1,6 +1,7 @@
 // Settings → Connections catalog (T02 §11). Availability is product state and stays apart
 // from account status, which appears only where code can read it. Plain data, no agent
 // imports: Settings, the Start dialog and the bar's router all read it.
+import { paneTitle, resolveSettingsTab } from './settings-model.js';
 export const CONNECTIONS = [
   { id: 'github', name: 'GitHub', availability: 'available', adds: 'Understand a repository through its code, map, and Learn canvases.', account: "No account needed for public repositories. Private repositories aren't supported yet." },
   { id: 'slack', name: 'Slack', availability: 'available', adds: '@small in channels, /small commands, proposals as buttons.' },
@@ -9,14 +10,9 @@ export const CONNECTIONS = [
   { id: 'google-drive', name: 'Google Drive / Docs', availability: 'planned', adds: 'Use selected documents as learning sources.', aliases: ['google docs', 'drive', 'docs'] },
   { id: 'notion', name: 'Notion', availability: 'planned', adds: 'Use selected pages as sources for your learning project.' },
 ];
-export const AVAILABILITY = { available: 'Available', preview: 'Dev preview', planned: 'Planned' };
 
 // AWS exists only in builds that enable it (Sidebar.jsx:133).
 export const connectionsFor = ({ aws = false } = {}) => CONNECTIONS.filter((c) => c.id !== 'aws' || aws);
-
-// Rabbit Hole's Settings lists only providers that work there. Planned rows stay in the catalog for
-// the bar's `connect <provider>` notice; Slack installs the live small bot, which the preview never writes to (D7).
-export const previewConnections = (opts) => connectionsFor(opts).filter((c) => c.availability !== 'planned' && c.id !== 'slack');
 
 // 'Google Slides', 'google-slides' or 'notion' -> its row: the bar's rule 5, connect <provider>.
 export function findConnection(text) {
@@ -26,10 +22,11 @@ export function findConnection(text) {
 }
 
 // The line the bar shows after open_settings (T02 §11): where Settings opened, and never a
-// connection that did not happen.
-const TABS = { preferences: 'Preferences', connections: 'Connections' };
+// connection that did not happen. An old tab name names the pane that has its content now (settings-model.js); one
+// Settings no longer has (Connections: Rabbit Hole has no connected accounts to manage) names none.
 export function openedNotice(tab, focus) {
-  const where = TABS[tab] ? `Opened Settings → ${TABS[tab]}.` : 'Opened Settings.';
+  const { pane, removed } = resolveSettingsTab(tab);
+  const where = tab && !removed ? `Opened Settings → ${paneTitle(pane)}.` : 'Opened Settings.';
   const c = findConnection(focus);
   return c?.availability === 'planned' ? `${where} ${c.name} is planned; nothing was connected.` : where;
 }

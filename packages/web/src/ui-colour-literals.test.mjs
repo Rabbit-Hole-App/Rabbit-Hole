@@ -23,6 +23,9 @@ const SCOPE = [
   { file: 'three-d-renderer.js' },
   { file: 'cad-viewer-background.js' },
   { file: 'ui.jsx', from: 'export function Button(', to: '\n}\n' },
+  { file: 'RabbitHoleSettings.jsx' },
+  { file: 'settings-model.js' },
+  { file: 'ui-prefs.js' },
 ];
 const ALLOW = [
   { file: 'ChatComposer.jsx', literal: 'rgba(35,131,226,0.2)', count: 2, why: 'the focus ring shadow: --color-accent at 20% in a shadow-[] value' },
@@ -34,6 +37,7 @@ const ALLOW = [
   { file: 'three-d-renderer.js', literal: '0xffffff', count: 2, why: 'the scene lights (hemisphere sky, directional): white light, not a UI colour' },
   { file: 'three-d-renderer.js', literal: '0x667788', count: 1, why: 'the hemisphere light\'s ground colour' },
   { file: 'ui.jsx', literal: 'rgba(0,0,0,0.12)', count: 1, why: 'the secondary Button\'s faint drop shadow' },
+  { file: 'RabbitHoleSettings.jsx', literal: 'bg-black', count: 1, why: 'the modal scrim (bg-black/20), as every app dialog has it: it darkens the page in both themes' },
 ];
 
 const PALETTE = 'red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone';

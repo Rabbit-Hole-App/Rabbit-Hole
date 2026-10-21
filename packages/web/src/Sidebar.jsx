@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, CircleUser, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Gauge, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bell, Braces, Check, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
-import { AVAILABILITY, previewConnections } from './connections.js';
 import { isPrivateByoc } from './private-auth.js';
 import { titleOf } from './agent/catalog.js';
 import { learnPreview, PRODUCT } from './flags.js';
@@ -14,50 +13,28 @@ import { isLearnResource } from './library-filter.js';
 import { recentLaunch } from './sidebar-nav.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
 import FeedbackButton from './FeedbackButton.jsx';
-import { UsageSettings } from './UsageGauge.jsx';
-import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
-import { isInternalPrincipal, personLabel, saveProfile, useProfile, useSessionDisplay, useShownIdentity } from './session-display.js';
-import { fieldHandle } from '../../control-plane/src/handle.js';
+import RabbitHoleSettings from './RabbitHoleSettings.jsx';
+import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
+import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
 import { MODEL_CHOICES, MODEL_SCOPE } from './model-choices.js';
 
 // Settings (workspace dropdown → Settings): Notion-style two-pane modal -
-// left nav (Account / Workspace sections), right content per tab.
+// left nav (Account / Workspace sections), right content per tab. This is the live and private BYOC build's;
+// Rabbit Hole's is RabbitHoleSettings.jsx.
 const THEMES = { System: 'system', Light: 'light', Dark: 'dark' };
-// Dev build only (D2): Rabbit Hole shows a setting when it works and hides it otherwise; no Planned
-// rows or panes. The live markup stays exactly as today.
-const AVAILABILITY_COLOR = { available: 'green', preview: 'yellow', planned: 'grey' };
 // ponytail: nav copied verbatim from the Notion reference (user: "copy the same we
 // will remove later") - most items render an empty pane until we prune/wire them.
-function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, focus: initialFocus, pendingGrant, onAccessChanged, awsAvailable }) {
+function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initialTab, pendingGrant, onAccessChanged, awsAvailable }) {
   // Shown identity: GET /auth/session's display, never the internal principal (session-display.js).
-  const session = useSessionDisplay();
-  const profile = useProfile();
   const shown = useShownIdentity(email);
-  const [tab, setTab] = useState(initialTab || (learnPreview ? 'profile' : 'preferences'));
-  const [focus, setFocus] = useState(initialFocus || null); // the row open_settings asked for, e.g. google-slides
-  const box = useRef(null);
-  useEffect(() => {
-    if (!learnPreview) return;
-    // Capture phase: while Settings is the top layer, Esc closes it and nothing under it (Start
-    // dialog, bar sheet). A dialog opened inside Settings (Disconnect AWS?) takes Esc first.
-    const esc = (e) => {
-      if (e.key !== 'Escape' || box.current?.querySelector('[role="dialog"]')) return;
-      e.stopPropagation();
-      onClose();
-    };
-    window.addEventListener('keydown', esc, true);
-    return () => window.removeEventListener('keydown', esc, true);
-  }, []);
-  useEffect(() => {
-    if (focus) box.current?.querySelector(`[data-settings-focus="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: 'center' });
-  }, [focus, tab]);
+  const [tab, setTab] = useState(initialTab || 'preferences');
   const [theme, setThemeState] = useState(() => getTheme());
   const [enterNewline, setEnterNewline] = useState(false); // visual only
   const [textDir, setTextDir] = useState(false); // visual only
   const label = Object.keys(THEMES).find((k) => THEMES[k] === theme);
   const NavBtn = ({ id, icon: Icon, children }) => (
     <div
-      onClick={() => { setTab(id); setFocus(null); }}
+      onClick={() => setTab(id)}
       className={cn('flex h-7 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm', tab === id ? 'bg-hover font-medium' : 'hover:bg-hover text-ink-2')}
     >
       <Icon size={15} strokeWidth={1.5} className="shrink-0" />
@@ -90,43 +67,35 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
   );
   const node = (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={onClose}>
-      <div ref={box} {...(learnPreview && { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Settings' })} className={cn('flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop', learnPreview && 'max-md:h-[calc(100dvh-32px)] max-md:w-[calc(100vw-32px)] max-md:flex-col')} onMouseDown={(e) => e.stopPropagation()}>
-        <div className={cn('w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3', learnPreview && 'max-md:max-h-40 max-md:w-full max-md:border-r-0 max-md:border-b')}>
+      <div className="flex h-[calc(100vh-100px)] max-h-[720px] w-[calc(100vw-100px)] max-w-[1150px] overflow-hidden rounded-2xl bg-white text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="w-[260px] shrink-0 overflow-y-auto border-r border-line bg-side py-4 px-3">
           <div className="px-2 pb-1 text-xs font-medium text-ink-3">Account</div>
-          {!learnPreview && <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
+          <div className="flex items-center gap-2 rounded-sm px-2 py-1.5">
             {shown.label && <Avatar email={shown.email || shown.label} />}
             <span className="truncate text-sm" title={shown.label}>{shown.label}</span>
-          </div>}
-          {/* Rabbit Hole: Profile is labelled with the person's own name (their Profile name, else the provider's). */}
-          {learnPreview && <NavBtn id="profile" icon={CircleUser}>{profile?.name || session?.display?.name || 'Profile'}</NavBtn>}
+          </div>
           <NavBtn id="preferences" icon={SlidersHorizontal}>Preferences</NavBtn>
           <NavBtn id="notifications" icon={Bell}>Notifications</NavBtn>
-          {/* The person's own monthly AI allowance across every canvas (owner D4 section 1), from the server. */}
-          {learnPreview && <NavBtn id="usage" icon={Gauge}>AI usage</NavBtn>}
-          {!learnPreview && <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>}
+          <NavBtn id="mail" icon={Mail}>Mail & Calendar</NavBtn>
           <NavLabel>Workspace</NavLabel>
           <NavBtn id="general" icon={Settings}>General</NavBtn>
-          {!learnPreview && <NavBtn id="people" icon={Users}>People</NavBtn>}
-          {!learnPreview && <NavBtn id="import" icon={Download}>Import</NavBtn>}
+          <NavBtn id="people" icon={Users}>People</NavBtn>
+          <NavBtn id="import" icon={Download}>Import</NavBtn>
           <NavLabel>Features</NavLabel>
-          {!learnPreview && <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>}
+          <NavBtn id="ai" icon={Mark}>Small AI</NavBtn>
           <NavBtn id="connections" icon={LayoutGrid}>Connections{pendingGrant && <span role="status" aria-label="AWS access needs attention" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-warn" />}</NavBtn>
-          {!learnPreview && <>
-            <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
-            <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
-            <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
-          </>}
+          <NavBtn id="mcp" icon={Share2}>Small MCP</NavBtn>
+          <NavBtn id="pages" icon={Globe}>Public pages</NavBtn>
+          <NavBtn id="emoji" icon={Smile}>Emoji</NavBtn>
           <NavBtn id="developer" icon={Braces}>Developer</NavBtn>
-          <NavLabel>{learnPreview ? 'Sign-in' : 'Admin'}</NavLabel>
-          {!learnPreview && <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>}
+          <NavLabel>Admin</NavLabel>
+          <NavBtn id="teamspaces" icon={LayoutPanelLeft}>Teamspaces</NavBtn>
           <NavBtn id="security" icon={Shield}>Security</NavBtn>
           <NavBtn id="identity" icon={BadgeCheck}>Identity</NavBtn>
         </div>
         <div className="relative flex-1 overflow-y-auto">
           <IconBtn aria-label="Close" onClick={onClose} className="absolute top-3 right-3"><X size={14} /></IconBtn>
-          <div className={cn('mx-auto max-w-[920px] px-12 py-10', learnPreview && 'max-md:px-4 max-md:py-6')}>
-          {tab === 'profile' && <ProfilePane session={session} shown={shown} profile={profile} Heading={Heading} />}
-          {tab === 'usage' && learnPreview && <UsageSettings Heading={Heading} />}
+          <div className="mx-auto max-w-[920px] px-12 py-10">
           {tab === 'preferences' && (
             <>
               <div className="text-2xl font-semibold">Preferences</div>
@@ -139,8 +108,8 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                   onChange={(k) => { setThemeState(THEMES[k]); setTheme(THEMES[k]); }}
                 />
               </SettingsRow>
-              {/* ponytail: these rows are visual only (no-op controls); the preview hides them until they work. */}
-              {!learnPreview && <>
+              {/* ponytail: these rows are visual only (no-op controls). */}
+              <>
                 <SettingsRow
                   title={<span>High contrast <span className="ml-1 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] text-ink-2">Beta</span></span>}
                   desc="Increase contrast for improved visibility"
@@ -161,7 +130,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                 <SettingsRow title="Always show text direction controls" desc="Show the option to change text direction (left to right or right to left) in the editor, regardless of what language you're using">
                   <Toggle on={textDir} onChange={setTextDir} />
                 </SettingsRow>
-              </>}
+              </>
             </>
           )}
           {tab === 'notifications' && (
@@ -175,7 +144,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Weekly email" desc="A summary lands every Monday 08:00 UTC." />
             </>
           )}
-          {tab === 'connections' && !learnPreview && (
+          {tab === 'connections' && (
             <>
               <div className="text-2xl font-semibold">Connections</div>
               <div className="pt-2 text-base text-ink-2">Bring small into the tools your team already uses</div>
@@ -191,24 +160,6 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               </SettingsRow>
             </>
           )}
-          {tab === 'connections' && learnPreview && (
-            <>
-              <div className="text-2xl font-semibold">Connections</div>
-              <div className="pt-2 text-base text-ink-2">{`What each connection adds to learning in ${PRODUCT}`}</div>
-              <Heading>Providers</Heading>
-              {previewConnections({ aws: isPrivateByoc || awsAvailable }).map((c) => (
-                <div key={c.id} data-settings-focus={c.id} aria-current={focus === c.id || undefined} className={cn('-mx-2 rounded-md px-2', focus === c.id && 'bg-hover ring-2 ring-accent/35')}>
-                  <SettingsRow
-                    title={<span className="flex items-center gap-2">{c.name}<Pill color={AVAILABILITY_COLOR[c.availability]}>{AVAILABILITY[c.availability]}</Pill></span>}
-                    desc={[c.adds, c.account].filter(Boolean).join(' ')}
-                  >
-                    {c.id === 'github' && <Button variant="soft" size="sm" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } })); }}>Start from a repository</Button>}
-                  </SettingsRow>
-                  {c.id === 'aws' && <AwsConnection workspace={org} apps={apps} onChanged={onReload} onAccessChanged={onAccessChanged} />}
-                </div>
-              ))}
-            </>
-          )}
           {tab === 'general' && (
             <>
               <div className="text-2xl font-semibold">General</div>
@@ -216,13 +167,13 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <Heading>Workspace</Heading>
               <SettingsRow
                 title="Name"
-                desc={learnPreview ? 'Shown in the sidebar' : activeWs?.kind === 'custom' && activeWs?.role === 'owner'
+                desc={activeWs?.kind === 'custom' && activeWs?.role === 'owner'
                   ? 'Shown in the sidebar and breadcrumbs. Edit and save.'
                   : activeWs?.kind === 'custom'
                     ? 'Shown in the sidebar and breadcrumbs. Only the owner can rename it.'
                     : 'Named after your email domain'}
               >
-                {!learnPreview && activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
+                {activeWs?.kind === 'custom' && activeWs?.role === 'owner' ? (
                   <form
                     className="flex items-center gap-2"
                     onSubmit={async (e) => {
@@ -250,10 +201,10 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Slug" desc="Its id in app URLs">
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isInternalPrincipal(wsInfo?.active) ? 'personal' : wsInfo?.active || '…'}</code>
               </SettingsRow>
-              {!learnPreview && <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
+              <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
                 <span className="text-sm text-ink-2">{activeWs?.kind === 'custom' ? 'custom' : 'email domain'}</span>
-              </SettingsRow>}
-              {!learnPreview && activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
+              </SettingsRow>
+              {activeWs?.kind === 'custom' && activeWs?.role === 'owner' && (
                 <>
                   <Heading>People</Heading>
                   <SettingsRow title="Add someone" desc="They see this workspace next time they open the workspace menu">
@@ -329,7 +280,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <SettingsRow title="Start a job" desc="Prompts for its inputs"><CodeCopy text="small run <app>" /></SettingsRow>
               <SettingsRow title="Recent runs" desc="Status, duration, who started them"><CodeCopy text="small runs <app>" /></SettingsRow>
               <SettingsRow title="Logs" desc="Tail what an app printed"><CodeCopy text="small logs <app>" /></SettingsRow>
-              {!learnPreview && <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>}
+              <SettingsRow title="Share" desc="Give a teammate access"><CodeCopy text="small share <email>" /></SettingsRow>
               <SettingsRow title="Schedule" desc="Pause or resume a cron"><CodeCopy text="small schedule pause <app>" /></SettingsRow>
               <SettingsRow title="Everything you own" desc="Apps and their URLs"><CodeCopy text="small list" /></SettingsRow>
               <SettingsRow title="Watch" desc="What the nightly pass found"><CodeCopy text="small watch" /></SettingsRow>
@@ -374,9 +325,9 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <div className="pt-2 text-base text-ink-2">Who you are here</div>
               <Heading>Account</Heading>
               <SettingsRow title="Email" desc="Your sign-in identity"><span className="text-sm text-ink-2">{shown.email || shown.label}</span></SettingsRow>
-              {!learnPreview && <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
+              <SettingsRow title="Home workspace" desc={isPrivateByoc ? 'Access is granted by your workspace administrator.' : 'Everyone with this email domain shares it'}>
                 <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isPrivateByoc ? org : shown.email ? shown.email.split('@')[1] : ''}</code>
-              </SettingsRow>}
+              </SettingsRow>
             </>
           )}
           {TITLES[tab] && (
@@ -390,9 +341,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
       </div>
     </div>
   );
-  // Portaled in dev: inside the aside it can't show while the sidebar is collapsed
-  // (Shell.jsx:75 transform) or below md (Shell.jsx:72 max-md:hidden).
-  return learnPreview ? createPortal(node, document.body) : node;
+  return node;
 }
 
 // Settings > Account > AI model: every agent (chat, review, runbook, watch)
@@ -588,7 +537,8 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   const pendingGrant = grantNotice?.org === org ? grantNotice.pending : null;
   const onAccessChanged = (pending) => setGrantNotice({ org, pending });
   useEffect(() => {
-    if (!isPrivateByoc && !awsAvailable) return;
+    // Rabbit Hole's Settings has no AWS controls (owner, L11): nothing to review the grant in, so nothing is polled for it.
+    if (learnPreview || (!isPrivateByoc && !awsAvailable)) return;
     let cancelled = false, loading = false;
     const load = async () => {
       if (loading || document.hidden) return;
@@ -1050,7 +1000,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <MenuItem icon={LogOut} onClick={() => { window.location.href = '/logout'; }}>Log out</MenuItem>
         </Menu>
       </div>
-      {showSettings && <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} focus={showSettings?.focus} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} awsAvailable={awsAvailable} />}
+      {showSettings && (learnPreview
+        ? <RabbitHoleSettings email={email} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} onClose={() => setShowSettings(false)} />
+        : <SettingsDialog email={email} org={org} apps={apps} onReload={onReload} onMarkRead={markRead} onClose={() => setShowSettings(false)} initialTab={typeof showSettings === 'string' ? showSettings : showSettings?.tab} pendingGrant={pendingGrant} onAccessChanged={onAccessChanged} awsAvailable={awsAvailable} />)}
       {newApp && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]" onMouseDown={() => setNewApp(false)}>
           <div className="mt-[22vh] w-[420px] max-w-[90vw] rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
@@ -1542,118 +1494,6 @@ function TrashDialog({ trash, onRestore, onClose }) {
       </div>
     </div>,
     document.body,
-  );
-}
-
-// Settings > Profile (user, 2026-09-30): the person sets the name and picture Rabbit Hole shows for them.
-// Saved to /api/profile (session-display.js saveProfile); sign-in details come from GET /auth/session only.
-const AVATAR_SIDE = 256;
-async function squarePng(file) {
-  const image = await createImageBitmap(file);
-  const side = Math.min(image.width, image.height);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = Math.min(AVATAR_SIDE, side);
-  canvas.getContext('2d').drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/png');
-}
-function ProfilePane({ session, shown, profile, Heading }) {
-  const [name, setName] = useState(null); // null until edited: shows the saved name
-  const [busy, setBusy] = useState(false);
-  const picker = useRef(null);
-  const value = name ?? profile?.name ?? '';
-  const save = async (patch, done) => {
-    setBusy(true);
-    try { await saveProfile(patch); toast(done); setName(null); } catch (e) { toast(`✗ ${e.message}`); }
-    setBusy(false);
-  };
-  const upload = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-    if (file.type !== 'image/png') return toast('✗ Choose a PNG image');
-    try { await save({ avatar: await squarePng(file) }, 'Picture updated'); } catch (e) { toast(`✗ ${e.message}`); }
-  };
-  return (
-    <>
-      <div className="text-2xl font-semibold">Profile</div>
-      <div className="pt-2 text-base text-ink-2">How you appear in {PRODUCT}</div>
-      <div className="mt-6 flex items-center gap-4">
-        <Avatar email={shown.email || shown.label || '?'} src={profile?.avatar} className="h-16 w-16 text-xl" />
-        <div className="flex flex-wrap gap-2">
-          <input ref={picker} type="file" accept="image/png" className="hidden" onChange={upload} />
-          <Button variant="secondary" size="sm" disabled={busy} onClick={() => picker.current?.click()}>{profile?.avatar ? 'Change picture' : 'Upload picture'}</Button>
-          {profile?.avatar && <Button variant="ghost" size="sm" disabled={busy} onClick={() => save({ avatar: null }, 'Picture removed')}>Remove</Button>}
-        </div>
-      </div>
-      <p className="pt-2 text-xs text-ink-3">PNG. It is cropped to a square.</p>
-      <Heading>Account</Heading>
-      <SettingsRow title="Name" desc="Shown in the sidebar and across the app">
-        <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); save({ name: value }, 'Name saved'); }}>
-          <Input value={value} maxLength={60} placeholder={session?.display?.name || 'Your name'} onChange={(e) => setName(e.target.value)} className="w-56" aria-label="Name" />
-          <Button type="submit" size="sm" variant="secondary" disabled={busy || name === null || value === (profile?.name ?? '')}>Save</Button>
-        </form>
-      </SettingsRow>
-      <HandleRow profile={profile} />
-      <DescriptionRow profile={profile} />
-      <SettingsRow title="Email" desc="Where sign-in links go"><span className="text-sm text-ink-2">{shown.email || 'Not shared'}</span></SettingsRow>
-      <SettingsRow title="Signed in with"><span className="text-sm text-ink-2">{{ google: 'Google', github: 'GitHub', email: 'Email link' }[session?.provider] || 'Unknown'}</span></SettingsRow>
-    </>
-  );
-}
-
-// Settings > Profile > Handle (docs/features/user-handles.md): the public @handle, changeable. The server checks the
-// rules and that nobody else has it; every canvas shows the new one at once, because canvases refer to the person.
-function HandleRow({ profile }) {
-  const [draft, setDraft] = useState(null); // null until edited: shows the saved handle
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const value = draft ?? profile?.handle ?? '';
-  const save = async (event) => {
-    event.preventDefault();
-    setBusy(true); setError('');
-    try { await saveProfile({ handle: value }); toast('Handle saved'); setDraft(null); } catch (e) { setError(e.message); }
-    setBusy(false);
-  };
-  return (
-    <SettingsRow title="Handle" desc="Your public name on canvases you share or publish">
-      <form className="flex flex-col items-end gap-1" onSubmit={save}>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-ink-3">@</span>
-          <Input value={value} maxLength={31} spellCheck={false} autoCapitalize="none" onChange={(e) => { setDraft(fieldHandle(e.target.value)); setError(''); }} className="w-48" aria-label="Handle" />
-          <Button type="submit" size="sm" variant="secondary" disabled={busy || draft === null || value === (profile?.handle ?? '')}>Save</Button>
-        </div>
-        {error && <p data-handle-error role="alert" className="text-xs text-red-700">{error}</p>}
-      </form>
-    </SettingsRow>
-  );
-}
-
-// Settings > Profile > Description (docs/features/creator-profile.md, owner 2026-10-08: "in profile add a discription"):
-// a short line shown under your name on /@handle and on your creator card. Plain text: the server keeps it on one line,
-// at most profile.js DESCRIPTION_MAX characters, and an empty one clears it; it is shown as text, never HTML or a link.
-const DESCRIPTION_MAX = 160;
-function DescriptionRow({ profile }) {
-  const [draft, setDraft] = useState(null); // null until edited: shows the saved description
-  const [busy, setBusy] = useState(false);
-  const value = draft ?? profile?.description ?? '';
-  const save = async (event) => {
-    event.preventDefault();
-    setBusy(true);
-    try { const saved = await saveProfile({ description: value }); toast(saved.description ? 'Description saved' : 'Description removed'); setDraft(null); } catch (e) { toast(`✗ ${e.message}`); }
-    setBusy(false);
-  };
-  return (
-    <SettingsRow title="Description" desc="Shown on your profile and your creator card">
-      <form className="flex flex-col items-end gap-1" onSubmit={save}>
-        <textarea data-profile-description-input value={value} maxLength={DESCRIPTION_MAX} rows={3} placeholder="What you explore and explain" aria-label="Description"
-          onChange={(e) => setDraft(e.target.value)}
-          className="min-h-[72px] w-72 resize-none rounded-sm [field-sizing:content] border border-transparent bg-code px-2 py-1.5 text-sm outline-none transition-[border-color,box-shadow] duration-100 placeholder:text-ink-3 focus:border-line-strong focus:bg-white focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]" />
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-ink-3">{value.length}/{DESCRIPTION_MAX}</span>
-          <Button type="submit" size="sm" variant="secondary" disabled={busy || draft === null || value === (profile?.description ?? '')}>Save</Button>
-        </div>
-      </form>
-    </SettingsRow>
   );
 }
 
