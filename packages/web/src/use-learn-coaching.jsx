@@ -15,21 +15,28 @@ const CHANNEL = 'rh.learn-coaching';
 // payload), retry(), canCoach(context) }. One sync per learner canvas: another tab's save arrives by BroadcastChannel, and a
 // tab coming back into view reads the saved controls again (another device), so proactive work rechecks current controls.
 export function useLearnCoaching({ app, board = 'main' }) {
+  // The channel opens in the effect, never in render: an open BroadcastChannel keeps a server render (and node) alive.
   const sync = useMemo(() => {
-    let channel = null;
-    // unref (Node only): a render outside the browser (react-dom/server in chat-context.test.mjs) must not hold its process open.
-    try { channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null; channel?.unref?.(); } catch { channel = null; }
-    return Object.assign(createCoachingSync({ scope: { app, board }, call: api, channel }), { channel });
+    const port = { current: null };
+    return Object.assign(createCoachingSync({ scope: { app, board }, call: api, channel: { postMessage: message => port.current?.postMessage(message) } }), { port });
   }, [app, board]);
   useEffect(() => {
-    sync.start();
+    let channel = null;
+    try { channel = typeof BroadcastChannel === 'function' ? new BroadcastChannel(CHANNEL) : null; } catch { channel = null; }
+    sync.port.current = channel;
     const hear = event => sync.receive(event.data);
-    sync.channel?.addEventListener('message', hear);
+    channel?.addEventListener('message', hear);
+    sync.start();
     const back = () => { if (document.visibilityState === 'visible') sync.load(); };
     document.addEventListener('visibilitychange', back);
-    return () => { sync.stop(); sync.channel?.removeEventListener('message', hear); document.removeEventListener('visibilitychange', back); };
+    return () => {
+      sync.stop();
+      channel?.removeEventListener('message', hear);
+      channel?.close();
+      if (sync.port.current === channel) sync.port.current = null;
+      document.removeEventListener('visibilitychange', back);
+    };
   }, [sync]);
-  useEffect(() => () => sync.channel?.close(), [sync]);
   const view = useSyncExternalStore(sync.subscribe, sync.view, sync.view);
   // reload: read the saved state again (an answer was submitted and the server moved the activity on: Task 07).
   return useMemo(() => ({ ...view, dispatch: sync.dispatch, act: sync.act, retry: sync.retry, canCoach: sync.canCoach, reload: sync.load }), [view, sync]);
