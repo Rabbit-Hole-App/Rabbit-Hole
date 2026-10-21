@@ -31,7 +31,9 @@ import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
-import { holdsLine, parseSlash, releaseLine } from './learn-slash.js';
+import { answersInChat, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
+import { mergeOutputs, outputSink } from './chat-output-refs.js';
+import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
@@ -407,6 +409,31 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   }, [historyScope, scopeRef, privateChat, appName]);
   const newChat = () => { if (chatThread) { boardContext?.removeImage(); return chatThread.newChat(); } setCodeSelection(null); setFilePeek(null); setRepositoryCommit(repositoryContext?.commit || null); boardContext?.clearPaper?.(); onCloseContentPanel?.(); historyRequest.current++; threadId.current = null; sheetThread.current = null; setSheetHistory(false); boardContext?.removeImage(); setMsgs([]); setChoices(null); setView('chat'); };
   const follow = useFollowLatest(boxRef, [msgs]);
+  // What a Chat prompt makes (UI changes brief 1, 2, 5; chat-output-refs.js): each card it inserts is kept under its user message
+  // (outputsKey: the turn's id, stable while the message's id goes from local to saved), and the cards' own job state drives the
+  // "Generating on the canvas" indicator above the composer. Only the Chat pane keeps them: its messages are saved.
+  const outputOps = chatThread ? workspace?.canvasOps ?? null : null;
+  const generation = useGenerationWatch(msgs, setMsgs, outputOps);
+  const keepOutput = key => output => setMsgs(ms => ms.map(x => (x.outputsKey === key ? { ...x, outputs: mergeOutputs(x.outputs, [output]) } : x)));
+  const savedId = (key, saved) => saved.then(r => { const id = String(r.messageId); setMsgs(ms => ms.map(x => (x.outputsKey === key ? { ...x, messageId: id } : x))); return id; });
+  // A / command line the Chat runs (LearnSlash onRun): saved at once as the learner's message in this thread, its command named,
+  // through the same idempotent save an Auto turn's question uses (chat-persist.js turnSaver: one client id per line, so a retry
+  // writes it once). Cancel, failure and completion never touch it. A line whose words go on to the chat route (answersInChat)
+  // is that route's turn and is saved there. Answers { onCard }: the sink the command's cards report to.
+  const recordCommand = raw => {
+    const content = raw.trim();
+    if (!chatThread || !content || answersInChat(content)) return null;
+    const turnId = crypto.randomUUID(), title = content.slice(0, 120), sentKey = chatThread.liveKey();
+    chatThread.claim(); // a restore still on its way never replaces this line
+    generation.dismissSettled();
+    const saver = turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId, mode: chatThread.mode, title: chatThread.id ? null : title,
+      onAsked: () => { if (!lateEvent(sentKey, chatThread.liveKey())) chatThread.adopt(saver.threadId, title); } });
+    chatThread.adopt(saver.threadId, title, { remember: false });
+    setMsgs(m => [...m, { role: 'user', content, command: parseSlash(content)?.name || null, messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [] }]);
+    const saved = savedId(turnId, saver.user(content, { command: parseSlash(content)?.name || null }));
+    saved.catch(error => console.info('[chat] command not saved:', error.message));
+    return { onCard: outputOps ? outputSink({ messageId: saved.catch(() => null), ops: outputOps, onOutput: keepOutput(turnId) }) : null };
+  };
 
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
   // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
@@ -535,6 +562,12 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // thread (a new chat's thread id is made here), so a late reply is saved where it was asked. Ask and Tutor modes are saved
     // by /api/learn/ask. A demo or a regenerated answer is no new turn.
     const askedTitle = message.slice(0, 120);
+    // This turn's cards (a Tutor create_material, an answer's paper, article or video) are kept under its question, once the
+    // question has its saved id: the Auto save below, or the done event of /api/learn/ask.
+    let askedId = () => {};
+    const askedPromise = new Promise(done => { askedId = done; });
+    const cardSink = outputOps && !isDemo && !regenerate ? outputSink({ messageId: askedPromise, ops: outputOps, onOutput: keepOutput(replyId) }) : null;
+    if (cardSink) generation.dismissSettled();
     const autoSave = chatThread && !isDemo && !regenerate ? turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId: replyId, title: chatThread.id ? null : askedTitle, onAsked: () => { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle); } }) : null;
     let card = sheetMode && !panelAsk ? { card: true } : {}; // answered as a card, kept out of the sheet
     // The turn's chat bubbles and canvas exchange, drawn once, and the sheet opened for them. The Tutor draws them itself
@@ -551,13 +584,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
       // A Tutor turn's question is saved now, before the Tutor generates; the thread is this Chat's at once (saved, it also
       // becomes the canvas's active thread: onAsked).
-      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); autoSave.user(message); }
+      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); savedId(replyId, autoSave.user(message)).then(askedId, () => askedId(null)); }
       if (late()) return; // another thread or canvas is open in this Chat now: nothing of this turn is drawn there
       // In the Chat pane each message carries { messageId, status } (contract A2): local ids until `done` names the server's.
       // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
       const reply = { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card, ...(chatThread ? { messageId: `local-${replyId}`, status: 'streaming' } : {}) };
       if (regenerate) { setMsgs(m => m.map(item => (item.messageId === regenerate.messageId ? reply : item))); return; }
-      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(sentRefs.length ? { refs: sentRefs } : {}), ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done' } : {}) }, reply]);
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(sentRefs.length ? { refs: sentRefs } : {}), ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done', outputsKey: replyId } : {}) }, reply]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
@@ -592,7 +625,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // Tutor's workflow on a journey or Tutor canvas (owner brief section 5).
       if (viaTutor) {
         // A block's follow-up composer (canvasSeed, a journey canvas) asks about that block.
-        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, page: pdfPage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin, ...canvasArgs, inspected: tutorImage && imageObject ? [imageObject] : [] }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
+        const reply = await tutor.ask({ raw: raw.trim(), targetId: (target || canvasSeed?.target)?.id || null, image: tutorImage, page: pdfPage, opening, signal: flight.signal, skipJourney, resolved: sheetMode, begin: sheetMode ? null : begin, ...canvasArgs, inspected: tutorImage && imageObject ? [imageObject] : [], onCard: cardSink }).catch(e => { if (e.name === 'AbortError') return 'Stopped.'; if (e.name === 'TimeoutError') throw new Error('The Tutor took too long to answer. Try again.'); throw e; });
         if (reply?.handled) { if (reply.failed) setInput(current => current || raw); return; }
         if (sheetMode) {
           const routed = typeof reply === 'string' ? { to: 'tray', text: reply } : destinationOf(reply, target, { setup: journeySetup });
@@ -707,13 +740,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
           else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor' }); }
-          else if (type === 'paper') { if (!journeySetup) boardContext?.onShowPaper?.(d, slots.paper); }
-          else if (type === 'wiki') { if (!journeySetup) boardContext?.onShowWiki?.(d, slots.wiki); }
-          else if (type === 'video') { if (!journeySetup) boardContext?.onShowVideo?.(d, slots.video); }
+          else if (type === 'paper') { if (!journeySetup) cardSink?.(boardContext?.onShowPaper?.(d, slots.paper)); }
+          else if (type === 'wiki') { if (!journeySetup) cardSink?.(boardContext?.onShowWiki?.(d, slots.wiki)); }
+          else if (type === 'video') { if (!journeySetup) cardSink?.(boardContext?.onShowVideo?.(d, slots.video)); }
           else if (type === 'papers') setMsgs(messages => messages.map(item => item.id === replyId ? { ...item, papers: d.papers } : item));
           else if (type === 'proposal') setMsgs((m) => [...m, { role: 'proposal', proposal: d }]);
           else if (type === 'answer_meta') setMsgs(messages => withAnswerMeta(messages, replyId, d));
           else if (type === 'done' && d.threadId) {
+            askedId(d.userMessageId != null ? String(d.userMessageId) : null);
             if (chatThread) { setMsgs(messages => withDone(messages, replyId, d)); chatThread.adopt(d.threadId, message.slice(0, 120)); }
             threadId.current = d.threadId;
             if (panelAsk) { sheetThread.current = d.threadId; rememberSheetThread(appName, d.threadId); }
@@ -735,6 +769,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     } finally {
       const mine = answerFlight.current === flight;
       if (mine) answerFlight.current = null;
+      if (!viaTutor) askedId(null); // a turn that ended without its done event keeps its cards on the canvas only
       for (const slot of Object.values(slots)) boardContext?.releaseCard?.(slot);
       if (!isDemo) exchange?.({ id: replyId, done: true });
       if (!isDemo) boardContext?.setAnswering(false);
@@ -1079,7 +1114,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);

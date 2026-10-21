@@ -9,7 +9,8 @@
 // - origin: { into?, returnFocus? }. into: a reserved canvas slot (canvas-slots.js) the added card takes, else it lands where
 //   the learner is looking on the page's canvas. returnFocus: the element (or a function) focus goes back to when the finder
 //   closes; by default the element focused when it opened.
-// - The promise settles once, when the finder closes: { added: true } only after Add to canvas put a card on the canvas.
+// - The promise settles once, when the finder closes: { added: true, blockId } only after Add to canvas put a card on the canvas
+//   (blockId: that card, so a Chat command keeps it as its output, chat-output-refs.js).
 // No model routes or interprets the command; the finder's own search is the only request.
 export const FINDER_SOURCES = ['youtube', 'arxiv', 'wikipedia'];
 
@@ -24,7 +25,7 @@ export function setSourceFinderHost(open) {
 export function openSourceFinder({ source, query = '', origin = {} } = {}) {
   if (!FINDER_SOURCES.includes(source)) return Promise.reject(new Error(`unknown finder source: ${source}`));
   if (!host) return Promise.resolve({ added: false });
-  return Promise.resolve(host({ source, query: String(query ?? '').trim(), origin: origin || {} })).then(done => ({ added: !!done?.added }));
+  return Promise.resolve(host({ source, query: String(query ?? '').trim(), origin: origin || {} })).then(done => ({ added: !!done?.added, ...(typeof done?.blockId === 'string' ? { blockId: done.blockId } : {}) }));
 }
 
 // Where focus goes back to on close: the origin's returnFocus (an element or a function), else what was focused at opening.

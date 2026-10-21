@@ -5,6 +5,20 @@ import { createSearchContentRegistry } from './canvas-search-content.js';
 const index = (board, extra = {}) => updateSearchIndex(createSearchIndex(), { scopeKey: 'one', board, ...extra });
 const query = (value, text = '', filter = 'all', extra = {}) => querySearchIndex(value, { query: text, filter, ...extra });
 
+// Owner UI brief 2026-10-20 section 7: the former Links tab in Search - links and backlinks are results under Links, in All
+// and its counts, matched by canvas and card titles; an unavailable target keeps no title and is never matched by one.
+test('links and backlinks are Links results, counted in All, matched by canvas and card titles', () => {
+  const links = { from: [{ target: 't', title: 'Graph basics', href: '/apps/canvas-1', unavailable: false, refs: [{ id: 'r1', object: 'a1', objectTitle: 'Recursion' }] }, { target: 'x', unavailable: true, refs: [{ id: 'r2', object: 'a1', objectTitle: 'Recursion' }] }],
+    to: [{ source: 's', title: 'Trees', href: '/apps/canvas-2', refs: [{ id: 'r3', object: 'b1', objectTitle: '', href: '/apps/canvas-2?card=b1' }] }] };
+  const value = index({ blocks: [{ id: 'a1', type: 'text', title: 'Recursion', text: 'body' }] }, { links });
+  const all = query(value);
+  assert.equal(all.counts.links, 3); assert.equal(all.counts.all, 4);
+  assert.deepEqual(query(value, '', 'links').results.map(r => [r.title, r.link.direction, r.link.href]), [['Graph basics', 'from', '/apps/canvas-1'], ['Unavailable canvas', 'from', null], ['Trees', 'to', '/apps/canvas-2']]);
+  assert.deepEqual(query(value, 'graph').results.map(r => r.id), ['link:from:t']);
+  assert.equal(query(value, 'unavailable').results.length, 0, 'an unavailable target is not matched by a label it does not have');
+  assert.equal(query(value, '', 'links').results[2].link.cards[0].title, 'Untitled card');
+  assert.equal(query(index({ blocks: [] })).counts.links, 0, 'no links supplied (a shared view), no Links results');
+});
 test('literal phrase matching keeps code punctuation and counts every occurrence once per object', () => {
   const value = index({ blocks: [{ id: 'b', type: 'snippet', title: 'Example', code: 'a.b(x) + a.b(x)\nsrc/a.js' }] });
   const result = query(value, 'A.B(x)');

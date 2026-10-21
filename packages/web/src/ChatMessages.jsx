@@ -9,6 +9,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { cn } from './ui.jsx';
 import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
+import { ChatOutputs } from './ChatOutputs.jsx';
 
 // Phase 2 proposal card: what will happen with the exact inputs; nothing runs
 // until Run posts the approval. Change hands the args back to the input box.
@@ -134,7 +135,7 @@ export class AnswerBoundary extends Component {
 const answerStatus = (m, arriving) => (['streaming', 'done', 'stopped', 'error'].includes(m.status) ? m.status : arriving ? 'streaming' : 'done');
 
 // One message. Everything it reads from AskPanel comes in as a prop.
-export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, toContents = null }) {
+export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateChat, fileApp, appName, onGraph, onAddToCanvas, onRegenerate = null, setMsgs, setInput, inputRef, setFilePeek, setRunPeek, threadId, prepare, insertNotebook, hasCard = null, toContents = null, outputOps = null }) {
   // Add as card: insertChat is idempotent on the card id, so a click on Added locates the card (and puts it back if the
   // learner deleted it) instead of adding a second one.
   const addAsCard = card => {
@@ -142,19 +143,21 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
     setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, added: true } : x)));
   };
   return (
-    <div key={i} className={cn('py-1.5', (m.role === 'user' || m.role === 'step') && 'flex justify-end')}>
+    <div key={i} className={cn('py-1.5', m.role === 'step' && 'flex justify-end', m.role === 'user' && 'flex flex-col items-end')}>
       {m.role === 'step' ? (
         // A chosen next step (sendStep): the hook the learner clicked, drawn as a choice - never as their own words.
         <div data-step-chip title="A next step you chose" className="inline-flex max-w-[85%] items-start gap-1.5 rounded-lg border border-[#b42318]/25 bg-[#b42318]/[0.04] px-3 py-1.5 text-sm text-ink">
           <CornerDownRight size={14} className="mt-0.5 shrink-0 text-[#b42318]/70" /><span className="min-w-0">{m.content}</span>
         </div>
-      ) : m.role === 'user' ? (
+      ) : m.role === 'user' ? (<>
         <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
           {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
           {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
           {m.content}
         </div>
-      ) : m.role === 'proposal' ? (
+        {/* What this prompt made on the canvas (UI changes brief 5): a thumbnail or a compact card link each. */}
+        <ChatOutputs outputs={m.outputs} ops={outputOps} />
+      </>) : m.role === 'proposal' ? (
         <ProposalCard
           proposal={m.proposal}
           onDone={(r) => setMsgs((ms) => ms.map((x, j) => (j === i ? (r?.runId ? { role: 'run', runId: r.runId } : { role: 'assistant', content: r }) : x)))}
@@ -211,7 +214,7 @@ ${line}` : line));
   const props = { ...given,
     prepare: chat?.composer?.prepare ?? given.prepare ?? typeIn, onRegenerate: chat?.regenerate ?? given.onRegenerate ?? null,
     threadId: chat?.thread?.id ?? given.threadId ?? null, insertNotebook: ops?.insertNotebook ?? given.insertNotebook,
-    onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null };
+    onAddToCanvas: ops ? (card => ops.insertChat(card)) : given.onAddToCanvas, hasCard: ops?.hasBlock ?? null, outputOps: ops ?? null };
   const { msgs, sheetMode, busy } = props;
   const atBottom = !follow || follow.atBottom;
   // A message that lands while the reader is scrolled up stays new until they are back at the bottom.

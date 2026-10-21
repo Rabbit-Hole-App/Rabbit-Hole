@@ -25,6 +25,9 @@
   --color-active: #e8e8e6; /* selected sidebar item, pressed */
   --color-side: #f7f7f5; /* sidebar */
   --color-code: #f7f6f3; /* inline code, code blocks, inputs at rest */
+  /* A control's or panel's own surface: the page colour, but never re-pinned the way --color-white is inside a blue or red
+     fill (.dark [class*='bg-accent'] below), so a bg-surface button stays dark on a dark tint. Flipped in .dark. */
+  --color-surface: #ffffff;
   --color-accent: #2383e2;
   --color-accent-hover: #1b6fc2;
   /* The canvas selection (rings, outlines, handles). The inline AI editor turns its own target's selection purple while
@@ -365,6 +368,7 @@ html {
   --color-ai: #b79ae3;
   --tok-n: #e8a15c;
   --color-white: #191919; /* page + popover surfaces */
+  --color-surface: #191919;
   --color-ink: #d4d4d4;
   --color-ink-2: #a1a1a1; /* 4.5:1 on bg-active and soft tints too - see the light token */
   --color-ink-3: #6f6f6f;

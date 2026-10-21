@@ -63,14 +63,16 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
   assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('chat'\);/, 'and never leaves it selected where it is not');
 });
 
-// Canvas references (owner, 2026-10-14 Q3): Links, a link icon, the label as the tooltip and the name. Context and Files moved
-// to the companion column (owner decision 1A, 2026-10-15), so Links is fifth and last. A narrow panel scrolls the tab row.
-test('Links is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
-  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n\s+\/\/[^\n]*\n\s+\{ id: 'links', label: 'Links', Icon: Link2 \},\n\];/);
+// Canvas references (owner, 2026-10-14 Q3) were a fifth Links tab; owner UI brief 2026-10-20 section 7 moved them into Search's
+// Links filter (canvas-search-index.test.mjs), so Comments is last. A narrow panel scrolls the tab row.
+test('no Links tab: Comments is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
+  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n\s+\/\/[^\n]*\n\];/);
+  assert.doesNotMatch(header, /id: 'links'|Link2/);
   assert.match(header, /role="tablist" aria-label="Panel views" onKeyDown=\{arrow\} className="flex min-w-0 items-center gap-0\.5 overflow-x-auto/);
   assert.match(header, /className=\{`relative flex h-8 w-\[30px\] shrink-0 items-center/, 'every tab keeps its size (30 x 32)');
   assert.match(header, /<div className="ml-4 flex shrink-0 items-center gap-0\.5">\n\s+\{companion && [\s\S]{0,900}?<button type="button" data-panel-pin/, 'the companion control, Pin and Close never shrink, set apart from the tabs');
-  assert.match(page, /<LinksPanel hidden=\{panelTab !== 'links'\}/);
+  assert.doesNotMatch(page, /<LinksPanel|panelTab === 'links'/);
+  assert.match(page, /links, linkResults: true, onOpenLink: href => refLinks\.go\(href\)/, 'Search shows the Links results; opening saves first');
 });
 
 // Owner decision 1A, 2026-10-15: Context, Files and Graph are the companion column's views (chat-panels.test.mjs), not Chat tabs.
@@ -146,7 +148,10 @@ test('the Table of contents has its own conversation: a separate thread, always 
   assert.match(threads, /threads\?\.find\(thread => thread\.id !== toc\)/, 'Chat never falls back to the TOC\'s thread');
   assert.match(history, /\.filter\(row => row\.id !== tocThread\)/, 'History leaves the TOC\'s thread out');
   assert.match(modes, /if \(chat\.tocView\) return <span data-chat-mode="tutor"/, 'Tutor shown, no menu');
-  assert.match(conversation, /<AskPanel \{\.\.\.askProps\} hideConversation=\{!open\} \/>/, 'collapsed, only the composer shows');
+  assert.match(conversation, /<AskPanel \{\.\.\.askProps\} autoFocus=\{composing && !has\} hideConversation=\{!open \|\| !has\}/, 'collapsed or empty, only the composer shows');
+  // Owner UI brief 2026-10-20 section 6: no section and no composer until there are messages, a saved thread's or a sent turn.
+  assert.match(conversation, /if \(thread\?\.restore\.messages\?\.length > 0 && shownIn !== thread\.restore\.key\) setShownIn\(thread\.restore\.key\);\n\s+const has = !!thread && shownIn === thread\.restore\.key;/);
+  assert.match(conversation, /if \(!has && !composing && !drafted\) return \(\n\s+<div data-toc-start/, 'the compact entry starts one');
   assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation /);
   assert.match(page, /placeholder="Describe your goal or refine the outline…"/);
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), conv = page.indexOf('<TocWorkspace'), chatPane = page.indexOf('<ChatPane key={app.name}');

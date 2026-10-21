@@ -18,7 +18,7 @@ const context=async session=>{const ctx=await browser.newContext({viewport:{widt
 const stableImage=async(canvas)=>{let prior;for(let i=0;i<12;i++){await page.waitForTimeout(150);const shot=await canvas.screenshot();const hash=createHash('sha256').update(shot).digest('hex');if(hash===prior)return hash;prior=hash;}throw Error('Viewer pixels did not settle before gesture');};
 const boxEqual=(a,b)=>{for(const k of ['x','y','width','height'])assert.ok(Math.abs(a[k]-b[k])<2,`Card framing changed: ${k}`);};
 async function exercise(card,label){
- const viewer=card.locator('[data-cad-viewer]');const interact=viewer.getByRole('button',{name:'Interact',exact:true});await interact.waitFor();
+ const viewer=card.locator('[data-cad-viewer]');const interact=card.locator('[data-cad-tools] [data-cad-interact]');await interact.waitFor();
  const end=Date.now()+30000;while(!await interact.isEnabled()){assert.ok(Date.now()<end,'Real GLB must load');await page.waitForTimeout(100);}
  await interact.click();const canvas=viewer.locator('canvas'),bounds=await card.boundingBox();
  for(const gesture of ['rotate','pan','zoom']){
@@ -28,7 +28,7 @@ async function exercise(card,label){
   else{await page.mouse.down({button:gesture==='pan'?'right':'left'});await page.mouse.move(x+45,y+20,{steps:8});await page.mouse.up({button:gesture==='pan'?'right':'left'});}
   const after=await stableImage(canvas),afterBounds=await card.boundingBox();gestures.push({label,gesture,beforeSha256:before,afterSha256:after,beforeBounds:bounds,afterBounds});assert.notEqual(after,before,`${label} ${gesture} must change rendered model pixels`);boxEqual(bounds,afterBounds);
  }
- await viewer.getByRole('button',{name:'Done',exact:true}).focus();await page.keyboard.press('Escape');assert.equal(await viewer.getByRole('button',{name:'Interact',exact:true}).count(),1);await page.screenshot({path:`${out}/${label}.png`});
+ assert.equal(await interact.getAttribute('aria-pressed'),'true');await interact.focus();await page.keyboard.press('Escape');assert.equal(await interact.getAttribute('aria-pressed'),'false');await page.screenshot({path:`${out}/${label}.png`});
 }
 try{
  // Existing authorized dev session mechanism creates only a distinct signed-in identity, not a model request.

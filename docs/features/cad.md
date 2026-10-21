@@ -30,7 +30,9 @@ createdAt, updatedAt, limitations, awaitingAccept. An edit retains its accepted
 revision until the expected revision matches on Accept.
 
 Block: `{type:'cad',id:cardId,jobId,modelId,revisionId,status,title,units,
-briefSummary,manifestUrl,thumbnailUrl,proposedRevisionId?,sourceId?,fileRef?}`.
+briefSummary,manifestUrl,thumbnailUrl,proposedRevisionId?,sourceId?,fileRef?,viewerBackground?}`.
+`viewerBackground` ('white' | 'black' | 'none', absent = white) belongs to the card, not the job: a server block never
+replaces it (cad-client.js mergeCadBlock), a fork keeps it, and only someone who may edit the card changes it.
 Manifest `cad-model/1`: revisionId, title, units, parameters, assumptions,
 validation, runtime, artifacts (name,kind,url,bytes,sha256,mediaType).
 Artifact kinds: source, step, glb, thumbnail, stl, 3mf. Generated artifacts use
@@ -128,3 +130,24 @@ membership or spending limit; operators must verify those separately.
 Shared and forked cards expose saved immutable artifacts, not live private job
 history. Forks are detached snapshots: editing or preparing new exports requires
 future model adoption. See [scope and limitations](cad-scope.md).
+
+## Card viewer and controls (UI changes, 2026-10-20)
+
+- A completed model renders its live 3D view by default while on screen; at most three viewers hold a renderer
+  (viewer-slots.js), the rest and any loading viewer show the saved thumbnail. Each card keeps its camera for the page
+  when its viewer gives the slot up.
+- Until the person clicks into the model (or presses Interact), a press selects the card and the wheel pans the canvas.
+  Interact, Fit view and Show dimensions sit in the selected card's toolbar above the card, and in the expanded panel's
+  toolbar; nothing is drawn over the model. Esc, Done, a press outside or deselecting hands control back to the canvas.
+  Fit view frames the model in its own viewport only. Show dimensions is a per-browser preference keyed by account and
+  card (localStorage `rh.cad-dimensions:<org>:<email>:<card>`), never on the board; its overlay is lane C's.
+- Expand and Download are icon buttons; Download is also in the card's right-click menu (one row per saved format).
+  Edit and Explain are not on the card: Ctrl/Cmd+K opens both. White / Black / None paint only the model viewport.
+- A viewer whose module cannot load shows the saved preview and Retry, never the raw import error. When Retry fails
+  too and the failed chunk now answers 404 (a release replaced the hashed files: this tab runs an older build), it
+  offers Reload to update, which reloads only on its click and only when the open board is confirmed durable on the
+  server, no field holds typed text, no upload or chat message is pending and storage outlives the page
+  (chunk-reload.js updateReloadBlock, LearnPage boardDurable). It is never automatic, and once per minute at most.
+- Below the viewport, `<div data-cad-quick-edit-slot>` takes the optional `quickEdit` render prop; the
+  "Brief, parameters & checks" disclosure is one component, `CadDetails` (lane C replaces both).
+- Browser check: packages/web/e2e/cad-viewer-check.mjs (local stack, stubbed CAD routes, no model calls).

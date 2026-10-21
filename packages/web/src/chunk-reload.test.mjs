@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RELOAD_KEY, RELOAD_WINDOW, editorClosed, editorOpen, editorOpened, reloadForNewBuild, reloadOnce, retryMayReload, unsavedEdits } from './chunk-reload.js';
+import { RELOAD_KEY, RELOAD_WINDOW, chunkGone, draftsPending, editorClosed, editorOpen, editorOpened, failedChunkUrl, moduleLoadFailed, reloadForNewBuild, reloadOnce, retryMayReload, unsavedEdits, updateReloadBlock, workDurable } from './chunk-reload.js';
 import { memoryStorage } from './storage-fallback.js';
 
 const store = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; };
@@ -60,4 +60,58 @@ test('check 3: repeated page lifetimes with sessionStorage in memory never reloa
   assert.equal(reloads, 0);
   assert.equal(reloadOnce(memoryStorage(), 1_000_000), false);
   assert.equal(reloadForNewBuild({ online: true, editing: false, storage: store(), now: 1_000_000 }), true, 'persistent session storage still reloads once');
+});
+
+// The CAD viewer's fallback (owner clarification 8): the production failure, in the browser's words.
+const PROD = 'Failed to fetch dynamically imported module: https://digrabbithole.com/static/model-loaders-Us51Gwzk.js';
+
+test("a failed dynamic import is recognised in each browser's words; other viewer errors are not", () => {
+  for (const message of [PROD, 'Importing a module script failed.', 'error loading dynamically imported module: https://x/static/a.js', 'Unable to preload CSS for /static/a.css'])
+    assert.equal(moduleLoadFailed(new TypeError(message)), true, message);
+  assert.equal(moduleLoadFailed(PROD), true); // the renderer reports a message string
+  for (const message of ['Model download failed (404)', 'Preview exceeds the 20 MB viewer limit.', '']) assert.equal(moduleLoadFailed(message), false);
+  assert.equal(moduleLoadFailed(null), false);
+});
+
+test("the failed chunk is named only when it is one of this origin's built chunks", () => {
+  assert.equal(failedChunkUrl(PROD, 'https://digrabbithole.com'), 'https://digrabbithole.com/static/model-loaders-Us51Gwzk.js');
+  assert.equal(failedChunkUrl(PROD, 'https://preview.digrabbithole.com'), null);
+  assert.equal(failedChunkUrl('Failed to fetch dynamically imported module: https://digrabbithole.com/api/x.js', 'https://digrabbithole.com'), null);
+  assert.equal(failedChunkUrl('Importing a module script failed.', 'https://digrabbithole.com'), null); // Safari names no URL
+});
+
+test('a stale build is a 404 for that chunk now; offline, other statuses and no URL are not proof', async () => {
+  const calls = [];
+  const answer = status => async (url, init) => { calls.push([url, init]); return { status }; };
+  assert.equal(await chunkGone('https://x/static/a.js', answer(404)), true);
+  assert.deepEqual(calls[0][1], { method: 'HEAD', cache: 'no-store' });
+  assert.equal(await chunkGone('https://x/static/a.js', answer(200)), false); // still there: a blip, Retry
+  assert.equal(await chunkGone('https://x/static/a.js', answer(503)), false);
+  assert.equal(await chunkGone('https://x/static/a.js', async () => { throw new TypeError('Failed to fetch'); }), false);
+  assert.equal(await chunkGone(null, answer(404)), false);
+});
+
+test('Reload to update is blocked offline, without confirmed durable work, with a typed draft, or with memory-only storage', () => {
+  const ok = { online: true, durable: true, drafts: false, storage: store() };
+  assert.equal(updateReloadBlock(ok), null);
+  assert.equal(updateReloadBlock({ ...ok, online: false }), 'offline');
+  assert.equal(updateReloadBlock({ ...ok, durable: false }), 'unsaved');
+  assert.equal(updateReloadBlock({ ...ok, drafts: true }), 'draft');
+  assert.equal(updateReloadBlock({ ...ok, storage: memoryStorage() }), 'storage');
+  assert.equal(updateReloadBlock({ ...ok, storage: null }), 'storage');
+  assert.equal(draftsPending([{ value: '' }, { value: '  ' }]), false);
+  assert.equal(draftsPending([{ value: '' }, { value: 'Make it 6 mm' }]), true);
+});
+
+test('work is durable only when every open editor confirms it; one that cannot say, or throws, blocks the reload', () => {
+  assert.equal(workDurable(), true); // no editor open: nothing to lose
+  editorOpened('/b/one', () => false, () => true);
+  assert.equal(workDurable(), true);
+  editorOpened('/b/two', () => false); // nothing unsaved, but no durability answer
+  assert.equal(workDurable(), false);
+  editorOpened('/b/two', () => false, () => { throw new Error('unreadable'); });
+  assert.equal(workDurable(), false);
+  editorOpened('/b/two', () => false, () => true);
+  assert.equal(workDurable(), true);
+  editorClosed('/b/one'); editorClosed('/b/two');
 });

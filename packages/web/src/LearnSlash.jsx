@@ -13,7 +13,9 @@ import { CommandSearch } from './CommandList.jsx';
 // opens the palette with its own search field; composerRef takes focus back).
 // onFinder(finder): a source command opened the source finder (finder: a promise of { added } once it closes); the composer
 // keeps its draft meanwhile (ask.jsx).
-export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null, onFinder = null }) {
+// onRun(line): a command line starts running; the Chat saves it as the user's message and answers { onCard } (the card-id sink
+// its cards report to, chat-output-refs.js), or null when it keeps no record of it (a line whose words go on to the chat).
+export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null, onFinder = null, onRun = null }) {
   const [active, setActive] = useState(0);
   const [catalog, setCatalog] = useState(false);
   const [notice, setNotice] = useState(null);
@@ -45,8 +47,9 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     const name = parseSlash(raw)?.name || '';
     setInput(''); setProposal(null); setBusy(true);
     setNotice({ tone: 'busy', text: `Working on /${name}…` });
+    const turn = onRun?.(raw) || null;
     let out;
-    try { out = await run(raw, target); }
+    try { out = await run(raw, target, turn); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
     setBusy(false);
     if (out.catalog) { setNotice(null); setCatalog(true); setInput('/'); return; }
@@ -54,7 +57,8 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     if (out.finder) onFinder?.(out.finder);
     if (out.keep) setInput(out.keep);
     setNotice(out.notice || null);
-    setProposal(out.proposal || null);
+    // The confirmation shows the line it asks about (brief 1); a recorded line's generation shows above the composer (ChatOutputs).
+    setProposal(out.proposal ? { ...out.proposal, prompt: raw.trim(), tracked: !!turn } : null);
   };
   useEffect(() => {
     if (busy || held.current == null) return;
@@ -81,7 +85,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     intercept: raw => { if (busy) { held.current = raw; return true; } exec(raw); return true; },
   };
 
-  const tone = { error: 'text-red-700', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };
+  const tone = { error: 'text-fail', question: 'text-ink', done: 'text-ink-2', info: 'text-ink-2', busy: 'text-ink-2' };
   // The full Slash commands view (View > Slash commands), one click from the palette.
   const help = onHelp && <button type="button" aria-label="Open Slash commands" title="Open Slash commands" data-slash-help onMouseDown={event => event.preventDefault()} onClick={onHelp}
     className="pointer-events-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-ink-3 hover:bg-hover hover:text-ink"><SquareSlash size={15} /></button>;
@@ -90,7 +94,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     <>
       {(notice || proposal) && (
         // A compact blue status box, as wide as its words; a finished card's notice opens that card.
-        <div data-slash-result role="status" className="mb-1.5 flex w-fit max-w-full items-start gap-2 rounded-lg border border-[#2383e2]/30 bg-[#2383e2]/[0.07] px-3 py-2 text-sm">
+        <div data-slash-result role="status" className="mb-1.5 flex w-fit max-w-full items-start gap-2 rounded-lg border border-accent/30 bg-accent/[0.07] px-3 py-2 text-sm">
           {notice?.tone === 'busy' && <Loader2 size={15} className="mt-0.5 shrink-0 animate-spin text-accent" />}
           {notice?.tone === 'question' && <CircleHelp size={15} className="mt-0.5 shrink-0 text-accent" />}
           <div className="min-w-0 flex-1">
@@ -98,11 +102,11 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
               ? <button type="button" data-slash-open={notice.blockId} title="Go to the card" onClick={() => onFocusBlock(notice.blockId)}
                   className="inline-flex cursor-pointer items-center gap-1 text-left font-medium text-accent hover:underline">{notice.text}<ArrowUpRight size={14} className="shrink-0" /></button>
               : <p className={tone[notice.tone] || 'text-ink-2'}>{notice.text}</p>)}
-            {proposal && <PaidConfirm message={proposal.message}
+            {proposal && <PaidConfirm message={proposal.message} prompt={proposal.prompt}
               onCancel={() => setProposal(null)}
               onGenerate={async () => {
                 const chosen = proposal; setProposal(null); setBusy(true);
-                try { await chosen.generate(); setNotice({ tone: 'done', text: 'Generating on the canvas.' }); }
+                try { await chosen.generate(); setNotice(chosen.tracked ? null : { tone: 'done', text: 'Generating on the canvas.' }); }
                 catch (error) { setNotice({ tone: 'error', text: error.message }); }
                 finally { setBusy(false); }
               }} />}

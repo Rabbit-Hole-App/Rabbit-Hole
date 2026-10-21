@@ -49,8 +49,26 @@ Owner brief 2026-10-16 items 3-4: Context, Files and Graph are views of the comp
 carries ONE pressed toggle (lucide `PanelLeft`, `data-panel-companion`), named for the views it opens ("Context, Files and
 Graph"; "Context" on a canvas with no repository). It opens the column on the view it last showed, or closes it. The
 column's own labelled tabs (Context, Files, Graph) switch views, and its X closes it; there is no Back to graph / Back to
-files. The composer no longer carries Explore codebase or Open Context. The tabs are Chat, Find, Table of contents,
-Comments and Links.
+files. The composer no longer carries Explore codebase or Open Context. The tabs are Chat, Find, Table of contents
+and Comments.
+
+## Links live in Search (owner UI brief 2026-10-20 section 7)
+
+The fifth Links tab is gone. Its contents are Search's Links filter (`data-search-filter="links"`, LearnPage only; a shared
+view keeps links to its cards' chips): one result per destination canvas from `GET /api/learn/links` (already filtered for
+the viewer), "Linked from this canvas" or "Links here (backlink)", the canvas title and its reference count, counted in
+All and matched by canvas and card titles. Selecting a link opens its canvas in this tab (the page saves first); Enter in
+the field only steps through link results. Each result carries Open in new tab, its origin cards (Show frames the card) or,
+for a backlink, a link to the source canvas at its card with its own new tab. An unavailable target is "Unavailable canvas"
+with no destination. Unsaved canvas: "Links appear once this canvas is saved."; a failed load is Search's partial state with
+Retry. `e2e/toc-links-search-check.mjs`.
+
+## Table of contents empty state (owner UI brief 2026-10-20 section 6)
+
+With no TOC messages there is no "TOC conversation" section and no composer, only one compact entry, "Ask the Tutor about
+this outline" (`data-toc-start`). Pressing it opens the TOC composer (`data-toc-ask`, focused, with a close button while
+nothing is typed); an unsent TOC draft keeps it open. The first sent turn, or a saved TOC thread with messages (after a
+refresh), shows the TOC conversation section as before. The outline and its heading controls are unchanged.
 
 ## Close sidebar
 
@@ -71,7 +89,7 @@ Comments is paused by the owner. Its slot only holds a placeholder:
 ## No Card conversation tab
 
 The r36 Card conversation tab (`MessagesSquare`, a tabpanel per selected card) is removed (owner, 2026-10-13: "we do not need
-Card Conversation in right side panel ... remove it"). The tabs are only Chat, Find, Table of contents, Comments and
-Links. A question about a selected card is answered where any ordinary chat answer
+Card Conversation in right side panel ... remove it"). The tabs are only Chat, Find, Table of contents and
+Comments. A question about a selected card is answered where any ordinary chat answer
 goes (learn-chat-sheet.md, "Where an answer goes"). `src/panel-header.test.mjs` fails if a conversation tab or panel
 comes back.

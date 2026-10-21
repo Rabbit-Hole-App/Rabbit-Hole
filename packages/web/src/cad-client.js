@@ -5,7 +5,7 @@ export const cadStage = state => STAGES[state] || 'Checking status';
 export const cadRunning = state => !['ready', 'failed', 'cancelled', 'waiting_for_answer', 'awaiting_approval'].includes(state);
 export const cadArtifact = (manifest, kind, revisionId = manifest?.revisionId) => manifest && manifest.revisionId === revisionId ? manifest.artifacts?.find(artifact => artifact.kind === kind && artifact.url) || null : null;
 export function mergeCadBlock(previous, incoming) {
-  const layout = Object.fromEntries(['dx','dy','w','h','camera','cardLayout','locked'].filter(key => Object.hasOwn(previous || {}, key)).map(key => [key,previous[key]]));
+  const layout = Object.fromEntries(['dx','dy','w','h','camera','cardLayout','locked','viewerBackground'].filter(key => Object.hasOwn(previous || {}, key)).map(key => [key,previous[key]]));
   const next = { ...previous, ...incoming, ...layout };
   if ((incoming.awaitingAccept || incoming.proposedRevisionId || (incoming.baseRevisionId && incoming.status !== 'ready')) && previous?.revisionId) {
     next.proposedRevisionId = incoming.proposedRevisionId || (incoming.awaitingAccept ? incoming.revisionId : null);

@@ -3,6 +3,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
+import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
@@ -63,7 +64,7 @@ import { sourceTarget } from './card-sources.js';
 import TocConversation from './TocConversation.jsx';
 import SourcesPane from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
-import LinksPanel, { useCanvasLinks } from './LinksPanel.jsx';
+import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
@@ -99,6 +100,7 @@ import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
 import { cardModel } from './home/provenance.js';
 import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
 import { editorClosed, editorOpened } from './chunk-reload.js';
+import { chatSaving } from './chat-persist.js';
 import { blockedStorage } from './storage-fallback.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
 import { boardPending, boardText, serial, sharingOf, withPendingWork } from './canvas-persist.js';
@@ -155,6 +157,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A canvas shared with this learner to view only (no edit rights): its Table of contents is read-only and takes no proposals
   // (R4). Repository Learn boards are each learner's own, so only a canvas's canEdit counts.
   const canEditCanvas = !(app.kind === 'canvas' && app.canEdit === false);
+  const canEditRef = useRef(canEditCanvas);
+  canEditRef.current = canEditCanvas;
   const [lessonSource, setLessonSource] = useState(null);
   const [plannedLesson, setPlannedLesson] = useState(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -430,6 +434,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     insertChat: entry => canvasApi.current?.insertChat(entry),
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     locate: id => canvasApi.current?.focusBlock(id),
+    // A Chat prompt's outputs (chat-output-refs.js, ChatOutputs.jsx): read a card, and put a deleted one back from its saved
+    // snapshot under its own id (a CAD card through reconcileCad, after its jobs are shown again), for the owner only. Never a
+    // generation: no model or executor route is called here.
+    block: id => canvasApi.current?.blocks?.().find(block => block.id === id) || null,
+    restoreCard: block => (block.type === 'cad' ? canvasApi.current?.reconcileCad(block) : canvasApi.current?.insertImported(block)),
+    cadPlacement: (jobId, hidden) => cadClient(api, app.name, board || 'main').action(jobId, 'placement', { hidden }),
+    canEdit: () => canEditRef.current,
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
     // revealed, never added twice by a double-click or a retry; otherwise inserted where the learner looks, one undo step.
@@ -822,7 +833,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     isCommand: isLearnCommand,
     onHelp: () => setSlashHelpOpen(true),
     focusBlock: id => canvas()?.focusBlock(id),
-    run: text => {
+    // turn (ask.jsx recordCommand): { onCard }, the sink each card this command inserts is reported to, so the Chat keeps it
+    // under the command's saved message (chat-output-refs.js withCardSink).
+    run: (text, _target, turn = null) => {
+      const sink = turn?.onCard || null;
       // Tutor v1: /deeper and /simplify are the turn's slash (tutor-v1-locked-decisions.md §5); /ask and /teach too, as the
       // explicit Canvas overrides (Professor Next Steps contract §4.3). /research and /do are not Canvas commands.
       const parsed = tutor.active && parseSlash(text);
@@ -832,8 +846,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         target: askTarget,
         // The canvas is the learner's current location: its title names the concept (/motion's resolver).
         location: { concept: app.title || null },
-        canvas: {
-          startCad: (prompt, options) => startCad(prompt, options),
+        canvas: withCardSink({
+          startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           reserve: slot => canvasApi.current?.reserve(slot),
@@ -848,10 +862,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             canvasApi.current?.revealBlock(id);
             return {};
           },
-        },
+        }, sink),
         // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
         // draft until then; focus goes back to the composer.
-        openSearch: seed => openSourceFinder({ source: seed.source, query: seed.query, origin: { returnFocus: document.activeElement } }),
+        openSearch: seed => openSourceFinder({ source: seed.source, query: seed.query, origin: { returnFocus: document.activeElement } }).then(done => { if (done?.blockId) sink?.(done.blockId); return done; }),
         post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }),
       });
     },
@@ -1054,11 +1068,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Canvas references (C:/s/spec/references-plan.md): the board's links feed the Links tab and the cards' chips; the
+  // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
   // navigation saves first. A save that changed the links refreshes them (the server indexes the saved board).
   const [refPick, setRefPick] = useState(null);
-  const links = useCanvasLinks({ boardId: commentBoard, shown: panelOpen && (panelTab === 'links' || panelTab === 'find') });
+  const links = useCanvasLinks({ boardId: commentBoard, shown: panelOpen && panelTab === 'find' });
   // A /c/ href is a member page, outside AppRoot: a full load, after the save.
   const refLinks = useMemo(() => ({ resolve: links.resolve, go: async href => { const saving = canvasApi.current?.persist?.(); if (!href.startsWith('/c/')) return navigate(href); await saving; window.location.assign(href); }, onRemove: (blockId, refId) => canvasApi.current?.removeRef?.(blockId, refId) }), [links.resolve]);
   const savedRefs = useRef(null);
@@ -1411,9 +1425,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const answered = boardLoaded.current && !(board && sharingOf(sharingRef.current) !== 'shared');
     return boardPending({ live, copy: blockedStorage.includes('localStorage') ? null : copy, answered, synced: boardSynced.current });
   };
-  const unsavedRef = useRef(boardUnsaved);
-  unsavedRef.current = boardUnsaved;
-  useEffect(() => { editorOpened(boardPath, () => unsavedRef.current()); return () => editorClosed(boardPath); }, [boardPath]);
+  // "Reload to update" asks more than Retry's reload (owner clarification 8, 2026-10-20): the server answered for this board
+  // and holds exactly the live one (boardUnsaved false), storage is not memory-only, no card's file is still only in this
+  // browser, and no chat message is still on its way. Anything it cannot confirm blocks the reload.
+  const boardDurable = () => {
+    const answered = boardLoaded.current && !(board && sharingOf(sharingRef.current) !== 'shared');
+    const uploading = (canvas()?.boardNow?.()?.blocks || []).some(block => [block.fileRef, ...(block.fileRef?.bundle || [])].some(ref => ref?.local && !ref.source?.id));
+    return answered && !blockedStorage.length && !boardUnsaved() && !uploading && !chatSaving();
+  };
+  const unsavedRef = useRef(boardUnsaved), durableRef = useRef(boardDurable);
+  unsavedRef.current = boardUnsaved; durableRef.current = boardDurable;
+  useEffect(() => { editorOpened(boardPath, () => unsavedRef.current(), () => durableRef.current()); return () => editorClosed(boardPath); }, [boardPath]);
   const changeSharing = async next => {
     setShareBusy(true);
     setShareError(null);
@@ -1483,11 +1505,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const searchScope = `${canvasKey}:${boardName}:${hole || ''}:${canEditCanvas ? 'edit' : 'read'}`;
   const canvasSearch = useCanvasSearch({ scopeKey: searchScope, canvasApi, epoch: canvasEpoch,
     shown: panelOpen && panelTab === 'find', commentsBase: comments.active ? memberBase(commentBoard) : null,
-    links, children: dive.navigator?.tree?.children,
+    links, linkResults: true, onOpenLink: href => refLinks.go(href), children: dive.navigator?.tree?.children,
     onComment: result => { setSearchThread({ scope: searchScope, id: result.target.id }); comments.openPin(result.target.id); },
     revealDocument: () => setDocView('editor') });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole') return dive.portals.enter(action.rabbitHole.name);
+    if (action.kind === 'link-card') return canvasApi.current?.focusBlock(action.objectId);
+    if (action.kind === 'link-open') return refLinks.go(action.href);
     const ref = action.reference;
     if (!ref || ref.unavailable) return;
     if (ref.kind === 'canvas') { const live = links.resolve(ref.target); if (live?.href && !live.unavailable) return refLinks.go(live.href); return toast('This canvas reference is unavailable.'); }
@@ -2114,7 +2138,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
           {slashHelpOpen && <Suspense fallback={null}><SlashCommandsSheet appName={app.name} onClose={() => setSlashHelpOpen(false)} /></Suspense>}
           {finder && <SearchBar key={`${finder.source}:${finder.query}`} app={app.name} initialSource={finder.source} initialQuery={finder.query} onClose={closeFinder}
-            onPick={(source, item) => { const blockId = pickResult(source, item, finder.origin?.into ?? null); finder.done({ added: !!blockId }); return blockId; }} />}
+            onPick={(source, item) => { const blockId = pickResult(source, item, finder.origin?.into ?? null); finder.done({ added: !!blockId, blockId }); return blockId; }} />}
           <div className="flex items-center gap-0.5">
             <button type="button" title="Present" aria-label="Present"
               onClick={() => { if (canvasApi.current?.present()) setPanelOpen(false); }}
@@ -2219,7 +2243,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />
       {panelTab === 'comments' && searchThread?.scope === searchScope && <button type="button" data-search-return onClick={() => setPanelTab('find')} className="mb-2 self-start rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover">Back to Search</button>}
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
-      <LinksPanel hidden={panelTab !== 'links'} links={links} go={refLinks.go} onFocusCard={id => canvasApi.current?.focusBlock(id)} />
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>

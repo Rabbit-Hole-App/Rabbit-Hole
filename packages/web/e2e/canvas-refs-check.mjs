@@ -146,7 +146,7 @@ const objectsOf = async name => { const ink = await inkOf(name) || {}; return JS
 const surfaceBox = (p = page) => p.locator('[data-canvas-surface]').first().boundingBox();
 // The canvas room: the surface minus whatever of the right panel overlaps it.
 const room = async (p = page) => {
-  const s = await surfaceBox(p), pane = p.locator('[data-chat-pane], [data-links-panel]').first();
+  const s = await surfaceBox(p), pane = p.locator('[data-chat-pane], [data-canvas-search]').first();
   const b = await pane.isVisible().catch(() => false) ? await pane.boundingBox() : null;
   return { left: s.x, top: s.y, bottom: s.y + s.height, right: b && b.x < s.x + s.width ? b.x : s.x + s.width };
 };
@@ -169,10 +169,12 @@ const pick = async (title, p = page) => {
   await waitFor(async () => await addLink(p).isEnabled(), 3000, '"Add link" stays disabled after choosing a canvas');
 };
 const linkFromMenu = async (title, p = page) => { await linkItem(p).click(); await pick(title, p); await addLink(p).click(); await picker(p).waitFor({ state: 'hidden' }); };
+// Owner UI brief 2026-10-20 section 7: the Links tab moved into Search's Links filter (toc-links-search-check.mjs).
+const linksPanel = (p = page) => p.locator('[data-canvas-search]');
 const linksTab = async (p = page) => {
-  await p.locator('[data-panel-tab="links"]').click();
-  await p.locator('[data-links-panel]').waitFor();
-  await waitFor(async () => (await p.locator('[data-links-panel] [data-links-state], [data-links-panel][data-links-state]').first().getAttribute('data-links-state')) === 'ready', 15000, 'the Links tab never reached data-links-state="ready"');
+  await p.locator('[data-panel-tab="find"]').click();
+  await linksPanel(p).locator('[data-search-filter="links"]').click();
+  await waitFor(async () => (await linksPanel(p).locator('[data-search-result^="link:"]').count()) > 0 && !(await linksPanel(p).getByText('references are still loading').count()), 15000, 'Search never listed the Links results');
 };
 const savedRefs = (name, id, test, what) => waitFor(async () => { const refs = await refsOn(name, id); return test(refs) && refs; }, 15000, what);
 
@@ -315,19 +317,20 @@ await check('2 Insert > Link to canvas…: Escape creates nothing; confirming pl
 });
 
 // ================================================================ 3: forward and backlink navigation to the exact card
-await check('3 forward: a same-tab click on a chip title opens the target; its Links tab groups the backlinks by source; a backlink returns to the exact card', async () => {
+await check('3 forward: a same-tab click on a chip title opens the target; its Links results group the backlinks by source; a backlink returns to the exact card', async () => {
   const calls = refused.length + chat.length;
   await savedRefs(A.name, 'a1', r => r.length === 1, 'a1 has no saved reference');
   await chipLink('a1', T.title).click();
   await page.waitForURL(url => url.pathname === `/apps/${T.name}`, { timeout: 30000 });
   await loaded(page, 't1');
   await linksTab();
-  const to = page.locator('[data-links-to]'), group = to.locator('*').filter({ hasText: A.title }).first();
-  await group.waitFor();
+  const to = linksPanel().locator(`[data-search-result="link:to:${A.id}"]`);
+  await to.waitFor();
   const text = await to.innerText();
+  assert.ok(text.includes(A.title), `the backlink does not name its source canvas: ${JSON.stringify(text.slice(0, 200))}`);
   assert.ok(text.includes(A1) && text.includes(A2), `the backlinks lack the origin cards: ${JSON.stringify(text.slice(0, 200))}`);
   assert.equal((await backlinkRefs(T, A)).length, 2, 'the server does not count 2 references from A');
-  await shot('04-backlinks-grouped', page.locator('[data-links-panel]'));
+  await shot('04-backlinks-grouped', linksPanel());
   await to.getByRole('link', { name: new RegExp(A1) }).first().click();
   await page.waitForURL(url => url.pathname === `/apps/${A.name}`, { timeout: 30000 });
   await loaded(page, 'a1');
@@ -465,7 +468,7 @@ await check('6 deleting the source card drops its backlinks; Undo brings them ba
 });
 
 // ================================================================ 7: grouping and the two-chip presentation
-await check('7 several references: two chips, "+1 more" opens the rest; Links from this canvas groups by target', async () => {
+await check('7 several references: two chips, "+1 more" opens the rest; the Links results from this canvas group by target', async () => {
   await chips('a3').first().waitFor();
   assert.equal(await chips('a3').count(), 2, `${await chips('a3').count()} chips shown, not two`);
   const more = page.locator('[data-block-id="a3"] [data-ref-more]');
@@ -478,12 +481,11 @@ await check('7 several references: two chips, "+1 more" opens the rest; Links fr
   await page.locator('[data-block-id="a3"] [data-ref-more-list] [data-ref-more-item]').filter({ hasText: rest.title }).waitFor();
   await page.keyboard.press('Escape');
   await linksTab();
-  const from = page.locator('[data-links-from]');
-  const text = await from.innerText();
+  const text = (await linksPanel().locator('[data-search-result^="link:from:"]').allInnerTexts()).join('\n');
   for (const x of [T, C, D, E]) assert.ok(text.includes(x.title), `Links from this canvas lacks ${x.title}`);
   const server = (await links(A.id)).from;
   assert.equal(server.find(g => g.target === C.id)?.refs.length, 2, 'C is not grouped with its two references (a3 and the reference card)');
-  await shot('06-links-from', page.locator('[data-links-panel]'));
+  await shot('06-links-from', linksPanel());
 });
 
 // ================================================================ 9 (card level): a duplicated card owns new reference ids
@@ -501,15 +503,15 @@ await check('9 card duplicate: Ctrl+D gives the copy new reference ids with the 
 });
 
 // ================================================================ 10: regressions
-await check('10 the card menu keeps its items, each with an icon; panel tabs keep their order with Links sixth; BlockNote Canvas/Editor still switches', async () => {
+await check('10 the card menu keeps its items, each with an icon; panel tabs keep their order, with no Links tab (now in Search); BlockNote Canvas/Editor still switches', async () => {
   await rightClick('a1');
   const labels = await menu().locator('[role="menuitem"]').evaluateAll(rows => rows.map(row => ({ text: (row.querySelector(':scope > span') || row).innerText.trim(), icon: !!row.querySelector(':scope > svg, :scope > img') })));
   for (const label of ['Add to chat', 'Cut', 'Copy', 'Paste', 'Duplicate', 'Delete', 'Link to canvas…']) assert.ok(labels.some(row => row.text === label), `the card menu lost "${label}"`);
   assert.deepEqual(labels.filter(row => !row.icon).map(row => row.text), [], 'menu items without an icon');
   await page.keyboard.press('Escape');
   const tabs = await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
-  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments', 'links'], `panel tabs: ${tabs.join(',')}`);
-  assert.equal(await page.locator('[data-panel-tab="links"]').getAttribute('aria-label'), 'Links');
+  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments'], `panel tabs: ${tabs.join(',')}`);
+  assert.equal(await page.locator('[data-panel-tab="links"]').count(), 0, 'Links is a Search filter, not a tab');
   const viewMenu = page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'View', exact: true });
   const mode = page.locator('[role="menubar"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
   await viewMenu.click();

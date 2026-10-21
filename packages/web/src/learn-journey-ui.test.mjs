@@ -195,7 +195,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // The path is chat-route.js tutorTurn: the Tutor in Auto (and off the Chat pane); Ask and Tutor modes post to /api/learn/ask.
   // A turn with an imported file attached goes to /api/learn/ask, which reads file refs (chat-route.js fileTurn).
   assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, fileTurn, chat, mode: chat\?\.thread\.mode \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
-  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, page: pdfPage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\] \}\)/);
+  assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, page: pdfPage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\], onCard: cardSink \}\)/); // onCard: the turn's cards kept under its question (UI changes brief 5)
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
   assert.match(ask, /<TutorPromptTray tray=\{tray\.tray\}/);
@@ -455,7 +455,7 @@ test('ask.jsx: on a journey in setup, the Learn chat answers in the sheet only -
   assert.match(ask, /let panelAsk = sheetMode && \(!canvasTarget \|\| \(canvasTarget\.card && !canvasTarget\.asked\) \|\| journeySetup\);/);
   assert.match(ask, /let exchange = panelAsk \|\| journeySetup \? null : onExchange;/);
   assert.match(ask, /if \(d\.card && !slots\[d\.card\] && !journeySetup\)/);
-  for (const kind of ['Paper', 'Wiki', 'Video']) assert.match(ask, new RegExp(`if \\(!journeySetup\\) boardContext\\?\\.onShow${kind}\\?\\.`));
+  for (const kind of ['Paper', 'Wiki', 'Video']) assert.match(ask, new RegExp(`if \\(!journeySetup\\) cardSink\\?\\.\\(boardContext\\?\\.onShow${kind}\\?\\.`));
   // Every turn on a board with a journey goes through handleText; a failed one gives the words back.
   assert.match(ask, /if \(\(journey\?\.journey \|\| journey\?\.tray\) && !skipJourney/);
   assert.match(ask, /if \(routed\.failed\) setInput\(current => current \|\| raw\);/);

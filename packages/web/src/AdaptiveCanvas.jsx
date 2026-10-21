@@ -1,6 +1,6 @@
 import { equationTransaction } from './inline-equation-apply.js';
-import { cadPersistenceChanged } from './CadCard.jsx';
-import { cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
+import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
+import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
@@ -837,6 +837,8 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
 function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
+  // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
+  const cadTools = block.type === 'cad' && !!cadArtifact(block.manifest, 'glb');
   // Tool Performance v1: visible on first paint; simple cards are complete then (learn-perf.js).
   usePaintedMarks(block.id, block.type);
   // A block that declares its evidence carries it collapsed at its foot; the
@@ -895,12 +897,13 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
               {block.paper?.selection ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
             </button>
           )}
+          {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
           <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-          <SelectionActionsHost id={block.id} divider={['whiteboard', 'paper', 'code', 'snippet'].includes(block.type)} />
+          <SelectionActionsHost id={block.id} divider={cadTools || ['whiteboard', 'paper', 'code', 'snippet'].includes(block.type)} />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} onCadExplain={() => cadOpen('explain')} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.promptUsed && <CardPrompt text={block.promptUsed} onHeight={setPromptHeight} />}
@@ -3336,7 +3339,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // node never deletes the card; the card is deleted by selecting it as a canvas object.
       if (document.activeElement?.closest?.('[data-companion],[data-graph-card]')) return;
       // An active 3D viewer (ModelCard.jsx) owns its keys too: Esc ends its interaction first, never the selection.
-      if (document.activeElement?.closest?.('[data-viewer-active]')) return;
+      // A CAD viewer's Esc is its own wherever the focus is (its Interact sits in the toolbar outside the card): CadCard.jsx.
+      if (document.activeElement?.closest?.('[data-viewer-active]') || (event.key === 'Escape' && document.querySelector('[data-cad-viewer][data-viewer-active]'))) return;
       // A drag in progress owns Esc: it cancels the gesture (startDrag) and nothing else.
       if (gestureLive && event.key === 'Escape') return;
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
@@ -5062,7 +5066,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // shape or a note and pressing Delete silently did nothing. Any pointer press
     // outside the focused field hands focus back to the canvas. Pressing inside
     // the field it belongs to is left alone, so typing still works.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, resizeCard, selectionCount: selection.length }}>
+    // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
+    // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
@@ -5413,6 +5419,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           if (block?.type === 'file' && block.kind === 'image' && block.mediaId) {
             typed.push(<MenuRow key="ia" icon={Eye} onClick={act(() => onCardActionRef.current?.('image-attach', { blockId: block.id, mediaId: block.mediaId, label: block.label }))}>Show the tutor this image</MenuRow>);
             typed.push(attachRow(`image:${block.id}`, 'image'));
+          }
+          // A CAD card's saved files (owner brief section 4: Download also in the context menu), one row per saved format.
+          if (block?.type === 'cad') for (const format of CAD_DOWNLOADS) {
+            const artifact = cadArtifact(block.manifest, format);
+            if (artifact) typed.push(<MenuRow key={`cad-${format}`} icon={Download} data-menu-cad-download={format} onClick={act(() => downloadCadArtifact(artifact, cadCanMutate(block, readOnly)).catch(problem => toast(problem.message, { tone: 'error' })))}>Download {format.toUpperCase()}</MenuRow>);
           }
           if (block?.type === 'heading') {
             typed.push(<MenuRow key="hd" icon={block.done ? Circle : CircleCheck} onClick={act(() => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === block.id ? { ...entry, done: !entry.done } : entry)); })}>{block.done ? 'Mark not done' : 'Mark done'}</MenuRow>);

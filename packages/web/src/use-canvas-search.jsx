@@ -10,7 +10,9 @@ const EMPTY_COMMENTS = [];
 const initial = () => ({ query: '', filter: 'all', includeResolved: false, activeId: null, back: null, scrollPositions: new Map() });
 // Session-only preferences; no result/source content is retained between canvases.
 const sessions = new Map();
-export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, children, onComment, revealDocument }) {
+// linkResults (LearnPage only, where the Links tab was): the board's links and backlinks are Search results under Links;
+// onOpenLink(href) opens a canvas (the page's go, which saves first). A shared view keeps links to its cards' chips.
+export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBase, links, linkResults = false, onOpenLink, children, onComment, revealDocument }) {
   const [session, setSession] = useState(() => ({ scopeKey, ...sessions.get(scopeKey) || initial() }));
   const current = session.scopeKey === scopeKey ? session : { scopeKey, ...sessions.get(scopeKey) || initial() };
   const patch = useCallback(change => setSession(previous => {
@@ -82,10 +84,11 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
     return result;
   }, [snapshot, links?.resolve]);
   const previousIndex = useRef(createSearchIndex());
+  const linkFrom = linkResults && links?.status === 'ready' ? links.from : null, linkTo = linkFrom && links.to;
   const index = useMemo(() => {
-    const next = updateSearchIndex(previousIndex.current, { scopeKey, revision: snapshot.revision, board: snapshot.board, references, children, comments: commentCurrent.comments, loadedContent });
+    const next = updateSearchIndex(previousIndex.current, { scopeKey, revision: snapshot.revision, board: snapshot.board, references, children, comments: commentCurrent.comments, loadedContent, links: linkFrom && { from: linkFrom, to: linkTo } });
     previousIndex.current = next; return next;
-  }, [scopeKey, snapshot, references, children, commentCurrent.comments, loadedContent]);
+  }, [scopeKey, snapshot, references, children, commentCurrent.comments, loadedContent, linkFrom, linkTo]);
   // Query only when the query/index/filter changes; never display a prior query's results under the new input.
   const query = current.query;
   const found = useMemo(() => querySearchIndex(index, { query, filter: current.filter, includeResolved: current.includeResolved }), [index, query, current.filter, current.includeResolved]);
@@ -95,6 +98,7 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
   useEffect(() => () => { activation.current.generation++; }, [scopeKey, epoch]);
   const activate = async result => {
     if (!index.entries.has(result.id)) { setNotice({ scopeKey, deletedId: result.id, message: 'This result is no longer on the canvas.' }); return; }
+    if (result.kind === 'link') { if (result.link.href) onOpenLink?.(result.link.href); else setNotice({ scopeKey, message: 'This canvas is unavailable.' }); return; }
     const generation = ++activation.current.generation;
     const alive = () => activation.current.scopeKey === scopeKey && activation.current.generation === generation;
     const api = canvasApi.current;
@@ -123,7 +127,8 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
   const status = commentCurrent.state === 'loading' || links?.status === 'loading' ? { state: 'loading', message: 'Searching available content. Comments or references are still loading.' }
     : commentCurrent.state === 'error' ? { state: 'error', error: commentCurrent.error }
     : commentCurrent.state === 'partial' || links?.status === 'error' ? { state: 'partial', message: 'Some comments or references are unavailable. Retry to refresh them.' }
+    : linkResults && links?.status === 'none' && current.filter === 'links' ? { state: 'ready', message: 'Links appear once this canvas is saved.' }
     : found.availability.status !== 'ready' ? { state: found.availability.status, message: 'Some sources are only partially searchable. Result badges describe the available content.' }
     : { state: 'ready' };
-  return { registry, scopeKey, panel: { canvasKey: scopeKey, scrollPositions: current.scrollPositions, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview } };
+  return { registry, scopeKey, panel: { canvasKey: scopeKey, showLinks: linkResults, scrollPositions: current.scrollPositions, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview } };
 }
