@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { ANA, BEN, act, call, jev, journeyActivity, never, world } from './learn-attempt-fixture.js';
 import { acceptAttempt, claimAssessment, commitAssessment, readAttempt, requestReassessment } from '../src/learn-attempt-store.js';
 import { readProgress } from '../src/learn-progress.js';
-import { progressQuestionContext, progressQuestionText, resolveProgressQuestion } from '../src/learn-progress-context.js';
+import { QUESTION_LIMITS, progressQuestionContext, progressQuestionText, resolveProgressQuestion } from '../src/learn-progress-context.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 
 const APP2 = 'canvas-0e0e0e0e';
@@ -31,16 +31,17 @@ function setup(t) {
 
 // A coaching goal with criteria and one text activity on it; answer() saves one attempt and commits its assessment through
 // Task 05's store (claim, then commit), on the day given.
-async function goal(env, actor, label, criteria) {
+async function goal(env, actor, label, criteria, sourceRefs = []) {
   const state = (await act(env, actor, 'create_goal', { label, criteria })).state;
   const goalId = state.activeGoalId;
-  const after = (await act(env, actor, 'activate_activity', { activity: { goalId, objective: label, prompt: `Answer about ${label}`, responseKind: 'text', criterionRefs: criteria.map(c => ({ criterionId: c.criterionId, version: 1 })) } })).state;
+  const after = (await act(env, actor, 'activate_activity', { activity: { goalId, objective: label, prompt: `Answer about ${label}`, responseKind: 'text', criterionRefs: criteria.map(c => ({ criterionId: c.criterionId, version: 1 })), sourceRefs } })).state;
   return { goalId, activity: after.activities.find(a => a.activityId === after.activeActivityId) };
 }
 let key = 0;
-async function answer(env, actor, { goalId, activity }, { day, text = 'My answer.', help = [], status = 'completed', obs = [] }) {
-  const now = () => at(day);
-  const saved = await acceptAttempt(env, actor, { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: `answer-${String(++key).padStart(4, '0')}`, submittedContent: { text }, sourceRefs: [], assistanceRefs: help }, { now });
+async function answer(env, actor, { goalId, activity }, { day, text = 'My answer.', help = [], status = 'completed', obs = [], sources = [], pending = false }) {
+  const now = () => (typeof day === 'string' ? day : at(day)); // a day of October, or a full timestamp
+  const saved = await acceptAttempt(env, actor, { activityId: activity.activityId, activityRevision: activity.revision, submissionKey: `answer-${String(++key).padStart(4, '0')}`, submittedContent: { text }, sourceRefs: sources, assistanceRefs: help }, { now });
+  if (pending) return saved; // accepted, never claimed: its assessment stays pending
   const token = await claimAssessment(env, actor, saved.assessmentId, { now });
   await commitAssessment(env, actor, { assessmentId: saved.assessmentId, token, attemptId: saved.attemptId, goalId, status, provenance: { route: 'keyed' },
     observations: obs.map(o => ({ criterionVersion: 1, fit: 'met', reasoning: 'supported', assistance: help.length ? 'assisted' : 'none', validity: 'valid', application: 'not_assessed', ...o })) }, { now });
@@ -269,4 +270,87 @@ test('a dispute through the route: filed once per key, refused review leaves Nee
   const plain = await call(w.env, ANA2, 'POST', '/api/learn/tutor/attempts', { activityId: other.activity.activityId, activityRevision: other.activity.revision, submissionKey: 'sub-0003-cccc', submittedContent: { text: 'The weighted score goes through the sigmoid.' } }, jev({ c0_idea0: 0.95 }));
   await call(w.env, ANA2, 'POST', `/api/learn/tutor/attempts/${plain.body.attempt.attemptId}/reassess`, { requestKey: 'review-0001' }, refused);
   assert.deepEqual(w.sqlite.prepare('SELECT DISTINCT validity FROM learn_observations WHERE assessment_id = ?').all(plain.body.assessment.assessmentId).map(r => r.validity), ['valid']);
+});
+
+// Owner finding 5C (2026-10-21): the 9,000-character prefix cut ran over the whole block, and the limitations come last, so a
+// long history cut every limitation away. The scope and every limitation are kept whole; evidence records are kept or omitted
+// whole, and the block says how many were left out.
+const recordLine = (r, o) => progressQuestionText({ resolvedScope: r.resolvedScope, observations: [o], limitations: [] }).split('\n').find(l => l.startsWith(`    ${o.observationId} `));
+const listed = (text, r) => r.observations.filter(o => text.includes(`    ${o.observationId} `));
+
+test('progress_text_budget: 60 observations over three goals keep the scope, every limitation and whole records, and count what was left out', async t => {
+  const w = setup(t);
+  const lost = [0, 5, 10, 15].map(i => ({ kind: 'file', id: `fs-lost-${i}`, version: 'v1' })); // sources the learner can no longer open
+  const knn = await goal(w.env, ANA, 'KNN', [C('vote', 'Explain the majority vote'), C('k', 'Explain what changes with k')], lost);
+  const lr = await goal(w.env, ANA, 'Logistic regression', [C('sigmoid', 'Explain the sigmoid'), C('odds', 'Convert a probability to odds'), C('logit', 'Explain log-odds')]);
+  const tree = await goal(w.env, ANA, 'Decision trees', [C('split', 'Choose a split')]);
+  const words = n => `Answer ${n}: ${'the class with most of the k nearest points wins the vote, so a larger k smooths the boundary and a smaller k follows noise. '.repeat(3)}`;
+  const stamp = n => `2026-10-${String(1 + Math.floor(n / 24)).padStart(2, '0')}T${String(n % 24).padStart(2, '0')}:00:00.000Z`;
+  let n = 0;
+  const submit = (g, criterionId, extra = {}) => answer(w.env, ANA, g, { day: stamp(n), text: words(n++), obs: [{ criterionId }], ...extra });
+  for (let i = 0; i < 20; i++) await submit(knn, i % 2 ? 'k' : 'vote', i % 5 === 0 ? { sources: [lost[i / 5]] } : {});
+  const seen = await readProgress(w.env, ANA, { goalId: knn.goalId, scopeVersion: 1 }); // the learner opens Progress here
+  const selected = seen.criteria.find(c => c.criterionId === 'vote').evidence.map(e => e.observationId);
+  for (let i = 0; i < 4; i++) await submit(knn, 'vote'); // a newer revision lands afterwards
+  for (let i = 0; i < 25; i++) await submit(lr, ['sigmoid', 'odds', 'logit'][i % 3], i === 7 ? { status: 'unavailable', obs: [] } : {});
+  for (let i = 0; i < 12; i++) await submit(tree, 'split');
+  await answer(w.env, ANA, knn, { day: stamp(n++), pending: true });
+  await answer(w.env, ANA, tree, { day: stamp(n++), pending: true });
+
+  const scope = progressScope({ goalRefs: [knn, lr, tree].map(g => ({ goalId: g.goalId, scopeVersion: 1 })), criterionRefs: [], dimensions: [], observationIds: selected, summaryRevision: seen.summaryRevision });
+  const r = await resolve(w.env, ANA, scope, { sourceReader: () => async ref => !ref.id.startsWith('fs-lost') });
+  assert.equal(r.observations.length, 60, '20 + 4 + 24 (one more answer is unassessed) + 12 observations');
+  const state = Object.fromEntries(r.limitations.filter(l => l.count).map(l => [l.code, l.count]));
+  assert.deepEqual(state, { source_withheld: 4, pending_assessment: 2, assessment_unavailable: 1, separate_goals: 3 });
+  assert.ok(codes(r).includes('revision_changed'));
+  assert.ok(r.observations.some(o => o.newer), 'the changed revision marks the records the learner did not see');
+
+  const text = progressQuestionText(r);
+  // The scope, every goal and criterion, and every limitation in words, including the ones that used to be cut.
+  assert.match(text, /Scope: KNN \+ Logistic regression \+ Decision trees\./);
+  for (const g of ['KNN', 'Logistic regression', 'Decision trees']) assert.match(text, new RegExp(`Goal "${g}" `));
+  for (const c of ['Explain the majority vote', 'Explain what changes with k', 'Explain the sigmoid', 'Convert a probability to odds', 'Explain log-odds', 'Choose a split']) assert.match(text, new RegExp(`Criterion "${c}" `));
+  const said = text.slice(text.indexOf('\nLimitations:\n') + '\nLimitations:\n'.length).split('\n');
+  assert.equal(said.length, r.limitations.length + 1, 'every limitation, then the omitted count');
+  assert.match(text, /progress changed after the learner's view/);
+  assert.match(text, /4 observations' source content is withheld/);
+  assert.match(text, /2 assessments are still pending/);
+  assert.match(text, /1 assessment could not be completed/);
+  assert.match(text, /3 goals are in scope: report each separately/);
+  assert.ok(text.length <= QUESTION_LIMITS.text, `the block is ${text.length} characters`);
+  assert.doesNotMatch(text, /\[progress records truncated\]/);
+  // Whole records only: each listed line is byte-for-byte the line a full render gives that record.
+  const kept = listed(text, r);
+  for (const o of kept) assert.ok(text.split('\n').includes(recordLine(r, o)), `${o.observationId} is whole`);
+  for (const o of r.observations.filter(o => o.selected)) assert.ok(kept.includes(o), `${o.observationId} was selected and is kept`);
+  assert.ok(kept.length > 0 && kept.length < r.observations.length, `${kept.length} of ${r.observations.length} are listed`);
+  const omitted = r.observations.length - kept.length;
+  assert.equal(said.at(-1), `- ${omitted} of ${r.observations.length} observation records are left out of this text for length, so the records listed under a criterion may be incomplete: say so, and never read fewer listed records as less evidence`);
+});
+
+test('progress_text_budget: questioned, then selected, then newer, then the latest records are kept; a fixed part over the budget is sent whole with no records', () => {
+  const criterion = (i, goalId) => ({ criterionId: `c${i}`, version: 1, label: `Criterion ${i}`, requirement: '', requiresReasoning: false, requiresTransfer: false, status: 'practising', reason: 'incomplete_support', application: 'not_checked', retention: 'not_checked', goalId });
+  const goalOf = (g, n) => ({ goalId: `lg_${g}`, label: `Goal ${g}`, canvas: 'this', scopeVersion: 1, currentScopeVersion: 1, summaryRevision: 'r', counts: { total: n, practising: n }, pendingAssessments: 0, unavailableAssessments: 0, criteria: Array.from({ length: n }, (_, i) => criterion(i, `lg_${g}`)) });
+  const scopeOf = goals => ({ label: 'Synthetic', goals, criterionRefs: [], dimensions: ['fit'], timeRange: null, summaryRevision: { selected: 'r', current: 'r' } });
+  const ob = (i, extra = {}) => ({ observationId: `ob_${String(i).padStart(2, '0')}`, goalId: 'lg_0', criterionId: 'c0', criterionVersion: 1, attemptId: `at_${i}`, assessmentId: `as_${i}`, observedAt: `2026-10-01T00:${String(i).padStart(2, '0')}:00.000Z`,
+    fit: 'met', reasoning: 'supported', assistance: 'none', application: 'not_assessed', validity: 'valid', conflict: false, excerpt: 'x'.repeat(280), selected: false, newer: false, ...extra });
+  const observations = Array.from({ length: 40 }, (_, i) => ob(i, i === 3 ? { questioned: true } : i === 5 || i === 6 ? { selected: true } : i === 10 ? { newer: true } : {}));
+  const text = progressQuestionText({ resolvedScope: scopeOf([goalOf(0, 1)]), observations, limitations: [{ code: 'one_attempt', goalId: 'lg_0', criterionId: 'c0' }] });
+  assert.ok(text.length <= QUESTION_LIMITS.text);
+  const ids = [...text.matchAll(/^ {4}ob_(\d+) /gm)].map(m => Number(m[1]));
+  const latest = ids.filter(i => ![3, 5, 6, 10].includes(i));
+  assert.ok(latest.length > 0 && latest.length < 36, `${latest.length} of the 36 plain records`);
+  assert.deepEqual(ids, [3, 5, 6, 10, ...latest.map((_, k) => 39 - k).reverse()].sort((a, b) => a - b), 'questioned, selected and newer kept; then the latest, with no gap');
+  assert.ok(text.endsWith(`- ${40 - ids.length} of 40 observation records are left out of this text for length, so the records listed under a criterion may be incomplete: say so, and never read fewer listed records as less evidence`));
+  assert.match(text, /- criterion "Criterion 0" has only one attempt/);
+
+  // 8 goals of 20 criteria, each with a limitation: the fixed part alone is over the budget. Nothing in it is cut, and no record is listed.
+  const goals = Array.from({ length: 8 }, (_, g) => goalOf(g, 20));
+  const limitations = goals.flatMap(g => g.criteria.map(c => ({ code: 'no_evidence', goalId: g.goalId, criterionId: c.criterionId })));
+  const big = progressQuestionText({ resolvedScope: scopeOf(goals), observations, limitations });
+  assert.ok(big.length > QUESTION_LIMITS.text);
+  assert.equal(big.split('\n').filter(l => /^- criterion "Criterion \d+" has no assessed evidence yet$/.test(l)).length, 160);
+  assert.equal(big.split('\n').filter(l => /^ {2}Criterion "Criterion \d+" /.test(l)).length, 160);
+  assert.doesNotMatch(big, /^ {4}ob_/m);
+  assert.ok(big.endsWith('- 40 of 40 observation records are left out of this text for length, so the records listed under a criterion may be incomplete: say so, and never read fewer listed records as less evidence'));
 });
