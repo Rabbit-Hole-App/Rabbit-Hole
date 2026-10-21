@@ -7,6 +7,8 @@ import assert from 'node:assert/strict';
 import { deriveCriterionSummary, deriveGoalCounts } from '../../web/src/learn-coaching-contract.js';
 import { acceptAttempt, goalEvidence, readAttempt } from '../src/learn-attempt-store.js';
 import { observationsFrom } from '../src/learn-assessment.js';
+import { advanceActivity, readCoachingState } from '../src/learn-coaching-store.js';
+import { loadJourneyById } from '../src/learn-journey-store.js';
 import { JevError } from '../src/learn-grade-jev.js';
 import { ANA, CHECK, CRITERION, MECH, REG, act, call, jev, journeyActivity, larger, never, submit, world } from './learn-attempt-fixture.js';
 
@@ -181,4 +183,87 @@ test('Slice A loop on the server: goal, activity, submit, assess, Progress input
   assert.deepEqual([counts.total, counts.counts.demonstrated_independently, pendingAssessments], [1, 1, []]);
   // Another learner's evidence for the same goal id is empty.
   assert.deepEqual((await goalEvidence(other, { ...ANA, userId: 'u-ben-7f2a' }, goalId)).observations, []);
+});
+
+// ---- Slice A gaps (lane T5) ----
+const stepOf = async (env, activityId) => (await readCoachingState(env, ANA)).activities.find(a => a.activityId === activityId);
+const journeyEvents = async (env, journey) => (await loadJourneyById(env, journey.id, { org: ANA.org, owner_user_id: ANA.userId })).evidence.events;
+
+test('gap a: a submit moves its activity to awaiting_feedback, then feedback_ready with the result on its checkpoint, through the coaching revision; a replay moves nothing', async t => {
+  const w = world(t);
+  const { activity } = await choice(w.env);
+  const before = (await readCoachingState(w.env, ANA)).revision;
+  const r = await submit(w.env, ANA, activity, { submissionKey: 'sub-step-0001', submittedContent: { optionId: 'y' } }, never);
+  const step = await stepOf(w.env, activity.activityId);
+  assert.equal(step.status, 'feedback_ready');
+  assert.deepEqual(step.checkpoint.assessment, { attemptId: r.body.attempt.attemptId, status: 'completed', reason: null });
+  const revision = (await readCoachingState(w.env, ANA)).revision;
+  assert.equal(revision, before + 2, 'two coaching writes, so a tab on the old revision gets 409 and the newer state');
+  await submit(w.env, ANA, activity, { submissionKey: 'sub-step-0001', submittedContent: { optionId: 'y' } }, never);
+  assert.equal((await readCoachingState(w.env, ANA)).revision, revision, 'a replay moves nothing');
+  // A second answer to the same activity goes back to awaiting, then on to its own result.
+  const again = await submit(w.env, ANA, activity, { submissionKey: 'sub-step-0002', submittedContent: { optionId: 'x' } }, never);
+  const next = await stepOf(w.env, activity.activityId);
+  assert.deepEqual([next.status, next.checkpoint.assessment.attemptId], ['feedback_ready', again.body.attempt.attemptId]);
+});
+
+test('gap a: an assessment still pending leaves the activity awaiting_feedback; a completed activity never moves', async t => {
+  const w = world(t);
+  const { activity } = await journeyActivity(w.env);
+  // A JEV call that never answers: the operation stays claimed (pending) while the request waits, so no feedback is claimed.
+  void submit(w.env, ANA, activity, { submissionKey: 'sub-hang-0001' }, { ask: () => new Promise(() => {}), callModel: never.callModel });
+  for (let i = 0; i < 50 && (await stepOf(w.env, activity.activityId)).status !== 'awaiting_feedback'; i += 1) await new Promise(resolve => setTimeout(resolve, 10));
+  assert.equal((await stepOf(w.env, activity.activityId)).status, 'awaiting_feedback');
+  w.sqlite.prepare("UPDATE learn_activities SET status = 'completed' WHERE id = ?").run(activity.activityId);
+  assert.equal(await advanceActivity(w.env, ANA, activity.activityId, 'awaiting_feedback'), null);
+  assert.equal(await advanceActivity(w.env, ANA, activity.activityId, 'feedback_ready'), null);
+  assert.equal((await stepOf(w.env, activity.activityId)).status, 'completed');
+});
+
+test('gap b: a validated assessment of a journey activity feeds that journey once, tagged by attempt, observations and probe; a review, a second answer or the old route add nothing', async t => {
+  const w = world(t);
+  const { activity, journey } = await choice(w.env);
+  const r = await submit(w.env, ANA, activity, { submissionKey: 'sub-feed-0001', submittedContent: { optionId: 'y' } }, never);
+  const ids = r.body.assessment.observations.map(o => o.observationId);
+  let events = await journeyEvents(w.env, journey);
+  assert.deepEqual(events.map(e => [e.claim, e.result, e.settled, e.ref.probe_id, e.ref.section_id, e.ref.attempt_id]), [[MECH, 'pass', true, 'c1', 's1', r.body.attempt.attemptId]]);
+  assert.deepEqual(events[0].ref.observation_ids, ids);
+  assert.ok(!JSON.stringify(events).includes('optionId'), 'ids only on the ref, never the answer');
+  // The deliberate review supersedes the result in Progress; the journey keeps one answer for the probe.
+  await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${r.body.attempt.attemptId}/reassess`, { requestKey: 'review-feed-1' }, never);
+  // A second answer to the same probe: the walker has read this probe already, so it is not counted again.
+  await submit(w.env, ANA, activity, { submissionKey: 'sub-feed-0002', submittedContent: { optionId: 'x' } }, never);
+  events = await journeyEvents(w.env, journey);
+  assert.equal(events.length, 1);
+  // The tag the journey's own evaluate route reads (journeyEvaluate answered()), so that route stores nothing either.
+  assert.ok(events.some(e => e.ref?.probe_id === 'c1' && (e.ref.section_id ?? null) === 's1'));
+});
+
+test('gap b: a JEV-assessed text answer feeds its events once; its review adds nothing; a malformed result feeds nothing', async t => {
+  const w = world(t);
+  const { activity, journey } = await journeyActivity(w.env);
+  const r = await submit(w.env, ANA, activity, {}, { ask: jev(STATED).ask, callModel: never.callModel });
+  let events = await journeyEvents(w.env, journey);
+  assert.ok(events.length > 0 && events.every(e => e.ref.attempt_id === r.body.attempt.attemptId && !('probe_id' in e.ref)));
+  const count = events.length;
+  await call(w.env, ANA, 'POST', `/api/learn/tutor/attempts/${r.body.attempt.attemptId}/reassess`, { requestKey: 'review-text-1' }, { ask: jev(STATED).ask, callModel: never.callModel });
+  events = await journeyEvents(w.env, journey);
+  assert.equal(events.length, count, 'the same attempt is never counted twice');
+  const malformed = { ask: async () => ({ body: { model: 'jev-1.13.0', answers: 'nonsense' } }), callModel: never.callModel };
+  const bad = await submit(w.env, ANA, activity, { submissionKey: 'sub-bad-00001' }, malformed);
+  assert.equal(bad.body.assessment.status, 'failed');
+  assert.equal((await journeyEvents(w.env, journey)).length, count);
+});
+
+test('gap d: a coaching goal with no journey keeps text answers unavailable (no_registered_claims), says so on its activity, counts nothing and calls nothing', async t => {
+  const w = world(t);
+  const goalId = (await act(w.env, ANA, 'create_goal', { label: 'Argue a position', criteria: [{ criterionId: 'essay', label: 'Argue a position', requirement: 'Write an argument with a claim and support', requiresReasoning: true }] })).state.activeGoalId;
+  const state = (await act(w.env, ANA, 'activate_activity', { activity: { goalId, objective: 'Argue a position', prompt: 'Should the library open later?', responseKind: 'text', criterionRefs: [{ criterionId: 'essay', version: 1 }] } })).state;
+  const activity = state.activities.find(a => a.activityId === state.activeActivityId);
+  const r = await submit(w.env, ANA, activity, { submissionKey: 'sub-essay-0009' }, never);
+  assert.deepEqual([r.status, r.body.assessment.status, r.body.assessment.reason, r.body.assessment.observations], [200, 'unavailable', 'no_registered_claims', []]);
+  const step = await stepOf(w.env, activity.activityId);
+  assert.deepEqual([step.status, step.checkpoint.assessment.status, step.checkpoint.assessment.reason], ['feedback_ready', 'unavailable', 'no_registered_claims']);
+  const criteria = [{ criterionId: 'essay', version: 1, label: 'a', requirement: 'b', requiresReasoning: true, rubricVersion: 'r1' }];
+  assert.equal(deriveGoalCounts({ criteria, observations: (await goalEvidence(w.env, ANA, goalId)).observations }).counts.not_checked, 1, 'an unassessed answer never counts');
 });

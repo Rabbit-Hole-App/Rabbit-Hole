@@ -6,6 +6,7 @@ import { divesFetch, pendingHoleApp } from './dives.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
+import { purgeTutorRows } from './learn-coaching-store.js';
 
 // Dev-only canvas records (T02 section 8). A row is identity and title only; the
 // canvas content stays in the learner's browser under small.adaptive-canvas:*.
@@ -457,6 +458,7 @@ export async function canvasesFetch(req, env) {
           dropRefs(db, user.org, user.email, name),
           dropFileRefs(db, user.org, user.email, name),
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
+          ...purgeTutorRows(db, user.org, name), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
         ]);
       }
       return meta.changes ? json({ ok: true }) : json({ error: 'This canvas has been used. Archive it instead.' }, 405);

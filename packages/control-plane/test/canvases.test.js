@@ -206,3 +206,28 @@ test('DELETE of an untouched canvas drops its board\'s file references, and only
   assert.equal((await f.send('DELETE', `/api/apps/${name}`)).status, 200);
   assert.deepEqual(f.sqlite.prepare('SELECT source_id, board_id FROM file_source_refs').all().map(r => `${r.source_id}@${r.board_id}`), ['fs_a@b-other']);
 });
+
+// Ruling Q2 (C:/s/spec/tutor-workflow/decisions.md): the Tutor rows of a canvas follow its lifecycle. Trash and Restore keep
+// them; the permanent DELETE removes them in the canvas's own batch, and no other canvas's.
+test('a permanent DELETE removes the canvas\'s Tutor rows (goals to coaching state); Trash and Restore keep them; other canvases keep theirs', async t => {
+  const f = fixture(t);
+  const name = (await (await f.send('POST', '/api/canvases', { title: 'Tutor rows' })).json()).name;
+  const seed = (app, n) => f.sqlite.exec(`
+    INSERT INTO learn_coaching_state (org, owner_user_id, app, board, revision, created_at, updated_at) VALUES ('team', 'u-owner-1a2b', '${app}', 'main', 0, 'now', 'now');
+    INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, revision, created_at, updated_at) VALUES ('g${n}', 'team', 'u-owner-1a2b', '${app}', 'main', 'Goal', '', 'coaching', 1, 'open', 0, 'now', 'now');
+    INSERT INTO learn_goal_criteria (goal_id, scope_version, criterion_id, version, position, label, requirement, requires_reasoning, rubric_version, created_at) VALUES ('g${n}', 1, 'c', 1, 0, 'C', 'Do it', 0, 'r1', 'now');
+    INSERT INTO learn_activities (id, goal_id, org, owner_user_id, revision, status, objective, prompt, response_kind, criterion_refs_json, source_refs_json, created_at, updated_at) VALUES ('a${n}', 'g${n}', 'team', 'u-owner-1a2b', 1, 'in_progress', 'O', 'P', 'text', '[]', '[]', 'now', 'now');
+    INSERT INTO learn_attempts (id, org, owner_user_id, app, board, goal_id, activity_id, activity_revision, submission_key, response_kind, content_json, content_hash, criterion_refs_json, source_refs_json, assistance, assistance_refs_json, submitted_at) VALUES ('t${n}', 'team', 'u-owner-1a2b', '${app}', 'main', 'g${n}', 'a${n}', 1, 'key-${n}-0000', 'text', '{}', 'h', '[]', '[]', 'none', '[]', 'now');
+    INSERT INTO learn_assessments (id, attempt_id, org, owner_user_id, request_key, status, provenance_json, created_at, updated_at) VALUES ('s${n}', 't${n}', 'team', 'u-owner-1a2b', 'submit', 'completed', '{}', 'now', 'now');
+    INSERT INTO learn_observations (id, assessment_id, attempt_id, org, owner_user_id, goal_id, criterion_id, criterion_version, fit, reasoning, assistance, validity, conflict, application, observed_at) VALUES ('o${n}', 's${n}', 't${n}', 'team', 'u-owner-1a2b', 'g${n}', 'c', 1, 'met', 'supported', 'none', 'valid', 0, 'not_assessed', 'now');`);
+  seed(name, 1); seed('canvas-0ther000', 2);
+  const TABLES = ['learn_coaching_state', 'learn_goals', 'learn_goal_criteria', 'learn_activities', 'learn_attempts', 'learn_assessments', 'learn_observations'];
+  const counts = () => TABLES.map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n);
+  assert.deepEqual(counts(), [2, 2, 2, 2, 2, 2, 2]);
+  assert.equal((await f.send('POST', `/api/apps/${name}/trash`)).status, 200);
+  assert.deepEqual(counts(), [2, 2, 2, 2, 2, 2, 2], 'Trash deletes nothing');
+  assert.equal((await f.send('POST', `/api/apps/${name}/untrash`)).status, 200);
+  assert.equal((await f.send('DELETE', `/api/apps/${name}`)).status, 200);
+  assert.deepEqual(counts(), [1, 1, 1, 1, 1, 1, 1]);
+  assert.deepEqual(f.sqlite.prepare('SELECT app FROM learn_goals').all().map(r => r.app), ['canvas-0ther000']);
+});

@@ -235,6 +235,47 @@ const PLANS = {
   },
 };
 
+// Server-driven steps of an activity after an explicit submit (Slice A gap a, T3-report §7.7): awaiting_feedback once its
+// attempt is saved, feedback_ready once that attempt's assessment is final. Like every write here it is one batch at the
+// current coaching revision, which it bumps, so a tab holding the old revision gets 409 with the newer state; a concurrent
+// write is retried on the fresh revision. Forward only, from the statuses listed: a completed or skipped activity never
+// moves. assessment {attemptId, status, reason} is kept on the activity's checkpoint, so a UI can say what the feedback is,
+// an unavailable one included, without reading the attempt. -> the new status, or null when the activity did not move.
+const SUBMIT_STEPS = { awaiting_feedback: ['in_progress', 'paused', 'feedback_ready'], feedback_ready: ['awaiting_feedback'] };
+export async function advanceActivity(env, actor, activityId, to, assessment = null) {
+  const from = SUBMIT_STEPS[to];
+  if (!from) throw new Error(`advanceActivity: ${to} is not a submit step`);
+  for (let tries = 0; tries < 3; tries += 1) {
+    const activity = await env.LEARN_DB.prepare('SELECT status, checkpoint_json FROM learn_activities WHERE id = ? AND org = ? AND owner_user_id = ?').bind(activityId, actor.org, actor.userId).first();
+    if (!activity || !from.includes(activity.status)) return null;
+    const row = await ensureState(env, actor), now = new Date().toISOString();
+    const checkpoint = assessment ? JSON.stringify({ ...parse(activity.checkpoint_json), assessment }) : activity.checkpoint_json;
+    const results = await env.LEARN_DB.batch([
+      env.LEARN_DB.prepare(`UPDATE learn_activities SET status = ?, checkpoint_json = ?, updated_at = ? WHERE id = ? AND org = ? AND owner_user_id = ? AND status = ? AND ${GUARD}`)
+        .bind(to, checkpoint, now, activityId, actor.org, actor.userId, activity.status, ...key(actor), row.revision),
+      env.LEARN_DB.prepare(`UPDATE learn_coaching_state SET revision = revision + 1, updated_at = ? WHERE ${KEY} AND revision = ?`).bind(now, ...key(actor), row.revision),
+    ]);
+    if (results[0].meta.changes) return to;
+  }
+  throw new CoachingConflict('revision');
+}
+
+// Ruling Q2: a canvas's Tutor rows follow its lifecycle. Trash deletes nothing (Progress hides them while trashed); a
+// permanent delete removes them in the canvas's own delete batch, children first. Every learner's rows on that canvas (org,
+// app), all boards: only its owner, or a pending hole's, can hold any (canvasAccess).
+export const purgeTutorRows = (db, org, app) => {
+  const goals = 'SELECT id FROM learn_goals WHERE org = ? AND app = ?', attempts = 'SELECT id FROM learn_attempts WHERE org = ? AND app = ?';
+  return [
+    db.prepare(`DELETE FROM learn_observations WHERE attempt_id IN (${attempts})`).bind(org, app),
+    db.prepare(`DELETE FROM learn_assessments WHERE attempt_id IN (${attempts})`).bind(org, app),
+    db.prepare('DELETE FROM learn_attempts WHERE org = ? AND app = ?').bind(org, app),
+    db.prepare(`DELETE FROM learn_activities WHERE goal_id IN (${goals})`).bind(org, app),
+    db.prepare(`DELETE FROM learn_goal_criteria WHERE goal_id IN (${goals})`).bind(org, app),
+    db.prepare('DELETE FROM learn_goals WHERE org = ? AND app = ?').bind(org, app),
+    db.prepare('DELETE FROM learn_coaching_state WHERE org = ? AND app = ?').bind(org, app),
+  ];
+};
+
 function insertCriterion(env, goalId, scope, c, position, now, guardBinds) {
   return env.LEARN_DB.prepare(`INSERT INTO learn_goal_criteria (goal_id, scope_version, criterion_id, version, position, label, requirement, requires_reasoning, requires_transfer, rubric_version, skill_key, created_at)
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${GUARD}`)
