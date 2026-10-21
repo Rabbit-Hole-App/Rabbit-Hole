@@ -15,7 +15,7 @@
 //   9. a failed job and a cancelled job each stop the indicator's spinner and shimmer, with a stable line  (item 5)
 //  10. /explain leaves a compact card link (no picture) under its line                                    (brief 5)
 //  11. a card removed before it finished says restoration is unavailable and nothing is generated         (clarification 5)
-//  12. the server holds each line with its command and outputs; a fresh browser shows them and they still navigate (refresh)
+//  12. the server holds each line with its command and outputs; a fresh browser shows them and they still navigate, by keyboard too
 // Before this change step 1 fails: a / line never shows as a message.
 // Usage: BASE=http://127.0.0.1:9141 SMALL_CP=http://127.0.0.1:9143 VARS=<cp .dev.vars> node e2e/chat-outputs-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -277,7 +277,10 @@ await step('the server holds each line with its command and outputs; a fresh bro
   await bubble(page, CAD_LINE).waitFor();
   await output(page, cadId).waitFor();
   await output(page, explainId).waitFor();
-  await output(page, explainId).click();
+  // By keyboard: the link is a named button with a tooltip; Enter on it selects its card.
+  assert.equal(await output(page, explainId).getAttribute('title'), await output(page, explainId).getAttribute('aria-label'));
+  await output(page, explainId).focus();
+  await page.keyboard.press('Enter');
   await until(async () => (await page.locator('[data-selected-card]').getAttribute('data-selected-card')) === explainId, 'the link does not select its card');
   await page.screenshot({ path: `${OUT}/12-fresh-${THEME}.png` });
   await context.close();

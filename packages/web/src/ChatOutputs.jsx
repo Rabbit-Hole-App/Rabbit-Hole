@@ -83,8 +83,8 @@ function GenerationRow({ entry, onOpen, onDismiss }) {
         </p>
         <p data-gen-prompt title={prompt} className="truncate text-xs text-ink-2">{prompt}</p>
       </div>
-      <button type="button" data-gen-open onClick={() => onOpen(output)} className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink">Go to card</button>
-      {!gen.active && <button type="button" aria-label="Dismiss" title="Dismiss" onClick={() => onDismiss(entry.key)} className="shrink-0 rounded p-0.5 text-ink-3 hover:bg-hover hover:text-ink"><X size={12} /></button>}
+      <button type="button" data-gen-open onClick={() => onOpen(output)} className="h-7 shrink-0 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">Go to card</button>
+      {!gen.active && <button type="button" data-gen-dismiss aria-label="Dismiss" title="Dismiss" onClick={() => onDismiss(entry.key)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><X size={13} /></button>}
     </div>
   );
 }

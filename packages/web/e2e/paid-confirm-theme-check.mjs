@@ -81,6 +81,9 @@ for (const theme of THEMES) {
   page.on('pageerror', error => errors.push(`${theme}: ${error.message}`));
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.waitForSelector('[data-chat-pane] [data-chat-composer]', { timeout: 60000 });
+  // The canvas's saved conversation (the earlier theme's /cad line is a saved message since UI changes brief 1) is restored before
+  // typing: a restore landing mid-typing replaces the draft.
+  await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 20000 });
   const cancel = page.locator('[data-chat-pane] [data-paid-cancel]'), generate = page.locator('[data-chat-pane] [data-paid-generate]');
   const notice = page.locator('[data-chat-pane] [data-slash-result]');
   const away = async () => { await page.mouse.move(5, 5); await page.locator('body').evaluate(() => document.activeElement?.blur()); await page.waitForTimeout(150); };
