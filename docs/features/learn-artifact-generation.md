@@ -159,12 +159,13 @@ composer.
   sigmoid and tanh.
 - Paid media never shows Generate in the sheet and never calls a model or
   provider. It shows committed files:
-  - `/animate` plays `public/landing/softmax-overview-v1.mp4` in the real Maths
-    animation card;
-  - `/motion` (development builds only, `VITE_MOTION_DEV`) plays the same
-    clip, which is the landing page's /motion explainer, as a finished
-    `/motion 25s explain softmax` (25 s, "Motion explainer"; no renderer or
-    sources claimed);
+  - `/motion` (development and review builds; /animate was removed on
+    2026-10-20) plays a real Motion video: the committed final.mp4 of the
+    verified job 8a2015a4 (`public/lesson-assets/motion-softmax-8a2015a4.mp4`),
+    made from `/motion 15s explain me softmax func`, with that job's title,
+    duration, renderer (Remotion) and sources. It plays from a blob URL so it
+    seeks: static assets are served without byte ranges. See
+    rabbit-hole-commands.md, "/motion replaces /animate";
   - `/video` and `/3d` have no committed finished file, so they show a labelled
     picture of the finished card (`public/lesson-assets/slash-video-prism.svg`,
     `slash-3d-frustum.svg`).
@@ -356,6 +357,12 @@ The long-term direction is in
 This section keeps the shared artifact policy for `/motion`. It does not
 duplicate the V1 implementation; where an implementation detail here
 conflicts with the V1 spec, the V1 spec wins for V1.
+
+Command availability (owner, 2026-10-20): /motion is the explainer-video command in
+development and review builds (dev clones, local stacks, the Motion stack); it
+replaced /animate. Generate runs only where the Motion orchestrator is configured
+(the local Motion stack); anywhere else the worker refuses the start and the card
+says so. See rabbit-hole-commands.md, "/motion replaces /animate".
 
 Still deferred:
 - public production `/motion`

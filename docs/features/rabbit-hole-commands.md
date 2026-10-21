@@ -30,8 +30,8 @@ and explore; saved conversations and cards made by a removed command still open.
 
 | Surface | Commands |
 |---|---|
-| Chat (`learn`, `chat`) | /dive /practice /quiz /explain /flashcards /code /graph /diagram /animate /whiteboard /image /video /cad /3d /notebook /youtube /arxiv /wikipedia; /motion in a Motion development build; /generate-image only while image generation is on |
-| Ctrl+K (`ctrlk`) | /explain /flashcards /code /graph /diagram /animate /image /video /cad /3d /youtube /arxiv /wikipedia; /motion in a development build; /generate-image only while image generation is on |
+| Chat (`learn`, `chat`) | /dive /practice /quiz /explain /flashcards /code /graph /diagram /whiteboard /image /video /cad /3d /notebook /youtube /arxiv /wikipedia; /motion in a development or review build (below); /generate-image only while image generation is on |
+| Ctrl+K (`ctrlk`) | /explain /flashcards /code /graph /diagram /image /video /cad /3d /youtube /arxiv /wikipedia; /motion in a development or review build; /generate-image only while image generation is on |
 | Insert menu (`insert`) | /youtube /arxiv /wikipedia |
 | Home, Library, Project bar (`home`, `project`) | none: the bar takes plain words (`router.js`), and has no Auto picker, mode pill or / commands sheet |
 
@@ -69,13 +69,40 @@ internal: true })` reach them; nothing a learner types does.
 | Ctrl+K `NOTE_COMMANDS` (/simplify /example /deeper as the note path) and the worker's `PROMPT_ROOM` | Unavailable (`planRoute`, `fixedRoute`); plain words ("explain it more simply") take the note path or JEV routing |
 | Ctrl+K typed /walkthrough, /compare | Unavailable; JEV still routes plain words to the walkthrough and compare routes |
 
+## /motion replaces /animate (owner, 2026-10-20, lane L8)
+
+**/motion** is the command for the Motion explainer-video pipeline: the existing `motion_request` operation, which the Motion
+orchestrator plans, reviews and renders (rabbit-hole-motion-v1-harness-spec.md). Menu line "Create an animated explainer
+video", pill "Motion", Create menu in /animate's place, Slash commands window "AI-generated", e.g. `/motion 15s explain me
+softmax func`. The proposal makes no request; Generate inserts the video card already confirmed; LearnVideos keeps the paid
+gate (`confirmed`), one generating job at a time and the saved-video limit; the orchestrator keeps its call cap and budget.
+
+**Where it is offered:** a development or review build (`VITE_COACHING_DEV`: the isolated dev clones, local stacks) and the
+local Motion stack's build (`VITE_MOTION_DEV`) (`MOTION_DEV` in agent/slash.js). The production build sets neither
+(`scripts/prod-release.mjs` strips both), so production and preview have no /motion; typed there it says "Motion (animated
+explainer videos) is not available here." and runs nothing. Generate also needs `MOTION_ORCHESTRATOR_URL` and
+`MOTION_ORCHESTRATOR_TOKEN` on the worker; only the local Motion stack sets them. Elsewhere the worker refuses the start
+before any provider call: the card says "Motion is not available in this environment yet. Nothing was started." and stays
+retryable, and nothing is recorded or stored.
+
+**/animate** is removed from every user surface (`REMOVED_COMMANDS`: picker, window, examples, typed lines) and from new
+chat-answer suggestions (`chat-answer-meta.js` no longer offers `animate`). It stays a Tutor material tool
+(`MATERIAL_TOOLS`), so create_material, journey steps and Ctrl+K automatic routing still make animations, and saved
+animation, maths-animation and video cards keep their renderers.
+
+**The window's example** is a real Motion video: the final.mp4 of the verified job 8a2015a4 (M7B production-exact API smoke),
+committed at `packages/web/public/lesson-assets/motion-softmax-8a2015a4.mp4` (sha256 `6af0b4b2…437c46`), with that job's
+request, title, duration, renderer and sources. Static assets are served without byte ranges, so the window plays it from
+a blob URL, which seeks; opening the window fetches only that file.
+
 ## Places
 
 - `home`: Home, Library, Explore (workspace scope).
 - `project`: the Project hub and its Map.
 - `learn`: the Learn composer (the canvas Chat; `commandsFor('chat')` is the same list).
 - `ctrlk`: the canvas's inline Ctrl+K editor (Release B, owner 2026-10-16; /walkthrough removed 2026-10-20): exactly
-  /explain /code /graph /diagram /animate /flashcards /image /video /cad /3d /motion /youtube /arxiv /wikipedia. Anything
+  /explain /code /graph /diagram /flashcards /image /video /cad /3d /motion /youtube /arxiv /wikipedia (/animate removed the same day,
+  /motion in development and review builds). Anything
   else typed there is reported as unavailable in Ctrl+K and sends nothing.
 - `insert`: the canvas Insert menu's source searches (/youtube /arxiv /wikipedia).
 
@@ -123,7 +150,7 @@ canonical here; the Learn branch maps them to block types.
 | /graph | interactive_graph, data_plot, knowledge_graph |
 | /diagram | flow_diagram, mermaid_diagram |
 | /walkthrough | walkthrough |
-| /animate | animation, reference_attention, maths_animation (paid) |
+| /animate | animation, reference_attention, maths_animation (paid); a Tutor material tool since 2026-10-20, no longer typed |
 | /whiteboard | whiteboard (deterministic) |
 | /paper | paper (deterministic) |
 | /image | image, image_generate (paid) |

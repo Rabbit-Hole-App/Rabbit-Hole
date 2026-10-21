@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { EXAMPLES, mayConfirmPaid, parseSlash, pickerSections } from './learn-slash.js';
 import { descFor, learnRequest, toolOf } from './agent/slash.js';
@@ -90,6 +90,22 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
   );
 }
 
+// A committed sample clip (/motion's real Motion video) plays from memory. Static assets are served without byte ranges, so a
+// browser cannot seek one (its seekable range is 0 to 0); a blob URL seeks (owner, 2026-10-20: playback, pause and seeking
+// work). Fetching the file is all the window does: no generation route. null while it loads; the plain path if the fetch fails.
+function useSeekableClip(src) {
+  const committed = /^\/lesson-assets\/[\w.-]+\.mp4$/.test(src || '');
+  const [url, setUrl] = useState(committed ? null : src);
+  useEffect(() => {
+    if (!committed) return undefined;
+    let made = null, live = true;
+    fetch(src).then(response => (response.ok ? response.blob() : Promise.reject(Error(String(response.status)))))
+      .then(blob => { made = URL.createObjectURL(blob); if (live) setUrl(made); else URL.revokeObjectURL(made); }, () => { if (live) setUrl(src); });
+    return () => { live = false; if (made) URL.revokeObjectURL(made); };
+  }, [src, committed]);
+  return url;
+}
+
 // One card exactly as the canvas draws it at 100%: the canvas node's width,
 // its fixed height or its auto height up to autoMax, its ghost or bordered
 // frame, its drag strip and its Sources & evidence row (AdaptiveCanvas's
@@ -103,6 +119,7 @@ function CardPreview({ type, command, appName }) {
     if (type === 'snippet') delete sample.output;
     return sample;
   });
+  const clip = useSeekableClip(SAMPLES[command]?.[type]?.src);
   const spec = BLOCK_TYPES[type] || {};
   const width = type === 'notebook' ? 640 : spec.sizeFor?.(block)?.width ?? spec.width ?? 380;
   const height = type === 'notebook' ? 540 : spec.sizeFor?.(block)?.height ?? spec.height;
@@ -117,7 +134,8 @@ function CardPreview({ type, command, appName }) {
         // A sample with a finished clip of its own (/motion's) plays it; otherwise the picture.
         : ILLUSTRATIONS[type] && !block.src
           ? <Illustration block={block} {...ILLUSTRATIONS[type]} />
-          : <LearningBlockBody block={block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected />}
+          : clip === null ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video…</p>
+          : <LearningBlockBody block={clip && clip !== block.src ? { ...block, src: clip, variants: [{ src: clip }], variant: 0 } : block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected />}
       {block.sources && <SourcesDisclosure sources={block.sources} />}
     </div>
   );

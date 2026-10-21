@@ -35,9 +35,10 @@ const api = async (path, init = {}) => {
   return body;
 };
 
-const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
-const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper'];
-const CTRLK = ['explain', 'flashcards', 'code', 'graph', 'diagram', 'animate', 'image', 'video', 'cad', '3d', 'youtube', 'arxiv', 'wikipedia'];
+// /animate is removed too (L8, owner 2026-10-20): /motion, offered by this development build, is the animation command.
+const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
+const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
+const CTRLK = ['explain', 'flashcards', 'code', 'graph', 'diagram', 'motion', 'image', 'video', 'cad', '3d', 'youtube', 'arxiv', 'wikipedia'];
 const removedText = name => `/${name} is no longer available. Type / to see the commands, or ask in your own words.`;
 
 // A small PDF (the paper card's bytes), so the paper opens with no arXiv call.
@@ -166,7 +167,7 @@ async function pass(theme) {
     if (!await line.waitFor({ timeout: 8000 }).then(() => true).catch(() => false)) said.push(name);
     if (name === 'simplify') await shot('06-removed-simplify');
   }
-  ok(`${theme}: each of the 17 removed commands typed in Chat says it is unavailable`, said.length === 0, said.join(' '));
+  ok(`${theme}: each removed command typed in Chat says it is unavailable`, said.length === 0, said.join(' '));
   ok(`${theme}: and runs nothing: no request, no card, no navigation`, model.length + artifacts.length === calls && await blocks() === count && page.url() === url, model.slice(-3).join(' '));
   await composer().fill('/generate-image a watercolor mountain landscape');
   await composer().press('Enter');
