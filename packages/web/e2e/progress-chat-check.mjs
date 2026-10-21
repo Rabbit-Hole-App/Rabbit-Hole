@@ -226,11 +226,20 @@ await check('narrow screen: Ask tutor about this returns to Chat with the chip; 
   assert.deepEqual(await controls(), ['tutor', false, ACTIVE], 'still Tutor, Off, and the other goal active');
 });
 
+await check('after a dispute, the next Tutor action is not refused: one press of Resume this goal makes the viewed goal current', async () => {
+  // The review stepped its activity again, two coaching revisions (learn-coaching-store.js advanceActivity): a page still on the
+  // older revision has this first press refused as stale (409) and nothing happens.
+  await progress().locator('[data-progress-resume]').click();
+  for (let i = 0; i < 40 && (await controls())[2] !== knn; i++) await page.waitForTimeout(250);
+  assert.deepEqual(await controls(), ['tutor', false, knn], 'the viewed goal is current; mode and switch unchanged');
+  await progress().locator('[data-progress-viewing]').waitFor({ state: 'detached', timeout: 5000 });
+});
+
 await check('no model was asked and the page raised no error', async () => {
   assert.deepEqual(model, [], `model-capable requests: ${model.join(', ')}`);
   assert.deepEqual(errors, []);
 });
 
 await browser.close();
-console.log(`${results.length}/5 checks passed`);
-if (results.length !== 5) process.exit(1);
+console.log(`${results.length}/6 checks passed`);
+if (results.length !== 6) process.exit(1);

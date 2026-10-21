@@ -670,8 +670,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         return;
       }
       // "Question this feedback" (Tutor Task 10) files its dispute only here, at Send, once per questioned judgment; the answer
-      // then reads the dispute's actual state from the records. Progress reloads to show it.
-      if (chat && !regenerate && (await fileReviews(attachedRefs, { app: (scopeOverride || scope)?.app, post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }) })).length) window.dispatchEvent(new CustomEvent('rh:progress-changed'));
+      // then reads the dispute's actual state from the records. Progress reloads to show it. The review also stepped its activity,
+      // a new coaching revision (advanceActivity): the coaching state is read again, as after Check my answer, so the learner's
+      // next Tutor action is not refused as stale.
+      if (chat && !regenerate && (await fileReviews(attachedRefs, { app: (scopeOverride || scope)?.app, post: (path, body) => api(path, { method: 'POST', body: JSON.stringify(body) }) })).length) { window.dispatchEvent(new CustomEvent('rh:progress-changed')); chat.coaching?.reload?.(); }
       const canvasContext = canvasOps?.canvasContext?.({ request: message, ...canvasArgs, inspected: imageId && imageObject ? [imageObject] : [] });
       const payload = {
         // The lesson's table of contents. Separate from lesson_snapshot, which
