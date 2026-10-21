@@ -2,6 +2,9 @@
 // its Prompt row. Only typed words, never a system prompt or a model's own request. `prompt` and `question` are card
 // content on quiz, challenge and image cards, so this field has its own name.
 export const PROMPT_CHARS = 8000;
+// The closed row's height (CardPrompt.jsx: pb-3, its border, py-0.5, the toggle's py-1 and one text-xs line): a fixed-height
+// card's skeleton holds it too, so the card fills its slot exactly (canvas-skeleton-check B4).
+export const PROMPT_ROW_H = 42;
 export const withPrompt = (block, text) => {
   const words = String(text ?? '').trim().slice(0, PROMPT_CHARS);
   return words ? { ...block, promptUsed: words } : block;

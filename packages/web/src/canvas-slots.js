@@ -50,10 +50,11 @@ export function fillSlot(slots, id, cardId) {
 // card's palette sample makes, at that type's width and its fixed height - else its typicalHeight (measured), else
 // its auto-height cap. The cards drawn outside BLOCK_TYPES (a video moment, a Wikipedia article) at the size they
 // open at. `samples`: the cards it can be (the Tutor's authored ones): their middle size, each sized by its scene
-// (sizeFor) plus the rows a card grows by below it (typicalRows). Unknown: a plain card.
+// (sizeFor) plus the rows a card grows by below it (typicalRows). Unknown: a plain card. rows: what a fixed-height card
+// grows by below its body (its Prompt row, card-prompt.js); a measured or capped height already leaves room.
 export const GENERIC_SLOT = { w: 380, h: 420 };
 export const OWN_SIZES = { videoMoment: { w: 560, h: 420 }, wiki: { w: 560, h: 640 } };
-export function slotSize(card, types, samples = []) {
+export function slotSize(card, types, samples = [], rows = 0) {
   const middle = values => values.sort((a, b) => a - b)[values.length >> 1];
   const sized = samples.map(block => [types[block.type], types[block.type]?.sizeFor?.(block)]).filter(([, size]) => size);
   if (sized.length) return { w: middle(sized.map(([, size]) => size.width)), h: middle(sized.map(([type, size]) => size.height + (type.typicalRows || 0))) };
@@ -61,7 +62,7 @@ export function slotSize(card, types, samples = []) {
   const spec = types[card];
   if (!spec) return GENERIC_SLOT;
   const type = types[spec.sample?.().type] || spec;
-  return { w: type.width ?? GENERIC_SLOT.w, h: type.height ?? type.typicalHeight ?? type.autoMax ?? GENERIC_SLOT.h };
+  return { w: type.width ?? GENERIC_SLOT.w, h: type.height != null ? type.height + rows : type.typicalHeight ?? type.autoMax ?? GENERIC_SLOT.h };
 }
 
 // The part of the canvas surface the learner can actually see, in surface px: the surface less what floats over

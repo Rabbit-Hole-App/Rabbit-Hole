@@ -6,9 +6,11 @@
 //   3. Copy puts the line on the clipboard;
 //   4. the chat icon puts the line in the Chat box and sends nothing;
 //   5. /cad (Generate) makes a CAD card whose row holds its typed line, kept while the job is polled;
-//   6. the server's board holds both prompts; a card made before this (no prompt) has no row; a chat card's row is its question;
-//   7. a fresh browser shows both rows again, closed;
-//   8. a share-link viewer sees the row with Copy and no chat icon.
+//   6. a CAD edit that is rejected leaves the line; an accepted edit's words replace it;
+//   7. a corner resize keeps the height the card had at release (the rows under the body are not added twice);
+//   8. the server's board holds both prompts; a card made before this (no prompt) has no row; a chat card's row is its question;
+//   9. a fresh browser shows both rows again, closed;
+//  10. a share-link viewer sees the row with Copy and no chat icon.
 // Before this change step 1 fails: no card has a Prompt row.
 // Usage: BASE=http://127.0.0.1:9121 SMALL_CP=http://127.0.0.1:9123 VARS=<cp .dev.vars> node e2e/card-prompt-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -43,25 +45,42 @@ await api(`/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.s
 const EXPLAIN_LINE = '/explain why a token id is only an index';
 const CAD_LINE = '/cad a 40 mm mounting bracket with two holes';
 const EXPLAIN = { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a learned vector.' };
-const cadBlock = { type: 'cad', id: 'cad-prompt', jobId: 'cad-job', modelId: 'cad-model', revisionId: null, status: 'queued', title: 'Mounting bracket', units: 'mm', briefSummary: 'Fixture.' };
-const cadJob = { id: 'cad-job', cardId: 'cad-prompt', modelId: 'cad-model', state: 'queued', stage: 'queued', attempt: 1, createdAt: Date.now(), updatedAt: Date.now() };
+const EDIT_WORDS = 'Make the holes 6 mm', REJECTED_WORDS = 'Make it out of glass';
+const manifest = revisionId => ({ schema: 'cad-model/1', revisionId, title: 'Mounting bracket', units: 'mm', parameters: { length: 40 }, assumptions: ['Fixture.'], validation: { baselinePassed: true, checks: [], unchecked: [] }, artifacts: [] });
+let cadBlock = { type: 'cad', id: 'cad-prompt', jobId: 'cad-job', modelId: 'cad-model', revisionId: null, status: 'queued', title: 'Mounting bracket', units: 'mm', briefSummary: 'Fixture.' };
+const cadJobs = { 'cad-job': { id: 'cad-job', cardId: 'cad-prompt', modelId: 'cad-model', state: 'queued', stage: 'queued', attempt: 1, createdAt: Date.now(), updatedAt: Date.now() } };
+let edits = 0;
+// The CAD service, scripted: a first job, then edit jobs that wait for Accept; Reject (cancel) and Accept settle them.
+const cadReply = (request, url) => {
+  const body = request.method() === 'POST' ? request.postDataJSON() || {} : null;
+  if (body) cadStarts.push({ path: url.pathname, ...body });
+  if (request.method() === 'POST' && url.pathname === '/api/learn/cad/jobs' && body.cardId) {
+    const id = `cad-edit-${++edits}`, revisionId = `revision-${edits + 1}`;
+    cadJobs[id] = { id, cardId: cadBlock.id, modelId: 'cad-model', state: 'ready', stage: 'ready', attempt: 1, baseRevisionId: cadBlock.revisionId, revisionId, awaitingAccept: true, manifest: manifest(revisionId), createdAt: Date.now(), updatedAt: Date.now() };
+    cadBlock = { ...cadBlock, jobId: id, proposedRevisionId: revisionId };
+    return { job: cadJobs[id], block: cadBlock };
+  }
+  const [, id, action] = url.pathname.match(/^\/api\/learn\/cad\/jobs\/([^/]+)(?:\/(\w+))?$/) || [];
+  if (action === 'cancel') { cadJobs[id] = { ...cadJobs[id], state: 'cancelled', awaitingAccept: false }; const { proposedRevisionId, ...rest } = cadBlock; cadBlock = rest; }
+  if (action === 'accept') { const job = cadJobs[id]; cadJobs[id] = { ...job, awaitingAccept: false }; const { proposedRevisionId, ...rest } = cadBlock; cadBlock = { ...rest, revisionId: job.revisionId, manifest: job.manifest, acceptedManifest: job.manifest }; }
+  if (id) return { job: cadJobs[id], block: cadBlock };
+  return request.method() === 'GET' ? { jobs: Object.values(cadJobs), blocks: [cadBlock] } : { job: cadJobs['cad-job'], block: cadBlock };
+};
+const cadReady = () => { cadJobs['cad-job'] = { ...cadJobs['cad-job'], state: 'ready', stage: 'ready', revisionId: 'revision-1', manifest: manifest('revision-1') }; cadBlock = { ...cadBlock, status: 'ready', revisionId: 'revision-1', manifest: manifest('revision-1'), acceptedManifest: manifest('revision-1') }; };
 const posts = [], refused = [], outside = [], errors = [], cadStarts = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course))/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(url.hostname); return route.abort(); }
   if (url.pathname === '/api/learn/artifact') { posts.push(request.postDataJSON()); return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: EXPLAIN } }); }
-  if (url.pathname.startsWith('/api/learn/cad/jobs')) {
-    if (request.method() === 'POST') cadStarts.push(request.postDataJSON());
-    return route.fulfill({ json: url.pathname === '/api/learn/cad/jobs' && request.method() === 'GET' ? { jobs: [cadJob], blocks: [cadBlock] } : { job: cadJob, block: cadBlock } });
-  }
+  if (url.pathname.startsWith('/api/learn/cad/jobs')) return route.fulfill({ json: cadReply(request, url) });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(url.pathname)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
   if (MODEL.test(url.pathname) && request.method() !== 'GET') { refused.push(url.pathname); return route.abort(); }
   return route.fallback();
 };
 
 const results = [];
-const total = 8;
+const total = 10;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); }
@@ -127,7 +146,7 @@ await step('/cad makes a CAD card whose row holds its typed line, kept while the
   await send(page, CAD_LINE);
   await page.locator('[data-chat-pane] [data-paid-generate]').click();
   await rowOf(page, cadBlock.id).waitFor();
-  assert.equal(cadStarts[0]?.prompt, 'a 40 mm mounting bracket with two holes', 'the job gets the words after the command');
+  assert.equal(cadStarts.find(c => c.path === '/api/learn/cad/jobs')?.prompt, 'a 40 mm mounting bracket with two holes', 'the job gets the words after the command');
   await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
   assert.equal(await rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), CAD_LINE);
   await page.waitForTimeout(6000); // the card polls its job (2.5 s); a polled block carries no prompt
@@ -135,8 +154,48 @@ await step('/cad makes a CAD card whose row holds its typed line, kept while the
   await page.screenshot({ path: `${OUT}/5-cad.png` });
 });
 
+const cadText = () => rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText();
+const editCad = async words => {
+  const editor = page.locator('[data-inline-ai]');
+  await page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-action="edit"]`).click();
+  await editor.locator('[data-inline-prompt]').fill(words);
+  await editor.locator('[data-inline-submit]').click();
+  await editor.locator('[data-paid-generate]').click();
+  return editor;
+};
+await step('a rejected CAD edit leaves the typed line; an accepted edit replaces it with the edit words', async () => {
+  cadReady();
+  await page.reload(); // as cad-check: the ready job reaches the card through the page's own job list
+  await until(async () => (await page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-action="edit"]`).isEnabled()), 'the CAD card never became editable');
+  await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  let editor = await editCad(REJECTED_WORDS);
+  await editor.locator('[data-inline-reject]').click();
+  await until(async () => !cadBlock.proposedRevisionId, 'the edit was not rejected');
+  await page.waitForTimeout(3000);
+  assert.equal(await cadText(), CAD_LINE, 'a rejected edit keeps the card prompt');
+  editor = await editCad(EDIT_WORDS);
+  await editor.locator('[data-inline-accept]').click();
+  await until(async () => (await cadText()) === EDIT_WORDS, 'the accepted edit words are not the prompt');
+  assert.deepEqual(cadStarts.filter(c => c.path === '/api/learn/cad/jobs').map(c => c.prompt), ['a 40 mm mounting bracket with two holes', REJECTED_WORDS, EDIT_WORDS]);
+});
+
+await step('a corner resize keeps the height the card had at release', async () => {
+  const card = page.locator(`[data-block-id="${explainId}"]`);
+  await card.hover();
+  const handle = card.getByRole('button', { name: 'Resize chat block' });
+  const box = await handle.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 10, box.y + box.height / 2 + 90, { steps: 8 });
+  const held = (await card.boundingBox()).height;
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+  const after = (await card.boundingBox()).height;
+  assert.ok(Math.abs(after - held) <= 2, `height at release ${held}, after ${after}`);
+});
+
 await step('the server board holds both prompts; the older card has no row; the chat card row is its question', async () => {
-  await until(async () => { const state = await board(); return state.blocks.find(b => b.id === explainId)?.promptUsed === EXPLAIN_LINE && state.blocks.find(b => b.id === cadBlock.id)?.promptUsed === CAD_LINE; }, 'the saved board lacks the prompts', 20000);
+  await until(async () => { const state = await board(); return state.blocks.find(b => b.id === explainId)?.promptUsed === EXPLAIN_LINE && state.blocks.find(b => b.id === cadBlock.id)?.promptUsed === EDIT_WORDS; }, 'the saved board lacks the prompts', 20000);
   assert.ok(!Object.hasOwn((await board()).blocks.find(b => b.id === OLD.id), 'promptUsed'));
   assert.equal(await rowOf(page, OLD.id).count(), 0);
   const chatRow = page.locator(`[data-block-id="${CHAT.id}"] [data-card-prompt]`);
@@ -154,6 +213,8 @@ await step('a fresh browser shows both rows again, closed', async () => {
   }
   await rowOf(second.page, explainId).locator('[data-card-prompt-toggle]').click();
   assert.equal(await rowOf(second.page, explainId).locator('[data-card-prompt-text]').innerText(), EXPLAIN_LINE);
+  await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  assert.equal(await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), EDIT_WORDS);
 });
 await second.context.close();
 

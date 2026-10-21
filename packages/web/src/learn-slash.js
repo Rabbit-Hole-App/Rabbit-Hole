@@ -198,7 +198,7 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
-  const hold = () => canvas.reserve?.({ label: `Creating /${name}…`, card: cardsFor(name)[0]?.card ?? null });
+  const hold = () => canvas.reserve?.({ label: `Creating /${name}…`, card: cardsFor(name)[0]?.card ?? null, ...(String(promptUsed ?? '').trim() ? { prompt: true } : {}) });
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
   try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, post }); }

@@ -39,6 +39,7 @@ import { objectKind, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt from './CardPrompt.jsx';
+import { PROMPT_ROW_H } from './card-prompt.js';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -338,10 +339,13 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
   const resize = event => {
     if (event.button !== 0 || locked || full) return;
     const element = card.current;
+    // The drag sizes the body: rows under it (Sources, the Prompt row, references) are added on top, during the drag and after
+    // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
+    const extra = cardLayout ? 0 : extraHeight + refsHeight;
     let last = null;
     const apply = (w, h) => { last = { w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }; setSize(last); setCornerDrag(last); };
     apply.done = () => { if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else onSize?.(id, last.w, last.h); } setCornerDrag(null); };
-    startDrag(event, { x: element.offsetWidth, y: element.offsetHeight }, apply, zoom);
+    startDrag(event, { x: element.offsetWidth, y: element.offsetHeight - extra }, apply, zoom);
   };
   const node = (
     // A selected card rises above a group's box (painted after the column, over the cards): the selection actions in its row above
@@ -362,7 +366,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
         if (!opensFrom(event.target) || (selectedAtPress.current && event.target.closest('[data-pointer-body]'))) return;
         opener.open(id, 'learner_dblclick');
       } : undefined}
-      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : cornerDrag?.h || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
+      style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
       {selected && opens && opener.single === id && (
@@ -2151,9 +2155,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // insertAtView would use now - or the nearest one nothing drawn covers (freeSlot: a dragged card keeps its
       // offset) - the card's size (slotSize: `card` names its BLOCK_TYPES entry, `samples` the cards it can be),
       // the camera on it. Returns the slot id the card fills (insert*'s `into`); release() drops it, a no-op once filled.
-      reserve: ({ label, card = null, samples = [] }) => {
+      // prompt: the card will carry a Prompt row (card-prompt.js), so a fixed-height card's slot holds it.
+      reserve: ({ label, card = null, samples = [], prompt = false }) => {
         const id = `slot:${crypto.randomUUID()}`;
-        const size = slotSize(card, BLOCK_TYPES, samples);
+        const size = slotSize(card, BLOCK_TYPES, samples, prompt ? PROMPT_ROW_H : 0);
         const place = freeSlot(columnItems(), flowIndexAtView(), size, { column: COLUMN });
         const before = blocksRef.current[place.at]?.id ?? null;
         // moves: the learner's camera moves so far; once they move it, nothing about this slot moves it again.

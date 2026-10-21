@@ -35,6 +35,7 @@ import { descFor } from './agent/slash.js';
 import CommandPill from './CommandPill.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import { FILE_EDIT_LOCKED, fileEditLocked } from './file-chat-ref.js';
+import { withPrompt } from './card-prompt.js';
 
 // The inline AI editor (docs/features/inline-ai-editor.md): a compact popover by the frozen selection, with Edit and
 // Explain pills, the prompt, a context indicator, the streamed preview and Accept / Reject. Everything it shows before
@@ -419,7 +420,8 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A7 card ghost: drawn once invisibly at the end of the column to learn its real size (waiting until its size holds
   // for two frames, up to a second), then placed once beside the selection and shown pale there.
   const isCard = preview => preview && (['card','proposal','compute','source_compute'].includes(preview.kind));
-  const ghostBlock = preview => ({ ...preview.block, id: cardId(preview.requestId) });
+  // The ghost carries the prompt Accept will keep (cardTx), so its Prompt row makes it the card's exact size (A7).
+  const ghostBlock = preview => withPrompt({ ...preview.block, id: cardId(preview.requestId) }, preview.frozen?.words);
   useEffect(() => {
     const preview = state.preview;
     if (!isCard(preview) || !['preview', 'proposal'].includes(state.status) || !canvas.cardGhost) { canvas.cardGhost?.clear(); return undefined; }

@@ -38,7 +38,8 @@ export default function CardPrompt({ text, onHeight = null, className = 'px-4 pb
           {chat && <button type="button" aria-label="Put prompt in chat" title="Put this prompt in the chat box to edit and send" data-card-prompt-chat className={icon}
             onClick={() => chat.composer.prepare({ text })}><MessageSquarePlus size={13} /></button>}
         </div>
-        {open && <p data-card-prompt-text className="border-t border-line px-3 py-2 text-xs whitespace-pre-wrap break-words text-ink">{text}</p>}
+        {/* A long prompt scrolls inside the row (data-scroll: the wheel scrolls it, not the canvas), so the card stays near its size. */}
+        {open && <p data-card-prompt-text data-scroll className="max-h-40 overflow-y-auto border-t border-line px-3 py-2 text-xs whitespace-pre-wrap break-words text-ink">{text}</p>}
       </div>
     </div>
   );

@@ -16,8 +16,11 @@ small Add to chat icon. Owner decisions:
 A generated card has a row at its foot: "Prompt" with a chevron, a Copy icon and a chat icon (`CardPrompt.jsx`).
 
 - **Closed:** the default on every load. Nothing else on the card moves.
-- **Opened:** shows the typed words, wrapped. The card's frame grows by the row's measured height, as it does for
-  Sources & evidence.
+- **Opened:** shows the typed words, wrapped. A long prompt scrolls inside the row, at most 160 px. The card's frame grows
+  by the row's measured height, as it does for Sources & evidence.
+- **Size:** a fixed-height card's skeleton holds the closed row (`PROMPT_ROW_H`, 42 px), so the card fills its slot
+  exactly. The Ctrl+K ghost draws the row too, so Accept lands on the ghost's size. A corner resize sizes the body, so
+  releasing never adds the rows under it a second time. That was already true for Sources & evidence.
 - **Copy:** writes the prompt to the clipboard and says Copied or Copy failed beside the icon.
 - **Chat icon:** calls the Chat workspace's `composer.prepare({ text })`. Chat opens, and an empty draft becomes the
   prompt. A written draft is kept, and the prompt follows it after a blank line, as for every prepare. Nothing is sent.
@@ -35,7 +38,7 @@ image cards), and shared asks and Rabbit Hole titles read them, so this field ha
 | How the card is made | Prompt kept | Code |
 |---|---|---|
 | A / command in the Chat box or dock (`/explain …`, `/quiz …`, paid proposals after Generate, `/motion`) | The typed line, command included | `learn-slash.js` `runLearnCommand` |
-| `/cad` from Chat, and CAD from Ctrl+K | The typed line (Chat) or the editor's words (Ctrl+K). A CAD edit replaces it with the edit's words | `LearnPage.jsx` `startCad` |
+| `/cad` from Chat, and CAD from Ctrl+K | The typed line (Chat) or the editor's words (Ctrl+K). A CAD edit's words replace it only when its revision is accepted. A rejected edit leaves the old prompt | `LearnPage.jsx` `startCad`, `cadAction` |
 | Tutor `create_material` | The learner's message for that turn, not the model-written command line. A Next Steps hook click typed nothing, so its cards keep none | `LearnTutor.jsx`, `runMaterials` |
 | Ctrl+K card result | The words typed into the editor (`frozen.words`) | `inline-ai-apply.js` `cardTx` |
 | Journey section steps, including a paid step after Generate | The words that started the journey (`journey.request.raw_user_message`). The section heading keeps none | `learn-journey-materialize.js` |
@@ -63,6 +66,10 @@ A copied, duplicated or Alt-dragged card keeps its prompt. A fork keeps it.
 
   `inline-ai-apply.test.mjs` covers the Ctrl+K card, and `learn-journey-materialize.test.mjs` covers journey steps and
   a paid proposal.
-- Browser: `e2e/card-prompt-check.mjs`, 8 steps on the local stack with the board save real. It covers `/explain`,
-  `/cad` (polled), open, Copy, put in chat without sending, the server copy, a fresh browser and a share-link viewer.
+- Browser: `e2e/card-prompt-check.mjs`, 10 steps on the local stack with the board save real. It covers:
+  - `/explain` and `/cad` (polled);
+  - a CAD edit that is rejected, then one that is accepted;
+  - opening the row, Copy, and putting the prompt in chat without sending;
+  - a corner resize with no jump at release;
+  - the server copy, a fresh browser and a share-link viewer.
   No model is called: the artifact and CAD routes are answered in the browser.
