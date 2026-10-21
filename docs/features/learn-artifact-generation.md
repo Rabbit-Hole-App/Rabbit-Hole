@@ -322,7 +322,9 @@ help the idea, and a text explanation otherwise. The Tutor reaches the same capa
 - **What the card says about its own numbers** (after two of ten real scenes had wrong stored content, 2026-10-21). At
   every checked setting, a written calculation in shown text (`70 - 80 = 0`, `31 < 37`) must hold, and a sentence whose
   number follows a drawn data object's count of non-zero entries at most settings of a control must follow it at all of
-  them. The two wrong real scenes are kept as fixtures (`control-plane/test/fixtures/explain-wrong/`) and stay refused.
+  them; an index range a changing sentence states (`Range 4..6`) must be that object's non-zero span or a block of zeros,
+  once at some setting a range it states was that span. The wrong real scenes (both original cards and the binary-search
+  rerun) are kept as fixtures (`control-plane/test/fixtures/explain-wrong/`) and stay refused.
   **Boundary:** the truth of a stored number the card never restates is not checked (a wrong but self-consistent table
   passes), nor a sentence naming a table value in words ("equilibrium at $5"); a precomputed scene says so on its face.
 - **Choice.** The model chooses between scene and text (`ARTIFACT_SYSTEM`). Words narrow it (`agent/slash.js`

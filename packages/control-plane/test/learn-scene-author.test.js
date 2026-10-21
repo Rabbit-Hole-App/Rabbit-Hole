@@ -125,14 +125,20 @@ test('a refused spend admission is said in its own words, never as a bare status
 });
 
 test('L10\'s two wrong real scenes stay refused, each for the contradiction the review found', async () => {
-  const binary = wrongRun('binary-search-run2'), market = wrongRun('supply-demand-run1');
+  const binary = wrongRun('binary-search-run2'), market = wrongRun('supply-demand-run1'), rerun = wrongRun('binary-search-run4');
   // Binary search, step 2: "2 candidates left" over a range that still draws 3 cells.
   assert.match(sceneProblem(binary.response.block.scene), /^With input step = 2: "sizetext" says "Step 2: Candidates remaining: 2", but "survivors" draws 3 non-zero entries there.*Fix: .*sum over the 0\/1 list/);
+  // Its rerun after the count rule (uiexplain, 2026-10-21): the count derived, but step 1 says "Range 0..6" and draws 0..7.
+  assert.match(sceneProblem(rerun.response.block.scene), /^With input step = 1: "stepText" says "Step 1: .*Range 0\.\.6\.", but "alive" draws its non-zero entries at 0\.\.7 there, not 0\.\.6.*Fix: /);
+  // The same card with the cells its sentences name passes: the rule refuses the contradiction, not the topic.
+  const fixed = structuredClone(rerun.response.block.scene);
+  fixed.exampleData.alive = [[0, 15], [0, 6], [4, 6], [6, 6], [6, 6]].map(([a, b]) => fixed.exampleData.array.map((_, i) => Number(i >= a && i <= b)));
+  assert.equal(sceneProblem(fixed), null);
   // Price ceiling: "live" while it only selects stored numbers, and, declared precomputed, a shortage line its own numbers contradict.
   assert.match(calculationProblem(market.response.block.scene, 'live'), /no derived op calculates anything/);
   assert.match(sceneProblem(market.response.block.scene), /^"short" writes "60 - 100 = 0", but 60 - 100 = -40\. Fix: /);
   // Through the artifact path: the same answer twice is no card, and the one repair is told what is wrong.
-  for (const [record, said] of [[binary, /draws 3 non-zero entries there/], [market, /writes "60 - 100 = 0"/]]) {
+  for (const [record, said] of [[binary, /draws 3 non-zero entries there/], [market, /writes "60 - 100 = 0"/], [rerun, /non-zero entries at 0\.\.7 there/]]) {
     const { title, scene } = record.response.block;
     const answer = ['make_animation', { title, calculation: 'precomputed', scene }];
     const again = scripted(answer, answer);

@@ -39,6 +39,7 @@ const HINTS = [
   [/states a computed relationship/, 'write a general law as a text object, or take the equation numbers from derived values with {{name}}'],
   [/lands its arrowhead .* inside the label/, 'end the arrow at least 12px clear of that label, or move the label'],
   [/non-zero entries there/, 'make the sentence and the drawn entries agree: derive the count with sum over the 0/1 list and print it with {{name}}, or correct the stored list'],
+  [/non-zero entries at \d+\.\.-?\d+ there/, 'work that setting out again, then make the stored list and the sentence name the same cells'],
   [/writes ".*", (but|which is false)/, 'compute the result with a derived op (sub, add, scale, sum) and print it with {{name}}, correct the stored numbers, or say it without a calculation'],
 ];
 
@@ -82,20 +83,35 @@ export function falseCalculation(text) {
 }
 
 const numbersIn = text => (text.match(/-?\d[\d,]*(?:\.\d+)?/g) || []).map(number);
-// A sentence whose number follows a drawn data object's count of non-zero entries as one control moves must follow it at every
-// setting checked: matched at most of them (two different counts at least) and missed at one is a stored count gone wrong.
-function countProblem(name, series) {
+// Index ranges a sentence states: "0..6", "4-6" (unspaced), "3 to 7".
+const RANGE = /(?<![\d.])(\d+)(?:\s*\.\.\s*|[–—-]|\s+to\s+)(\d+)(?![\d])/g;
+const rangesIn = text => [...text.matchAll(RANGE)].map(match => [Number(match[1]), Number(match[2])]).filter(([a, b]) => a <= b);
+// A sentence that changes with one control, set against a drawn data object whose non-zero entries change with it (a range
+// still searched, cells kept), at every setting checked:
+// - a number that is that object's count of non-zero entries at most settings (two different counts at least) must be it at all;
+// - an index range it states must be the span of those entries or a block of zeros (cells dropped), once at some setting a range
+//   it states was that span exactly.
+function drawnEntriesProblem(name, series) {
+  const at = (inputs, text, data, words) => `With input ${name} = ${JSON.stringify(inputs[name])}: "${text}" says "${words}", but "${data}" draws `;
   for (const data of series[0].objects.values()) {
     if (!Array.isArray(data.values)) continue;
     for (const text of series[0].objects.values()) {
       if (!text.label) continue;
-      const pairs = series.filter(snap => snap.objects.get(data.id) && snap.objects.get(text.id)?.label).map(snap => ({ inputs: snap.inputs,
-        count: snap.objects.get(data.id).values.filter(value => value != null && Number(value) !== 0).length, label: snap.objects.get(text.id).label }));
-      if (pairs.length < 3 || new Set(pairs.map(pair => pair.count)).size < 2 || new Set(pairs.map(pair => pair.label)).size < 2) continue;
+      const pairs = series.filter(snap => snap.objects.get(data.id) && snap.objects.get(text.id)?.label).map(snap => {
+        const on = snap.objects.get(data.id).values.map(value => value != null && Number(value) !== 0);
+        return { inputs: snap.inputs, on, count: on.filter(Boolean).length, first: on.indexOf(true), last: on.lastIndexOf(true), label: snap.objects.get(text.id).label };
+      });
+      if (pairs.length < 3 || new Set(pairs.map(pair => `${pair.first}..${pair.last}:${pair.count}`)).size < 2 || new Set(pairs.map(pair => pair.label)).size < 2) continue;
       const hits = pairs.filter(pair => numbersIn(pair.label).includes(pair.count));
       const miss = pairs.find(pair => !hits.includes(pair));
       if (miss && hits.length * 2 > pairs.length && new Set(hits.map(pair => pair.count)).size >= 2) {
-        return `With input ${name} = ${JSON.stringify(miss.inputs[name])}: "${text.id}" says "${miss.label}", but "${data.id}" draws ${miss.count} non-zero entries there, and at most other settings it states that count`;
+        return `${at(miss.inputs, text.id, data.id, miss.label)}${miss.count} non-zero entries there, and at most other settings it states that count`;
+      }
+      const span = (pair, [a, b]) => a === pair.first && b === pair.last;
+      if (!pairs.some(pair => rangesIn(pair.label).some(range => span(pair, range)))) continue;
+      for (const pair of pairs) {
+        const wrong = rangesIn(pair.label).find(([a, b]) => b < pair.on.length && !span(pair, [a, b]) && pair.on.slice(a, b + 1).some(Boolean));
+        if (wrong) return `${at(pair.inputs, text.id, data.id, pair.label)}its non-zero entries at ${pair.first}..${pair.last} there, not ${wrong[0]}..${wrong[1]}, and at another setting the range it states is that span`;
       }
     }
   }
@@ -122,7 +138,7 @@ function firstProblem(scene) {
     if (bad !== undefined) return `derived.${name} (${spec.op}): every arg is a name, a dotted path or a number, not ${JSON.stringify(bad).slice(0, 60)} - put lists in exampleData and name them`;
   }
   const legibility = (() => { try { return legibilityIssues(scene); } catch { return []; } })();
-  const series = new Map(); // each control's settings, the defaults first: what countProblem compares
+  const series = new Map(); // each control's settings, the defaults first: what drawnEntriesProblem compares
   for (const inputs of inputStates(scene)) {
     let result;
     try { result = evaluateScene(structuredClone(scene), scene.duration, inputs); }
@@ -147,7 +163,7 @@ function firstProblem(scene) {
     }
   }
   for (const [name, snaps] of series) {
-    const count = snaps.length >= 3 && countProblem(name, snaps);
+    const count = snaps.length >= 3 && drawnEntriesProblem(name, snaps);
     if (count) return count;
   }
   const small = legibility[0];
