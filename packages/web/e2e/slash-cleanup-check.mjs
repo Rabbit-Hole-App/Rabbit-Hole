@@ -90,8 +90,9 @@ async function pass(theme) {
   await context.route('**/main/thumbnail', route => (route.request().method() === 'PUT' ? route.fulfill({ status: 204 }) : route.continue()));
   const page = await context.newPage();
   const errors = [];
-  page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
-  const shot = name => page.screenshot({ path: `${OUT}/${theme}-${name}.png` });
+  let at = 'load';
+  page.on('pageerror', error => errors.push(`${error.message.slice(0, 160)} (during ${at})`));
+  const shot = name => { at = name; return page.screenshot({ path: `${OUT}/${theme}-${name}.png` }); };
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
   ok(`${theme}: the theme is applied`, await page.evaluate(() => document.documentElement.classList.contains('dark')) === (theme === 'dark'));
@@ -103,11 +104,21 @@ async function pass(theme) {
   const notice = dock.locator('[data-slash-result]');
   const blocks = () => page.locator('[data-block-id]:not([data-chat-block])').count();
 
+  // The Chat restores the latest saved thread (the seeded one) and its draft after the page loads: type only once it has.
+  // (The dark pass may restore a newer thread the light pass made: then a settle wait.)
+  await dock.getByText('/simplify the masking step').first().waitFor({ timeout: 10000 }).catch(() => {});
+  await page.waitForTimeout(1500);
   // 1. The Chat picker: retained commands only, every one reachable (More learning tools opened), menu labels.
   await composer().click();
   await composer().fill('/');
   await picker.waitFor();
-  await picker.locator('[data-slash-more]').click();
+  // More learning tools opens on a click, or by itself when the list is scrolled to the end: open it once, either way.
+  // (Clicking scrolls the list, and reaching its end opens the section too, so the click may close it again: retry.)
+  const more = picker.locator('[data-slash-more]');
+  for (let i = 0; i < 4 && !await picker.locator('[data-slash-command="video"]').isVisible(); i += 1) {
+    if (await more.getAttribute('aria-expanded') !== 'true') await more.click();
+    await page.waitForTimeout(400);
+  }
   const rows = await picker.locator('[data-slash-command]').evaluateAll(nodes => nodes.map(node => node.dataset.slashCommand));
   ok(`${theme}: the Chat picker lists every retained command and no removed one`, RETAINED.every(name => rows.includes(name)) && REMOVED.every(name => !rows.includes(name)) && !rows.includes('generate-image'), rows.join(' '));
   ok(`${theme}: menu labels read Add explanation, Open Rabbit Hole, Search images, Generate video, Add 3D scene`,
@@ -271,7 +282,7 @@ async function pass(theme) {
     && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
   await barInput.fill('/teach attention');
   await barInput.press('Enter');
-  ok(`${theme}: a removed bar command says it is unavailable`, await page.locator('[data-result-sheet]').getByText(removedText('teach')).first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
+  ok(`${theme}: a removed bar command says it is unavailable`, await page.locator('[data-result-sheet]').getByText('/teach is no longer available. Ask in your own words.', { exact: true }).first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
   await shot('19-bar-removed');
 
   // 8. /dive <topic> opens a Rabbit Hole about it (light only: it leaves the canvas).
