@@ -5,10 +5,12 @@
 // each title and a thin guide line through the topic markers. The round controls are checkboxes: completion changes only
 // when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its section,
 // cards and sub-sections with it; clicking a title frames it on the canvas.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
-import { DESCRIPTION_MAX, outlineTree, proposalProblem } from './learn-outline-model.js';
+import { api } from './api.js';
+import { DESCRIPTION_MAX, evidenceOf, outlineTree, proposalProblem } from './learn-outline-model.js';
+import { STATUS_LABEL, fetchProgress } from './learn-progress-client.js';
 
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
@@ -18,9 +20,15 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // emitter reads as ops with no base), cleared through onProposal(null). activeId: the section being viewed (the canvas
 // decides which). readOnly: a viewer - titles navigate, nothing edits, drags or ticks. className: the scroll container's
 // sizing, owned by the page.
-// subtitle: the project or repository the contents belong to; goal: the learning goal (LearnPage: the TOC conversation's latest
-// request), clamped to two lines, or null for none. Both under the heading (owner brief 2026-10-16 item 7).
-export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null }) {
+// subtitle: the project or repository the contents belong to; goal: the learner's accepted learning goal (LearnPage: the
+// structured goal record, never a planning message; draft Task 11, acceptance 52), clamped to two lines, or null for none.
+// Both under the heading (owner brief 2026-10-16 item 7).
+// Tutor Task 11 (C:/s/spec/tutor-workflow/draft.md "Table of Contents, tutoring, and progress"), all of it this learner's own
+// and never written into a heading: plan (learn-outline-model.js outlinePlan: links, steps, learningNow) or null;
+// planRevision, the accepted plan a proposal must still match; evidence { app, board, goalId, revision } reads that goal's
+// Progress for the linked headings' badges (no model call); onProgress opens Progress; onResume is Start/Resume of the
+// current step (the controls rule is the caller's). Viewing (activeId) and Learning now are separate marks.
+export default function TableOfContents({ outline, canvasApi, onShow, proposal, onProposal, activeId = null, readOnly = false, className = '', subtitle = null, goal = null, plan = null, planRevision = null, evidence = null, onProgress = null, onResume = null }) {
   // Which level is being added, the section being edited, the section being dragged, and the heading it lands before
   // (null: the end).
   const [adding, setAdding] = useState(null);
@@ -28,6 +36,20 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
   const [drag, setDrag] = useState(null);
   const [drop, setDrop] = useState(undefined);
   const pressed = useRef(null);
+  const [progress, setProgress] = useState(null);
+  const [openStep, setOpenStep] = useState(null);
+  // The linked goal's Progress, read on open and whenever the learner's saved state moves on (an assessment landed). A failed
+  // read shows no badge rather than a wrong one.
+  const linked = Object.keys(plan?.links || {}).join();
+  useEffect(() => {
+    let live = true;
+    setProgress(null);
+    if (evidence?.goalId && linked) fetchProgress(api, { app: evidence.app, board: evidence.board }, evidence.goalId).then(view => { if (live) setProgress(view); }, () => {});
+    return () => { live = false; };
+  }, [evidence?.app, evidence?.board, evidence?.goalId, evidence?.revision, linked]);
+  const learning = plan?.learningNow;
+  const learningMark = <span data-toc-learning-now className="inline-flex shrink-0 items-center rounded-full bg-accent/10 px-1.5 text-[11px] leading-5 font-medium text-accent">Learning now</span>;
+  const resume = onResume && <button type="button" data-toc-resume onClick={onResume} title="Start or resume this activity in Chat" className="shrink-0 rounded px-1 text-[11px] leading-5 font-medium text-ink-2 underline-offset-2 hover:text-ink hover:underline">Resume</button>;
   // The sections whose sub-sections are folded away. The tab stays mounted while hidden, so this survives view switches.
   const [folded, setFolded] = useState(() => new Set());
   const fold = id => setFolded(previous => { const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -75,14 +97,20 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
               {entry.label}
             </button>
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
+            {learning?.headingId === entry.id && <div className="mt-1 flex flex-wrap items-center gap-1">{learningMark}{resume}</div>}
+            {/* Named by the criterion, never by the heading: a renamed section cannot relabel what was assessed. */}
+            {evidenceOf(plan?.links[entry.id], progress).map(badge => (
+              <button key={badge.criterionId} type="button" data-toc-evidence={badge.status} onClick={() => onProgress?.(badge.criterionId)} title="Your evidence, visible only to you. Open Progress"
+                className="mt-1 block text-left text-xs leading-5 text-ink-2 underline-offset-2 hover:text-ink hover:underline">{badge.label}: {STATUS_LABEL[badge.status]?.toLowerCase()}</button>
+            ))}
           </div>
         )}
         {!readOnly && editing !== entry.id && (
           <div data-no-drag className="flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
             <button type="button" aria-label={`Edit ${entry.label}`} title="Edit title and description" onClick={() => setEditing(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink"><Pencil size={14} /></button>
-            {/* Deletes the heading only; the cards under it stay, and Ctrl+Z brings it back. */}
-            <button type="button" aria-label={`Delete ${entry.label}`} title="Delete section" onClick={() => canvasApi.current?.removeBlock(entry.id)}
+            {/* Removes the heading only; the cards under it and any saved learning stay, and Ctrl+Z brings it back. */}
+            <button type="button" aria-label={`Remove heading ${entry.label}`} title="Remove heading only (its cards stay; Ctrl+Z undoes it)" onClick={() => canvasApi.current?.removeBlock(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>
           </div>
         )}
@@ -125,8 +153,27 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
       </div>
       {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 truncate text-xs text-ink-3">{subtitle}</p>}
       {goal && <p data-toc-goal title={goal} className="mb-4 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
-      {shown && <ProposalCard proposal={shown} outline={outline} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
+      {shown && <ProposalCard proposal={shown} outline={outline} planRevision={planRevision} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
+      {plan?.steps.length > 0 && (
+        <section data-toc-plan aria-label="Planned steps" className="mt-7">
+          <h3 className="mb-2 text-xs font-medium text-ink-2">Planned steps</h3>
+          <ol className="space-y-2.5">
+            {plan.steps.map(step => (
+              <li key={step.sectionId} data-toc-step={step.sectionId} data-state={step.state} className="text-sm">
+                {/* Opening a planned step shows its purpose; it never prepares the lesson. */}
+                <button type="button" aria-expanded={openStep === step.sectionId} onClick={() => setOpenStep(id => (id === step.sectionId ? null : step.sectionId))}
+                  className="text-left break-words text-ink hover:text-accent"><span className="text-ink-2 tabular-nums">{step.n}.</span> {step.title}</button>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-ink-3">
+                  <span>{step.state === 'removed' ? 'Section removed: its cards and your saved work are kept' : 'Planned — material not prepared'}</span>
+                  {learning?.sectionId === step.sectionId && <>{learningMark}{resume}</>}
+                </div>
+                {openStep === step.sectionId && <p data-toc-step-purpose className="mt-1 text-xs leading-normal text-ink-2">{step.purpose}</p>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
       {adding && (
         <div style={{ paddingLeft: (adding - 1) * 24 + 36 }} className="mt-3 flex items-center gap-2">
           <input autoFocus aria-label={`New ${SECTION_LEVELS[adding - 1][1].toLowerCase()} title`} placeholder={`${SECTION_LEVELS[adding - 1][1]} title`}
@@ -194,10 +241,10 @@ function Editor({ entry, topic, onSave, onCancel }) {
 // the existing heading. A syllabus adoption can run to 96 rows (C7b), so the list scrolls inside the card and Apply and
 // Discard stay in view. A proposal made against older headings, or one that no longer fits them, says so and Apply
 // changes nothing (contract C7).
-function ProposalCard({ proposal, outline, canvasApi, onDone }) {
+function ProposalCard({ proposal, outline, planRevision, canvasApi, onDone }) {
   const [refused, setRefused] = useState(null);
   const ops = Array.isArray(proposal.ops) ? proposal.ops : [];
-  const problem = refused || proposalProblem(outline, proposal);
+  const problem = refused || proposalProblem(outline, proposal, planRevision);
   const titles = new Map(outline.map(entry => [entry.id, entry.label]));
   ops.forEach(op => { if (op.op === 'add' && op.key) titles.set(op.key, op.text); });
   const name = id => (titles.has(id) ? `"${titles.get(id)}"` : 'a removed section');
@@ -233,7 +280,7 @@ function ProposalCard({ proposal, outline, canvasApi, onDone }) {
   });
   ops.forEach((_, at) => { if (!drawn.has(at)) rows.push(item(at, false)); });
   const apply = () => {
-    const result = canvasApi.current?.applyOutline(ops, { base: proposal.base, source: proposal.source });
+    const result = canvasApi.current?.applyOutline(ops, { base: proposal.base, source: proposal.source, planBase: proposal.planBase, plan: planRevision });
     if (!result?.ok) { setRefused(result?.message || 'This proposal cannot be applied.'); return; }
     if (result.skipped) toast(result.applied ? `${result.skipped} of these ${result.skipped === 1 ? 'was' : 'were'} already in the contents.` : 'Everything in this proposal is already in the contents.');
     onDone();

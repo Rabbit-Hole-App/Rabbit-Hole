@@ -539,6 +539,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const questionVideo = boardContext?.video;
     const questionImage = boardContext?.image;
     const questionOutline = boardContext?.outline?.();
+    // Tutor Task 11: the accepted plan revision this turn was asked on; its outline proposal applies only while it holds.
+    const questionPlan = boardContext?.planRevision?.();
     if (!isDemo) boardContext?.removeImage();
     const target = canvasTarget; // selected lesson block riding as context
     // The attachment follows its card until this exact moment: a function-
@@ -745,7 +747,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           if (type === 'chunk') mirror(d.text);
           else if (type === 'progress') { if (d.card && !slots[d.card] && !journeySetup) slots[d.card] = boardContext?.reserveCard?.(d.card); exchange?.({ id: replyId, stage: d.stage }); setMsgs(messages => messages.map(item => item.id === replyId ? (chatThread ? { ...item, stage: d.stage } : { ...item, status: d.stage }) : item)); }
           else if (type === 'graph') { responseGraph=d; setMsgs(messages=>messages.map(item=>item.id===replyId?{...item,graph:d}:item)); }
-          else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor' }); }
+          else if (type === 'outline') { boardContext?.onOutlineProposal?.({ ops: d.ops, base: d.base ?? null, source: 'tutor', ...(questionPlan !== undefined ? { planBase: questionPlan } : {}) }); }
           else if (type === 'paper') { if (!journeySetup) cardSink?.(boardContext?.onShowPaper?.(d, slots.paper)); }
           else if (type === 'wiki') { if (!journeySetup) cardSink?.(boardContext?.onShowWiki?.(d, slots.wiki)); }
           else if (type === 'video') { if (!journeySetup) cardSink?.(boardContext?.onShowVideo?.(d, slots.video)); }
