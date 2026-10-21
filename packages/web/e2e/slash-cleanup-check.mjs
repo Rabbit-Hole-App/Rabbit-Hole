@@ -282,7 +282,7 @@ async function pass(theme) {
     && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
   await barInput.fill('/teach attention');
   await barInput.press('Enter');
-  ok(`${theme}: a removed bar command says it is unavailable`, await page.locator('[data-result-sheet]').getByText(removedText('teach')).first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
+  ok(`${theme}: a removed bar command says it is unavailable`, await page.locator('[data-result-sheet]').getByText('/teach is no longer available. Ask in your own words.', { exact: true }).first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
   await shot('19-bar-removed');
 
   // 8. /dive <topic> opens a Rabbit Hole about it (light only: it leaves the canvas).

@@ -146,7 +146,7 @@ export default function AgentBar() {
     if (r.type === 'note') { add(scope, { kind: 'note', text: r.text }); return showResults(scope); }
     // The bar offers no slash commands (owner, 2026-10-20): a removed one says so, and runs nothing.
     if (r.type === 'unknown_command') {
-      add(scope, { kind: 'note', text: unavailableCommand(r.name) || `Unknown command /${r.name}. Type what you want in your own words.`, error: true });
+      add(scope, { kind: 'note', text: unavailableCommand(r.name, { listed: false }) || `Unknown command /${r.name}. Type what you want in your own words.`, error: true });
       return showResults(scope);
     }
     if (r.type === 'command') return runCommand(r.name, r.args, raw, scope);

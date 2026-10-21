@@ -195,6 +195,8 @@ test('the 17 removed commands are gone from every surface list and every typed d
     assert.match(unavailableCommand(name), new RegExp(`^/${name} is no longer available\\.`));
   }
   assert.equal(unavailableCommand('graph'), null);
+  // The bar lists no commands, so it never says to type / (AgentBar.jsx).
+  assert.equal(unavailableCommand('teach', { listed: false }), '/teach is no longer available. Ask in your own words.');
   // The Tutor's internal path, and only it, still reaches the material tools.
   assert.deepEqual(names(MATERIAL_TOOLS), ['compare', 'walkthrough']);
   for (const name of ['compare', 'walkthrough']) {
