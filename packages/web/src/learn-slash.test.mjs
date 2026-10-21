@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, holdsLine, materialCommands, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { cardsFor, commandLine, holdsLine, materialCommands, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { commandsFor } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -330,6 +331,30 @@ test('held commands: the dock holds a /command Enter while busy and sends it whe
   assert.match(ask, release('send'));
   assert.match(picker, /intercept: raw => \{ if \(busy\) \{ held\.current = raw; return true; \} exec\(raw\); return true; \}/);
   assert.match(picker, release('exec'));
+});
+
+// L5 (2026-10-20): a pill's prompt came back to Send with the pill still set, was wrapped as "/simplify <prompt>" again, held
+// behind the still-busy picker and dropped once the composer no longer showed it: no message and no request.
+test('commandLine: a pill line runs once; every command prompt that comes back is the chat turn, never a line again', async () => {
+  assert.equal(commandLine('why softmax', { command: 'simplify' }), '/simplify why softmax');
+  assert.equal(commandLine('  ', { command: 'dive' }), '/dive', 'a bare pill');
+  assert.equal(commandLine(' /example tanh ', { command: 'simplify' }), '/example tanh', 'a typed line replaces the pill');
+  assert.equal(commandLine('why softmax'), null, 'plain words are a chat turn');
+  const canvas = { startCad: async () => ({}), insertNotebook: () => 'n', insertBlock: () => 'b', insertPaper: () => 'p', reserve: () => 'slot:1', release: () => {}, dive: () => ({ notice: null }), openSources: () => ({}) };
+  const post = async () => ({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't', body: 'b' } });
+  const prompted = [];
+  for (const { name } of commandsFor('learn', { hidden: true })) {
+    const out = await runLearnCommand(commandLine('why softmax', { command: name }), { app: 'demo', canvas, post, openSearch: () => ({ added: false }) }).catch(() => ({}));
+    if (!out.prompt) continue;
+    prompted.push(name);
+    assert.equal(commandLine(out.prompt, { command: name, prompted: true }), null, `/${name}: its prompt is the chat turn`);
+  }
+  assert.deepEqual(prompted.sort(), ['ask', 'deeper', 'example', 'simplify', 'teach']);
+  assert.equal(commandLine('/whiteboard tides', { command: 'ask', prompted: true }), null, '"/ask /whiteboard tides": a prompt starting with / is not run');
+  // Effects never run here, so the wiring is pinned in source; the browser run is e2e/chat-outputs-check.mjs steps 13 and 14.
+  const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
+  assert.match(ask, /const line = !regenerate && slash \? commandLine\(raw, \{ command, prompted \}\) : null;/);
+  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true \}\)\}/);
 });
 
 // Release B (owner 4A and A4, 2026-10-16): the source searches open the shared finder with the query and run no model;

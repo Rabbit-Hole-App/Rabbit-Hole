@@ -1313,9 +1313,9 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   // The sheet opens inside begin(): a turn the journey takes never reopens it.
   assert.equal(ask.split('if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }').length, 2, 'once');
   assert.match(ask, /const begin = \(\) => \{\n\s+if \(begun\) return;\n\s+begun = true;\n\s+if \(panelAsk\) \{ setSheetOpen\(true\); setSheetHistory\(false\); \}/);
-  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current \}\)\}/);
+  assert.match(ask, /onPrompt=\{prompt => send\(prompt, undefined, \{ skipJourney: true, command: promptCommand\.current, prompted: true \}\)\}/);
   assert.match(ask, /if \(journey\.busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
-  assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return; \}/);
+  assert.match(ask, /if \(!message \|\| busy\) \{ tutor\?\.slash\?\.\(null\); return false; \}/);
   assert.match(read('LearnTutor.jsx'), /slash: \(name, raw\) => \{ slashNext\.current = SLASHES\.includes\(name\) \? \{ name, raw \} : null; \}/);
   // A block's composer gets the Tutor only on a canvas with a live journey, or in a hole opened from a journey section once
   // its Tutor is active (LP1 Task 14 review round 1, D1); nanoGPT, blank canvases and other holes keep /api/learn/ask. It
