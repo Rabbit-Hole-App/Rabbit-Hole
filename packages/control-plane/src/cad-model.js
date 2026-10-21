@@ -92,7 +92,10 @@ export async function runCadModel(env, job, prepared) {
   const text = (result.content || []).filter(c=>c.type==='text').map(c=>c.text).join('');
   let parsed; try { parsed = JSON.parse(text.trim().replace(/^```(?:json)?\s*|\s*```$/g,'')); } catch { throw cadError('The CAD model returned an invalid design response.'); }
   if (job.modelPhase === 'review') return parsed;
-  if (job.modelPhase === 'brief') return validateDesign(parsed, { requireVolumeExpressions: true, briefOnly: true });
+  // A real model may nest "checks" inside "brief" (C2 run, 2026-10-21): lift them to where the contract reads them.
+  if (parsed && !Array.isArray(parsed.checks) && Array.isArray(parsed.brief?.checks)) { const { checks, ...brief } = parsed.brief; parsed = { ...parsed, brief, checks }; }
+  // The brief is validated once, by the job (as with CAD_TEST_MODEL): its check specs must keep their expressions.
+  if (job.modelPhase === 'brief') { validateDesign(structuredClone(parsed), { requireVolumeExpressions: true, briefOnly: true }); return parsed; }
   // An approved job keeps its brief and checks; only the source comes from this call.
   return job.approval ? approvedDesign(job, parsed) : validateDesign(parsed, { requireVolumeExpressions: true });
 }
