@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
-import { Menu } from './ui.jsx';
+import { Menu, Toggle } from './ui.jsx';
 
 // The canvas menubar. It sits in the page's control strip rather than floating
 // over the surface: the lesson column is centred on the surface with a 24px
@@ -25,6 +25,14 @@ export default function CanvasMenubar({ menus, className = '' }) {
           <Menu open={open === menu.title} onClose={() => setOpen(null)} className={`top-9 left-0 border border-line ${menu.panel ? 'w-auto!' : ''}`}>
             {menu.panel ? menu.panel(() => setOpen(null)) : menu.items.map((item, index) => (item.divider ? (
               <div key={`rule-${index}`} className="my-1 h-px bg-line" />
+            ) : item.toggle !== undefined ? (
+              // A widget's switch (View menu): the row or its switch flips it, Space or Enter on the focused switch too, and
+              // the menu stays open so the canvas reflows beside it.
+              <label key={item.label} data-menu-switch className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-ink hover:bg-hover">
+                {item.icon && <item.icon size={15} strokeWidth={1.8} className="shrink-0 text-ink-2" />}
+                <span className="flex-1 whitespace-nowrap">{item.label}</span>
+                <Toggle on={item.toggle} onChange={item.onToggle} aria-label={item.label} />
+              </label>
             ) : item.choice ? (
               // One row, one dropdown: a setting with several values rather than a row per value.
               <label key={item.label} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm text-ink hover:bg-hover">

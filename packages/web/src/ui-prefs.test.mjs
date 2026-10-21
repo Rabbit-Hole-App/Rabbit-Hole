@@ -13,7 +13,7 @@ test('missing, unreadable or odd values read as the defaults', () => {
   assert.deepEqual(readUiPrefs(memory({ 'rh.ui-prefs': '{nope' })), UI_PREF_DEFAULTS);
   assert.deepEqual(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ textSize: 'huge', reduceMotion: 'yes', chatSend: 'shift' }) })), UI_PREF_DEFAULTS);
   assert.deepEqual(readUiPrefs(null), UI_PREF_DEFAULTS);
-  assert.deepEqual(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ textSize: 'larger', reduceMotion: true, chatSend: 'mod' }) })), { textSize: 'larger', reduceMotion: true, chatSend: 'mod' });
+  assert.deepEqual(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ textSize: 'larger', reduceMotion: true, chatSend: 'mod' }) })), { ...UI_PREF_DEFAULTS, textSize: 'larger', reduceMotion: true, chatSend: 'mod' });
 });
 
 test('applying sets the attributes index.css reads, and defaults leave none', () => {
@@ -29,7 +29,7 @@ test('a save applies at once and survives a fresh read (a reload)', () => {
   saveUiPref('textSize', 'larger', { storage, root: html });
   saveUiPref('chatSend', 'mod', { storage, root: html });
   assert.equal(html.attrs.get('data-text-size'), 'larger');
-  assert.deepEqual(readUiPrefs(storage), { textSize: 'larger', reduceMotion: false, chatSend: 'mod' });
+  assert.deepEqual(readUiPrefs(storage), { ...UI_PREF_DEFAULTS, textSize: 'larger', reduceMotion: false, chatSend: 'mod' });
   assert.throws(() => saveUiPref('textSize', 'enormous', { storage, root: html }), /Unknown textSize/);
 });
 
@@ -42,6 +42,23 @@ test('a refused save throws a clear message, but the change holds in this page u
   // The next successful save clears the held value.
   saveUiPref('reduceMotion', false, { storage: memory(), root: html });
   assert.equal(uiPrefs(blocked).reduceMotion, false);
+});
+
+// Owner brief 2026-10-21 item 3: View > Minimap, Rabbit Hole Map and Curious are all on until the learner turns one off; each
+// choice is saved on its own, survives a reload, and an odd saved value is the default (on), never an error.
+test('the View menu widgets default on and remember each choice on its own', () => {
+  assert.deepEqual([UI_PREF_DEFAULTS.minimap, UI_PREF_DEFAULTS.holeMap, UI_PREF_DEFAULTS.curious], [true, true, true]);
+  assert.deepEqual(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ minimap: 'no', holeMap: 0, curious: null }) })), UI_PREF_DEFAULTS);
+  const storage = memory(), html = root();
+  saveUiPref('holeMap', false, { storage, root: html });
+  assert.deepEqual(readUiPrefs(storage), { ...UI_PREF_DEFAULTS, holeMap: false });
+  saveUiPref('curious', false, { storage, root: html });
+  saveUiPref('holeMap', true, { storage, root: html });
+  assert.deepEqual(readUiPrefs(storage), { ...UI_PREF_DEFAULTS, curious: false });
+  saveUiPref('minimap', false, { storage, root: html });
+  assert.deepEqual([readUiPrefs(storage).minimap, readUiPrefs(storage).holeMap, readUiPrefs(storage).curious], [false, true, false]);
+  assert.equal(html.attrs.size, 0, 'widget choices put nothing on <html>');
+  assert.throws(() => saveUiPref('curious', 'off', { storage, root: html }), /Unknown curious/);
 });
 
 test('the send key is named for the platform', () => {

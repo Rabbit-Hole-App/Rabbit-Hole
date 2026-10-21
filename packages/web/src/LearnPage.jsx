@@ -71,7 +71,7 @@ import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-wo
 import { effectiveControls } from './learn-coaching-client.js';
 import { canCoach, mayRun } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe } from 'lucide-react';
+import { MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe, Network, Lightbulb } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -238,7 +238,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Mirrored from the canvas so the View menu can tick what is on. Held by value
   // rather than by ref, and returned unchanged when nothing moved, or the effect
   // that publishes it would re-render forever.
-  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, pages: false, presenting: false, outline: [], selected: 0, units: 0, grouped: false, canPaste: false });
+  const [canvasState, setCanvasState] = useState({ grid: false, lock: false, minimap: true, holeMap: true, curious: true, pages: false, presenting: false, outline: [], selected: 0, units: 0, grouped: false, canPaste: false });
   // boardContext is rebuilt every render but read inside a send; a ref keeps the
   // outline current without making the composer re-render on every tick.
   // A proposal from the tutor. It sits here until the learner applies or
@@ -295,7 +295,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const canvasStateRef = useRef(canvasState);
   canvasStateRef.current = canvasState;
   const onCanvasState = useCallback(next => setCanvasState(previous =>
-    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && previous.content === next.content && previous.attempts === next.attempts && previous.semanticFingerprint === next.semanticFingerprint && previous.semanticSettling === next.semanticSettling && previous.activeSection === next.activeSection && JSON.stringify(previous.card) === JSON.stringify(next.card) && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
+    (previous.grid === next.grid && previous.lock === next.lock && previous.minimap === next.minimap && previous.holeMap === next.holeMap && previous.curious === next.curious && previous.pages === next.pages && previous.presenting === next.presenting && previous.selected === next.selected && previous.units === next.units && previous.grouped === next.grouped && previous.canPaste === next.canPaste && previous.content === next.content && previous.attempts === next.attempts && previous.semanticFingerprint === next.semanticFingerprint && previous.semanticSettling === next.semanticSettling && previous.activeSection === next.activeSection && JSON.stringify(previous.card) === JSON.stringify(next.card) && JSON.stringify(previous.outline) === JSON.stringify(next.outline) && JSON.stringify(previous.cards) === JSON.stringify(next.cards) ? previous : next)), []);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [paperOpen, setPaperOpen] = useState(false);
   const [paperContext, setPaperContext] = useState(null);
@@ -2055,7 +2055,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         { label: 'Zoom to 100%', icon: RotateCcw, hint: 'Shift 0', onSelect: () => canvas()?.zoomReset() },
         { label: 'Zoom to fit', icon: Maximize2, hint: 'Shift 1', onSelect: () => canvas()?.zoomFit() },
         { divider: true },
-        { label: 'Minimap', icon: MapIcon, checked: canvasState.minimap, onSelect: () => canvas()?.toggleMinimap() },
+        // Owner brief 2026-10-21 item 3: three identical switch rows, on by default and remembered on this device (ui-prefs.js).
+        // Off hides the widget and frees its room; Curious on still shows only what Tutor allows (it never asks for a set).
+        { label: 'Minimap', icon: MapIcon, toggle: canvasState.minimap, onToggle: on => canvas()?.showWidget('minimap', on) },
+        { label: 'Rabbit Hole Map', icon: Network, toggle: canvasState.holeMap, onToggle: on => canvas()?.showWidget('holeMap', on) },
+        { label: 'Curious', icon: Lightbulb, toggle: canvasState.curious, onToggle: on => canvas()?.showWidget('curious', on) },
+        { divider: true },
         { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
         { label: 'Page guides', icon: FileText, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
         ...(comments.active ? [{ label: 'Show comments', icon: MessageCircle, checked: comments.showPins, onSelect: comments.togglePins }] : []),
