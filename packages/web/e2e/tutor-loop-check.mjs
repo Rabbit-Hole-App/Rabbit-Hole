@@ -150,6 +150,8 @@ await check('reload: Progress, the activity and its feedback come back from save
   await a.page.reload();
   await chatPane(a.page).waitFor({ state: 'visible', timeout: 60000 });
   await card(a.page).locator('[data-tutor-feedback]').filter({ hasText: /Correct/ }).waitFor({ timeout: 20000 });
+  const right = probe.options.find(o => o.id === probe.key.correct).label;
+  assert.equal(await card(a.page).getByRole('radio', { name: right }).isChecked(), true, 'the accepted submission is shown');
   await openProgress(a.page);
   await progress(a.page).locator('[data-progress-skill="practising"]').first().waitFor({ timeout: 15000 });
   assert.deepEqual(await skills(a.page), saved.criteria.map(c => c.status));
@@ -165,6 +167,7 @@ await check('a second signed-in browser context reads the same Progress and the 
   assert.deepEqual(await skills(b.page), saved.criteria.map(c => c.status));
   assert.match(await progress(b.page).locator('[data-progress-count]').innerText(), new RegExp(`0\\s*of ${scope.length}`));
   await card(b.page).locator('[data-tutor-feedback]').filter({ hasText: /Correct/ }).waitFor({ timeout: 20000 });
+  assert.equal(await card(b.page).getByRole('radio', { name: probe.options.find(o => o.id === probe.key.correct).label }).isChecked(), true, 'the accepted submission is shown on the other device');
   assert.deepEqual((await progressRead()).summaryRevision, saved.summaryRevision, 'the read model is unchanged by reading it');
   await shot(b.page, 'loop-06-second-context');
   await b.context.close();

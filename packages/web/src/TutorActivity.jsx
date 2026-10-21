@@ -96,13 +96,15 @@ export function TutorActivity({ chat, board }) {
   const shown = activity && ['in_progress', 'awaiting_feedback', 'feedback_ready'].includes(activity.status);
   const id = activity ? `${activity.activityId}@${activity.revision}` : null;
   useEffect(() => { setAnswer(''); setResult(null); key.current = { for: null, value: null }; }, [id]);
-  // Feedback saved earlier (a reload, another device): read the attempt once, without any model call.
+  // Feedback saved earlier (a reload, another device): read the attempt once, without any model call, and show the accepted
+  // submission with it (draft Task 05).
   const saved = activity?.checkpoint?.assessment;
   useEffect(() => {
     if (!saved?.attemptId || result) return;
     let live = true;
     api(`/api/learn/tutor/attempts/${encodeURIComponent(saved.attemptId)}?app=${encodeURIComponent(chat.canvas)}&board=${encodeURIComponent(board)}`)
-      .then(view => { if (live) setResult({ text: assessmentText(view.assessment), tone: 'info' }); }, () => { if (live) setResult({ text: assessmentText(saved), tone: 'info' }); });
+      .then(view => { if (!live) return; const sent = view.attempt?.submittedContent; setAnswer(sent?.optionId ?? sent?.text ?? ''); setResult({ text: assessmentText(view.assessment), tone: 'info' }); },
+        () => { if (live) setResult({ text: assessmentText(saved), tone: 'info' }); });
     return () => { live = false; };
   }, [saved?.attemptId]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!shown) return null;
