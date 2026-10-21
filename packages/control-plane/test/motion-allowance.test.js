@@ -118,6 +118,9 @@ const stopping = placementId => new Request('https://dev.test/api/learn/video?ap
 const balance = LEARN_DB => usageTotals(LEARN_DB, 'u-alice', PERIOD);
 const motionAttempts = sqlite => rows(sqlite, 'usage_attempts').filter(a => a.attempt_id.startsWith('motion-')).map(a => [a.reserved_micros, a.cost_state, a.cost_micros, a.status]);
 const renderRows = sqlite => rows(sqlite, 'usage_actions').filter(a => a.feature === 'render').map(a => [a.user_id, a.charge_class]);
+// Every action a Motion job opened, as [feature, status, result, closed]: none may be left running once the job has ended
+// (integrator, production job 2026-10-21: its video and render actions read running after settlement).
+const actions = sqlite => rows(sqlite, 'usage_actions').filter(a => !a.action_id.startsWith('seed-')).map(a => [a.feature, a.status, a.result, a.ended_at != null]);
 async function settle(actor, done) { for (let i = 0; i < 300; i++) { await actor.alarm(); if (await done()) return; await sleep(5); } assert.fail('the job did not reach the expected state'); }
 const video = async actor => (await actor.list()).videos[0];
 
@@ -136,6 +139,7 @@ test('the first end-to-end stub run: hold admitted before any call, the job runs
   assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.category, o.status, o.cost_usd, o.calls]), [['motion', 'settled', 0.8, 3]]);
   assert.deepEqual([w.model.calls.length, w.renders.length], [3, 2]);
   assert.deepEqual(renderRows(sqlite), [['u-alice', 'free'], ['u-alice', 'free']], 'each render is platform-funded, attributed, never in the allowance');
+  assert.deepEqual(actions(sqlite), [['video', 'completed', 'full', true], ['render', 'completed', 'full', true], ['render', 'completed', 'full', true]], 'the job and its renders are closed exactly once');
   await actor.fetch(ask({ page: 'other' }));
   await actor.alarm();
   assert.equal(w.orchestrator.posts, 1, 'a ready video is reused: no second job, admission or render');
@@ -153,6 +157,7 @@ test('exhausted allowance: refused before anything starts, zero orchestrator, mo
   await actor.alarm();
   assert.deepEqual([w.orchestrator.posts, w.model.calls.length, w.renders.length, motionAttempts(sqlite).length], [0, 0, 0, 0]);
   assert.equal((await balance(LEARN_DB)).reserved, 0);
+  assert.deepEqual(actions(sqlite).filter(a => a[1] === 'running'), [], 'a refused admission leaves no running action');
 });
 
 test('duplicate submits and a worker restart mid-job: one reservation, one orchestrator job, settled once', async t => {
@@ -207,6 +212,7 @@ test('Stop: the call in flight is abandoned, its real cost is settled once it la
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 700_000, 'failed']], 'both calls, $0.10 + $0.60, are what the learner pays');
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [700_000, 0]);
   assert.equal(w.renders.length, 0);
+  assert.deepEqual(actions(sqlite), [['video', 'failed', 'none', true]], 'a stopped job closes its action once its cost is settled');
   assert.equal(env.LEARN_MEDIA.objects.size, 0);
 });
 
@@ -257,6 +263,7 @@ test('renderer unavailable or unsandboxed: refused, never run in process; the ho
     assert.deepEqual([w.model.calls.length, w.renders.length], [0, 0]);
     assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'cancelled']], 'released in full');
     assert.equal((await balance(LEARN_DB)).reserved, 0);
+    assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]], 'nothing started: the action is cancelled');
   }
 });
 
@@ -272,6 +279,7 @@ test('a repair whose worst case exceeds what is left of the hold is refused befo
   assert.deepEqual([w.model.calls, w.renders.length], [[16000, 16000, 64000], 0], 'the repair was never sent');
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 1_130_000, 'failed']]);
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [1_130_000, 0], '$0.87 released');
+  assert.deepEqual(actions(sqlite), [['video', 'failed', 'none', true]]);
 });
 
 test('no hold configured, or no orchestrator: nothing is admitted or started', async t => {

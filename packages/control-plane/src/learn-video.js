@@ -7,7 +7,7 @@ import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
 import { admitSpend, operationId, settleSpend, spendEnforced, spendMessage } from './learn-spend-ledger.js';
-import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity } from './learn-usage.js';
+import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity, finishAction, finishActionOf } from './learn-usage.js';
 import { admitRender, releaseRender } from './learn-render-admission.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -228,7 +228,8 @@ export class LearnVideos {
     const now = Math.floor(Date.now() / 1000), opId = operationId('motion');
     if (spendEnforced(this.env)) {
       const gate = await admitSpend(this.env.LEARN_DB, scoped, { opId, userId: 'provider:motion', org: 'platform', category: 'motion', reservedUsd: left / 1e6, kind: 'generation', provider: 'anthropic', now, deadlineAt: now + maxWait(job) / 1000 });
-      if (gate.refused) return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`;
+      // Refused: the action admission opened for this request is closed here (no route boundary runs inside the object).
+      if (gate.refused) { await finishAction(scoped, { status: 'failed', result: 'none' }); return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`; }
       job.spend = { opId, attemptId: gate.attemptId, micros: left };
     } else job.spend = { opId, attemptId: null, micros: left };
     Object.assign(job.spend, { admitted: true, settled: false, grant: await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, opId, left, now) });
@@ -247,6 +248,8 @@ export class LearnVideos {
     if (spendEnforced(this.env)) {
       await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
       await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
+      // The job's action ends with its hold: completed with the video, else failed (or cancelled when nothing started).
+      await finishActionOf(this.env, spend.attemptId, status === 'settled' ? { status: 'completed', result: 'full' } : { status, result: 'none' });
     }
     job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
     Object.assign(spend, { settled: true, costMicros: known });
@@ -255,6 +258,7 @@ export class LearnVideos {
     for (let i = 0; i < renders; i++) {
       const scoped = withUsage(this.env, { feature: 'render' });
       noteUsageIdentity(scoped, job.payer);
+      await finishAction(scoped, { status: 'completed', result: 'full' }); // a finished render: its action is written closed
       await recordMedia(scoped, { provider: 'motion_renderer' });
     }
   }
