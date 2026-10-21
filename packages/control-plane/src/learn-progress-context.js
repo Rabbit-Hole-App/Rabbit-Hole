@@ -87,7 +87,9 @@ export async function resolveProgressQuestion(env, asker, scope, { store = progr
     if (!own.length) limit('no_evidence', { goalId: g.goalId, criterionId: c.criterionId });
     else if (attempts === 1) limit('one_attempt', { goalId: g.goalId, criterionId: c.criterionId });
     // Asked about explicitly ("Can I apply KNN to a new situation yet?"): say when that dimension has no evidence.
-    if (scope.dimensions.includes('application') && c.application !== 'applied') limit('application_not_shown', { goalId: g.goalId, criterionId: c.criterionId });
+    // An answer on a new case that does not fully meet the criterion is not shown application, but it is not a familiar
+    // exercise either (T11 real-model run): say which.
+    if (scope.dimensions.includes('application') && c.application !== 'applied') limit(own.some(o => o.application === 'applied') ? 'application_incomplete' : 'application_not_shown', { goalId: g.goalId, criterionId: c.criterionId });
     if (scope.dimensions.includes('retention') && c.retention !== 'recalled') limit('retention_not_checked', { goalId: g.goalId, criterionId: c.criterionId });
   }
   const count = (code, n) => { if (n) limit(code, { count: n }); };
@@ -125,6 +127,7 @@ const SAYS = {
   no_evidence: (l, name) => `${name} has no assessed evidence yet`,
   one_attempt: (l, name) => `${name} has only one attempt: one observation never shows a trend or an improvement`,
   application_not_shown: (l, name) => `${name} has no evidence of applying it to a new situation: do not assume transfer from familiar exercises`,
+  application_incomplete: (l, name) => `${name} has an answer on a new situation, but it does not count as shown application yet because that answer does not fully meet the criterion (for example, the required reasoning is missing): say both`,
   retention_not_checked: (l, name) => `${name} has no later check of retention`,
   assistance_not_recorded: l => `help was not recorded for ${l.count} observation${l.count === 1 ? '' : 's'}: say that it is unknown, never that none was used`,
   source_withheld: l => `${l.count} observation${l.count === 1 ? '\'s' : 's\''} source content is withheld because the learner can no longer open that source`,

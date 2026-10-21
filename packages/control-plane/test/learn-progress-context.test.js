@@ -83,6 +83,25 @@ test('one_attempt_cannot_imply_trend: a single attempt is named as a limitation;
   assert.ok(!codes(r).includes('one_attempt'));
 });
 
+// Tutor T11 real-model run, 2026-10-21: a right answer to a path's transfer check without the required reasoning (application
+// applied, support incomplete) was given to the model as "no evidence of applying it to a new situation: do not assume transfer
+// from familiar exercises", and the answer told the learner not to read "a familiar exercise as transfer". Such an answer is
+// named for what it is; with no applied answer the old limitation stands.
+test('application_incomplete: an applied answer that lacks the required reasoning is never called a familiar exercise', async t => {
+  const w = setup(t);
+  const odds = await goal(w.env, ANA, 'Logistic regression', [C('odds', 'Convert a probability to odds'), C('logit', 'Explain log-odds')]);
+  await answer(w.env, ANA, odds, { day: 18, obs: [{ criterionId: 'odds', reasoning: 'missing', application: 'applied' }, { criterionId: 'logit', reasoning: 'missing' }] });
+  const view = await readProgress(w.env, ANA, { goalId: odds.goalId });
+  assert.equal(view.criteria.find(c => c.criterionId === 'odds').application.status, 'not_checked', 'incomplete support is not shown application');
+  const r = await resolve(w.env, ANA, scopeFor(view, 'odds', { dimensions: ['application'] }));
+  assert.deepEqual(codes(r).filter(c => c.startsWith('application')), ['application_incomplete']);
+  const text = progressQuestionText(r);
+  assert.match(text, /criterion "Convert a probability to odds" has an answer on a new situation, but it does not count as shown application yet/);
+  assert.doesNotMatch(text, /familiar exercises/);
+  const other = await resolve(w.env, ANA, scopeFor(view, 'logit', { dimensions: ['application'] }));
+  assert.deepEqual(codes(other).filter(c => c.startsWith('application')), ['application_not_shown']);
+});
+
 test('hint history: comparable attempts in time order with their recorded help; help not recorded is said, never read as none', async t => {
   const w = setup(t);
   const knn = await goal(w.env, ANA, 'KNN', [C('vote', 'Explain the majority vote')]);
