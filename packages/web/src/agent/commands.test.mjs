@@ -180,7 +180,7 @@ test('opens and Library filters navigate inside run; Settings opens by event wit
   assert.deepEqual(opened.slice(-6), ['/apps/canvas-0f9e8d7c', '/apps/repo-1a2b3c4d-nanogpt?tab=map', '/library?type=canvases', '/library?s=shared', '/library?f=Data+team', '/library']);
   let detail;
   window.addEventListener('small:settings', (event) => { detail = event.detail; }, { once: true });
-  assert.deepEqual(await executeCommand('open_settings', { tab: 'connections', focus: 'google-slides' }, CTX), { notice: 'Opened Settings → Connections. Google Slides is planned; nothing was connected.' });
+  assert.deepEqual(await executeCommand('open_settings', { tab: 'connections', focus: 'google-slides' }, CTX), { notice: 'Opened Settings. Google Slides is planned; nothing was connected.' });
   assert.deepEqual(detail, { tab: 'connections', focus: 'google-slides' });
   assert.deepEqual(await executeCommand('open_settings', {}, CTX), { notice: openedNotice(undefined, undefined) });
 });

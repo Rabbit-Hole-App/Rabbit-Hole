@@ -389,7 +389,7 @@ test('held commands: the dock holds a /command Enter while busy and sends it whe
   const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const ask = read('ask.jsx'), picker = read('LearnSlash.jsx');
   const release = run => new RegExp(String.raw`useEffect\(\(\) => \{\n\s+if \(busy \|\| held\.current == null\) return;\n\s+const line = releaseLine\(held\.current, input\);\n\s+held\.current = null;\n\s+if \(line\) ${run}\(line\);\n\s+\}, \[busy\]\);`);
-  assert.match(ask, /if \(busy && !event\.defaultPrevented && composerKey\(event\.nativeEvent\) === 'send' && holdsLine\(input\)\) \{ event\.preventDefault\(\); held\.current = input; \}/);
+  assert.match(ask, /if \(busy && !event\.defaultPrevented && composerKey\(event\.nativeEvent, chatSendKey\(\)\) === 'send' && holdsLine\(input\)\) \{ event\.preventDefault\(\); held\.current = input; \}/);
   assert.match(ask, release('send'));
   assert.match(picker, /intercept: raw => \{ if \(busy\) \{ held\.current = raw; return true; \} exec\(raw\); return true; \}/);
   assert.match(picker, release('exec'));

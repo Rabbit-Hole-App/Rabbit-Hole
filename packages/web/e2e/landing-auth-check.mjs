@@ -80,8 +80,9 @@ await cp.close();
   const settings = page.getByText('Settings', { exact: true }).first(); // in the workspace menu
   if (await settings.count()) {
     await settings.click(); await page.waitForTimeout(800); await clean('Settings'); await shot(page, 'l8-settings');
-    const identity = page.getByRole('button', { name: /Identity/ }).first();
-    if (await identity.count()) { await identity.click(); await page.waitForTimeout(500); await clean('Settings identity'); await shot(page, 'l9-settings-identity'); }
+    // Identity's email moved to Profile and its sign-in method to Privacy & security (owner L11, 2026-10-20).
+    const identity = page.getByRole('button', { name: /Privacy & security/ }).first();
+    if (await identity.count()) { await identity.click(); await page.waitForTimeout(500); await clean('Settings privacy'); await shot(page, 'l9-settings-privacy'); }
   }
   results.appChecked = true;
   await context.close();

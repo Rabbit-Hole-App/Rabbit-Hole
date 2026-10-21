@@ -122,6 +122,7 @@ test('rules 4-6 in order: find beats a settings word; connect needs a provider C
   assert.deepEqual(at('connect Google Slides'), { type: 'command', name: 'open_settings', args: { tab: 'connections', focus: 'google-slides' } });
   assert.deepEqual(at('connect to notion'), { type: 'command', name: 'open_settings', args: { tab: 'connections', focus: 'notion' } });
   assert.deepEqual(at('connect google docs'), { type: 'command', name: 'open_settings', args: { tab: 'connections', focus: 'google-drive' } });
+  assert.deepEqual(at('connect github'), { type: 'command', name: 'open_start', args: { path: 'repository' } }); // owner L11
   assert.deepEqual(at('connect the dots in attention'), { type: 'ask', mode: 'ask', text: 'connect the dots in attention' });
   assert.deepEqual(at('Settings'), { type: 'command', name: 'open_settings', args: {} });
   assert.deepEqual(at('theme'), { type: 'command', name: 'open_settings', args: { tab: 'preferences' } });

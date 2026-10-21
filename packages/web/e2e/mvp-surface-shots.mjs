@@ -74,10 +74,10 @@ for (const path of ['repository', 'sources', 'question', 'blank']) {
 }
 await page.context().close();
 
-// 2. AWS configured: the AWS row shows.
+// 2. AWS configured: still no AWS controls in a learner's Settings (owner L11, 2026-10-20).
 page = await open('configured');
 dialog = await settings(page, 'connections');
-must((await dialog.innerText()).includes('Run in your AWS account'), 'configured: AWS row missing');
+must(!/AWS|Run in your AWS account/.test(await dialog.innerText()), 'configured: AWS controls shown in Settings');
 await shot(page, '6-settings-connections-aws-configured');
 await page.context().close();
 

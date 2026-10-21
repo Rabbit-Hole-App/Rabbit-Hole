@@ -19,6 +19,7 @@
 //     only an explicit reassessment makes another call.
 //   * An attempt row is never updated.
 import { validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
+import { isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 import { sha256Hex } from './learn-grade-jev.js';
 
 export class AttemptError extends Error {
@@ -112,8 +113,13 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
   if (criterionRefs.some(r => !known.has(`${r.criterionId}@${r.version}`))) throw new AttemptError('criteria_unavailable', 409);
   // An answer may name only sources the activity was created with. Their access was checked when the activity was made.
   const sourceKey = r => canonical({ kind: r.kind, id: r.id, version: r.version });
-  const allowed = new Set(JSON.parse(activity.source_refs_json).map(sourceKey));
+  const activityRefs = JSON.parse(activity.source_refs_json);
+  const allowed = new Set(activityRefs.map(sourceKey));
   if (sourceRefs.some(r => !allowed.has(sourceKey(r)))) throw invalid('unknown_source');
+  // A codebase answer is about the repository files its activity cites, at that commit (owner finding 5B). Those refs are the
+  // server's own record, frozen on the attempt whatever the client names, so assessment and Progress read that revision.
+  const bound = activityRefs.filter(isRepositorySource);
+  const frozen = [...bound, ...sourceRefs.filter(r => !bound.some(b => sourceKey(b) === sourceKey(r)))];
   // Known help is the help the learner reports plus the help the activity's checkpoint records. The checkpoint is the
   // server's own record, so it cannot be dropped by the client. Any help makes the attempt assisted.
   const checkpoint = activity.checkpoint_json ? JSON.parse(activity.checkpoint_json) : null;
@@ -126,7 +132,7 @@ export async function acceptAttempt(env, actor, submission, { now = () => new Da
         content_json, content_hash, criterion_refs_json, source_refs_json, assistance, assistance_refs_json, submitted_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (org, owner_user_id, submission_key) DO NOTHING`)
       .bind(attemptId, actor.org, actor.userId, actor.app, actor.board, activity.goal_id, activityId, activityRevision, submissionKey, kind,
-        contentJson, hash, JSON.stringify(criterionRefs), canonical(sourceRefs), help.length ? 'assisted' : 'none', JSON.stringify(help), at),
+        contentJson, hash, JSON.stringify(criterionRefs), canonical(frozen), help.length ? 'assisted' : 'none', JSON.stringify(help), at),
     // The operation is written only with the attempt this request inserted.
     env.LEARN_DB.prepare(`INSERT INTO learn_assessments (id, attempt_id, org, owner_user_id, request_key, status, created_at, updated_at)
       SELECT ?, ?, ?, ?, 'submit', 'pending', ?, ? WHERE EXISTS (SELECT 1 FROM learn_attempts WHERE id = ?)`)
