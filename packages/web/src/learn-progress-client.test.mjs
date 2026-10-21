@@ -38,7 +38,7 @@ test('viewing_goal_is_read_only: another goal is shown without switching; Resume
   // The pane changes the active goal only through Resume this goal (coaching activate_goal), never by viewing.
   const pane = readFileSync(new URL('./LearnProgress.jsx', import.meta.url), 'utf8');
   assert.equal((pane.match(/coaching\.act\(/g) || []).length, 1, 'one coaching write in the pane');
-  assert.match(pane, /const resume = async \(\) => \{\n\s+setResuming\(true\);\n\s+try \{ await coaching\.act\('activate_goal', \{ goalId \}\);/);
+  assert.match(pane, /const resume = async \(\) => \{\s+setResuming\(true\);\s+try \{ await coaching\.act\('activate_goal', \{ goalId \}\);/);
   assert.match(pane, /onChange=\{event => \{ setViewedGoalId\(event\.target\.value\); setExpanded\(null\); \}\}/, 'the selector sets view state only');
   assert.doesNotMatch(pane, /api\/learn\/(ask|tutor)|\/attempts|reassess/, 'no model, attempt or reassessment route from here');
 });
