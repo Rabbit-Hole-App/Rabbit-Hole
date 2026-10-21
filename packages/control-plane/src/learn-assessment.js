@@ -83,11 +83,13 @@ async function criteriaOf(env, attempt) {
 }
 
 // The keyed probe a choice activity answers. Its source ref is {kind: 'journey_probe', id, version, locator?: {sectionId}}.
-// With a sectionId, the probe is a check of that section's plan; without one, the journey's state decides, as in
+// With a sectionId, the probe is a check of that section's plan; with diagnostic: true, a diagnostic probe reused as a
+// practice check after the diagnostic (Task 07: existing material); without either, the journey's state decides, as in
 // learn-tutor-routes.js openProbe. The key never leaves the server.
 function probeOf(journey, ref) {
   const plan = journey.section_plan, section = ref.locator?.sectionId;
-  const list = section != null ? (plan?.section_id === section ? plan.checks : null) : journey.state === 'diagnostic' ? journey.diagnostic?.probes : plan?.checks;
+  const list = section != null ? (plan?.section_id === section ? plan.checks : null)
+    : ref.locator?.diagnostic === true || journey.state === 'diagnostic' ? journey.diagnostic?.probes : plan?.checks;
   const probe = list?.find(p => p.id === ref.id);
   return probe?.key ? probe : null;
 }

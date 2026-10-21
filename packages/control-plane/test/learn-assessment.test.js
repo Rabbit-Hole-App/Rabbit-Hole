@@ -267,3 +267,14 @@ test('gap d: a coaching goal with no journey keeps text answers unavailable (no_
   const criteria = [{ criterionId: 'essay', version: 1, label: 'a', requirement: 'b', requiresReasoning: true, rubricVersion: 'r1' }];
   assert.equal(deriveGoalCounts({ criteria, observations: (await goalEvidence(w.env, ANA, goalId)).observations }).counts.not_checked, 1, 'an unassessed answer never counts');
 });
+
+test('Task 07: an unanswered diagnostic probe reused as a practice check after the diagnostic is graded by its server key and fed once', async t => {
+  const w = world(t);
+  const vocab = REG.claims ? Object.keys(REG.claims).find(id => id.endsWith('foundations/vocabulary')) : null;
+  const criterion = { criterionId: 'vocab', label: 'Vocabulary', requirement: 'Use the vocabulary on a new case', requiresReasoning: true, skillKey: vocab };
+  const { activity, journey } = await journeyActivity(w.env, ANA, { responseKind: 'choice', criteria: [criterion], prompt: 'On a new case, which holds?', sourceRefs: [{ kind: 'journey_probe', id: 'p1', version: 1, locator: { diagnostic: true } }] });
+  const r = await submit(w.env, ANA, activity, { submissionKey: 'sub-diag-0001', submittedContent: { optionId: 'a' } }, never);
+  assert.deepEqual([r.body.assessment.status, r.body.assessment.route, r.body.assessment.observations.map(o => [o.fit, o.application])], ['completed', 'keyed', [['met', 'applied']]]);
+  const events = await journeyEvents(w.env, journey);
+  assert.deepEqual(events.map(e => [e.ref.probe_id, e.ref.section_id, e.kind]), [['p1', undefined, 'demonstrated_in_transfer']]);
+});
