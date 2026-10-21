@@ -54,7 +54,7 @@ ok('the picker has no /more row', await picker.locator('[data-slash-command="mor
 const more = picker.locator('[data-slash-more]');
 ok('More learning tools is a collapsed section', await more.count() === 1 && await more.getAttribute('aria-expanded') === 'false');
 await more.click();
-ok('clicking it opens the rest of the tools in place, in view', await more.getAttribute('aria-expanded') === 'true' && await picker.locator('[data-slash-command="walkthrough"]').count() === 1
+ok('clicking it opens the rest of the tools in place, in view', await more.getAttribute('aria-expanded') === 'true' && await picker.locator('[data-slash-command="whiteboard"]').count() === 1
   && await picker.evaluate(box => { const first = box.querySelector('[data-slash-more]').nextElementSibling || box.querySelector('[data-slash-more]'); const a = box.getBoundingClientRect(), b = first.getBoundingClientRect(); return b.top >= a.top - 1 && b.bottom <= a.bottom + 1; }));
 await page.screenshot({ path: `${SHOTS}/picker-more-open.png` });
 await more.click();
@@ -69,7 +69,7 @@ await page.getByRole('menuitem', { name: 'Slash commands' }).click();
 const sheet = page.getByRole('dialog', { name: 'Slash commands' });
 await sheet.waitFor();
 const rows = await sheet.locator('[data-slash-help]').count();
-ok('View > Slash commands lists the commands with examples', rows >= 20 && await sheet.getByText('e.g. /graph sigmoid').count() === 1, `${rows} commands`);
+ok('View > Slash commands lists the commands with examples', rows >= 20 && await sheet.getByText('e.g. /graph y = sin(x) and y = cos(x)').count() === 1, `${rows} commands`);
 await sheet.screenshot({ path: `${SHOTS}/slash-commands-sheet.png` });
 await page.keyboard.press('Escape');
 
