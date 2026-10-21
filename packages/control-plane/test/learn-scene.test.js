@@ -5,6 +5,9 @@ import { validateScene, sceneCacheKey } from '../src/learn-scene-schema.js';
 import { LearnScenes, sceneFetch } from '../src/learn-scene.js';
 import { validateBoardPlan } from '../src/learn-board.js';
 import { liveRuns } from './live-storage-spy.js';
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { forwardUsagePayer } from '../src/learn-usage.js';
 
 test('scene schema permits deterministic geometry and rejects scripts, cycles, invalid animation and limits', () => {
   assert.equal(validateScene(example).output, 'glb');
@@ -29,10 +32,14 @@ test('scene cache ignores presentation ids/captions, normalizes key order and in
 function fixture() {
   const data = new Map(), assets = new Map(); let lock = Promise.resolve();
   const state = { id: 'test-scene', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
-  const env = { SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', LEARN_MEDIA: { put: async (k, bytes) => assets.set(k, bytes), get: async k => assets.has(k) ? { body: assets.get(k), size: assets.get(k).byteLength } : null }, RUNS: liveRuns() };
+  // A render takes the learner's render slot (learn-render-admission.js, render fairness 2026-10-21): the usage tables and the payer the worker forwards.
+  const sqlite = new DatabaseSync(':memory:'); sqlite.exec(readFileSync(new URL('../learn-migrations/0022-usage-accounting.sql', import.meta.url), 'utf8'));
+  const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, now: () => ({ meta: stmt.run(...args) }) }; },
+    batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
+  const env = { LEARN_DB, SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', LEARN_MEDIA: { put: async (k, bytes) => assets.set(k, bytes), get: async k => assets.has(k) ? { body: assets.get(k), size: assets.get(k).byteLength } : null }, RUNS: liveRuns() };
   return { data, assets, state, env, actor: new LearnScenes(state, env) };
 }
-const request = (body = {}) => new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST', body: JSON.stringify({ operation: example, lessonId: 'lesson', page: 'freeform', confirmed: true, ...body }) });
+const request = (body = {}) => forwardUsagePayer(new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST', body: JSON.stringify({ operation: example, lessonId: 'lesson', page: 'freeform', confirmed: true, ...body }) }), { userId: 'u-alice', email: 'alice@example.test' });
 test('durable scene job queues asynchronously, deduplicates, stores GLB and retains camera state', async () => {
   const original = globalThis.fetch; let posts = 0;
   const bytes = new Uint8Array(24); new DataView(bytes.buffer).setUint32(0, 0x46546c67, true);

@@ -21,7 +21,8 @@ export const SECRETS = {
   // no cap every paid call is refused (cap_unset): Learn chat, the inline editor's routing and notes, voice and images.
   'rabbit-hole-cp': { required: ['MASTER_KEY', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET', 'RESEND_API_KEY', 'USAGE_PLATFORM_DAY_USD'] },
   'rabbit-hole-app': {
-    required: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'TYPESAFE_API_KEY', 'FISH_AUDIO_API_KEY', 'ELEVENLABS_API_KEY', 'SCENE_WORKER_TOKEN', 'USAGE_PLATFORM_DAY_USD'],
+    // MOTION_ORCHESTRATOR_TOKEN: the bearer shared with rabbit-hole-motion-orchestrator, which also signs each job's hold (owner activation GO, 2026-10-21).
+    required: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'TYPESAFE_API_KEY', 'FISH_AUDIO_API_KEY', 'ELEVENLABS_API_KEY', 'SCENE_WORKER_TOKEN', 'USAGE_PLATFORM_DAY_USD', 'MOTION_ORCHESTRATOR_TOKEN'],
     forbidden: ['RESEND_API_KEY', 'GOOGLE_CLIENT_SECRET', 'GITHUB_CLIENT_SECRET', 'MASTER_KEY'],
   },
 };
@@ -35,10 +36,14 @@ export const NEVER_ON_PRODUCTION = ['TEST_BYPASS_SECRET', 'SMALL_TEST_BYPASS', '
 // The production build (rabbit-hole-production.md): never the dev/review tools or BYOC.
 export const BUILD_ENV = {
   VITE_RABBIT_HOLE: 'true',
+  // /motion (owner activation GO, 2026-10-21): the production orchestrator and renderer serve it.
+  VITE_MOTION: 'true',
   VITE_NOTEBOOK_ORIGIN: 'https://rabbit-hole-canvas-notebook.tryrabbithole.workers.dev',
   VITE_LESSON_NOTEBOOK_ORIGIN: 'https://rabbit-hole-notebook.tryrabbithole.workers.dev',
 };
-const DEV_ONLY_ENV = ['VITE_COACHING_DEV', 'VITE_BYOC_DEV'];
+// Stripped from the shell before the production build: the dev and review tools. Production offers /motion through its own
+// flag (VITE_MOTION, above), never the development ones.
+export const DEV_ONLY_ENV = ['VITE_COACHING_DEV', 'VITE_BYOC_DEV', 'VITE_MOTION_DEV'];
 
 const SHA = /^[0-9a-f]{40}$/;
 

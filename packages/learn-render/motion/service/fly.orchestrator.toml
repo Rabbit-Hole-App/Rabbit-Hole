@@ -1,0 +1,43 @@
+# rabbit-hole-motion-orchestrator: the hostable Motion orchestrator (motion/orchestrator-main.mjs). PREPARED, not deployed:
+# creating it needs the owner's priced infrastructure approval (C:/s/spec/day-1021/motion-deploy-plan.md). Home deploys from
+# `context.sh --target orchestrator`; this file creates nothing by itself. Secrets (fly secrets, never here):
+# MOTION_ORCHESTRATOR_TOKEN, MOTION_RENDERER_TOKEN (the production renderer's), ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID.
+app = "rabbit-hole-motion-orchestrator"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.orchestrator"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  MOTION_RENDERER_URL = "https://rabbit-hole-motion-renderer.fly.dev"
+  MOTION_MAX_CALLS = "9"
+  MOTION_JOB_TIMEOUT_S = "3300"
+
+# No [mounts]: the durable job record is the worker's (LearnVideos Durable Object + the D1 reservation). A restart loses the
+# running job; the worker keeps its hold as unknown cost and this process refuses that job's grant.
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # The worker polls a running job every 10 s, which keeps the machine up; idle between jobs it stops.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 10
+    hard_limit = 20
+
+[[http_service.checks]]
+  grace_period = "15s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health"
+
+# One machine (deploy with --ha=false): the orchestrator runs one job at a time, platform-wide.
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2

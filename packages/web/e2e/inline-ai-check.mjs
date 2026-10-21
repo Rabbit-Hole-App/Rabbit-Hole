@@ -453,7 +453,8 @@ await run('every artifact handler (mocked, real schemas): the preview is that ha
   // /diagram is the native diagram inline (owner brief 2026-10-13 §5): editable shapes and arrows, not a card. /compare is
   // not a Ctrl+K command (owner decision 1A, 2026-10-16); /flashcards is, by its command only. /walkthrough is removed (owner,
   // 2026-10-20): plain words still route to a walkthrough.
-  const expect = { explain: 'explanation', flashcards: 'flashcards', code: 'snippet', diagram: 'diagram', graph: 'graph', image: 'image', animate: 'video', video: 'video', '3d': 'scene' };
+  // /animate is removed too (owner, 2026-10-20: /motion is the animation command, checked below).
+  const expect = { explain: 'explanation', flashcards: 'flashcards', code: 'snippet', diagram: 'diagram', graph: 'graph', image: 'image', video: 'video', '3d': 'scene' };
   for (const [command, type] of Object.entries(expect)) {
     await clickShape(page, 'n4');
     await ctrlK(page);
@@ -461,7 +462,7 @@ await run('every artifact handler (mocked, real schemas): the preview is that ha
     await waitStatus(page, ['preview', 'proposal']);
     const kind = await status(page);
     const got = await page.locator('[data-inline-preview]').first().evaluate(node => node.dataset.cardType || node.dataset.inlinePreview);
-    const paid = ['animate', 'video', '3d'].includes(command);
+    const paid = ['video', '3d'].includes(command);
     check(`/${command} inline: ${type === 'diagram' ? 'a native diagram' : `a ${type} card`} ${paid ? 'proposal (paid)' : 'preview'}`, got === type && kind === (paid ? 'proposal' : 'preview'), `${kind} ${got}`);
     await page.locator(paid ? '[data-paid-cancel]' : '[data-inline-reject]').click();
   }
@@ -517,7 +518,7 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await page.keyboard.type('/');
   await page.locator('[data-inline-picker]').waitFor();
   const all = await options();
-  check('"/" opens the list: exactly the registry\'s Ctrl+K commands this canvas runs', JSON.stringify(all) === JSON.stringify(['explain', 'flashcards', 'code', 'graph', 'diagram', 'animate', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
+  check('"/" opens the list: exactly the registry\'s Ctrl+K commands this canvas runs', JSON.stringify(all) === JSON.stringify(['explain', 'flashcards', 'code', 'graph', 'diagram', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
   await page.keyboard.type('gr');
   check('typing filters the list; the first match is highlighted', JSON.stringify(await options()) === '["graph","diagram"]' && await chosen() === 'graph');
   await page.keyboard.press('ArrowDown');
@@ -960,7 +961,9 @@ await run('command input: bare /image, /diagram and /motion use the selection; a
   await page.locator('[data-paid-generate]').click();
   await page.waitForFunction(key => JSON.parse(localStorage.getItem(key) || '{}').blocks?.some(block => block.type === 'video'), 'harness:command-input');
   const video = (await saved()).blocks.find(block => block.type === 'video');
-  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', video?.operation?.request === '/motion explain the selected canvas material (about the selected canvas material: shape:ellipse "23")' && video.operation.location.concept === '23', JSON.stringify(video?.operation));
+  // The selection rides as context.selection, no longer on the line (owner brief 2026-10-21 message 7 item 4).
+  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', video?.operation?.request === '/motion explain the selected canvas material' && video.operation.location.concept === '23'
+    && video.operation.context?.selection?.cardId === 'n23' && video.operation.context.selection.text === '23', JSON.stringify(video?.operation));
   await context.close();
   const blank = await open('command-input-blank', { shapes: [{ id: 'blank1', kind: 'rect', x1: 600, y1: 300, x2: 760, y2: 380, color: '#2383e2', width: 2, dash: 'solid', fill: null, opacity: 1, round: true, text: '' }] });
   for (const [command, asks] of [['/image', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {

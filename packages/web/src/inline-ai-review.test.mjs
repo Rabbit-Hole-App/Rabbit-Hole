@@ -121,10 +121,12 @@ const recorder = (route = null) => {
 };
 const empty = [{ id: 's1', type: 'shape', kind: 'rect', text: '' }];
 
+// The selection rides as motion_request context.selection, no longer appended to the line (owner brief 2026-10-21 message 7
+// item 4: selected-card context reaches the resolver).
 test('command input: a bare /motion builds its request from the selection, never the token or the canvas title', async () => {
   const { session, seen } = recorder();
   assert.equal(await session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot() }), 'proposal');
-  assert.deepEqual(seen.motion, [{ op: 'motion_request', request: '/motion explain the selected canvas material (about the selected canvas material: shape:ellipse "23")', location: { concept: '23' } }]);
+  assert.deepEqual(seen.motion, [{ op: 'motion_request', request: '/motion explain the selected canvas material', location: { concept: '23' }, context: { selection: { cardId: 'n23', kind: 'shape:ellipse', title: '23', text: '23' } } }]);
   const none = recorder();
   assert.equal(await none.session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot('e', empty) }), 'clarify');
   assert.match(none.session.state.clarify.question, /What should the video explain\?/);
@@ -156,7 +158,7 @@ test('command input: a bare /diagram draws the selection natively; with nothing 
 test('command input: a routed sentence goes as written with the selection as Motion\'s concept; a routed photo searches the selection', async () => {
   const video = recorder({ choice: 'motion', confidence: 0.95, probability: 0.95, ranked: ['motion'] });
   await video.session.submit({ mode: 'explain', prompt: 'Explain this in a video', prepare: snapshot() });
-  assert.deepEqual(video.seen.motion, [{ op: 'motion_request', request: '/motion Explain this in a video (about the selected canvas material: shape:ellipse "23")', location: { concept: '23' } }]);
+  assert.deepEqual(video.seen.motion, [{ op: 'motion_request', request: '/motion Explain this in a video', location: { concept: '23' }, context: { selection: { cardId: 'n23', kind: 'shape:ellipse', title: '23', text: '23' } } }]);
   const photo = recorder({ choice: 'image', confidence: 0.95, probability: 0.95, ranked: ['image'] });
   await photo.session.submit({ mode: 'explain', prompt: 'Show me a real photo of this', prepare: snapshot() });
   assert.deepEqual(photo.seen.artifact, ['23']);

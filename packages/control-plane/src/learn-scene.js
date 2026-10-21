@@ -1,5 +1,5 @@
 import { privateLessonAssetFetch } from './learn-video.js';
-import { usageFromForwarded, recordMedia } from './learn-usage.js';
+import { admitRender, releaseRender, renderModel } from './learn-render-admission.js';
 import { sceneCacheKey, validateScene } from './learn-scene-schema.js';
 import { validateToolInput } from './learn-validation.js';
 import { paidRefusal } from './learn-paid.js';
@@ -8,6 +8,9 @@ import { learnMedia } from './learn-storage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const WAIT_MS = 15 * 60 * 1000; // Includes worker startup and queue waits; compilation itself is capped at 90 seconds.
+// The scene worker starts a render only when it accepts it (one slot, else 429: lesson-renderer/server.py:77) and kills its
+// Blender child at 90 s (server.py:31); the submit request itself times out at 20 s. So no job is sent in the last 5 minutes
+// of its wait: any render it started has ended before the wait ends and its slot is released (render fairness, owner msg 19).
 const MAX_ASSET = 20 * 1024 * 1024;
 export const sceneFetch = (req, env) => privateLessonAssetFetch(req, env, env.LEARN_SCENES);
 export async function workerRequest(env, path, body) {
@@ -61,24 +64,35 @@ export class LearnScenes {
         const refused = paidRefusal(body); if (refused) return refused;
         const input = validateScene(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page required');
-        const health = await workerRequest(this.env, '/health'); if (!health.ok) throw new Error('Scene worker is unavailable');
-        const { version } = await health.json(); if (typeof version !== 'string' || version.length > 100) throw new Error('Invalid worker version');
-        const key = await sceneCacheKey(input, version); let job = await this.state.storage.get(`job:${key}`);
+        // A finished or duplicate scene is found under every compiler version this canvas has rendered with, before the renderer
+        // is asked anything: reusing it neither wakes the renderer nor takes a render slot (render fairness, 2026-10-21).
+        const jobs = await this.state.storage.list({ prefix: 'job:' });
+        const versions = [...new Set([...jobs.values()].map(j => j.version))];
+        const known = (await Promise.all(versions.map(v => sceneCacheKey(input, v)))).map(k => jobs.get(`job:${k}`)).filter(Boolean);
+        let job = known.find(j => j.status !== 'failed') || known[0];
         if (!job || body.retry === true && job.status === 'failed') {
-          const jobs = await this.state.storage.list({ prefix: 'job:' });
           if ([...jobs.values()].some(j => ['queued', 'rendering'].includes(j.status))) return json({ error: 'A scene is already generating. Wait for it to finish.' }, 409);
           if (!job && jobs.size >= 100) throw new Error('Saved scene preview limit reached');
-          const attempt = (job?.attempt || 0) + 1;
-          job = { key, input, version, attempt, workerKey: await sceneCacheKey(input, `${version}:${key}:${attempt}`), status: 'queued', startedAt: Date.now() };
-          await this.state.storage.put(`job:${key}`, job); await this.state.storage.setAlarm(Date.now() + 100);
           // Platform-funded rendering (owner 5A decision C, 2026-10-21): one attempt per queued render on the Fly scene worker,
-          // cost unknown, recorded apart from the learner's allowance. Its limits are the job's own (one active job here,
-          // the worker's single slot and 90 s compile, WAIT_MS, explicit retry only); the paid authoring call was admitted upstream.
-          // Compute ceiling: the renderer's fixed Fly pool. Production rabbit-hole-lesson-renderer-prod is 1 machine,
+          // cost unknown, recorded apart from the learner's allowance; the paid authoring call was admitted upstream. Its limits:
+          // one active job here, the learner's render slot across all canvases and the queue and daily limits
+          // (learn-render-admission.js, render fairness 2026-10-21), the worker's single slot and 90 s compile, WAIT_MS, explicit
+          // retry only. Compute ceiling: the renderer's fixed Fly pool. Production rabbit-hole-lesson-renderer-prod is 1 machine,
           // shared-cpu-1x 2 GB, autostop/autostart, min 0 (integrator, 2026-10-21); autostart never creates machines, so the
-          // worst case is that one machine running all month.
-          await recordMedia(usageFromForwarded(this.env, req, 'render'), { provider: 'fly_scene_worker', model: version });
+          // worst case is that one machine running all month. Admission comes first, so a refused render never wakes the renderer.
+          const admission = await admitRender(this.env, req, { provider: 'fly_scene_worker', label: 'scene', waitSeconds: WAIT_MS / 1000 });
+          if (admission.refused) return admission.refused;
+          let version;
+          try {
+            const health = await workerRequest(this.env, '/health'); if (!health.ok) throw new Error('Scene worker is unavailable');
+            ({ version } = await health.json()); if (typeof version !== 'string' || version.length > 100) throw new Error('Invalid worker version');
+          } catch (error) { await releaseRender(this.env, admission.slot, 'cancelled'); throw error; } // nothing rendered
+          await renderModel(this.env, admission.slot, version);
+          const key = await sceneCacheKey(input, version), attempt = (jobs.get(`job:${key}`)?.attempt || 0) + 1;
+          job = { key, input, version, attempt, workerKey: await sceneCacheKey(input, `${version}:${key}:${attempt}`), status: 'queued', startedAt: Date.now(), slot: admission.slot };
+          await this.state.storage.put(`job:${key}`, job); await this.state.storage.setAlarm(Date.now() + 100);
         }
+        const key = job.key;
         const id = await sceneCacheKey({ ...input, scene: { lessonId: body.lessonId, page: body.page, id: input.id } }, key);
         const previous = await this.state.storage.get(`placement:${id}`);
         await this.state.storage.put(`placement:${id}`, previous || { id, key, operation: input, lessonId: body.lessonId, page: body.page, position: null, viewState: {} });
@@ -94,6 +108,7 @@ export class LearnScenes {
       try {
         if (Date.now() - job.startedAt > WAIT_MS) throw new Error('Scene generation timed out. Retry this scene.');
         if (job.status === 'queued') {
+          if (Date.now() - job.startedAt > WAIT_MS - 5 * 60 * 1000) continue; // too late to start: waits out its time, then fails
           const r = await workerRequest(this.env, '/jobs', { key: job.workerKey, operation: job.input, version: job.version });
           if (r.ok) job.status = 'rendering';
           else if ([400, 409].includes(r.status)) throw new Error('Worker rejected this scene or its version changed. Retry this scene.');
@@ -115,6 +130,7 @@ export class LearnScenes {
         if (Date.now() - job.startedAt > WAIT_MS || !/fetch|network|timeout|connection/i.test(error.message)) { job.status = 'failed'; job.error = error.message; }
       }
       await this.state.storage.put(key, job);
+      if (['ready', 'failed'].includes(job.status)) await releaseRender(this.env, job.slot, job.status === 'ready' ? 'settled' : 'failed');
     }
     if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => ['queued', 'rendering'].includes(j.status))) await this.state.storage.setAlarm(Date.now() + 5000);
   }

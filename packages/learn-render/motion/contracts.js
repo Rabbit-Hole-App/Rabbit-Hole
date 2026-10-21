@@ -12,7 +12,10 @@ export const DEFAULT_RENDERER = 'remotion';
 export { DURATION };
 export const TEACHING_MODES = ['intuition_first', 'mechanism_first', 'code_walkthrough', 'system_flow'];
 export const TARGET_KINDS = ['concept', 'card', 'canvas_object', 'code_span', 'route', 'rabbit_hole'];
-export const RESOLUTIONS = ['named', 'deictic', 'context_disambiguated'];
+export const RESOLUTIONS = ['named', 'deictic', 'context_disambiguated', 'ungrounded'];
+// An ungrounded brief's explicit state (owner, 2026-10-21): no source was supplied, or the supplied ones
+// do not mention the target. It cites nothing; its absence means the brief is grounded.
+export const NO_SOURCE = ['no_source_supplied', 'not_in_source'];
 // packages/web/src/agent/slash.js SELECTIONS
 export const SELECTION_KINDS = ['project', 'map_node', 'card', 'equation', 'notebook_cell', 'notebook_file', 'canvas_object'];
 export const SOURCE_KINDS = ['code', 'card', 'lesson', 'doc'];
@@ -108,7 +111,10 @@ export function validateBrief(b) {
   }
 
   const refs = arr(b.source_refs) ? b.source_refs : [];
-  if (!refs.length) e.push('brief.source_refs: at least one');
+  const ungrounded = t?.resolution === 'ungrounded';
+  if (ungrounded !== (b.grounding !== undefined)) e.push('brief.grounding: required exactly when resolved_target.resolution is ungrounded');
+  if (b.grounding !== undefined && (!NO_SOURCE.includes(b.grounding?.status) || (b.grounding.status === 'not_in_source' && (!arr(b.grounding.searched) || !b.grounding.searched.length)))) e.push(`brief.grounding: {status: one of ${NO_SOURCE.join(' | ')}, searched (not_in_source)}`);
+  if (ungrounded ? refs.length : !refs.length) e.push(ungrounded ? 'brief.source_refs: an ungrounded brief cites nothing' : 'brief.source_refs: at least one');
   const refIds = refs.map(r => r?.id);
   for (const d of dupes(refIds)) e.push(`brief.source_refs: duplicate id ${d}`);
   refs.forEach((r, i) => {
@@ -151,7 +157,7 @@ export function validateBrief(b) {
     const at = `brief.claim_registry[${i}]`;
     if (!ID.C.test(c?.id || '')) e.push(`${at}.id: C1, C2, ...`);
     if (!str(c?.text)) e.push(`${at}.text: required string`);
-    if (!arr(c?.source_ref_ids) || !c.source_ref_ids.length) e.push(`${at}.source_ref_ids: at least one`);
+    if (!arr(c?.source_ref_ids) || (!ungrounded && !c.source_ref_ids.length)) e.push(`${at}.source_ref_ids: at least one`);
     else for (const id of c.source_ref_ids) if (!hasRef(id)) e.push(`${at}.source_ref_ids: unknown ${id}`);
     if (!arr(c?.condition_ids)) e.push(`${at}.condition_ids: required array (empty when unconditional)`);
     else for (const id of c.condition_ids) if (!condIds.includes(id)) e.push(`${at}.condition_ids: unknown ${id}`);

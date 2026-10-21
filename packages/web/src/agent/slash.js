@@ -16,7 +16,7 @@
 // with no short label shows its menu label in the pill. about: what the command does in one or two sentences - whether it
 // creates a card, opens something or searches, and what it needs selected - for the Slash commands window.
 // needs: 'image_generation' is offered only where image generation is on (IMAGE_GENERATION, below); 'motion_dev' only in a
-// Motion development build.
+// development or review build (MOTION_DEV, below), never in production.
 
 // Selection context: what the learner has selected when they send. The bar produces 'project' and
 // 'map_node' today; the owning branches add the rest when they expose them (shapes in the contract doc).
@@ -48,7 +48,6 @@ export const SLASH = [
   { name: 'code', kind: 'generate', group: 'create', places: CTRLK, label: 'Code', desc: 'Add code', about: 'Creates a code example card on the canvas. With a card selected, it uses that card as context.', family: ['code_sample', 'code_exercise'] },
   { name: 'graph', kind: 'generate', group: 'create', places: CTRLK, label: 'Graph', desc: 'Add a graph or plot', about: 'Creates an interactive graph or plot card on the canvas. With a card selected, it uses that card as context.', family: ['interactive_graph', 'data_plot', 'knowledge_graph'] },
   { name: 'diagram', kind: 'generate', group: 'create', places: CTRLK, label: 'Diagram', desc: 'Add a diagram', about: 'Creates a diagram card on the canvas. With a card selected, it uses that card as context.', family: ['flow_diagram', 'mermaid_diagram'] },
-  { name: 'animate', kind: 'generate', group: 'create', places: CTRLK, label: 'Animate', desc: 'Add an animation', about: 'Creates an animation card on the canvas. Generating it is paid, so it asks first. With a card selected, it uses that card as context.', family: ['reference_attention', 'maths_animation'] },
   { name: 'whiteboard', kind: 'dialog', group: 'create', places: ['learn'], label: 'Whiteboard', desc: 'Add a whiteboard', about: 'Adds a whiteboard card to the canvas, titled with what you type.', family: ['whiteboard'], action: 'insert_whiteboard', deterministic: true },
   // Media: search and generation are separate commands (owner, 2026-10-20). A search never turns into generation and a
   // generation never into a search, so neither family holds the other's primitive.
@@ -57,8 +56,9 @@ export const SLASH = [
   { name: 'video', kind: 'generate', group: 'create', places: CTRLK, label: 'Generate video', desc: 'Generate video', about: 'Creates an AI-generated video card. Generating it is paid, so it asks first. It never searches for videos: /youtube does. With a card selected, it uses that card as context.', family: ['video_generate'] },
   { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD', desc: 'Create a parametric CAD model', about: 'Creates a parametric CAD model card with checked downloads. It asks about missing dimensions and before generating.', action: 'cad', deterministic: true },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D', desc: 'Add 3D scene', about: 'Creates a 3D scene card on the canvas. Generating it is paid, so it asks first. With a card selected, it uses that card as context.', family: ['3d_model', 'blender_scene'] },
-  // Development only (needs motion_dev): a paid proposal with no model call before Generate.
-  { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Motion', desc: 'Make a Motion explainer (dev)', about: 'Creates a narrated explainer video card (development builds only). Generating it is paid, so it asks first.', action: 'motion', deterministic: true, needs: 'motion_dev' },
+  // The command for the Motion explainer-video pipeline (owner, 2026-10-20: it replaces /animate). Development and review
+  // builds only (needs motion_dev); a paid proposal with no model call before Generate.
+  { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Motion', desc: 'Create an animated explainer video', about: 'Creates an animated explainer video card: Motion plans, reviews and renders a 5 to 30 second video of what you type. Generating it is paid, so it asks first.', action: 'motion', deterministic: true, needs: 'motion_dev' },
   { name: 'notebook', kind: 'dialog', group: 'create', places: ['learn'], label: 'Notebook', desc: 'Add a notebook', about: 'Adds an empty notebook card to the canvas.', family: ['notebook'], action: 'insert_notebook', deterministic: true },
   // Source search (owner 4A, 2026-10-16): the shared source finder opens on the source with the query, searches at once
   // when there is one, and adds nothing until Add to canvas. No model routes or reads them. /arxiv takes a topic or an
@@ -77,6 +77,9 @@ export const MATERIAL_TOOLS = [
     // No animation: interactive scenes are /explain's and the Tutor's explanation material only (owner, 2026-10-21).
     family: ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram'] },
   { name: 'walkthrough', kind: 'generate', group: 'create', places: ['learn'], desc: 'Add a walkthrough', family: ['walkthrough'] },
+  // /animate (owner, 2026-10-20: /motion is the animation command): the Tutor and journeys still make animations with it, and
+  // saved animation cards keep their renderers; no picker, window, example or chat suggestion offers it.
+  { name: 'animate', kind: 'generate', group: 'create', places: ['learn'], desc: 'Add an animation', family: ['reference_attention', 'maths_animation'] },
 ];
 // A registry entry by name, user command or material tool: what a saved message, a validator or a generator looks up.
 export const toolOf = (name) => SLASH.find((c) => c.name === name) || MATERIAL_TOOLS.find((c) => c.name === name);
@@ -84,7 +87,7 @@ export const toolOf = (name) => SLASH.find((c) => c.name === name) || MATERIAL_T
 // Removed slash commands (owner, 2026-10-20). Typed on any surface, each says it is unavailable and runs nothing; ordinary
 // words still ask, compare, simplify or explore, and the Tutor keeps its material tools (MATERIAL_TOOLS).
 export const REMOVED_COMMANDS = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper',
-  'simplify', 'example', 'compare', 'source', 'paper'];
+  'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
 // Image generation from a command: off while the image_generate primitive is not ready (learn-primitives.js; slash.test.mjs
 // holds the two equal). /generate-image is hidden and refused while it is off; this cleanup does not turn it on.
 export const IMAGE_GENERATION = false;
@@ -99,7 +102,7 @@ export function unavailableCommand(name, { listed = true } = {}) {
 // The Learn picker's primary menu, in order. Every other Learn command is listed under More learning tools.
 export const LEARN_MENU = {
   learn: ['dive', 'practice', 'quiz'],
-  create: ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook'],
+  create: ['explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook'],
   search: ['image', 'youtube', 'arxiv', 'wikipedia'],
 };
 
@@ -129,9 +132,11 @@ export function reviewOff(name, kind, { askLive = false } = {}) {
 export const descFor = (command, place) => (typeof command.desc === 'string' ? command.desc : command.desc[place]);
 
 // The commands a place can use right now. Unavailable ones are not shown.
-// /motion (Motion V1 M7A) exists only in a development build made with VITE_MOTION_DEV=true (the
-// local Motion stack): production has no /motion. `?.` keeps this importable by node tests.
-const MOTION_DEV = import.meta.env?.VITE_MOTION_DEV === 'true';
+// /motion (Motion V1) is offered by the production build (VITE_MOTION, scripts/prod-release.mjs BUILD_ENV: owner activation
+// GO, 2026-10-21), by a development or review build (VITE_COACHING_DEV) and by the local Motion stack's build (VITE_MOTION_DEV).
+// Generate also needs the Motion orchestrator: where none is configured, the card says Motion is not available here and
+// nothing starts (control-plane motion-provider.js). `?.` keeps this importable by node tests.
+const MOTION_DEV = import.meta.env?.VITE_MOTION === 'true' || import.meta.env?.VITE_MOTION_DEV === 'true' || import.meta.env?.VITE_COACHING_DEV === 'true';
 // internal: true adds the Tutor's material tools (MATERIAL_TOOLS), for its create_material, a journey's steps and Ctrl+K's
 // automatic routing; never for a picker, the Slash commands window or a typed line.
 const placeFor = (surface) => (surface === 'chat' ? 'learn' : surface);

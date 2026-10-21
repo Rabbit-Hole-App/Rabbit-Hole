@@ -38,6 +38,7 @@ import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
+import { CitableLines } from './TutorCitations.jsx';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
 // capture, readOnly }. Null wherever a card renders outside a canvas, so no sketch is offered there.
@@ -1266,13 +1267,19 @@ function SceneBody({ block, appName, onChange, viewKey = null }) {
     } catch (problem) { setError(problem.message); }
   };
   const [confirming, setConfirming] = useState(false);
+  // One start per press: clicks that reach Generate before the page re-renders send nothing more.
+  const starting = useRef(false);
   const generate = async (current = block) => {
+    if (starting.current) return;
+    starting.current = true;
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'queued' });
     try {
-      const { placementId } = await startScene(appName, current.operation, { confirmed: true });
+      // Retry scene: the server renders a failed scene again only on an explicit retry.
+      const { placementId } = await startScene(appName, current.operation, { confirmed: true, retry: current.status === 'failed' });
       follow(placementId);
     } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
+    finally { starting.current = false; }
   };
   useConfirmedStart(block, onChange, generate);
   if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} viewKey={viewKey} />;
@@ -1498,9 +1505,11 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const latest = useRef(block);
   latest.current = block;
   const [placement, setPlacement] = useState(null);
-  // Follows the exact job this Generate started (see SceneBody).
+  // Follows the exact job this Generate started (see SceneBody). Its placement id is kept on the card, so a reload resumes
+  // following the same job (a /motion job runs for minutes) instead of showing it generating forever.
   const follow = async placementId => {
     setPlacement(placementId);
+    if (latest.current.placementId !== placementId) onChange({ ...latest.current, placementId });
     try {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
@@ -1535,6 +1544,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
   };
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
+  // A card saved while its job ran: follow that job again (a read, never a new start). Cards saved without a placement id
+  // (before this) keep their old behaviour.
+  useEffect(() => { if (pending && block.placementId) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
@@ -1705,12 +1717,17 @@ function GraphBody({ block, appName, onChange }) {
 }
 
 function SnippetBody({ block, onFile }) {
+  // Repository lines placed by the Tutor or Files (learn-file-import.js pasteBlock sources): selectable as answer citations.
+  const code = (block.sources || []).find(source => source.kind === 'code' && Array.isArray(source.lines));
+  const first = code?.lines[0];
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Code</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>}
-      <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
+      <CitableLines source={code ? { repo: code.repo, commit: code.revision, path: code.path } : null}>
+        <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index} data-cite-line={first ? first + index : undefined}>{colorLine(line)}</div>)}</CodeBlock>
+      </CitableLines>
       {block.output && <>
         <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Output</p>
         <pre className="no-scrollbar mt-1 max-h-40 overflow-y-auto rounded-lg border border-line bg-white p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap">{block.output}</pre>

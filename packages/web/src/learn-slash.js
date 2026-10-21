@@ -48,13 +48,13 @@ export const searchSections = query => filterSections(pickerSections('/'), query
 export const EXAMPLES = {
   dive: '/dive how cells produce ATP', practice: '/practice explain it back: why the sky is blue', quiz: '/quiz the causes of the French Revolution',
   explain: '/explain how binary search works', code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)',
-  diagram: '/diagram how a bill becomes law', animate: '/animate how softmax shares the whole by score', flashcards: '/flashcards Spanish verbs for travel',
+  diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel',
   notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
   image: '/image Mount Fuji', 'generate-image': '/generate-image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
   cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
   youtube: '/youtube binary search tutorial', arxiv: '/arxiv graph neural networks', wikipedia: '/wikipedia Photosynthesis',
-  // Development builds only (VITE_MOTION_DEV): the committed clip it shows is 25 s.
-  motion: '/motion 25s explain softmax',
+  // The exact request that made the window's real Motion clip (job 8a2015a4, slash-sheet.js MOTION_CLIP).
+  motion: '/motion 15s explain me softmax func',
 };
 // The canvas card each primitive becomes: its + palette sample in
 // LearningBlocks' BLOCK_TYPES (the notebook is its own card).
@@ -134,15 +134,28 @@ const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a cha
 
 // The /motion paid proposal's card (M7A): built here with no model call; the card starts the paid job only once it is
 // inserted already confirmed. The inline editor (inline-ai-session.js) stages the same card.
-// selection: the inline editor's compact summary of what the request is about, kept on the /motion line the orchestrator
-// reads (validateMotionRequest takes only request and location.concept). The direct command passes none.
-export function motionProposal(args, location = null, selection = '') {
-  const about = String(selection || '').replace(/\s+/g, ' ').trim();
+// selection: the card the request is about ({ id, kind, title, text }: the composer's selected card or the inline editor's
+// selection), sent as motion_request context.selection (control-plane motion-context.js) so the resolver grounds on its
+// text (owner brief 2026-10-21 message 7 item 4). With none, the line is resolved from its words alone.
+export function motionProposal(args, location = null, selection = null) {
+  const context = motionContext(selection);
   const block = {
     type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
-    operation: { op: 'motion_request', request: `/motion ${args}${about ? ` (about the selected canvas material: ${about})` : ''}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
+    operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null }, ...(context ? { context } : {}) },
   };
   return { block, message: 'This uses paid generation.' };
+}
+
+// The frozen motion_request.context: the card's id, kind, title and at most 4000 characters of its plain text. A card with
+// no text has nothing to ground on and sends none.
+// ponytail: no selectable card carries a repository source today (code cards are not composer targets), so the web sends no
+// sourceRefs; add them from block.source when code cards can be selected.
+export const MOTION_SELECTION_TEXT = 4000;
+export function motionContext(selection) {
+  const text = String(selection?.text ?? '').trim().slice(0, MOTION_SELECTION_TEXT);
+  const cardId = String(selection?.id ?? '').slice(0, 200);
+  if (!cardId || !text) return null;
+  return { selection: { cardId, kind: String(selection.kind || 'Card').slice(0, 200), ...(selection.title ? { title: String(selection.title).slice(0, 300) } : {}), text } };
 }
 
 // /image's card: a real photo search the card runs itself once placed, with no model (the inline editor stages the same card).
@@ -155,6 +168,9 @@ export function generateCommand(name, args, { app, selection = null, context = n
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
   return post('/api/learn/artifact', { app, command: name, args, selection, context }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
+
+// What a typed /motion says in a build that does not offer it (production): it runs nothing.
+export const MOTION_OFF = 'Motion (animated explainer videos) is not available here.';
 
 // Run one typed command. Returns what the composer shows next:
 //   { prompt }   send this through the existing Learn ask (Auto commands)
@@ -169,7 +185,7 @@ export function generateCommand(name, args, { app, selection = null, context = n
 // command says it is unavailable and runs nothing (owner, 2026-10-20).
 export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false }) {
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
-  if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && unavailableCommand(resolved.unsupported)) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
+  if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
   const selection = target?.id ? { kind: 'card', id: target.id, title: String(target.title || '').slice(0, 200) } : null;
   const request = learnRequest(name, { args, selection });
@@ -190,12 +206,12 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
-  // /motion (M7A, development builds only): the paid proposal comes back without any model call.
+  // /motion (development and review builds): the paid proposal comes back without any model call.
   // Generate inserts the existing video card already confirmed; LearnVideos hands the request to the
   // development orchestrator (operation motion_request), which plans, reviews and renders it.
   if (request.action === 'motion') {
     if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
-    const { block, message } = motionProposal(args, location);
+    const { block, message } = motionProposal(args, location, target);
     return { proposal: { primitive: 'motion', message, generate: () => canvas.insertBlock(withPrompt({ ...block, confirmedStart: true }, promptUsed)) } };
   }
   // /image finds a real picture: the card searches and the learner chooses. It never generates (/generate-image does).

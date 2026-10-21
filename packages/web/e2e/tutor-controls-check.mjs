@@ -204,13 +204,15 @@ await check('entry states: a blank canvas welcomes; a saved activity offers the 
   await shot('controls-06-welcome-light');
   await open(resume.name);
   await page.locator('[data-tutor-entry="resume"]').waitFor({ timeout: 10000 });
-  for (const label of ['Continue where I left off', 'Give me a short recap', 'Try a quick check']) assert.equal(await page.locator('[data-tutor-entry]').getByRole('button', { name: label, exact: true }).count(), 1, label);
+  // Owner brief 2026-10-21 "Activity states": Continue where I left off (primary), Short recap, Quick check, Continue my own work, Not now.
+  for (const label of ['Continue where I left off', 'Short recap', 'Quick check', 'Continue my own work', 'Not now']) assert.equal(await page.locator('[data-tutor-entry]').getByRole('button', { name: label, exact: true }).count(), 1, label);
   await quiet('resume entry', before);
   await shot('controls-07-resume-light');
   await page.locator('[data-tutor-choice="continue"]').click();
   // The saved activity is in progress, so its card (TutorActivity.jsx) shows the prompt, once: Continue adds no second copy.
   await page.locator('[data-tutor-activity-card]').waitFor({ timeout: 5000 });
   assert.match(await page.locator('[data-tutor-activity-card]').innerText(), /Which threshold catches more positives/);
+  assert.equal(await page.locator('[data-tutor-entry]').count(), 0, 'after a choice the returning card is gone, so it does not compete with the activity');
   assert.equal(await page.getByText('Which threshold catches more positives, and what does it cost?', { exact: true }).count(), 1, 'one copy of the prompt above the composer');
   await quiet('Continue', before, 1500);
   // A failed read of the saved controls: recovery with Retry, never a new learner's welcome.
