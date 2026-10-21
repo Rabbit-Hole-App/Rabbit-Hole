@@ -85,7 +85,8 @@ await context.route('**/*', route => {
   const request = route.request(), url = new URL(request.url());
   if (url.protocol === 'blob:' || url.protocol === 'data:') return route.continue();
   if (url.origin !== BASE) { facts.outside.push(`${request.method()} ${url.hostname}`); return route.abort(); }
-  if (MODEL.test(url.pathname)) { facts.model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
+  // GET /api/learn/journey only reads the board's journey (learn-journey.js journeyRoute: no model on GET); its POST may call one.
+  if (MODEL.test(url.pathname) && !(request.method() === 'GET' && url.pathname === '/api/learn/journey')) { facts.model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
   if (url.pathname === '/api/repositories/card-source') {
     const path = url.searchParams.get('path');
     facts.sourceReads.push({ path, commit: url.searchParams.get('commit') });
@@ -246,9 +247,16 @@ await check('7 the source reference is intact: provenance text, repository Open 
 
 // 8. Copy and scrolling.
 await check('8 Copy puts the displayed code on the clipboard, and the code scrolls by wheel', async () => {
+  // The preview, whatever an earlier failed case left (an expanded card saves expanded).
+  if (await card('cct-code').locator('[data-code-card-expand][aria-expanded="true"]').count()) {
+    await card('cct-code').locator('[data-code-card-expand]').click();
+    await page.waitForFunction(() => document.querySelectorAll('[data-block-id="cct-code"] [data-code-line]').length === 40);
+  }
   await card('cct-code').locator('[data-code-card-copy]').click();
   await card('cct-code').getByText('Copied').waitFor({ timeout: 3000 });
-  assert.equal((await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n'), RANGE.slice(0, 40).join('\n'));
+  const copied = (await page.evaluate(() => navigator.clipboard.readText())).replace(/\r\n/g, '\n').split('\n');
+  const differ = copied.findIndex((text, i) => text !== RANGE[i]);
+  assert.ok(copied.length === 40 && differ === -1, `copied ${copied.length} lines; first difference at ${differ}: ${JSON.stringify([copied[differ], RANGE[differ]])}`);
   const box = await card('cct-code').locator('[data-code-card-code]').boundingBox();
   await page.mouse.move(box.x + box.width / 2, Math.min(Math.max(box.y + 20, 120), box.y + box.height - 20));
   await page.mouse.wheel(0, 400);
