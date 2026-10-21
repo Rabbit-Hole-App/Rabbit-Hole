@@ -538,15 +538,13 @@ await check('no model route was called and no page error', async () => {
   assert.deepEqual(errors, []);
 });
 
-await check('the canvas asked for hooks once on open, and nothing the panel did asked again (§2.3: never on selection, camera or panel)', async () => {
+// Owner decision 3a (2026-10-20, Tutor workflow): hooks are proactive Tutor suggestions, so opening a canvas, and anything the
+// panel does, asks for none (the page opens in Auto; tutor-controls-check covers Tutor On at rest).
+await check('the canvas asked for no hooks on open, and nothing the panel did asked (owner 3a; §2.3: never on selection, camera or panel)', async () => {
   writeFileSync(`${SHOTS}/hook-timing.json`, JSON.stringify({ requests: hookBases, events: hookTiming }, null, 2));
-  const perLoad = Object.groupBy(hookBases, request => request.load);
-  console.log(`hook requests: ${hookBases.length} (${hooksAtOpen} on open) by page load: ${JSON.stringify(Object.fromEntries(Object.entries(perLoad).map(([n, list]) => [n, list.map(r => r.basis)])))}`);
-  assert.equal(hooksAtOpen, 1, 'one hook request for the opened canvas');
-  assert.equal(perLoad[hookBases[0].load].length, 1, 'find, tabs, pin and close are not recompute triggers');
-  for (const list of Object.values(perLoad)) assert.equal(new Set(list.map(r => r.basis)).size, list.length, 'never the same basis twice in one page');
-  assert.ok(Object.values(perLoad).every(list => list.length === 1), 'one request per page load (check 12 reloads once)');
-  assert.ok(hookBases.every(({ basis }) => /^nb_[0-9a-f]{8}$/.test(basis)), 'an owned basis');
+  console.log(`hook requests: ${hookBases.length} (${hooksAtOpen} on open)`);
+  assert.equal(hooksAtOpen, 0, 'no hook request for the opened canvas');
+  assert.equal(hookBases.length, 0, 'find, tabs, pin, close and reloads are never triggers');
 });
 
 await browser.close();
