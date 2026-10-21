@@ -20,11 +20,16 @@ const deferred = () => { let resolve; const promise = new Promise(r => { resolve
 
 test('global reservations serialize concurrent users and idempotent submits do not charge twice', async () => {
   const db = storage(), coordinator = createInlineCodeCoordinator({ storage: db, execute: success, policy });
-  const results = await Promise.allSettled([coordinator.create(request()), coordinator.create(request()), coordinator.create({ ...request(2), owner: { ...owner, email: 'other@example.test' } }), coordinator.create(request(3))]);
-  assert.equal(results.filter(r => r.status === 'fulfilled').length, 3);
-  assert.match(results[3].reason.message, /allowance/);
+  const sent = [request(), request(), { ...request(2), owner: { ...owner, email: 'other@example.test' } }, request(3)];
+  const results = await Promise.allSettled(sent.map(entry => coordinator.create(entry)));
+  // Admission follows the order each request's hashes finish (verify 39530425603 failed twice when request 3 overtook
+  // request 2 on Linux), so which distinct job misses the two-run allowance varies; the invariants do not.
+  const admitted = new Set(results.filter(r => r.status === 'fulfilled').map(r => r.value.id));
+  assert.equal(admitted.size, 2, 'two distinct runs fit the allowance');
+  assert.ok(results.some(r => r.status === 'rejected') && results.filter(r => r.status === 'rejected').every(r => /allowance/.test(r.reason.message)));
+  assert.equal(results[0].status, results[1].status, 'an idempotent resubmit is admitted or refused with its first submit, never charged again');
   assert.deepEqual(await db.get('code:budget'), { policy, runs: 2, reservedMicros: 10000 });
-  await assert.rejects(coordinator.create({ ...request(), code: 'return 9;' }), /conflicts/);
+  await assert.rejects(coordinator.create({ ...sent.find(entry => admitted.has(entry.id)), code: 'return 9;' }), /conflicts/);
 });
 
 test('consent, source limits and ownership fail before execution', async () => {
