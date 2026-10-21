@@ -8,7 +8,8 @@
 // @typedef {{mode: 'auto'|'ask'|'tutor', tutorEnabled: boolean, suggestionsPaused: boolean, revision: number}} TutorControls
 // @typedef {{goalId: string, scopeVersion: number}} GoalRef
 // @typedef {{criterionId: string, version: number}} CriterionRef
-// @typedef {{criterionId: string, version: number, label: string, requirement: string, requiresReasoning: boolean, rubricVersion: string, skillKey?: string}} Criterion
+// @typedef {{criterionId: string, version: number, label: string, requirement: string, requiresReasoning: boolean, requiresTransfer?: boolean, rubricVersion: string, skillKey?: string}} Criterion
+//   requiresTransfer (integrator ruling Q1, 2026-10-20): demonstrated only with a valid transfer (application) observation
 // @typedef {{goalId: string, label: string, outcome?: string, scopeVersion: number, lifecycle: 'open'|'completed'|'archived',
 //   status: 'active'|'paused'|'completed'|'archived', criteria: Criterion[], activityId?: string, journeyId?: string,
 //   revision: number, createdAt: string, updatedAt: string}} Goal  status is derived: an open goal is active iff the pointer names it
@@ -83,7 +84,7 @@ export const SHAPES = {
   TutorControls: { mode: MODES, tutorEnabled: 'bool', suggestionsPaused: 'bool', revision: 'int' },
   GoalRef: { goalId: 'id', scopeVersion: 'int' },
   CriterionRef: { criterionId: 'id', version: 'int' },
-  Criterion: { criterionId: 'id', version: 'int', label: 'text', requirement: 'text', requiresReasoning: 'bool', rubricVersion: 'id', skillKey: 'id?' },
+  Criterion: { criterionId: 'id', version: 'int', label: 'text', requirement: 'text', requiresReasoning: 'bool', requiresTransfer: 'bool?', rubricVersion: 'id', skillKey: 'id?' },
   Goal: {
     goalId: 'id', label: 'text', outcome: 'str?', scopeVersion: 'int', lifecycle: GOAL_LIFECYCLE, status: GOAL_STATUS,
     criteria: ['Criterion'], activityId: 'id?', journeyId: 'id?', revision: 'int', createdAt: 'id', updatedAt: 'id',
@@ -164,14 +165,18 @@ export const canCoach = (controls, { chatOpen = false, ready = false, activeInpu
   controls?.mode === 'tutor' && controls.tutorEnabled === true && controls.suggestionsPaused === false && chatOpen && ready && !activeInput;
 const proactive = c => c.mode === 'tutor' && c.tutorEnabled && !c.suggestionsPaused;
 
-// Which actions are proactive (C:/s/spec/tutor-workflow/conflicts.md Q5, the research lane's recommendation, pending the
-// owner's answer): what the Tutor starts on its own runs only under canCoach; what the learner explicitly asks for runs in
-// every mode, once, without changing the controls. Assessing work that was not explicitly submitted never runs (owner 3a).
-// An explicit guided Rabbit Hole entry (owner 4a) is start_guided (it may clear a pause in selected, enabled Tutor), then
-// hole_opening_turn under canCoach; otherwise the static prompt. An unknown kind runs nowhere.
+// Which actions are proactive (integrator ruling Q5, 2026-10-20, decisions.md; provisional for owner review): what the
+// Tutor starts on its own runs only under canCoach (Tutor selected, On, unpaused, chat open and ready, no active input);
+// what the learner explicitly asks for runs in every mode, once, without changing the controls. Assessing work that was
+// not explicitly submitted never runs (owner 3a). An unknown kind runs nowhere.
+// guided_entry_turn is the owner's 4a exception: one opening turn for an explicit guided Rabbit Hole entry runs while Tutor
+// is selected and On, paused or not (the entry is the explicit resumption: dispatch start_guided to clear the pause); in
+// Auto, Ask or Off it never runs and the static prompt shows. Restoring a URL, refresh, Back or reopening is not an entry.
 export const PROACTIVE_ACTIONS = ['hook', 'opening_turn', 'hole_opening_turn', 'unrequested_question', 'suggest_practice', 'unrequested_material', 'next_step_offer', 'assess_unsubmitted'];
 export const EXPLICIT_ACTIONS = ['answer', 'requested_material', 'check_review', 'slash_command'];
+export const GUIDED_ENTRY = 'guided_entry_turn';
 export const mayRun = (kind, controls, context) => EXPLICIT_ACTIONS.includes(kind)
+  || (kind === GUIDED_ENTRY && controls?.mode === 'tutor' && controls.tutorEnabled === true)
   || (PROACTIVE_ACTIONS.includes(kind) && kind !== 'assess_unsubmitted' && canCoach(controls, context));
 
 // One reducer for the browser and the Worker (owner 3a; "Tutor controls and dismissal"). No effect ever asks for a model
@@ -262,6 +267,9 @@ const ids = list => list.map(o => o.observationId);
 // relevant support -> practising; nothing interpretable -> not_checked. A later not_met answer after complete support is a
 // contradiction. Application and retention are separate dimensions here, never extra counted milestones; retention needs
 // an explicit retentionOf link to earlier support, never a newer timestamp alone.
+// Transfer gate (integrator ruling Q1, 2026-10-20): a criterion with requiresTransfer counts only complete support that is
+// also a transfer observation (application 'applied') as eligible; complete support without one stays practising
+// ('transfer_not_shown'). Contradiction and dispute still come first.
 /** @returns {{status: string, reason: string, evidenceIds: string[], application: {status: string, evidenceIds: string[]}, retention: {status: string, evidenceIds: string[]}}} */
 export function deriveCriterionSummary({ criterion, observations = [] }) {
   if (!validateCoachingRecord('Criterion', criterion).ok) throw new TypeError('deriveCriterionSummary: invalid criterion');
@@ -281,11 +289,13 @@ export function deriveCriterionSummary({ criterion, observations = [] }) {
   const out = (status, reason, evidence) => ({ status, reason, evidenceIds: ids(evidence), ...dims });
   if (flagged.length) return out('needs_review', flagged.some(o => o.validity === 'disputed') ? 'disputed' : 'unresolved_conflict', [...flagged, ...support]);
   if (later.length) return out('needs_review', 'later_contradiction', [...support, ...later]);
-  const independent = support.filter(o => o.assistance === 'none');
+  const eligible = criterion.requiresTransfer ? applied : support;
+  const independent = eligible.filter(o => o.assistance === 'none');
   if (independent.length) return out('demonstrated_independently', 'independent_support', independent);
-  const assisted = support.filter(o => o.assistance === 'assisted');
+  const assisted = eligible.filter(o => o.assistance === 'assisted');
   if (assisted.length) return out('demonstrated_with_help', 'assisted_support', assisted);
-  if (support.length) return out('needs_review', 'help_not_recorded', support);
+  if (eligible.length) return out('needs_review', 'help_not_recorded', eligible);
+  if (support.length) return out('practising', 'transfer_not_shown', support);
   if (interpretable.length) return out('practising', 'incomplete_support', interpretable);
   return out('not_checked', list.length ? 'not_interpretable' : 'no_evidence', []);
 }

@@ -41,7 +41,7 @@ export async function ensureState(env, actor) {
 
 const criterionOf = r => ({
   criterionId: r.criterion_id, version: r.version, label: r.label, requirement: r.requirement,
-  requiresReasoning: r.requires_reasoning === 1, rubricVersion: r.rubric_version, ...(r.skill_key ? { skillKey: r.skill_key } : {}),
+  requiresReasoning: r.requires_reasoning === 1, requiresTransfer: r.requires_transfer === 1, rubricVersion: r.rubric_version, ...(r.skill_key ? { skillKey: r.skill_key } : {}),
 });
 const activityOf = r => ({
   activityId: r.id, goalId: r.goal_id, revision: r.revision, status: r.status, objective: r.objective, prompt: r.prompt,
@@ -89,13 +89,14 @@ function criteriaFrom(list) {
   if (!Array.isArray(list) || list.length > MAX_CRITERIA) throw invalid(`criteria must be at most ${MAX_CRITERIA}`);
   const out = list.map((c, i) => {
     if (c == null || typeof c !== 'object') throw invalid('each criterion must be an object');
-    only(c, ['criterionId', 'label', 'requirement', 'requiresReasoning', 'rubricVersion', 'skillKey']);
+    only(c, ['criterionId', 'label', 'requirement', 'requiresReasoning', 'requiresTransfer', 'rubricVersion', 'skillKey']);
     if (c.criterionId != null && (typeof c.criterionId !== 'string' || !CRITERION_ID.test(c.criterionId))) throw invalid('criterionId must be 1-64 letters, digits or _.:-');
     if (!sized(c.label, 200) || !sized(c.requirement, 1000)) throw invalid('a criterion needs a label (200) and an observable requirement (1000)');
     if (typeof c.requiresReasoning !== 'boolean') throw invalid('requiresReasoning must be true or false');
+    if (c.requiresTransfer != null && typeof c.requiresTransfer !== 'boolean') throw invalid('requiresTransfer must be true or false');
     if (c.rubricVersion != null && !sized(c.rubricVersion, 64)) throw invalid('rubricVersion must be 1-64 characters');
     if (c.skillKey != null && !sized(c.skillKey, 64)) throw invalid('skillKey must be 1-64 characters');
-    return { criterionId: c.criterionId ?? `c${i + 1}`, label: c.label, requirement: c.requirement, requiresReasoning: c.requiresReasoning, rubricVersion: c.rubricVersion ?? 'r1', skillKey: c.skillKey ?? null };
+    return { criterionId: c.criterionId ?? `c${i + 1}`, label: c.label, requirement: c.requirement, requiresReasoning: c.requiresReasoning, requiresTransfer: c.requiresTransfer ?? false, rubricVersion: c.rubricVersion ?? 'r1', skillKey: c.skillKey ?? null };
   });
   if (new Set(out.map(c => c.criterionId)).size !== out.length) throw invalid('criterionId must be unique within a goal');
   return out;
@@ -167,7 +168,7 @@ const PLANS = {
     const scope = goal.scope_version + 1, g = [...key(actor), rev];
     const versioned = criteria.map(c => {
       const was = latest.get(c.criterionId);
-      const same = was && was.label === c.label && was.requirement === c.requirement && (was.requires_reasoning === 1) === c.requiresReasoning && was.rubric_version === c.rubricVersion && (was.skill_key ?? null) === c.skillKey;
+      const same = was && was.label === c.label && was.requirement === c.requirement && (was.requires_reasoning === 1) === c.requiresReasoning && (was.requires_transfer === 1) === c.requiresTransfer && was.rubric_version === c.rubricVersion && (was.skill_key ?? null) === c.skillKey;
       return { ...c, version: !was ? 1 : same ? was.version : Math.max(...results.filter(r => r.criterion_id === c.criterionId).map(r => r.version)) + 1 };
     });
     return {
@@ -235,9 +236,9 @@ const PLANS = {
 };
 
 function insertCriterion(env, goalId, scope, c, position, now, guardBinds) {
-  return env.LEARN_DB.prepare(`INSERT INTO learn_goal_criteria (goal_id, scope_version, criterion_id, version, position, label, requirement, requires_reasoning, rubric_version, skill_key, created_at)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${GUARD}`)
-    .bind(goalId, scope, c.criterionId, c.version, position, c.label, c.requirement, c.requiresReasoning ? 1 : 0, c.rubricVersion, c.skillKey, now, ...guardBinds);
+  return env.LEARN_DB.prepare(`INSERT INTO learn_goal_criteria (goal_id, scope_version, criterion_id, version, position, label, requirement, requires_reasoning, requires_transfer, rubric_version, skill_key, created_at)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${GUARD}`)
+    .bind(goalId, scope, c.criterionId, c.version, position, c.label, c.requirement, c.requiresReasoning ? 1 : 0, c.requiresTransfer ? 1 : 0, c.rubricVersion, c.skillKey, now, ...guardBinds);
 }
 
 export async function applyCoachingAction(env, actor, request) {

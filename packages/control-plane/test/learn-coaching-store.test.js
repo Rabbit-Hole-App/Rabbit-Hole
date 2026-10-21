@@ -229,6 +229,11 @@ test('change_scope adds the next scope version and keeps every earlier criterion
   assert.deepEqual(sqlite.prepare('SELECT scope_version, criterion_id, version FROM learn_goal_criteria ORDER BY scope_version, position').all().map(r => [r.scope_version, r.criterion_id, r.version]),
     [[1, 'prob', 1], [1, 'thr', 1], [2, 'prob', 1], [2, 'thr', 2], [2, 'code', 1]]);
   await assert.rejects(act(env, A, 'change_scope', { goalId, criteria: [] }), e => e.status === 400);
+  // The transfer gate (integrator ruling Q1) is part of what a criterion asks: it persists, and turning it on is a new version.
+  assert.deepEqual(goal.criteria.map(c => c.requiresTransfer), [false, false, false]);
+  const gated = (await act(env, A, 'change_scope', { goalId, criteria: [{ ...next[0], requiresTransfer: true }, next[1], next[2]] })).state.goals[0];
+  assert.deepEqual(gated.criteria.map(c => [c.criterionId, c.version, c.requiresTransfer]), [['prob', 2, true], ['thr', 2, false], ['code', 1, false]]);
+  await assert.rejects(act(env, A, 'change_scope', { goalId, criteria: [{ ...next[0], requiresTransfer: 'yes' }] }), e => e.status === 400);
 });
 
 test('controls go through the shared reducer and read the same on another device', async t => {

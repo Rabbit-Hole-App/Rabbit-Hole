@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CRITERION_STATUS, EXPLICIT_ACTIONS, PROACTIVE_ACTIONS, SHAPES, canCoach, defaultControls, deriveCriterionSummary, deriveGoalCounts, mayRun, reduceTutorControls, validateCoachingRecord,
+  CRITERION_STATUS, EXPLICIT_ACTIONS, GUIDED_ENTRY, PROACTIVE_ACTIONS, SHAPES, canCoach, defaultControls, deriveCriterionSummary, deriveGoalCounts, mayRun, reduceTutorControls, validateCoachingRecord,
 } from './learn-coaching-contract.js';
 
 const criterion = (over = {}) => ({
@@ -101,6 +101,30 @@ test('pending, failed and superseded processing never replace confirmed evidence
   const unclear = deriveCriterionSummary({ criterion: criterion(), observations: [obs({ fit: 'unclear', reasoning: 'unclear' })] });
   assert.deepEqual([unclear.status, unclear.reason], ['not_checked', 'not_interpretable']);
   assert.equal(deriveCriterionSummary({ criterion: criterion(), observations: [] }).reason, 'no_evidence');
+});
+
+test('transfer_required_stays_practising_until_applied (integrator ruling Q1)', () => {
+  const transfer = criterion({ requiresTransfer: true });
+  const of = observations => deriveCriterionSummary({ criterion: transfer, observations });
+  // Complete independent support in the original setting is not enough: practising until a transfer observation exists.
+  const here = obs();
+  assert.deepEqual([of([here]).status, of([here]).reason], ['practising', 'transfer_not_shown']);
+  assert.deepEqual(of([here]).evidenceIds, [here.observationId]);
+  // A valid transfer observation demonstrates it, keeping its assistance tier.
+  const appliedAlone = obs({ application: 'applied' });
+  assert.equal(of([here, appliedAlone]).status, 'demonstrated_independently');
+  assert.deepEqual(of([here, appliedAlone]).evidenceIds, [appliedAlone.observationId]);
+  assert.equal(of([here, obs({ application: 'applied', assistance: 'assisted' })]).status, 'demonstrated_with_help');
+  assert.equal(of([obs({ application: 'applied', assistance: 'unknown' })]).reason, 'help_not_recorded');
+  // An incomplete, pending or superseded transfer attempt does not count.
+  assert.equal(of([here, obs({ application: 'applied', reasoning: 'partial' })]).status, 'practising');
+  assert.equal(of([here, obs({ application: 'applied', assessmentStatus: 'pending' })]).status, 'practising');
+  assert.equal(of([here, obs({ application: 'applied', validity: 'superseded' })]).status, 'practising');
+  // Disputes still come first; without the flag nothing changes.
+  assert.equal(of([obs({ application: 'applied' }), obs({ validity: 'disputed' })]).status, 'needs_review');
+  assert.equal(deriveCriterionSummary({ criterion: criterion(), observations: [here] }).status, 'demonstrated_independently');
+  assert.ok(validateCoachingRecord('Criterion', transfer).ok);
+  assert.equal(validateCoachingRecord('Criterion', criterion({ requiresTransfer: 'yes' })).ok, false);
 });
 
 test('application and retention are separate dimensions; a newer timestamp alone is neither', () => {
@@ -220,6 +244,9 @@ test('proactive actions run only under canCoach; explicit requests run in every 
   const paused = { ...tutorOn, suggestionsPaused: true };
   assert.equal(mayRun('hole_opening_turn', reduceTutorControls(paused, { type: 'start_guided' }).state, open), true);
   assert.equal(mayRun('hole_opening_turn', reduceTutorControls({ ...paused, mode: 'auto' }, { type: 'start_guided' }).state, open), false, 'static prompt outside Tutor');
+  // Integrator ruling Q5 / owner 4a: the explicit guided entry's one opening turn runs in selected, enabled Tutor, paused or
+  // not; never in Auto, Ask or Off (static prompt there).
+  assert.deepEqual(modes.map(c => mayRun(GUIDED_ENTRY, c, open)), [true, true, false, false, false]);
 });
 
 // --- validation ---
