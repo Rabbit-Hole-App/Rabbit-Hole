@@ -1054,7 +1054,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // repository: a detached repository source is honoured by the Tutor's handoff too, as by Learn chat (contract §4.7.2).
   // ponytail: no openResearch until a Home/Library Research entry can take a seeded request; until then the Tutor offers no
   // Research this (contract §4.5).
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, canEdit: () => canEditRef.current });
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);

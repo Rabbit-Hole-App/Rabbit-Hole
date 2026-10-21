@@ -80,8 +80,7 @@ export const hookContext = (where, read, recordPending = false) => (recordPendin
 // researched inside a Tutor turn. repository (Task 11c-B): whether the turn may hand off to repository_context; the page may pass
 // false when the learner detached the repository source (LearnPage repoAttached), else it is the app's own (canvasRepository).
 // canvasContext(options) (LearnPage, chat-canvas-context.js): the turn's whole-canvas package, built from the live canvas.
-// canEdit() (Task 07): whether the learner may change this canvas now; Tutor material goes only onto an editable canvas.
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null, canEdit = () => true }) {
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -261,7 +260,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
     // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
     // card is (its selection, and its text as context); a hook click has none (block null).
-    const origin = { ...here }, stillHere = () => sameCanvas(hereRef.current, origin) && canEdit() !== false;
+    const origin = { ...here }, stillHere = () => sameCanvas(hereRef.current, origin);
     runMaterials(result.actions, {
       // The cards keep the learner's words (card-prompt.js), never the model's command line; a hook click typed none.
       promptUsed: nextStep ? null : raw,
@@ -271,8 +270,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for
       // v1); tag notices with their turn id and drop stale ones if that ever confuses.
       onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
-      // Task 07: a card arriving after the learner moved to another canvas or board, or onto a canvas they cannot edit, is not
-      // inserted anywhere else; the turn's reply stays with its origin. A requested card still goes in after Tutor Off (Q5).
+      // Task 07: a card arriving after the learner moved to another canvas or board is not inserted anywhere else; the turn's
+      // reply stays with its origin. A requested card still goes in after Tutor Off (Q5).
       canvas: withCardSink({ insertNotebook: () => (stillHere() ? canvasApi.current?.insertNotebook() : null), insertBlock: (b, o) => (stillHere() ? canvasApi.current?.insertBlock(b, o) : null), reserve: s => (stillHere() ? canvasApi.current?.reserve(s) : null), release: id => canvasApi.current?.release(id) }, onCard),
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
     }).catch(error => console.info('[tutor] create_material', error.message));
