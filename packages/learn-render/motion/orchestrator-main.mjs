@@ -11,7 +11,7 @@
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { PRODUCTION_POLICY, motionOrchestrator } from './orchestrator.mjs';
+import { PRODUCTION_POLICY, motionOrchestrator, rendererCodeHashes } from './orchestrator.mjs';
 import { serviceClient } from './render-job.mjs';
 
 // The model call: Anthropic's Messages API with the orchestrator's own key, as ask.js anthropicTransport sends it (betas
@@ -52,7 +52,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (errors) { for (const line of errors) console.error(`✗ ${line}`); process.exit(2); }
   const orchestrator = motionOrchestrator({
     token: config.token, service: serviceClient(config.renderer), call: apiCall, env: config.env, outDir: config.workDir,
-    maxCalls: config.maxCalls, policy: PRODUCTION_POLICY, jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
+    maxCalls: config.maxCalls, policy: PRODUCTION_POLICY, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
   });
   const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; hold per job from the worker's grant)`));
   // A stop (deploy, scale) ends running jobs; the worker keeps their holds as unknown cost and refuses their grants here.

@@ -364,3 +364,25 @@ test('the canvas repository: the pinned nanoGPT is grounded on its source; one t
   assert.deepEqual(seen, ['karpathy/nanoGPT@3adf61e', 'no source'], 'the refused job never ran; with a card selected it runs on the card');
   for (const repository of [{ repo: 'nope', commit: NANO }, { repo: 'karpathy/nanoGPT', commit: 'main' }, { repo: 'karpathy/nanoGPT', commit: NANO, path: '/etc' }]) assert.notDeepEqual(validateJobRequest(job({ repository })), [], JSON.stringify(repository));
 });
+
+// Version skew (found by mact paid run 1: the dev renderer ran 9083840e contracts and rejected an ungrounded brief after the
+// job had paid for its Author and repair): a renderer whose /health version is not this checkout's renderer code, in either
+// line-ending form an image may carry, starts no job and spends nothing.
+test('a renderer running other contract code starts no job; the hash is the render service own serviceVersion', async t => {
+  const { RENDERER_FILES, rendererCodeHashes } = await import('./orchestrator.mjs');
+  const { readFileSync } = await import('node:fs');
+  const server = readFileSync(new URL('./service/server.mjs', import.meta.url), 'utf8');
+  const listed = server.match(/const files = \[\s*\.\.\.\[([^\]]+)\]/)[1].match(/'([^']+)'/g).map(s => s.slice(1, -1));
+  assert.deepEqual(RENDERER_FILES, listed, 'the same files serviceVersion() hashes');
+  const [lf, crlf] = rendererCodeHashes();
+  assert.match(lf, /^[0-9a-f]{12}$/); assert.notEqual(lf, crlf);
+  let runs = 0;
+  const run = async () => { runs++; return { status: 'needs_clarification', clarification: { question: 'x' } }; };
+  for (const [version, status] of [[`motion-renderer-1-${lf}/remotion@4.0.521`, 202], [`motion-renderer-1-${crlf}/remotion@4.0.521+818cc4da4b7e`, 202], ['motion-renderer-1-ce71b04b9d0f/remotion@4.0.521+9083840ebacb', 503], [undefined, 503]]) {
+    const { req } = await start(t, { run, rendererHashes: [lf, crlf], health: async () => ({ ...LINUX, version }) });
+    const r = await req('/jobs', { method: 'POST', body: job() });
+    assert.equal(r.status, status, String(version));
+    if (status === 503) assert.match((await r.json()).detail, /runs other contract code .*nothing was started/);
+  }
+  await until(async () => runs === 2, 'the two matching jobs');
+});

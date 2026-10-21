@@ -28,7 +28,8 @@
 // artifacts is deleted when the job ends.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { requestSpendBound } from '../../control-plane/src/learn-spend.js';
 import { MODEL_PRICES } from '../../control-plane/src/learn-models.js';
 import { validateMotionContext } from '../../control-plane/src/motion-context.js';
@@ -78,6 +79,20 @@ export function requestSize(body) {
 export function policyHoldMicros(policy = PRODUCTION_POLICY, model = 'claude-opus-5-5') {
   const [input, output] = MODEL_PRICES[model];
   return Object.values(policy).reduce((sum, r) => sum + r.calls * Math.ceil((r.bytes + 1000 + r.images * 4784) * input * 1.25 + r.max_tokens * output), 0);
+}
+
+// The renderer code this orchestrator's contracts belong to, as the render service hashes it (service/server.mjs
+// serviceVersion: these files, paths with '/', raw bytes). An image's bytes depend on the host that archived it: LF from a
+// Linux host, CRLF from a core.autocrlf Windows host except the eol=lf scripts (motion/.gitattributes); the dev renderer's
+// ce71b04b9d0f is 9083840e archived on Windows. Both forms of this checkout's files are accepted, nothing else: a renderer
+// reporting another hash runs other contract code, no job starts there, and version skew never spends money.
+export const RENDERER_FILES = ['service/server.mjs', 'service/child.mjs', 'service/resource-control.mjs', 'service/motion-sandbox', 'service/sandbox-init', 'remotion-renderer.mjs', 'renderer-common.mjs', 'renderers.mjs', 'hyperframes-renderer.mjs', 'hf-static-check.js', 'author-check.js', 'render-coverage.js', 'static-check.js', 'contracts.js', 'duration.js', 'probes.js'];
+const EOL_LF = new Set(['motion/service/motion-sandbox', 'motion/service/sandbox-init']);
+export function rendererCodeHashes(pkg = join(dirname(fileURLToPath(import.meta.url)), '..')) {
+  const files = [...RENDERER_FILES.map(f => `motion/${f}`), ...readdirSync(join(pkg, 'src', 'motion')).sort().map(f => `src/motion/${f}`)].filter(f => existsSync(join(pkg, f)));
+  const lf = f => readFileSync(join(pkg, f)).toString('utf8').replace(/\r\n/g, '\n');
+  const hash = form => { const h = createHash('sha256'); for (const f of files) h.update(f).update(form(f), 'utf8'); return h.digest('hex').slice(0, 12); };
+  return [hash(lf), hash(f => (EOL_LF.has(f) ? lf(f) : lf(f).replace(/\n/g, '\r\n')))];
 }
 
 // The grant: the hold the worker admitted for this idempotency key, in integer micro-USD, signed with the
@@ -154,7 +169,8 @@ export const jobView = j => ({
 // jobTimeoutMs bounds one job (below the worker's 60-minute wait); resultTtlMs is how long a ready final.mp4
 // waits to be fetched; recordTtlMs how long a finished job still answers polls. now() is injectable for tests.
 // policy: PRODUCTION_POLICY for the entries; null (tests of other behaviour) checks only the hold and the call cap.
-export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, policy = null, log = () => {}, renderer, plans = {},
+// rendererHashes: the entries pass rendererCodeHashes(); a renderer whose /health version carries another starts no job.
+export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, policy = null, rendererHashes = null, log = () => {}, renderer, plans = {},
   jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   if (!service || typeof service.health !== 'function') throw new Error('motionOrchestrator: a render service client is required (there is no in-process renderer)');
@@ -285,6 +301,8 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         const health = await service.health().catch(() => null);
         if (!health) return send(res, 503, { error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' });
         if (health.sandbox !== 'linux' || health.ok === false) return send(res, 503, { error: 'renderer_unavailable', detail: `the Motion renderer is not the sandboxed Linux service (sandbox ${health.sandbox ?? 'unknown'}${health.ok === false ? ', degraded' : ''}); nothing was started` });
+        const reported = /^motion-renderer-1-([0-9a-f]{12})\//.exec(health.version || '')?.[1] ?? 'unknown';
+        if (rendererHashes && !rendererHashes.includes(reported)) return send(res, 503, { error: 'renderer_unavailable', detail: `the Motion renderer runs other contract code (renderer ${reported}, this service ${rendererHashes[0]}); nothing was started` });
         if (health.busy) return send(res, 429, { error: 'busy', detail: 'the render service is still finishing a render' });
         const job = start(body);
         return send(res, 202, { job_id: job.id, status: job.status });

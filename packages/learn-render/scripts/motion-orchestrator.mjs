@@ -18,7 +18,7 @@ import { createServer } from 'node:https';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RENDERERS } from '../motion/contracts.js';
-import { PRODUCTION_POLICY, jobView, motionOrchestrator } from '../motion/orchestrator.mjs';
+import { PRODUCTION_POLICY, jobView, motionOrchestrator, rendererCodeHashes } from '../motion/orchestrator.mjs';
 import { apiCall } from '../motion/orchestrator-main.mjs';
 import { subscriptionCall } from '../motion/subscription-call.mjs';
 import { abortableSleep } from '../motion/review-job.mjs';
@@ -87,7 +87,7 @@ const svc = url ? { client: serviceClient({ url: url.replace(/\/$/, ''), token: 
   : { client: { health: async () => ({ ok: true, busy: false, sandbox: 'linux', stub: true }) }, close: () => {} };
 const outDir = join(PKG, 'out', 'motion', 'm7a');
 const orchestrator = motionOrchestrator({
-  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : apiCall, env, outDir, maxCalls: Number(opt('--max-calls') || 9), policy: PRODUCTION_POLICY, renderer, plans,
+  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : apiCall, env, outDir, maxCalls: Number(opt('--max-calls') || 9), policy: PRODUCTION_POLICY, ...(stub ? {} : { rendererHashes: rendererCodeHashes() }), renderer, plans,
   ...(stub ? { run: stubRun } : {}),
   log: line => {
     console.log(`${new Date().toISOString()} ${line}`);
