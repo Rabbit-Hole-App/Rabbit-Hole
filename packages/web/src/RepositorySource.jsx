@@ -10,8 +10,9 @@ export const SourceSelectionContext = createContext(null);
 // `repo` ("owner/name"), when the caller knows it, adds a link to the same file
 // at the same revision on its host. The Files view's reader (repository-browser.md) passes `title`, its breadcrumb in place
 // of the path, and `actions`, a compact bar drawn under the selected range's last line. The Chat's Sources pane (SourceReader.jsx)
-// passes `initialPosition` ({ scrollTop }) to land where the learner left off, and `onPosition` to hear each scroll.
-export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose, title, actions, pick = null, initialPosition = null, onPosition = null }) {
+// passes `initialPosition` ({ scrollTop }) to land where the learner left off, and `onPosition` to hear each scroll, and `byRepository`:
+// read by repository and commit (GET card-source, readableVersion), since a project canvas is not the repository's app name.
+export default function RepositorySource({ appName, path, line = 1, lineEnd, commit, repo, onClose, title, actions, pick = null, initialPosition = null, onPosition = null, byRepository = false }) {
   const [data,setData]=useState(null),[error,setError]=useState('');const selected=useRef(null),scroller=useRef(null),restored=useRef(false);
   const selection=useContext(SourceSelectionContext), root=useRef(null), anchor=useRef(null);
   const current=selection?.value;
@@ -29,9 +30,9 @@ export default function RepositorySource({ appName, path, line = 1, lineEnd, com
   };
   useEffect(()=>{
     let active=true;setData(null);setError('');
-    api(`/api/repositories/${appName}/file`,{method:'POST',body:JSON.stringify({path,commit})}).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(e.message);});
+    (byRepository?api(`/api/repositories/card-source?repo=${encodeURIComponent(repo)}&commit=${encodeURIComponent(commit)}&path=${encodeURIComponent(path)}`):api(`/api/repositories/${appName}/file`,{method:'POST',body:JSON.stringify({path,commit})})).then(d=>{if(active)setData(d);}).catch(e=>{if(active)setError(e.message);});
     return()=>{active=false;};
-  },[appName,path,commit]);
+  },[appName,path,commit,byRepository]);
   useEffect(()=>{
     if(data&&!restored.current&&initialPosition?.scrollTop!=null){restored.current=true;scroller.current.scrollTop=initialPosition.scrollTop;return;}
     selected.current?.scrollIntoView({block:'center'});

@@ -38,6 +38,7 @@ import { canSubmit, hasMarks, sketchText } from './explain-sketch.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { describeExcerpt, isExcerpt } from './pdf-excerpt.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
+import { CitableLines } from './TutorCitations.jsx';
 
 // The canvas's drawing surface for an Explain Back sketch (AdaptiveCanvas renderSketch): { render, hold, release,
 // capture, readOnly }. Null wherever a card renders outside a canvas, so no sketch is offered there.
@@ -1733,12 +1734,17 @@ function GraphBody({ block, appName, onChange }) {
 }
 
 function SnippetBody({ block, onFile }) {
+  // Repository lines placed by the Tutor or Files (learn-file-import.js pasteBlock sources): selectable as answer citations.
+  const code = (block.sources || []).find(source => source.kind === 'code' && Array.isArray(source.lines));
+  const first = code?.lines[0];
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Code</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {block.brief && <div data-drag-zone className="mt-1 cursor-grab text-sm text-ink-2 active:cursor-grabbing"><Md text={block.brief} onFile={onFile} /></div>}
-      <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index}>{colorLine(line)}</div>)}</CodeBlock>
+      <CitableLines source={code ? { repo: code.repo, commit: code.revision, path: code.path } : null}>
+        <CodeBlock className="mt-2 text-xs">{block.code.split('\n').map((line, index) => <div key={index} data-cite-line={first ? first + index : undefined}>{colorLine(line)}</div>)}</CodeBlock>
+      </CitableLines>
       {block.output && <>
         <p className="mt-2 text-[10px] font-semibold tracking-wider text-ink-2 uppercase">Output</p>
         <pre className="no-scrollbar mt-1 max-h-40 overflow-y-auto rounded-lg border border-line bg-white p-2 font-mono text-[11px] leading-4 whitespace-pre-wrap">{block.output}</pre>

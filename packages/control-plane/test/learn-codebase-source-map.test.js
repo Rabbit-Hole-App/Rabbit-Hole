@@ -287,12 +287,19 @@ test('current_vs_expected_output_is_explicit: every first activity names whether
     assert.ok(QUESTION_LABEL[goal.question], `${goal.question} has a label`);
     assert.equal(checkpoint.codebase.execution, 'not_run_here');
     assert.doesNotMatch(prompt, /\d+\s*%/, `${goal.id}: no output value is claimed; nothing was run`);
-    if (goal.id === 'understand_feature') { assert.match(prompt, /about the current code/); assert.match(prompt, /separately as the intended behaviour/); }
-    if (goal.id === 'debug_behavior') { assert.match(prompt, /Current code \(commit/); assert.match(prompt, /Intended behaviour:/); assert.match(prompt, /tentative/); }
+    if (goal.id === 'understand_feature') { assert.match(prompt, /through the current code/); assert.match(prompt, /separately as the intended behaviour/); }
+    if (goal.id === 'debug_behavior') { assert.match(prompt, /Current code: /); assert.match(prompt, /Intended behaviour:/); assert.match(prompt, /tentative/); }
     if (goal.id === 'make_change') assert.match(prompt, /A proposed change, not the current behaviour/);
     if (goal.id === 'prepare_contribute') assert.match(prompt, /not proof that it runs here/);
-    if (goal.id === 'learn_concept') assert.match(prompt, /from the current code/);
-    if (['debug_behavior', 'make_change', 'prepare_contribute'].includes(goal.id)) assert.ok(prompt.includes(NOT_RUN_NOTE), `${goal.id} says nothing runs here`);
+    if (goal.id === 'learn_concept') assert.match(prompt, /the current code/);
+    // Owner brief 2026-10-21 "Question presentation": no commit hash, raw path or line range and no execution note in the
+    // question; the commit, hashes and execution status stay saved on the activity for Source details.
+    for (const text of [prompt, activityOf(out.body.state).objective]) {
+      assert.doesNotMatch(text, /\b[0-9a-f]{7,40}\b/, `${goal.id}: no commit hash`);
+      assert.doesNotMatch(text, /[\w-]+\/[\w./-]+|\w\.(js|jsx|py|md|toml|json)\b|:\d+-\d+/, `${goal.id}: no raw path or line range`);
+      assert.equal(text.includes(NOT_RUN_NOTE), false, `${goal.id}: execution status is in Source details`);
+    }
+    assert.equal(checkpoint.codebase.commit, COMMITS.v1, 'the exact revision stays saved');
   }
   // Inspection, learner-supplied output and execution are three labels, never one.
   assert.equal(new Set(Object.values(EVIDENCE_LABEL)).size, 3);

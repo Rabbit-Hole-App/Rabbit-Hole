@@ -1,0 +1,119 @@
+{
+  "id": "combined-chance",
+  "origin": "hand-made",
+  "args": "interactive: how clouds and wind change the chance of rain",
+  "wrong": "with clouds = on, wind = on: the chance of rain shows 1.1, above 1",
+  "response": {
+    "result": "artifact",
+    "primitive": "animation",
+    "block": {
+      "type": "animation",
+      "title": "How clouds and wind change the chance of rain",
+      "scene": {
+        "id": "chance-of-rain",
+        "title": "How clouds and wind change the chance of rain",
+        "width": 760,
+        "height": 360,
+        "duration": 1,
+        "inputs": [
+          {
+            "name": "clouds",
+            "type": "bool",
+            "label": "Heavy clouds",
+            "default": false
+          },
+          {
+            "name": "wind",
+            "type": "bool",
+            "label": "Wind from the sea",
+            "default": false
+          }
+        ],
+        "exampleData": {
+          "base": 0.3,
+          "up": 0.4,
+          "none": 0
+        },
+        "derived": {
+          "fromClouds": {
+            "op": "choose",
+            "args": [
+              "clouds",
+              "up",
+              "none"
+            ]
+          },
+          "fromWind": {
+            "op": "choose",
+            "args": [
+              "wind",
+              "up",
+              "none"
+            ]
+          },
+          "parts": {
+            "op": "concat",
+            "args": [
+              "base",
+              "fromClouds",
+              "fromWind"
+            ]
+          },
+          "chance": {
+            "op": "sum",
+            "args": [
+              "parts"
+            ]
+          }
+        },
+        "objects": [
+          {
+            "id": "question",
+            "type": "text",
+            "initialState": {
+              "text": "How do clouds and wind add up to a chance of rain?",
+              "x": 40,
+              "y": 40,
+              "typography": "heading"
+            }
+          },
+          {
+            "id": "parts",
+            "type": "bars",
+            "initialState": {
+              "label": "base, clouds, wind",
+              "x": 40,
+              "y": 120,
+              "h": 100,
+              "cell": 64,
+              "role": "input",
+              "labels": [
+                "base",
+                "clouds",
+                "wind"
+              ],
+              "values": {
+                "$derive": "parts"
+              }
+            }
+          },
+          {
+            "id": "chance",
+            "type": "text",
+            "initialState": {
+              "text": "Chance of rain: {{chance}}",
+              "x": 40,
+              "y": 280,
+              "typography": "heading"
+            }
+          }
+        ],
+        "timeline": []
+      },
+      "time": 1,
+      "selectedObject": null,
+      "marked": null,
+      "calculation": "live"
+    }
+  }
+}

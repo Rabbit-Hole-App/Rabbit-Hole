@@ -8,6 +8,7 @@ import { searchSourceRecord } from './canvas-search-content.js';
 import { useCardSource } from './use-card-source.js';
 import { loadAsset } from './learn-board-assets.js';
 import { repositoryUrl } from './card-sources.js';
+import { CitableLines } from './TutorCitations.jsx';
 
 // A code card's body (repo-graph Release 2; brief "Code-card behaviour"), inside the shared CanvasNode frame, so it selects,
 // moves, resizes, deletes, saves and undoes like any card. It shows the file name, language, provenance (repository, path,
@@ -59,7 +60,7 @@ export default function CodeCard({ block, onChange }) {
   };
   const addToChat = () => { const ref = codeCardRef(block, code); if (ref) chat?.addToChat(ref); };
   return (
-    <div data-code-card data-source-kind={source.kind} data-status={status} className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div data-code-card data-code-colors="" data-source-kind={source.kind} data-status={status} className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-1 pb-2">
         <FileCode size={16} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-2" />
         <span className="flex min-w-0 flex-1 flex-col">
@@ -79,12 +80,14 @@ export default function CodeCard({ block, onChange }) {
       {status === 'failed' && <div role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The code could not be read.
         <button type="button" data-code-card-retry className={BUTTON} onClick={retry}>Retry</button></div>}
       {view && <>
+        <CitableLines source={source.kind === 'repository' ? { repo: source.repo, commit: source.commit, path: source.path } : null} lineAttr="codeLine" className="flex min-h-0 flex-1 flex-col">
         <pre data-scroll data-code-card-code className="pointer-events-auto min-h-0 flex-1 overflow-auto px-0 py-2 font-mono text-[12px] leading-5" onPointerDown={stop}>
           {view.lines.map((line, i) => <div key={line.n} data-code-line={line.n} className="flex">
             <span aria-hidden className="w-10 shrink-0 pr-2 text-right text-ink-3 select-none">{line.n}</span>
             <span className="min-w-0 whitespace-pre">{runs?.[i] ? runs[i].map((run, j) => <span key={j} style={run.color ? { color: run.color, '--shiki-dark': run.dark || run.color } : undefined}>{run.t}</span>) : line.text}</span>
           </div>)}
         </pre>
+        </CitableLines>
         {view.excerpt && <p data-code-card-excerpt className="shrink-0 border-t border-line px-3 py-1 text-[11px] text-ink-3">Showing {view.shown} of {view.total} lines. Expand shows the rest.</p>}
       </>}
     </div>
