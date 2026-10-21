@@ -192,6 +192,23 @@ test('the hold: a repair whose worst case does not fit what is left is refused b
   assert.deepEqual([v.spend.cost_usd, v.spend.calls, v.spend.in_flight, v.spend.hold_usd], [1.13, 3, 0, 2], 'the worker settles $1.13 and releases $0.87');
 });
 
+test('every Motion stage asks for a server-side fallback; under a hold the call is sent without it, so it can be bounded', async t => {
+  const { directorRequest } = await import('./director.js');
+  const asked = directorRequest({ request: 'x' });
+  assert.equal(asked.fallbacks, 'default');
+  assert.equal(requestSpendBound(asked, MODEL), null, 'the shared bound refuses a fallback');
+  const sentBodies = [];
+  const run = async ({ call }) => { const r = await call({}, asked, MODEL); await r.text(); return { status: 'failed', failure_reason: 'x' }; };
+  const { req, view } = await start(t, { run, call: async (_, body) => { sentBodies.push(body); return reply(100); } });
+  const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => (await view(job_id)).status === 'failed', 'failed');
+  assert.equal(sentBodies.length, 1);
+  assert.equal(sentBodies[0].fallbacks, undefined);
+  assert.deepEqual(sentBodies[0].betas, []);
+  assert.ok(requestSpendBound(sentBodies[0], MODEL) > 0.32);
+  assert.equal((await view(job_id)).spend.cost_usd, 0.002);
+});
+
 test('a call whose maximum cannot be bounded is refused before sending', async t => {
   let sentCalls = 0;
   const run = async ({ call }) => { const r = await call({}, { max_tokens: 100, messages: [] }, 'unpriced-model'); return { status: r.ok ? 'ready' : 'failed', failure_reason: 'x' }; };

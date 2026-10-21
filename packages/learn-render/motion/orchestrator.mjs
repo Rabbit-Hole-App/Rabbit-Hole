@@ -47,6 +47,9 @@ const readJson = req => new Promise((done, fail) => {
   req.on('end', () => { try { done(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { fail(Object.assign(new Error('the body is not JSON'), { status: 400 })); } });
 });
 const usd = m => +(m / 1e6).toFixed(6);
+// Under a hold a call is sent as exactly the model that is priced, as every spend-enforced route is (ask.js Auto): no
+// server-side fallback, whose second attempt the bound cannot price (learn-spend.js requestSpendBound returns null).
+export const pricedRequest = ({ fallbacks, ...body }) => (body.betas ? { ...body, betas: body.betas.filter(b => b !== 'server-side-fallback-2026-07-01') } : body);
 const toMicros = value => Math.ceil(Number((value * 1e6).toFixed(6)));
 
 // The grant: the hold the worker admitted for this idempotency key, in integer micro-USD, signed with the
@@ -172,7 +175,8 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     jobs.set(id, job); keys.set(job.key, id);
     active = job;
     const timer = setTimeout(() => { job.timedOut = true; controller.abort(); }, jobTimeoutMs); timer.unref?.();
-    const guarded = (env2, request, model) => {
+    const guarded = (env2, asked, model) => {
+      const request = pricedRequest(asked);
       if (controller.signal.aborted) return Promise.reject(new MotionCancelled());
       // Refused before sending: the stage sees a failed call and the job stops with this reason.
       const refuse = reason => { job.refusal ||= reason; job.calls.push({ state: 'refused' }); return Promise.resolve(new Response(`refused before sending: ${reason}`, { status: 429 })); };
