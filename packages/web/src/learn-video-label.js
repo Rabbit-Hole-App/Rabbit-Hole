@@ -13,6 +13,11 @@ const renderedBy = block => RENDERER_LABELS[block.motion?.renderer] ?? null;
 const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source' ? `Not grounded in ${block.motion.grounding.searched.join(', ')}`
   : block.motion?.grounding ? 'Not grounded in a source' : null);
 
+// What a Motion job does to the learner's allowance (owner message 22 item 2): a temporary hold, the actual AI cost deducted,
+// the rest released, and rendering apart. No amount: the hold is the server's setting, and no price is promised.
+export const MOTION_HOLD_NOTE = 'While it is made, Motion holds part of your monthly AI allowance, so your available allowance is lower for a while. Only the actual AI cost is deducted; the rest is released when it finishes. Rendering does not use your allowance.';
+export const MOTION_CONFIRM = `This uses paid generation. ${MOTION_HOLD_NOTE}`;
+
 export function videoLabel(block) {
   const op = block.operation;
   if (op?.op === 'generate_math_animation') {
@@ -24,7 +29,7 @@ export function videoLabel(block) {
     const seconds = block.motion?.duration_seconds;
     return {
       detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block), notGrounded(block)].filter(Boolean).join(' · '),
-      button: 'Generate the explainer', progress: 'Planning, reviewing and rendering', expected: 900, stoppable: true,
+      button: 'Generate the explainer', progress: 'Planning, reviewing and rendering', expected: 900, stoppable: true, note: MOTION_HOLD_NOTE, confirm: MOTION_CONFIRM,
       ...(block.motion ? { sources: (block.motion.source_refs || []).map(where) } : {}),
     };
   }

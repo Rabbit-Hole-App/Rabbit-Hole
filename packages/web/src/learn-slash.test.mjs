@@ -249,7 +249,9 @@ test('/motion: development and review builds only; the proposal makes no request
   const post = async () => { did.push('POST'); return {}; };
   const run = text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'Attention' }, motionDev: true });
   const out = await run('/motion 15s explain me softmax func');
-  assert.equal(out.proposal.message, 'This uses paid generation.');
+  // Owner message 22 item 2: the confirmation explains the temporary hold, the actual cost deducted and the rest released.
+  assert.equal(out.proposal.message, 'This uses paid generation. While it is made, Motion holds part of your monthly AI allowance, so your available allowance is lower for a while. Only the actual AI cost is deducted; the rest is released when it finishes. Rendering does not use your allowance.');
+  assert.doesNotMatch(out.proposal.message, /\$\d/, 'no amount is promised');
   assert.deepEqual(did, [], 'no request, no card and no Rabbit Hole before Generate');
   out.proposal.generate();
   assert.deepEqual(did, [{

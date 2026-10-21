@@ -1583,9 +1583,10 @@ function VideoBody({ block, appName, onChange, onFile }) {
             {pending
               ? <>
                   <Progress seconds={elapsed} expected={label.expected} label={label.progress} />
+                  {label.note && <p data-video-note className="max-w-sm text-[11px] text-ink-2">{label.note}</p>}
                   {label.stoppable && placement && <button type="button" data-stop-video onClick={stop} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
                 </>
-              : confirming ? <PaidConfirm onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
+              : confirming ? <PaidConfirm message={label.confirm} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
               : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}

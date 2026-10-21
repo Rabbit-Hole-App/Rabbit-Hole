@@ -211,7 +211,9 @@ for (const theme of ['light', 'dark']) {
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
     assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
-    assert.match(await notice.innerText(), /This uses paid generation\./);
+    // Owner message 22 item 2: the hold, the actual cost deducted and the rest released, with no amount promised.
+    assert.match(await notice.innerText(), /This uses paid generation\. While it is made, Motion holds part of your monthly AI allowance, so your available allowance is lower for a while\. Only the actual AI cost is deducted; the rest is released when it finishes\. Rendering does not use your allowance\./);
+    assert.doesNotMatch(await notice.innerText(), /\$\d/);
     // A saved card's clip may load meanwhile (a GET of its asset); nothing else may reach the video route.
     const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && !r.query.includes('asset='));
     assert.equal(asked().length, 0, 'nothing asked of the video route before Generate');
@@ -246,6 +248,7 @@ for (const theme of ['light', 'dark']) {
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
+    assert.match(await card.locator('[data-video-note]').innerText(), /^While it is made, Motion holds part of your monthly AI allowance[\s\S]*the rest is released when it finishes\./, 'the generating card says what the hold does');
     await page.waitForTimeout(600);
     await shot('04-generating');
     const mine = page.locator(`[data-block-id="${id}"]`);

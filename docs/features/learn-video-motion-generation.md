@@ -2,7 +2,7 @@
 
 ## Status
 
-**`/motion` (owner correction, 2026-10-21): development milestones complete; production activation in progress (activation commit: /motion on in the production build, orchestrator configured).** Production `/motion` generation does not work yet; see the V1 spec's status line and `C:/s/spec/day-1021/motion-prod-audit.md`.
+**`/motion` (2026-10-21): live in production** (first real production job ready and settled; see the V1 spec's status line).
 
 Motion V1 development harness is authorized by
 [rabbit-hole-motion-v1-harness-spec.md](rabbit-hole-motion-v1-harness-spec.md).

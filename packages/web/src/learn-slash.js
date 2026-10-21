@@ -7,6 +7,7 @@ import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand, unavail
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
+import { MOTION_CONFIRM } from './learn-video-label.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -143,7 +144,7 @@ export function motionProposal(args, location = null, selection = null) {
     type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
     operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null }, ...(context ? { context } : {}) },
   };
-  return { block, message: 'This uses paid generation.' };
+  return { block, message: MOTION_CONFIRM };
 }
 
 // The frozen motion_request.context: the card's id, kind, title and at most 4000 characters of its plain text. A card with
