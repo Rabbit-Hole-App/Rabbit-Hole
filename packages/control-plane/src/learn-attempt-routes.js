@@ -81,7 +81,8 @@ export async function attemptRoute(path, req, env, deps = {}) {
   const activityId = reassess ? (await readAttempt(env, actor, handle.attemptId).catch(() => null))?.attempt.activityId : body.activityId;
   // shortcut: a replay of a request that died before this step leaves the activity in_progress; step it on replay too if that shows up.
   if (activityId && !handle.replayed) await step(activityId, 'awaiting_feedback');
-  try { await assessAttempt(env, actor, handle.attemptId, deps); } catch (error) { log('learn_assessment_dispatch_error', error); }
+  // access lets the rubric and visual routes read the learner's own sources and image under this request's identity.
+  try { await assessAttempt(env, actor, handle.attemptId, { ...deps, access }); } catch (error) { log('learn_assessment_dispatch_error', error); }
   const view = await readAttempt(env, actor, handle.attemptId).catch(() => null);
   const latest = view?.assessment;
   if (activityId && latest && latest.status !== 'pending') await step(activityId, 'feedback_ready', { attemptId: handle.attemptId, status: latest.status, reason: latest.reason ?? null });

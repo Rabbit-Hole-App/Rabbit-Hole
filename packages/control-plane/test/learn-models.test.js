@@ -153,6 +153,8 @@ test('the task configuration states what the requests above carry, and the limit
   assert.deepEqual(pick(LEARN_TASKS.artifact), { provider: 'plan', model: 'claude-opus-5', maxTokens: 4000 });
   assert.deepEqual(pick(LEARN_TASKS.tutor), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2000 });
   assert.deepEqual(pick(LEARN_TASKS.tutor_evaluator), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 2400 });
+  // Tutor Tasks 13 and 14: the rubric and visual assessment roles.
+  for (const task of ['tutor_rubric', 'tutor_visual']) assert.deepEqual(LEARN_TASKS[task], { provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 4000 }, task);
   for (const task of ['avatar_director', 'avatar_script_reviewer']) assert.deepEqual(pick(LEARN_TASKS[task]), { provider: 'anthropic', model: 'claude-opus-5-5', maxTokens: 4000 }, task);
   for (const task of ['tutor', 'tutor_evaluator', 'avatar_director', 'avatar_script_reviewer']) assert.equal(LEARN_TASKS[task].fallback, 'none', task);
   assert.deepEqual(pick(LEARN_TASKS.board), { provider: 'plan', model: 'claude-opus-5', maxTokens: { plan: 1200, draft: 3000, review: 1800 } });
