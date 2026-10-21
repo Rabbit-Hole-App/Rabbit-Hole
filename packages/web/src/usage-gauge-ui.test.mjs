@@ -155,8 +155,9 @@ test('every canvas top bar carries the gauge; shared and member canvases show th
   assert.match(gaugeSource, /new CustomEvent\('small:settings', \{ detail: \{ tab: 'usage' \} \}\)/);
   assert.match(gaugeSource, /window\.open\('\/apps\?settings=usage', '_blank', 'noopener'\)/);
   const sidebar = read('Sidebar.jsx');
-  assert.match(sidebar, /\{learnPreview && <NavBtn id="usage" icon=\{Gauge\}>AI usage<\/NavBtn>\}/);
-  assert.match(sidebar, /\{tab === 'usage' && learnPreview && <UsageSettings Heading=\{Heading\} \/>\}/);
+  // Rabbit Hole's Settings (owner L11): the AI usage pane is in the settings model and RabbitHoleSettings renders it.
+  assert.match(read('settings-model.js'), /\{ id: 'usage', title: 'AI usage' \}/);
+  assert.match(read('RabbitHoleSettings.jsx'), /\{tab === 'usage' && <UsageSettings Heading=\{Heading\} \/>\}/);
   assert.match(sidebar, /asked = params\.get\('settings'\);\n    if \(asked && \/\^\[a-z-\]\{1,32\}\$\/\.test\(asked\)\) \{/);
   // The endpoint answers for the session only: the client never names a user.
   assert.doesNotMatch(read('account-usage.js'), /USAGE_PATH\s*\+|\?user|userId|user_id/);

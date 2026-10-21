@@ -107,12 +107,13 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   assert.match(canvas, /<div data-left-stack className="absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
 
-test('LearnPage: canvasVersion, graded, /ask and /teach, the repository detach and the block follow-up Tutor (contract §1.7)', () => {
+test('LearnPage: canvasVersion, graded, no /ask or /teach, the repository detach and the block follow-up Tutor (contract §1.7)', () => {
   assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching \}\);/);
   // The board revision is mirrored for render at every place the page learns it.
   assert.equal((page.match(/boardVersion\.current = [^;]+; setCanvasVersion\(/g) || []).length, (page.match(/boardVersion\.current = /g) || []).length);
   assert.match(page, /verdict = parseVerdict\(text\);\n\s+setGraded\(count => count \+ 1\);/);
-  assert.match(page, /if \(parsed && \['deeper', 'simplify', 'ask', 'teach'\]\.includes\(parsed\.name\)\) tutor\.slash\(parsed\.name, text\.trim\(\)\);/);
+  // Owner, 2026-10-20: /deeper, /simplify, /ask and /teach are removed commands; no typed line reaches tutor.slash any more.
+  assert.doesNotMatch(page, /tutor\.slash\(/);
   assert.match(page, /onExchange=\{onExchange\} tutor=\{tutor\.active \? tutor : null\} scope=\{askScope\}/);
   assert.match(page, /previous\.attempts === next\.attempts/, 'an attempt reaches the page state, so the basis sees it');
   assert.match(page, /previous\.semanticFingerprint === next\.semanticFingerprint/, 'a change of meaning reaches the page state, so the basis sees it');

@@ -18,11 +18,13 @@ const KIND = Symbol('usage attempt kind');
 // One string per entry point (the design's list). Keep it here, the only list.
 export const FEATURES = ['ask', 'auto', 'tutor', 'tutor_evaluate', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'journey', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
-  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy'];
+  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
 
 // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.
-const FREE_FEATURES = new Set(['assess', 'grade', 'tutor_evaluate']);
+// 'render' is a job on our own renderers (scene worker, Manim): the platform pays for its compute (owner 5A decision C,
+// 2026-10-21), so it is recorded apart from the learner's allowance, cost unknown, never 0. Authoring its source is not this.
+const FREE_FEATURES = new Set(['assess', 'grade', 'tutor_evaluate', 'render']);
 // Entry points a signed-out visitor may reach on a public link (owner D2.4): platform-funded, never the canvas owner.
 // Not shared Next Steps: no AI generation for signed-out viewers (owner R3 decision, 2026-10-16; the route answers 401).
 const PUBLIC_FEATURES = new Set(['shared_ask']);
@@ -338,6 +340,19 @@ export const HELD_SUM = "COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'un
 
 // GET /api/learn/usage's sums for one user and period. Settled cost is used; reservations (running) and unknown attempts are
 // reserved, never used; estimates are reported apart and are not in the balance. Throws on a read failure.
+// The same sums split by feature (Settings > AI usage, "This month by feature"), largest first; the parts add up to usageTotals.
+// Only features with a settled, reserved or unknown amount are listed. Throws on a read failure.
+export async function usageByFeature(db, userId, period) {
+  const { results } = await db.prepare(`SELECT a.feature,
+      ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
+      COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts
+    ${BALANCE_SCOPE}
+    GROUP BY a.feature`).bind(userId, period).all();
+  return (results || []).map(row => ({ feature: row.feature, usedMicros: Number(row.used || 0), reservedMicros: Number(row.reserved || 0), unknownAttempts: Number(row.unknown_attempts || 0) }))
+    .filter(row => row.usedMicros || row.reservedMicros || row.unknownAttempts)
+    .sort((a, b) => b.usedMicros - a.usedMicros || b.reservedMicros - a.reservedMicros || a.feature.localeCompare(b.feature));
+}
+
 export async function usageTotals(db, userId, period) {
   const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
       COALESCE(SUM(CASE WHEN t.cost_state = 'estimated' THEN t.cost_micros END), 0) AS estimated,

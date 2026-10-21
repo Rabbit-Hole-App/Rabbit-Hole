@@ -19,6 +19,7 @@ const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) =
 const CreatorProfilePage = previewBuild ? lazy(() => import('./CreatorProfile.jsx')) : null;
 import Shell, { storedSidebar } from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
+import { applyUiPrefs } from './ui-prefs.js';
 import { ExpandedPageFrame, Toasts } from './ui.jsx';
 import { isPrivateByoc } from './private-auth.js';
 import PrivateAuthGate from './PrivateAuthGate.jsx';
@@ -34,6 +35,7 @@ import { installAiRefusalHook } from './ai-refusal.js';
 installAiRefusalHook();
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
+applyUiPrefs(); // text size and reduced motion (Settings > Appearance & input), also before first paint
 // The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v3: the same
 // aperture centred and 1.2x larger, so it fills the tab, on a tile rounded to a quarter of its side (owner, 2026-10-08).
 if (learnPreview) {
@@ -149,7 +151,7 @@ function AppRoot() {
       {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
-      {AgentBar && <Suspense fallback={null}><AgentBar page={`${at.page}:${at.slug || ''}`} /></Suspense>}
+      {AgentBar && <Suspense fallback={null}><AgentBar /></Suspense>}
       <Toasts />
     </>
   );

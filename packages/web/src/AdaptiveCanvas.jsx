@@ -748,6 +748,8 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
                 read as a fact about the video. */}
             <span>{geometry.known ? clock(block.duration) : ''}</span>
           </div>
+          {/* Found, not made (owner, 2026-10-20): a YouTube moment says where it comes from. */}
+          <p data-media-provenance="sourced" className="mt-0.5 truncate text-[11px] text-ink-2">Sourced · YouTube{block.channel ? ` · ${block.channel}` : ''}</p>
           {/* A tutor-shown moment asks for a verdict. This is what turns the
               moment log into a gold set - and, later, the hot path. Latest
               press wins; the row updates server-side, the card remembers. */}
@@ -5174,7 +5176,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             </> : <p>Loading the document…</p>}
           </div>
         )}
-        <div ref={worldRef} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
+        <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
         {/* The document (docs/features/blocknote-canvas.md): a writing surface in world units BELOW every canvas object
             (blocknote-layers-minimap.md): the first child of the world layer with no z-index of its own, so cards, notes, shapes,
             connectors and their handles - all later in this layer - paint and take the pointer above it, whatever their own

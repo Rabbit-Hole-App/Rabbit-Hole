@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, redactRepositoryCards, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
+import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, canvasPictures, redactRepositoryCards, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -149,4 +149,27 @@ test('a repository code or graph card shows only Repository content in the pictu
   assert.deepEqual([code.children, graph.children], [['Repository content'], ['Repository content']]);
   assert.match(read('./CodeCard.jsx'), /data-code-card[\s>]/, 'the code card root carries the attribute');
   assert.match(read('./GraphCard.jsx'), /data-graph-card[\s>]/, 'the graph card root carries the attribute');
+});
+
+// 2026-10-21: html-to-image decoded each copied <canvas> itself, with no catch on img.decode(); a rejected decode of a paper
+// card's PDF page was an unhandled page error (slash-cleanup-check) and a capture that never settled. Each readable canvas
+// now reaches it as an <img> with a data URL, which it only clones.
+test('canvasPictures: a readable canvas becomes a picture of its laid-out size; an empty or unreadable one stays a canvas', () => {
+  const copied = attrs => ({ attributes: attrs, replaced: null, replaceWith(node) { this.replaced = node; } });
+  const pdf = copied([{ name: 'class', value: 'block w-full' }, { name: 'width', value: '918' }, { name: 'height', value: '1188' }]);
+  const empty = copied([]), tainted = copied([]);
+  const live = [
+    { toDataURL: () => 'data:image/png;base64,iVBORw0KGgo', offsetWidth: 612, offsetHeight: 792 },
+    { toDataURL: () => 'data:,', offsetWidth: 0, offsetHeight: 0 },
+    { toDataURL: () => { throw Error('SecurityError: the canvas has been tainted'); }, offsetWidth: 40, offsetHeight: 40 },
+  ];
+  const doc = { createElement: tag => ({ tag, attrs: {}, style: {}, setAttribute(name, value) { this.attrs[name] = value; } }) };
+  canvasPictures({ querySelectorAll: () => [pdf, empty, tainted] }, { querySelectorAll: () => live }, doc);
+  assert.equal(pdf.replaced.tag, 'img');
+  assert.equal(pdf.replaced.src, 'data:image/png;base64,iVBORw0KGgo', 'a data URL, which html-to-image never decodes itself');
+  assert.deepEqual(pdf.replaced.attrs, { class: 'block w-full', width: '918', height: '1188' });
+  assert.deepEqual(pdf.replaced.style, { width: '612px', height: '792px', maxWidth: 'none' }, 'the size the canvas was drawn at, not its pixels');
+  assert.equal(empty.replaced, null, 'an empty canvas stays as it is');
+  assert.equal(tainted.replaced, null, 'a canvas whose pixels cannot be read stays blank');
+  assert.match(read('./card-thumbnail.js'), /const copy = node\.cloneNode\(true\);\n\s+canvasPictures\(copy, node\);/, 'drawThumbnail uses it before html-to-image');
 });

@@ -38,9 +38,9 @@ the registry.
 
 | Status | Primitives |
 |---|---|
-| Ready | explanation, table, flashcards, quiz, challenge, explain_back, code_sample, flow_diagram, mermaid_diagram, walkthrough, interactive_graph, data_plot |
+| Ready | explanation, table, flashcards, quiz, challenge, explain_back, code_sample, flow_diagram, mermaid_diagram, walkthrough, interactive_graph, data_plot, animation (/explain only) |
 | Ready, paid (proposal only) | video_generate, maths_animation, blender_scene |
-| Not generated (explicit message, no substitution) | code_exercise, narration, knowledge_graph, animation, reference_attention, 3d_model, image_generate |
+| Not generated (explicit message, no substitution) | code_exercise, narration, knowledge_graph, reference_attention, 3d_model, image_generate |
 | Direct tools, no model | notebook, whiteboard, paper, image (search), video (existing clip) |
 
 A generated code sample carries no output line: nobody ran it, so any output
@@ -159,15 +159,27 @@ composer.
   sigmoid and tanh.
 - Paid media never shows Generate in the sheet and never calls a model or
   provider. It shows committed files:
-  - `/animate` plays `public/landing/softmax-overview-v1.mp4` in the real Maths
-    animation card;
-  - `/motion` (development builds only, `VITE_MOTION_DEV`) plays the same
-    clip, which is the landing page's /motion explainer, as a finished
-    `/motion 25s explain softmax` (25 s, "Motion explainer"; no renderer or
-    sources claimed);
-  - `/video` and `/3d` have no committed finished file, so they show a labelled
-    picture of the finished card (`public/lesson-assets/slash-video-prism.svg`,
-    `slash-3d-frustum.svg`).
+  - `/motion` (development and review builds; /animate was removed on
+    2026-10-20) plays a real Motion video: the committed final.mp4 of the
+    verified job 8a2015a4 (`public/lesson-assets/motion-softmax-8a2015a4.mp4`),
+    made from `/motion 15s explain me softmax func`, with that job's title,
+    duration, renderer (Remotion) and sources. It plays from a blob URL so it
+    seeks: static assets are served without byte ranges. See
+    rabbit-hole-commands.md, "/motion replaces /animate";
+  - `/3d` shows the real scene card ready, in the canvas's own 3D viewer
+    (LearningBlocks ThreeDBody), on `public/lesson-assets/slash-3d-frustum.glb`:
+    the scene card's own sample (a camera frustum, its frame, a cube and a ray,
+    with the 3 s sweep) built offline by `scripts/make-slash-3d-glb.mjs`
+    (deterministic; slash-sheet.test.mjs rebuilds and compares it). Its e.g.
+    line and the card's brief name what that model draws (a camera frustum, a
+    cube and a ray; perspective projection), never another subject. The model
+    shows at once; Interact and Fit view sit in the toolbar above the card's
+    top right (CadViewerTools), orbit and zoom wait for Interact so the wheel
+    scrolls the window until then, and Esc ends the interaction without
+    closing the window. It loads with a loading line and, if the file cannot
+    load, shows the viewer's own failure and Retry model, never a picture.
+  - `/video` has no committed finished file, so it shows a labelled picture of
+    the finished card (`public/lesson-assets/slash-video-prism.svg`).
   `/video` and `/3d` keep their prism and camera-frustum subjects: generated
   footage and 3D scenes need a physical or spatial subject, which the thread's
   maths does not have.
@@ -267,7 +279,7 @@ serve as examples of a schema, but none of them becomes a tool of its own.
 | image (search), video (existing clip) | ✅ direct | /image, and a found clip | their cards | done |
 | code_exercise | ⬜ missing | /code, /practice | CodeBody (setup, starter, checks, hint) | highest priority after the freeze; needs its grading contract (below) |
 | knowledge_graph | ⬜ missing | /graph | KnowledgeBody | candidate after the freeze: the learning concept graph only, never the Project Map |
-| animation (generic) | ⬜ missing | /animate, /compare | AnimatedScene (scene JSON) | wait: the card agent is still evolving this format (NC cards) |
+| animation (generic) | ✅ generated (L10, 2026-10-21) | /explain only, and the Tutor's create_material explain | AnimatedScene (the frozen scene JSON) | see Interactive explanations below |
 | narration | ⬜ missing | /explain | AudioBody (text, then paid TTS on Generate) | candidate after the freeze: generating the text is free; the audio is a separate paid action |
 | vector_explorer | ⬜ not in any family | none | vector card | goes under an existing family (/graph, or /diagram) chosen from its contract at handoff; never a new /vector |
 | image_generate | ⬜ missing | /image | ImageBody generate mode | later, an explicit subtype: /image searches by default; "/image generate …" makes one behind the paid confirmation. Not permanently dev-only; no change now |
@@ -303,6 +315,52 @@ After that, future instances need no per-card review.
 **Deferred: Visual Summary / Concept Map** (`visual_summary`, modes `summary` / `concept_map`, under `/diagram`). Future, not implemented; spec in docs/features/learn-visual-summary.md (on feat/canvas-block-conversations until merge). Do not add it to learn-primitives.js, slash.js, BLOCK_TYPES or Tutor tools yet.
 
 **Video / Motion Generation** (code-driven, source-grounded motion explainers; intuition-first teaching videos). The Motion V1 development harness is authorized by docs/features/rabbit-hole-motion-v1-harness-spec.md, development environment only. Long-term direction: docs/features/learn-video-motion-generation.md. It is not the existing paid `video_generate` primitive. Production `/motion`, production paid rendering, Tutor routing and broad rollout remain deferred.
+
+## Interactive explanations (L10, owner 2026-10-21)
+
+`/explain` makes an interactive visual in the authored cards' frozen scene format when controls, calculations or motion
+help the idea, and a text explanation otherwise. The Tutor reaches the same capability through `create_material
+{ command: 'explain', request }`; there is no second generator, renderer or scene format.
+
+- **Registry.** `learn-primitives.js` `animation`: the model fills `{ title, calculation, scene }`. The block is
+  `nanogpt/board.js` `cardBlock()`'s shape (`type: 'animation'`, shown at its end state), drawn by `AnimatedScene`.
+- **Contract.** `agents/learn-scene-author.js` `SCENE_AUTHORING`, appended to the `make_animation` tool description
+  (server-only). It tells the model the frozen vocabulary (object types, inputs, derive ops, timeline) with one example
+  that `test/learn-scene-author.test.js` runs through the gates.
+- **Gates.** `learn-scene-gates.js` runs the existing validators: `evaluateScene` at the defaults and with each control
+  moved through its values, then `checkSceneConsistency`, `checkLayoutLint`, the cell and type legibility floors, and no
+  images. The first problem goes to the model as the one existing repair. A scene that still fails is a
+  `validation_error`, never a card.
+- **What the card says about its own numbers** (after two of ten real scenes had wrong stored content, 2026-10-21). At
+  every checked setting, a written calculation in shown text (`70 - 80 = 0`, `31 < 37`) must hold, and a sentence whose
+  number follows a drawn data object's count of non-zero entries at most settings of a control must follow it at all of
+  them; an index range a changing sentence states (`Range 4..6`) must be that object's non-zero span or a block of zeros,
+  once at some setting a range it states was that span. The wrong real scenes (both original cards and the binary-search
+  rerun) are kept as fixtures (`control-plane/test/fixtures/explain-wrong/`) and stay refused.
+  These rules prove only what they read: a stored number the card never restates, or a sentence naming a table value in
+  words ("equilibrium at $5"), is left to the verifier pass.
+- **Verifier pass** (owner, 2026-10-21). A scene that passes the gates is read back by a second call
+  (`agents/learn-scene-verify.js`; the same model, through spend admission, recorded as an `evaluation` attempt) with the
+  card as the learner meets it at every checked setting (`learn-scene-gates.js` `cardAtSettings`). It lists each
+  statement it examined with exact quotes from the card (`says`, `against`), its finding, then a status (`false` or
+  `correct`). The server (`falseItems`) keeps only items marked false whose quotes are on the card, and drops a wrong
+  number whose true value printed at the shown number's places is the shown number (display precision). A kept item goes
+  to the one repair; a scene still reported is a `validation_error`, never a card. When the check cannot run (a model
+  error, a spend refusal), nothing is added and nothing is repaired. Cost: one more call per scene (about $0.03-0.06),
+  two after a repair. `LEARN_SCENE_VERIFIER=off` turns it off.
+  **Measured** (real model, 2026-10-21, 12 stored cards reviewed by hand): 4/4 wrong cards refused with the right reason,
+  0/8 correct cards refused, after two tuning rounds (the first version refused 7/8 correct cards: it listed statements it
+  had found correct). Unit tests (the supply-demand rerun as a fixture) prove the wiring only; the verifier is a model and
+  can still miss a subtle error or flag a correct card (C:/s/spec/day-1021/uiexplain-report.md).
+- **Choice.** The model chooses between scene and text (`ARTIFACT_SYSTEM`). Words narrow it (`agent/slash.js`
+  `PLAIN_WORDS`, `INTERACTIVE_WORDS`): an interactive request is offered only the scene, so it never silently becomes
+  text. A failed one keeps the line to retry and offers "Make a plain explanation instead" (`/explain in plain text: ...`).
+- **Calculations.** `calculation: 'live'` means every shown number is derived from the inputs. `'precomputed'` means the
+  controls select stored results; the server then adds the fixed note "Precomputed samples: each setting shows a stored
+  result, not a live calculation." The engine stays frozen: there are no new derive ops.
+- **Cost.** 16,000 output tokens for this primitive only (`maxTokens`); the other primitives keep 4,000. Every call goes
+  through `planModel` and `spendTransport`, the central admission.
+- **Scope.** Not in `/animate`'s or the Tutor's `compare` family.
 
 ## Adding a primitive (handoff contract, owner-approved 2026-09-29)
 
@@ -356,6 +414,12 @@ The long-term direction is in
 This section keeps the shared artifact policy for `/motion`. It does not
 duplicate the V1 implementation; where an implementation detail here
 conflicts with the V1 spec, the V1 spec wins for V1.
+
+Command availability (owner, 2026-10-20): /motion is the explainer-video command in
+development and review builds (dev clones, local stacks, the Motion stack); it
+replaced /animate. Generate runs only where the Motion orchestrator is configured
+(the local Motion stack); anywhere else the worker refuses the start and the card
+says so. See rabbit-hole-commands.md, "/motion replaces /animate".
 
 Still deferred:
 - public production `/motion`

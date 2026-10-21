@@ -1,13 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CAPABILITIES, inlineRouteTool } from './inline-ai-decide.js';
-import { EXPLICIT_ROUTES, planRoute } from './inline-ai-route.js';
+import { EXPLICIT_ROUTES, decideRoute, planRoute } from './inline-ai-route.js';
 import { INLINE_TOOLS } from './inline-tool-capabilities.js';
 import { inlineProvenance } from './inline-ai-apply.js';
 
 test('existing Explain routes resolve registered tools without changing route choice', () => {
   assert.equal(inlineRouteTool('compare'), 'compare_selection');
-  assert.deepEqual(planRoute({ mode: 'explain', prompt: '/compare these snippets', enabled: ['compare'] }), { route: 'compare', via: 'command', args: 'these snippets' });
+  // Owner, 2026-10-20: /compare is no longer a typed command; comparing in plain words still reaches the compare route (JEV).
+  assert.match(planRoute({ mode: 'explain', prompt: '/compare these snippets', enabled: ['compare'] }).clarify.question, /^\/compare is no longer available/);
+  assert.deepEqual(planRoute({ mode: 'explain', prompt: 'compare these snippets side by side', enabled: ['compare'] }), { classify: true });
+  assert.deepEqual(decideRoute({ choice: 'compare', confidence: 0.9, probability: 0.9, ranked: ['compare', 'note'] }, { enabled: ['note', 'compare'] }), { route: 'compare', via: 'jev' });
   for (const [route, descriptor] of Object.entries({ ...CAPABILITIES, ...EXPLICIT_ROUTES })) {
     if (descriptor.tool) assert.ok(INLINE_TOOLS[inlineRouteTool(route)]);
   }

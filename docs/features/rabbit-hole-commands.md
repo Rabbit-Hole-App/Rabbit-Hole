@@ -15,14 +15,96 @@ a second command list.
 
 smart-home does not edit `ask.jsx` or `LearnPage.jsx`.
 
+## Slash-command cleanup (owner, 2026-10-20)
+
+Binding owner requests of 2026-10-20 (the L7 lane, branch `ui/slash-cleanup`). They replace the older rows below where they
+disagree; the Commands table keeps its history for the retained commands.
+
+**Removed (17):** /walkthrough, /do, /find, /open, /connect, /run, /new, /research, /more, /ask, /teach, /deeper, /simplify,
+/example, /compare, /source, /paper (`REMOVED_COMMANDS`). None is in a picker, the autocomplete, the Slash commands window, an
+example or a typed dispatch on any surface. Typed, each says `/<name> is no longer available. Type / to see the commands, or
+ask in your own words.` (`unavailableCommand`; on the Home, Library and Project bar, where / lists nothing, `... Ask in your own
+words.`) and runs nothing. Ordinary words still ask, compare, simplify, give examples
+and explore; saved conversations and cards made by a removed command still open.
+
+**Retained, per surface:**
+
+| Surface | Commands |
+|---|---|
+| Chat (`learn`, `chat`) | /dive /practice /quiz /explain /flashcards /code /graph /diagram /whiteboard /image /video /cad /3d /notebook /youtube /arxiv /wikipedia; /motion in a development or review build (below); /generate-image only while image generation is on |
+| Ctrl+K (`ctrlk`) | /explain /flashcards /code /graph /diagram /image /video /cad /3d /youtube /arxiv /wikipedia; /motion in a development or review build; /generate-image only while image generation is on |
+| Insert menu (`insert`) | /youtube /arxiv /wikipedia |
+| Home, Library, Project bar (`home`, `project`) | none: the bar takes plain words (`router.js`), and has no Auto picker, mode pill or / commands sheet |
+
+**Two labels, never a `/name`:** `desc` is the menu label (the picker row), `label` the short pill label; a command with no
+short label shows its menu label in the pill (`labelOf`). /explain: menu and pill "Add explanation"; /dive: "Open Rabbit
+Hole"; /3d: menu "Add 3D scene", pill "3D"; /image "Search images"; /generate-image "Generate image"; /video "Generate
+video"; /youtube "Search YouTube". `about` is the Slash commands window's sentence: whether the command creates a card,
+opens a Rabbit Hole or searches, and what it needs selected.
+
+**Media:** search and generation are separate commands. /image only searches photos (family `image`) and its card says
+"Sourced · Photo by … on Pexels"; /generate-image only generates (family `image_generate`, paid, confirms first) and is
+hidden and refused while `IMAGE_GENERATION` is off, which follows `isReady('image_generate')` (false: this cleanup does
+not enable paid images); /video only generates (family `video_generate`, paid, confirms first) and its card says
+"AI-generated video, not real footage."; /youtube only searches, and its moment card says "Sourced · YouTube".
+
+**The Tutor's material tools** (`MATERIAL_TOOLS`: compare, walkthrough) are no longer typed commands but stay internal: the
+Tutor's `create_material` (`materialCommands`, `runMaterials` with `internal: true`), journey steps (`make.command`,
+`/api/learn/artifact`), and Ctrl+K's automatic routing from plain words still make comparison tables and walkthroughs.
+/practice keeps challenges and explain-backs. `commandsFor(place, { internal: true })` and `resolveCommand(text, surface, {
+internal: true })` reach them; nothing a learner types does.
+
+**Removed dispatch paths and their replacements:**
+
+| Removed path | Replacement |
+|---|---|
+| Bar `router.js` rule 1 (`/ask`, `/teach`, `/research`, `/do` to a mode) | Unknown-command note (`unavailableCommand`). Plain words: a learning request ("teach me …") still routes as teach; a question asks |
+| Bar `router.js` rule 1b (`/find`, `/open`, `/new`, `/connect`, `/run`) | Unknown-command note. Their sentences still run: "find nanoGPT", "open my last project", "new canvas", "connect karpathy/minGPT", "run s3-log" |
+| Bar Auto picker, mode and shortcut pills, `BarCommandsSheet.jsx` | Removed: the bar has no commands left |
+| Chat `LearnPage.jsx` `tutor.slash(...)` for /deeper /simplify /ask /teach | Unavailable notice; the same words without the slash are an ordinary Tutor turn. The Tutor's slash row (`learn-tutor.js` `SLASHES`, `fixedSlash`, `MODE_SLASHES`; worker `EXPLICIT_MODE`) has no UI caller and is left for the Tutor owners to remove |
+| Chat /deeper /simplify /example (`{ prompt }` to the Learn ask) | Unavailable notice; ask in words |
+| Chat /more (`open_tool_catalog`) | The picker's More learning tools section and the Slash commands window list every command |
+| Chat /source (`open_sources`) | The card's Sources & evidence disclosure and its context menu |
+| Chat /paper (`insert_paper`) | /arxiv (topic, ID or link) and the arXiv finder; existing paper cards and PDFs are unchanged |
+| Chat /compare, /walkthrough | Plain words to the Tutor; the Tutor's material tools (above) |
+| Ctrl+K `NOTE_COMMANDS` (/simplify /example /deeper as the note path) and the worker's `PROMPT_ROOM` | Unavailable (`planRoute`, `fixedRoute`); plain words ("explain it more simply") take the note path or JEV routing |
+| Ctrl+K typed /walkthrough, /compare | Unavailable; JEV still routes plain words to the walkthrough and compare routes |
+
+## /motion replaces /animate (owner, 2026-10-20, lane L8)
+
+**/motion** is the command for the Motion explainer-video pipeline: the existing `motion_request` operation, which the Motion
+orchestrator plans, reviews and renders (rabbit-hole-motion-v1-harness-spec.md). Menu line "Create an animated explainer
+video", pill "Motion", Create menu in /animate's place, Slash commands window "AI-generated", e.g. `/motion 15s explain me
+softmax func`. The proposal makes no request; Generate inserts the video card already confirmed; LearnVideos keeps the paid
+gate (`confirmed`), one generating job at a time and the saved-video limit; the orchestrator keeps its call cap and budget.
+
+**Where it is offered:** a development or review build (`VITE_COACHING_DEV`: the isolated dev clones, local stacks) and the
+local Motion stack's build (`VITE_MOTION_DEV`) (`MOTION_DEV` in agent/slash.js). The production build sets neither
+(`scripts/prod-release.mjs` strips both), so production and preview have no /motion; typed there it says "Motion (animated
+explainer videos) is not available here." and runs nothing. Generate also needs `MOTION_ORCHESTRATOR_URL` and
+`MOTION_ORCHESTRATOR_TOKEN` on the worker; only the local Motion stack sets them. Elsewhere the worker refuses the start
+before any provider call: the card says "Motion is not available in this environment yet. Nothing was started." and stays
+retryable, and nothing is recorded or stored.
+
+**/animate** is removed from every user surface (`REMOVED_COMMANDS`: picker, window, examples, typed lines) and from new
+chat-answer suggestions (`chat-answer-meta.js` no longer offers `animate`). It stays a Tutor material tool
+(`MATERIAL_TOOLS`), so create_material, journey steps and Ctrl+K automatic routing still make animations, and saved
+animation, maths-animation and video cards keep their renderers.
+
+**The window's example** is a real Motion video: the final.mp4 of the verified job 8a2015a4 (M7B production-exact API smoke),
+committed at `packages/web/public/lesson-assets/motion-softmax-8a2015a4.mp4` (sha256 `6af0b4b2…437c46`), with that job's
+request, title, duration, renderer and sources. Static assets are served without byte ranges, so the window plays it from
+a blob URL, which seeks; opening the window fetches only that file.
+
 ## Places
 
 - `home`: Home, Library, Explore (workspace scope).
 - `project`: the Project hub and its Map.
 - `learn`: the Learn composer (the canvas Chat; `commandsFor('chat')` is the same list).
-- `ctrlk`: the canvas's inline Ctrl+K editor (Release B, owner 2026-10-16): exactly /explain /code /graph /diagram
-  /walkthrough /animate /flashcards /image /video /3d /motion /youtube /arxiv /wikipedia. Anything else typed there is
-  reported as unavailable in Ctrl+K and sends nothing.
+- `ctrlk`: the canvas's inline Ctrl+K editor (Release B, owner 2026-10-16; /walkthrough removed 2026-10-20): exactly
+  /explain /code /graph /diagram /flashcards /image /video /cad /3d /motion /youtube /arxiv /wikipedia (/animate removed the same day,
+  /motion in development and review builds). Anything
+  else typed there is reported as unavailable in Ctrl+K and sends nothing.
 - `insert`: the canvas Insert menu's source searches (/youtube /arxiv /wikipedia).
 
 Each command also has a `kind` (`generate`, `source`, `prompt`, `dialog`), an optional `label` (its name in words, as
@@ -69,7 +151,7 @@ canonical here; the Learn branch maps them to block types.
 | /graph | interactive_graph, data_plot, knowledge_graph |
 | /diagram | flow_diagram, mermaid_diagram |
 | /walkthrough | walkthrough |
-| /animate | animation, reference_attention, maths_animation (paid) |
+| /animate | animation, reference_attention, maths_animation (paid); a Tutor material tool since 2026-10-20, no longer typed |
 | /whiteboard | whiteboard (deterministic) |
 | /paper | paper (deterministic) |
 | /image | image, image_generate (paid) |

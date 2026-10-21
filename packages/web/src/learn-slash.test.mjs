@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardsFor, commandLine, holdsLine, materialCommands, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
-import { commandsFor } from './agent/slash.js';
+import { cardsFor, commandLine, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { commandsFor, learnRequest } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -16,44 +16,57 @@ const harness = reply => {
   return { did, run: (text, target) => runLearnCommand(text, { app: 'demo', target, canvas, post, openSearch }) };
 };
 
-test('/ opens the grouped picker: LEARN, then CREATE, in the contract order', () => {
+test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other command under More learning tools', () => {
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search', 'More learning tools']);
-  assert.deepEqual(sections[0].items.map(item => item.name), ['deeper', 'dive', 'simplify', 'example', 'practice', 'quiz', 'compare']);
-  // /more is how to reach the rest, not a tool: it is the collapsible section, never a row.
-  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook']);
-  // Release B (owner 4A and A4, 2026-10-16): the three source searches; /arxiv is the one listed paper search, /paper typed only.
-  assert.deepEqual(sections[2].items, [{ name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
+  assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz']);
+  assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook']);
+  // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
+  assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);
+  assert.deepEqual(pickerSections('/anim', { motionDev: true }), [], '/animate is not offered');
+  // Owner, 2026-10-20: /image searches, so it leads the searches; /arxiv is the one paper search.
+  assert.deepEqual(sections[2].items, [{ name: 'image', desc: 'Search images' }, { name: 'youtube', desc: 'Search YouTube' }, { name: 'arxiv', desc: 'Search arXiv' }, { name: 'wikipedia', desc: 'Search Wikipedia' }]);
+  // With /more gone, the rest stay one list away (owner, 2026-10-20).
   assert.equal(sections[3].collapsible, true);
-  assert.ok(sections[3].items.some(item => item.name === 'walkthrough'));
-  assert.ok(sections.flatMap(section => section.items).every(item => item.name !== 'paper'));
+  assert.deepEqual(sections[3].items.map(item => item.name), ['whiteboard', 'video', 'cad', '3d']);
+  for (const name of ['paper', 'more', 'walkthrough', 'compare', 'source', 'deeper', 'simplify', 'example', 'ask', 'teach', 'animate']) {
+    assert.ok(sections.flatMap(section => section.items).every(item => item.name !== name), name);
+  }
   assert.deepEqual(pickerSections('/pa'), []);
-  assert.ok(sections.flatMap(section => section.items).every(item => item.name !== 'more'));
-  assert.equal(sections[0].items[0].desc, 'Go deeper');
+  assert.deepEqual(pickerSections('/wa'), []);
+  assert.equal(sections[0].items[0].desc, 'Open Rabbit Hole');
+  assert.equal(sections[1].items[0].desc, 'Add explanation');
   assert.deepEqual(pickerSections('/gr')[0].items.map(item => item.name), ['graph']);
-  assert.ok(pickerSections('/', { catalog: true })[0].items.some(item => item.name === 'walkthrough'));
   assert.equal(pickerSections('/graph sigmoid'), null);
   assert.equal(pickerSections('hello'), null);
   assert.deepEqual(parseSlash('/Graph  training loss '), { name: 'graph', args: 'training loss' });
 });
 
-test('/notebook, /whiteboard and /paper <id> insert directly, with no model call', async () => {
+test('/notebook and /whiteboard insert directly, with no model call', async () => {
   const { did, run } = harness();
   await run('/notebook');
   await run('/whiteboard forces');
-  await run('/paper 1706.03762');
-  await run('/paper https://arxiv.org/abs/2005.14165');
-  assert.deepEqual(did.map(entry => entry[0]), ['notebook', 'block', 'paper', 'paper']);
+  assert.deepEqual(did.map(entry => entry[0]), ['notebook', 'block']);
   assert.equal(did[1][1].type, 'whiteboard');
-  assert.deepEqual(did[2][1], { id: '1706.03762' });
   assert.ok(!did.some(entry => entry[0] === 'post'));
 });
 
-test('/paper <topic> researches first: arXiv search opens and the learner picks', async () => {
-  const { did, run } = harness();
-  const out = await run('/paper attention mechanisms');
-  assert.deepEqual(did, [['search', { source: 'arxiv', query: 'attention mechanisms' }]]);
-  assert.match(out.notice.text, /pick the paper/);
+// Owner, 2026-10-20: 17 commands removed. Typed in Chat, each says it is unavailable and runs nothing: no post, no card, no
+// search, no paper, no Rabbit Hole, no catalog, no prompt for the Tutor.
+test('a removed command typed in Chat says it is unavailable and runs nothing', async () => {
+  const { REMOVED_COMMANDS } = await import('./agent/slash.js');
+  for (const name of REMOVED_COMMANDS) {
+    const did = [];
+    const canvas = { insertNotebook: () => did.push('notebook'), insertBlock: () => did.push('block'), insertPaper: () => did.push('paper'), reserve: () => did.push('reserve'), dive: () => did.push('dive'), openSources: () => did.push('sources'), startCad: () => did.push('cad') };
+    const out = await runLearnCommand(`/${name} the sigmoid`, { app: 'demo', canvas, post: async () => did.push('post'), openSearch: () => did.push('search') });
+    assert.deepEqual(out, { notice: { tone: 'error', text: `/${name} is no longer available. Type / to see the commands, or ask in your own words.` } }, name);
+    assert.deepEqual(did, [], name);
+  }
+  // /generate-image while image generation is off: refused the same way, never turned into a photo search.
+  const did = [];
+  const out = await runLearnCommand('/generate-image a watercolor mountain landscape', { app: 'demo', canvas: { insertBlock: () => did.push('block') }, post: async () => did.push('post'), openSearch: () => did.push('search') });
+  assert.match(out.notice.text, /Image generation is not available here/);
+  assert.deepEqual(did, []);
 });
 
 test('family commands go to the artifact endpoint with the command only, never a primitive list', async () => {
@@ -77,15 +90,36 @@ test('a paid result waits for Generate; a question, an unsupported primitive or 
     [{ result: 'validation_error', error: 'Rejected make_video_generate' }, 'error'],
   ]) {
     const { did, run } = harness(reply);
-    const out = await run('/compare these');
+    const out = await run('/diagram these');
     assert.equal(out.notice.tone, tone);
     assert.ok(!did.some(entry => entry[0] === 'block'));
   }
 });
 
-test('Auto commands go through the existing Learn ask as a prompt; unknown ones say so', async () => {
+// L10 (owner, 2026-10-21): a failed interactive explanation inserts nothing and never turns into text by itself; it gives the
+// line back to retry and offers a plain explanation, whose line narrows /explain to text. A made one names itself.
+test('/explain: a made interactive explanation is inserted; a failed one keeps the line and offers a plain explanation', async () => {
+  const made = harness({ result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } });
+  const out = await made.run('/explain interactive binary search');
+  assert.equal(out.notice.text, 'Added an interactive explanation.');
+  assert.equal(made.did.find(entry => entry[0] === 'block')[1].type, 'animation');
+  const failed = harness({ result: 'validation_error', primitive: 'animation', error: 'grid "g" carries values and must declare matrixKind' });
+  const notice = await failed.run('/explain interactive binary search');
+  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
+  assert.equal(notice.notice.tone, 'error');
+  assert.equal(notice.keep, '/explain interactive binary search');
+  assert.match(notice.notice.detail, /matrixKind/);
+  // A verifier refusal shows its first finding, without the numbering.
+  const checked = harness({ result: 'validation_error', primitive: 'animation', error: 'A check of the card found statements that are false: 1) "readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly. 2) "other" says "x": y' });
+  assert.equal((await checked.run('/explain interactive half-life')).notice.detail, '"readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly.');
+  assert.deepEqual(notice.notice.actions, [{ label: 'Make a plain explanation instead', line: '/explain in plain text: interactive binary search' }]);
+  const plain = harness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'B', body: 'b' } });
+  await plain.run(notice.notice.actions[0].line);
+  assert.equal(plain.did.find(entry => entry[0] === 'post')[2].args, 'in plain text: interactive binary search');
+});
+
+test('an unknown command says so', async () => {
   const { did, run } = harness();
-  assert.deepEqual(await run('/deeper'), { prompt: 'Go one level deeper on the current concept.' });
   assert.match((await run('/frobnicate')).notice.text, /not a Learn command/);
   assert.equal(did.length, 0);
 });
@@ -104,6 +138,9 @@ test('the sheet previews the cards each command can make; chat commands make non
   assert.deepEqual(cardsFor('practice').map(entry => entry.card), ['challenge', 'explainBack', 'quiz']);
   assert.deepEqual(cardsFor('notebook').map(entry => entry.card), ['notebook']);
   assert.deepEqual(cardsFor('deeper'), []);
+  // The Tutor's material tools still make their cards (owner, 2026-10-20).
+  assert.deepEqual(cardsFor('compare').map(entry => entry.card), ['table', 'graph', 'plot', 'flow', 'mermaid']);
+  assert.deepEqual(cardsFor('walkthrough').map(entry => entry.card), ['walkthrough']);
   // /video only proposes a generated clip; /image inserts a searched photo.
   assert.deepEqual(cardsFor('video').map(entry => entry.card), ['videoGenerate']);
   assert.deepEqual(cardsFor('image').map(entry => entry.card), ['image']);
@@ -112,9 +149,12 @@ test('the sheet previews the cards each command can make; chat commands make non
 test('every example runs as typed: it names its own command and never hits an unavailable primitive', async () => {
   const { EXAMPLES } = await import('./learn-slash.js');
   const { artifactPlan } = await import('../../control-plane/src/learn-artifact.js');
+  const { IMAGE_GENERATION } = await import('./agent/slash.js');
   for (const [name, text] of Object.entries(EXAMPLES)) {
     const parsed = parseSlash(text);
     assert.equal(parsed.name, name, text);
+    // /generate-image is advertised only while image generation is on (it is off: agent/slash.js IMAGE_GENERATION).
+    if (name === 'generate-image' && !IMAGE_GENERATION) continue;
     // /image never reaches the planner: runLearnCommand runs it as a photo search.
     if (name === 'cad') {
       let request;
@@ -158,7 +198,7 @@ test('a question, a proposal, an unsupported or invalid result, a failure or a t
     { result: 'validation_error', error: 'Rejected' },
   ]) {
     const { did, run } = slotHarness(reply);
-    await run('/compare these');
+    await run('/diagram these');
     assert.deepEqual(did.map(entry => entry[0]), ['reserve', 'post', 'release'], reply.result);
     assert.equal(did[2][1], 'slot:1');
   }
@@ -172,7 +212,7 @@ test('a question, a proposal, an unsupported or invalid result, a failure or a t
 });
 
 test('commands that make no card, or make one at once, reserve nothing', async () => {
-  for (const text of ['/notebook', '/whiteboard', '/paper 1706.03762', '/image a prism', '/deeper', '/dive', '/source', '/ask what is wte?']) {
+  for (const text of ['/notebook', '/whiteboard', '/image a prism', '/dive', '/deeper', '/source', '/paper 1706.03762', '/ask what is wte?']) {
     const did = [];
     const canvas = { reserve: () => did.push('reserve'), insertNotebook: () => {}, insertBlock: () => {}, insertPaper: () => {}, dive: () => ({}) };
     await runLearnCommand(text, { app: 'demo', canvas, post: async () => ({}), openSearch: () => {} });
@@ -184,24 +224,25 @@ test('commands that make no card, or make one at once, reserve nothing', async (
 // once the learner confirms Generate; Cancel never shows one.
 test('a paid command holds no place until Generate; Generate holds it and the confirmed card takes it', async () => {
   const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.' };
-  for (const command of ['/animate why the sigmoid saturates', '/video light through a prism', '/3d a camera frustum']) {
+  for (const command of ['/video light through a prism', '/3d a camera frustum']) {
     const { did, run } = slotHarness(proposal);
     const out = await run(command);
     assert.deepEqual(did.map(entry => entry[0]), ['post'], `${command}: the proposal only, no skeleton`);
     assert.equal(out.proposal.message, 'This uses paid generation.');
   }
   const { did, run } = slotHarness(proposal);
-  const out = await run('/animate why the sigmoid saturates');
+  const out = await run('/video light through a prism');
   // Cancel: the composer drops the proposal and nothing reaches the canvas.
   assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
   out.proposal.generate();
-  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /animate…', card: 'mathAnimation', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video…', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
-// M7A: /motion exists only in a development build (VITE_MOTION_DEV) and costs nothing until Generate.
-test('/motion: development builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
+// /motion exists only in a development or review build (agent/slash.js MOTION_DEV) and costs nothing until Generate.
+test('/motion: development and review builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
   const off = harness({});
-  assert.match((await off.run('/motion 15s explain me softmax func')).notice.text, /not a Learn command/);
+  // A build without Motion (production) says so and runs nothing.
+  assert.deepEqual((await off.run('/motion 15s explain me softmax func')).notice, { tone: 'error', text: MOTION_OFF });
   assert.ok(!(pickerSections('/mo') || []).flatMap(section => section.items).some(item => item.name === 'motion'), 'no /motion in the picker of a normal build');
   const did = [];
   const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive') };
@@ -230,6 +271,34 @@ test('materialCommands: the Learn commands that can make a card now, from the re
   assert.ok(list.length > 0);
   for (const m of list) { assert.deepEqual(m.cards, cardsFor(m.command).map(c => c.card)); assert.equal(typeof m.paid, 'boolean'); }
   for (const name of ['paper', 'dive', 'source', 'more']) assert.equal(list.some(m => m.command === name), false, name);
+  // Owner, 2026-10-20: separate the user's commands from the Tutor's material tools. The Tutor still offers comparison tables,
+  // challenges, explain-back activities and walkthroughs, though /compare and /walkthrough are no longer typed commands.
+  const tool = name => list.find(m => m.command === name);
+  assert.deepEqual(tool('compare')?.cards, ['table', 'graph', 'plot', 'flow', 'mermaid']);
+  assert.deepEqual(tool('walkthrough')?.cards, ['walkthrough']);
+  assert.ok(['challenge', 'explainBack'].every(card => tool('practice')?.cards.includes(card)));
+});
+
+// The Tutor's own create_material runs its material tools through the internal path, with a stubbed model, and makes the
+// comparison table, challenge, explain-back and walkthrough cards; the same lines typed by a learner are refused.
+test('runMaterials makes comparison tables, challenges, explain-backs and walkthroughs; typed, /compare and /walkthrough run nothing', async () => {
+  const blocks = { compare: PRIMITIVES.table.block(ANY), practice: PRIMITIVES.challenge.block(ANY), quiz: PRIMITIVES.explain_back.block(ANY), walkthrough: PRIMITIVES.walkthrough.block(ANY) };
+  const primitives = { compare: 'table', practice: 'challenge', quiz: 'explain_back', walkthrough: 'walkthrough' };
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return `b${inserted.length}`; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push(body.command); return { result: 'artifact', primitive: primitives[body.command], block: blocks[body.command] }; };
+  const actions = ['compare', 'practice', 'quiz', 'walkthrough'].map(command => ({ type: 'create_material', command, request: 'sigmoid against tanh' }));
+  const results = await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, ['compare', 'practice', 'quiz', 'walkthrough']);
+  // A walkthrough card is the walkthrough_v1 interactive scene (learn-primitives.js).
+  assert.deepEqual(inserted.map(blockModality), ['table', 'challenge', 'explain_back', 'scene']);
+  assert.equal(inserted[3].spec.behaviorId, 'walkthrough_v1');
+  assert.ok(results.every(result => result.notice?.tone === 'done'), JSON.stringify(results));
+  for (const name of ['compare', 'walkthrough']) {
+    const typed = await runLearnCommand(`/${name} sigmoid against tanh`, { app: 'demo', canvas, post, openSearch: () => {} });
+    assert.match(typed.notice.text, new RegExp(`^/${name} is no longer available`));
+  }
+  assert.equal(posts.length, 4, 'a typed /compare or /walkthrough posts nothing');
 });
 
 // Any spec: every field reads as an empty value, so a primitive's own builder returns its block without a model.
@@ -239,10 +308,25 @@ test('every card a material command can make: its modality is the block type run
     const inserted = [];
     const canvas = { insertNotebook: () => inserted.push(newNotebookBlock()), insertBlock: block => { inserted.push(block); return 'id'; }, reserve: () => 'slot', release: () => {} };
     const post = async () => ({ result: m.paid ? 'paid_proposal' : 'artifact', primitive, message: 'Uses paid generation.', block: PRIMITIVES[primitive].block(ANY) });
-    (await runLearnCommand(`/${m.command} the topic`, { app: 'demo', canvas, post, openSearch: () => {} })).proposal?.generate();
+    (await runLearnCommand(`/${m.command} the topic`, { app: 'demo', canvas, post, openSearch: () => {}, internal: true })).proposal?.generate();
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
     assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
   }
+});
+
+// L10 + owner 2026-10-21 (message 19): interactive explanations survive through BOTH /explain and the Tutor's
+// create_material(command: explain). Only the internal animate/compare tools lost the animation primitive. This fails if explain
+// via create_material loses the interactive scene path.
+test('create_material(command: explain) still makes the interactive scene: the Tutor route keeps the animation primitive', async () => {
+  assert.ok(commandsFor('learn', { internal: true }).some(command => command.name === 'explain'), 'explain stays an internal material command');
+  assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'b1'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } }; };
+  const [result] = await runMaterials([{ type: 'create_material', command: 'explain', request: 'an interactive look at how binary search narrows the range' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+  assert.equal(inserted[0].type, 'animation');
+  assert.equal(result.notice.text, 'Added an interactive explanation.');
 });
 
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
@@ -327,7 +411,7 @@ test('held commands: the dock holds a /command Enter while busy and sends it whe
   const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const ask = read('ask.jsx'), picker = read('LearnSlash.jsx');
   const release = run => new RegExp(String.raw`useEffect\(\(\) => \{\n\s+if \(busy \|\| held\.current == null\) return;\n\s+const line = releaseLine\(held\.current, input\);\n\s+held\.current = null;\n\s+if \(line\) ${run}\(line\);\n\s+\}, \[busy\]\);`);
-  assert.match(ask, /if \(busy && !event\.defaultPrevented && composerKey\(event\.nativeEvent\) === 'send' && holdsLine\(input\)\) \{ event\.preventDefault\(\); held\.current = input; \}/);
+  assert.match(ask, /if \(busy && !event\.defaultPrevented && composerKey\(event\.nativeEvent, chatSendKey\(\)\) === 'send' && holdsLine\(input\)\) \{ event\.preventDefault\(\); held\.current = input; \}/);
   assert.match(ask, release('send'));
   assert.match(picker, /intercept: raw => \{ if \(busy\) \{ held\.current = raw; return true; \} exec\(raw\); return true; \}/);
   assert.match(picker, release('exec'));
@@ -349,7 +433,9 @@ test('commandLine: a pill line runs once; every command prompt that comes back i
     prompted.push(name);
     assert.equal(commandLine(out.prompt, { command: name, prompted: true }), null, `/${name}: its prompt is the chat turn`);
   }
-  assert.deepEqual(prompted.sort(), ['ask', 'deeper', 'example', 'simplify', 'teach']);
+  // Owner, 2026-10-20 (L7): /ask, /deeper, /example, /simplify and /teach were the commands that answered with a prompt; all
+  // five are removed, so none does now. The prompted guard stays for any command that answers with one again.
+  assert.deepEqual(prompted.sort(), []);
   assert.equal(commandLine('/whiteboard tides', { command: 'ask', prompted: true }), null, '"/ask /whiteboard tides": a prompt starting with / is not run');
   // Effects never run here, so the wiring is pinned in source; the browser run is e2e/chat-outputs-check.mjs steps 13 and 14.
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');

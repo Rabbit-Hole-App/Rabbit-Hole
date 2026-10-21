@@ -120,7 +120,10 @@
     "BYOC_TEMPLATE_BUCKET": "small-byoc-installer-637423432890-us-east-1",
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-dev.fly.dev",
     // Review-first CAD (docs/features/cad.md). This config binds no CAD_JOBS, so it acts only where CAD is bound.
-    "CAD_BRIEF_FIRST": "false"
+    "CAD_BRIEF_FIRST": "false",
+    // Codebase assessment (owner production GO 2026-10-21): the rubric route for the five codebase goals only, against the cited
+    // repository revision. The general TUTOR_RUBRIC_ASSESSMENT_ENABLED and TUTOR_VISUAL_ASSESSMENT_ENABLED stay off.
+    "TUTOR_CODEBASE_ASSESSMENT_ENABLED": "true"
   },
   "services": [
     {

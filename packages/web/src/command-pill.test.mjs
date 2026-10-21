@@ -23,10 +23,18 @@ const html = props => renderToStaticMarkup(createElement(CommandPill, { onRemove
 test('the pill is the command\'s label in its tint, with a remove button named by the same label', () => {
   const explain = html({ name: 'explain', onOpen: () => {} });
   assert.match(explain, /^<span data-command-pill="explain" data-command-tone="explain" class="inline-flex shrink-0 items-center border">/);
-  assert.match(explain, /<button type="button" title="Change the command" class="[^"]*font-medium">Explain<\/button>/);
-  assert.match(explain, /aria-label="Remove Explain" title="Remove Explain"/);
+  // Owner, 2026-10-20: /explain's pill is Add explanation, /dive's Open Rabbit Hole, /3d's 3D.
+  assert.match(explain, /<button type="button" title="Change the command" class="[^"]*font-medium">Add explanation<\/button>/);
+  assert.match(explain, /aria-label="Remove Add explanation" title="Remove Add explanation"/);
+  assert.match(html({ name: 'dive' }), /font-medium">Open Rabbit Hole<\/span>.*aria-label="Remove Open Rabbit Hole"/);
+  assert.match(html({ name: '3d' }), /font-medium">3D<\/span>/);
+  assert.match(html({ name: 'image' }), /aria-label="Remove Search images"/);
+  // A saved draft or message naming a removed command still renders as words, never a /name and never a crash.
   assert.match(html({ name: 'simplify' }), /font-medium">Simplify<\/span>.*aria-label="Remove Simplify"/);
   assert.match(html({ name: 'cad' }), /font-medium">CAD<\/span>/);
+  // /motion's pill says Motion, never /motion (owner, 2026-10-20).
+  assert.match(html({ name: 'motion' }), /data-command-pill="motion"[^>]*>.*font-medium">Motion<\/span>.*aria-label="Remove Motion"/);
+  assert.doesNotMatch(html({ name: 'motion', onOpen: () => {} }), />\/motion</);
   assert.match(html({ name: 'video' }), /aria-label="Remove Generate video"/);
   assert.match(html({ name: 'youtube' }), /aria-label="Remove Search YouTube"/);
   // Without onOpen the name is text, not a button: only the x acts.
@@ -38,7 +46,7 @@ test('the pill is the command\'s label in its tint, with a remove button named b
   assert.match(sized, /mx-0\.5 h-6 w-6/);
 });
 
-test('every registered command (Chat, Ctrl+K, Insert, Home, Library and Project) has a pill label with no leading slash', () => {
+test('every registered command (Chat, Ctrl+K and Insert) has a pill label with no leading slash', () => {
   for (const command of SLASH) {
     for (const onOpen of [null, () => {}]) {
       const pill = html({ name: command.name, onOpen });
@@ -48,9 +56,8 @@ test('every registered command (Chat, Ctrl+K, Insert, Home, Library and Project)
       assert.ok(pill.includes(`aria-label="Remove ${text}"`), `/${command.name}: Remove ${text}`);
     }
   }
-  assert.ok(SLASH.length >= 30, `${SLASH.length} commands`);
-  // The Home, Library and Project bar draws its own pill from the same label (commandLabel), never /{shortcut} or /{mode}.
+  assert.ok(SLASH.length >= 19, `${SLASH.length} commands`);
+  // The Home, Library and Project bar has no slash commands since 2026-10-20 (owner), so it draws no command pill at all.
   const bar = readFileSync(new URL('./agent/AgentBar.jsx', import.meta.url), 'utf8');
-  for (const which of ['shortcut', 'mode']) assert.ok(bar.includes(`{commandLabel(${which})}<button type="button" aria-label={\`Remove \${commandLabel(${which})}\`}`), which);
-  assert.doesNotMatch(bar, /\/\{(shortcut|mode)\}/);
+  assert.doesNotMatch(bar, /data-command-pill|commandLabel/);
 });

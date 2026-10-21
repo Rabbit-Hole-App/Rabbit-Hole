@@ -2,7 +2,7 @@
 // typed or picked command submits, and how the mode and a command go together. Pure, so typed and picked commands are
 // tested to submit the same thing. The list is the shared registry's (agent/slash.js commandsFor('ctrlk')); nothing here
 // keeps a command list of its own.
-import { SLASH, commandsFor, descFor, resolveCommand } from './agent/slash.js';
+import { SLASH, commandsFor, descFor, resolveCommand, unavailableCommand } from './agent/slash.js';
 
 // The commands this canvas's Ctrl+K offers now: the registry's ctrlk entries, generation ones only where this canvas can
 // run them (enabled: its inline routes; null: all), source searches only where a source finder can open.
@@ -52,11 +52,11 @@ export function submission({ mode, command = null, text = '' }, options = { moti
     if (typed) { name = typed.command.name; words = typed.arg; }
   }
   words = name ? words.trim() : words;
-  const entry = name && commandsFor('ctrlk', { ...options, hidden: true }).find(candidate => candidate.name === name);
+  const entry = name && commandsFor('ctrlk', options).find(candidate => candidate.name === name);
   if (name && !entry) return { unsupported: name };
   if (entry?.kind === 'source') return { source: { source: entry.source, query: words } };
   return { mode: entry?.kind === 'generate' ? 'explain' : mode, command: name || null, text: words, prompt: name ? `/${name}${words ? ` ${words}` : ''}` : words };
 }
 
-// The one line said for a typed command Ctrl+K does not offer.
-export const unsupportedText = name => `/${name} isn't available in Ctrl+K.`;
+// The one line said for a typed command Ctrl+K does not offer: a removed one says so (owner, 2026-10-20).
+export const unsupportedText = name => unavailableCommand(name) || `/${name} isn't available in Ctrl+K.`;

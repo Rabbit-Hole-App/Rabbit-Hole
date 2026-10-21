@@ -17,7 +17,6 @@ import { CommandSearch } from './CommandList.jsx';
 // its cards report to, chat-output-refs.js), or null when it keeps no record of it (a line whose words go on to the chat).
 export default function LearnSlash({ apiRef, composerRef = null, input, setInput, target, run, onPrompt, onHelp = null, onFocusBlock = null, onFinder = null, onRun = null }) {
   const [active, setActive] = useState(0);
-  const [catalog, setCatalog] = useState(false);
   const [notice, setNotice] = useState(null);
   const [proposal, setProposal] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -29,17 +28,15 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   const moreHeader = useRef(null);
   // The search field's text, or null when the palette was opened by typing / (the composer is its search then).
   const [query, setQuery] = useState(null);
-  const sections = busy ? null : query ? searchSections(query) : pickerSections(input, { catalog });
+  const sections = busy ? null : query ? searchSections(query) : pickerSections(input);
   // Keyboard order: every visible command, with the collapsible section's
   // header in its place so Enter can open it.
   const items = sections?.flatMap(section => (section.collapsible ? [{ name: '__more', toggle: true }, ...(moreOpen ? section.items : [])] : section.items)) || [];
-  useEffect(() => { setActive(0); if (!input.startsWith('/')) { setCatalog(false); setMoreOpen(false); setQuery(null); } }, [input]);
+  useEffect(() => { setActive(0); if (!input.startsWith('/')) { setMoreOpen(false); setQuery(null); } }, [input]);
 
   const choose = name => {
     // Opening by click or Enter brings the new tools into view.
     if (name === '__more') { if (!moreOpen) requestAnimationFrame(() => moreHeader.current?.scrollIntoView({ block: 'start' })); setMoreOpen(open => !open); return; }
-    if (name === 'more') { setCatalog(true); setInput('/'); return; }
-    setCatalog(false);
     setInput(`/${name} `);
     if (query !== null) composerRef?.current?.focus(); // the search field goes; the command's details are typed in the composer
   };
@@ -52,7 +49,6 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     try { out = await run(raw, target, turn); }
     catch (error) { out = { notice: { tone: 'error', text: error.message } }; }
     setBusy(false);
-    if (out.catalog) { setNotice(null); setCatalog(true); setInput('/'); return; }
     // A prompt the chat refuses (onPrompt answers false) is never lost: the line comes back with an error.
     if (out.prompt) {
       setNotice(null);
@@ -82,7 +78,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
         choose(items[Math.min(active, items.length - 1)].name);
       } else if (event.key === 'Escape') {
         event.preventDefault();
-        setInput(''); setCatalog(false);
+        setInput('');
       }
     },
     search: () => setQuery(''),
@@ -107,6 +103,12 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
               ? <button type="button" data-slash-open={notice.blockId} title="Go to the card" onClick={() => onFocusBlock(notice.blockId)}
                   className="inline-flex cursor-pointer items-center gap-1 text-left font-medium text-accent hover:underline">{notice.text}<ArrowUpRight size={14} className="shrink-0" /></button>
               : <p className={tone[notice.tone] || 'text-ink-2'}>{notice.text}</p>)}
+            {notice?.detail && <p data-slash-detail className="mt-1 line-clamp-3 break-words text-xs text-ink-2">What failed: {notice.detail}</p>}
+            {/* A failed result's next step (learn-slash.js: a failed interactive explanation offers a plain one): runs that line. */}
+            {!busy && notice?.actions?.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {notice.actions.map(action => <button key={action.label} type="button" data-slash-action onClick={() => exec(action.line)}
+                className="rounded-lg border border-line bg-surface px-2 py-0.5 text-xs text-ink hover:bg-hover">{action.label}</button>)}
+            </div>}
             {proposal && <PaidConfirm message={proposal.message} prompt={proposal.prompt}
               onCancel={() => setProposal(null)}
               onGenerate={async () => {

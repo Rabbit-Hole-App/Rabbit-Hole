@@ -1,106 +1,72 @@
-// View > Slash commands (SlashCommandsSheet.jsx): the demo each command shows, and the sheet's search. Pure, so
-// the tests pin that every command has a demo. The demos keep one thread - the sigmoid, softmax and nanoGPT - and
-// each command's e.g. line (learn-slash.js EXAMPLES) asks for exactly the card or answer shown beside it.
+// View > Slash commands (SlashCommandsSheet.jsx): the demo each command shows, what it does, and the sheet's search. Pure, so
+// the tests pin that every command has a demo. Each command's e.g. line (learn-slash.js EXAMPLES) is a different topic; a card
+// shown beside it is a sample of the card the command makes (owner, 2026-10-20).
 import { cardsFor } from './learn-slash.js';
-import { code } from './nanogpt/sources.js';
 
-// A chat command adds no card: its answer arrives in the chat, about the card the learner selected (`about`).
-// `answer` is an illustrative tutor answer to the command's e.g. line. /dive answers nothing: it says what happens.
+// /dive adds no card and writes no chat answer: the sheet says what happens on the canvas.
 export const CHAT_EXAMPLES = {
-  deeper: { about: 'An id is an index, not a meaning',
-    answer: 'The lookup is a matrix product with a one-hot vector: if $x$ is the one-hot vector for id 42, then $x^\\top W_{te}$ is row 42 of $W_{te}$ ($65 \\times 384$). Training only updates rows whose ids appeared in the batch, which is why rare tokens learn slowly.' },
-  dive: { about: 'Softmax over the vocabulary', note: 'Opens a Rabbit Hole under the card you select. It writes no chat answer and adds no card here.', footer: 'What happens on the canvas.',
-    answer: 'Opens an empty Rabbit Hole named **softmax** under the selected card. It is kept once you put something on it, and the card gets a green outline you can enter it from. With no card selected, select one and the dive completes.' },
-  simplify: { about: 'Softmax over the vocabulary',
-    answer: 'Softmax turns a list of scores into chances that add up to 1. A bigger score gets a bigger share, and every option keeps at least a little.' },
-  // The same scores as /animate's clip, so the two agree to the digit.
-  example: { about: 'Softmax over the vocabulary',
-    answer: 'Scores $[2, 1, 0, -1]$. Exponentiate: $[7.39, 2.72, 1.00, 0.37]$, which sum to $11.48$. Divide by the sum: $[0.64, 0.24, 0.09, 0.03]$. The top score takes about two thirds, and the lowest still keeps 3%.' },
-  ask: { about: 'karpathy/nanoGPT',
-    answer: '`wte` is the token embedding table (`model.py`): one learned row of 384 numbers per vocabulary id. Each input id is looked up there before anything else runs.' },
-  teach: { about: 'karpathy/nanoGPT',
-    answer: 'Causal masking stops a position from looking ahead: attention scores for later positions are set to $-\\infty$ before softmax, so each token mixes information only from itself and earlier tokens. Next, the mask drawn as a triangle.' },
+  dive: { about: 'A topic, or the card you select', note: 'Opens a Rabbit Hole. It writes no chat answer and adds no card here.', footer: 'What happens on the canvas.',
+    answer: 'With no card selected, opens a Rabbit Hole about **how cells produce ATP**. With a card selected, `/dive` alone opens that card\'s Rabbit Hole, or starts one under it; the card gets a green outline you can enter it from. With neither, it asks what to go deeper into.' },
 };
 
-// /source acts on a card rather than making one: the sheet opens the Sources & evidence of its own /explain card.
-export const SOURCE_NOTE = 'Opens the Sources & evidence of the card you select. It adds no card of its own.';
+// What a command does, in one word the sheet shows beside it: it creates a card, opens a Rabbit Hole, or searches (owner,
+// 2026-10-20). Media say where their content comes from: found and credited, or made by AI.
+const SEARCHES = new Set(['image', 'youtube', 'arxiv', 'wikipedia']);
+export const effectOf = name => (name === 'dive' ? 'Opens a Rabbit Hole' : SEARCHES.has(name) ? 'Searches' : 'Creates a card');
+export const MEDIA = { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated', motion: 'AI-generated' };
 
 // /youtube, /arxiv and /wikipedia open the source finder on their source with what follows them, and search at once; the
 // learner previews the results there and adds one. They make no card themselves and call no model.
 const FINDS = { youtube: 'YouTube videos', arxiv: 'arXiv papers: a topic, or an arXiv ID or link', wikipedia: 'Wikipedia articles' };
 export const FINDER_NOTES = Object.fromEntries(Object.entries(FINDS).map(([name, what]) => [name, `Opens Search on ${what}, with what you type after the command, and searches at once. Preview the results there: nothing is added until you add one to the canvas.`]));
 
-// The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development builds only)
-// makes a video card through its own action, so it names that card here.
-const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }] };
-export const sheetCards = name => SHEET_CARDS[name] || cardsFor(name);
-
-// What the right pane shows: the cards a command makes, the card /source opens, what a source search does, or an example
-// exchange.
-export const demoOf = name => (name === 'cad' ? 'cad' : sheetCards(name).length ? 'cards' : name === 'source' ? 'sources' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
-
-const XS = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
-const round = value => Math.round(value * 1000) / 1000;
-// The committed finished clip /animate and /motion show (packages/web/public/landing): softmax sharing out the whole by
-// score, 25 s, the landing page's /motion explainer.
-const CLIP = '/landing/softmax-overview-v1.mp4';
-
-// The sheet's own sample for a command's card, laid over the card's + palette sample (BLOCK_TYPES): /compare's
-// comparisons, /animate's finished clip and the sources /source opens. Any other card shows its + sample.
-export const SAMPLES = {
-  compare: {
-    table: { title: 'Sigmoid vs tanh', caption: 'Two squashing functions side by side.',
-      // String.raw: in a plain string '\s' is 's' and '\t' is a tab.
-      columns: ['', String.raw`Sigmoid $\sigma(x)$`, String.raw`Tanh $\tanh(x)$`],
-      rows: [['Output range', '$(0, 1)$', '$(-1, 1)$'], ['Value at 0', '$0.5$', '$0$'], ['Largest slope', '$0.25$ at $x = 0$', '$1$ at $x = 0$'],
-        ['Relation', String.raw`$\sigma(x) = \tfrac{1}{2}(1 + \tanh(x/2))$`, String.raw`$\tanh(x) = 2\sigma(2x) - 1$`]] },
-    graph: { title: 'Sigmoid vs tanh', brief: String.raw`Both squash any input. Tanh is the sigmoid stretched to $(-1, 1)$: $\tanh(x) = 2\sigma(2x) - 1$.`,
-      spec: { op: 'interactive_plot', id: 'sigmoid-vs-tanh', renderer: 'desmos', concept: 'sigmoid vs tanh',
-        expressions: [{ id: 'sigmoid', expression: String.raw`y=\frac{1}{1+e^{-x}}`, label: 'sigmoid' }, { id: 'tanh', expression: String.raw`y=\tanh(x)`, label: 'tanh' }],
-        xAxis: { label: 'x', min: -6, max: 6 }, yAxis: { label: 'y', min: -1.2, max: 1.2 } }, state: {} },
-    plot: { title: 'Sigmoid vs tanh, sampled', brief: 'Both functions at whole-number inputs: hover a point to read it, click the legend to hide one.',
-      spec: { op: 'interactive_plot', id: 'sigmoid-vs-tanh-samples', renderer: 'plotly', concept: 'sigmoid vs tanh',
-        traces: [{ id: 'sigmoid', label: 'sigmoid', type: 'line', x: XS, y: XS.map(x => round(1 / (1 + Math.exp(-x)))) },
-          { id: 'tanh', label: 'tanh', type: 'line', x: XS, y: XS.map(x => round(Math.tanh(x))) }],
-        xAxis: { label: 'x', min: -4, max: 4 }, yAxis: { label: 'y', min: -1.1, max: 1.1 } }, state: {} },
-    flow: { title: 'Sigmoid vs tanh',
-      spec: { direction: 'DOWN',
-        nodes: [
-          { id: 'x', label: 'input x', detail: 'any real number', tone: 'input' },
-          { id: 'sigmoid', label: 'sigmoid', detail: '1 / (1 + e^-x)', tone: 'step' },
-          { id: 'tanh', label: 'tanh', detail: '2 sigmoid(2x) - 1', tone: 'step' },
-          { id: 'unit', label: 'between 0 and 1', detail: '0.5 at x = 0', tone: 'output' },
-          { id: 'signed', label: 'between -1 and 1', detail: '0 at x = 0', tone: 'output' },
-        ],
-        edges: [{ source: 'x', target: 'sigmoid' }, { source: 'x', target: 'tanh' }, { source: 'sigmoid', target: 'unit' }, { source: 'tanh', target: 'signed' }] } },
-    mermaid: { title: 'Sigmoid vs tanh',
-      code: ['flowchart LR', '  input["input x"] --> sig["sigmoid"]', '  input --> tnh["tanh"]', '  sig --> unit["between 0 and 1, 0.5 at 0"]',
-        '  tnh --> signed["between −1 and 1, 0 at 0"]', '  sig -.->|stretched and shifted| tnh'].join('\n') },
-  },
-  animate: {
-    mathAnimation: { title: 'Softmax shares the whole by score', caption: 'Every score gets a share of 1: the highest the biggest share, the lowest still some.',
-      status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0 },
-  },
-  // A finished /motion request: the brief's title and duration arrive with the video (learn-video-label.js); no renderer
-  // or sources are claimed for this clip.
-  motion: {
-    videoGenerate: { title: 'Softmax shares the whole by score', caption: '', status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0,
-      operation: { op: 'motion_request', request: '/motion 25s explain softmax', location: { concept: 'softmax' } }, motion: { duration_seconds: 25, source_refs: [] } },
-  },
-  source: {
-    explanation: { sources: [
-      code('model.py', 127, 127, 'The token table: "wte = nn.Embedding(config.vocab_size, config.n_embd)" - one learned row per token id.'),
-      code('model.py', 177, 177, 'The lookup in forward: "tok_emb = self.transformer.wte(idx)" - every id in idx is replaced by its row.'),
-      { kind: 'paper', title: 'Attention Is All You Need', arxiv: '1706.03762', note: 'Learned token embeddings feed the Transformer.' },
-      { kind: 'calculation', status: 'Calculated toy example', title: 'Row 42', note: 'The numbers in the worked example are illustrative, not read from a trained model.' },
-    ] },
-  },
+// The cards the sheet shows for a command: what it makes (learn-slash.js cardsFor). /motion (development and review builds)
+// makes a video card through its own action, so it names that card here; /generate-image (listed only while image
+// generation is on) makes the Image generate card.
+const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }], 'generate-image': [{ primitive: 'image_generate', card: 'imageGenerate' }] };
+// /explain shows its interactive visual first (L10, owner 2026-10-21: the window carries real interactive examples); the
+// model is offered the same cards in the registry's order.
+const FIRST = { explain: 'animation' };
+export const sheetCards = name => {
+  const cards = SHEET_CARDS[name] || cardsFor(name);
+  return FIRST[name] ? [...cards.filter(entry => entry.card === FIRST[name]), ...cards.filter(entry => entry.card !== FIRST[name])] : cards;
 };
+
+// What the right pane shows: the cards a command makes, what a source search does, or what /dive does.
+export const demoOf = name => (name === 'cad' ? 'cad' : sheetCards(name).length ? 'cards' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
+
+// /motion's example is a real Motion video, committed so it never expires and opening the window generates nothing: the
+// final.mp4 of the verified job 8a2015a4 (rabbit-hole-motion-v1-harness-spec.md, "M7B production-exact API smoke": ready, final
+// validation passed, sha256 6af0b4b2...437c46), made from exactly learn-slash.js EXAMPLES.motion. Its title, duration, renderer
+// and sources are that job's own.
+export const MOTION_CLIP = '/lesson-assets/motion-softmax-8a2015a4.mp4';
+const ref = (id, start, end) => ({ id, kind: 'code', repository: 'karpathy/nanoGPT', commit: '3adf61e154c3fe3fca428ad6bc3818b27a3b8291', path: 'model.py', start_line: start, end_line: end });
+
+// The sheet's own sample for a command's card, laid over the card's + palette sample (BLOCK_TYPES): /motion's finished video.
+// Any other card shows its + sample.
+export const SAMPLES = {
+  motion: {
+    videoGenerate: { title: 'Softmax: Turning Attention Scores into Weights', caption: '', status: 'ready', src: MOTION_CLIP, variants: [{ src: MOTION_CLIP }], variant: 0,
+      operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } },
+      motion: { duration_seconds: 15, renderer: 'remotion', source_refs: [ref('S1', 44, 45), ref('S2', 48, 50), ref('S3', 62, 64), ref('S4', 65, 71)] } },
+  },
+  // A finished /3d request: the scene card's own sample (Perspective projection) in its ready state. Its model is that
+  // sample's scene built offline (scripts/make-slash-3d-glb.mjs), committed and served by this origin: no job, no model. Its
+  // brief says what that model shows (the sample's operation caption), as the e.g. line (learn-slash.js) asks for it.
+  '3d': { scene: { status: 'ready', modelUrl: '/lesson-assets/slash-3d-frustum.glb', brief: 'A camera frustum, a cube inside it, and a ray sweeping across.' } },
+};
+// The line above a sample card: every card is a sample, and /motion's is a real Motion video of its example.
+export const SAMPLE_NOTES = { motion: 'A real Motion video, made from this example. Yours is made from what you type.' };
+
+// A card's tab name in the sheet where the command's own word for it differs from the + palette's: /explain's scene card is
+// its interactive visual (L10).
+export const TAB_LABELS = { animation: 'Interactive visual' };
 
 // Paid media with no committed finished file: a picture of the finished card, labelled as one (public/lesson-assets).
 export const ILLUSTRATIONS = {
   videoGenerate: { kicker: 'Video', src: '/lesson-assets/slash-video-prism.svg', alt: 'A white beam enters a glass prism and fans out into a spectrum',
     note: 'Illustration. On the canvas, Generate (paid) makes the real clip.' },
-  scene: { kicker: '3D model', src: '/lesson-assets/slash-3d-frustum.svg', alt: 'A camera frustum with a cube inside it and a ray from the camera to the cube',
-    note: 'Illustration. On the canvas, Generate (paid) builds the real scene for the 3D viewer.' },
 };
+// The picture stands in only for a sample with no finished media of its own: a clip (src) or a model (modelUrl) is shown by
+// the card itself, and a viewer that fails says so in the card rather than fall back to a picture.
+export const illustrationFor = (type, block) => (ILLUSTRATIONS[type] && !block.src && !block.modelUrl ? ILLUSTRATIONS[type] : null);

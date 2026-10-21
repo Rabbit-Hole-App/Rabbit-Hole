@@ -451,8 +451,10 @@ await run('Motion: off is said and never substituted; a paid proposal starts not
 await run('every artifact handler (mocked, real schemas): the preview is that handler\'s card; paid ones wait for Generate', async () => {
   const { page, context } = await open('handlers');
   // /diagram is the native diagram inline (owner brief 2026-10-13 §5): editable shapes and arrows, not a card. /compare is
-  // not a Ctrl+K command (owner decision 1A, 2026-10-16); /flashcards is, by its command only.
-  const expect = { explain: 'explanation', flashcards: 'flashcards', code: 'snippet', diagram: 'diagram', graph: 'graph', walkthrough: 'scene', image: 'image', animate: 'video', video: 'video', '3d': 'scene' };
+  // not a Ctrl+K command (owner decision 1A, 2026-10-16); /flashcards is, by its command only. /walkthrough is removed (owner,
+  // 2026-10-20): plain words still route to a walkthrough.
+  // /animate is removed too (owner, 2026-10-20: /motion is the animation command, checked below).
+  const expect = { explain: 'explanation', flashcards: 'flashcards', code: 'snippet', diagram: 'diagram', graph: 'graph', image: 'image', video: 'video', '3d': 'scene' };
   for (const [command, type] of Object.entries(expect)) {
     await clickShape(page, 'n4');
     await ctrlK(page);
@@ -460,7 +462,7 @@ await run('every artifact handler (mocked, real schemas): the preview is that ha
     await waitStatus(page, ['preview', 'proposal']);
     const kind = await status(page);
     const got = await page.locator('[data-inline-preview]').first().evaluate(node => node.dataset.cardType || node.dataset.inlinePreview);
-    const paid = ['animate', 'video', '3d'].includes(command);
+    const paid = ['video', '3d'].includes(command);
     check(`/${command} inline: ${type === 'diagram' ? 'a native diagram' : `a ${type} card`} ${paid ? 'proposal (paid)' : 'preview'}`, got === type && kind === (paid ? 'proposal' : 'preview'), `${kind} ${got}`);
     await page.locator(paid ? '[data-paid-cancel]' : '[data-inline-reject]').click();
   }
@@ -477,12 +479,21 @@ await run('every artifact handler (mocked, real schemas): the preview is that ha
   }
   // Typed commands Ctrl+K does not offer (owner decision 1A, 2026-10-16): said in the editor, nothing sent, nothing run.
   const before = (await calls(page, 'decide')).length;
-  for (const name of ['dive', 'source', 'notebook', 'quiz', 'compare', 'simplify', 'paper']) {
+  for (const name of ['dive', 'notebook', 'quiz']) {
     await clickShape(page, 'n4');
     await ctrlK(page);
     await submitPrompt(page, `/${name} x`);
     await page.waitForSelector(`[data-inline-unsupported="${name}"]`);
     check(`/${name} is not available in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} isn't available in Ctrl+K.` && (await calls(page, 'decide')).length === before);
+    await page.keyboard.press('Escape');
+  }
+  // The 17 removed commands (owner, 2026-10-20): each says it is no longer available, and nothing is sent or run.
+  for (const name of ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper']) {
+    await clickShape(page, 'n4');
+    await ctrlK(page);
+    await submitPrompt(page, `/${name} x`);
+    await page.waitForSelector(`[data-inline-unsupported="${name}"]`);
+    check(`removed /${name} is unavailable in Ctrl+K: the editor says so, nothing runs`, (await page.locator('[data-inline-unsupported]').innerText()) === `/${name} is no longer available. Type / to see the commands, or ask in your own words.` && (await calls(page, 'decide')).length === before);
     await page.keyboard.press('Escape');
   }
   await context.close();
@@ -507,7 +518,7 @@ await run('Ctrl+K / commands: the registry list, keys, typed = picked, pill remo
   await page.keyboard.type('/');
   await page.locator('[data-inline-picker]').waitFor();
   const all = await options();
-  check('"/" opens the list: exactly the registry\'s Ctrl+K commands this canvas runs', JSON.stringify(all) === JSON.stringify(['explain', 'flashcards', 'code', 'graph', 'diagram', 'walkthrough', 'animate', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
+  check('"/" opens the list: exactly the registry\'s Ctrl+K commands this canvas runs', JSON.stringify(all) === JSON.stringify(['explain', 'flashcards', 'code', 'graph', 'diagram', 'image', 'video', '3d', 'motion', 'youtube', 'arxiv', 'wikipedia']), JSON.stringify(all));
   await page.keyboard.type('gr');
   check('typing filters the list; the first match is highlighted', JSON.stringify(await options()) === '["graph","diagram"]' && await chosen() === 'graph');
   await page.keyboard.press('ArrowDown');
