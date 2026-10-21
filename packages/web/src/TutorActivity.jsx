@@ -5,11 +5,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { materialCommands } from './learn-slash.js';
-import { OFFER_LABEL, applyTutorAction, assessmentText, chooseNextActivity } from './learn-coaching-materials.js';
+import { OFFER_LABEL, applyTutorAction, assessmentText, chooseNextActivity, settledAttempt } from './learn-coaching-materials.js';
+import { drawingContent } from './learn-tutor-image.js';
 
 const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium disabled:cursor-default disabled:opacity-50';
 const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
 const newKey = () => `sub-${crypto.randomUUID()}`;
+const attemptUrl = (attemptId, app, board) => `/api/learn/tutor/attempts/${encodeURIComponent(attemptId)}?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}`;
 
 // What the Tutor knows about the context now, read when a check runs (applyTutorAction rechecks it as the card arrives).
 const contextOf = (chat, board) => ({
@@ -86,6 +88,12 @@ export function NextActivity({ chat, board, goal, view, journey, onClose }) {
 // The active activity above the composer: its prompt, an answer field (options for a keyed check), and Check my answer. One
 // submission key per answer: a retry after a lost response reuses it, so the server replays one attempt; a changed answer
 // gets a new one. A failed save keeps the answer here and says so; nothing is cleared.
+// shownActivity(state): the activity this card shows, else null. The entry's Continue (use-learn-coaching.jsx) shows the
+// saved prompt only when this card does not, so a prompt is never above the composer twice.
+export const shownActivity = state => {
+  const activity = state?.activities?.find(a => a.activityId === state.activeActivityId && a.goalId === state.activeGoalId) || null;
+  return activity && ['in_progress', 'awaiting_feedback', 'feedback_ready'].includes(activity.status) ? activity : null;
+};
 export function TutorActivity({ chat, board }) {
   const state = chat.coaching.state;
   const activity = state?.activities?.find(a => a.activityId === state.activeActivityId && a.goalId === state.activeGoalId) || null;
@@ -93,31 +101,50 @@ export function TutorActivity({ chat, board }) {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null); // { text, tone }
   const key = useRef({ for: null, value: null });
-  const shown = activity && ['in_progress', 'awaiting_feedback', 'feedback_ready'].includes(activity.status);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const shown = !!shownActivity(state);
   const id = activity ? `${activity.activityId}@${activity.revision}` : null;
   useEffect(() => { setAnswer(''); setResult(null); key.current = { for: null, value: null }; }, [id]);
   // Feedback saved earlier (a reload, another device): read the attempt once, without any model call, and show the accepted
   // submission with it (draft Task 05).
   const saved = activity?.checkpoint?.assessment;
+  // Still pending: read again until the feedback is final (settledAttempt), then the activity's saved status.
+  const follow = async (attemptId, view) => {
+    if (!attemptId || view?.assessment?.status !== 'pending') return;
+    const final = await settledAttempt(() => api(attemptUrl(attemptId, chat.canvas, board)), view, { live: () => alive.current });
+    if (!alive.current || final?.assessment?.status === 'pending') return;
+    setResult({ text: assessmentText(final.assessment), tone: 'info' });
+    chat.coaching.reload?.();
+  };
   useEffect(() => {
     if (!saved?.attemptId || result) return;
     let live = true;
-    api(`/api/learn/tutor/attempts/${encodeURIComponent(saved.attemptId)}?app=${encodeURIComponent(chat.canvas)}&board=${encodeURIComponent(board)}`)
-      .then(view => { if (!live) return; const sent = view.attempt?.submittedContent; setAnswer(sent?.optionId ?? sent?.text ?? ''); setResult({ text: assessmentText(view.assessment), tone: 'info' }); },
+    api(attemptUrl(saved.attemptId, chat.canvas, board))
+      .then(view => { if (!live) return; const sent = view.attempt?.submittedContent; setAnswer(sent?.optionId ?? sent?.text ?? sent?.explanation ?? ''); setResult({ text: assessmentText(view.assessment), tone: 'info' }); follow(saved.attemptId, view); },
         () => { if (live) setResult({ text: assessmentText(saved), tone: 'info' }); });
     return () => { live = false; };
   }, [saved?.attemptId]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!shown) return null;
   const choice = activity.responseKind === 'choice', options = activity.checkpoint?.options || [];
-  const content = choice ? { optionId: answer } : { text: answer };
+  // A drawing is offered only where the deployment assesses drawings (TUTOR_VISUAL_ASSESSMENT_ENABLED, read with the controls).
+  const drawing = activity.responseKind === 'drawing', canDraw = chat.coaching.capabilities?.drawing === true;
   const submit = async () => {
+    setSending(true);
+    let content = choice ? { optionId: answer } : { text: answer };
+    if (drawing) {
+      const made = await drawingContent({ canvas: chat.canvasOps?.tutorCanvas?.(), selection: chat.canvasOps?.selection?.() || [], explanation: answer }).catch(() => ({ notice: 'Your drawing could not be read. Nothing was submitted.' }));
+      if (!made.content) { setResult({ tone: 'error', text: made.notice }); setSending(false); return; }
+      content = made.content;
+    }
     const draft = JSON.stringify(content);
     if (key.current.for !== draft) key.current = { for: draft, value: newKey() };
-    setSending(true); setResult({ text: 'Saving your answer…', tone: 'info' });
+    setResult({ text: 'Saving your answer…', tone: 'info' });
     try {
       const out = await api('/api/learn/tutor/attempts', { method: 'POST', body: JSON.stringify({ app: chat.canvas, board, activityId: activity.activityId, activityRevision: activity.revision, submissionKey: key.current.value, submittedContent: content, sourceRefs: [], assistanceRefs: [] }) });
       setResult({ text: assessmentText(out.assessment), tone: 'info' });
       chat.coaching.reload?.();
+      follow(out.attempt?.attemptId, out);
     } catch (error) {
       const limit = error?.data?.detail;
       setResult({ tone: 'error', text: error?.status === 413 && limit ? `Your answer is ${limit.actual} ${limit.unit} long; the limit is ${limit.max}. Shorten it and check again.`
@@ -136,10 +163,14 @@ export function TutorActivity({ chat, board }) {
           {options.map(option => <label key={option.id} className="flex cursor-pointer items-center gap-2 text-sm text-ink">
             <input type="radio" name={`answer-${activity.activityId}`} value={option.id} checked={answer === option.id} onChange={() => setAnswer(option.id)} />{option.label}</label>)}
         </fieldset>
-        : <textarea aria-label="Your answer" value={answer} disabled={sending} onChange={event => setAnswer(event.target.value)} rows={3} className="w-full resize-y rounded-lg border border-line px-2 py-1.5 text-sm text-ink" />}
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" data-tutor-check disabled={sending || !answer.trim()} onClick={submit} className={`${BUTTON} bg-ink text-white`}>{done ? 'Check another answer' : 'Check my answer'}</button>
-      </div>
+        : drawing && !canDraw ? <p data-tutor-drawing-unavailable className="text-sm text-ink-2">Drawings cannot be checked here yet. Your drawing stays on the canvas.</p>
+          : <>
+            {drawing && <p className="text-xs text-ink-2">Select the image of your drawing on the canvas, then check it.</p>}
+            <textarea aria-label={drawing ? 'Explain your drawing (optional)' : 'Your answer'} value={answer} disabled={sending} onChange={event => setAnswer(event.target.value)} rows={3} className="w-full resize-y rounded-lg border border-line px-2 py-1.5 text-sm text-ink" />
+          </>}
+      {(!drawing || canDraw) && <div className="flex flex-wrap items-center gap-2">
+        <button type="button" data-tutor-check disabled={sending || (!drawing && !answer.trim())} onClick={submit} className={`${BUTTON} bg-ink text-white`}>{done ? 'Check another answer' : 'Check my answer'}</button>
+      </div>}
       {result && <p role={result.tone === 'error' ? 'alert' : 'status'} data-tutor-feedback className={`text-sm ${result.tone === 'error' ? 'text-fail' : 'text-ink-2'}`}>{result.text}</p>}
     </section>
   );

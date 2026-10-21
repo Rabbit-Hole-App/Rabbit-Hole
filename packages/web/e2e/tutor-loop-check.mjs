@@ -5,8 +5,13 @@
 //   choose the goal's skills in Progress -> start the next activity (a planned keyed check: existing material) -> answer it
 //   and press Check my answer (the only submit) -> the keyed assessment, graded in code -> Progress reads the saved result ->
 //   reload -> Progress and the activity's feedback again -> a second signed-in browser context reads the same Progress.
-// Every model-capable request is aborted and counted, and none may happen; the attempts route makes no model call for a
-// keyed answer. Prints no secrets.
+// Tutor T8 adds, on the same canvas: a submit lost on the network keeps the answer and its retry reuses the submission key;
+// a reply that still reads pending is followed to the final feedback (GET, no model); and two Tutor turns whose plans are
+// answered in the page (no model): "Teach me KNN instead" on this logistic regression path in Auto is answered as an aside,
+// never evaluated against the path, the plan's unrequested follow-up question dropped (ruling Q5) and its learning-path offer
+// kept; the same plan in Tutor On keeps the question.
+// Every other model-capable request is aborted and counted, and none may happen; the attempts route makes no model call for
+// a keyed answer. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:9291 SMALL_CP=http://127.0.0.1:9293 VARS=<stack .dev.vars> node e2e/tutor-loop-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -49,16 +54,31 @@ assert.equal(goalId, `lg_${j.journey.id}`, 'the journey is the learner\'s active
 const probe = fixtureFor('journey_diagnostic', { topic: 'logistic regression' }).probes.find(p => p.id === 'p1');
 
 const browser = await chromium.launch();
-const errors = [], model = [], attempts = [];
+const errors = [], model = [], attempts = [], keys = [], reads = [], plans = [], hooks = [];
+// net: what the next requests meet (T8): failSubmit aborts the next attempts POST at the network; pendingSubmit lets it save
+// and makes its reply read pending; plan answers the Tutor's plan request in the page (a canned plan, not a model).
+const net = { failSubmit: false, pendingSubmit: false, plan: null };
 const MODEL = (path, method) => path === '/api/learn/ask' || path === '/api/learn/artifact' || path === '/api/learn/home-ask' || path === '/api/ask'
   || (path.startsWith('/api/learn/tutor/') && !path.startsWith('/api/learn/tutor/attempts'));
 async function learner(label) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
   await context.addCookies([{ name: 'small_session', value: label === 'second' ? await sessionFor() : session, url: BASE }]);
-  await context.route('**/api/**', route => {
+  await context.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url());
+    if (url.pathname === '/api/learn/tutor/plan' && net.plan) { plans.push(request.postDataJSON()); return route.fulfill({ json: net.plan }); }
+    if (url.pathname === '/api/learn/tutor/next-steps') { hooks.push(label); return route.abort(); } // hooks after a Tutor On turn: gated, counted apart
     if (MODEL(url.pathname, request.method())) { model.push(`${label} ${request.method()} ${url.pathname}`); return route.abort(); }
-    if (url.pathname === '/api/learn/tutor/attempts' && request.method() === 'POST') attempts.push(label);
+    if (url.pathname.startsWith('/api/learn/tutor/attempts/') && request.method() === 'GET') reads.push(label);
+    if (url.pathname === '/api/learn/tutor/attempts' && request.method() === 'POST') {
+      keys.push(request.postDataJSON().submissionKey);
+      if (net.failSubmit) { net.failSubmit = false; return route.abort('internetdisconnected'); }
+      attempts.push(label);
+      if (net.pendingSubmit) {
+        net.pendingSubmit = false;
+        const response = await route.fetch(), body = await response.json();
+        return route.fulfill({ response, json: { ...body, assessment: { ...body.assessment, status: 'pending' } } });
+      }
+    }
     return route.continue();
   });
   const page = await context.newPage();
@@ -115,11 +135,26 @@ await check('do an activity: the next step is the path\'s own keyed check; start
 });
 
 await check('explicitly submit: choosing an option submits nothing; Check my answer saves one attempt, graded in code, with honest feedback', async () => {
-  await card(a.page).getByRole('radio', { name: probe.options.find(o => o.id === probe.key.correct).label }).check();
+  const right = probe.options.find(o => o.id === probe.key.correct).label;
+  await card(a.page).getByRole('radio', { name: right }).check();
   await a.page.waitForTimeout(500);
   assert.equal(attempts.length, 0, 'an answer is not a submission until Check my answer');
+  // T8: the first Check my answer is lost on the network; the answer stays and says it was not saved.
+  net.failSubmit = true;
   await card(a.page).locator('[data-tutor-check]').click();
+  await card(a.page).locator('[data-tutor-feedback][role="alert"]').filter({ hasText: /not saved/ }).waitFor({ timeout: 20000 });
+  assert.equal(await card(a.page).getByRole('radio', { name: right }).isChecked(), true, 'a failed save never clears the answer');
+  const unsaved = await coachingOf();
+  assert.equal(unsaved.activities.find(x => x.activityId === unsaved.activeActivityId).status, 'in_progress', 'nothing was saved');
+  await shot(a.page, 'loop-03a-not-saved');
+  // The retry saves, with the same submission key; its reply reads pending, and the card follows it to the final feedback.
+  net.pendingSubmit = true;
+  await card(a.page).locator('[data-tutor-check]').click();
+  await card(a.page).locator('[data-tutor-feedback]').filter({ hasText: /Checking it/ }).waitFor({ timeout: 20000 });
+  await shot(a.page, 'loop-03b-pending');
   await card(a.page).locator('[data-tutor-feedback]').filter({ hasText: /Correct/ }).waitFor({ timeout: 20000 });
+  assert.deepEqual([keys.length, keys[1] === keys[0], /^sub-/.test(keys[0])], [2, true, true], 'the retry reuses the submission key');
+  assert.ok(reads.length >= 1, 'the pending feedback was read again with GET');
   assert.match(await card(a.page).locator('[data-tutor-feedback]').innerText(), /Explain why in your own words/, 'a right option shows no reasoning yet');
   assert.equal(attempts.length, 1);
   await a.page.locator('[data-tutor-activity-card="feedback_ready"]').waitFor({ timeout: 15000 });
@@ -173,8 +208,42 @@ await check('a second signed-in browser context reads the same Progress and the 
   await b.context.close();
 });
 
+// ---- T8: the journey exit and ruling Q5 on the same canvas (plans answered in the page, never a model) ----
+const ANSWER = 'K-nearest neighbours labels a point by the classes of the k closest points.';
+const QUESTION = 'Which class would three neighbours pick here?';
+const claim = Object.keys(j.journey.registry.claims)[0];
+net.plan = { strategy: 'socrates', constraints_add: [], actions: [{ type: 'respond_text', text: ANSWER }, { type: 'ask_question', text: QUESTION, claim, purpose: 'diagnose' }, { type: 'suggest_journey', request: 'KNN' }] };
+const journeyNow = async () => (await api(`/api/learn/journey?app=${canvas.name}&board=main`)).journey;
+const composer = page => chatPane(page).locator('[data-chat-composer] textarea').first();
+const say = async (page, text) => { await composer(page).fill(text); await composer(page).press('Enter'); };
+await check('journey exit and Q5 in Auto: a new subject is answered, never evaluated against the path; the unrequested question is dropped, the path offer kept', async () => {
+  const before = await journeyNow(), sent = plans.length;
+  assert.equal((await coachingOf()).controls.mode, 'auto', 'Auto, the default');
+  await say(a.page, 'Teach me KNN instead');
+  await a.page.getByText(ANSWER).first().waitFor({ timeout: 30000 });
+  await a.page.waitForTimeout(1500);
+  assert.equal(plans.length, sent + 1, 'one plan request');
+  assert.equal(await a.page.getByText(QUESTION).count(), 0, 'no unrequested follow-up question in Auto');
+  assert.equal(await a.page.getByRole('button', { name: 'Start a learning path' }).count(), 1, 'the learning-path offer answers the request');
+  const after = await journeyNow();
+  assert.deepEqual([after.id, after.state, after.active_section_id, after.evidence.events.length], [before.id, before.state, before.active_section_id, before.evidence.events.length], 'the path is untouched: nothing was graded against it');
+  assert.equal(hooks.length, 0, 'no hooks in Auto');
+  await shot(a.page, 'loop-07-exit-auto');
+});
+
+await check('Q5 in Tutor On: the same plan keeps its follow-up question', async () => {
+  await chatPane(a.page).getByRole('button', { name: 'Mode', exact: true }).click();
+  await a.page.getByRole('menuitemradio', { name: /^Tutor/ }).click();
+  await a.page.waitForTimeout(800);
+  const controls = (await coachingOf()).controls;
+  assert.deepEqual([controls.mode, controls.tutorEnabled, controls.suggestionsPaused], ['tutor', true, false]);
+  await say(a.page, 'And how does it choose k?');
+  await a.page.getByText(QUESTION).first().waitFor({ timeout: 30000 });
+  await shot(a.page, 'loop-08-question-tutor-on');
+});
+
 assert.deepEqual(model, [], `no model request: ${model.join()}`);
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
-console.log(`attempts submitted: ${attempts.length}`);
-console.log(`PASS ${results.length}/6 checks`);
+console.log(`attempts submitted: ${attempts.length}; submit keys sent: ${keys.length}; attempt reads: ${reads.length}; plans answered in the page: ${plans.length}; hook requests (Tutor On, aborted): ${hooks.length}`);
+console.log(`PASS ${results.length}/8 checks`);
 await browser.close();

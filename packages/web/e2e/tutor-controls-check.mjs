@@ -208,8 +208,10 @@ await check('entry states: a blank canvas welcomes; a saved activity offers the 
   await quiet('resume entry', before);
   await shot('controls-07-resume-light');
   await page.locator('[data-tutor-choice="continue"]').click();
-  await page.locator('[data-tutor-activity]').waitFor({ timeout: 5000 });
-  assert.match(await page.locator('[data-tutor-activity]').innerText(), /Which threshold catches more positives/);
+  // The saved activity is in progress, so its card (TutorActivity.jsx) shows the prompt, once: Continue adds no second copy.
+  await page.locator('[data-tutor-activity-card]').waitFor({ timeout: 5000 });
+  assert.match(await page.locator('[data-tutor-activity-card]').innerText(), /Which threshold catches more positives/);
+  assert.equal(await page.getByText('Which threshold catches more positives, and what does it cost?', { exact: true }).count(), 1, 'one copy of the prompt above the composer');
   await quiet('Continue', before, 1500);
   // A failed read of the saved controls: recovery with Retry, never a new learner's welcome.
   await page.route('**/api/learn/coaching**', route => route.request().method() === 'GET' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'coaching_unavailable' }) }) : route.continue());

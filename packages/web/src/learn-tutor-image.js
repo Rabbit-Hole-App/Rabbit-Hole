@@ -23,3 +23,11 @@ export async function submittedDrawing({ canvas, targetId, image }) {
   } catch { /* the notice below */ }
   return { image: null, notice: 'This drawing could not be saved as a stored image yet, so it was not submitted. Retry after the canvas saves.' };
 }
+
+// A drawing answer (Task 14, T6): the selected image card, frozen only once the canvas saved it remotely (submittedDrawing),
+// with the learner's optional explanation. Strokes alone or an unsaved card submit nothing and say why.
+export async function drawingContent({ canvas, selection = [], explanation = '' }) {
+  const drawn = await submittedDrawing({ canvas, targetId: selection[0] ?? null, image: null });
+  if (!drawn.image) return { notice: drawn.notice || 'Select the image of your drawing on the canvas, then check it.' };
+  return { content: { image: drawn.image, ...(explanation.trim() ? { explanation: explanation.trim() } : {}) } };
+}

@@ -287,6 +287,14 @@ test('route: owner-scoped GET and POST, 409 with the current state, 404 for fore
   assert.equal((await route(env, { origin: 'https://evil.test' })('POST', { app: A.app, board: 'main' })).status, 403);
 });
 
+// Tutor T8 (draft Task 05 browser half): the activity card offers a drawing answer only where this deployment assesses
+// drawings (T6's TUTOR_VISUAL_ASSESSMENT_ENABLED), read with the controls; nothing else about the deployment is said.
+test('route: GET says whether submitted drawings are assessed here, from the visual assessment flag only', async t => {
+  const { env } = migrated(t);
+  assert.deepEqual((await route(env)('GET', { app: A.app, board: 'main' })).body.capabilities, { drawing: false });
+  assert.deepEqual((await route({ ...env, TUTOR_VISUAL_ASSESSMENT_ENABLED: 'true' })('GET', { app: A.app, board: 'main' })).body.capabilities, { drawing: true });
+});
+
 test('route: a database without 0025 is coaching_unavailable, never an empty history', async t => {
   const { LEARN_DB } = learnDb(t, BEFORE_0025);
   const res = await route({ LEARN_DB })('GET', { app: A.app, board: 'main' });

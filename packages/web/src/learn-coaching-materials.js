@@ -273,6 +273,17 @@ const UNAVAILABLE_TEXT = {
   allowance_refused: 'Your answer is saved. It could not be checked now because the AI allowance is used up; your progress is unchanged.',
   activity_changed: 'Your answer is saved for the question you answered; that question has changed since, so it was not checked.',
 };
+// Feedback when it is ready (draft Task 05): a pending assessment (another tab's request still checking the same answer, or a
+// reply that could not read it back) is read again with GET, which reconciles and never calls a model, until it is final. The
+// server settles an abandoned check as unknown after 60 s, so this stops by then; a failed read keeps what is shown.
+export async function settledAttempt(read, view, { wait = ms => new Promise(resolve => setTimeout(resolve, ms)), every = 2000, tries = 35, live = () => true } = {}) {
+  for (let i = 0; i < tries && view?.assessment?.status === 'pending' && live(); i += 1) {
+    await wait(every);
+    view = await read().catch(() => view);
+  }
+  return view;
+}
+
 export function assessmentText(assessment) {
   const status = assessment?.status, reason = assessment?.reason;
   if (status === 'pending') return 'Your answer is saved. Checking it…';

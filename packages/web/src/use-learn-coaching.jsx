@@ -8,6 +8,7 @@ import { api } from './api.js';
 import { Toggle } from './ui.jsx';
 import { controlsNote, createCoachingSync, effectiveControls, guidedOpening } from './learn-coaching-client.js';
 import { checkpointOf, entryAction, entryCopy, resolveTutorEntry } from './learn-coaching-entry.js';
+import { shownActivity } from './TutorActivity.jsx';
 
 const CHANNEL = 'rh.learn-coaching';
 
@@ -99,7 +100,8 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
       <span className="min-w-0 flex-1">{waitingOpening.next_step ? `Continue with: ${waitingOpening.next_step.hook}` : `Start with: “${waitingOpening.question}”`}</span>
       <button type="button" disabled={busy} onClick={() => sendOpening(waitingOpening)} className={CHOICE}>{waitingOpening.next_step ? 'Continue' : 'Ask this'}</button>
     </div>}
-    {shown && engaged === chat.canvas && <p data-tutor-activity className="mb-2 rounded-xl border border-line bg-white p-2.5 text-sm text-ink">{shown}</p>}
+    {/* The activity card (TutorActivity.jsx) wins: Continue's saved prompt shows only where that card does not. */}
+    {shown && engaged === chat.canvas && !shownActivity(coaching.state) && <p data-tutor-activity className="mb-2 rounded-xl border border-line bg-white p-2.5 text-sm text-ink">{shown}</p>}
     {offer && <section data-tutor-entry={entry.kind} aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
       <p className="text-sm text-ink">{entryCopy(entry, checkpoint)}</p>
       <div className="flex flex-wrap gap-1.5">

@@ -17,22 +17,22 @@ const SAVE_TRIES = 3;
 // or a Rabbit Hole not saved yet; the controls last for this page only). saveStatus: 'saved' | 'saving' | 'error'.
 export function createCoachingSync({ scope, call, channel = null, newId = () => crypto.randomUUID() }) {
   let server = null, queue = [], status = 'loading', save = 'saved', undo = null, notice = null;
-  let flying = false, live = false, loads = 0, cached = null;
+  let flying = false, live = false, loads = 0, cached = null, capabilities = {};
   const listeners = new Set();
   const local = () => status === 'local';
   const controls = () => queue.reduce((c, item) => reduceTutorControls(c, item.event).state, server?.controls ?? defaultControls());
   const notify = () => { cached = null; listeners.forEach(fn => fn()); };
   // Never backwards: a late GET or another tab's older broadcast does not replace a newer confirmed state.
   const adopt = state => { if (state?.controls && (!server || state.revision >= server.revision)) server = state; };
-  const view = () => (cached ||= { status, saveStatus: save, controls: controls(), state: server, undo, notice, pending: queue.length });
+  const view = () => (cached ||= { status, saveStatus: save, controls: controls(), state: server, undo, notice, pending: queue.length, capabilities });
 
   async function load() {
     const turn = ++loads;
     if (!coachingCanvas(scope.app)) { status = 'local'; server ||= { controls: defaultControls(), goals: [], revision: 0 }; notify(); return; }
     try {
-      const { state } = await call(coachingUrl(scope));
+      const { state, capabilities: offered } = await call(coachingUrl(scope));
       if (!live || turn !== loads) return;
-      adopt(state); status = 'ready';
+      adopt(state); status = 'ready'; capabilities = offered || {};
     } catch (error) {
       if (!live || turn !== loads) return;
       // A Rabbit Hole is a canvas only once its first object keeps it: until then nothing is saved for it.

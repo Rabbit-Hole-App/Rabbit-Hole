@@ -1,6 +1,7 @@
 // packages/control-plane/src/learn-coaching-routes.js
 // Personal Tutor state (C:/s/spec/tutor-workflow/draft.md Task 02):
-//   GET  /api/learn/coaching?app=&board=  -> { state }
+//   GET  /api/learn/coaching?app=&board=  -> { state, capabilities: { drawing } } (drawing: this deployment assesses submitted
+//        drawings, TUTOR_VISUAL_ASSESSMENT_ENABLED; the activity card offers a drawing answer only then)
 //   POST /api/learn/coaching { app, board, actionId, expectedRevision, action, payload } -> { state, effects, replayed? }
 //        400 invalid payload, 404 unknown goal/activity, 409 { error, state } (revision, undo_stale, goal_closed, ...)
 // Only the signed-in learner's own state, exactly as the journey route resolves it: an app they may open, a canvas, the
@@ -34,7 +35,7 @@ export async function coachingRoute(path, req, env, deps = {}) {
   if (!access.user_id) return json({ error: 'identity_unavailable' }, 401);
   const actor = { org: access.org, userId: access.user_id, app: body.app, board: body.board };
   try {
-    if (req.method === 'GET') return json({ state: await readCoachingState(env, actor) });
+    if (req.method === 'GET') return json({ state: await readCoachingState(env, actor), capabilities: { drawing: env.TUTOR_VISUAL_ASSESSMENT_ENABLED === 'true' } });
     const { actionId, expectedRevision, action, payload } = body;
     return json(await applyCoachingAction(env, actor, { actionId, expectedRevision, action, payload }));
   } catch (error) {
