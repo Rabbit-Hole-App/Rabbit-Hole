@@ -13,7 +13,8 @@
 // then once, in light:
 //   7. a model file that 404s shows the viewer's own failure and Retry model in the card, never the picture; Retry loads it;
 //   8. the selected /3d pill in the Chat composer reads 3D (never /3d) and its x is Remove 3D;
-//   9. a real /3d card on the canvas - /api/learn/artifact and the scene job answered in the browser with the same GLB - has the
+//   9. a real /3d card on the canvas - /api/learn/artifact and the scene job answered in the browser with the same GLB and the
+//      same title and brief (the viewer fills the card below its text, so the brief's length sets its height) - has the
 //      preview's card width, body size and DOM (the same ThreeDBody structure and three.js canvas);
 //  10. no page errors, and no model or job request from the window (counted), none of the canvas's stubbed ones reaching the server.
 // Before this change step 1 fails: /3d shows img[data-slash-illustration] (slash-3d-frustum.svg) and no viewer, and its e.g.
@@ -23,6 +24,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import assert from 'node:assert/strict';
+import { SAMPLES } from '../src/slash-sheet.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9271';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9273';
@@ -62,7 +64,7 @@ const router = async route => {
     const body = JSON.parse(request.postData() || '{}');
     assert.equal(body.command, '3d');
     return route.fulfill({ json: { result: 'paid_proposal', primitive: 'blender_scene', message: 'This uses paid generation.', estimatedCost: null, repaired: false,
-      block: { type: 'scene', title: 'Perspective projection', brief: 'Blender compiles this validated scene into a glTF asset; the viewer below is the same three.js renderer.', operation: { op: 'generate_3d_animation', id: 'perspective-frustum', concept: 'perspective projection', purpose: 'spatial_intuition', output: 'glb', duration: 3, caption: 'A camera frustum.', scene: { objects: [{ id: 'cube', type: 'cube', position: [0, 0, -3] }], animations: [] } }, status: 'idle', modelUrl: '', camera: {}, autoRotate: false, animation: { autoplay: true }, animationTime: 0 } } });
+      block: { type: 'scene', title: 'Perspective projection', brief: SAMPLES['3d'].scene.brief, operation: { op: 'generate_3d_animation', id: 'perspective-frustum', concept: 'perspective projection', purpose: 'spatial_intuition', output: 'glb', duration: 3, caption: 'A camera frustum.', scene: { objects: [{ id: 'cube', type: 'cube', position: [0, 0, -3] }], animations: [] } }, status: 'idle', modelUrl: '', camera: {}, autoRotate: false, animation: { autoplay: true }, animationTime: 0 } } });
   }
   if (canvasStubs && url.pathname === '/api/learn/scene') {
     if (request.method() === 'POST') { placement = `l9-${run}`; return route.fulfill({ json: { placementId: placement } }); }
