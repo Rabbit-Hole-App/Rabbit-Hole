@@ -196,9 +196,9 @@ export function NextStepsCard({ steps, onPick }) {
   // button asks for a set (useNextSteps request); showing Curious never does.
   if (steps.status === 'unavailable' && steps.reason === 'curious_empty' && typeof steps.request === 'function') return (
     <section data-next-steps="empty" aria-label="Curious where this goes?" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
-      <span className="truncate text-xs font-medium text-ink-2">No suggestions yet</span>
-      <button type="button" data-next-steps-request onClick={() => steps.request()}
-        className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-ink hover:bg-hover">Suggest next steps</button>
+      <span className="text-xs font-medium whitespace-nowrap text-ink-2">No suggestions yet</span>
+      <button type="button" data-next-steps-request aria-label="Suggest next steps" title="Suggest next steps for this canvas" onClick={() => steps.request()}
+        className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-ink hover:bg-hover">Suggest</button>
     </section>
   );
   if (minimized && visible) return (
