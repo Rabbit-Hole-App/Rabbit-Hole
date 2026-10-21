@@ -194,7 +194,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
   // The path is chat-route.js tutorTurn: the Tutor in Auto (and off the Chat pane); Ask and Tutor modes post to /api/learn/ask.
   // A turn with an imported file attached goes to /api/learn/ask, which reads file refs (chat-route.js fileTurn).
-  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, fileTurn, chat, mode: chat\?\.thread\.mode \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
+  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, fileTurn, chat, mode: chat\?\.thread\.mode, toc: tocView \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
   assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, page: pdfPage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\], onCard: cardSink \}\)/); // onCard: the turn's cards kept under its question (UI changes brief 5)
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
@@ -1325,7 +1325,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
   // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
   // (Continue convo), which gets the same Tutor in a journey hole.
-  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
+  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| chat\?\.coaching\?\.status === 'loading' \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
 });
 
 // ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.
@@ -1391,9 +1391,9 @@ test('journeyDiveContext: null unless the journey is active', () => {
 });
 
 test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive record carries it, and the hole Tutor reads its parent journey once', () => {
-  assert.match(read('LearnPage.jsx'), /const dive = useDive\(\{[^\n]*journeyContext: block => journeyDiveContext\(journey\.journey, journey\.path, block\) \}\);/);
+  assert.match(read('LearnPage.jsx'), /const dive = useDive\(\{[^\n]*journeyContext: block => journeyDiveContext\(journey\.journey, journey\.path, block\), entryControls: [^\n]*\}\);/);
   const diveSource = read('Dive.jsx');
-  assert.match(diveSource, /export function useDive\(\{[^}]*journeyContext = \(\) => null \}\)/);
+  assert.match(diveSource, /export function useDive\(\{[^}]*journeyContext = \(\) => null, entryControls = \(\) => null \}\)/);
   assert.match(diveSource, /diveRecord\(\{[^\n]*journey: journeyContext\(block\) \}\)/);
   const tutor = read('LearnTutor.jsx'), domains = read('learn-tutor-domains.js');
   // Active in a hole whose record carries a journey once the parent journey is read; a refusal (null) leaves it as it was.

@@ -59,17 +59,15 @@ const browser = await chromium.launch();
 const asks = [], stray = [], errors = [];
 let reply = null, lastProposal = null;
 const tutorTurn = proposal => `event: chunk\ndata: ${JSON.stringify({ text: 'Here is a place for that in your contents.' })}\n\nevent: outline\ndata: ${JSON.stringify(proposal)}\n\nevent: done\ndata: {}\n\n`;
+// Owner decision 1a (2026-10-20, Tutor workflow): syllabus and outline building moved out of Chat's Tutor mode (now the
+// teaching Tutor) into the Table of contents conversation, which posts its held Tutor to /api/learn/ask (answered above).
 const send = async text => {
-  await page.getByRole('tab', { name: /^Chat$/ }).click();
-  // Tutor mode, which posts to /api/learn/ask (answered above); Auto would plan with the live Tutor first. The Chat pane's own
-  // composer: the Table of contents has its own (owner brief 2026-10-16 item 7).
-  const pane = page.locator('aside[aria-label="Learn agent chat"] [data-chat-pane]');
-  if (await pane.locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'tutor') {
-    await pane.getByRole('button', { name: 'Mode', exact: true }).click();
-    await page.locator('[data-chat-mode-option="tutor"]').click();
-    await pane.locator('[data-chat-mode="tutor"]').waitFor();
-  }
-  const input = page.locator('aside[aria-label="Learn agent chat"] [data-chat-composer] textarea, aside[aria-label="Learn agent chat"] [data-chat-composer] input:not([type="file"])').first();
+  await tocTab().click();
+  // With no TOC messages yet the conversation is a compact entry (data-toc-start); pressed, its composer opens.
+  const panel = page.locator('aside[aria-label="Learn agent chat"]');
+  await panel.locator('[data-toc-start] button, [data-toc-composer]').first().waitFor({ timeout: 10000 });
+  if (await panel.locator('[data-toc-start] button').count()) await panel.locator('[data-toc-start] button').click();
+  const input = page.locator('aside[aria-label="Learn agent chat"] [data-toc-composer] textarea').first();
   await input.fill(text);
   await input.press('Enter');
 };
@@ -292,7 +290,7 @@ await check('10 the active marker follows the canvas by its rule, apart from com
   await shot('07-active-section');
 });
 
-await check('11 a Tutor proposal marks the tab without switching to it; the card shows each add under its parent; Apply adds an uncompleted entry once, under a completed topic', async () => {
+await check('11 an outline request in the Table of contents conversation applies its proposal at once (owner 1a): an uncompleted entry, once, under a completed topic', async () => {
   await circle('t3').click(); // Baking done: a new sub-section under it must still start open
   await page.waitForFunction(() => document.querySelector('[data-toc-entry="t3"]')?.hasAttribute('data-done'));
   await saved('Baking done', headings => headings.find(block => block.id === 't3')?.done === true);
@@ -300,19 +298,12 @@ await check('11 a Tutor proposal marks the tab without switching to it; the card
   const proposal = { base, ops: [{ op: 'add', text: 'Proofing', level: 2, parent: 't3', description: 'Why dough rests before it bakes.' }] };
   reply = tutorTurn(proposal);
   await send('Where would proofing fit?');
-  await page.waitForFunction(() => document.querySelector('[data-panel-tab="toc"]')?.getAttribute('aria-label') === 'Table of contents, 1 proposal to review');
-  assert.equal(await page.locator('[data-panel-tab="chat"]').getAttribute('aria-selected'), 'true', 'still on Chat: a Tutor proposal never switches tabs');
-  assert.equal(await tocTab().locator('[data-toc-pending]').count(), 1);
-  await shot('08-proposal-pending-tab', page.locator('[data-panel-header]'));
-  await tocTab().click();
-  const card = toc().locator('[data-toc-proposal]');
-  await card.waitFor();
-  assert.equal((await card.innerText()).replace(/\s+/g, ' ').includes('Under "Baking" + Proofing Why dough rests before it bakes.'), true, await card.innerText());
-  assert.equal(await card.locator('[role="alert"]').count(), 0);
-  await shot('09-proposal-card', card);
-  await card.getByRole('button', { name: 'Apply' }).click();
-  await card.waitFor({ state: 'detached' });
+  // The learner's own request in the TOC conversation applies at once (TocConversation, LearnPage onOutlineProposal); only a
+  // proposal that cannot apply waits as the Apply/Discard card (13).
   const added = toc().locator('[data-toc-entry]', { hasText: 'Proofing' });
+  await added.waitFor({ timeout: 15000 });
+  assert.equal(await toc().locator('[data-toc-proposal]').count(), 0, 'nothing waits for review');
+  await shot('08-proposal-applied', page.locator('aside[aria-label="Learn agent chat"]'));
   assert.equal(await added.count(), 1, 'added once');
   assert.equal(await added.getAttribute('data-done'), null, 'a new entry starts uncompleted');
   assert.equal(await added.getAttribute('data-level'), '2');

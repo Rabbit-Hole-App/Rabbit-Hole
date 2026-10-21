@@ -1,7 +1,7 @@
-// Next Steps on a blank canvas (owner, 2026-10-08; docs/features/professor-next-steps.md 1.2): a new canvas with no card shows
-// its three hooks at rest - grounded in the title when the title says something, three distinct starter hooks when it is
-// Untitled. Against the KEYLESS journey stack only (e2e/journey-local-stack.md): the hook planner answers from its fixtures,
-// no model key is bound, and nothing here presses Send.
+// Next Steps on a blank canvas. Owner decision 3a (2026-10-20, Tutor workflow) reverses the at-rest hooks of 2026-10-08
+// (docs/features/professor-next-steps.md 1.2): opening a canvas, or selecting Tutor on it, makes no model call. A new blank
+// canvas asks for no hooks in Auto (the default) or in Tutor On, and Tutor On shows its static welcome instead. Against the
+// KEYLESS journey stack only (e2e/journey-local-stack.md): no model key is bound, and nothing here presses Send.
 // Usage: TUTOR_BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 TEST_BYPASS_SECRET=... node e2e/blank-canvas-hooks-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -33,17 +33,22 @@ page.on('request', request => {
   else if (/^\/api\/(ask|learn\/(tutor\/plan|ask|home-ask))/.test(path)) asked.push(path);
 });
 
-// One blank canvas: its card shows three distinct hooks at rest, from one hook request and no question sent.
+// One blank canvas: no hook request at rest, in Auto or after selecting Tutor; Tutor On shows the static welcome.
 async function blank(label, title) {
   const name = await newCanvas(title);
   const before = hooks.length;
   await page.goto(`${BASE}/apps/${name}`);
-  const card = page.locator('section[data-next-steps="ready"]');
-  const shown = await card.waitFor({ timeout: 60000 }).then(() => true, () => false);
-  const options = shown ? (await card.locator('[data-next-step]').allInnerTexts()).map(text => text.trim()) : [];
-  check(`${label}: a blank canvas shows three hooks at rest`, options.length === 3 && options.every(Boolean), options.join(' | '));
-  check(`${label}: the three hooks are distinct`, new Set(options.map(text => text.toLowerCase())).size === 3);
-  check(`${label}: one hook request, for a canvas with no blocks`, hooks.length - before >= 1 && (hooks.at(-1)?.input?.blocks?.length ?? 0) === 0, `${hooks.length - before} request(s)`);
+  const pane = page.locator('[data-chat-pane]');
+  await pane.locator('[data-chat-composer] textarea').first().waitFor({ timeout: 60000 });
+  await page.waitForTimeout(3000); // past the 1200 ms hook debounce
+  check(`${label}: Auto at rest asks for no hooks and shows none`, hooks.length === before && await page.locator('[data-next-steps]').count() === 0, `${hooks.length - before} request(s)`);
+  await pane.getByRole('button', { name: 'Mode', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /^Tutor/ }).click();
+  const welcome = page.locator('[data-tutor-entry="welcome"]');
+  const shown = await welcome.waitFor({ timeout: 15000 }).then(() => true, () => false);
+  await page.waitForTimeout(3000);
+  check(`${label}: Tutor On shows the static welcome`, shown && /What would you like to learn or work on here\?/.test(await welcome.innerText().catch(() => '')));
+  check(`${label}: Tutor On at rest asks for no hooks and shows none`, hooks.length === before && await page.locator('[data-next-steps]').count() === 0, `${hooks.length - before} request(s)`);
   await page.screenshot({ path: `${SHOTS}/${label.replace(/\W+/g, '-')}.png` });
 }
 
