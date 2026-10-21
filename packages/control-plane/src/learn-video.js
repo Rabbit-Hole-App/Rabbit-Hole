@@ -141,7 +141,7 @@ export class LearnVideos {
           // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
           // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render was
           // recorded by its admission; a submission that failed gives its slot back.
-          if (maths && !job.ticket) await releaseRender(this.env, job.slot, false);
+          if (maths && !job.ticket) await releaseRender(this.env, job.slot, 'failed');
           else if (!motion && !maths && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
@@ -197,7 +197,7 @@ export class LearnVideos {
         }
       }
       await this.state.storage.put(key, job);
-      if (job.status !== 'generating') await releaseRender(this.env, job.slot, job.status === 'ready'); // a Manim job's slot
+      if (job.status !== 'generating') await releaseRender(this.env, job.slot, job.status === 'ready' ? 'settled' : 'failed'); // a Manim job's slot
     }
     if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating')) await this.state.storage.setAlarm(Date.now() + POLL_MS);
   }

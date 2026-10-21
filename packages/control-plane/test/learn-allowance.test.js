@@ -634,15 +634,15 @@ test('render limits: concurrent admissions, the bounded queue and the daily requ
   assert.deepEqual([full.status, full.reason, full.retryAfter], [429, 'queue_full', '60']);
   assert.match(full.error, /busy with other learners' work\. Try again in about a minute/);
   // Released slots make room; Alice's third render today is her last.
-  await Promise.all(held.map(slot => releaseRender(env, slot, true)));
-  await releaseRender(env, held[0], false); // a second release of the same slot changes nothing
+  await Promise.all(held.map(slot => releaseRender(env, slot, 'settled')));
+  await releaseRender(env, held[0], 'failed'); // a second release of the same slot changes nothing
   assert.ok((await admit('u-alice')).slot);
   const daily = await busyOf((await admit('u-alice')).refused);
   assert.deepEqual([daily.status, daily.reason], [429, 'learner_day']);
   assert.ok(daily.retryAfterSeconds > 86000 && daily.retryAfterSeconds <= 86400, String(daily.retryAfterSeconds));
   assert.match(daily.error, /^You've started 3 scene renders in the last 24 hours, the daily limit\. Try again in 2[34] h \d+ min\.$/);
   // Five renders today across learners is the platform's compute limit for this renderer.
-  await releaseRender(env, bob.slot, false);
+  await releaseRender(env, bob.slot, 'failed');
   assert.ok((await admit('u-carol')).slot);
   const compute = await busyOf((await admit('u-dave')).refused);
   assert.deepEqual([compute.status, compute.reason], [429, 'platform_day']);
@@ -703,4 +703,29 @@ test('real local D1 (workerd): eight canvases of one learner admitted at once ta
   assert.ok((await admit('u-bob')).slot);
   const counted = await db.prepare("SELECT (SELECT COUNT(*) FROM usage_actions WHERE feature = 'render') AS actions, (SELECT COUNT(*) FROM usage_attempts WHERE status = 'running') AS slots").first();
   assert.deepEqual({ ...counted }, { actions: 2, slots: 2 });
+});
+
+test('a refused, cached or duplicate scene request asks the renderer nothing, not even /health; a renderer that cannot answer gives the slot back', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { calls } = renderer(t);
+  const [a1, a2, a3] = ['alice-1', 'alice-2', 'alice-3'].map(name => new LearnScenes(durable(name), env));
+  const three = { operation: { ...sceneExample, duration: 3 } };
+  assert.equal((await a1.fetch(sceneAs('u-alice'))).status, 202);
+  await a1.alarm(); await a1.alarm();
+  assert.equal((await a1.list()).scenes[0].status, 'ready');
+  assert.equal((await a2.fetch(sceneAs('u-alice', three))).status, 202, 'her next render holds her slot');
+  const seen = calls.length;
+  assert.equal((await busyOf(await a3.fetch(sceneAs('u-alice', three)))).reason, 'learner_active');
+  const cached = await a1.fetch(sceneAs('u-alice', { page: 'another' }));
+  assert.equal(cached.status, 202);
+  assert.ok((await cached.json()).scenes.every(scene => scene.status === 'ready'));
+  assert.equal((await a2.fetch(sceneAs('u-alice', three))).status, 202, 'a duplicate of the queued render');
+  assert.deepEqual(calls.slice(seen), [], 'zero renderer requests, /health included');
+  // Admitted, then the renderer cannot be asked: the slot is given back as cancelled and counts for nothing.
+  const broken = await new LearnScenes(durable('bob-1'), { ...env, SCENE_WORKER_URL: 'http://scene.test' }).fetch(sceneAs('u-bob'));
+  assert.deepEqual([broken.status, (await broken.json()).error], [400, 'Scene worker requires HTTPS']);
+  assert.deepEqual(renderRows(sqlite, 'u-bob'), [['cancelled', 'cancelled', 'free']]);
+  assert.equal((await new LearnScenes(durable('bob-2'), { ...env, RENDER_LEARNER_DAY: '1' }).fetch(sceneAs('u-bob'))).status, 202, 'the cancelled slot is free and not in the daily count');
+  assert.deepEqual(rows(sqlite, 'usage_attempts').filter(a => a.provider === 'fly_scene_worker').map(a => a.model), ['render-test', 'render-test', null, 'render-test'], 'the version is recorded once the renderer says it');
 });

@@ -20,16 +20,16 @@ export function renderLimits(env) {
   return Object.fromEntries(Object.keys(DEFAULTS).map(name => [name, read(name)]));
 }
 
-// The last day's render attempts of one renderer. The status list names every status so SQLite reads the time window through
+// The last day's render attempts of one renderer; a cancelled one (admitted, then nothing rendered) counts for nothing. The status list names every status so SQLite reads the time window through
 // usage_attempts_status (status, started_at) instead of every attempt ever recorded. Binds: activeSince, user, activeSince,
 // user, user, daySince, provider.
 const COUNTS = `SELECT
     COUNT(CASE WHEN t.status = 'running' AND t.started_at > ? AND a.user_id = ? THEN 1 END) AS mine_active,
     COUNT(CASE WHEN t.status = 'running' AND t.started_at > ? THEN 1 END) AS active,
-    COUNT(CASE WHEN a.user_id = ? THEN 1 END) AS mine_day,
-    COUNT(*) AS day,
-    MIN(CASE WHEN a.user_id = ? THEN t.started_at END) AS mine_first,
-    MIN(t.started_at) AS first
+    COUNT(CASE WHEN a.user_id = ? AND t.status <> 'cancelled' THEN 1 END) AS mine_day,
+    COUNT(CASE WHEN t.status <> 'cancelled' THEN 1 END) AS day,
+    MIN(CASE WHEN a.user_id = ? AND t.status <> 'cancelled' THEN t.started_at END) AS mine_first,
+    MIN(CASE WHEN t.status <> 'cancelled' THEN t.started_at END) AS first
   FROM usage_attempts t JOIN usage_actions a ON a.action_id = t.action_id
   WHERE t.status IN ('running', 'settled', 'failed', 'cancelled') AND t.started_at > ? AND t.provider = ? AND a.feature = 'render'`;
 const ADMIT_ACTION = `INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at)
@@ -81,16 +81,23 @@ export async function admitRender(env, req, { provider, model = null, label, wai
   }
 }
 
-// Gives a slot back once, when its job is ready (ok) or failed, timed out or refused by the renderer. Never throws: a release
-// that fails holds the slot only until its queue wait expires.
-export async function releaseRender(env, slot, ok) {
+// Gives a slot back once: 'settled' (its job is ready), 'failed' (failed, timed out or refused by the renderer) or 'cancelled'
+// (admitted, then nothing rendered). Never throws: a release that fails holds the slot only until its queue wait expires.
+const ENDED = { settled: 'completed', failed: 'failed', cancelled: 'cancelled' };
+export async function releaseRender(env, slot, status) {
   const db = env?.LEARN_DB;
   if (!db || !slot?.attempt) return;
   const now = Math.floor(Date.now() / 1000);
   try {
     await db.batch([
-      db.prepare("UPDATE usage_attempts SET status = ?, settled_at = ? WHERE attempt_id = ? AND status = 'running'").bind(ok ? 'settled' : 'failed', now, slot.attempt),
-      db.prepare("UPDATE usage_actions SET status = ?, result = ?, ended_at = ? WHERE action_id = ? AND status = 'running'").bind(ok ? 'completed' : 'failed', ok ? 'full' : 'none', now, slot.action),
+      db.prepare("UPDATE usage_attempts SET status = ?, settled_at = ? WHERE attempt_id = ? AND status = 'running'").bind(status, now, slot.attempt),
+      db.prepare("UPDATE usage_actions SET status = ?, result = ?, ended_at = ? WHERE action_id = ? AND status = 'running'").bind(ENDED[status], status === 'settled' ? 'full' : 'none', now, slot.action),
     ]);
   } catch (error) { console.warn('render slot not released:', error?.message); }
+}
+
+// The renderer version a slot was admitted for, once the renderer has said it (admission comes before the renderer is asked).
+export async function renderModel(env, slot, model) {
+  try { await env.LEARN_DB.prepare('UPDATE usage_attempts SET model = ? WHERE attempt_id = ?').bind(model, slot.attempt).run(); }
+  catch (error) { console.warn('render model not recorded:', error?.message); }
 }
