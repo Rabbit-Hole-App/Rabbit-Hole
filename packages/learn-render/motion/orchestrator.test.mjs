@@ -348,3 +348,19 @@ test('outside the production policy, refused before sending: a re-ask, a resend,
     assert.match((await view(job_id)).failure_reason, want, name);
   }
 });
+
+test('the canvas repository: the pinned nanoGPT is grounded on its source; one this process cannot read is refused before any call, unless a card is selected', async t => {
+  const NANO = '3adf61e154c3fe3fca428ad6bc3818b27a3b8291';
+  const seen = [];
+  const run = async args => { seen.push(args.source ? `${args.source.repository}@${args.source.commit.slice(0, 7)}` : 'no source'); return { status: 'needs_clarification', clarification: { question: 'x' } }; };
+  const { req, view } = await start(t, { run, call: async () => assert.fail('no model call') });
+  const go = async extra => { const { job_id } = await (await req('/jobs', { method: 'POST', body: job(extra) })).json(); await until(async () => (await view(job_id)).status !== 'running', 'done'); return view(job_id); };
+  await go({ repository: { repo: 'karpathy/nanoGPT', commit: NANO } });
+  const refused = await go({ repository: { repo: 'karpathy/minGPT', commit: 'b'.repeat(40) } });
+  assert.equal(refused.status, 'failed');
+  assert.match(refused.failure_reason, /^Motion cannot read this canvas's repository \(karpathy\/minGPT at bbbbbbb\) yet, so it would not be grounded in its code\. Nothing was spent/);
+  assert.deepEqual([refused.spend.calls, refused.spend.cost_usd], [0, 0]);
+  await go({ repository: { repo: 'karpathy/minGPT', commit: 'b'.repeat(40) }, context: { selection: { cardId: 'c1', kind: 'Explanation', title: 'Attention', text: 'Attention weighs tokens.' } } });
+  assert.deepEqual(seen, ['karpathy/nanoGPT@3adf61e', 'no source'], 'the refused job never ran; with a card selected it runs on the card');
+  for (const repository of [{ repo: 'nope', commit: NANO }, { repo: 'karpathy/nanoGPT', commit: 'main' }, { repo: 'karpathy/nanoGPT', commit: NANO, path: '/etc' }]) assert.notDeepEqual(validateJobRequest(job({ repository })), [], JSON.stringify(repository));
+});

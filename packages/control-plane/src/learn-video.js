@@ -37,8 +37,31 @@ export async function privateLessonAssetFetch(req, env, binding) {
   if (req.method === 'POST' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);
   // Cache and placements are private to this learner in this app/workspace.
   const id = binding.idFromName(JSON.stringify([app.org, app.name, app.email]));
-  return binding.get(id).fetch(forwardUsagePayer(req, usageContext(env)?.identity || app));
+  return binding.get(id).fetch(withCanvasRepository(forwardUsagePayer(req, usageContext(env)?.identity || app), await canvasRepository(env, app)));
 }
+
+// The canvas's repository, from the server's own records and never the browser (mgrnd ruling, 2026-10-21): a repository
+// canvas's repository at its imported commit, or a course canvas's pinned source (V1 has one course, the nanoGPT slice).
+// Null when the canvas has none. A /motion request on it is grounded on that code only where Motion can read it.
+const REPO = /^[\w.-]+\/[\w.-]+$/, SHA = /^[0-9a-f]{40}$/;
+export async function canvasRepository(env, app) {
+  if (app.kind === 'repository') return REPO.test(app.repo || '') && SHA.test(app.repo_commit || '') ? { repo: app.repo, commit: app.repo_commit } : null;
+  try {
+    const row = env.DB && app.id ? await env.DB.prepare('SELECT source_version FROM learn_courses WHERE app_id = ?').bind(app.id).first() : null;
+    return SHA.test(row?.source_version || '') ? { repo: 'karpathy/nanoGPT', commit: row.source_version } : null;
+  } catch { return null; }
+}
+// One server-set header, always removed from what the browser sent first (as the usage payer is).
+const REPOSITORY_HEADER = 'x-rh-canvas-repository';
+export function withCanvasRepository(req, repository) {
+  const headers = new Headers(req.headers);
+  headers.delete(REPOSITORY_HEADER);
+  if (repository) headers.set(REPOSITORY_HEADER, JSON.stringify(repository));
+  return new Request(req, { headers });
+}
+const forwardedRepository = req => {
+  try { const r = JSON.parse(req.headers.get(REPOSITORY_HEADER) || 'null'); return r && REPO.test(r.repo || '') && SHA.test(r.commit || '') ? { repo: r.repo, commit: r.commit } : null; } catch { return null; }
+};
 
 // A stored clip, with range support. Its type is the job's own (Avatar Teacher §13: WebM with alpha stays
 // video/webm); jobs that recorded none are MP4, as every FAL and Manim clip is.
@@ -138,7 +161,7 @@ export class LearnVideos {
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
-          if (motionRequest) await this.startMotion(req, job, provider);
+          if (motionRequest) { job.repository = forwardedRepository(req); await this.startMotion(req, job, provider); }
           else try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
           // A Motion submit is a GET of a finished render (nothing charged), and a definite refusal
           // started nothing: both stay retryable. Anything else may have started a paid job.
@@ -174,7 +197,7 @@ export class LearnVideos {
     const refused = provider.unavailable() || await this.admitMotion(req, job);
     if (refused) { Object.assign(job, { status: 'failed', error: refused, uncertain: false }); return; }
     await this.state.storage.put(`job:${job.key}`, job);
-    try { job.ticket = await provider.submit(job.input, job.spend); }
+    try { job.ticket = await provider.submit(job.input, job.spend, job.repository); }
     catch (error) {
       if (!error.definite) return; // unconfirmed: the alarm resends under the same key
       await this.settleMotion(job, NOTHING);
@@ -230,7 +253,7 @@ export class LearnVideos {
     const provider = new MotionRequestProvider(this.env);
     const late = Date.now() - job.startedAt > maxWait(job);
     if (!job.ticket) {
-      try { job.ticket = await provider.submit(job.input, job.spend); }
+      try { job.ticket = await provider.submit(job.input, job.spend, job.repository); }
       catch (error) {
         if (!error.definite && !late) return;
         // A refused resend of a fresh grant started nothing; a grant refused after a restart, or no answer at all, may have.

@@ -132,8 +132,9 @@ export class MotionRequestProvider {
     return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
   }
   // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
-  async submit(input, spend) {
-    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+  // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
+  async submit(input, spend, repository = null) {
+    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : body.error ? ` (${body.error})` : ` (HTTP ${response.status})`}`, body.error || `http_${response.status}`);

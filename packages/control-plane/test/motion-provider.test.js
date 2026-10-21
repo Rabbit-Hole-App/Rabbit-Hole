@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from '../src/motion-provider.js';
 import { signGrant } from '../../learn-render/motion/orchestrator.mjs';
-import { LearnVideos } from '../src/learn-video.js';
+import { LearnVideos, canvasRepository, withCanvasRepository } from '../src/learn-video.js';
 
 const id = '0123456789abcdef0123456789abcdef';
 const env = { MOTION_RENDERER_URL: 'https://motion.example/', MOTION_RENDERER_TOKEN: 'secret' };
@@ -340,4 +340,28 @@ test('motion_request context: the selected card is kept, keyed and submitted; cr
   await new MotionRequestProvider(orch, capture).submit(validateMotionRequest(motionOp), spend);
   const hold = { idempotency_key: spend.opId, grant: spend.grant };
   assert.deepEqual(sent, [{ request: line, location: { concept: 'Attention' }, context: { selection }, ...hold }, { request: line, location: { concept: 'Attention' }, ...hold }]);
+});
+
+// mgrnd ruling (2026-10-21): a canvas's repository is resolved by the worker from its own records (a repository canvas's row,
+// a course canvas's pinned source), forwarded in one server-set header that a browser cannot supply, and sent to the
+// orchestrator with the job.
+test('the canvas repository: from the server records only; a browser-sent header is replaced, never trusted', async () => {
+  const sha = '3adf61e154c3fe3fca428ad6bc3818b27a3b8291';
+  assert.deepEqual(await canvasRepository({}, { kind: 'repository', repo: 'karpathy/minGPT', repo_commit: 'b'.repeat(40) }), { repo: 'karpathy/minGPT', commit: 'b'.repeat(40) });
+  assert.equal(await canvasRepository({}, { kind: 'repository', repo: 'x', repo_commit: 'main' }), null, 'a malformed record is no repository');
+  const DB = source => ({ prepare: () => ({ bind: () => ({ first: async () => (source ? { source_version: source } : null) }) }) });
+  assert.deepEqual(await canvasRepository({ DB: DB(sha) }, { id: 7, name: 'canvas-1' }), { repo: 'karpathy/nanoGPT', commit: sha }, 'a course canvas: its pinned source');
+  assert.equal(await canvasRepository({ DB: DB(null) }, { id: 7, name: 'canvas-1' }), null, 'an ordinary canvas has none');
+  assert.equal(await canvasRepository({ DB: { prepare: () => { throw new Error('D1 down'); } } }, { id: 7 }), null);
+  const forged = () => new Request('https://dev.test/api/learn/video', { method: 'POST', headers: { 'x-rh-canvas-repository': JSON.stringify({ repo: 'evil/repo', commit: 'c'.repeat(40) }) }, body: '{}' });
+  assert.equal(withCanvasRepository(forged(), null).headers.get('x-rh-canvas-repository'), null, 'a browser cannot claim a repository');
+  assert.equal(withCanvasRepository(forged(), { repo: 'karpathy/nanoGPT', commit: sha }).headers.get('x-rh-canvas-repository'), JSON.stringify({ repo: 'karpathy/nanoGPT', commit: sha }));
+  const bodies = [];
+  const o = orchestratorStub();
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => { if (new URL(url).pathname === '/jobs') bodies.push(JSON.parse(init.body)); return original(url, init); };
+  try {
+    await requestFixture().actor.fetch(withCanvasRepository(motionRequest(), { repo: 'karpathy/nanoGPT', commit: sha }));
+    assert.deepEqual(bodies[0].repository, { repo: 'karpathy/nanoGPT', commit: sha });
+  } finally { globalThis.fetch = original; o.restore(); }
 });

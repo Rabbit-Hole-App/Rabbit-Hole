@@ -33,6 +33,7 @@ import { requestSpendBound } from '../../control-plane/src/learn-spend.js';
 import { MODEL_PRICES } from '../../control-plane/src/learn-models.js';
 import { validateMotionContext } from '../../control-plane/src/motion-context.js';
 import { PRICES } from './director.js';
+import { fixtureSource } from './fixture-source.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
 
@@ -95,7 +96,9 @@ export const GRANT_MAX_AGE_S = 600;
 export function validateJobRequest(body) {
   const e = [];
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
-  for (const k of Object.keys(body)) if (!['request', 'location', 'context', 'idempotency_key', 'grant'].includes(k)) e.push(`${k}: not a field`);
+  for (const k of Object.keys(body)) if (!['request', 'location', 'context', 'repository', 'idempotency_key', 'grant'].includes(k)) e.push(`${k}: not a field`);
+  const r = body.repository;
+  if (r !== undefined && (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).some(k => !['repo', 'commit'].includes(k)) || !/^[\w.-]+\/[\w.-]+$/.test(r.repo || '') || !/^[0-9a-f]{40}$/.test(r.commit || ''))) e.push('repository: {repo: owner/name, commit: 40 hex}');
   try { validateMotionContext(body.context); } catch (error) { e.push(error.message); }
   if (typeof body.request !== 'string' || !/^\/motion\s+\S/.test(body.request) || body.request.length > 500) e.push('request: "/motion <what to explain>", at most 500 characters');
   const l = body.location;
@@ -238,7 +241,13 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     // Each render the service is asked for is platform-funded compute the worker records apart (feature render).
     const counted = { ...service, submit: request => { job.renders++; return service.submit(request); } };
     log(`job ${id}: started`);
-    run({ message: body.request, location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
+    // The canvas's repository (the worker's records): grounded on where this process holds its source (the pinned nanoGPT);
+    // otherwise, with no selected card to ground on, refused before any paid call rather than explained as if from its code.
+    const pinned = fixtureSource();
+    const readable = body.repository && body.repository.repo === pinned.repository && body.repository.commit === pinned.commit;
+    const unreadable = body.repository && !readable && !body.context?.selection;
+    const runner = unreadable ? async () => ({ status: 'failed', failure_reason: `Motion cannot read this canvas's repository (${body.repository.repo} at ${body.repository.commit.slice(0, 7)}) yet, so it would not be grounded in its code. Nothing was spent. Select a card to explain instead` }) : run;
+    runner({ message: body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
       .finally(() => {

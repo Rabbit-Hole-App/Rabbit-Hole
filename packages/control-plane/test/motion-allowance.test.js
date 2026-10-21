@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LearnVideos } from '../src/learn-video.js';
+import { LearnVideos, withCanvasRepository } from '../src/learn-video.js';
 import { forwardUsagePayer, periodOf, usageTotals } from '../src/learn-usage.js';
 import { motionOrchestrator } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
@@ -290,7 +290,7 @@ test('no hold configured, or no orchestrator: nothing is admitted or started', a
 // pipeline is the real runMotionRequest, so the request is resolved and grounded by the real resolver (motion-grounding);
 // the paid stages are doubles that make their calls through the orchestrator's hold and ask the stub renderer for one
 // render. The stored video says what it was grounded on: the card, or explicitly nothing, never a repository it was not given.
-test('four topics, with and without a selected card: resolved, held, settled, and the card says what it was grounded on', async t => {
+test('four topics, with and without a selected card, and the nanoGPT course canvas: resolved, held, settled, and the card says what it was grounded on', async t => {
   const { runMotionRequest } = await import('../../learn-render/motion/pipeline.mjs');
   const { sqlite, LEARN_DB } = d1(t);
   const w = world(t);
@@ -326,6 +326,15 @@ test('four topics, with and without a selected card: resolved, held, settled, an
     ['gradient descent', '/motion 10s explain gradient descent intuitively', card('c-gd', 'Gradient descent', 'Gradient descent takes repeated steps against the gradient of the loss to reduce it.')],
   ];
   const results = [];
+  // The nanoGPT course canvas with no card selected: grounded on the pinned repository the worker says the canvas has.
+  {
+    const actor = new LearnVideos(durable('video-course'), env0(LEARN_DB));
+    await actor.fetch(withCanvasRepository(ask({}, { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } }), { repo: 'karpathy/nanoGPT', commit: '3adf61e154c3fe3fca428ad6bc3818b27a3b8291' }));
+    await settle(actor, async () => ['ready', 'failed'].includes((await video(actor)).status));
+    const v = await video(actor);
+    assert.equal(v.status, 'ready', v.error);
+    assert.ok(v.motion.source_refs.length > 0 && v.motion.source_refs.every(r => r.path === 'model.py' && r.commit === '3adf61e154c3fe3fca428ad6bc3818b27a3b8291'), JSON.stringify(v.motion.source_refs));
+  }
   for (const [topic, request, selected] of TOPICS) {
     for (const context of [null, selected]) {
       const actor = new LearnVideos(durable(`video-${topic}-${!!context}`), env0(LEARN_DB));
@@ -345,7 +354,7 @@ test('four topics, with and without a selected card: resolved, held, settled, an
     ['gradient descent', false, [], 'no_source_supplied'], ['gradient descent', true, ['card:c-gd'], 'grounded'],
   ]);
   // Eight jobs: eight holds of $2, each settled at its real $0.80 with $1.20 released; eight platform-funded renders.
-  assert.deepEqual(motionAttempts(sqlite), Array(8).fill([2_000_000, 'settled', 800_000, 'settled']));
-  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [6_400_000, 0]);
-  assert.deepEqual([w.model.calls.length, w.renders.length, renderRows(sqlite).length], [24, 8, 8]);
+  assert.deepEqual(motionAttempts(sqlite), Array(9).fill([2_000_000, 'settled', 800_000, 'settled']));
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [7_200_000, 0]);
+  assert.deepEqual([w.model.calls.length, w.renders.length, renderRows(sqlite).length], [27, 9, 9]);
 });
