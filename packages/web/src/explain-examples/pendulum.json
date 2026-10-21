@@ -1,0 +1,429 @@
+{
+ "id": "pendulum",
+ "label": "Pendulum (from the Tutor)",
+ "origin": "generated",
+ "args": "an interactive explanation of how a pendulum's length changes its period, with the length as a control",
+ "generatedAt": "2026-10-21T08:14:31.159Z",
+ "via": "Tutor create_material explain",
+ "block": {
+  "type": "animation",
+  "title": "How a pendulum's length sets its period",
+  "scene": {
+   "id": "pendulum-length-period",
+   "title": "How a pendulum's length sets its period",
+   "width": 880,
+   "height": 559,
+   "duration": 3,
+   "inputs": [
+    {
+     "name": "len",
+     "type": "index",
+     "label": "Pendulum length L",
+     "of": "lengthLabels",
+     "default": 1,
+     "presentation": "picker"
+    },
+    {
+     "name": "compare",
+     "type": "bool",
+     "label": "Show the 1.00 m reference bob",
+     "default": true
+    }
+   ],
+   "exampleData": {
+    "lengthLabels": [
+     "0.25 m",
+     "0.50 m",
+     "1.00 m",
+     "2.00 m",
+     "4.00 m"
+    ],
+    "lengths": [
+     0.25,
+     0.5,
+     1,
+     2,
+     4
+    ],
+    "periods": [
+     1,
+     1.42,
+     2.01,
+     2.84,
+     4.01
+    ],
+    "pivotY": [
+     150,
+     150,
+     150,
+     150,
+     150
+    ],
+    "bobY": [
+     210,
+     270,
+     330,
+     450,
+     450
+    ],
+    "stringLen": [
+     60,
+     120,
+     180,
+     300,
+     300
+    ],
+    "swingsPerMinute": [
+     60,
+     42,
+     30,
+     21,
+     15
+    ],
+    "notes": [
+     "Quarter the length: the period is halved, not quartered.",
+     "Half of 1.00 m gives about 1.41 s, not 1.00 s.",
+     "The classic seconds-ish pendulum: about 2.0 s per full swing.",
+     "Double the length: period grows by a factor of 1.41.",
+     "Four times the length gives exactly double the period.",
+     "placeholder"
+    ],
+    "cropNote": [
+     "",
+     "",
+     "",
+     "drawing cropped at 4 m",
+     "drawing cropped at 4 m"
+    ],
+    "refOn": "Grey bob = 1.00 m reference, period 2.01 s.",
+    "refOff": "Reference bob hidden.",
+    "refVisible": 1,
+    "refHidden": 0
+   },
+   "derived": {
+    "L": {
+     "op": "pick",
+     "args": [
+      "lengths",
+      "len"
+     ]
+    },
+    "T": {
+     "op": "pick",
+     "args": [
+      "periods",
+      "len"
+     ]
+    },
+    "bobY": {
+     "op": "pick",
+     "args": [
+      "bobY",
+      "len"
+     ]
+    },
+    "note": {
+     "op": "pick",
+     "args": [
+      "notes",
+      "len"
+     ]
+    },
+    "crop": {
+     "op": "pick",
+     "args": [
+      "cropNote",
+      "len"
+     ]
+    },
+    "swings": {
+     "op": "pick",
+     "args": [
+      "swingsPerMinute",
+      "len"
+     ]
+    },
+    "label": {
+     "op": "pick",
+     "args": [
+      "lengthLabels",
+      "len"
+     ]
+    },
+    "refNote": {
+     "op": "choose",
+     "args": [
+      "compare",
+      "refOn",
+      "refOff"
+     ]
+    },
+    "refOpacity": {
+     "op": "choose",
+     "args": [
+      "compare",
+      "refVisible",
+      "refHidden"
+     ]
+    }
+   },
+   "objects": [
+    {
+     "id": "question",
+     "type": "text",
+     "initialState": {
+      "text": "Make the pendulum 4x longer - does it swing 4x slower?",
+      "x": 40,
+      "y": 44,
+      "typography": "heading"
+     }
+    },
+    {
+     "id": "law",
+     "type": "text",
+     "initialState": {
+      "text": "Period depends on the square root of length: T = 2π√(L/g)",
+      "x": 40,
+      "y": 78,
+      "typography": "body"
+     }
+    },
+    {
+     "id": "pivot",
+     "type": "line",
+     "initialState": {
+      "from": {
+       "x": 150,
+       "y": 150
+      },
+      "to": {
+       "x": 330,
+       "y": 150
+      },
+      "role": "neutral"
+     }
+    },
+    {
+     "id": "pivotLabel",
+     "type": "text",
+     "initialState": {
+      "text": "pivot",
+      "x": 150,
+      "y": 140,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "refString",
+     "type": "line",
+     "initialState": {
+      "from": {
+       "x": 200,
+       "y": 150
+      },
+      "to": {
+       "x": 200,
+       "y": 330
+      },
+      "role": "neutral",
+      "opacity": {
+       "$derive": "refOpacity"
+      }
+     }
+    },
+    {
+     "id": "refBob",
+     "type": "circle",
+     "initialState": {
+      "x": 200,
+      "y": 330,
+      "w": 26,
+      "role": "neutral",
+      "opacity": {
+       "$derive": "refOpacity"
+      }
+     }
+    },
+    {
+     "id": "string",
+     "type": "line",
+     "initialState": {
+      "from": {
+       "x": 280,
+       "y": 150
+      },
+      "to": {
+       "x": 280,
+       "y": {
+        "$derive": "bobY"
+       }
+      },
+      "role": "input"
+     }
+    },
+    {
+     "id": "bob",
+     "type": "circle",
+     "initialState": {
+      "x": 280,
+      "y": {
+       "$derive": "bobY"
+      },
+      "w": 34,
+      "role": "input"
+     }
+    },
+    {
+     "id": "lenLabel",
+     "type": "text",
+     "initialState": {
+      "text": "L = {{label}}",
+      "x": 300,
+      "y": 250,
+      "typography": "body",
+      "role": "input"
+     }
+    },
+    {
+     "id": "cropLabel",
+     "type": "text",
+     "initialState": {
+      "text": "{{crop}}",
+      "x": 150,
+      "y": 500,
+      "typography": "annotation",
+      "role": "warning"
+     }
+    },
+    {
+     "id": "chart",
+     "type": "bars",
+     "initialState": {
+      "label": "period T in seconds for each length",
+      "x": 450,
+      "y": 150,
+      "h": 170,
+      "cell": 76,
+      "role": "output",
+      "labels": [
+       "0.25 m",
+       "0.50 m",
+       "1.00 m",
+       "2.00 m",
+       "4.00 m"
+      ],
+      "values": [
+       1,
+       1.42,
+       2.01,
+       2.84,
+       4.01
+      ],
+      "cellHighlight": {
+       "$derive": "len"
+      }
+     }
+    },
+    {
+     "id": "result",
+     "type": "text",
+     "initialState": {
+      "text": "T = {{T}} s per full back-and-forth swing",
+      "x": 450,
+      "y": 400,
+      "typography": "heading",
+      "role": "output"
+     }
+    },
+    {
+     "id": "rate",
+     "type": "text",
+     "initialState": {
+      "text": "About {{swings}} full swings per minute.",
+      "x": 450,
+      "y": 436,
+      "typography": "body",
+      "role": "output"
+     }
+    },
+    {
+     "id": "note",
+     "type": "text",
+     "initialState": {
+      "text": "{{note}}",
+      "x": 450,
+      "y": 470,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "refNote",
+     "type": "text",
+     "initialState": {
+      "text": "{{refNote}}",
+      "x": 450,
+      "y": 500,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "massNote",
+     "type": "text",
+     "initialState": {
+      "text": "Mass of the bob does not appear in T at all.",
+      "x": 40,
+      "y": 108,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "samples-note",
+     "type": "text",
+     "semanticId": "samples-note",
+     "initialState": {
+      "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+      "x": 40,
+      "y": 535,
+      "typography": "annotation"
+     }
+    }
+   ],
+   "timeline": [
+    {
+     "at": 0,
+     "action": "appear",
+     "target": "string",
+     "duration": 0.4
+    },
+    {
+     "at": 0.3,
+     "action": "appear",
+     "target": "bob",
+     "duration": 0.4
+    },
+    {
+     "at": 1,
+     "action": "appear",
+     "target": "chart",
+     "duration": 0.6
+    },
+    {
+     "at": 1.8,
+     "action": "highlight",
+     "target": "result",
+     "duration": 0.6
+    },
+    {
+     "at": 2.4,
+     "action": "emphasize",
+     "target": "law",
+     "duration": 0.6
+    }
+   ]
+  },
+  "time": 3,
+  "selectedObject": null,
+  "marked": null,
+  "calculation": "precomputed"
+ }
+}

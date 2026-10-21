@@ -31,17 +31,34 @@ export function inputStates(scene) {
   return states;
 }
 
+// What to do about a validator refusal real runs kept repeating (L10 runs, 2026-10-21): appended to the validator's own words.
+const HINTS = [
+  [/opacity: .*boolean/, 'to show or hide with a toggle, store {"on": 1, "off": 0} in exampleData, derive choose [toggle, "on", "off"] and use it as opacity'],
+  [/pick key .* names no entry in the record map/, 'an index input picks from a list by position; a record is picked only by a choice input, by its option ids'],
+  [/choose needs a boolean/, 'choose takes a bool input first; select by an index or choice input with pick'],
+  [/states a computed relationship/, 'write a general law as a text object, or take the equation numbers from derived values with {{name}}'],
+  [/lands its arrowhead .* inside the label/, 'end the arrow at least 12px clear of that label, or move the label'],
+];
+const hinted = message => { const hint = HINTS.find(([pattern]) => pattern.test(message)); return hint ? `${message}. Fix: ${hint[1]}` : message; };
+
 const where = inputs => {
   const [entry] = Object.entries(inputs);
   return entry ? `With input ${entry[0]} = ${JSON.stringify(entry[1])}: ` : '';
 };
 
 // The first problem a learner would meet, in words the model can act on for its one repair; null when every gate passes.
-export function sceneProblem(scene) {
+export const sceneProblem = scene => { const problem = firstProblem(scene); return problem && hinted(problem); };
+function firstProblem(scene) {
   if (!scene || typeof scene !== 'object') return 'scene must be an object';
   if (JSON.stringify(scene).length > MAX_SCENE_CHARS) return `The scene is over ${MAX_SCENE_CHARS.toLocaleString('en-US')} characters of JSON: draw fewer objects`;
   const image = (scene.objects || []).find(object => object?.type === 'image');
   if (image) return `Object "${image.id}": a generated scene draws no images (there is no image file to show); use shapes, text and data objects`;
+  // The derive seam reads args as names or numbers; anything else would surface as a bare TypeError, not a fix to make.
+  for (const [name, spec] of Object.entries(scene.derived || {})) {
+    if (!spec || typeof spec.op !== 'string' || !Array.isArray(spec.args)) return `derived.${name} needs {"op": "<op>", "args": [...]}`;
+    const bad = spec.args.find(arg => typeof arg !== 'string' && !Number.isFinite(arg));
+    if (bad !== undefined) return `derived.${name} (${spec.op}): every arg is a name, a dotted path or a number, not ${JSON.stringify(bad).slice(0, 60)} - put lists in exampleData and name them`;
+  }
   const legibility = (() => { try { return legibilityIssues(scene); } catch { return []; } })();
   for (const inputs of inputStates(scene)) {
     let result;
@@ -59,6 +76,17 @@ export function sceneProblem(scene) {
   }
   const small = legibility[0];
   if (small) return `${small.textClass} text would draw at ${small.effectivePx}px, below its ${small.floor}px floor: the scene is too wide or tall for one card, so draw less or split it into parts with a pager`;
+  return null;
+}
+
+// "live" is a claim that the scene calculates: a scene whose derived block only selects (pick, choose, gate, concat) shows
+// stored numbers whatever it declares, so it must say precomputed and carry the note. Mixed scenes are the model's to declare.
+const SELECTS = new Set(['pick', 'choose', 'gate', 'concat']);
+export function calculationProblem(scene, calculation) {
+  const ops = Object.values(scene?.derived || {}).map(spec => spec?.op);
+  if (calculation === 'live' && !ops.some(op => !SELECTS.has(op))) {
+    return 'calculation is "live" but no derived op calculates anything (only pick, choose, gate or concat select stored values): compute the results with the ops, or set calculation to "precomputed"';
+  }
   return null;
 }
 

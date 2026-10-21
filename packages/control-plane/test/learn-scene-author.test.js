@@ -77,6 +77,11 @@ test('every control setting is checked: a failure at one choice names that setti
   const broken = scene({ exampleData: { ...SCENE_EXAMPLE.exampleData, weightSets: { equal: [0.34, 0.33, 0.33], exam: [0.5, 0.5] } } });
   assert.match(sceneProblem(broken.scene), /^With input scheme = "exam": .*elementwise needs equal-length vectors/);
   assert.match(sceneProblem({ ...SCENE_EXAMPLE, objects: [...SCENE_EXAMPLE.objects, { id: 'pic', type: 'image', initialState: { src: '/a.png', x: 0, y: 0, w: 10, h: 10 } }] }), /draws no images/);
+  // A refusal real runs kept repeating carries its fix after the validator's own words.
+  const toggled = structuredClone(SCENE_EXAMPLE); toggled.objects[1].initialState.opacity = { $derive: 'showParts' };
+  assert.match(sceneProblem(toggled), /opacity: .*boolean\. Fix: to show or hide with a toggle/);
+  // A list written inline as an arg (seen in a real run) is named, not a bare TypeError from the derive seam.
+  assert.match(sceneProblem({ ...SCENE_EXAMPLE, derived: { ...SCENE_EXAMPLE.derived, extra: { op: 'sum', args: [[1, 2]] } } }), /^derived\.extra \(sum\): every arg is a name/);
 });
 
 test('precomputed samples carry the fixed note under the content; a live scene carries none, whatever the model wrote', async () => {
@@ -87,6 +92,18 @@ test('precomputed samples carry the fixed note under the content; a live scene c
   assert.ok(note.initialState.y > Math.max(...SCENE_EXAMPLE.objects.map(object => object.initialState.y)));
   const claimed = withSamplesNote({ ...SCENE_EXAMPLE, objects: [...SCENE_EXAMPLE.objects, { id: 'samples-note', type: 'text', initialState: { text: 'All live!', x: 0, y: 0 } }] }, 'live');
   assert.ok(!claimed.objects.some(object => object.id === 'samples-note'));
+});
+
+test('a scene that only selects stored numbers cannot claim to calculate them live', async () => {
+  const lookups = { scheme: { op: 'pick', args: ['weightSets', 'scheme'] }, partsNote: SCENE_EXAMPLE.derived.partsNote };
+  const stored = scene({ derived: { weights: lookups.scheme, partsNote: lookups.partsNote },
+    objects: SCENE_EXAMPLE.objects.filter(object => !['parts', 'grade'].includes(object.id)), timeline: SCENE_EXAMPLE.timeline.filter(event => event.target !== 'parts') });
+  const claimed = scripted(['make_animation', stored], ['make_animation', { ...stored, calculation: 'precomputed' }]);
+  const out = await generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, claimed);
+  assert.match(claimed.seen[1].messages.at(-1).content[0].content, /calculation is "live" but no derived op calculates anything/);
+  assert.equal(out.result, 'artifact');
+  assert.equal(out.block.calculation, 'precomputed');
+  assert.ok(out.block.scene.objects.some(object => object.id === 'samples-note'));
 });
 
 test('a refused spend admission is said in its own words, never as a bare status', async () => {

@@ -48,11 +48,12 @@ OBJECTS: {id (unique), type, initialState}. Types and their initialState fields:
 - text: text, x, y (where the line starts), typography (heading | body | caption | annotation), role.
 - box: x, y, w, h, label (drawn inside), role. circle: x, y (its centre), w (diameter), label, role.
 - arrow, line: from {x, y}, to {x, y}, label, role. An arrowhead must not land on text.
-- equation: text (TeX), x, y, w, h. code: text, x, y.
+- equation: text (TeX), x, y, w, h. An equation with an operator and "= <number>" (even "T = 2\\pi\\sqrt{L/g}") is read as a computed result, so its numbers must come from derived values ({{name}} in the TeX); write a general law as a text line instead. code: text, x, y.
 - strip (one row of numbers): x, y, values [numbers], cell (pixel pitch, 40-64), label, numberFormat (decimal | integer).
 - grid (a table of numbers): x, y, rows, cols, values (row-major, rows x cols numbers), cell, label, rowLabels (one per row), columnLabels (one per column), matrixKind (input = given data, derived = computed, relational = compares two labelled sets: REQUIRED whenever values are present).
-- bars (a bar chart): x, y, h (chart height), values [numbers], labels (one per bar, at most 24 characters), cell (bar pitch: about 10px per label character).
+- bars (a bar chart): x, y, h (chart height), values [numbers], labels (one per bar), cell (bar pitch: about 10px per label character).
 - tokens (a row of chips): x, y, tokens [short strings], label.
+Hard limits (anything over is refused): cell at most 80; rows and cols at most 64; at most 256 values; labels, rowLabels, columnLabels and tokens at most 24 characters each; label at most 200 and text at most 600 characters; w and h at most 2000.
 Optional on any: opacity (0-1; start at 0 to make it appear later), role (neutral | input | output | prediction | observed | warning | success; role is the colour - never write colours), cellHighlight (on grid, strip, bars, tokens: a position, a list of positions, {row} / {col}, or "max"), heat (true on a grid or strip colours cells by value: then valueScale is required: local, fixed for probabilities 0-1, or shared with a valueScaleGroup name).
 No images. No other fields.
 
@@ -63,17 +64,17 @@ INPUTS (the learner's controls, at most 4): {name (letters/digits), type, label 
 Input names may not reuse exampleData or derived names.
 
 VALUES: exampleData holds the given data (numbers, lists, records, strings). derived names each calculation once, in order, and may use earlier names; args are names, dotted paths ("table.2", "rec.field") or plain numbers. Ops:
-- pick [list, indexInput] or [record, choiceInput]: one entry (a number, list or record).
-- choose [boolInput, whenTrue, whenFalse]: one of two named values (often strings).
+- pick [list, indexInput] (by position) or [record, choiceInput] (keys are the choice's option ids): one entry (a number, list or record). An index input never picks from a record.
+- choose [boolInput, whenTrue, whenFalse]: one of two named values (often strings). Its first arg must be a bool input; to select by an index or choice input, use pick.
 - add, sub, elementwise (multiply) [vectorA, vectorB]: same-length lists, position by position.
 - scale [vector or list of vectors, number or name of a number]: multiply every entry.
 - sum [vector]: one number. dot [a, b]: one number. weighted_sum [weights, rows]. softmax [vector or rows]. argmin [vector]: a position.
 - concat [numbers or vectors...]: one list. matmul [rowsA, rowsB]: rowsA x rowsBᵀ. gate [value, boolInput]: the value, or blanks until the input is true. causal_mask [square matrix, bool].
-Nothing else exists: no division by a name, no powers, roots, logs, trigonometry or conditions. Use a value anywhere in initialState with {"$derive": "name"} (values, cellHighlight, x, y, w, h), and inside any text with "{{name}}" or "{{record.field}}" (a number or string, never a list).
+Single numbers: scale and the vector ops take lists, so make a number a one-entry list with concat [a] and read the result back as "name.0" (to divide by a setting, store its reciprocal per setting and scale by that). Nothing else exists: no division by a name, no powers, roots, logs, trigonometry or conditions. Use a value anywhere in initialState with {"$derive": "name"} (values, cellHighlight, x, y, w, h, opacity - a number, never a bool: to show or hide with a toggle, choose between stored 1 and 0), and inside any text with "{{name}}" or "{{record.field}}" (a number or string, never a list). A dotted path holds fixed keys or positions only ("table.2"), never an input's value: pick by the input in derived first, then use the picked name.
 
-CALCULATION (set the tool's "calculation" field honestly):
+CALCULATION (set the tool's "calculation" field honestly; prefer live: compute every result the ops can - a difference with sub, a total with sum, a product with scale or elementwise - and store only what they cannot):
 - live: every number the learner sees is computed by derived ops from the inputs (picking a parameter value from a list is fine).
-- precomputed: some shown results are stored values you worked out (for example a table of results per setting, because the ops above cannot compute them). Then the controls only select stored samples: use index or choice inputs over exactly the samples you stored, never imply a continuous range, and check every stored number. The card adds the note "Precomputed samples" itself; do not write one.
+- precomputed: some shown results are stored values you worked out (for example a table of results per setting, because the ops above cannot compute them). Then the controls only select stored samples: use index or choice inputs over exactly the samples you stored, never imply a continuous range. Work each setting out step by step before you write it, and make every stored list for that setting (marks, numbers, counts, sentences) agree with the others. The card adds the note "Precomputed samples" itself; do not write one.
 - none: the scene shows no numbers.
 
 TIMELINE (plays once when the card appears; at most 30 events): {at (seconds), action, target, duration?, value?}. Actions: appear, disappear, highlight, unhighlight, emphasize, move (value {x, y}), change_text (value a string), set_values (value a list the same length as the target's values), highlight_cell, sweep. Every event ends within duration. Objects shown from the start need no event.

@@ -1,0 +1,332 @@
+{
+ "id": "compound-interest",
+ "label": "Compound interest",
+ "origin": "generated",
+ "args": "interactive: how compound interest grows compared with simple interest",
+ "generatedAt": "2026-10-21T08:05:41.411Z",
+ "via": "/explain",
+ "block": {
+  "type": "animation",
+  "title": "Compound vs simple interest",
+  "scene": {
+   "id": "compound-vs-simple",
+   "title": "Compound vs simple interest",
+   "width": 900,
+   "height": 599,
+   "duration": 3,
+   "inputs": [
+    {
+     "name": "rate",
+     "type": "index",
+     "label": "Annual interest rate",
+     "of": "rateLabels",
+     "default": 1,
+     "presentation": "picker"
+    },
+    {
+     "name": "showSimple",
+     "type": "bool",
+     "label": "Show simple interest alongside",
+     "default": true
+    }
+   ],
+   "exampleData": {
+    "rateLabels": [
+     "3%",
+     "5%",
+     "10%"
+    ],
+    "compoundSets": {
+     "r3": [
+      1000,
+      1030,
+      1061,
+      1093,
+      1126,
+      1159,
+      1194,
+      1230,
+      1267,
+      1305,
+      1344
+     ],
+     "r5": [
+      1000,
+      1050,
+      1103,
+      1158,
+      1216,
+      1276,
+      1340,
+      1407,
+      1477,
+      1551,
+      1629
+     ],
+     "r10": [
+      1000,
+      1100,
+      1210,
+      1331,
+      1464,
+      1611,
+      1772,
+      1949,
+      2144,
+      2358,
+      2594
+     ]
+    },
+    "simpleSets": {
+     "r3": [
+      1000,
+      1030,
+      1060,
+      1090,
+      1120,
+      1150,
+      1180,
+      1210,
+      1240,
+      1270,
+      1300
+     ],
+     "r5": [
+      1000,
+      1050,
+      1100,
+      1150,
+      1200,
+      1250,
+      1300,
+      1350,
+      1400,
+      1450,
+      1500
+     ],
+     "r10": [
+      1000,
+      1100,
+      1200,
+      1300,
+      1400,
+      1500,
+      1600,
+      1700,
+      1800,
+      1900,
+      2000
+     ]
+    },
+    "setKeys": [
+     "r3",
+     "r5",
+     "r10"
+    ],
+    "setupNotes": {
+     "r3": "Start 1000 at 3% a year. Balance at the end of each year 0-10.",
+     "r5": "Start 1000 at 5% a year. Balance at the end of each year 0-10.",
+     "r10": "Start 1000 at 10% a year. Balance at the end of each year 0-10."
+    },
+    "gapNotes": {
+     "r3": "At 3%: after 10 years compound 1344 vs simple 1300 - a 44 gap.",
+     "r5": "At 5%: after 10 years compound 1629 vs simple 1500 - a 129 gap.",
+     "r10": "At 10%: after 10 years compound 2594 vs simple 2000 - a 594 gap."
+    },
+    "simpleOn": "Simple interest adds the same amount each year: a straight line.",
+    "simpleOff": "Compound interest pays interest on past interest, so it curves upward."
+   },
+   "derived": {
+    "key": {
+     "op": "pick",
+     "args": [
+      "setKeys",
+      "rate"
+     ]
+    },
+    "compound": {
+     "op": "pick",
+     "args": [
+      "compoundSets",
+      "key"
+     ]
+    },
+    "simpleRaw": {
+     "op": "pick",
+     "args": [
+      "simpleSets",
+      "key"
+     ]
+    },
+    "simple": {
+     "op": "gate",
+     "args": [
+      "simpleRaw",
+      "showSimple"
+     ]
+    },
+    "setupNote": {
+     "op": "pick",
+     "args": [
+      "setupNotes",
+      "key"
+     ]
+    },
+    "gapNote": {
+     "op": "pick",
+     "args": [
+      "gapNotes",
+      "key"
+     ]
+    },
+    "note": {
+     "op": "choose",
+     "args": [
+      "showSimple",
+      "simpleOn",
+      "simpleOff"
+     ]
+    }
+   },
+   "objects": [
+    {
+     "id": "question",
+     "type": "text",
+     "initialState": {
+      "text": "Same 1000 deposit: why does compound pull ahead?",
+      "x": 40,
+      "y": 44,
+      "typography": "heading"
+     }
+    },
+    {
+     "id": "setup",
+     "type": "text",
+     "initialState": {
+      "text": "{{setupNote}}",
+      "x": 40,
+      "y": 76,
+      "typography": "caption"
+     }
+    },
+    {
+     "id": "compoundBars",
+     "type": "bars",
+     "initialState": {
+      "label": "compound interest balance",
+      "x": 40,
+      "y": 140,
+      "h": 130,
+      "cell": 72,
+      "role": "output",
+      "labels": [
+       "yr 0",
+       "yr 1",
+       "yr 2",
+       "yr 3",
+       "yr 4",
+       "yr 5",
+       "yr 6",
+       "yr 7",
+       "yr 8",
+       "yr 9",
+       "yr 10"
+      ],
+      "values": {
+       "$derive": "compound"
+      }
+     }
+    },
+    {
+     "id": "simpleBars",
+     "type": "bars",
+     "initialState": {
+      "label": "simple interest balance",
+      "x": 40,
+      "y": 350,
+      "h": 130,
+      "cell": 72,
+      "role": "observed",
+      "labels": [
+       "yr 0",
+       "yr 1",
+       "yr 2",
+       "yr 3",
+       "yr 4",
+       "yr 5",
+       "yr 6",
+       "yr 7",
+       "yr 8",
+       "yr 9",
+       "yr 10"
+      ],
+      "values": {
+       "$derive": "simple"
+      }
+     }
+    },
+    {
+     "id": "gap",
+     "type": "text",
+     "initialState": {
+      "text": "{{gapNote}}",
+      "x": 40,
+      "y": 512,
+      "typography": "body"
+     }
+    },
+    {
+     "id": "note",
+     "type": "text",
+     "initialState": {
+      "text": "{{note}}",
+      "x": 40,
+      "y": 540,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "samples-note",
+     "type": "text",
+     "semanticId": "samples-note",
+     "initialState": {
+      "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+      "x": 40,
+      "y": 575,
+      "typography": "annotation"
+     }
+    }
+   ],
+   "timeline": [
+    {
+     "at": 0,
+     "action": "appear",
+     "target": "compoundBars",
+     "duration": 0.6
+    },
+    {
+     "at": 0.8,
+     "action": "appear",
+     "target": "simpleBars",
+     "duration": 0.6
+    },
+    {
+     "at": 1.8,
+     "action": "highlight",
+     "target": "compoundBars",
+     "duration": 0.8
+    },
+    {
+     "at": 2.4,
+     "action": "appear",
+     "target": "gap",
+     "duration": 0.5
+    }
+   ]
+  },
+  "time": 3,
+  "selectedObject": null,
+  "marked": null,
+  "calculation": "precomputed"
+ }
+}

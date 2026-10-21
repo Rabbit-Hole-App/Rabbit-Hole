@@ -1,0 +1,395 @@
+{
+ "id": "mean-median",
+ "label": "Mean vs median",
+ "origin": "generated",
+ "args": "interactive: how one outlier moves the mean but barely moves the median",
+ "generatedAt": "2026-10-21T08:15:20.198Z",
+ "via": "/explain",
+ "block": {
+  "type": "animation",
+  "title": "One outlier moves the mean, not the median",
+  "scene": {
+   "id": "outlier-mean-median",
+   "title": "One outlier moves the mean, not the median",
+   "width": 880,
+   "height": 553,
+   "duration": 3,
+   "inputs": [
+    {
+     "name": "big",
+     "type": "index",
+     "of": "outlierLabels",
+     "default": 0,
+     "presentation": "picker",
+     "label": "Value of the last data point"
+    },
+    {
+     "name": "showMedian",
+     "type": "bool",
+     "label": "Show the median line",
+     "default": true
+    }
+   ],
+   "exampleData": {
+    "outlierLabels": [
+     "9",
+     "12",
+     "20",
+     "45",
+     "90"
+    ],
+    "dataSets": [
+     [
+      3,
+      5,
+      6,
+      7,
+      9
+     ],
+     [
+      3,
+      5,
+      6,
+      7,
+      12
+     ],
+     [
+      3,
+      5,
+      6,
+      7,
+      20
+     ],
+     [
+      3,
+      5,
+      6,
+      7,
+      45
+     ],
+     [
+      3,
+      5,
+      6,
+      7,
+      90
+     ]
+    ],
+    "means": [
+     6,
+     6.6,
+     8.2,
+     13.2,
+     22.2
+    ],
+    "medians": [
+     6,
+     6,
+     6,
+     6,
+     6
+    ],
+    "medianBars": [
+     [
+      0,
+      0,
+      6,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      6,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      6,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      6,
+      0,
+      0
+     ],
+     [
+      0,
+      0,
+      6,
+      0,
+      0
+     ]
+    ],
+    "hidden": [
+     [
+      0,
+      0,
+      0,
+      0,
+      0
+     ]
+    ],
+    "notes": [
+     "No outlier yet: mean and median agree at 6.",
+     "Mean drifts up to 6.6; the middle value is still 6.",
+     "Mean 8.2 is now above four of the five points.",
+     "Mean 13.2 is larger than every value except the outlier.",
+     "Mean 22.2 describes no one; median 6 still sits mid-pack."
+    ],
+    "medianOn": "Median = middle of the sorted list, so only its position matters.",
+    "medianOff": "Turn the median back on to compare it with the mean."
+   },
+   "derived": {
+    "data": {
+     "op": "pick",
+     "args": [
+      "dataSets",
+      "big"
+     ]
+    },
+    "meanVal": {
+     "op": "pick",
+     "args": [
+      "means",
+      "big"
+     ]
+    },
+    "medVal": {
+     "op": "pick",
+     "args": [
+      "medians",
+      "big"
+     ]
+    },
+    "gapList": {
+     "op": "sub",
+     "args": [
+      "means",
+      "medians"
+     ]
+    },
+    "gap": {
+     "op": "pick",
+     "args": [
+      "gapList",
+      "big"
+     ]
+    },
+    "note": {
+     "op": "pick",
+     "args": [
+      "notes",
+      "big"
+     ]
+    },
+    "medBarRaw": {
+     "op": "pick",
+     "args": [
+      "medianBars",
+      "big"
+     ]
+    },
+    "medBar": {
+     "op": "gate",
+     "args": [
+      "medBarRaw",
+      "showMedian"
+     ]
+    },
+    "medNote": {
+     "op": "choose",
+     "args": [
+      "showMedian",
+      "medianOn",
+      "medianOff"
+     ]
+    },
+    "setting": {
+     "op": "pick",
+     "args": [
+      "outlierLabels",
+      "big"
+     ]
+    }
+   },
+   "objects": [
+    {
+     "id": "question",
+     "type": "text",
+     "initialState": {
+      "text": "Drag one point far away: which average follows it?",
+      "x": 40,
+      "y": 44,
+      "typography": "heading"
+     }
+    },
+    {
+     "id": "values",
+     "type": "strip",
+     "initialState": {
+      "label": "sorted data (last value is the one you change)",
+      "x": 40,
+      "y": 116,
+      "cell": 60,
+      "numberFormat": "integer",
+      "role": "input",
+      "cellHighlight": 4,
+      "values": {
+       "$derive": "data"
+      }
+     }
+    },
+    {
+     "id": "chart",
+     "type": "bars",
+     "initialState": {
+      "label": "each data point",
+      "x": 40,
+      "y": 230,
+      "h": 150,
+      "cell": 70,
+      "role": "observed",
+      "labels": [
+       "x1",
+       "x2",
+       "x3",
+       "x4",
+       "x5"
+      ],
+      "values": {
+       "$derive": "data"
+      }
+     }
+    },
+    {
+     "id": "medbar",
+     "type": "bars",
+     "initialState": {
+      "label": "median sits at the middle point",
+      "x": 420,
+      "y": 230,
+      "h": 150,
+      "cell": 70,
+      "role": "success",
+      "labels": [
+       "x1",
+       "x2",
+       "x3",
+       "x4",
+       "x5"
+      ],
+      "values": {
+       "$derive": "medBar"
+      }
+     }
+    },
+    {
+     "id": "meanline",
+     "type": "text",
+     "initialState": {
+      "text": "Mean = {{meanVal}}",
+      "x": 40,
+      "y": 430,
+      "typography": "heading",
+      "role": "output"
+     }
+    },
+    {
+     "id": "medline",
+     "type": "text",
+     "initialState": {
+      "text": "Median = {{medVal}}",
+      "x": 300,
+      "y": 430,
+      "typography": "heading",
+      "role": "success"
+     }
+    },
+    {
+     "id": "gapline",
+     "type": "text",
+     "initialState": {
+      "text": "Gap (mean - median) = {{gap}}",
+      "x": 560,
+      "y": 430,
+      "typography": "heading",
+      "role": "warning"
+     }
+    },
+    {
+     "id": "note",
+     "type": "text",
+     "initialState": {
+      "text": "Last value = {{setting}}.  {{note}}",
+      "x": 40,
+      "y": 466,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "mednote",
+     "type": "text",
+     "initialState": {
+      "text": "{{medNote}}",
+      "x": 40,
+      "y": 494,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "samples-note",
+     "type": "text",
+     "semanticId": "samples-note",
+     "initialState": {
+      "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+      "x": 40,
+      "y": 529,
+      "typography": "annotation"
+     }
+    }
+   ],
+   "timeline": [
+    {
+     "at": 0,
+     "action": "appear",
+     "target": "values",
+     "duration": 0.4
+    },
+    {
+     "at": 0.6,
+     "action": "appear",
+     "target": "chart",
+     "duration": 0.5
+    },
+    {
+     "at": 1.3,
+     "action": "appear",
+     "target": "medbar",
+     "duration": 0.5
+    },
+    {
+     "at": 2,
+     "action": "highlight",
+     "target": "meanline",
+     "duration": 0.6
+    },
+    {
+     "at": 2.4,
+     "action": "highlight",
+     "target": "medline",
+     "duration": 0.6
+    }
+   ]
+  },
+  "time": 3,
+  "selectedObject": null,
+  "marked": null,
+  "calculation": "precomputed"
+ }
+}

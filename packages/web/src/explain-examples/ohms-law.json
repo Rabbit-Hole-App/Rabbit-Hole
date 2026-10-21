@@ -1,0 +1,347 @@
+{
+ "id": "ohms-law",
+ "label": "Ohm's law",
+ "origin": "generated",
+ "args": "interactive: how voltage, current and resistance relate in Ohm's law",
+ "generatedAt": "2026-10-21T08:10:54.300Z",
+ "via": "/explain",
+ "block": {
+  "type": "animation",
+  "title": "Ohm's law: V, I and R",
+  "scene": {
+   "id": "ohms-law",
+   "title": "Ohm's law: V = I x R",
+   "width": 860,
+   "height": 537,
+   "duration": 2.4,
+   "inputs": [
+    {
+     "name": "vIdx",
+     "type": "index",
+     "label": "Battery voltage V",
+     "of": "voltLabels",
+     "default": 2,
+     "presentation": "picker"
+    },
+    {
+     "name": "rIdx",
+     "type": "index",
+     "label": "Resistance R",
+     "of": "resLabels",
+     "default": 1,
+     "presentation": "picker"
+    },
+    {
+     "name": "showBars",
+     "type": "bool",
+     "label": "Show current for every resistance",
+     "default": true
+    }
+   ],
+   "exampleData": {
+    "voltLabels": [
+     "3 V",
+     "6 V",
+     "9 V",
+     "12 V"
+    ],
+    "resLabels": [
+     "2 ohm",
+     "4 ohm",
+     "6 ohm",
+     "12 ohm"
+    ],
+    "volts": [
+     3,
+     6,
+     9,
+     12
+    ],
+    "res": [
+     2,
+     4,
+     6,
+     12
+    ],
+    "currentRows": [
+     [
+      1.5,
+      0.75,
+      0.5,
+      0.25
+     ],
+     [
+      3,
+      1.5,
+      1,
+      0.5
+     ],
+     [
+      4.5,
+      2.25,
+      1.5,
+      0.75
+     ],
+     [
+      6,
+      3,
+      2,
+      1
+     ]
+    ],
+    "onNote": "Same battery, bigger R: current falls in proportion to 1/R.",
+    "offNote": "Turn the bars on to compare all four resistances at once."
+   },
+   "derived": {
+    "V": {
+     "op": "pick",
+     "args": [
+      "volts",
+      "vIdx"
+     ]
+    },
+    "R": {
+     "op": "pick",
+     "args": [
+      "res",
+      "rIdx"
+     ]
+    },
+    "rowI": {
+     "op": "pick",
+     "args": [
+      "currentRows",
+      "vIdx"
+     ]
+    },
+    "I": {
+     "op": "pick",
+     "args": [
+      "rowI",
+      "rIdx"
+     ]
+    },
+    "vLab": {
+     "op": "pick",
+     "args": [
+      "voltLabels",
+      "vIdx"
+     ]
+    },
+    "rLab": {
+     "op": "pick",
+     "args": [
+      "resLabels",
+      "rIdx"
+     ]
+    },
+    "bars": {
+     "op": "gate",
+     "args": [
+      "rowI",
+      "showBars"
+     ]
+    },
+    "note": {
+     "op": "choose",
+     "args": [
+      "showBars",
+      "onNote",
+      "offNote"
+     ]
+    }
+   },
+   "objects": [
+    {
+     "id": "q",
+     "type": "text",
+     "initialState": {
+      "text": "If you fix the battery, what sets the current?",
+      "x": 40,
+      "y": 44,
+      "typography": "heading"
+     }
+    },
+    {
+     "id": "eq",
+     "type": "equation",
+     "initialState": {
+      "text": "I = \\frac{V}{R}",
+      "x": 40,
+      "y": 80,
+      "w": 180,
+      "h": 80
+     }
+    },
+    {
+     "id": "src",
+     "type": "box",
+     "initialState": {
+      "x": 250,
+      "y": 92,
+      "w": 150,
+      "h": 56,
+      "label": "battery {{vLab}}",
+      "role": "input"
+     }
+    },
+    {
+     "id": "resbox",
+     "type": "box",
+     "initialState": {
+      "x": 470,
+      "y": 92,
+      "w": 150,
+      "h": 56,
+      "label": "resistor {{rLab}}",
+      "role": "input"
+     }
+    },
+    {
+     "id": "wire",
+     "type": "arrow",
+     "initialState": {
+      "from": {
+       "x": 400,
+       "y": 120
+      },
+      "to": {
+       "x": 466,
+       "y": 120
+      },
+      "label": "current",
+      "role": "output"
+     }
+    },
+    {
+     "id": "calc",
+     "type": "text",
+     "initialState": {
+      "text": "I = {{V}} V / {{R}} ohm = {{I}} A",
+      "x": 250,
+      "y": 190,
+      "typography": "heading",
+      "role": "output"
+     }
+    },
+    {
+     "id": "vstrip",
+     "type": "strip",
+     "initialState": {
+      "label": "voltage choices (V)",
+      "x": 40,
+      "y": 280,
+      "cell": 52,
+      "numberFormat": "integer",
+      "role": "input",
+      "values": {
+       "$derive": "volts"
+      },
+      "cellHighlight": {
+       "$derive": "vIdx"
+      }
+     }
+    },
+    {
+     "id": "rstrip",
+     "type": "strip",
+     "initialState": {
+      "label": "resistance choices (ohm)",
+      "x": 40,
+      "y": 380,
+      "cell": 52,
+      "numberFormat": "integer",
+      "role": "input",
+      "values": {
+       "$derive": "res"
+      },
+      "cellHighlight": {
+       "$derive": "rIdx"
+      }
+     }
+    },
+    {
+     "id": "ibars",
+     "type": "bars",
+     "initialState": {
+      "label": "current (A) at {{vLab}}",
+      "x": 480,
+      "y": 290,
+      "h": 130,
+      "cell": 60,
+      "role": "output",
+      "labels": [
+       "R=2",
+       "R=4",
+       "R=6",
+       "R=12"
+      ],
+      "values": {
+       "$derive": "bars"
+      },
+      "cellHighlight": {
+       "$derive": "rIdx"
+      }
+     }
+    },
+    {
+     "id": "note",
+     "type": "text",
+     "initialState": {
+      "text": "{{note}}",
+      "x": 40,
+      "y": 478,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "samples-note",
+     "type": "text",
+     "semanticId": "samples-note",
+     "initialState": {
+      "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+      "x": 40,
+      "y": 513,
+      "typography": "annotation"
+     }
+    }
+   ],
+   "timeline": [
+    {
+     "at": 0,
+     "action": "appear",
+     "target": "src",
+     "duration": 0.4
+    },
+    {
+     "at": 0.4,
+     "action": "appear",
+     "target": "wire",
+     "duration": 0.4
+    },
+    {
+     "at": 0.8,
+     "action": "appear",
+     "target": "resbox",
+     "duration": 0.4
+    },
+    {
+     "at": 1.3,
+     "action": "appear",
+     "target": "calc",
+     "duration": 0.4
+    },
+    {
+     "at": 1.8,
+     "action": "appear",
+     "target": "ibars",
+     "duration": 0.5
+    }
+   ]
+  },
+  "time": 2.4,
+  "selectedObject": null,
+  "marked": null,
+  "calculation": "precomputed"
+ }
+}

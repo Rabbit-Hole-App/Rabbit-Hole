@@ -18,7 +18,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
-import { sceneProblem, withSamplesNote } from './learn-scene-gates.js';
+import { calculationProblem, sceneProblem, withSamplesNote } from './learn-scene-gates.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
@@ -35,7 +35,7 @@ const CONTRACTS = { animation: SCENE_AUTHORING };
 const GATES = {
   animation: block => {
     const scene = withSamplesNote(block.scene, block.calculation);
-    const problem = sceneProblem(scene);
+    const problem = calculationProblem(block.scene, block.calculation) || sceneProblem(scene);
     if (problem) throw new Error(problem);
     return { ...block, scene };
   },
@@ -106,6 +106,8 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
       return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
     } catch (error) {
+      // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
+      console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
       if (input.imageSource || attempt >= ARTIFACT_REPAIRS) return { result: 'validation_error', primitive: id || null, error: error.message };
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }
