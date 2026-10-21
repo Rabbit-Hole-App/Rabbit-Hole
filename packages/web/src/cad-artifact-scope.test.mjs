@@ -15,7 +15,9 @@ test('live owner reads proposed and accepted artifacts before autosave',()=>{
   assert.equal(result.searchParams.has('app'),false);assert.equal(result.searchParams.has('board'),false);
  }
  assert.equal(url(`${file}?rev=1`,{ownerRead:true}).searchParams.get('rev'),'1');
- assert.match(source,/readUrl\(artifact.url,\{ownerRead:mutable\}\)/);
+ // Downloads (the card's and the context menu's) read through one helper, as the owner only when the card is mutable.
+ assert.match(source,/readUrl\(artifact\.url,\{ownerRead\}\)/);
+ assert.match(source,/downloadCadArtifact\(artifact,mutable\)/);
  assert.equal((source.match(/ownerRead=\{mutable\}/g)||[]).length,2);
 });
 test('shared/member and detached snapshots retain scoped authorization',()=>{

@@ -23,10 +23,14 @@ export function disposeModel(gltf) {
 // `options.load` (an imported model: model-loaders.js) replaces the GLB download of `initial.modelUrl`: it gets
 // { renderer, scene } and resolves { object, animations, kind, dispose }. `options.onLost` hears a lost WebGL context;
 // after it nothing more is persisted, so the saved card keeps its last good camera.
+// `options.background`: the scene colour, or null for none (the page behind the canvas shows through); omitted, the
+// imported-model viewer's grey.
 export function createThreeDRenderer(host, initial, onChange, onReady, onError, options = {}) {
-  const scene = new THREE.Scene(); scene.background = new THREE.Color('#f4f5f7');
+  const scene = new THREE.Scene();
+  const paint = value => { scene.background = value === null ? null : new THREE.Color(value ?? '#f4f5f7'); };
+  paint(options.background);
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 10000);
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); host.appendChild(renderer.domElement);
   const controls = new OrbitControls(camera, renderer.domElement); controls.enabled = false;
   scene.add(new THREE.HemisphereLight(0xffffff, 0x667788, 2));
@@ -94,6 +98,7 @@ export function createThreeDRenderer(host, initial, onChange, onReady, onError, 
   })().catch(error => { if (!disposed) { if (loaded?.kind !== 'splat') disposeModel(gltf); loaded?.dispose?.(); onError(error.message || 'Could not load the 3D model'); } });
   return {
     interact(value) { controls.enabled = value; },
+    background(value) { paint(value); schedule(); },
     // Back to the framing the model opened with.
     fit() { if (!fitView) return; changing = true; fitView(); controls.update(); changing = false; settle(); schedule(); },
     camera() { return gltf && !lost && finite() ? cameraState() : null; },

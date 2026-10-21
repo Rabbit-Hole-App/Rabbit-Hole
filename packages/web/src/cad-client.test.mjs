@@ -6,6 +6,10 @@ test('server status preserves layout, camera and last accepted revision while an
  const next=mergeCadBlock(old,{type:'cad',id:'card',jobId:'edit',baseRevisionId:'r1',revisionId:'r2',awaitingAccept:true,status:'ready',manifestUrl:'/r2'});
  assert.equal(next.revisionId,'r1'); assert.equal(next.manifestUrl,'/r1'); assert.equal(next.proposedRevisionId,'r2'); assert.equal(next.dx,24); assert.deepEqual(next.camera,{x:1});
 });
+test("a server block never replaces the card's viewer background (it is the card's, not the job's)",()=>{
+ const next=mergeCadBlock({type:'cad',id:'card',viewerBackground:'none'},{type:'cad',id:'card',status:'ready',viewerBackground:'white'});
+ assert.equal(next.viewerBackground,'none');
+});
 test('artifact links only come from the matching immutable manifest',()=>{
  assert.equal(cadArtifact({revisionId:'r1',artifacts:[{kind:'glb',url:'/glb'}]},'glb','r2'),null);
  assert.equal(cadArtifact({revisionId:'r1',artifacts:[{kind:'glb',url:'/glb'}]},'glb','r1').url,'/glb');

@@ -133,7 +133,8 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   // The hosts: one trailing segment on each row, only for the one selected object.
   assert.match(canvas, /\{selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id=\{block\.id\} \/><\/div>\}/, 'a slide');
   assert.match(canvas, /\{selected && block\.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id=\{block\.id\} \/><\/div>\}/, 'an image');
-  assert.match(canvas, /<SelectionActionsHost id=\{block\.id\} divider=\{\['whiteboard', 'paper', 'code', 'snippet'\]\.includes\(block\.type\)\} \/>/, 'a lesson card: after its own pills');
+  // A CAD card's viewer tools come first in its row (cad-controls placement requirement), so it gets the divider too.
+  assert.match(canvas, /<SelectionActionsHost id=\{block\.id\} divider=\{cadTools \|\| \['whiteboard', 'paper', 'code', 'snippet'\]\.includes\(block\.type\)\} \/>/, 'a lesson card: after its own pills');
   assert.match(canvas, /<SelectionActionsHost id=\{exchange\.id\} \/>\n\s+\{renderComposer && !replyOpen && \(/, 'a chat card');
   assert.match(canvas, /const askPill = <SelectionActionsHost id=\{item\.id\} className=\{sticky \? 'absolute z-30 -translate-x-full' : 'ml-auto'\} style=\{sticky \? \{ left: item\.x \+ \(item\.w \|\| 160\), top: item\.y - 40 \} : null\} \/>;/, 'a text box and a note');
   assert.match(canvas, /\{editingShape !== shape\.id && <SelectionActionsHost id=\{shape\.id\} divider \/>\}/, 'a text shape, beside its ladder, never while its words are typed');
