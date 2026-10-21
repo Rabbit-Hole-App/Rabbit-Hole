@@ -22,7 +22,7 @@ export const KindIcon = ({ kind, schedule, size = 16 }) => {
   return <I size={size} strokeWidth={1.5} className="shrink-0 text-ink-2" />;
 };
 
-// Buttons - primary (accent), secondary (bordered), ghost (default for most actions), danger.
+// Buttons - primary (accent), secondary (bordered), inverse (ink fill), ghost (default for most actions), danger.
 export function Button({ className, variant = 'ghost', size, ...props }) {
   return (
     <button
@@ -33,7 +33,12 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         // The companion's filled actions (Upload, Add to canvas; owner brief 2026-10-16 item 4): --action-blue, white text.
         variant === 'action' && 'bg-(--action-blue) font-medium text-white hover:brightness-110',
         // "New token" template: visible as a button at rest - white, border, faint shadow
-        variant === 'secondary' && 'border border-line-strong bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover',
+        // bg-surface, not bg-white: inside a blue or red fill .dark re-pins --color-white to pure white (index.css), which drew a
+        // white Cancel under light text on the dark slash notice.
+        variant === 'secondary' && 'border border-line-strong bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover active:bg-active',
+        // The confirm action beside a secondary one (PaidConfirm's Generate): an ink fill with surface text, 4.5:1 or more in
+        // both themes at rest, hovered and pressed (primary's white on --color-accent is 3.9:1). paid-confirm.test.mjs.
+        variant === 'inverse' && 'bg-ink text-surface hover:bg-ink/85 active:bg-ink/75',
         // "Copy link" template: accent-tinted fill for feature CTAs that should not shout
         variant === 'soft' && 'bg-accent/10 text-accent hover:bg-accent/20',
         variant === 'ghost' && 'text-ink-2 hover:bg-hover hover:text-ink',
