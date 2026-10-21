@@ -48,6 +48,7 @@ import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
 import { filesFetch } from '../control-plane/src/learn-files.js';
 import { fileTextFetch } from '../control-plane/src/learn-file-text.js';
 import { provenanceRoute } from '../control-plane/src/learn-provenance.js';
+import { progressRoute } from '../control-plane/src/learn-progress.js';
 import { canvasCommentsRoute } from '../control-plane/src/canvas-comments.js';
 import { canvasRefsFetch, canvasRefsRoute } from '../control-plane/src/canvas-refs.js';
 import { creatorsRoute } from '../control-plane/src/creators.js';
@@ -277,6 +278,8 @@ const routes = {
     if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
+    // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.
+    if (path === '/api/learn/progress') return progressRoute(path, req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).
     if (path.startsWith('/api/learn/grade')) { const graded = await learnGradeRoute(path, req, env); if (graded) return graded; }
     // Canvas comments (docs/features/canvas-comments.md): the member family and a publication's public family.
