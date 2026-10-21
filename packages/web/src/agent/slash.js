@@ -123,12 +123,11 @@ export function reviewOff(name, kind, { askLive = false } = {}) {
 export const descFor = (command, place) => (typeof command.desc === 'string' ? command.desc : command.desc[place]);
 
 // The commands a place can use right now. Unavailable ones are not shown.
-// /motion (Motion V1) is offered by a development or review build (VITE_COACHING_DEV: the isolated dev clones and local
-// stacks) and by the local Motion stack's build (VITE_MOTION_DEV). The production build sets neither (scripts/prod-release.mjs
-// strips both), so production has no /motion. Generate also needs the Motion orchestrator: where none is configured, the
-// card says Motion is not available here and nothing starts (control-plane motion-provider.js). `?.` keeps this importable
-// by node tests.
-const MOTION_DEV = import.meta.env?.VITE_MOTION_DEV === 'true' || import.meta.env?.VITE_COACHING_DEV === 'true';
+// /motion (Motion V1) is offered by the production build (VITE_MOTION, scripts/prod-release.mjs BUILD_ENV: owner activation
+// GO, 2026-10-21), by a development or review build (VITE_COACHING_DEV) and by the local Motion stack's build (VITE_MOTION_DEV).
+// Generate also needs the Motion orchestrator: where none is configured, the card says Motion is not available here and
+// nothing starts (control-plane motion-provider.js). `?.` keeps this importable by node tests.
+const MOTION_DEV = import.meta.env?.VITE_MOTION === 'true' || import.meta.env?.VITE_MOTION_DEV === 'true' || import.meta.env?.VITE_COACHING_DEV === 'true';
 // internal: true adds the Tutor's material tools (MATERIAL_TOOLS), for its create_material, a journey's steps and Ctrl+K's
 // automatic routing; never for a picker, the Slash commands window or a typed line.
 const placeFor = (surface) => (surface === 'chat' ? 'learn' : surface);

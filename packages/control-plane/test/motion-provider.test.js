@@ -301,12 +301,20 @@ test('Stop is refused for providers that cannot stop', async () => {
   } finally { globalThis.fetch = original; }
 });
 
-test('no checked-in Worker config points at a Motion orchestrator or turns /motion on: it exists only on the local Motion stack', async () => {
+// Owner activation GO (2026-10-21): only the production app config names the production orchestrator and its hold; no dev,
+// preview or local config points at an orchestrator or turns the development /motion flag on.
+test('only the production app config points at the Motion orchestrator, with a configured hold; no other checked-in config does', async () => {
   const { readdirSync, readFileSync } = await import('node:fs');
   const dirs = ['../', '../../web/'].map(d => new URL(d, import.meta.url));
-  const configs = dirs.flatMap(dir => readdirSync(dir).filter(f => /^wrangler.*\.jsonc?$/.test(f)).map(f => [f, readFileSync(new URL(f, dir), 'utf8')]));
+  const configs = dirs.flatMap(dir => readdirSync(dir).filter(f => /^wrangler.*\.jsonc?$/.test(f)).map(f => [new URL(f, dir).pathname, readFileSync(new URL(f, dir), 'utf8')]));
   assert.ok(configs.length >= 10);
-  for (const [name, text] of configs) assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|VITE_MOTION_DEV/, name);
+  for (const [name, text] of configs) {
+    assert.doesNotMatch(text, /VITE_MOTION_DEV|MOTION_ORCHESTRATOR_TOKEN"\s*:/, name);
+    if (name.endsWith('/web/wrangler.rabbit-hole-prod.jsonc')) {
+      assert.match(text, /"MOTION_ORCHESTRATOR_URL": "https:\/\/rabbit-hole-motion-orchestrator\.fly\.dev"/);
+      assert.ok(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: text.match(/"MOTION_JOB_RESERVATION_USD": "([^"]+)"/)?.[1] }) > 0, 'a valid hold');
+    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION/, name);
+  }
 });
 
 // Owner brief 2026-10-21 message 7 item 4: the selected card rides as context.selection (motion-context.js), validated

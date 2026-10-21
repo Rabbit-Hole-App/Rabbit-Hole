@@ -1,7 +1,7 @@
 # Rabbit Hole `/motion` V1 — Motion Explainer Harness Specification
 
 **Audience:** Parallel / Rabbit Hole engineering agents  
-**`/motion` status (owner correction, 2026-10-21): development milestones complete; production activation not complete.** Production `/motion` generation does not work yet and must not be described as available. What still stands between today and a usable production `/motion` is the activation work and its owner gates: audit `C:/s/spec/day-1021/motion-prod-audit.md`, activation lane `feature/motion-activation` (§26 M9).  
+**`/motion` status (owner correction, 2026-10-21): development milestones complete; production activation in progress (activation commit: /motion on in the production build, orchestrator configured).** Production `/motion` generation does not work yet and must not be described as available. What still stands between today and a usable production `/motion` is the activation work and its owner gates: audit `C:/s/spec/day-1021/motion-prod-audit.md`, activation lane `feature/motion-activation` (§26 M9).  
 **Status:** AUTHORIZED FOR DEVELOPMENT HARNESS ONLY (owner decision, 2026-10-03). See §0.1 for exactly what is and is not authorized.  
 **Primary goal:** Turn a short learner request such as `/motion explain me softmax func` into a source-grounded, deterministic, 5–30 second technical motion explainer that is actually useful for learning.
 
