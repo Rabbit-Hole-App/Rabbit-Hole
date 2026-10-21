@@ -101,7 +101,7 @@ test('a read-only viewer sees titles and descriptions, and nothing edits, drags 
   const html = render({ readOnly: true, proposal: { ops: [{ op: 'add', text: 'X', level: 1 }], base: null } });
   assert.match(text(html), /Why heat and acid change food\./);
   assert.doesNotMatch(html, /draggable="true"/);
-  assert.doesNotMatch(html, /aria-label="(Edit|Delete|Add a) /);
+  assert.doesNotMatch(html, /aria-label="(Edit|Remove heading|Add a) /);
   assert.ok([...html.matchAll(/<input type="checkbox"[^>]*>/g)].every(([tag]) => / disabled=""/.test(tag)));
   assert.doesNotMatch(html, /data-toc-proposal/, 'no proposal card for a viewer');
 });
@@ -110,7 +110,7 @@ test('an editor renders entries draggable, with edit and delete per entry and th
   const html = render();
   assert.equal([...html.matchAll(/draggable="true"/g)].length, 5);
   assert.match(html, /aria-label="Edit Kitchen chemistry"/);
-  assert.match(html, /aria-label="Delete Kitchen chemistry"/);
+  assert.match(html, /aria-label="Remove heading Kitchen chemistry"/, 'the control says it removes the heading only (draft Task 11)');
   assert.match(html, /aria-label="Add a sub-section"/);
   assert.ok([...html.matchAll(/<label data-no-drag/g)].length === 5, 'the circles never start a drag');
 });
@@ -165,4 +165,26 @@ test('the project and the goal show under the heading only when given; the goal 
   assert.match(html, /data-toc-goal="true"[^>]*class="[^"]*line-clamp-2[^"]*"><span[^>]*>Goal<\/span> · Understand attention, then train a small model</);
   const bare = render();
   assert.doesNotMatch(bare, /data-toc-subtitle|data-toc-goal/, 'none given, nothing shown - never sample text');
+});
+
+// Tutor Task 11 (C:/s/spec/tutor-workflow/draft.md "Table of Contents, tutoring, and progress"): accepted steps with no heading
+// are listed as planned, a removed one says so, Learning now is its own mark (the viewed section keeps data-active), and a
+// proposal made on another plan revision is stale before Apply. Badges need the learner's Progress read (an effect), so
+// learn-outline-progress.test.mjs covers what they show.
+test('Task 11: planned steps, Section removed, Learning now beside Viewing, and a stale plan on the proposal card', () => {
+  const plan = { linked: { s2: { sectionId: 'p1', criteria: [] } }, learningNow: { headingId: 's2' }, steps: [
+    { sectionId: 'p2', n: 2, title: 'Odds and log-odds', purpose: 'Why odds.', state: 'planned' },
+    { sectionId: 'p3', n: 3, title: 'Decision threshold', purpose: 'Where to cut.', state: 'removed' }] };
+  const html = render({ plan, activeId: 't2', onResume: () => {} });
+  assert.match(text(html), /Planned steps 2\. Odds and log-odds Planned — material not prepared 3\. Decision threshold Section removed: its cards and your saved work are kept/);
+  assert.match(html, /data-toc-entry="s2"[\s\S]*?data-toc-learning-now[\s\S]*?data-toc-resume/, 'Learning now and Resume on the current step\'s heading');
+  assert.match(html, /data-toc-entry="t2"[^>]*data-active="true"/, 'the viewed section keeps its own mark');
+  assert.doesNotMatch(html, /data-toc-entry="t2"[^>]*>[^]*?data-toc-learning-now[^]*?data-toc-entry="s2"/, 'viewing is not learning now');
+  assert.doesNotMatch(html, /data-toc-step-purpose/, 'a purpose shows only when the step is opened');
+  const current = render({ plan: { linked: {}, steps: [plan.steps[0]], learningNow: { sectionId: 'p2', title: 'Odds and log-odds', removed: false } }, onResume: () => {} });
+  assert.match(current, /data-toc-step="p2" data-state="planned"[\s\S]*data-toc-learning-now[\s\S]*data-toc-resume/);
+  const proposal = { ops: [{ op: 'add', text: 'Plain', level: 1 }], base: outlineRevision(outline), planBase: 'j1@3', source: 'tutor' };
+  assert.doesNotMatch(render({ proposal, planRevision: 'j1@3' }), /changed since this proposal/);
+  assert.match(text(render({ proposal, planRevision: 'j1@4' })), /Your learning plan changed since this proposal\. Ask the Tutor again\./);
+  assert.doesNotMatch(render(), /data-toc-plan|data-toc-learning-now|data-toc-evidence/, 'no plan, nothing extra');
 });

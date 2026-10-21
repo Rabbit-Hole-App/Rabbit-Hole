@@ -279,8 +279,9 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   const numberOf = id => contents().locator(`[data-toc-entry="${id}"] [data-toc-number]`).innerText();
   assert.equal(await numberOf(after[at].id), '2', 'Tidal bores is section 2');
   assert.equal(await numberOf(after[at + 1].id), '3', 'the next section renumbered');
-  // The goal under the heading is the TOC conversation's latest request (lead ruling 2026-10-16), two lines at most.
-  assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), `Goal · ${ask}`);
+  // A planning request is not the accepted goal: the goal line reads the learner's structured goal record and none is
+  // accepted here (Tutor Task 11, draft acceptance 52, superseding the lead ruling of 2026-10-16 under owner decision 2a).
+  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no goal line from a planning message');
   assert.ok(await contents().isVisible(), 'the Table of contents stays open');
   await contents().screenshot({ path: `${OUT}/9-toc-conversation.png` });
   await tab('Chat').click();
@@ -297,7 +298,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await tab('Table of contents').click();
   await tocBox().getByText('The saved TOC reply.', { exact: true }).waitFor({ timeout: 15000 });
   assert.equal(await tocField().inputValue(), 'A TOC draft', 'the TOC draft survives the reload');
-  assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), `Goal · ${ask}`, 'the goal from the restored TOC thread');
+  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'a restored TOC thread is not a goal either (draft acceptance 52)');
   assert.ok((await headings()).some(h => h.text === 'Tidal bores'), 'the outline change survives the reload');
   await tab('Chat').click();
   await page.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');

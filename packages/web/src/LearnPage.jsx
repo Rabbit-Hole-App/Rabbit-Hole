@@ -62,6 +62,7 @@ import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { sourceTarget } from './card-sources.js';
 import TocConversation from './TocConversation.jsx';
+import { outlinePlan, planRevisionOf } from './learn-outline-model.js';
 import SourcesPane from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { useCanvasLinks } from './LinksPanel.jsx';
@@ -1101,10 +1102,28 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => { if (setupChat) setPanelTab('toc'); }, [setupChat]); // eslint-disable-line react-hooks/exhaustive-deps
   // Owner brief 2026-10-16 item 7: the Table of contents has its own conversation (TocConversation, TocWorkspace's thread), not
   // Chat's composer docked. Coming back to the tab puts the contents where they were scrolled (a hidden tab loses its scroll).
-  // The learning goal under the contents' heading (lead ruling 2026-10-16: the outline has no goal field, so the TOC
-  // conversation's most recent request - the one sent now, else the restored thread's last; none, nothing shown).
-  const [tocAsked, setTocAsked] = useState(null);
-  const tocGoal = tocAsked || [...(chat?.toc?.thread.restore.messages || [])].reverse().find(message => message.role === 'user')?.content || null;
+  // The learning goal under the contents' heading: the learner's accepted goal record, never the latest planning message
+  // ("rename section 2" cannot replace it). Tutor Task 11, draft acceptance 52, superseding the lead ruling of 2026-10-16 that
+  // showed the TOC conversation's latest request (owner decision 2a). No accepted goal, nothing shown.
+  const coachingState = chat?.coaching?.state;
+  const tocGoal = coachingState?.goals?.find(goal => goal.goalId === coachingState.activeGoalId)?.label || null;
+  // Task 11: the accepted plan beside the outline (learn-outline-model.js outlinePlan), all of it this learner's own: their
+  // journey, its goal's criteria, and the canvas headings read for their journey stamps only. A proposal carries the plan
+  // revision it was asked on (boardContext.planRevision) and applies only while it still holds.
+  const journeyGoal = journey.journey?.id ? coachingState?.goals?.find(goal => goal.journeyId === journey.journey.id) || null : null;
+  const tocPlan = outlinePlan({ headings: (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'heading'), journey: journey.journey, path: journey.path, goal: journeyGoal });
+  const planRevision = planRevisionOf(journey.journey, journey.path);
+  const planRevisionRef = useRef(planRevision);
+  planRevisionRef.current = planRevision;
+  // Start/Resume of the current step (draft: a separate explicit action from navigating a title): start_guided clears Suggestions
+  // paused only in selected, enabled Tutor and changes nothing in Auto, Ask or Off; then its section and Chat come forward.
+  // No model call and no goal change.
+  const resumeFromToc = () => {
+    chat.coaching?.dispatch({ type: 'start_guided' });
+    if (tocPlan.learningNow?.headingId) canvasApi.current?.showSection(tocPlan.learningNow.headingId);
+    panels.openChat();
+    chat.composer?.focus?.();
+  };
   const tocPanel = useRef(null), tocScroll = useRef(0); // the tabpanel's onScrollCapture keeps the contents' scrollTop
   useLayoutEffect(() => {
     const list = panelOpen && panelTab === 'toc' && tocPanel.current?.querySelector('[data-toc]');
@@ -1679,6 +1698,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     releaseCard: id => canvas()?.release(id),
     // Read at send time, so a question always carries the outline as it is now.
     outline: () => canvasStateRef.current.outline || [],
+    planRevision: () => planRevisionRef.current,
     // R4 (lead, 2026-10-16): 'Use as table of contents' (source 'syllabus') is the learner's click, so the contents come
     // forward with the Apply/Discard card; a Tutor proposal arrives unasked, so it only marks the tab (PanelHeader
     // tocPending) and never switches tabs or scrolls. A canvas the learner cannot edit takes no proposals.
@@ -2272,6 +2292,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
       <TableOfContents subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
+        plan={tocPlan} planRevision={planRevision} evidence={journeyGoal ? { app: chat.canvas, board: boardName, goalId: journeyGoal.goalId, revision: coachingState?.revision } : null}
+        onProgress={() => companion.show('progress')} onResume={tocPlan.learningNow ? resumeFromToc : null}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>
@@ -2280,9 +2302,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {/* The TOC conversation (owner brief item 7): its own thread, always Tutor. An outline change the Tutor proposes here is
           the learner's own request, so it applies to the contents at once (the outline renumbers itself); one that cannot
           apply (stale or refused) waits as the Apply/Discard card with its reason. */}
-      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} onSent={setTocAsked} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline…"
+      {!setupChat && (app.hosting !== 'aws' || app.app_chat) && <TocWorkspace key={app.name}><TocConversation {...chatAskProps} scope={askScope} appName={app.name} chatConfig={app.app_chat} conversation="learn" placeholder="Describe your goal or refine the outline…"
         codebase={repository} repositoryExcerpt={repositoryExcerpt} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository}
-        boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
+        boardContext={{ ...boardContext, onOutlineProposal: canEditCanvas ? proposal => { const result = canvasApi.current?.applyOutline(proposal.ops, { base: proposal.base, source: proposal.source, planBase: proposal.planBase, plan: planRevisionRef.current }); if (!result?.ok) setProposal(proposal); } : undefined }} /></TocWorkspace>}
       </div>
       <ChatPane key={app.name} hidden={panelTab !== 'chat'} chatAskProps={chatAskProps} unavailable={app.hosting === 'aws' && !app.app_chat ? <p className="text-sm text-ink-2">Coaching is not connected for AWS jobs yet. Your job data stays in your AWS account.</p> : null}
         codebase={repository} onGraph={onGraph} repositoryExcerpt={repositoryExcerpt} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : isRepository && lesson.current?.lessonId?.startsWith('course-') ? { commit: course.course?.sourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" boardContext={boardContext} placeholder={askPlaceholder}
