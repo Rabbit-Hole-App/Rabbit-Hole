@@ -1,7 +1,7 @@
-// M7A development orchestrator (motion/orchestrator.mjs) on the local Motion stack: HTTPS on
-// 127.0.0.1 with the stack's certificate (scripts/motion-local-check.mjs setup), the bearer token
-// from .small/motion-local/app/.dev.vars (MOTION_ORCHESTRATOR_TOKEN, never printed).
-//   node scripts/motion-orchestrator.mjs [--port 8856] [--service <url>] [--max-calls 16] [--budget-usd 2.50]
+// The Motion orchestrator (motion/orchestrator.mjs) on the local Motion stack: HTTPS on 127.0.0.1 with the
+// stack's certificate (scripts/motion-local-check.mjs setup), the bearer token from .small/motion-local/app/.dev.vars
+// (MOTION_ORCHESTRATOR_TOKEN, never printed). The hostable entry is motion/orchestrator-main.mjs.
+//   node scripts/motion-orchestrator.mjs --service <url> [--port 8856] [--max-calls 16]
 //   node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail authoring]   no model call, no render
 //   node scripts/motion-orchestrator.mjs [...] --renderer hyperframes   M7B: the HyperFrames Author and renderer (default remotion)
 //   node scripts/motion-orchestrator.mjs [...] --plan <plan.json | job dir> [...]   reuse an accepted run's brief and
@@ -9,19 +9,20 @@
 //   node scripts/motion-orchestrator.mjs --subscription [...]   every model call through the owner's Claude
 //     subscription (the native Claude Code CLI, motion/subscription-call.mjs); no API key, no API fallback
 // Model calls use ANTHROPIC_API_KEY from the environment, else MOTION_ENV_FILE or <repo>/.env (names
-// only are read; values are never printed). Without --service the render service runs in this
-// process with the unsandboxed child (the authoring host); with --service, MOTION_RENDERER_TOKEN.
-// Every finished job appends its stages, calls, cost and timings to out/motion/m7a-telemetry.jsonl.
+// only are read; values are never printed), through the raw transport (orchestrator-main.mjs apiCall): the
+// worker admitted each job's hold and every call is bounded against it. --service is required (with
+// MOTION_RENDERER_TOKEN) and must be the sandboxed Linux render service: there is no in-process renderer (F3).
+// Every finished job appends its stages, calls, cost and timings (never the request text) to out/motion/m7a-telemetry.jsonl.
 import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:https';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { anthropic } from '../../control-plane/src/ask.js';
 import { RENDERERS } from '../motion/contracts.js';
-import { motionOrchestrator } from '../motion/orchestrator.mjs';
+import { jobView, motionOrchestrator } from '../motion/orchestrator.mjs';
+import { apiCall } from '../motion/orchestrator-main.mjs';
 import { subscriptionCall } from '../motion/subscription-call.mjs';
 import { abortableSleep } from '../motion/review-job.mjs';
-import { localService, serviceClient } from '../motion/render-job.mjs';
+import { serviceClient } from '../motion/render-job.mjs';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const ROOT = resolve(PKG, '..', '..');
@@ -79,20 +80,23 @@ const stubRun = ({ dir, signal, onStage }) => (async () => {
 // Subscription mode never reads an API key, so nothing can fall back to the API.
 const env = subscription ? Object.fromEntries(['MOTION_DIRECTOR_MODEL', 'MOTION_AUTHOR_MODEL', 'MOTION_VISUAL_REVIEW_MODEL', 'MOTION_PEDAGOGICAL_REVIEW_MODEL'].map(k => [k, process.env[k]])) : credentials();
 if (!stub && !subscription && !env.ANTHROPIC_API_KEY) { console.error(`✗ no ANTHROPIC_API_KEY in the environment or ${process.env.MOTION_ENV_FILE || join(ROOT, '.env')}`); process.exit(2); }
+if (!stub && !url) { console.error('✗ --service <url> is required: the sandboxed Linux render service (there is no in-process renderer)'); process.exit(2); }
 if (url && !process.env.MOTION_RENDERER_TOKEN) { console.error('✗ --service needs MOTION_RENDERER_TOKEN in the environment'); process.exit(2); }
-const svc = url ? { client: serviceClient({ url: url.replace(/\/$/, ''), token: process.env.MOTION_RENDERER_TOKEN }), close: () => {} } : await localService();
+// --stub renders nothing (stubRun never submits), so its service only answers health; it has no submit.
+const svc = url ? { client: serviceClient({ url: url.replace(/\/$/, ''), token: process.env.MOTION_RENDERER_TOKEN }), close: () => {} }
+  : { client: { health: async () => ({ ok: true, busy: false, sandbox: 'linux', stub: true }) }, close: () => {} };
 const outDir = join(PKG, 'out', 'motion', 'm7a');
 const orchestrator = motionOrchestrator({
-  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : anthropic, env, outDir, maxCalls: Number(opt('--max-calls') || 16), budgetUsd: Number(opt('--budget-usd')) || Infinity, renderer, plans,
+  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : apiCall, env, outDir, maxCalls: Number(opt('--max-calls') || 16), renderer, plans,
   ...(stub ? { run: stubRun } : {}),
   log: line => {
     console.log(`${new Date().toISOString()} ${line}`);
     const m = /^job ([0-9a-f]{32}): (ready|failed|cancelled|needs_clarification)/.exec(line);
     const job = m && orchestrator.jobs.get(m[1]);
-    if (job) appendFileSync(join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), job_id: job.id, stub: !!stub, request: job.request, status: job.status, stage: job.stage, budget: { ...orchestrator.budget }, repair_count: job.result?.job?.repair_count ?? null, repairs: job.result?.repairs ?? null, transport_retries: job.result?.transport_retries ?? [], cost_usd: job.result?.cost_usd ?? null, model_latency_s: job.result?.model_latency_s ?? null, timings: job.result?.timings ?? null, calls: (job.result?.calls || []).map(c => ({ stage: c.stage, round: c.round, end: c.end ?? null, ...(c.end_detail ? { end_detail: c.end_detail } : {}), latency_ms: c.latency_ms, output_tokens: c.usage?.output_tokens, cost_usd: c.cost_usd })) })}\n`);
+    if (job) appendFileSync(join(PKG, 'out', 'motion', 'm7a-telemetry.jsonl'), `${JSON.stringify({ at: new Date().toISOString(), job_id: job.id, stub: !!stub, status: job.status, stage: job.stage, spend: jobView(job).spend, repair_count: job.result?.job?.repair_count ?? null, repairs: job.result?.repairs ?? null, transport_retries: job.result?.transport_retries ?? [], cost_usd: job.result?.cost_usd ?? null, model_latency_s: job.result?.model_latency_s ?? null, timings: job.result?.timings ?? null, calls: (job.result?.calls || []).map(c => ({ stage: c.stage, round: c.round, end: c.end ?? null, ...(c.end_detail ? { end_detail: c.end_detail } : {}), latency_ms: c.latency_ms, output_tokens: c.usage?.output_tokens, cost_usd: c.cost_usd })) })}\n`);
   },
 });
 mkdirSync(outDir, { recursive: true });
 createServer({ key: readFileSync(join(LOCAL, 'certs', 'leaf.key')), cert: readFileSync(join(LOCAL, 'certs', 'leaf.pem')) }, orchestrator.handle)
-  .listen(port, '127.0.0.1', () => console.log(`✓ Motion orchestrator on https://localhost:${port} (${renderer ? `renderer: ${renderer}; ` : ''}${Object.keys(plans).length ? `plans: ${Object.keys(plans).length}; ` : ''}${subscription ? 'models: Claude subscription (native CLI), no API fallback; ' : ''}${stub ? `stub: ${stub}` : `render service: ${url || 'local, sandbox none (authoring host)'}`}; budget ${orchestrator.budget.limit_usd === Infinity ? 'none' : `$${orchestrator.budget.limit_usd}`})`));
-process.on('SIGINT', () => { svc.close(); process.exit(0); });
+  .listen(port, '127.0.0.1', () => console.log(`✓ Motion orchestrator on https://localhost:${port} (${renderer ? `renderer: ${renderer}; ` : ''}${Object.keys(plans).length ? `plans: ${Object.keys(plans).length}; ` : ''}${subscription ? 'models: Claude subscription (native CLI), no API fallback; ' : ''}${stub ? `stub: ${stub}` : `render service: ${url} (sandbox linux required)`}; hold per job from the worker's grant)`));
+process.on('SIGINT', () => { svc.close(); orchestrator.close(); process.exit(0); });
