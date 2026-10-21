@@ -1,7 +1,7 @@
 warning: in the working copy of 'packages/cli/bin/small.js', LF will be replaced by CRLF the next time Git touches it
 INT35 preflight: candidate f772b30edc6ade218820515f6127a2a3d777fa36; grant r36-windows-39542041579-1; local keyless prerequisites checked.
 tree HEAD e3fc9671 MERGE_HEAD  index f772b30edc6ade218820515f6127a2a3d777fa36
-make test-unit exit 2  ℹ tests 3307 ℹ fail 0 ℹ tests 2014 ℹ fail 1
+make test-unit exit 0  ℹ tests 3307 ℹ fail 0 ℹ tests 2014 ℹ fail 0 ℹ tests 1 ℹ fail 0 ℹ tests 1 ℹ fail 0 ℹ tests 26 ℹ fail 0 ℹ tests 241 ℹ fail 0 ℹ tests 65 ℹ fail 0 ℹ tests 68 ℹ fail 0
 fixture regression exit 0  # pass 5 # fail 0
 stack app 200 cp 302
 warning: in the working copy of 'packages/cli/bin/small.js', LF will be replaced by CRLF the next time Git touches it
