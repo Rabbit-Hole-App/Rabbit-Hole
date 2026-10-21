@@ -10,13 +10,22 @@
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { anthropicTransport } from '../../control-plane/src/ask.js';
 import { motionOrchestrator } from './orchestrator.mjs';
 import { serviceClient } from './render-job.mjs';
 
-// The model call: the raw Anthropic transport. Spend admission happened in the worker for the whole job; the
-// orchestrator checks each call's worst case against that job's hold before it is sent.
-export const apiCall = (env, body, model) => anthropicTransport(env, body, model, null, null);
+// The model call: Anthropic's Messages API with the orchestrator's own key, as ask.js anthropicTransport sends it (betas
+// in the anthropic-beta header, the workspace header when set). Spend admission happened in the worker for the whole
+// job, and the orchestrator checks each call's worst case against that job's hold before this runs. Kept here rather
+// than imported from ask.js, whose import graph is most of the Learn worker.
+export const apiCall = (env, body, model) => {
+  const { betas = [], ...payload } = body;
+  return fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json',
+      ...(betas.length ? { 'anthropic-beta': betas.join(',') } : {}), ...(env.ANTHROPIC_WORKSPACE_ID ? { 'anthropic-workspace-id': env.ANTHROPIC_WORKSPACE_ID } : {}) },
+    body: JSON.stringify({ ...payload, model }),
+  });
+};
 
 const ROLES = ['MOTION_DIRECTOR_MODEL', 'MOTION_AUTHOR_MODEL', 'MOTION_VISUAL_REVIEW_MODEL', 'MOTION_PEDAGOGICAL_REVIEW_MODEL'];
 // -> {config} or {errors}: every missing or invalid setting, by name only.

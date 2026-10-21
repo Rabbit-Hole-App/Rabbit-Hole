@@ -61,9 +61,9 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const git = (args, opts = {}) => { const r = spawnSync('git', args, { encoding: 'utf8', ...opts }); if (r.status) throw Error(`git ${args[0]}: ${r.stderr}`); return r.stdout; };
 const noShell = spawnSync('sh', ['-c', 'true']).error ? 'needs sh (context.sh)' : false;
 
-function imageTree() {
+function imageTree(target = 'renderer-dev', dockerfile = 'Dockerfile') {
   const root = git(['rev-parse', '--show-toplevel'], { cwd: HERE }).trim();
-  const paths = spawnSync('sh', [join(HERE, 'context.sh'), '--paths'], { cwd: root, encoding: 'utf8' }).stdout.split('\n').filter(Boolean);
+  const paths = spawnSync('sh', [join(HERE, 'context.sh'), '--target', target, '--paths'], { cwd: root, encoding: 'utf8' }).stdout.split('\n').filter(Boolean);
   const ctx = mkdtempSync(join(tmpdir(), 'motion-context-'));
   const env = { ...process.env, GIT_INDEX_FILE: join(ctx, 'index') };
   git(['read-tree', 'HEAD'], { cwd: root, env });
@@ -75,7 +75,7 @@ function imageTree() {
   const app = join(ctx, 'app'), links = [];
   // The links stand in for npm ci's install; they are removed (not followed) before the tree is.
   const link = (target, at) => { symlinkSync(target, at, 'junction'); links.push(at); };
-  const copies = [...readFileSync(join(HERE, 'Dockerfile'), 'utf8').replace(/\r\n/g, '\n').matchAll(/^COPY --from=build \/src\/(\S+) \/app\/(\S+)$/gm)].map(m => [m[1], m[2]]);
+  const copies = [...readFileSync(join(HERE, dockerfile), 'utf8').replace(/\r\n/g, '\n').matchAll(/^COPY --from=build \/src\/(\S+) \/app\/(\S+)$/gm)].map(m => [m[1], m[2]]);
   for (const [from, to] of copies) {
     mkdirSync(dirname(join(app, to)), { recursive: true });
     if (from === 'node_modules') link(join(root, 'node_modules'), join(app, to));
@@ -137,4 +137,46 @@ test('the generated Docker context boots the Motion service: every shared file i
   assert.ok(paths.includes('packages/control-plane/src/request-duration.js'), 'context.sh archives the shared duration parser');
   for (const f of ['packages/control-plane/src/request-duration.js', 'packages/control-plane/package.json']) assert.ok(copies.some(([, to]) => to === f), `the Dockerfile copies ${f}`);
   assert.equal(JSON.parse(readFileSync(join(app, 'packages', 'control-plane', 'package.json'), 'utf8')).type, 'module');
+});
+
+// The production configs (prepared, not deployed): the renderer is the proven dev service under its production name, with
+// the same image, sandbox, limits and single machine; the orchestrator has no volume (the worker holds the durable record).
+test('the production renderer config is the dev config under its production name; the orchestrator config has no volume', () => {
+  const body = f => read(f).split('\n').filter(l => !l.startsWith('#') && !l.startsWith('app =')).join('\n');
+  assert.match(read('./fly.prod.toml'), /^app = "rabbit-hole-motion-renderer"$/m);
+  assert.equal(body('./fly.prod.toml'), body('./fly.dev.toml'));
+  const orchestrator = read('./fly.orchestrator.toml');
+  assert.match(orchestrator, /^app = "rabbit-hole-motion-orchestrator"$/m);
+  assert.match(orchestrator, /dockerfile = "Dockerfile.orchestrator"/);
+  assert.doesNotMatch(orchestrator, /^\s*\[+mounts\]+/m);
+  assert.doesNotMatch(orchestrator, /^\s*\w*(TOKEN|API_KEY)\s*=/m, 'secrets are fly secrets, never in the file');
+  assert.match(orchestrator, /MOTION_RENDERER_URL = "https:\/\/rabbit-hole-motion-renderer\.fly\.dev"/);
+  assert.doesNotMatch(read('./Dockerfile.orchestrator'), /remotion browser ensure|motion-sandbox|sudo/, 'no Chrome and no sandbox launcher: it never renders');
+});
+
+test('the orchestrator Docker context boots the hostable entry: every file it imports is archived and copied', { skip: noShell, timeout: 120000 }, async t => {
+  const { ctx, app, links } = imageTree('orchestrator', 'Dockerfile.orchestrator');
+  t.after(() => { for (const l of links) rmSync(l, { force: true }); rmSync(ctx, { recursive: true, force: true, maxRetries: 3 }); });
+  const cwd = join(app, 'packages', 'learn-render');
+  const base = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot };
+  // Without its configuration it refuses to start and names what is missing (names only).
+  const bare = spawnSync(process.execPath, ['motion/orchestrator-main.mjs'], { cwd, encoding: 'utf8', env: base });
+  assert.equal(bare.status, 2, bare.stderr);
+  assert.match(bare.stderr, /MOTION_ORCHESTRATOR_TOKEN: at least 32 characters/);
+  // With it (a placeholder key: nothing is called), it serves /health from the image tree as the image's CMD starts it.
+  const port = 20000 + Math.floor(Math.random() * 20000);
+  const proc = spawn(process.execPath, ['motion/orchestrator-main.mjs'], { cwd, env: { ...base, HOST: '127.0.0.1', PORT: String(port), MOTION_WORK_DIR: join(ctx, 'jobs'),
+    MOTION_ORCHESTRATOR_TOKEN: 'o'.repeat(40), ANTHROPIC_API_KEY: 'placeholder-not-a-key', MOTION_RENDERER_URL: 'http://127.0.0.1:9', MOTION_RENDERER_TOKEN: 'r'.repeat(40) }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let stderr = '';
+  proc.stderr.on('data', d => { stderr += d; });
+  const exited = new Promise(r => proc.on('exit', code => r(code)));
+  let health = null;
+  try {
+    for (let i = 0; i < 100 && !health; i++) {
+      if (await Promise.race([exited.then(() => true), new Promise(r => setTimeout(() => r(false), 100))])) break;
+      health = await fetch(`http://127.0.0.1:${port}/health`).then(r => r.json(), () => null);
+    }
+  } finally { proc.kill(); await exited; }
+  assert.deepEqual(health, { ok: true, active: false }, `the orchestrator did not boot from the image tree: ${stderr.split('\n').find(l => /Error/.test(l)) || stderr.slice(0, 300)}`);
+  relativeImports(join(cwd, 'motion', 'orchestrator-main.mjs'));
 });

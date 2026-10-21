@@ -310,9 +310,7 @@ export async function anthropic(env, body, model, org) {
   return spendTransport(env, boundedBody, pricedModel, org, callEnv => anthropicTransport(callEnv, body, chosen, org, ai), { provider });
 }
 
-// The raw provider call, after admission. The Motion orchestrator (learn-render/motion/orchestrator.mjs) calls it directly:
-// its job's hold was admitted by the worker (learn-video.js) and every call is bounded against that hold before it is sent.
-export async function anthropicTransport(env, body, model, org, ai) {
+async function anthropicTransport(env, body, model, org, ai) {
   if (ai?.provider === 'bedrock' && ai.bedrock_role_arn && ai.model) {
     const { assumeRole, bedrockInvoke } = await import('./aws.js');
     const creds = await assumeRole(env, ai.bedrock_role_arn, `small-ai-${org}`, org);
