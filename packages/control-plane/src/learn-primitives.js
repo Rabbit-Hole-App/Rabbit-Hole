@@ -173,11 +173,34 @@ export const PRIMITIVES = {
     check: spec => { spec.operation = validateScene(spec.operation); },
     block: spec => ({ type: 'scene', title: spec.title, brief: spec.brief, operation: spec.operation, status: 'idle', modelUrl: '', camera: {}, autoRotate: false, animation: { autoplay: true }, animationTime: 0 }),
   },
+  // An interactive explanation in the authored cards' frozen scene format (animation-scene.js, scene-evaluate.js), drawn by
+  // AnimatedScene like nanogpt/board.js cardBlock's cards (owner, 2026-10-21: /explain and the Tutor's explanation material
+  // only). The authoring contract and the gates that run the existing scene validators are server-only
+  // (agents/learn-scene-author.js, learn-scene-gates.js); a scene that fails them never becomes a card.
+  animation: {
+    ready: true,
+    about: 'An interactive visual explanation: a scene with controls the learner moves (toggles, choices, sliders over listed settings) and values that follow from them, drawn by the canvas\'s scene renderer. Use it when manipulating a value, stepping through a process or watching quantities change teaches the idea; otherwise make a text explanation.',
+    // Scene JSON is long (authored cards run 6-30 thousand characters): this primitive only, subject to spend admission.
+    maxTokens: 16000,
+    schema: shape({
+      title: text(120),
+      calculation: { type: 'string', enum: ['live', 'precomputed', 'none'] },
+      scene: shape({
+        id: text(64), title: text(120), width: { type: 'number', minimum: 320, maximum: 1120 }, height: { type: 'number', minimum: 200, maximum: 860 },
+        duration: { type: 'number', minimum: 0.5, maximum: 20 },
+        inputs: list({ type: 'object' }, 0, 4), exampleData: { type: 'object' }, derived: { type: 'object' },
+        objects: list(shape({ id: text(64), type: { type: 'string' }, part: { type: 'integer' }, semanticId: text(64), conceptId: text(64), initialState: { type: 'object' } }, ['id', 'type', 'initialState']), 1, 60),
+        timeline: list({ type: 'object' }, 0, 80), camera: { type: 'object' },
+      }, ['id', 'duration', 'objects', 'timeline']),
+    }, ['calculation', 'scene']),
+    check: spec => { if (!(spec.title || spec.scene.title || '').trim()) fail('Give the card a title'); },
+    block: spec => ({ type: 'animation', title: spec.title || spec.scene.title, scene: { ...spec.scene, title: spec.scene.title || spec.title }, time: spec.scene.duration,
+      selectedObject: null, marked: null, calculation: spec.calculation }),
+  },
   // Not generated yet. Each says so rather than being faked with a simpler card.
   code_exercise: { ready: false, unavailable: "Code exercise generation isn't available yet. I can open a notebook or show a code sample instead." },
   narration: { ready: false, unavailable: "Narration isn't available yet." },
   knowledge_graph: { ready: false, unavailable: "Knowledge graph generation isn't available yet." },
-  animation: { ready: false, unavailable: "Animation generation isn't available yet." },
   reference_attention: { ready: false, unavailable: "Animation generation isn't available yet." },
   '3d_model': { ready: false, unavailable: "3D model generation isn't available yet." },
   // Direct tools: found or inserted, never generated here.

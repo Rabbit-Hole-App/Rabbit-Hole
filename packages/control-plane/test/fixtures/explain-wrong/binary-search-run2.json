@@ -1,0 +1,401 @@
+{
+  "id": "binary-search@2",
+  "command": "explain",
+  "args": "how binary search narrows the search range",
+  "at": "2026-10-21T08:04:29.518Z",
+  "ms": 35420,
+  "httpStatus": 200,
+  "failure": null,
+  "response": {
+    "result": "artifact",
+    "primitive": "animation",
+    "block": {
+      "type": "animation",
+      "title": "Binary search: halving the range step by step",
+      "scene": {
+        "id": "binary-search-narrowing",
+        "title": "How binary search narrows the search range",
+        "width": 900,
+        "height": 529,
+        "duration": 3,
+        "inputs": [
+          {
+            "name": "step",
+            "type": "index",
+            "label": "Step of the search",
+            "default": 0,
+            "of": "stepNames",
+            "presentation": "picker"
+          },
+          {
+            "name": "showRange",
+            "type": "bool",
+            "label": "Show the surviving range",
+            "default": true
+          }
+        ],
+        "exampleData": {
+          "stepNames": [
+            "Start",
+            "Step 1",
+            "Step 2",
+            "Step 3",
+            "Found"
+          ],
+          "sorted": [
+            3,
+            8,
+            12,
+            19,
+            24,
+            31,
+            37,
+            42,
+            55,
+            61,
+            70,
+            88
+          ],
+          "target": 37,
+          "marks": [
+            [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "mids": [
+            5,
+            8,
+            6,
+            7,
+            6
+          ],
+          "notes": [
+            "low=0, high=11. Nothing ruled out yet: 12 candidates.",
+            "mid=5 holds 31 < 37, so discard index 0-5. 6 candidates left.",
+            "mid=8 holds 55 > 37, so discard index 8-11. 2 candidates left.",
+            "mid=6 holds 37 = target. The search stops here.",
+            "Found 37 at index 6 after 3 comparisons, not 7."
+          ],
+          "sizes": [
+            "Candidates remaining: 12",
+            "Candidates remaining: 6",
+            "Candidates remaining: 2",
+            "Candidates remaining: 1",
+            "Candidates remaining: 1"
+          ],
+          "rangeOn": "Shaded cells are still possible locations of the target.",
+          "rangeOff": "Toggle the range back on to see which cells survive.",
+          "liveMarks": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        "derived": {
+          "mask": {
+            "op": "pick",
+            "args": [
+              "marks",
+              "step"
+            ]
+          },
+          "shown": {
+            "op": "choose",
+            "args": [
+              "showRange",
+              "mask",
+              "liveMarks"
+            ]
+          },
+          "alive": {
+            "op": "elementwise",
+            "args": [
+              "sorted",
+              "shown"
+            ]
+          },
+          "midIndex": {
+            "op": "pick",
+            "args": [
+              "mids",
+              "step"
+            ]
+          },
+          "note": {
+            "op": "pick",
+            "args": [
+              "notes",
+              "step"
+            ]
+          },
+          "size": {
+            "op": "pick",
+            "args": [
+              "sizes",
+              "step"
+            ]
+          },
+          "rangeNote": {
+            "op": "choose",
+            "args": [
+              "showRange",
+              "rangeOn",
+              "rangeOff"
+            ]
+          },
+          "stepName": {
+            "op": "pick",
+            "args": [
+              "stepNames",
+              "step"
+            ]
+          }
+        },
+        "objects": [
+          {
+            "id": "question",
+            "type": "text",
+            "initialState": {
+              "text": "Why does each comparison throw away half the list?",
+              "x": 40,
+              "y": 44,
+              "typography": "heading"
+            }
+          },
+          {
+            "id": "targettext",
+            "type": "text",
+            "initialState": {
+              "text": "Sorted array of 12 values. Target = 37.",
+              "x": 40,
+              "y": 80,
+              "typography": "body",
+              "role": "input"
+            }
+          },
+          {
+            "id": "array",
+            "type": "strip",
+            "initialState": {
+              "label": "sorted values (index 0 on the left)",
+              "x": 40,
+              "y": 160,
+              "cell": 64,
+              "numberFormat": "integer",
+              "role": "input",
+              "values": {
+                "$derive": "sorted"
+              },
+              "cellHighlight": {
+                "$derive": "midIndex"
+              }
+            }
+          },
+          {
+            "id": "midlabel",
+            "type": "text",
+            "initialState": {
+              "text": "Highlighted cell = midpoint the algorithm compares.",
+              "x": 40,
+              "y": 232,
+              "typography": "annotation"
+            }
+          },
+          {
+            "id": "survivors",
+            "type": "strip",
+            "initialState": {
+              "label": "still possible (0 = ruled out)",
+              "x": 40,
+              "y": 310,
+              "cell": 64,
+              "numberFormat": "integer",
+              "role": "output",
+              "values": {
+                "$derive": "alive"
+              }
+            }
+          },
+          {
+            "id": "sizetext",
+            "type": "text",
+            "initialState": {
+              "text": "{{stepName}}: {{size}}",
+              "x": 40,
+              "y": 398,
+              "typography": "heading",
+              "role": "output"
+            }
+          },
+          {
+            "id": "note",
+            "type": "text",
+            "initialState": {
+              "text": "{{note}}",
+              "x": 40,
+              "y": 434,
+              "typography": "body"
+            }
+          },
+          {
+            "id": "rangenote",
+            "type": "text",
+            "initialState": {
+              "text": "{{rangeNote}}",
+              "x": 40,
+              "y": 470,
+              "typography": "annotation"
+            }
+          },
+          {
+            "id": "samples-note",
+            "type": "text",
+            "semanticId": "samples-note",
+            "initialState": {
+              "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+              "x": 40,
+              "y": 505,
+              "typography": "annotation"
+            }
+          }
+        ],
+        "timeline": [
+          {
+            "at": 0,
+            "action": "appear",
+            "target": "array",
+            "duration": 0.5
+          },
+          {
+            "at": 0.7,
+            "action": "highlight_cell",
+            "target": "array",
+            "duration": 0.5
+          },
+          {
+            "at": 1.4,
+            "action": "appear",
+            "target": "survivors",
+            "duration": 0.5
+          },
+          {
+            "at": 2.2,
+            "action": "emphasize",
+            "target": "sizetext",
+            "duration": 0.6
+          }
+        ]
+      },
+      "time": 3,
+      "selectedObject": null,
+      "marked": null,
+      "calculation": "precomputed"
+    },
+    "repaired": true
+  },
+  "usage": [
+    {
+      "op_id": "provider-1cbf6403-e594-4726-b6d4-6daf7b71215f",
+      "status": "settled",
+      "category": "provider",
+      "cost_usd": 0.06892,
+      "model": "claude-opus-5",
+      "error": null,
+      "admitted_at": 1792569869,
+      "settled_at": 1792569888,
+      "input_tokens": 5664,
+      "output_tokens": 1624,
+      "kind": "generation"
+    },
+    {
+      "op_id": "provider-bd7562b8-1590-41e7-b3a9-91a1e0ba114c",
+      "status": "settled",
+      "category": "provider",
+      "cost_usd": 0.083375,
+      "model": "claude-opus-5",
+      "error": null,
+      "admitted_at": 1792569888,
+      "settled_at": 1792569904,
+      "input_tokens": 7595,
+      "output_tokens": 1816,
+      "kind": "repair"
+    }
+  ],
+  "cost_usd": 0.152295
+}

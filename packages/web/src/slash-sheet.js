@@ -24,7 +24,13 @@ export const FINDER_NOTES = Object.fromEntries(Object.entries(FINDS).map(([name,
 // makes a video card through its own action, so it names that card here; /generate-image (listed only while image
 // generation is on) makes the Image generate card.
 const SHEET_CARDS = { motion: [{ primitive: 'motion', card: 'videoGenerate' }], 'generate-image': [{ primitive: 'image_generate', card: 'imageGenerate' }] };
-export const sheetCards = name => SHEET_CARDS[name] || cardsFor(name);
+// /explain shows its interactive visual first (L10, owner 2026-10-21: the window carries real interactive examples); the
+// model is offered the same cards in the registry's order.
+const FIRST = { explain: 'animation' };
+export const sheetCards = name => {
+  const cards = SHEET_CARDS[name] || cardsFor(name);
+  return FIRST[name] ? [...cards.filter(entry => entry.card === FIRST[name]), ...cards.filter(entry => entry.card !== FIRST[name])] : cards;
+};
 
 // What the right pane shows: the cards a command makes, what a source search does, or what /dive does.
 export const demoOf = name => (name === 'cad' ? 'cad' : sheetCards(name).length ? 'cards' : FINDER_NOTES[name] ? 'finder' : CHAT_EXAMPLES[name] ? 'chat' : null);
@@ -51,6 +57,10 @@ export const SAMPLES = {
 };
 // The line above a sample card: every card is a sample, and /motion's is a real Motion video of its example.
 export const SAMPLE_NOTES = { motion: 'A real Motion video, made from this example. Yours is made from what you type.' };
+
+// A card's tab name in the sheet where the command's own word for it differs from the + palette's: /explain's scene card is
+// its interactive visual (L10).
+export const TAB_LABELS = { animation: 'Interactive visual' };
 
 // Paid media with no committed finished file: a picture of the finished card, labelled as one (public/lesson-assets).
 export const ILLUSTRATIONS = {

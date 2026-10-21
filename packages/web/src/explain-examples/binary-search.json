@@ -1,0 +1,343 @@
+{
+ "id": "binary-search",
+ "label": "Binary search",
+ "origin": "generated",
+ "args": "how binary search narrows the search range",
+ "generatedAt": "2026-10-21T08:19:01.527Z",
+ "via": "/explain",
+ "block": {
+  "type": "animation",
+  "title": "How binary search narrows the search range",
+  "scene": {
+   "id": "binary-search-narrowing",
+   "title": "How binary search halves the range",
+   "width": 900,
+   "height": 531,
+   "duration": 3,
+   "inputs": [
+    {
+     "name": "step",
+     "type": "index",
+     "label": "Step through the search",
+     "of": "stepNames",
+     "default": 0,
+     "presentation": "picker"
+    }
+   ],
+   "exampleData": {
+    "stepNames": [
+     "Start",
+     "Step 1",
+     "Step 2",
+     "Step 3",
+     "Found"
+    ],
+    "array": [
+     3,
+     8,
+     12,
+     17,
+     23,
+     29,
+     34,
+     41,
+     55,
+     68
+    ],
+    "bounds": [
+     [
+      0,
+      9
+     ],
+     [
+      0,
+      9
+     ],
+     [
+      5,
+      9
+     ],
+     [
+      5,
+      6
+     ],
+     [
+      6,
+      6
+     ]
+    ],
+    "lows": [
+     0,
+     0,
+     5,
+     5,
+     6
+    ],
+    "highs": [
+     9,
+     9,
+     9,
+     6,
+     6
+    ],
+    "mids": [
+     4,
+     4,
+     7,
+     5,
+     6
+    ],
+    "midValues": [
+     23,
+     23,
+     41,
+     29,
+     34
+    ],
+    "sizes": [
+     10,
+     10,
+     5,
+     2,
+     1
+    ],
+    "notes": [
+     "Target = 34. The range is the whole list: positions 0 to 9.",
+     "Mid is position 4 (value 23). 23 < 34, so discard 0-4; keep 5-9.",
+     "Mid is position 7 (value 41). 41 > 34, so discard 7-9; keep 5-6.",
+     "Mid is position 5 (value 29). 29 < 34, so discard 5; keep 6-6.",
+     "Mid is position 6 (value 34). Match! Found in 4 comparisons."
+    ],
+    "compares": [
+     "--",
+     "23 < 34  ->  go right",
+     "41 > 34  ->  go left",
+     "29 < 34  ->  go right",
+     "34 = 34  ->  stop"
+    ]
+   },
+   "derived": {
+    "bound": {
+     "op": "pick",
+     "args": [
+      "bounds",
+      "step"
+     ]
+    },
+    "low": {
+     "op": "pick",
+     "args": [
+      "lows",
+      "step"
+     ]
+    },
+    "high": {
+     "op": "pick",
+     "args": [
+      "highs",
+      "step"
+     ]
+    },
+    "mid": {
+     "op": "pick",
+     "args": [
+      "mids",
+      "step"
+     ]
+    },
+    "midValue": {
+     "op": "pick",
+     "args": [
+      "midValues",
+      "step"
+     ]
+    },
+    "size": {
+     "op": "pick",
+     "args": [
+      "sizes",
+      "step"
+     ]
+    },
+    "note": {
+     "op": "pick",
+     "args": [
+      "notes",
+      "step"
+     ]
+    },
+    "compare": {
+     "op": "pick",
+     "args": [
+      "compares",
+      "step"
+     ]
+    },
+    "stepName": {
+     "op": "pick",
+     "args": [
+      "stepNames",
+      "step"
+     ]
+    }
+   },
+   "objects": [
+    {
+     "id": "question",
+     "type": "text",
+     "initialState": {
+      "text": "Why does each comparison throw away half the list?",
+      "x": 40,
+      "y": 44,
+      "typography": "heading"
+     }
+    },
+    {
+     "id": "sub",
+     "type": "text",
+     "initialState": {
+      "text": "Sorted list, target = 34. The shaded cells are the range still in play.",
+      "x": 40,
+      "y": 76,
+      "typography": "body"
+     }
+    },
+    {
+     "id": "list",
+     "type": "strip",
+     "initialState": {
+      "label": "sorted values (positions 0-9)",
+      "x": 40,
+      "y": 150,
+      "cell": 64,
+      "numberFormat": "integer",
+      "role": "input",
+      "values": {
+       "$derive": "array"
+      },
+      "cellHighlight": {
+       "$derive": "bound"
+      },
+      "w": 640,
+      "h": 64
+     }
+    },
+    {
+     "id": "midLabel",
+     "type": "text",
+     "initialState": {
+      "text": "Check the middle: position {{mid}}, value {{midValue}}",
+      "x": 40,
+      "y": 250,
+      "typography": "body",
+      "role": "output"
+     }
+    },
+    {
+     "id": "compare",
+     "type": "text",
+     "initialState": {
+      "text": "{{compare}}",
+      "x": 40,
+      "y": 286,
+      "typography": "body",
+      "role": "prediction"
+     }
+    },
+    {
+     "id": "rangeBox",
+     "type": "box",
+     "initialState": {
+      "x": 40,
+      "y": 330,
+      "w": 380,
+      "h": 70,
+      "label": "Range: positions {{low}} to {{high}}  ({{size}} left)",
+      "role": "success"
+     }
+    },
+    {
+     "id": "stepBox",
+     "type": "box",
+     "initialState": {
+      "x": 460,
+      "y": 330,
+      "w": 400,
+      "h": 70,
+      "label": "{{stepName}}",
+      "role": "neutral"
+     }
+    },
+    {
+     "id": "note",
+     "type": "text",
+     "initialState": {
+      "text": "{{note}}",
+      "x": 40,
+      "y": 436,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "law",
+     "type": "text",
+     "initialState": {
+      "text": "10 -> 5 -> 2 -> 1: halving means about log2(n) comparisons, not n.",
+      "x": 40,
+      "y": 472,
+      "typography": "annotation",
+      "role": "warning"
+     }
+    },
+    {
+     "id": "samples-note",
+     "type": "text",
+     "semanticId": "samples-note",
+     "initialState": {
+      "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+      "x": 40,
+      "y": 507,
+      "typography": "annotation"
+     }
+    }
+   ],
+   "timeline": [
+    {
+     "at": 0,
+     "action": "appear",
+     "target": "list",
+     "duration": 0.5
+    },
+    {
+     "at": 0.7,
+     "action": "appear",
+     "target": "midLabel",
+     "duration": 0.4
+    },
+    {
+     "at": 1.2,
+     "action": "appear",
+     "target": "compare",
+     "duration": 0.4
+    },
+    {
+     "at": 1.7,
+     "action": "appear",
+     "target": "rangeBox",
+     "duration": 0.5
+    },
+    {
+     "at": 2.3,
+     "action": "highlight",
+     "target": "list",
+     "duration": 0.6
+    }
+   ]
+  },
+  "time": 3,
+  "selectedObject": null,
+  "marked": null,
+  "calculation": "precomputed"
+ },
+ "adapted": "data-object sizes filled after the run by the server adapter (withDataSizes), as it now does for every scene"
+}

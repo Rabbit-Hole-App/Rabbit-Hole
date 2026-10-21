@@ -1,0 +1,385 @@
+{
+  "id": "binary-search@4",
+  "command": "explain",
+  "args": "how binary search narrows the search range",
+  "at": "2026-10-21T16:27:31.565Z",
+  "ms": 17222,
+  "httpStatus": 200,
+  "failure": null,
+  "response": {
+    "result": "artifact",
+    "primitive": "animation",
+    "block": {
+      "type": "animation",
+      "title": "How binary search narrows the search range",
+      "scene": {
+        "id": "binary-search-narrowing",
+        "title": "How binary search halves the range",
+        "width": 940,
+        "height": 551,
+        "duration": 2,
+        "inputs": [
+          {
+            "name": "step",
+            "type": "index",
+            "label": "Step through the search",
+            "default": 0,
+            "of": "stepNames",
+            "presentation": "picker"
+          },
+          {
+            "name": "showHalf",
+            "type": "bool",
+            "label": "Show how many are still possible",
+            "default": true
+          }
+        ],
+        "exampleData": {
+          "stepNames": [
+            "Start",
+            "Step 1",
+            "Step 2",
+            "Step 3",
+            "Found"
+          ],
+          "array": [
+            2,
+            5,
+            8,
+            12,
+            16,
+            23,
+            38,
+            56,
+            72,
+            91,
+            99,
+            104,
+            120,
+            133,
+            150,
+            168
+          ],
+          "alive": [
+            [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0,
+              0
+            ]
+          ],
+          "midIndex": [
+            7,
+            3,
+            5,
+            6,
+            6
+          ],
+          "notes": [
+            "Target = 38. Range is the whole array: indices 0..15.",
+            "a[7] = 56 > 38, so drop index 7 and everything right. Range 0..6.",
+            "a[3] = 12 < 38, so drop index 3 and everything left. Range 4..6.",
+            "a[5] = 23 < 38, so drop index 5 and left. Range 6..6.",
+            "a[6] = 38 = target. Found after 4 comparisons."
+          ],
+          "halfOn": "Each comparison throws away about half of what is left.",
+          "halfOff": "Toggle on to count how many candidates survive."
+        },
+        "derived": {
+          "alive_now": {
+            "op": "pick",
+            "args": [
+              "alive",
+              "step"
+            ]
+          },
+          "count": {
+            "op": "sum",
+            "args": [
+              "alive_now"
+            ]
+          },
+          "mid": {
+            "op": "pick",
+            "args": [
+              "midIndex",
+              "step"
+            ]
+          },
+          "note": {
+            "op": "pick",
+            "args": [
+              "notes",
+              "step"
+            ]
+          },
+          "stepName": {
+            "op": "pick",
+            "args": [
+              "stepNames",
+              "step"
+            ]
+          },
+          "halfNote": {
+            "op": "choose",
+            "args": [
+              "showHalf",
+              "halfOn",
+              "halfOff"
+            ]
+          },
+          "bars": {
+            "op": "gate",
+            "args": [
+              "alive_now",
+              "showHalf"
+            ]
+          }
+        },
+        "objects": [
+          {
+            "id": "question",
+            "type": "text",
+            "initialState": {
+              "text": "Why does binary search need so few looks? Watch the range shrink.",
+              "x": 40,
+              "y": 42,
+              "typography": "heading"
+            }
+          },
+          {
+            "id": "values",
+            "type": "strip",
+            "initialState": {
+              "label": "sorted array (target = 38)",
+              "x": 40,
+              "y": 120,
+              "cell": 54,
+              "numberFormat": "integer",
+              "role": "input",
+              "values": {
+                "$derive": "array"
+              },
+              "cellHighlight": {
+                "$derive": "mid"
+              },
+              "w": 864,
+              "h": 54
+            }
+          },
+          {
+            "id": "midlabel",
+            "type": "text",
+            "initialState": {
+              "text": "highlighted cell = the middle element being compared",
+              "x": 40,
+              "y": 190,
+              "typography": "annotation"
+            }
+          },
+          {
+            "id": "alive",
+            "type": "bars",
+            "initialState": {
+              "label": "still possible (1 = in range, 0 = eliminated)",
+              "x": 40,
+              "y": 250,
+              "h": 90,
+              "cell": 54,
+              "role": "output",
+              "labels": [
+                "0",
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10",
+                "11",
+                "12",
+                "13",
+                "14",
+                "15"
+              ],
+              "values": {
+                "$derive": "bars"
+              },
+              "w": 864
+            }
+          },
+          {
+            "id": "stepText",
+            "type": "text",
+            "initialState": {
+              "text": "{{stepName}}: {{note}}",
+              "x": 40,
+              "y": 420,
+              "typography": "body"
+            }
+          },
+          {
+            "id": "countText",
+            "type": "text",
+            "initialState": {
+              "text": "Candidates left: {{count}} of 16",
+              "x": 40,
+              "y": 458,
+              "typography": "heading",
+              "role": "output"
+            }
+          },
+          {
+            "id": "halfText",
+            "type": "text",
+            "initialState": {
+              "text": "{{halfNote}}",
+              "x": 40,
+              "y": 492,
+              "typography": "annotation"
+            }
+          },
+          {
+            "id": "samples-note",
+            "type": "text",
+            "semanticId": "samples-note",
+            "initialState": {
+              "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+              "x": 40,
+              "y": 527,
+              "typography": "annotation"
+            }
+          }
+        ],
+        "timeline": [
+          {
+            "at": 0,
+            "action": "appear",
+            "target": "values",
+            "duration": 0.4
+          },
+          {
+            "at": 0.6,
+            "action": "appear",
+            "target": "alive",
+            "duration": 0.5
+          },
+          {
+            "at": 1.2,
+            "action": "highlight",
+            "target": "countText",
+            "duration": 0.5
+          }
+        ]
+      },
+      "time": 2,
+      "selectedObject": null,
+      "marked": null,
+      "calculation": "precomputed"
+    },
+    "repaired": false
+  },
+  "usage": [
+    {
+      "op_id": "provider-c67ac690-892b-475a-948e-1244623e1097",
+      "status": "settled",
+      "category": "provider",
+      "cost_usd": 0.06686,
+      "model": "claude-opus-5",
+      "error": null,
+      "admitted_at": 1792600051,
+      "settled_at": 1792600068,
+      "input_tokens": 6117,
+      "output_tokens": 1451,
+      "kind": "generation"
+    }
+  ],
+  "cost_usd": 0.06686
+}
