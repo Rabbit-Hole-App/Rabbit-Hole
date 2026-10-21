@@ -242,7 +242,8 @@ test('controller: an evaluate refusal (400) still advances the walker exactly on
   await h.view().answer('a');
   assert.deepEqual(h.calls.map(c => c.path), ['/api/learn/journey?app=canvas-0a1b2c3d&board=main', '/api/learn/tutor/evaluate', '/api/learn/journey']);
   assert.deepEqual(h.calls[1].body, { app: APP, board: 'main', journey_id: 'j1', probe_id: 'p2', option_id: 'a' });
-  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'probe_advance', probe_id: 'p2', revision: 4 });
+  // Every action names its journey (Tutor T1 report limit 5: a parked journey shares no write with the current one).
+  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', journey_id: 'j1', action: 'probe_advance', probe_id: 'p2', revision: 4 });
   assert.equal(h.view().tray.id, explainTray.id);
   assert.equal(h.view().tray.error, undefined, 'an evaluator error shows nothing: placement goes on');
 });
@@ -279,7 +280,7 @@ test('controller: free text answers the goal slot with intake_answer, and a prob
   assert.deepEqual(await probe.view().handleText('It squashes any number into 0 to 1', { answerProbe }), { handled: true });
   assert.deepEqual(probe.actions(), ['resolve', 'probe_advance']);
   assert.deepEqual(answered, [['p3', ['sigmoid/shape'], 'Explain the sigmoid in your words.', 'It squashes any number into 0 to 1']]);
-  assert.deepEqual(probe.calls[2].body, { app: APP, board: 'main', action: 'probe_advance', probe_id: 'p3', revision: 4 });
+  assert.deepEqual(probe.calls[2].body, { app: APP, board: 'main', journey_id: 'j1', action: 'probe_advance', probe_id: 'p3', revision: 4 });
   // An option-only probe (keyed: the route grades free text on a keyless probe only) stays open for a pick.
   const mcq = harness(ok(j, probeTray), [{ status: 200, d: { kind: 'tray_answer' } }]);
   await mcq.refresh();
@@ -389,7 +390,7 @@ test('controller: a path edit on an active, paused or completed journey with no 
   const review = harness(ok(j, previewTray), [ok({ ...j, revision: 5, pending: 'revise' }, null)]);
   await review.refresh();
   assert.deepEqual(await review.view().handleText('Could we do Python first?'), { handled: true });
-  assert.deepEqual(review.calls[1].body, { app: APP, board: 'main', action: 'path_edit', text: 'Could we do Python first?', revision: 4 });
+  assert.deepEqual(review.calls[1].body, { app: APP, board: 'main', journey_id: 'j1', action: 'path_edit', text: 'Could we do Python first?', revision: 4 });
 });
 
 test('controller: topic_required asks for the topic; the typed topic starts once, wrapped only when it is not already a request', async () => {

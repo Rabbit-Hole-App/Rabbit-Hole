@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { openOnce } from './learn-opening.js';
+import { markGuidedEntry, openOnce } from './learn-opening.js';
 import { carryStep, goalOf, holeOpening, informativeTitle, keepPendingStep, nextStepsBasis, nextStepsController, nextStepsInput, stoppingPoint, takeCarriedStep, takePendingStep, viewerStates } from './learn-next-steps.js';
 import { emptyStore, appendEvents } from './learn-tutor-evidence.js';
 import { journeyDomain } from './learn-journey-domain.js';
@@ -955,19 +955,24 @@ test('holeOpening: a carried step opens the hole once as a next_step with no que
   assert.deepEqual(open({ hookTurns: false }), { store: null, opening: null });
   assert.deepEqual([loads, [...s.m.values()].map(v => JSON.parse(v))], [0, [step]], 'still stored, untouched');
   const first = open({ active: false });
-  assert.deepEqual(first.opening, { key: `${record.dive_id}:o1`, next_step: step });
+  assert.deepEqual(first.opening, { key: `${record.dive_id}:o1`, next_step: step, entry: null });
   assert.equal('question' in first.opening, false);
   saved = first.store;
   assert.equal(openingQuestion(saved, record), null, 'marked opened: no opening question later');
   assert.deepEqual([s.m.size, open().opening], [0, null], 'taken once; the hole was opened by the step');
-  // Without a carried step: the usual opening question, only where the Tutor is active.
+  // Without a carried step: the usual opening question, only where the Tutor is active, and (owner 4a, 2026-10-20) only for
+  // an explicit guided entry: without its mark (a URL restore, a refresh in a new tab, Back, a reopen) the hole opens quietly.
   saved = emptyStore();
   assert.deepEqual(open({ active: false }), { store: null, opening: null });
+  assert.equal(open().opening, null, 'no guided entry: no opening turn');
+  saved = emptyStore();
+  markGuidedEntry(s, record.dive_id);
   const asked = open();
-  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: `${record.dive_id}:o1`, question: 'Take me into Masks.' }, null]);
+  assert.deepEqual([asked.opening, openingQuestion(asked.store, record)], [{ key: `${record.dive_id}:o1`, question: 'Take me into Masks.', entry: null }, null]);
   // Merge of Tasks 10 and 11 (Task 10 fix round 4): the opening question uses the live title, the record title only as a fallback.
   saved = emptyStore();
-  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: `${record.dive_id}:o1`, question: 'Take me into Mask notes.' });
+  markGuidedEntry(s, record.dive_id);
+  assert.deepEqual(open({ title: 'Mask notes' }).opening, { key: `${record.dive_id}:o1`, question: 'Take me into Mask notes.', entry: null });
   assert.deepEqual(open({ record: null }), { store: null, opening: null });
 });
 
@@ -985,9 +990,12 @@ test('holeOpening: nothing is taken or asked until the hook context settles; the
   for (const active of [false, true]) assert.deepEqual(open({ settled: false, active }), { store: null, opening: null });
   assert.deepEqual([loads, [...s.m.values()]], [0, [JSON.stringify(step)]], 'nothing read; the step kept as it was');
   // Settled with a refusal: the canvas-domain hole takes it once (the dock sends it with askStep).
-  assert.deepEqual(open({ settled: true }).opening, { key: `${record.dive_id}:o1`, next_step: step });
-  // Taken once; a settled typed Tutor asks its opening question as before (this load never saves, so the hole is not marked).
-  assert.deepEqual([s.m.size, open({ settled: true, active: true }).opening], [0, { key: `${record.dive_id}:o1`, question: 'Take me into Falls.' }]);
+  assert.deepEqual(open({ settled: true }).opening, { key: `${record.dive_id}:o1`, next_step: step, entry: null });
+  // Taken once; a settled typed Tutor asks its opening question as before for a guided entry (owner 4a; this load never
+  // saves, so the hole is not marked).
+  assert.equal(s.m.size, 0);
+  markGuidedEntry(s, record.dive_id);
+  assert.deepEqual(open({ settled: true, active: true }).opening, { key: `${record.dive_id}:o1`, question: 'Take me into Falls.', entry: null });
 });
 
 // Owner 2026-10-08 (r29): a journey hook input names the next section only once the current section's checks were tried, with

@@ -37,7 +37,8 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
-import { tutorTurn } from './chat-route.js';
+import { askMode, tutorTurn } from './chat-route.js';
+import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
@@ -312,6 +313,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     return () => document.removeEventListener('pointerdown', away, true);
   }, [paletteOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   const [busy, setBusy] = useState(false);
+  // A guided Rabbit Hole opening that coaching may not send here (owner 4a): shown above the composer, sent only on the learner's press.
+  const [waitingOpening, setWaitingOpening] = useState(null);
   const [choices, setChoices] = useState(null); // { message, candidates }
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
@@ -426,7 +429,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const turnId = crypto.randomUUID(), title = content.slice(0, 120), sentKey = chatThread.liveKey();
     chatThread.claim(); // a restore still on its way never replaces this line
     generation.dismissSettled();
-    const saver = turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId, mode: chatThread.mode, title: chatThread.id ? null : title,
+    const saver = turnSaver({ app: chat.canvas, threadId: chatThread.id || newThreadId(), turnId, mode: askMode(chatThread.mode, tocView), title: chatThread.id ? null : title,
       onAsked: () => { if (!lateEvent(sentKey, chatThread.liveKey())) chatThread.adopt(saver.threadId, title); } });
     chatThread.adopt(saver.threadId, title, { remember: false });
     setMsgs(m => [...m, { role: 'user', content, command: parseSlash(content)?.name || null, messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [] }]);
@@ -471,6 +474,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
+    // conflicts.md Q4: typing "not now" while a tray is open is the Not now control too (suggestions paused, saved).
+    if (!tocView && tray?.tray && /^\s*not now[.!]?\s*$/i.test(raw)) chat?.coaching?.dispatch({ type: 'not_now' });
     // Learning journeys (LearnJourney.jsx, adaptive-learning-path-v1-architecture.md §6.1, §7.2): on a board with a
     // journey (or an open Tutor Prompt Tray) a turn goes through the shared resolver first. A tray answer, path edit,
     // cancel, clarification or a second broad intent (continue or start?) is the journey's: no chat bubble, no card, no
@@ -599,7 +604,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const pdfPage = tutorPage(target, attachedRefs);
     // A PDF excerpt (pdf-excerpt.js) rides as client text the Tutor's plan does not read: like a file, it goes to /api/learn/ask.
     const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt');
-    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode });
+    const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode, toc: tocView });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
       const next = m.slice();
@@ -685,7 +690,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(model !== 'auto' ? { model } : {}),
         // The Chat pane's turn (contract A4): its mode, the command whose prompt this is (other commands keep their own
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
-        ...(chat ? { mode: chat.thread.mode, command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
+        ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -832,14 +837,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
 
   // Tutor v1: a hole's opening turn goes through send once, as the learner's carried-down question - from the dock or the Chat pane only
   // (final review C-I1: a journey hole's block composers get the same Tutor and would each send it again).
-  useEffect(() => {
-    if (!(dock || chat) || !tutor?.opening || busy || !openOnce(openedHoles, tutor.opening.key)) return;
+  // Owner 4a: the opening exists only for an explicit guided entry (holeOpening); it waits for the hole's saved controls, then
+  // is sent only where coaching may run (openGuided), else it waits above the composer for the learner's own press.
+  const sendOpening = opening => {
+    setWaitingOpening(null);
     // A hook carried from a shared canvas (contract §1.4): the hole opens on it once, as the step, keyed by opening.key.
-    if (tutor.opening.next_step) { sendStep(tutor.opening.next_step, tutor.opening.next_step.hook); return; }
+    if (opening.next_step) { sendStep(opening.next_step, opening.next_step.hook); return; }
     // Voice Mode: the opening is a voice turn - spoken, in the Tutor caption only, never a chat bubble.
-    if ((dock || chat) && voice?.on && voice.say(tutor.opening.question, { opening: true })) return;
-    send(tutor.opening.question, undefined, { opening: true });
-  }, [tutor?.opening?.key, busy, voice?.on]); // eslint-disable-line react-hooks/exhaustive-deps
+    if ((dock || chat) && voice?.on && voice.say(opening.question, { opening: true })) return;
+    send(opening.question, undefined, { opening: true });
+  };
+  useEffect(() => {
+    if (!(dock || chat) || !tutor?.opening || busy || chat?.coaching?.status === 'loading' || !openOnce(openedHoles, tutor.opening.key)) return;
+    if (chat?.coaching && !openGuided(chat.coaching, chat.thread, { entry: tutor.opening.entry, chatOpen: chat.panels.chatOpen })) { setWaitingOpening(tutor.opening); return; }
+    sendOpening(tutor.opening);
+  }, [tutor?.opening?.key, busy, voice?.on, chat?.coaching?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   // A /command Enter while busy (held, below in onKeyDown) runs once the turn ends, if the composer still shows it.
   useEffect(() => {
     if (busy || held.current == null) return;
@@ -1113,6 +1125,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
           <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
         </div>}
+        {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} sendOpening={sendOpening} waitingOpening={waitingOpening} messages={msgs.length} busy={busy} />}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}

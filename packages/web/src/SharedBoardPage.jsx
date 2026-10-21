@@ -17,6 +17,7 @@ import { wsHeaders } from './api.js';
 import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
 import RabbitHoleChoice from './RabbitHoleChoice.jsx';
 import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.js';
+import { markGuidedEntry } from './learn-opening.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
 import { learnPreview, PRODUCT } from './flags.js';
@@ -244,6 +245,7 @@ function StartRabbitHole({ token, state, card, title, resume, startRef, askRef }
         return;
       }
       if (made.next_step) carryStep(sessionStorage, made.name, made.next_step);
+      markGuidedEntry(sessionStorage, made.name); // owner 4a: the learner started this hole (no controls of theirs here)
       window.location.href = made.url;
     } catch (error) {
       toast(error.message, { tone: 'error' });
