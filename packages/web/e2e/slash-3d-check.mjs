@@ -38,13 +38,17 @@ const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|tut
 // The canvas page's own reads, which run whether or not the window is open: LearnPage restores CAD job status once on load
 // (cadClient().list()) and LearnJourney refreshes the board's journey every 5 s. Neither starts anything.
 const PAGE_READS = ['GET /api/learn/cad/jobs', 'GET /api/learn/journey'];
-const seen = [], refused = [], outside = [], errors = [];
+// The page's idle warm-up opens the notebook site hidden once the learner pauses (learn-warmup.js warmNotebookSite): aborted
+// here and counted, never the window's.
+const WARMUP_HOST = new URL(readFileSync(new URL('../src/learn-notebook.js', import.meta.url), 'utf8').match(/VITE_NOTEBOOK_ORIGIN \|\| '([^']+)'/)[1]).hostname;
+const seen = [], refused = [], outside = [], errors = [], warmups = [];
 let missingGlb = false, canvasStubs = false, placement = null, phase = 'page';
 // What the window asked for since `from`: every model or job route request except the page's own reads above.
 const fromWindow = from => seen.slice(from).filter(entry => entry.phase === 'window' && !PAGE_READS.includes(entry.request)).map(entry => entry.request);
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
-  if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(url.hostname); return route.abort(); }
+  if (url.hostname === WARMUP_HOST) { warmups.push(phase); return route.abort(); }
+  if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(`${url.hostname} (step ${results.length + 1}, ${phase}, from ${request.frame()?.url() || '?'})`); return route.abort(); }
   if (url.pathname === '/lesson-assets/slash-3d-frustum.glb' && missingGlb) return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not found' });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(url.pathname)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
   if (!MODEL.test(url.pathname)) return route.fallback();
@@ -135,7 +139,13 @@ const parts = page => {
   return { sheet, card, viewer, tools, pane, interact: tools.locator('[data-cad-interact]'), fit: tools.locator('[data-cad-fit]') };
 };
 // The viewer's picture above its foot, where the loading and Drag to orbit hints sit: the camera checks compare the model only.
-const still = async (page, viewer) => { const box = await viewer.boundingBox(); return page.screenshot({ clip: { x: box.x + 1, y: box.y + 1, width: box.width - 2, height: box.height - 34 } }); };
+// Brought fully into view first, so two shots compare the same pixels wherever the preview was scrolled (callers check the
+// preview's scroll before taking one).
+const still = async (page, viewer) => {
+  await viewer.scrollIntoViewIfNeeded();
+  const box = await viewer.boundingBox();
+  return page.screenshot({ clip: { x: box.x + 1, y: box.y + 1, width: box.width - 2, height: box.height - 34 } });
+};
 const live = viewer => until(() => viewer.evaluate(node => node.hasAttribute('data-viewer-live')), 'the viewer never went live', 20000);
 // The scroll box is put at the top and the model under the pointer, so one wheel tick can scroll it.
 const hover = async (page, viewer) => { const box = await viewer.boundingBox(); await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); return box; };
@@ -167,7 +177,14 @@ for (const theme of ['light', 'dark']) {
     await card.getByRole('button', { name: 'Pause animation' }).click();
     await page.waitForTimeout(400);
     opening = await still(page, viewer);
+    // The review shot: the whole window at a taller size, the preview at its top (Pause scrolled it).
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await parts(page).pane.evaluate(node => { node.scrollTop = 0; });
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(300);
     await sheet.screenshot({ path: `${OUT}/${theme}-1-open.png` });
+    await page.setViewportSize({ width: 1440, height: 760 });
+    await page.waitForTimeout(300);
     assert.deepEqual(fromWindow(before), [], 'model or job requests from the window');
   });
   await step(`${theme}: before Interact the wheel scrolls the window and the camera stays`, async () => {
@@ -197,9 +214,9 @@ for (const theme of ['light', 'dark']) {
     await hover(page, viewer);
     await page.mouse.wheel(0, -400);
     await page.waitForTimeout(300);
+    assert.equal(await pane.evaluate(node => node.scrollTop), top, 'the window scrolled while interacting');
     const zoomed = await still(page, viewer);
     assert.ok(changed(orbited, zoomed) > 0.01, `the wheel did not zoom: ${changed(orbited, zoomed).toFixed(4)}`);
-    assert.equal(await pane.evaluate(node => node.scrollTop), top, 'the window scrolled while interacting');
     await sheet.screenshot({ path: `${OUT}/${theme}-3-interacting.png` });
   });
   await step(`${theme}: Fit view frames the model as it opened`, async () => {
@@ -315,6 +332,7 @@ await step('no page errors; no model or job request from the window; the canvas\
   assert.deepEqual(errors, [], 'page errors');
   console.log(`   window (both themes: open, reopen, 404 and Retry): model/job requests: ${tally(fromWindow(0))}; the page's own reads meanwhile: ${tally(during('window'))}`);
   console.log(`   the canvas's /3d card, every one answered in the browser: ${tally(canvasRequests)}`);
+  console.log(`   the page's idle notebook warm-up (aborted): ${warmups.length} request(s)`);
 });
 await browser.close();
 const passed = results.filter(Boolean).length;
