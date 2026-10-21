@@ -6,6 +6,17 @@ steps; it never writes Python.
 
 Not included: arbitrary manim scripts, 3D scenes, custom mobjects, sound, or a manim editor.
 
+Cost (owner 5A decision C, 2026-10-21): the platform pays for Manim rendering. It is recorded as platform-funded
+usage (feature `render`), kept out of the learner's AI allowance, and bounded by the job limits:
+
+- one render at a time per worker;
+- a 420-second render timeout;
+- a 30-minute wait;
+- no automatic resubmission.
+
+Authoring the steps is a model call that still needs the allowance. See
+[learn-scene-generation.md](learn-scene-generation.md).
+
 ## Contract
 
 The shared schema is [math-schema.json](../../packages/math-renderer/math-schema.json). It is

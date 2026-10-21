@@ -83,6 +83,19 @@ test('unknown submission fails closed instead of incurring another charge', asyn
     assert.equal(calls, 1);
   } finally { globalThis.fetch = original; }
 });
+// Where spend is enforced a FAL clip has no verified price, so the paid-submission gate refuses it before the provider.
+// That refusal is definite: nothing started, so the clip says why, stays retryable and records no usage attempt.
+test('a FAL clip refused by spend controls is a definite refusal: zero provider calls, its reason shown, still retryable', async () => {
+  const original = globalThis.fetch; let calls = 0;
+  globalThis.fetch = async () => { calls++; return Response.json({}); };
+  try {
+    const f = fixture(); delete f.env.SMALL_ENV;
+    const video = (await (await f.actor.fetch(request())).json()).videos[0];
+    assert.deepEqual([video.status, video.retryable, video.error], ['failed', true, 'Daily paid-operation spend cap is not configured.']);
+    assert.notEqual((await f.actor.fetch(request({ retry: true }))).status, 409, 'a retry is allowed (and refused again before the provider)');
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = original; }
+});
 test('provider-declared failure offers explicit retry; polling does not automatically regenerate', async () => {
   const original = globalThis.fetch; let calls = 0;
   globalThis.fetch = async (url, init = {}) => {

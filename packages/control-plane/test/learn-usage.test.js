@@ -523,7 +523,8 @@ test('a Durable Object job is recorded under the payer the worker forwarded, nev
   const actor = new LearnScenes(state, { LEARN_DB, SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', LEARN_MEDIA: {} });
   assert.equal((await actor.fetch(forwarded)).status, 202);
   assert.equal((await actor.fetch(forwardUsagePayer(scene(), { userId: 'u-alice', email: 'alice@test' }))).status, 202, 'the same scene again');
-  assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.payer]), [['u-alice', 'scene', 'user']]);
+  // Owner 5A decision C (2026-10-21): rendering is platform-funded, recorded under 'render' apart from the learner's allowance.
+  assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.payer, a.charge_class]), [['u-alice', 'render', 'user', 'free']]);
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.provider, a.model, a.cost_state]), [['media', 'fly_scene_worker', 'blender-test', 'unknown']], 'one queued render, one attempt');
 });
 

@@ -11,7 +11,9 @@
 //   jev    Short text, checked against those claims: one JEV batch. The escalation policy may then ask for one admitted
 //          call to LEARN_TASKS.tutor_evaluator, on consequential uncertainty or on a contradiction, confident or not (7a).
 //   rubric Text or code whose criteria carry a rubric (rubricVersion 'rubric-…'): one admitted call to LEARN_TASKS.tutor_rubric
-//          (learn-rubric-assessment.js, Task 13). A coaching goal without a journey is assessable this way.
+//          (learn-rubric-assessment.js, Task 13). A coaching goal without a journey is assessable this way. A codebase goal's
+//          criteria carry the codebase rubric; its cited repository files are read at their commit, and an answer whose
+//          code cannot be read now is unavailable: source_unavailable, with no call (owner finding 5B).
 //   visual A drawing whose criteria carry a rubric: its authorized image bytes go to one admitted call to
 //          LEARN_TASKS.tutor_visual (learn-visual-assessment.js, Task 14).
 //   none   Otherwise a drawing is unavailable: visual_not_supported. Code and numeric answers are unavailable:
@@ -46,6 +48,7 @@ import { JourneyConflict, appendJourneyEvidence, loadJourneyById } from './learn
 import { claimAssessment, commitAssessment, ownActivity, pendingOperation, readAttempt } from './learn-attempt-store.js';
 import { assessRubricAttempt, carriesRubric, rubricSources } from './learn-rubric-assessment.js';
 import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.js';
+import { REPOSITORY_SOURCE } from '../../web/src/learn-codebase-goals.js';
 
 export const KEYED_VERSION = 'journey-probe-key-v1';
 // askJev's spend-guard refusals (learn-grade-jev.js): no call was made, so nothing is unknown about them.
@@ -108,10 +111,15 @@ async function assessRich(env, actor, attempt, criteria, route, deps) {
   const unassessed = criteria.filter(c => !carriesRubric(c)).map(c => ({ criterionId: c.criterionId, version: c.version, reason: 'no_rubric' }));
   const activity = await ownActivity(env, actor, attempt.activityId);
   const context = { actor, criteria: rubric, unassessed, activity: activity?.revision === attempt.activityRevision ? { prompt: activity.prompt } : null };
-  const result = route === 'visual'
-    ? await assessVisualAttempt(env, attempt, { ...context, image: await resolveDrawing(env, deps.access, actor, attempt.submittedContent) }, deps)
-    : await assessRubricAttempt(env, attempt, { ...context, ...await rubricSources(env, deps.access, actor, attempt.sourceRefs) }, deps);
-  return { rubricVersion: [...new Set(rubric.map(c => c.rubricVersion))].join(',').slice(0, 200), ...result };
+  const rubricVersion = [...new Set(rubric.map(c => c.rubricVersion))].join(',').slice(0, 200);
+  if (route === 'visual') return { rubricVersion, ...await assessVisualAttempt(env, attempt, { ...context, image: await resolveDrawing(env, deps.access, actor, attempt.submittedContent) }, deps) };
+  const read = await rubricSources(env, deps.access, actor, attempt.sourceRefs);
+  // A codebase answer is judged against the code it cites, at that commit (owner finding 5B). When that code cannot be read now
+  // (access revoked, the version gone), nothing is sent: the answer stays unassessed and Progress keeps its last state.
+  if (read.sourcesUnavailable.some(s => s.kind === REPOSITORY_SOURCE && s.reason === 'source_unavailable')) {
+    return { rubricVersion, status: 'unavailable', reason: 'source_unavailable', provenance: { route: null, calls: [], unassessed, sourcesUnavailable: read.sourcesUnavailable } };
+  }
+  return { rubricVersion, ...await assessRubricAttempt(env, attempt, { ...context, ...read }, deps) };
 }
 
 // The keyed probe a choice activity answers. Its source ref is {kind: 'journey_probe', id, version, locator?: {sectionId}}.

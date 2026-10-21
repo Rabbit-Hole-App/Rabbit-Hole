@@ -11,7 +11,10 @@ import { spendTransport, requestSpendBound } from '../src/learn-spend.js';
 import { admitSpend, settleSpend, allowanceFirst, boundaryReply, refusalBody } from '../src/learn-spend-ledger.js';
 import { askJev, JEV_TRANSPORTS, JevError } from '../src/learn-grade-jev.js';
 import { fishSpendTransport, isPaidSpendReply } from '../src/learn-paid-transport.js';
-import { withUsage, noteUsageIdentity, withSystemUsage, settleAttempt, usageTotals, toMicros, periodOf, periodReset } from '../src/learn-usage.js';
+import { withUsage, noteUsageIdentity, withSystemUsage, settleAttempt, usageTotals, toMicros, periodOf, periodReset, forwardUsagePayer } from '../src/learn-usage.js';
+import { LearnScenes } from '../src/learn-scene.js';
+import { LearnVideos } from '../src/learn-video.js';
+import sceneExample from '../../lesson-renderer/example-scene.json' with { type: 'json' };
 import { usageFetch } from '../src/learn-usage-route.js';
 import { searchYouTube } from '../src/learn-youtube.js';
 import { searchCanvasSource } from '../src/learn-search.js';
@@ -362,4 +365,141 @@ test('the control plane charges its signed-in POSTs to the session user, and wit
   spent(sqlite, 'u-cp', 50_000_000);
   await find({ ...env, AI_MONTHLY_ALLOWANCE_USD: '50' }).catch(() => null);
   assert.equal(calls, 1, 'an exhausted user gets no provider call here either');
+});
+
+// Scene and Manim rendering (owner 5A decision C, 2026-10-21): the platform pays for our own renderers' compute, recorded
+// apart from the learner's allowance and never as costless; the paid authoring call that writes the scene keeps its
+// admission. The real Durable Object classes run against a stubbed renderer that logs every call it receives.
+const mathOp = { op: 'generate_math_animation', id: 'sigmoid', concept: 'Sigmoid', purpose: 'derivation', scene: { steps: [{ kind: 'equation', expressions: ['y = x'] }] } };
+// Both renderers: /health, POST /jobs (worker.submit: its status), GET /jobs/<key> (worker.status), GET /jobs/<key>/asset.
+// Any other host is a model provider: it answers like Anthropic and is logged as 'provider'.
+function renderer(t) {
+  const calls = [], worker = { submit: 202, status: 'ready' };
+  const glb = new Uint8Array(24); new DataView(glb.buffer).setUint32(0, 0x46546c67, true);
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const { host, pathname } = new URL(url);
+    if (!['scene.test', 'math.test'].includes(host)) { calls.push('provider'); return Response.json({ model: MODEL, usage: { input_tokens: 10, output_tokens: 5 }, content: [] }); }
+    calls.push(`${init.method || 'GET'} ${host} ${pathname.replace(/[a-f0-9]{64}/, '<key>')}${init.body ? ` ${JSON.parse(init.body).key.slice(0, 8)}` : ''}`);
+    if (pathname === '/health') return Response.json({ version: 'render-test' });
+    if (init.method === 'POST') return Response.json({}, { status: worker.submit });
+    if (pathname.endsWith('/asset')) return host === 'math.test' ? new Response(new Uint8Array(8), { headers: { 'Content-Type': 'video/mp4' } }) : new Response(glb);
+    const status = typeof worker.status === 'function' ? worker.status() : worker.status;
+    return status === 404 ? new Response('', { status: 404 }) : Response.json({ status });
+  };
+  t.after(() => { globalThis.fetch = original; });
+  return { calls, worker, posts: () => calls.filter(call => call.startsWith('POST')) };
+}
+// A Durable Object's state; failNextPut(match) makes the next matching storage write fail, as an eviction would.
+function durable(id) {
+  const data = new Map(); let lock = Promise.resolve(), failing = null;
+  const storage = {
+    get: async key => structuredClone(data.get(key)),
+    put: async (key, value) => { if (failing?.(key, value)) { failing = null; throw new Error('synthetic eviction'); } data.set(key, structuredClone(value)); },
+    list: async ({ prefix }) => new Map([...data].filter(([key]) => key.startsWith(prefix)).map(([key, value]) => [key, structuredClone(value)])),
+    setAlarm: async () => {},
+  };
+  return { id, data, storage, failNextPut: match => { failing = match; }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
+}
+const RENDERERS = { SCENE_WORKER_URL: 'https://scene.test', SCENE_WORKER_TOKEN: 'fixture', MATH_WORKER_URL: 'https://math.test', MATH_WORKER_TOKEN: 'fixture' };
+const renderActions = sqlite => rows(sqlite, 'usage_actions').filter(a => a.feature === 'render').map(a => [a.user_id, a.payer_reason, a.charge_class]);
+const renderAttempts = sqlite => rows(sqlite, 'usage_attempts').filter(a => !a.attempt_id.startsWith('seed-')).map(a => [a.provider, a.cost_state, a.cost_micros, a.reserved_micros]);
+
+test('through the real dev worker: an exhausted learner\'s /3d and /animate authoring is refused before any provider or renderer call; rendering an existing scene is platform-funded', async t => {
+  const worker = (await devWorker()).default;
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Mine')");
+  const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }), now: () => ({ meta: stmt.run(...args) }) }; },
+    batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
+  spent(sqlite, 'u-owner-3c9f', 50_000_000);
+  const scenes = durable('scenes');
+  const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), ANTHROPIC_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', ...RENDERERS,
+    LEARN_SCENES: { idFromName: name => name, get: () => actor },
+    CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' }) } };
+  const actor = new LearnScenes(scenes, env);
+  const { calls } = renderer(t);
+  const post = (path, body) => worker.fetch(new Request(`https://dev.example${path}`, { method: 'POST', headers: { cookie: 'small_session=s', 'content-type': 'application/json' }, body: JSON.stringify(body) }), env, { waitUntil() {} });
+  const usage = async () => (await worker.fetch(new Request('https://dev.example/api/learn/usage', { headers: { cookie: 'small_session=s' } }), env, { waitUntil() {} })).json();
+  for (const [command, args] of [['3d', 'a camera frustum'], ['animate', 'how softmax shares the whole by score']]) {
+    const refused = await post('/api/learn/artifact', { app: 'canvas-0a1b2c3d', command, args });
+    assert.deepEqual([refused.status, (await refused.json()).reason], [429, 'exhausted'], `/${command} authoring`);
+  }
+  assert.deepEqual(calls, [], 'zero provider and zero renderer calls');
+  const before = await usage();
+  // A scene whose source already exists renders on the platform: the learner's allowance is neither asked nor spent.
+  const queued = await post('/api/learn/scene?app=canvas-0a1b2c3d', { operation: sceneExample, lessonId: 'lesson', page: 'freeform', confirmed: true });
+  assert.equal(queued.status, 202);
+  await actor.alarm(); await actor.alarm();
+  assert.equal((await actor.list()).scenes[0].status, 'ready');
+  assert.deepEqual(calls.map(call => call.split(' ').slice(0, 3).join(' ')), ['GET scene.test /health', 'POST scene.test /jobs', 'GET scene.test /jobs/<key>', 'GET scene.test /jobs/<key>/asset']);
+  assert.deepEqual(renderActions(sqlite), [['u-owner-3c9f', 'free_action', 'free']], 'attributed to the learner, funded by the platform');
+  assert.deepEqual(renderAttempts(sqlite), [['fly_scene_worker', 'unknown', null, null]], 'not costless: its cost is unknown, never 0');
+  const after = await usage();
+  assert.deepEqual([after.usedMicros, after.reservedMicros, after.unknownAttempts, after.remainingMicros], [before.usedMicros, before.reservedMicros, before.unknownAttempts, 0], 'nothing in the learner\'s usage');
+});
+
+test('platform-funded scene rendering stays bounded: duplicates render once, one active job, busy or lost work keeps its key, only an explicit retry renders again', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  spent(sqlite, 'u-alice', 1_000_000); // an exhausted allowance does not touch rendering
+  const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { calls, worker, posts } = renderer(t);
+  const state = durable('scene-a'), actor = new LearnScenes(state, env);
+  const ask = (extra = {}) => forwardUsagePayer(new Request('https://dev.test/api/learn/scene?app=demo', { method: 'POST',
+    body: JSON.stringify({ operation: sceneExample, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra }) }), { userId: 'u-alice', email: 'alice@example.test' });
+  const status = async () => (await actor.list()).scenes[0].status;
+  assert.deepEqual((await Promise.all([actor.fetch(ask()), actor.fetch(ask()), actor.fetch(ask())])).map(r => r.status), [202, 202, 202]);
+  assert.equal((await state.storage.list({ prefix: 'job:' })).size, 1, 'three submissions, one job');
+  assert.equal((await actor.fetch(ask({ operation: { ...sceneExample, duration: 3 } }))).status, 409, 'another scene waits for the active one');
+  // The worker's single slot is busy, then accepts, then loses the job (restarted), then takes it again under the same key.
+  const answers = [404, 'failed']; worker.status = () => answers.shift();
+  worker.submit = 429; await actor.alarm(); assert.equal(await status(), 'queued');
+  worker.submit = 202; await actor.alarm(); await actor.alarm(); assert.equal(await status(), 'queued');
+  await actor.alarm(); await actor.alarm();
+  assert.equal(await status(), 'failed');
+  assert.equal(new Set(posts().map(call => call.split(' ').pop())).size, 1, 'busy and lost work resubmits the same deterministic key');
+  assert.equal(posts().length, 3);
+  await actor.fetch(ask()); await actor.alarm();
+  assert.equal(posts().length, 3, 'a failed scene renders again only on an explicit retry');
+  worker.status = 'ready';
+  await actor.fetch(ask({ retry: true }));
+  await actor.alarm();
+  // Evicted after the render was stored but before the job was: the alarm runs again and records nothing twice.
+  state.failNextPut((key, job) => job?.status === 'ready');
+  await assert.rejects(actor.alarm(), /synthetic eviction/);
+  await actor.alarm();
+  assert.equal(await status(), 'ready');
+  assert.equal(new Set(posts().map(call => call.split(' ').pop())).size, 2, 'the retry has its own key');
+  await actor.fetch(ask({ retry: true })); await actor.fetch(ask({ page: 'another' })); await actor.alarm();
+  assert.equal(posts().length, 4, 'a retry of a ready scene and the same scene on another page reuse the render');
+  assert.deepEqual(renderActions(sqlite), [['u-alice', 'free_action', 'free'], ['u-alice', 'free_action', 'free']], 'one record per render: the first and the retry');
+  assert.deepEqual(renderAttempts(sqlite).map(a => a[1]), ['unknown', 'unknown']);
+  // The queue wait is bounded: a job past it fails without another renderer call.
+  const stale = durable('scene-stale'), old = new LearnScenes(stale, env);
+  await old.fetch(ask());
+  const [[key, job]] = [...await stale.storage.list({ prefix: 'job:' })];
+  await stale.storage.put(key, { ...job, startedAt: Date.now() - 16 * 60 * 1000 });
+  const seen = calls.length;
+  await old.alarm();
+  assert.deepEqual([(await old.list()).scenes[0].status, calls.length], ['failed', seen]);
+  const summary = await balance(env);
+  assert.deepEqual([summary.reservedMicros, summary.unknownAttempts], [0, 0], 'none of it is in the learner\'s usage');
+});
+
+test('platform-funded Manim rendering: an exhausted learner\'s existing animation renders once, recorded apart, and is reused', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  spent(sqlite, 'u-alice', 1_000_000);
+  const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { posts } = renderer(t);
+  const actor = new LearnVideos(durable('video-a'), env);
+  const ask = (extra = {}) => forwardUsagePayer(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST',
+    body: JSON.stringify({ operation: mathOp, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra }) }), { userId: 'u-alice', email: 'alice@example.test' });
+  await Promise.all([actor.fetch(ask()), actor.fetch(ask())]);
+  await actor.alarm();
+  assert.equal((await actor.list()).videos[0].status, 'ready');
+  await actor.fetch(ask({ page: 'another' }));
+  assert.equal(posts().length, 1, 'one render');
+  assert.deepEqual(renderActions(sqlite), [['u-alice', 'free_action', 'free']]);
+  assert.deepEqual(renderAttempts(sqlite), [['manim', 'unknown', null, null]]);
+  assert.equal((await balance(env)).unknownAttempts, 0);
 });
