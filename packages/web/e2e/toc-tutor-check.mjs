@@ -228,7 +228,9 @@ if (panel) await check('8 a full syllabus (12 topics, 6 subtopics each: 84 adds)
 
 // Owner brief 2026-10-16 item 7. The TOC's thread is a real one on the server, as /api/learn/ask (canned here) would leave it,
 // so a reload restores it through the TOC's own open-thread pointer (slot 'toc').
-const tocBox = () => contents().locator('[data-toc-conversation]');
+// Owner UI brief 2026-10-20 section 6: with no TOC messages there is only the compact entry (data-toc-start); pressed, its
+// composer (data-toc-ask) opens, and becomes the TOC conversation once a turn is sent.
+const tocBox = () => contents().locator('[data-toc-conversation], [data-toc-ask]');
 const tocField = () => tocBox().locator('[data-toc-composer] textarea').first();
 await check('9 the TOC conversation: Tutor only; a request there applies its outline change at once, numbered in place; the reply stays in TOC; Chat\'s draft and New chat leave it; a reload restores it', async () => {
   const TOC_THREAD = `canvaschat-${crypto.randomUUID()}`, ask = 'Add a section on tidal bores after Tides';
@@ -238,6 +240,8 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await setMode('ask'); // TOC must not inherit Chat's mode.
   await pane().locator('[data-chat-composer] textarea').first().fill('A Chat draft');
   await tab('Table of contents').click();
+  assert.equal(await contents().locator('[data-toc-conversation], [data-toc-composer]').count(), 0, 'no TOC messages: no empty conversation or composer');
+  await contents().locator('[data-toc-start] button').click();
   await tocField().waitFor();
   assert.equal(await tocBox().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
   assert.equal(await tocBox().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no Auto / Ask / Tutor menu');
@@ -321,6 +325,7 @@ await check('10 repository TOC keeps its intentional repository commit and outli
   await tab('Table of contents').click();
   await contents().locator('[data-toc-subtitle]').filter({ hasText: 'karpathy/nanoGPT' }).waitFor();
   const n = captured.length, request = 'Refine my repository outline to explain attention';
+  await contents().locator('[data-toc-start] button').click(); // no TOC messages on this canvas yet: the entry opens the composer
   await tocField().fill(request);
   await tocBox().locator('[data-toc-composer] button[aria-label="Send"]').click();
   await waitFor(() => captured.length > n, 20000);

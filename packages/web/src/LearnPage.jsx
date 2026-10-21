@@ -64,7 +64,7 @@ import { sourceTarget } from './card-sources.js';
 import TocConversation from './TocConversation.jsx';
 import SourcesPane from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
-import LinksPanel, { useCanvasLinks } from './LinksPanel.jsx';
+import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import { canvasContextNow } from './chat-canvas-context.js';
@@ -1067,11 +1067,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Canvas references (C:/s/spec/references-plan.md): the board's links feed the Links tab and the cards' chips; the
+  // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
   // navigation saves first. A save that changed the links refreshes them (the server indexes the saved board).
   const [refPick, setRefPick] = useState(null);
-  const links = useCanvasLinks({ boardId: commentBoard, shown: panelOpen && (panelTab === 'links' || panelTab === 'find') });
+  const links = useCanvasLinks({ boardId: commentBoard, shown: panelOpen && panelTab === 'find' });
   // A /c/ href is a member page, outside AppRoot: a full load, after the save.
   const refLinks = useMemo(() => ({ resolve: links.resolve, go: async href => { const saving = canvasApi.current?.persist?.(); if (!href.startsWith('/c/')) return navigate(href); await saving; window.location.assign(href); }, onRemove: (blockId, refId) => canvasApi.current?.removeRef?.(blockId, refId) }), [links.resolve]);
   const savedRefs = useRef(null);
@@ -1496,11 +1496,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const searchScope = `${canvasKey}:${boardName}:${hole || ''}:${canEditCanvas ? 'edit' : 'read'}`;
   const canvasSearch = useCanvasSearch({ scopeKey: searchScope, canvasApi, epoch: canvasEpoch,
     shown: panelOpen && panelTab === 'find', commentsBase: comments.active ? memberBase(commentBoard) : null,
-    links, children: dive.navigator?.tree?.children,
+    links, linkResults: true, onOpenLink: href => refLinks.go(href), children: dive.navigator?.tree?.children,
     onComment: result => { setSearchThread({ scope: searchScope, id: result.target.id }); comments.openPin(result.target.id); },
     revealDocument: () => setDocView('editor') });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole') return dive.portals.enter(action.rabbitHole.name);
+    if (action.kind === 'link-card') return canvasApi.current?.focusBlock(action.objectId);
+    if (action.kind === 'link-open') return refLinks.go(action.href);
     const ref = action.reference;
     if (!ref || ref.unavailable) return;
     if (ref.kind === 'canvas') { const live = links.resolve(ref.target); if (live?.href && !live.unavailable) return refLinks.go(live.href); return toast('This canvas reference is unavailable.'); }
@@ -2232,7 +2234,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />
       {panelTab === 'comments' && searchThread?.scope === searchScope && <button type="button" data-search-return onClick={() => setPanelTab('find')} className="mb-2 self-start rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover">Back to Search</button>}
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
-      <LinksPanel hidden={panelTab !== 'links'} links={links} go={refLinks.go} onFocusCard={id => canvasApi.current?.focusBlock(id)} />
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>

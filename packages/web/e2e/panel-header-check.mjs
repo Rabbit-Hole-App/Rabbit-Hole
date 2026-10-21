@@ -134,14 +134,15 @@ try {
 await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
-await check('1 the header is eight icon buttons in the owner\'s order: five tabs (Chat first, Links last), the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
+// Owner UI brief 2026-10-20 section 7: Links left the tray for Search's Links filter (toc-links-search-check.mjs), so four tabs.
+await check('1 the header is seven icon buttons in the owner\'s order: four tabs (Chat first, Comments last, no Links), the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
-  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Links', 'Links'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
+  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
-  assert.equal(await header.locator('button svg').count(), 8);
-  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 5, 'the five tabs share one group');
+  assert.equal(await header.locator('button svg').count(), 7);
+  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 4, 'the four tabs share one group');
   // Owner brief 2026-10-16 items 3-4: one Context / Files / Graph control (named Context on a canvas with no repository), not a tab,
   // set apart from the navigation icons by spacing.
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-companion]').count(), 0, 'the companion control is not a tab');
@@ -172,11 +173,18 @@ await shot('01b-page-toc-active');
 // Owner brief 2026-10-16 item 7 (replaces R4 A3's docked Chat composer): the Table of contents has its own conversation and
 // composer below the contents, Tutor its only mode. The long contents, drafts kept apart, Send and the narrow panel are on
 // their own canvas below (L1-L8).
-const docked = (on = page) => on.locator('aside[aria-label="Learn agent chat"] [data-toc-conversation]');
+// Owner UI brief 2026-10-20 section 6: with no TOC messages there is no "TOC conversation" section, only the compact entry
+// (data-toc-start); pressing it opens the composer (data-toc-ask), which becomes the conversation once a turn is sent.
+const docked = (on = page) => on.locator('aside[aria-label="Learn agent chat"]').locator('[data-toc-conversation], [data-toc-ask]');
+const startToc = async (on = page) => { const entry = on.locator('aside[aria-label="Learn agent chat"] [data-toc-start] button'); await entry.waitFor(); await entry.click(); await docked(on).waitFor(); };
 const below = async (upper, lower) => { const a = await upper.boundingBox(), b = await lower.boundingBox(); return !!a && !!b && a.y + a.height <= b.y + 1; };
-await check('2b short contents: the TOC conversation and its composer stay below them, Tutor its only mode; no Chat header or conversation over the contents', async () => {
-  await docked().waitFor();
+await check('2b short contents, no TOC messages: no TOC conversation section, one entry; pressed, its focused composer stays below them, Tutor its only mode; no Chat header or conversation over the contents', async () => {
+  await panel().locator('[data-toc-start]').waitFor();
+  assert.equal(await panel().locator('[data-toc-conversation], [data-toc-ask], [data-toc-composer]').count(), 0, 'no empty section or composer');
+  assert.equal(await panel().getByText('TOC conversation', { exact: true }).count(), 0, 'no "TOC conversation" header');
+  await startToc();
   assert.ok(await docked().locator('[data-toc-composer] textarea').first().isVisible(), 'the composer shows');
+  await expect(docked().locator('[data-toc-composer] textarea').first()).toBeFocused();
   assert.ok(await below(panel().locator('[data-toc]'), docked()), 'below the contents');
   const [aside, pane] = [await panel().boundingBox(), await docked().boundingBox()];
   assert.ok(Math.abs(aside.y + aside.height - (pane.y + pane.height)) < 40, `anchored at the panel's foot: pane ends ${Math.round(pane.y + pane.height)}, panel ${Math.round(aside.y + aside.height)}`);
@@ -215,9 +223,7 @@ await check('5 arrow keys move between the enabled tabs, Comments included on a 
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['comments']);
   await page.keyboard.press('ArrowRight');
-  assert.deepEqual(await selected(), ['links'], 'Links is fifth and last');
-  await page.keyboard.press('ArrowRight');
-  assert.deepEqual(await selected(), ['chat'], 'wraps');
+  assert.deepEqual(await selected(), ['chat'], 'wraps after Comments, the last tab');
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['find']);
   await page.keyboard.press('ArrowRight');
@@ -415,7 +421,7 @@ await check('L2 opening the Table of contents: its own composer below the long c
   await p2.waitForTimeout(1200); // past the 800 ms thread-state save of the draft and the card (chat-threads.js SAVE_DELAY)
   const mark = chatRequests.length;
   await tab2('Table of contents').click();
-  await docked(p2).waitFor();
+  await startToc(p2);
   assert.equal(await tocMode(), 'tutor');
   assert.equal(await tocField().inputValue(), '', 'Chat\'s draft is not here');
   assert.equal(await docked(p2).locator('[data-context-chip]', { hasText: 'Heat flows from hot to cold' }).count(), 0, 'Chat\'s attached card is not here');
@@ -508,7 +514,7 @@ await check('L8 entered before Chat\'s saved thread loads: it restores into Chat
   for (const end = Date.now() + 30000; !threadAsked; await p2.waitForTimeout(50)) if (Date.now() > end) throw Error('the saved thread was never asked for');
   assert.equal(await p2.locator('[data-chat-pane]').getAttribute('data-chat-restore'), 'loading');
   await tab2('Table of contents').click();
-  await docked(p2).waitFor();
+  await startToc(p2); // the canned TOC thread exists nowhere, so the reloaded TOC has no messages: the entry, then the composer
   assert.equal(await tocMode(), 'tutor', 'Tutor in the TOC, Chat\'s thread still loading');
   releaseThread();
   await p2.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');

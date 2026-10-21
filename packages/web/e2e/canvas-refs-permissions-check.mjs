@@ -134,12 +134,12 @@ await check('item 8: a private source is hidden from the target owner\'s backlin
   assert.deepEqual(fromS.refs.map(r => r.id), [sRef.id], 'S\'s backlink carries its own reference id');
   assert.equal(links.to.reduce((n, group) => n + group.refs.length, 0), 1, 'the counted references include one A cannot read');
   for (const secretText of [P.title, `Secret origin card ${run}`, P.id, pRef.id]) assert.ok(!JSON.stringify(links).includes(secretText),`the links response names "${secretText}"`);
-  // The same through the Links tab on T.
+  // The same through Search's Links filter on T (owner UI brief 2026-10-20 section 7: the Links tab moved into Search).
   await openCanvas(pageA, `/apps/${T.name}`, 't1');
-  await pageA.locator('[data-panel-tab="links"]').click();
-  const ready = pageA.locator('[data-links-panel][data-links-state="ready"], [data-links-panel] [data-links-state="ready"]').first();
-  await ready.waitFor({ timeout: 15000 });
-  const to = await pageA.locator('[data-links-panel] [data-links-to]').innerText();
+  await pageA.locator('[data-panel-tab="find"]').click();
+  await pageA.locator('[data-canvas-search] [data-search-filter="links"]').click();
+  await pageA.locator(`[data-canvas-search] [data-search-result="link:to:${S.id}"]`).waitFor({ timeout: 15000 });
+  const to = (await pageA.locator('[data-canvas-search] [data-search-result^="link:to:"]').allInnerTexts()).join('\n');
   assert.ok(to.includes(S.title), `the Backlinks section does not list S ("${to.slice(0, 160)}")`);
   assert.ok(!to.includes(P.title), 'the Backlinks section lists the private canvas P');
   const html = await pageA.content();

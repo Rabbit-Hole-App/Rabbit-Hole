@@ -1,4 +1,4 @@
-export const SEARCH_FILTERS = [['all', 'All'], ['cards', 'Cards'], ['text', 'Text'], ['comments', 'Comments'], ['references', 'References'], ['code', 'Code'], ['rabbit-holes', 'Rabbit Holes']];
+export const SEARCH_FILTERS = [['all', 'All'], ['cards', 'Cards'], ['text', 'Text'], ['comments', 'Comments'], ['references', 'References'], ['links', 'Links'], ['code', 'Code'], ['rabbit-holes', 'Rabbit Holes']];
 
 // Fixed-height rows make scroll work proportional to the viewport, not board size.
 export function searchWindow({ count, width = 320, height = 400, scrollTop = 0, rows = false }) {
@@ -22,6 +22,7 @@ export function searchEmptyMessage(state, query, filter) {
   if (state === 'error') return 'Some content could not be loaded. Try again.';
   if (state === 'partial') return 'No matches in the available content.';
   if (query.trim()) return 'No matches on this canvas.';
+  if (filter === 'links') return 'No links to or from this canvas yet.';
   const label = SEARCH_FILTERS.find(([id]) => id === filter)?.[1] || 'objects';
   return filter === 'all' ? 'No searchable objects on this canvas yet.' : `No ${label} on this canvas yet.`;
 }

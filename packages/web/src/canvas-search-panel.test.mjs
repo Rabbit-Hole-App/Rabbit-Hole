@@ -56,7 +56,20 @@ test('render bounds a large result set and preserves original target identity', 
   assert.match(html, /data-search-result="card:0"/);
   assert.match(html, /data-find-match="object-0"/);
   assert.match(html, /aria-setsize="10000"/);
-  assert.equal((html.match(/data-search-filter=/g) || []).length, 7);
+  assert.equal((html.match(/data-search-filter=/g) || []).length, 7, 'a shared view has no Links filter');
+  assert.match(render({ showLinks: true }), /data-search-filter="links"/);
+});
+// Owner UI brief 2026-10-20 section 7: the former Links tab's results - a canvas title, its direction and count, its cards.
+test('link results name their canvas and cards, open in a new tab, and an unavailable target exposes nothing', () => {
+  const html = render({ showLinks: true, filter: 'links', results: [
+    { id: 'link:from:t', kind: 'link', title: 'Graph basics', location: 'Linked from this canvas', link: { direction: 'from', href: '/apps/canvas-1', cards: [{ id: 'r1', object: 'a1', title: 'Recursion' }] } },
+    { id: 'link:to:s', kind: 'link', title: 'Trees', location: 'Links here (backlink)', link: { direction: 'to', href: '/apps/canvas-2', cards: [{ id: 'r2', object: 'b1', title: 'Depth', href: '/apps/canvas-2?card=b1' }] } },
+    { id: 'link:from:x', kind: 'link', title: 'Unavailable canvas', location: 'Linked from this canvas', link: { direction: 'from', unavailable: true, href: null, cards: [{ id: 'r3', object: 'a2', title: 'Origin' }] } }] });
+  assert.match(html, /Graph basics/); assert.match(html, /Linked from this canvas · 1 reference/);
+  assert.match(html, /data-links-origin="a1"/); assert.match(html, /href="\/apps\/canvas-2\?card=b1" data-links-backlink="b1"/);
+  assert.match(html, /aria-label="Open Graph basics in new tab"/); assert.match(html, /aria-label="Open Depth in new tab"/);
+  assert.doesNotMatch(html, /aria-label="Open Unavailable canvas in new tab"/);
+  assert.match(html, /data-search-result="link:from:x" data-links-direction="from" data-unavailable="true"/);
 });
 test('unavailable source metadata is never displayed; explicit source and child actions are separate', () => {
   const html = render({ results: [{ id: 'card:a', objectId: 'a', title: 'Card', kind: 'card', references: [{ id: 'private', unavailable: true }, { id: 'paper', title: 'Known paper', kind: 'paper' }], rabbitHoles: [{ name: 'child-a', title: 'Existing child' }] }] });

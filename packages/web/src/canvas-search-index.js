@@ -5,7 +5,7 @@ import { docText } from './doc-text.js';
 import { pdfRef } from './pdf-source.js';
 import { validSources } from './card-sources.js';
 
-export const SEARCH_FILTERS = ['all', 'cards', 'text', 'comments', 'references', 'code', 'rabbit-holes'];
+export const SEARCH_FILTERS = ['all', 'cards', 'text', 'comments', 'references', 'links', 'code', 'rabbit-holes'];
 const string = value => typeof value === 'string' ? value : '';
 const at = (collection, id) => collection instanceof Map ? collection.get(id) : collection?.[id];
 const array = value => Array.isArray(value) ? value : [];
@@ -70,6 +70,16 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
   return { id: `object:${object.id}`, objectId: object.id, kind, ...(kind === 'card' ? { previewKey: object.id } : {}), title: title || (object.type === 'notebook' ? 'Notebook' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
     target: { kind: 'object', id: object.id }, fields: [...fields('title', title), ...sourceName, ...content, ...referenceFields, ...rabbitHoles.flatMap((child, i) => fields(`child:${i}`, child.title, 'reference')), ...sourceFields] };
 }
+// Links (the former Links tab, brief section 7): one result per destination canvas, as the server grouped them (GET
+// /api/learn/links, already filtered for this viewer). from: this canvas's references to a target; to: backlinks from a source.
+// An unavailable target keeps no title or path, only its origin cards on this canvas.
+function linkEntry(direction, key, group) {
+  const unavailable = !!group.unavailable, title = unavailable ? 'Unavailable canvas' : string(group.title).trim() || 'Untitled canvas';
+  const cards = array(group.refs).map(ref => ({ id: ref.id, object: ref.object, title: string(ref.objectTitle).trim() || 'Untitled card', href: ref.href }));
+  return { id: `link:${direction}:${key}`, objectId: null, kind: 'link', title, categories: ['links'], references: [], rabbitHoles: [], availability: { status: 'ready' },
+    link: { direction, unavailable, href: unavailable ? null : group.href, cards }, location: direction === 'from' ? 'Linked from this canvas' : 'Links here (backlink)',
+    target: { kind: 'link', id: key }, fields: [...(unavailable ? [] : fields('title', title)), ...cards.flatMap((card, i) => fields(`card:${i}`, card.title, 'reference'))] };
+}
 export const createSearchIndex = () => ({ scopeKey: null, revision: null, entries: new Map(), inputs: new Map() });
 export function updateSearchIndex(previous, input) {
   const old = previous?.scopeKey === input.scopeKey ? previous : createSearchIndex();
@@ -101,6 +111,10 @@ export function updateSearchIndex(previous, input) {
     walk(block.children, [...path, position]);
   });
   walk(board.doc?.blocks);
+  for (const [direction, groups] of [['from', input.links?.from], ['to', input.links?.to]]) for (const group of array(groups)) {
+    const key = direction === 'from' ? group.target : group.source;
+    if (key) put(`link:${direction}:${key}`, [group], () => linkEntry(direction, key, group));
+  }
   for (const thread of array(input.comments)) {
     if (!thread?.id || thread.unavailable) continue;
     put(`comment:${thread.id}`, [thread], () => ({ id: `comment:${thread.id}`, objectId: thread.objectId || thread.anchor?.objectId || null, kind: 'comment', title: thread.title || 'Comment', resolved: !!thread.resolved, categories: ['comments'], references: [], rabbitHoles: [], availability: { status: 'ready' }, target: { kind: 'comment', id: thread.id, anchor: thread.anchor, objectId: thread.objectId }, fields: array(thread.messages).length ? thread.messages.flatMap((message, i) => fields(`message:${i}`, message.text || message.body)) : fields('body', thread.text || thread.body) }));
