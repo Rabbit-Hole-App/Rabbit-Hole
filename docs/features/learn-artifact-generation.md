@@ -329,11 +329,17 @@ help the idea, and a text explanation otherwise. The Tutor reaches the same capa
   words ("equilibrium at $5"), is left to the verifier pass.
 - **Verifier pass** (owner, 2026-10-21). A scene that passes the gates is read back by a second call
   (`agents/learn-scene-verify.js`; the same model, through spend admission, recorded as an `evaluation` attempt) with the
-  card as the learner meets it at every checked setting (`learn-scene-gates.js` `cardAtSettings`). A false statement it
-  reports (one the card's own numbers contradict, or one wrong about the subject) goes to the one repair; a scene still
-  reported is a `validation_error`, never a card. When the check cannot run (a model error, a spend refusal), nothing is
-  added and nothing is repaired. Cost: one more call per scene, two after a repair. `LEARN_SCENE_VERIFIER=off` turns it
-  off. Its judgement is model behavior: the unit tests (the supply-demand rerun as a fixture) prove the wiring only.
+  card as the learner meets it at every checked setting (`learn-scene-gates.js` `cardAtSettings`). It lists each
+  statement it examined with exact quotes from the card (`says`, `against`), its finding, then a status (`false` or
+  `correct`). The server (`falseItems`) keeps only items marked false whose quotes are on the card, and drops a wrong
+  number whose true value printed at the shown number's places is the shown number (display precision). A kept item goes
+  to the one repair; a scene still reported is a `validation_error`, never a card. When the check cannot run (a model
+  error, a spend refusal), nothing is added and nothing is repaired. Cost: one more call per scene (about $0.03-0.06),
+  two after a repair. `LEARN_SCENE_VERIFIER=off` turns it off.
+  **Measured** (real model, 2026-10-21, 12 stored cards reviewed by hand): 4/4 wrong cards refused with the right reason,
+  0/8 correct cards refused, after two tuning rounds (the first version refused 7/8 correct cards: it listed statements it
+  had found correct). Unit tests (the supply-demand rerun as a fixture) prove the wiring only; the verifier is a model and
+  can still miss a subtle error or flag a correct card (C:/s/spec/day-1021/uiexplain-report.md).
 - **Choice.** The model chooses between scene and text (`ARTIFACT_SYSTEM`). Words narrow it (`agent/slash.js`
   `PLAIN_WORDS`, `INTERACTIVE_WORDS`): an interactive request is offered only the scene, so it never silently becomes
   text. A failed one keeps the line to retry and offers "Make a plain explanation instead" (`/explain in plain text: ...`).
