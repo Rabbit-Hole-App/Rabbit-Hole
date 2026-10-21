@@ -372,7 +372,8 @@ test('the control plane charges its signed-in POSTs to the session user, and wit
 // apart from the learner's allowance and never as costless; the paid authoring call that writes the scene keeps its
 // admission. The real Durable Object classes run against a stubbed renderer that logs every call it receives.
 const mathOp = { op: 'generate_math_animation', id: 'sigmoid', concept: 'Sigmoid', purpose: 'derivation', scene: { steps: [{ kind: 'equation', expressions: ['y = x'] }] } };
-// Both renderers: /health, POST /jobs (worker.submit: its status), GET /jobs/<key> (worker.status), GET /jobs/<key>/asset.
+// Both renderers: /health, POST /jobs (worker.submit: its status, or 'lost': accepted, then the response is lost), GET /jobs/<key>
+// (worker.status, or 'down': unreachable), GET /jobs/<key>/asset.
 // Any other host is a model provider: it answers like Anthropic and is logged as 'provider'.
 function renderer(t) {
   const calls = [], worker = { submit: 202, status: 'ready' };
@@ -383,9 +384,10 @@ function renderer(t) {
     if (!['scene.test', 'math.test'].includes(host)) { calls.push('provider'); return Response.json({ model: MODEL, usage: { input_tokens: 10, output_tokens: 5 }, content: [] }); }
     calls.push(`${init.method || 'GET'} ${host} ${pathname.replace(/[a-f0-9]{64}/, '<key>')}${init.body ? ` ${JSON.parse(init.body).key.slice(0, 8)}` : ''}`);
     if (pathname === '/health') return Response.json({ version: 'render-test' });
-    if (init.method === 'POST') return Response.json({}, { status: worker.submit });
+    if (init.method === 'POST') { if (worker.submit === 'lost') throw new TypeError('network connection lost'); return Response.json({}, { status: worker.submit }); }
     if (pathname.endsWith('/asset')) return host === 'math.test' ? new Response(new Uint8Array(8), { headers: { 'Content-Type': 'video/mp4' } }) : new Response(glb);
     const status = typeof worker.status === 'function' ? worker.status() : worker.status;
+    if (status === 'down') throw new TypeError('network connection lost');
     return status === 404 ? new Response('', { status: 404 }) : Response.json({ status });
   };
   t.after(() => { globalThis.fetch = original; });
@@ -781,4 +783,80 @@ test('three concurrent explicit retries of one failed scene make exactly one new
   assert.equal((await actor.list()).scenes[0].status, 'ready');
   assert.deepEqual([posts().length, new Set(posts().map(call => call.split(' ').pop())).size], [2, 2], 'the first render and one retry, each under its own key');
   assert.deepEqual(renderRows(sqlite, 'u-alice').map(r => r[0]), ['failed', 'settled']);
+});
+
+test('an unconfirmed Manim submission keeps its render slot until reconciled or expired: lost response, restart before the ticket, no resubmission, one release each', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  spent(sqlite, 'u-alice', 1_000_000);
+  const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { calls, worker, posts } = renderer(t);
+  const before = await balance(env, 'u-alice');
+  const spec = n => ({ operation: { ...mathOp, scene: { steps: [{ kind: 'equation', expressions: [`y = ${n}x`] }] } } });
+  const ask = (userId, extra = {}) => forwardUsagePayer(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST',
+    body: JSON.stringify({ operation: mathOp, lessonId: 'lesson', page: 'freeform', confirmed: true, ...extra }) }), { userId, email: `${userId}@example.test` });
+  const canvas = name => { const state = durable(name); return Object.assign(new LearnVideos(state, env), { state }); };
+  const mathPosts = () => posts().filter(call => call.includes('math.test')).length;
+  const video = async actor => (await actor.list()).videos[0];
+  const slotRow = () => renderRows(sqlite, 'u-alice').at(-1);
+  const jobOf = async actor => [...(await actor.state.storage.list({ prefix: 'job:' })).values()][0]; // the job, placed or not
+
+  // 1. Lost response: the worker accepted the render, the answer never came back.
+  const v1 = canvas('alice-1');
+  worker.submit = 'lost';
+  assert.equal((await v1.fetch(ask('u-alice', spec(2)))).status, 202);
+  assert.deepEqual([(await video(v1)).status, (await video(v1)).retryable, running(sqlite, 'u-alice'), mathPosts()], ['failed', false, 1, 1], 'unconfirmed: the slot is held');
+  // Her second canvas is refused while it is unconfirmed; another learner is served; the same canvas cannot resubmit it.
+  worker.submit = 202;
+  assert.equal((await busyOf(await canvas('alice-2').fetch(ask('u-alice', spec(3))))).reason, 'learner_active');
+  assert.equal((await canvas('bob-1').fetch(ask('u-bob'))).status, 202, 'another learner is served');
+  assert.equal((await v1.fetch(ask('u-alice', { ...spec(2), retry: true }))).status, 409);
+  assert.equal(mathPosts(), 2, 'Alice once, Bob once: no duplicate submission');
+  // Reconciled: the worker has the job, so it is followed to its end, and released once when ready.
+  worker.status = 'rendering';
+  await v1.alarm();
+  assert.deepEqual([(await video(v1)).status, running(sqlite, 'u-alice')], ['generating', 1]);
+  worker.status = 'ready';
+  await v1.alarm();
+  assert.deepEqual([(await video(v1)).status, running(sqlite, 'u-alice'), slotRow()], ['ready', 0, ['settled', 'completed', 'free']]);
+
+  // 2. Lost response, and the worker has no such job (reconciliation): released once, then nothing more is asked.
+  const v3 = canvas('alice-3');
+  worker.submit = 'lost';
+  await v3.fetch(ask('u-alice', spec(4)));
+  worker.submit = 202; worker.status = 404;
+  assert.equal(running(sqlite, 'u-alice'), 1);
+  await v3.alarm();
+  assert.deepEqual([running(sqlite, 'u-alice'), slotRow()], [0, ['failed', 'failed', 'free']]);
+  const settled = sqlite.prepare('SELECT settled_at FROM usage_attempts ORDER BY rowid DESC LIMIT 1').get().settled_at, seen = calls.length;
+  await v3.alarm();
+  assert.deepEqual([calls.length, sqlite.prepare('SELECT settled_at FROM usage_attempts ORDER BY rowid DESC LIMIT 1').get().settled_at], [seen, settled], 'released once');
+
+  // 3. Lost response and an unreachable worker: held, then released once at the 30-minute bound with no renderer call.
+  const v4 = canvas('alice-4');
+  worker.submit = 'lost';
+  await v4.fetch(ask('u-alice', spec(5)));
+  worker.submit = 202; worker.status = 'down';
+  await v4.alarm();
+  assert.equal(running(sqlite, 'u-alice'), 1, 'unreachable: still held');
+  const [[key4, job4]] = [...await v4.state.storage.list({ prefix: 'job:' })];
+  await v4.state.storage.put(key4, { ...job4, startedAt: Date.now() - 31 * 60 * 1000 });
+  const before4 = calls.length;
+  await v4.alarm(); await v4.alarm();
+  assert.deepEqual([running(sqlite, 'u-alice'), slotRow(), calls.length], [0, ['failed', 'failed', 'free'], before4]);
+
+  // 4. Restart before the ticket was stored: the submission reached the worker, the job was saved without its ticket.
+  const v5 = canvas('alice-5');
+  worker.status = 'ready';
+  v5.state.failNextPut((key, job) => !!job?.ticket);
+  assert.equal((await v5.fetch(ask('u-alice', spec(6)))).status, 400);
+  assert.deepEqual([running(sqlite, 'u-alice'), (await jobOf(v5)).status], [1, 'generating'], 'the slot was reserved durably before the submission');
+  assert.equal((await busyOf(await canvas('alice-6').fetch(ask('u-alice', spec(7))))).reason, 'learner_active');
+  await v5.alarm(); // no ticket: unconfirmed, still held
+  assert.deepEqual([(await jobOf(v5)).status, running(sqlite, 'u-alice')], ['failed', 1]);
+  await v5.alarm(); // reconciled: the worker has it
+  await v5.alarm(); // and it is ready
+  assert.deepEqual([(await jobOf(v5)).status, running(sqlite, 'u-alice'), slotRow()], ['ready', 0, ['settled', 'completed', 'free']]);
+  assert.equal(mathPosts(), 5, 'one submission per admitted job, never resubmitted: Alice 4, Bob 1');
+  assert.ok(renderRows(sqlite, 'u-alice').every(([, , chargeClass]) => chargeClass === 'free'));
+  assert.deepEqual(await balance(env, 'u-alice'), before, 'the learner AI balance is unchanged');
 });

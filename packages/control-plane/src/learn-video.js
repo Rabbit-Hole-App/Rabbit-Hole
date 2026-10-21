@@ -140,8 +140,9 @@ export class LearnVideos {
           catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
           // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render was
-          // recorded by its admission; a submission that failed gives its slot back.
-          if (maths && !job.ticket) await releaseRender(this.env, job.slot, 'failed');
+          // recorded by its admission. A definite refusal started nothing and gives its slot back; an unconfirmed submission may
+          // be rendering, so it keeps the slot until the alarm reconciles it (reconcileManim).
+          if (maths && !job.ticket) { if (job.uncertain) job.reconcile = true; else await releaseRender(this.env, job.slot, 'cancelled'); }
           else if (!motion && !maths && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
@@ -168,9 +169,10 @@ export class LearnVideos {
     if (!this.env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this worker');
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     for (const [key, job] of jobs) {
+      if (job.reconcile) { await this.reconcileManim(job); await this.state.storage.put(key, job); continue; }
       if (job.status !== 'generating') continue;
-      // A crash after POST but before storing its ticket cannot safely be retried.
-      if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; }
+      // A crash after POST but before storing its ticket cannot safely be retried. A Manim job keeps its slot until reconciled.
+      if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; if (job.provider === 'manim' && job.slot) job.reconcile = true; }
       else {
         try {
           const result = job.provider === 'manim' ? await new ManimProvider(this.env).poll(job.ticket)
@@ -197,8 +199,20 @@ export class LearnVideos {
         }
       }
       await this.state.storage.put(key, job);
-      if (job.status !== 'generating') await releaseRender(this.env, job.slot, job.status === 'ready' ? 'settled' : 'failed'); // a Manim job's slot
+      if (job.status !== 'generating' && !job.reconcile) await releaseRender(this.env, job.slot, job.status === 'ready' ? 'settled' : 'failed'); // a Manim job's slot
     }
-    if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating')) await this.state.storage.setAlarm(Date.now() + POLL_MS);
+    if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating' || j.reconcile)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
+  }
+  // An unconfirmed Manim submission (its response or its ticket was lost) holds the learner's render slot until the worker
+  // says what became of its deterministic key, read-only and never resubmitted: a job it has is followed to its end as usual;
+  // a key it does not have is rendering nothing, so the slot is released. Unreachable, it holds the slot until MAX_WAIT_MS.
+  async reconcileManim(job) {
+    const release = async () => { job.reconcile = false; await releaseRender(this.env, job.slot, 'failed'); };
+    if (Date.now() - job.startedAt > MAX_WAIT_MS) return release();
+    try {
+      const response = await new ManimProvider(this.env).request(`/jobs/${job.key}`);
+      if (response.status === 404) return release();
+      if (response.ok) Object.assign(job, { ticket: { id: job.key, version: job.version }, status: 'generating', uncertain: false, error: undefined, reconcile: false });
+    } catch { /* unreachable: the next alarm asks again */ }
   }
 }
