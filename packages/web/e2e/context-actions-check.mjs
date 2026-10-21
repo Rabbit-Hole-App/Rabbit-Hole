@@ -290,12 +290,15 @@ await check('shared actions: Add to canvas is the inverse Button (ink in light, 
     await page.mouse.move(5, 5); // at rest: a hovered button shows its hover fill
     await settle(200);
     // One probe per token: two text colours on one element would leave whichever the stylesheet orders last.
-    const tokens = await page.evaluate(() => { const probe = cls => { const el = document.createElement('span'); el.className = cls; document.body.append(el); const s = getComputedStyle(el); el.remove(); return s; }; return { ink: probe('bg-ink').backgroundColor, danger: probe('text-danger').color }; });
+    const tokens = await page.evaluate(() => { const probe = (cls, prop) => { const el = document.createElement('span'); el.className = cls; document.body.append(el); const value = getComputedStyle(el)[prop]; el.remove(); return value; }; return { ink: probe('bg-ink', 'backgroundColor'), danger: probe('text-danger', 'color') }; });
     const add = await action(PDF, 'canvas').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, text: el.innerText.trim() }));
     assert.equal(add.text, 'Add to canvas');
     assert.equal(add.bg, tokens.ink, `${theme}: Add to canvas uses the ink fill (${add.bg}, ink ${tokens.ink})`);
     assert.equal(await action(PDF, 'remove').evaluate(el => getComputedStyle(el).color), tokens.danger, `${theme}: the removal icon is red`);
-    assert.equal(await page.locator('[data-materials-upload]').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(23, 108, 206)', `${theme}: Upload stays blue`);
+    // The --action-blue token: rgb(23, 108, 206) in light, its own dark-theme blue in dark.
+    const blue = await page.evaluate(() => { const el = document.createElement('span'); el.style.backgroundColor = 'var(--action-blue)'; document.body.append(el); const value = getComputedStyle(el).backgroundColor; el.remove(); return value; });
+    assert.equal(await page.locator('[data-materials-upload]').evaluate(el => getComputedStyle(el).backgroundColor), blue, `${theme}: Upload stays blue (${blue})`);
+    if (theme === 'light') assert.equal(blue, 'rgb(23, 108, 206)');
     const fit = await sourcesPane().evaluate(el => { const box = el.getBoundingClientRect(); return { overflow: el.scrollWidth - el.clientWidth, outside: [...el.querySelectorAll('[data-material-action]')].filter(a => { const r = a.getBoundingClientRect(); return r.left < box.left - 1 || r.right > box.right + 1; }).length }; });
     assert.deepEqual(fit, { overflow: 0, outside: 0 }, `${theme} ${width}: the row actions fit`);
     seen[theme] = add.bg;
