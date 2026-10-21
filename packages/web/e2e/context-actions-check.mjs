@@ -287,10 +287,13 @@ await check('shared actions: Add to canvas is the inverse Button (ink in light, 
     await page.evaluate(([t, w]) => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.companion.width', String(w)); }, [theme, width]);
     await open();
     await openSources();
-    const tokens = await page.evaluate(() => { const probe = document.createElement('span'); probe.className = 'bg-ink text-surface text-danger'; document.body.append(probe); const s = getComputedStyle(probe); const out = { ink: s.backgroundColor, danger: s.color }; probe.remove(); return out; });
+    await page.mouse.move(5, 5); // at rest: a hovered button shows its hover fill
+    await settle(200);
+    // One probe per token: two text colours on one element would leave whichever the stylesheet orders last.
+    const tokens = await page.evaluate(() => { const probe = cls => { const el = document.createElement('span'); el.className = cls; document.body.append(el); const s = getComputedStyle(el); el.remove(); return s; }; return { ink: probe('bg-ink').backgroundColor, danger: probe('text-danger').color }; });
     const add = await action(PDF, 'canvas').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, text: el.innerText.trim() }));
     assert.equal(add.text, 'Add to canvas');
-    assert.equal(add.bg, tokens.ink, `${theme}: Add to canvas uses the ink fill`);
+    assert.equal(add.bg, tokens.ink, `${theme}: Add to canvas uses the ink fill (${add.bg}, ink ${tokens.ink})`);
     assert.equal(await action(PDF, 'remove').evaluate(el => getComputedStyle(el).color), tokens.danger, `${theme}: the removal icon is red`);
     assert.equal(await page.locator('[data-materials-upload]').evaluate(el => getComputedStyle(el).backgroundColor), 'rgb(23, 108, 206)', `${theme}: Upload stays blue`);
     const fit = await sourcesPane().evaluate(el => { const box = el.getBoundingClientRect(); return { overflow: el.scrollWidth - el.clientWidth, outside: [...el.querySelectorAll('[data-material-action]')].filter(a => { const r = a.getBoundingClientRect(); return r.left < box.left - 1 || r.right > box.right + 1; }).length }; });

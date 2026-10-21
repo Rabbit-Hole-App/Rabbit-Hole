@@ -192,7 +192,7 @@ test('Materials rows: Use in this chat, Add to canvas, More (canvas default), th
   // A source open in the reader but not used in this chat says so.
   assert.match(source, /\{open && !item\.attached && <span data-not-attached [^>]*>Not attached<\/span>\}/);
   // Remove from Materials: set apart, asks first, scoped, a failure kept on the row.
-  assert.match(source, /<span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" \/>\s+<button type="button" data-material-action="remove" onClick=\{act\(\(\) => setRemoving\(item\)\)\}/);
+  assert.match(source, /<span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line @max-\[22rem\]:hidden" \/>\s+<button type="button" data-material-action="remove" onClick=\{act\(\(\) => setRemoving\(item\)\)\}/);
   assert.match(source, /className=\{`\$\{ROW_ACTION\} \$\{REMOVE\}`\}>\{row\.busy === 'remove'/, 'the removal icon is red');
   assert.match(source, /const REMOVE = 'border-line bg-white text-danger hover:border-line-strong hover:bg-hover';/);
   assert.match(source, /aria-label=\{`Remove \$\{name\} from Materials`\} title=\{`Remove \$\{name\} from Materials`\}/);

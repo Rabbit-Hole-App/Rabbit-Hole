@@ -141,16 +141,16 @@ export default function SourcesPane() {
                       aria-label={`Use ${name} in this chat`} title={`Use ${name} in this chat`}
                       className={`${USE_TOGGLE} ${item.attached ? USE_ON : USE_OFF}`}>{item.attached ? <Check size={13} aria-hidden /> : <MessageSquarePlus size={13} aria-hidden />}Use in this chat</button>}
                     {canAdd && <Button variant="inverse" size="sm" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
-                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}><SquarePlus size={13} aria-hidden />Add to canvas</Button>}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}><SquarePlus size={13} aria-hidden className="@max-[22rem]:hidden" />Add to canvas</Button>}
                     {canAddFile && <Button variant="inverse" size="sm" data-material-action="canvas" disabled={!!row.busy}
                       onClick={act(() => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() })))}
-                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}>{row.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}>{row.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden className="@max-[22rem]:hidden" />}Add to canvas</Button>}
                     {/* The canvas default is its own scope, apart from this chat: it decides what NEW chats on this canvas start with. */}
                     {ready && doc && <button type="button" data-material-action="more" aria-haspopup="menu" aria-expanded={rowMenu?.key === key} disabled={!!row.busy}
                       onClick={event => { event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); setRowMenu(open => (open?.key === key ? null : { key, item, top: box.bottom + 4, left: Math.max(8, box.right - 256), anchor: event.currentTarget })); }}
                       aria-label={`More actions for ${name}`} title={`More actions for ${name}`} className={rowAction()}>{row.busy === 'context' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <MoreHorizontal size={14} aria-hidden />}</button>}
                     {ready && doc && <>
-                      <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
+                      <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line @max-[22rem]:hidden" />
                       <button type="button" data-material-action="remove" onClick={act(() => setRemoving(item))} disabled={!!row.busy}
                         aria-label={`Remove ${name} from Materials`} title={`Remove ${name} from Materials`}
                         className={`${ROW_ACTION} ${REMOVE}`}>{row.busy === 'remove' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>

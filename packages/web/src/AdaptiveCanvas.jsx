@@ -3578,7 +3578,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
   // A code card is its code-card.js codeCardRef, the one its own Add to chat gives (UI-09/UI-10): a repository card its file and
   // lines at its commit, an uploaded one its stored file (its text is read in addToChat below).
-  const codeChatRef = object => (object?.type === 'repo-code' ? codeCardRef(object) : null);
+  // A repository card the viewer cannot read arrives redacted (repository-cards.js: no path): it stays a plain card ref.
+  const codeChatRef = object => (object?.type === 'repo-code' && (object.source?.kind === 'upload' || object.source?.path) ? codeCardRef(object) : null);
   const chatRefOf = object => excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
     const found = describeObject(block);
