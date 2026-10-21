@@ -220,11 +220,15 @@ test('paid: a proposal waits for Generate; declining starts nothing; Motion off 
   const off = make({}, { motion, enabled: ['note'] }).session;
   assert.equal(await off.submit({ mode: 'explain', prompt: '/motion softmax', prepare: snapshot() }), 'unsupported');
   assert.match(off.state.declined.message, /not available/);
-  // A paid artifact proposal (animate's maths animation) is a proposal too, never a started job.
-  const animate = make({ artifact: async () => ({ result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'mathAnimation', operation: {} }, message: 'This uses paid generation.' }) }, { enabled: ['note', 'animate'] }).session;
-  await animate.submit({ mode: 'explain', prompt: '/animate it', prepare: snapshot() });
-  assert.equal(animate.state.status, 'proposal');
-  assert.equal(animate.state.preview.kind, 'proposal');
+  // A paid artifact proposal (/video's generated clip) is a proposal too, never a started job.
+  const video = make({ artifact: async () => ({ result: 'paid_proposal', primitive: 'video_generate', block: { type: 'video', mode: 'generate', operation: {} }, message: 'This uses paid generation.' }) }, { enabled: ['note', 'video'] }).session;
+  await video.submit({ mode: 'explain', prompt: '/video it', prepare: snapshot() });
+  assert.equal(video.state.status, 'proposal');
+  assert.equal(video.state.preview.kind, 'proposal');
+  // /animate is no longer a command (owner, 2026-10-20: /motion is): typed, it runs nothing, even where its route is on.
+  const animate = make({ artifact: async () => { throw Error('no artifact call for a removed command'); } }, { enabled: ['note', 'animate'] }).session;
+  assert.equal(await animate.submit({ mode: 'explain', prompt: '/animate it', prepare: snapshot() }), 'unsupported');
+  assert.match(animate.state.declined.message, /\/animate is no longer available/);
 });
 
 test('the wire: SSE split at any byte boundary parses the same; an error event or a cut stream is an error', async () => {

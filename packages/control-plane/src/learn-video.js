@@ -7,6 +7,7 @@ import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
 import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext } from './learn-usage.js';
+import { admitRender, releaseRender } from './learn-render-admission.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
@@ -123,6 +124,15 @@ export class LearnVideos {
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
           job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER };
+          // A Manim render is platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's
+          // allowance): it takes the learner's render slot across all canvases first (render fairness, 2026-10-21).
+          if (maths) {
+            // No enforced remote limit is relied on (the worker's 420 s timeout kills its direct child only), so the slot counts
+            // until it is released on a status the worker confirmed (waitSeconds null).
+            const admission = await admitRender(this.env, req, { provider: 'manim', model: version, label: 'animation', waitSeconds: null });
+            if (admission.refused) return admission.refused;
+            job.slot = admission.slot;
+          }
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
@@ -131,9 +141,11 @@ export class LearnVideos {
           // started nothing: both stay retryable. Anything else may have started a paid job.
           catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
-          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render is
-          // platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's allowance).
-          if (!motion && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, maths ? 'render' : 'video'), { provider: job.provider, ok: !!job.ticket });
+          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render was
+          // recorded by its admission. A definite refusal started nothing and gives its slot back; an unconfirmed submission may
+          // be rendering, so it keeps the slot until the alarm reconciles it (reconcileManim).
+          if (maths && !job.ticket) { if (job.uncertain) job.reconcile = true; else await releaseRender(this.env, job.slot, 'cancelled'); }
+          else if (!motion && !maths && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
@@ -159,9 +171,10 @@ export class LearnVideos {
     if (!this.env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this worker');
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     for (const [key, job] of jobs) {
+      if (job.reconcile) { await this.reconcileManim(job); await this.state.storage.put(key, job); continue; }
       if (job.status !== 'generating') continue;
-      // A crash after POST but before storing its ticket cannot safely be retried.
-      if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; }
+      // A crash after POST but before storing its ticket cannot safely be retried. A Manim job keeps its slot until reconciled.
+      if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; if (job.provider === 'manim' && job.slot) job.reconcile = true; }
       else {
         try {
           const result = job.provider === 'manim' ? await new ManimProvider(this.env).poll(job.ticket)
@@ -187,8 +200,30 @@ export class LearnVideos {
           if (error.final || Date.now() - job.startedAt > maxWait(job) || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
         }
       }
+      // A Manim job that ended without a status the worker confirmed (timed out here, unconfirmed) keeps its slot until reconciled.
+      if (job.provider === 'manim' && job.slot && job.status === 'failed' && job.uncertain) job.reconcile = true;
       await this.state.storage.put(key, job);
+      if (job.status !== 'generating' && !job.reconcile) await releaseRender(this.env, job.slot, job.status === 'ready' ? 'settled' : 'failed'); // a Manim job's slot
     }
-    if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating')) await this.state.storage.setAlarm(Date.now() + POLL_MS);
+    if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating' || j.reconcile)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
   }
+  // An unconfirmed Manim job (its submit response or ticket was lost, or it outlived its wait here) holds the learner's render
+  // slot until the worker says what became of its deterministic key, read-only and never resubmitted. Within the wait, a job
+  // the worker has is followed to its end as usual. A key it does not have is rendering nothing, and a ready or failed one has
+  // ended: either releases the slot once. Still rendering or unreachable: the slot stays held and the next alarm asks again.
+  // No local timer releases it (owner, 2026-10-21 message 19).
+  async reconcileManim(job) {
+    let state = null;
+    try {
+      const response = await new ManimProvider(this.env).request(`/jobs/${job.key}`);
+      state = response.status === 404 ? 'gone' : response.ok ? (await response.json()).status : null;
+    } catch { /* unreachable: held */ }
+    if (state && Date.now() - job.startedAt <= MAX_WAIT_MS && state !== 'gone') {
+      Object.assign(job, { ticket: { id: job.key, version: job.version }, status: 'generating', uncertain: false, error: undefined, reconcile: false });
+    } else if (['gone', 'ready', 'failed'].includes(state)) {
+      job.reconcile = false;
+      await releaseRender(this.env, job.slot, state === 'ready' ? 'settled' : 'failed');
+    }
+  }
+
 }

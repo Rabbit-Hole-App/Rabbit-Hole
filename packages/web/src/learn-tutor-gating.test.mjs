@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +19,10 @@ import { materialCommands } from './learn-slash.js';
 import { journeyDomain } from './learn-journey-domain.js';
 import { TIDES, AQUEDUCTS } from './__fixtures__/journey-synthetic-domains.mjs';
 import { fixtureFor } from '../../control-plane/src/learn-journey-fixtures.js';
+import { journeySpec } from '../../control-plane/src/learn-tutor-routes.js';
+import { evaluationFrom, tutorJevRequest } from '../../control-plane/src/agents/learn-tutor.js';
+import { escalation } from '../../control-plane/src/agents/learn-tutor-escalation.js';
+import { THRESHOLDS } from '../../control-plane/src/learn-grade-jev.js';
 
 const ON = { mode: 'tutor', tutorEnabled: true, suggestionsPaused: false, revision: 3 };
 // Every state where proactive Tutor actions must not run (owner 3a; ruling Q5), and the one where they may.
@@ -173,6 +178,50 @@ test('journey exit: the journey still evaluates what is tied to it - an answer i
   assert.ok(answer.routes.includes('/api/learn/tutor/evaluate'), 'an answer to the open question');
   const probe = await journeyTurn(aqueduct, { raw: 'Water just goes where it goes.', plan: false });
   assert.deepEqual(probe.routes, ['/api/learn/tutor/evaluate'], 'a diagnostic probe answer (plan: false)');
+});
+
+// ---------- The journey exit on recorded JEV answers (lane jev, 2026-10-21: C:/s/spec/day-1021/jev-report.md) ----------
+// The tests above stub evaluate with "no events". Here evaluate answers as journeyEvaluate does: the route's own journeySpec,
+// tutorJevRequest, evaluationFrom and escalation, with the answers JEV gave on the real path to that exact request (state and
+// questions; __fixtures__/jev-recorded-tides.json, the real tides path's claims). A request with no recording is reported, so
+// a changed question set needs a new real-path recording. A result that would escalate keeps JEV's events, as the route does
+// when the larger evaluator is unavailable.
+const CASSETTE = JSON.parse(readFileSync(new URL('./__fixtures__/jev-recorded-tides.json', import.meta.url), 'utf8'));
+const jevKey = request => createHash('sha256').update(JSON.stringify({ state: request.state, questions: request.questions })).digest('hex').slice(0, 16);
+async function recordedTurn(name, { section, open = false }) {
+  const { message, claims, question } = CASSETTE.turns[name], registry = CASSETTE.registry;
+  const journey = { id: 'lj_x', state: 'active', registry, evidence: { seq: 0, events: [] }, active_section_id: 's1', request: { topic: CASSETTE.topic }, intake: { slots: {} } };
+  const path = { version: 1, goal: CASSETTE.topic, sections: [{ id: 's1', title: 'First', purpose: 'p', status: 'current', expected_evidence: section.map(claim => ({ claim, kind: 'explain' })) }] };
+  const store = open ? { ...emptyStore(), open: { action_id: 'q1', claim: claims[0], text: question, canvas: { app: 'canvas-bbbb2222', board: 'main' } } } : emptyStore();
+  const unrecorded = [];
+  const post = async (route, body) => {
+    if (route === '/api/learn/tutor/plan') return { strategy: 'none', constraints_add: [], actions: [say('A short answer.')] };
+    const spec = journeySpec(journey, body).value, request = tutorJevRequest(spec, body.message, 'typesafe-ai/jev');
+    const recorded = CASSETTE.recordings.find(r => r.key === jevKey(request));
+    if (!recorded) { unrecorded.push(jevKey(request)); throw Error('no recorded JEV answer for this request'); }
+    const evaluation = { ...evaluationFrom(spec, recorded.answers, THRESHOLDS, 'jev'), evaluator: 'jev', escalation: escalation(spec, recorded.answers, THRESHOLDS) };
+    const events = evaluation.events.map((event, i) => ({ ...event, seq: i + 1, ref: { turn_id: body.turn_id } }));
+    return { ...evaluation, journey: { events, seq: events.length, revision: 2 } };
+  };
+  const r = await runTurn({ raw: message, canvas: { app: 'canvas-bbbb2222', board: 'main' }, access: { app: 'canvas-bbbb2222' }, block: null, store, post, domain: journeyDomain({ journey, path, blocks: [] }), journeyOffer: true });
+  assert.deepEqual(unrecorded, [], `${name}: JEV's answer to this exact request was recorded on the real path`);
+  return { stored: r.store.events.map(e => `${e.claim} ${e.result}${e.idea != null ? `:${e.idea}` : ''}${e.prerequisite ? ` ${e.prerequisite}` : ''}${e.settled ? '' : ' (unsettled)'}`), transitions: r.transitions.map(t => `${t.claim}: ${t.from} -> ${t.to}`) };
+}
+const S1 = ['gravity-distance/pull-weakens-with-distance'], S2 = ['tidal-force/differential-pull'];
+
+test("journey exit, recorded JEV: an explicit topic switch typed while the Tutor's question is open adds no evidence to the journey", async () => {
+  // Real path on 3134c69a: the switch went out as the open question's answer, JEV's non_attempt check said 0.95, and a settled
+  // non_attempt landed on the section's claim (not_yet_observed -> uncertain). An on-topic answer on the same section still lands.
+  assert.deepEqual((await recordedTurn('onTopicS1', { section: S1 })).stored, [`${S1[0]} pass:0`, `${S1[0]} pass:1`], 'control: an on-topic answer');
+  assert.deepEqual(await recordedTurn('switch', { section: S1, open: true }), { stored: [], transitions: [] }, 'another subject adds nothing, question open or not');
+});
+
+test('journey exit, recorded JEV: an unrelated aside on a section whose claim has a prerequisite records no prerequisite gap', async () => {
+  // Real path on 3134c69a: both aqueduct asides on section 2 stored a settled gap (g0 0.76, 0.77) on its claim. With the
+  // prerequisite not yet understood that makes the claim prerequisite_gap: route()'s gap row, a Rabbit Hole offer (suggest_dive).
+  assert.deepEqual(CASSETTE.registry.claims[S2[0]].prerequisites, ['gravity-distance'], 'the claim rests on a prerequisite');
+  assert.deepEqual((await recordedTurn('onTopicS2', { section: S2, open: true })).stored, [`${S2[0]} pass:0`, `${S2[0]} pass:1`], 'control: an on-topic answer');
+  for (const name of ['asideStatement', 'asideQuestion']) assert.deepEqual(await recordedTurn(name, { section: S2 }), { stored: [], transitions: [] }, `${name}: an aside adds nothing`);
 });
 
 // ---------- useTutor: material that arrives after Off is not inserted ----------

@@ -1267,13 +1267,19 @@ function SceneBody({ block, appName, onChange, viewKey = null }) {
     } catch (problem) { setError(problem.message); }
   };
   const [confirming, setConfirming] = useState(false);
+  // One start per press: clicks that reach Generate before the page re-renders send nothing more.
+  const starting = useRef(false);
   const generate = async (current = block) => {
+    if (starting.current) return;
+    starting.current = true;
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'queued' });
     try {
-      const { placementId } = await startScene(appName, current.operation, { confirmed: true });
+      // Retry scene: the server renders a failed scene again only on an explicit retry.
+      const { placementId } = await startScene(appName, current.operation, { confirmed: true, retry: current.status === 'failed' });
       follow(placementId);
     } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
+    finally { starting.current = false; }
   };
   useConfirmedStart(block, onChange, generate);
   if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} viewKey={viewKey} />;

@@ -58,11 +58,12 @@ await search.fill('zzz');
 ok('no match says so', await rows.count() === 0 && await sheet.getByText('No commands match').count() === 1);
 await page.keyboard.press('Escape');
 ok('Esc clears the search and keeps the sheet open', await search.inputValue() === '' && await sheet.isVisible() && await rows.count() === all, `${all} rows`);
-// Owner, 2026-10-20: every retained command is listed (More learning tools included, no /more); none of the 17 removed is.
-const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
-const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper'];
+// Owner, 2026-10-20: every retained command is listed (More learning tools included, no /more); none of the 17 removed is,
+// nor /animate: /motion is the animation command (L8), offered by this development build.
+const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
+const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
 const listed = await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
-ok('every retained command is listed', RETAINED.every(name => listed.includes(name)) && listed.filter(name => name !== 'motion').length === RETAINED.length, listed.join(' '));
+ok('every retained command is listed', RETAINED.every(name => listed.includes(name)) && listed.length === RETAINED.length, listed.join(' '));
 ok('no removed command is listed', REMOVED.every(name => !listed.includes(name)));
 await sheet.screenshot({ path: `${SHOTS}/sheet-list.png` });
 // Each says what it is and does: menu label, whether it creates a card, opens or searches, its sentence, Sourced or AI-generated.
@@ -91,7 +92,7 @@ for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dat
 ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.
 // /explain opens on its interactive visual (L10): a stored real /explain scene drawn by the scene renderer.
-const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'svg [data-animation-object]', notebook: 'iframe', code: 'pre, code' };
+const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', motion: 'video[data-lesson-video]', explain: 'svg [data-animation-object]', notebook: 'iframe', code: 'pre, code' };
 for (const [command, ready] of Object.entries(expect)) {
   if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
   await sheet.locator(`[data-slash-help="${command}"]`).click();
@@ -99,7 +100,7 @@ for (const [command, ready] of Object.entries(expect)) {
   await card.waitFor({ timeout: 15000 });
   const drawn = await card.locator(ready).first().waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
   // The canvas width of that card type (CanvasNode: BLOCK_TYPES width, or 380; notebook 640); an animation is sized from its scene.
-  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520, animation: null };
+  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, videoGenerate: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520, animation: null };
   const type = await card.getAttribute('data-slash-card');
   const width = Math.round((await card.boundingBox()).width);
   await page.waitForTimeout(800);
@@ -110,14 +111,15 @@ for (const [command, ready] of Object.entries(expect)) {
 await sheet.locator('[data-slash-help="quiz"]').click();
 await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
 ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
-// Paid media always shows a finished example from committed files, on any stack: /animate plays the softmax clip; /3d shows
-// its scene card ready in the canvas's 3D viewer on the committed model (slash-3d-check.mjs covers it in full); /video shows a
-// labelled picture of the finished card. No Generate card.
-await sheet.locator('[data-slash-help="animate"]').click();
+// Paid media always shows a finished example from committed files, on any stack: /motion plays a real Motion video (the
+// committed final.mp4 of job 8a2015a4, L8, played from a blob URL so it seeks); /3d shows its scene card ready in the canvas's 3D
+// viewer on the committed model (slash-3d-check.mjs covers it in full); /video shows a labelled picture of the finished card.
+// No Generate card.
+await sheet.locator('[data-slash-help="motion"]').click();
 const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
-ok('/animate plays the finished softmax clip, not a Generate card', plays > 0 && await sheet.locator('[data-slash-card]').getByText('Softmax shares the whole by score').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
-await sheet.screenshot({ path: `${SHOTS}/sheet-animate.png` });
+ok('/motion plays its real Motion video, not a Generate card', Math.round(plays) === 15 && (await clip.getAttribute('src')).startsWith('blob:') && await sheet.locator('[data-slash-card]').getByText('Softmax: Turning Attention Scores into Weights').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
+await sheet.screenshot({ path: `${SHOTS}/sheet-motion.png` });
 await sheet.locator('[data-slash-help="3d"]').click();
 const model = sheet.locator('[data-slash-card="scene"] [data-three-d-viewer]');
 const shown = await model.waitFor({ timeout: 15000 }).then(() => sheet.locator('[data-slash-card="scene"] [data-three-d-viewer][data-viewer-live] canvas').waitFor({ timeout: 20000 })).then(() => true, () => false);
