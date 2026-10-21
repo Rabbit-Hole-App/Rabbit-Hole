@@ -214,7 +214,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   for (const name of readdirSync(outDir)) if (ID.test(name.replace(/\.mp4$/, ''))) rmSync(join(outDir, name), { recursive: true, force: true });
   const sweeper = setInterval(sweep, Math.min(resultTtlMs, 10 * 60 * 1000)); sweeper.unref?.();
 
-  function start(body) {
+  function start(body, preflight = '') {
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
     const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: 0, grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set() };
@@ -256,7 +256,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     };
     // Each render the service is asked for is platform-funded compute the worker records apart (feature render).
     const counted = { ...service, submit: request => { job.renders++; return service.submit(request); } };
-    log(`job ${id}: started`);
+    log(`job ${id}: started${preflight ? `; preflight ${preflight}` : ''}`);
     // The canvas's repository (the worker's records): grounded on where this process holds its source (the pinned nanoGPT);
     // otherwise, with no selected card to ground on, refused before any paid call rather than explained as if from its code.
     const pinned = fixtureSource();
@@ -304,7 +304,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         const reported = /^motion-renderer-1-([0-9a-f]{12})\//.exec(health.version || '')?.[1] ?? 'unknown';
         if (rendererHashes && !rendererHashes.includes(reported)) return send(res, 503, { error: 'renderer_unavailable', detail: `the Motion renderer runs other contract code (renderer ${reported}, this service ${rendererHashes[0]}); nothing was started` });
         if (health.busy) return send(res, 429, { error: 'busy', detail: 'the render service is still finishing a render' });
-        const job = start(body);
+        const job = start(body, `renderer ${reported} sandbox ${health.sandbox}, ${rendererHashes ? 'contract version matches' : 'contract version not checked'}`);
         return send(res, 202, { job_id: job.id, status: job.status });
       }
       const m = path.match(/^\/jobs\/([0-9a-f]{32})(\/final\.mp4|\/cancel)?$/);

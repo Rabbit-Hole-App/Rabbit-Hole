@@ -386,3 +386,19 @@ test('a renderer running other contract code starts no job; the hash is the rend
   }
   await until(async () => runs === 2, 'the two matching jobs');
 });
+
+// Owner message 19: the renderer preflight. A missing or mismatched /health version is refused before any paid call (above);
+// a matching version admits a no-source job, which the real resolver hands to the Director labelled no_source_supplied.
+test('preflight: a matching renderer version admits a no-source job; the real resolver labels it ungrounded', async t => {
+  const { rendererCodeHashes } = await import('./orchestrator.mjs');
+  const { runMotionRequest } = await import('./pipeline.mjs');
+  const [lf] = rendererCodeHashes();
+  const handed = [];
+  const director = async ({ grounding }) => { handed.push(grounding.grounding); return { status: 'needs_clarification', clarification: { question: 'stop here' }, calls: [] }; };
+  const { req, view } = await start(t, { rendererHashes: rendererCodeHashes(), health: async () => ({ ...LINUX, version: `motion-renderer-1-${lf}/remotion@4.0.521` }), run: args => runMotionRequest({ ...args, stages: { director } }) });
+  const r = await req('/jobs', { method: 'POST', body: job({ request: '/motion 15s explain photosynthesis', location: {} }) });
+  assert.equal(r.status, 202);
+  const { job_id } = await r.json();
+  await until(async () => (await view(job_id)).status !== 'running', 'the job');
+  assert.deepEqual(handed, [{ status: 'no_source_supplied' }]);
+});
