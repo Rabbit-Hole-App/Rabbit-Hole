@@ -23,7 +23,8 @@ disagree; the Commands table keeps its history for the retained commands.
 **Removed (17):** /walkthrough, /do, /find, /open, /connect, /run, /new, /research, /more, /ask, /teach, /deeper, /simplify,
 /example, /compare, /source, /paper (`REMOVED_COMMANDS`). None is in a picker, the autocomplete, the Slash commands window, an
 example or a typed dispatch on any surface. Typed, each says `/<name> is no longer available. Type / to see the commands, or
-ask in your own words.` (`unavailableCommand`) and runs nothing. Ordinary words still ask, compare, simplify, give examples
+ask in your own words.` (`unavailableCommand`; on the Home, Library and Project bar, where / lists nothing, `... Ask in your own
+words.`) and runs nothing. Ordinary words still ask, compare, simplify, give examples
 and explore; saved conversations and cards made by a removed command still open.
 
 **Retained, per surface:**

@@ -83,9 +83,9 @@ export const REMOVED_COMMANDS = ['walkthrough', 'do', 'find', 'open', 'connect',
 // holds the two equal). /generate-image is hidden and refused while it is off; this cleanup does not turn it on.
 export const IMAGE_GENERATION = false;
 // What a typed command that is not offered says: a removed one, or /generate-image while image generation is off. null for
-// any other name (each surface words its own line).
-export function unavailableCommand(name) {
-  if (REMOVED_COMMANDS.includes(name)) return `/${name} is no longer available. Type / to see the commands, or ask in your own words.`;
+// any other name (each surface words its own line). listed: false where / lists nothing (the Home, Library and Project bar).
+export function unavailableCommand(name, { listed = true } = {}) {
+  if (REMOVED_COMMANDS.includes(name)) return `/${name} is no longer available. ${listed ? 'Type / to see the commands, or ask' : 'Ask'} in your own words.`;
   if (name === 'generate-image') return 'Image generation is not available here. /image searches for real photos.';
   return null;
 }

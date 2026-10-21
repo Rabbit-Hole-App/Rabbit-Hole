@@ -124,7 +124,7 @@ test('an answer lists every cited file once, in order, including line lists writ
 // pill and no / commands sheet; a typed /word says it is unavailable (AgentBar.jsx submit).
 test('the main composer offers no slash command: no picker, no pill, no / commands sheet', () => {
   assert.doesNotMatch(bar, /BarCommandsSheet|data-bar-slash-help|aria-haspopup="listbox"/);
-  assert.match(bar, /unavailableCommand\(r\.name\)/);
+  assert.match(bar, /unavailableCommand\(r\.name, \{ listed: false \}\)/);
   const BAR = ['home', 'project'];
   assert.deepEqual(SLASH.filter(c => c.places.some(place => BAR.includes(place))), []);
 });
