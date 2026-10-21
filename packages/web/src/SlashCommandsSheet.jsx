@@ -9,7 +9,8 @@ import { Md } from './ask.jsx';
 import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CommandList from './CommandList.jsx';
-import { CHAT_EXAMPLES, FINDER_NOTES, ILLUSTRATIONS, SAMPLES, SOURCE_NOTE, demoOf, sheetCards } from './slash-sheet.js';
+import { CadViewerTools } from './CadCard.jsx';
+import { CHAT_EXAMPLES, FINDER_NOTES, SAMPLES, SOURCE_NOTE, demoOf, illustrationFor, sheetCards } from './slash-sheet.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
 // picker's own sections (learn-slash.js, CommandList.jsx), so the sheet and the
@@ -94,6 +95,8 @@ function CardPreview({ type, command, appName }) {
     const sample = { ...BLOCK_TYPES[type].sample(), ...structuredClone(SAMPLES[command]?.[type] || {}) };
     // A generated code sample never carries an output line (nobody ran it); the + sample's is hand-written.
     if (type === 'snippet') delete sample.output;
+    // The viewer fetches an absolute URL, as a real scene's asset URL is; the committed model is served by this origin.
+    if (sample.modelUrl) sample.modelUrl = new URL(sample.modelUrl, window.location.origin).href;
     return sample;
   });
   // /source opens the card's Sources & evidence, as it does on the canvas.
@@ -102,20 +105,27 @@ function CardPreview({ type, command, appName }) {
   const width = type === 'notebook' ? 640 : spec.sizeFor?.(block)?.width ?? spec.width ?? 380;
   const height = type === 'notebook' ? 540 : spec.sizeFor?.(block)?.height ?? spec.height;
   const ghost = !!spec.ghost;
+  const picture = illustrationFor(type, block);
+  // A 3D model (/3d's scene) shows at once; Interact and Fit view sit outside the card, above its top right corner as on the
+  // canvas's selected-card toolbar (CadViewerTools), and the viewer waits for Interact before it takes the wheel.
+  const viewKey = block.type === 'scene' && block.modelUrl ? `slash-sheet:${block.id}` : null;
   // The canvas grows a card by its Sources & evidence row, so a card with sources is not capped here.
-  return (
+  const card = (
     <div ref={frame} data-slash-card={type} style={{ width, height, maxHeight: height || block.sources ? undefined : spec.autoMax ?? 420 }}
       className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text [&_[data-paid-generate]]:pointer-events-none [&_[data-paid-generate]]:opacity-40 ${ghost ? 'border-transparent bg-transparent hover:border-line hover:shadow-sm' : 'border-line bg-white shadow-sm'}`}>
       <div aria-hidden className={`flex h-6 shrink-0 items-center justify-center rounded-t-xl ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}><span className="h-1 w-12 rounded-full bg-line" /></div>
       {type === 'notebook'
         ? <NotebookBody block={block} onSelect={() => {}} onDocument={() => {}} onManifest={() => {}} />
-        // A sample with a finished clip of its own (/motion's) plays it; otherwise the picture.
-        : ILLUSTRATIONS[type] && !block.src
-          ? <Illustration block={block} {...ILLUSTRATIONS[type]} />
-          : <LearningBlockBody block={block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected />}
+        // A sample with a finished clip or model of its own (/motion's, /3d's) shows it; otherwise the picture.
+        : picture
+          ? <Illustration block={block} {...picture} />
+          : <LearningBlockBody block={block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected viewKey={viewKey} />}
       {block.sources && <SourcesDisclosure sources={block.sources} />}
     </div>
   );
+  return viewKey
+    ? <div data-slash-viewer-preview className="flex shrink-0 flex-col items-end gap-2"><CadViewerTools viewKey={viewKey} cardId={block.id} ruler={false} />{card}</div>
+    : card;
 }
 
 // Paid media with no committed finished file: a picture of the finished card, labelled as one.

@@ -5,7 +5,7 @@ import { DEV_CP } from './dev-cp.mjs';
 // View > Slash commands on the parallel clone, then the Agent Bar's sheet on the Library: the search is focused on open and
 // filters by name and description; choosing a command shows the real card it
 // makes (the canvas's own card component) at its canvas size and working; paid
-// media shows a committed finished clip or a labelled picture, never Generate;
+// media shows a committed finished clip or model, or a labelled picture, never Generate;
 // /source opens a card's Sources & evidence; chat-only commands show an example
 // exchange. Every command shows a demo. No model calls, nothing generated.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
@@ -88,14 +88,20 @@ for (const [command, ready] of Object.entries(expect)) {
 await sheet.locator('[data-slash-help="quiz"]').click();
 await sheet.locator('[data-slash-card="quiz"]').getByRole('button').first().click();
 ok('the quiz card works: choosing an option answers it', await sheet.locator('[data-slash-card="quiz"]').innerText().then(text => /differentiate|σ|sigma/i.test(text)));
-// Paid media always shows a finished example from committed files, on any stack: /animate plays the softmax clip; /3d
-// and /video show a labelled picture of the finished card. No Generate card.
+// Paid media always shows a finished example from committed files, on any stack: /animate plays the softmax clip; /3d shows
+// its scene card ready in the canvas's 3D viewer on the committed model (slash-3d-check.mjs covers it in full); /video shows a
+// labelled picture of the finished card. No Generate card.
 await sheet.locator('[data-slash-help="animate"]').click();
 const clip = sheet.locator('[data-slash-card] video[data-lesson-video]');
 const plays = await clip.waitFor({ timeout: 20000 }).then(() => clip.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 15000); }))).catch(() => 0);
 ok('/animate plays the finished softmax clip, not a Generate card', plays > 0 && await sheet.locator('[data-slash-card]').getByText('Softmax shares the whole by score').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video]').count() === 0, `${plays}s`);
 await sheet.screenshot({ path: `${SHOTS}/sheet-animate.png` });
-for (const [command, type] of [['3d', 'scene'], ['video', 'videoGenerate']]) {
+await sheet.locator('[data-slash-help="3d"]').click();
+const model = sheet.locator('[data-slash-card="scene"] [data-three-d-viewer]');
+const shown = await model.waitFor({ timeout: 15000 }).then(() => sheet.locator('[data-slash-card="scene"] [data-three-d-viewer][data-viewer-live] canvas').waitFor({ timeout: 20000 })).then(() => true, () => false);
+ok('/3d shows its scene card live on the committed model, not a picture or a Generate card', shown && await sheet.locator('img[data-slash-illustration]').count() === 0 && await sheet.locator('[data-slash-card] [data-generate-scene]').count() === 0);
+await sheet.screenshot({ path: `${SHOTS}/sheet-3d.png` });
+for (const [command, type] of [['video', 'videoGenerate']]) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   // decode(), not naturalWidth: an SVG with only a viewBox loads with naturalWidth 0; decode() rejects only a broken image.
   const picture = sheet.locator(`[data-slash-card="${type}"] img[data-slash-illustration]`);

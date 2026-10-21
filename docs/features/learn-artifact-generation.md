@@ -165,9 +165,18 @@ composer.
     clip, which is the landing page's /motion explainer, as a finished
     `/motion 25s explain softmax` (25 s, "Motion explainer"; no renderer or
     sources claimed);
-  - `/video` and `/3d` have no committed finished file, so they show a labelled
-    picture of the finished card (`public/lesson-assets/slash-video-prism.svg`,
-    `slash-3d-frustum.svg`).
+  - `/3d` shows the real scene card ready, in the canvas's own 3D viewer
+    (LearningBlocks ThreeDBody), on `public/lesson-assets/slash-3d-frustum.glb`:
+    the scene card's own sample (a camera frustum, its frame, a cube and a ray,
+    with the 3 s sweep) built offline by `scripts/make-slash-3d-glb.mjs`
+    (deterministic; slash-sheet.test.mjs rebuilds and compares it). The model
+    shows at once; Interact and Fit view sit in the toolbar above the card's
+    top right (CadViewerTools), orbit and zoom wait for Interact so the wheel
+    scrolls the window until then, and Esc ends the interaction without
+    closing the window. It loads with a loading line and, if the file cannot
+    load, shows the viewer's own failure and Retry model, never a picture.
+  - `/video` has no committed finished file, so it shows a labelled picture of
+    the finished card (`public/lesson-assets/slash-video-prism.svg`).
   `/video` and `/3d` keep their prism and camera-frustum subjects: generated
   footage and 3D scenes need a physical or spatial subject, which the thread's
   maths does not have.

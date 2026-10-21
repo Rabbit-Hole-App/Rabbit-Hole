@@ -87,6 +87,9 @@ export const SAMPLES = {
     videoGenerate: { title: 'Softmax shares the whole by score', caption: '', status: 'ready', src: CLIP, variants: [{ src: CLIP }], variant: 0,
       operation: { op: 'motion_request', request: '/motion 25s explain softmax', location: { concept: 'softmax' } }, motion: { duration_seconds: 25, source_refs: [] } },
   },
+  // A finished /3d request: the scene card's own sample (Perspective projection) in its ready state. Its model is that
+  // sample's scene built offline (scripts/make-slash-3d-glb.mjs), committed and served by this origin: no job, no model.
+  '3d': { scene: { status: 'ready', modelUrl: '/lesson-assets/slash-3d-frustum.glb' } },
   source: {
     explanation: { sources: [
       code('model.py', 127, 127, 'The token table: "wte = nn.Embedding(config.vocab_size, config.n_embd)" - one learned row per token id.'),
@@ -101,6 +104,7 @@ export const SAMPLES = {
 export const ILLUSTRATIONS = {
   videoGenerate: { kicker: 'Video', src: '/lesson-assets/slash-video-prism.svg', alt: 'A white beam enters a glass prism and fans out into a spectrum',
     note: 'Illustration. On the canvas, Generate (paid) makes the real clip.' },
-  scene: { kicker: '3D model', src: '/lesson-assets/slash-3d-frustum.svg', alt: 'A camera frustum with a cube inside it and a ray from the camera to the cube',
-    note: 'Illustration. On the canvas, Generate (paid) builds the real scene for the 3D viewer.' },
 };
+// The picture stands in only for a sample with no finished media of its own: a clip (src) or a model (modelUrl) is shown by
+// the card itself, and a viewer that fails says so in the card rather than fall back to a picture.
+export const illustrationFor = (type, block) => (ILLUSTRATIONS[type] && !block.src && !block.modelUrl ? ILLUSTRATIONS[type] : null);

@@ -2,7 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { EXAMPLES, mayConfirmPaid, pickerSections, runLearnCommand, searchSections } from './learn-slash.js';
-import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, demoOf, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, ILLUSTRATIONS, SAMPLES, demoOf, illustrationFor, sheetCards } from './slash-sheet.js';
+import { inspectGlb } from './three-d-asset.js';
+import { buildSlash3dGlb } from '../scripts/make-slash-3d-glb.mjs';
+import { Box3 } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { filterSections } from './command-search.js';
 import { SLASH } from './agent/slash.js';
 import { exampleFor, modesFor, resultFor, shortcutsFor } from './agent/bar.js';
@@ -37,15 +41,47 @@ test('paid media always shows a finished example: a committed clip or a labelled
   // /motion's clip is the landing page's /motion explainer: its e.g. line asks for its 25 s.
   assert.match(EXAMPLES.motion, /25s explain softmax/);
   assert.equal(SAMPLES.motion.videoGenerate.motion.duration_seconds, 25);
-  // A picture stands in only where the sample has no clip of its own: /motion plays its clip on the video card /video pictures.
-  assert.match(readFileSync(new URL('./SlashCommandsSheet.jsx', import.meta.url), 'utf8'), /: ILLUSTRATIONS\[type\] && !block\.src\s/);
+  // A picture stands in only where the sample has no clip or model of its own: /motion plays its clip on the video card /video
+  // pictures, and /3d shows its model (illustrationFor).
+  assert.match(readFileSync(new URL('./SlashCommandsSheet.jsx', import.meta.url), 'utf8'), /const picture = illustrationFor\(type, block\);/);
   for (const name of paid) {
     for (const { card } of sheetCards(name)) {
       const finished = SAMPLES[name]?.[card];
       assert.ok(finished?.status === 'ready' || ILLUSTRATIONS[card], `/${name} ${card} is finished`);
-      assert.ok(asset(finished?.status === 'ready' ? finished.src : ILLUSTRATIONS[card].src), `/${name} ${card} asset is committed`);
+      assert.ok(asset(finished?.status === 'ready' ? finished.src || finished.modelUrl : ILLUSTRATIONS[card].src), `/${name} ${card} asset is committed`);
     }
   }
+});
+
+test('/3d shows its scene card ready on a committed, verified model, never the picture (owner, 2026-10-20)', async () => {
+  assert.deepEqual(sheetCards('3d'), [{ primitive: 'blender_scene', card: 'scene' }]);
+  // The scene card reads modelUrl, not src: the sample is ready with a model, so the viewer shows it and the picture never does.
+  const sample = SAMPLES['3d'].scene;
+  assert.equal(sample.status, 'ready');
+  assert.equal(sample.src, undefined);
+  assert.equal(sample.modelUrl, '/lesson-assets/slash-3d-frustum.glb');
+  assert.ok(asset(sample.modelUrl), 'the model is committed and served by this origin');
+  assert.equal(illustrationFor('scene', { ...sample }), null);
+  assert.equal(ILLUSTRATIONS.scene, undefined, 'no picture is left for /3d to fall back to');
+  // The rule for every card: finished media of the sample's own (a clip's src or a model's modelUrl) wins over a picture.
+  assert.equal(illustrationFor('videoGenerate', {}), ILLUSTRATIONS.videoGenerate);
+  assert.equal(illustrationFor('videoGenerate', { src: '/clip.mp4' }), null);
+  assert.equal(illustrationFor('videoGenerate', { modelUrl: '/model.glb' }), null);
+  // The committed GLB is exactly what its generator builds (scripts/make-slash-3d-glb.mjs, offline, no model), passes the
+  // viewer's own GLB check, stays small and parses in three: the frustum, its frame, the cube and the ray, with the sample's
+  // 3 s sweep.
+  const file = readFileSync(new URL(`../public${sample.modelUrl}`, import.meta.url));
+  assert.deepEqual(new Uint8Array(file), buildSlash3dGlb());
+  assert.ok(file.length < 64 * 1024, `${file.length} bytes`);
+  const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.length);
+  assert.deepEqual(inspectGlb(buffer).nodes.map(node => node.name), ['frustum', 'frame', 'cube', 'ray']);
+  const gltf = await new GLTFLoader().parseAsync(buffer, '');
+  const drawn = [];
+  gltf.scene.traverse(object => { if (object.isMesh || object.isLine) drawn.push(object.isLineSegments ? 'lines' : 'mesh'); });
+  assert.deepEqual(drawn, ['lines', 'mesh', 'lines', 'lines', 'lines', 'mesh', 'mesh']);
+  assert.deepEqual(gltf.animations.map(clip => [clip.name, clip.duration, clip.tracks.length]), [['sweep', 3, 2]]);
+  const bounds = new Box3().setFromObject(gltf.scene);
+  assert.deepEqual([...bounds.min.toArray(), ...bounds.max.toArray()].map(value => Math.round(value * 100) / 100), [-2.98, -1.87, -4, 2.98, 1.87, 1]);
 });
 
 test('the demos keep one thread and match their e.g. line', () => {
