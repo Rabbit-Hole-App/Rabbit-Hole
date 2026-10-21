@@ -110,7 +110,7 @@ test('creator cards: square at every width, picture, name, @handle, the descript
 });
 
 test('the profile description: edited in Settings > Profile (160 characters, as the server caps it), shown under the name on /@handle as text', async () => {
-  const settings = read('./Sidebar.jsx');
+  const settings = read('./RabbitHoleSettings.jsx'); // Rabbit Hole's Settings (owner L11; it moved out of Sidebar.jsx)
   assert.match(settings, /<HandleRow profile=\{profile\} \/>\n\s+<DescriptionRow profile=\{profile\} \/>/, 'beside name and handle');
   const { DESCRIPTION_MAX } = await import('../../control-plane/src/profile.js');
   assert.match(settings, new RegExp(`const DESCRIPTION_MAX = ${DESCRIPTION_MAX};`), 'the field\'s cap is the server\'s');
@@ -119,7 +119,7 @@ test('the profile description: edited in Settings > Profile (160 characters, as 
   assert.match(profile, /const description = own \? me\.description : p\?\.description;/, 'your own follows Settings at once');
   assert.match(profile, /<\/div>\n\s+\{\/\*[^\n]*\*\/\}\n\s+\{description && <p data-profile-description className="[^"]+">\{description\}<\/p>\}\n\s+<p data-profile-stats/, 'under the name and @handle, above the counters');
   // Escaped by React as a text child: no HTML injection, and no linkifying of the description anywhere it shows.
-  for (const file of ['./CreatorProfile.jsx', './home/PublicCards.jsx', './Sidebar.jsx']) assert.doesNotMatch(read(file), /dangerouslySetInnerHTML/, file);
+  for (const file of ['./CreatorProfile.jsx', './home/PublicCards.jsx', './Sidebar.jsx', './RabbitHoleSettings.jsx']) assert.doesNotMatch(read(file), /dangerouslySetInnerHTML/, file);
 });
 
 // Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".

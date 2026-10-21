@@ -199,7 +199,6 @@ export default function StartDialog({ ctx, initial, onClose }) {
                         <div className="pt-1 text-xs">{c.adds}</div>
                       </div>
                     ))}
-                    <Button type="button" size="sm" className="col-span-full justify-self-start" onClick={() => executeCommand('open_settings', { tab: 'connections' }, ctx)}>Manage connections</Button>
                   </div>
                 )}
               {foot('Create canvas', !canSubmit('sources', f))}
