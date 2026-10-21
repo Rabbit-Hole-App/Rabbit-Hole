@@ -25,10 +25,6 @@ const conceptOf = (word) => {
   if (w.startsWith('source owner')) return 'source owner';
   return w === 'agent bar' ? 'mothership' : w;
 };
-// Slash shortcuts (user, 2026-09-28): each is its own sentence, so the rules decide '/find x'
-// exactly as they decide 'find x'. /new opens Start on a path and creates nothing. No /share: v1 is solo.
-const SHORTCUT = /^\/(find|open|new|connect|run)(?:\s+(.*))?$/i;
-const NEW_PATH = { repository: 'repository', repo: 'repository', project: 'repository', canvas: 'blank', 'blank canvas': 'blank', blank: 'blank', question: 'question', sources: 'sources', source: 'sources' };
 // Library words (user, 2026-09-28): the Library's own filters and a kind-narrowed catalog search.
 const KIND = { project: 'projects', canvas: 'canvases', app: 'apps', job: 'apps', server: 'apps' };
 const KINDS = { projects: ['repository'], canvases: ['canvas'], apps: ['job', 'server'] };
@@ -71,28 +67,15 @@ function byName(catalog, text, make) {
 export function route(text, { mode = null, catalog = [], scope = null } = {}) {
   let message = String(text || '').trim();
   const pill = mode === 'auto' ? null : mode;
-  if (pill && pill !== 'do') return ask(message, pill);
-  // 1. A slash mode at position 0.
-  const slash = !pill && message.match(/^\/(ask|teach|research|do)(?:\s+|$)/i);
-  if (slash) return { type: 'mode', mode: slash[1].toLowerCase(), text: message.slice(slash[0].length) };
+  if (pill) return ask(message, pill);
+  // 1. The bar has no slash commands (owner, 2026-10-20: /ask, /teach, /research, /do, /find, /open, /new, /connect and /run
+  // are removed): the same words without the slash run as before (rules 1a-10).
   // 1a. Help and questions about Rabbit Hole's own concepts.
   if (HELP.test(message)) return command('explain', { concept: 'help' });
   const concept = message.match(CONCEPT);
   if (concept) return command('explain', { concept: conceptOf(concept[1]) });
-  // 1b. /find /open /new /connect /run.
-  const shortcut = !pill && message.match(SHORTCUT);
-  if (shortcut) {
-    const verb = shortcut[1].toLowerCase(), rest = (shortcut[2] || '').trim();
-    if (verb === 'new') return command('open_start', { path: NEW_PATH[rest.toLowerCase()] || 'repository' });
-    if (!rest) {
-      if (verb === 'run') return command('filter_library', { type: 'apps' });
-      if (verb === 'connect') return command('open_start', { path: 'repository' });
-      return command('filter_library', {}); // /find, /open
-    }
-    message = `${verb} ${rest}`;
-  }
-  // 1c. Any other /word is an unknown command: say so, never a silent Ask.
-  const unknown = !pill && !shortcut && message.match(/^\/([a-z][\w-]*)/i);
+  // 1c. Any /word is a command the bar does not offer: say so, never a silent Ask.
+  const unknown = message.match(/^\/([a-z][\w-]*)/i);
   if (unknown) return { type: 'unknown_command', name: unknown[1].toLowerCase() };
   // 2. A GitHub repository link. A URL appearing is not a request to create a project (user decision,
   // 2026-09-24): a bare link or explicit creation language connects, and a repository already
