@@ -107,7 +107,10 @@ function definitionOf(lines, i, name) {
 // Every if statement a line sits in is a condition (K1, ...), with or without an else: a body
 // that runs only when its condition holds carries that condition. A span is split wherever the
 // set of enclosing branches changes, so each ref names exactly the branches its lines run under.
-function pack(source, path, lines, spans) {
+// within (0-based spans, or null): a repository card's own lines. Nothing outside them is cited:
+// no other branch side, definition or condition whose statement is not wholly inside.
+function pack(source, path, lines, spans, within = null) {
+  const inside = ([a, b]) => !within || within.some(([x, y]) => a >= x && b <= y);
   const conditions = []; // {id, key, negated, pair: {condition, ifSpan, elseSpan}, defs: [span]}
   const refs = []; // {span, role, context: [{k, side}]}; side 0: the condition holds, 1: it does not
   const conditionFor = c => {
@@ -128,7 +131,7 @@ function pack(source, path, lines, spans) {
     return { k: conditionFor(c).id, side: inIf !== /^not\s+/.test(c.condition) ? 0 : 1, c };
   });
   const addRef = (span, role, context = contextOf(span[0])) => {
-    if (!refs.some(r => r.span[0] === span[0] && r.span[1] === span[1])) refs.push({ span, role, context: context.map(({ k, side }) => ({ k, side })) });
+    if (inside(span) && !refs.some(r => r.span[0] === span[0] && r.span[1] === span[1])) refs.push({ span, role, context: context.map(({ k, side }) => ({ k, side })) });
   };
   for (const { span, role } of spans) {
     // Consecutive lines under the same branches form one ref; blank lines never split one.
@@ -160,14 +163,16 @@ function pack(source, path, lines, spans) {
     if (def) { addRef(def, 'condition'); k.defs.push(def); }
   }
   refs.sort((a, b) => a.span[0] - b.span[0]);
-  const sourceRefs = refs.map((r, i) => ({ id: `S${i + 1}`, kind: 'code', repository: source.repository, commit: source.commit, path, start_line: r.span[0] + 1, end_line: r.span[1] + 1, role: r.role, condition_ids: [...new Set(r.context.map(x => x.k))] }));
+  const kept = conditions.filter(k => inside(k.pair.ifSpan) && (!k.pair.elseSpan || inside(k.pair.elseSpan)));
+  const keep = new Set(kept.map(k => k.id));
+  const sourceRefs = refs.map((r, i) => ({ id: `S${i + 1}`, kind: 'code', repository: source.repository, commit: source.commit, path, start_line: r.span[0] + 1, end_line: r.span[1] + 1, role: r.role, condition_ids: [...new Set(r.context.map(x => x.k))].filter(k => keep.has(k)) }));
   const idOf = span => sourceRefs[refs.findIndex(r => r.span[0] === span[0] && r.span[1] === span[1])]?.id;
   const where = ([a, b]) => `${path}:${a + 1}-${b + 1}`;
   const firstCode = ([a, b]) => lines.slice(a, b + 1).map(s => s.trim()).find(s => s && !s.startsWith('#') && !/^(?:if|elif|else)\b/.test(s)) || '';
   return {
     source_refs: sourceRefs,
     evidence: refs.map((r, i) => ({ source_ref_id: sourceRefs[i].id, excerpt: lines.slice(r.span[0], r.span[1] + 1).join('\n') })),
-    implementation_conditions: conditions.map(({ id, key, pair, defs }) => {
+    implementation_conditions: kept.map(({ id, key, pair, defs }) => {
       const negated = /^not\s+/.test(pair.condition);
       const sideSpans = negated ? [pair.elseSpan, pair.ifSpan] : [pair.ifSpan, pair.elseSpan];
       const branches = [0, 1].map(side => {
@@ -188,9 +193,12 @@ function pack(source, path, lines, spans) {
   };
 }
 
+// A named target's words as one phrase ("gradient descent", "gradient_descent"), any case.
+const phrase = name => new RegExp(`\\b${name.trim().split(/\s+/).map(escapeRe).join('[\\s_]+')}\\b`, 'i');
+
 // Every place a named target appears, grouped by the function or class that holds it.
 export function findOccurrences(source, name) {
-  const re = new RegExp(`\\b${name.trim().split(/\s+/).map(escapeRe).join('[\\s_]+')}\\b`, 'i');
+  const re = phrase(name);
   const groups = new Map();
   for (const path of source.files.filter(p => /\.py$/.test(p))) {
     const lines = splitLines(source.read(path));
@@ -221,17 +229,47 @@ function occurrenceSpan(lines, i) {
 
 const overlaps = (rc, g) => rc && rc.range.path === g.path && g.lines.some(i => i + 1 >= rc.range.start && i + 1 <= rc.range.end);
 
-// turn: a LearnerTurn from learner-intent.js. source: the pinned repository (or null).
-// -> { status: 'grounded' | 'needs_clarification' | 'not_found', target, resolution,
+// turn: a LearnerTurn from learner-intent.js. source: a pinned repository the canvas actually has (or
+// null), never a default. cardRefs: a selected repository card's own refs ([{commit, path, start, end}],
+// motion-context.js): the only repository lines that card may cite.
+// -> { status: 'grounded' | 'ungrounded' | 'needs_clarification', target, resolution,
 //      candidates, chosen, source_refs, evidence, implementation_conditions, clarification }
-export function groundTarget(turn, source) {
+// ungrounded (owner, 2026-10-21, messages 7 and 11): a named target with nothing to ground it in is
+// answered from the request text alone and cites nothing. `grounding` names that state explicitly:
+// no_source_supplied, or not_in_source when a supplied card or repository was searched and does not
+// mention it (labelled "not grounded in" it, never presented as grounded in it). A selected
+// repository card that cannot be read or does not show the target is refused instead.
+export function groundTarget(turn, source, { cardRefs = null } = {}) {
   const { target } = turn.structured_interpretation;
   const rc = turn.repository_context;
-  const repoLabel = source ? `${source.repository}@${source.commit.slice(0, 7)}` : 'the current repository';
+  const card = turn.canvas_target;
   const clarify = (question, options = []) => ({ status: 'needs_clarification', target, candidates: options, chosen: null, source_refs: [], evidence: [], implementation_conditions: [], clarification: { question, options } });
+  const setAside = [];
+  const ungrounded = () => ({
+    status: 'ungrounded', target, resolution: 'ungrounded', candidates: [], chosen: null,
+    grounding: setAside.length ? { status: 'not_in_source', searched: setAside.map(c => c.label) } : { status: 'no_source_supplied' },
+    resolved_target: { kind: 'concept', label: target.name, resolution: 'ungrounded', candidates_considered: setAside },
+    source_refs: [], evidence: [], implementation_conditions: [], clarification: null,
+  });
+  // A selected card or canvas object: its own text is the evidence.
+  const fromCard = resolution => ({
+    status: 'grounded', target, resolution, candidates: [], chosen: { card_id: card.id, label: card.title || card.kind },
+    resolved_target: { kind: turn.selection?.kind === 'canvas_object' ? 'canvas_object' : 'card', label: card.title || card.kind, resolution, candidates_considered: [], ...(turn.selection ? { selection: turn.selection } : {}) },
+    source_refs: [{ id: 'S1', kind: 'card', card_id: card.id, role: 'occurrence', condition_ids: [] }],
+    evidence: [{ source_ref_id: 'S1', excerpt: card.text }], implementation_conditions: [], clarification: null,
+  });
+  // A bare request on a selection ("/motion 15s") is about the selection.
+  const pointing = target.binding === 'deictic' || (target.binding === 'none' && !!(card || cardRefs));
 
   if (target.binding === 'deictic_unbound') return clarify('What should the animation explain? Select a card or a code range, or name the concept.');
-  if (target.binding === 'deictic' && rc && source) {
+  if (cardRefs) {
+    // The learner pointed at code: grounded in exactly those lines, or refused - never the rest of the
+    // repository, and never a code-less answer that looks like it came from them.
+    const g = repositoryCard(turn, source, cardRefs, pointing);
+    return typeof g === 'string' ? clarify(`The selected code card cannot ground this video: ${g}. Select the code that shows it, or ask with no code card selected.`) : g;
+  }
+  const repoLabel = source ? `${source.repository}@${source.commit.slice(0, 7)}` : 'the current repository';
+  if (pointing && rc && source) {
     if (rc.commit !== source.commit) return clarify(`The selection is at ${rc.commit.slice(0, 7)}, but the loaded source is ${repoLabel}. Reopen the repository at the selection's commit.`);
     const lines = splitLines(source.read(rc.range.path));
     const span = [rc.range.start - 1, Math.min(rc.range.end, lines.length) - 1];
@@ -243,22 +281,17 @@ export function groundTarget(turn, source) {
       ...p, clarification: null,
     };
   }
-  if (target.binding === 'deictic') {
-    // A selected card or canvas object: its own text is the evidence.
-    const card = turn.canvas_target;
-    if (!card) return clarify('Select a card or a code range to explain, or name the concept.');
-    return {
-      status: 'grounded', target, resolution: 'deictic', candidates: [], chosen: { card_id: card.id, label: card.title || card.kind },
-      resolved_target: { kind: turn.selection?.kind === 'canvas_object' ? 'canvas_object' : 'card', label: card.title || card.kind, resolution: 'deictic', candidates_considered: [], ...(turn.selection ? { selection: turn.selection } : {}) },
-      source_refs: [{ id: 'S1', kind: 'card', card_id: card.id, role: 'occurrence', condition_ids: [] }],
-      evidence: [{ source_ref_id: 'S1', excerpt: card.text }], implementation_conditions: [], clarification: null,
-    };
-  }
+  if (pointing) return card ? fromCard('deictic') : clarify('Select a card or a code range to explain, or name the concept.');
   if (target.binding !== 'named') return clarify('What should the animation explain? Name the concept or select it.');
-  if (!source) return { ...clarify(`Nothing to ground "${target.name}" in: open its repository or select a card that covers it.`), status: 'not_found' };
+  // A named target on a selected card: the card grounds it only when it mentions it.
+  if (card) {
+    if (phrase(target.name).test(`${card.title || ''}\n${card.text}`)) return fromCard('named');
+    setAside.push({ label: card.title || card.kind, reason: `the selected card does not mention "${target.name}"` });
+  }
+  if (!source) return ungrounded();
 
   const groups = findOccurrences(source, target.name);
-  if (!groups.length) return { ...clarify(`No source in ${repoLabel} mentions "${target.name}". Select a card or code that covers it.`), status: 'not_found' };
+  if (!groups.length) { setAside.push({ label: repoLabel, reason: `no source in it mentions "${target.name}"` }); return ungrounded(); }
   // An explicit name is the target; the selection, then the current concept, only decide WHICH occurrence.
   const concept = words(turn.current_location.concept || '');
   let chosen = null, resolution = 'named', why = '';
@@ -286,5 +319,27 @@ export function groundTarget(turn, source) {
       repository_context: { commit: source.commit, label: chosen.symbol, range: { path: chosen.path, start: span[0] + 1, end: span[1] + 1 } },
     },
     ...p, clarification: null,
+  };
+}
+
+// A selected repository card: its own lines at the pinned commit, and nothing outside them
+// (pack's within). -> a grounding, or the reason it cannot ground this request.
+function repositoryCard(turn, source, refs, pointing) {
+  const { target } = turn.structured_interpretation;
+  const [{ commit, path }] = refs;
+  if (!source || source.commit !== commit || !source.files.includes(path)) return `its code (${path} at ${commit.slice(0, 7)}) is not in a repository loaded here`;
+  const lines = splitLines(source.read(path));
+  // shortcut: one file per card (a code card is one file); refs into another file are not cited. Pack each file once a card spans several.
+  const spans = refs.filter(r => r.path === path && r.start <= lines.length).map(r => [r.start - 1, Math.min(r.end, lines.length) - 1]);
+  if (!spans.length) return `its lines are not in ${path} at ${commit.slice(0, 7)}`;
+  if (!pointing && !spans.some(([a, b]) => phrase(target.name).test(lines.slice(a, b + 1).join('\n')))) return `the selected code does not mention "${target.name}"`;
+  const resolution = pointing ? 'deictic' : 'named';
+  const symbol = symbolAt(lines, spans[0][0]);
+  const label = turn.selection?.title || path;
+  const range = { path, start: spans[0][0] + 1, end: spans[0][1] + 1 };
+  return {
+    status: 'grounded', target, resolution, candidates: [], chosen: { card_id: turn.selection?.id ?? null, path, symbol, label, span: [range.start, range.end] },
+    resolved_target: { kind: 'code_span', label: `${label} (${symbol}, ${path}:${range.start}-${range.end})`, resolution, candidates_considered: [], ...(turn.selection ? { selection: turn.selection } : {}), repository_context: { commit, label, range } },
+    ...pack(source, path, lines, spans.map(span => ({ span, role: 'occurrence' })), spans), clarification: null,
   };
 }

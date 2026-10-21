@@ -1,6 +1,6 @@
 // The one reader of AI_MONTHLY_ALLOWANCE_USD (owner D3, 2026-10-16): every allowance figure comes from here, never a literal.
 // A finite decimal above 0 and at most 10000 USD; anything else is invalid, and invalid never means unlimited.
-// Phase 1 only reports it (GET /api/learn/usage); nothing enforces it yet.
+// GET /api/learn/usage reports it and admitSpend (learn-spend-ledger.js) enforces it (owner L12 2026-10-20).
 const DECIMAL = /^\d+(\.\d{1,6})?$/;
 
 // -> integer micro-USD, or null when missing or invalid.

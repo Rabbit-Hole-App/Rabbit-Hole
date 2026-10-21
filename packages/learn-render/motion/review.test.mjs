@@ -382,3 +382,37 @@ test('M8 frozen storyboard: an unsupported_claim goes to the Author repair, neve
     assert.equal(r.job.storyboard, x.storyboard, 'the same storyboard');
   }
 });
+
+// Owner message 19 (2026-10-21): a render that failed for an infrastructure reason (unreachable, refused before running, an
+// HTTP error, a timeout, a job refused for its brief or storyboard contract: mact paid run 1) never consumes the Author repair
+// and makes no further model call; a job refused for its composition is the composition's fault and still gets the repair.
+test('an infrastructure render failure stops the job: the Author repair unused, zero model calls; a composition refusal still repairs', async () => {
+  const { renderInfraFailure } = await import('./review-job.mjs');
+  const failed = (category, extra = {}) => ({ submitted: true, result: { status: 'render_failed', render_id: null, failure: { category, detail: `${category} detail`, ...extra } } });
+  const infra = [
+    failed('unreachable'), failed('busy'), failed('http_502'), failed('degraded'),
+    { submitted: true, result: { status: 'render_failed', render_id: 'a'.repeat(32), failure: { category: 'timeout', detail: 'the render did not finish within 480s of polling' } } },
+    failed('invalid_job', { errors: ['brief.source_refs: at least one', 'brief.resolved_target.resolution: one of named | deictic | context_disambiguated'] }),
+  ];
+  for (const p of infra) {
+    const h = harness({ previews: [p], reviews: [] });
+    const r = await run('softmax', h);
+    assert.equal(r.job.status, 'failed', p.result.failure.category);
+    assert.match(r.job.failure_reason, /^the renderer failed, not the composition \(.+\); the Author repair was not used$/);
+    assert.deepEqual([r.job.repairs.author, r.job.repairs.storyboard], [0, 0], 'the repair is unused');
+    assert.deepEqual(h.log.map(l => l[0]), ['preview'], `${p.result.failure.category}: no review, no Author repair, no final render (zero model calls)`);
+    assert.ok(renderInfraFailure(p));
+  }
+  // The composition's own faults still go to the one repair.
+  const composition = [
+    failed('invalid_job', { errors: ['request.composition.source: imports node:fs', 'request.composition.source: fetch is not allowed'] }),
+    { submitted: true, result: { status: 'render_failed', render_id: 'b'.repeat(32), failure: { category: 'compile_failed', detail: 'x is not defined' } } },
+  ];
+  for (const p of composition) {
+    assert.equal(renderInfraFailure(p), null, p.result.failure.category);
+    const h = harness({ previews: [p, clean()], reviews: [[], []] });
+    const r = await run('softmax', h);
+    assert.equal(r.job.status, 'ready', p.result.failure.category);
+    assert.equal(r.job.repairs.author, 1, 'the composition fault spent the repair');
+  }
+});

@@ -1266,13 +1266,19 @@ function SceneBody({ block, appName, onChange, viewKey = null }) {
     } catch (problem) { setError(problem.message); }
   };
   const [confirming, setConfirming] = useState(false);
+  // One start per press: clicks that reach Generate before the page re-renders send nothing more.
+  const starting = useRef(false);
   const generate = async (current = block) => {
+    if (starting.current) return;
+    starting.current = true;
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'queued' });
     try {
-      const { placementId } = await startScene(appName, current.operation, { confirmed: true });
+      // Retry scene: the server renders a failed scene again only on an explicit retry.
+      const { placementId } = await startScene(appName, current.operation, { confirmed: true, retry: current.status === 'failed' });
       follow(placementId);
     } catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
+    finally { starting.current = false; }
   };
   useConfirmedStart(block, onChange, generate);
   if (block.status === 'ready' && block.modelUrl) return <ThreeDBody block={block} onChange={onChange} viewKey={viewKey} />;
@@ -1498,9 +1504,11 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const latest = useRef(block);
   latest.current = block;
   const [placement, setPlacement] = useState(null);
-  // Follows the exact job this Generate started (see SceneBody).
+  // Follows the exact job this Generate started (see SceneBody). Its placement id is kept on the card, so a reload resumes
+  // following the same job (a /motion job runs for minutes) instead of showing it generating forever.
   const follow = async placementId => {
     setPlacement(placementId);
+    if (latest.current.placementId !== placementId) onChange({ ...latest.current, placementId });
     try {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
@@ -1535,6 +1543,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
   };
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
+  // A card saved while its job ran: follow that job again (a read, never a new start). Cards saved without a placement id
+  // (before this) keep their old behaviour.
+  useEffect(() => { if (pending && block.placementId) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
