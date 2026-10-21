@@ -5,14 +5,15 @@ import { commandsFor, learnRequest } from '../../web/src/agent/slash.js';
 import { available } from '../../web/src/learn-slash.js';
 
 // Appended to the Learn chat system prompt: how to write the <answer_meta> trailer. Billed on every answer, so kept short.
-// ponytail: the prompt never offers motion (dev only); the validator still accepts it under motionDev.
+// ponytail: the prompt never offers motion (dev and review builds only); the validator still accepts it under motionDev. Nor
+// animate (owner, 2026-10-20: /motion replaced it as a command), which the registry no longer offers, so the validator drops it.
 export const ANSWER_META_SYSTEM = `End every answer with exactly one trailer, valid JSON, nothing after it:
 <answer_meta>{"actions":[{"capability":"diagram","label":"Draw the request flow","subject":"..."}],"followUps":[{"text":"...","kind":"clarify"}]}</answer_meta>
 actions: 0-3 artifacts the learner could make next, only when one would genuinely help; never fill the list. Choose from this answer, the latest request, earlier turns and the attached context. label: a verb phrase, at most 40 characters. subject: at most 200 characters, exactly what to make. capability, the one that fits:
 - diagram: a native editable diagram (flow, structure, process)
 - graph: a math function or data plot
 - image: a picture of a real thing
-- animate: an animated explanation; video: an existing video clip
+- video: an existing video clip
 - notebook: runnable Python. Only when this answer contains the Python code, add "code":{"language":"python","cells":["..."]} copied verbatim, setup and imports in the first cell; otherwise omit code
 - code: a new code example; compare: a side-by-side comparison; practice: a practice task; quiz: one test question
 Never use image for a diagram, plot or animation.
@@ -40,7 +41,7 @@ export function splitAnswerMeta(text) {
   return { content: s, raw: null };
 }
 
-const ALLOWED = ['diagram', 'graph', 'animate', 'video', 'image', 'notebook', 'code', 'compare', 'practice', 'quiz', 'motion'];
+const ALLOWED = ['diagram', 'graph', 'video', 'image', 'notebook', 'code', 'compare', 'practice', 'quiz', 'motion'];
 const KINDS = ['clarify', 'implication', 'check', 'connect', 'next'];
 const str = (v, max) => { const t = typeof v === 'string' ? v.trim() : ''; return t && t.length <= max ? t : null; };
 // Notebook code the answer already has: Python only (notebooks run Python), every cell a string, blank cells dropped.

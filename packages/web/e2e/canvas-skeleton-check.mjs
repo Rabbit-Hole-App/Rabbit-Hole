@@ -12,7 +12,7 @@
 //      cancels every pending correction; untouched, the card gets exactly one.
 //   B. Layout: the cards below make room for the skeleton, and close up (or not) to the card's measured height.
 //   C. A clarification and a failure leave no skeleton.
-//   P. A paid command (/animate) shows its proposal and no skeleton; Cancel shows none; Generate shows one, and the
+//   P. A paid command (/video) shows its proposal and no skeleton; Cancel shows none; Generate shows one, and the
 //      confirmed card takes its slot.
 //   D. Sharing and forks: a push made while a skeleton waits, and a fork of that board, carry no skeleton.
 //   E. Research: no skeleton while searching; one at the committed "Opening…", filled by the paper; a suppressed
@@ -283,17 +283,18 @@ await page.evaluate(() => {
     .observe(document.querySelector('[data-canvas-surface]'), { childList: true, subtree: true });
 });
 const slotsSeen = () => page.evaluate(() => window.__slotsSeen.length);
-const PAID = { type: 'video', mode: 'generate', title: 'Why the sigmoid saturates', src: '', caption: 'An illustration, not measured footage.', operation: { steps: [] }, status: 'idle' };
-artifactNext = () => later(900, { json: { result: 'paid_proposal', primitive: 'maths_animation', block: PAID, message: 'This uses paid generation.' } });
+// /video (paid generation) since /animate left the commands (owner, 2026-10-20: /motion is the animation command).
+const PAID = { type: 'video', mode: 'generate', title: 'Light through a prism', src: '', caption: 'An illustration, not measured footage.', operation: { steps: [] }, status: 'idle' };
+artifactNext = () => later(900, { json: { result: 'paid_proposal', primitive: 'video_generate', block: PAID, message: 'This uses paid generation.' } });
 const paidBlocks = (await column()).length;
-await send('/animate why the sigmoid saturates');
+await send('/video light through a prism');
 await page.locator('[data-paid-generate]').waitFor({ timeout: 5000 });
 check('P1 a paid command shows its proposal and no skeleton', (await slotsSeen()) === 0 && (await slots().count()) === 0);
 await shot('05b-paid-proposal-no-skeleton');
 await page.locator('[data-paid-cancel]').click();
 await page.waitForTimeout(800);
 check('P2 Cancel never shows a skeleton or a card', (await slotsSeen()) === 0 && (await column()).length === paidBlocks && paidStarts.length === 0);
-await send('/animate why the sigmoid saturates');
+await send('/video light through a prism');
 await page.locator('[data-paid-generate]').waitFor({ timeout: 5000 });
 check('P3 the proposal again: still no skeleton', (await slotsSeen()) === 0);
 await page.locator('[data-paid-generate]').click();
@@ -301,7 +302,7 @@ await waitFor(async () => (await column()).length === paidBlocks + 1, 'the confi
 await page.waitForTimeout(600);
 const [paidSlot] = await page.evaluate(() => window.__slotsSeen);
 const paidCard = (await column()).find(entry => entry.top === paidSlot?.top);
-check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/animate…/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
+check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/video…/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
 await shot('05c-paid-confirmed-card-in-slot');
 
 // ---- D. Sharing: a push made while a skeleton waits carries none, and neither does a fork of the board ----
