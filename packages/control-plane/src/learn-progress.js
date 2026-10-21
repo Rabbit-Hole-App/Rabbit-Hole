@@ -161,7 +161,7 @@ export async function readProgress(env, actor, { goalId, scopeVersion } = {}, { 
 // route has just authorized. An imported file reads for its owner, or through this canvas's own board while that board
 // still references it (file-access.js). shortcut: every other kind reads as unavailable (its content withheld) until the
 // lane that introduces it adds its check here.
-const sourceReader = (req, env, access, actor) => async ref => {
+export const sourceReader = (req, env, access, actor) => async ref => {
   if (ref?.kind === 'card') return true;
   if (ref?.kind !== 'file') return false;
   if (!((await authorizeFileSource(req, env, ref.id)) instanceof Response)) return true;
