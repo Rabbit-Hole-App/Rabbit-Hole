@@ -7,8 +7,10 @@
 // model is bound, so none can be called.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 import { learnDb } from './learn-grade-fixture.js';
-import { ProgressError, progressRoute, readProgress } from '../src/learn-progress.js';
+import { ProgressError, progressRoute, progressStore, readProgress } from '../src/learn-progress.js';
+import { applyCoachingAction } from '../src/learn-coaching-store.js';
 
 const PEOPLE = {
   ana: { email: 'ana@test', org: 'team-ws', user_id: 'u-ana-5d1e' }, ben: { email: 'ben@test', org: 'team-ws', user_id: 'u-ben-9a2b' },
@@ -84,8 +86,8 @@ function threeGoals(s) {
   s.submit('g-task', { day: 15, obs: [{ criterionId: 'trace', fit: 'partial', reasoning: 'partial' }] });
 }
 
-function setup(t) {
-  const { LEARN_DB, sqlite } = learnDb(t);
+function setup(t, schema) {
+  const { LEARN_DB, sqlite } = schema ? learnDb(t, schema) : learnDb(t);
   const CONTROL_PLANE = {
     fetch: async request => {
       const who = PEOPLE[(request.headers.get('cookie') || '').replace('small_session=', '')];
@@ -299,10 +301,60 @@ test('a load error is never an empty history; the route reads only', async t => 
   const broken = { ...s.store, evidence: async () => { throw new Error('D1_ERROR: no such table: learn_evidence_links'); } };
   const failed = await call('ana', { goalId: 'g-knn' }, broken);
   assert.deepEqual([failed.status, failed.body], [503, { error: 'progress_unavailable' }]);
-  const unwired = await call('ana', { goalId: 'g-knn' }, null); // the default store until learn 0025/0026 are wired
-  assert.deepEqual([unwired.status, unwired.body], [503, { error: 'progress_unavailable' }]);
   assert.deepEqual((await call('ana', { goalId: 'g-knn', scopeVersion: 'x' })).body, { error: 'invalid_scopeVersion' });
   assert.deepEqual((await call('ana', {})).body, { error: 'goalId_required' });
   const post = await progressRoute('/api/learn/progress', new Request('https://app.test/api/learn/progress', { method: 'POST', body: '{}' }), {});
   assert.equal(post.status, 405);
+});
+
+// --- the D1 store: learn 0025 (tutor/core) now, learn 0026 (tutor/assess) once it is on this branch ----------------------
+const MIGRATION_0026 = new URL('../learn-migrations/0026-tutor-attempts.sql', import.meta.url);
+const HAS_0026 = existsSync(MIGRATION_0026);
+const KNN_CRITERIA = [
+  { criterionId: 'knn-vote', label: 'Explain the majority vote', requirement: 'Explain how the neighbours decide the class.', requiresReasoning: true },
+  { criterionId: 'knn-k', label: 'Choose k', requirement: 'Say how k changes the vote.', requiresReasoning: false },
+];
+// A goal made through the coaching store, as the browser makes one.
+const coachedGoal = async env => (await applyCoachingAction(env, ANA, { actionId: 'act-knn', expectedRevision: 0, action: 'create_goal', payload: { label: 'Predict a class using KNN', criteria: KNN_CRITERIA } }))
+  .state.goals.find(g => g.status === 'active');
+
+test('the D1 store reads learn 0025 goals and criteria for their learner only', async t => {
+  const { env, call } = setup(t);
+  const goal = await coachedGoal(env);
+  assert.deepEqual(await progressStore.goal(env, ANA, goal.goalId),
+    { goalId: goal.goalId, org: 'team-ws', userId: ANA.userId, app: APP, board: BOARD, scopeVersion: 1, revision: goal.revision, updatedAt: goal.updatedAt });
+  const alt = { ...ANA, userId: PEOPLE.anaAlt.user_id };
+  assert.equal(await progressStore.goal(env, alt, goal.goalId), null);
+  assert.deepEqual((await progressStore.criteria(env, ANA, goal.goalId, 1)).map(c => [c.criterionId, c.version, c.label, c.requiresReasoning]),
+    [['knn-vote', 1, 'Explain the majority vote', true], ['knn-k', 1, 'Choose k', false]]);
+  assert.deepEqual(await progressStore.criteria(env, alt, goal.goalId, 1), []);
+  // Without learn 0026 the evidence read fails, and that is an outage, not an empty history.
+  if (!HAS_0026) assert.deepEqual((await call('ana', { goalId: goal.goalId }, null)).body, { error: 'progress_unavailable' });
+});
+
+test('the D1 store reads learn 0026 attempts, assessments and observations for their learner only', { skip: HAS_0026 ? false : 'learn 0026 (tutor/assess) is not on this branch yet' }, async t => {
+  const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8') + readFileSync(MIGRATION_0026, 'utf8');
+  const { env, sqlite, call } = setup(t, schema);
+  const goal = await coachedGoal(env);
+  const attempt = (id, owner, text) => sqlite.prepare(`INSERT INTO learn_attempts (id, org, owner_user_id, app, board, goal_id, activity_id, activity_revision, submission_key, response_kind,
+    content_json, content_hash, criterion_refs_json, source_refs_json, assistance, assistance_refs_json, submitted_at) VALUES (?, 'team-ws', ?, ?, ?, ?, 'la-1', 1, ?, 'text', ?, 'h', '[]', '[]', 'none', '[]', ?)`)
+    .run(id, owner, APP, BOARD, goal.goalId, `key-${id}`, JSON.stringify({ text }), at(20));
+  const assessment = (id, attemptId, owner, status) => sqlite.prepare(`INSERT INTO learn_assessments (id, attempt_id, org, owner_user_id, request_key, status, created_at, updated_at)
+    VALUES (?, ?, 'team-ws', ?, 'submit', ?, ?, ?)`).run(id, attemptId, owner, status, at(20), at(20));
+  const observation = (id, assessmentId, attemptId, owner, criterionId, assistance) => sqlite.prepare(`INSERT INTO learn_observations (id, assessment_id, attempt_id, org, owner_user_id,
+    goal_id, criterion_id, criterion_version, fit, reasoning, assistance, reason, observed_at) VALUES (?, ?, ?, 'team-ws', ?, ?, ?, 1, 'met', 'supported', ?, 'Explained the vote.', ?)`)
+    .run(id, assessmentId, attemptId, owner, goal.goalId, criterionId, assistance, at(20));
+  const ana = ANA.userId, other = PEOPLE.anaAlt.user_id;
+  attempt('at-1', ana, 'Two of the three nearest are red, so red.'); assessment('as-1', 'at-1', ana, 'completed'); observation('ob-1', 'as-1', 'at-1', ana, 'knn-vote', 'assisted');
+  attempt('at-2', ana, 'A bigger k smooths the vote.'); assessment('as-2', 'at-2', ana, 'pending');
+  attempt('at-3', ana, 'k = 4'); assessment('as-3', 'at-3', ana, 'unavailable');
+  // Another account's rows under the same goal id never reach ana's Progress.
+  attempt('at-x', other, 'Not ana: k must be odd.'); assessment('as-x', 'at-x', other, 'completed'); observation('ob-x', 'as-x', 'at-x', other, 'knn-k', 'none');
+  const r = await call('ana', { goalId: goal.goalId }, null);
+  assert.equal(r.status, 200, r.text);
+  const view = r.body.progress;
+  assert.deepEqual(view.counts, counts({ total: 2, demonstrated_with_help: 1, not_checked: 1 }));
+  assert.deepEqual(view.criteria[0].evidence.map(e => [e.observationId, e.excerpt, e.assistance]), [['ob-1', 'Two of the three nearest are red, so red.', 'assisted']]);
+  assert.deepEqual([view.pendingAssessments, view.unavailableAssessments], [['as-2'], ['as-3']]);
+  assert.equal(r.text.includes('Not ana'), false);
 });

@@ -27,10 +27,53 @@ export class ProgressError extends Error {
   constructor(code, status) { super(`progress: ${code}`); this.name = 'ProgressError'; this.code = code; this.status = status; }
 }
 
-const unwired = async () => { throw new Error('progress store is not wired to learn 0025/0026'); };
-// shortcut: learn 0025/0026 are not on this branch, so the route answers 503 until the integrator maps these three reads
-// onto T1's and T3's tables (C:/s/spec/tutor-workflow/T4-report.md).
-export const progressStore = { goal: unwired, criteria: unwired, evidence: unwired };
+// The store on LEARN_DB: learn 0025 goals and criteria (tutor/core) and learn 0026 attempts, assessments and observations
+// (tutor/assess, column names as of its 22:39 PT draft). Every read is scoped to the actor; a missing table throws, so the
+// route answers 503 until learn 0026 is applied, never an empty history.
+const SCOPED = 'org = ? AND owner_user_id = ? AND app = ? AND board = ?';
+const scoped = actor => [actor.org, actor.userId, actor.app, actor.board];
+const EXCERPT = 280;
+export const progressStore = {
+  async goal(env, actor, goalId) {
+    const g = await env.LEARN_DB.prepare(`SELECT * FROM learn_goals WHERE id = ? AND ${SCOPED}`).bind(goalId, ...scoped(actor)).first();
+    return g && { goalId: g.id, org: g.org, userId: g.owner_user_id, app: g.app, board: g.board, scopeVersion: g.scope_version, revision: g.revision, updatedAt: g.updated_at };
+  },
+  // Every scope version up to the current one exists (0 holds no criteria), so a version with no rows is an empty list.
+  async criteria(env, actor, goalId, scopeVersion) {
+    const { results } = await env.LEARN_DB.prepare(`SELECT c.* FROM learn_goal_criteria c JOIN learn_goals g ON g.id = c.goal_id
+      WHERE c.goal_id = ? AND c.scope_version = ? AND g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ? ORDER BY c.position`).bind(goalId, scopeVersion, ...scoped(actor)).all();
+    return results.map(r => ({
+      criterionId: r.criterion_id, version: r.version, label: r.label, requirement: r.requirement, requiresReasoning: r.requires_reasoning === 1,
+      rubricVersion: r.rubric_version, ...(r.skill_key ? { skillKey: r.skill_key } : {}),
+    }));
+  },
+  async evidence(env, actor, goalId) {
+    const at = [goalId, ...scoped(actor)];
+    const [attempts, assessments, observations] = await Promise.all([
+      env.LEARN_DB.prepare(`SELECT id, response_kind, content_json, source_refs_json, submitted_at FROM learn_attempts WHERE goal_id = ? AND ${SCOPED}`).bind(...at).all(),
+      env.LEARN_DB.prepare(`SELECT s.id, s.attempt_id, s.status, s.supersedes_assessment_id, s.updated_at FROM learn_assessments s JOIN learn_attempts a ON a.id = s.attempt_id
+        WHERE a.goal_id = ? AND a.org = ? AND a.owner_user_id = ? AND a.app = ? AND a.board = ? ORDER BY s.created_at, s.rowid`).bind(...at).all(),
+      // By goal: readProgress keeps only observations whose attempt is in the scoped list above.
+      env.LEARN_DB.prepare('SELECT * FROM learn_observations WHERE goal_id = ? AND org = ? AND owner_user_id = ? ORDER BY observed_at, rowid').bind(goalId, actor.org, actor.userId).all(),
+    ]);
+    const op = new Map(assessments.results.map(s => [s.id, s]));
+    return {
+      attempts: attempts.results.map(a => {
+        const content = JSON.parse(a.content_json);
+        return { attemptId: a.id, submittedAt: a.submitted_at, sourceRefs: JSON.parse(a.source_refs_json),
+          excerpt: a.response_kind === 'text' && typeof content?.text === 'string' ? content.text.slice(0, EXCERPT) : null };
+      }),
+      assessments: assessments.results.map(s => ({ assessmentId: s.id, attemptId: s.attempt_id, status: s.status, updatedAt: s.updated_at })),
+      observations: observations.results.filter(o => op.has(o.assessment_id)).map(o => ({
+        observationId: o.id, attemptId: o.attempt_id, assessmentId: o.assessment_id, assessmentStatus: op.get(o.assessment_id).status,
+        criterionId: o.criterion_id, criterionVersion: o.criterion_version, fit: o.fit, reasoning: o.reasoning, assistance: o.assistance,
+        validity: o.validity, conflict: o.conflict === 1, application: o.application, observedAt: o.observed_at,
+        ...(o.retention_of ? { retentionOf: o.retention_of } : {}), ...(o.reason ? { reason: o.reason } : {}),
+        ...(op.get(o.assessment_id).supersedes_assessment_id ? { supersedesAssessmentId: op.get(o.assessment_id).supersedes_assessment_id } : {}),
+      })),
+    };
+  },
+};
 
 const PENDING = new Set(['pending', 'unknown']); // unknown completion is still being reconciled: not a result yet
 const UNAVAILABLE = new Set(['unavailable', 'failed']);
