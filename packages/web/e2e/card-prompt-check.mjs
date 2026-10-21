@@ -13,13 +13,17 @@
 //  10. a share-link viewer sees the row with Copy and no chat icon.
 // Before this change step 1 fails: no card has a Prompt row.
 // Usage: BASE=http://127.0.0.1:9121 SMALL_CP=http://127.0.0.1:9123 VARS=<cp .dev.vars> node e2e/card-prompt-check.mjs [shotsDir]
+//   or CLONE=1 BASE=https://rabbit-hole-web-dev-card-prompt.tryrabbithole.workers.dev SMALL_CP=https://rabbit-hole-cp-dev.tryrabbithole.workers.dev VARS=<file with the dev TEST_BYPASS_SECRET>
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9121';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9123';
-for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('card-prompt-check runs against the local stack only');
+// CLONE=1: this branch's own dev clone with the dev control plane only (docs/features/parallel-dev-deploys.md), never the
+// shared preview or production. Model routes stay stubbed or aborted in the browser either way.
+const CLONE = process.env.CLONE === '1' && BASE === 'https://rabbit-hole-web-dev-card-prompt.tryrabbithole.workers.dev' && CP === 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
+for (const url of [BASE, CP]) if (!CLONE && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('card-prompt-check runs against the local stack (or CLONE=1 on its own dev clone) only');
 const OUT = process.argv[2] || 'card-prompt-shots';
 mkdirSync(OUT, { recursive: true });
 const vars = process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url);
