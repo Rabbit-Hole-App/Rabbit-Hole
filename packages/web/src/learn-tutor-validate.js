@@ -154,10 +154,14 @@ function readingOf(response, log) {
   return reading;
 }
 
+// The plan's explicit_request counts only as the learner's own words in this turn (a quote they never typed is ignored).
+const quoteOf = response => (typeof response?.explicit_request === 'string' ? response.explicit_request.trim() : '');
+export const explicitRequest = (response, turn) => !!quoteOf(response) && String(turn.raw_user_message || '').toLowerCase().includes(quoteOf(response).toLowerCase());
+
 export function validateActions(response, routed, turn, domain = NANOGPT) {
   const log = [], decisions = [];
-  const quoted = typeof response.explicit_request === 'string' ? response.explicit_request.trim() : '';
-  const explicit = !!quoted && turn.raw_user_message.toLowerCase().includes(quoted.toLowerCase());
+  const quoted = quoteOf(response);
+  const explicit = explicitRequest(response, turn);
   // The quote is the learner's words: the log (console, the bench's `rejected`) never carries them (Voice privacy).
   if (quoted && !explicit) log.push("explicit_request not in the learner's words");
   // A hook click is the learner's consent for the direction it chose (Professor Next Steps §2.5); never true on a typed turn.

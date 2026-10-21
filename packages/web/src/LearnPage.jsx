@@ -68,7 +68,7 @@ import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
 import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-workspace.jsx';
 import { effectiveControls } from './learn-coaching-client.js';
-import { canCoach } from './learn-coaching-contract.js';
+import { canCoach, mayRun } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
 import { MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
@@ -1054,7 +1054,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // repository: a detached repository source is honoured by the Tutor's handoff too, as by Learn chat (contract §4.7.2).
   // ponytail: no openResearch until a Home/Library Research entry can take a seeded request; until then the Tutor offers no
   // Research this (contract §4.5).
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext });
+  // Q5 (integrator ruling, owner 3a): the Tutor's proactive actions read the learner's current controls when a turn is planned
+  // and again before anything applies (learn-tutor.js heldActions). A canvas without coaching state coaches nothing on its own.
+  const coachNow = useRef(null);
+  coachNow.current = kind => !!chat?.coaching && mayRun(kind, effectiveControls(chat.coaching, chat.thread), { chatOpen: panels.chatOpen, ready: ['ready', 'local'].includes(chat.coaching.status) });
+  const coaching = useCallback(kind => coachNow.current(kind), []);
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, coaching });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);

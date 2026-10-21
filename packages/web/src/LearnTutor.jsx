@@ -16,7 +16,7 @@ import { api, apiFetch } from './api.js';
 import { tutorContext } from './learn-tutor-domains.js';
 import { loadStore, saveStore, storeKey } from './learn-tutor-evidence.js';
 import { diveJourney } from './learn-journey-domain.js';
-import { SLASHES, arriveAt, cardContext, executeActions, keepHere, learnerIntent, readPlanStream, runTurn, sameCanvas, showableCards, wantsCard } from './learn-tutor.js';
+import { SLASHES, arriveAt, cardContext, executeActions, heldActions, keepHere, learnerIntent, readPlanStream, runTurn, sameCanvas, showableCards, wantsCard } from './learn-tutor.js';
 import { materialCommands, runMaterials } from './learn-slash.js';
 import { holeOpening } from './learn-next-steps.js';
 import { inJourneySetup, startRequest } from './LearnJourney.jsx';
@@ -80,7 +80,9 @@ export const hookContext = (where, read, recordPending = false) => (recordPendin
 // researched inside a Tutor turn. repository (Task 11c-B): whether the turn may hand off to repository_context; the page may pass
 // false when the learner detached the repository source (LearnPage repoAttached), else it is the app's own (canvasRepository).
 // canvasContext(options) (LearnPage, chat-canvas-context.js): the turn's whole-canvas package, built from the live canvas.
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null }) {
+// coaching(kind) (Q5, integrator ruling; owner 3a): the learner's current Tutor controls as mayRun reads them (LearnPage). A
+// follow-up question, practice, unrequested material and next-step offers run only while it allows them; null holds nothing.
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null, coaching = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -219,7 +221,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       result = await runTurn({
         // The typed command is read in place of the composer's words only where it fixes the move (/deeper or /simplify on a
         // depth ladder); /ask, /teach (fix A3) and a ladderless /deeper or /simplify (fix B5) keep the composer's words.
-        ...common, image: preparedImage.image, page: nextStep ? null : page, canvasContext: canvasPackage, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable,
+        ...common, image: preparedImage.image, page: nextStep ? null : page, canvasContext: canvasPackage, raw: nextStep ? '' : (slash && !MODE_SLASHES.includes(slash.name) && domain.ladder?.length ? slash.raw : raw), slash: slash?.name || null, opening, store: load(), onSpeakable, may: coaching,
         nextStep, ...turnOffers({ journey: journeyRef.current, record, opening, nextStep, openResearch, repository: reads }),
         // Decision telemetry only while a sink is registered (contract §3.3); the planner request is the same either way.
         trace: tracing() && { identity: { canvas_version: canvasVersion }, blocks: canvas?.blocks?.() || [], next_step_options: onScreen, selected_at: selectedAt },
@@ -260,8 +262,11 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
     // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
     // card is (its selection, and its text as context); a hook click has none (block null).
-    const origin = { ...here }, stillHere = () => sameCanvas(hereRef.current, origin);
-    runMaterials(result.actions, {
+    // Q5: material the learner did not ask for starts only while the controls allow it, and is inserted only if they still do
+    // when it arrives (Off or Not now meanwhile: it is not put on the canvas). Requested material runs in every mode.
+    const origin = { ...here };
+    const stillHere = () => sameCanvas(hereRef.current, origin) && !heldActions(result.turn, coaching, result.response).has('create_material');
+    runMaterials(stillHere() ? result.actions : [], {
       // The cards keep the learner's words (card-prompt.js), never the model's command line; a hook click typed none.
       promptUsed: nextStep ? null : raw,
       // A paid card's confirmation shows the learner's words it came from (UI changes brief 1); a hook click typed none.
@@ -271,7 +276,7 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       // v1); tag notices with their turn id and drop stale ones if that ever confuses.
       onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
       // Task 07: a card arriving after the learner moved to another canvas or board is not inserted anywhere else; the turn's
-      // reply stays with its origin. A requested card still goes in after Tutor Off (Q5).
+      // reply stays with its origin. A requested card still goes in after Tutor Off; an unrequested one does not (Q5).
       canvas: withCardSink({ insertNotebook: () => (stillHere() ? canvasApi.current?.insertNotebook() : null), insertBlock: (b, o) => (stillHere() ? canvasApi.current?.insertBlock(b, o) : null), reserve: s => (stillHere() ? canvasApi.current?.reserve(s) : null), release: id => canvasApi.current?.release(id) }, onCard),
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
     }).catch(error => console.info('[tutor] create_material', error.message));
@@ -356,7 +361,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
   </>;
   const hasMade = () => !!finished() || !!desk.proposal || desk.notices.length > 0;
   // The turn's suggestion chips (Back up the Rabbit Hole among them), read when drawn; a pressed chip runs and goes.
-  const chips = () => withMoveOn(desk.chips, { journey: flying.current ? null : journeyRef.current, record, moveOn });
+  // Q5: the deterministic Next section chip is an automatic next-step offer, shown only while the controls allow one.
+  const chips = () => withMoveOn(desk.chips, { journey: flying.current || (coaching && !coaching('next_step_offer')) ? null : journeyRef.current, record, moveOn });
   const chipRow = () => chips().length > 0 && <div data-tutor-chips role="group" aria-label="Tutor suggestions" className="flex flex-wrap gap-2">
     {chips().map(chip => (
       <button key={chip.label} type="button" onClick={() => { chip.run(); put({ chips: desk.chips.filter(other => other !== chip) }); }}

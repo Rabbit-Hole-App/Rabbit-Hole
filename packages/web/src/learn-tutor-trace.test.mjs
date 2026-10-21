@@ -392,7 +392,9 @@ test('hooksEvent: a discarded set keeps the same keys, all three hooks, and the 
 test('tutor_decision: evidence_transitions are the turn transitions as { claim_id, from, to }, nothing else', async () => {
   const pass = { seq: 1, concept: C[IDS[0]].concept, claim: IDS[0], result: 'pass', kind: 'demonstrated_in_transfer', settled: true, evaluator: 'jev', source: 'free_text', ref: {} };
   const post = async (path, body) => (path === '/api/learn/tutor/plan' ? structuredClone(PLAN) : { status: 'settled', evaluator: 'jev', events: [pass], journey: { events: [pass], seq: 1 } });
-  const r = await runTurn({ raw: QUESTION, canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post, domain, turnId: 'turn-2', trace: true });
+  // A message the journey's cues select (Task 04's journey exit: words that name none of the journey's claims, in a turn nothing
+  // ties to it, are not evaluated against it), so this turn is evaluated.
+  const r = await runTurn({ raw: TIDES.cueMessage, canvas: { app: 'canvas-1', board: 'main' }, access: { app: 'canvas-1' }, block: null, store: emptyStore(), post, domain, turnId: 'turn-2', trace: true });
   assert.ok(r.transitions.length > 0, 'the evaluation moved a claim');
   assert.deepEqual(r.trace.decision.evidence_transitions, r.transitions.map(({ claim, from, to }) => ({ claim_id: claim, from, to })));
   assert.deepEqual(r.trace.decision.evidence_transitions.map(Object.keys), r.transitions.map(() => ['claim_id', 'from', 'to']));
