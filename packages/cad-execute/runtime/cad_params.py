@@ -9,13 +9,16 @@ import atexit
 import json
 import math
 import os
+import sys
 from pathlib import Path
 
 _JOB = Path(os.environ.get('CAD_JOB_DIR', '/tmp/job'))
 _path = _JOB / 'in' / 'parameters.json'
 _values = json.loads(_path.read_text()).get('values', {}) if _path.exists() else {}
-_read = []
-_computed = {}
+# cadgen loads the model a second time with a fresh copy of this module: every copy shares one report and one writer.
+_state = sys.__dict__.setdefault('_cad_params_report', {'read': [], 'computed': {}, 'writer': False})
+_read = _state['read']
+_computed = _state['computed']
 
 
 def value(name):
@@ -37,6 +40,10 @@ def computed(name, result):
     return result
 
 
-@atexit.register
 def _write():
     (_JOB / 'out' / 'controls.json').write_text(json.dumps({'read': _read, 'computed': _computed}, allow_nan=False))
+
+
+if not _state['writer']:
+    _state['writer'] = True
+    atexit.register(_write)

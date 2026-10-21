@@ -36,6 +36,17 @@ class CadParamsTests(unittest.TestCase):
         result, _ = run("from cad_params import value\nvalue('width')\n", None)
         self.assertNotEqual(result.returncode, 0)
 
+    def test_a_second_copy_of_the_helper_reports_into_the_same_controls(self):
+        # cadgen 0.7.21 loads the model again as _cad_tool_<path> with a fresh cad_params (C2 real-model run, 2026-10-21):
+        # computed() inside the decorated function went to that copy, and the first copy's report overwrote it.
+        source = ("import importlib.util, cad_params\nfrom cad_params import value\nw = value('width')\n"
+                  "spec = importlib.util.spec_from_file_location('cad_params_again', cad_params.__file__)\n"
+                  "again = importlib.util.module_from_spec(spec)\nspec.loader.exec_module(again)\n"
+                  "again.value('width')\nagain.computed('half', w / 2)\n")
+        result, report = run(source, {'width': 30})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(report, {'read': ['width'], 'computed': {'half': 15.0}})
+
     def test_computed_values_must_be_finite_numbers(self):
         for bad in ("float('nan')", "'12'", 'True'):
             result, _ = run(f"from cad_params import computed\ncomputed('x', {bad})\n", {})
