@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MessageSquareCheck, MessageSquarePlus, MoreHorizontal, Paperclip, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, Check, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MessageSquarePlus, MoreHorizontal, Paperclip, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
 import { Button, ConfirmDialog, Menu, MenuItem } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
@@ -21,6 +21,14 @@ const ICON_BUTTON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-l
 // The pressed fill is its own class string, never a variant on the resting one: in dark mode index.css re-pins --color-white to
 // white inside any class naming bg-accent, which would turn the resting bg-white surface white.
 const ROW_ACTION = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-40';
+// Use in this chat: a labelled toggle, accent-filled while this chat uses the document (aria-pressed). Add to canvas is the
+// shared inverse Button (ink fill: black in light, white in dark), the same in Context, Files and Graph (owner review UI-10).
+const USE_TOGGLE = 'inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-accent/35 disabled:opacity-40';
+const USE_ON = 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20';
+const USE_OFF = 'border-line bg-white text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink';
+const ADD_CANVAS = 'shrink-0 gap-1 px-1.5 text-xs';
+// The removal icon is red at rest and on hover (its own string: rowAction's text colours would override it).
+const REMOVE = 'border-line bg-white text-danger hover:border-line-strong hover:bg-hover';
 const rowAction = (pressed = false) => `${ROW_ACTION} ${pressed ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20' : 'border-line bg-white text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink'}`;
 
 // A document row's metadata: its kind, size and upload day, from the context-documents list (learn-context-docs.js); other
@@ -44,6 +52,8 @@ export default function SourcesPane() {
   // Remove from Materials waiting on its confirmation; per row (sourceId) the action running ('context' | 'remove') or its error.
   const [removing, setRemoving] = useState(null);
   const [rows, setRows] = useState({});
+  // The open row menu: { key, item, top, left, anchor } (portaled, so the list's scroll never clips it).
+  const [rowMenu, setRowMenu] = useState(null);
   if (!chat) return null;
   const { context, sources } = chat;
   const sections = paneSections(context.items, active);
@@ -106,10 +116,10 @@ export default function SourcesPane() {
           const canAddFile = ready && !canAdd && !!canvasFamilyOf(ref) && !!chat.canvasOps?.insertCard;
           const onCanvas = !!doc?.attached;
           return (
-            <section key={key} data-source-section={isActive ? 'active' : ''} className={open ? 'flex min-h-80 flex-1 flex-col' : 'shrink-0'}>
-              {/* Narrower than 22rem, the actions take a second line of their own under the name, never a random wrap. */}
+            <section key={key} data-source-section={isActive ? 'active' : ''} className={open ? 'flex max-h-[70vh] min-h-0 shrink-0 flex-col' : 'shrink-0'}>
+              {/* Narrower than 34rem, the actions take a second line of their own under the name, never a random wrap. */}
               <div data-material-row data-source-id={ref.sourceId} className="@container rounded-md hover:bg-hover">
-                <div className="flex flex-col @[22rem]:flex-row @[22rem]:items-center @[22rem]:gap-1">
+                <div className="flex flex-col @[34rem]:flex-row @[34rem]:items-center @[34rem]:gap-1">
                   <button type="button" aria-expanded={open} disabled={!ready} onClick={toggle} title={item.error || name}
                     className="flex min-h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left text-sm text-ink disabled:cursor-default">
                     <ChevronRight size={14} aria-hidden className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-90' : ''} ${ready ? '' : 'invisible'}`} />
@@ -120,26 +130,30 @@ export default function SourcesPane() {
                     </span>
                     {rangeLabel(ref.kind === 'excerpt' ? null : ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.kind === 'excerpt' ? null : ref.range)}</span>}
                     {busy && <span className="shrink-0 text-xs text-ink-3">{item.state === 'processing' ? 'Processing' : 'Uploading'}</span>}
+                    {/* A source open here but not used in this chat is a preview only (owner review UI-10): it says so. */}
+                    {open && !item.attached && <span data-not-attached className="shrink-0 rounded border border-line px-1 text-[11px] text-ink-2">Not attached</span>}
                   </button>
-                  <div data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @[22rem]:pr-1 @[22rem]:pb-0 @[22rem]:pl-0">
-                    {ready && doc && <button type="button" data-material-action="context" aria-pressed={onCanvas} disabled={!!row.busy}
-                      onClick={act(() => run(item, 'context', () => context.canvasContext(doc, !onCanvas)))}
-                      aria-label={`${onCanvas ? 'Detach' : 'Attach'} ${name} ${onCanvas ? 'from' : 'to'} canvas context`} title={`${onCanvas ? 'Detach' : 'Attach'} ${name} ${onCanvas ? 'from' : 'to'} canvas context`}
-                      className={rowAction(onCanvas)}>{row.busy === 'context' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Paperclip size={14} aria-hidden />}</button>}
-                    {canAdd && <button type="button" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
-                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={rowAction()}><SquarePlus size={14} aria-hidden /></button>}
-                    {canAddFile && <button type="button" data-material-action="canvas" disabled={!!row.busy}
-                      onClick={act(() => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() })))}
-                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={rowAction()}>{row.busy === 'canvas' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <SquarePlus size={14} aria-hidden />}</button>}
+                  <div data-material-actions className="flex shrink-0 flex-wrap items-center gap-1 pb-1 pl-1 @[34rem]:pr-1 @[34rem]:pb-0 @[34rem]:pl-0">
+                    {/* Use in this chat (owner review UI-10, 2026-10-21): the one toggle, this conversation's attachment - the same state
+                        as its composer chip and the refs the next message sends. */}
                     {ready && <button type="button" data-material-action="chat" aria-pressed={!!item.attached}
                       onClick={act(() => (item.attached ? context.detach(item.ref) : context.attach(item.ref)))}
-                      aria-label={item.attached ? `Remove ${name} from this chat` : `Attach ${name} to this chat`} title={item.attached ? `Remove ${name} from this chat` : `Attach ${name} to this chat`}
-                      className={rowAction(!!item.attached)}>{item.attached ? <MessageSquareCheck size={14} aria-hidden /> : <MessageSquarePlus size={14} aria-hidden />}</button>}
+                      aria-label={`Use ${name} in this chat`} title={`Use ${name} in this chat`}
+                      className={`${USE_TOGGLE} ${item.attached ? USE_ON : USE_OFF}`}>{item.attached ? <Check size={13} aria-hidden /> : <MessageSquarePlus size={13} aria-hidden />}Use in this chat</button>}
+                    {canAdd && <Button variant="inverse" size="sm" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}><SquarePlus size={13} aria-hidden />Add to canvas</Button>}
+                    {canAddFile && <Button variant="inverse" size="sm" data-material-action="canvas" disabled={!!row.busy}
+                      onClick={act(() => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() })))}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}>{row.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
+                    {/* The canvas default is its own scope, apart from this chat: it decides what NEW chats on this canvas start with. */}
+                    {ready && doc && <button type="button" data-material-action="more" aria-haspopup="menu" aria-expanded={rowMenu?.key === key} disabled={!!row.busy}
+                      onClick={event => { event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); setRowMenu(open => (open?.key === key ? null : { key, item, top: box.bottom + 4, left: Math.max(8, box.right - 256), anchor: event.currentTarget })); }}
+                      aria-label={`More actions for ${name}`} title={`More actions for ${name}`} className={rowAction()}>{row.busy === 'context' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <MoreHorizontal size={14} aria-hidden />}</button>}
                     {ready && doc && <>
                       <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line" />
                       <button type="button" data-material-action="remove" onClick={act(() => setRemoving(item))} disabled={!!row.busy}
                         aria-label={`Remove ${name} from Materials`} title={`Remove ${name} from Materials`}
-                        className={rowAction()}>{row.busy === 'remove' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>
+                        className={`${ROW_ACTION} ${REMOVE}`}>{row.busy === 'remove' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>
                     </>}
                     {item.state === 'failed' && <>
                       <button type="button" onClick={act(item.retry)} aria-label={`Retry uploading ${name}`} title="Retry" className={rowAction()}><RotateCw size={14} aria-hidden /></button>
@@ -159,6 +173,16 @@ export default function SourcesPane() {
           );
         })}
       </div>
+      {rowMenu && (() => { const { item } = rowMenu, doc = item.doc, onCanvas = !!doc?.attached; return (
+        <Menu portal anchor={rowMenu.anchor} open onClose={() => { rowMenu.anchor?.focus(); setRowMenu(null); }} style={{ top: rowMenu.top, left: rowMenu.left }} className="w-64">
+          {/* Keyboard: the item takes the focus when the menu opens; Escape or a choice hands it back to More. */}
+          <div data-material-menu>
+            <MenuItem autoFocus role="menuitemcheckbox" aria-checked={onCanvas} data-material-action="context" icon={onCanvas ? Check : Paperclip} hint="Canvas default"
+              onClick={() => { rowMenu.anchor?.focus(); setRowMenu(null); run(item, 'context', () => context.canvasContext(doc, !onCanvas)); }}
+              aria-label={`Include ${item.ref.name} in new chats on this canvas`} title={`Include ${item.ref.name} in new chats on this canvas`} className="focus-visible:outline-2 focus-visible:outline-accent/35">Include in new chats</MenuItem>
+            <p data-material-menu-note className="px-2 pt-0.5 pb-1.5 text-xs text-ink-3">New chats on this canvas start with it. This chat is unchanged.</p>
+          </div>
+        </Menu>); })()}
       {/* The wrapper takes the dialog's own overlay box (fixed, full screen), so the confirmation is one visible element. */}
       {removing && <div data-material-remove-confirm className="fixed inset-0 z-50">
         <ConfirmDialog title="Remove from Materials?" confirmLabel="Remove from Materials"

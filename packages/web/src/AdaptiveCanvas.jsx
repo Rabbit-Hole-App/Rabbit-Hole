@@ -3576,8 +3576,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const askedId = useRef(null);
   // The selected object's chat-context identity (pdf-materials-refinement.md section 6): a PDF card or page is its document and
   // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
-  // A repository code card is its code ref at its commit (code-card.js codeCardRef), the one its own Add to chat gives (UI-09).
-  const codeChatRef = object => (object?.type === 'repo-code' && object.source?.kind === 'repository' ? codeCardRef(object) : null);
+  // A code card is its code-card.js codeCardRef, the one its own Add to chat gives (UI-09/UI-10): a repository card its file and
+  // lines at its commit, an uploaded one its stored file (its text is read in addToChat below).
+  const codeChatRef = object => (object?.type === 'repo-code' ? codeCardRef(object) : null);
   const chatRefOf = object => excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
     const found = describeObject(block);
@@ -3665,7 +3666,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // A repository code card is its code ref: the file and lines at its commit, read under the owner check (UI-09).
       const sourceRef = excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object);
       if (sourceRef) {
-        if (chatWorkspace.addToChat(sourceRef, { fileRef: object.fileRef }) === false) return false;
+        // An uploaded code card carries its stored text, as CodeCard's own Add to chat does; an unreadable asset adds its name only.
+        if (object.type === 'repo-code' && object.source?.kind === 'upload') {
+          loadAsset(object.source.assetKey).then(value => (typeof value === 'string' ? value : value?.text?.() ?? ''))
+            .then(text => chatWorkspace.addToChat(codeCardRef(object, text)), () => chatWorkspace.addToChat(sourceRef));
+        } else if (chatWorkspace.addToChat(sourceRef, { fileRef: object.fileRef }) === false) return false;
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
         return true;
       }
