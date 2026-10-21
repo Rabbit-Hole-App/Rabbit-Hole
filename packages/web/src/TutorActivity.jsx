@@ -95,7 +95,13 @@ export function TutorActivity({ chat, board }) {
   const key = useRef({ for: null, value: null });
   const shown = activity && ['in_progress', 'awaiting_feedback', 'feedback_ready'].includes(activity.status);
   const id = activity ? `${activity.activityId}@${activity.revision}` : null;
-  useEffect(() => { setAnswer(''); setResult(null); key.current = { for: null, value: null }; }, [id]);
+  // An activity updated to the current source (Task 12, TutorCodebase.jsx) keeps the learner's unsent answer.
+  const lastId = useRef(null);
+  useEffect(() => {
+    if (!activity || activity.checkpoint?.codebase?.refreshedFrom !== lastId.current) setAnswer('');
+    lastId.current = activity?.activityId ?? null;
+    setResult(null); key.current = { for: null, value: null };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Feedback saved earlier (a reload, another device): read the attempt once, without any model call, and show the accepted
   // submission with it (draft Task 05).
   const saved = activity?.checkpoint?.assessment;

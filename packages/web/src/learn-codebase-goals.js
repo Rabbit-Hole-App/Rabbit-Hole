@@ -127,11 +127,19 @@ export function indexVocabulary(index) {
   for (const label of index?.labels || []) for (const word of words(label)) if (!STOP.has(word)) vocabulary.add(stem(word));
   return vocabulary;
 }
+// terms: the request's words that matched; matches: the index tokens they matched (a word and a token of 5+ letters match
+// when one begins the other: "percentage" and completionPercent).
 export function repositoryRelevance(index, text, vocabulary = indexVocabulary(index)) {
-  const asked = words(text).filter(word => !STOP.has(word));
-  const terms = [...new Set(asked.filter(word => vocabulary.has(stem(word))))];
-  const codeWords = [...new Set(asked.filter(word => CODE_WORDS.has(word)))];
-  return { relevant: terms.length > 0 || codeWords.length > 0, terms, codeWords };
+  const asked = [...new Set(words(text).filter(word => !STOP.has(word)))];
+  let list = null;
+  const terms = [], matches = [];
+  for (const word of asked) {
+    const s = stem(word);
+    const hit = vocabulary.has(s) ? s : s.length >= 5 ? (list ||= [...vocabulary]).find(v => v.length >= 5 && (v.startsWith(s) || s.startsWith(v))) : null;
+    if (hit) { terms.push(word); if (!matches.includes(hit)) matches.push(hit); }
+  }
+  const codeWords = asked.filter(word => CODE_WORDS.has(word));
+  return { relevant: terms.length > 0 || codeWords.length > 0, terms, matches, codeWords };
 }
 // A snapshot's index for repositoryRelevance: what the browser's snapshot route already lists, never file contents.
 export const snapshotIndex = snapshot => ({

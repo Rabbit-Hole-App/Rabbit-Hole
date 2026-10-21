@@ -65,8 +65,8 @@ export async function learningSourceMap(snapshot, { goal, question = '', selecte
     if (usable(path, true)) take(path, { line: ref.range?.start || node?.line || null, end: ref.range?.end || null, symbol: node?.label || null, origin: 'selected' });
   }
   // 2. The request's words that name something in the index, matched by the existing graph query (labels and paths, one hop).
-  const relevance = question ? repositoryRelevance(null, question, indexVocabulary(snapshotIndex(snapshot))) : { relevant: false, terms: [] };
-  const stems = relevance.terms.map(word => word.replace(/ies$/, 'y').replace(/(ions?|ing|ed|es|s)$/, '')).filter(word => word.length > 2);
+  const relevance = question ? repositoryRelevance(null, question, indexVocabulary(snapshotIndex(snapshot))) : { relevant: false, terms: [], matches: [] };
+  const stems = relevance.matches.filter(token => token.length > 2);
   const found = picked.size > 0 || stems.length > 0;
   if (stems.length) {
     const sub = read('query_graph', { query: stems.join(' ').slice(0, 200) });
@@ -74,8 +74,15 @@ export async function learningSourceMap(snapshot, { goal, question = '', selecte
     const ranked = (sub?.seeds || []).map(id => byId.get(id)).filter(n => usable(n?.path));
     for (const role of g.roles) for (const n of ranked) if (fileRole(n.path) === role) take(n.path, { line: n.line, symbol: n.label, origin: 'request' });
     for (const n of ranked) take(n.path, { line: n.line, symbol: n.label, origin: 'request' });
-    // One hop from what matched: the files the indexer links to it (imports, calls), so the path can be traced.
-    for (const n of sub?.nodes || []) if (usable(n.path) && g.roles.includes(fileRole(n.path))) take(n.path, { line: n.line, symbol: n.label, origin: 'related' });
+  }
+  // One hop along the indexer's links from what was selected or matched (imports, calls), so the path can be traced; files
+  // further out stay listed as not shown, to expand on request.
+  const fileOf = new Map(graph.nodes.map(n => [n.id, n.path || null]));
+  for (const path of [...picked.keys()]) {
+    for (const edge of graph.edges) {
+      const a = fileOf.get(edge.source), b = fileOf.get(edge.target), other = a === path ? b : b === path ? a : null;
+      if (other && other !== path && usable(other) && g.roles.includes(fileRole(other))) take(other, { origin: 'related' });
+    }
   }
   // 3. The goal's own roles: tests that name a picked symbol, the shallowest manifest and documentation.
   const symbols = [...picked.values()].map(p => p.symbol).filter(s => s && !/\.\w+$/.test(s)).map(s => s.replace(/^\.|\(\)$/g, '')).slice(0, 3);
