@@ -185,7 +185,9 @@ for (const entry of scenes) {
   });
   await step(`${entry.id}: the moved control is saved with the board and a fresh browser shows it`, async () => {
     if (!saved) { console.log('   (no controls: nothing to save)'); return; }
-    await until(async () => (await board()).blocks.find(block => block.id === id)?.inputs?.[saved.name] === saved.value, 'the server board does not hold the moved control', 20000);
+    // Every control, not only the moved one: the walk above ends on a combination, so the others were just set back to defaults.
+    const want = Object.fromEntries(declarations.map(d => [d.name, d.name === saved.name ? saved.value : d.default]));
+    await until(async () => { const held = (await board()).blocks.find(block => block.id === id)?.inputs || {}; return declarations.every(d => JSON.stringify(held[d.name] ?? d.default) === JSON.stringify(want[d.name])); }, 'the server board does not hold the moved control with the others at their defaults', 20000);
     const fresh = await open();
     const card = fresh.page.locator(`[data-block-id="${id}"]`);
     await card.locator('[data-scene-controls]').waitFor({ timeout: 30000 });
