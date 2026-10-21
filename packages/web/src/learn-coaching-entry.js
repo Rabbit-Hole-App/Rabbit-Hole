@@ -87,8 +87,8 @@ export function entryAction(action, checkpoint = {}) {
     case 'review': return { label: 'Review my work', send: 'Review my work on this canvas.', event: 'check_review' };
     case 'build_lesson': return { label: 'Build a lesson from this', send: 'Build a lesson from my work on this canvas.' };
     case 'continue': return { label: 'Continue where I left off', focus: true };
-    case 'recap': return { label: 'Give me a short recap', send: `Give me a short recap of ${goal}.` };
-    case 'quick_check': return { label: 'Try a quick check', send: `Give me a quick check on ${goal}.` };
+    case 'recap': return { label: 'Short recap', send: `Give me a short recap of ${goal}.` };
+    case 'quick_check': return { label: 'Quick check', send: `Give me a quick check on ${goal}.` };
     case 'next_goal': return { label: 'Choose a next goal', send: 'Help me choose my next goal.' };
     case 'retry': return { label: 'Retry', retry: true };
     default: return null;

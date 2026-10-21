@@ -11,7 +11,7 @@
 //   learningSourceMap(snapshot, {goal, question, selectedRefs}) -> {repository, goal, found, nodes, edges, citations, omissions, omissionCounts}
 //   buildLearningSourceMap(env, actor {org, email}, {repositoryRef, revision, goal, question, selectedRefs}) -> the map, or null when
 //     that repository version is not readable by the actor (repositories.js readableVersion)
-//   codebaseActivity(goal, map, {focus, app}) -> the goal's first activity, with its citations and the current-code wording
+//   codebaseActivity(goal, map, {focus, app, index}) -> the goal's question `index` (0: the first), with its citations
 //   sourceDrift(sourceRefs, snapshot) -> which cited files changed or went, by content hash
 //
 // The route, POST/GET /api/learn/codebase (the signed-in learner's own canvas, as the coaching route resolves it):
@@ -21,7 +21,9 @@
 //           through the coaching store (learn 0025) - no new table
 //   POST {action: 'refresh', app, board, activityId, actionId, expectedRevision} -> {state, activityId, drift}: a new activity
 //        at the current commit; the old one keeps its revision, its attempts and its feedback
-import { CODEBASE_GOALS, NOT_RUN_NOTE, REPOSITORY_SOURCE, excludedReason, fileRole, goalOf, indexVocabulary, isRepositorySource, repositoryRelevance, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
+//   POST {action: 'another', app, board, activityId, actionId, expectedRevision} -> {state, activityId}: Try another question,
+//        the goal's next question on the same sources at the same commit (owner brief 2026-10-21 "Activity states")
+import { CODEBASE_GOALS, REPOSITORY_SOURCE, excludedReason, fileRole, goalOf, indexVocabulary, isRepositorySource, repositoryRelevance, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
 import { parseCodeRef, repositoryTool } from './repository-context.js';
 import { readableVersion, repositorySnapshot } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
@@ -149,40 +151,41 @@ export async function buildLearningSourceMap(env, actor, { repositoryRef, revisi
   return learningSourceMap(await repositorySnapshot(env, row, revision), { goal, question, selectedRefs });
 }
 
-// The goal's first activity from the map: one objective, one action, citations, and wording that names whether it asks about
-// the current code, the intended behaviour or a proposed change. Template text only: no model writes it.
-export function codebaseActivity(goal, map, { focus = '', app = null } = {}) {
-  const g = typeof goal === 'string' ? goalOf(goal) : goal, commit = map.repository.commit, short = commit.slice(0, 7);
-  const cite = list => list.slice(0, 3).map(n => `${n.path}:${n.sourceRef.locator.start}-${n.sourceRef.locator.end}`).join(', ');
-  const of = role => map.nodes.filter(n => n.role === role);
-  const code = cite(of('source')) || cite(map.nodes) || 'the cited files', what = clip(focus, 120) || 'this code';
-  let objective, prompt;
-  switch (g.first) {
-    case 'trace_and_predict':
-      objective = `Trace ${what} through the current code`;
-      prompt = `A question about the current code at commit ${short}. Starting from ${code}, which call and data change come next, and what does the current code produce? Cite the lines you rely on. If you think it should produce something different, say that separately as the intended behaviour.`;
-      break;
-    case 'reproduce_and_isolate':
-      objective = `Find the cause: ${what}`;
-      prompt = `Two separate questions. Current code (commit ${short}): what do ${code} actually do for your input? Intended behaviour: what should happen instead? Then give one hypothesis tied to a line you cite.${of('test').length ? ` The nearby tests (${cite(of('test'))}) cover only their own cases.` : ''} The diagnosis stays tentative until a reproduction confirms it. ${NOT_RUN_NOTE}`;
-      break;
-    case 'plan_bounded_edit':
-      objective = `Plan a focused change: ${what}`;
-      prompt = `A proposed change, not the current behaviour. Give two example inputs with the outputs you want, name the smallest area to edit in ${code}, and the test you would add${of('test').length ? ` beside ${cite(of('test'))}` : ''}. Your change is reviewed only when you submit it. ${NOT_RUN_NOTE}`;
-      break;
-    case 'locate_and_verify': {
-      const guides = cite([...of('docs'), ...of('config'), ...of('test')]) || 'the repository';
-      objective = 'Find where a small contribution belongs and how it is verified';
-      prompt = `A question about the current repository at commit ${short}. Using ${guides}: where would a small change, such as one more test, belong, and which command runs the tests? A listed script is not proof that it runs here. ${NOT_RUN_NOTE}`;
-      break;
-    }
-    default:
-      objective = `Learn ${what} through this code`;
-      prompt = `Explain ${what} using ${code} from the current code at commit ${short}, then apply the same idea to a different example: one you choose, or ask me for one.`;
-  }
+// The goal's questions, as the learner reads them (owner brief 2026-10-21 "Question presentation"): a title and a natural
+// teaching question, never a commit, a path or a line list; those stay in the activity's sources and Source details. Each names
+// whether it asks about the current code, the intended behaviour or a proposed change. The first starts the goal; Try another
+// question takes the next, on the same sources. Template text only: no model writes it.
+const QUESTIONS = {
+  trace_and_predict: [
+    what => [`Trace ${what}`, `Follow ${what} through the current code, from where it starts to its result. Which calls and data changes happen along the way, and what does the current code produce? Cite the lines you rely on. If you think it should produce something different, say that separately as the intended behaviour.`],
+    what => [`Predict what ${what} produces`, `Choose one input and predict what the current code produces for it. Explain the order of operations that leads there, citing the lines you rely on. Say separately if you think the intended behaviour differs.`],
+  ],
+  reproduce_and_isolate: [
+    (what, { tests }) => [`Find the cause: ${what}`, `Two separate questions. Current code: what does it actually do for your input? Intended behaviour: what should happen instead? Then give one hypothesis for the cause, tied to lines you cite.${tests ? ' The nearby tests cover only their own cases.' : ''} The diagnosis stays tentative until a reproduction confirms it.`],
+    what => [`Confirm the cause: ${what}`, `Which input or test would tell your hypothesis apart from the alternatives? Say what the current code would do if your hypothesis is right, citing the lines you rely on. The diagnosis stays tentative until a reproduction confirms it.`],
+  ],
+  plan_bounded_edit: [
+    (what, { tests }) => [`Plan a focused change: ${what}`, `A proposed change, not the current behaviour. Give two example inputs with the outputs you want, name the smallest area of the code to edit, and the test you would add${tests ? ' beside the existing tests' : ''}. Your change is reviewed only when you submit it.`],
+    what => [`Verify the change: ${what}`, `A proposed change, not the current behaviour. Which tests or cases would show your change works and keeps the existing behaviour, and what result would each give?`],
+  ],
+  locate_and_verify: [
+    () => ['Find where a small contribution belongs and how it is verified', 'A question about the current repository. Where would a small change, such as one more test, belong, and which command runs the tests? A listed script is not proof that it runs here.'],
+    () => ['Explain how a change here is verified', 'A question about the current repository. Which command or checks verify a change, and what does each one cover? A listed script is not proof that it runs here.'],
+  ],
+  explain_then_apply: [
+    what => [`Learn ${what} through this code`, `How does the current code show ${what}? Go beyond naming the file: explain what the lines you cite do. Then apply the same idea to a different example: one you choose, or ask me for one.`],
+    what => [`Use ${what} in another example`, `Explain ${what} as the current code uses it, citing the lines you rely on, then describe how the same idea would work in a different program of your choice.`],
+  ],
+};
+
+// The goal's activity from the map, question `index` (0: the first): one objective, one question, its citations.
+export function codebaseActivity(goal, map, { focus = '', app = null, index = 0 } = {}) {
+  const g = typeof goal === 'string' ? goalOf(goal) : goal, commit = map.repository.commit;
+  const what = clip(focus, 120) || 'this code', list = QUESTIONS[g.first] || QUESTIONS.explain_then_apply;
+  const [objective, prompt] = list[index % list.length](what, { tests: map.nodes.some(n => n.role === 'test') });
   const codebase = {
     goal: g.id, app, repo: map.repository.repo, commit, question: g.question, focus: clip(focus, 300), completion: g.completion,
-    edges: map.edges, omissions: map.omissions.slice(0, 10), omissionCounts: map.omissionCounts, execution: 'not_run_here',
+    edges: map.edges, omissions: map.omissions.slice(0, 10), omissionCounts: map.omissionCounts, execution: 'not_run_here', questionIndex: index,
   };
   // The checkpoint is capped (learn-coaching-store.js MAX_CHECKPOINT): the edge and omission lists shrink before anything else.
   while (JSON.stringify(codebase).length > 7000 && (codebase.edges.length || codebase.omissions.length)) {
@@ -292,14 +295,29 @@ export async function codebaseRoute(path, req, env, deps = {}) {
       const drift = await sourceDrift(old.sourceRefs, snapshot);
       const map = await learningSourceMap(snapshot, { goal, question: was.focus, selectedRefs, expand: false });
       for (const path of drift.items.filter(i => i.status === 'deleted').map(i => i.path)) map.omissions.unshift({ path, reason: 'deleted', detail: `since ${was.commit.slice(0, 7)}` });
-      const next = codebaseActivity(goal, map, { focus: was.focus, app: repo.app });
+      const next = codebaseActivity(goal, map, { focus: was.focus, app: repo.app, index: was.questionIndex || 0 });
       const { assessment, ...kept } = old.checkpoint; // eslint-disable-line no-unused-vars
       const out = await applyCoachingAction(env, actor, { actionId: body.actionId, expectedRevision: body.expectedRevision, action: 'activate_activity',
         payload: { activity: { goalId: old.goalId, objective: next.objective, prompt: next.prompt, responseKind: next.responseKind, criterionRefs: goalCriteria(state, old.goalId),
           sourceRefs: next.sourceRefs, checkpoint: { ...kept, codebase: { ...next.checkpoint.codebase, refreshedFrom: old.activityId, previousCommit: was.commit } } } } });
       return json({ state: out.state, activityId: out.state.activeActivityId, drift });
     }
-    return json({ error: 'action must be start or refresh' }, 400);
+    if (body.action === 'another') {
+      const state = await readCoachingState(env, actor), old = codebaseActivityOf(state, body.activityId);
+      const was = old?.checkpoint.codebase, goal = goalOf(was?.goal);
+      if (!old || !goal || was.repo !== repo.repo) return json({ error: 'unknown_activity' }, 404);
+      // The activity's own sources, as the server recorded them: nothing is re-read or re-cited, and the answer starts empty.
+      const { refreshedFrom, previousCommit, ...base } = was; // eslint-disable-line no-unused-vars
+      const nodes = old.sourceRefs.filter(isRepositorySource).map(ref => ({ role: ref.locator.role, sourceRef: ref }));
+      const next = codebaseActivity(goal, { repository: { repo: was.repo, commit: was.commit }, nodes, edges: was.edges || [], omissions: was.omissions || [], omissionCounts: was.omissionCounts || {} },
+        { focus: was.focus, app: was.app, index: (was.questionIndex || 0) + 1 });
+      const { assessment, ...kept } = old.checkpoint; // eslint-disable-line no-unused-vars
+      const out = await applyCoachingAction(env, actor, { actionId: body.actionId, expectedRevision: body.expectedRevision, action: 'activate_activity',
+        payload: { activity: { goalId: old.goalId, objective: next.objective, prompt: next.prompt, responseKind: next.responseKind, criterionRefs: goalCriteria(state, old.goalId),
+          sourceRefs: old.sourceRefs, checkpoint: { ...kept, codebase: { ...base, questionIndex: next.checkpoint.codebase.questionIndex } } } } });
+      return json({ state: out.state, activityId: out.state.activeActivityId });
+    }
+    return json({ error: 'action must be start, refresh or another' }, 400);
   } catch (error) {
     if (error instanceof CoachingConflict) {
       if (error.status !== 409) return json({ error: error.code }, error.status);

@@ -229,7 +229,8 @@ test('opening or selecting makes no AI request: the repository loader and reader
   const calls = (code) => [...code.matchAll(/api\(`([^`]*)`/g)].map((m) => m[1]);
   // The inspector reads a file's lines and the object's saved conversation (a GET of stored messages), never an ask route.
   assert.deepEqual(calls(inspector), ['/api/repositories/${app}/file', '/api/repositories/${app.name}/threads?node=${encodeURIComponent(object.id)}&commit=${snapshot.commit}']);
-  assert.deepEqual(calls(read('RepositorySource.jsx')), ['/api/repositories/${appName}/file']);
+  // The Sources pane reads code by repository and commit (card-source, a stored-file read) on a project canvas.
+  assert.deepEqual(calls(read('RepositorySource.jsx')), ['/api/repositories/card-source?repo=${encodeURIComponent(repo)}&commit=${encodeURIComponent(commit)}&path=${encodeURIComponent(path)}', '/api/repositories/${appName}/file']);
   assert.deepEqual(calls(loader), ['${root}/snapshot', '${root}/refresh']);
   for (const code of [page, wired, loader, inspector, read('RepositoryGraph.jsx'), read('CodeReader.jsx'), read('inspector.js')]) assert.doesNotMatch(code, /fetch\(|streamAsk|\/ask\b|learn\/ask/);
   assert.equal(wired.match(/learnAction\(/g).length, 1, 'only Learn this, from its button');
