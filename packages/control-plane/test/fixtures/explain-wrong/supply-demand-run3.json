@@ -1,0 +1,355 @@
+{
+  "id": "supply-demand@3",
+  "command": "explain",
+  "args": "how a price ceiling below the equilibrium price creates a shortage",
+  "at": "2026-10-21T16:29:50.889Z",
+  "ms": 34753,
+  "httpStatus": 200,
+  "failure": null,
+  "response": {
+    "result": "artifact",
+    "primitive": "animation",
+    "block": {
+      "type": "animation",
+      "title": "Price ceiling below equilibrium: where the shortage comes from",
+      "scene": {
+        "id": "price-ceiling-shortage",
+        "title": "A price ceiling below equilibrium creates a shortage",
+        "width": 900,
+        "height": 560,
+        "duration": 2.5,
+        "inputs": [
+          {
+            "name": "price",
+            "type": "index",
+            "label": "Legal price per unit",
+            "of": "priceLabels",
+            "default": 4,
+            "presentation": "picker"
+          },
+          {
+            "name": "showGap",
+            "type": "bool",
+            "label": "Show the shortage gap",
+            "default": true
+          }
+        ],
+        "exampleData": {
+          "priceLabels": [
+            "$2",
+            "$3",
+            "$4",
+            "$5",
+            "$6",
+            "$7"
+          ],
+          "prices": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "qdList": [
+            120,
+            100,
+            80,
+            60,
+            40,
+            20
+          ],
+          "qsList": [
+            20,
+            40,
+            60,
+            80,
+            100,
+            120
+          ],
+          "gapOn": "Shortage = quantity demanded - quantity supplied, at the legal price.",
+          "gapOff": "Turn the gap back on to compare the two quantities.",
+          "ceilingNote": [
+            "Ceiling $2: far below equilibrium - a severe shortage.",
+            "Ceiling $3: below equilibrium - buyers outnumber units offered.",
+            "Ceiling $4: below equilibrium $5 - a shortage appears.",
+            "$5 is the equilibrium price: the market clears, no shortage.",
+            "A ceiling above $5 is non-binding: price stays at $5, no effect.",
+            "A ceiling above $5 is non-binding: price stays at $5, no effect."
+          ]
+        },
+        "derived": {
+          "p": {
+            "op": "pick",
+            "args": [
+              "prices",
+              "price"
+            ]
+          },
+          "pLabel": {
+            "op": "pick",
+            "args": [
+              "priceLabels",
+              "price"
+            ]
+          },
+          "qd": {
+            "op": "pick",
+            "args": [
+              "qdList",
+              "price"
+            ]
+          },
+          "qs": {
+            "op": "pick",
+            "args": [
+              "qsList",
+              "price"
+            ]
+          },
+          "qdVec": {
+            "op": "concat",
+            "args": [
+              "qd"
+            ]
+          },
+          "qsVec": {
+            "op": "concat",
+            "args": [
+              "qs"
+            ]
+          },
+          "gapVec": {
+            "op": "sub",
+            "args": [
+              "qdVec",
+              "qsVec"
+            ]
+          },
+          "gap": {
+            "op": "sum",
+            "args": [
+              "gapVec"
+            ]
+          },
+          "bars": {
+            "op": "concat",
+            "args": [
+              "qd",
+              "qs"
+            ]
+          },
+          "gapShown": {
+            "op": "gate",
+            "args": [
+              "gapVec",
+              "showGap"
+            ]
+          },
+          "note": {
+            "op": "pick",
+            "args": [
+              "ceilingNote",
+              "price"
+            ]
+          },
+          "gapText": {
+            "op": "choose",
+            "args": [
+              "showGap",
+              "gapOn",
+              "gapOff"
+            ]
+          }
+        },
+        "objects": [
+          {
+            "id": "q",
+            "type": "text",
+            "initialState": {
+              "text": "Why does a cheap legal price leave buyers empty-handed?",
+              "x": 40,
+              "y": 44,
+              "typography": "heading"
+            }
+          },
+          {
+            "id": "sub",
+            "type": "text",
+            "initialState": {
+              "text": "Equilibrium in this illustrative market: price $5, quantity 80 units.",
+              "x": 40,
+              "y": 78,
+              "typography": "body"
+            }
+          },
+          {
+            "id": "priceline",
+            "type": "text",
+            "initialState": {
+              "text": "Legal price set at {{pLabel}}",
+              "x": 40,
+              "y": 130,
+              "typography": "heading",
+              "role": "input"
+            }
+          },
+          {
+            "id": "schedule",
+            "type": "grid",
+            "initialState": {
+              "label": "quantities at this price (units)",
+              "x": 40,
+              "y": 200,
+              "rows": 1,
+              "cols": 2,
+              "cell": 78,
+              "matrixKind": "derived",
+              "columnLabels": [
+                "demanded",
+                "supplied"
+              ],
+              "rowLabels": [
+                "units"
+              ],
+              "values": {
+                "$derive": "bars"
+              },
+              "role": "input",
+              "w": 156,
+              "h": 78
+            }
+          },
+          {
+            "id": "chart",
+            "type": "bars",
+            "initialState": {
+              "label": "quantity demanded vs quantity supplied",
+              "x": 450,
+              "y": 200,
+              "h": 150,
+              "cell": 80,
+              "labels": [
+                "demanded",
+                "supplied"
+              ],
+              "values": {
+                "$derive": "bars"
+              },
+              "role": "output",
+              "w": 160
+            }
+          },
+          {
+            "id": "gapstrip",
+            "type": "strip",
+            "initialState": {
+              "label": "shortage (units unavailable)",
+              "x": 40,
+              "y": 400,
+              "cell": 64,
+              "numberFormat": "integer",
+              "role": "warning",
+              "values": {
+                "$derive": "gapShown"
+              },
+              "w": 64,
+              "h": 64
+            }
+          },
+          {
+            "id": "gapsent",
+            "type": "text",
+            "initialState": {
+              "text": "{{qd}} wanted - {{qs}} offered = {{gap}} units of shortage",
+              "x": 40,
+              "y": 470,
+              "typography": "body",
+              "role": "warning"
+            }
+          },
+          {
+            "id": "note",
+            "type": "text",
+            "initialState": {
+              "text": "{{note}}",
+              "x": 40,
+              "y": 505,
+              "typography": "annotation"
+            }
+          },
+          {
+            "id": "gapnote",
+            "type": "text",
+            "initialState": {
+              "text": "{{gapText}}",
+              "x": 40,
+              "y": 535,
+              "typography": "annotation"
+            }
+          }
+        ],
+        "timeline": [
+          {
+            "at": 0,
+            "action": "appear",
+            "target": "schedule",
+            "duration": 0.4
+          },
+          {
+            "at": 0.6,
+            "action": "appear",
+            "target": "chart",
+            "duration": 0.5
+          },
+          {
+            "at": 1.4,
+            "action": "appear",
+            "target": "gapstrip",
+            "duration": 0.5
+          },
+          {
+            "at": 2,
+            "action": "emphasize",
+            "target": "gapsent",
+            "duration": 0.5
+          }
+        ]
+      },
+      "time": 2.5,
+      "selectedObject": null,
+      "marked": null,
+      "calculation": "live"
+    },
+    "repaired": true
+  },
+  "usage": [
+    {
+      "op_id": "provider-10702ee8-f71e-4c07-8ca9-9b997c42ff13",
+      "status": "settled",
+      "category": "provider",
+      "cost_usd": 0.07192,
+      "model": "claude-opus-5",
+      "error": null,
+      "admitted_at": 1792600191,
+      "settled_at": 1792600209,
+      "input_tokens": 6139,
+      "output_tokens": 1649,
+      "kind": "generation"
+    },
+    {
+      "op_id": "provider-fbe08240-6b48-4721-b8d6-768e9b267f6f",
+      "status": "settled",
+      "category": "provider",
+      "cost_usd": 0.086005,
+      "model": "claude-opus-5",
+      "error": null,
+      "admitted_at": 1792600209,
+      "settled_at": 1792600225,
+      "input_tokens": 8056,
+      "output_tokens": 1829,
+      "kind": "repair"
+    }
+  ],
+  "cost_usd": 0.15792499999999998
+}

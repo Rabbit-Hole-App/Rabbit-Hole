@@ -18,10 +18,12 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
-import { calculationProblem, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
+import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
+import { VERIFY_SYSTEM, VERIFY_TOOL, verifyMessage } from './agents/learn-scene-verify.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
+const VERIFIER = 'scene verifier', VERIFY_MAX_TOKENS = 2000;
 // A long text field's limit, said in words in the tool's description: a schema maxLength alone was overrun twice, repair
 // included (inline lane R, 2026-10-13: an explanation body over 2,000 characters, nothing added, $0.12).
 const lengths = schema => Object.entries(schema.properties || {}).filter(([, field]) => field.type === 'string' && field.maxLength >= 500)
@@ -82,6 +84,20 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
     if (calls.length !== 1) throw new Error('The model returned no artifact.');
     return { result, call: calls[0] };
   };
+  // The verifier pass (owner, 2026-10-21): a scene that passed the gates is read back setting by setting by a second call,
+  // through the same spend admission; a statement it reports goes to the one repair, and a scene still reported is no card.
+  // LEARN_SCENE_VERIFIER=off turns it off.
+  const verify = async block => {
+    const response = await callModel(withAttemptKind(env, 'evaluation'), { max_tokens: VERIFY_MAX_TOKENS, system: VERIFY_SYSTEM, tools: [VERIFY_TOOL],
+      tool_choice: { type: 'any', disable_parallel_tool_use: true },
+      messages: [{ role: 'user', content: verifyMessage({ request: input.args, title: block.title, calculation: block.calculation, card: cardAtSettings(block.scene) }) }] }, LEARN_TASKS.artifact.model, null);
+    const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
+    if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error, { cause: VERIFIER });
+    if (!response.ok) throw new Error(`The interactive explanation could not be checked (model HTTP ${response.status}), so nothing was added. Try again.`, { cause: VERIFIER });
+    const problems = (await response.json()).content?.find(part => part.type === 'tool_use' && part.name === VERIFY_TOOL.name)?.input?.problems;
+    if (!Array.isArray(problems)) throw new Error('The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again.', { cause: VERIFIER });
+    return problems.length ? `A check of the card found statements that are false: ${problems.map((problem, i) => `${i + 1}) ${problem.setting ? `with ${problem.setting}, ` : ''}"${problem.object}" says "${problem.says}": ${problem.wrong}`).join(' ')}` : null;
+  };
   let { result, call } = await ask(messages);
   // At most one repair: the first failure goes back to the model once.
   for (let attempt = 0; ; attempt++) {
@@ -103,11 +119,13 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
         ({ extraction, ...block } = checked.result);
       } else block = artifactBlock(id, call.input);
       if (GATES[id]) block = GATES[id](block);
+      if (id === 'animation' && env.LEARN_SCENE_VERIFIER !== 'off') { const problem = await verify(block); if (problem) throw new Error(problem); }
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
       return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
     } catch (error) {
       // Which check refused which attempt: the validator's words only, never the spec (a repair's cause is otherwise invisible).
       console.log(JSON.stringify({ event: 'learn_artifact_invalid', primitive: id || null, attempt, error: String(error.message).slice(0, 300) }));
+      if (error.cause === VERIFIER) throw error; // the check could not run: nothing for the model to repair
       if (input.imageSource || attempt >= ARTIFACT_REPAIRS) return { result: 'validation_error', primitive: id || null, error: error.message };
       ({ result, call } = await ask([...messages, { role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, is_error: true, content: `Validation failed: ${error.message}. Return the complete corrected input with one of the same tools. This is the only correction attempt.` }] }], 'repair'));
     }

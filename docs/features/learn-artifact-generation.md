@@ -325,8 +325,15 @@ help the idea, and a text explanation otherwise. The Tutor reaches the same capa
   them; an index range a changing sentence states (`Range 4..6`) must be that object's non-zero span or a block of zeros,
   once at some setting a range it states was that span. The wrong real scenes (both original cards and the binary-search
   rerun) are kept as fixtures (`control-plane/test/fixtures/explain-wrong/`) and stay refused.
-  **Boundary:** the truth of a stored number the card never restates is not checked (a wrong but self-consistent table
-  passes), nor a sentence naming a table value in words ("equilibrium at $5"); a precomputed scene says so on its face.
+  These rules prove only what they read: a stored number the card never restates, or a sentence naming a table value in
+  words ("equilibrium at $5"), is left to the verifier pass.
+- **Verifier pass** (owner, 2026-10-21). A scene that passes the gates is read back by a second call
+  (`agents/learn-scene-verify.js`; the same model, through spend admission, recorded as an `evaluation` attempt) with the
+  card as the learner meets it at every checked setting (`learn-scene-gates.js` `cardAtSettings`). A false statement it
+  reports (one the card's own numbers contradict, or one wrong about the subject) goes to the one repair; a scene still
+  reported is a `validation_error`, never a card. When the check cannot run (a model error, a spend refusal), nothing is
+  added and nothing is repaired. Cost: one more call per scene, two after a repair. `LEARN_SCENE_VERIFIER=off` turns it
+  off. Its judgement is model behavior: the unit tests (the supply-demand rerun as a fixture) prove the wiring only.
 - **Choice.** The model chooses between scene and text (`ARTIFACT_SYSTEM`). Words narrow it (`agent/slash.js`
   `PLAIN_WORDS`, `INTERACTIVE_WORDS`): an interactive request is offered only the scene, so it never silently becomes
   text. A failed one keeps the line to retry and offers "Make a plain explanation instead" (`/explain in plain text: ...`).

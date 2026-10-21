@@ -6,6 +6,7 @@ import { evaluateScene } from '../../web/src/scene-evaluate.js';
 import { checkSceneConsistency } from '../../web/src/scene-consistency.js';
 import { checkLayoutLint } from '../../web/src/scene-layout-lint.js';
 import { cellLegibilityIssues, legibilityIssues, sceneContentBounds } from '../../web/src/scene-layout.js';
+import { formatCell } from '../../web/src/scene-format.js';
 
 // What a precomputed scene says on its face (owner, 2026-10-21): a control there selects stored results, it recalculates
 // nothing. Fixed words, placed by the server under the scene's content, never written by the model.
@@ -205,4 +206,38 @@ export function withSamplesNote(scene, calculation) {
   const x = Math.round(bounds?.xMin ?? 40), y = Math.round((bounds?.yMax ?? (scene.height || 400) - 40) + 32);
   const note = { id: 'samples-note', type: 'text', semanticId: 'samples-note', initialState: { text: SAMPLES_NOTE, x, y, typography: 'annotation' } };
   return { ...scene, height: Math.max(scene.height || 0, y + 24), objects: [...objects, note] };
+}
+
+// The card as a learner meets it, for the verifier pass (agents/learn-scene-verify.js): every shown object at the defaults,
+// then, for each other setting inputStates checks, what changes. Numbers as the renderer prints them (formatCell).
+export function cardAtSettings(scene) {
+  const declared = (scene.inputs || []).filter(input => !input.hidden);
+  const named = (input, value) => {
+    if (input.type === 'bool') return value ? 'on' : 'off';
+    if (input.type === 'choice') return input.options?.find(option => option.id === value)?.label ?? value;
+    const entry = input.type === 'index' ? scene.exampleData?.[input.of]?.[value] : undefined;
+    return typeof entry === 'string' || typeof entry === 'number' ? `${entry} (position ${value})` : JSON.stringify(value);
+  };
+  const lines = [`Controls: ${declared.map(input => `${input.name} ("${input.label}")`).join('; ') || 'none'}.`];
+  let defaults = null;
+  for (const inputs of inputStates(scene)) {
+    const { state, inputs: values } = evaluateScene(structuredClone(scene), scene.duration, inputs);
+    const shown = new Map(state.objects.filter(object => object.visible && object.opacity > 0.01).map(object => [object.id, describe(object)]).filter(([, words]) => words));
+    const setting = declared.map(input => `${input.name} = ${named(input, values[input.name])}`).join(', ') || 'the only setting';
+    lines.push('', `Setting ${setting}${defaults ? ' (only what differs from the defaults):' : ' (the defaults):'}`,
+      ...[...shown].filter(([id, words]) => defaults?.get(id) !== words).map(([id, words]) => `- ${id}: ${words}`));
+    defaults ||= shown;
+  }
+  return lines.join('\n');
+}
+function describe(object) {
+  const label = object.label ? ` "${object.label}"` : '';
+  if (Array.isArray(object.tokens) && object.tokens.length) return `${object.type}${label}: ${object.tokens.join(' | ')}`;
+  if (!Array.isArray(object.values)) return label ? `${object.type}${label}` : null;
+  const cells = values => values.map(value => (value == null ? '(blank)' : formatCell(value, object.numberFormat || undefined))).join(', ');
+  const cols = object.cols || object.values.length;
+  const drawn = object.type === 'grid' ? Array.from({ length: object.rows || 1 }, (_, row) => `[${cells(object.values.slice(row * cols, (row + 1) * cols))}]`).join(' ') : `[${cells(object.values)}]`;
+  const axes = [object.rowLabels?.length && `rows ${object.rowLabels.join(' | ')}`, object.columnLabels?.some(Boolean) && `columns ${object.columnLabels.join(' | ')}`,
+    object.labels?.length && `bars ${object.labels.join(' | ')}`].filter(Boolean).join('; ');
+  return `${object.type}${label}${axes ? ` (${axes})` : ''}: ${drawn}${object.cellHighlight != null ? `; highlighted ${JSON.stringify(object.cellHighlight)}` : ''}`;
 }

@@ -6,19 +6,24 @@ import { readFileSync } from 'node:fs';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { SCENE_AUTHORING, SCENE_EXAMPLE } from '../src/agents/learn-scene-author.js';
 import { SAMPLES_NOTE, calculationProblem, falseCalculation, inputStates, sceneProblem, withSamplesNote } from '../src/learn-scene-gates.js';
+import { VERIFY_SYSTEM, VERIFY_TOOL } from '../src/agents/learn-scene-verify.js';
+import { attemptKind } from '../src/learn-usage.js';
 import { evaluateScene } from '../../web/src/scene-evaluate.js';
 
 // L10's two real /explain scenes with wrong stored content (2026-10-21 run records, kept exactly as they came back).
 const wrongRun = name => JSON.parse(readFileSync(new URL(`./fixtures/explain-wrong/${name}.json`, import.meta.url), 'utf8'));
 
+// Card calls are kept in `seen`; the verifier pass's calls in `checks`, answered from `verdicts` (a problems list each), clean
+// when none is scripted.
 const scripted = (...replies) => {
-  const seen = [];
+  const seen = [], checks = [], verdicts = [];
   const callModel = async (env, body) => {
-    seen.push(body);
-    const [name, input] = replies[seen.length - 1];
-    return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `call-${seen.length}`, name, input }] });
+    const verifying = body.tools.some(tool => tool.name === VERIFY_TOOL.name);
+    if (verifying) checks.push({ env, body }); else seen.push(body);
+    const [name, input] = verifying ? [VERIFY_TOOL.name, { problems: verdicts.shift() || [] }] : replies[seen.length - 1];
+    return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: `call-${seen.length + checks.length}`, name, input }] });
   };
-  return { callModel, seen };
+  return { callModel, seen, checks, verdicts };
 };
 const scene = (overrides = {}) => ({ title: 'How weights decide a final grade', calculation: 'live', scene: { ...structuredClone(SCENE_EXAMPLE), ...overrides } });
 // A grid with values must say what it is (animation-scene.js): the validator's own refusal, no test-made rule.
@@ -157,4 +162,74 @@ test('a written calculation is checked against its own numbers; ranges, units, p
   assert.equal(falseCalculation('10 / 3 = 3.4'), 'writes "10 / 3 = 3.4", but 10 / 3 = 3.333333');
   assert.equal(falseCalculation('mid=8 holds 55 < 37'), 'writes "55 < 37", which is false');
   for (const unread of ['index 0-5 = 6 cells', '12 V / 4 Ω = 3 A', 'Growth 5% x 2 = 11', '2^3 = 9', 'x2 + 1 = 7']) assert.equal(falseCalculation(unread), null, unread);
+});
+
+test('a scene that passes the gates is read back by the verifier pass, setting by setting, before it becomes a card', async () => {
+  const run = scripted(['make_animation', scene()]);
+  const out = await generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, run);
+  assert.equal(out.result, 'artifact');
+  assert.equal(run.checks.length, 1, 'one verifier call');
+  const { env, body } = run.checks[0];
+  assert.equal(body.system, VERIFY_SYSTEM);
+  assert.deepEqual(body.tools.map(tool => tool.name), ['report_check']);
+  assert.equal(attemptKind(env), 'evaluation', 'recorded as an evaluation attempt in usage');
+  const card = body.messages[0].content;
+  assert.match(card, /^The learner asked: interactive weighted grades\nCard title: How weights decide a final grade\nThe card says its numbers are calculated live/);
+  // Every control setting, as the learner sees it: the defaults in full, then what changes.
+  assert.match(card, /Setting scheme = Equal weights, showParts = on \(the defaults\):\n- question: text "Why can the same three scores give different grades\?"/);
+  assert.match(card, /Setting scheme = Exam counts most, showParts = on \(only what differs from the defaults\):\n- weights: strip "weights \(sum to 1\)": \[0\.20, 0\.20, 0\.60\]/);
+  assert.match(card, /- grade: text "Final grade: 82"/);
+  // Off: no verifier call.
+  const off = scripted(['make_animation', scene()]);
+  assert.equal((await generateArtifact({ LEARN_SCENE_VERIFIER: 'off' }, { command: 'explain', args: 'interactive weighted grades' }, off)).result, 'artifact');
+  assert.equal(off.checks.length, 0);
+});
+
+test('the supply-demand rerun (a false equilibrium no gate reads) is refused by the verifier pass; a corrected answer becomes the card', async () => {
+  const record = wrongRun('supply-demand-run3');
+  const { title, calculation, scene: stored } = record.response.block;
+  // The deterministic gates pass it: the false statement is about the subject, in words.
+  assert.equal(calculationProblem(stored, calculation), null);
+  assert.equal(sceneProblem(stored), null);
+  const verdict = [{ setting: 'price = $5', object: 'note', says: '$5 is the equilibrium price: the market clears, no shortage.', wrong: 'at $5 the card draws 60 demanded and 80 supplied, so the market does not clear there; its own lines cross at $4.50 and 70 units' }];
+  const answer = ['make_animation', { title, calculation, scene: stored }];
+  const stuck = scripted(answer, answer);
+  stuck.verdicts.push(verdict, verdict);
+  const out = await generateArtifact({}, { command: 'explain', args: record.args }, stuck);
+  assert.equal(out.result, 'validation_error');
+  assert.ok(!('block' in out));
+  assert.deepEqual([stuck.seen.length, stuck.checks.length], [2, 2], 'generation, check, the one repair, check');
+  // The verifier reads what the learner would: the claim and the numbers that contradict it, at the same setting.
+  const card = stuck.checks[0].body.messages[0].content;
+  assert.ok(card.includes('- sub: text "Equilibrium in this illustrative market: price $5, quantity 80 units."'));
+  assert.match(card, /Setting price = \$5 \(position 3\), showGap = on \(only what differs from the defaults\):\n- priceline: text "Legal price set at \$5"\n- schedule: grid .*\[60\.00, 80\.00\]/);
+  assert.match(stuck.seen[1].messages.at(-1).content[0].content, /^Validation failed: A check of the card found statements that are false: 1\) with price = \$5, "note" says "\$5 is the equilibrium price.*": at \$5 the card draws 60 demanded/);
+  assert.match(out.error, /^A check of the card found statements that are false/);
+  // A repair the verifier finds clean is the card.
+  const fixed = scripted(answer, ['make_animation', scene()]);
+  fixed.verdicts.push(verdict);
+  const repaired = await generateArtifact({}, { command: 'explain', args: record.args }, fixed);
+  assert.equal(repaired.result, 'artifact');
+  assert.equal(repaired.repaired, true);
+  assert.equal(fixed.checks.length, 2);
+});
+
+test('when the verifier pass cannot run, nothing is added and nothing is repaired: the reason is said', async () => {
+  const failing = status => {
+    const seen = [];
+    const callModel = async (env, body) => {
+      seen.push(body);
+      if (body.tools.some(tool => tool.name === VERIFY_TOOL.name)) {
+        return status === 429 ? Response.json({ error: 'Paid Learn calls are paused because the platform daily dollar cap has been reached.', code: 'spend_limited' }, { status })
+          : status ? new Response('overloaded', { status }) : Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Looks fine.' }] });
+      }
+      return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_animation', input: scene() }] });
+    };
+    return { callModel, seen };
+  };
+  for (const [status, said] of [[503, /could not be checked \(model HTTP 503\), so nothing was added/], [429, /platform daily dollar cap/], [null, /could not be checked \(the check gave no verdict\)/]]) {
+    const run = failing(status);
+    await assert.rejects(generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, run), { message: said });
+    assert.equal(run.seen.length, 2, `${status}: no repair after a check that did not run`);
+  }
 });
