@@ -319,6 +319,12 @@ help the idea, and a text explanation otherwise. The Tutor reaches the same capa
   moved through its values, then `checkSceneConsistency`, `checkLayoutLint`, the cell and type legibility floors, and no
   images. The first problem goes to the model as the one existing repair. A scene that still fails is a
   `validation_error`, never a card.
+- **What the card says about its own numbers** (after two of ten real scenes had wrong stored content, 2026-10-21). At
+  every checked setting, a written calculation in shown text (`70 - 80 = 0`, `31 < 37`) must hold, and a sentence whose
+  number follows a drawn data object's count of non-zero entries at most settings of a control must follow it at all of
+  them. The two wrong real scenes are kept as fixtures (`control-plane/test/fixtures/explain-wrong/`) and stay refused.
+  **Boundary:** the truth of a stored number the card never restates is not checked (a wrong but self-consistent table
+  passes), nor a sentence naming a table value in words ("equilibrium at $5"); a precomputed scene says so on its face.
 - **Choice.** The model chooses between scene and text (`ARTIFACT_SYSTEM`). Words narrow it (`agent/slash.js`
   `PLAIN_WORDS`, `INTERACTIVE_WORDS`): an interactive request is offered only the scene, so it never silently becomes
   text. A failed one keeps the line to retry and offers "Make a plain explanation instead" (`/explain in plain text: ...`).

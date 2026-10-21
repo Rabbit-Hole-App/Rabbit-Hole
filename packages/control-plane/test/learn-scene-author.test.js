@@ -2,10 +2,14 @@
 // scene validators, the one repair, the honest failure and the precomputed-samples note. Model calls are scripted.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { SCENE_AUTHORING, SCENE_EXAMPLE } from '../src/agents/learn-scene-author.js';
-import { SAMPLES_NOTE, inputStates, sceneProblem, withSamplesNote } from '../src/learn-scene-gates.js';
+import { SAMPLES_NOTE, calculationProblem, falseCalculation, inputStates, sceneProblem, withSamplesNote } from '../src/learn-scene-gates.js';
 import { evaluateScene } from '../../web/src/scene-evaluate.js';
+
+// L10's two real /explain scenes with wrong stored content (2026-10-21 run records, kept exactly as they came back).
+const wrongRun = name => JSON.parse(readFileSync(new URL(`./fixtures/explain-wrong/${name}.json`, import.meta.url), 'utf8'));
 
 const scripted = (...replies) => {
   const seen = [];
@@ -118,4 +122,33 @@ test('a refused spend admission is said in its own words, never as a bare status
   const refusal = { error: 'Paid Learn calls are paused because the platform daily dollar cap has been reached.', code: 'spend_limited', reason: 'daily_cap_reached' };
   await assert.rejects(generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, { callModel: async () => Response.json(refusal, { status: 429 }) }),
     { message: refusal.error });
+});
+
+test('L10\'s two wrong real scenes stay refused, each for the contradiction the review found', async () => {
+  const binary = wrongRun('binary-search-run2'), market = wrongRun('supply-demand-run1');
+  // Binary search, step 2: "2 candidates left" over a range that still draws 3 cells.
+  assert.match(sceneProblem(binary.response.block.scene), /^With input step = 2: "sizetext" says "Step 2: Candidates remaining: 2", but "survivors" draws 3 non-zero entries there.*Fix: .*sum over the 0\/1 list/);
+  // Price ceiling: "live" while it only selects stored numbers, and, declared precomputed, a shortage line its own numbers contradict.
+  assert.match(calculationProblem(market.response.block.scene, 'live'), /no derived op calculates anything/);
+  assert.match(sceneProblem(market.response.block.scene), /^"short" writes "60 - 100 = 0", but 60 - 100 = -40\. Fix: /);
+  // Through the artifact path: the same answer twice is no card, and the one repair is told what is wrong.
+  for (const [record, said] of [[binary, /draws 3 non-zero entries there/], [market, /writes "60 - 100 = 0"/]]) {
+    const { title, scene } = record.response.block;
+    const answer = ['make_animation', { title, calculation: 'precomputed', scene }];
+    const again = scripted(answer, answer);
+    const out = await generateArtifact({}, { command: 'explain', args: record.args }, again);
+    assert.equal(out.result, 'validation_error', record.id);
+    assert.ok(!('block' in out), record.id);
+    assert.match(again.seen[1].messages.at(-1).content[0].content, said, record.id);
+  }
+});
+
+test('a written calculation is checked against its own numbers; ranges, units, percentages and powers are not read', () => {
+  for (const right of ['Shortage = 80 - 60 = 20 units', 'Balance: $1,000 × 1.05 = $1,050', 'I = 12 / 4 = 3', '10 / 3 = 3.33, rounded', 'mid=5 holds 31 < 37, so discard index 0-5.']) {
+    assert.equal(falseCalculation(right), null, right);
+  }
+  assert.equal(falseCalculation('Shortage = 70 - 80 = 0 units'), 'writes "70 - 80 = 0", but 70 - 80 = -10');
+  assert.equal(falseCalculation('10 / 3 = 3.4'), 'writes "10 / 3 = 3.4", but 10 / 3 = 3.333333');
+  assert.equal(falseCalculation('mid=8 holds 55 < 37'), 'writes "55 < 37", which is false');
+  for (const unread of ['index 0-5 = 6 cells', '12 V / 4 Ω = 3 A', 'Growth 5% x 2 = 11', '2^3 = 9', 'x2 + 1 = 7']) assert.equal(falseCalculation(unread), null, unread);
 });
