@@ -38,7 +38,10 @@ const fresh = async ({ viewport = { width: 1440, height: 900 }, cookie = session
   return page;
 };
 const results = [];
-const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
+const failures = [];
+const check = async (label, fn) => {
+  try { await fn(); results.push(label); console.log(`ok ${label}`); } catch (error) { failures.push(label); console.log(`FAIL ${label}: ${error.message.split('\n')[0]}`); }
+};
 const shot = async (page, name) => { await page.waitForTimeout(200); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const open = async (page, path = '/apps') => { await page.goto(`${BASE}${path}`); await page.locator('[data-account-menu]').waitFor({ timeout: 60000 }); await page.waitForTimeout(500); };
 const dialog = (page) => page.getByRole('dialog', { name: 'Settings', exact: true });
@@ -73,8 +76,11 @@ await check('2 opening Settings and visiting every pane makes no model call and 
   const page = await fresh();
   await open(page);
   const seen = [];
+  // Counted from the account menu's Settings click: the menu itself loads the workspace list when it opens (Sidebar.jsx).
+  await page.locator('[data-account-menu]').click();
   page.on('request', (r) => { const u = new URL(r.url()); if (u.origin === BASE && /^\/(api|auth)\//.test(u.pathname)) seen.push(`${r.method()} ${u.pathname}`); });
-  await viaMenu(page);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await dialog(page).waitFor({ timeout: 10000 });
   for (const title of PANES) { await nav(page, title).click(); await page.waitForTimeout(400); }
   await page.waitForTimeout(800);
   assert.deepEqual(page.modelCalls, []);
@@ -376,5 +382,5 @@ await browser.close();
 const fatal = errors.filter((e) => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
 const total = 14;
-console.log(`${results.length}/${total} settings checks passed`);
+console.log(`${results.length}/${total} settings checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
 if (results.length !== total) process.exitCode = 1;
