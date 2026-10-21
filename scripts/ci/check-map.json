@@ -255,6 +255,7 @@
     "packages/web/src/viewer-slots.js": ["model-viewer-check.mjs","model-fixture-cards-check.mjs"],
     "packages/web/src/CadCard.jsx": ["cad-shared-interaction-check.mjs", "cad-check.mjs", "cad-runtime-browser-check.mjs", "card-select-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs"],
     "packages/web/src/cad-client.js": ["cad-check.mjs", "cad-runtime-browser-check.mjs", "card-edit-check.mjs", "canvas-forking-check.mjs"],
+    "packages/web/src/cad-parameters.js": ["cad-check.mjs", "cad-runtime-browser-check.mjs"],
     "packages/web/src/file-chat-ref.js": ["add-to-chat-check.mjs", "file-doc-cards-check.mjs", "inline-ai-check.mjs"],
     "packages/web/src/card-layout.js": ["card-scroll-check.mjs", "card-edit-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs", "canvas-forking-check.mjs"],
     "packages/web/src/card-layout.css": ["card-scroll-check.mjs", "card-edit-check.mjs", "card-context-menu-check.mjs"],

@@ -6,12 +6,13 @@ import { memberContext } from './canvas-comments.js';
 import { paidRefusal } from './learn-paid.js';
 import { callbackToken, tokenValid } from './file-jobs.js';
 import { learnMedia } from './learn-storage.js';
-import { CAD_LIMITS, CAD_TERMINAL, cadLimits, cadJson, cadError, cadBody, cadHash, newCadId, decodeCadId, validateCadRequest, publicCadJob, cadBlock, validateDesign } from './cad-contract.js';
+import { CAD_LIMITS, CAD_TERMINAL, cadLimits, cadJson, cadError, cadBody, cadHash, newCadId, decodeCadId, validateCadRequest, publicCadJob, cadBlock, validateDesign, resolveCadChecks, controlScope, cadBriefHash } from './cad-contract.js';
+import { validateValues, structuralChange } from '../../web/src/cad-parameters.js';
 import { saveCadSource, putCadOutput, publishCadArtifacts, validateCadManifest, cadStageKey } from './cad-artifacts.js';
-import { cadModelRequest, runCadModel, cadReferenceImages } from './cad-model.js';
+import { cadModelRequest, runCadModel, cadReferenceImages, cadCallPhase, approvedDesign } from './cad-model.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { notifyCadBudget } from './cad-budget-alert.js';
-import { recordCadFailure, archiveCadFailure, cadFailureMessage } from './cad-failure.js';
+import { recordCadFailure, archiveCadFailure, cadFailureMessage, modelRejection } from './cad-failure.js';
 import { diagnosticIdentity, diagnosticJob } from './cad-job-diagnostic.js';
 import { cadProductionEnforced, cadProductionConfig, isCadProductionBudgetObject, reserveCadProductionModel, reserveCadProductionJob, cadProductionBudgetStatus, pauseCadProductionTransfer, reportCadProductionTransferPause, recordCadInfrastructureExtras, reserveCadLifetimeBytes } from './cad-production-budget.js';
 
@@ -56,15 +57,17 @@ export async function cadRoute(path, req, env) {
     // history may contain private later edits and must not escape that snapshot.
     if(!access.user)return cadJson({error:'Shared CAD cards expose saved artifacts, not private job history.'},403);
     if(req.method==='POST' && env.CAD_VERIFICATION_BOARD_ID && access.row.id!==env.CAD_VERIFICATION_BOARD_ID)return cadJson({error:'CAD generation is restricted to the approved verification canvas.'},403);
-    if(req.method==='POST'&&(!id||['retry','clarify'].includes(rest[1]))){const refusal=subscriptionOwnerRefusal(env,access.user);if(refusal)return refusal;}
+    if(req.method==='POST'&&(!id||['retry','clarify','approve'].includes(rest[1]))){const refusal=subscriptionOwnerRefusal(env,access.user);if(refusal)return refusal;}
     if(req.method==='POST' && !id) {
       validateCadRequest({...body,board:body.board||'main'});
       const refusal=paidRefusal(body);if(refusal)return refusal;
       if(!configured(env) || env.CAD_MODEL_ENABLED!=='true' && env.SMALL_ENV!=='test') return cadJson({error:'CAD generation is unavailable until its isolated executor and model route are configured.',code:'cad_not_configured'},503);
     }
     const action=req.method==='GET'?(id?'get':'list'):(id?rest[1]:'create');
-    if(!['get','list','create','cancel','clarify','retry','accept','exports','placement'].includes(action) || rest.length>2) return cadJson({error:'Not found'},404);
-    if(['clarify','retry'].includes(action)){const refusal=paidRefusal(body);if(refusal)return refusal;}
+    if(!['get','list','create','cancel','clarify','retry','accept','exports','placement','rebuild','brief','approve'].includes(action) || rest.length>2) return cadJson({error:'Not found'},404);
+    if(['clarify','retry','approve'].includes(action)){const refusal=paidRefusal(body);if(refusal)return refusal;}
+    // A parameter rebuild makes no model call, but it does need the isolated executor.
+    if(action==='rebuild'&&!configured(env))return cadJson({error:'CAD rebuilds are unavailable until the isolated executor is configured.',code:'cad_not_configured'},503);
     const origin=env.CAD_JOB_ORIGIN || new URL(req.url).origin;
     const stub=env.CAD_JOBS.get(env.CAD_JOBS.idFromName(access.row.id));
     return stub.fetch('https://cad/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,id,payload:body,board:access.row,user:access.user,origin})});
@@ -76,8 +79,8 @@ export class CadJobs {
   async locked(fn){
     // Cloudflare resets an object when an exception escapes this callback.
     // Expected conflicts must leave the short gate before being rethrown.
-    const outcome=await this.state.blockConcurrencyWhile(async()=>{try{return {value:await fn()};}catch(error){return {error:{message:error.message,status:error.status}};}});
-    if(outcome.error)throw Object.assign(new Error(outcome.error.message),{status:outcome.error.status});
+    const outcome=await this.state.blockConcurrencyWhile(async()=>{try{return {value:await fn()};}catch(error){return {error:{message:error.message,status:error.status,code:error.code,problems:error.problems}};}});
+    if(outcome.error)throw Object.assign(new Error(outcome.error.message),outcome.error);
     return outcome.value;
   }
   async save(job){job.updatedAt=Date.now();await this.state.storage.put(jobKey(job.id),job);}
@@ -137,7 +140,7 @@ export class CadJobs {
       const input=await req.json();
       // Only short persisted mutations are serialized. Network/model work runs from alarms.
       return await this.locked(()=>this.action(input));
-    } catch(error){return cadJson({error:error.status?error.message:'CAD operation could not complete.'},error.status||503);}
+    } catch(error){return cadJson({error:error.status?error.message:'CAD operation could not complete.',...(error.status&&error.code?{code:error.code}:{}),...(error.status&&error.problems?{problems:error.problems}:{})},error.status||503);}
   }
   async action({action,id,payload={},board,user,origin}) {
     if(action==='list'){
@@ -164,13 +167,36 @@ export class CadJobs {
       const limits=cadLimits(this.env),now=Date.now(),job={id,app:board.app,board:board.board,boardId:board.id,owner:{org:user.org,email:user.email,userId:user.userId||user.user_id},origin,
         cardId:payload.cardId,modelId:modelId||id,revisionId:`cr_${crypto.randomUUID().replaceAll('-','')}`,baseRevisionId:payload.baseRevisionId||null,
         prompt:payload.prompt.trim(),context:payload.context??null,state:'queued',stage:'queued',attempt:1,calls:0,repairs:0,reservedUsd:0,limits,
-        createdAt:now,updatedAt:now,deadline:now+limits.elapsedMs,operation:'build',hidden:false,limitations:[],previousBrief:previous?.brief,previousSource:previous?.sourceText};
+        createdAt:now,updatedAt:now,deadline:now+limits.elapsedMs,operation:'build',hidden:false,limitations:[],previousBrief:previous?.brief,previousSource:previous?.sourceText,
+        // Disabled by default: prepare a brief and stop for approval before any source is generated.
+        ...(this.env.CAD_BRIEF_FIRST==='true'?{modelPhase:'brief'}:{})};
       // Alarm first: if saving fails it wakes harmlessly. Save and request fence are atomic.
       await this.wake();await this.state.storage.put({[jobKey(id)]:job,[`request:${payload.requestId}`]:{id,fingerprint}});
       return this.response(job,202);
     }
     const job=await this.state.storage.get(jobKey(id));if(!job)throw cadError('Not available',404);
     if(action==='get')return this.response(job);
+    if(action==='rebuild')return this.rebuild(job,payload,board);
+    if(action==='brief'){
+      if(job.state!=='awaiting_approval')throw cadError('Only a design awaiting review can be edited.',409);
+      if(payload.expectedBriefHash!==job.briefHash)throw cadError('The design brief changed. Reload before editing.',409);
+      if(['prompt','context','baseRevisionId'].some(key=>payload[key]!==undefined)||payload.brief?.units!==undefined&&payload.brief.units!==job.brief.units)throw Object.assign(cadError('Changing the request, its context, units or base revision needs a new brief. Start a new request.',409),{code:'reprepare_required'});
+      const edit=payload.brief||{},brief={...job.brief};
+      // Structure is judged on the submitted definitions, before validation, so a structural edit always asks for a new brief.
+      if(edit.controls!==undefined&&structuralChange(job.brief.controls,edit.controls))throw Object.assign(cadError('Adding, removing or retyping parameters changes the design structure and needs a new brief. Start a new request.',409),{code:'reprepare_required'});
+      for(const key of ['title','object','requirements','assumptions','missing','unsupported'])if(edit[key]!==undefined)brief[key]=edit[key];
+      if(edit.controls!==undefined)brief.controls=edit.controls;
+      const design=validateDesign({brief,checks:job.checkSpecs},{requireVolumeExpressions:true,briefOnly:true});
+      // A field edit makes no model call; every material change invalidates the old approval.
+      job.brief=design.brief;job.checks=design.checks;job.approval=null;job.briefHash=await cadBriefHash(job);await this.save(job);return this.response(job);
+    }
+    if(action==='approve'){
+      if(job.state!=='awaiting_approval'||typeof payload.briefHash!=='string'||payload.briefHash!==job.briefHash||await cadBriefHash(job)!==job.briefHash)throw cadError('This design brief changed. Review it again before generating.',409);
+      if(job.brief.missing?.length)throw cadError('Answer or remove the missing information before generating.',409);
+      if(cadProductionEnforced(this.env))cadProductionConfig(this.env);
+      job.approval={briefHash:job.briefHash,at:Date.now()};job.modelPhase=null;job.state='queued';job.stage='queued';job.deadline=Date.now()+job.limits.elapsedMs;
+      await this.wake();await this.save(job);return this.response(job,202);
+    }
     if(action==='placement'){
       if(typeof payload.hidden!=='boolean')throw cadError('A placement visibility is required');
       job.hidden=payload.hidden;
@@ -182,6 +208,8 @@ export class CadJobs {
     if(action==='cancel'){
       if(job.exportState==='preparing'){job.exportState='failed';job.exportError='Export cancelled.';job.cancelPending=true;job.pendingResult=null;await this.save(job);await this.wake();return this.response(job);}
       if(job.state==='ready'&&job.awaitingAccept){job.awaitingAccept=false;job.state='cancelled';job.stage='cancelled';await this.save(job);return this.response(job);}
+      // Nothing was dispatched for a brief under review: cancel locally, no executor request.
+      if(job.state==='awaiting_approval'){job.state='cancelled';job.stage='cancelled';job.approval=null;await this.save(job);return this.response(job);}
       if(!CAD_TERMINAL.has(job.state)){job.state='cancelled';job.stage='cancelled';job.cancelPending=true;job.pendingResult=null;await this.save(job);await this.wake();}
       return this.response(job);
     }
@@ -217,7 +245,7 @@ export class CadJobs {
         const missing=['glb','thumbnail'].find(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));
         if(missing){job.operation='export';job.exportFormat=missing;job.previewRecovery=true;}
       }
-      job.pendingResult=null;job.attempt++;job.state=job.source?'building':'queued';job.stage=job.state;job.error=null;job.modelInFlight=null;job.dispatchAt=null;job.leaseUntil=null;job.deadline=Date.now()+job.limits.elapsedMs;job.hidden=false;await this.wake();await this.save(job);return this.response(job,202);
+      job.pendingResult=null;job.attempt++;job.state=job.source||job.rebuild?'building':'queued';job.stage=job.state;job.error=null;job.modelInFlight=null;job.dispatchAt=null;job.leaseUntil=null;job.deadline=Date.now()+job.limits.elapsedMs;job.hidden=false;await this.wake();await this.save(job);return this.response(job,202);
     }
     if(action==='exports'){
       if(!['stl','3mf'].includes(payload.format))throw cadError('Choose STL or 3MF.');
@@ -230,13 +258,41 @@ export class CadJobs {
     throw cadError('Unknown CAD action',404);
   }
   // The accepted model keeps the words of the job that made its revision (prompt), private to the owner's job storage.
-  modelRecord(job){return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText,prompt:job.prompt};}
+  modelRecord(job){return {modelId:job.modelId,cardId:job.cardId,revisionId:job.revisionId,manifest:job.manifest,brief:job.brief,sourceText:job.sourceText,checkSpecs:job.checkSpecs,prompt:job.prompt};}
   // Only Accept returns a revision's words, as the card's prompt (docs/features/card-prompt.md): read from the accepted model,
   // never from a pending job, and only on this owner-only route. Status, list and reject answers never carry them.
   acceptedResponse(job,model){
     const body=reply(job,model);
     const words=typeof model?.prompt==='string'?model.prompt.trim().slice(0,8000):'';
     return cadJson(words?{...body,block:{...body.block,promptUsed:words}}:body);
+  }
+  // Parameter edit: the accepted model's saved source rebuilt with new validated values. No model call, ever.
+  async rebuild(job,payload,board){
+    const model=await this.accepted(job),notDeterministic=message=>Object.assign(cadError(message,409),{code:'not_deterministic'});
+    if(typeof payload.requestId!=='string'||!payload.requestId||payload.requestId.length>200)throw cadError('requestId is required');
+    const fingerprint=await cadHash(JSON.stringify(['rebuild',job.cardId,payload.expectedRevisionId??null,payload.values??null]));
+    const existing=await this.state.storage.get(`request:${payload.requestId}`);
+    if(existing){if(existing.fingerprint!==fingerprint)throw cadError('Request identity belongs to a different CAD request',409);return this.response(await this.state.storage.get(jobKey(existing.id)));}
+    if(!model||payload.expectedRevisionId!==model.revisionId)throw cadError('The accepted model changed. Reload before editing its parameters.',409);
+    const controls=model.brief?.controls,bound=model.manifest?.controls?.bindings||[];
+    if(!controls||!bound.length||!model.sourceText)throw notDeterministic('This model has no parameters bound to its source, so it cannot be rebuilt deterministically. Use Edit with AI instead.');
+    const jobs=await this.state.storage.list({prefix:'job:'});
+    if(jobs.size>=CAD_LIMITS.jobs)throw cadError('This canvas has reached its CAD job limit.',429);
+    if([...jobs.values()].some(j=>j.cardId===job.cardId&&!j.hidden&&(!CAD_TERMINAL.has(j.state)||j.awaitingAccept)))throw cadError('This card already has a change in progress. Accept or discard it first.',409);
+    const current=Object.fromEntries(controls.parameters.filter(p=>p.role==='input').map(p=>[p.id,p.value]));
+    const {values,problems}=validateValues(controls,payload.values,{bound,current});
+    if(problems.length)throw Object.assign(cadError(problems.map(p=>p.message).join(' '),422),{problems});
+    if(Object.keys(values).every(key=>values[key]===current[key]))throw cadError('No parameter changed.',422);
+    const nextControls={...controls,parameters:controls.parameters.map(p=>p.role==='input'?{...p,value:values[p.id]}:p)},parameters=controlScope(nextControls);
+    // Unrelated checks keep their expectation; checks derived from changed inputs follow them (cad-expression).
+    const checks=resolveCadChecks(model.checkSpecs||[],parameters);
+    const id=newCadId(board.id),now=Date.now(),limits=cadLimits(this.env);
+    const next={id,app:job.app,board:job.board,boardId:job.boardId,owner:job.owner,origin:job.origin,cardId:job.cardId,modelId:job.modelId,
+      revisionId:`cr_${crypto.randomUUID().replaceAll('-','')}`,baseRevisionId:model.revisionId,prompt:'',context:null,rebuild:true,
+      state:'building',stage:'building',attempt:1,calls:0,repairs:0,reservedUsd:0,limits,createdAt:now,updatedAt:now,deadline:now+limits.elapsedMs,
+      operation:'build',hidden:false,limitations:[],brief:{...model.brief,parameters,controls:nextControls},checks,checkSpecs:model.checkSpecs||[],sourceText:model.sourceText};
+    await this.wake();await this.state.storage.put({[jobKey(id)]:next,[`request:${payload.requestId}`]:{id,fingerprint}});
+    return this.response(next,202);
   }
   async executor(path,body){return fetch(new URL(path,this.env.CAD_EXECUTOR_URL),{method:'POST',headers:{Authorization:`Bearer ${this.env.CAD_EXECUTOR_TOKEN}`,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,redirect:'manual',signal:AbortSignal.timeout(20000)});}
   async fail(job,message){
@@ -253,7 +309,7 @@ export class CadJobs {
     for(const [,snapshot] of entries){
       let job=await this.state.storage.get(jobKey(snapshot.id));
       if(job.cancelPending){await this.executor(`/jobs/${encodeURIComponent(job.id)}/${job.attempt}/cancel`).catch(()=>{});job=await this.state.storage.get(jobKey(job.id));job.cancelPending=false;await this.save(job);}
-      if((CAD_TERMINAL.has(job.state)&&job.exportState!=='preparing')||job.state==='waiting_for_answer')continue;
+      if((CAD_TERMINAL.has(job.state)&&job.exportState!=='preparing')||['waiting_for_answer','awaiting_approval'].includes(job.state))continue;
       active=true;
       try {await this.advance(job);}catch(error){const current=await this.state.storage.get(jobKey(job.id));if(current&&current.state!=='cancelled')await this.fail(current,error.status?error.message:'CAD execution was interrupted. Retry explicitly.');}
     }
@@ -264,6 +320,12 @@ export class CadJobs {
     if(job.pendingResult)return this.publish(job);
     if(job.dispatchAfter>Date.now())return;
     if(job.modelInFlight){if(this.activeModels.has(job.id))return;return this.fail(job,'A model request was interrupted; its cost may be unknown. Retry explicitly to continue.');}
+    if(job.rebuild&&(job.state==='queued'||job.state==='repairing'||job.modelPhase==='review'))return this.fail(job,'A parameter rebuild cannot call a model. The accepted model is unchanged.');
+    if(job.rebuild&&!job.source){
+      const source=await saveCadSource(this.env,job,job.sourceText),current=await this.state.storage.get(jobKey(job.id));
+      if(current.state==='cancelled'||current.attempt!==job.attempt)return;
+      current.source=source;await this.save(current);return;
+    }
     if(job.state==='queued'||job.state==='repairing'||job.modelPhase==='review'){
       const review=job.modelPhase==='review';let image;
       if(review){const artifact=job.manifest?.artifacts.find(a=>a.kind==='thumbnail');const staged=artifact&&await learnMedia(this.env).get(cadStageKey(job,artifact.name));if(staged){const bytes=new Uint8Array(await staged.arrayBuffer());if(bytes.length>1024*1024)throw cadError('CAD review thumbnail is too large.');image=btoa(Array.from(bytes,b=>String.fromCharCode(b)).join(''));}else throw cadError('CAD review thumbnail is unavailable.');}
@@ -291,7 +353,7 @@ export class CadJobs {
             if(usage.calls+1>maxCalls||usage.reservedUsd+prepared.reservedUsd>maxUsd)throw cadError('CAD verification allowance has been reached.',429);
             await this.state.storage.put('verification:usage',{calls:usage.calls+1,reservedUsd:usage.reservedUsd+prepared.reservedUsd});
         }
-        job.calls++;job.reservedUsd+=prepared.reservedUsd;job.operationKey=`cad-${job.id.replace(/\W/g,'')}-${job.calls}`;
+        job.calls++;job.reservedUsd+=prepared.reservedUsd;const phase=cadCallPhase(job,review);job.phaseUsd={...job.phaseUsd,[phase]:(job.phaseUsd?.[phase]||0)+prepared.reservedUsd};job.operationKey=`cad-${job.id.replace(/\W/g,'')}-${job.calls}`;
         job.modelInFlight=job.operationKey;job.state=review?'checking':'preparing';job.stage=job.state;await this.save(job);
         return true;
       });
@@ -305,8 +367,15 @@ export class CadJobs {
         job.modelPhase=null;job.state='ready';job.stage='ready';job.awaitingAccept=!!job.baseRevisionId;
         if(!job.awaitingAccept)await this.state.storage.put(`model:${job.modelId}`,this.modelRecord(job));await this.save(job);return;
       }
-      const design=validateDesign(result);
+      const interpreting=job.modelPhase==='brief';
+      // An approved job's brief and checks are fixed: generation and repair supply source only.
+      const design=interpreting?validateDesign(result,{requireVolumeExpressions:true,briefOnly:true}):job.approval?approvedDesign(job,result):validateDesign(result);
       if(design.question){job.question=design.question;job.state='waiting_for_answer';job.stage=job.state;await this.save(job);return;}
+      if(interpreting){
+        job.brief=design.brief;job.checks=design.checks;job.checkSpecs=result.checks.map(check=>({...check}));job.approval=null;job.briefHash=await cadBriefHash(job);
+        job.state='awaiting_approval';job.stage=job.state;await this.save(job);return;
+      }
+      if(!job.approval)job.checkSpecs=result.checks.map(check=>({...check}));
       if(cadProductionEnforced(this.env)){
         const current=await this.locked(async()=>{
           const saved=await this.state.storage.get(jobKey(job.id));
@@ -326,6 +395,7 @@ export class CadJobs {
     const body={schema:'cad-execute/1',job_id:job.id,attempt:job.attempt,revision_id:job.revisionId,operation:job.operation,
       source:{url:`${base}/source`,bytes:exportStep?.bytes||job.source.bytes,sha256:exportStep?.sha256||job.source.sha256},
       requirements:{units:job.brief.units,checks:job.checks||[]},formats:exportStep?[job.exportFormat]:['step','glb','thumbnail'],
+      ...(!exportStep&&job.brief.controls?{parameters:{schema:'cad-param-values/1',values:Object.fromEntries(job.brief.controls.parameters.filter(p=>p.role==='input').map(p=>[p.id,p.value]))}}:{}),
       limits:{stage_seconds:job.limits.stageSeconds,total_seconds:job.limits.executionSeconds,memory_bytes:job.limits.memoryBytes,workspace_bytes:job.limits.workspaceBytes,artifact_bytes:job.limits.artifactBytes,total_artifact_bytes:job.limits.totalBytes},callback:{url:base,...callback}};
     // Persist ownership before dispatch. Re-dispatch of a lost HTTP response is never automatic.
     job.dispatchAt=Date.now();job.leaseUntil=Date.now()+LEASE;await this.save(job);
@@ -366,6 +436,7 @@ export class CadJobs {
           job.operation='build';job.previewRecovery=false;
           const missing=['glb','thumbnail'].filter(kind=>!job.manifest.artifacts.some(a=>a.kind===kind));
           if(missing.length){job.state='failed';job.stage='failed';job.error=`Geometry was saved; ${missing.join(' and ')} is unavailable. Retry prepares missing previews from the saved STEP without generating another design.`;}
+          else if(job.rebuild){job.state='ready';job.stage='ready';job.awaitingAccept=true;}
           else{job.modelPhase='review';job.state='checking';job.stage='checking';}
         }
         await this.wake();await this.save(job);return cadJson({committed:true});
@@ -430,6 +501,7 @@ export class CadJobs {
         if(job.pendingResult){await this.save(job);await this.wake();return cadJson({publishing:true},202);}
         if(job.completedAttempt===attempt)throw cadError('This attempt already completed',409);
         recordCadFailure(job,{code:body.error,diagnostics:body.diagnostics,phase:body.phase},this.env);
+        if(job.rebuild){const rejection=modelRejection(job.failureDiagnostics);await this.fail(job,rejection?`The model rejected these values: ${rejection} The accepted model is unchanged.`:`${cadFailureMessage(job)} The accepted model is unchanged.`);return cadJson({failed:true});}
         if(job.operation==='build'&&['execution_failed','validation_failed'].includes(body.error)&&typeof body.diagnostics==='string'&&body.diagnostics.trim()&&job.repairs<Math.min(job.limits.repairs,cadLimits(this.env).repairs)){
           job.repairs++;job.repairReason=job.failureDiagnostics;job.previousSource=job.sourceText;job.previousBrief=job.brief;archiveCadFailure(job);
           job.attempt++;job.revisionId=`cr_${crypto.randomUUID().replaceAll('-','')}`;job.state='repairing';job.stage='repairing';job.dispatchAt=null;job.leaseUntil=null;await this.wake();await this.save(job);return cadJson({repairing:true});

@@ -1,0 +1,36 @@
+{
+  "brief": {
+    "title": "Plate with a row of holes",
+    "units": "mm",
+    "object": "A rectangular plate with evenly spaced through holes on its centre line",
+    "requirements": ["Through holes of one diameter", "Holes evenly spaced along the length"],
+    "assumptions": ["120 x 40 x 5 mm plate", "Three 6 mm holes at 30 mm pitch"],
+    "missing": [],
+    "unsupported": ["Hole positions are not measured individually"],
+    "contextUsed": [],
+    "controls": {
+      "schema": "cad-params/1",
+      "parameters": [
+        { "id": "length", "label": "Length", "role": "input", "type": "length", "unit": "mm", "value": 120, "min": 20, "max": 300, "step": 1, "priority": 0, "check": "size_x" },
+        { "id": "width", "label": "Width", "role": "input", "type": "length", "unit": "mm", "value": 40, "min": 10, "max": 200, "step": 1, "priority": 1, "check": "size_y" },
+        { "id": "thickness", "label": "Thickness", "role": "input", "type": "length", "unit": "mm", "value": 5, "min": 1, "max": 20, "step": 0.5, "priority": 2, "check": "size_z" },
+        { "id": "hole_diameter", "label": "Hole diameter", "role": "input", "type": "length", "unit": "mm", "value": 6, "min": 1, "max": 30, "step": 0.1, "precision": 1, "priority": 3, "check": "hole_d" },
+        { "id": "hole_count", "label": "Number of holes", "role": "input", "type": "count", "value": 3, "min": 1, "max": 8, "priority": 4 },
+        { "id": "hole_spacing", "label": "Hole spacing", "role": "input", "type": "length", "unit": "mm", "value": 30, "min": 2, "max": 200, "step": 0.5, "priority": 5 },
+        { "id": "edge_margin", "label": "End margin", "role": "computed", "type": "length", "unit": "mm", "dependsOn": ["length", "hole_count", "hole_spacing", "hole_diameter"], "priority": 20 }
+      ],
+      "constraints": [
+        { "id": "hole_fits_width", "kind": "compare", "left": "hole_diameter", "op": "lt", "right": "width", "message": "A hole must be narrower than the plate." },
+        { "id": "holes_apart", "kind": "compare", "left": "hole_spacing", "op": "gt", "right": "hole_diameter", "message": "Neighbouring holes would overlap." }
+      ]
+    }
+  },
+  "checks": [
+    { "id": "size_x", "kind": "bounds_mm", "axis": "x", "expression": "length", "tolerance": 0.001 },
+    { "id": "size_y", "kind": "bounds_mm", "axis": "y", "expression": "width", "tolerance": 0.001 },
+    { "id": "size_z", "kind": "bounds_mm", "axis": "z", "expression": "thickness", "tolerance": 0.001 },
+    { "id": "volume", "kind": "volume_mm3", "expression": "length*width*thickness-hole_count*pi*(hole_diameter/2)*(hole_diameter/2)*thickness", "tolerance": 0.05 },
+    { "id": "hole_d", "kind": "circular_diameter_mm", "expression": "hole_diameter", "tolerance": 0.001 },
+    { "id": "one_solid", "kind": "solid_count", "value": 1, "tolerance": 0 }
+  ]
+}

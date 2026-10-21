@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { validateJob } from './contract.mjs';
-import { boundedBody, artifact, phaseOutcome, privateDiagnostic } from './server.mjs';
+import { boundedBody, artifact, phaseOutcome, privateDiagnostic, parseControls } from './server.mjs';
 const job = () => ({ schema: 'cad-execute/1', job_id: 'cad_abc', revision_id: 'rev_abc', attempt: 1, operation: 'build', source: { url: 'https://cp.test/source', bytes: 10, sha256: 'a'.repeat(64) }, callback: { url: 'https://cp.test/callback', token: 'a'.repeat(32), expires_at: new Date(Date.now()+1200000).toISOString() }, requirements: { units:'mm', checks:[] }, formats:['step','glb','thumbnail'], limits:{} });
 test('valid bounded request', () => assert.deepEqual(validateJob(job(), ['https://cp.test']), []));
 test('untrusted callbacks and source rejected', () => { const j=job();j.source.url='https://evil.test/source';j.callback.url='https://evil.test/x';assert.equal(validateJob(j,['https://cp.test']).length,2); });
@@ -35,4 +35,13 @@ test('executable shell scripts have Linux line endings',async()=>{
 test('private diagnostics are bounded and redact paths/credential markers',()=>{
   const text=privateDiagnostic(Buffer.from('File "/tmp/job/in/model.py" secret=abc Bearer sample sk-secretvalue\n'+ 'x'.repeat(10000)));
   assert.ok(Buffer.byteLength(text)<8300);assert.ok(!text.includes('/tmp/job'));assert.ok(!text.includes('abc'));assert.ok(!text.includes('sample'));assert.ok(!text.includes('sk-secretvalue'));
+});
+test('validated parameter values ride as data on builds only',()=>{
+  const j=job();j.parameters={schema:'cad-param-values/1',values:{edge:20,hole_count:3,finish:'matte',chamfer:true}};assert.deepEqual(validateJob(j,['https://cp.test']),[]);
+  for(const values of [{Edge:1},{edge:Infinity},{edge:{}},{edge:'x'.repeat(61)},Object.fromEntries(Array.from({length:41},(_,i)=>[`p${i}`,1]))]){const bad=job();bad.parameters={schema:'cad-param-values/1',values};assert.ok(validateJob(bad,['https://cp.test']).includes('Invalid parameters'),JSON.stringify(values).slice(0,40));}
+  const exp=job();exp.operation='export';exp.formats=['stl'];exp.parameters={schema:'cad-param-values/1',values:{edge:1}};assert.ok(validateJob(exp,['https://cp.test']).includes('Invalid parameters'));
+});
+test('source-reported controls are bounded and filtered, never trusted wholesale',()=>{
+  assert.equal(parseControls(Buffer.from('not json')),null);assert.equal(parseControls(Buffer.from('{"read":"edge","computed":{}}')),null);
+  assert.deepEqual(parseControls(Buffer.from(JSON.stringify({read:['edge','edge','Bad',3],computed:{pitch:12.5,bad:'x',Upper:1}}))),{read:['edge'],computed:{pitch:12.5}});
 });

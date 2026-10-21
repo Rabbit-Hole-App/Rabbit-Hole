@@ -34,6 +34,15 @@ export async function artifact(path, cap) {
   if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size < 1 || stat.size > cap) throw fail('invalid_artifact');
   return readFile(path);
 }
+// Bounded shape of controls.json; anything else is dropped rather than trusted.
+export function parseControls(bytes) {
+  let value; try { value = JSON.parse(Buffer.from(bytes).toString('utf8')); } catch { return null; }
+  if (!value || !Array.isArray(value.read) || !value.computed || typeof value.computed !== 'object' || Array.isArray(value.computed)) return null;
+  const id = /^[a-z][a-z0-9_]{0,47}$/;
+  const read = [...new Set(value.read.filter(x => typeof x === 'string' && id.test(x)))].slice(0, 40);
+  const computed = Object.fromEntries(Object.entries(value.computed).filter(([k, v]) => id.test(k) && typeof v === 'number' && Number.isFinite(v)).slice(0, 40));
+  return { read, computed };
+}
 const TYPES = { step: 'model/step', glb: 'model/gltf-binary', stl: 'model/stl', '3mf': 'model/3mf', png: 'image/png', json: 'application/json', py: 'text/x-python' };
 
 export function createExecutor({ token, origins, root = '/var/cad/jobs', image = 'unbuilt', fetchImpl = fetch, budget = null, admission = false } = {}) {
@@ -55,6 +64,8 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
     try {
       await writeFile(`${dir}/in/request.json`, JSON.stringify({ phase: name, requirements: j.requirements, limits: effectiveLimits(j) }), { mode: 0o640 });
       await writeFile(`${dir}/in/${name === 'build' ? 'model.py' : 'model.step'}`, input, { mode: 0o640 });
+      // Validated parameter values are data beside the unchanged source (cad-params/1), never source edits.
+      if (name === 'build' && j.parameters) await writeFile(`${dir}/in/parameters.json`, JSON.stringify(j.parameters), { mode: 0o640 });
       const started = Date.now();
       let diagnostic = Buffer.alloc(0);
       const exitCode = await new Promise((resolve, reject) => {
@@ -79,6 +90,8 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
         throw error;
       }
       const filename = name === 'build' ? 'model.step' : name === 'check' ? 'validation.json' : name === 'thumbnail' ? 'thumbnail.png' : `model.${name}`;
+      // The source's own report of the ids it read and values it computed: provenance "computed", never measured.
+      if (name === 'build') record.controls = parseControls(await artifact(`${dir}/out/controls.json`, 65536).catch(() => null));
       return await artifact(`${dir}/out/${filename}`, effectiveLimits(j).artifact_bytes);
     } finally {
       try { await rm(dir, { recursive: true, force: true }); }
@@ -119,7 +132,7 @@ export function createExecutor({ token, origins, root = '/var/cad/jobs', image =
         }
         catch (e) { if (signal.aborted) throw e; failures.push({ format, error: e.code || 'export_failed' }); }
       }
-      await callback(j, 'complete', { schema: RESULT_SCHEMA, job_id: j.job_id, attempt: j.attempt, revision_id: j.revision_id, outputs, validation, runtime: { ...RUNTIME, image }, timings: record.timings, failures }, signal);
+      await callback(j, 'complete', { schema: RESULT_SCHEMA, job_id: j.job_id, attempt: j.attempt, revision_id: j.revision_id, outputs, validation, runtime: { ...RUNTIME, image }, timings: record.timings, failures, ...(record.controls ? { controls: record.controls } : {}) }, signal);
       record.stage = failures.length ? 'partial' : 'ready';
     } catch (e) {
       record.stage = record.cancelled ? 'cancelled' : 'failed';

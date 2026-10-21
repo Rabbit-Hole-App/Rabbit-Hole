@@ -23,8 +23,15 @@ export function validateJob(j, origins = []) {
   if (!Array.isArray(j.requirements?.checks) || j.requirements.checks.length > 100) errors.push('Invalid checks');
   if (!Array.isArray(j.formats) || j.formats.some(f => !['step','glb','stl','3mf','thumbnail'].includes(f))) errors.push('Invalid formats');
   if (j.operation === 'build' && !['step','glb','thumbnail'].every(f => j.formats.includes(f))) errors.push('Build requires STEP, GLB and thumbnail');
+  if (j.parameters !== undefined && !validParameters(j.parameters, j.operation)) errors.push('Invalid parameters');
   for (const [key, value] of Object.entries(j.limits || {})) if (!(key in LIMITS) || !Number.isSafeInteger(value) || value < 1 || value > LIMITS[key]) errors.push(`Invalid limit ${key}`);
   for (const key of ['memory_bytes', 'workspace_bytes']) if (j.limits?.[key] !== undefined && j.limits[key] !== LIMITS[key]) errors.push(`Unsupported kernel limit ${key}`);
   return errors;
 }
 export function effectiveLimits(job) { return { ...LIMITS, ...job.limits }; }
+// Validated values from the control plane (cad-params/1). The executor re-checks shape only: ids, scalar types, size.
+export function validParameters(p, operation) {
+  if (operation !== 'build' || !p || typeof p !== 'object' || p.schema !== 'cad-param-values/1' || !p.values || typeof p.values !== 'object' || Array.isArray(p.values)) return false;
+  const entries = Object.entries(p.values);
+  return entries.length <= 40 && entries.every(([k, v]) => /^[a-z][a-z0-9_]{0,47}$/.test(k) && (typeof v === 'boolean' || typeof v === 'number' && Number.isFinite(v) || typeof v === 'string' && v.length <= 60));
+}

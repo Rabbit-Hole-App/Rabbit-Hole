@@ -37,6 +37,28 @@ Artifact kinds: source, step, glb, thumbnail, stl, 3mf. Generated artifacts use
 existing Learn R2 and file-source/derivative access. Private input references
 are never copied into a publicly readable artifact manifest.
 
+## Controls, brief review and parameter rebuilds (cad/controls, backend)
+
+Design: `C:/s/spec/cad-controls/design.md` (owner brief and decisions 2026-10-20). UI comes after the CAD card lane.
+
+- Parameter definitions `cad-params/1` live in `brief.controls` and, once built, `manifest.controls`
+  (`cad-controls/1`: definitions, requested `values`, source-reported `computed`, `bindings` = inputs the trusted
+  build actually read). Shared validator `packages/web/src/cad-parameters.js`; no expression is read from metadata.
+- Source reads inputs with `cad_params.value(id)` (packages/cad-execute/runtime); the executor writes the validated
+  values to the read-only `parameters.json`. A rebuild reuses the accepted source text, never edits it.
+- `POST /:id/rebuild {requestId, expectedRevisionId, values}`: no model call, no review, no repair; ready result waits
+  for the existing revision-guarded Accept or Cancel (Discard). Failure keeps the accepted model; a `ValueError` from the
+  saved source becomes the reason. Models without bindings answer 409 `not_deterministic`.
+- Behind `CAD_BRIEF_FIRST=true` (off by default): one interpretation call, state `awaiting_approval`,
+  `POST /:id/brief {expectedBriefHash, brief}` (field edits, no call; structural changes 409 `reprepare_required`),
+  `POST /:id/approve {briefHash, confirmed:true}`; generation and repair cannot change the approved brief or checks.
+  Reservations are recorded per phase in `job.phaseUsd`.
+- `GET /api/learn/files/<fs>` for a `cad` source is owner-only; shared, member and forked boards keep the geometry
+  derivatives only.
+- Trusted inspection adds bounding-box min/max and circular edge centres; check results name their `kind`.
+- Local geometry: `node packages/cad-execute/local-fixtures.mjs <python with cadgen 0.7.21>` builds the five fixtures
+  in `packages/cad-execute/fixtures/` outside the Linux sandbox (geometry evidence only, not isolation).
+
 ## Durable orchestration
 
 One CadJobs Durable Object per authorized board uses the existing LearnScenes
