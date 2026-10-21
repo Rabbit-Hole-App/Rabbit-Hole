@@ -576,7 +576,8 @@ export async function runTurn({ raw, slash = null, opening = false, canvas, acce
   const probedClaim = asked && (asked.claim || routed.claim);
   if (probedClaim) probes[probedClaim] = (probes[probedClaim] || 0) + 1;
   const words = actions.filter(action => action.type === 'respond_text' || action.type === 'ask_question').map(action => action.text.trim()).join('\n\n');
-  const text = handed ? [words, handed.answer ?? HANDOFF_FAILED].filter(Boolean).join('\n\n') : words;
+  // A request the handoff found unrelated to the repository (not_about_repository) read no code: the words answer it alone.
+  const text = handed ? [words, handed.answer ?? (handed.record?.failure === 'not_about_repository' && words ? null : HANDOFF_FAILED)].filter(Boolean).join('\n\n') : words;
   const dive = actions.find(action => action.type === 'suggest_dive');
   const contracts = actions.filter(action => action.type !== 'no_action').map(action => actionContract(action, { domain, materials, claims }));
   // A spoken question never becomes the hole's typed opening (openingQuestion): the dock would show it

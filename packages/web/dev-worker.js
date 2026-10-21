@@ -43,6 +43,7 @@ import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
 import { tutorEvalRoute } from '../control-plane/src/tutor-eval-routes.js';
 import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
+import { codebaseRoute } from '../control-plane/src/learn-codebase-source-map.js';
 import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
@@ -282,6 +283,8 @@ const routes = {
     if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
+    // The Tutor's codebase goals and source drift (learn-codebase-source-map.js): the learner's own canvas, no model, no execution.
+    if (path === '/api/learn/codebase') return codebaseRoute(path, req, env);
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // A learner's derived Progress for one goal (learn-progress.js): their own records only, no model call.
