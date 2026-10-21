@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateBrief } from './contracts.js';
+import { fixtureSource } from './fixture-source.js';
 import { runMotionRequest } from './pipeline.mjs';
 
 const FIX = join(fileURLToPath(new URL('.', import.meta.url)), 'fixtures');
@@ -39,7 +40,8 @@ function doubles({ storyboard = ['storyboard'], author = 'composition', job = 'r
     },
   };
 }
-const run = (d, extra = {}) => runMotionRequest({ message: REQUEST, location: { concept: 'attention' }, call, service, dir: mkdtempSync(join(tmpdir(), 'motion-pipeline-')), stages: d.stages, ...extra });
+// The nanoGPT lesson's canvas has its repository: the harness supplies it (no request gets it by default since 2026-10-21).
+const run = (d, extra = {}) => runMotionRequest({ message: REQUEST, location: { concept: 'attention' }, source: fixtureSource(), call, service, dir: mkdtempSync(join(tmpdir(), 'motion-pipeline-')), stages: d.stages, ...extra });
 
 test('a raw /motion request reaches the existing type "video" block: resolver, grounding, brief, storyboard, Author, review job', async () => {
   const d = doubles();

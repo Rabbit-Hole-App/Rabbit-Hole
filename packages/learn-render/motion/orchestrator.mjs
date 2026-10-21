@@ -13,6 +13,7 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { validateMotionContext } from '../../control-plane/src/motion-context.js';
 import { PRICES } from './director.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
@@ -25,15 +26,17 @@ const send = (res, status, body, type = 'application/json') => {
 };
 const readJson = req => new Promise((done, fail) => {
   let size = 0; const chunks = [];
-  req.on('data', c => { size += c.length; if (size > 8192) { fail(Object.assign(new Error('too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
+  req.on('data', c => { size += c.length; if (size > 32768) { fail(Object.assign(new Error('too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
   req.on('end', () => { try { done(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { fail(Object.assign(new Error('the body is not JSON'), { status: 400 })); } });
 });
 
-// Exactly {request, location?}: a /motion line and, optionally, the canvas concept it was typed on.
+// Exactly {request, location?, context?}: a /motion line and, optionally, the canvas concept it was typed
+// on and the selected card (motion-context.js; its 4000-character text is why a body may reach 32 KiB).
 export function validateJobRequest(body) {
   const e = [];
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
-  for (const k of Object.keys(body)) if (!['request', 'location'].includes(k)) e.push(`${k}: not a field`);
+  for (const k of Object.keys(body)) if (!['request', 'location', 'context'].includes(k)) e.push(`${k}: not a field`);
+  try { validateMotionContext(body.context); } catch (error) { e.push(error.message); }
   if (typeof body.request !== 'string' || !/^\/motion\s+\S/.test(body.request) || body.request.length > 500) e.push('request: "/motion <what to explain>", at most 500 characters');
   const l = body.location;
   if (l !== undefined && (!l || typeof l !== 'object' || Array.isArray(l) || Object.keys(l).some(k => k !== 'concept') || (l.concept !== undefined && l.concept !== null && (typeof l.concept !== 'string' || l.concept.length > 100)))) e.push('location: {concept?: string of at most 100 characters}');
@@ -112,7 +115,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       return Promise.race([sent, new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
     };
     log(`job ${id}: ${body.request}`);
-    run({ message: body.request, location: job.location, call: guarded, env, service, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
+    run({ message: body.request, location: job.location, context: body.context ?? null, call: guarded, env, service, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
       .finally(() => { job.finished_at = new Date().toISOString(); if (active === job) active = null; log(`job ${id}: ${job.status}${job.result?.failure_reason ? ` (${job.result.failure_reason})` : ''}`); });

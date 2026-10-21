@@ -134,15 +134,28 @@ const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a cha
 
 // The /motion paid proposal's card (M7A): built here with no model call; the card starts the paid job only once it is
 // inserted already confirmed. The inline editor (inline-ai-session.js) stages the same card.
-// selection: the inline editor's compact summary of what the request is about, kept on the /motion line the orchestrator
-// reads (validateMotionRequest takes only request and location.concept). The direct command passes none.
-export function motionProposal(args, location = null, selection = '') {
-  const about = String(selection || '').replace(/\s+/g, ' ').trim();
+// selection: the card the request is about ({ id, kind, title, text }: the composer's selected card or the inline editor's
+// selection), sent as motion_request context.selection (control-plane motion-context.js) so the resolver grounds on its
+// text (owner brief 2026-10-21 message 7 item 4). With none, the line is resolved from its words alone.
+export function motionProposal(args, location = null, selection = null) {
+  const context = motionContext(selection);
   const block = {
     type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
-    operation: { op: 'motion_request', request: `/motion ${args}${about ? ` (about the selected canvas material: ${about})` : ''}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null } },
+    operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null }, ...(context ? { context } : {}) },
   };
   return { block, message: 'This uses paid generation.' };
+}
+
+// The frozen motion_request.context: the card's id, kind, title and at most 4000 characters of its plain text. A card with
+// no text has nothing to ground on and sends none.
+// ponytail: no selectable card carries a repository source today (code cards are not composer targets), so the web sends no
+// sourceRefs; add them from block.source when code cards can be selected.
+export const MOTION_SELECTION_TEXT = 4000;
+export function motionContext(selection) {
+  const text = String(selection?.text ?? '').trim().slice(0, MOTION_SELECTION_TEXT);
+  const cardId = String(selection?.id ?? '').slice(0, 200);
+  if (!cardId || !text) return null;
+  return { selection: { cardId, kind: String(selection.kind || 'Card').slice(0, 200), ...(selection.title ? { title: String(selection.title).slice(0, 300) } : {}), text } };
 }
 
 // /image's card: a real photo search the card runs itself once placed, with no model (the inline editor stages the same card).
@@ -198,7 +211,7 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   // development orchestrator (operation motion_request), which plans, reviews and renders it.
   if (request.action === 'motion') {
     if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
-    const { block, message } = motionProposal(args, location);
+    const { block, message } = motionProposal(args, location, target);
     return { proposal: { primitive: 'motion', message, generate: () => canvas.insertBlock(withPrompt({ ...block, confirmedStart: true }, promptUsed)) } };
   }
   // /image finds a real picture: the card searches and the learner chooses. It never generates (/generate-image does).

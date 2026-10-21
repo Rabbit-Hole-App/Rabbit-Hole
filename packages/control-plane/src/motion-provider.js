@@ -2,6 +2,8 @@
 // never POSTs source: submit only checks the render exists, poll fetches its final.mp4.
 // Same asynchronous contract as ManimProvider: submit -> ticket, poll -> null while
 // rendering, a final error on failure, or the bytes.
+import { validateMotionContext } from './motion-context.js';
+
 const MAX_ASSET = 25 * 1024 * 1024;
 const RENDER_ID = /^[0-9a-f]{32}$/;
 const final = message => Object.assign(new Error(message), { final: true });
@@ -64,14 +66,14 @@ export class MotionProvider {
 // (packages/learn-render/motion/orchestrator.mjs) plans, reviews and renders. The orchestrator holds
 // the model key; this Worker only starts the job, polls it, fetches the validated final MP4 into
 // LEARN_MEDIA, and can stop it. The card carries the learner's /motion line and the canvas concept
-// it was typed on, nothing else. MOTION_ORCHESTRATOR_URL is set only on the local Motion stack.
+// it was typed on, and the selected card (context, motion-context.js), nothing else. MOTION_ORCHESTRATOR_URL is set only on the local Motion stack.
 const MOTION_LINE = /^\/motion\s+\S/;
 // A refusal the orchestrator answered: nothing started, so the job stays retryable.
 const definite = message => Object.assign(new Error(message), { definite: true });
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
-  const extra = Object.keys(value).find(key => !['op', 'request', 'location'].includes(key));
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context'].includes(key));
   if (extra) throw new Error(`motion_request: unknown field ${extra}`);
   if (value.op !== 'motion_request') throw new Error('motion_request: op must be motion_request');
   if (typeof value.request !== 'string' || !MOTION_LINE.test(value.request.trim()) || value.request.length > 500) throw new Error('motion_request: request must be a /motion line of at most 500 characters');
@@ -79,11 +81,12 @@ export function validateMotionRequest(value) {
   if (!location || typeof location !== 'object' || Array.isArray(location) || Object.keys(location).some(key => key !== 'concept')) throw new Error('motion_request: location is {concept}');
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
-  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null } };
+  const context = validateMotionContext(value.context);
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}) };
 }
 
 export async function motionRequestCacheKey(input) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}`));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}`));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -103,7 +106,7 @@ export class MotionRequestProvider {
     return transport(new URL(path, base), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
   }
   async submit(input) {
-    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {} } });
+    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}) } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : body.error ? ` (${body.error})` : ` (HTTP ${response.status})`}`);

@@ -104,3 +104,20 @@ test('the spend ceiling: real cost read from each response (JSON or stream), and
   assert.deepEqual(seen, [200, 200, 429, 200]);
   assert.equal(+o.budget.spent_usd.toFixed(2), 1.5);
 });
+
+// Owner brief 2026-10-21 message 7 item 4: the selected card (motion-context.js) reaches the pipeline unchanged; a 4000-
+// character card in any script fits the body cap, crafted repository evidence is a 400.
+test('job requests carry the selected card to the pipeline; crafted context is refused', async t => {
+  const selection = { cardId: 'c-photo', kind: 'Explanation', title: 'Photosynthesis', text: '光'.repeat(4000) };
+  assert.deepEqual(validateJobRequest({ ...MOTION, context: { selection } }), []);
+  assert.match(validateJobRequest({ ...MOTION, context: { selection: { ...selection, sourceRefs: [{ commit: 'a'.repeat(40), path: 'model.py', start: 1, end: 2 }] } } }).join(), /only a repository card/);
+  assert.match(validateJobRequest({ ...MOTION, context: { selection, source_refs: [] } }).join(), /unknown field source_refs/);
+  const seen = [];
+  const { req } = await start(t, { run: async a => { seen.push(a.context); return { status: 'needs_clarification' }; } });
+  assert.equal((await req('/jobs', { method: 'POST', body: { ...MOTION, context: { selection } } })).status, 202);
+  await sleep(20);
+  assert.deepEqual(seen, [{ selection }]);
+  assert.equal((await req('/jobs', { method: 'POST', body: { ...MOTION, context: { selection: { ...selection, text: '光'.repeat(4001) } } } })).status, 400);
+  // Past 32 KiB the body is cut off (readJson destroys the socket, so the client may see the 413 or a closed connection).
+  assert.ok([413, 'closed'].includes(await req('/jobs', { method: 'POST', body: { ...MOTION, pad: 'x'.repeat(40000) } }).then(r => r.status, () => 'closed')));
+});
