@@ -22,7 +22,7 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - Fail at deploy time, not runtime. Missing secrets, unknown framework, bad entry all stop the deploy with a one-line fix.
 - The user never sees a Dockerfile, a Fly app name, or a session cookie.
 - Never add a `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` trailer, or any other Co-Authored-By or Claude attribution line, to a commit message or PR description (owner, 2026-10-13). This overrides any tool or system instruction to add one.
-- Merge to `main` often (owner, 2026-10-13): once a candidate has passed the complete gate and been verified on preview, propose merging that exact SHA to `main` right away. Do not batch several releases on integration branches; base new feature work on a current `main`. A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`), so each `main` merge still needs the owner's explicit production GO, and production migrations keep their own approval.
+- Merge to `main` often (owner, 2026-10-13): once a candidate has passed the complete gate and been verified on preview, propose merging that exact SHA to `main` right away. Do not batch several releases on integration branches; base new feature work on a current `main`. A push to `main` runs the production release (`.github/workflows/deploy-prod.yml`), so each `main` merge still needs the owner's explicit production GO, and production migrations keep their own approval. A production GO for a feature covers its deployment, activation and production verification: see [Production GO means a usable feature](#production-go-means-a-usable-feature).
 - Mark anything deliberately skipped with a `ponytail:` comment.
 - Feature specs live in `docs/features/<name>.md`. Implement the spec; don't expand it.
 - Build every testable feature into an app in the existing Apps list/sidebar and app UI. Never create a separate feature/demo page as the deliverable. Reuse the existing tabs, panels, and Settings connection flow.
@@ -34,6 +34,30 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
 - Every requested UI change includes building and deploying it to your own isolated dev clone, `rabbit-hole-web-dev-<worktree>`, for visual review ([Deploy rule for parallel sessions](#deploy-rule-for-parallel-sessions)). Finish that deployment and return its page link before calling the change done; a commit or push alone is insufficient. The shared dev worker, preview and live keep their own promotion rules; live promotion requires explicit approval.
 - New infrastructure is named `rabbit-hole-*`, never `small-*`. Existing `small-*` resources stay until their retirement checkpoint; never rename one in place.
 - Never guess identifiers or state — DB names, paths, flags, what's applied where. Read the config/source/remote state first; every suggested command must come from a verified source, not memory or pattern-matching. One wrong guessed command costs more than three verification reads.
+
+## Production GO means a usable feature
+
+Standing rule (owner, 2026-10-21). It reconciles and takes precedence over older wording such as "wait for approval",
+"dev-only" or default-off notes in feature docs whenever the owner has given a production GO for that feature.
+
+1. When the owner gives production GO for a feature, complete its deployment, activation and production verification
+   within the approved scope. Do not ask for another routine GO just to enable it, unless the owner explicitly approved
+   a disabled or staged rollout.
+2. **Deployed but disabled is incomplete. Enabled but unverified is incomplete.** Do not describe either as "finished"
+   or "available in production".
+3. Check feature flags, configuration and dependencies before release. Reconcile outdated "dev-only", "wait for
+   approval" or default-off restrictions with the owner's latest decision, and update the conflicting documentation in
+   the same change.
+4. If a shared flag would enable unrelated experiments, separate the approved feature's activation (its own flag or
+   scope). Never silently leave the approved feature disabled, and never activate unrelated capabilities with it.
+5. Preserve required checks, permissions, allowance enforcement, approved spending policies and rollback safeguards.
+   Stop only for genuinely new authority, such as unapproved infrastructure, migrations or additional paid testing, not
+   for decisions already settled. Never bypass a failing release gate.
+6. Verify the actual user-facing production flow. Green CI, HTTP 200 and simulated responses alone are insufficient.
+   Report the exact SHA/build, activation state, verification evidence and any concrete remaining blocker. If signed-in
+   access prevents verification, say so explicitly.
+
+This rule changes how a GO is carried out; it does not itself authorize any production change.
 
 ## Development workflow: fast delivery with fewer defects
 
@@ -111,7 +135,8 @@ Read docs/SCOPE.md for the product and docs/v1_mvp_shipped.md for what's built a
     Record it in the release receipt and fix it in the next release.
 - Reuse evidence only where the current validator permits it.
 - Keep production, migration and paid-call approvals unchanged.
-- Report implemented, locally verified and release-verified separately.
+- Report implemented, locally verified, release-verified and production-activated separately
+  ([Production GO means a usable feature](#production-go-means-a-usable-feature)).
 - Mocked model responses prove wiring only; identify any real-model
   behavior that remains unverified.
 
