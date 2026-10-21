@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MotionProvider, MotionRequestProvider, motionCacheKey, motionRequestCacheKey, validateMotionRender, validateMotionRequest } from '../src/motion-provider.js';
+import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from '../src/motion-provider.js';
+import { signGrant } from '../../learn-render/motion/orchestrator.mjs';
 import { LearnVideos } from '../src/learn-video.js';
 
 const id = '0123456789abcdef0123456789abcdef';
@@ -111,14 +112,16 @@ test('a Motion render that is missing at submit fails with its reason and stays 
   } finally { globalThis.fetch = original; }
 });
 
-// M7A, development only: a /motion request run by the development orchestrator.
+// A /motion request run by the Motion orchestrator. These are wiring tests with spend admission off (SMALL_ENV test);
+// learn-allowance.test.js runs the same Durable Object against the real ledger.
 const job = '89abcdef0123456789abcdef01234567';
-const orch = { MOTION_ORCHESTRATOR_URL: 'https://orchestrator.example/', MOTION_ORCHESTRATOR_TOKEN: 'secret' };
+const orch = { MOTION_ORCHESTRATOR_URL: 'https://orchestrator.example/', MOTION_ORCHESTRATOR_TOKEN: 'secret', MOTION_JOB_RESERVATION_USD: '2', SMALL_ENV: 'test' };
+const spend = { opId: 'motion-0f0e0d0c-0b0a-4908-8706-050403020100', grant: { micros: 2000000, issued_at: 1, sig: 'x' } };
 const line = '/motion 15s explain me softmax func';
 const motionOp = { op: 'motion_request', request: line, location: { concept: 'Attention' } };
 const ready = { job_id: job, status: 'ready', title: 'Softmax turns attention scores into weights', render_id: id, motion: { job_id: 'motion-job-1', duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', path: 'model.py', start_line: 62, end_line: 64 }] } };
 
-test('motion_request is exactly {op, request: a /motion line, location: {concept}}', async () => {
+test('motion_request is exactly {op, request: a /motion line, location: {concept}, context?}: never composition source', async () => {
   assert.deepEqual(validateMotionRequest(motionOp), { op: 'motion_request', request: line, location: { concept: 'Attention' } });
   assert.deepEqual(validateMotionRequest({ op: 'motion_request', request: `  ${line} ` }), { op: 'motion_request', request: line, location: { concept: null } });
   for (const bad of [null, { op: 'motion_request' }, { ...motionOp, request: 'explain softmax' }, { ...motionOp, request: '/motion' }, { ...motionOp, request: `/motion ${'x'.repeat(500)}` },
@@ -128,13 +131,29 @@ test('motion_request is exactly {op, request: a /motion line, location: {concept
   const key = await motionRequestCacheKey(validateMotionRequest(motionOp));
   assert.equal(key, await motionRequestCacheKey(validateMotionRequest({ ...motionOp })));
   assert.notEqual(key, await motionRequestCacheKey(validateMotionRequest({ ...motionOp, location: { concept: 'Generation' } })));
+  // The selected card (motion-grounding's context) passes through untouched, bounded in size, and is part of the key.
+  const context = { selection: { cardId: 'c1', kind: 'note', title: 'Photosynthesis', text: 'Light reactions make ATP.' } };
+  assert.deepEqual(validateMotionRequest({ ...motionOp, context }).context, context);
+  assert.notEqual(key, await motionRequestCacheKey(validateMotionRequest({ ...motionOp, context })));
+  for (const bad of [{ ...motionOp, context: [] }, { ...motionOp, context: 'x' }, { ...motionOp, context: { selection: { text: 'x'.repeat(12001) } } }, { ...motionOp, composition: { source: 'x' } }]) assert.throws(() => validateMotionRequest(bad), /motion_request/);
+});
+
+test('the per-job hold is configured, never unlimited, and the grant the worker signs is the one the orchestrator verifies', async () => {
+  assert.deepEqual(['2', '2.5', ' 0.75 ', '20'].map(v => motionReservationMicros({ MOTION_JOB_RESERVATION_USD: v })), [2e6, 2.5e6, 750000, 20e6]);
+  for (const bad of [undefined, '', '0', '-1', '20.01', 'Infinity', '1e3', '2 USD']) assert.equal(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: bad }), null, String(bad));
+  const token = 't'.repeat(40);
+  const grant = await motionGrant(token, spend.opId, 2000000, 1761000000);
+  assert.deepEqual(grant, { micros: 2000000, issued_at: 1761000000, sig: signGrant(token, spend.opId, 2000000, 1761000000) });
 });
 
 test('the orchestrator provider: one authorized POST to start, GETs to poll, the final MP4 and its provenance once ready', async () => {
   const fake = transport([json({ job_id: job, status: 'running' }, 202)]);
   const input = validateMotionRequest(motionOp);
-  assert.deepEqual(await new MotionRequestProvider(orch, fake).submit(input), { id: job });
+  const sent = [];
+  const recording = async (url, init) => { sent.push(JSON.parse(init.body)); return fake(url, init); };
+  assert.deepEqual(await new MotionRequestProvider(orch, recording).submit(input, spend), { id: job });
   assert.deepEqual(fake.calls, ['POST https://orchestrator.example/jobs authorized with body']);
+  assert.deepEqual(sent, [{ request: line, location: { concept: 'Attention' }, idempotency_key: spend.opId, grant: spend.grant }], 'the line, the concept, the key and the grant: nothing else');
   assert.equal(await new MotionRequestProvider(orch, transport([json({ status: 'running', stage: 'authoring' })])).poll({ id: job }), null);
   const clip = new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112]);
   const done = transport([json(ready), video(clip)]);
@@ -145,10 +164,11 @@ test('the orchestrator provider: one authorized POST to start, GETs to poll, the
 
 test('the orchestrator provider: refusals are definite (nothing started), outcomes are final, plaintext is refused', async () => {
   const input = validateMotionRequest(motionOp);
-  await assert.rejects(new MotionRequestProvider(orch, transport([json({ error: 'busy', detail: 'one Motion job at a time' }, 429)])).submit(input), e => e.definite === true && /one Motion job at a time/.test(e.message));
-  await assert.rejects(new MotionRequestProvider(orch, async () => { throw new Error('socket hang up'); }).submit(input), e => !e.definite);
-  await assert.rejects(new MotionRequestProvider({}, transport([])).submit(input), e => e.definite === true && /not available in this environment/.test(e.message));
-  await assert.rejects(new MotionRequestProvider({ ...orch, MOTION_ORCHESTRATOR_URL: 'http://orchestrator.example/' }, transport([])).submit(input), /HTTPS/);
+  await assert.rejects(new MotionRequestProvider(orch, transport([json({ error: 'busy', detail: 'one Motion job at a time' }, 429)])).submit(input, spend), e => e.definite === true && e.code === 'busy' && /one Motion job at a time/.test(e.message));
+  await assert.rejects(new MotionRequestProvider(orch, transport([json({ error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' }, 503)])).submit(input, spend), e => e.definite === true && e.code === 'renderer_unavailable');
+  await assert.rejects(new MotionRequestProvider(orch, async () => { throw new Error('socket hang up'); }).submit(input, spend), e => !e.definite);
+  await assert.rejects(new MotionRequestProvider({}, transport([])).submit(input, spend), e => e.definite === true && /not available in this environment/.test(e.message));
+  await assert.rejects(new MotionRequestProvider({ ...orch, MOTION_ORCHESTRATOR_URL: 'http://orchestrator.example/' }, transport([])).submit(input, spend), /HTTPS/);
   const poll = (...responses) => new MotionRequestProvider(orch, transport(responses)).poll({ id: job });
   await assert.rejects(poll(json({ status: 'failed', failure_reason: 'still blocking after the repair round: blank_frame' })), e => e.final && /still blocking after the repair round/.test(e.message));
   await assert.rejects(poll(json({ status: 'cancelled' })), e => e.final && e.message === 'Stopped.');
@@ -216,7 +236,8 @@ test('Stop: the orchestrator is told, the job fails as Stopped and stays retryab
     assert.ok(o.calls.includes(`POST /jobs/${job}/cancel`));
     await f.actor.alarm();
     assert.equal(f.assets.size, 0, 'a stopped job stores nothing');
-    assert.equal(o.calls.filter(c => c.startsWith('GET')).length, 0, 'a stopped job is not polled');
+    // Owner 2026-10-21 10:35 (settle actual usage): a stopped job is polled, never fetched, until its cost can be settled.
+    assert.deepEqual(o.calls.filter(c => c.startsWith('GET')), [`GET /jobs/${job}`], 'polled for its cost, its video never fetched');
     assert.equal((await f.actor.fetch(stopRequest(placementId))).status, 409, 'nothing left to stop');
     assert.equal((await f.actor.fetch(otherRequest())).status, 202, 'the slot is free');
     assert.equal((await f.actor.fetch(stopRequest('nope'))).status, 404);
@@ -240,11 +261,22 @@ test('a /motion failure: the reason on the card, nothing stored, retryable; a re
     assert.deepEqual([v.status, v.retryable], ['failed', true]);
     assert.match(v.error, /one Motion job at a time/);
   } finally { busy.restore(); }
-  const lost = orchestratorStub({ submit: () => { throw new Error('socket hang up'); } });
+  // Owner item 2 (2026-10-21): an unconfirmed start is resent under the same idempotency key and grant, which the
+  // orchestrator answers with the job that key already started; it never becomes a second job.
+  const bodies = [];
+  let attempts = 0;
+  const lost = orchestratorStub({ submit: () => { if (++attempts === 1) throw new Error('socket hang up'); return json({ job_id: job, status: 'running', duplicate: true }, 202); } });
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => { if (new URL(url).pathname === '/jobs') bodies.push(JSON.parse(init.body)); return original(url, init); };
   try {
-    const v = (await (await requestFixture().actor.fetch(motionRequest())).json()).videos[0];
-    assert.deepEqual([v.status, v.retryable], ['failed', false], 'the job may have started: no one-click retry');
-  } finally { lost.restore(); }
+    const f = requestFixture();
+    const v = (await (await f.actor.fetch(motionRequest())).json()).videos[0];
+    assert.equal(v.status, 'generating', 'the job may have started: it is resent, not failed or restarted');
+    await f.actor.alarm();
+    assert.equal(bodies.length, 2);
+    assert.deepEqual(bodies[1], bodies[0], 'the same key and grant');
+    assert.equal((await f.actor.list()).videos[0].status, 'generating');
+  } finally { globalThis.fetch = original; lost.restore(); }
 });
 
 test('with no orchestrator (a dev clone, preview, production), Generate starts nothing: the card says Motion is not available here, retryable', async () => {

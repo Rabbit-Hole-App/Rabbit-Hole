@@ -2,17 +2,25 @@ import { authorizedBoardApp } from './learn-board.js';
 import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
-import { MotionProvider, MotionRequestProvider, motionCacheKey, motionRequestCacheKey, validateMotionRender, validateMotionRequest } from './motion-provider.js';
+import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
-import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext } from './learn-usage.js';
+import { admitSpend, operationId, settleSpend, spendEnforced, spendMessage } from './learn-spend-ledger.js';
+import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity } from './learn-usage.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
 const POLL_MS = 10000; // Clips take minutes; background polling does not depend on an open browser.
 const MAX_WAIT_MS = 30 * 60 * 1000;
-// A /motion request (development only) plans, reviews, may repair once and renders twice: longer.
+// A /motion request plans, reviews, may repair once and renders twice: longer.
 const maxWait = job => (job.provider === 'motion_request' ? 60 * 60 * 1000 : MAX_WAIT_MS);
+const dollars = micros => `$${(micros / 1e6).toFixed(2)}`;
+// A Motion job's model spending (owner items 1 and 6, 2026-10-21): one hold per attempt, admitted against the learner's
+// allowance before anything starts, sized to what is left of the job's ceiling (MOTION_JOB_RESERVATION_USD) across its
+// attempts, and settled once with the orchestrator's real cost. Stopped jobs keep polling until their cost is known.
+const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
+// What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
+const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
 export async function videoFetch(req, env) {
   return privateLessonAssetFetch(req, env, env.LEARN_VIDEOS);
 }
@@ -103,6 +111,8 @@ export class LearnVideos {
           catch (error) { unconfirmed = ` The Motion harness did not confirm the stop: ${error.message}`; }
           Object.assign(job, { status: 'failed', error: `Stopped.${unconfirmed}`, stopped: true, uncertain: false });
           await this.state.storage.put(`job:${p.key}`, job);
+          // Its hold settles once the orchestrator reports what the stopped job really spent.
+          if (needsSettling(job)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
           return json(await this.list());
         }
         // A paid job starts only from the learner's explicit confirmation.
@@ -122,18 +132,21 @@ export class LearnVideos {
           const all = await this.state.storage.list({ prefix: 'job:' });
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
-          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER };
+          if (job && needsSettling(job)) return json({ error: 'The stopped video is still finishing. Try again in a moment.' }, 409);
+          // A retry of the same Motion job spends from the same ceiling: what earlier attempts used (or may have used) carries over.
+          job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER, ...(motionRequest ? { consumedMicros: job?.consumedMicros || 0 } : {}) };
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
-          try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
+          if (motionRequest) await this.startMotion(req, job, provider);
+          else try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
           // A Motion submit is a GET of a finished render (nothing charged), and a definite refusal
           // started nothing: both stay retryable. Anything else may have started a paid job.
           catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
           // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render is
           // platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's allowance).
-          if (!motion && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, maths ? 'render' : 'video'), { provider: job.provider, ok: !!job.ticket });
+          if (!motion && !motionRequest && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, maths ? 'render' : 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
@@ -154,11 +167,107 @@ export class LearnVideos {
       return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}) };
     }) };
   }
+  // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold; an
+  // unconfirmed submission keeps the job generating with its key and grant, and the alarm resends it (the orchestrator
+  // returns the job that key already started, so nothing runs or is reserved twice).
+  async startMotion(req, job, provider) {
+    const refused = provider.unavailable() || await this.admitMotion(req, job);
+    if (refused) { Object.assign(job, { status: 'failed', error: refused, uncertain: false }); return; }
+    await this.state.storage.put(`job:${job.key}`, job);
+    try { job.ticket = await provider.submit(job.input, job.spend); }
+    catch (error) {
+      if (!error.definite) return; // unconfirmed: the alarm resends under the same key
+      await this.settleMotion(job, NOTHING);
+      Object.assign(job, { status: 'failed', error: error.message, uncertain: false });
+    }
+  }
+
+  // -> null when admitted (job.spend holds the reservation and its signed grant), else the person's explanation.
+  async admitMotion(req, job) {
+    const ceiling = motionReservationMicros(this.env);
+    if (ceiling == null) return 'Motion is not available here yet: its per-video spending limit is not configured. Nothing was started.';
+    const left = ceiling - (job.consumedMicros || 0);
+    if (left <= 0) return `This video has used its ${dollars(ceiling)} AI spending limit across its attempts (an interrupted attempt's unknown cost stays counted). Nothing was started; ask for it in different words to make a new one.`;
+    const scoped = usageFromForwarded(this.env, req, 'video');
+    job.payer = usageContext(scoped)?.identity || null;
+    const now = Math.floor(Date.now() / 1000), opId = operationId('motion');
+    if (spendEnforced(this.env)) {
+      const gate = await admitSpend(this.env.LEARN_DB, scoped, { opId, userId: 'provider:motion', org: 'platform', category: 'motion', reservedUsd: left / 1e6, kind: 'generation', provider: 'anthropic', now, deadlineAt: now + maxWait(job) / 1000 });
+      if (gate.refused) return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`;
+      job.spend = { opId, attemptId: gate.attemptId, micros: left };
+    } else job.spend = { opId, attemptId: null, micros: left };
+    Object.assign(job.spend, { admitted: true, settled: false, grant: await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, opId, left, now) });
+    return null;
+  }
+
+  // Settles the attempt's hold once: the real cost when the orchestrator could price every call (the rest is released),
+  // else unknown with its reservation kept (learn-spend-ledger.js). Renders are platform-funded compute, recorded apart
+  // under feature render (owner 5A decision C) and never in the learner's allowance.
+  async settleMotion(job, view) {
+    const spend = job.spend;
+    if (!spend?.admitted || spend.settled) return;
+    const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
+    const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
+    const calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    if (spendEnforced(this.env)) {
+      await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
+      await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
+    }
+    job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
+    Object.assign(spend, { settled: true, costMicros: known });
+    await this.state.storage.put(`job:${job.key}`, job);
+    const renders = Math.min(Number(view?.renders) || 0, 8);
+    for (let i = 0; i < renders; i++) {
+      const scoped = withUsage(this.env, { feature: 'render' });
+      noteUsageIdentity(scoped, job.payer);
+      await recordMedia(scoped, { provider: 'motion_renderer' });
+    }
+  }
+
+  // One poll of a Motion job: resend an unconfirmed submission, settle once the job ends and nothing is in flight, then
+  // store the ready video or the reason it ended. A stopped job only settles.
+  async pollMotion(job) {
+    const provider = new MotionRequestProvider(this.env);
+    const late = Date.now() - job.startedAt > maxWait(job);
+    if (!job.ticket) {
+      try { job.ticket = await provider.submit(job.input, job.spend); }
+      catch (error) {
+        if (!error.definite && !late) return;
+        // A refused resend of a fresh grant started nothing; a grant refused after a restart, or no answer at all, may have.
+        await this.settleMotion(job, error.definite && error.code !== 'grant_refused' ? NOTHING : null);
+        Object.assign(job, error.definite && error.code !== 'grant_refused' ? { status: 'failed', error: error.message, uncertain: false }
+          : { status: 'failed', error: 'The Motion service lost this video before it confirmed the start. Its spending stays held until it is reconciled.', uncertain: true });
+        return;
+      }
+    }
+    const view = await provider.job(job.ticket);
+    if (view?.status === 'running' && !late) return;
+    if (view && view.status !== 'running' && view.spend?.in_flight > 0 && !late) return; // a stopped call still lands and is priced
+    await this.settleMotion(job, view && view.status !== 'running' ? view : null);
+    if (job.status !== 'generating') return;
+    if (!view || view.status === 'running') {
+      Object.assign(job, view ? { status: 'failed', uncertain: true, error: `Generation has not completed within ${maxWait(job) / 60000} minutes. Check provider history before generating again.` }
+        : { status: 'failed', error: 'The Motion service restarted while this video was being made. Generate it again; the interrupted attempt\'s cost stays counted.' });
+      return;
+    }
+    const result = await provider.poll(job.ticket, view);
+    job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
+    await learnMedia(this.env).put(job.storageKey, result.bytes, { httpMetadata: { contentType: 'video/mp4' } });
+    job.result = { provider: result.provider, generationId: result.generationId, motion: result.motion };
+    job.status = 'ready';
+  }
+
   async alarm() {
     // A finished job stores its asset: only ever in the dev bucket, never small-runs.
     if (!this.env.LEARN_MEDIA) throw new Error('LEARN_MEDIA is not bound on this worker');
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     for (const [key, job] of jobs) {
+      if (job.provider === 'motion_request' && (job.status === 'generating' || needsSettling(job))) {
+        try { await this.pollMotion(job); }
+        catch (error) { if (error.final) { job.status = 'failed'; job.error = error.message; } } // transient: the next poll
+        await this.state.storage.put(key, job);
+        continue;
+      }
       if (job.status !== 'generating') continue;
       // A crash after POST but before storing its ticket cannot safely be retried.
       if (!job.ticket) { job.status = 'failed'; job.uncertain = true; job.error = 'Submission status is unknown. Check provider history before generating again.'; }
@@ -166,7 +275,6 @@ export class LearnVideos {
         try {
           const result = job.provider === 'manim' ? await new ManimProvider(this.env).poll(job.ticket)
             : job.provider === 'motion' ? await new MotionProvider(this.env).poll(job.ticket)
-            : job.provider === 'motion_request' ? await new MotionRequestProvider(this.env).poll(job.ticket)
             : await videoProvider({ ...this.env, LEARN_VIDEO_PROVIDER: job.provider }).poll(job.ticket);
           if (result?.bytes) {
             job.storageKey = `learn-video-dev/${this.state.id}/${job.key}.mp4`;
@@ -189,6 +297,6 @@ export class LearnVideos {
       }
       await this.state.storage.put(key, job);
     }
-    if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating')) await this.state.storage.setAlarm(Date.now() + POLL_MS);
+    if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating' || needsSettling(j))) await this.state.storage.setAlarm(Date.now() + POLL_MS);
   }
 }

@@ -494,11 +494,14 @@ A paid final render follows quote → explicit confirmation → reserve → rend
 → settle, consistent with the Usage/Credits architecture. No paid render
 starts merely because a learner asks a question.
 
-Quote, reserve and settle are not implemented yet; they belong to the future
-Usage & Credits work. Today only the confirmation gate exists (`paidRefusal`
-in `packages/control-plane/src/learn-paid.js`, HTTP 428 until the learner
-confirms). Paid production rendering is deferred until Usage & Credits
-exists (V1 spec §25).
+Updated 2026-10-21: reserve and settle exist and the monthly AI allowance is
+enforced (`admitSpend` / `settleSpend` in
+`packages/control-plane/src/learn-spend-ledger.js`). Motion V1 confirms
+(`paidRefusal`, HTTP 428 until the learner confirms), admits a per-job hold
+before anything starts, checks every model call's worst case against what is
+left of it, settles the actual cost and releases the rest; its rendering is
+platform-funded and recorded apart (V1 spec §25). No price quote is shown.
+Production `/motion` is still not active (see Status).
 
 ## 21. Performance strategy
 

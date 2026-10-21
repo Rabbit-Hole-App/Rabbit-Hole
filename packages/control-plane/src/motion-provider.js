@@ -60,18 +60,19 @@ export class MotionProvider {
   }
 }
 
-// M7A, DEVELOPMENT ONLY: a /motion request that the development orchestrator
-// (packages/learn-render/motion/orchestrator.mjs) plans, reviews and renders. The orchestrator holds
-// the model key; this Worker only starts the job, polls it, fetches the validated final MP4 into
-// LEARN_MEDIA, and can stop it. The card carries the learner's /motion line and the canvas concept
-// it was typed on, nothing else. MOTION_ORCHESTRATOR_URL is set only on the local Motion stack.
+// A /motion request that the Motion orchestrator (packages/learn-render/motion/orchestrator.mjs) plans, reviews and
+// renders. The orchestrator holds the model key; this Worker admits the job's hold against the learner's allowance
+// (learn-video.js), sends it as a signed grant, polls the job, fetches the validated final MP4 into LEARN_MEDIA, and
+// can stop it. The card carries the learner's /motion line, the canvas concept it was typed on and, optionally, the
+// selected card's context (motion-grounding owns its shape; only its size is checked here), never composition source.
+// MOTION_ORCHESTRATOR_URL is set only where an orchestrator runs (today the local Motion stack).
 const MOTION_LINE = /^\/motion\s+\S/;
 // A refusal the orchestrator answered: nothing started, so the job stays retryable.
-const definite = message => Object.assign(new Error(message), { definite: true });
+const definite = (message, code = null) => Object.assign(new Error(message), { definite: true, code });
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
-  const extra = Object.keys(value).find(key => !['op', 'request', 'location'].includes(key));
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context'].includes(key));
   if (extra) throw new Error(`motion_request: unknown field ${extra}`);
   if (value.op !== 'motion_request') throw new Error('motion_request: op must be motion_request');
   if (typeof value.request !== 'string' || !MOTION_LINE.test(value.request.trim()) || value.request.length > 500) throw new Error('motion_request: request must be a /motion line of at most 500 characters');
@@ -79,12 +80,34 @@ export function validateMotionRequest(value) {
   if (!location || typeof location !== 'object' || Array.isArray(location) || Object.keys(location).some(key => key !== 'concept')) throw new Error('motion_request: location is {concept}');
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
-  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null } };
+  const context = value.context;
+  if (context !== undefined && (!context || typeof context !== 'object' || Array.isArray(context) || JSON.stringify(context).length > 12000)) throw new Error('motion_request: context must be an object of at most 12000 characters');
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}) };
 }
 
+// A different selected card is a different video; a request with no context keeps the key it always had.
 export async function motionRequestCacheKey(input) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}`));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}`));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+// The per-job hold (owner items 1 and 6, 2026-10-21): MOTION_JOB_RESERVATION_USD, a decimal above 0 and at most 20, in
+// integer micro-USD. Missing or invalid is null, and null starts nothing: never unlimited.
+const DECIMAL = /^\d+(\.\d{1,6})?$/;
+export function motionReservationMicros(env) {
+  const text = String(env?.MOTION_JOB_RESERVATION_USD ?? '').trim();
+  if (!DECIMAL.test(text)) return null;
+  const [whole, fraction = ''] = text.split('.');
+  const micros = Number(whole) * 1e6 + Number(fraction.padEnd(6, '0'));
+  return micros > 0 && micros <= 20e6 ? micros : null;
+}
+
+// The grant the orchestrator verifies (orchestrator.mjs signGrant): the hold for one idempotency key, HMAC-SHA256 with the
+// shared orchestrator token.
+export async function motionGrant(token, key, micros, issuedAt) {
+  const hmac = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode(`motion-grant|${key}|${micros}|${issuedAt}`)));
+  return { micros, issued_at: issuedAt, sig: [...sig].map(byte => byte.toString(16).padStart(2, '0')).join('') };
 }
 
 export class MotionRequestProvider {
@@ -94,25 +117,36 @@ export class MotionRequestProvider {
     this.transport = transport;
     this.version = 'motion-orchestrator';
   }
-  async request(path, { method = 'GET', body } = {}) {
+  // Why nothing can start here, answered before any admission or call; null when an orchestrator is configured.
+  unavailable() {
     // A dev clone, preview or production has no orchestrator (only the local Motion stack sets one): nothing starts or is charged.
-    if (!this.url || !this.token) throw definite('Motion is not available in this environment yet. Nothing was started.');
-    const base = new URL(this.url);
-    if (base.protocol !== 'https:') throw definite('The Motion orchestrator requires HTTPS');
-    const transport = this.transport;
-    return transport(new URL(path, base), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
+    if (!this.url || !this.token) return 'Motion is not available in this environment yet. Nothing was started.';
+    if (new URL(this.url).protocol !== 'https:') return 'The Motion orchestrator requires HTTPS';
+    return null;
   }
-  async submit(input) {
-    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {} } });
+  async request(path, { method = 'GET', body } = {}) {
+    const refused = this.unavailable();
+    if (refused) throw definite(refused);
+    const transport = this.transport;
+    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
+  }
+  // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
+  async submit(input, spend) {
+    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
-    throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : body.error ? ` (${body.error})` : ` (HTTP ${response.status})`}`);
+    throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : body.error ? ` (${body.error})` : ` (HTTP ${response.status})`}`, body.error || `http_${response.status}`);
   }
-  async poll(ticket) {
+  // The job as the orchestrator reports it (status, spend, renders), or null when it no longer knows it.
+  async job(ticket) {
     const response = await this.request(`/jobs/${ticket.id}`);
-    if (response.status === 404) throw final('The Motion job is gone (the development orchestrator restarted); generate it again');
+    if (response.status === 404) return null;
     if (!response.ok) throw new Error(`Motion orchestrator HTTP ${response.status}`);
-    const job = await response.json();
+    return response.json();
+  }
+  async poll(ticket, view) {
+    const job = view === undefined ? await this.job(ticket) : view;
+    if (!job) throw final('The Motion job is no longer known to the Motion service (it restarted); generate it again');
     if (job.status === 'running') return null;
     if (job.status === 'needs_clarification') throw final(`Motion needs one clarification: ${job.clarification?.question || 'name what to explain'}`);
     if (job.status === 'cancelled') throw final('Stopped.');

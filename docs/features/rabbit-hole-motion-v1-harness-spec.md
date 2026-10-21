@@ -1852,16 +1852,14 @@ cheap planning (brief + storyboard)
 → expensive final render
 ```
 
-**Current reality.** The only paid-generation primitives that exist are the confirmation gate and the proposal:
+**Current reality (updated 2026-10-21, Motion activation, `feature/motion-activation`).** The earlier text here said reserve and settle did not exist and that Motion waited for Usage & Credits. That is outdated: the shared spend system exists and enforces each learner's monthly AI allowance (`admitSpend` / `settleSpend` in `packages/control-plane/src/learn-spend-ledger.js`, owner L12 2026-10-20, in production). Motion uses it; it has no ledger of its own.
 
-- `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) answers HTTP 428 `needsConfirm` unless the request carries `confirmed: true`, set only by an explicit Generate press. LearnVideos already runs it before every submission.
-- a paid `/` command returns a `paid_proposal` (currently with `estimatedCost: null`) that the composer confirms.
-
-Quote → reserve → settle is **not implemented**. It belongs to the future Usage & Credits work (paused).
-
-**Motion V1 development harness:** no production billing is required. Development runs still go through the existing confirmation gate, so nothing paid starts because a learner typed a question.
-
-**Paid production rendering is deferred** until Usage & Credits exists. Then the production flow is: quote → explicit user confirmation → reserve → render → settle. M9 depends on it.
+- **Confirmation.** `paidRefusal(body)` (`packages/control-plane/src/learn-paid.js`) answers HTTP 428 `needsConfirm` unless the request carries `confirmed: true`, set only by an explicit Generate press. No price quote is shown (house rule: never show a guessed amount).
+- **Model spending is a hold, never a flat charge** (owner items 1 and 6, 2026-10-21). Before anything starts, LearnVideos admits one hold per attempt against the learner's allowance and the platform daily cap, in one D1 transaction (`admitSpend`, category `motion`, feature `video`). The hold is `MOTION_JOB_RESERVATION_USD` (configurable; $2 in the mocked tests) minus what earlier attempts of the same video used, so repairs and explicit retries share one ceiling. A refusal (exhausted, insufficient or reserved allowance; no hold configured; no orchestrator) starts nothing: zero orchestrator, model and renderer calls.
+- **Every paid step fits the hold before it starts.** The worker sends the hold to the orchestrator as a grant signed with the orchestrator token, keyed by the admission's id (the idempotency key). The orchestrator checks each model call's worst case (`requestSpendBound`: the request's bytes plus its `max_tokens` at the model's price) against what is left: finished calls at their real cost (or their bound when unreadable), calls in flight at their bound. A call that does not fit, a repair included, is never sent; the job stops with that reason.
+- **Settle actual, release the rest.** When the job ends and no call is in flight, the worker settles the attempt once with the orchestrator's real total; the unused part of the hold is released. When any call's cost is unknown (an orchestrator restart mid-call), the hold stays as unknown cost, as the spend system does for every provider, and counts against the video's ceiling.
+- **Rendering is platform-funded** (owner decision C, 2026-10-21): each render the orchestrator requests is recorded once under feature `render` (charge class free, attributed to the learner, cost unknown) and never touches the allowance. Its limits are the render service's (420 s per render, one render per machine, the cgroup limits), the orchestrator's (one job at a time, the per-job runtime bound) and the fixed machine pool.
+- **Development runs** go through the same path on the local Motion stack.
 
 ---
 
@@ -1881,7 +1879,7 @@ Do not attempt everything in one commit.
 | **M7A** | Remotion end to end: final render + final validation + LearnVideos / R2 + existing video-block insertion, in a development environment only | Checkpoint (2026-10-05; see "M7A result"): the pipeline, card, Stop, failure, Voice and reload are proven; no automatic run has produced a ready video yet |
 | **M7B** | HyperFrames adapter (§9.5) under the same sandbox, resource limits and determinism contract, through the same pipeline | Authorized (development) |
 | **M8** | Remotion vs HyperFrames benchmark (§9.6) on the same briefs and storyboards; §27 demos pass human review; choose the default routing; keep both adapters; required report (§36) | Authorized |
-| **M9** | Production `/motion` integration | **DEFERRED** pending explicit approval and the Usage & Credits payment architecture. Do not start M9 from this specification alone. |
+| **M9** | Production `/motion` integration | **Activation code in progress (2026-10-21, owner message 7, `feature/motion-activation`); production activation not complete.** The Usage & Credits dependency is met (allowance enforcement, §25). Still required: the owner's priced approval of the production renderer and orchestrator infrastructure, the per-job hold and paid verification (`C:/s/spec/day-1021/motion-deploy-plan.md`), then deployment and a production verification run. |
 
 ## M1 — Remotion render path audit + deterministic Linux render harness
 
@@ -2773,7 +2771,7 @@ Before any production work, with a separate explicit GO, review:
 - sandbox isolation
 - model/provider cost
 - storage, media serving, cleanup and retention
-- paid confirmation through Usage & Credits (quote → confirm → reserve → render → settle)
+- paid confirmation: confirm → admit the per-job hold → run → settle actual (implemented 2026-10-21, §25; no quote is shown)
 - privacy
 - observability
 - abuse/resource caps
@@ -2957,6 +2955,8 @@ Do not log:
 - generated private narration/source
 - secrets
 
+Activation (2026-10-21): the orchestrator logs a job's id, status, call count, cost, bound and render count, never the request text; its local telemetry file no longer records the request either (`orchestrator.test.mjs` checks the log).
+
 ---
 
 # 31. Storage / cleanup
@@ -2969,6 +2969,8 @@ scratch job directory
 ```
 
 Production storage (M9) should separate source package / manifest, preview media, final media, poster/contact sheet and QA/provenance, with retention rules so failed preview artifacts do not accumulate forever.
+
+Activation (2026-10-21): the orchestrator deletes each job's directory on every exit path (ready, failed, stopped, clarification, timeout, crash of the pipeline). A ready job keeps only `final.mp4` until the worker fetches it, at most one hour; a finished job's record answers polls for six hours; a restart deletes whatever the previous process left. The in-memory job map is pruned with them. A job is stopped after 55 minutes.
 
 V1 development uses the existing `LEARN_MEDIA` binding and LearnVideos key scheme (§18). Do not decide new production bucket names in this harness work.
 

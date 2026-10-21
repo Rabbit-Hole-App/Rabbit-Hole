@@ -132,10 +132,13 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const got = Buffer.from(String(req.headers.authorization || '')), want = Buffer.from(`Bearer ${token}`);
     return got.length === want.length && timingSafeEqual(got, want);
   };
-  const grantError = body => {
+  const signedGrant = body => {
     const { micros, issued_at: at, sig } = body.grant;
     const want = Buffer.from(signGrant(token, body.idempotency_key, micros, at)), got = Buffer.from(sig);
-    if (got.length !== want.length || !timingSafeEqual(got, want)) return 'the grant signature does not match; nothing was started';
+    return got.length === want.length && timingSafeEqual(got, want);
+  };
+  const grantError = body => {
+    const { micros, issued_at: at } = body.grant;
     if (micros <= 0 || micros > MAX_GRANT_MICROS) return `the grant must be above $0 and at most $${usd(MAX_GRANT_MICROS)}; nothing was started`;
     if (at < bootedAt) return 'the grant was issued before the Motion service restarted; nothing was started';
     if (at < Math.floor(now() / 1000) - GRANT_MAX_AGE_S) return 'the grant has expired; nothing was started';
@@ -221,11 +224,13 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         const body = await readJson(req);
         const errors = validateJobRequest(body);
         if (errors.length) return send(res, 400, { error: 'invalid_request', errors });
-        const refused = grantError(body);
-        if (refused) return send(res, 403, { error: 'grant_refused', detail: refused });
-        // The same key is the same job: a resent submission never starts a second one or spends twice.
+        // A forged grant is refused first; then the same key is the same job (a resent submission never starts a second
+        // one or spends twice); only then do the amount, restart and age checks refuse a new job.
+        if (!signedGrant(body)) return send(res, 403, { error: 'grant_refused', detail: 'the grant signature does not match; nothing was started' });
         const known = jobs.get(keys.get(body.idempotency_key));
         if (known) return send(res, 202, { job_id: known.id, status: known.status, duplicate: true });
+        const refused = grantError(body);
+        if (refused) return send(res, 403, { error: 'grant_refused', detail: refused });
         if (active) return send(res, 429, { error: 'busy', detail: 'one Motion job at a time', job_id: active.id });
         const health = await service.health().catch(() => null);
         if (!health) return send(res, 503, { error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' });
