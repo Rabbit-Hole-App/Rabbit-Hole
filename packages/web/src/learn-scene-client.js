@@ -18,6 +18,8 @@ export const sceneAssetUrl = (app, key) => new URL(`${endpoint(app)}&asset=${key
 const videoEndpoint = app => `/api/learn/video?app=${encodeURIComponent(app)}&workspace=${encodeURIComponent(getWs())}`;
 
 export const videoList = app => api(videoEndpoint(app));
+// The per-job reservation the server holds for a /motion video (LearnVideos list motionHoldUsd), or null where Motion cannot start.
+export const motionHoldUsd = async app => { const list = await videoList(app); return Number.isFinite(list?.motionHoldUsd) ? list.motionHoldUsd : null; };
 
 export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>
   api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });

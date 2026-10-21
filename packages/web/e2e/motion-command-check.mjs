@@ -211,8 +211,9 @@ for (const theme of ['light', 'dark']) {
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
     assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
-    // Owner message 22 item 2: the hold, the actual cost deducted and the rest released, with no amount promised.
-    assert.match(await notice.innerText(), /This uses paid generation\. While it is made, Motion holds part of your monthly AI allowance, so your available allowance is lower for a while\. Only the actual AI cost is deducted; the rest is released when it finishes\. Rendering does not use your allowance\./);
+    // Owner message 25: the reservation is the server's amount. This stack's worker has no orchestrator, so it returns none, and
+    // the confirmation names no amount of its own (the MOCKED steps below return one).
+    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves part of your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
     assert.doesNotMatch(await notice.innerText(), /\$\d/);
     // A saved card's clip may load meanwhile (a GET of its asset); nothing else may reach the video route.
     const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && !r.query.includes('asset='));
@@ -232,23 +233,31 @@ for (const theme of ['light', 'dark']) {
     if (!stub) return route.fallback();
     const request = route.request(), url = new URL(request.url());
     if (url.searchParams.get('asset')) return route.fulfill({ body: CLIP_BYTES, headers: { 'content-type': 'video/mp4', 'accept-ranges': 'bytes' } });
-    const video = status => ({ id: stub.id, key: KEY, status, retryable: true,
+    // The server's reservation (MOCKED): the amount for a new job, and this job's hold as it runs, waits on its cost, or is released.
+    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' ? 'pending' : 'released' });
+    const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { videos: [video('generating')], placementId: stub.id } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionHoldUsd: 8.96, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: Generate adds one card and starts one confirmed motion_request; the ready video plays in it`, async () => {
-    stub = { id: `p-ready-${theme}`, polls: 0, end: 'ready' };
+    stub = { id: `p-ready-${theme}`, polls: 0, end: 'ready', held: true };
     const posts = videoPosts().length;
     await composer().fill(LINE); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').waitFor();
+    // Before confirmation: the amount the server returned (MOCKED 8.96), never one of the browser's own.
+    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves \$8\.96 from your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
     await dock.locator('[data-paid-generate]').click();
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
-    assert.match(await card.locator('[data-video-note]').innerText(), /^While it is made, Motion holds part of your monthly AI allowance[\s\S]*the rest is released when it finishes\./, 'the generating card says what the hold does');
+    // While it runs: the reserved amount stays visible on the card.
+    await card.locator('[data-video-hold="reserved"]').waitFor({ timeout: 10000 });
+    assert.equal(await card.locator('[data-video-hold="reserved"]').innerText(), '$8.96 of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.');
+    stub.held = false;
     await page.waitForTimeout(600);
     await shot('04-generating');
     const mine = page.locator(`[data-block-id="${id}"]`);
@@ -274,6 +283,8 @@ for (const theme of ['light', 'dark']) {
     const mine = page.locator('[data-block-id]', { hasText: 'still blocking after the repair round: blank_frame' });
     await mine.waitFor({ timeout: 20000 });
     assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+    // Its final cost is not confirmed yet (MOCKED pending): the card says reconciliation is pending.
+    assert.equal(await mine.locator('[data-video-hold="pending"]').innerText(), 'Reconciliation pending: the $8.96 reservation stays until the final cost is confirmed.');
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });

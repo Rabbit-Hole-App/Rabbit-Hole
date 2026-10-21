@@ -13,10 +13,21 @@ const renderedBy = block => RENDERER_LABELS[block.motion?.renderer] ?? null;
 const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source' ? `Not grounded in ${block.motion.grounding.searched.join(', ')}`
   : block.motion?.grounding ? 'Not grounded in a source' : null);
 
-// What a Motion job does to the learner's allowance (owner message 22 item 2): a temporary hold, the actual AI cost deducted,
-// the rest released, and rendering apart. No amount: the hold is the server's setting, and no price is promised.
-export const MOTION_HOLD_NOTE = 'While it is made, Motion holds part of your monthly AI allowance, so your available allowance is lower for a while. Only the actual AI cost is deducted; the rest is released when it finishes. Rendering does not use your allowance.';
-export const MOTION_CONFIRM = `This uses paid generation. ${MOTION_HOLD_NOTE}`;
+// What a Motion job does to the learner's allowance (owner messages 22 and 25): a temporary reservation of the amount the server
+// says it holds (LearnVideos list motionHoldUsd, MOTION_JOB_RESERVATION_USD), actual AI usage charged, the rest released, and
+// rendering covered by Rabbit Hole. No amount of the browser's own: without the server's, the note names none.
+const money = usd => `$${usd.toFixed(2)}`;
+const known = usd => Number.isFinite(usd) && usd > 0;
+export const motionHoldNote = usd => `Temporarily reserves ${known(usd) ? `${money(usd)} from your available AI allowance` : 'part of your available AI allowance'}. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.`;
+export const motionConfirm = usd => `This uses paid generation. ${motionHoldNote(usd)}`;
+// The card's reservation line from the job's hold ({usd, state} in the LearnVideos list): reserved while it runs, pending while
+// its final cost is not confirmed, nothing once released.
+export function motionHoldStatus(hold) {
+  if (!hold || !known(hold.usd)) return null;
+  if (hold.state === 'reserved') return `${money(hold.usd)} of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.`;
+  if (hold.state === 'pending') return `Reconciliation pending: the ${money(hold.usd)} reservation stays until the final cost is confirmed.`;
+  return null;
+}
 
 export function videoLabel(block) {
   const op = block.operation;
@@ -29,7 +40,7 @@ export function videoLabel(block) {
     const seconds = block.motion?.duration_seconds;
     return {
       detail: [seconds && `${seconds}s`, 'Motion explainer', renderedBy(block), notGrounded(block)].filter(Boolean).join(' · '),
-      button: 'Generate the explainer', progress: 'Planning, reviewing and rendering', expected: 900, stoppable: true, note: MOTION_HOLD_NOTE, confirm: MOTION_CONFIRM,
+      button: 'Generate the explainer', progress: 'Planning, reviewing and rendering', expected: 900, stoppable: true,
       ...(block.motion ? { sources: (block.motion.source_refs || []).map(where) } : {}),
     };
   }
