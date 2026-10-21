@@ -285,3 +285,67 @@ test('no hold configured, or no orchestrator: nothing is admitted or started', a
   }
   assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [0, 0]);
 });
+
+// Item 7 (owner message 7, mocked): four unrelated topics, each with and without its card selected, end to end. The
+// pipeline is the real runMotionRequest, so the request is resolved and grounded by the real resolver (motion-grounding);
+// the paid stages are doubles that make their calls through the orchestrator's hold and ask the stub renderer for one
+// render. The stored video says what it was grounded on: the card, or explicitly nothing, never a repository it was not given.
+test('four topics, with and without a selected card: resolved, held, settled, and the card says what it was grounded on', async t => {
+  const { runMotionRequest } = await import('../../learn-render/motion/pipeline.mjs');
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t);
+  const brief = (grounding, turn) => ({ id: 'motion-brief', title: grounding.resolved_target?.label || turn.raw_user_message, prompt_spec_version: 'test', duration: { seconds: 15 }, teaching_mode: 'intuition_first',
+    source_refs: grounding.source_refs, claim_registry: [], ...(grounding.grounding ? { grounding: grounding.grounding } : {}) });
+  const stages = {
+    director: async ({ grounding, turn, call }) => { const r = await call({}, { max_tokens: 16000, messages: [{ role: 'user', content: 'director' }], out: 5000 }, MODEL); await r.text(); return { status: 'brief', brief: brief(grounding, turn), calls: [] }; },
+    storyboarder: async ({ call }) => { const r = await call({}, { max_tokens: 16000, messages: [{ role: 'user', content: 'storyboard' }], out: 5000 }, MODEL); await r.text(); return { status: 'storyboard', storyboard: { beats: [] }, calls: [] }; },
+    author: async ({ call }) => { const r = await call({}, { max_tokens: 64000, messages: [{ role: 'user', content: 'author' }], out: 30000 }, MODEL); await r.text(); return { status: 'composition', output: { source: 'generated' }, calls: [] }; },
+    job: async ({ service, dir }) => {
+      await service.submit({});
+      mkdirSync(join(dir, 'final'), { recursive: true });
+      writeFileSync(join(dir, 'final', 'final.mp4'), Buffer.from([0, 0, 0, 24, 102, 116, 121, 112]));
+      return { job: { id: 'job', status: 'ready', repairs: { storyboard: 0, author: 0 }, transport_retries: [], repair_count: 0 }, render: { render_id: 'a'.repeat(32) }, calls: [], passes: [] };
+    },
+  };
+  await w.orchestrator.start();
+  w.orchestrator.o.close();
+  // The same orchestrator, its run the real pipeline with the stage doubles.
+  const outDir = mkdtempSync(join(tmpdir(), 'motion-topics-'));
+  const service = { health: async () => ({ ok: true, busy: false, sandbox: 'linux' }), submit: async () => { w.renders.push(1); return Response.json({}); } };
+  const call = async (env, body) => { w.model.calls.push(body.max_tokens); return Response.json({ model: MODEL, usage: { input_tokens: 0, output_tokens: body.out } }); };
+  const o = motionOrchestrator({ token: TOKEN, service, call, outDir, run: args => runMotionRequest({ ...args, stages }) });
+  const server = createServer(o.handle);
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  t.after(() => { server.close(); o.close(); });
+  w.orchestrator.base = `http://127.0.0.1:${server.address().port}`;
+  const card = (cardId, title, text) => ({ selection: { cardId, kind: 'Explanation', title, text } });
+  const TOPICS = [
+    ['nanoGPT', '/motion 15s explain nanoGPT', card('c-nano', 'What nanoGPT does', 'nanoGPT is a small GPT that predicts the next token from the tokens before it.')],
+    ['photosynthesis', '/motion 20s explain photosynthesis', card('c-photo', 'Photosynthesis', 'Plants use light energy to turn carbon dioxide and water into glucose and oxygen.')],
+    ['binary search', '/motion explain binary search step by step', card('c-bs', 'Binary search', 'Binary search halves a sorted range each step by comparing the target with the middle element.')],
+    ['gradient descent', '/motion 10s explain gradient descent intuitively', card('c-gd', 'Gradient descent', 'Gradient descent takes repeated steps against the gradient of the loss to reduce it.')],
+  ];
+  const results = [];
+  for (const [topic, request, selected] of TOPICS) {
+    for (const context of [null, selected]) {
+      const actor = new LearnVideos(durable(`video-${topic}-${!!context}`), env0(LEARN_DB));
+      const op = { op: 'motion_request', request, location: { concept: 'Learning' }, ...(context ? { context } : {}) };
+      await actor.fetch(ask({}, op));
+      await settle(actor, async () => ['ready', 'failed'].includes((await video(actor)).status));
+      const v = await video(actor);
+      assert.equal(v.status, 'ready', `${topic} ${context ? 'with' : 'without'} its card: ${v.error}`);
+      results.push([topic, !!context, v.motion.source_refs.map(r => r.kind === 'card' ? `card:${r.card_id}` : r.path), v.motion.grounding?.status ?? 'grounded']);
+      assert.ok(!/model\.py|nanoGPT@/.test(JSON.stringify(v.motion)), `${topic}: no repository evidence it was not given`);
+    }
+  }
+  assert.deepEqual(results, [
+    ['nanoGPT', false, [], 'no_source_supplied'], ['nanoGPT', true, ['card:c-nano'], 'grounded'],
+    ['photosynthesis', false, [], 'no_source_supplied'], ['photosynthesis', true, ['card:c-photo'], 'grounded'],
+    ['binary search', false, [], 'no_source_supplied'], ['binary search', true, ['card:c-bs'], 'grounded'],
+    ['gradient descent', false, [], 'no_source_supplied'], ['gradient descent', true, ['card:c-gd'], 'grounded'],
+  ]);
+  // Eight jobs: eight holds of $2, each settled at its real $0.80 with $1.20 released; eight platform-funded renders.
+  assert.deepEqual(motionAttempts(sqlite), Array(8).fill([2_000_000, 'settled', 800_000, 'settled']));
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [6_400_000, 0]);
+  assert.deepEqual([w.model.calls.length, w.renders.length, renderRows(sqlite).length], [24, 8, 8]);
+});
