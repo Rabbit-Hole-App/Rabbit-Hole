@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cardsFor, commandLine, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
-import { commandsFor } from './agent/slash.js';
+import { commandsFor, learnRequest } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
 import { blockModality, modalityOf } from './learn-tutor-actions.js';
@@ -312,6 +312,21 @@ test('every card a material command can make: its modality is the block type run
     assert.equal(inserted.length, 1, `${m.command} ${card}`);
     assert.equal(modalityOf({ type: 'create_material', command: m.command }, { materials: [{ ...m, cards: [card] }] }), blockModality(inserted[0]), `${m.command} ${card}`);
   }
+});
+
+// L10 + owner 2026-10-21 (message 19): interactive explanations survive through BOTH /explain and the Tutor's
+// create_material(command: explain). Only the internal animate/compare tools lost the animation primitive. This fails if explain
+// via create_material loses the interactive scene path.
+test('create_material(command: explain) still makes the interactive scene: the Tutor route keeps the animation primitive', async () => {
+  assert.ok(commandsFor('learn', { internal: true }).some(command => command.name === 'explain'), 'explain stays an internal material command');
+  assert.deepEqual(learnRequest('explain', { args: 'an interactive look at how binary search narrows the range' }).allowedPrimitives, ['animation']);
+  const inserted = [], posts = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'b1'; }, reserve: () => 'slot', release: () => {} };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } }; };
+  const [result] = await runMaterials([{ type: 'create_material', command: 'explain', request: 'an interactive look at how binary search narrows the range' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+  assert.equal(inserted[0].type, 'animation');
+  assert.equal(result.notice.text, 'Added an interactive explanation.');
 });
 
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
