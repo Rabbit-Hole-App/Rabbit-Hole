@@ -71,8 +71,10 @@ export class LearnScenes {
           const attempt = (job?.attempt || 0) + 1;
           job = { key, input, version, attempt, workerKey: await sceneCacheKey(input, `${version}:${key}:${attempt}`), status: 'queued', startedAt: Date.now() };
           await this.state.storage.put(`job:${key}`, job); await this.state.storage.setAlarm(Date.now() + 100);
-          // Usage accounting (ledger bypass): one attempt per queued render on the Fly scene worker, cost unknown.
-          await recordMedia(usageFromForwarded(this.env, req, 'scene'), { provider: 'fly_scene_worker', model: version });
+          // Platform-funded rendering (owner 5A decision C, 2026-10-21): one attempt per queued render on the Fly scene worker,
+          // cost unknown, recorded apart from the learner's allowance. Its limits are the job's own (one active job here,
+          // the worker's single slot and 90 s compile, WAIT_MS, explicit retry only); the paid authoring call was admitted upstream.
+          await recordMedia(usageFromForwarded(this.env, req, 'render'), { provider: 'fly_scene_worker', model: version });
         }
         const id = await sceneCacheKey({ ...input, scene: { lessonId: body.lessonId, page: body.page, id: input.id } }, key);
         const previous = await this.state.storage.get(`placement:${id}`);

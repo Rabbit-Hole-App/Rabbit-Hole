@@ -22,6 +22,14 @@ The worker lives in `packages/lesson-renderer`, with a dev-only Fly configuratio
 
 The Fly machine has one shared CPU, 2 GB RAM and auto-start/stop. It is separate from user apps. Worker job files are temporary; Cloudflare Durable Objects retain job and placement state. Successful GLBs are copied into the existing R2 bucket under `learn-scene-dev/` and served only after app/workspace authentication, scoped to the requesting learner. Browser requests include credentials only for Small's same-origin scene asset endpoint; external model downloads still omit credentials.
 
+Cost (owner 5A decision C, 2026-10-21): the platform pays for rendering on our own scene and Manim workers. Each queued render is recorded once as platform-funded usage, attributed to the learner (feature `render`, charge class `free`, cost unknown, never 0), and is kept out of the learner's monthly AI allowance. The model call that writes the scene source (`/3d`, `/animate`, board or Tutor) is still admitted against that allowance before any spending, so an exhausted allowance stops it with zero provider and zero renderer calls. Rendering is bounded by the existing job limits:
+
+- runtime: 90-second compile, 15-minute queue wait;
+- concurrency: one active job per learner per canvas, one compile per worker machine (busy answers 429), and a fixed Fly machine pool;
+- retries: deterministic keys, and an explicit retry only.
+
+There is no app-level render budget (see `learn-allowance.test.js`, "platform-funded").
+
 States are queued, rendering, ready and failed. A busy worker leaves the job queued. A restarted worker can repeat deterministic transient work using its existing job key. Definitive failures require an explicit retry; retries receive a new attempt key. End-to-end queue wait is capped at 15 minutes.
 
 Cache keys include the scene specification with canonical object keys, duration, output type, Blender version, and a fingerprint of the compiler/validation/schema files. Display IDs, concept text and captions do not invalidate geometry assets. Existing ready jobs are reused. Retry, placeholder and placement behavior share the existing generated-video canvas controller; video requests remain unchanged.

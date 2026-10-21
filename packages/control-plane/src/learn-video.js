@@ -131,8 +131,9 @@ export class LearnVideos {
           // started nothing: both stay retryable. Anything else may have started a paid job.
           catch (error) { const known = motion || error.definite === true; job.status = 'failed'; job.uncertain = !known; job.error = known ? error.message : 'Submission could not be confirmed. Check the provider request history before generating again.'; }
           // Usage accounting (ledger bypass): one attempt per submission, cost unknown (no verified price); a definite
-          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render.
-          if (!motion && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, 'video'), { provider: job.provider, ok: !!job.ticket });
+          // refusal started nothing and is not recorded. A Motion render submit is a GET of a finished render. A Manim render is
+          // platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's allowance).
+          if (!motion && (job.ticket || job.uncertain)) await recordMedia(usageFromForwarded(this.env, req, maths ? 'render' : 'video'), { provider: job.provider, ok: !!job.ticket });
           await this.state.storage.put(`job:${key}`, job);
         } else if (body.retry === true && job.uncertain) {
           return json({ error: job.error }, 409);
