@@ -24,7 +24,7 @@ const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 // structured goal record, never a planning message; draft Task 11, acceptance 52), clamped to two lines, or null for none.
 // Both under the heading (owner brief 2026-10-16 item 7).
 // Tutor Task 11 (C:/s/spec/tutor-workflow/draft.md "Table of Contents, tutoring, and progress"), all of it this learner's own
-// and never written into a heading: plan (learn-outline-model.js outlinePlan: links, steps, learningNow) or null;
+// and never written into a heading: plan (learn-outline-model.js outlinePlan: linked, steps, learningNow) or null;
 // planRevision, the accepted plan a proposal must still match; evidence { app, board, goalId, revision } reads that goal's
 // Progress for the linked headings' badges (no model call); onProgress opens Progress; onResume is Start/Resume of the
 // current step (the controls rule is the caller's). Viewing (activeId) and Learning now are separate marks.
@@ -40,13 +40,13 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
   const [openStep, setOpenStep] = useState(null);
   // The linked goal's Progress, read on open and whenever the learner's saved state moves on (an assessment landed). A failed
   // read shows no badge rather than a wrong one.
-  const linked = Object.keys(plan?.links || {}).join();
+  const linkedIds = Object.keys(plan?.linked || {}).join();
   useEffect(() => {
     let live = true;
     setProgress(null);
-    if (evidence?.goalId && linked) fetchProgress(api, { app: evidence.app, board: evidence.board }, evidence.goalId).then(view => { if (live) setProgress(view); }, () => {});
+    if (evidence?.goalId && linkedIds) fetchProgress(api, { app: evidence.app, board: evidence.board }, evidence.goalId).then(view => { if (live) setProgress(view); }, () => {});
     return () => { live = false; };
-  }, [evidence?.app, evidence?.board, evidence?.goalId, evidence?.revision, linked]);
+  }, [evidence?.app, evidence?.board, evidence?.goalId, evidence?.revision, linkedIds]);
   const learning = plan?.learningNow;
   const learningMark = <span data-toc-learning-now className="inline-flex shrink-0 items-center rounded-full bg-accent/10 px-1.5 text-[11px] leading-5 font-medium text-accent">Learning now</span>;
   const resume = onResume && <button type="button" data-toc-resume onClick={onResume} title="Start or resume this activity in Chat" className="shrink-0 rounded px-1 text-[11px] leading-5 font-medium text-ink-2 underline-offset-2 hover:text-ink hover:underline">Resume</button>;
@@ -99,7 +99,7 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
             {entry.description && <p className={`mt-1 break-words text-ink-2 ${entry.level === 1 ? 'text-sm leading-normal' : 'text-[13px] leading-normal'}`}>{entry.description}</p>}
             {learning?.headingId === entry.id && <div className="mt-1 flex flex-wrap items-center gap-1">{learningMark}{resume}</div>}
             {/* Named by the criterion, never by the heading: a renamed section cannot relabel what was assessed. */}
-            {evidenceOf(plan?.links[entry.id], progress).map(badge => (
+            {evidenceOf(plan?.linked[entry.id], progress).map(badge => (
               <button key={badge.criterionId} type="button" data-toc-evidence={badge.status} onClick={() => onProgress?.(badge.criterionId)} title="Your evidence, visible only to you. Open Progress"
                 className="mt-1 block text-left text-xs leading-5 text-ink-2 underline-offset-2 hover:text-ink hover:underline">{badge.label}: {STATUS_LABEL[badge.status]?.toLowerCase()}</button>
             ))}

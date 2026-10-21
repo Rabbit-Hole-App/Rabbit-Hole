@@ -172,7 +172,7 @@ test('the project and the goal show under the heading only when given; the goal 
 // proposal made on another plan revision is stale before Apply. Badges need the learner's Progress read (an effect), so
 // learn-outline-progress.test.mjs covers what they show.
 test('Task 11: planned steps, Section removed, Learning now beside Viewing, and a stale plan on the proposal card', () => {
-  const plan = { links: { s2: { sectionId: 'p1', criteria: [] } }, learningNow: { headingId: 's2' }, steps: [
+  const plan = { linked: { s2: { sectionId: 'p1', criteria: [] } }, learningNow: { headingId: 's2' }, steps: [
     { sectionId: 'p2', n: 2, title: 'Odds and log-odds', purpose: 'Why odds.', state: 'planned' },
     { sectionId: 'p3', n: 3, title: 'Decision threshold', purpose: 'Where to cut.', state: 'removed' }] };
   const html = render({ plan, activeId: 't2', onResume: () => {} });
@@ -181,7 +181,7 @@ test('Task 11: planned steps, Section removed, Learning now beside Viewing, and 
   assert.match(html, /data-toc-entry="t2"[^>]*data-active="true"/, 'the viewed section keeps its own mark');
   assert.doesNotMatch(html, /data-toc-entry="t2"[^>]*>[^]*?data-toc-learning-now[^]*?data-toc-entry="s2"/, 'viewing is not learning now');
   assert.doesNotMatch(html, /data-toc-step-purpose/, 'a purpose shows only when the step is opened');
-  const current = render({ plan: { links: {}, steps: [plan.steps[0]], learningNow: { sectionId: 'p2', title: 'Odds and log-odds', removed: false } }, onResume: () => {} });
+  const current = render({ plan: { linked: {}, steps: [plan.steps[0]], learningNow: { sectionId: 'p2', title: 'Odds and log-odds', removed: false } }, onResume: () => {} });
   assert.match(current, /data-toc-step="p2" data-state="planned"[\s\S]*data-toc-learning-now[\s\S]*data-toc-resume/);
   const proposal = { ops: [{ op: 'add', text: 'Plain', level: 1 }], base: outlineRevision(outline), planBase: 'j1@3', source: 'tutor' };
   assert.doesNotMatch(render({ proposal, planRevision: 'j1@3' }), /changed since this proposal/);

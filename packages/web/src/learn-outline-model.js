@@ -144,7 +144,7 @@ export function applyOutlineAction(blocks, { baseOutlineRevision = null, basePla
 }
 
 // The plan as the contents show it, for one learner: their own journey and its goal (callers pass nothing for anyone else).
-//   links { headingId: { sectionId, criteria: [{ criterionId, version, label }] } }: the heading holding a step's material.
+//   linked { headingId: { sectionId, criteria: [{ criterionId, version, label }] } }: the heading holding a step's material.
 //     The learner's journey record names it (a section's heading_block_id); until the board save records it, the heading the
 //     materializer stamped with this journey's id (a stamp names a journey, never anyone's evidence). One heading per step,
 //     so a copied section is never a second link. Criteria are the goal's agreed criteria on the step's expected claims
@@ -156,16 +156,16 @@ export function applyOutlineAction(blocks, { baseOutlineRevision = null, basePla
 //     the section being viewed.
 const OPEN_STEP = ['upcoming', 'current', 'needs_review', 'optional'];
 export function outlinePlan({ headings = [], journey = null, path = null, goal = null } = {}) {
-  const out = { links: {}, steps: [], learningNow: null };
+  const out = { linked: {}, steps: [], learningNow: null };
   if (!journey?.id || !['active', 'paused', 'completed'].includes(journey.state)) return out;
   const on = new Set(headings.map(heading => heading.id));
   (path?.sections || []).forEach((section, index) => {
     const recorded = section.heading_block_id ?? null;
-    const id = recorded ? (on.has(recorded) && !out.links[recorded] ? recorded : null)
-      : headings.find(heading => heading.journey_section_id === section.id && heading.journey_id === journey.id && !out.links[heading.id])?.id ?? null;
+    const id = recorded ? (on.has(recorded) && !out.linked[recorded] ? recorded : null)
+      : headings.find(heading => heading.journey_section_id === section.id && heading.journey_id === journey.id && !out.linked[heading.id])?.id ?? null;
     if (id) {
       const claims = new Set((section.expected_evidence || []).map(expected => expected?.claim));
-      out.links[id] = { sectionId: section.id, criteria: (goal?.criteria || []).filter(c => c.skillKey && claims.has(c.skillKey)).map(({ criterionId, version, label }) => ({ criterionId, version, label })) };
+      out.linked[id] = { sectionId: section.id, criteria: (goal?.criteria || []).filter(c => c.skillKey && claims.has(c.skillKey)).map(({ criterionId, version, label }) => ({ criterionId, version, label })) };
     } else if (recorded || (journey.state !== 'completed' && OPEN_STEP.includes(section.status))) {
       out.steps.push({ sectionId: section.id, n: index + 1, title: section.title, purpose: section.purpose, state: recorded ? 'removed' : 'planned' });
     }

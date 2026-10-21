@@ -34,30 +34,30 @@ const plan = planRevisionOf(journey, path);
 
 test('the plan beside the outline: a recorded step links its heading by id, an accepted step without one is planned and current', () => {
   const view = planOf(BLOCKS);
-  assert.deepEqual(Object.keys(view.links), ['h-s1'], 'only the heading a step holds is linked; unrelated notes have no link');
-  assert.deepEqual(view.links['h-s1'].criteria.map(c => c.criterionId), ['c-threshold']);
+  assert.deepEqual(Object.keys(view.linked), ['h-s1'], 'only the heading a step holds is linked; unrelated notes have no link');
+  assert.deepEqual(view.linked['h-s1'].criteria.map(c => c.criterionId), ['c-threshold']);
   assert.deepEqual(view.steps.map(s => [s.sectionId, s.state]), path.sections.slice(1).map(s => [s.id, 'planned']), 'every later accepted step is planned, none drawn');
   assert.deepEqual(view.learningNow, { sectionId: 's2', title: path.sections[1].title, removed: false });
-  assert.deepEqual(evidenceOf(view.links.notes, progress), [], 'a heading with no linked criterion has no learning badge');
-  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS), journey: { ...journey, state: 'path_review' }, path, goal }), { links: {}, steps: [], learningNow: null }, 'a path under review is not an accepted plan');
-  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS) }), { links: {}, steps: [], learningNow: null }, 'no journey, no plan: a blank or unplanned canvas stays as it is');
+  assert.deepEqual(evidenceOf(view.linked.notes, progress), [], 'a heading with no linked criterion has no learning badge');
+  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS), journey: { ...journey, state: 'path_review' }, path, goal }), { linked: {}, steps: [], learningNow: null }, 'a path under review is not an accepted plan');
+  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS) }), { linked: {}, steps: [], learningNow: null }, 'no journey, no plan: a blank or unplanned canvas stays as it is');
 });
 
 test('manual_done_creates_no_evidence', () => {
-  const before = planOf(BLOCKS), badges = evidenceOf(before.links['h-s1'], progress);
+  const before = planOf(BLOCKS), badges = evidenceOf(before.linked['h-s1'], progress);
   // The checkbox (AdaptiveCanvas toggleSectionDone) flips `done` and nothing else.
   const ticked = BLOCKS.map(block => (block.type === 'heading' ? { ...block, done: !block.done } : block));
   assert.deepEqual(planOf(ticked), before, 'marking every section done links, plans and starts nothing');
-  assert.deepEqual(evidenceOf(planOf(ticked).links['h-s1'], progress), badges, 'the evidence badge is the Progress read, not the checkbox');
+  assert.deepEqual(evidenceOf(planOf(ticked).linked['h-s1'], progress), badges, 'the evidence badge is the Progress read, not the checkbox');
   assert.equal(outlineRevision(outlineFrom(ticked)), outlineRevision(outlineFrom(BLOCKS)), 'a tick never stales a proposal');
   // Copying a section, adding an unrelated topic and removing a heading add no criterion: the milestone denominator is the
   // goal's agreed criteria, which no outline edit reads or writes.
   const copied = [...BLOCKS, { ...BLOCKS[0], id: 'h-s1-copy' }, card('k1-copy'), h('extra', 'Unrelated topic')];
   const view = planOf(copied.filter(block => block.id !== 'notes'));
-  assert.deepEqual(Object.keys(view.links), ['h-s1'], 'the copy and the new topic carry no link and no badge');
+  assert.deepEqual(Object.keys(view.linked), ['h-s1'], 'the copy and the new topic carry no link and no badge');
   assert.equal(goal.criteria.length, 2);
   // A saved assessment shows only as the linked criterion's badge; it never ticks the box.
-  const assisted = evidenceOf(view.links['h-s1'], progress);
+  const assisted = evidenceOf(view.linked['h-s1'], progress);
   assert.deepEqual(assisted.map(b => [b.label, b.status]), [['Threshold reasoning', 'demonstrated_with_help']]);
   assert.equal(copied.find(block => block.id === 'h-s1').done, false, 'the manual mark stays as the learner left it');
 });
@@ -67,12 +67,12 @@ test('rename_cannot_relabel_mastery', () => {
   assert.equal(renamed.ok, true);
   assert.equal(renamed.blocks[0].text, 'KNN');
   const view = planOf(renamed.blocks);
-  assert.deepEqual(view.links, planOf(BLOCKS).links, 'the heading keeps its id, so its step and criteria stay');
-  const badges = evidenceOf(view.links['h-s1'], progress);
+  assert.deepEqual(view.linked, planOf(BLOCKS).linked, 'the heading keeps its id, so its step and criteria stay');
+  const badges = evidenceOf(view.linked['h-s1'], progress);
   assert.deepEqual(badges.map(b => `${b.label}: ${b.status}`), ['Threshold reasoning: demonstrated_with_help'], 'the badge names the assessed criterion, never the new title');
   assert.ok(!JSON.stringify(view).includes('KNN'), 'nothing in the plan view takes the heading title');
   // A KNN goal's criteria never attach to the renamed heading: only an explicit link could repurpose it.
-  assert.deepEqual(outlinePlan({ headings: headingsOf(renamed.blocks), journey, path, goal: knnGoal }).links['h-s1'].criteria, []);
+  assert.deepEqual(outlinePlan({ headings: headingsOf(renamed.blocks), journey, path, goal: knnGoal }).linked['h-s1'].criteria, []);
   // The stamp stays the journey's: a rename never touches it.
   assert.deepEqual([renamed.blocks[0].journey_section_id, renamed.blocks[0].journey_id], ['s1', 'j1']);
 });
@@ -126,7 +126,7 @@ test('removed_heading_does_not_delete_work', async () => {
   const view = outlinePlan({ headings: headingsOf(removed), journey, path: recordedPath, goal });
   assert.deepEqual(view.learningNow, { sectionId: 's2', title: path.sections[1].title, removed: true }, 'the current task keeps its place, marked Section removed');
   assert.deepEqual(view.steps.find(s => s.sectionId === 's2').state, 'removed', 'never offered as a step to prepare again');
-  assert.equal(view.links['h-s2'], undefined);
+  assert.equal(view.linked['h-s2'], undefined);
   // The journey record (the activity and its evidence) is untouched by an outline edit, and the materializer does not
   // recreate the heading: a recorded section is not due.
   const canvas = { flow: removed, inserts: 0, blocks: () => removed, reserve: () => 'slot', release: () => {}, showSection: () => {}, persist: async () => ({ ok: true }), insertBlock: () => { canvas.inserts += 1; return 'new'; } };
@@ -158,14 +158,14 @@ test('materialized_step_has_one_heading', async () => {
   const during = planOf(flow);
   assert.deepEqual(during.learningNow, { headingId: first.heading_block_id });
   assert.equal(during.steps.some(s => s.sectionId === 's2'), false);
-  assert.deepEqual(during.links[first.heading_block_id].criteria.map(c => c.criterionId), ['c-probability']);
+  assert.deepEqual(during.linked[first.heading_block_id].criteria.map(c => c.criterionId), ['c-probability']);
   // Again (a reload mid-way, a second tab): the stamped heading is reused, never a second one.
   await run();
   assert.equal(headingsOf(flow).filter(block => block.journey_section_id === 's2').length, 1, 'one heading for the step');
   // Once recorded, the record names it; only the current step was drawn, the later ones stay planned with no generation.
   const recordedPath = { ...path, sections: path.sections.map(s => (s.id === 's2' ? { ...s, heading_block_id: recorded[0][1] } : s)) };
   const after = outlinePlan({ headings: headingsOf(flow), journey, path: recordedPath, goal });
-  assert.deepEqual(Object.keys(after.links).sort(), ['h-s1', first.heading_block_id].sort());
+  assert.deepEqual(Object.keys(after.linked).sort(), ['h-s1', first.heading_block_id].sort());
   assert.deepEqual(after.steps.map(s => s.sectionId), path.sections.slice(2).map(s => s.id));
   assert.ok(flow.every(block => !block.journey || block.journey.section_id === 's2'), 'no card for any later step');
 });
@@ -185,7 +185,7 @@ test('viewer_cannot_edit_shared_outline', () => {
 });
 
 test('private_badge_is_not_shared', () => {
-  const view = planOf(BLOCKS), badges = evidenceOf(view.links['h-s1'], progress);
+  const view = planOf(BLOCKS), badges = evidenceOf(view.linked['h-s1'], progress);
   assert.equal(badges.length, 1);
   // Nothing the contents derive is written into a heading: every block field after an edit is the edit's own.
   const edited = applyOutlineAction(BLOCKS, { changes: [{ op: 'retitle', id: 'notes', text: 'Notes' }] }, { planRevision: plan });
@@ -193,7 +193,7 @@ test('private_badge_is_not_shared', () => {
   assert.deepEqual([...fields].sort(), ['done', 'dx', 'dy', 'id', 'journey_id', 'journey_section_id', 'level', 'text', 'type']);
   assert.ok(!JSON.stringify(edited.blocks).match(/demonstrated|practising|criterion|c-threshold/), 'no status, criterion or evidence in the shared blocks');
   // Another learner on the same blocks (a collaborator, a fork) has their own journey or none: no link, step or badge.
-  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS), journey: { ...journey, id: 'j-other' }, path: { ...path, sections: path.sections.map(({ heading_block_id, ...s }) => s) }, goal: null }).links, {});
-  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS) }).links, {});
-  assert.deepEqual(evidenceOf(view.links['h-s1'], null), [], 'no Progress read of one\'s own, no badge');
+  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS), journey: { ...journey, id: 'j-other' }, path: { ...path, sections: path.sections.map(({ heading_block_id, ...s }) => s) }, goal: null }).linked, {});
+  assert.deepEqual(outlinePlan({ headings: headingsOf(BLOCKS) }).linked, {});
+  assert.deepEqual(evidenceOf(view.linked['h-s1'], null), [], 'no Progress read of one\'s own, no badge');
 });
