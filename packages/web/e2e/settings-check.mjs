@@ -5,6 +5,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { usageFeature } from '../../control-plane/src/learn-usage.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9331';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9333';
@@ -19,8 +20,9 @@ const HANDLE = `set_${run}`;
 const api = async (path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
 await api('/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Setta Learner' }) });
 
-// Every route that can reach a model or paid provider (control-plane learn-usage.js ROUTES, /api/ask): aborted, and counted.
-const MODEL = /^\/api\/(ask|learn\/(ask|selection|tutor|boards\/shared\/[^/]+\/(ask|next-steps)|boards\/published\/find|home-ask|journey|artifact|board|inline|assess|grade|image|transcribe|tts|voice|video|scene|search)|apps\/[^/]+\/learn-course)/;
+// Every route that can reach a model or paid provider is aborted and counted: each is one feature in the accounting list
+// (control-plane learn-usage.js usageFeature), plus the legacy /api/ask.
+const modelRoute = (method, path) => /^\/api\/ask(\/|$)/.test(path) || !!usageFeature(method, path);
 const browser = await chromium.launch();
 const errors = [];
 const fresh = async ({ viewport = { width: 1440, height: 900 }, cookie = session, init = null } = {}) => {
@@ -29,7 +31,7 @@ const fresh = async ({ viewport = { width: 1440, height: 900 }, cookie = session
   if (init) await context.addInitScript(init);
   const modelCalls = [];
   await context.route('**/api/**', (route) => {
-    if (MODEL.test(new URL(route.request().url()).pathname)) { modelCalls.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`); return route.abort(); }
+    if (modelRoute(route.request().method(), new URL(route.request().url()).pathname)) { modelCalls.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`); return route.abort(); }
     return route.fallback();
   });
   const page = await context.newPage();
@@ -39,8 +41,12 @@ const fresh = async ({ viewport = { width: 1440, height: 900 }, cookie = session
 };
 const results = [];
 const failures = [];
+// ONLY=6,8 runs only the checks with those numbers (while debugging); the total then counts those.
+const only = (process.env.ONLY || '').split(',').filter(Boolean);
+let skipped = 0;
 const check = async (label, fn) => {
-  try { await fn(); results.push(label); console.log(`ok ${label}`); } catch (error) { failures.push(label); console.log(`FAIL ${label}: ${error.message.split('\n')[0]}`); }
+  if (only.length && !only.some((n) => label.startsWith(`${n} `))) { skipped++; return; }
+  try { await fn(); results.push(label); console.log(`ok ${label}`); } catch (error) { failures.push(label); console.log(`FAIL ${label}: ${error.message.split('\n').slice(0, 6).join(' / ')}`); }
 };
 const shot = async (page, name) => { await page.waitForTimeout(200); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const open = async (page, path = '/apps') => { await page.goto(`${BASE}${path}`); await page.locator('[data-account-menu]').waitFor({ timeout: 60000 }); await page.waitForTimeout(500); };
@@ -155,32 +161,43 @@ await check('5 theme: Dark applies at once and survives a refresh; light and dar
   await page.context().close();
 });
 
+// A canvas page is immersive (no sidebar, so no Settings there): each preference is set in Settings on Home, then read on a
+// canvas, where a probe inside the canvas world and one in the page chrome show what applies to which.
+const canvasPage = async (page) => {
+  const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Settings probe ${run}` }) })).body;
+  await page.goto(`${BASE}/apps/${canvas.name}`);
+  await page.locator('[data-canvas-world]').waitFor({ state: 'attached', timeout: 60000 }); // a zero-size transform layer
+};
+const probe = (page, className) => page.evaluate((cls) => {
+  for (const [id, parent] of [['probe-world', document.querySelector('[data-canvas-world]')], ['probe-chrome', document.body]]) {
+    document.getElementById(id)?.remove();
+    parent.appendChild(Object.assign(document.createElement('span'), { id, className: cls, textContent: 'probe' }));
+  }
+  const read = (id) => { const s = getComputedStyle(document.getElementById(id)); return { font: parseFloat(s.fontSize), animation: s.animationDuration, transition: s.transitionDuration }; };
+  return { world: read('probe-world'), chrome: read('probe-chrome') };
+}, className);
+
 await check('6 interface text size: chrome text grows, canvas content keeps its size, and it survives a refresh', async () => {
   const page = await fresh();
-  const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Text size ${run}` }) })).body;
-  await open(page, `/apps/${canvas.name}`);
-  await page.locator('[data-canvas-world]').waitFor({ timeout: 60000 });
-  // A probe inside the canvas world and one in the page chrome, both text-sm.
-  const probes = () => page.evaluate(() => {
-    for (const [id, parent] of [['probe-world', document.querySelector('[data-canvas-world]')], ['probe-chrome', document.body]]) {
-      if (document.getElementById(id)) continue;
-      const span = Object.assign(document.createElement('span'), { id, className: 'text-sm', textContent: 'probe' });
-      parent.appendChild(span);
-    }
-  });
-  await probes();
-  const before = [await fontPx(page, '#probe-chrome'), await fontPx(page, '#probe-world')];
-  assert.deepEqual(before, [14, 14]);
+  await canvasPage(page);
+  let now = await probe(page, 'text-sm');
+  assert.deepEqual([now.chrome.font, now.world.font], [14, 14]);
+  await open(page);
   await viaEvent(page, { tab: 'appearance' });
   await pane(page, 'appearance').getByRole('button', { name: 'Larger', exact: true }).click();
   assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-text-size')), 'larger');
-  assert.deepEqual([await fontPx(page, '#probe-chrome'), await fontPx(page, '#probe-world')], [17.5, 14], 'chrome scales, canvas content does not');
+  assert.equal(await fontPx(page, '[data-settings-nav="profile"]'), 17.5, 'the Settings nav (text-sm) did not grow at once');
   await shot(page, 'text-size-larger');
   await closeEsc(page);
+  await canvasPage(page); // a new page load: the saved preference applies before first paint
+  now = await probe(page, 'text-sm');
+  assert.deepEqual([now.chrome.font, now.world.font], [17.5, 14], 'chrome scales, canvas content does not');
+  await shot(page, 'text-size-larger-canvas');
   await page.reload();
-  await page.locator('[data-canvas-world]').waitFor({ timeout: 60000 });
-  await probes();
-  assert.deepEqual([await fontPx(page, '#probe-chrome'), await fontPx(page, '#probe-world')], [17.5, 14], 'after a refresh');
+  await page.locator('[data-canvas-world]').waitFor({ state: 'attached', timeout: 60000 }); // a zero-size transform layer
+  now = await probe(page, 'text-sm');
+  assert.deepEqual([now.chrome.font, now.world.font], [17.5, 14], 'after a refresh');
+  await open(page);
   await viaEvent(page, { tab: 'appearance' });
   await pane(page, 'appearance').getByRole('button', { name: 'Default', exact: true }).click();
   assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-text-size')), false);
@@ -189,30 +206,25 @@ await check('6 interface text size: chrome text grows, canvas content keeps its 
 
 await check('7 reduced decorative motion: chrome transitions stop, the canvas world is untouched, and it survives a refresh', async () => {
   const page = await fresh();
-  const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Motion ${run}` }) })).body;
-  await open(page, `/apps/${canvas.name}`);
-  await page.locator('[data-canvas-world]').waitFor({ timeout: 60000 });
-  const probes = () => page.evaluate(() => {
-    for (const [id, parent] of [['m-world', document.querySelector('[data-canvas-world]')], ['m-chrome', document.body]]) {
-      if (document.getElementById(id)) continue;
-      parent.appendChild(Object.assign(document.createElement('span'), { id, className: 'animate-spin transition-colors duration-200', textContent: 'm' }));
-    }
-    const read = (id) => { const s = getComputedStyle(document.getElementById(id)); return [s.animationDuration, s.transitionDuration]; };
-    return { world: read('m-world'), chrome: read('m-chrome') };
-  });
-  assert.deepEqual((await probes()).chrome, ['1s', '0.2s']);
+  const MOTION = 'animate-spin transition-colors duration-200';
+  await canvasPage(page);
+  let now = await probe(page, MOTION);
+  assert.deepEqual([now.chrome.animation, now.chrome.transition], ['1s', '0.2s']);
+  await open(page);
   await viaEvent(page, { tab: 'appearance' });
   await pane(page, 'appearance').getByRole('switch', { name: 'Reduce decorative motion' }).click();
   assert.equal(await page.evaluate(() => document.documentElement.hasAttribute('data-reduce-motion')), true);
-  let now = await probes();
-  assert.deepEqual(now.world, ['1s', '0.2s'], 'canvas content keeps its motion');
-  assert.ok(now.chrome.every((d) => parseFloat(d) < 0.001), `chrome motion still runs: ${now.chrome}`);
+  assert.equal(await pane(page, 'appearance').getByRole('switch', { name: 'Reduce decorative motion' }).getAttribute('aria-checked'), 'true');
   await closeEsc(page);
+  await canvasPage(page);
+  now = await probe(page, MOTION);
+  assert.deepEqual([now.world.animation, now.world.transition], ['1s', '0.2s'], 'canvas content keeps its motion');
+  assert.ok(parseFloat(now.chrome.animation) < 0.001 && parseFloat(now.chrome.transition) < 0.001, `chrome motion still runs: ${JSON.stringify(now.chrome)}`);
   await page.reload();
-  await page.locator('[data-canvas-world]').waitFor({ timeout: 60000 });
-  now = await probes();
-  assert.ok(now.chrome.every((d) => parseFloat(d) < 0.001), 'after a refresh');
-  assert.deepEqual(now.world, ['1s', '0.2s']);
+  await page.locator('[data-canvas-world]').waitFor({ state: 'attached', timeout: 60000 }); // a zero-size transform layer
+  now = await probe(page, MOTION);
+  assert.ok(parseFloat(now.chrome.animation) < 0.001, 'after a refresh');
+  assert.deepEqual([now.world.animation, now.world.transition], ['1s', '0.2s']);
   await page.context().close();
 });
 
@@ -278,7 +290,7 @@ await check('10 save failures are shown: a refused device write and a failing pr
   await nav(page, 'Profile').click();
   const name = pane(page, 'profile').getByRole('textbox', { name: 'Name' });
   await name.fill('Never saved');
-  await pane(page, 'profile').locator('form').filter({ has: name }).getByRole('button', { name: 'Save' }).click();
+  await pane(page, 'profile').locator('form').filter({ has: page.getByRole('textbox', { name: 'Name', exact: true }) }).getByRole('button', { name: 'Save' }).click();
   const failed = pane(page, 'profile').locator('[data-settings-error]');
   await failed.waitFor({ timeout: 5000 });
   assert.equal(await failed.innerText(), 'Not saved: synthetic outage');
@@ -293,7 +305,7 @@ await check('11 Profile saves the name; JPG and WebP pictures go through the PNG
   await viaEvent(page, { tab: 'profile' });
   const name = pane(page, 'profile').getByRole('textbox', { name: 'Name' });
   await name.fill('Setta Saved');
-  await pane(page, 'profile').locator('form').filter({ has: name }).getByRole('button', { name: 'Save' }).click();
+  await pane(page, 'profile').locator('form').filter({ has: page.getByRole('textbox', { name: 'Name', exact: true }) }).getByRole('button', { name: 'Save' }).click();
   await page.waitForTimeout(800);
   assert.equal((await api('/api/profile')).body.name, 'Setta Saved');
   const image = (type) => page.evaluate(async (t) => {
@@ -326,7 +338,10 @@ await check('12 AI usage still shows the server allowance, used, remaining, rese
   const usage = pane(page, 'usage').locator('[data-usage-settings]');
   await usage.getByText('Monthly allowance').waitFor({ timeout: 20000 });
   const text = await usage.innerText();
-  for (const line of ['Used', 'Remaining', 'Next reset', 'Tracking only - limits are not enforced yet.']) assert.ok(text.includes(line), `missing ${line}`);
+  for (const line of ['Used', 'Remaining', 'Next reset']) assert.ok(text.includes(line), `missing ${line}`);
+  // The tracking-only disclosure stays exactly while the server says the allowance is not enforced (L12 enforces it).
+  const { enforced } = (await api('/api/learn/usage')).body;
+  assert.equal(text.includes('Tracking only - limits are not enforced yet.'), enforced !== true, `enforced ${enforced} but the disclosure disagrees`);
   for (const fiction of ['Upgrade', 'Subscription', 'Billing', 'Spending cap', 'Plan']) assert.ok(!text.includes(fiction), `${fiction} shown`);
   await closeEsc(page);
   // The split, from a route answer shaped as the server sends it (learn-usage-route.js byFeature).
@@ -360,27 +375,49 @@ await check('13 narrow screen (390px): Settings fits, the nav and every pane sta
   }
 });
 
-await check('14 Privacy & security: the real sign-in method and a logout that ends the session', async () => {
+await check('14 Privacy & security: the real sign-in method (never an assumed email link) and a logout that ends every session', async () => {
   const other = await login('out'); // its own account: logout revokes every session of the user
-  const page = await fresh({ cookie: other });
+  // The dev/preview app refuses /auth/* and /logout (dev-forwarding.js barrier), as the local stack's app does: no method is
+  // shown then, never a guessed one. One origin in production serves them; that answer is replayed here per provider.
+  let page = await fresh({ cookie: other });
+  await open(page);
+  assert.equal((await page.evaluate(() => fetch('/auth/session').then((r) => r.status))), 403, 'the local app now serves /auth/session: update this check');
+  await viaEvent(page, { tab: 'privacy' });
+  assert.equal(await pane(page, 'privacy').locator('[data-signin-provider]').count(), 0, 'a sign-in method shown without /auth/session');
+  assert.ok(!/magic link|one-time code to your work email/i.test(await pane(page, 'privacy').innerText()), 'hard-coded email link copy');
+  await page.context().close();
+  for (const [provider, label, copy] of [['google', 'Google', /Your Google account/], ['github', 'GitHub', /Your GitHub account/], ['email', 'Email link', /one-time link or code sent to your email/]]) {
+    page = await fresh({ cookie: other });
+    await page.route('**/auth/session', (route) => route.fulfill({ json: { signedIn: true, provider, display: { name: null, email: provider === 'github' ? null : 'out@example.com', label: 'Out' } } }));
+    await open(page);
+    await viaEvent(page, { tab: 'privacy' });
+    assert.deepEqual(await pane(page, 'privacy').locator('[data-signin-provider]').allInnerTexts(), [label]);
+    assert.match(await pane(page, 'privacy').innerText(), copy);
+    await nav(page, 'Profile').click();
+    const profile = await pane(page, 'profile').innerText();
+    assert.match(profile, new RegExp(`Signed in with\\s+${label}`), `Profile does not name ${label}`);
+    assert.equal(/Where sign-in links go/.test(profile), provider === 'email', `${provider}: the email-link line`);
+    if (provider === 'google') await shot(page, 'privacy-profile-google');
+    await page.context().close();
+  }
+  // Log out goes to /logout, which the control plane answers by ending every session of the account (users.session_epoch).
+  page = await fresh({ cookie: other });
   await open(page);
   await viaEvent(page, { tab: 'privacy' });
-  const text = await pane(page, 'privacy').innerText();
-  assert.ok(!/magic link|one-time code to your work email/i.test(text) || /Email link/.test(text), 'hard-coded email link copy');
-  const provider = await pane(page, 'privacy').locator('[data-signin-provider]').allInnerTexts();
-  const session = await page.evaluate(() => fetch('/auth/session').then((r) => (r.ok ? r.json() : null)).catch(() => null));
-  console.log(`  /auth/session provider: ${session?.provider ?? 'unavailable'}; shown: ${provider.join(', ') || 'none'}`);
-  if (session?.provider) assert.deepEqual(provider, [{ google: 'Google', github: 'GitHub', email: 'Email link' }[session.provider]]);
-  else assert.deepEqual(provider, [], 'a sign-in method shown without /auth/session');
-  await Promise.all([page.waitForURL(/\/login/, { timeout: 30000 }), pane(page, 'privacy').getByRole('button', { name: 'Log out', exact: true }).click()]);
-  const after = await fetch(`${BASE}/api/profile`, { headers: { cookie: `small_session=${other}` } });
-  assert.notEqual(after.status, 200, 'the old session still works after logout');
+  const asked = page.waitForRequest((r) => new URL(r.url()).pathname === '/logout');
+  await pane(page, 'privacy').getByRole('button', { name: 'Log out', exact: true }).click();
+  assert.equal(new URL((await asked).url()).origin, BASE, 'Log out leaves this origin');
   await page.context().close();
+  const before = await fetch(`${CP}/auth/session`, { headers: { cookie: `small_session=${other}` } });
+  assert.equal(before.status, 200);
+  const out = await fetch(`${CP}/logout`, { redirect: 'manual', headers: { cookie: `small_session=${other}`, 'Sec-Fetch-Site': 'same-origin' } });
+  assert.equal(out.status, 302);
+  assert.equal((await fetch(`${CP}/auth/session`, { headers: { cookie: `small_session=${other}` } })).status, 401, 'the session survived logout');
 });
 
 await browser.close();
 const fatal = errors.filter((e) => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
 const total = 14;
-console.log(`${results.length}/${total} settings checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
-if (results.length !== total) process.exitCode = 1;
+console.log(`${results.length}/${total - skipped} settings checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
+if (results.length !== total - skipped) process.exitCode = 1;
