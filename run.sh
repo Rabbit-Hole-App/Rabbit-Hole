@@ -126,6 +126,8 @@ function test:unit {
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/learn-grade/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "packages/learn-render/motion/*.test.mjs" "packages/learn-render/motion/service/*.test.mjs")
     (cd "$THIS_DIR" && nonzero-tests node --test "tests/evals/tutor-session/*.test.mjs")
+    # CAD executor sandbox guard (item 8, 2026-10-21). Only this file: contract.test.mjs asserts LF scripts, which a Windows autocrlf checkout breaks.
+    (cd "$THIS_DIR" && nonzero-tests node --test "packages/cad-execute/execution-guard.test.mjs")
     # Every script test: dev-deploy and prod-release.
     (cd "$THIS_DIR" && nonzero-tests node --test "scripts/*.test.mjs")
 }
