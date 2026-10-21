@@ -1061,8 +1061,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Research this (contract §4.5).
   // Q5 (integrator ruling, owner 3a): the Tutor's proactive actions read the learner's current controls when a turn is planned
   // and again before anything applies (learn-tutor.js heldActions). A canvas without coaching state coaches nothing on its own.
+  // A turn is the learner's own interaction (typed, spoken in Voice Mode or in a card's composer), so Chat counts as open, as
+  // the hooks' allowed reads it below.
   const coachNow = useRef(null);
-  coachNow.current = kind => !!chat?.coaching && mayRun(kind, effectiveControls(chat.coaching, chat.thread), { chatOpen: panels.chatOpen, ready: ['ready', 'local'].includes(chat.coaching.status) });
+  coachNow.current = kind => !!chat?.coaching && mayRun(kind, effectiveControls(chat.coaching, chat.thread), { chatOpen: true, ready: ['ready', 'local'].includes(chat.coaching.status) });
   const coaching = useCallback(kind => coachNow.current(kind), []);
   const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, coaching });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat

@@ -178,7 +178,8 @@ rmSync(dir, { recursive: true, force: true });
 
 // A plain canvas Tutor turn whose plan makes one card. coaching: the page's controls reader; onArtifact runs as the card's
 // generation request arrives (a test turns Tutor Off there). Returns the inserted blocks and the routes called.
-async function plainTurn({ coaching, plan, raw = 'How does bread dough rise?', onArtifact = () => {} }) {
+// refused: the card's generation is refused by the AI allowance (L12: 429 with code allowance_limited).
+async function plainTurn({ coaching, plan, raw = 'How does bread dough rise?', onArtifact = () => {}, refused = false }) {
   const storage = new Map(), calls = [], inserted = [];
   const globals = {
     window: { dispatchEvent: () => true },
@@ -188,6 +189,7 @@ async function plainTurn({ coaching, plan, raw = 'How does bread dough rise?', o
     fetch: async (path, options) => {
       calls.push(path);
       if (path === '/api/learn/artifact') onArtifact();
+      if (path === '/api/learn/artifact' && refused) return new Response(JSON.stringify({ error: 'You have used your monthly AI allowance.', code: 'allowance_limited', reason: 'exhausted' }), { status: 429, headers: { 'Content-Type': 'application/json' } });
       const reply = path === '/api/learn/tutor/plan' ? { strategy: 'none', constraints_add: [], ...plan } : path === '/api/learn/artifact' ? { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 't' } } : { status: 'error', events: [] };
       return new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } });
     },
@@ -221,4 +223,10 @@ test('q5 in the page: unrequested material is made and inserted in Tutor On, nev
   const raw = 'Make a card on how yeast lifts dough';
   const asked = await plainTurn({ coaching: mayIn(QUIET.off), raw, plan: { ...MAKE, explicit_request: raw } });
   assert.equal(asked.inserted.length, 1, 'requested material goes in with Tutor Off');
+});
+
+test('q5 in the page: a requested card refused by the AI allowance (429 allowance_limited) is never counted as made - nothing is inserted', async () => {
+  const raw = 'Make a card on how yeast lifts dough';
+  const refused = await plainTurn({ coaching: mayIn(QUIET.auto), raw, plan: { ...MAKE, explicit_request: raw }, refused: true });
+  assert.deepEqual([refused.calls.includes('/api/learn/artifact'), refused.inserted.length], [true, 0]);
 });

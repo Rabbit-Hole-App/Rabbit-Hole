@@ -262,11 +262,12 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // generator, in the plan's order; a paid card waits for Generate / Not now (offer), one proposal at a time across turns.
     // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
     // card is (its selection, and its text as context); a hook click has none (block null).
-    // Q5: material the learner did not ask for starts only while the controls allow it, and is inserted only if they still do
-    // when it arrives (Off or Not now meanwhile: it is not put on the canvas). Requested material runs in every mode.
+    // Q5: material the learner did not ask for is already gone from result.actions when the controls hold it back (runTurn's
+    // last read), and is inserted only if they still allow it when it arrives (Off or Not now meanwhile: it is not put on the
+    // canvas). Requested material runs in every mode.
     const origin = { ...here };
     const stillHere = () => sameCanvas(hereRef.current, origin) && !heldActions(result.turn, coaching, result.response).has('create_material');
-    runMaterials(stillHere() ? result.actions : [], {
+    runMaterials(result.actions, {
       // The cards keep the learner's words (card-prompt.js), never the model's command line; a hook click typed none.
       promptUsed: nextStep ? null : raw,
       // A paid card's confirmation shows the learner's words it came from (UI changes brief 1); a hook click typed none.

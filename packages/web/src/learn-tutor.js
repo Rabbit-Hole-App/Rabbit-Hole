@@ -199,15 +199,15 @@ function progressedProbes(probes = {}, before, after, transitions, claims) {
   return Object.fromEntries(Object.entries(probes || {}).filter(([id]) => claims[id] && !transitions.some(change => change.claim === id) && covered(before, id) === covered(after, id)));
 }
 // held (Q5, heldActions): the proactive types the current Tutor controls hold back this turn. With ask_question held the move
-// explains (never a Socratic question) and respond_text is always allowed; the types stay allowed, because a plan that answers
-// the learner's explicit request may still use them, and the plan's other uses are dropped after it (runTurn).
+// explains (never a Socratic question) and respond_text is allowed on every row; the types stay allowed, because a plan that
+// answers the learner's explicit request may still use them, and the plan's other uses are dropped after it (runTurn).
 export function route({ turn, claims, states, evaluation, store, avatar = null, domain = NANOGPT, held = NONE }) {
   const noQuiz = turn.constraints.includes('no_quiz') || turn.constraints.includes('just_answer');
   const explains = noQuiz || held.has('ask_question');
   const inHole = !!turn.canvas.dive;
   const finish = (row, strategy, allowed, claim = null) => {
     let list = noQuiz ? allowed.filter(type => type !== 'ask_question') : allowed;
-    if (!list.some(type => type === 'respond_text' || (type === 'ask_question' && !explains))) list = ['respond_text', ...list];
+    if (!list.some(type => type === 'respond_text' || type === 'ask_question')) list = ['respond_text', ...list];
     if (inHole && !list.includes('return_from_dive')) list = [...list, 'return_from_dive'];
     // Professor Next Steps (contract §2.5) and Task 11b (owner ninth message): any turn offered materials - a hook click, a
     // typed or a voice turn - may make material through the existing Learn commands, except on a row whose rule fixes the
@@ -227,7 +227,10 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
     return { row, strategy, allowed: list, claim };
   };
   if (turn.slash === 'deeper' || turn.slash === 'simplify') return finish('slash', 'none', ['respond_text', 'show_authored_card', 'focus_part'], claims[0] || null);
-  if (turn.returned_from) return finish('returned', explains ? 'feynman' : 'socrates', ['ask_question'], turn.returned_from.claim || claims[0] || null);
+  // Q5: with questions held, the two question-only rows may answer in words too (asked is the plan's own question, kept only
+  // on the learner's explicit request).
+  const asked = explains ? ['respond_text', 'ask_question'] : ['ask_question'];
+  if (turn.returned_from) return finish('returned', explains ? 'feynman' : 'socrates', asked, turn.returned_from.claim || claims[0] || null);
   if (!claims.length) return finish('off_slice', 'none', ['respond_text']);
   const pick = test => claims.find(id => test(states[id]));
   const gap = pick(state => state.state === 'prerequisite_gap');
@@ -253,7 +256,7 @@ export function route({ turn, claims, states, evaluation, store, avatar = null, 
   const teach = UNCERTAIN_MOVES.filter(type => type !== 'ask_question');
   if ((unsure || unclear) && evaluation?.status === 'uncertain') {
     const claim = unsure || claims[0];
-    return probed(claim) ? finish('uncertain', 'feynman', teach, claim) : finish('uncertain_unsettled', 'feynman', ['ask_question'], claim);
+    return probed(claim) ? finish('uncertain', 'feynman', teach, claim) : finish('uncertain_unsettled', 'feynman', asked, claim);
   }
   if (unsure) return finish('uncertain', 'feynman', probed(unsure) ? teach : UNCERTAIN_MOVES, unsure);
   const unseen = pick(state => state.state === 'not_yet_observed');
