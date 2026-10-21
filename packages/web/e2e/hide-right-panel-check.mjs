@@ -150,11 +150,12 @@ await frames();
 const stableWidth = async () => { let last = await surfaceWidth(), since = Date.now(); return waitFor(async () => { const now = await surfaceWidth(); if (Math.abs(now - last) > 0.5) { last = now; since = Date.now(); } return Date.now() - since > 600 && last; }, 15000, 'the canvas width kept changing'); };
 let openWidth = await stableWidth();
 
-await check('one navigation row: Chat, Find, Contents, Comments, Links, each named and titled; no Chat | Sources switch', async () => {
+// Owner UI brief 2026-10-20 section 7: Links moved into Search's Links filter, so Comments is the last tab.
+await check('one navigation row: Chat, Find, Contents, Comments, each named and titled; no Links tab; no Chat | Sources switch', async () => {
   const tabs = await page.locator('[data-panel-header] [data-panel-tab]').evaluateAll(list => list.map(b => ({ id: b.dataset.panelTab, label: b.getAttribute('aria-label'), title: b.getAttribute('title') })));
-  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'links'], 'the tab order');
+  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments'], 'the tab order');
   assert.ok(tabs.every(t => t.label && t.title), 'every tab has a tooltip and an accessible name');
-  assert.equal(tabs.at(-1).label, 'Links');
+  assert.equal(tabs.at(-1).label, 'Comments');
   assert.equal(await page.locator('[data-panel-header]').count(), 1, 'one navigation row');
   assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
 });
@@ -296,7 +297,7 @@ await check('repeated tab switches and hide/show cycles: no stuck panel, no hand
   for (let cycle = 0; cycle < 2; cycle += 1) {
     // Context in the companion beside every Chat tab (cycle 1), then with the companion closed (cycle 2): hiding takes both columns.
     if (cycle === 0) await openContext(); else await page.locator('[data-companion-close]').click();
-    for (const tab of ['find', 'toc', 'links', 'chat']) {
+    for (const tab of ['find', 'toc', 'chat']) {
       await page.locator(`[data-panel-tab="${tab}"]`).click();
       assert.equal(await activeTab(), tab);
       // Read whether the viewer is open once the layout has settled: right after the close in cycle 2 the column is still
@@ -315,9 +316,9 @@ await check('repeated tab switches and hide/show cycles: no stuck panel, no hand
   }
   // Arrow keys move along the one row and select as they go.
   const enabled = await page.locator('[data-panel-header] [data-panel-tab]:not([aria-disabled])').evaluateAll(list => list.map(b => b.dataset.panelTab));
-  await page.locator('[data-panel-tab="links"]').click();
+  await page.locator(`[data-panel-tab="${enabled.at(-1)}"]`).click();
   await page.keyboard.press('ArrowLeft');
-  assert.equal(await activeTab(), enabled[enabled.indexOf('links') - 1], 'ArrowLeft from Links selects the tab before it');
+  assert.equal(await activeTab(), enabled.at(-2), 'ArrowLeft from the last tab selects the tab before it');
   const savedAfter = await blocksSaved();
   if (savedAfter !== savedBefore) {
     const a = JSON.parse(savedBefore), b = JSON.parse(savedAfter);

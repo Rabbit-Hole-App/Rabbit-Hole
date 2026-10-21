@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Files, FolderTree, Link2, MessageCircle, MessageSquareText, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Files, FolderTree, MessageCircle, MessageSquareText, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -15,8 +15,7 @@ export const PANEL_TABS = [
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
   { id: 'comments', label: 'Comments', Icon: MessageCircle },
-  // Links (canvas references, owner 2026-10-14 Q3): fifth - links from this canvas and its backlinks.
-  { id: 'links', label: 'Links', Icon: Link2 },
+  // Links (canvas references, owner 2026-10-14 Q3) left the tray for Search's Links filter (owner UI brief 2026-10-20 section 7).
 ];
 // The companion column's viewers (owner decision 1A, 2026-10-15): Context (Materials and the reader) always, the repository's
 // Files and Graph where the canvas has them. They left Chat's tabs, so Chat stays visible beside any of them.

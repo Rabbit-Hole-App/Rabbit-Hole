@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 
 // Sub-lane A1 (layout) owns this file. Contract: chat-workspace-CONTRACT.md A5; brief section 2.
 // The right side is ONE visibility state, open / setOpen, shared by Chat's panel and the companion column: Hide right panel
-// hides both and reopening restores both. tab / setTab is Chat's panel tab ('chat' | 'find' | 'toc' | 'comments' | 'links').
+// hides both and reopening restores both. tab / setTab is Chat's panel tab ('chat' | 'find' | 'toc' | 'comments').
 // companion (owner decision 1A, 2026-10-15; repo-graph-plan.md Interface 1): the column LEFT of Chat for the viewers - view
 // 'context' (Sources: Materials and the reader), 'files' (the repository's code) or 'graph' (its graph). show(view) opens
 // it on that view; close() shuts the column and leaves Chat open; toggle() is the header control's press (owner brief

@@ -101,10 +101,10 @@ const READERS = {
   'web/src/graph-renderers.js': 'a Desmos option',
   'web/src/landing/docs-content.js': 'documentation link lists',
   'web/src/landing/docs.jsx': 'documentation link lists',
-  'web/src/LearnPage.jsx': 'the Links tab and canvas references, not board links',
+  'web/src/LearnPage.jsx': 'canvas references in Search and on cards, not board links',
   'web/src/LinksPanel.jsx': 'canvas references (links between canvases), not board links',
-  'web/src/PanelHeader.jsx': 'the Links tab id',
-  'web/src/chat-panels.js': 'the Links tab id in a comment',
+  'web/src/CanvasSearchPanel.jsx': 'the Search Links filter (canvas references), not board links',
+  'web/src/canvas-search-panel.js': 'the Search Links filter id',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
 };
 test('annotation: every reader of board links is known; the Tutor, map and shared Ask readers are not among them', () => {
