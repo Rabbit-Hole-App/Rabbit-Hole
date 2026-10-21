@@ -33,6 +33,7 @@ import { DiveNavigator, DivePortals } from './Dive.jsx';
 import { sharedTree } from './shared-holes.js';
 import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
+import { uiPrefs } from './ui-prefs.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -281,7 +282,10 @@ const describedCard = (state, cardId) => {
 // Professor Next Steps on a shared canvas (contract §1.3, §1.7): the hooks for the selected card (null: the canvas itself), in
 // the canvas's lower-left stack. A click starts the viewer's own private hole from that card through Start Rabbit Hole's run.
 function SharedNextSteps({ token, card, version, signedIn, startRef }) {
-  const steps = useSharedNextSteps({ token, card, version, signedIn });
+  // Curious hidden on this device (View menu, ui-prefs.js; owner brief 2026-10-21 message 25 item 2): nothing is asked. This page
+  // has no View menu, so the choice is read once per page load.
+  const [curious] = useState(() => uiPrefs().curious);
+  const steps = useSharedNextSteps({ token: curious ? token : null, card, version, signedIn });
   return <NextStepsCard steps={steps} onPick={(step, hook) => startRef.current?.(card, step, hook.id)} />;
 }
 

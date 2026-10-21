@@ -244,7 +244,8 @@ const renderSteps = props => {
 
 test('useNextSteps: exactly the steps shape, unavailable/off without a Tutor; the module never reads the mode, evidence routes or a course', () => {
   const steps = renderSteps({ tutor: { active: false } });
-  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'refresh', 'select', 'set_id', 'status']);
+  // request: the View > Curious empty state's explicit ask (owner brief 2026-10-21 message 25 item 2).
+  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'refresh', 'request', 'select', 'set_id', 'status']);
   assert.deepEqual([steps.status, steps.reason, steps.set_id, steps.generated_at, steps.options], ['unavailable', 'off', null, null, []]);
   assert.deepEqual(steps.select('ns_00000000.1'), { ok: false, reason: 'unknown' });
   const source = read('LearnNextSteps.jsx');

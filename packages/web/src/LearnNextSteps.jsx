@@ -101,16 +101,18 @@ export function ownedSteps(read, { post = (input, extra = {}) => api('/api/learn
 // ponytail: one controller per mount (previous hooks and the tab ceiling span board changes inside one LearnPage); key it by
 // app and board if a page ever switches canvases without remounting.
 // coaching (owner 3a): { allowed, visible } - hooks are proactive, so they ask only while the Tutor controls allow it and only
-// after a meaningful learner change (gateHooks). Absent, nothing is asked.
-export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, record = null, access, title = '', graded = 0, canvasVersion = null, board = 'main', describe = null, repositoryCommit = null, coaching = null }) {
+// after a meaningful learner change (gateHooks). Absent, nothing is asked. shown: View > Curious (gateHooks); request() is the
+// empty state's explicit ask, the one request a hidden-then-shown Curious with no saved set makes.
+export function useNextSteps({ tutor, journey = null, canvasApi, canvasState, record = null, access, title = '', graded = 0, canvasVersion = null, board = 'main', describe = null, repositoryCommit = null, coaching = null, shown = true }) {
   const live = useRef(null);
   live.current = { tutor, journey, canvasApi, canvasState, record, access, title, graded, canvasVersion, board, describe, repositoryCommit };
   const [steps] = useState(() => ownedSteps(() => live.current));
   const gate = useRef({}).current;
-  const { basis, stop, semantic, settling = false } = gateHooks(gate, steps.state(), { allowed: !!coaching?.allowed, visible: !!coaching?.visible, trigger: hooksTrigger({ lastTurn: tutor?.lastTurn, journey, canvasState, graded }) });
+  const [, asked] = useState(0);
+  const { basis, stop, semantic, settling = false } = gateHooks(gate, steps.state(), { allowed: !!coaching?.allowed, visible: !!coaching?.visible, shown, trigger: hooksTrigger({ lastTurn: tutor?.lastTurn, journey, canvasState, graded }) });
   useEffect(() => { steps.update({ basis, stop, semantic, settling }); }, [basis, stop, settling]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => steps.dispose, [steps]);
-  return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh };
+  return { ...useSyncExternalStore(steps.subscribe, steps.view, steps.view), select: steps.select, refresh: steps.refresh, request: () => { gate.ask = true; asked(n => n + 1); } };
 }
 
 // The signed-in viewer's own { org, email } (/api/me), only to find their own tab store. Read on each request, never kept: a

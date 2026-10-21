@@ -192,6 +192,15 @@ export function NextStepsCard({ steps, onPick }) {
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
   if (!steps) return null;
   const visible = steps.status === 'loading' || steps.status === 'stale' || (steps.status === 'ready' && steps.options.length === 3);
+  // View > Curious shown again with no saved set (owner brief 2026-10-21 message 25 item 2): a compact empty state. Only its
+  // button asks for a set (useNextSteps request); showing Curious never does.
+  if (steps.status === 'unavailable' && steps.reason === 'curious_empty' && typeof steps.request === 'function') return (
+    <section data-next-steps="empty" aria-label="Curious where this goes?" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
+      <span className="truncate text-xs font-medium text-ink-2">No suggestions yet</span>
+      <button type="button" data-next-steps-request onClick={() => steps.request()}
+        className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-ink hover:bg-hover">Suggest next steps</button>
+    </section>
+  );
   if (minimized && visible) return (
     <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
       <span className="truncate text-xs font-medium text-ink-2">Curious where this goes?</span>

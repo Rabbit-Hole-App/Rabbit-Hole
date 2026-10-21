@@ -91,13 +91,17 @@ const open = async page => {
   await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
   await page.locator(MAP).first().waitFor({ timeout: 30000 });
 };
-// One learner turn: the Tutor plan answered here, then the hook set from the stack's fixtures.
-const turn = async (page, question) => {
+// One learner turn, the Tutor plan answered here; turn() then waits for the hook set from the stack's fixtures.
+const ask = async (page, question) => {
   await page.locator('[data-chat-pane] [data-tutor-switch="on"] [role="switch"]:enabled').waitFor({ timeout: 60000 });
+  const answers = await page.locator('[data-chat-pane] [data-answer]').filter({ hasText: REPLY }).count();
   const field = page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
   await field.fill(question);
   await field.press('Enter');
-  await page.locator('[data-chat-pane] [data-answer]').filter({ hasText: REPLY }).last().waitFor({ timeout: 30000 });
+  await page.waitForFunction(([n, text]) => [...document.querySelectorAll('[data-chat-pane] [data-answer]')].filter(e => e.textContent.includes(text)).length > n, [answers, REPLY], { timeout: 30000 });
+};
+const turn = async (page, question) => {
+  await ask(page, question);
   await page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 60000 });
 };
 const hookTexts = page => page.locator('[data-hooks-slot] [data-next-step]').allInnerTexts();
@@ -244,6 +248,46 @@ await check('8 keyboard: Tab reaches the Minimap switch with a visible focus, Sp
   await quiet(page, 'keyboard', before);
 });
 
+// Owner brief 2026-10-21 message 25 item 2: hidden, Curious asks nothing in the background; shown again, the saved set at once.
+await check('8a Curious hidden: learner turns ask for no set; shown again: the saved set at once, still no request', async () => {
+  const hooks = await hookTexts(page);
+  const before = counts();
+  await setSwitch(page, 'Curious', false);
+  await closeView(page);
+  await ask(page, 'Does salt slow the yeast?');
+  await ask(page, 'Why does dough need to rest?');
+  await quiet(page, 'hidden turns', before);
+  await setSwitch(page, 'Curious', true);
+  await closeView(page);
+  await page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 5000 });
+  assert.deepEqual(await hookTexts(page), hooks, 'not the saved set');
+  await shot(page, 'view-08a-saved-set-back');
+  await quiet(page, 'shown again', before);
+});
+
+await check('8b nothing saved: hidden from the start, a turn, then shown: a compact empty state; only its button asks, once', async () => {
+  const empty = await fresh();
+  await empty.addInitScript(() => localStorage.setItem('rh.ui-prefs', JSON.stringify({ curious: false })));
+  await open(empty);
+  const before = counts();
+  await ask(empty, 'How warm should the proofing spot be?');
+  await quiet(empty, 'hidden turn on a fresh page', before);
+  await setSwitch(empty, 'Curious', true);
+  await closeView(empty);
+  const state = empty.locator('[data-hooks-slot] section[data-next-steps="empty"]');
+  await state.waitFor({ timeout: 5000 });
+  assert.match(await state.innerText(), /No suggestions yet/);
+  await shot(empty, 'view-08b-empty-state');
+  await quiet(empty, 'empty state shown', before);
+  await state.getByRole('button', { name: 'Suggest next steps' }).click();
+  await empty.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 60000 });
+  await empty.waitForTimeout(2500); // a second request would come within the debounce
+  assert.deepEqual([model.length - before[0], hooksAsked.length - before[1]], [0, 1], 'exactly one hook request, on the click');
+  await setSwitch(empty, 'Curious', false); // leave this device's choice as found
+  await setSwitch(empty, 'Curious', true);
+  await empty.context().close();
+});
+
 await check('9 Tutor Off: the set leaves; Curious off and on again shows nothing and asks nothing', async () => {
   const before = counts();
   await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
@@ -329,15 +373,15 @@ await check('12 narrow panel (1200 wide, Chat open): the map sits atop the tools
   await phone.context().close();
 });
 
-await check('13 no model-capable request was let through, and hook sets came only after the two learner turns', async () => {
+await check('13 no model-capable request was let through, and hook sets came only after learner turns with Curious shown or the empty state request', async () => {
   assert.deepEqual(model, []);
-  assert.equal(turns.length, 2);
-  assert.ok(hooksAsked.length >= 2, `hook requests ${hooksAsked.length}`);
+  assert.equal(turns.length, 5, 'two turns with Curious shown, three while hidden');
+  assert.ok(hooksAsked.length >= 3, `hook requests ${hooksAsked.length}`);
 });
 
 await browser.close();
 const fatal = errors.filter(e => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
-const total = 13;
+const total = 15;
 console.log(`${results.length}/${total} view menu checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
 if (results.length !== total) process.exitCode = 1;
