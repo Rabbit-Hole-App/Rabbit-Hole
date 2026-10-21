@@ -312,7 +312,7 @@ test('ask.jsx binds an Auto turn to its canvas and thread at send, saves the que
   const ask = read('ask.jsx');
   assert.match(ask, /const sentKey = chatThread\?\.liveKey\(\), late = \(\) => !!chatThread && lateEvent\(sentKey, chatThread\.liveKey\(\)\);/);
   assert.match(ask, /turnSaver\(\{ app: chat\.canvas, threadId: chatThread\.id \|\| newThreadId\(\), turnId: replyId,/);
-  assert.match(ask, /if \(viaTutor && autoSave\) \{ if \(!late\(\)\) chatThread\.adopt\(autoSave\.threadId, askedTitle, \{ remember: false \}\); savedId\(replyId, autoSave\.user\(message\)\)[^\n]*\}\n\s+if \(late\(\)\) return;/); // the saved id keys the turn's outputs (UI changes brief 5)
+  assert.match(ask, /if \(viaTutor && autoSave\) \{ if \(!late\(\)\) chatThread\.adopt\(autoSave\.threadId, askedTitle, \{ remember: false \}\); savedId\(replyId, autoSave\.user\(message, \{ command: commandName \}\)\)[^\n]*\}\n\s+if \(late\(\)\) return;/); // the saved id keys the turn's outputs (UI changes brief 5)
   assert.match(ask, /autoSave\?\.assistant\(reply, stopped \? 'interrupted' : 'done'\)[^\n]*\n\s+if \(late\(\)\) return;\n\s+mirror\(reply\);/);
   assert.match(ask, /chatThread\?\.claim\(\);/);
 });

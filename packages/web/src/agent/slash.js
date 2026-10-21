@@ -12,7 +12,8 @@
 // kind: 'generate' makes canvas material, 'source' opens the shared source finder (no model), 'prompt' is answered in the
 // chat (modes, Learn intents, workspace shortcuts), 'dialog' opens or inserts something of its own (no generation).
 // hidden: typed only, never listed by a picker or the help sheet (/paper: /arxiv is the one visible paper search).
-// label: the command's name in words (the pill's "Remove <label>"); desc is the picker's line.
+// label: the command's name in words, the selected-command pill's text and its "Remove <label>" (never a /name: owner,
+// 2026-10-20); desc is the picker's line.
 export const placeOf = (scope) => (scope.kind === 'workspace' ? 'home' : scope.kind === 'canvas' ? 'learn' : scope.kind);
 
 // Selection context: what the learner has selected when they send. The bar produces 'project' and
@@ -67,7 +68,7 @@ export const SLASH = [
   { name: 'paper', kind: 'source', hidden: true, group: 'create', places: ['learn'], desc: 'Open a paper', family: ['paper'], action: 'insert_paper', deterministic: true },
   { name: 'image', kind: 'generate', group: 'create', places: CTRLK, desc: 'Add an image', family: ['image', 'image_generate'] },
   { name: 'video', kind: 'generate', group: 'create', places: CTRLK, label: 'Generate video', desc: 'Generate video', family: ['video', 'video_generate'] },
-  { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD', pillLabel: 'CAD', desc: 'Create a parametric CAD model', action: 'cad', deterministic: true },
+  { name: 'cad', kind: 'generate', group: 'create', places: CTRLK, label: 'CAD', desc: 'Create a parametric CAD model', action: 'cad', deterministic: true },
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D', desc: 'Add a 3D model', family: ['3d_model', 'blender_scene'] },
   // Development only (needs motion_dev): a paid proposal with no model call before Generate.
   { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, desc: 'Make a Motion explainer (dev)', action: 'motion', deterministic: true, needs: 'motion_dev' },
@@ -128,6 +129,8 @@ export const commandsFor = (place, { catalog = [], motionDev = MOTION_DEV, hidde
 
 // The command's name in words: its label, else its capitalised name (/explain: Explain).
 export const labelOf = (command) => command.label || command.name[0].toUpperCase() + command.name.slice(1);
+// The same by name: what every selected-command pill shows (Chat, Ctrl+K and the Home, Library and Project bar).
+export const commandLabel = (name) => labelOf(SLASH.find((c) => c.name === name) || { name });
 
 // A typed line on a surface, resolved to the registry entry a picker would have chosen (the same object), so typed and
 // picked commands run alike. { command, arg }: a command this surface offers now (typed-only ones included);

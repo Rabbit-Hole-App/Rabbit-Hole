@@ -49,7 +49,7 @@ import { assessVisualAttempt, resolveDrawing } from './learn-visual-assessment.j
 
 export const KEYED_VERSION = 'journey-probe-key-v1';
 // askJev's spend-guard refusals (learn-grade-jev.js): no call was made, so nothing is unknown about them.
-const REFUSED = new Set(['cap_unset', 'daily_cap_reached', 'spend_schema_unavailable', 'spend_bound_unavailable', 'spend_identity_unavailable']);
+const REFUSED = new Set(['cap_unset', 'daily_cap_reached', 'spend_schema_unavailable', 'spend_bound_unavailable', 'spend_identity_unavailable', 'allowance_exhausted', 'allowance_insufficient', 'allowance_reserved', 'allowance_unavailable', 'payer_unavailable']);
 const int = v => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const usd = v => (v != null && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null);
 
@@ -182,9 +182,9 @@ async function assess(env, actor, attempt, deps) {
   const paid = spendCallModel(env, { org: actor.org, user_id: actor.userId }, 'tutor_evaluate', deps.callModel || loggedModel('tutor_evaluator', anthropic));
   const callModel = async (...args) => {
     const response = await paid(...args);
-    if (response.status === 429) {
+    if (response.status === 429 || response.status === 503) {
       const body = await response.clone().json().catch(() => null);
-      if (body?.code === 'spend_limited') seen.refused = body.reason || 'spend_limited';
+      if (body?.code === 'spend_limited' || body?.code === 'allowance_limited') seen.refused = body.reason || body.code;
     }
     return response;
   };

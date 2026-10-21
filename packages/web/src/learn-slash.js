@@ -115,6 +115,17 @@ export const parseSlash = text => {
 export const holdsLine = line => !!parseSlash(String(line));
 export const releaseLine = (held, input) => (held != null && String(input).trim() === held.trim() ? held : null);
 
+// The / line a Chat Send runs through LearnSlash (ask.jsx send), or null when the text is a chat turn: a chosen pill sends
+// "/command words", and a typed /line runs as typed, replacing the pill. A command's own prompt coming back (prompted:
+// LearnSlash onPrompt) is a chat turn, never a line again: its Send can still see the pill it was sent with, and wrapping it
+// once more lost the turn (L5, 2026-10-20).
+export const commandLine = (raw, { command = null, prompted = false } = {}) => {
+  const text = String(raw ?? '').trim();
+  if (prompted) return null;
+  if (text.startsWith('/')) return text;
+  return command ? `/${command} ${text}`.trim() : null;
+};
+
 const known = id => { try { return arxivId(id); } catch { return null; } };
 // One or two model calls (learn-artifact.js); a request that never answers ends as an error, not a skeleton
 // left waiting (learn-board-request.js waits as long for a board).

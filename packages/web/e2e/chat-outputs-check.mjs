@@ -16,11 +16,16 @@
 //  10. /explain leaves a compact card link (no picture) under its line                                    (brief 5)
 //  11. a card removed before it finished says restoration is unavailable and nothing is generated         (clarification 5)
 //  12. the server holds each line with its command and outputs; a fresh browser shows them and they still navigate, by keyboard too
-// Before this change step 1 fails: a / line never shows as a message.
+//  13. a command pill whose command answers with a prompt (/simplify, /deeper, /example, /ask, /teach) sends it once as one chat
+//      turn: in Auto one Tutor plan, saved once with its command; in Ask one /api/learn/ask with its command, saved by that route
+//  14. a pill line sent while another command runs stays in the composer and runs once that ends
+// Before this change step 1 fails: a / line never shows as a message. Steps 13 and 14 fail on be869fa1 and main e3fc9671 (L1b):
+// the pill and its words clear and nothing is sent. /api/learn/ask and the Tutor plan get canned answers here.
 // Usage: BASE=http://127.0.0.1:9141 SMALL_CP=http://127.0.0.1:9143 VARS=<cp .dev.vars> node e2e/chat-outputs-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { learnRequest } from '../src/agent/slash.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9141';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9143';
@@ -80,11 +85,19 @@ const cadReply = (request, url) => {
   return { jobs: listed.map(entry => reply(entry).job), blocks: listed.map(blockOf) };
 };
 const artifacts = [], refused = [], outside = [], errors = [];
+// Steps 13-14: the chat turns a command's prompt made (/api/learn/ask bodies, Tutor plans), the Chat's own message saves, and a
+// gate that holds /api/learn/artifact so a command is still running.
+const asks = [], plans = [], saves = [];
+let artifactHold = null;
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course))/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(url.hostname); return route.abort(); }
-  if (url.pathname === '/api/learn/artifact') { artifacts.push(request.postDataJSON()); return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a vector.' } } }); }
+  if (url.pathname === '/api/learn/artifact') { artifacts.push(request.postDataJSON()); await artifactHold; return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a vector.' } } }).catch(() => {}); }
+  if (url.pathname === '/api/learn/ask') { const body = request.postDataJSON(); asks.push(body); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'Canned answer.' })}\n\nevent: done\ndata: ${JSON.stringify({ threadId: body.thread_id })}\n\n` }); }
+  if (url.pathname === '/api/learn/tutor/plan') { plans.push(request.postDataJSON()); return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } }); }
+  if (url.pathname === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
+  if (request.method() === 'POST' && /^\/api\/learn\/chat\/threads\/[^/]+\/messages$/.test(url.pathname)) saves.push(request.postDataJSON());
   if (url.pathname.startsWith('/api/learn/cad/jobs')) return route.fulfill({ json: cadReply(request, url) });
   if (url.pathname === THUMB) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(url.pathname)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
@@ -93,7 +106,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 12;
+const total = 14;
 let page = null;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -283,6 +296,83 @@ await step('the server holds each line with its command and outputs; a fresh bro
   await page.keyboard.press('Enter');
   await until(async () => (await page.locator('[data-selected-card]').getAttribute('data-selected-card')) === explainId, 'the link does not select its card');
   await page.screenshot({ path: `${OUT}/12-fresh-${THEME}.png` });
+  await context.close();
+});
+
+// A command chosen as a pill, then its words and Enter (L5's defect: the prompt came back to a Send that still saw the pill).
+const WORDS = 'why softmax';
+const promptOf = (name, args = WORDS) => learnRequest(name, { args }).prompt; // no card selected: "the current concept"
+const pillSend = async (page, name, words = WORDS) => {
+  const box = composerOf(page);
+  await box.click(); await box.fill(`/${name} `);
+  await pane(page).locator(`[data-command-pill="${name}"]`).waitFor();
+  await box.fill(words); await page.waitForTimeout(150); await box.press('Enter');
+};
+const userTexts = async page => (await pane(page).locator('div.rounded-lg.bg-hover').allInnerTexts()).map(text => text.trim());
+const idle = page => until(async () => (await pane(page).locator('[data-chat-composer] button[aria-label="Stop"]').count()) === 0, 'the chat stays busy');
+const composerClear = async page => { assert.equal(await composerOf(page).inputValue(), ''); assert.equal(await pane(page).locator('[data-command-pill]').count(), 0); };
+const askMode = async page => {
+  if ((await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode')) === 'ask') return;
+  await pane(page).locator('[data-chat-mode]').click();
+  await pane(page).locator('[data-chat-mode-option="ask"]').click();
+  await until(async () => (await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode')) === 'ask', 'Ask mode not chosen');
+};
+
+await step('a command pill whose prompt goes to the chat sends it once: Auto through the Tutor, Ask to /api/learn/ask, saved once', async () => {
+  ({ context, page } = await open());
+  // Auto: this canvas's Tutor answers; the Chat saves the turn's question once, with its command, and no /line.
+  const before = { asks: asks.length, plans: plans.length, saves: saves.length };
+  await pillSend(page, 'simplify');
+  await until(async () => plans.length === before.plans + 1, 'Auto /simplify made no Tutor turn');
+  await idle(page);
+  await page.waitForTimeout(800);
+  assert.deepEqual([asks.length, plans.length], [before.asks, before.plans + 1], 'one turn');
+  assert.equal((await userTexts(page)).filter(text => text === promptOf('simplify')).length, 1, 'the message shows once');
+  await composerClear(page);
+  const autoSaves = saves.slice(before.saves).filter(save => save.role === 'user');
+  assert.deepEqual(autoSaves.map(save => [save.content, save.command]), [[promptOf('simplify'), 'simplify']], 'saved once, with its command');
+  await until(async () => (await thread()).messages.filter(m => m.role === 'user' && m.content === promptOf('simplify') && m.command === 'simplify').length === 1, 'the server does not hold it once');
+  // Ask: every such command, each one /api/learn/ask with its prompt and command; the ask route saves it, so the Chat does not.
+  await askMode(page);
+  const sent = [], from = { asks: asks.length, saves: saves.length };
+  for (const name of ['simplify', 'deeper', 'example', 'ask', 'teach']) {
+    await pillSend(page, name);
+    await until(async () => asks.length === from.asks + sent.length + 1, `/${name} sent nothing`);
+    await idle(page);
+    sent.push(name);
+    const body = asks.at(-1);
+    assert.deepEqual([body.message, body.command, body.mode], [promptOf(name), name, 'ask'], `/${name}`);
+    await composerClear(page);
+  }
+  await page.waitForTimeout(800);
+  assert.equal(asks.length, from.asks + sent.length, 'one request each');
+  const shown = await userTexts(page);
+  for (const text of new Set(sent.map(name => promptOf(name)))) assert.equal(shown.filter(t => t === text).length, sent.filter(name => promptOf(name) === text).length + (text === promptOf('simplify') ? 1 : 0), `shown once each: ${text}`);
+  assert.deepEqual(saves.slice(from.saves).filter(save => save.role === 'user'), [], 'no second save beside the ask route');
+  await page.screenshot({ path: `${OUT}/13-prompt-pills-${THEME}.png` });
+});
+
+await step('a pill line sent while another command runs stays in the composer and runs once that ends', async () => {
+  let release = () => {};
+  artifactHold = new Promise(done => { release = done; });
+  try {
+    await askMode(page);
+    await send(page, '/explain softmax as a ratio');
+    await pane(page).locator('[data-slash-result]', { hasText: 'Working on /explain' }).waitFor();
+    const before = asks.length;
+    await pillSend(page, 'simplify', 'while it works');
+    await page.waitForTimeout(600);
+    assert.equal(await composerOf(page).inputValue(), '/simplify while it works', 'the held line stays in the composer');
+    assert.equal(asks.length, before, 'nothing is asked while the command runs');
+    await page.screenshot({ path: `${OUT}/14-held-${THEME}.png` });
+    release(); artifactHold = null;
+    await until(async () => asks.length === before + 1, 'the held line never ran');
+    assert.deepEqual([asks.at(-1).message, asks.at(-1).command], [promptOf('simplify', 'while it works'), 'simplify']);
+    await idle(page);
+    await page.waitForTimeout(800);
+    assert.equal(asks.length, before + 1, 'it ran once');
+    await composerClear(page);
+  } finally { release(); artifactHold = null; }
   await context.close();
 });
 await browser.close();

@@ -1,8 +1,8 @@
 // CAD transport uses the existing authenticated API; polling observes jobs, never advances them.
 export const CAD_ROOT = '/api/learn/cad/jobs';
-const STAGES = { queued: 'Queued', preparing: 'Preparing design', waiting_for_answer: 'Waiting for your answer', building: 'Building geometry', checking: 'Checking', repairing: 'Repairing', exporting: 'Exporting', ready: 'Ready', failed: 'Failed', cancelled: 'Cancelled' };
+const STAGES = { queued: 'Queued', preparing: 'Preparing design', waiting_for_answer: 'Waiting for your answer', awaiting_approval: 'Review the design brief', building: 'Building geometry', checking: 'Checking', repairing: 'Repairing', exporting: 'Exporting', ready: 'Ready', failed: 'Failed', cancelled: 'Cancelled' };
 export const cadStage = state => STAGES[state] || 'Checking status';
-export const cadRunning = state => !['ready', 'failed', 'cancelled', 'waiting_for_answer'].includes(state);
+export const cadRunning = state => !['ready', 'failed', 'cancelled', 'waiting_for_answer', 'awaiting_approval'].includes(state);
 export const cadArtifact = (manifest, kind, revisionId = manifest?.revisionId) => manifest && manifest.revisionId === revisionId ? manifest.artifacts?.find(artifact => artifact.kind === kind && artifact.url) || null : null;
 export function mergeCadBlock(previous, incoming) {
   const layout = Object.fromEntries(['dx','dy','w','h','camera','cardLayout','locked','viewerBackground'].filter(key => Object.hasOwn(previous || {}, key)).map(key => [key,previous[key]]));
@@ -23,7 +23,7 @@ export function cadClient(api, app, board = 'main') {
     list: () => api(`${CAD_ROOT}?app=${encodeURIComponent(app)}&board=${encodeURIComponent(board)}`),
     get: id => api(`${CAD_ROOT}/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`),
     start: request => post(CAD_ROOT,{...request,confirmed:true}),
-    action: (id,action,body) => post(`${CAD_ROOT}/${encodeURIComponent(id)}/${action}`,{...body,...(['retry','clarify'].includes(action)?{confirmed:true}:{})}),
+    action: (id,action,body) => post(`${CAD_ROOT}/${encodeURIComponent(id)}/${action}`,{...body,...(['retry','clarify','approve'].includes(action)?{confirmed:true}:{})}),
   };
 }
 

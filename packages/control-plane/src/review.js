@@ -3,6 +3,7 @@
 // computed here in code. Must never break a deploy: every failure path just logs.
 import { MODEL_NOT_CONFIGURED } from './learn-models.js';
 import { recordMedia } from './learn-usage.js';
+import { spendEnforced } from './learn-spend-ledger.js';
 
 const MODEL = 'claude-opus-5';
 
@@ -93,6 +94,9 @@ function validateReview(r) {
 
 async function fetchReview(env, bundle) {
   if (!env.ANTHROPIC_API_KEY) throw new Error(MODEL_NOT_CONFIGURED); // no key: nothing leaves the worker
+  // Fail closed where spend is enforced (owner L12 2026-10-20): this legacy call is outside the ledger and its server-side
+  // fallback has no price bound, so it cannot be admitted. ponytail: route it through spendTransport if deploy review returns.
+  if (spendEnforced(env)) throw new Error('Deploy review is paused: its model cost cannot be bounded under the AI spend limits.');
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {

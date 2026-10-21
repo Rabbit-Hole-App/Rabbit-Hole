@@ -163,7 +163,7 @@ export async function readProgress(env, actor, { goalId, scopeVersion } = {}, { 
 // route has just authorized. An imported file reads for its owner, or through this canvas's own board while that board
 // still references it (file-access.js). shortcut: every other kind reads as unavailable (its content withheld) until the
 // lane that introduces it adds its check here.
-const sourceReader = (req, env, access, actor) => async ref => {
+export const sourceReader = (req, env, access, actor) => async ref => {
   if (ref?.kind === 'card') return true;
   // A codebase source (Task 12): readable while its repository version is (confirmed public, or the learner's own import).
   if (ref?.kind === REPOSITORY_SOURCE) return !!(await readableVersion(env, { org: access.org, email: access.email }, String(ref.id).split(':')[0], ref.version));
