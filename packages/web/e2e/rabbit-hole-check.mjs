@@ -1084,7 +1084,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   await check('J15: Settings opens from the workspace menu; Esc returns to the same route', async () => {
     const page = await open();
     await loaded(page, '/apps?s=shared');
-    await page.locator('aside').getByText(wsLabel, { exact: true }).first().click();
+    await page.locator('aside [data-account-menu]').click(); // the account menu (avatar and name) holds Settings
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await settings(page).waitFor({ timeout: 10000 });
     await page.keyboard.press('Escape');
@@ -1143,7 +1143,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const other = workspaces.find((w) => w.slug !== active);
     if (!other) { console.log('note: J20 switch not exercised; the test user has one workspace'); return page.context().close(); }
     await page.keyboard.press('Escape');
-    await page.locator('aside').getByText(wsLabel, { exact: true }).first().click();
+    await page.locator('aside [data-account-menu]').click();
     await Promise.all([page.waitForEvent('load'), page.getByText(other.name || wsName(other.slug), { exact: true }).click()]); // Sidebar.jsx:797-805 reloads /apps
     const now = await page.evaluate(() => fetch('/api/apps', { headers: { 'X-Small-Workspace': localStorage.getItem('small.ws') || '' } }).then((r) => r.json()));
     must(now.org === other.slug, `catalog still scoped to ${now.org}`);
@@ -2460,7 +2460,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     }
     await page.keyboard.press('Escape');
     await settings(page).waitFor({ state: 'detached', timeout: 5000 });
-    await page.locator('aside').getByTitle('Switch workspace').click();
+    await page.locator('aside [data-account-menu]').click();
     await page.getByRole('button', { name: 'Settings', exact: true }).waitFor({ timeout: 5000 });
     must(await page.getByRole('button', { name: /New workspace/ }).count() === 0, 'the workspace menu offers New workspace');
     await page.context().close();
