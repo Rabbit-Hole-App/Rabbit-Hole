@@ -272,6 +272,7 @@ const UNAVAILABLE_TEXT = {
   visual_not_supported: 'Your drawing is saved. Drawings cannot be checked yet, so it is not assessed.',
   allowance_refused: 'Your answer is saved. It could not be checked now because the AI allowance is used up; your progress is unchanged.',
   activity_changed: 'Your answer is saved for the question you answered; that question has changed since, so it was not checked.',
+  source_unavailable: 'Your answer is saved. The code it is about is not available to you now, so it was not checked and your progress is unchanged.',
 };
 // Feedback when it is ready (draft Task 05): a pending assessment (another tab's request still checking the same answer, or a
 // reply that could not read it back) is read again with GET, which reconciles and never calls a model, until it is final. The

@@ -26,6 +26,8 @@ import { ownerRow } from './learn-boards.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { LEARN_TASKS, costUsd, loggedModel, promptVersion } from './learn-models.js';
 import { spendCallModel } from './learn-tutor-routes.js';
+import { readableVersion, repositorySnapshot } from './repositories.js';
+import { REPOSITORY_SOURCE, excludedReason, isRepositorySource } from '../../web/src/learn-codebase-goals.js';
 
 // A criterion carries a rubric when its rubricVersion names one: 'rubric-<anything>'. The default 'r1' and journey claim
 // criteria do not. Producers (Task 07, goal creation) set it on the criteria a rubric judges.
@@ -209,23 +211,45 @@ export async function callEvaluator(env, actor, task, request, reason, deps = {}
 // shortcut: only these string fields; option lists, tables and graphs are not read as sources.
 const CARD_FIELDS = ['title', 'question', 'prompt', 'body', 'brief', 'text', 'caption', 'label', 'alt', 'code', 'setup'];
 
+// A repository file a codebase activity cited (learn-codebase-source-map.js SourceRef), read at its own commit under the existing
+// rule (repositories.js readableVersion: the learner's own import not in Trash, or a confirmed-public repository). Revoked
+// access, a version no longer stored, bytes other than the hashed ones, or a possible secret: null, nothing is read.
+async function repositoryText(env, access, ref, snapshots) {
+  const path = ref.locator?.path, repo = String(ref.id).slice(0, String(ref.id).indexOf(':'));
+  if (!isRepositorySource(ref) || ref.id !== `${repo}:${path}` || !access?.email) return null;
+  const row = await readableVersion(env, { org: access.org, email: access.email }, repo, ref.version);
+  if (!row) return null;
+  const key = `${row.id}@${ref.version}`;
+  if (!snapshots.has(key)) snapshots.set(key, repositorySnapshot(env, row, ref.version).catch(() => null));
+  const files = (await snapshots.get(key))?.files || {}, file = Object.hasOwn(files, path) ? files[path] : null;
+  if (typeof file !== 'string' || excludedReason(path, file) === 'secret' || await sha256Hex(file) !== ref.hash) return null;
+  const { start, end } = ref.locator;
+  return { ref: { kind: ref.kind, id: ref.id, version: ref.version }, label: clip(`${path}:${start}-${end} at ${ref.version.slice(0, 7)}`, 200), text: file.split('\n').slice(start - 1, end).join('\n') };
+}
+
 /**
  * The sources an attempt names, read now under the learner's own access: a card on their own board (the canvas the route
- * authorized). Each is cut to LIMITS.sourceChars and hashed, so the record says which words were read.
- * shortcut: other kinds (files, documents, repositories) are listed unavailable, so a claim citing them stays unverified;
- * add each kind's read with its access check when a producer starts naming it.
+ * authorized), or a cited repository file at its commit (repositoryText). Each is cut to LIMITS.sourceChars and hashed, so
+ * the record says which words were read; past LIMITS.sources the rest are listed as source_limit.
+ * shortcut: other kinds (files, documents) are listed unavailable, so a claim citing them stays unverified; add each kind's
+ * read with its access check when a producer starts naming it.
  */
 export async function rubricSources(env, access, actor, refs = []) {
-  const sources = [], sourcesUnavailable = [];
+  const sources = [], sourcesUnavailable = [], snapshots = new Map();
   let blocks = [];
   if (refs.some(r => r.kind === 'card') && access?.email) {
     try { blocks = JSON.parse((await ownerRow(env, access, actor.app, actor.board))?.state_json || '{}').blocks || []; } catch { blocks = []; }
   }
-  for (const ref of refs) {
-    const block = ref.kind === 'card' && sources.length < LIMITS.sources ? blocks.find(b => b?.id === ref.id) : null;
+  const cardText = ref => {
+    const block = blocks.find(b => b?.id === ref.id);
     const text = block ? CARD_FIELDS.filter(k => typeof block[k] === 'string' && block[k].trim()).map(k => block[k]).join('\n') : '';
-    if (!text) { sourcesUnavailable.push({ kind: String(ref.kind).slice(0, 40), id: String(ref.id).slice(0, 200), reason: 'source_unavailable' }); continue; }
-    sources.push({ id: `S${sources.length + 1}`, ref: { kind: ref.kind, id: ref.id }, label: clip(block.title ?? block.label, 200), text: text.slice(0, LIMITS.sourceChars), truncated: text.length > LIMITS.sourceChars, sha256: await sha256Hex(text) });
+    return text ? { ref: { kind: ref.kind, id: ref.id }, label: clip(block.title ?? block.label, 200), text } : null;
+  };
+  for (const ref of refs) {
+    const full = sources.length >= LIMITS.sources;
+    const read = full ? null : ref.kind === REPOSITORY_SOURCE ? await repositoryText(env, access, ref, snapshots) : ref.kind === 'card' ? cardText(ref) : null;
+    if (!read?.text.trim()) { sourcesUnavailable.push({ kind: String(ref.kind).slice(0, 40), id: String(ref.id).slice(0, 200), reason: full ? 'source_limit' : 'source_unavailable' }); continue; }
+    sources.push({ id: `S${sources.length + 1}`, ref: read.ref, label: read.label, text: read.text.slice(0, LIMITS.sourceChars), truncated: read.text.length > LIMITS.sourceChars, sha256: await sha256Hex(read.text) });
   }
   return { sources, sourcesUnavailable };
 }
