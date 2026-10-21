@@ -22,6 +22,8 @@ import { authorizedBoardApp } from './learn-board.js';
 import { NO_TRASHED_ANCESTOR, ownerRow } from './learn-boards.js';
 import { authorizeFileSource } from './file-access.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { readableVersion } from './repositories.js';
+import { REPOSITORY_SOURCE } from '../../web/src/learn-codebase-goals.js';
 
 export class ProgressError extends Error {
   constructor(code, status) { super(`progress: ${code}`); this.name = 'ProgressError'; this.code = code; this.status = status; }
@@ -163,6 +165,8 @@ export async function readProgress(env, actor, { goalId, scopeVersion } = {}, { 
 // lane that introduces it adds its check here.
 export const sourceReader = (req, env, access, actor) => async ref => {
   if (ref?.kind === 'card') return true;
+  // A codebase source (Task 12): readable while its repository version is (confirmed public, or the learner's own import).
+  if (ref?.kind === REPOSITORY_SOURCE) return !!(await readableVersion(env, { org: access.org, email: access.email }, String(ref.id).split(':')[0], ref.version));
   if (ref?.kind !== 'file') return false;
   if (!((await authorizeFileSource(req, env, ref.id)) instanceof Response)) return true;
   const row = await ownerRow(env, access, actor.app, actor.board);
