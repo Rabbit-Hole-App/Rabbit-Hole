@@ -7,14 +7,13 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { learnDb } from './learn-grade-fixture.js';
 import { liveDb, liveRuns } from './live-storage-spy.js';
-import { canvasesFetch, canvasRoute } from '../src/canvases.js';
+import { NOW, canvasesFetch, canvasRoute } from '../src/canvases.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../learn-migrations/0009-canvas-metadata.sql', import.meta.url), 'utf8');
 const PEOPLE = { ana: { email: 'ana@test', org: 'ana-ws' }, ben: { email: 'ben@test', org: 'ben-ws' } };
 const BOARD = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'b1', type: 'explanation', title: 'Softmax' }] };
-const later = () => new Promise(resolve => setTimeout(resolve, 5));
 
 function setup(t) {
   const { LEARN_DB, sqlite } = learnDb(t);
@@ -34,6 +33,17 @@ function setup(t) {
     sqlite.prepare("INSERT INTO user_profiles (email, name) VALUES (?, '')").run(email);
     sqlite.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?)').run(email, handle);
   }
+  // updated_at is stamped by SQLite's own clock (NOW: the OS wall clock, to the ms in the text), not Node's. A fixed setTimeout
+  // can end inside one tick of that clock (15.6 ms on a stock Windows runner), so two writes get the same text and a strict >
+  // fails. Wait on the clock that stamps the rows until it reads later than it did, so the next write is stamped after every earlier one.
+  const clock = sqlite.prepare(`SELECT ${NOW} AS now`);
+  const later = async () => {
+    const start = clock.get().now, deadline = Date.now() + 2000;
+    while (clock.get().now <= start) {
+      assert.ok(Date.now() < deadline, 'the clock that stamps updated_at did not advance in 2 s');
+      await new Promise(resolve => setTimeout(resolve, 1));
+    }
+  };
   const call = async (method, path, { as, body } = {}) => {
     const req = new Request(`https://app.test${path}`, { method, headers: { 'Content-Type': 'application/json', ...(as ? { cookie: `small_session=${as}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
     const response = canvasRoute(new URL(req.url)) ? await canvasesFetch(req, env) : await learnBoardsRoute(path, req, env);
@@ -43,7 +53,7 @@ function setup(t) {
   const app = async (as, name) => (await call('GET', `/api/apps/${name}`, { as })).body;
   const patch = (as, name, body) => call('PATCH', `/api/apps/${name}`, { as, body });
   const save = (as, name, state) => call('PUT', `/api/learn/boards/${name}/main`, { as, body: { state } });
-  return { sqlite, call, create, app, patch, save };
+  return { sqlite, later, call, create, app, patch, save };
 }
 
 test('0009 is additive, re-runnable and exactly what repository-schema.sql applies; it backfills nothing', t => {
@@ -68,11 +78,11 @@ test('a rename and a description edit are meaningful changes; the same title aga
   const c = await f.create('ana', 'Gradients');
   const before = (await f.app('ana', c.name)).updated_at;
   assert.equal((await f.patch('ana', c.name, { title: 'Gradients' })).body.updated_at, before, 'no change, no bump');
-  await later();
+  await f.later();
   const renamed = (await f.patch('ana', c.name, { title: 'Gradient descent' })).body;
   assert.equal(renamed.title, 'Gradient descent');
   assert.ok(renamed.updated_at > before, 'a rename bumps');
-  await later();
+  await f.later();
   const described = (await f.patch('ana', c.name, { description: '  Why the step follows the slope.  ' })).body;
   assert.equal(described.description, 'Why the step follows the slope.');
   assert.ok(described.updated_at > renamed.updated_at, 'a description edit bumps');
@@ -95,13 +105,13 @@ test('a change to the saved content bumps; its first server copy and a save of t
   const f = setup(t);
   const c = await f.create('ana', 'Content');
   const created = (await f.app('ana', c.name)).updated_at;
-  await later();
+  await f.later();
   await f.save('ana', c.name, BOARD);
   assert.equal((await f.app('ana', c.name)).updated_at, created, 'the first copy syncs what the browser had');
-  await later();
+  await f.later();
   await f.save('ana', c.name, BOARD);
   assert.equal((await f.app('ana', c.name)).updated_at, created, 'the same content again');
-  await later();
+  await f.later();
   await f.save('ana', c.name, { ...BOARD, blocks: [...BOARD.blocks, { id: 'b2', type: 'quiz', question: 'Why?' }] });
   assert.ok((await f.app('ana', c.name)).updated_at > created, 'a new card is a meaningful change');
 });
@@ -111,7 +121,7 @@ test('passive use never bumps: opening, sharing, publishing, someone else\'s for
   const c = await f.create('ana', 'Popular');
   await f.save('ana', c.name, BOARD);
   const before = (await f.app('ana', c.name)).updated_at;
-  await later();
+  await f.later();
   await f.call('GET', `/api/apps/${c.name}`, { as: 'ana' });
   await f.call('GET', `/api/learn/boards/${c.name}/main`, { as: 'ana' });
   const share = (await f.call('POST', `/api/learn/boards/${c.name}/main/share`, { as: 'ana', body: { shared: true, view: true, state: BOARD } })).body.sharing.view;
@@ -126,7 +136,7 @@ test('passive use never bumps: opening, sharing, publishing, someone else\'s for
 test('the Library lists the last meaningfully changed first, then the newer id', async t => {
   const f = setup(t);
   const first = await f.create('ana', 'First'), second = await f.create('ana', 'Second'), third = await f.create('ana', 'Third');
-  await later();
+  await f.later();
   await f.patch('ana', first.name, { description: 'Edited last' });
   const order = (await f.call('GET', '/api/canvases', { as: 'ana' })).body.canvases.map(c => c.title);
   assert.deepEqual(order, ['First', 'Third', 'Second'], 'updated_at DESC; ties by id DESC (the three were made in one second)');
