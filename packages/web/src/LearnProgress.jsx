@@ -11,6 +11,8 @@ import { NextActivity } from './TutorActivity.jsx';
 const ICON = { demonstrated_independently: CircleCheck, demonstrated_with_help: CircleHelp, practising: CircleDashed, needs_review: CircleAlert, not_checked: Circle };
 const TONE = { demonstrated_independently: 'text-pass', demonstrated_with_help: 'text-[#b45309] dark:text-[#f5b14c]', needs_review: 'text-fail', practising: 'text-ink-2', not_checked: 'text-ink-3' };
 const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium';
+const FIT = { met: 'met', partial: 'partly met', not_met: 'not met', unclear: 'unclear' };
+const HELP = { none: 'no help', assisted: 'with help', unknown: 'help not recorded' };
 const day = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
 // scope { app, board }; coaching: the workspace's controls (use-learn-coaching.jsx); composer: the Chat draft (prepare and
@@ -75,6 +77,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
           </div>
           {model.failed && <p role="alert" className="mt-2 text-xs text-fail">Could not refresh; this is your last saved progress. <button type="button" onClick={read} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
           {model.pending > 0 && <p role="status" data-progress-pending className="mt-2 text-xs text-ink-2">Feedback pending on {model.pending} answer{model.pending === 1 ? '' : 's'}. These counts are your last confirmed ones.</p>}
+          {model.unavailable > 0 && <p role="status" data-progress-unavailable className="mt-2 text-xs text-ink-2">Assessment unavailable for {model.unavailable} answer{model.unavailable === 1 ? '' : 's'}; they are not counted.</p>}
           <h3 className="mt-5 text-sm font-semibold text-ink">Your skills</h3>
           <ul className="mt-1 divide-y divide-line border-b border-line">
             {model.rows.map(row => { const Icon = ICON[row.status], open = expanded === row.criterionId; return (
@@ -94,6 +97,12 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
                       <dt>Applied to a new case</dt><dd className="text-ink">{row.application ? 'Yes' : 'Not checked yet'}</dd>
                       <dt>Remembered later</dt><dd className="text-ink">{row.retention ? 'Yes' : 'Not checked yet'}</dd>
                     </dl>
+                    {row.history.length > 0 && <ol data-progress-history className="mt-2 flex flex-col gap-1">
+                      {row.history.slice(0, 5).map(item => <li key={item.observationId}>
+                        {[day(item.observedAt || item.submittedAt), FIT[item.fit], HELP[item.assistance], item.validity === 'superseded' ? 'replaced by a later review' : item.validity === 'disputed' ? 'questioned' : null].filter(Boolean).join(' · ')}
+                        {item.excerpt && <span className="mt-0.5 block truncate text-ink-3">“{item.excerpt}”</span>}
+                      </li>)}
+                    </ol>}
                   </details>
                 </div>}
               </li>

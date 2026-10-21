@@ -6,7 +6,7 @@
 // the same reducer the Worker runs (reduceTutorControls). Events go up one at a time; a 409 adopts the server's newer state
 // and the event is applied again on top of it (an Undo whose revision moved on is dropped instead, owner 3a). A failed
 // save keeps the local choice visible in this tab only, says so, and never claims other tabs or devices changed.
-import { canCoach, defaultControls, mayRun, reduceTutorControls } from './learn-coaching-contract.js';
+import { GUIDED_ENTRY, canCoach, defaultControls, mayRun, reduceTutorControls } from './learn-coaching-contract.js';
 
 // Coaching state lives on canvases only (the route refuses other apps: coaching_on_canvases_only).
 export const coachingCanvas = name => /^canvas-[a-f0-9]{8}$/.test(String(name ?? ''));
@@ -154,13 +154,14 @@ export function threadWithControls(thread, coaching) {
 // The controls proactive decisions read: on a surface with no saved record the mode is the thread's (threadWithControls).
 export const effectiveControls = (coaching, thread) => (coaching.status === 'local' ? { ...coaching.controls, mode: thread?.mode ?? coaching.controls.mode } : coaching.controls);
 
-// Owner 4a (contract: a guided entry is start_guided, then hole_opening_turn). The guided entry clears a pause only in
-// selected, enabled Tutor; the opening turn then runs only where coaching may run. `entry` is the controls of the canvas the
-// learner made the entry from (dive.js markGuidedEntry), used while this hole has no saved choice of its own (revision 0).
+// Owner 4a (contract GUIDED_ENTRY, integrator ruling Q5): the explicit guided entry is start_guided (it clears a pause only in
+// selected, enabled Tutor), then its one opening turn, which runs in selected, enabled Tutor only - never in Auto, Ask or Off.
+// `entry` is the controls of the canvas the learner made the entry from (learn-opening.js markGuidedEntry), used while this
+// hole has no saved choice of its own (revision 0).
 export function guidedOpening({ own, entry = null, context }) {
   const base = own && own.revision > 0 ? own : entry || own || defaultControls();
   const after = reduceTutorControls(base, { type: 'start_guided' }).state;
-  return mayRun('hole_opening_turn', after, context);
+  return mayRun(GUIDED_ENTRY, after, context);
 }
 
 // The status line under the controls: what this tab knows, never more (draft "If the preference has not synchronized or
