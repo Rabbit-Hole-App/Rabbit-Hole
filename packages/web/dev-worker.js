@@ -42,6 +42,7 @@ import { learnGradeRoute, assessAnswer } from '../control-plane/src/learn-grade-
 import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
 import { tutorEvalRoute } from '../control-plane/src/tutor-eval-routes.js';
 import { journeyRoute } from '../control-plane/src/learn-journey.js';
+import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
@@ -275,6 +276,8 @@ const routes = {
     if (path.startsWith('/api/learn/tutor-eval/')) return tutorEvalRoute(path, req, env);
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
     if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
+    // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
+    if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
     // Home answers, in place, from the signed-in user's own library (learn-home-ask.js); never the old apps agent.
     if (path === '/api/learn/home-ask') return homeAskFetch(req, env);
     // Jev side-by-side grading (docs/features/jev-grading.md).
