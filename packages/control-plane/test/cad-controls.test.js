@@ -82,7 +82,7 @@ test('CAD brief-first: brief prepared, stops for approval, survives refresh, edi
   let job = await s.advance(created.job.id);
   assert.equal(job.state, 'awaiting_approval'); assert.equal(job.sourceText, undefined); assert.equal(job.source, undefined);
   assert.deepEqual(s.calls.map(c => c.phase), ['brief']);
-  assert.equal(s.calls[0].prepared.request.max_tokens, 2500); assert.match(s.calls[0].prepared.request.system, /Do not write source code/);
+  assert.equal(s.calls[0].prepared.request.max_tokens, 4000); assert.match(s.calls[0].prepared.request.system, /Do not write source code/);
   assert.ok(job.phaseUsd.interpretation > 0 && job.phaseUsd.interpretation <= 0.10);
   // Refresh: the review state is the durable job record; alarms never advance it.
   const fetched = await (await s.f.request(s.api(created.job.id))).json();
@@ -214,7 +214,7 @@ test('CAD interpretation call stays inside the existing per-call reservation', (
   const design = plate();
   const job = { modelPhase: 'brief', prompt: 'x'.repeat(4000), context: { text: 'y'.repeat(12000) }, brief: design.brief };
   const { request: prepared, reservedUsd } = cadModelRequest(job);
-  assert.equal(prepared.max_tokens, 2500); assert.ok(reservedUsd <= 0.07, String(reservedUsd));
+  assert.equal(prepared.max_tokens, 4000); assert.ok(reservedUsd <= 0.085, String(reservedUsd));
   // The existing per-call cap still refuses oversized context before any spend; it is not raised for the new phase.
   assert.throws(() => cadModelRequest({ ...job, prompt: 'x'.repeat(8000), context: { text: 'y'.repeat(30000) } }), /per-call/);
   const source = cadModelRequest({ approval: { briefHash: 'h' }, brief: design.brief, checkSpecs: design.checks, context: {} });

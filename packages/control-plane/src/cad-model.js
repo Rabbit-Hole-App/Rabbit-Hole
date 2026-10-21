@@ -60,7 +60,8 @@ export function cadModelRequest(job, { review = false, image = null, pictures = 
     : { request: job.prompt, context: job.context, answer: job.answer, priorBrief: job.previousBrief, priorSource: job.previousSource, repair: job.repairReason };
   const content = [...pictures, { type:'text', text:JSON.stringify(data) }, ...(image ? [{type:'image',source:{type:'base64',media_type:'image/png',data:image}}] : [])];
   const system = review ? SYSTEM : phase === 'interpretation' ? `${SYSTEM_BRIEF}\n${CAD_CHECK_INSTRUCTIONS}` : job.approval ? `${SYSTEM}\n${CAD_INSTRUCTIONS}\n${SOURCE_RULES}` : `${SYSTEM}\n${CAD_INSTRUCTIONS}\n${CAD_CHECK_INSTRUCTIONS}`;
-  const request = { system, max_tokens: review ? 1200 : phase === 'interpretation' ? 2500 : 6000, messages:[{role:'user',content}] };
+  // Interpretation: claude-sonnet-5-5's thinking counts against max_tokens; real briefs used 2176-2500 of 2500, one truncated (C2).
+  const request = { system, max_tokens: review ? 1200 : phase === 'interpretation' ? 4000 : 6000, messages:[{role:'user',content}] };
   const reservedUsd = requestSpendBound(request, CAD_MODEL);
   if (reservedUsd == null || reservedUsd > 0.10) throw cadError('This CAD request exceeds its per-call input/output budget. Reduce its context.', 413);
   return { request, reservedUsd };
