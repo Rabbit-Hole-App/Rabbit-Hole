@@ -32,10 +32,34 @@ export function readUsage(status, body) {
     && Number.isSafeInteger(unknown) && unknown >= 0
     && typeof body.resetsAt === 'string' && !Number.isNaN(Date.parse(body.resetsAt));
   if (!valid) return { status: 'unavailable', reason: 'malformed' };
+  // byFeature (Settings' "This month by feature"): kept only when every row is well formed; a server without it shows no split.
+  const whole = value => Number.isSafeInteger(value) && value >= 0;
+  const split = Array.isArray(body.byFeature) && body.byFeature.every(row => typeof row?.feature === 'string' && whole(row.usedMicros) && whole(row.reservedMicros) && whole(row.unknownAttempts ?? 0))
+    ? { byFeature: body.byFeature.map(row => ({ feature: row.feature, used: row.usedMicros, reserved: row.reservedMicros, unknownAttempts: row.unknownAttempts ?? 0 })) } : {};
   return { status: 'ready', usage: {
     allowance: body.allowanceMicros, used: body.usedMicros, reserved: body.reservedMicros, remaining: body.remainingMicros,
-    resetsAt: body.resetsAt, period: body.period ?? null, enforced: body.enforced === true, unknownAttempts: unknown,
+    resetsAt: body.resetsAt, period: body.period ?? null, enforced: body.enforced === true, unknownAttempts: unknown, ...split,
   } };
+}
+
+// The server's feature names (control-plane learn-usage.js FEATURES) as a learner knows them. Rows with the same name are
+// added together (the three Ctrl+K steps are one edit); a name not listed here is Other, never a raw id.
+const FEATURE_LABELS = {
+  ask: 'Chat', auto: 'Chat', shared_ask: 'Chat on shared canvases', home_ask: 'Home questions',
+  tutor: 'Tutor', tutor_evaluate: 'Tutor', handoff: 'Tutor', next_steps: 'Next steps', shared_next_steps: 'Next steps',
+  inline_route: 'Ctrl+K edits', inline_decide: 'Ctrl+K edits', inline_generate: 'Ctrl+K edits',
+  journey: 'Learning paths', course: 'Courses', artifact: 'Generated cards', board: 'Generated cards', scene: '3D scenes',
+  image: 'Images', video: 'Videos', transcribe: 'Transcription', tts: 'Narration', voice_tts: 'Voice mode', voice_scribe: 'Voice mode',
+  search: 'Search', explore_find: 'Explore search', assess: 'Practice checks', grade: 'Practice checks',
+};
+export const featureLabel = feature => FEATURE_LABELS[feature] || 'Other';
+export function featureRows(byFeature = []) {
+  const rows = new Map();
+  for (const { feature, used, reserved, unknownAttempts } of byFeature) {
+    const label = featureLabel(feature), row = rows.get(label) || { label, used: 0, reserved: 0, unknownAttempts: 0 };
+    rows.set(label, { label, used: row.used + used, reserved: row.reserved + reserved, unknownAttempts: row.unknownAttempts + unknownAttempts });
+  }
+  return [...rows.values()].sort((a, b) => b.used - a.used || b.reserved - a.reserved || a.label.localeCompare(b.label));
 }
 
 // The quiet line for requests whose cost is not known yet: a count, never an amount (unknown cost is never $0). Null at 0.

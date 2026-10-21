@@ -880,3 +880,33 @@ tr.cursor-pointer:active > td {
   .voice-breathe::after, .voice-breathe > svg { animation: none; }
   .voice-breathe::after { transform: scale(1.2); opacity: 0.35; }
 }
+
+/* Interface text size (Settings > Appearance & input, ui-prefs.js): <html data-text-size> scales the chrome's text tokens.
+   The canvas world (AdaptiveCanvas [data-canvas-world]) sets the factor back to 1, so authored canvas content keeps its size;
+   the tokens are declared on both, because a custom property is substituted where it is declared. */
+html[data-text-size='large'] { --ui-text: 1.125; }
+html[data-text-size='larger'] { --ui-text: 1.25; }
+html[data-text-size] [data-canvas-world] { --ui-text: 1; }
+html[data-text-size],
+html[data-text-size] [data-canvas-world] {
+  --text-xs: calc(0.75rem * var(--ui-text, 1));
+  --text-sm: calc(0.875rem * var(--ui-text, 1));
+  --text-base: calc(1rem * var(--ui-text, 1));
+  --text-lg: calc(1.125rem * var(--ui-text, 1));
+  --text-xl: calc(1.25rem * var(--ui-text, 1));
+  --text-2xl: calc(1.5rem * var(--ui-text, 1));
+}
+
+/* Reduced decorative motion (Settings > Appearance & input, ui-prefs.js): the app's own transitions and animations stop, as
+   prefers-reduced-motion does above. Lesson content is left alone: nothing in the canvas world changes, and lesson scenes
+   (AnimatedScene, InteractiveScene, sigmoid-demo, learn-board-renderer) read the OS setting themselves, so their steps and
+   playback controls stay. */
+html[data-reduce-motion] :not(:where([data-canvas-world], [data-canvas-world] *)),
+html[data-reduce-motion] :not(:where([data-canvas-world] *))::before,
+html[data-reduce-motion] :not(:where([data-canvas-world] *))::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation: none; background: none; color: var(--color-ink-2); }
