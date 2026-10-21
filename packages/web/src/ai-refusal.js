@@ -44,6 +44,10 @@ export function handleAiRefusal(body, { show = toast, now = Date.now(), refresh 
   return true;
 }
 
+// Requests the app makes on its own (Next Steps hooks when a canvas opens, Explore's find as the learner types): their refusal
+// shows in their own place, never as a toast during rendering or navigation (D4 section 4).
+const AUTOMATIC = /\/next-steps$|\/boards\/published\/find$/;
+
 // Every AI entry point goes through fetch, so one hook sees every refused request, whatever its own error handling: a JSON
 // 429/503 from /api/ carrying a refusal body. It reads a clone; the caller's response is untouched.
 export function installAiRefusalHook(target = globalThis) {
@@ -53,7 +57,7 @@ export function installAiRefusalHook(target = globalThis) {
     const response = await original(...args);
     try {
       const path = new URL(response.url, target.location?.href).pathname;
-      if ((response.status === 429 || response.status === 503) && path.startsWith('/api/') && (response.headers.get('content-type') || '').includes('json')) {
+      if ((response.status === 429 || response.status === 503) && path.startsWith('/api/') && !AUTOMATIC.test(path) && (response.headers.get('content-type') || '').includes('json')) {
         response.clone().json().then(body => handleAiRefusal(body), () => {});
       }
     } catch { /* never in the way of the request */ }

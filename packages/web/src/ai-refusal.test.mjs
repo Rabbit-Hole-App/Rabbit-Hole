@@ -49,8 +49,9 @@ test('View usage opens Settings in the Shell, or a new tab from a page without o
   assert.deepEqual(opened, [['/apps?settings=usage', '_blank', 'noopener']]);
 });
 
-test('the fetch hook reads a refused /api/ reply from a clone and hands the caller the response untouched', async () => {
-  const replies = { '/api/learn/ask': () => Response.json(refusal('reserved'), { status: 429 }), '/api/other': () => Response.json({ error: 'x' }, { status: 500 }) };
+test('the fetch hook reads a refused /api/ reply from a clone, leaves the caller its response, and never toasts the app\'s own background requests', async () => {
+  const replies = { '/api/learn/ask': () => Response.json(refusal('reserved'), { status: 429 }), '/api/other': () => Response.json({ error: 'x' }, { status: 500 }),
+    '/api/learn/tutor/next-steps': () => Response.json(refusal('insufficient'), { status: 429 }) };
   const target = { location: { href: 'https://app.test/apps/x' }, fetch: async path => Object.defineProperty(replies[path](), 'url', { value: `https://app.test${path}` }) };
   installAiRefusalHook(target);
   installAiRefusalHook(target); // once only
@@ -61,6 +62,7 @@ test('the fetch hook reads a refused /api/ reply from a clone and hands the call
     const refused = await target.fetch('/api/learn/ask');
     assert.equal((await refused.json()).reason, 'reserved', 'the caller still reads its body');
     await target.fetch('/api/other');
+    await target.fetch('/api/learn/tutor/next-steps'); // the app's own hook request on canvas open: no toast
     await new Promise(resolve => setTimeout(resolve, 10));
   } finally { window.removeEventListener('small:toast', listener); }
   assert.equal(toasts.length, 1);
