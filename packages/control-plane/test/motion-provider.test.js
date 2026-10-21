@@ -308,3 +308,36 @@ test('no checked-in Worker config points at a Motion orchestrator or turns /moti
   assert.ok(configs.length >= 10);
   for (const [name, text] of configs) assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|VITE_MOTION_DEV/, name);
 });
+
+// Owner brief 2026-10-21 message 7 item 4: the selected card rides as context.selection (motion-context.js), validated
+// here, part of the job's identity, and sent to the orchestrator unchanged.
+test('motion_request context: the selected card is kept, keyed and submitted; crafted repository evidence is refused', async () => {
+  const selection = { cardId: 'c-photo', kind: 'Explanation', title: 'Photosynthesis', text: 'Plants turn light into glucose.' };
+  const withCard = validateMotionRequest({ ...motionOp, context: { selection } });
+  assert.deepEqual(withCard.context, { selection });
+  const code = { cardId: 'code-1', kind: 'repo-code', sourceRefs: [{ commit: 'a'.repeat(40), path: 'model.py', start: 62, end: 71 }] };
+  assert.deepEqual(validateMotionRequest({ ...motionOp, context: { selection: code } }).context, { selection: { ...code, text: '' } });
+  assert.deepEqual(validateMotionRequest({ ...motionOp, context: {} }), validateMotionRequest(motionOp), 'an empty context is no context');
+  for (const context of [
+    { selection: { ...selection, sourceRefs: code.sourceRefs } }, // refs on a card that is not a repository card
+    { selection, repository_context: { commit: 'a'.repeat(40) } },
+    { selection: { ...selection, evidence: 'x' } },
+    { selection: { ...selection, text: 'x'.repeat(4001) } },
+    { selection: { ...selection, text: '' } },
+    { selection: { ...code, sourceRefs: Array(9).fill(code.sourceRefs[0]) } },
+    { selection: { ...code, sourceRefs: [{ ...code.sourceRefs[0], path: '/etc/passwd' }] } },
+    { selection: { ...code, sourceRefs: [{ ...code.sourceRefs[0], end: 400 }] } },
+    'about the selected canvas material',
+  ]) assert.throws(() => validateMotionRequest({ ...motionOp, context }), /motion_request\.context/, JSON.stringify(context).slice(0, 80));
+  const key = await motionRequestCacheKey(validateMotionRequest(motionOp));
+  assert.equal(key, await motionRequestCacheKey(validateMotionRequest({ ...motionOp, context: {} })), 'no selection keeps the old key');
+  const photo = await motionRequestCacheKey(withCard);
+  assert.notEqual(photo, key);
+  assert.notEqual(photo, await motionRequestCacheKey(validateMotionRequest({ ...motionOp, context: { selection: { ...selection, cardId: 'c-other' } } })), 'another card is another job');
+  const sent = [];
+  const capture = async (url, init) => { sent.push(JSON.parse(init.body)); return json({ job_id: job, status: 'running' }, 202); };
+  await new MotionRequestProvider(orch, capture).submit(withCard, spend);
+  await new MotionRequestProvider(orch, capture).submit(validateMotionRequest(motionOp), spend);
+  const hold = { idempotency_key: spend.opId, grant: spend.grant };
+  assert.deepEqual(sent, [{ request: line, location: { concept: 'Attention' }, context: { selection }, ...hold }, { request: line, location: { concept: 'Attention' }, ...hold }]);
+});

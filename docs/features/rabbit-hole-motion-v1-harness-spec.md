@@ -396,6 +396,24 @@ After the target is resolved, build the smallest evidence pack that grounds the 
 
 Do not dump an entire repository or canvas into any prompt.
 
+**What reaches the resolver, and requests with no source (owner, 2026-10-21, messages 7 item 4 and 11 item 5).** A
+`/motion` request carries the learner's selected card as `motion_request.context.selection` = `{ cardId, kind, title?,
+text, sourceRefs? }` (`packages/control-plane/src/motion-context.js`; text at most 4,000 characters of plain card text).
+No repository is assumed: the pinned nanoGPT source is used only when the canvas supplies it (the harness `source`, or a
+selected repository card, kind `repo-code`, whose `sourceRefs` point at the pinned commit).
+- A selected card grounds the request on its own text when the request points at it ("explain this", a bare `/motion
+  15s`) or names something the card mentions.
+- A selected repository card grounds only on its own lines (no other branch side, definition or condition outside them).
+  If those lines cannot be read here, or do not show the named target, the request is **refused** with one question: it
+  is never answered as if it came from that code, and the rest of the repository is never searched.
+- Otherwise the request is resolved from its words alone and is **ungrounded**: `resolved_target.resolution` is
+  `ungrounded`, and the brief carries the explicit state `grounding: { status: no_source_supplied }`, or `not_in_source`
+  with what was searched (a supplied card or repository that does not mention the target). An ungrounded brief cites
+  nothing (no source refs, no evidence, claims with empty `source_ref_ids`), names no code identifier, and its video card
+  says "Not grounded in a source" (or "Not grounded in <what was searched>").
+- Repository refs that do not come from a repository card's own `sourceRefs` are refused at every validator (Worker,
+  orchestrator, resolver).
+
 **Implementation conditions are first-class evidence.** When the source has branches that decide which code actually runs, the resolver/grounding step must find them, and the MotionBrief must record them in `implementation_conditions`. Claims that depend on a branch reference that condition.
 
 nanoGPT is the reference case. At commit `3adf61e154c3fe3fca428ad6bc3818b27a3b8291` (the commit the NanoGPT course docs pin), `model.py` has **no `softmax()` function**. It has two `F.softmax` calls:

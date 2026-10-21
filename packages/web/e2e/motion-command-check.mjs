@@ -15,6 +15,8 @@
 //   7. the Slash commands window: opening it and choosing /motion sends no request but the committed clip's own GET; its card
 //      plays that real Motion video (job 8a2015a4) from memory, pauses and seeks (static assets answer without byte ranges, so
 //      the plain path could not seek); no /animate row;
+//   8. MOCKED selected card (owner brief 2026-10-21 message 7 item 4): with a card selected, /motion explain this sends the
+//      card's id, title and text as motion_request context.selection; the line stays the learner's words;
 // MOTION=off (a production-like build: VITE_RABBIT_HOLE=true only). Per theme: no /motion or /animate in the picker or the
 //   window, and a typed /motion says Motion is not available here and runs nothing.
 // Usage: BASE=http://127.0.0.1:9261 SMALL_CP=http://127.0.0.1:9263 VARS=C:/s/toc-uimotion/.dev.vars [MOTION=off] node e2e/motion-command-check.mjs [shotsDir]
@@ -53,6 +55,7 @@ const OLD_ANIMATE = { id: 'k-animate', type: 'video', mode: 'generate', title: '
   src: '/landing/softmax-overview-v1.mp4', variants: [{ src: '/landing/softmax-overview-v1.mp4' }], variant: 0, promptUsed: '/animate why the sigmoid saturates', dx: 0, dy: 0,
   operation: { op: 'generate_math_animation', id: 'sigmoid-saturation', concept: 'Sigmoid saturation', purpose: 'derivation', caption: 'The derivative peaks at a quarter.',
     scene: { title: 'Where the slope goes', steps: [{ kind: 'equation', expressions: ['\\sigma(x) = \\frac{1}{1 + e^{-x}}'], note: 'the sigmoid', hold: 2 }] } } };
+const PHOTO = { id: 'k-photo', type: 'explanation', dx: 0, dy: 0, title: 'Photosynthesis', body: 'Plants use light energy to turn carbon dioxide and water into glucose and oxygen.' };
 const OLD_SCENE = { id: 'k-scene', type: 'animation', title: causalAttentionScene.title, scene: causalAttentionScene, time: 0, selectedObject: null, marked: null, dx: 620, dy: 0 };
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Motion check ${run}` }) });
 // The saved cards get a canvas of their own per theme, so the cards this check makes never move them out of view.
@@ -62,7 +65,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 16; // per theme: 8 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 18; // per theme: 9 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -335,6 +338,32 @@ for (const theme of ['light', 'dark']) {
     console.log(`   ${theme}: requests while the window was open: ${during.map(r => `${r.method} ${r.path}`).join(', ') || 'none'}`);
     assert.deepEqual(sent, [], `the window sends nothing: ${sent.join(' ')}`);
     } finally { await closeWindow(sheet); }
+  });
+
+  await step(`${theme}: MOCKED selected card: /motion explain this sends the card as context.selection, the line unchanged`, async () => {
+    const made = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Motion selection ${theme} ${run}` }) });
+    await api(`/api/learn/boards/${made.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [PHOTO] } }) });
+    await page.goto(`${BASE}/apps/${made.name}`);
+    const photo = page.locator('[data-block-id="k-photo"]');
+    await photo.waitFor({ timeout: 60000 });
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+    const handle = await photo.locator('[data-drag-handle]').boundingBox();
+    await page.mouse.click(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.locator('[data-selected-card="k-photo"]').waitFor({ timeout: 8000 });
+    stub = { id: `p-sel-${theme}`, polls: 0, end: 'ready' };
+    const posts = videoPosts().length;
+    await composer().fill('/motion explain this'); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').click();
+    await until(async () => videoPosts().length > posts, 'the confirmed start');
+    const { operation } = JSON.parse(videoPosts().at(-1).body);
+    assert.equal(operation.request, '/motion explain this');
+    assert.deepEqual([operation.context?.selection?.cardId, operation.context?.selection?.title], ['k-photo', 'Photosynthesis'], JSON.stringify(operation.context));
+    assert.match(operation.context.selection.text, /Plants use light energy/);
+    assert.ok(operation.context.selection.text.length <= 4000 && !operation.context.selection.sourceRefs, 'bounded plain text, no repository refs');
+    assert.equal(videoPosts().length - posts, 1, 'one start');
+    await shot('10-selected-card-generated');
+    stub = null;
+    await dismiss();
   });
 
 

@@ -2,6 +2,8 @@
 // never POSTs source: submit only checks the render exists, poll fetches its final.mp4.
 // Same asynchronous contract as ManimProvider: submit -> ticket, poll -> null while
 // rendering, a final error on failure, or the bytes.
+import { validateMotionContext } from './motion-context.js';
+
 const MAX_ASSET = 25 * 1024 * 1024;
 const RENDER_ID = /^[0-9a-f]{32}$/;
 const final = message => Object.assign(new Error(message), { final: true });
@@ -64,7 +66,7 @@ export class MotionProvider {
 // renders. The orchestrator holds the model key; this Worker admits the job's hold against the learner's allowance
 // (learn-video.js), sends it as a signed grant, polls the job, fetches the validated final MP4 into LEARN_MEDIA, and
 // can stop it. The card carries the learner's /motion line, the canvas concept it was typed on and, optionally, the
-// selected card's context (motion-grounding owns its shape; only its size is checked here), never composition source.
+// selected card (context, motion-context.js), never composition source.
 // MOTION_ORCHESTRATOR_URL is set only where an orchestrator runs (today the local Motion stack).
 const MOTION_LINE = /^\/motion\s+\S/;
 // A refusal the orchestrator answered: nothing started, so the job stays retryable.
@@ -80,8 +82,7 @@ export function validateMotionRequest(value) {
   if (!location || typeof location !== 'object' || Array.isArray(location) || Object.keys(location).some(key => key !== 'concept')) throw new Error('motion_request: location is {concept}');
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
-  const context = value.context;
-  if (context !== undefined && (!context || typeof context !== 'object' || Array.isArray(context) || JSON.stringify(context).length > 12000)) throw new Error('motion_request: context must be an object of at most 12000 characters');
+  const context = validateMotionContext(value.context);
   return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}) };
 }
 

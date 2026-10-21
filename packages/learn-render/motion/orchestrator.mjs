@@ -30,6 +30,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { requestSpendBound } from '../../control-plane/src/learn-spend.js';
+import { validateMotionContext } from '../../control-plane/src/motion-context.js';
 import { PRICES } from './director.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
@@ -43,7 +44,7 @@ const send = (res, status, body, type = 'application/json') => {
 };
 const readJson = req => new Promise((done, fail) => {
   let size = 0; const chunks = [];
-  req.on('data', c => { size += c.length; if (size > 16384) { fail(Object.assign(new Error('too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
+  req.on('data', c => { size += c.length; if (size > 32768) { fail(Object.assign(new Error('too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
   req.on('end', () => { try { done(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { fail(Object.assign(new Error('the body is not JSON'), { status: 400 })); } });
 });
 const usd = m => +(m / 1e6).toFixed(6);
@@ -62,18 +63,17 @@ export const MAX_GRANT_MICROS = 25_000_000;
 export const GRANT_MAX_AGE_S = 600;
 
 // Exactly {request, location?, context?, idempotency_key, grant}: a /motion line, optionally the canvas concept it
-// was typed on and the selected card (motion-grounding owns context's shape; only its size is checked here),
+// was typed on and the selected card (motion-context.js; its 4000-character text is why a body may reach 32 KiB),
 // and the worker's key and grant. Never composition source: Remotion's Free License forbids rendering
 // learner-supplied code (spec §34).
 export function validateJobRequest(body) {
   const e = [];
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
   for (const k of Object.keys(body)) if (!['request', 'location', 'context', 'idempotency_key', 'grant'].includes(k)) e.push(`${k}: not a field`);
+  try { validateMotionContext(body.context); } catch (error) { e.push(error.message); }
   if (typeof body.request !== 'string' || !/^\/motion\s+\S/.test(body.request) || body.request.length > 500) e.push('request: "/motion <what to explain>", at most 500 characters');
   const l = body.location;
   if (l !== undefined && (!l || typeof l !== 'object' || Array.isArray(l) || Object.keys(l).some(k => k !== 'concept') || (l.concept !== undefined && l.concept !== null && (typeof l.concept !== 'string' || l.concept.length > 100)))) e.push('location: {concept?: string of at most 100 characters}');
-  const c = body.context;
-  if (c !== undefined && (!c || typeof c !== 'object' || Array.isArray(c) || JSON.stringify(c).length > 12000)) e.push('context: an object of at most 12000 characters');
   if (typeof body.idempotency_key !== 'string' || !KEY.test(body.idempotency_key)) e.push('idempotency_key: 8 to 128 characters [A-Za-z0-9_-]');
   const g = body.grant;
   if (!g || typeof g !== 'object' || Array.isArray(g) || !Number.isSafeInteger(g.micros) || !Number.isSafeInteger(g.issued_at) || typeof g.sig !== 'string' || Object.keys(g).some(k => !['micros', 'issued_at', 'sig'].includes(k))) e.push('grant: {micros, issued_at, sig}');
@@ -201,7 +201,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     // Each render the service is asked for is platform-funded compute the worker records apart (feature render).
     const counted = { ...service, submit: request => { job.renders++; return service.submit(request); } };
     log(`job ${id}: started`);
-    run({ message: body.request, location: body.location ?? {}, ...(body.context ? { context: body.context } : {}), call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
+    run({ message: body.request, location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
       .finally(() => {
