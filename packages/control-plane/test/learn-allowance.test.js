@@ -785,7 +785,7 @@ test('three concurrent explicit retries of one failed scene make exactly one new
   assert.deepEqual(renderRows(sqlite, 'u-alice').map(r => r[0]), ['failed', 'settled']);
 });
 
-test('an unconfirmed Manim submission keeps its render slot until reconciled or expired: lost response, restart before the ticket, no resubmission, one release each', async t => {
+test('an unconfirmed Manim submission keeps its render slot until the worker confirms how it ended, never on a local timer: lost response, restart before the ticket, no resubmission, one release each', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   spent(sqlite, 'u-alice', 1_000_000);
   const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
@@ -831,18 +831,28 @@ test('an unconfirmed Manim submission keeps its render slot until reconciled or 
   await v3.alarm();
   assert.deepEqual([calls.length, sqlite.prepare('SELECT settled_at FROM usage_attempts ORDER BY rowid DESC LIMIT 1').get().settled_at], [seen, settled], 'released once');
 
-  // 3. Lost response and an unreachable worker: held, then released once at the 30-minute bound with no renderer call.
+  // 3. Lost response and an unreachable worker: no local timer releases it (owner message 19). Held past the 30-minute wait
+  // and past a day, the second canvas still refused; released once, when the worker answers that the job has ended.
   const v4 = canvas('alice-4');
   worker.submit = 'lost';
   await v4.fetch(ask('u-alice', spec(5)));
   worker.submit = 202; worker.status = 'down';
   await v4.alarm();
-  assert.equal(running(sqlite, 'u-alice'), 1, 'unreachable: still held');
   const [[key4, job4]] = [...await v4.state.storage.list({ prefix: 'job:' })];
   await v4.state.storage.put(key4, { ...job4, startedAt: Date.now() - 31 * 60 * 1000 });
-  const before4 = calls.length;
+  sqlite.prepare("UPDATE usage_attempts SET started_at = started_at - 2 * 86400 WHERE status = 'running' AND provider = 'manim'").run();
   await v4.alarm(); await v4.alarm();
-  assert.deepEqual([running(sqlite, 'u-alice'), slotRow(), calls.length], [0, ['failed', 'failed', 'free'], before4]);
+  assert.equal(running(sqlite, 'u-alice'), 1, 'unreachable, past the wait and a day: still held');
+  assert.equal((await busyOf(await canvas('alice-4b').fetch(ask('u-alice', spec(8))))).reason, 'learner_active', 'the second canvas stays blocked');
+  worker.status = 'rendering';
+  await v4.alarm();
+  assert.equal(running(sqlite, 'u-alice'), 1, 'the worker says it is still rendering: held');
+  worker.status = 'failed';
+  await v4.alarm();
+  assert.deepEqual([running(sqlite, 'u-alice'), slotRow()], [0, ['failed', 'failed', 'free']], 'released when the worker confirms it ended');
+  const settled4 = sqlite.prepare('SELECT settled_at FROM usage_attempts ORDER BY rowid DESC LIMIT 1').get().settled_at, seen4 = calls.length;
+  await v4.alarm();
+  assert.deepEqual([calls.length, sqlite.prepare('SELECT settled_at FROM usage_attempts ORDER BY rowid DESC LIMIT 1').get().settled_at], [seen4, settled4], 'released once');
 
   // 4. Restart before the ticket was stored: the submission reached the worker, the job was saved without its ticket.
   const v5 = canvas('alice-5');
@@ -859,4 +869,19 @@ test('an unconfirmed Manim submission keeps its render slot until reconciled or 
   assert.equal(mathPosts(), 5, 'one submission per admitted job, never resubmitted: Alice 4, Bob 1');
   assert.ok(renderRows(sqlite, 'u-alice').every(([, , chargeClass]) => chargeClass === 'free'));
   assert.deepEqual(await balance(env, 'u-alice'), before, 'the learner AI balance is unchanged');
+});
+
+test('a scene job is never sent to the renderer in the last 5 minutes of its wait, so a render it started has ended when its slot is released', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = base(LEARN_DB, 1_000_000, { ...RENDERERS, LEARN_MEDIA: memoryBucket() });
+  const { posts } = renderer(t);
+  const actor = new LearnScenes(durable('late'), env);
+  assert.equal((await actor.fetch(sceneAs('u-alice'))).status, 202);
+  const [[key, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  await actor.state.storage.put(key, { ...job, startedAt: Date.now() - 11 * 60 * 1000 });
+  await actor.alarm();
+  assert.deepEqual([posts().length, (await actor.list()).scenes[0].status, running(sqlite, 'u-alice')], [0, 'queued', 1], 'too late to start: not sent, still held');
+  await actor.state.storage.put(key, { ...job, startedAt: Date.now() - 16 * 60 * 1000 });
+  await actor.alarm();
+  assert.deepEqual([posts().length, (await actor.list()).scenes[0].status, running(sqlite, 'u-alice')], [0, 'failed', 0]);
 });

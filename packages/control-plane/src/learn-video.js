@@ -127,7 +127,9 @@ export class LearnVideos {
           // A Manim render is platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's
           // allowance): it takes the learner's render slot across all canvases first (render fairness, 2026-10-21).
           if (maths) {
-            const admission = await admitRender(this.env, req, { provider: 'manim', model: version, label: 'animation', waitSeconds: MAX_WAIT_MS / 1000 });
+            // No enforced remote limit is relied on (the worker's 420 s timeout kills its direct child only), so the slot counts
+            // until it is released on a status the worker confirmed (waitSeconds null).
+            const admission = await admitRender(this.env, req, { provider: 'manim', model: version, label: 'animation', waitSeconds: null });
             if (admission.refused) return admission.refused;
             job.slot = admission.slot;
           }
@@ -198,21 +200,30 @@ export class LearnVideos {
           if (error.final || Date.now() - job.startedAt > maxWait(job) || /could not generate|returned no video|Invalid generated/.test(error.message)) { job.status = 'failed'; job.error = error.message; }
         }
       }
+      // A Manim job that ended without a status the worker confirmed (timed out here, unconfirmed) keeps its slot until reconciled.
+      if (job.provider === 'manim' && job.slot && job.status === 'failed' && job.uncertain) job.reconcile = true;
       await this.state.storage.put(key, job);
       if (job.status !== 'generating' && !job.reconcile) await releaseRender(this.env, job.slot, job.status === 'ready' ? 'settled' : 'failed'); // a Manim job's slot
     }
     if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating' || j.reconcile)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
   }
-  // An unconfirmed Manim submission (its response or its ticket was lost) holds the learner's render slot until the worker
-  // says what became of its deterministic key, read-only and never resubmitted: a job it has is followed to its end as usual;
-  // a key it does not have is rendering nothing, so the slot is released. Unreachable, it holds the slot until MAX_WAIT_MS.
+  // An unconfirmed Manim job (its submit response or ticket was lost, or it outlived its wait here) holds the learner's render
+  // slot until the worker says what became of its deterministic key, read-only and never resubmitted. Within the wait, a job
+  // the worker has is followed to its end as usual. A key it does not have is rendering nothing, and a ready or failed one has
+  // ended: either releases the slot once. Still rendering or unreachable: the slot stays held and the next alarm asks again.
+  // No local timer releases it (owner, 2026-10-21 message 19).
   async reconcileManim(job) {
-    const release = async () => { job.reconcile = false; await releaseRender(this.env, job.slot, 'failed'); };
-    if (Date.now() - job.startedAt > MAX_WAIT_MS) return release();
+    let state = null;
     try {
       const response = await new ManimProvider(this.env).request(`/jobs/${job.key}`);
-      if (response.status === 404) return release();
-      if (response.ok) Object.assign(job, { ticket: { id: job.key, version: job.version }, status: 'generating', uncertain: false, error: undefined, reconcile: false });
-    } catch { /* unreachable: the next alarm asks again */ }
+      state = response.status === 404 ? 'gone' : response.ok ? (await response.json()).status : null;
+    } catch { /* unreachable: held */ }
+    if (state && Date.now() - job.startedAt <= MAX_WAIT_MS && state !== 'gone') {
+      Object.assign(job, { ticket: { id: job.key, version: job.version }, status: 'generating', uncertain: false, error: undefined, reconcile: false });
+    } else if (['gone', 'ready', 'failed'].includes(state)) {
+      job.reconcile = false;
+      await releaseRender(this.env, job.slot, state === 'ready' ? 'settled' : 'failed');
+    }
   }
+
 }

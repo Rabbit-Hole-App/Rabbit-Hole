@@ -8,6 +8,9 @@ import { learnMedia } from './learn-storage.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const WAIT_MS = 15 * 60 * 1000; // Includes worker startup and queue waits; compilation itself is capped at 90 seconds.
+// The scene worker starts a render only when it accepts it (one slot, else 429: lesson-renderer/server.py:77) and kills its
+// Blender child at 90 s (server.py:31); the submit request itself times out at 20 s. So no job is sent in the last 5 minutes
+// of its wait: any render it started has ended before the wait ends and its slot is released (render fairness, owner msg 19).
 const MAX_ASSET = 20 * 1024 * 1024;
 export const sceneFetch = (req, env) => privateLessonAssetFetch(req, env, env.LEARN_SCENES);
 export async function workerRequest(env, path, body) {
@@ -105,6 +108,7 @@ export class LearnScenes {
       try {
         if (Date.now() - job.startedAt > WAIT_MS) throw new Error('Scene generation timed out. Retry this scene.');
         if (job.status === 'queued') {
+          if (Date.now() - job.startedAt > WAIT_MS - 5 * 60 * 1000) continue; // too late to start: waits out its time, then fails
           const r = await workerRequest(this.env, '/jobs', { key: job.workerKey, operation: job.input, version: job.version });
           if (r.ok) job.status = 'rendering';
           else if ([400, 409].includes(r.status)) throw new Error('Worker rejected this scene or its version changed. Retry this scene.');

@@ -24,19 +24,20 @@ export function renderLimits(env) {
   return Object.fromEntries(Object.keys(DEFAULTS).map(name => [name, read(name)]));
 }
 
-// The last day's render attempts of one renderer; a cancelled one (admitted, then nothing rendered) counts for nothing. The status list names every status so SQLite reads the time window through
-// usage_attempts_status (status, started_at) instead of every attempt ever recorded. Binds: activeSince, user, activeSince,
-// activeSince, user, user, daySince, provider.
-const COUNTS = `SELECT
-    COUNT(CASE WHEN t.status = 'running' AND t.started_at > ? AND a.user_id = ? THEN 1 END) AS mine_active,
-    COUNT(CASE WHEN t.status = 'running' AND t.started_at > ? THEN 1 END) AS active,
-    COUNT(DISTINCT CASE WHEN t.status = 'running' AND t.started_at > ? THEN a.user_id END) AS learners,
-    COUNT(CASE WHEN a.user_id = ? AND t.status <> 'cancelled' THEN 1 END) AS mine_day,
-    COUNT(CASE WHEN t.status <> 'cancelled' THEN 1 END) AS day,
-    MIN(CASE WHEN a.user_id = ? AND t.status <> 'cancelled' THEN t.started_at END) AS mine_first,
-    MIN(CASE WHEN t.status <> 'cancelled' THEN t.started_at END) AS first
-  FROM usage_attempts t JOIN usage_actions a ON a.action_id = t.action_id
-  WHERE t.status IN ('running', 'settled', 'failed', 'cancelled') AND t.started_at > ? AND t.provider = ? AND a.feature = 'render'`;
+// One renderer's held slots (running attempts) and its last day's render attempts; a cancelled one (admitted, then nothing
+// rendered) counts for nothing. Each part reads usage_attempts_status (status, started_at), not every attempt ever recorded.
+// A held slot counts for its job's whole wait, or until it is released when the renderer has no enforced limit (activeSince 0).
+// Binds: user, activeSince, provider, user, user, daySince, provider.
+const COUNTS = `SELECT r.mine_active, r.active, r.learners, d.mine_day, d.day, d.mine_first, d.first FROM
+  (SELECT COUNT(CASE WHEN a.user_id = ? THEN 1 END) AS mine_active, COUNT(*) AS active, COUNT(DISTINCT a.user_id) AS learners
+    FROM usage_attempts t JOIN usage_actions a ON a.action_id = t.action_id
+    WHERE t.status = 'running' AND t.started_at > ? AND t.provider = ? AND a.feature = 'render') r,
+  (SELECT COUNT(CASE WHEN a.user_id = ? AND t.status <> 'cancelled' THEN 1 END) AS mine_day,
+      COUNT(CASE WHEN t.status <> 'cancelled' THEN 1 END) AS day,
+      MIN(CASE WHEN a.user_id = ? AND t.status <> 'cancelled' THEN t.started_at END) AS mine_first,
+      MIN(CASE WHEN t.status <> 'cancelled' THEN t.started_at END) AS first
+    FROM usage_attempts t JOIN usage_actions a ON a.action_id = t.action_id
+    WHERE t.status IN ('running', 'settled', 'failed', 'cancelled') AND t.started_at > ? AND t.provider = ? AND a.feature = 'render') d`;
 const ADMIT_ACTION = `INSERT INTO usage_actions (action_id, user_id, payer, payer_reason, feature, charge_class, period, status, started_at)
   SELECT ?, ?, ?, ?, 'render', ?, ?, 'running', ? FROM (${COUNTS})
   WHERE mine_active < ? AND active < ? AND (mine_active = 0 OR (mine_active + 1) * learners <= ? - 1) AND mine_day < ? AND day < ?`;
@@ -62,11 +63,13 @@ function busy(reason, label, limits, retryAfter, count = 0) {
 // Takes one render slot for the learner the worker forwarded, before any render is queued. Returns { slot } to store on the
 // job, or { refused } with the busy response, which says why and when to retry. Fails closed: no learner, no LEARN_DB or a
 // failed read refuses. Only a job that will render calls this: a duplicate or a finished (cached) result never does.
+// waitSeconds: how long a held slot can matter, proven by the renderer's own enforced limit; null when there is none, so a
+// slot counts until it is released.
 export async function admitRender(env, req, { provider, model = null, label, waitSeconds }) {
   const limits = renderLimits(env), db = env?.LEARN_DB;
   const payer = await usagePayer(usageFromForwarded(env, req, 'render'));
   if (!db || !payer?.userId) return { refused: busy('unavailable', label, limits, 60) };
-  const now = Math.floor(Date.now() / 1000), counts = [now - waitSeconds, payer.userId, now - waitSeconds, now - waitSeconds, payer.userId, payer.userId, now - DAY, provider];
+  const now = Math.floor(Date.now() / 1000), counts = [payer.userId, waitSeconds == null ? 0 : now - waitSeconds, provider, payer.userId, payer.userId, now - DAY, provider];
   const action = `act-${crypto.randomUUID()}`, attempt = `att-${crypto.randomUUID()}`;
   try {
     const [admitted, recorded] = await db.batch([

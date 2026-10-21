@@ -14,7 +14,7 @@ usage (feature `render`), kept out of the learner's AI allowance, and bounded by
 - a 30-minute wait;
 - no automatic resubmission;
 - the learner's render slot across all canvases and the queue and daily limits, counted apart from the scene worker's
-  (render fairness, [learn-scene-generation.md](learn-scene-generation.md)); a refused submission gives its slot back; an unconfirmed one (lost response, or a restart before its ticket was stored) keeps it until the worker is asked about its deterministic key (it has the job: followed to its end; it does not: released) or the 30-minute wait ends. It is never resubmitted.
+  (render fairness, [learn-scene-generation.md](learn-scene-generation.md)); a refused submission gives its slot back; an unconfirmed one (lost response, or a restart before its ticket was stored) keeps it until the worker is asked about its deterministic key (it has the job: followed to its end; it does not, or it has ended: released). No local timer releases it: the worker enforces no limit this relies on (its 420 s timeout kills only its direct child). It is never resubmitted.
 
 Authoring the steps is a model call that still needs the allowance. See
 [learn-scene-generation.md](learn-scene-generation.md).
