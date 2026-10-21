@@ -7,6 +7,7 @@ import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand } from '
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { arxivId } from '../../control-plane/src/arxiv.js';
 import { filterSections } from './command-search.js';
+import { withPrompt } from './card-prompt.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -141,10 +142,11 @@ export function generateCommand(name, args, { app, selection = null, context = n
 //   { notice }   a one-line result or reason ({ tone, text })
 //   { proposal } a paid artifact waiting for Cancel / Generate
 //   { finder }   a source search's finder is open: a promise of { added } once it closes (the composer keeps its draft)
+// promptUsed: the typed words a made card keeps (card-prompt.js): the line itself, or a Tutor turn's learner words; null for none.
 // Deterministic commands never reach the model. A typed command resolves to the entry the picker lists (resolveCommand).
 // openSearch({ source, query }): the shared source finder (Release B: B3's opener takes the page's binding); it may return
 // a promise of { added } that settles when the finder closes.
-export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev }) {
+export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev, promptUsed = text }) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
   if (!resolved?.command) return { notice: { tone: 'error', text: `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
@@ -155,7 +157,7 @@ export async function runLearnCommand(text, { app, target = null, location = nul
     if (!canvas.startCad) return { notice: { tone: 'error', text: 'CAD generation is not available on this canvas.' } };
     let started;
     return { proposal: { message: 'Generate this CAD model? Bounded generation includes model and executor work.',
-      generate: () => started ||= Promise.resolve().then(() => canvas.startCad(args)) } };
+      generate: () => started ||= Promise.resolve().then(() => canvas.startCad(args, { promptUsed })) } };
   }
   if (request.action === 'open_tool_catalog') return { catalog: true };
   // /youtube, /arxiv, /wikipedia: the source finder opens on its source and query (searching at once when there is one);
@@ -184,7 +186,7 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   if (request.action === 'motion') {
     if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
     const { block, message } = motionProposal(args, location);
-    return { proposal: { primitive: 'motion', message, generate: () => canvas.insertBlock({ ...block, confirmedStart: true }) } };
+    return { proposal: { primitive: 'motion', message, generate: () => canvas.insertBlock(withPrompt({ ...block, confirmedStart: true }, promptUsed)) } };
   }
   // /image finds a real picture: the card searches and the learner chooses.
   if (name === 'image') {
@@ -203,13 +205,13 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.
-  if (result.result === 'artifact') { const blockId = canvas.insertBlock(result.block, { into: slot }); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
+  if (result.result === 'artifact') { const blockId = canvas.insertBlock(withPrompt(result.block, promptUsed), { into: slot }); return { notice: { tone: 'done', text: `Added ${NAMES[result.primitive] || 'the artifact'}.`, ...(blockId ? { blockId } : {}) } }; }
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
   // its place is held at once (the camera glides there), and the card - which shows its own progress while the
   // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.
   if (result.result === 'paid_proposal') return { proposal: { primitive: result.primitive, message: result.message, generate: () => {
     const held = hold();
-    afterPaint(() => canvas.insertBlock({ ...result.block, confirmedStart: true }, { into: held }));
+    afterPaint(() => canvas.insertBlock(withPrompt({ ...result.block, confirmedStart: true }, promptUsed), { into: held }));
   } } };
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
   if (result.result === 'unsupported') return { notice: { tone: 'info', text: result.message } };
@@ -222,13 +224,14 @@ export async function runLearnCommand(text, { app, target = null, location = nul
 // free cards keep arriving. deps: runLearnCommand's { app, canvas, post, openSearch, target } (target: the turn's selected card, as
 // a typed command's; null on a hook click). onNotice(notice) gets each command's
 // notice as soon as it answers, never held behind a proposal. Resolves to each command's answer once every proposal is
-// answered; a command that throws answers an error notice and the next one still runs.
+// answered; a command that throws answers an error notice and the next one still runs. deps.promptUsed: the learner's words for
+// the turn (null on a hook click), kept on each card instead of the model-written line.
 // ponytail: one command at a time (each waits for its card); post them together with ordered inserts if latency matters.
-export async function runMaterials(actions, { offer, onNotice = () => {}, ...deps }) {
+export async function runMaterials(actions, { offer, onNotice = () => {}, promptUsed = null, ...deps }) {
   const results = [];
   let asked = Promise.resolve();
   for (const action of actions.filter(entry => entry.type === 'create_material')) {
-    const result = await runLearnCommand(`/${action.command} ${action.request}`, { target: null, ...deps })
+    const result = await runLearnCommand(`/${action.command} ${action.request}`, { target: null, ...deps, promptUsed })
       .catch(() => ({ notice: { tone: 'error', text: `/${action.command} could not be made. Try again.` } }));
     results.push(result);
     if (result.notice) onNotice(result.notice);

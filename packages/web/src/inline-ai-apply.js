@@ -10,6 +10,7 @@ import { validateNativePlan } from './inline-native-plan.js';
 import { validateInlinePlan } from './inline-tool-plan.js';
 import { LIMITS } from './inline-ai-context.js';
 import { inlineRouteTool } from './inline-ai-decide.js';
+import { withPrompt } from './card-prompt.js';
 
 export const EDIT_OPS = ['replace_text', 'replace_range', 'set_style', 'replace_card_content'];
 const STYLE_KEYS = ['fontSize', 'level', 'bold', 'italic', 'underline', 'textColor'];
@@ -258,9 +259,10 @@ export function explainTx({ requestId, text, frozen, board, boxes, size, visible
 // learner is looking; it carries its provenance and, beside a card target, an annotation connector.
 // place (A7): the spot its ghost showed - the card goes at the end of the column (end: no other card moves), offset
 // (dx, dy) to that spot, its connector on the facing sides. Without one, it follows the target card in the column.
+// The card keeps the words typed into the editor (frozen.words) as its prompt (card-prompt.js).
 export function cardTx({ requestId, block, frozen, board, route, place = null }) {
   const inline = inlineProvenance({ requestId, route, frozen });
-  const card = { ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline };
+  const card = withPrompt({ ...block, id: cardId(requestId), dx: place ? place.dx : 0, dy: place ? place.dy : 0, inline }, frozen.words);
   const after = place ? null : frozen.ids.find(id => (board.blocks || []).some(entry => entry.id === id)) || null;
   const one = explainConnects(frozen.ids, board) ? frozen.ids[0] : null;
   const [fromSide, toSide] = place ? FACING[place.side] || FACING.right : ['top', 'bottom'];

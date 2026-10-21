@@ -3,6 +3,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
+import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
@@ -832,7 +833,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // The canvas is the learner's current location: its title names the concept (/motion's resolver).
         location: { concept: app.title || null },
         canvas: {
-          startCad: (prompt) => startCad(prompt),
+          startCad: (prompt, options) => startCad(prompt, options),
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           reserve: slot => canvasApi.current?.reserve(slot),
@@ -925,13 +926,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The inline AI editor (docs/features/inline-ai-editor.md): this canvas's routes - the registry's commands available
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const cadRequests = useRef(new Map());
-  const startCad = async (prompt, { context = null, cardId = null, baseRevisionId = null } = {}) => {
+  // promptUsed: the typed line the card keeps (card-prompt.js); the inline editor's words are the prompt itself.
+  const startCad = async (prompt, { context = null, cardId = null, baseRevisionId = null, promptUsed = prompt } = {}) => {
     if (!prompt.trim()) throw new Error('What would you like to create? Include dimensions or explain its purpose.');
     const destination = canvasApi.current;
     const payload={prompt,cardId,context:context || destination?.cadContext(prompt,askTarget?.id) || null,...(baseRevisionId?{baseRevisionId}:{})};
     const key=JSON.stringify({app:app.name,board:boardName,...payload});
     const result=await submitCadOnce(cadRequests.current,key,cadClient(api,app.name,boardName).start,payload);
-    destination?.reconcileCad(result.block);
+    destination?.reconcileCad(withPrompt(result.block, promptUsed));
     return result;
   };
   const inlineAi = (app.hosting !== 'aws' || app.app_chat) ? {

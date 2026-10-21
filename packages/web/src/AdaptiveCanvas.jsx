@@ -38,6 +38,7 @@ import { fileChatRef } from './file-chat-ref.js';
 import { objectKind, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
+import CardPrompt from './CardPrompt.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -482,6 +483,8 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
           <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking…</span>}</span>}</div>
         </div>)}
       </div>
+      {/* A chat card's prompt is its question (docs/features/card-prompt.md). */}
+      {exchange.status === 'done' && <CardPrompt text={exchange.question} className="px-4 pt-1 pb-3" />}
       {started && <div data-block-composer className={`shrink-0 border-t border-line px-3 pb-3 ${replyOpen ? '' : 'hidden'}`} onPointerDown={e => e.stopPropagation()}>
         <div className="flex items-center justify-between py-1 text-xs text-ink-2"><span>This conversation</span><button type="button" aria-label="Close block composer" onClick={() => setReplyOpen(false)} className="rounded p-1 hover:bg-hover"><X size={13} /></button></div>
         {renderComposer(exchange, receive)}
@@ -839,6 +842,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   const [sourcesHeight, setSourcesHeight] = useState(0);
   const [practiceHeight, setPracticeHeight] = useState(0);
   const [controlsHeight, setControlsHeight] = useState(0);
+  const [promptHeight, setPromptHeight] = useState(0);
   // A YouTube moment (videoId) gets its own card; a hosted or generated clip
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
@@ -865,7 +869,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
-      extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight + promptHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
@@ -895,6 +899,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} onCadExplain={() => cadOpen('explain')} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
+      {block.promptUsed && <CardPrompt text={block.promptUsed} onHeight={setPromptHeight} />}
     </CanvasNode>
   );
 }

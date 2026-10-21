@@ -84,6 +84,24 @@ test('materializeSection: section 1 current - one heading in the painted slot, t
   }
 });
 
+// docs/features/card-prompt.md: each step card keeps the learner's words that started the journey; the heading does not.
+test('materializeSection: step cards and a paid proposal keep the journey request words as their prompt; the heading has none', async () => {
+  const canvas = fakeCanvas();
+  const journey = { ...journeyWith(), request: { raw_user_message: 'teach me logistic regression', topic: 'logistic regression' } };
+  const steps = [text('t1', 'one'), command('c1', 'animate', 'a sigmoid'), command('c2', 'quiz', 'check')];
+  const post = async (path, body) => (body.command === 'animate'
+    ? { result: 'paid_proposal', primitive: 'maths_animation', message: 'paid', block: { type: 'video', mode: 'generate' } }
+    : { result: 'artifact', primitive: 'quiz', block: { type: 'quiz', question: 'Q?', options: [] } });
+  const out = await materializeSection({ canvas, journey, sectionPlan: planOf(steps), post });
+  const [heading, ...cards] = canvas.inserts().map(c => c[1]);
+  assert.ok(!Object.hasOwn(heading, 'promptUsed'));
+  assert.deepEqual(cards.map(b => b.promptUsed), ['teach me logistic regression', 'teach me logistic regression']);
+  assert.equal(out.proposals[0].block.promptUsed, 'teach me logistic regression');
+  const bare = fakeCanvas();
+  await materializeSection({ canvas: bare, journey: journeyWith(), sectionPlan: planOf([text('t1', 'one')]), post });
+  assert.ok(bare.inserts().every(c => !Object.hasOwn(c[1], 'promptUsed')), 'a journey without request words keeps none');
+});
+
 test('materializeSection: a plan for section 2 while section 1 is current throws before touching the canvas', async () => {
   const canvas = fakeCanvas(), done = [];
   const wrong = fixtureFor('journey_section', { path, section: section2, registry });

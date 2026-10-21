@@ -63,7 +63,7 @@ test('family commands go to the artifact endpoint with the command only, never a
   assert.equal(path, '/api/learn/artifact');
   assert.deepEqual(Object.keys(body).sort(), ['app', 'args', 'command', 'context', 'selection']);
   assert.deepEqual(body.selection, { kind: 'card', id: 'card-1', title: 'Softmax' });
-  assert.deepEqual(did[1], ['block', quiz]);
+  assert.deepEqual(did[1], ['block', { ...quiz, promptUsed: '/quiz' }], 'the card keeps the typed line (card-prompt.md)');
   assert.equal(out.notice.text, 'Added a quiz.');
 });
 
@@ -213,6 +213,7 @@ test('/motion: development builds only; the proposal makes no request, Generate 
   assert.deepEqual(did, [{
     type: 'video', mode: 'generate', title: 'Motion: 15s explain me softmax func', src: '', caption: '', status: 'idle',
     operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } }, confirmedStart: true,
+    promptUsed: '/motion 15s explain me softmax func',
   }]);
   assert.ok(!did.includes('dive') && !did.includes('POST'), 'Generate only inserts the card: no dive, no artifact call');
   assert.match((await run('/motion')).notice.text, /Add what to explain/);
@@ -278,6 +279,23 @@ test('runMaterials: a failed command is reported and the next one still runs; no
   assert.deepEqual(results.map(r => r.notice?.tone), ['error', 'done']);
   assert.deepEqual(await runMaterials([{ type: 'respond_text', text: 'x' }], { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {} }), []);
   assert.equal(posts.length, 2);
+});
+
+// docs/features/card-prompt.md: a card keeps the words typed to make it. A Tutor turn's cards keep the learner's words, never
+// the model-written command line; a hook click typed none, so its cards carry no prompt. /cad hands the typed line to startCad.
+test('card prompt: typed line on a command card, learner words on Tutor cards, none on a hook click, the line to /cad', async () => {
+  const inserted = [];
+  const canvas = { insertBlock: block => { inserted.push(block); return 'id'; }, reserve: () => 'slot', release: () => {}, startCad: (args, options) => inserted.push({ cad: args, ...options }) };
+  const post = async () => ({ result: 'artifact', primitive: 'quiz', block: { type: 'quiz', question: 'Q?', options: [] } });
+  await runLearnCommand('/quiz  softmax basics ', { app: 'demo', canvas, post, openSearch: () => {} });
+  const actions = [{ type: 'create_material', command: 'quiz', request: 'model words about softmax' }];
+  await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {}, promptUsed: 'help me get softmax' });
+  await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {}, promptUsed: null });
+  (await runLearnCommand('/cad a 40 mm bracket', { app: 'demo', canvas, post, openSearch: () => {} })).proposal.generate();
+  await ticks(() => inserted.length === 4);
+  assert.deepEqual(inserted.map(block => block.promptUsed), ['/quiz  softmax basics', 'help me get softmax', undefined, '/cad a 40 mm bracket']);
+  assert.equal(inserted[3].cad, 'a 40 mm bracket', 'the CAD job still gets the words after the command');
+  assert.equal(inserted[0].question, 'Q?', 'the quiz question is untouched');
 });
 
 // Task 9 review fix 4: a notice is handed over as soon as its command answers, never held behind a paid proposal.

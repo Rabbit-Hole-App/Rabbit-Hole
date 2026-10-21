@@ -1,0 +1,68 @@
+# Card prompt row
+
+Owner request, 2026-10-20: every generated card gets a small toggle that shows the prompt used, a copy button and a
+small Add to chat icon. Owner decisions:
+
+- The prompt is the words the person typed, never a system prompt or the full model request.
+- It covers every AI-generated card.
+- Cards made before this have no prompt, and their row is hidden.
+- Anyone who can see the card can see the prompt (share links, forks and Explore), the same as chat questions.
+- Copy copies the prompt.
+- The chat icon puts the prompt in the Chat box to edit and send again. It never sends.
+- The row sits at the foot of the card and is closed on every load.
+
+## What it does
+
+A generated card has a row at its foot: "Prompt" with a chevron, a Copy icon and a chat icon (`CardPrompt.jsx`).
+
+- **Closed:** the default on every load. Nothing else on the card moves.
+- **Opened:** shows the typed words, wrapped. The card's frame grows by the row's measured height, as it does for
+  Sources & evidence.
+- **Copy:** writes the prompt to the clipboard and says Copied or Copy failed beside the icon.
+- **Chat icon:** calls the Chat workspace's `composer.prepare({ text })`. Chat opens, and an empty draft becomes the
+  prompt. A written draft is kept, and the prompt follows it after a blank line, as for every prepare. Nothing is sent.
+  A line that starts with `/` runs as that command when the person sends it.
+- **View-only boards:** a share-link page has no Chat workspace, so it shows Copy only. The canvas pans with the hand
+  there and its cards take no pointer, so the row takes the pointer back (`pointer-events-auto`) and a viewer can still
+  open and copy it.
+
+## Where the prompt comes from
+
+It is stored on the card as `promptUsed`, at most 8,000 characters (`card-prompt.js` `withPrompt`), and is saved with
+the board like any other card field. The names `prompt` and `question` are already card content (quiz, challenge and
+image cards), and shared asks and Rabbit Hole titles read them, so this field has its own name and reaches no model.
+
+| How the card is made | Prompt kept | Code |
+|---|---|---|
+| A / command in the Chat box or dock (`/explain …`, `/quiz …`, paid proposals after Generate, `/motion`) | The typed line, command included | `learn-slash.js` `runLearnCommand` |
+| `/cad` from Chat, and CAD from Ctrl+K | The typed line (Chat) or the editor's words (Ctrl+K). A CAD edit replaces it with the edit's words | `LearnPage.jsx` `startCad` |
+| Tutor `create_material` | The learner's message for that turn, not the model-written command line. A Next Steps hook click typed nothing, so its cards keep none | `LearnTutor.jsx`, `runMaterials` |
+| Ctrl+K card result | The words typed into the editor (`frozen.words`) | `inline-ai-apply.js` `cardTx` |
+| Journey section steps, including a paid step after Generate | The words that started the journey (`journey.request.raw_user_message`). The section heading keeps none | `learn-journey-materialize.js` |
+| Chat card (Ask on the canvas, Add as card) | Its question, already stored as `exchange.question` | `AdaptiveCanvas.jsx` `ChatCard` |
+
+A copied, duplicated or Alt-dragged card keeps its prompt. A fork keeps it.
+
+## Not covered
+
+- **Ctrl+K notes, diagrams and equations.** These are native shapes and items without card chrome. The note keeps its
+  `inline` provenance record but not the words.
+- **Not generated:** cards the Tutor shows from an authored module, papers, Wikipedia articles and videos Ask found,
+  outline headings, the notebook from an answer's code, and imports, drops, pastes, menus and Rabbit Hole seed copies.
+- **Separate renderers:** cards drawn by their own card component get no row (video moments, wiki, file, PDF, notebook,
+  code, graph, canvas reference, heading, divider, slide).
+- **CAD recovery:** a CAD card rebuilt from the job list (the card was missing from the board) has no prompt, because the
+  server's CAD block does not carry the job's prompt.
+
+## Verification (2026-10-20)
+
+- Unit: `learn-slash.test.mjs` covers:
+  - the typed line on a command card;
+  - the learner's words on Tutor cards, and none on a hook click;
+  - the line handed to `/cad`.
+
+  `inline-ai-apply.test.mjs` covers the Ctrl+K card, and `learn-journey-materialize.test.mjs` covers journey steps and
+  a paid proposal.
+- Browser: `e2e/card-prompt-check.mjs`, 8 steps on the local stack with the board save real. It covers `/explain`,
+  `/cad` (polled), open, Copy, put in chat without sending, the server copy, a fresh browser and a share-link viewer.
+  No model is called: the artifact and CAD routes are answered in the browser.

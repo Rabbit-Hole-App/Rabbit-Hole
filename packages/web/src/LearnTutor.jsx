@@ -257,6 +257,8 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
     // The reply does not wait for the cards. Task 14 B-I1: the turn's selected card is the target, as a typed command's armed
     // card is (its selection, and its text as context); a hook click has none (block null).
     runMaterials(result.actions, {
+      // The cards keep the learner's words (card-prompt.js), never the model's command line; a hook click typed none.
+      promptUsed: nextStep ? null : raw,
       app: app.name, openSearch: () => {}, offer, target: block ? { id: block.id, ...(describe?.(block) || { title: block.title, text: cardContext(block) }) } : null,
       // What could not be made says so (an error, a clarification, an unsupported command); a made card is its own notice.
       // ponytail: a slow command's notice can land after the next turn began, under that reply (informative, accepted for

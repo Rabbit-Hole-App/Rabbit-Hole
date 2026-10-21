@@ -10,6 +10,8 @@
 // Pure apart from the injected canvas (canvasApi's blocks / reserve / insertBlock / release / showSection / persist) and
 // post.
 
+import { withPrompt } from './card-prompt.js';
+
 // One or two model calls per step (learn-artifact.js): a request that never answers is a failed step, as a / command's is.
 const ARTIFACT_TIMEOUT_MS = 120000;
 // After the next paint: a slot reserved this tick is only in the canvas once it has rendered (learn-slash.js afterPaint;
@@ -35,6 +37,8 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
   const jid = journey.id, own = jid == null ? {} : { journey_id: jid }, existing = canvas.blocks?.() || [];
   const drawn = new Map(existing.filter(b => b.journey?.section_id === id && b.journey.journey_id === jid).map(b => [b.journey.step_id, b.id]));
   const steps = sectionPlan.teaching_sequence || [], block_ids = [], proposals = [];
+  // Each step card keeps the learner's words that started the journey as its prompt (card-prompt.js); the heading does not.
+  const words = journey.request?.raw_user_message;
   let heading = existing.find(b => b.type === 'heading' && b.journey_section_id === id && b.journey_id === jid)?.id ?? null, slot = null, failed_step = null;
   try {
     if (!heading) {
@@ -53,7 +57,7 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
         else {
           const result = await post('/api/learn/artifact', { command: step.make.command, args: step.make.request, context: `Journey section: ${section.title}` }, { signal: AbortSignal.timeout(timeoutMs) });
           if (result?.result === 'paid_proposal') {
-            proposals.push({ step_id: step.step_id, primitive: result.primitive, message: result.message, after, block: { ...result.block, journey: journeyTag } });
+            proposals.push({ step_id: step.step_id, primitive: result.primitive, message: result.message, after, block: withPrompt({ ...result.block, journey: journeyTag }, words) });
             continue;
           }
           if (result?.result !== 'artifact') throw new Error(result?.error || result?.message || 'The step was not made.');
@@ -63,7 +67,7 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
         failed_step = step.step_id;
         break;
       }
-      after = canvas.insertBlock({ ...block, journey: journeyTag }, { after });
+      after = canvas.insertBlock(withPrompt({ ...block, journey: journeyTag }, words), { after });
       block_ids.push(after);
     }
   } finally {

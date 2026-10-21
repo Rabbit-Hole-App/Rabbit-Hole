@@ -137,6 +137,16 @@ test('a generated card goes after the target card with its provenance, once', ()
   assert.equal(tx.links[0].kind, 'annotation');
 });
 
+test('a generated card keeps the words typed into the editor as its prompt (card-prompt.md); none typed, none kept', () => {
+  const board = flowBoard();
+  const block = { type: 'flow', title: 'Tree', spec: { nodes: [], edges: [] } };
+  const typed = cardTx({ requestId: 'c1', block, frozen: { ...frozenOf(board, ['img1']), words: '  draw this as a tree ' }, board, route: 'diagram' });
+  assert.equal(typed.block.promptUsed, 'draw this as a tree');
+  assert.equal(typed.links[0].promptUsed, undefined, 'the connector carries no prompt');
+  const none = cardTx({ requestId: 'c2', block, frozen: frozenOf(board, ['img1']), board, route: 'diagram' });
+  assert.ok(!Object.hasOwn(none.block, 'promptUsed'));
+});
+
 test('an unrelated concurrent edit survives an accepted edit', () => {
   const board = flowBoard();
   const out = validateEdit({ ops: [{ op: 'replace_text', id: 'g1', text: 'Load orders' }] }, frozenOf(board, ['g1']), board);
