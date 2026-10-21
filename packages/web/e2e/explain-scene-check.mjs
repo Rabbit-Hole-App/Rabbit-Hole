@@ -6,7 +6,8 @@
 //   2. an interactive /explain answer becomes an Animation card drawn by the scene renderer, with its controls;
 //   3. every control setting: the card's values and texts are the ones the scene evaluator computes for it (scene-evaluate.js);
 //   4. a moved control is saved with the board, and a fresh browser shows the card in that state;
-//   5. an invalid scene (validation_error) adds no card, keeps the line and offers a plain explanation, which makes a text card;
+//   5. a refused scene (validation_error: the verifier pass's words) adds no card and saves nothing, keeps the line, says what
+//      failed, makes no further request until the learner clicks, and its plain-explanation offer makes a text card;
 //   6. View > Slash commands: /explain's Interactive visual examples work there, and opening it generates nothing.
 // Steps 2-4 run for every replayed scene. THEME=dark runs it in the dark theme.
 // Usage: BASE=http://127.0.0.1:9311 SMALL_CP=http://127.0.0.1:9313 VARS=<stack .dev.vars> [SCENES=<dir>] [THEME=dark] node e2e/explain-scene-check.mjs [shotsDir]
@@ -48,7 +49,8 @@ if (!scenes.length) throw Error('no interactive scene to replay');
 const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Explain scenes ${run}` }) });
 const board = () => api(`/api/learn/boards/${canvas.name}/main`).then(out => out.state);
 
-const INVALID = { result: 'validation_error', primitive: 'animation', error: 'grid "table" carries values and must declare matrixKind: input, relational, or derived' };
+// A refusal in the verifier pass's own form (learn-artifact.js sceneVerdict), as the binary-search@4 rerun would get it.
+const INVALID = { result: 'validation_error', primitive: 'animation', error: 'A check of the card found statements that are false: 1) with step = Step 1, "stepText" says "Range 0..6.", against "[1, 1, 1, 1, 1, 1, 1, 1, 0, 0]": the drawn range keeps index 7, so it is 0..7, not 0..6. 2) with step = Step 2, "stepText" says "Range 4..6.", against "[0, 0, 0, 0, 1, 1, 1, 1, 0, 0]": the drawn range is 4..7.' };
 const PLAIN = { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'Binary search, in words', body: 'Each step halves the range that can still hold the target.' } };
 let next = null; // the answer the artifact route gives next
 const posts = [], refused = [], outside = [], errors = [];
@@ -198,8 +200,9 @@ for (const entry of scenes) {
   });
 }
 
-await step('an invalid scene adds no card, keeps the line and offers a plain explanation that makes a text card', async () => {
+await step('a refused scene adds and saves no card, keeps the line, says what failed, retries only on a click, and its plain offer makes a text card', async () => {
   const before = await blockIds(page);
+  const saved = (await board()).blocks.length, sent = posts.length;
   next = INVALID;
   await send(page, `/explain ${commandWords}`);
   const result = page.locator('[data-chat-pane] [data-slash-result]');
@@ -207,9 +210,14 @@ await step('an invalid scene adds no card, keeps the line and offers a plain exp
   await page.waitForTimeout(800);
   assert.deepEqual(await blockIds(page), before, 'no card was added');
   assert.match(await composerOf(page).inputValue(), /binary search/, 'the line is back in the composer to retry');
+  assert.equal((await result.locator('[data-slash-detail]').innerText()).trim(), 'What failed: with step = Step 1, "stepText" says "Range 0..6.", against "[1, 1, 1, 1, 1, 1, 1, 1, 0, 0]": the drawn range keeps index 7, so it is 0..7, not 0..6.', 'what failed, in the check words (its first finding)');
+  assert.equal(await page.locator('[data-chat-pane] [data-slash-result] [data-slash-open]').count(), 0, 'no card to open: nothing half-made');
+  assert.equal((await board()).blocks.length, saved, 'the saved board holds no new block');
+  assert.equal(posts.length, sent + 1, 'one request, and no paid retry without the learner');
   await page.screenshot({ path: `${OUT}/${THEME}-invalid.png` });
   next = PLAIN;
   await result.locator('[data-slash-action]').getByText('Make a plain explanation instead').click();
+  await until(async () => posts.length === sent + 2, 'the plain explanation was not requested on the click');
   const id = await newCard(page, before);
   await until(async () => (await board()).blocks.find(block => block.id === id)?.type === 'explanation', 'the plain explanation card is not saved as text');
   assert.equal(posts.at(-1).args, `in plain text: ${commandWords}`);

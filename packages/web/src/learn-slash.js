@@ -229,9 +229,13 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   // to try again, and a plain explanation is one click away (owner, 2026-10-21). PLAIN_WORDS narrows that line to text.
   if (result.result === 'validation_error' && result.primitive === 'animation') return { keep: `/${name} ${args}`, notice: { tone: 'error',
     text: 'The interactive explanation could not be made: it failed its checks, so nothing was added. Send the line again to retry.',
-    detail: result.error || null, actions: [{ label: 'Make a plain explanation instead', line: `/${name} in plain text: ${args}` }] } };
+    detail: failedCheck(result.error), actions: [{ label: 'Make a plain explanation instead', line: `/${name} in plain text: ${args}` }] } };
   return { notice: { tone: 'error', text: result.error || 'That could not be made. Try again.' } };
 }
+
+// What failed, shown under the notice (owner, 2026-10-21): the validator's words, or the verifier's first finding without its
+// numbering (learn-artifact.js sceneVerdict lists "1) ... 2) ...").
+const failedCheck = error => (error ? String(error).replace(/^A check of the card found statements that are false: 1\) /, '').split(/ 2\) /)[0].slice(0, 400) : null);
 
 // A Tutor hook turn's create_material actions (contract §2.5), in the plan's order, each run by runLearnCommand exactly as
 // if typed: no second generator. A paid card answers with its Generate / Not now proposal; offer(proposal) shows it and

@@ -106,6 +106,9 @@ test('/explain: a made interactive explanation is inserted; a failed one keeps t
   assert.equal(notice.notice.tone, 'error');
   assert.equal(notice.keep, '/explain interactive binary search');
   assert.match(notice.notice.detail, /matrixKind/);
+  // A verifier refusal shows its first finding, without the numbering.
+  const checked = harness({ result: 'validation_error', primitive: 'animation', error: 'A check of the card found statements that are false: 1) "readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly. 2) "other" says "x": y' });
+  assert.equal((await checked.run('/explain interactive half-life')).notice.detail, '"readout" says "leaving 1.248", against "[1.25]": 80 x (1/2)^6 = 1.25 exactly.');
   assert.deepEqual(notice.notice.actions, [{ label: 'Make a plain explanation instead', line: '/explain in plain text: interactive binary search' }]);
   const plain = harness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'B', body: 'b' } });
   await plain.run(notice.notice.actions[0].line);
