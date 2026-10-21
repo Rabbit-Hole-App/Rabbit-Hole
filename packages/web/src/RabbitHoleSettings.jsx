@@ -22,7 +22,7 @@ const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus
 
 const Heading = ({ children }) => <h3 className="mt-9 border-b border-line pb-2 text-base font-medium">{children}</h3>;
 const PaneTitle = ({ title, intro }) => <><h2 className="text-2xl font-semibold">{title}</h2>{intro && <p className="pt-2 text-base text-ink-2">{intro}</p>}</>;
-const ThisDevice = () => <span data-device-pref className="ml-2 rounded-sm bg-hover px-1.5 py-0.5 text-[11px] font-medium text-ink-2">This device</span>;
+const ThisDevice = () => <span data-device-pref className="ml-2 inline-block rounded-sm bg-hover px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-ink-2">This device</span>;
 const SaveError = ({ text }) => (text ? <p role="alert" data-settings-error className="pb-2 text-xs text-fail">{text}</p> : null);
 
 // A row of toggle buttons (aria-pressed): Tab reaches each, Enter or Space picks it.
@@ -242,7 +242,8 @@ function ProfilePane({ session, shown, profile }) {
     <>
       <PaneTitle title="Profile" intro={`How you appear in ${PRODUCT}`} />
       <div className="mt-6 flex flex-wrap items-center gap-4">
-        <Avatar email={shown.email || shown.label || '?'} src={profile?.avatar} className="h-16 w-16 text-xl" />
+        {/* The avatar's tag pastels stay light in the dark theme, so its initial keeps the light theme's ink (as the sidebar's). */}
+        <Avatar email={shown.email || shown.label || '?'} src={profile?.avatar} className="h-16 w-16 text-xl text-[#37352f]!" />
         <div className="flex flex-wrap gap-2">
           <input ref={picker} type="file" accept={AVATAR_TYPES.join(',')} className="hidden" onChange={upload} data-avatar-input />
           <Button variant="secondary" size="sm" disabled={busy} onClick={() => picker.current?.click()}>{profile?.avatar ? 'Change picture' : 'Upload picture'}</Button>

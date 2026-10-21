@@ -38,6 +38,7 @@ const ALLOW = [
   { file: 'three-d-renderer.js', literal: '0x667788', count: 1, why: 'the hemisphere light\'s ground colour' },
   { file: 'ui.jsx', literal: 'rgba(0,0,0,0.12)', count: 1, why: 'the secondary Button\'s faint drop shadow' },
   { file: 'RabbitHoleSettings.jsx', literal: 'bg-black', count: 1, why: 'the modal scrim (bg-black/20), as every app dialog has it: it darkens the page in both themes' },
+  { file: 'RabbitHoleSettings.jsx', literal: '#37352f', count: 1, why: 'the avatar initial on its light pastel tag, which does not flip in dark (the same override as the sidebar account row)' },
 ];
 
 const PALETTE = 'red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone';
