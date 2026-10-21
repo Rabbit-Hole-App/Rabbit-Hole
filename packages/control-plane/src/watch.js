@@ -2,6 +2,7 @@
 // schedules, drifting secrets. SQL plus a few model calls, not an agent loop.
 // runWatchPass: 03:00 UTC. weeklyWatchEmail: Monday 08:00 UTC.
 import { askOnce } from './ask.js';
+import { withSystemUsage } from './learn-usage.js';
 import { nextRun, parseCron } from './cron.js';
 import { notifySlackObservation, slackWeeklyDigest } from './slack.js';
 
@@ -180,7 +181,7 @@ async function observationText(env, app, check, evidence) {
   try {
     const runbook = (app.runbook || '').replace(/\s+/g, ' ').slice(0, 500);
     const text = await askOnce(
-      env,
+      withSystemUsage(env), // a cron with no user: platform-funded, under the platform daily guard
       `App ${app.name} (${app.kind}). Runbook summary: ${runbook || 'none'}.\nWatch check "${check}" fired with evidence:\n${JSON.stringify(evidence)}`,
       'Write ONE sentence for the app owner that names the concrete evidence (run ids, dates, names, counts). No advice, no preamble, no "Sources" line.',
       150,

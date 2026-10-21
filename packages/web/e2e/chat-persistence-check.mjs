@@ -229,17 +229,21 @@ await check('6. an older thread opened from History, a move away and back: that 
 });
 await shot('06-older-thread-restored');
 
-await check('7. Ask and Tutor modes still post with the open thread and their mode; New chat starts empty in Auto', async () => {
+await check('7. Ask and Tutor modes still answer in the open thread (Ask with its mode, Tutor through the Tutor, owner 1a); New chat starts empty in the canvas mode', async () => {
   const mode = async name => { await pane.getByRole('button', { name: 'Mode', exact: true }).click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${name}`) }).click(); };
   const before = plans.length;
   await mode('Ask');
   await send('[P] Ask mode question');
   await answered('Canned Ask answer.');
+  // Owner decision 1a (2026-10-20, C:/s/spec/tutor-workflow/decisions.md): Tutor is the teaching Tutor and answers a typed
+  // question through the Tutor workflow, as Auto does (chat-route.js tutorTurn); only the Table of contents conversation
+  // still posts mode 'tutor' (the syllabus) to /api/learn/ask.
   await mode('Tutor');
-  await send('[P] Tutor mode question');
-  await answered('Canned Tutor-mode answer.');
-  assert.deepEqual(asks.map(a => [a.mode, a.thread_id]), [['ask', olderThread], ['tutor', olderThread]], 'each in the open thread, so the server saves it there');
-  assert.equal(plans.length, before, 'no Tutor plan for an explicit Ask or Tutor turn');
+  await send('[P] Tutor mode question', '[P] The Tutor-mode answer.');
+  await answered('[P] The Tutor-mode answer.');
+  assert.deepEqual(asks.map(a => [a.mode, a.thread_id]), [['ask', olderThread]], 'Ask in the open thread, so the server saves it there');
+  assert.equal(plans.length, before + 1, 'one Tutor plan, for the Tutor turn; none for the explicit Ask turn');
+  await until('the Tutor exchange is saved in the open thread', async () => (await messagesOf(olderThread)).some(m => m.role === 'assistant' && m.content === '[P] The Tutor-mode answer.'));
   await pane.getByRole('button', { name: 'New chat', exact: true }).click();
   assert.equal(await title(), 'New chat');
   // New chat lands in two commits: the title from the thread state at once, the transcript one commit later (ask.jsx's
@@ -248,7 +252,9 @@ await check('7. Ask and Tutor modes still post with the open thread and their mo
   // for them to go; a transcript that stayed would still fail here.
   await pane.getByText(/\[P\]/).first().waitFor({ state: 'detached', timeout: 5000 });
   assert.doesNotMatch(await text(), /\[P\]/);
-  assert.match(await pane.getByRole('button', { name: 'Mode', exact: true }).innerText(), /Auto/);
+  // Owner decision 1a: the mode is the learner's canvas preference, not a thread's, so New chat keeps it (Tutor, chosen above),
+  // as chat-workspace-shell-check asserts.
+  assert.match(await pane.getByRole('button', { name: 'Mode', exact: true }).innerText(), /Tutor/, 'a new chat keeps the canvas mode');
   assert.ok((await threadsOf(P)).some(t => t.id === newerThread) && (await threadsOf(P)).some(t => t.id === olderThread), 'New chat deletes nothing');
 });
 

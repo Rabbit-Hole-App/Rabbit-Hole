@@ -52,7 +52,7 @@ export function createThreeDRenderer(host, initial, onChange, onReady, onError, 
     const delta = last ? Math.min((time - last) / 1000, 0.1) : 0; last = time;
     changing = true; controls.autoRotate = props.autoRotate; controls.update(delta); changing = false;
     if (props.animation.autoplay && action) mixer.update(delta);
-    renderer.render(scene, camera);
+    renderer.render(scene, camera); options.onFrame?.();
     if (running()) { if (time - reported > 500) { reported = time; persist(); } schedule(); }
   }
   const change = () => { if (!changing) { settle(); if (!options.load) persist(); schedule(); } };
@@ -101,6 +101,9 @@ export function createThreeDRenderer(host, initial, onChange, onReady, onError, 
     background(value) { paint(value); schedule(); },
     // Back to the framing the model opened with.
     fit() { if (!fitView) return; changing = true; fitView(); controls.update(); changing = false; settle(); schedule(); },
+    // Model-space points -> CSS pixels in the host, for labels drawn over the view (CAD Show dimensions, options.onFrame).
+    project(points) { const w = host.clientWidth, h = host.clientHeight; return points.map(point => { const v = new THREE.Vector3(...point).project(camera); return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h, visible: v.z > -1 && v.z < 1 }; }); },
+    redraw() { schedule(); },
     camera() { return gltf && !lost && finite() ? cameraState() : null; },
     // A still of the current view (a WebP data URL) for the card's poster: drawn and read in one task, so no
     // preserveDrawingBuffer is needed.

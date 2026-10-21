@@ -4,6 +4,11 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { admitSpend, platformCaps, platformSpendStatus, settleSpend, spendMessage } from '../src/learn-spend.js';
 import { anthropic } from '../src/ask.js';
+import { withSystemUsage } from '../src/learn-usage.js';
+
+// The platform daily guard alone: platform-funded system work (withSystemUsage), the one kind of call admitted without a
+// session payer since allowance enforcement (owner L12 2026-10-20); the allowance is in learn-allowance.test.js.
+const platform = env => withSystemUsage(env);
 
 const migration = readFileSync(new URL('../learn-migrations/0016-usage-operations.sql', import.meta.url), 'utf8');
 const db = () => { const sqlite = new DatabaseSync(':memory:'); sqlite.exec(migration); return sqlite; };
@@ -17,9 +22,9 @@ test('paid admission refuses when the platform dollar cap is unset', async () =>
 test('paid admission refuses once settled daily dollars reach the cap', async () => {
   const sqlite = db();
   const d1 = { prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...args) => ({ run: async () => { const result = statement.run(...args); return { meta: { changes: result.changes } }; }, first: async () => statement.get(...args) }) }; } };
-  await admitSpend(d1, { USAGE_PLATFORM_DAY_USD: '0.01', USAGE_PLATFORM_DAY: '20' }, { opId: 'old', userId: 'u', org: 'o', category: 'tutor_plan', reservedUsd: 0.01, now: 1000 });
+  await admitSpend(d1, platform({ USAGE_PLATFORM_DAY_USD: '0.01', USAGE_PLATFORM_DAY: '20' }), { opId: 'old', userId: 'u', org: 'o', category: 'tutor_plan', reservedUsd: 0.01, now: 1000 });
   await settleSpend(d1, 'old', { costUsd: 0.01, now: 1001 });
-  const result = await admitSpend(d1, { USAGE_PLATFORM_DAY_USD: '0.01', USAGE_PLATFORM_DAY: '20' }, { opId: 'new', userId: 'u', org: 'o', category: 'tutor_plan', reservedUsd: 0.01, now: 1002 });
+  const result = await admitSpend(d1, platform({ USAGE_PLATFORM_DAY_USD: '0.01', USAGE_PLATFORM_DAY: '20' }), { opId: 'new', userId: 'u', org: 'o', category: 'tutor_plan', reservedUsd: 0.01, now: 1002 });
   assert.deepEqual(result, { refused: true, reason: 'daily_cap_reached' });
   assert.equal(platformCaps({}).usd, null);
   sqlite.close();
@@ -28,7 +33,7 @@ test('paid admission refuses once settled daily dollars reach the cap', async ()
 test('paid admission reserves the remaining dollar liability while a call is outstanding', async () => {
   const sqlite = db();
   const d1 = { prepare: sql => { const statement = sqlite.prepare(sql); return { bind: (...args) => ({ run: async () => { const result = statement.run(...args); return { meta: { changes: result.changes } }; }, first: async () => statement.get(...args) }) }; } };
-  const env = { USAGE_PLATFORM_DAY_USD: '0.01', USAGE_PLATFORM_DAY: '20' };
+  const env = platform({ USAGE_PLATFORM_DAY_USD: '0.01', USAGE_PLATFORM_DAY: '20' });
   const args = opId => ({ opId, userId: 'synthetic', org: 'synthetic', category: 'tutor_plan', reservedUsd: 0.01, now: 100000 });
   assert.deepEqual(await admitSpend(d1, {}, args('unset')), { refused: true, reason: 'cap_unset' });
   assert.equal((await admitSpend(d1, env, args('first'))).refused, false);

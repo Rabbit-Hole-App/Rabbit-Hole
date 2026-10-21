@@ -109,7 +109,10 @@ test('delete: a leaf goes; a hole with holes inside answers 409 with them listed
   const boardIds = f.sqlite.prepare('SELECT id FROM learn_boards WHERE app IN (?, ?, ?)').all(a, b, c2).map(row => row.id);
   for (const id of boardIds) f.sqlite.prepare("INSERT INTO file_source_refs (source_id, board_id) VALUES ('fs_x', ?)").run(id);
   f.sqlite.exec("INSERT INTO file_source_refs (source_id, board_id) VALUES ('fs_x', 'b-elsewhere')");
+  // Ruling Q2: every deleted hole's Tutor rows go in the same batch; the root canvas keeps its own.
+  for (const app of [a, ROOT.app]) f.sqlite.prepare("INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, outcome, origin, scope_version, lifecycle, revision, created_at, updated_at) VALUES (?, 'team', 'u1', ?, 'main', 'G', '', 'coaching', 0, 'open', 0, 'now', 'now')").run(`g-${app}`, app);
   const all = await f.send('DELETE', `/api/canvases/dives/${a}?subtree=1`);
+  assert.deepEqual(f.sqlite.prepare('SELECT app FROM learn_goals').all().map(row => row.app), [ROOT.app]);
   assert.deepEqual(all.body.deleted, [a, b, c2]);
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_dives').get().n, 0);
   assert.deepEqual(f.sqlite.prepare('SELECT name FROM canvases').all().map(row => row.name), ['canvas-00000000']);

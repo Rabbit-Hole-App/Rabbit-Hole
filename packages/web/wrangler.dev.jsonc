@@ -118,7 +118,9 @@
     "BYOC_REGION": "us-east-1",
     "BYOC_PRINCIPAL_ARN": "arn:aws:iam::637423432890:user/small-byoc-dev",
     "BYOC_TEMPLATE_BUCKET": "small-byoc-installer-637423432890-us-east-1",
-    "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-dev.fly.dev"
+    "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-dev.fly.dev",
+    // Review-first CAD (docs/features/cad.md). This config binds no CAD_JOBS, so it acts only where CAD is bound.
+    "CAD_BRIEF_FIRST": "false"
   },
   "services": [
     {

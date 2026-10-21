@@ -54,6 +54,21 @@ test('recent_modalities: carried verbatim, at most 8, never read by the router',
   assert.deepEqual(plannerContext({ turn: turnOf(), routed: b, block: null, states, claims: [ID], store: null, domain }).recent_relevant_context.recent_modalities, [], 'no store: an empty history');
 });
 
+// Tutor T11 real-model run, 2026-10-21: "make a diagram of how a bill becomes law in the United States" got a plan whose diagram
+// request ran to 1006 characters; the validator dropped the material while respond_text said the diagram was being added.
+test('validator: a plain request over 1000 characters is cut at its last sentence within the limit, never dropped', () => {
+  const routed = { row: 'off_slice', strategy: 'none', allowed: ['respond_text', 'create_material', 'suggest_journey'], claim: null };
+  const step = turnOf({ next_step: NEXT, available_materials: MATERIALS });
+  const long = 'Show the committee stage and the floor votes in both chambers. '.repeat(17).trim();
+  assert.ok(long.length > 1000);
+  const out = validateActions({ actions: [{ type: 'create_material', command: 'flashcards', request: long }, { type: 'suggest_journey', request: long }] }, routed, step);
+  assert.deepEqual(out.decisions.map(d => d.accepted), [true, true]);
+  for (const { request } of out.actions) assert.ok(request.length <= 1000 && long.startsWith(request) && request.endsWith('chambers.'), `cut at a sentence end (${request.length})`);
+  assert.ok(out.log.includes(`trimmed create_material request to ${out.actions[0].request.length} characters`));
+  // Not plain words: still refused at the schema, as before.
+  assert.equal(validateActions({ actions: [{ type: 'create_material', command: 'flashcards', request: `${long} \`code\`` }] }, routed, step).decisions[0].stage, 'schema');
+});
+
 // Owner 2026-10-06: several materials may come from one decision; distinct commands, inside the 3-action cap.
 test('validator: create_material needs an offered command, a request and the route; several per turn, distinct commands', () => {
   const step = turnOf({ next_step: NEXT, available_materials: MATERIALS });

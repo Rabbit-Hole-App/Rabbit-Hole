@@ -28,6 +28,10 @@ import { sidebarEdge } from './home/pinned.js';
 import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 import { editorOpen, reloadForNewBuild } from './chunk-reload.js';
+import { installAiRefusalHook } from './ai-refusal.js';
+
+// Every refused AI request, from any entry point, explains itself the same way (owner D4 section 4, L12).
+installAiRefusalHook();
 
 applyTheme(getTheme()); // before first paint - no light flash for dark users
 // The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v3: the same

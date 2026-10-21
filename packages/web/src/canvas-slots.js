@@ -80,6 +80,11 @@ export function freeArea(surface, overlays, pad = 24) {
   return { left: area.left + pad, top: area.top + pad, right: area.right - pad, bottom: area.bottom - pad };
 }
 
+// The floating bottom chrome as obstacles for a card placed in view, in world units (owner rule: canvas utilities never
+// cover content): each control's span (surface px: left, right, top) from its top down to the surface's bottom, the floor
+// chromeTop gives a reveal over that span. height: the surface's; view { x, y, z }.
+export const chromeObstacles = (rects, height, view) => rects.map(rect => ({ x: (rect.left - view.x) / view.z, y: (rect.top - view.y) / view.z, w: (rect.right - rect.left) / view.z, h: (height - rect.top) / view.z }));
+
 // The camera that shows `box` (world px) inside `area` (surface px) at the learner's zoom - view { x, y, z }, z
 // never changes. Per axis: left alone when already inside; else centred (`centre`: a skeleton just reserved),
 // or nudged just inside when partly in view (a card correcting its skeleton's place) and centred when out of view;
