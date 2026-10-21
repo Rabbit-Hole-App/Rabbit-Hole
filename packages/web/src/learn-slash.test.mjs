@@ -469,3 +469,25 @@ test('CAD command selection is inert; empty submit clarifies and a detailed subm
  const result=await runLearnCommand('/cad a 40 mm plate',options);assert.equal(starts,0);
  await Promise.all([result.proposal.generate(),result.proposal.generate()]);assert.equal(starts,1);
 });
+
+// Owner brief 2026-10-21 message 7 item 4: the selected card reaches Motion's resolver as motion_request context.selection
+// (control-plane motion-context.js), read when the line runs and bounded to 4000 characters; with none, only the words go.
+test('/motion with a selected card sends it as context.selection; the line stays the learner words', async () => {
+  const did = [];
+  const canvas = { insertBlock: block => { did.push(block); return 'block-1'; } };
+  let reads = 0;
+  const target = { id: 'b-photo', kind: 'Explanation', title: 'Photosynthesis', card: true, get text() { reads += 1; return `Explanation: Photosynthesis\n${'Plants make glucose. '.repeat(400)}`; } };
+  const run = (text, extra = {}) => runLearnCommand(text, { app: 'demo', canvas, post: async () => assert.fail('no request'), openSearch: () => {}, location: { concept: 'Biology' }, motionDev: true, ...extra });
+  (await run('/motion explain this', { target })).proposal.generate();
+  const { operation } = did.at(-1);
+  assert.equal(reads, 1, 'the card text is read once, when the line runs');
+  assert.equal(operation.request, '/motion explain this');
+  assert.deepEqual(Object.keys(operation.context.selection), ['cardId', 'kind', 'title', 'text']);
+  assert.deepEqual([operation.context.selection.cardId, operation.context.selection.kind, operation.context.selection.title], ['b-photo', 'Explanation', 'Photosynthesis']);
+  assert.equal(operation.context.selection.text.length, 4000);
+  assert.ok(operation.context.selection.text.startsWith('Explanation: Photosynthesis\nPlants make glucose.'));
+  (await run('/motion explain photosynthesis')).proposal.generate();
+  assert.equal(did.at(-1).operation.context, undefined, 'no selection, no context');
+  (await run('/motion explain this', { target: { id: 'b-empty', kind: 'Whiteboard', text: '  ' } })).proposal.generate();
+  assert.equal(did.at(-1).operation.context, undefined, 'a card with no text has nothing to ground on');
+});

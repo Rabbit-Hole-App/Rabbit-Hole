@@ -59,12 +59,15 @@ test('a selected code range picks the occurrence when the name is ambiguous', ()
   assert.equal(g.resolution, 'context_disambiguated');
 });
 
+// Owner brief 2026-10-21 message 7 item 4 and message 11 item 5: a topic the repository does not mention is answered from
+// the request alone, labelled not grounded in that repository (it used to be refused as not_found).
 test('named concept vs canvas context: gradient descent on the attention canvas never drifts to attention', () => {
   const g = ground('/motion 10s explain gradient descent', { location: { concept: 'attention' } });
   assert.equal(g.target.name, 'gradient descent');
-  assert.equal(g.status, 'not_found');
-  assert.match(g.clarification.question, /"gradient descent"/);
-  assert.deepEqual(g.source_refs, []);
+  assert.equal(g.status, 'ungrounded');
+  assert.deepEqual(g.grounding, { status: 'not_in_source', searched: ['karpathy/nanoGPT@3adf61e'] });
+  assert.deepEqual(g.resolved_target.candidates_considered, [{ label: 'karpathy/nanoGPT@3adf61e', reason: 'no source in it mentions "gradient descent"' }]);
+  assert.deepEqual([g.source_refs, g.evidence, g.implementation_conditions], [[], [], []]);
   assert.ok(!JSON.stringify(g).includes('CausalSelfAttention'));
 });
 

@@ -77,7 +77,7 @@ test('the softmax brief: canonical, grounded, branch-aware, renderer-neutral, mo
   assert.equal(b.implementation_conditions[0].id, 'K1');
   assert.deepEqual(b.output_requirements, { stage_width: 1920, stage_height: 1080, fps: 30, preview_scale: 0.45, poster: true });
   assert.equal(b.qa_requirements.blocking_categories.length, 13); // the 12 of §13.1 + storyboard_fidelity (M7A)
-  assert.equal(b.prompt_spec_version, 'motion-v1.0/director-1');
+  assert.equal(b.prompt_spec_version, 'motion-v1.0/director-2'); // director-2: the no-source rule (2026-10-21)
   assert.deepEqual(leakErrors(b, 'brief'), []); // no model id, no credential anywhere in the brief
   assert.ok(!/remotion|hyperframes/i.test(JSON.stringify(b)));
   assert.deepEqual(r.format_retries, []);
@@ -148,10 +148,11 @@ test('the learner\'s requested teaching mode binds the Director; narration fits 
   assert.equal(r5.brief.duration.normalization, '✓ duration: 5s (asked 3s; Motion V1 min is 5s)');
 });
 
-test('clarification and missing sources never call the model and never fabricate a brief', async () => {
+// gradient descent left this list on 2026-10-21 (owner brief message 7 item 4): a topic the source does not mention is
+// directed from the request alone, labelled ungrounded (the test below), not refused.
+test('clarification never calls the model and never fabricates a brief', async () => {
   for (const turn of [
     resolveLearnerTurn({ message: '/motion explain me softmax func' }),
-    resolveLearnerTurn({ message: '/motion 10s explain gradient descent', location: { concept: 'attention' } }),
     resolveLearnerTurn({ message: '/motion explain this' }),
   ]) {
     const fake = fakeModel();
@@ -213,4 +214,28 @@ test('the Director asks where the viewer\'s visual focus goes, never "attention"
     assert.match(text, /how the viewer's visual focus should move/);
     assert.doesNotMatch(text, /attention/i);
   }
+});
+
+// Owner brief 2026-10-21 message 7 item 4 and message 11 item 5: a request with no supplied source is directed from its
+// words alone. The brief states that explicitly (grounding), cites nothing, and a claim that cites anything is refused.
+test('no supplied source: the Director gets an empty pack and the state, the brief says so and cites nothing', async () => {
+  const turn = resolveLearnerTurn({ message: '/motion 10s explain gradient descent' });
+  const grounding = groundTarget(turn, null);
+  const plain = { title: 'Gradient descent, one step at a time', objective: 'The learner can describe how one gradient descent step lowers the loss.', audience_context: 'A learner meeting optimization for the first time.', teaching_mode: 'mechanism_first',
+    claims: [{ id: 'C1', text: 'Each step moves the parameters a small amount against the slope of the loss.', source_ref_ids: [], condition_ids: [], required: true }],
+    must_show: ['a loss curve', 'one step downhill'], must_not_claim: ['every step reaches the minimum'], visual_direction: 'A point slides down a curve in small steps; focus follows the point.', narration_policy: 'none' };
+  const fake = fakeModel(toolMessage(plain));
+  const r = await runDirector({ turn, grounding, call: fake.call, clock });
+  assert.equal(r.status, 'brief');
+  const context = JSON.parse(fake.requests[0].body.messages[0].content.split('context = ')[1]);
+  assert.deepEqual(context.evidence_pack, { source_refs: [], implementation_conditions: [], grounding: { status: 'no_source_supplied' } });
+  assert.deepEqual([r.brief.grounding, r.brief.source_refs, r.brief.evidence, r.brief.resolved_target.resolution], [{ status: 'no_source_supplied' }, [], [], 'ungrounded']);
+  assert.deepEqual(validateBrief(r.brief), []);
+  // A fabricated citation is refused, and a grounded brief may not carry the no-source state (nor drop it).
+  const cited = await runDirector({ turn, grounding, call: fakeModel(toolMessage({ ...plain, claims: [{ ...plain.claims[0], source_ref_ids: ['S1'] }] })).call, clock });
+  assert.equal(cited.status, 'failed');
+  assert.ok(cited.errors.some(e => /C1: cites S1, which the grounding never produced/.test(e)), cited.errors.join('\n'));
+  assert.ok(validateBrief({ ...r.brief, grounding: undefined }).some(e => /brief\.grounding: required exactly when/.test(e)));
+  assert.ok(validateBrief({ ...r.brief, grounding: { status: 'not_in_source' } }).some(e => /searched \(not_in_source\)/.test(e)));
+  assert.ok(validateBrief({ ...r.brief, source_refs: [{ id: 'S1', kind: 'card', card_id: 'c' }] }).some(e => /an ungrounded brief cites nothing/.test(e)));
 });

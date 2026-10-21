@@ -1,0 +1,27 @@
+# rabbit-hole-motion-orchestrator: the hostable Motion orchestrator (motion/orchestrator-main.mjs). PREPARED, not deployed:
+# creating the app needs the owner's priced infrastructure approval (C:/s/spec/day-1021/motion-deploy-plan.md).
+# Built from the context `context.sh --target orchestrator` makes (`git archive HEAD`), so the image is exactly a commit.
+# No Chrome and no generated-code execution: rendering happens only in the sandboxed renderer (rabbit-hole-motion-renderer);
+# this image validates the returned MP4 with Remotion's bundled ffprobe/ffmpeg (renderer-common.mjs). No volume: the
+# durable job record is the worker's (Durable Object + D1); job directories live under /tmp and are deleted per job.
+FROM node:24.19.0-bookworm-slim AS build
+WORKDIR /src
+ADD src.tar /src/
+RUN npm ci --workspace packages/learn-render --include-workspace-root --ignore-scripts --no-audit --no-fund
+
+FROM node:24.19.0-bookworm-slim
+ARG MOTION_ORCHESTRATOR_BUILD=unknown
+RUN useradd -u 10021 -M -d /nonexistent -s /usr/sbin/nologin motion-orch
+COPY --from=build /src/package.json /app/package.json
+COPY --from=build /src/node_modules /app/node_modules
+COPY --from=build /src/packages/learn-render /app/packages/learn-render
+COPY --from=build /src/packages/control-plane/package.json /app/packages/control-plane/package.json
+COPY --from=build /src/packages/control-plane/src /app/packages/control-plane/src
+COPY --from=build /src/packages/web/package.json /app/packages/web/package.json
+COPY --from=build /src/packages/web/src/learn-outline-model.js /app/packages/web/src/learn-outline-model.js
+RUN chown -R root:root /app && chmod -R a+rX,go-w /app
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080 MOTION_WORK_DIR=/tmp/motion-jobs MOTION_ORCHESTRATOR_BUILD=$MOTION_ORCHESTRATOR_BUILD
+WORKDIR /app/packages/learn-render
+USER motion-orch
+EXPOSE 8080
+CMD ["node", "motion/orchestrator-main.mjs"]
