@@ -414,3 +414,15 @@ test('journey free text under SUBSCRIPTION_ONLY or with no JEV key: an error, no
     assert.deepEqual(await w.stored(), before);
   }
 });
+
+// Owner decision 7a (2026-10-20; Tutor workflow Task 06): on the journey path the evaluation, escalation included, finishes
+// before appendJourneyEvidence stores anything. A confident contradiction whose escalation is refused is stored unsettled.
+test('journey free text (7a): a confident contradiction escalates before anything is stored; refused, it is stored unsettled', async t => {
+  const w = await setup(t, { SMALL_ENV: 'dev' }); // spend enforced, no cap: the larger evaluator is refused
+  const called = [];
+  const r = await w.post(free(), { deps: { ...jev({ c0_idea0: 0.95, c0_contra0: 0.95 }), callModel: async () => { called.push(1); throw new Error('no model call'); } } });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.status, r.body.escalation.reason, called.length], ['uncertain', 'contradiction', 0]);
+  const stored = (await w.stored()).evidence.events;
+  assert.deepEqual(stored.map(e => [e.claim, e.result, e.contested === true, e.settled]), [[MECH, 'fail', true, false]]);
+});

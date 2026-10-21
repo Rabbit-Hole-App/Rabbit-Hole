@@ -43,6 +43,7 @@ import { tutorRoute } from '../control-plane/src/learn-tutor-routes.js';
 import { tutorEvalRoute } from '../control-plane/src/tutor-eval-routes.js';
 import { journeyRoute } from '../control-plane/src/learn-journey.js';
 import { coachingRoute } from '../control-plane/src/learn-coaching-routes.js';
+import { attemptRoute } from '../control-plane/src/learn-attempt-routes.js';
 import { homeAskFetch } from '../control-plane/src/learn-home-ask.js';
 import { voiceRoute } from '../control-plane/src/learn-voice-routes.js';
 import { learnBoardsRoute } from '../control-plane/src/learn-boards.js';
@@ -275,6 +276,8 @@ const routes = {
     // The owner's private Tutor evaluation archive (learn-migrations/0017): 404 to anyone but TUTOR_EVAL_OWNER_USER_ID.
     if (path.startsWith('/api/learn/tutor-eval/')) return tutorEvalRoute(path, req, env);
     if (path.startsWith('/api/learn/tutor/')) { const tutored = await tutorRoute(path, req, env); if (tutored) return tutored; }
+    // Submitted attempts and their assessments (learn-migrations/0026): the signed-in learner's own records only.
+    if (path.startsWith('/api/learn/tutor/attempts')) { const attempted = await attemptRoute(path, req, env); if (attempted) return attempted; }
     if (path.startsWith('/api/learn/journey')) { const routed = await journeyRoute(path, req, env); if (routed) return routed; }
     // Personal Tutor controls and goals (learn-migrations/0025): the signed-in learner's own state only.
     if (path === '/api/learn/coaching') return coachingRoute(path, req, env);
