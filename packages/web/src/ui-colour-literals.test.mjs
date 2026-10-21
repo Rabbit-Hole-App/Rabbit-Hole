@@ -18,12 +18,12 @@ const SCOPE = [
   { file: 'LearnSlash.jsx' },
   { file: 'ChatComposer.jsx' },
   { file: 'ChatMessages.jsx' },
+  { file: 'ChatOutputs.jsx' },
   { file: 'CadCard.jsx' },
   { file: 'three-d-renderer.js' },
   { file: 'ui.jsx', from: 'export function Button(', to: '\n}\n' },
 ];
 const ALLOW = [
-  { file: 'LearnSlash.jsx', literal: 'text-red-700', count: 1, why: 'the error tone; a palette shade, not themed (text-fail is the token). Lane L1 owns the line.' },
   { file: 'ChatComposer.jsx', literal: 'rgba(35,131,226,0.2)', count: 2, why: 'the focus ring shadow: --color-accent at 20% in a shadow-[] value' },
   { file: 'ChatComposer.jsx', literal: 'rgba(15,15,15,0.05)', count: 1, why: 'the flat composer shadow, the same as --shadow-pop\'s first layer' },
   { file: 'ChatMessages.jsx', literal: '#b42318', count: 3, why: 'the chosen next-step chip\'s red (border, tint, icon); predates this check' },

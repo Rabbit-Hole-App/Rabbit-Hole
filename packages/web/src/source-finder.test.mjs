@@ -17,7 +17,7 @@ test('openSourceFinder hands the host the source, the trimmed query and the orig
   assert.equal(settled, null, 'open while the finder is open');
   close({ added: true, blockId: 'b1' });
   await finder;
-  assert.deepEqual(settled, { added: true }, 'normalised to { added }');
+  assert.deepEqual(settled, { added: true, blockId: 'b1' }, 'normalised to { added, blockId }: the added card, kept as a Chat command output (UI changes brief 5)');
   off();
 });
 

@@ -92,6 +92,18 @@ export const materialCommands = () => commandsFor('learn').filter(command => ava
 // Whether a word names a Learn command (the composer's command pill takes only these; typed-only /paper too).
 export const isLearnCommand = name => commandsFor('learn', { hidden: true }).some(command => command.name === name);
 
+// Whether runLearnCommand answers this line with { prompt }: a chat-only command whose words go on to the chat route, which saves
+// them as the turn's user message. Every other line is saved by the Chat itself when it runs (ask.jsx recordCommand), so a
+// typed command is one user message either way (UI changes brief 1). learn-slash.test.mjs holds this to runLearnCommand.
+const RUN_ACTIONS = new Set(['cad', 'open_tool_catalog', 'open_source', 'insert_notebook', 'insert_whiteboard', 'insert_paper', 'dive', 'open_sources', 'motion']);
+export function answersInChat(text, { motionDev } = {}) {
+  const resolved = resolveCommand(text, 'learn', { motionDev });
+  if (!resolved?.command || resolved.command.name === 'image') return false;
+  let request;
+  try { request = learnRequest(resolved.command.name, { args: resolved.arg }); } catch { return false; }
+  return !RUN_ACTIONS.has(request.action) && !request.allowedPrimitives && !!request.prompt;
+}
+
 export const parseSlash = text => {
   const match = text.trim().match(/^\/([\w-]+)(?:\s+([\s\S]*))?$/);
   return match ? { name: match[1].toLowerCase(), args: (match[2] || '').trim() } : null;

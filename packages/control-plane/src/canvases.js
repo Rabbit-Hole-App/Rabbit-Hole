@@ -150,6 +150,8 @@ export function canvasRoute(url) {
 const CHAT_MESSAGES = /^\/api\/learn\/chat\/threads\/([^/]+)\/messages$/;
 const CHAT_ACTIVE = '/api/learn/chat/active';
 const CHAT_ID = /^(?:canvaschat|repochat)-[0-9a-f-]{36}$/, CLIENT_ID = /^[A-Za-z0-9_-]{1,80}$/, CONTENT = 100000;
+// A / command line the Chat box sent (UI changes brief 1): saved as the user's message, its command named as an Ask turn's is.
+const COMMAND = /^[a-z0-9][a-z0-9-]{0,39}$/;
 const noChatTables = error => /no such table/i.test(error?.message || '');
 const unavailable = () => json({ error: 'Saving chat is not available here yet' }, 503);
 async function jsonObject(req) {
@@ -185,7 +187,7 @@ async function canvasThread(db, user, id, app) {
 // so the first POST creates the thread and a retried create never makes a second one.
 async function saveChatMessage(req, env, user, id) {
   const db = env.LEARN_DB, body = await jsonObject(req);
-  const { app, client_id: clientId, role, content, title } = body, status = body.status ?? 'done', mode = body.mode ?? 'auto';
+  const { app, client_id: clientId, role, content, title } = body, status = body.status ?? 'done', mode = body.mode ?? 'auto', command = body.command ?? null;
   if (!CHAT_ID.test(id)) throw Error('Chat id must be canvaschat- or repochat- and a UUID');
   if (typeof clientId !== 'string' || !CLIENT_ID.test(clientId)) throw Error('client_id must be 1-80 letters, digits, _ or -');
   if (!['user', 'assistant'].includes(role)) throw Error('role must be user or assistant');
@@ -195,6 +197,7 @@ async function saveChatMessage(req, env, user, id) {
   if (typeof content !== 'string' || content.length > CONTENT) throw Error(`content must be text of at most ${CONTENT} characters`);
   if (!content.trim() && status !== 'interrupted') throw Error('content is required');
   if (title != null && typeof title !== 'string') throw Error('title must be text');
+  if (command !== null && (role !== 'user' || typeof command !== 'string' || !COMMAND.test(command))) throw Error('command must be a Learn command name, on a user message');
   const refused = await canvasRefusal(env, user, app); if (refused) return refused;
   const thread = await canvasThread(db, user, id, app); if (thread instanceof Response) return thread;
   // ponytail: select-then-insert, so two truly concurrent POSTs of one client_id can both insert. A unique index on
@@ -204,7 +207,7 @@ async function saveChatMessage(req, env, user, id) {
   try { row = await saved(); } catch (error) { if (noChatTables(error)) return unavailable(); throw error; } // before any write: 0019 missing creates nothing
   if (row) return json({ threadId: id, messageId: String(row.message_id), clientId, duplicate: true });
   // The meta shapes chat-modes.js stores (recordUserTurn, recordAnswer), plus the clientId a retry is found by.
-  const meta = role === 'user' ? { mode, command: null, contextRefs: [], clientId }
+  const meta = role === 'user' ? { mode, command, contextRefs: [], clientId }
     : status === 'interrupted' ? { status, mode, clientId }
     : { version: 1, mode, kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, source: 'tutor', clientId };
   const at = new Date().toISOString();

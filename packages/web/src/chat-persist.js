@@ -2,7 +2,7 @@ import { api } from './api.js';
 
 // Chat persistence across canvases and Rabbit Holes (owner brief 2026-10-14). The one module that calls Lane B's routes,
 // so a change to their shape is an edit here only:
-//   POST /api/learn/chat/threads/<threadId>/messages { app, client_id, role, content, status?, mode?, title? }
+//   POST /api/learn/chat/threads/<threadId>/messages { app, client_id, role, content, status?, mode?, title?, command? }
 //     -> { threadId, messageId, clientId, duplicate }. An unknown canvaschat- id is created for this user and canvas; the
 //     same client_id in the same thread again writes nothing (duplicate). 404/409: not this user's canvas or thread.
 //   GET /api/learn/chat/active?app=[&slot=toc] -> { threadId | null };  PUT /api/learn/chat/active { app, thread_id, slot? }.
@@ -50,12 +50,14 @@ export function saveMessage({ threadId, ...body }, call = api) {
 // once more first. Each message has its own client id, `<turnId>-u` and `<turnId>-a`.
 export function turnSaver({ app, threadId, turnId, mode = 'auto', title = null, onAsked = null, call = api, waits = SAVE_WAITS }) {
   const post = (suffix, body) => retried(() => saveMessage({ threadId, app, client_id: `${turnId}-${suffix}`, mode, ...body }, call), waits);
-  let question = '', asked = null;
-  const ask = () => post('u', { role: 'user', content: question, ...(title ? { title } : {}) });
+  let question = '', asked = null, sent = {};
+  const ask = () => post('u', { role: 'user', content: question, ...sent, ...(title ? { title } : {}) });
   return {
     app, threadId,
-    user(content) {
+    // command: the / command a saved command line ran (UI changes brief 1), kept on the message as an Ask turn's is.
+    user(content, { command = null } = {}) {
       question = content;
+      if (command) sent = { command };
       asked = ask();
       asked.then(() => onAsked?.(), error => console.info('[chat] question not saved:', error.message));
       return asked;

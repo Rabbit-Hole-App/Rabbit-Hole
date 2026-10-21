@@ -80,7 +80,7 @@ test('wiring: the canvas API reads live; the page builds through the helper; Ask
   assert.match(ask, /const canvasContext = canvasOps\?\.canvasContext\?\.\(\{ request: message, \.\.\.canvasArgs, inspected: imageId && imageObject \? \[imageObject\] : \[\] \}\);/);
   assert.match(ask, /\.\.\.\(canvasContext \? \{ canvas_context: canvasContext \} : \{\}\),\s+\};/);
   assert.match(ask, /\.\.\.\(sentRefs\.length \? \{ refs: sentRefs \} : \{\}\)/);
-  assert.match(ask, /begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\] \}\)/);
+  assert.match(ask, /begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\], onCard: cardSink \}\)/); // onCard: the turn's cards kept under its question (UI changes brief 5)
 });
 
 test('the This canvas chip: its text stays; title and data-canvas-coverage are the package summary, rebuilt from the draft on hover or focus', () => {
