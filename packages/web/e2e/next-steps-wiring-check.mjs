@@ -47,6 +47,7 @@ const sharedBefore = await ownerBoard();
 // ---- the browser: every model route answered or refused here ----
 const CLICK_REPLY = 'A warm room speeds the yeast up, so the gas comes faster.';
 const OPENING_REPLY = 'Here is where the carried question goes first.';
+const SEED_QUESTION = 'Why does bread dough rise?', SEED_REPLY = 'Yeast makes gas and gluten traps it.';
 const ANSWER = 'The mask is built once in `CausalSelfAttention.__init__`:\n\n```python\nself.register_buffer("bias", torch.tril(torch.ones(T, T)))\n```\n\nSources: model.py:39-41';
 const plans = [], handoffs = [], refused = [];
 const plan = text => ({ strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text }] });
@@ -59,6 +60,8 @@ const contextFor = async who => {
     const body = route.request().postDataJSON();
     plans.push(body);
     const intent = body?.context?.learner_intent || {};
+    // Owner 3a: hooks follow a learner's own finished turn; this typed question is that turn on the owned canvas.
+    if (intent.raw_user_message === SEED_QUESTION) return route.fulfill({ json: plan(SEED_REPLY) });
     // A typed question on the project canvas hands off to the repository reader; a hook (clicked or carried) gets words.
     if (intent.kind === 'next_step') return route.fulfill({ json: plan(plans.filter(p => p.context?.learner_intent?.kind === 'next_step').length === 1 ? CLICK_REPLY : OPENING_REPLY) });
     return route.fulfill({ json: { ...plan('Let me read the source for that.'), actions: [{ type: 'respond_text', text: 'Let me read the source for that.' }, { type: 'handoff', capability: 'repository_context', request: 'Where is the causal mask built in model.py?' }] } });
@@ -95,9 +98,25 @@ const chatReplies = text => page.locator('[data-chat-pane] [data-answer]').filte
 const replyCards = text => page.locator('[data-block-id]').filter({ hasText: text });
 
 // ---- owned canvas ----
+// Owner decision 3a (2026-10-20, Tutor workflow): hooks are proactive Tutor suggestions - only in selected, enabled, unpaused
+// Tutor, never on open, and refreshed only after a meaningful learner change. The owner picks Tutor (its saved canvas control),
+// opening asks nothing, and the learner's own finished turn brings the first set.
+{
+  const { body } = await api(owner, `/api/learn/coaching?app=${BREAD}&board=main`);
+  assert.equal((await api(owner, '/api/learn/coaching', { method: 'POST', body: JSON.stringify({ app: BREAD, board: 'main', actionId: `tutor-${run}`, expectedRevision: body.state.revision, action: 'save_controls', payload: { event: { type: 'select_mode', mode: 'tutor' } } }) })).status, 200);
+}
 ({ page } = await contextFor(owner));
 watchSets(page);
 await page.goto(`${BASE}/apps/${BREAD}`);
+await composer().waitFor({ timeout: 60000 });
+await page.waitForTimeout(4000); // past the 1200 ms hook debounce
+await check('0 opening a canvas in Tutor On asks for no hooks (owner 3a); the learner\'s finished turn brings the first set', async () => {
+  assert.equal(sets.length, 0, 'no set on open');
+  assert.equal(await page.locator('[data-next-steps]').count(), 0);
+  await composer().fill(SEED_QUESTION);
+  await composer().press('Enter');
+  await chatReplies(SEED_REPLY).first().waitFor({ timeout: 30000 });
+});
 await ready();
 await check('1 owned canvas: the card shows exactly the 3 hooks of the set, verbatim and in order', async () => {
   const set = last('/api/learn/tutor/next-steps');
@@ -217,8 +236,15 @@ const sharedClicked = (await hooks())[0];
 const beforeHole = plans.length;
 await page.locator('[data-next-step]').first().click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
+// Owner 4a with the contract's guided entry (start_guided, then hole_opening_turn only where coaching may run): the viewer's new
+// hole starts in Auto, so the carried hook waits above the composer and is sent once, on the viewer's press.
+await page.locator('[data-tutor-opening-waiting]').waitFor({ timeout: 60000 });
+await page.waitForTimeout(1500);
+assert.equal(plans.slice(beforeHole).filter(p => p.context?.learner_intent?.kind === 'next_step').length, 0, 'nothing sent before the press');
+assert.ok((await page.locator('[data-tutor-opening-waiting]').innerText()).includes(`Continue with: ${sharedClicked}`));
+await page.locator('[data-tutor-opening-waiting]').getByRole('button', { name: 'Continue' }).click();
 await chatReplies(OPENING_REPLY).first().waitFor({ timeout: 60000 });
-await check('10 a shared hook starts the viewer\'s private hole, whose first Tutor turn opens on that hook once, as the step', async () => {
+await check('10 a shared hook starts the viewer\'s private hole, whose first Tutor turn opens on that hook once, as the step, on the viewer\'s press', async () => {
   const opening = plans.slice(beforeHole).filter(p => p.context?.learner_intent?.kind === 'next_step');
   assert.equal(opening.length, 1);
   assert.deepEqual([opening[0].context.learner_intent.raw_user_message, opening[0].context.learner_intent.selected_next_step.hook], ['', sharedClicked]);
@@ -234,6 +260,7 @@ await check('11 the carried hook is taken once: a reload of the hole sends no se
   await page.locator('[data-chat-pane]').waitFor({ timeout: 60000 });
   await page.waitForTimeout(5000);
   assert.equal(plans.slice(beforeHole).filter(p => p.context?.learner_intent?.kind === 'next_step').length, 1);
+  assert.equal(await page.locator('[data-tutor-opening-waiting]').count(), 0, 'and no waiting opening (owner 4a)');
 });
 await page.context().close();
 
@@ -261,6 +288,7 @@ await ready();
 const lateClicked = (await hooks())[1];
 await page.locator('[data-next-step]').nth(1).click();
 await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 30000 });
+await page.locator('[data-tutor-opening-waiting]').getByRole('button', { name: 'Continue' }).click({ timeout: 60000 }); // owner 4a, as in 10
 await stepChips(lateClicked).first().waitFor({ timeout: 60000 });
 await chatReplies(OPENING_REPLY).first().waitFor({ timeout: 60000 });
 await check('13 once signed in, the same page shows the hooks, and one starts the hole and opens it, once', async () => {
@@ -277,5 +305,5 @@ await check('14 no provider request (tripwire) and no page errors', async () => 
 });
 await browser.close();
 console.log(`provider tripwire hits: ${await tripwire(BASE) + await tripwire(CP)}`);
-console.log(`${results.length}/14 checks passed`);
-process.exit(results.length === 14 ? 0 : 1);
+console.log(`${results.length}/15 checks passed`);
+process.exit(results.length === 15 ? 0 : 1);

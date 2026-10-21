@@ -150,6 +150,7 @@ if (LIVE) {
     await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
     await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
     const hole = new URL(page.url()).searchParams.get('hole');
+    await page.locator('[data-tutor-opening-waiting]').getByRole('button', { name: 'Ask this' }).click({ timeout: 15000 }); // owner 4a, as below
     assert.equal((await opening).status(), 200, 'the hole opening turn answered');
     await page.getByText('Thinking...').first().waitFor({ state: 'detached', timeout: 30000 }).catch(() => {});
     await shot('live-07-hole-opening');
@@ -244,6 +245,9 @@ nextPlan = sent => {
 await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
 await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
 const hole = new URL(page.url()).searchParams.get('hole');
+// Owner decision 4a (2026-10-20, Tutor workflow): a guided entry opens with a turn only where coaching may run (selected,
+// enabled Tutor); this board is in Auto, so the opening waits above the composer and goes on the learner's press.
+await page.locator('[data-tutor-opening-waiting]').getByRole('button', { name: 'Ask this' }).click({ timeout: 15000 });
 await waitPlan(6);
 await page.getByText('In this hole: softmax').first().waitFor();
 await shot('07-gt-d1-hole-opening');

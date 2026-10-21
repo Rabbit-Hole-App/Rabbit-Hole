@@ -5,6 +5,13 @@ step is the /dive implementation. Amended the same day: R-10 now allows a topic 
 originating card (the `pending_dive` wait is gone), 6.1 locks the origin identity contract, and §3
 records the real JEV and larger-evaluator code paths.
 
+> **Superseded in part (owner, 2026-10-20; Tutor workflow decision 5a: durable learner state replaces the session-only
+> evidence decision).**
+> - §2's storage rule and the deferred cross-session persistence no longer apply.
+> - §3: a set of confident checks that contradict each other is not settled; it reaches the escalation decision, and if
+>   escalation is unavailable or refused the evidence stays Needs review (7a).
+> - §6.5's open question on evidence after a branch is deleted is decided in `tutor-progress-implementation.md` (owner Q2).
+
 Scope: the first locally usable Tutor on NanoGPT Attention, and the `/dive` primitive it needs. The
 learner can:
 - start on an Attention card and ask something;
