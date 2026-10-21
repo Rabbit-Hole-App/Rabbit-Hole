@@ -169,7 +169,9 @@ composer.
     (LearningBlocks ThreeDBody), on `public/lesson-assets/slash-3d-frustum.glb`:
     the scene card's own sample (a camera frustum, its frame, a cube and a ray,
     with the 3 s sweep) built offline by `scripts/make-slash-3d-glb.mjs`
-    (deterministic; slash-sheet.test.mjs rebuilds and compares it). The model
+    (deterministic; slash-sheet.test.mjs rebuilds and compares it). Its e.g.
+    line and the card's brief name what that model draws (a camera frustum, a
+    cube and a ray; perspective projection), never another subject. The model
     shows at once; Interact and Fit view sit in the toolbar above the card's
     top right (CadViewerTools), orbit and zoom wait for Interact so the wheel
     scrolls the window until then, and Esc ends the interaction without

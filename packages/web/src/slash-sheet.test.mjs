@@ -100,6 +100,12 @@ test('/3d shows its scene card ready on a committed, verified model, never the p
   assert.ok(file.length < 64 * 1024, `${file.length} bytes`);
   const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.length);
   assert.deepEqual(inspectGlb(buffer).nodes.map(node => node.name), ['frustum', 'frame', 'cube', 'ray']);
+  // The e.g. line asks for what this model shows (as /animate's asks for the softmax clip): the sample's concept and every
+  // object it draws but the coordinate frame's axes, never another subject (it once said the solar system).
+  // The card's own title and brief say the same.
+  const line = EXAMPLES['3d'].toLowerCase(), brief = sample.brief.toLowerCase();
+  for (const word of ['frustum', 'cube', 'ray']) assert.ok(line.includes(word) && brief.includes(word), `the /3d example and the card's brief name ${word}: ${EXAMPLES['3d']} / ${sample.brief}`);
+  assert.ok(line.includes('perspective projection'), EXAMPLES['3d']);
   const gltf = await new GLTFLoader().parseAsync(buffer, '');
   const drawn = [];
   gltf.scene.traverse(object => { if (object.isMesh || object.isLine) drawn.push(object.isLineSegments ? 'lines' : 'mesh'); });

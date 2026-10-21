@@ -3,7 +3,8 @@
 // frustum picture. LOCAL stack only. Every model and job route is counted (and a non-GET one aborted); the window must make none.
 // In light and in dark:
 //   1. on open the model renders: a loading line, then a live viewer with drawn pixels; no picture; Interact and Fit view sit in
-//      a toolbar outside the card, above its top right, with no control in the viewer; the Interact pill reads Interact;
+//      a toolbar outside the card, above its top right, with no control in the viewer; the Interact pill reads Interact; the
+//      e.g. line, the card's title and brief and the committed model are one subject (the frustum, cube and ray it draws);
 //   2. before Interact the wheel over the model scrolls the window's preview and leaves the camera where it was;
 //   3. Interact: a drag orbits and the wheel zooms (the viewer's pixels change), and the preview does not scroll;
 //   4. Fit view frames the model as it opened (the opening pixels again);
@@ -15,7 +16,8 @@
 //   9. a real /3d card on the canvas - /api/learn/artifact and the scene job answered in the browser with the same GLB - has the
 //      preview's card width, body size and DOM (the same ThreeDBody structure and three.js canvas);
 //  10. no page errors, and no model or job request from the window (counted), none of the canvas's stubbed ones reaching the server.
-// Before this change step 1 fails: /3d shows img[data-slash-illustration] (slash-3d-frustum.svg) and no viewer.
+// Before this change step 1 fails: /3d shows img[data-slash-illustration] (slash-3d-frustum.svg) and no viewer, and its e.g.
+// line asked for the solar system while the model shown is the camera frustum sample.
 // Usage: BASE=http://127.0.0.1:9271 SMALL_CP=http://127.0.0.1:9273 VARS=C:/s/toc-ui3d/.dev.vars node e2e/slash-3d-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -32,6 +34,8 @@ const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `slash3d-${run}@example.com`, secret }) })).json();
 const canvas = await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: `small_session=${session}`, origin: BASE }, body: JSON.stringify({ title: `Slash 3D ${run}` }) })).json();
 const GLB = readFileSync(new URL('../public/lesson-assets/slash-3d-frustum.glb', import.meta.url));
+// What the committed model draws: its glTF node names (the JSON chunk follows the 12-byte header and the chunk's own 8).
+const DRAWN = JSON.parse(GLB.subarray(20, 20 + GLB.readUInt32LE(12)).toString()).nodes.map(node => node.name).filter(name => name !== 'frame');
 
 // Model-capable and job routes: counted for every method; a non-GET one is aborted unless this check answers it.
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact|cad\/jobs|motion))/;
@@ -161,6 +165,11 @@ for (const theme of ['light', 'dark']) {
     await card.waitFor();
     await live(viewer);
     assert.equal(await sheet.locator('img[data-slash-illustration]').count(), 0, 'no picture');
+    // One subject: the e.g. line and the card's own text name the concept and every object the model draws, and nothing else.
+    assert.deepEqual(DRAWN, ['frustum', 'cube', 'ray'], 'the objects the committed model draws');
+    const example = (await sheet.locator('section[aria-label="/3d preview"] code').first().innerText()).toLowerCase(), text = (await card.innerText()).toLowerCase();
+    for (const word of ['perspective projection', ...DRAWN]) assert.ok(example.includes(word) && text.includes(word), `the e.g. line and the card both name ${word}: ${example} / ${text}`);
+    assert.doesNotMatch(await sheet.innerText(), /solar|planet/i, 'the window names a subject the model does not show');
     assert.equal(await viewer.locator('canvas[data-engine^="three.js"]').count(), 1, 'the three.js renderer canvas');
     assert.equal(await card.getByText('3D model', { exact: true }).count(), 1, 'the scene card kicker');
     // The toolbar is outside the card and above it at its right; nothing inside the viewer is a control.

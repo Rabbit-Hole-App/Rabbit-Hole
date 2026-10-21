@@ -47,8 +47,9 @@ export const SAMPLES = {
       operation: { op: 'motion_request', request: '/motion 25s explain softmax', location: { concept: 'softmax' } }, motion: { duration_seconds: 25, source_refs: [] } },
   },
   // A finished /3d request: the scene card's own sample (Perspective projection) in its ready state. Its model is that
-  // sample's scene built offline (scripts/make-slash-3d-glb.mjs), committed and served by this origin: no job, no model.
-  '3d': { scene: { status: 'ready', modelUrl: '/lesson-assets/slash-3d-frustum.glb' } },
+  // sample's scene built offline (scripts/make-slash-3d-glb.mjs), committed and served by this origin: no job, no model. Its
+  // brief says what that model shows (the sample's operation caption), as the e.g. line (learn-slash.js) asks for it.
+  '3d': { scene: { status: 'ready', modelUrl: '/lesson-assets/slash-3d-frustum.glb', brief: 'A camera frustum, a cube inside it, and a ray sweeping across.' } },
 };
 
 // Paid media with no committed finished file: a picture of the finished card, labelled as one (public/lesson-assets).
