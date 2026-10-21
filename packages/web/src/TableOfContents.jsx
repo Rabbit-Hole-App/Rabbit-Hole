@@ -151,8 +151,9 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
           </div>
         )}
       </div>
-      {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 truncate text-xs text-ink-3">{subtitle}</p>}
-      {goal && <p data-toc-goal title={goal} className="mb-4 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
+      {/* shrink-0: overflow-hidden lines in this flex column otherwise collapse to nothing once the contents overflow. */}
+      {subtitle && <p data-toc-subtitle className="-mt-2 mb-2 shrink-0 truncate text-xs text-ink-3">{subtitle}</p>}
+      {goal && <p data-toc-goal title={goal} className="mb-4 shrink-0 line-clamp-2 text-[13px] leading-normal break-words text-ink-2"><span className="font-medium text-ink">Goal</span> · {goal}</p>}
       {shown && <ProposalCard proposal={shown} outline={outline} planRevision={planRevision} canvasApi={canvasApi} onDone={() => onProposal?.(null)} />}
       {list(tree, 0)}
       {plan?.steps.length > 0 && (

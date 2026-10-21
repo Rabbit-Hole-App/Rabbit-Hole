@@ -247,6 +247,8 @@ await check('6 removing the current step\'s heading keeps its cards and the save
   const after = await coaching();
   assert.deepEqual([after.activeActivityId, after.activities.length], [before.activeActivityId, before.activities.length], 'the saved task is kept');
   assert.equal((await progressOf()).criteria.find(c => c.criterionId === s1Criterion.criterionId).status, 'practising', 'its evidence is kept');
+  // Planned steps, Progress and the TOC conversation overflow the panel here: the goal line must keep its height.
+  assert.ok((await contents().locator('[data-toc-goal]').boundingBox())?.height > 10, 'the goal line is not collapsed by the overflow');
   await shot('06-section-removed');
   await open();
   await page.waitForTimeout(5000);
