@@ -10,11 +10,11 @@
 // store is the adapter onto the coaching tables (learn 0025, lane T1) and the attempt tables (learn 0026, lane T3). Each
 // method reads only the actor's own rows and throws when a read fails:
 //   goal(env, actor, goalId)          -> {goalId, org, userId, app, board, scopeVersion, revision, updatedAt} | null
-//   criteria(env, actor, goalId, sv)  -> Criterion[] of that scope version in display order, or null if it never existed.
+//   criteria(env, actor, goalId, sv)  -> Criterion[] of that scope version in display order ([] without rows).
 //                                        A criterion may carry requiresTransfer: true (Q1).
 //   evidence(env, actor, goalId)      -> { assessments: [{assessmentId, attemptId, status, updatedAt}],
-//                                          observations: Observation[], one per evidence link of this goal (the link's
-//                                            criterion, version and validity; assessmentStatus is its assessment's status),
+//                                          observations: Observation[] of this goal (assessmentStatus and
+//                                            supersedesAssessmentId come from its assessment),
 //                                          attempts: [{attemptId, submittedAt, sourceRefs, excerpt?}] }
 // canReadSource(ref) -> boolean is the reader's access to one SourceRef now, asked on every read.
 import { CRITERION_STATUS, DERIVATION_VERSION, deriveCriterionSummary, validateCoachingRecord } from '../../web/src/learn-coaching-contract.js';
@@ -44,7 +44,7 @@ export const progressStore = {
       WHERE c.goal_id = ? AND c.scope_version = ? AND g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ? ORDER BY c.position`).bind(goalId, scopeVersion, ...scoped(actor)).all();
     return results.map(r => ({
       criterionId: r.criterion_id, version: r.version, label: r.label, requirement: r.requirement, requiresReasoning: r.requires_reasoning === 1,
-      rubricVersion: r.rubric_version, ...(r.skill_key ? { skillKey: r.skill_key } : {}),
+      requiresTransfer: r.requires_transfer === 1, rubricVersion: r.rubric_version, ...(r.skill_key ? { skillKey: r.skill_key } : {}),
     }));
   },
   async evidence(env, actor, goalId) {
@@ -87,16 +87,6 @@ const canvasVisible = async (env, actor) => !!(await env.LEARN_DB
 // An identity for the summary's inputs (FNV-1a): a progress question names it, and a different value means newer evidence.
 const revisionOf = text => { let h = 0x811c9dc5; for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0; return h; };
 
-// Q1: a criterion whose rubric requires transfer stays practising until supporting evidence shows the idea applied in a
-// new situation; its level then comes from that applied evidence alone.
-const shown = s => s.status.startsWith('demonstrated') || s.reason === 'help_not_recorded';
-function summarize(criterion, observations) {
-  const s = deriveCriterionSummary({ criterion, observations });
-  if (criterion.requiresTransfer !== true || !shown(s)) return s;
-  const t = deriveCriterionSummary({ criterion, observations: observations.filter(o => o.application === 'applied') });
-  return shown(t) ? { ...s, status: t.status, reason: t.reason, evidenceIds: t.evidenceIds } : { ...s, status: 'practising', reason: 'transfer_not_shown' };
-}
-
 /** @returns {Promise<object>} ProgressView: goalRef, summaryRevision, derivationVersion, criteria, counts, pendingAssessments, savedAt */
 export async function readProgress(env, actor, { goalId, scopeVersion } = {}, { store = progressStore, canReadSource = async () => false } = {}) {
   if (!validateCoachingRecord('ActorScope', actor).ok) throw new ProgressError('invalid_actor', 400);
@@ -138,7 +128,7 @@ export async function readProgress(env, actor, { goalId, scopeVersion } = {}, { 
   const byStatus = Object.fromEntries(CRITERION_STATUS.map(s => [s, 0]));
   const rows = [];
   for (const criterion of criteria) {
-    const s = summarize(criterion, confirmed);
+    const s = deriveCriterionSummary({ criterion, observations: confirmed }); // with the contract's Q1 transfer gate
     byStatus[s.status] += 1;
     const seen = new Set();
     const history = confirmed.filter(o => o.criterionId === criterion.criterionId && o.criterionVersion === criterion.version && !seen.has(o.observationId) && seen.add(o.observationId))

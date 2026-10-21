@@ -312,7 +312,7 @@ const MIGRATION_0026 = new URL('../learn-migrations/0026-tutor-attempts.sql', im
 const HAS_0026 = existsSync(MIGRATION_0026);
 const KNN_CRITERIA = [
   { criterionId: 'knn-vote', label: 'Explain the majority vote', requirement: 'Explain how the neighbours decide the class.', requiresReasoning: true },
-  { criterionId: 'knn-k', label: 'Choose k', requirement: 'Say how k changes the vote.', requiresReasoning: false },
+  { criterionId: 'knn-k', label: 'Choose k', requirement: 'Say how k changes the vote.', requiresReasoning: false, requiresTransfer: true },
 ];
 // A goal made through the coaching store, as the browser makes one.
 const coachedGoal = async env => (await applyCoachingAction(env, ANA, { actionId: 'act-knn', expectedRevision: 0, action: 'create_goal', payload: { label: 'Predict a class using KNN', criteria: KNN_CRITERIA } }))
@@ -325,8 +325,8 @@ test('the D1 store reads learn 0025 goals and criteria for their learner only', 
     { goalId: goal.goalId, org: 'team-ws', userId: ANA.userId, app: APP, board: BOARD, scopeVersion: 1, revision: goal.revision, updatedAt: goal.updatedAt });
   const alt = { ...ANA, userId: PEOPLE.anaAlt.user_id };
   assert.equal(await progressStore.goal(env, alt, goal.goalId), null);
-  assert.deepEqual((await progressStore.criteria(env, ANA, goal.goalId, 1)).map(c => [c.criterionId, c.version, c.label, c.requiresReasoning]),
-    [['knn-vote', 1, 'Explain the majority vote', true], ['knn-k', 1, 'Choose k', false]]);
+  assert.deepEqual((await progressStore.criteria(env, ANA, goal.goalId, 1)).map(c => [c.criterionId, c.version, c.label, c.requiresReasoning, c.requiresTransfer]),
+    [['knn-vote', 1, 'Explain the majority vote', true, false], ['knn-k', 1, 'Choose k', false, true]]);
   assert.deepEqual(await progressStore.criteria(env, alt, goal.goalId, 1), []);
   // Without learn 0026 the evidence read fails, and that is an outage, not an empty history.
   if (!HAS_0026) assert.deepEqual((await call('ana', { goalId: goal.goalId }, null)).body, { error: 'progress_unavailable' });
