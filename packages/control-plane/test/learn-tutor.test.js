@@ -434,14 +434,45 @@ test('plan: an unknown fast model name tiers nothing', async t => {
 // Beta hardening item 5a (owner 2026-10-09): an idea JEV is fully confident the learner both stated and contradicted is contested.
 // It never stands as a pass (so never an uncontested transfer pass or understood): it is a fail marked contested, and the escalation
 // policy sends the contradiction to the larger evaluator even when every check is confident.
+// Owner decision 7a (2026-10-20) replaces "a settled contested fail": the contested fail stays unsettled and the evaluation
+// uncertain until the escalation decision resolves it; the uncontested idea still settles.
 test('one idea confidently stated and contradicted is contested, never a settled pass', () => {
   const answers = ownerAnswers({ c0_idea0: 1, c0_contra0: 1, c0_idea1: 1, c0_contra1: 0, c0_transfer: 0.95 });
   const out = evaluationFrom(OWNER, answers, T, 'jev');
-  assert.deepEqual(out.events.map(e => [e.result, e.idea, e.kind, e.settled, e.contested === true]), [['pass', 1, 'demonstrated_in_transfer', true, false], ['fail', 0, null, true, true]]);
+  assert.equal(out.status, 'uncertain', '7a: a contested idea is never settled by one evaluator');
+  assert.deepEqual(out.events.map(e => [e.result, e.idea, e.kind, e.settled, e.contested === true]), [['pass', 1, 'demonstrated_in_transfer', true, false], ['fail', 0, null, false, true]]);
   assert.notEqual(stateAfter(out.events), 'understood', 'a contested idea is never covered');
   assert.deepEqual(escalation(OWNER, answers, T), { escalate: true, reason: 'contradiction', uncertain: [] }, 'every check confident: still the larger evaluator');
   const two = { ...OWNER, claims: [OWNER.claims[0], { ...OWNER.claims[0], id: 'softmax/y', misconceptions: [] }] };
   const mixed = { ...answers, c1_idea0: 0.5, c1_contra0: 0, c1_idea1: 0, c1_contra1: 0, c1_transfer: 0 };
   assert.equal(escalation(two, mixed, T).reason, 'contradiction', 'an unsure check on another claim does not hide it');
   assert.deepEqual(escalation(OWNER, ownerAnswers({ c0_idea1: 1 }), T), { escalate: false, reason: 'settled', uncertain: [] }, 'no contradiction: settled as before');
+});
+
+// Owner decision 7a (2026-10-20; Tutor workflow Task 06): a confident contradiction reaches the escalation decision before
+// anything settled is stored or returned. Before this fix evaluateFreeText returned any non-uncertain JEV result at once, so
+// a fully confident "stated and contradicted" idea came back settled, its contested fail settled, and the larger evaluator
+// the policy asked for was never called.
+test('evaluate (7a): a confident contradiction reaches the larger evaluator once; it never returns settled from JEV alone', async t => {
+  const resolved = '{"attempt":"yes","c0_idea0":"yes","c0_contra0":"no","c0_idea1":"yes","c0_contra1":"no","c0_mis0":"no","c0_transfer":"no"}';
+  const calls = recordFetch(t, { model: 'claude-opus-5-5', usage: { input_tokens: 700, output_tokens: 40 }, content: [{ type: 'text', text: resolved }], stop_reason: 'end_turn' });
+  const w = world(t);
+  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_contra0: 0.95 }) });
+  const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'It exponentiates, and it does not exponentiate.', spec: SPEC }, { ask })).json();
+  assert.equal(calls.length, 1, 'the escalation policy asked for the larger evaluator');
+  assert.deepEqual([result.evaluator, result.status, result.escalation.reason, result.telemetry.larger.reason], ['larger', 'settled', 'contradiction', 'contradiction']);
+});
+
+test('evaluate (7a): a refused or unavailable escalation keeps the contradiction unresolved - nothing settles, no clean pass', async t => {
+  const calls = recordFetch(t, {});
+  // Spend enforced (any SMALL_ENV but test) with no platform cap: spendTransport refuses before any provider call.
+  const w = world(t, { SMALL_ENV: 'dev' });
+  const ask = async () => ({ body: answersOf({ ...settledAnswers, c0_contra0: 0.95 }) });
+  const result = await (await w.post('/api/learn/tutor/evaluate', { app: 'canvas-0a1b2c3d', message: 'x', spec: SPEC }, { ask })).json();
+  assert.equal(calls.length, 0, 'refused before transport');
+  assert.deepEqual([result.evaluator, result.status, result.escalation.reason], ['jev', 'uncertain', 'contradiction']);
+  assert.match(result.larger_error, /paused/);
+  const contested = result.events.find(event => event.contested);
+  assert.deepEqual([contested.result, contested.idea, contested.settled], ['fail', 0, false], 'the contested idea stays unsettled');
+  assert.ok(result.events.every(event => event.claim !== SPEC.claims[0].id || event.result !== 'pass' || event.idea !== 0), 'never a pass on the contested idea');
 });

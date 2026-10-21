@@ -1,7 +1,8 @@
 // Tutor v2 Stage C: the explicit evaluator escalation policy (docs/features/tutor-architecture-v2.md).
 // Replaces "JEV uncertain -> always the larger evaluator". Pure and import-free, like learn-tutor.js.
 //   JEV error or timeout            -> no escalation; the caller stores nothing from it
-//   JEV settled                     -> no escalation
+//   JEV settled                     -> no escalation; a fully confident contradiction is not settled: it escalates (line 25),
+//                                      and evaluateFreeText consults this decision for every non-error result (owner 7a)
 //   uncertain, low consequence      -> retain JEV's events unsettled; the Tutor clarifies
 //   uncertain on a check that decides an important teaching move -> the larger evaluator:
 //     gap          a prerequisite-gap check (decides a Rabbit Hole suggestion)

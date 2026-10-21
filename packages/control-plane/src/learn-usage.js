@@ -31,6 +31,7 @@ const ROUTES = [
   [/^\/api\/learn\/(ask|selection)$/, 'ask'],
   [/^\/api\/learn\/tutor\/plan$/, 'tutor'],
   [/^\/api\/learn\/tutor\/evaluate$/, 'tutor_evaluate'],
+  [/^\/api\/learn\/tutor\/attempts(\/[A-Za-z0-9_-]+\/reassess)?$/, 'tutor_evaluate'],
   [/^\/api\/learn\/tutor\/next-steps$/, 'next_steps'],
   [/^\/api\/learn\/tutor\/handoff$/, 'handoff'],
   [/^\/api\/learn\/boards\/shared\/[^/]+\/next-steps$/, 'shared_next_steps'],
