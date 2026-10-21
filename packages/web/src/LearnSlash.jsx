@@ -90,7 +90,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
     <>
       {(notice || proposal) && (
         // A compact blue status box, as wide as its words; a finished card's notice opens that card.
-        <div data-slash-result role="status" className="mb-1.5 flex w-fit max-w-full items-start gap-2 rounded-lg border border-[#2383e2]/30 bg-[#2383e2]/[0.07] px-3 py-2 text-sm">
+        <div data-slash-result role="status" className="mb-1.5 flex w-fit max-w-full items-start gap-2 rounded-lg border border-accent/30 bg-accent/[0.07] px-3 py-2 text-sm">
           {notice?.tone === 'busy' && <Loader2 size={15} className="mt-0.5 shrink-0 animate-spin text-accent" />}
           {notice?.tone === 'question' && <CircleHelp size={15} className="mt-0.5 shrink-0 text-accent" />}
           <div className="min-w-0 flex-1">
