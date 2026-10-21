@@ -71,7 +71,7 @@ test('search sends the query to Exa scoped to the source, with a why-summary', a
     sent = JSON.parse(init.body);
     return Response.json({ results: [{ url: 'https://en.wikipedia.org/wiki/Backpropagation', title: 'Backpropagation', summary: 'The algorithm itself.' }] });
   };
-  const body = await searchCanvasSource('wikipedia', 'I want to understand backpropagation', { EXA_API_KEY: 'k' }, { fetcher, direct: async () => null });
+  const body = await searchCanvasSource('wikipedia', 'I want to understand backpropagation', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, { fetcher, direct: async () => null });
   assert.deepEqual(sent.includeDomains, ['en.wikipedia.org']);
   assert.match(sent.contents.summary.query, /I want to understand backpropagation/);
   assert.equal(body.results[0].title, 'Backpropagation');
@@ -79,7 +79,7 @@ test('search sends the query to Exa scoped to the source, with a why-summary', a
 });
 
 test('failures say what happened, in words a learner can act on', async () => {
-  const env = { EXA_API_KEY: 'k' };
+  const env = { EXA_API_KEY: 'k', SMALL_ENV: 'test' };
   const direct = async () => null;
   await assert.rejects(() => searchCanvasSource('reddit', 'x', env, { direct }), /Choose YouTube, arXiv, or Wikipedia/);
   await assert.rejects(() => searchCanvasSource('youtube', '   ', env, { direct }), /Type what you are looking for/);

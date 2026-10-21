@@ -10,7 +10,7 @@ import { askJev, JEV_TRANSPORTS } from '../src/learn-grade-jev.js';
 import { fishSpendTransport } from '../src/learn-paid-transport.js';
 import { devIdentity } from '../src/dev-forwarding.js';
 import { withUsage, noteUsageIdentity, beginAttempt, settleAttempt, finishAction, finishWithResponse, usageTotals, usageByFeature, usageFeature, toMicros,
-  periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded } from '../src/learn-usage.js';
+  periodOf, periodReset, recordAdjustment, payerOf, usageContext, FEATURES, recordMedia, forwardUsagePayer, usageFromForwarded, withSystemUsage } from '../src/learn-usage.js';
 import { imageEstimate, EXA_SEARCH_ESTIMATE, TRANSCRIBE_ESTIMATE } from '../src/learn-usage-estimates.js';
 import { searchYouTube } from '../src/learn-youtube.js';
 import { searchCanvasSource } from '../src/learn-search.js';
@@ -30,7 +30,10 @@ function database(t, files = [LEDGER, ACCOUNTING], { fail = null } = {}) {
   for (const file of files) sqlite.exec(file);
   const check = text => { if (fail && fail.test(text)) throw new Error('synthetic accounting outage'); };
   const LEARN_DB = { prepare: text => { check(text); let args = []; const statement = sqlite.prepare(text); return { bind(...values) { args = values; return this; },
-    first: async () => statement.get(...args) || null, all: async () => ({ results: statement.all(...args) }), run: async () => ({ meta: { changes: statement.run(...args).changes } }) }; } };
+    first: async () => statement.get(...args) || null, all: async () => ({ results: statement.all(...args) }), run: async () => ({ meta: { changes: statement.run(...args).changes } }),
+    runNow: () => ({ meta: { changes: statement.run(...args).changes } }) }; },
+    // D1's batch: one transaction, all or nothing.
+    batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(statement => statement.runNow()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   return { sqlite, LEARN_DB };
 }
 const body = { max_tokens: 200, messages: [{ role: 'user', content: 'Synthetic question.' }] };
@@ -55,17 +58,19 @@ test('0022 is additive, re-runnable, DDL only and exactly what repository-schema
   assert.doesNotMatch(ACCOUNTING.replace(/--.*$/gm, ''), /usage_operations/, 'the platform ledger table is not touched');
 });
 
-test('the platform guard admits, refuses and settles exactly the same with and without the accounting tables', async t => {
+// Owner L12 2026-10-20 replaces Phase 1's "accounting never refuses": chargeable work needs its accounting. The platform
+// guard's own results for platform-funded work (here free practice grading) stay identical with and without the tables.
+test('the platform guard admits, refuses and settles platform-funded work exactly the same with and without the accounting tables', async t => {
   const runs = [];
   for (const files of [[LEDGER], [LEDGER, ACCOUNTING]]) {
     const { sqlite, LEARN_DB } = database(t, files);
     const bound = requestSpendBound(body, MODEL);
     const env = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: String(bound * 2.5) };
     const statuses = [];
-    statuses.push((await spendTransport(signedIn(env, 'ask'), body, MODEL, null, priced())).status);
-    statuses.push((await spendTransport(env, body, MODEL, null, async () => Response.json({ error: 'x' }, { status: 500 }))).status);
-    statuses.push((await spendTransport(signedIn(env, 'ask'), body, MODEL, null, priced(null))).status);
-    statuses.push((await spendTransport(env, body, MODEL, null, priced())).status); // the cap is reached: refused
+    statuses.push((await spendTransport(signedIn(env, 'grade'), body, MODEL, null, priced())).status);
+    statuses.push((await spendTransport(signedIn(env, 'grade'), body, MODEL, null, async () => Response.json({ error: 'x' }, { status: 500 }))).status);
+    statuses.push((await spendTransport(signedIn(env, 'grade'), body, MODEL, null, priced(null))).status);
+    statuses.push((await spendTransport(signedIn(env, 'grade'), body, MODEL, null, priced())).status); // the cap is reached: refused
     const ledger = rows(sqlite, 'usage_operations').map(({ op_id, admitted_at, deadline_at, settled_at, ...row }) => ({ ...row, op: op_id.split('-')[0] }));
     runs.push({ statuses, ledger });
   }
@@ -73,24 +78,32 @@ test('the platform guard admits, refuses and settles exactly the same with and w
   assert.deepEqual(runs[1], runs[0]);
 });
 
-test('an accounting write failure never fails the request or the ledger', async t => {
+test('an accounting outage refuses chargeable work before the provider, with a temporary reason; platform-funded work carries on', async t => {
   const { sqlite, LEARN_DB } = database(t, [LEDGER, ACCOUNTING], { fail: /usage_(actions|attempts)/ });
-  const env = signedIn({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' }, 'ask');
-  const response = await spendTransport(env, body, MODEL, null, priced());
-  assert.equal(response.status, 200);
-  assert.equal((await response.json()).content[0].text, 'Synthetic.');
-  const [operation] = rows(sqlite, 'usage_operations');
-  assert.equal(operation.status, 'settled');
-  assert.ok(operation.cost_usd > 0);
-  // A missing table (an un-migrated database) is the same: logged, never thrown.
+  let calls = 0;
+  const counted = async () => { calls++; return priced()(); };
+  const env = signedIn({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' }, 'ask');
+  const response = await spendTransport(env, body, MODEL, null, counted);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'AI is temporarily unavailable: your AI allowance cannot be checked right now. Your work is saved; try again shortly.',
+    code: 'allowance_limited', reason: 'unavailable', period: periodOf(Math.floor(Date.now() / 1000)), resetsAt: periodReset(periodOf(Math.floor(Date.now() / 1000))) });
+  assert.equal(calls, 0, 'no provider call');
+  assert.deepEqual(rows(sqlite, 'usage_operations'), [], 'nothing reserved on the platform either');
+  // An un-migrated database is the same refusal.
   const bare = database(t, [LEDGER]);
-  assert.equal((await spendTransport(signedIn({ ...env, LEARN_DB: bare.LEARN_DB }, 'ask'), body, MODEL, null, priced())).status, 200);
+  assert.equal((await spendTransport(signedIn({ ...env, LEARN_DB: bare.LEARN_DB }, 'ask'), body, MODEL, null, counted)).status, 503);
+  assert.equal(calls, 0);
+  // Free practice grading is platform-funded: its recording stays best effort and the request is answered.
+  const graded = await spendTransport(signedIn({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' }, 'grade'), body, MODEL, null, counted);
+  assert.equal(graded.status, 200);
+  assert.equal(calls, 1);
+  assert.equal(rows(sqlite, 'usage_operations')[0].status, 'settled');
   assert.equal(await beginAttempt({ LEARN_DB: bare.LEARN_DB }, { kind: 'media' }), null);
 });
 
 test('a ledgered attempt shares the op_id, reserves in micros and settles once with its provider cost', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const env = signedIn({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' }, 'ask');
+  const env = signedIn({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' }, 'ask');
   await spendTransport(env, body, MODEL, null, priced());
   const [operation] = rows(sqlite, 'usage_operations');
   const [attempt] = rows(sqlite, 'usage_attempts');
@@ -107,7 +120,7 @@ test('a ledgered attempt shares the op_id, reserves in micros and settles once w
 
 test('retries: one action per client key, each provider attempt recorded once with its own cost', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', JEV_DIRECT_KEY: 'fixture' };
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50', JEV_DIRECT_KEY: 'fixture' };
   const req = new Request('https://synthetic.test/api/learn/ask', { headers: { 'X-RH-Action-Key': 'k-0123456789abcdef' } });
   // The browser retries the same action: a second request with the same key finds the first action.
   for (let i = 0; i < 2; i++) await spendTransport(signedIn(base, 'ask', 'u-alice', { req }), body, MODEL, null, priced());
@@ -134,7 +147,7 @@ test('retries: one action per client key, each provider attempt recorded once wi
 
 test('a malformed or anonymous action key is ignored, never an error', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' };
   const keyed = key => new Request('https://synthetic.test/', { headers: { 'X-RH-Action-Key': key } });
   await spendTransport(signedIn(base, 'ask', 'u-alice', { req: keyed('short') }), body, MODEL, null, priced());
   const anonymous = withUsage(base, { feature: 'shared_ask', req: keyed('k-0123456789abcdef') });
@@ -146,7 +159,7 @@ test('a malformed or anonymous action key is ignored, never an error', async t =
 
 test('payer: anonymous public link is platform; a signed-in viewer pays on someone else\'s canvas; no context is system', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' };
   // No session: devIdentity notes none, and the boundary's own read agrees.
   const signedOut = { ...base, CONTROL_PLANE: { fetch: async () => new Response('no', { status: 401 }) } };
   const anonymous = withUsage(signedOut, { feature: 'shared_ask' });
@@ -159,14 +172,21 @@ test('payer: anonymous public link is platform; a signed-in viewer pays on someo
   await spendTransport(viewer, body, MODEL, 'owner-org', priced(), { userId: 'u-canvas-owner' });
   // Lazy: no route authenticated, so the boundary's resolver names the session user.
   await spendTransport(withUsage(base, { feature: 'board', resolveUser: async () => ({ userId: 'u-lazy', email: 'lazy@test' }) }), body, MODEL, null, priced());
-  // A resolver that fails is system, never anonymous_public; no context at all is system too.
-  await spendTransport(withUsage(base, { feature: 'shared_ask', resolveUser: async () => { throw new Error('down'); } }), body, MODEL, null, priced());
-  await spendTransport(base, body, MODEL, null, priced());
+  // A resolver that fails, or no context at all, names no payer: refused before the provider, never a free platform call
+  // (owner L12 2026-10-20; Phase 1 recorded these as system). Only code-marked system work (withSystemUsage) is platform-funded.
+  let calls = 0;
+  const counted = async () => { calls++; return priced()(); };
+  for (const env of [withUsage(base, { feature: 'shared_ask', resolveUser: async () => { throw new Error('down'); } }), base]) {
+    const refused = await spendTransport(env, body, MODEL, null, counted);
+    assert.equal(refused.status, 503);
+    assert.deepEqual([(await refused.json()).code, calls], ['allowance_limited', 0]);
+  }
+  assert.equal((await spendTransport(withSystemUsage(base), body, MODEL, null, counted)).status, 200);
+  assert.equal(calls, 1);
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.payer, a.payer_reason, a.charge_class, a.feature]), [
     [null, 'platform', 'anonymous_public', 'platform', 'shared_ask'],
     ['u-viewer', 'user', 'signed_in', 'would_charge', 'shared_ask'],
     ['u-lazy', 'user', 'signed_in', 'would_charge', 'board'],
-    [null, 'platform', 'system', 'platform', 'shared_ask'],
     [null, 'platform', 'system', 'platform', 'legacy'],
   ]);
   // A signed-out caller on a private feature is never anonymous_public, nor on shared Next Steps since the owner R3 decision
@@ -244,7 +264,7 @@ test('a ledger stream settles at the end; a cancelled stream keeps its reservati
   const { sqlite, LEARN_DB } = database(t);
   const sse = events => async () => new Response(new ReadableStream({ start(c) { for (const e of events) c.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(e)}\n\n`)); c.close(); } }), { headers: { 'content-type': 'text/event-stream' } });
   const events = [{ type: 'message_start', message: { model: MODEL, usage: { input_tokens: 10, output_tokens: 0 } } }, { type: 'message_delta', usage: { output_tokens: 7 } }, { type: 'message_stop' }];
-  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' };
   const done = signedIn(base, 'board');
   const finished = await finishWithResponse(done, await spendTransport(done, { ...body, stream: true }, MODEL, null, sse(events)));
   assert.equal(finished.headers.get('content-type'), 'text/event-stream');
@@ -277,7 +297,7 @@ test('a ledger stream settles at the end; a cancelled stream keeps its reservati
 
 test('Fish narration settles at its exact input-byte price; a failed one keeps the reservation as unknown', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const env = signedIn({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' }, 'tts');
+  const env = signedIn({ LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' }, 'tts');
   await fishSpendTransport(env, 'Hello there.', async () => new Response('mp3'));
   await fishSpendTransport(env, 'Hello there.', async () => new Response('no', { status: 500 }));
   const micros = toMicros(Math.ceil(new TextEncoder().encode('Hello there.').length * 15) / 1e6);
@@ -346,20 +366,22 @@ test('GET /api/learn/usage: signed-in only, the session user\'s month, config an
   const env = { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '50' };
   const reply = await usageFetch(req, env, as('u-alice'));
   assert.equal(reply.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await reply.json(), { enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceMicros: 50_000_000,
+  assert.deepEqual(await reply.json(), { enforced: true, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z', allowanceMicros: 50_000_000,
     usedMicros: 3000, reservedMicros: 10000, estimatedMicros: 20000, remainingMicros: 50_000_000 - 13000, unknownAttempts: 2, unknownReservedMicros: 4000,
     byFeature: [{ feature: 'ask', usedMicros: 3000, reservedMicros: 10000, unknownAttempts: 2 }] });
   assert.equal((await (await usageFetch(req, env, as('u-bob'))).json()).usedMicros, 0, 'the query parameter is not read');
   assert.equal((await usageFetch(req, env, as(null))).status, 401);
   assert.equal((await usageFetch(new Request(req, { method: 'POST' }), env, as('u-alice'))).status, 405);
-  for (const value of [undefined, '0', '-1', 'abc', '1000000']) assert.deepEqual(await (await usageFetch(req, { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: value }, as('u-alice'))).json(), { enforced: false, unavailable: 'config' });
+  for (const value of [undefined, '0', '-1', 'abc', '1000000']) assert.deepEqual(await (await usageFetch(req, { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: value }, as('u-alice'))).json(), { enforced: true, unavailable: 'config' });
+  // Enforcement is on wherever spend is enforced (owner L12 2026-10-20); a test environment says it is not.
+  assert.equal((await (await usageFetch(req, { ...env, SMALL_ENV: 'test' }, as('u-alice'))).json()).enforced, false);
   // Lowering the allowance clamps remaining at zero and keeps recorded usage (owner D3).
   const low = await (await usageFetch(req, { LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '0.005' }, as('u-alice'))).json();
   assert.deepEqual([low.allowanceMicros, low.usedMicros, low.remainingMicros], [5000, 3000, 0]);
   const bare = database(t, [LEDGER]);
   const down = await usageFetch(req, { LEARN_DB: bare.LEARN_DB, AI_MONTHLY_ALLOWANCE_USD: '50' }, as('u-alice'));
   assert.equal(down.status, 503);
-  assert.deepEqual(await down.json(), { unavailable: 'accounting' });
+  assert.deepEqual(await down.json(), { enforced: true, unavailable: 'accounting' });
 });
 
 test('adjustments are integer micros with a reason', async t => {
@@ -392,7 +414,7 @@ test('the usage context reaches the provider attempts of the Tutor, board, artif
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Mine')");
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; }, batch: async s => Promise.all(s.map(x => x.run())) };
-  const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), ANTHROPIC_API_KEY: 'fixture', TYPESAFE_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', TUTOR_PLANNER_FAST_MODEL: 'off',
+  const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), ANTHROPIC_API_KEY: 'fixture', TYPESAFE_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', TUTOR_PLANNER_FAST_MODEL: 'off',
     CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' }) } };
   const original = globalThis.fetch;
   globalThis.fetch = async url => String(url).includes('typesafe')
@@ -469,9 +491,10 @@ test('ledger-bypass media: reported cost is settled, a documented estimate is es
   assert.deepEqual(rows(sqlite, 'usage_actions').slice(1).map(a => [a.user_id, a.payer, a.payer_reason, a.charge_class, a.feature]), [[null, 'platform', 'system', 'platform', 'legacy']]);
 });
 
+// Where spend is not enforced (SMALL_ENV test). Enforced, an Exa search is admitted first: learn-allowance.test.js.
 test('Exa searches are recorded once as tool steps: the reported cost when given, else the estimate (YouTube) or unknown (summaries)', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const env = signedIn({ LEARN_DB, EXA_API_KEY: 'fixture' }, 'ask');
+  const env = signedIn({ SMALL_ENV: 'test', LEARN_DB, EXA_API_KEY: 'fixture' }, 'ask');
   await searchYouTube('sigmoid', env, async () => Response.json({ results: [], costDollars: { total: 0.005 } }));
   await searchYouTube('softmax', env, async () => Response.json({ results: [] }));
   await assert.rejects(searchYouTube('relu', env, async () => new Response('down', { status: 500 })));
@@ -536,7 +559,7 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
   t.after(() => { if (had) globalThis.caches = caches; else delete globalThis.caches; });
   for (const [as, expected] of [[null, null], ['ben', ['u-ben-9a2b', 'user', 'signed_in', 'would_charge']]]) {
     // The per-request context rides in on the fixture's env (a spread copies the Symbol); it is reset to a fresh request after the owner shares.
-    const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10' }, { feature: 'shared_next_steps' });
+    const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50' }, { feature: 'shared_next_steps' });
     const f = setup(t, { vars });
     const { token } = await f.shareProject();
     Object.assign(usageContext(vars), { identity: undefined, action: null, final: null });
@@ -557,7 +580,7 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
 
 test('a signed-in user without a workspace is still the payer by their user id, never an anonymous visitor', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' };
   // /api/me answers a real session whose account has no workspace: devIdentity refuses the route (403) but notes the user.
   const noWorkspace = { ...base, CONTROL_PLANE: { fetch: async () => Response.json({ email: 'solo@test', user_id: 'u-solo', org: null }) } };
   for (const feature of ['shared_next_steps', 'shared_ask']) {
@@ -573,7 +596,7 @@ test('a signed-in user without a workspace is still the payer by their user id, 
 
 test('one action key reused by an incompatible action: each is its own action and class; each retry finds its own action', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1' };
+  const base = { SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '1', AI_MONTHLY_ALLOWANCE_USD: '50' };
   const req = new Request('https://synthetic.test/api/learn/ask', { headers: { 'X-RH-Action-Key': 'k-0123456789abcdef' } });
   // Grade then ask with the same browser key, then a retry of each: the ask never inherits the free grading class.
   for (const feature of ['grade', 'ask', 'ask', 'grade']) await spendTransport(signedIn(base, feature, 'u-alice', { req }), body, MODEL, null, priced());
@@ -593,7 +616,7 @@ test('one action key reused by an incompatible action: each is its own action an
 
 test('every dispatched Exa search is one attempt row on every failure path, unknown cost; a refusal before dispatch records none', async t => {
   const { sqlite, LEARN_DB } = database(t);
-  const env = signedIn({ LEARN_DB, EXA_API_KEY: 'fixture' }, 'ask');
+  const env = signedIn({ SMALL_ENV: 'test', LEARN_DB, EXA_API_KEY: 'fixture' }, 'ask');
   const timeout = () => { const error = new Error('timed out'); error.name = 'TimeoutError'; throw error; };
   const failures = [timeout, async () => new Response('not json {', { status: 200 }), async () => new Response('', { status: 429 }),
     async () => { throw new TypeError('network'); }, async () => new Response('', { status: 401 })];
@@ -606,8 +629,8 @@ test('every dispatched Exa search is one attempt row on every failure path, unkn
   const before = rows(sqlite, 'usage_attempts').length;
   const never = async () => { throw new Error('not dispatched'); };
   await assert.rejects(searchYouTube('', env, never));
-  await assert.rejects(searchYouTube('sigmoid', signedIn({ LEARN_DB }, 'ask'), never));
+  await assert.rejects(searchYouTube('sigmoid', signedIn({ SMALL_ENV: 'test', LEARN_DB }, 'ask'), never));
   await assert.rejects(searchCanvasSource('arxiv', ' ', env, { fetcher: never, direct: async () => null }));
-  await assert.rejects(searchCanvasSource('arxiv', 'attention', signedIn({ LEARN_DB }, 'ask'), { fetcher: never, direct: async () => null }));
+  await assert.rejects(searchCanvasSource('arxiv', 'attention', signedIn({ SMALL_ENV: 'test', LEARN_DB }, 'ask'), { fetcher: never, direct: async () => null }));
   assert.equal(rows(sqlite, 'usage_attempts').length, before, 'nothing was dispatched, nothing recorded');
 });

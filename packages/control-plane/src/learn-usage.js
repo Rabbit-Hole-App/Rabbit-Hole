@@ -1,13 +1,16 @@
-// Usage accounting, Phase 1 (learn-migrations/0022; design C:/s/spec/credits-phase1-design.md; owner D1-D3 2026-10-16).
-// ACCOUNTING ONLY: nothing here refuses, delays or fails a request. The platform spend guard (learn-spend-ledger.js,
-// usage_operations) stays the only gate; these rows are written beside it, best effort. A failed write is logged and the
-// action marked 'accounting_error' where possible; the user's request carries on.
+// Usage accounting (learn-migrations/0022; design C:/s/spec/credits-phase1-design.md; owner D1-D3 2026-10-16) and the
+// payer and balance that monthly allowance enforcement reads (owner L12 2026-10-20; the gate itself is admitSpend in
+// learn-spend-ledger.js). Recording a platform-funded attempt stays best effort: a failed write is logged and the action
+// marked 'accounting_error' where possible. Chargeable work is admitted only when its action and reservation are written.
 //
 // One action per user action, created lazily on its first provider attempt, so a request that makes no paid call writes
 // nothing. The route boundary (dev-worker.js) makes a per-request env copy carrying the context under a module-private
 // Symbol, like learn-spend.js's admission token; spendTransport, askJev, fishSpendTransport and the media paths read it.
-// Without a context an attempt is recorded under its own 'system' action, payer platform, so nothing is lost.
+// Without a context a recorded media attempt (recordMedia) gets its own 'system' action, payer platform, so nothing is lost;
+// admission (admissionPayer) refuses a paid call with no context unless code marked it system work (withSystemUsage).
 // Amounts are integer micro-USD (1 USD = 1_000_000 micros); unknown cost is NULL with its reservation kept, never 0.
+
+import { monthlyAllowanceMicros } from './learn-usage-config.js';
 
 const USAGE = Symbol('usage accounting context');
 const KIND = Symbol('usage attempt kind');
@@ -15,7 +18,7 @@ const KIND = Symbol('usage attempt kind');
 // One string per entry point (the design's list). Keep it here, the only list.
 export const FEATURES = ['ask', 'auto', 'tutor', 'tutor_evaluate', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'journey', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
-  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'legacy'];
+  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
 
 // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.
@@ -54,6 +57,10 @@ const ROUTES = [
   [/^\/api\/learn\/video$/, 'video'],
   [/^\/api\/learn\/scene$/, 'scene'],
   [/^\/api\/learn\/search$/, 'search'],
+  // Ask on a repository canvas when called by its own path (the UI sends /api/learn/ask, which forwards here).
+  [/^\/api\/repositories\/repo-[a-z0-9-]+\/ask$/, 'ask'],
+  // The Agent panel's Ask, answered on the control plane (index.js); any other control-plane POST is 'legacy' there.
+  [/^\/api\/ask$/, 'ask'],
 ];
 export function usageFeature(method, path) {
   if (method !== 'POST' && !(method === 'GET' && path === '/api/learn/search')) return null;
@@ -98,6 +105,14 @@ export function payerOf(ctx) {
   return { userId, payer: 'user', payerReason: 'signed_in', chargeClass: 'would_charge', feature: ctx.feature };
 }
 
+// Platform-funded server work with no user (the legacy Watch cron, a runner's failure diagnosis): the only way a call with
+// no session payer is admitted while spend is enforced. Code marks it; nothing in a request can.
+export function withSystemUsage(env, feature = 'legacy') {
+  const scoped = withUsage(env, { feature });
+  Object.assign(scoped[USAGE], { system: true, identity: null });
+  return scoped;
+}
+
 const warned = new Set();
 function warn(message) {
   // Once per isolate per message: an un-migrated database would otherwise log on every call.
@@ -106,11 +121,23 @@ function warn(message) {
   console.warn('usage accounting:', message);
 }
 
-async function insertAction(db, ctx) {
+// The session user, read once per request when no route authenticated first (the boundary's resolveUser).
+async function resolveIdentity(ctx) {
   if (ctx && ctx.identity === undefined && ctx.resolveUser) {
     try { const who = await ctx.resolveUser(); if (ctx.identity === undefined) noteUsageIdentity({ [USAGE]: ctx }, who instanceof Response ? null : who); }
     catch { if (ctx.identity === undefined) ctx.identity = { failed: true }; } // unresolved: 'system', never 'anonymous_public'
   }
+}
+// The request's payer without writing anything (the route boundary's early refusal reads it).
+export async function usagePayer(env) {
+  const ctx = env?.[USAGE];
+  if (!ctx) return null;
+  await resolveIdentity(ctx);
+  return { ...payerOf(ctx), period: periodOf(ctx.startedAt ?? nowSeconds()) };
+}
+
+async function insertAction(db, ctx) {
+  await resolveIdentity(ctx);
   const payer = payerOf(ctx);
   const startedAt = ctx?.startedAt ?? nowSeconds();
   const clientKey = payer.userId && ctx?.clientKey ? ctx.clientKey : null; // an anonymous caller's key is ignored
@@ -122,14 +149,15 @@ async function insertAction(db, ctx) {
       .bind(actionId, payer.userId, payer.payer, payer.payerReason, payer.feature, payer.chargeClass, periodOf(startedAt),
         final?.status || 'running', final?.result ?? null, startedAt, final ? nowSeconds() : null, key).run();
     if (!key) return { action_id: actionId };
-    return db.prepare('SELECT action_id, payer, payer_reason, feature, charge_class FROM usage_actions WHERE user_id = ? AND client_key = ?').bind(payer.userId, key).first();
+    return db.prepare('SELECT action_id, payer, payer_reason, feature, charge_class, period FROM usage_actions WHERE user_id = ? AND client_key = ?').bind(payer.userId, key).first();
   };
   // A repeated key is an automatic retry of the same action only when the server derives the same identity for it
   // (feature, payer, payer reason, charge class); then it finds the action it already made. The same key on a different
   // identity (grade then ask) is a separate action under a key derived from both, so its own retries find it and it never
   // takes the earlier action's class. '|' is outside CLIENT_KEY, so a derived key never meets a browser's key.
-  const identity = [payer.feature, payer.payer, payer.payerReason, payer.chargeClass];
-  const same = row => row && [row.feature, row.payer, row.payer_reason, row.charge_class].every((value, at) => value === identity[at]);
+  // The period is part of that identity: a key reused in a later month never joins (or spends) an earlier month's action.
+  const identity = [payer.feature, payer.payer, payer.payerReason, payer.chargeClass, periodOf(startedAt)];
+  const same = row => row && [row.feature, row.payer, row.payer_reason, row.charge_class, row.period].every((value, at) => value === identity[at]);
   const row = await claim(clientKey);
   if (!clientKey || same(row)) return row?.action_id || actionId;
   return (await claim(`${clientKey}|${identity.join('|')}`))?.action_id || actionId;
@@ -150,6 +178,34 @@ async function markError(env, db, error) {
   } catch { /* best effort */ }
 }
 
+// The attempt kind a call is recorded as: the caller's, else the env's (withAttemptKind), else the feature's default.
+export const attemptKind = (env, kind) => (ATTEMPT_KINDS.includes(kind) ? kind : env?.[KIND] || DEFAULT_KIND[env?.[USAGE]?.feature] || 'generation');
+
+// Who pays for one provider call, from server context only (owner L12 2026-10-20), resolved before admission. A call outside
+// any request context, or a request whose session could not be read, is 'payer_unavailable': never a free call. Chargeable
+// work whose allowance or action cannot be read is 'allowance_unavailable'. Platform-funded work (free practice grading, an
+// anonymous public link, marked system work) returns chargeable false; its recording stays best effort.
+export async function admissionPayer(env, db) {
+  const ctx = env?.[USAGE];
+  if (!ctx) return { refused: true, reason: 'payer_unavailable' };
+  await resolveIdentity(ctx);
+  const payer = payerOf(ctx);
+  if (payer.payerReason === 'system' && !ctx.system) return { refused: true, reason: 'payer_unavailable' };
+  if (payer.chargeClass !== 'would_charge') return { chargeable: false, actionId: await actionOf(env, db) };
+  const period = periodOf(ctx.startedAt ?? nowSeconds()), allowance = monthlyAllowanceMicros(env);
+  if (allowance == null) return { refused: true, reason: 'allowance_unavailable', period }; // never unlimited, nothing written
+  const actionId = await actionOf(env, db);
+  if (!actionId) return { refused: true, reason: 'allowance_unavailable', period };
+  return { chargeable: true, actionId, userId: payer.userId, period, allowance };
+}
+
+// The first admission refusal in a request, kept so the route boundary can answer with it (learn-spend-ledger.js).
+export function noteUsageRefusal(env, refusal) {
+  const ctx = env?.[USAGE];
+  if (ctx && !ctx.refusal) ctx.refusal = refusal;
+}
+export const usageRefusal = env => env?.[USAGE]?.refusal || null;
+
 // Records one provider attempt. reservedMicros: the bound held at start (NULL when the path has none). costState
 // 'reserved' (settled later by settleAttempt), or 'estimated' / 'unknown' for a ledger-bypass call recorded once, finished.
 // Returns the attempt id, or null when nothing could be recorded. Never throws.
@@ -160,7 +216,7 @@ export async function beginAttempt(env, { attemptId = `att-${crypto.randomUUID()
   try {
     const actionId = await actionOf(env, db);
     if (!actionId) return null;
-    const chosen = ATTEMPT_KINDS.includes(kind) ? kind : env[KIND] || DEFAULT_KIND[env[USAGE]?.feature] || 'generation';
+    const chosen = attemptKind(env, kind);
     // attempt_id is the ledger's op_id: a replayed insert of the same attempt changes nothing.
     await db.prepare(`INSERT INTO usage_attempts (attempt_id, action_id, kind, provider, model, reserved_micros, cost_micros, cost_state, status, started_at, settled_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (attempt_id) DO NOTHING`)
@@ -271,17 +327,23 @@ export async function recordAdjustment(db, { actionId = null, userId = null, mic
   return adjustmentId;
 }
 
-// GET /api/learn/usage's sums for one user and period, over that user's would_charge actions only. Settled cost is used;
-// reservations (running) and unknown attempts are reserved, never used; estimates are reported apart. Throws on a read failure.
+// The one balance (owner L12 2026-10-20): over a user's would_charge actions in a period, the settled cost (used) and every
+// outstanding hold (running reservations, and finished attempts whose cost is unknown). Available = allowance - used - held.
+// GET /api/learn/usage (usageTotals) and admission (learn-spend-ledger.js) read exactly these, so the screen and the gate agree.
+export const BALANCE_SCOPE = `FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
+    WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'`;
+export const USED_SUM = "COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0)";
+export const HELD_SUM = "COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0)";
+
+// GET /api/learn/usage's sums for one user and period. Settled cost is used; reservations (running) and unknown attempts are
+// reserved, never used; estimates are reported apart and are not in the balance. Throws on a read failure.
 // The same sums split by feature (Settings > AI usage, "This month by feature"), largest first; the parts add up to usageTotals.
 // Only features with a settled, reserved or unknown amount are listed. Throws on a read failure.
 export async function usageByFeature(db, userId, period) {
   const { results } = await db.prepare(`SELECT a.feature,
-      COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0) AS used,
-      COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0) AS reserved,
+      ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
       COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts
-    FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
-    WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'
+    ${BALANCE_SCOPE}
     GROUP BY a.feature`).bind(userId, period).all();
   return (results || []).map(row => ({ feature: row.feature, usedMicros: Number(row.used || 0), reservedMicros: Number(row.reserved || 0), unknownAttempts: Number(row.unknown_attempts || 0) }))
     .filter(row => row.usedMicros || row.reservedMicros || row.unknownAttempts)
@@ -289,14 +351,11 @@ export async function usageByFeature(db, userId, period) {
 }
 
 export async function usageTotals(db, userId, period) {
-  const row = await db.prepare(`SELECT
-      COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0) AS used,
-      COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0) AS reserved,
+  const row = await db.prepare(`SELECT ${USED_SUM} AS used, ${HELD_SUM} AS reserved,
       COALESCE(SUM(CASE WHEN t.cost_state = 'estimated' THEN t.cost_micros END), 0) AS estimated,
       COUNT(CASE WHEN t.cost_state = 'unknown' THEN 1 END) AS unknown_attempts,
       COALESCE(SUM(CASE WHEN t.cost_state = 'unknown' THEN t.reserved_micros END), 0) AS unknown_reserved
-    FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
-    WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'`).bind(userId, period).first();
+    ${BALANCE_SCOPE}`).bind(userId, period).first();
   return { used: Number(row?.used || 0), reserved: Number(row?.reserved || 0), estimated: Number(row?.estimated || 0),
     unknownAttempts: Number(row?.unknown_attempts || 0), unknownReserved: Number(row?.unknown_reserved || 0) };
 }
