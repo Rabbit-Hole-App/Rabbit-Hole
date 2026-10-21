@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  aboutScope, applyEvent, cardView, shortcutsFor, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, MODES, modeAvailability, modeQuery, modesFor,
+  aboutScope, applyEvent, cardView, carry, EXPIRY_MS, follow, getLatest, getTurns, labelOf, learnOutcome, lineOf, modeAvailability,
   offerFor, panelHosts, placeholderFor, pushTurn, rejectBody, resetThread, resultsKey, resultsView, subscribeTurns, threadIds, threadsPath, updateTurn, widen,
 } from './bar.js';
 import { scopeKey } from './scope.js';
@@ -137,13 +137,11 @@ test('catalog matches show as an empty state, pills, or a list (T02 §6.6)', () 
   assert.equal(resultsView(r(6)), 'list');
 });
 
-test('"/" at position 0 opens the picker with exactly four modes', () => {
-  assert.deepEqual(MODES.map(([m]) => m), ['ask', 'teach', 'research', 'do']);
-  assert.equal(modeQuery('/'), '');
-  assert.equal(modeQuery('/te'), 'te');
-  assert.equal(modeQuery('/teach why'), null);
-  assert.equal(modeQuery('why /teach'), null);
-  assert.equal(modeQuery(''), null);
+// Owner, 2026-10-20: the bar has no slash commands left (its four modes and five shortcuts are removed), so it has no picker,
+// no mode pill and no Slash commands sheet; slash.test.mjs holds the registry to that.
+test('the bar offers no slash command on Home, Library or Project', async () => {
+  const { commandsFor } = await import('./slash.js');
+  for (const place of ['home', 'project']) assert.deepEqual(commandsFor(place, { motionDev: true }), [], place);
 });
 
 test('modes a scope cannot serve carry their reason: T02 §6.4, and live chat history stays off on the preview', () => {
@@ -153,12 +151,8 @@ test('modes a scope cannot serve carry their reason: T02 §6.4, and live chat hi
   // A Home question goes to /api/learn/home-ask (LEARN_DB), as a typed question already did (r28 audit).
   for (const kind of ['workspace', 'project', 'canvas']) assert.deepEqual(modeAvailability('ask', kind, false), { ok: true }, kind); // LEARN_DB
   for (const kind of ['workspace', 'app']) assert.deepEqual(modeAvailability('ask', kind, true), { ok: true }, kind);
-  const RESEARCH_OFF = { ok: false, reason: 'Research here would call the live model, so it is off on this preview.', short: 'Off on this preview' };
-  for (const kind of ['workspace', 'app', 'project']) assert.deepEqual(modeAvailability('research', kind), RESEARCH_OFF, kind); // a review-copy limit, not the product
-  assert.deepEqual(modeAvailability('research', 'canvas'), RESEARCH_OFF); // never a Canvas command (Professor Next Steps contract §1.7)
   assert.deepEqual(modeAvailability('teach', 'workspace'), { ok: true, reason: 'creates a canvas first' });
   assert.deepEqual(modeAvailability('teach', 'project'), { ok: true });
-  assert.deepEqual(modeAvailability('do', 'app'), { ok: true });
 });
 
 test('card states follow T02 §7.3 and the server 409 statuses of §7.4', () => {
@@ -216,23 +210,6 @@ test('a question about a connected repository asks in that project scope, keepin
   assert.equal(resultsKey(other), 'gmail-com|project:repo-9z'); // the project page's own results key
   assert.equal(aboutScope(attn, { slug: nano.slug, kind: 'repository', title: nano.title }), attn);
   assert.equal(aboutScope(home, about).kind, 'project');
-});
-
-// r28 audit (owner, 2026-10-08: "if we need to remove any"): a mode this scope refuses is not offered, never shown dimmed.
-// /research is refused everywhere and unwired (AgentBar.jsx), so the bar never offers it; an app page offers only /do.
-test('the picker offers only the modes a scope can run: no /research anywhere; /ask on Home; an app page keeps /do', () => {
-  const names = (list) => list.map(([name]) => name);
-  assert.deepEqual(names(modesFor(home)), ['ask', 'teach', 'do']);
-  assert.deepEqual(names(modesFor(nano)), ['ask', 'teach', 'do']);
-  assert.deepEqual(names(modesFor({ kind: 'app', slug: 's3-log' })), ['do']);
-});
-
-test('the picker lists the shortcuts a place can use: /new stays off a project, /run needs a job', () => {
-  const names = (list) => list.map(([name]) => name);
-  const job = [{ name: 's3-log', kind: 'job' }];
-  assert.deepEqual(names(shortcutsFor(home, job)), ['find', 'open', 'new', 'connect', 'run']); // solo v1: no /share
-  assert.deepEqual(names(shortcutsFor(home, [])), ['find', 'open', 'new', 'connect']);
-  assert.deepEqual(names(shortcutsFor(nano, job)), ['find', 'open', 'connect', 'run']);
 });
 
 test('a page that hosts its results (Map, §6.5) keeps them out of the sheet and the collapsed line', () => {

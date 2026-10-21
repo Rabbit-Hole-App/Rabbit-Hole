@@ -6,8 +6,9 @@ import { DEV_CP } from './dev-cp.mjs';
 // filters by name and description; choosing a command shows the real card it
 // makes (the canvas's own card component) at its canvas size and working; paid
 // media shows a committed finished clip or model, or a labelled picture, never Generate;
-// /source opens a card's Sources & evidence; chat-only commands show an example
-// exchange. Every command shows a demo. No model calls, nothing generated.
+// /dive says what it opens. Every retained command shows a demo, what it does and an example; Use example prepares an
+// editable draft and sends nothing; the 17 removed commands appear nowhere, and the Agent Bar has no commands left (owner,
+// 2026-10-20). No model calls, nothing generated.
 // usage: node e2e/slash-sheet-check.mjs [screenshot dir]
 // A local stack instead: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> node e2e/slash-sheet-check.mjs [dir] - a fresh
 // canvas, a session minted with packages/control-plane/.dev.vars, and /graph's card skipped (a keyless build has no Desmos key).
@@ -51,13 +52,33 @@ await search.fill('/flash');
 ok('typing filters by command name, ignoring the leading /', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'flashcards');
 await search.press('Enter');
 ok('Enter selects the first match', await sheet.locator('[data-slash-card="flashcards"]').waitFor({ timeout: 15000 }).then(() => true).catch(() => false));
-await search.fill('evidence');
-ok('typing filters by description', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'source');
+await search.fill('rabbit');
+ok('typing filters by description', await rows.count() === 1 && await rows.first().getAttribute('data-slash-help') === 'dive');
 await search.fill('zzz');
 ok('no match says so', await rows.count() === 0 && await sheet.getByText('No commands match').count() === 1);
 await page.keyboard.press('Escape');
 ok('Esc clears the search and keeps the sheet open', await search.inputValue() === '' && await sheet.isVisible() && await rows.count() === all, `${all} rows`);
-// Every command shows a demo: a card, the card /source opens, what a source search does (Release B), or an example exchange.
+// Owner, 2026-10-20: every retained command is listed (More learning tools included, no /more); none of the 17 removed is.
+const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'animate', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
+const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper'];
+const listed = await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
+ok('every retained command is listed', RETAINED.every(name => listed.includes(name)) && listed.filter(name => name !== 'motion').length === RETAINED.length, listed.join(' '));
+ok('no removed command is listed', REMOVED.every(name => !listed.includes(name)));
+await sheet.screenshot({ path: `${SHOTS}/sheet-list.png` });
+// Each says what it is and does: menu label, whether it creates a card, opens or searches, its sentence, Sourced or AI-generated.
+const about = async name => { await sheet.locator(`[data-slash-help="${name}"]`).click(); return { label: await sheet.locator('[data-slash-label]').innerText(), effect: await sheet.locator('[data-slash-effect]').innerText(), media: await sheet.locator('[data-slash-media]').count() ? await sheet.locator('[data-slash-media]').innerText() : null, text: await sheet.locator('[data-slash-about]').innerText() }; };
+const explain = await about('explain');
+ok('/explain: Add explanation, creates a card', explain.label === 'Add explanation' && explain.effect === 'Creates a card' && explain.text.startsWith('Creates an explanation card on the canvas.'), JSON.stringify(explain));
+await sheet.screenshot({ path: `${SHOTS}/sheet-explain-about.png` });
+const dive = await about('dive');
+ok('/dive: Open Rabbit Hole, opens, says what it needs selected', dive.label === 'Open Rabbit Hole' && dive.effect === 'Opens a Rabbit Hole' && /selected card/.test(dive.text), JSON.stringify(dive));
+await sheet.screenshot({ path: `${SHOTS}/sheet-dive.png` });
+const image = await about('image'), video = await about('video'), youtube = await about('youtube'), three = await about('3d');
+ok('/image searches and is Sourced; /video generates and is AI-generated; /youtube searches and is Sourced', image.label === 'Search images' && image.effect === 'Searches' && image.media === 'Sourced'
+  && video.label === 'Generate video' && video.effect === 'Creates a card' && video.media === 'AI-generated' && youtube.media === 'Sourced', JSON.stringify([image, video, youtube]));
+ok('/3d reads Add 3D scene', three.label === 'Add 3D scene', three.label);
+ok('/generate-image is not advertised while image generation is off', !listed.includes('generate-image'));
+// Every command shows a demo: a card, what a source search does (Release B), or what /dive does.
 const missing = [];
 for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp))) {
   await sheet.locator(`[data-slash-help="${command}"]`).click();
@@ -69,7 +90,7 @@ for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dat
 }
 ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.
-const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'p', notebook: 'iframe', walkthrough: 'svg, button', code: 'pre, code' };
+const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'p', notebook: 'iframe', code: 'pre, code' };
 for (const [command, ready] of Object.entries(expect)) {
   if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
   await sheet.locator(`[data-slash-help="${command}"]`).click();
@@ -109,55 +130,48 @@ for (const [command, type] of [['video', 'videoGenerate']]) {
   ok(`/${command} shows a labelled picture of the finished card, not a Generate card`, drawn && await sheet.locator(`[data-slash-card="${type}"]`).getByText('Illustration.').count() === 1 && await sheet.locator('[data-slash-card] [data-generate-video], [data-slash-card] [data-generate-scene]').count() === 0);
   await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
 }
-// /source opens the Sources & evidence of a card: here the sheet's own /explain card, its list open.
-await sheet.locator('[data-slash-help="source"]').click();
-ok('/source opens the Sources & evidence of a card', await sheet.locator('[data-slash-sources] [data-slash-card="explanation"] details[data-sources][open]').count() === 1 && await sheet.locator('[data-slash-sources]').getByText('model.py:127').count() > 0);
-await sheet.screenshot({ path: `${SHOTS}/sheet-source.png` });
-await sheet.locator('[data-slash-help="compare"]').click();
-ok('/compare explains the tutor picks one, and shows a real comparison', await sheet.getByText('The tutor picks one:').count() === 1 && await sheet.locator('[data-slash-card="table"]').getByText('Sigmoid vs tanh').count() === 1);
-await sheet.screenshot({ path: `${SHOTS}/sheet-compare.png` });
-// /research and /do are Home, Library and Project workflows, never Canvas commands (Professor Next Steps contract §1.7).
-ok('the sheet offers no /research or /do', await sheet.locator('[data-slash-help="research"], [data-slash-help="do"]').count() === 0);
-await sheet.screenshot({ path: `${SHOTS}/sheet-commands.png` });
-for (const command of ['deeper', 'dive', 'simplify', 'example', 'ask', 'teach']) {
-  await sheet.locator(`[data-slash-help="${command}"]`).click();
-  const chat = sheet.locator(`[data-slash-chat="${command}"]`);
-  ok(`/${command} shows an example exchange and adds no card`, await sheet.locator('[data-slash-card]').count() === 0 && await chat.locator('.katex, p').count() > 0 && (await chat.innerText()).includes(`/${command}`));
-  await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
-}
+await sheet.locator('[data-slash-help="dive"]').click();
+const diveDemo = sheet.locator('[data-slash-chat="dive"]');
+ok('/dive says what it opens and adds no card', await sheet.locator('[data-slash-card]').count() === 0 && (await diveDemo.innerText()).includes('/dive how cells produce ATP'));
 await sheet.locator('[data-slash-help="diagram"]').click();
 await sheet.getByRole('tab', { name: 'Mermaid diagram' }).click();
 ok('a command with several cards switches between them', await sheet.locator('[data-slash-card="mermaid"]').count() === 1);
 await search.focus();
 await page.keyboard.press('Escape');
 ok('Esc with an empty search closes the sheet', await sheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
-// The Agent Bar's Slash commands (r28): the same search and a demo for every command it offers - its example as typed
-// and what that example does. Library, so nothing here asks a model (no Send).
+// Use example (owner, 2026-10-20): the example becomes an editable draft - the command's pill and its words - in the Chat
+// composer, and nothing is sent.
+await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
+await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+await sheet.waitFor();
+await sheet.locator('[data-slash-help="explain"]').click();
+const posted = paid.length;
+await sheet.locator('[data-slash-use-example="explain"]').click();
+await sheet.waitFor({ state: 'detached', timeout: 5000 });
+const chatComposer = page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
+await chatComposer.waitFor({ timeout: 10000 });
+const draftPill = page.locator('[data-chat-pane] [data-command-pill]');
+await page.waitForTimeout(500);
+ok('Use example: the composer holds the Add explanation pill and the words, editable, focused, not sent',
+  await draftPill.getAttribute('data-command-pill') === 'explain' && (await draftPill.innerText()).trim() === 'Add explanation' && await chatComposer.inputValue() === 'how binary search works'
+  && await chatComposer.evaluate(node => node === document.activeElement) && paid.length === posted, `${await chatComposer.inputValue()} / ${paid.length - posted} posts`);
+await page.screenshot({ path: `${SHOTS}/use-example-draft.png` });
+await chatComposer.fill('how merge sort works');
+ok('the drafted words can be edited before sending', await chatComposer.inputValue() === 'how merge sort works' && paid.length === posted);
+// The Agent Bar on the Library has no slash commands left (owner, 2026-10-20): no Auto picker or / commands sheet, and a typed
+// removed command says it is unavailable. Library, so nothing here asks a model.
 await page.goto(`${BASE}/library`);
 const barInput = page.locator('[data-agent-bar] textarea');
 await barInput.waitFor({ timeout: 60000 });
 await barInput.fill('/');
-await page.locator('[data-bar-slash-help]').click();
-const barSheet = page.getByRole('dialog', { name: 'Slash commands' });
-await barSheet.waitFor();
-const barRows = barSheet.locator('[data-bar-command]');
-const offered = await barRows.evaluateAll(nodes => nodes.map(node => node.dataset.barCommand));
-ok('the bar sheet offers what its picker does: no /research, no dimmed rows', !offered.includes('research') && ['ask', 'teach', 'do', 'find', 'open', 'new', 'connect'].every(name => offered.includes(name)), offered.join(' '));
-ok('the bar sheet search is focused when it opens', await barSheet.locator('[data-slash-search]').evaluate(node => node === document.activeElement));
-const blank = [];
-for (const command of offered) {
-  await barSheet.locator(`[data-bar-command="${command}"]`).click();
-  const demo = barSheet.locator(`[data-bar-demo="${command}"]`);
-  const text = await demo.waitFor({ timeout: 5000 }).then(() => demo.innerText()).catch(() => '');
-  if (!text.includes(`/${command} `) || text.length < 80) blank.push(command);
-}
-ok('every bar command shows its example and what it does', blank.length === 0, blank.join(' '));
-await barSheet.screenshot({ path: `${SHOTS}/bar-sheet.png` });
-await barSheet.locator('[data-slash-search]').fill('/conn');
-ok('the bar sheet filters like the canvas sheet', await barRows.count() === 1 && await barRows.first().getAttribute('data-bar-command') === 'connect');
-await page.keyboard.press('Escape');
-await page.keyboard.press('Escape');
-ok('Esc clears the search, then closes the bar sheet', await barSheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
+await page.waitForTimeout(300);
+ok('the bar opens no picker, has no Auto button and no / commands sheet', await page.locator('[data-agent-bar] [role="listbox"]').count() === 0 && await page.locator('[data-bar-slash-help]').count() === 0
+  && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
+await barInput.fill('/find nanoGPT');
+await barInput.press('Enter');
+const barNote = page.locator('[data-result-sheet]').getByText('/find is no longer available.', { exact: false }).first();
+ok('a removed bar command says it is unavailable', await barNote.waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
+await page.screenshot({ path: `${SHOTS}/bar-removed-command.png` });
 ok('no page errors and no paid request', errors.length === 0 && paid.length === 0, `${errors.join(' | ')} ${paid.join(' ')}`);
 await browser.close();
 process.exit(failed ? 1 : 0);

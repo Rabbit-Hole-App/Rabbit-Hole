@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import { EXAMPLES, mayConfirmPaid, parseSlash, pickerSections } from './learn-slash.js';
-import { learnRequest } from './agent/slash.js';
+import { descFor, learnRequest, toolOf } from './agent/slash.js';
 import { BLOCK_TYPES, LearningBlockBody } from './LearningBlocks.jsx';
 import NotebookBody from './NotebookCard.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
@@ -10,13 +10,14 @@ import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CommandList from './CommandList.jsx';
 import { CadViewerTools } from './CadCard.jsx';
-import { CHAT_EXAMPLES, FINDER_NOTES, SAMPLES, SOURCE_NOTE, demoOf, illustrationFor, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, FINDER_NOTES, MEDIA, SAMPLES, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
 // picker's own sections (learn-slash.js, CommandList.jsx), so the sheet and the
-// picker never disagree. Right: the command's demo (slash-sheet.js) - the real card it puts on
-// the canvas, drawn by the canvas's own card components; the card /source opens;
-// or, for a chat command, an example exchange. Only the selected card renders.
+// picker never disagree, More learning tools included. Right: what the command does (its label, whether it creates a card,
+// opens a Rabbit Hole or searches, and what it needs selected), its example - Use example puts it in the composer as an
+// editable draft and never sends it (owner, 2026-10-20) - and its demo (slash-sheet.js): a sample of the card it puts on
+// the canvas, drawn by the canvas's own card components, what a search opens, or what /dive does. Only the selected card renders.
 // The card works as on the canvas, except that Generate for paid media is
 // disabled here: paid media shows a committed finished clip or a labelled picture.
 // The card the command's example makes, when its words narrow the family
@@ -26,7 +27,8 @@ const exampleCard = name => {
   return narrowed?.length === 1 ? Math.max(0, sheetCards(name).findIndex(entry => entry.primitive === narrowed[0])) : 0;
 };
 
-export default function SlashCommandsSheet({ appName, onClose }) {
+// onUseExample({ command, text }): the composer's draft becomes the example's command pill and words, to edit before sending.
+export default function SlashCommandsSheet({ appName, onClose, onUseExample = null }) {
   const sections = pickerSections('/');
   const [name, setName] = useState('graph');
   const [cardIndex, setCardIndex] = useState(0);
@@ -34,7 +36,8 @@ export default function SlashCommandsSheet({ appName, onClose }) {
   const demo = demoOf(name);
   const cards = demo === 'cards' ? sheetCards(name) : [];
   const card = cards[Math.min(cardIndex, cards.length - 1)];
-  const command = sections.flatMap(section => section.items).find(item => item.name === name);
+  const command = toolOf(name);
+  const example = parseSlash(EXAMPLES[name] || '');
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[6vh]" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}
       style={{ background: 'color-mix(in srgb, var(--color-ink) 18%, transparent)' }}>
@@ -44,20 +47,27 @@ export default function SlashCommandsSheet({ appName, onClose }) {
           <button type="button" aria-label="Close slash commands" title="Close (Esc)" onClick={onClose}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink"><X size={15} /></button>
         </div>
-        <p className="mb-3 text-xs text-ink-2">Type <kbd className="rounded border border-line bg-hover px-1.5 py-0.5 font-sans text-[11px]">/</kbd> in the Learn composer, pick a command, then add what you want after it. Search or choose one here to see what it does.</p>
+        <p className="mb-3 text-xs text-ink-2">Type <kbd className="rounded border border-line bg-hover px-1.5 py-0.5 font-sans text-[11px]">/</kbd> in the Learn composer, pick a command, then add what you want after it. Search or choose one here to see what it does. To ask, compare or simplify, just write it in your own words.</p>
         <div className="flex min-h-0 flex-1 gap-4 max-md:flex-col">
           <CommandList sections={sections} current={name} onChoose={choose} onClose={onClose} row="data-slash-help" className="w-60 max-md:max-h-56 max-md:w-full" />
           <section aria-label={`/${name} preview`} className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-line bg-hover/40 p-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <CommandMark name={name} className="text-base font-semibold text-ink" />
-              <span className="text-sm text-ink-2">{command?.desc}</span>
+              <span data-slash-label className="text-sm font-medium text-ink">{command && descFor(command, 'learn')}</span>
+              <span data-slash-effect className="rounded-full border border-line bg-white px-1.5 py-px text-[10px] text-ink-2">{effectOf(name)}</span>
+              {MEDIA[name] && <span data-slash-media={MEDIA[name]} className="rounded-full border border-line bg-white px-1.5 py-px text-[10px] text-ink-2">{MEDIA[name]}</span>}
               {mayConfirmPaid(name) && <span className="rounded-full border border-line bg-white px-1.5 py-px text-[10px] text-ink-3" title="On the canvas it asks before generating. Here, Generate is off.">confirms paid</span>}
             </div>
-            {EXAMPLES[name] && <code className="mt-1 block font-mono text-xs text-ink-3">e.g. {EXAMPLES[name]}</code>}
+            {command?.about && <p data-slash-about className="mt-1 text-sm text-ink-2">{command.about}</p>}
+            {example && <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <code className="font-mono text-xs text-ink-3">e.g. {EXAMPLES[name]}</code>
+              {onUseExample && <button type="button" data-slash-use-example={name} title="Put this example in the composer to edit; it is not sent"
+                onClick={() => onUseExample({ command: example.name, text: example.args })}
+                className="rounded-lg border border-line bg-white px-2 py-0.5 text-xs text-ink hover:bg-hover">Use example</button>}
+            </div>}
             {cards.length > 1 && (
               <div role="tablist" aria-label="Cards this command can make" className="mt-3 flex flex-wrap items-center gap-1.5">
-                {/* /compare's family is several representations; the tutor picks whichever compares best. */}
-                <span className="text-xs text-ink-3">{name === 'compare' ? 'The tutor picks one:' : 'Can make:'}</span>
+                <span className="text-xs text-ink-3">Can make:</span>
                 {cards.map((entry, index) => (
                   <button key={entry.card} type="button" role="tab" aria-selected={entry === card} onClick={() => setCardIndex(index)}
                     className={`rounded-full border px-2.5 py-1 text-xs ${entry === card ? 'border-ink bg-white text-ink' : 'border-line text-ink-2 hover:bg-white'}`}>
@@ -69,12 +79,10 @@ export default function SlashCommandsSheet({ appName, onClose }) {
             {/* The card at the size it has on the canvas: the pane scrolls rather than shrink it. */}
             <div className="mt-3 flex min-h-0 flex-1 items-start justify-center overflow-auto py-1">
               {name === 'cad' ? <p data-slash-cad className="max-w-md text-sm text-ink-2">Describe the part, its purpose and any required dimensions. CAD creates a saved background job, asks about important missing dimensions, and returns an interactive model with checked downloads. Selecting CAD does not start generation.</p> : demo === 'cards'
-                ? <CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} />
-                : demo === 'sources'
-                  ? <div data-slash-sources className="flex flex-col items-center gap-2"><p className="w-[440px] max-w-full text-xs text-ink-2">{SOURCE_NOTE}</p><CardPreview type="explanation" command="source" appName={appName} /></div>
-                  : demo === 'finder'
-                    ? <p data-slash-finder={name} className="w-[440px] max-w-full text-xs text-ink-2">{FINDER_NOTES[name]}</p>
-                    : <ChatPreview name={name} />}
+                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">A sample card. Yours is made from what you type.</p><CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} /></div>
+                : demo === 'finder'
+                  ? <p data-slash-finder={name} className="w-[440px] max-w-full text-xs text-ink-2">{FINDER_NOTES[name]}</p>
+                  : <ChatPreview name={name} />}
             </div>
           </section>
         </div>
@@ -89,7 +97,6 @@ export default function SlashCommandsSheet({ appName, onClose }) {
 // CanvasNode), and the card fully working. The one exception: Generate for
 // paid media is disabled here, so a help sheet can never start a paid job.
 function CardPreview({ type, command, appName }) {
-  const frame = useRef(null);
   const [block, setBlock] = useState(() => {
     if (type === 'notebook') return { ...newNotebookBlock(), notebook_id: 'slash-commands-preview' };
     const sample = { ...BLOCK_TYPES[type].sample(), ...structuredClone(SAMPLES[command]?.[type] || {}) };
@@ -99,8 +106,6 @@ function CardPreview({ type, command, appName }) {
     if (sample.modelUrl) sample.modelUrl = new URL(sample.modelUrl, window.location.origin).href;
     return sample;
   });
-  // /source opens the card's Sources & evidence, as it does on the canvas.
-  useEffect(() => { if (command === 'source') frame.current?.querySelector('details[data-sources]')?.setAttribute('open', ''); }, [command]);
   const spec = BLOCK_TYPES[type] || {};
   const width = type === 'notebook' ? 640 : spec.sizeFor?.(block)?.width ?? spec.width ?? 380;
   const height = type === 'notebook' ? 540 : spec.sizeFor?.(block)?.height ?? spec.height;
@@ -111,7 +116,7 @@ function CardPreview({ type, command, appName }) {
   const viewKey = block.type === 'scene' && block.modelUrl ? `slash-sheet:${block.id}` : null;
   // The canvas grows a card by its Sources & evidence row, so a card with sources is not capped here.
   const card = (
-    <div ref={frame} data-slash-card={type} style={{ width, height, maxHeight: height || block.sources ? undefined : spec.autoMax ?? 420 }}
+    <div data-slash-card={type} style={{ width, height, maxHeight: height || block.sources ? undefined : spec.autoMax ?? 420 }}
       className={`group relative flex shrink-0 cursor-default flex-col rounded-xl border select-text [&_[data-paid-generate]]:pointer-events-none [&_[data-paid-generate]]:opacity-40 ${ghost ? 'border-transparent bg-transparent hover:border-line hover:shadow-sm' : 'border-line bg-white shadow-sm'}`}>
       <div aria-hidden className={`flex h-6 shrink-0 items-center justify-center rounded-t-xl ${ghost ? 'opacity-0 group-hover:opacity-100' : ''}`}><span className="h-1 w-12 rounded-full bg-line" /></div>
       {type === 'notebook'

@@ -145,7 +145,7 @@ function AppRoot() {
       {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
-      {AgentBar && <Suspense fallback={null}><AgentBar page={`${at.page}:${at.slug || ''}`} /></Suspense>}
+      {AgentBar && <Suspense fallback={null}><AgentBar /></Suspense>}
       <Toasts />
     </>
   );

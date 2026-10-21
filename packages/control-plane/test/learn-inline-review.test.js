@@ -114,20 +114,21 @@ test('S4: askJev marks a refusal before any request as not called', async () => 
   assert.equal(error.called, false);
 });
 
-test('M1: /simplify on a full-length request is accepted; the worker never quotes a length the learner did not type', async () => {
-  const { NOTE_COMMANDS } = inlineRoute;
+// Owner, 2026-10-20: /simplify, /example and /deeper are removed commands. The worker's check refuses one typed inline, with
+// no validator or model call and nothing generated; the same words without the slash are an ordinary request.
+test('M1: a removed /simplify is refused by the check with no call; a request is generated from the learner\'s words as typed', async () => {
+  assert.equal(inlineRoute.NOTE_COMMANDS, undefined);
   const authorize = async () => ({ name: 'canvas-0a1b2c3d' });
-  // The learner typed /simplify and 990 more characters (1000 in all); the worker puts the instruction in front itself.
+  const request = { kind: 'selection', mode: 'explain', targetIds: ['n23'], prompt: '/simplify for a child', context };
+  const refused = await (await inlineDecideFetch(post('/api/learn/inline/decide', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', request }), KEY_ENV, { authorize, transport: 'direct', ask: async () => assert.fail('no JEV call') })).json();
+  assert.deepEqual([refused.decision, refused.token], ['unsupported', undefined]);
+  assert.match(refused.message, /^\/simplify is no longer available\./);
   let sent = null;
-  const typed = `/simplify ${'a'.repeat(PROMPT_MAX - '/simplify '.length)}`;
-  const body = await decided({ app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: typed, context });
-  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', body), KEY_ENV, { authorize, callModel: async (env, request) => { sent = JSON.parse(request.messages[0].content).request; return sse('ok'); } });
+  const body = await decided({ app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', prompt: `explain it more simply ${'a'.repeat(PROMPT_MAX - 'explain it more simply '.length)}`, context });
+  const response = await inlineGenerateFetch(post('/api/learn/inline/generate', body), KEY_ENV, { authorize, callModel: async (env, call) => { sent = JSON.parse(call.messages[0].content).request; return sse('ok'); } });
   assert.equal(response.status, 200);
-  assert.ok(sent.startsWith(NOTE_COMMANDS.simplify) && sent.length > PROMPT_MAX);
-  // Over the limit, the check quotes what the learner typed, never a length with the instruction added.
-  const over = await (await inlineDecideFetch(post('/api/learn/inline/decide', { app: 'canvas-0a1b2c3d', request_id: 'req-0123456789', request: { ...body.request, prompt: `${typed}a` } }), KEY_ENV, { authorize, transport: 'direct', ask: jevSays('proceed') })).json();
-  assert.equal(over.decision, 'invalid');
-  assert.match(over.message, new RegExp(`${PROMPT_MAX + 1} characters`));
+  assert.equal(sent, body.request.prompt);
+  assert.equal(sent.length, PROMPT_MAX);
 });
 
 import { cleanMetrics } from '../src/learn-inline.js';

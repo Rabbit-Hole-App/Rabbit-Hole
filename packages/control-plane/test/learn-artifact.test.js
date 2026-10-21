@@ -32,8 +32,11 @@ test('every primitive a command family names is in the registry, and each ready 
 
 test('a command resolves to its family on the server: direct, chat, unavailable or a ready set', () => {
   assert.deepEqual(artifactPlan('notebook'), { result: 'direct', action: 'insert_notebook' });
-  assert.deepEqual(artifactPlan('paper', { args: '1706.03762' }), { result: 'direct', action: 'insert_paper' });
-  assert.equal(artifactPlan('deeper').result, 'not_artifact');
+  // Owner, 2026-10-20: /paper, /deeper and the other removed commands are no Learn command on the server either; the Tutor's
+  // material tools (compare, walkthrough) still plan their ready primitives for create_material and journey steps.
+  for (const name of ['paper', 'deeper', 'simplify', 'source', 'more']) assert.throws(() => artifactPlan(name), /not a Learn command/, name);
+  assert.deepEqual(artifactPlan('compare').ready, ['table', 'interactive_graph', 'data_plot', 'flow_diagram', 'mermaid_diagram']);
+  assert.deepEqual(artifactPlan('walkthrough').ready, ['walkthrough']);
   assert.deepEqual(artifactPlan('graph').ready, ['interactive_graph', 'data_plot']);
   assert.deepEqual(artifactPlan('diagram').ready, ['flow_diagram', 'mermaid_diagram']);
   assert.deepEqual(artifactPlan('practice', { args: 'multiple choice' }).ready, ['quiz']);

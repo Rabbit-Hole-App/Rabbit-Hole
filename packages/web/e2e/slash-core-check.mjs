@@ -2,8 +2,9 @@
 // the LOCAL stack only: the / picker lists the shared registry (a Search section with /youtube, /arxiv and /wikipedia; no
 // /paper row; /video "Generate video"), a typed and a picked command become the same CommandPill, the pill's x keeps the
 // text, and a source command opens the source finder with its query while the composer keeps its draft: closed with
-// nothing added, the draft and focus come back; after a result is added the command line clears. A typed /paper still opens
-// the arXiv search. Search answers come from a route in this check: no Exa call, no model call, nothing sent to the Tutor.
+// nothing added, the draft and focus come back; after a result is added the command line clears. A typed /paper is a
+// removed command (owner, 2026-10-20): it says so and opens nothing. Search answers come from a route in this check: no Exa
+// call, no model call, nothing sent to the Tutor.
 // usage: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> TEST_BYPASS_SECRET=<that stack's> node e2e/slash-core-check.mjs [outDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
@@ -69,18 +70,18 @@ await composer().fill('');
 // 2. Picked and typed commands are the same pill; its x keeps the text.
 await composer().fill('why softmax');
 await dock.getByRole('button', { name: 'Commands' }).click();
-await dock.locator('[data-slash-search]').pressSequentially('add an expl');
+await dock.locator('[data-slash-search]').pressSequentially('add expl');
 await dock.locator('[data-slash-search]').press('Enter');
 await pill.waitFor();
-// The pill reads the command's label, never /name (owner, 2026-10-20).
-ok('picking /explain shows the Explain pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Explain' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
+// The pill reads the command's label, never /name: /explain is "Add explanation" (owner, 2026-10-20).
+ok('picking /explain shows the Add explanation pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Add explanation' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
 await page.screenshot({ path: `${OUT}/02-explain-pill.png` });
-await dock.getByRole('button', { name: 'Remove Explain', exact: true }).click();
-ok('Remove Explain drops the pill and keeps the text', await pill.count() === 0 && await composer().inputValue() === 'why softmax');
+await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).click();
+ok('Remove Add explanation drops the pill and keeps the text', await pill.count() === 0 && await composer().inputValue() === 'why softmax');
 await composer().fill('/explain ');
 await pill.waitFor();
-ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Explain' && await dock.getByRole('button', { name: 'Remove Explain', exact: true }).count() === 1);
-await dock.getByRole('button', { name: 'Remove Explain', exact: true }).click();
+ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Add explanation' && await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).count() === 1);
+await dock.getByRole('button', { name: 'Remove Add explanation', exact: true }).click();
 await composer().fill('');
 
 // 3. A source command opens the finder with its query; the draft waits for the finder.
@@ -110,7 +111,7 @@ await finder.waitFor({ state: 'detached' });
 await page.waitForFunction(n => document.querySelectorAll('[data-block-id]:not([data-chat-block])').length > n, before, { timeout: 10000 }).catch(() => {});
 ok('adding a result puts the card on the canvas and clears the command line', await blocks() > before && await pill.count() === 0 && await composer().inputValue() === '');
 
-// 4. /arxiv takes an ID and previews it; a typed /paper still opens the arXiv search.
+// 4. /arxiv takes an ID and previews it; a typed /paper is unavailable and opens nothing (owner, 2026-10-20).
 await composer().fill('/arxiv 1706.03762');
 await composer().press('Enter');
 await finder.getByText('Attention Is All You Need').waitFor({ timeout: 10000 });
@@ -118,12 +119,11 @@ ok('/arxiv <id> opens the finder on arXiv with the ID, previewed before adding',
 await page.keyboard.press('Escape');
 await finder.waitFor({ state: 'detached' });
 ok('closed: the typed line comes back as typed', await pill.count() === 0 && await composer().inputValue() === '/arxiv 1706.03762');
+const searched = searches.length;
 await composer().fill('/paper attention mechanisms');
 await composer().press('Enter');
-await finder.waitFor({ timeout: 10000 });
-ok('a typed /paper <topic> still opens the arXiv search', searches.at(-1) === 'arxiv:attention mechanisms');
-await page.keyboard.press('Escape');
-await finder.waitFor({ state: 'detached' });
+await dock.locator('[data-slash-result]').getByText('/paper is no longer available.', { exact: false }).waitFor({ timeout: 10000 });
+ok('a typed /paper says it is unavailable and opens no search', searches.length === searched && await finder.count() === 0);
 
 ok('no source command reached the Tutor or a model', tutor.length === 0, tutor.join(' '));
 ok('no page errors', errors.length === 0, errors.join(' | '));

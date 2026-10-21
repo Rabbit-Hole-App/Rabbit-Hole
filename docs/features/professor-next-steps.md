@@ -553,6 +553,12 @@ Built and checked against the code at `5c176ec2` (Task 11b: the Auto Tutor on ev
 
 ### 4.3 Canvas command contract
 
+**Superseded 2026-10-20 (owner):** /ask, /teach, /deeper, /simplify, /research and /do are removed slash commands
+(rabbit-hole-commands.md, Slash-command cleanup). Typed, each is unavailable and runs nothing; the same words without the
+slash are an ordinary Auto Tutor turn. `LearnPage.jsx` no longer calls `tutor.slash`, so the explicit-override rows below,
+`EXPLICIT_MODE` and the Tutor's slash row have no UI caller; they stay in code, with their tests, for the Tutor owners to
+remove. The Tutor's `create_material` keeps comparison tables and walkthroughs through its material tools.
+
 | input | Canvas | meaning |
 |---|---|---|
 | natural typing, Voice | yes, primary | the Auto Tutor decides |
