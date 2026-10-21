@@ -10,6 +10,8 @@
 //   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
 //      motion_request; the card shows its progress, then the ready video with the job's title and 15s · Motion explainer;
 //   5. MOCKED failure: the stubbed job fails; the card says why and offers Retry render; nothing else starts;
+//   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
+//      follows the same job (polls only, no second start) and shows the video once ready;
 //   6. REAL refusal (no stub): the stack's worker has no orchestrator, so Generate's one request is refused and the card
 //      says Motion is not available in this environment, retryable;
 //   7. the Slash commands window: opening it and choosing /motion sends no request but the committed clip's own GET; its card
@@ -65,7 +67,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 18; // per theme: 9 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 20; // per theme: 10 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -233,7 +235,7 @@ for (const theme of ['light', 'dark']) {
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
     if (request.method() === 'POST') return route.fulfill({ status: 202, json: { videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { videos: [video(stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: Generate adds one card and starts one confirmed motion_request; the ready video plays in it`, async () => {
@@ -272,6 +274,31 @@ for (const theme of ['light', 'dark']) {
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED reload mid-job: the saved card follows the same job again, with no second start, and plays it`, async () => {
+    stub = { id: `p-reload-${theme}`, polls: 0, end: 'ready', held: true };
+    const posts = videoPosts().length;
+    await composer().fill(`/motion 15s explain attention heads ${theme}`); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').click();
+    const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
+    await card.waitFor({ timeout: 10000 });
+    const id = await card.getAttribute('data-block-id');
+    // The board is saved with the job's placement id before the reload.
+    await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id)), 'the board saved with the placement id');
+    await page.reload();
+    await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
+    const mine = page.locator(`[data-block-id="${id}"]`);
+    await mine.waitFor({ timeout: 30000 });
+    const polled = stub.polls;
+    await until(() => stub.polls > polled, 'the restored card polls its job');
+    stub.held = false;
+    await mine.locator('video[data-lesson-video]').waitFor({ timeout: 30000 });
+    assert.equal(videoPosts().length - posts, 1, 'one start; the reload only follows it');
+    await mine.scrollIntoViewIfNeeded();
+    await mine.screenshot({ path: `${OUT}/${theme}-06b-reloaded-ready-card.png` });
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
     await dismiss();
   });
 

@@ -1467,9 +1467,11 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const latest = useRef(block);
   latest.current = block;
   const [placement, setPlacement] = useState(null);
-  // Follows the exact job this Generate started (see SceneBody).
+  // Follows the exact job this Generate started (see SceneBody). Its placement id is kept on the card, so a reload resumes
+  // following the same job (a /motion job runs for minutes) instead of showing it generating forever.
   const follow = async placementId => {
     setPlacement(placementId);
+    if (latest.current.placementId !== placementId) onChange({ ...latest.current, placementId });
     try {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
@@ -1504,6 +1506,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
   };
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
+  // A card saved while its job ran: follow that job again (a read, never a new start). Cards saved without a placement id
+  // (before this) keep their old behaviour.
+  useEffect(() => { if (pending && block.placementId) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
