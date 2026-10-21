@@ -1,5 +1,6 @@
 import { wsHeaders } from '../api.js';
 import { endpointFor, wireContext } from './scope.js';
+import { handleAiRefusal } from '../ai-refusal.js';
 
 // What /api/ask and /api/learn/ask send (control-plane ask.js:362-454; ask.jsx:530-545 handles
 // the same set, 'paper' at :534).
@@ -64,6 +65,7 @@ export async function streamAsk({ path, body, file = null, signal, onEvent }) {
     const { events, rest } = frames(buffer + decoder.decode(value, { stream: true }));
     buffer = rest;
     for (const { type, data } of events) {
+      if (type === 'error') handleAiRefusal(data); // a refused admission mid-answer explains itself (ai-refusal.js)
       if (EVENTS.has(type)) onEvent(type, data);
       else console.info('Agent Bar ignored event', type);
     }

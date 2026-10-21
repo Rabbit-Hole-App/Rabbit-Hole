@@ -22,6 +22,7 @@ import { AVATAR_ACTION, HANDOFF_ACTION, MODE_SLASHES, NEXT_SECTION_ACTION } from
 import { decisionEvent, handoffUsage, safely, turnTrace } from './learn-tutor-trace.js';
 import { validSources } from './card-sources.js';
 import { actionContract, reasonCodes } from './learn-tutor-actions.js';
+import { handleAiRefusal } from './ai-refusal.js';
 
 // The slashes the Tutor accepts (LearnTutor slash()). /deeper and /simplify fix the move (row slash, no words read) only on a
 // domain with a depth ladder; elsewhere they are ordinary turns from the composer's words (Task 11b fix B5). /ask and /teach
@@ -713,7 +714,7 @@ export async function readPlanStream(response, onSentence) {
       const { type, ...event } = JSON.parse(line);
       if (type === 'sentence') onSentence?.(event);
       else if (type === 'plan') return event;
-      else if (type === 'error') throw Object.assign(new Error(event.error), { telemetry: event.telemetry });
+      else if (type === 'error') { handleAiRefusal(event); throw Object.assign(new Error(event.error), { telemetry: event.telemetry, data: event }); }
     }
     if (done) throw new Error('The tutor returned no turn');
   }

@@ -39,6 +39,7 @@ import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { tutorTurn } from './chat-route.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
+import { handleAiRefusal } from './ai-refusal.js';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -561,6 +562,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
     // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
     const sentKey = chatThread?.liveKey(), late = () => !!chatThread && lateEvent(sentKey, chatThread.liveKey());
+    // A refused AI request (monthly allowance or platform limit; ai-refusal.js) explains itself once and gives the learner
+    // their words and attachment back in the composer, so nothing they wrote is lost (owner D4 section 4, L12).
+    const keepRefused = d => {
+      if (!handleAiRefusal(d) || regenerate || late()) return;
+      setInput(current => current || raw);
+      setMentions(current => (current.length ? current : mentions));
+      if (attached) setFile(current => current || attached);
+    };
     // Chat persistence (chat-persist.js): an Auto turn the Tutor answers is saved by this client, bound now to this canvas and
     // thread (a new chat's thread id is made here), so a late reply is saved where it was asked. Ask and Tutor modes are saved
     // by /api/learn/ask. A demo or a regenerated answer is no new turn.
@@ -722,6 +731,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           setChoices({ message, candidates: d.choose });
         } else {
           mirror(`✗ ${d.error || `HTTP ${r.status}`}`);
+          keepRefused(d);
         }
         return;
       }
@@ -758,7 +768,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
           }
-          else if (type === 'error') { mirror(`✗ ${d.error}`); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
+          else if (type === 'error') { mirror(`✗ ${d.error}`); keepRefused(d); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
         }
       }
     } catch (e) {
@@ -767,6 +777,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (e.name !== 'AbortError') {
         if (sheetMode && tutor && !codeTurn) { panelAsk = true; exchange = null; card = {}; }
         begin(); mirror(`✗ ${e.message}`);
+        keepRefused(e.data); // a Tutor turn's refusal (api.js data, readPlanStream)
       }
       if (chatThread) setMsgs(messages => settle(messages, replyId, e.name === 'AbortError' ? 'stopped' : 'error'));
     } finally {

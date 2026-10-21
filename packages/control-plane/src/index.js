@@ -25,6 +25,7 @@ import { assumeRole, iamRolePolicies, s3Buckets, s3Get, s3List } from './aws.js'
 import { handleSlackCommand, handleSlackEvent, handleSlackInteract, notifySlackRun, slackApi, verifySlackSignature } from './slack.js';
 import { runWatchPass, weeklyWatchEmail } from './watch.js';
 import { runReview, generateRunbook } from './review.js';
+import { withUsage, withSystemUsage, noteUsageIdentity, usageFeature } from './learn-usage.js';
 import { buildRunbook, renderMarkdown, scrubPlatformVars } from './runbook-schema.js';
 import { parseCron, matches, nextRun } from './cron.js';
 import SHELL from '../../web/dist/index.html';
@@ -2321,7 +2322,8 @@ async function apiRunLog(req, env, ctx, runId) {
           try {
             const run = await env.DB.prepare('SELECT * FROM runs WHERE run_id = ?').bind(runId).first();
             const app = await env.DB.prepare('SELECT * FROM apps WHERE id = ?').bind(run.app_id).first();
-            const answer = await askOnce(env, await runContext(env, app, run), DIAGNOSIS_PROMPT, 300, app.org);
+            // The runner's callback has no user session: platform-funded system work, under the platform daily guard.
+            const answer = await askOnce(withSystemUsage(env), await runContext(env, app, run), DIAGNOSIS_PROMPT, 300, app.org);
             await env.DB.prepare('UPDATE runs SET diagnosis = ? WHERE run_id = ?').bind(answer.slice(0, 600), runId).run();
           } catch { /* a failed diagnosis is just a missing hint */ }
         }
@@ -2423,6 +2425,12 @@ export default {
           if (s) user = { email: s.email, uid: s.uid, ...(await workspaceFor(req, env, s.email)) };
         }
         if (!user) return json({ error: 'run small login first' }, 401);
+        // Monthly AI allowance (owner L12 2026-10-20): the signed-in session user pays for any AI call a POST makes here, as on
+        // the app worker's boundary (dev-worker.js). Never a body, header or canvas owner.
+        if (req.method === 'POST') {
+          env = withUsage(env, { feature: usageFeature('POST', path) || 'legacy', req });
+          noteUsageIdentity(env, { userId: user.uid ?? null, email: user.email });
+        }
         // Who is signed in, for the dev and review workers (dev-forwarding.js devIdentity). Reads only:
         // GET /api/apps also answers it, but its sweepStaleRuns writes (docs/features/dev-prod-write-barrier.md).
         // user_id is the session's users.id, the journey key (adaptive-learning-path-v1-architecture.md §10.2); null for a CLI token.
