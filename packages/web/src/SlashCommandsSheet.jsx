@@ -10,7 +10,8 @@ import { CommandMark } from './CommandTone.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CommandList from './CommandList.jsx';
 import { CadViewerTools } from './CadCard.jsx';
-import { CHAT_EXAMPLES, FINDER_NOTES, MEDIA, SAMPLES, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
+import { CHAT_EXAMPLES, FINDER_NOTES, MEDIA, SAMPLES, TAB_LABELS, demoOf, effectOf, illustrationFor, sheetCards } from './slash-sheet.js';
+import { EXPLAIN_EXAMPLES, ORIGIN_NOTES } from './explain-examples.js';
 
 // Every Learn / command, opened from View > Slash commands. Left: a search over the
 // picker's own sections (learn-slash.js, CommandList.jsx), so the sheet and the
@@ -32,12 +33,16 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
   const sections = pickerSections('/');
   const [name, setName] = useState('graph');
   const [cardIndex, setCardIndex] = useState(0);
-  const choose = next => { setName(next); setCardIndex(exampleCard(next)); };
+  const [sceneIndex, setSceneIndex] = useState(0);
+  const choose = next => { setName(next); setCardIndex(exampleCard(next)); setSceneIndex(0); };
   const demo = demoOf(name);
   const cards = demo === 'cards' ? sheetCards(name) : [];
   const card = cards[Math.min(cardIndex, cards.length - 1)];
   const command = toolOf(name);
   const example = parseSlash(EXAMPLES[name] || '');
+  // /explain's interactive visual: stored real /explain answers to choose between (explain-examples.js); nothing is generated.
+  const scenes = name === 'explain' && card?.card === 'animation' && EXPLAIN_EXAMPLES.length ? EXPLAIN_EXAMPLES : null;
+  const scene = scenes?.[Math.min(sceneIndex, scenes.length - 1)];
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[6vh]" onPointerDown={event => { if (event.target === event.currentTarget) onClose(); }}
       style={{ background: 'color-mix(in srgb, var(--color-ink) 18%, transparent)' }}>
@@ -71,7 +76,7 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
                 {cards.map((entry, index) => (
                   <button key={entry.card} type="button" role="tab" aria-selected={entry === card} onClick={() => setCardIndex(index)}
                     className={`rounded-full border px-2.5 py-1 text-xs ${entry === card ? 'border-ink bg-white text-ink' : 'border-line text-ink-2 hover:bg-white'}`}>
-                    {entry.card === 'notebook' ? 'Notebook' : BLOCK_TYPES[entry.card]?.label}
+                    {entry.card === 'notebook' ? 'Notebook' : TAB_LABELS[entry.card] || BLOCK_TYPES[entry.card]?.label}
                   </button>
                 ))}
               </div>
@@ -79,7 +84,9 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
             {/* The card at the size it has on the canvas: the pane scrolls rather than shrink it. */}
             <div className="mt-3 flex min-h-0 flex-1 items-start justify-center overflow-auto py-1">
               {name === 'cad' ? <p data-slash-cad className="max-w-md text-sm text-ink-2">Describe the part, its purpose and any required dimensions. CAD creates a saved background job, asks about important missing dimensions, and returns an interactive model with checked downloads. Selecting CAD does not start generation.</p> : demo === 'cards'
-                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">A sample card. Yours is made from what you type.</p><CardPreview key={`${name}:${card.card}`} type={card.card} command={name} appName={appName} /></div>
+                ? <div className="flex flex-col items-center gap-2"><p data-slash-sample className="text-[11px] text-ink-3">A sample card. Yours is made from what you type.</p>
+                  {scenes && <SceneExamples current={scene} onChoose={setSceneIndex} />}
+                  <CardPreview key={`${name}:${card.card}:${scene?.id || ''}`} type={card.card} command={name} appName={appName} sample={scene?.block} /></div>
                 : demo === 'finder'
                   ? <p data-slash-finder={name} className="w-[440px] max-w-full text-xs text-ink-2">{FINDER_NOTES[name]}</p>
                   : <ChatPreview name={name} />}
@@ -96,10 +103,10 @@ export default function SlashCommandsSheet({ appName, onClose, onUseExample = nu
 // frame, its drag strip and its Sources & evidence row (AdaptiveCanvas's
 // CanvasNode), and the card fully working. The one exception: Generate for
 // paid media is disabled here, so a help sheet can never start a paid job.
-function CardPreview({ type, command, appName }) {
+function CardPreview({ type, command, appName, sample: chosen = null }) {
   const [block, setBlock] = useState(() => {
     if (type === 'notebook') return { ...newNotebookBlock(), notebook_id: 'slash-commands-preview' };
-    const sample = { ...BLOCK_TYPES[type].sample(), ...structuredClone(SAMPLES[command]?.[type] || {}) };
+    const sample = { ...BLOCK_TYPES[type].sample(), ...structuredClone(chosen || SAMPLES[command]?.[type] || {}) };
     // A generated code sample never carries an output line (nobody ran it); the + sample's is hand-written.
     if (type === 'snippet') delete sample.output;
     // The viewer fetches an absolute URL, as a real scene's asset URL is; the committed model is served by this origin.
@@ -131,6 +138,23 @@ function CardPreview({ type, command, appName }) {
   return viewKey
     ? <div data-slash-viewer-preview className="flex shrink-0 flex-col items-end gap-2"><CadViewerTools viewKey={viewKey} cardId={block.id} ruler={false} />{card}</div>
     : card;
+}
+
+// /explain's interactive examples: one button per stored answer, each saying where it came from (made by /explain, or a fixture).
+function SceneExamples({ current, onChoose }) {
+  return (
+    <div className="flex w-full max-w-xl flex-col items-center gap-1">
+      <div role="group" aria-label="Interactive examples" className="flex flex-wrap items-center justify-center gap-1.5">
+        <span className="text-xs text-ink-3">Examples:</span>
+        {EXPLAIN_EXAMPLES.map((entry, index) => (
+          <button key={entry.id} type="button" data-explain-example={entry.id} data-explain-example-origin={entry.origin} aria-pressed={entry === current}
+            onClick={() => onChoose(index)}
+            className={`rounded-full border px-2.5 py-1 text-xs ${entry === current ? 'border-ink bg-white text-ink' : 'border-line text-ink-2 hover:bg-white'}`}>{entry.label}</button>
+        ))}
+      </div>
+      <p data-explain-example-note className="text-center text-[11px] text-ink-3">{ORIGIN_NOTES[current.origin]} <code className="font-mono">/explain {current.args}</code></p>
+    </div>
+  );
 }
 
 // Paid media with no committed finished file: a picture of the finished card, labelled as one.

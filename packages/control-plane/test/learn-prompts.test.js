@@ -12,6 +12,7 @@ import { canvasApp, canvasAskSeam } from '../src/canvases.js';
 import { repositoriesFetch } from '../src/repositories.js';
 import { askStream } from '../src/ask.js';
 import { generateArtifact, ARTIFACT_SYSTEM } from '../src/learn-artifact.js';
+import { VERIFY_SYSTEM } from '../src/agents/learn-scene-verify.js';
 import { generateBoardPlan } from '../src/learn-board.js';
 import { TEACHING_POLICY } from '../src/learn-teaching.js';
 import { VIDEO_SHOWN_NOTE, WIKI_SHOWN_NOTE, PAPER_SHOWN_NOTE } from '../src/agents/learn-chat.js';
@@ -25,7 +26,8 @@ const PINS = {
   chatSnapshot: '75fd4965a31b942c', // an app ask carrying a lesson_snapshot (legacy selection contract)
   chatOutline: '8e4510902ef9b033',
   repository: 'dd59f312d45aad50',
-  artifact: '870e84a3aa127657',
+  artifact: '20dc07a7bfe8bca7', // 2026-10-21 L10: when to make an interactive scene (make_animation)
+  sceneVerify: '95072982913f0bc1', // 2026-10-21 L10 (owner): the verifier pass over a generated scene (learn-scene-author.test.js sends it)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',
   gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
@@ -312,6 +314,10 @@ test('the whiteboard prompts describe video and 3D scenes as proposals that are 
   assert.doesNotMatch(plan.system, /generates asynchronously after review|replaces a placeholder with an interactive GLB|press Play animation|full visual palette is available/);
   includesAll(plan.system, ['a video block is drawn as a Video not generated placeholder', 'the scene is drawn as a 3D scene not generated placeholder', 'and photos when search_pexels is supplied']);
   assert.ok(review.system.includes('Planned video/3D blocks, which are not generated on a whiteboard, are unseen'));
+});
+
+test('the scene verifier pass prompt is pinned', () => {
+  assert.equal(fingerprint(VERIFY_SYSTEM), PINS.sceneVerify);
 });
 
 test('the shared teaching policy is pinned', () => {

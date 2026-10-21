@@ -1,0 +1,325 @@
+{
+ "id": "launch-angle",
+ "label": "Launch angle",
+ "origin": "generated",
+ "args": "how the launch angle changes how far a projectile travels",
+ "generatedAt": "2026-10-21T08:06:19.882Z",
+ "via": "/explain",
+ "block": {
+  "type": "animation",
+  "title": "Why 45° throws the farthest",
+  "scene": {
+   "id": "launch-angle-range",
+   "title": "Why 45° throws the farthest",
+   "width": 900,
+   "height": 560,
+   "duration": 3,
+   "inputs": [
+    {
+     "name": "ang",
+     "type": "index",
+     "label": "Launch angle",
+     "of": "angleLabels",
+     "default": 2,
+     "presentation": "picker"
+    },
+    {
+     "name": "showParts",
+     "type": "bool",
+     "label": "Show the two motions (horizontal / vertical)",
+     "default": true
+    }
+   ],
+   "exampleData": {
+    "angleLabels": [
+     "15°",
+     "30°",
+     "45°",
+     "60°",
+     "75°"
+    ],
+    "speedNote": "Illustrative numbers: launch speed fixed at 20 m/s, flat ground, no air resistance.",
+    "vx": [
+     19.3,
+     17.3,
+     14.1,
+     10,
+     5.2
+    ],
+    "vy": [
+     5.2,
+     10,
+     14.1,
+     17.3,
+     19.3
+    ],
+    "hang": [
+     1.06,
+     2.04,
+     2.89,
+     3.53,
+     3.94
+    ],
+    "range": [
+     20.4,
+     35.3,
+     40.8,
+     35.3,
+     20.4
+    ],
+    "height": [
+     1.4,
+     5.1,
+     10.2,
+     15.3,
+     19
+    ],
+    "rangeAll": [
+     20.4,
+     35.3,
+     40.8,
+     35.3,
+     20.4
+    ],
+    "partsOn": "Range = horizontal speed x time in the air. A steeper angle buys time but costs horizontal speed.",
+    "partsOff": "Turn the parts back on to see the trade-off behind the range."
+   },
+   "derived": {
+    "vxNow": {
+     "op": "pick",
+     "args": [
+      "vx",
+      "ang"
+     ]
+    },
+    "vyNow": {
+     "op": "pick",
+     "args": [
+      "vy",
+      "ang"
+     ]
+    },
+    "hangNow": {
+     "op": "pick",
+     "args": [
+      "hang",
+      "ang"
+     ]
+    },
+    "rangeNow": {
+     "op": "pick",
+     "args": [
+      "range",
+      "ang"
+     ]
+    },
+    "peakNow": {
+     "op": "pick",
+     "args": [
+      "height",
+      "ang"
+     ]
+    },
+    "angNow": {
+     "op": "pick",
+     "args": [
+      "angleLabels",
+      "ang"
+     ]
+    },
+    "parts": {
+     "op": "gate",
+     "args": [
+      "vx",
+      "showParts"
+     ]
+    },
+    "note": {
+     "op": "choose",
+     "args": [
+      "showParts",
+      "partsOn",
+      "partsOff"
+     ]
+    }
+   },
+   "objects": [
+    {
+     "id": "q",
+     "type": "text",
+     "initialState": {
+      "text": "Same speed, different angle: which one lands farthest?",
+      "x": 40,
+      "y": 44,
+      "typography": "heading"
+     }
+    },
+    {
+     "id": "setup",
+     "type": "text",
+     "initialState": {
+      "text": "{{speedNote}}",
+      "x": 40,
+      "y": 74,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "vxs",
+     "type": "strip",
+     "initialState": {
+      "label": "horizontal speed vx (m/s): 15/30/45/60/75",
+      "x": 40,
+      "y": 160,
+      "cell": 60,
+      "role": "input",
+      "values": {
+       "$derive": "parts"
+      },
+      "cellHighlight": {
+       "$derive": "ang"
+      },
+      "w": 300,
+      "h": 60
+     }
+    },
+    {
+     "id": "vys",
+     "type": "strip",
+     "initialState": {
+      "label": "vertical speed vy (m/s): 15/30/45/60/75",
+      "x": 40,
+      "y": 260,
+      "cell": 60,
+      "role": "input",
+      "values": {
+       "$derive": "vy"
+      },
+      "cellHighlight": {
+       "$derive": "ang"
+      },
+      "w": 300,
+      "h": 60
+     }
+    },
+    {
+     "id": "rangebars",
+     "type": "bars",
+     "initialState": {
+      "label": "range (m) by launch angle",
+      "x": 560,
+      "y": 170,
+      "h": 140,
+      "cell": 60,
+      "role": "output",
+      "labels": [
+       "15°",
+       "30°",
+       "45°",
+       "60°",
+       "75°"
+      ],
+      "values": {
+       "$derive": "rangeAll"
+      },
+      "cellHighlight": {
+       "$derive": "ang"
+      },
+      "w": 300
+     }
+    },
+    {
+     "id": "sel",
+     "type": "text",
+     "initialState": {
+      "text": "Angle {{angNow}}:  vx = {{vxNow}} m/s,  vy = {{vyNow}} m/s",
+      "x": 40,
+      "y": 350,
+      "typography": "body",
+      "role": "input"
+     }
+    },
+    {
+     "id": "res",
+     "type": "text",
+     "initialState": {
+      "text": "time in air {{hangNow}} s  ->  range {{rangeNow}} m,  peak height {{peakNow}} m",
+      "x": 40,
+      "y": 386,
+      "typography": "body",
+      "role": "output"
+     }
+    },
+    {
+     "id": "pair",
+     "type": "text",
+     "initialState": {
+      "text": "15° ties with 75°; 30° ties with 60°. Angles equally far from 45° match.",
+      "x": 40,
+      "y": 444,
+      "typography": "body",
+      "role": "success"
+     }
+    },
+    {
+     "id": "note",
+     "type": "text",
+     "initialState": {
+      "text": "{{note}}",
+      "x": 40,
+      "y": 484,
+      "typography": "annotation"
+     }
+    },
+    {
+     "id": "samples-note",
+     "type": "text",
+     "semanticId": "samples-note",
+     "initialState": {
+      "text": "Precomputed samples: each setting shows a stored result, not a live calculation.",
+      "x": 40,
+      "y": 519,
+      "typography": "annotation"
+     }
+    }
+   ],
+   "timeline": [
+    {
+     "at": 0,
+     "action": "appear",
+     "target": "vxs",
+     "duration": 0.4
+    },
+    {
+     "at": 0.5,
+     "action": "appear",
+     "target": "vys",
+     "duration": 0.4
+    },
+    {
+     "at": 1.1,
+     "action": "appear",
+     "target": "rangebars",
+     "duration": 0.6
+    },
+    {
+     "at": 1.9,
+     "action": "highlight",
+     "target": "res",
+     "duration": 0.5
+    },
+    {
+     "at": 2.4,
+     "action": "emphasize",
+     "target": "pair",
+     "duration": 0.5
+    }
+   ]
+  },
+  "time": 3,
+  "selectedObject": null,
+  "marked": null,
+  "calculation": "precomputed"
+ },
+ "adapted": "data-object sizes filled after the run by the server adapter (withDataSizes), as it now does for every scene"
+}
