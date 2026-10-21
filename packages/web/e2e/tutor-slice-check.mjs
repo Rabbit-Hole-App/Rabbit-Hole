@@ -49,6 +49,10 @@ const selected = id => cardEl(id).evaluate(node => node.className.includes('ring
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const ask = async text => { await composer().click(); await composer().fill(text); if (text.startsWith('/')) await page.waitForTimeout(150); await composer().press('Enter'); };
 const chips = () => page.locator('[data-tutor-chips]');
+// Owner decision 3a and integrator ruling Q5 (2026-10-20, Tutor workflow): the Tutor's own teaching moves - a depth offer, a
+// hole suggestion, a re-check question - run only in selected, enabled Tutor. This board starts in Auto, the default, so the
+// golden traces that show them pick Tutor first; the guided hole entry is checked in Auto (owner 4a: its opening waits).
+const pickMode = async label => { await page.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click(); await page.getByRole('menuitemradio', { name: new RegExp(`^${label}`) }).click(); await page.waitForTimeout(500); };
 
 // ---- the Tutor routes: scripted in the browser (default) or real (--live) ----
 const plans = [], evaluations = [];
@@ -109,6 +113,7 @@ if (LIVE) {
     return plan;
   };
 
+  await pickMode('Tutor');
   if (!GAP_ONLY) {
   // An unprompted explanation: JEV judges only the ideas it touches (the approved v1 rule).
   await select('c10-weighted-values');
@@ -146,6 +151,7 @@ if (LIVE) {
   if (suggested) assert.ok(sentences.length >= 1 && sentences.length <= 2, `at most two sentences before the Rabbit Hole suggestion (${sentences.length})`);
   if (GAP_ONLY) { await browser.close(); assert.ok(suggested, 'the real planner suggested a dive'); console.log('tutor-slice-check --live --gap ok'); process.exit(0); }
   if (suggested) {
+    await pickMode('Auto');
     const opening = page.waitForResponse(response => response.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
     await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
     await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
@@ -162,6 +168,7 @@ if (LIVE) {
     await page.waitForFunction(name => location.pathname === `/apps/${name}` && !location.search.includes('hole='), root.name, { timeout: 15000 }).catch(() => {});
     await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500);
     assert.ok(await page.locator(`[data-dive-portal]`).count(), 'back on the parent, the origin card is a portal');
+    await pickMode('Tutor');
     await select('depth-attention-guided');
     const returnedSent = page.waitForRequest(request => request.url().endsWith('/api/learn/tutor/plan'), { timeout: 120000 });
     await liveTurn('L8 back on the parent', 'I am back.');
@@ -188,6 +195,7 @@ assert.ok(await selected('depth-attention-deep'), 'the Deep card is focused');
 await shot('02-gt04-deep-card');
 
 // ---- GT-01: restating the drawn case -> a depth chip, nothing moves by itself ----
+await pickMode('Tutor');
 await select('depth-attention-overview');
 nextEvaluation = () => ({ status: 'settled', evaluator: 'jev', events: [0, 1].map(() => event('attention/looks-back-never-ahead', 'attention', { result: 'pass', kind: 'demonstrated_here' })) });
 nextPlan = sent => {
@@ -242,6 +250,7 @@ nextPlan = sent => {
   assert.match(sent.learner_intent.raw_user_message, /add up to one/);
   return { strategy: 'feynman', move: 'explain', reason: '', actions: [say('In this hole: softmax turns scores into weights that add up to one.'), { type: 'show_authored_card', card: 'c21-temperature', mode: 'suggest' }] };
 };
+await pickMode('Auto');
 await page.getByRole('button', { name: 'Go down a Rabbit Hole' }).click();
 await page.waitForFunction(() => location.search.includes('hole='), null, { timeout: 15000 });
 const hole = new URL(page.url()).searchParams.get('hole');
@@ -276,6 +285,7 @@ nextPlan = sent => {
   assert.equal(sent.route.claim, 'attention/weights-from-scores');
   return { strategy: 'socrates', move: 're-check', reason: '', actions: [{ type: 'ask_question', text: 'So why do the attention weights add up to one?', claim: 'attention/weights-from-scores', purpose: 'transfer' }] };
 };
+await pickMode('Tutor');
 await select('depth-attention-guided');
 await ask('I am back.');
 await waitPlan(8);
