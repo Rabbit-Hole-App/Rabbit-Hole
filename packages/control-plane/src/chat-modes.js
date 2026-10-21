@@ -5,6 +5,7 @@
 import { JOURNEY_LIMITS, validatePath } from '../../web/src/learn-journey.js';
 import { HISTORY_TURNS } from './learn-models.js';
 import { FILE_SOURCE, fileRange } from '../../web/src/file-chat-ref.js';
+import { progressScope } from '../../web/src/learn-progress-question.js';
 
 const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
@@ -22,7 +23,9 @@ const SUBTOPICS = 6, DESCRIPTION_MAX = 240;
 // (file-context.js), so it never carries text from the browser.
 // excerpt: a PDF excerpt (excerpt:<pdfx id>, range { page }) whose verbatim text the client resolved, like a card
 // (C:/s/spec/pdf-excerpts/contract.md "Chat"); a region excerpt rides as its crop's file ref instead.
-const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph', 'file', 'excerpt'];
+// progress: a Progress question's scope (progress:<goal id>, range a ProgressQuestionScope, learn-progress-question.js); the
+// server reads the learner's own records for it (learn-progress-context.js), so it never carries evidence from the browser.
+const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph', 'file', 'excerpt', 'progress'];
 // Content the client resolved at Send for kinds the server cannot read itself (Home, 12:30 AM PT).
 const TEXT_KINDS = new Set(['card', 'group', 'image', 'media', 'excerpt']);
 const REFS = 20, REF_BYTES = 2048, REF_TEXT = 8000, REFS_TEXT = 32000;
@@ -35,6 +38,7 @@ const bytes = value => new TextEncoder().encode(JSON.stringify(value)).length;
 // A2 ranges: null, or exactly one shape for the kind. Rebuilt from known keys, so nothing else rides.
 function refRange(kind, range) {
   if (kind === 'file') return fileRange(range);
+  if (kind === 'progress') return progressScope(range);
   if (range == null) return null;
   if (kind === 'excerpt' && isObj(range) && Object.keys(range).join() === 'page' && int(range.page, 1)) return { page: range.page };
   if (!isObj(range)) throw Error('range must be an object or null');
@@ -144,8 +148,9 @@ export function courseIntent(text) {
 
 // B6: what this turn runs as. An explicit command always wins and keeps its capability (the answer path, never Tutor);
 // Ask is never turned into a syllabus, journey or not; Auto enters Tutor only on explicit course intent.
-export function resolveMode({ mode, command }, message) {
-  if (command || mode === 'ask') return { mode: 'ask', maybe: false };
+// A Progress question (a progress ref attached) is a question in every mode: it never plans a syllabus (Task 10).
+export function resolveMode({ mode, command, contextRefs = null }, message) {
+  if (command || mode === 'ask' || contextRefs?.some(ref => ref.kind === 'progress')) return { mode: 'ask', maybe: false };
   if (mode === 'tutor') return { mode: 'tutor', maybe: false };
   const intent = courseIntent(message);
   return { mode: intent === 'course' ? 'tutor' : 'ask', maybe: intent === 'maybe' };

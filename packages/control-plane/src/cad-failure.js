@@ -26,3 +26,7 @@ export function cadFailureMessage(job) {
   const reason = Object.hasOwn(reasons,job.failureCode) ? reasons[job.failureCode] : 'The CAD executor could not complete this attempt';
   return `${reason} at ${job.failureStage}${job.failurePhase ? ` (${job.failurePhase})` : ''}. Valid saved artifacts are retained. Job ${job.id}, attempt ${job.failureAttempt}.`;
 }
+// The saved source's own explanation for refusing parameter values: the last ValueError/AssertionError line it printed
+// (phase.py's own CalledProcessError traceback follows it), bounded. Input is the already-sanitized private diagnostics;
+// only this one line becomes public.
+export const modelRejection = text => { const m = [...String(text || '').matchAll(/^(?:ValueError|AssertionError): ([^\n]{1,300})$/gm)].at(-1); return m ? m[1].trim() : null; };

@@ -1,0 +1,37 @@
+{
+  "brief": {
+    "title": "L-bracket",
+    "units": "mm",
+    "object": "An L-shaped bracket with mounting holes in its base",
+    "requirements": ["Mounting hole centred on the free part of the base"],
+    "assumptions": ["60 mm base, 50 mm upright, 30 mm wide, 4 mm stock", "One 5 mm hole"],
+    "missing": [],
+    "unsupported": ["Volume is not checked because the hole count depends on a choice", "Strength and fit are not assessed"],
+    "contextUsed": [],
+    "controls": {
+      "schema": "cad-params/1",
+      "parameters": [
+        { "id": "base_length", "label": "Base length", "role": "input", "type": "length", "unit": "mm", "value": 60, "min": 15, "max": 200, "step": 1, "priority": 0, "check": "size_x" },
+        { "id": "upright_height", "label": "Upright height", "role": "input", "type": "length", "unit": "mm", "value": 50, "min": 10, "max": 200, "step": 1, "priority": 1, "check": "size_z" },
+        { "id": "width", "label": "Width", "role": "input", "type": "length", "unit": "mm", "value": 30, "min": 10, "max": 150, "step": 1, "priority": 2, "check": "size_y" },
+        { "id": "thickness", "label": "Stock thickness", "role": "input", "type": "length", "unit": "mm", "value": 4, "min": 1, "max": 20, "step": 0.5, "priority": 3 },
+        { "id": "hole_diameter", "label": "Hole diameter", "role": "input", "type": "length", "unit": "mm", "value": 5, "min": 1, "max": 40, "step": 0.1, "precision": 1, "priority": 4, "check": "hole_d" },
+        { "id": "mounting", "label": "Mounting holes", "role": "input", "type": "choice", "value": "one_hole", "choices": [{ "value": "one_hole", "label": "One hole" }, { "value": "two_holes", "label": "Two holes" }], "priority": 5 },
+        { "id": "hole_offset", "label": "Hole distance from back", "role": "computed", "type": "length", "unit": "mm", "dependsOn": ["base_length", "thickness"], "priority": 20 },
+        { "id": "inside_height", "label": "Inside height", "role": "computed", "type": "length", "unit": "mm", "dependsOn": ["upright_height", "thickness"], "priority": 21 }
+      ],
+      "constraints": [
+        { "id": "stock_below_upright", "kind": "compare", "left": "thickness", "op": "lt", "right": "upright_height", "message": "The stock must be thinner than the upright is tall." },
+        { "id": "stock_below_base", "kind": "compare", "left": "thickness", "op": "lt", "right": "base_length", "message": "The stock must be thinner than the base is long." },
+        { "id": "hole_in_width", "kind": "compare", "left": "hole_diameter", "op": "lt", "right": "width", "offset": -2, "message": "A hole needs at least 1 mm of material on each side." }
+      ]
+    }
+  },
+  "checks": [
+    { "id": "size_x", "kind": "bounds_mm", "axis": "x", "expression": "base_length", "tolerance": 0.001 },
+    { "id": "size_y", "kind": "bounds_mm", "axis": "y", "expression": "width", "tolerance": 0.001 },
+    { "id": "size_z", "kind": "bounds_mm", "axis": "z", "expression": "upright_height", "tolerance": 0.001 },
+    { "id": "hole_d", "kind": "circular_diameter_mm", "expression": "hole_diameter", "tolerance": 0.001 },
+    { "id": "one_solid", "kind": "solid_count", "value": 1, "tolerance": 0 }
+  ]
+}

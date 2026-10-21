@@ -53,7 +53,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { looksLikeCode, pasteKind } from './canvas-paste.js';
@@ -2243,7 +2243,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // space, placed as openInNotebook places (the end of the column, offset to the spot), then selected. Returns its id.
       insertRefCard: (target, point = null) => {
         if (readOnlyRef.current || !target) return null;
-        const spot = refCardSpot(point || viewCenter(), inlineCanvas.obstacles(), inlineCanvas.visibleWorld());
+        const spot = refCardSpot(point || viewCenter(), [...inlineCanvas.obstacles(), ...placementChrome()], inlineCanvas.visibleWorld());
         const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
         const added = { id: crypto.randomUUID(), type: 'canvas-ref', dx: Math.round(spot.x - (COLUMN - REF_CARD.w) / 2), dy: Math.round(spot.y - flowY), refs: [{ id: crypto.randomUUID(), target }] };
         snapshot();
@@ -2262,7 +2262,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const gap = 20, widths = list.map(block => block.w || (block.type === 'file' ? COLUMN : EXCERPT_CARD.w)), w = Math.max(...widths);
         const heights = list.map((block, index) => block.h || (block.excerpt?.crop ? Math.round((widths[index] - 24) * block.excerpt.crop.height / block.excerpt.crop.width) + 130 : EXCERPT_CARD.h));
         const box = { w, h: heights.reduce((sum, h) => sum + h, 0) + gap * (list.length - 1) };
-        const spot = at ? { x: at.x - w / 2, y: at.y } : refCardSpot(viewCenter(), inlineCanvas.obstacles(), inlineCanvas.visibleWorld(), box);
+        const spot = at ? { x: at.x - w / 2, y: at.y } : refCardSpot(viewCenter(), [...inlineCanvas.obstacles(), ...placementChrome()], inlineCanvas.visibleWorld(), box);
         const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
         let y = spot.y, flow = flowY;
         const added = list.map((block, index) => {
@@ -2287,7 +2287,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const visible = inlineCanvas.visibleWorld(), gap = 20;
         const cols = Math.max(1, Math.min(list.length, Math.floor((visible.w + gap) / (size.w + gap))));
         const rows = Math.ceil(list.length / cols), box = { w: cols * size.w + (cols - 1) * gap, h: rows * size.h + (rows - 1) * gap };
-        const spot = refCardSpot({ x: visible.x, y: visible.y }, inlineCanvas.obstacles(), visible, box);
+        const spot = refCardSpot({ x: visible.x, y: visible.y }, [...inlineCanvas.obstacles(), ...placementChrome()], visible, box);
         const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
         const added = list.map((block, index) => ({ ...block, id: crypto.randomUUID(),
           dx: Math.round(spot.x + (index % cols) * (size.w + gap) - (COLUMN - size.w) / 2),
@@ -2698,6 +2698,28 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     return Math.min(at.height, ...[...(shell.current?.querySelectorAll('[data-canvas-bottom] > * > *') || [])].flatMap(boxesIn)
       .filter(rect => rect.width && rect.height && rect.left - at.left < x1 && rect.right - at.left > x0)
       .map(rect => rect.top - at.top));
+  };
+  // The same chrome for a card placed in view (insertRefCard, insertExcerpts, insertGroup, openInNotebook, the inline
+  // editor's results), as world obstacles (chromeObstacles). While the Next Steps hooks can show here but are hidden, their
+  // corner counts too, at the room they last had (hooksRoom): the insert itself changes their input, and their loading
+  // skeleton comes back over that corner at once.
+  // shortcut: hooks never shown yet on this canvas reserve nothing; measure a hidden skeleton if that case ever matters.
+  const hooksRoom = useRef(null), hooksSeen = useRef(null);
+  const hooksSlot = useCallback(node => {
+    hooksSeen.current?.disconnect();
+    hooksSeen.current = node && new ResizeObserver(() => {
+      const rect = node.getBoundingClientRect(), edge = node.closest('[data-canvas-bottom]').getBoundingClientRect();
+      if (rect.width && rect.height) hooksRoom.current = { right: edge.right - rect.right, bottom: edge.bottom - rect.bottom, w: rect.width, h: rect.height };
+    });
+    hooksSeen.current?.observe(node);
+  }, []);
+  const placementChrome = () => {
+    const strip = bottomStrip.current, at = surface.current?.getBoundingClientRect();
+    if (!strip || !at) return [];
+    const rects = [...strip.querySelectorAll(':scope > * > *')].flatMap(boxesIn).filter(rect => rect.width && rect.height);
+    const slot = strip.querySelector('[data-hooks-slot]'), room = hooksRoom.current, edge = strip.getBoundingClientRect();
+    if (slot && room && !slot.getBoundingClientRect().height) rects.push({ left: edge.right - room.right - room.w, right: edge.right - room.right, top: edge.bottom - room.bottom - room.h });
+    return chromeObstacles(rects.map(rect => ({ left: rect.left - at.left, right: rect.right - at.left, top: rect.top - at.top })), at.height, viewRef.current);
   };
   // What the learner can see of the surface: less what floats over it - the chat sheet above the composer, the
   // Voice caption, the page's contents rail (edgeInset) - and a margin (canvas-slots.js freeArea).
@@ -3289,6 +3311,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     obstacles: exclude => boardObstacles(exclude).map(({ id: _id, ...box }) => box),
     // The camera moves to show a world box (a ghost placed off-screen), the way an inserted card is shown.
     reveal: box => showBox(box, true),
+    placementChrome,
     visibleWorld: () => { const area = visibleArea(), v = viewRef.current; return { x: (area.left - v.x) / v.z, y: (area.top - v.y) / v.z, w: (area.right - area.left) / v.z, h: (area.bottom - area.top) / v.z }; },
     // The part of the surface on screen: a phone's keyboard shrinks the visual viewport, not the surface.
     surfaceSize: () => {
@@ -4615,7 +4638,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // NotebookCard's opening size. It joins the end of the column (gap-5, a wide card centred on it, as insertBlock's)
     // and is drawn at the placed spot by its offset from there.
     const size = { w: 640, h: 540 };
-    const spot = placeNote(target, size, inlineCanvas.obstacles([id]), inlineCanvas.visibleWorld());
+    const spot = placeNote(target, size, [...inlineCanvas.obstacles([id]), ...placementChrome()], inlineCanvas.visibleWorld());
     const col = column.current, flowY = (col?.offsetHeight || 0) + (col?.children.length ? 20 : 0);
     const added = { ...made, dx: Math.round(spot.x - (COLUMN - size.w) / 2), dy: Math.round(spot.y - flowY) };
     snapshot();
@@ -5670,7 +5693,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
         <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
-          {hooks && <div data-hooks-slot className="w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)]">{hooks}</div>}
+          {hooks && <div data-hooks-slot ref={hooksSlot} className="w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)]">{hooks}</div>}
         </div>
       </div>}
     </div>

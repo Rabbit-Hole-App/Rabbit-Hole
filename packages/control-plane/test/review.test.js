@@ -92,7 +92,7 @@ test('review finds form-field → subprocess flow across app.py and helpers.py; 
         ],
       };
     }),
-    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 1, bundle, skipped)
+    () => runReview({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', DB: db }, 1, bundle, skipped)
   );
   assert.equal(db.writes.length, 1);
   const review = stored(db);
@@ -114,7 +114,7 @@ test('undeclared os.environ["FOO"] → undeclared_secrets == ["FOO"], risk >= me
     mockAnthropic((sent) =>
       sent.includes('os.environ["FOO"]') ? { ...emptyReview(), undeclared_secrets: ['FOO'] } : emptyReview()
     ),
-    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 2, bundle, skipped)
+    () => runReview({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', DB: db }, 2, bundle, skipped)
   );
   const review = stored(db);
   assert.deepEqual(review.undeclared_secrets, ['FOO']);
@@ -129,7 +129,7 @@ test('platform SMALL_* vars are not undeclared secrets and do not raise risk', a
       secrets: [{ name: 'SMALL_DATA', declared: false, used_at: 'app.py:10' }],
       undeclared_secrets: ['SMALL_DATA'],
     })),
-    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 3, 'bundle', [])
+    () => runReview({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', DB: db }, 3, 'bundle', [])
   );
   const review = stored(db);
   assert.deepEqual(review.undeclared_secrets, []);
@@ -160,7 +160,7 @@ test('runbook is stored with the review, review summary line appended with the c
       shell_exec: [{ command: 'x', user_input_reaches_it: true, at: 'a.py:1' }],
       runbook: '# shell runner\n\n## What it does\n\nRuns shells.\n',
     })),
-    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 5, 'bundle', [])
+    () => runReview({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', DB: db }, 5, 'bundle', [])
   );
   const review = stored(db);
   assert.ok(review.runbook.startsWith('# shell runner\n'));
@@ -170,7 +170,7 @@ test('runbook is stored with the review, review summary line appended with the c
 test('generateRunbook returns the finished runbook without a DB', async () => {
   const runbook = await withFetch(
     mockAnthropic(() => emptyReview()),
-    () => generateRunbook({ ANTHROPIC_API_KEY: 'k' }, 'bundle')
+    () => generateRunbook({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k' }, 'bundle')
   );
   assert.ok(runbook.startsWith('# a test app\n'));
   assert.match(runbook, /\*review: a test app - risk: low\*\n$/);
@@ -188,7 +188,7 @@ test('API failure never throws and stores nothing', async () => {
     async () => {
       throw new Error('network down');
     },
-    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 3, 'bundle', [])
+    () => runReview({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', DB: db }, 3, 'bundle', [])
   );
   assert.equal(db.writes.length, 0);
 });
@@ -197,8 +197,20 @@ test('invalid JSON from the model stores nothing', async () => {
   const db = dbStub();
   await withFetch(
     async () => new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'not json' }] }), { status: 200 }),
-    () => runReview({ ANTHROPIC_API_KEY: 'k', DB: db }, 4, 'bundle', [])
+    () => runReview({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'k', DB: db }, 4, 'bundle', [])
   );
   assert.equal(db.writes.length, 0);
   assert.throws(() => validateReview({ summary: 's' }));
+});
+
+// Where spend is enforced the legacy review call is refused before it is sent (owner L12 2026-10-20): it is outside the ledger
+// and its server-side fallback has no price bound. The tests above run it where spend is not enforced (SMALL_ENV test).
+test('where spend is enforced, deploy review and runbook generation never reach the provider', async () => {
+  const db = dbStub();
+  let calls = 0;
+  await withFetch(async () => { calls++; throw new Error('must not be called'); }, async () => {
+    await runReview({ ANTHROPIC_API_KEY: 'k', DB: db, USAGE_PLATFORM_DAY_USD: '10' }, 6, 'bundle', []);
+    await assert.rejects(() => generateRunbook({ ANTHROPIC_API_KEY: 'k', USAGE_PLATFORM_DAY_USD: '10' }, 'bundle'), /Deploy review is paused/);
+  });
+  assert.equal(calls, 0);
 });

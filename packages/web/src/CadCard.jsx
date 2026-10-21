@@ -9,6 +9,11 @@ import { cadArtifact, cadClient, cadRunning, cadStage, mergeCadBlock } from './c
 import { BACKGROUND_LABELS, VIEWER_BACKGROUNDS, viewerBackground } from './cad-viewer-background.js';
 import { dropView, publishView, useCadDimensions, useCadView } from './cad-viewer-store.js';
 import { chunkGone, draftsPending, failedChunkUrl, moduleLoadFailed, reloadOnce, updateReloadBlock, workDurable } from './chunk-reload.js';
+import { quickEditModel } from './cad-quick-edit-model.js';
+import { CadQuickEdit } from './cad-quick-edit.jsx';
+import { CadDetails } from './cad-details.jsx';
+import { CadDimensionsOverlay } from './cad-dimensions-overlay.jsx';
+import { useCadDraft, withDraft } from './cad-draft-store.js';
 
 // Use the existing file scope for shared/member reads. Never forward its token
 // or workspace headers to an artifact URL outside Rabbit Hole.
@@ -68,9 +73,10 @@ const reloadBlock = () => updateReloadBlock({ online: navigator.onLine, durable:
 // and the wheel pans the canvas; inside, orbit, pan and zoom stay in the viewer, and Esc, Done, a press outside or losing
 // the selection ends it. A viewer whose module cannot load shows the preview with Retry and, only for a confirmed stale
 // build, Reload to update (chunk-reload.js; clarification 8). `viewKey` names it to its toolbar (cad-viewer-store.js);
-// `showDimensions` is the toolbar's ruler toggle, for the dimensions overlay (cad-controls lane C).
-export function CadPreview({ manifest, active = false, ownerRead = false, id = null, background = 'white', viewKey = null, selected = true, showDimensions = false }) {
-  const root = useRef(null), host = useRef(null), engine = useRef(null), press = useRef(null), viewerId = useRef(`cad-viewer:${crypto.randomUUID()}`);
+// `showDimensions` is the toolbar's ruler toggle: the dimensions overlay (cad-dimensions-overlay.jsx); `draftPending` says a
+// Quick edit draft is not built yet, `highlight` the parameter in focus there.
+export function CadPreview({ manifest, active = false, ownerRead = false, id = null, background = 'white', viewKey = null, selected = true, showDimensions = false, draftPending = false, highlight = null, minHeight = 'min-h-40' }) {
+  const root = useRef(null), host = useRef(null), engine = useRef(null), press = useRef(null), viewerId = useRef(`cad-viewer:${crypto.randomUUID()}`), frame = useRef(null);
   const [visible,setVisible] = useState(false), [slot,setSlot] = useState(false), [interacting,setInteracting] = useState(false), [attempt,setAttempt] = useState(0);
   const [failure,setFailure] = useState(null), [ready,setReady] = useState(false), [poster,setPoster] = useState(null);
   const [tries,setTries] = useState(0), [stale,setStale] = useState(false), [blocked,setBlocked] = useState(null), [,setTick] = useState(0);
@@ -111,7 +117,7 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
         const {loadModel}=await import('./model-loaders.js');
         return loadModel({files:new Map([['model.glb',bytes]]),entry:{path:'model.glb',format:'glb',render:'mesh',deps:[]},...context});
       };
-      instance=createThreeDRenderer(host.current,{modelUrl:'',camera:cameras.get(cameraKey)||{},animation:{autoplay:false},animationTime:0,autoRotate:false},()=>{},()=>{if(!disposed)setReady(true);},fail,{load,background:colour});
+      instance=createThreeDRenderer(host.current,{modelUrl:'',camera:cameras.get(cameraKey)||{},animation:{autoplay:false},animationTime:0,autoRotate:false},()=>{},()=>{if(!disposed)setReady(true);},fail,{load,background:colour,onFrame:()=>frame.current?.()});
       engine.current=instance;
     }).catch(fail);
     return ()=>{disposed=true;abort.abort();keepCamera();instance?.destroy();engine.current=null;};
@@ -151,10 +157,11 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
   const notice=!failure ? null : !failure.module ? `The model preview could not load: ${failure.message}` : !navigator.onLine ? "You're offline, so the 3D viewer could not load." : stale ? 'This tab is running an older version of Rabbit Hole, so the 3D viewer could not load.' : 'The 3D viewer could not load.';
   return <div ref={root} data-cad-viewer data-cad-background={background} data-cad-dimensions={showDimensions ? 'on' : 'off'} data-viewer-live={live || undefined} data-viewer-active={interacting || undefined} tabIndex={-1} aria-label={interacting ? '3D model viewer, interacting' : '3D model viewer'}
     style={colour ? { background: colour } : undefined}
-    className={`relative min-h-40 flex-1 overflow-hidden rounded-lg border outline-none ${interacting ? 'border-ink' : 'border-line'}`}
+    className={`relative ${minHeight} flex-1 overflow-hidden rounded-lg border outline-none ${interacting ? 'border-ink' : 'border-line'}`}
     onContextMenu={event=>{if(interacting){event.preventDefault();event.stopPropagation();}}}
     onKeyDown={event=>{if(interacting)event.stopPropagation();}}>
     <div ref={host} className="absolute inset-0" style={{ pointerEvents: interacting ? 'auto' : 'none' }}/>
+    {showDimensions && <CadDimensionsOverlay manifest={manifest} engine={engine} frame={frame} live={live} draftPending={draftPending} highlight={highlight}/>}
     {poster && !live && <img data-cad-poster src={poster} alt={manifest?.title || 'CAD model preview'} className="pointer-events-none absolute inset-0 h-full w-full object-contain"/>}
     {!glb && !poster && <p className="p-5 text-center text-xs text-ink-2">The interactive preview is not available yet.</p>}
     {/* Not a control (those are outside the card, CadViewerTools): the surface a click into the model enters from. */}
@@ -182,20 +189,14 @@ export function CadViewerTools({ viewKey, account = '', cardId }) {
     <Tip label="Show dimensions" align="end"><button type="button" data-cad-dimensions-toggle aria-label="Show dimensions" aria-pressed={dimensions} onClick={()=>setDimensions(!dimensions)} className={dimensions ? iconOn : tool}><Ruler size={15} aria-hidden/></button></Tip>
   </div>;
 }
-// The existing "Brief, parameters & checks" disclosure, as one component that the CAD-controls lane (C) replaces with its
-// Design brief / Checks / Code / Revisions sections.
-export function CadDetails({ block, job, shown, mutable, running, onEdit }) {
-  return <details className="overflow-auto text-xs text-ink-2" onPointerDown={event=>event.stopPropagation()}><summary data-cad-action="details" className="cursor-pointer">Brief, parameters & checks</summary><p>{typeof block.briefSummary==='string' ? block.briefSummary : job?.brief?.object || 'Design brief is being prepared.'}</p>{(shown?.assumptions || []).map((text,index)=><p key={index}>{typeof text==='string'?text:JSON.stringify(text)}</p>)}<pre className="whitespace-pre-wrap">{JSON.stringify({parameters:shown?.parameters || {},validation:shown?.validation || [],limitations:job?.limitations || []},null,2)}</pre><p>Preview supports visual exploration, not exact face selection or measurements.</p>{mutable && block.revisionId && <button className={button} disabled={running} onClick={()=>onEdit?.()}>Refine assumptions</button>}</details>;
-}
 function BackgroundControl({ value, onChange }) {
   return <div role="group" aria-label="Viewer background" data-cad-background-control className="flex items-center gap-0.5">
     {Object.keys(VIEWER_BACKGROUNDS).map(key=><Tip key={key} label={BACKGROUND_LABELS[key]} align="end"><button type="button" data-cad-background-option={key} aria-label={BACKGROUND_LABELS[key]} aria-pressed={value===key} onClick={()=>onChange(key)}
       className={value===key ? iconOn : iconButton}>{key==='none' ? <Ban size={16} aria-hidden/> : <span aria-hidden className="h-4 w-4 rounded-full border border-line-strong" style={{ background: VIEWER_BACKGROUNDS[key] }}/>}</button></Tip>)}
   </div>;
 }
-// `quickEdit`: the optional render prop that fills the slot below the viewport (cad-controls lane C); `account`: whose
-// viewing preferences (Show dimensions) this browser keeps.
-export default function CadCard({block,onChange,onChangeQuiet,appName,selected=false,readOnly=false,onEdit,account='',quickEdit=null}) {
+// `account`: whose viewing preferences (Show dimensions) and Quick edit drafts this browser keeps.
+export default function CadCard({block,onChange,onChangeQuiet,appName,selected=false,readOnly=false,onEdit,account=''}) {
   const mutable=cadCanMutate(block,readOnly);
   const client=cadClient((path,options)=>api((options?.method || 'GET')==='GET'?readUrl(path):path,options),appName), latest=useRef(block); latest.current=block;
   const [job,setJob]=useState(null),[manifest,setManifest]=useState(block.manifest || null),[error,setError]=useState(''),[answer,setAnswer]=useState(''),[busy,setBusy]=useState(false),[preview,setPreview]=useState(false),[expanded,setExpanded]=useState(false),[elapsed,setElapsed]=useState(0),[downloads,setDownloads]=useState(false);
@@ -229,7 +230,8 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
   },[block.jobId,block.status,refresh,mutable]);
   const state=job?.state || block.status, running=cadRunning(state);
   useEffect(()=>{if(!running || !job?.createdAt)return;const tick=()=>setElapsed(Math.max(0,Math.floor((Date.now()-new Date(job.createdAt).getTime())/1000)));tick();const timer=setInterval(tick,1000);return()=>clearInterval(timer);},[running,job?.createdAt]);
-  const action=async(name,body)=>{if(!mutable)return;setBusy(true);setError('');try{const result=await client.action(block.jobId,name,body);apply(result,name==='accept');setRefresh(value=>value+1);if(name==='accept'){setPreview(false);setManifest(result.job?.manifest || manifest);}}catch(problem){setError(problem.message);}finally{setBusy(false);}};
+  // Answers the refusal (with its code and per-parameter problems) or null. A refused Preview change is Quick edit's to show.
+  const action=async(name,body)=>{if(!mutable)return null;setBusy(true);setError('');try{const result=await client.action(block.jobId,name,body);apply(result,name==='accept');setRefresh(value=>value+1);if(name==='accept'){setPreview(false);setManifest(result.job?.manifest || manifest);}if(name==='cancel')setPreview(false);return null;}catch(problem){if(name!=='rebuild')setError(problem.message);return problem;}finally{setBusy(false);}};
   const proposed=job?.awaitingAccept || block.proposedRevisionId;
   const shown=preview && proposed ? job?.manifest : manifest;
   const download=artifact=>{setError('');downloadCadArtifact(artifact,mutable).catch(problem=>setError(problem.message));};
@@ -237,28 +239,53 @@ export default function CadCard({block,onChange,onChangeQuiet,appName,selected=f
   // read-only viewer sees it without the control.
   const background=viewerBackground(block), [showDimensions]=useCadDimensions(account,block.id);
   const setBackground=value=>onChange({...latest.current,viewerBackground:value});
+  // Quick edit (cad-quick-edit.jsx): a draft against the accepted revision; this card's parameter rebuild, when one is open.
+  const [draft,setDraft]=useCadDraft(account,block.id,manifest?.revisionId), [quickProblem,setQuickProblem]=useState(null), [highlight,setHighlight]=useState(null);
+  const rebuild=job?.rebuild && job.id===block.jobId && job.revisionId!==manifest?.revisionId ? job : null;
+  const phase=!rebuild ? 'idle' : rebuild.awaitingAccept ? 'review' : rebuild.state==='failed' ? 'failed' : cadRunning(rebuild.state) ? 'building' : 'idle';
+  const acceptedValues=manifest?.controls?.values || {};
+  const changes=rebuild ? (rebuild.brief?.controls?.parameters || []).filter(p=>p.role==='input' && Object.hasOwn(acceptedValues,p.id) && acceptedValues[p.id]!==p.value).map(p=>({id:p.id,label:p.label,unit:p.unit,from:acceptedValues[p.id],to:p.value})) : [];
+  const quick=quickEditModel(shown,{draft:phase==='idle' && shown===manifest ? draft : {}});
+  const quickActions={
+    draft:(id,value,accepted)=>{setQuickProblem(null);setDraft(withDraft(draft,id,value,accepted));},
+    reset:()=>{setQuickProblem(null);setDraft({});},
+    preview:async request=>{setQuickProblem(null);const problem=await action('rebuild',{requestId:crypto.randomUUID(),...request});if(problem)setQuickProblem({message:problem.message,status:problem.status,code:problem.data?.code,problems:problem.data?.problems || []});},
+    accept:async()=>{if(!await action('accept',{expectedRevisionId:block.revisionId}))setDraft({});},
+    discard:async keep=>{if(!await action('cancel') && !keep)setDraft({});},
+    retry:()=>action('retry'), togglePreview:()=>setPreview(value=>!value), highlight:setHighlight,
+    edit:mutable && block.revisionId && onEdit ? ()=>onEdit() : null, reload:()=>{setQuickProblem(null);setRefresh(value=>value+1);},
+  };
+  const draftPending=phase==='idle' && quick.draft.changed.length>0;
+  // The region below the viewport takes the wheel (data-scroll; AdaptiveCanvas) only while it has something to scroll;
+  // otherwise the wheel over the card pans the canvas as before.
+  const below=useRef(null), [scrolls,setScrolls]=useState(false);
+  useEffect(()=>{const el=below.current;if(!el)return;const check=()=>setScrolls(el.scrollHeight>el.clientHeight+1);const resize=new ResizeObserver(check),mutate=new MutationObserver(check);resize.observe(el);mutate.observe(el,{subtree:true,childList:true});check();return()=>{resize.disconnect();mutate.disconnect();};},[]);
   // A shared canvas uses hand-mode hit testing to select, then only this viewer
   // accepts pointers. Editing stays governed by mutable, not viewing selection.
   return <div data-cad-card data-cad-state={state} className={`flex min-h-0 flex-1 flex-col gap-2 px-4 pb-3 ${readOnly && selected ? 'pointer-events-auto' : ''}`}>
     <p data-drag-zone className="cursor-grab text-sm font-medium">{block.title || 'CAD model'}</p>
     {/* data-gen-active: the generation state the chat's indicator follows (UI changes contract). A spinner, never a percentage: the job reports stages only. */}
     <div role="status" data-cad-progress data-gen-active={running ? 'true' : 'false'} className="flex flex-wrap items-center gap-2 text-xs text-ink-2">{running && <LoaderCircle size={13} aria-hidden className="animate-spin"/>}<span>{proposed?'Revision ready for review':cadStage(state)}</span><span>{block.units || 'Units pending'}</span>{running && !!job?.createdAt && <span>{elapsed}s elapsed</span>}</div>
+    {mutable && state==='awaiting_approval' && <p data-cad-review-hint className="text-xs text-ink">Review the design brief above the chat box. Nothing is generated until you press Generate there.</p>}
     {block.cadDetached && <p data-cad-detached className="text-xs text-ink-2">Saved model copy. Explore, Explain and download existing artifacts; generation, edits and new exports are unavailable for this copy.</p>}
-    <CadPreview manifest={shown} active={!expanded} ownerRead={mutable} id={block.id} background={background} viewKey={block.id} selected={selected} showDimensions={showDimensions}/>
-    <div data-cad-quick-edit-slot className="empty:hidden">{quickEdit?.({block,manifest:shown,mutable,readOnly})}</div>
+    <CadPreview manifest={shown} active={!expanded} ownerRead={mutable} id={block.id} background={background} viewKey={block.id} selected={selected} showDimensions={showDimensions} draftPending={draftPending} highlight={highlight} minHeight="min-h-[45%]"/>
+    {/* Below the viewport, one region that scrolls inside the card, so Quick edit and the details never spill past the card. */}
+    <div ref={below} data-scroll={scrolls || undefined} data-cad-below className="-mx-1 flex min-h-0 shrink flex-col gap-2 overflow-y-auto px-1">
+    <div data-cad-quick-edit-slot className="empty:hidden">{mutable && shown?.revisionId && <CadQuickEdit model={quick} phase={phase} changes={changes} previewing={preview && !!proposed} problem={quickProblem} busy={busy} error={rebuild?.error || ''} actions={quickActions}/>}</div>
     <div className="flex flex-wrap items-center gap-1" onPointerDown={event=>event.stopPropagation()}>
       <Tip label="Expand"><button type="button" aria-label="Expand" data-cad-action="expand" className={iconButton} disabled={!cadArtifact(shown,'glb')} onClick={()=>setExpanded(true)}><Maximize2 size={15} aria-hidden/></button></Tip>
       <Tip label="Download"><button type="button" aria-label="Download" aria-expanded={downloads} data-cad-action="download" className={iconButton} onClick={()=>setDownloads(open=>!open)}><Download size={15} aria-hidden/></button></Tip>
       {downloads && <div role="group" aria-label="Download formats" className="flex flex-wrap gap-1">{CAD_DOWNLOADS.map(format=>{const artifact=cadArtifact(manifest,format);return artifact?<button key={format} onClick={()=>download(artifact)} className={button}>{format.toUpperCase()}</button>:mutable && block.revisionId && ['stl','3mf'].includes(format)?<button key={format} className={button} disabled={busy || ['queued','preparing','exporting'].includes(job?.exportState)} onClick={()=>action('exports',{format})}>Prepare {format.toUpperCase()}</button>:null;})}</div>}
       {mutable && (running || state==='waiting_for_answer') && <button data-cad-action="cancel" className={button} disabled={busy} onClick={()=>action('cancel')}>Cancel</button>}
-      {mutable && ['failed','cancelled'].includes(state) && <button className={button} disabled={busy} onClick={()=>action('retry')}>Retry generation</button>}
+      {mutable && ['failed','cancelled'].includes(state) && !rebuild && <button className={button} disabled={busy} onClick={()=>action('retry')}>Retry generation</button>}
       {!readOnly && cadArtifact(shown,'glb') && <div className="ml-auto"><BackgroundControl value={background} onChange={setBackground}/></div>}
     </div>
-    {proposed && mutable && <div className="flex flex-wrap gap-1" onPointerDown={event=>event.stopPropagation()}><button className={button} onClick={()=>setPreview(value=>!value)}>{preview?'Show current model':'Preview revision'}</button><button data-cad-action="accept" className={button} disabled={busy} onClick={()=>action('accept',{expectedRevisionId:block.revisionId})}>Accept</button><button className={button} disabled={busy} onClick={()=>action('cancel')}>Reject</button></div>}
+    {proposed && mutable && !rebuild && <div className="flex flex-wrap gap-1" onPointerDown={event=>event.stopPropagation()}><button className={button} onClick={()=>setPreview(value=>!value)}>{preview?'Show current model':'Preview revision'}</button><button data-cad-action="accept" className={button} disabled={busy} onClick={()=>action('accept',{expectedRevisionId:block.revisionId})}>Accept</button><button className={button} disabled={busy} onClick={()=>action('cancel')}>Reject</button></div>}
     {mutable && state==='waiting_for_answer' && <form onPointerDown={event=>event.stopPropagation()} onSubmit={event=>{event.preventDefault();action('clarify',{answer});}}><label className="text-xs">{job?.question || 'Please clarify the design.'}<input data-cad-answer className="mt-1 w-full rounded border border-line bg-surface p-2" value={answer} onChange={event=>setAnswer(event.target.value)} disabled={!mutable || busy}/></label>{mutable && <button className={button} disabled={busy || !answer.trim()}>Continue</button>}</form>}
     {job?.exportState && <p className="text-xs text-ink-2">Export: {job.exportState}{job.exportError ? ` - ${job.exportError}` : ''}</p>}
-    {(error || job?.error) && <p role="alert" className="text-xs text-fail">{error || job.error}{error && <button className={button} onClick={()=>setRefresh(value=>value+1)}>Retry status</button>}</p>}
-    <CadDetails block={block} job={job} shown={shown} mutable={mutable} running={running} onEdit={onEdit}/>
-    {expanded && <SlidePanel title={block.title || 'CAD model'} width={720} z={60} expandable onClose={()=>setExpanded(false)}><div className="flex min-h-0 flex-1 flex-col gap-2 p-4"><div className="flex justify-end"><CadViewerTools viewKey={`${block.id}:expanded`} account={account} cardId={block.id}/></div><CadPreview manifest={shown} active ownerRead={mutable} id={block.id} background={background} viewKey={`${block.id}:expanded`} showDimensions={showDimensions}/></div></SlidePanel>}
+    {(error || (!rebuild && job?.error)) && <p role="alert" className="text-xs text-fail">{error || job.error}{error && <button className={button} onClick={()=>setRefresh(value=>value+1)}>Retry status</button>}</p>}
+    <CadDetails block={block} job={job} shown={shown} owner={mutable} changes={changes}/>
+    </div>
+    {expanded && <SlidePanel title={block.title || 'CAD model'} width={720} z={60} expandable onClose={()=>setExpanded(false)}><div className="flex min-h-0 flex-1 flex-col gap-2 p-4"><div className="flex justify-end"><CadViewerTools viewKey={`${block.id}:expanded`} account={account} cardId={block.id}/></div><CadPreview manifest={shown} active ownerRead={mutable} id={block.id} background={background} viewKey={`${block.id}:expanded`} showDimensions={showDimensions} draftPending={draftPending}/></div></SlidePanel>}
   </div>;
 }

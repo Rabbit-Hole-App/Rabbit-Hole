@@ -33,5 +33,5 @@ test('shared and detached cards never poll or mutate the originating job',()=>{
  assert.equal(canMutate({jobId:'original',cadDetached:true},false),false);
  assert.equal(canMutate({cadDetached:true,manifest:{revisionId:'r1'}},false),false);
  assert.match(source,/if\(!mutable\)return;\r?\n    let live=true,timer;/,'snapshot mode never starts live polling');
- assert.match(source,/const action=async\(name,body\)=>\{if\(!mutable\)return;/,'imperative actions also guard copied jobs');
+ assert.match(source,/const action=async\(name,body\)=>\{if\(!mutable\)return null;/,'imperative actions also guard copied jobs');
 });

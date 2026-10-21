@@ -101,7 +101,7 @@ await check('the overview: the current goal, a count that matches the skill rows
 });
 
 await check('a skill expands in place by keyboard: Why this status, then More about this skill', async () => {
-  const toggle = progress().locator('[data-progress-skill]').nth(1).getByRole('button');
+  const toggle = progress().locator('[data-progress-skill]').nth(1).getByRole('button').first(); // the row's toggle; an open row also holds Ask tutor about this (Task 10)
   await toggle.focus();
   await page.keyboard.press('Enter');
   await progress().locator('[data-progress-why]').waitFor({ timeout: 5000 });
@@ -180,7 +180,7 @@ await check('dark theme', async () => {
   await open();
   await icon().click();
   await progress().locator('[data-progress-count]').waitFor({ timeout: 10000 });
-  await progress().locator('[data-progress-skill]').first().getByRole('button').click();
+  await progress().locator('[data-progress-skill]').first().getByRole('button').first().click();
   await shot('progress-04-open-dark');
   await page.evaluate(() => localStorage.setItem('small.theme', 'light'));
 });

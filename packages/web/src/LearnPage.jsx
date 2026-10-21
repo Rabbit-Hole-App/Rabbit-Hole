@@ -451,6 +451,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     block: id => canvasApi.current?.blocks?.().find(block => block.id === id) || null,
     restoreCard: block => (block.type === 'cad' ? canvasApi.current?.reconcileCad(block) : canvasApi.current?.insertImported(block)),
     cadPlacement: (jobId, hidden) => cadClient(api, app.name, board || 'main').action(jobId, 'placement', { hidden }),
+    // Review design above the composer (CadReview.jsx): the owner's CAD cards whose brief awaits approval, their jobs, and their
+    // actions, whose answer goes back on the card. Approve is the paid confirmation (cad-client.js sends confirmed).
+    cadReviews: () => (canEditRef.current ? (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'cad' && block.status === 'awaiting_approval' && block.jobId) : []),
+    cadRead: id => cadClient(api, app.name, board || 'main').get(id),
+    cadAction: async (id, action, body) => { const result = await cadClient(api, app.name, board || 'main').action(id, action, body); canvasApi.current?.reconcileCad(result.block); return result; },
     canEdit: () => canEditRef.current,
     // Tutor Task 07 (learn-coaching-materials.js applyTutorAction): the live canvas, and the one seam that makes Tutor material -
     // its own material tools on the existing Learn command path (internal; /api/learn/artifact), never a second generator.
