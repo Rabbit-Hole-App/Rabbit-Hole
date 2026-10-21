@@ -48,6 +48,9 @@ const activity = state.activities.find(a => a.activityId === state.activeActivit
 const answered = await post('/api/learn/tutor/attempts', { ...at, activityId: activity.activityId, activityRevision: activity.revision, submissionKey: `pchat-${Date.now().toString(36)}`, submittedContent: { optionId: 'b' } });
 assert.deepEqual([answered.assessment.status, answered.assessment.route], ['completed', 'keyed'], 'graded in code');
 const ATTEMPT = answered.attempt.attemptId, ORIGINAL = answered.assessment;
+// The submit stepped its activity to awaiting_feedback, then feedback_ready, each a coaching revision (learn-coaching-store.js
+// advanceActivity, Tutor T5 gap a): read the state again, as the app does after Check my answer (TutorActivity.jsx).
+state = await coaching();
 // A different active goal, then Tutor selected and Off (acceptance 59).
 await act('create_goal', { label: 'Logistic regression thresholds', criteria: [{ criterionId: 'r1', label: 'Read a threshold', requirement: 'Read a decision threshold', requiresReasoning: false }] });
 const ACTIVE = state.activeGoalId;
