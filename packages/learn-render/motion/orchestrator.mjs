@@ -26,10 +26,11 @@
 // in-process renderer. Bearer token on every job route. Nothing in a URL becomes a path but a 32-hex id.
 // The learner's request text is never logged by this module; the job directory holding the pipeline's
 // artifacts is deleted when the job ends.
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { requestSpendBound } from '../../control-plane/src/learn-spend.js';
+import { MODEL_PRICES } from '../../control-plane/src/learn-models.js';
 import { validateMotionContext } from '../../control-plane/src/motion-context.js';
 import { PRICES } from './director.js';
 import { runMotionRequest } from './pipeline.mjs';
@@ -52,6 +53,31 @@ const usd = m => +(m / 1e6).toFixed(6);
 // server-side fallback, whose second attempt the bound cannot price (learn-spend.js requestSpendBound returns null).
 export const pricedRequest = ({ fallbacks, ...body }) => (body.betas ? { ...body, betas: body.betas.filter(b => b !== 'server-side-fallback-2026-07-01') } : body);
 const toMicros = value => Math.ceil(Number((value * 1e6).toFixed(6)));
+
+// The production execution policy (owner message 16, 2026-10-21): what one job may call, so its hold can equal its enforced
+// worst case. Per stage tool: how many calls, and each call's max_tokens, request bytes (image data excluded, as the bound
+// measures them) and images. The first pass and its one storyboard revision, the Author and its one repair, two reviewers per
+// pass over two passes: 9 calls. No schema re-ask and no identical resend: a malformed answer or a broken stream fails the
+// job with its reason, and the learner may retry inside the same ceiling. Anything else is refused before it is sent.
+export const PRODUCTION_POLICY = Object.freeze({
+  motion_brief: Object.freeze({ calls: 1, max_tokens: 16000, bytes: 24000, images: 0 }),
+  motion_storyboard: Object.freeze({ calls: 2, max_tokens: 16000, bytes: 48000, images: 0 }),
+  motion_composition: Object.freeze({ calls: 2, max_tokens: 64000, bytes: 112000, images: 0 }),
+  motion_review: Object.freeze({ calls: 4, max_tokens: 16000, bytes: 24000, images: 20 }),
+});
+// A call's size as requestSpendBound measures it: its JSON with image data emptied, in UTF-8 bytes, and its image count.
+export function requestSize(body) {
+  let images = 0;
+  const text = JSON.stringify(body, (k, v) => { if (v && typeof v === 'object' && v.type === 'image') images++; return k === 'data' && typeof v === 'string' ? '' : v; });
+  return { bytes: new TextEncoder().encode(text).length, images };
+}
+// The policy's enforced worst case, in micro-USD: every allowed call at its caps, priced as learn-spend.js requestSpendBound
+// prices it (input bytes + 1000 framing tokens + 4784 tokens per image, x1.25 for the cached system prompt; max_tokens at the
+// output price). The hold that equals it never refuses a call the policy allows.
+export function policyHoldMicros(policy = PRODUCTION_POLICY, model = 'claude-opus-5-5') {
+  const [input, output] = MODEL_PRICES[model];
+  return Object.values(policy).reduce((sum, r) => sum + r.calls * Math.ceil((r.bytes + 1000 + r.images * 4784) * input * 1.25 + r.max_tokens * output), 0);
+}
 
 // The grant: the hold the worker admitted for this idempotency key, in integer micro-USD, signed with the
 // shared orchestrator token. The worker signs the same string with WebCrypto (motion-provider.js motionGrant).
@@ -124,7 +150,8 @@ export const jobView = j => ({
 
 // jobTimeoutMs bounds one job (below the worker's 60-minute wait); resultTtlMs is how long a ready final.mp4
 // waits to be fetched; recordTtlMs how long a finished job still answers polls. now() is injectable for tests.
-export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, log = () => {}, renderer, plans = {},
+// policy: PRODUCTION_POLICY for the entries; null (tests of other behaviour) checks only the hold and the call cap.
+export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, policy = null, log = () => {}, renderer, plans = {},
   jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   if (!service || typeof service.health !== 'function') throw new Error('motionOrchestrator: a render service client is required (there is no in-process renderer)');
@@ -171,7 +198,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   function start(body) {
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
-    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: 0, grant_micros: body.grant.micros, refusal: null };
+    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: 0, grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set() };
     jobs.set(id, job); keys.set(job.key, id);
     active = job;
     const timer = setTimeout(() => { job.timedOut = true; controller.abort(); }, jobTimeoutMs); timer.unref?.();
@@ -181,12 +208,22 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       // Refused before sending: the stage sees a failed call and the job stops with this reason.
       const refuse = reason => { job.refusal ||= reason; job.calls.push({ state: 'refused' }); return Promise.resolve(new Response(`refused before sending: ${reason}`, { status: 429 })); };
       if (sent(job).length >= maxCalls) return refuse(`the ${maxCalls}-call limit for this job is spent`);
+      const kind = request.tools?.[0]?.name || 'untooled', rule = policy?.[kind], digest = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+      if (policy) {
+        const { bytes, images } = requestSize(request);
+        if (!rule) return refuse(`a ${kind} call is outside the production policy`);
+        if ((request.messages?.length || 0) > 1) return refuse(`a schema re-ask (${kind}) is outside the production policy`);
+        if (job.digests.has(digest)) return refuse(`resending the same ${kind} call is outside the production policy`);
+        if ((job.kinds[kind] || 0) >= rule.calls) return refuse(`the production policy allows ${rule.calls} ${kind} call${rule.calls === 1 ? '' : 's'} per job`);
+        if (!(request.max_tokens <= rule.max_tokens) || bytes > rule.bytes || images > rule.images) return refuse(`this ${kind} call (${request.max_tokens} max_tokens, ${bytes} bytes, ${images} images) is larger than the production policy allows (${rule.max_tokens}, ${rule.bytes}, ${rule.images})`);
+      }
       const bound = requestSpendBound(request, model);
       if (bound == null) return refuse(`the next model call's maximum cost cannot be bounded (${model})`);
       const need = toMicros(bound), left = job.grant_micros - committedMicros(job);
       if (need > left) return refuse(`the next step (${job.stage}) could cost up to $${usd(need).toFixed(2)}, more than the $${usd(Math.max(0, left)).toFixed(2)} left of this job's $${usd(job.grant_micros).toFixed(2)} hold`);
-      const record = { state: 'running', stage: job.stage, bound_micros: need, cost_micros: null };
+      const record = { state: 'running', stage: job.stage, kind, bound_micros: need, cost_micros: null };
       job.calls.push(record);
+      job.kinds[kind] = (job.kinds[kind] || 0) + 1; job.digests.add(digest);
       // Its real cost once read from a copy; a failed or unreadable response keeps its bound (unknown, never 0).
       // Stop or the timeout abandons a call in flight: its response is discarded and its bound stays committed.
       const sending = Promise.resolve(call(env2, request, model)).then(async response => {

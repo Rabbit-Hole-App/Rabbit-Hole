@@ -264,3 +264,87 @@ test('job requests carry the selected card to the pipeline; crafted context is r
   // Past 32 KiB the body is cut off (readJson destroys the socket, so the client may see the 413 or a closed connection).
   assert.ok([413, 'closed'].includes(await req('/jobs', { method: 'POST', body: job({ pad: 'x'.repeat(40000) }) }).then(r => r.status, () => 'closed')));
 });
+
+// Owner message 16 (2026-10-21): an explicit production execution policy whose enforced worst case IS the per-job hold. The real
+// stage builders fit its caps; the caps' bound is the shared spend bound; the whole policy path, every call at its bound (costs
+// unreadable), fits that hold exactly; one micro-dollar less refuses the last call before sending; anything outside the policy
+// (a re-ask, a resend, an extra or oversized call, an unknown tool) is refused before sending.
+test('the production policy: real requests fit its caps, and its worst case is exactly the hold', async t => {
+  const { PRODUCTION_POLICY, policyHoldMicros, requestSize, pricedRequest } = await import('./orchestrator.mjs');
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const { directorRequest } = await import('./director.js');
+  const { storyboardRequest } = await import('./storyboard.js');
+  const { authorRequest } = await import('./author.js');
+  const { reviewRequest } = await import('./review.js');
+  const { SOURCE_MAX_BYTES } = await import('./static-check.js');
+  const F = new URL('./fixtures/', import.meta.url);
+  const { brief, storyboard } = JSON.parse(readFileSync(new URL('m7b/plan-softmax.json', F), 'utf8'));
+  const frames = JSON.parse(readFileSync(new URL('m6/softmax.review-job.json', F), 'utf8')).passes[0].preview.frames.map(f => ({ ...f, file: 'm6/softmax.review-job.json' }));
+  const findings = Array.from({ length: 12 }, (_, i) => ({ reviewer: 'visual', category: 'blank_frame', severity: 'blocking', beat_id: storyboard.beats[0].id, description: `finding ${i} `.padEnd(300, '.') }));
+  const real = {
+    // the largest Director context a learner can send: a 500-character line and a 4000-character card in a 3-byte script
+    motion_brief: [directorRequest({ request: `/motion ${'光'.repeat(490)}`, selection: { title: 'x'.repeat(300), text: '光'.repeat(4000) } })],
+    motion_storyboard: [storyboardRequest(brief), storyboardRequest(brief, { revision: { storyboard, findings } })],
+    motion_composition: [authorRequest(brief, storyboard), authorRequest(brief, storyboard, { repair: { source: 'x'.repeat(SOURCE_MAX_BYTES), findings } })],
+    motion_review: ['visual', 'pedagogical'].map(r => reviewRequest(r, brief, frames, fileURLToPath(F))),
+  };
+  for (const [kind, bodies] of Object.entries(real)) for (const body of bodies) {
+    const { bytes, images } = requestSize(pricedRequest(body)), rule = PRODUCTION_POLICY[kind];
+    assert.equal(body.tools[0].name, kind);
+    assert.ok(body.max_tokens <= rule.max_tokens && bytes <= rule.bytes && images <= rule.images, `${kind}: ${body.max_tokens} tokens, ${bytes} bytes, ${images} images within ${JSON.stringify(rule)}`);
+  }
+  // A body exactly at a kind's caps: the shared bound prices it at that kind's share of the hold.
+  const atCaps = (kind, marker = '') => {
+    const rule = PRODUCTION_POLICY[kind];
+    const body = { max_tokens: rule.max_tokens, tools: [{ name: kind }], system: [{ type: 'text', text: '', cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: [...Array.from({ length: rule.images }, () => ({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } })), { type: 'text', text: marker }] }] };
+    body.messages[0].content.at(-1).text = marker.padEnd(marker.length + rule.bytes - requestSize(body).bytes, '.');
+    assert.equal(requestSize(body).bytes, rule.bytes);
+    return body;
+  };
+  const kinds = Object.keys(PRODUCTION_POLICY);
+  assert.equal(kinds.reduce((s, kind) => s + PRODUCTION_POLICY[kind].calls * Math.round(requestSpendBound(atCaps(kind), MODEL) * 1e6), 0), policyHoldMicros());
+  assert.equal(policyHoldMicros(), 8_958_600, 'the production hold: $8.9586, configured as $8.96');
+
+  // The whole policy path through the orchestrator, every response unreadable (each call stays at its bound).
+  const path = kinds.flatMap(kind => Array.from({ length: PRODUCTION_POLICY[kind].calls }, (_, i) => atCaps(kind, `${kind} ${i}`)));
+  const runPath = async (micros, extra = []) => {
+    const statuses = [];
+    const { req, view } = await start(t, { policy: PRODUCTION_POLICY, call: async () => new Response('not json'), run: async ({ call }) => {
+      for (const body of [...path, ...extra]) { const r = await call({}, body, MODEL); statuses.push(r.status); await r.text(); }
+      return { status: 'failed', failure_reason: 'end of path' };
+    } });
+    const { job_id } = await (await req('/jobs', { method: 'POST', body: job({ micros }) })).json();
+    await until(async () => (await view(job_id)).status === 'failed', 'the path to finish');
+    return { statuses, v: await view(job_id) };
+  };
+  const full = await runPath(policyHoldMicros(), [atCaps('motion_brief', 'another brief')]);
+  assert.deepEqual(full.statuses, [...Array(9).fill(200), 429], 'all 9 policy calls fit the hold; a 10th is outside the policy');
+  assert.match(full.v.failure_reason, /the production policy allows 1 motion_brief call per job/);
+  assert.equal(full.v.spend.bound_usd, policyHoldMicros() / 1e6, 'the path at its worst case is exactly the hold');
+  const short = await runPath(policyHoldMicros() - 1);
+  assert.deepEqual(short.statuses, [...Array(8).fill(200), 429], 'one micro-dollar less: the last review is refused before sending');
+  assert.match(short.v.failure_reason, /could cost up to .* more than the .* left of this job's \$8\.96 hold/);
+});
+
+test('outside the production policy, refused before sending: a re-ask, a resend, an oversized call, an unknown tool', async t => {
+  const { PRODUCTION_POLICY } = await import('./orchestrator.mjs');
+  const brief = { max_tokens: 16000, tools: [{ name: 'motion_brief' }], messages: [{ role: 'user', content: 'brief' }] };
+  for (const [name, bodies, want] of [
+    ['re-ask', [{ ...brief, messages: [...brief.messages, { role: 'assistant', content: 'x' }, { role: 'user', content: 'again' }] }], /schema re-ask \(motion_brief\)/],
+    ['resend', [{ ...brief, tools: [{ name: 'motion_storyboard' }] }, { ...brief, tools: [{ name: 'motion_storyboard' }] }], /resending the same motion_storyboard call/],
+    ['oversized', [{ ...brief, max_tokens: 64000 }], /larger than the production policy allows/],
+    ['unknown tool', [{ ...brief, tools: [{ name: 'web_search' }] }], /a web_search call is outside the production policy/],
+  ]) {
+    let sentCount = 0;
+    const { req, view } = await start(t, { policy: PRODUCTION_POLICY, call: async () => { sentCount++; return reply(10); }, run: async ({ call }) => {
+      for (const body of bodies) { const r = await call({}, body, MODEL); await r.text(); if (!r.ok) break; }
+      return { status: 'failed', failure_reason: 'x' };
+    } });
+    const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+    await until(async () => (await view(job_id)).status === 'failed', name);
+    assert.equal(sentCount, bodies.length - 1, `${name}: the refused call was never sent`);
+    assert.match((await view(job_id)).failure_reason, want, name);
+  }
+});

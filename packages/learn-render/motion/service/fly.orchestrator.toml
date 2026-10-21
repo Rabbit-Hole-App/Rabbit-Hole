@@ -12,7 +12,7 @@ primary_region = "iad"
   HOST = "0.0.0.0"
   PORT = "8080"
   MOTION_RENDERER_URL = "https://rabbit-hole-motion-renderer.fly.dev"
-  MOTION_MAX_CALLS = "16"
+  MOTION_MAX_CALLS = "9"
   MOTION_JOB_TIMEOUT_S = "3300"
 
 # No [mounts]: the durable job record is the worker's (LearnVideos Durable Object + the D1 reservation). A restart loses the

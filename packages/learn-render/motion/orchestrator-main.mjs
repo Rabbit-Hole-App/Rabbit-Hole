@@ -5,12 +5,13 @@
 //   MOTION_ORCHESTRATOR_TOKEN  (>= 32 chars; also signs and verifies the worker's per-job grant)
 //   ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (optional)
 //   MOTION_RENDERER_URL, MOTION_RENDERER_TOKEN
-//   HOST (0.0.0.0), PORT (8080), MOTION_WORK_DIR (/tmp/motion-jobs), MOTION_MAX_CALLS (16), MOTION_JOB_TIMEOUT_S (3300)
+//   HOST (0.0.0.0), PORT (8080), MOTION_WORK_DIR (/tmp/motion-jobs), MOTION_MAX_CALLS (9), MOTION_JOB_TIMEOUT_S (3300)
+// Every job runs under PRODUCTION_POLICY (orchestrator.mjs): its worst case is the per-job hold the worker admits.
 //   MOTION_DIRECTOR_MODEL, MOTION_AUTHOR_MODEL, MOTION_VISUAL_REVIEW_MODEL, MOTION_PEDAGOGICAL_REVIEW_MODEL (optional)
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { motionOrchestrator } from './orchestrator.mjs';
+import { PRODUCTION_POLICY, motionOrchestrator } from './orchestrator.mjs';
 import { serviceClient } from './render-job.mjs';
 
 // The model call: Anthropic's Messages API with the orchestrator's own key, as ask.js anthropicTransport sends it (betas
@@ -39,7 +40,7 @@ export function orchestratorConfig(e = process.env) {
   if (!e.MOTION_RENDERER_TOKEN) errors.push('MOTION_RENDERER_TOKEN: required');
   const config = {
     host: e.HOST || '0.0.0.0', port: int('PORT', 8080, 1, 65535), workDir: e.MOTION_WORK_DIR || '/tmp/motion-jobs',
-    maxCalls: int('MOTION_MAX_CALLS', 16, 1, 32), jobTimeoutMs: int('MOTION_JOB_TIMEOUT_S', 3300, 60, 3500) * 1000,
+    maxCalls: int('MOTION_MAX_CALLS', 9, 1, 32), jobTimeoutMs: int('MOTION_JOB_TIMEOUT_S', 3300, 60, 3500) * 1000,
     renderer: renderer && { url: renderer.href.replace(/\/$/, ''), token: e.MOTION_RENDERER_TOKEN }, token: e.MOTION_ORCHESTRATOR_TOKEN,
     env: Object.fromEntries(['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', ...ROLES].filter(k => e[k]).map(k => [k, e[k]])),
   };
@@ -51,9 +52,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (errors) { for (const line of errors) console.error(`✗ ${line}`); process.exit(2); }
   const orchestrator = motionOrchestrator({
     token: config.token, service: serviceClient(config.renderer), call: apiCall, env: config.env, outDir: config.workDir,
-    maxCalls: config.maxCalls, jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
+    maxCalls: config.maxCalls, policy: PRODUCTION_POLICY, jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
   });
-  const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job; hold per job from the worker's grant)`));
+  const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; hold per job from the worker's grant)`));
   // A stop (deploy, scale) ends running jobs; the worker keeps their holds as unknown cost and refuses their grants here.
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { orchestrator.close(); server.close(); process.exit(0); });
 }

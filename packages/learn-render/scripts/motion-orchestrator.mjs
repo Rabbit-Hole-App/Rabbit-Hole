@@ -1,7 +1,7 @@
 // The Motion orchestrator (motion/orchestrator.mjs) on the local Motion stack: HTTPS on 127.0.0.1 with the
 // stack's certificate (scripts/motion-local-check.mjs setup), the bearer token from .small/motion-local/app/.dev.vars
 // (MOTION_ORCHESTRATOR_TOKEN, never printed). The hostable entry is motion/orchestrator-main.mjs.
-//   node scripts/motion-orchestrator.mjs --service <url> [--port 8856] [--max-calls 16]
+//   node scripts/motion-orchestrator.mjs --service <url> [--port 8856] [--max-calls 9]   every job under PRODUCTION_POLICY
 //   node scripts/motion-orchestrator.mjs --stub <final.mp4> [--stub-fail authoring]   no model call, no render
 //   node scripts/motion-orchestrator.mjs [...] --renderer hyperframes   M7B: the HyperFrames Author and renderer (default remotion)
 //   node scripts/motion-orchestrator.mjs [...] --plan <plan.json | job dir> [...]   reuse an accepted run's brief and
@@ -18,7 +18,7 @@ import { createServer } from 'node:https';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RENDERERS } from '../motion/contracts.js';
-import { jobView, motionOrchestrator } from '../motion/orchestrator.mjs';
+import { PRODUCTION_POLICY, jobView, motionOrchestrator } from '../motion/orchestrator.mjs';
 import { apiCall } from '../motion/orchestrator-main.mjs';
 import { subscriptionCall } from '../motion/subscription-call.mjs';
 import { abortableSleep } from '../motion/review-job.mjs';
@@ -87,7 +87,7 @@ const svc = url ? { client: serviceClient({ url: url.replace(/\/$/, ''), token: 
   : { client: { health: async () => ({ ok: true, busy: false, sandbox: 'linux', stub: true }) }, close: () => {} };
 const outDir = join(PKG, 'out', 'motion', 'm7a');
 const orchestrator = motionOrchestrator({
-  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : apiCall, env, outDir, maxCalls: Number(opt('--max-calls') || 16), renderer, plans,
+  token: vars.MOTION_ORCHESTRATOR_TOKEN, service: svc.client, call: subscription ? subscriptionCall() : apiCall, env, outDir, maxCalls: Number(opt('--max-calls') || 9), policy: PRODUCTION_POLICY, renderer, plans,
   ...(stub ? { run: stubRun } : {}),
   log: line => {
     console.log(`${new Date().toISOString()} ${line}`);
