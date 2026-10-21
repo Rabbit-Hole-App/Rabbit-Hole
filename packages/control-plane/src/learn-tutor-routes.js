@@ -113,10 +113,12 @@ const NOT_CALLED = { called: false, ms: null, outcome: null, reason: null, reque
 // already in the card's attemptLog), so this route starts at JEV. The larger evaluator runs only
 // when the explicit escalation policy says so (v2 Stage C, agents/learn-tutor-escalation.js); an
 // uncertain JEV answer it does not escalate is returned as is, its events unsettled.
+// Owner decision 7a (2026-10-20): every JEV result but an error reaches that decision before it is returned or stored, so a
+// fully confident contradiction escalates too; refused or failed, its contested events stay unsettled (needs review).
 export async function evaluateFreeText(env, spec, message, deps = {}) {
   const { telemetry: jevTelemetry, ...jev } = await jevRung(env, spec, message, deps);
-  if (jev.status !== 'uncertain') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
-  if (!jev.escalation.escalate) return { ...jev, telemetry: { jev: jevTelemetry, larger: { ...NOT_CALLED, reason: jev.escalation.reason } } };
+  if (jev.status === 'error') return { ...jev, telemetry: { jev: jevTelemetry, larger: NOT_CALLED } };
+  if (!jev.escalation.escalate) return { ...jev, telemetry: { jev: jevTelemetry, larger: jev.status === 'settled' ? NOT_CALLED : { ...NOT_CALLED, reason: jev.escalation.reason } } };
   const { telemetry: largerTelemetry, ...larger } = await largerRung(withAttemptKind(env, 'escalation'), spec, message, deps);
   const telemetry = { jev: jevTelemetry, larger: { ...largerTelemetry, reason: jev.escalation.reason } };
   // An errored larger rung keeps JEV's unsettled events (§3.3: stored unsettled, no state change).
