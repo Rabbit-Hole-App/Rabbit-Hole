@@ -90,20 +90,21 @@ for (const command of await rows.evaluateAll(nodes => nodes.map(node => node.dat
 }
 ok('every command shows a demo', missing.length === 0, missing.join(' '));
 // The card a command makes: [data-slash-card] and a readiness hint per card type.
-const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'p', notebook: 'iframe', code: 'pre, code' };
+// /explain opens on its interactive visual (L10): a stored real /explain scene drawn by the scene renderer.
+const expect = { graph: '.dcg-container, canvas', quiz: 'button', diagram: '.react-flow__node', animate: 'video[data-lesson-video]', explain: 'svg [data-animation-object]', notebook: 'iframe', code: 'pre, code' };
 for (const [command, ready] of Object.entries(expect)) {
   if (LOCAL && command === 'graph') { skip('/graph shows its real card', 'no Desmos key in a keyless build'); continue; }
   await sheet.locator(`[data-slash-help="${command}"]`).click();
   const card = sheet.locator('[data-slash-card]');
   await card.waitFor({ timeout: 15000 });
   const drawn = await card.locator(ready).first().waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
-  // The canvas width of that card type (CanvasNode: BLOCK_TYPES width, or 380; notebook 640).
-  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520 };
+  // The canvas width of that card type (CanvasNode: BLOCK_TYPES width, or 380; notebook 640); an animation is sized from its scene.
+  const widths = { graph: 560, quiz: 380, flow: 560, mathAnimation: 560, explanation: 440, notebook: 640, walkthrough: 420, snippet: 520, animation: null };
   const type = await card.getAttribute('data-slash-card');
   const width = Math.round((await card.boundingBox()).width);
   await page.waitForTimeout(800);
   await sheet.screenshot({ path: `${SHOTS}/sheet-${command}.png` });
-  ok(`/${command} shows its real card (${type}) at its canvas width`, drawn && width === widths[type], `${width}px`);
+  ok(`/${command} shows its real card (${type}) at its canvas width`, drawn && (widths[type] === null ? width >= 400 : width === widths[type]), `${width}px`);
 }
 // Interactive as on the canvas: answering the quiz reveals why; paid Generate is off.
 await sheet.locator('[data-slash-help="quiz"]').click();

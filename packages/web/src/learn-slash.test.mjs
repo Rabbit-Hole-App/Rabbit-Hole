@@ -92,6 +92,25 @@ test('a paid result waits for Generate; a question, an unsupported primitive or 
   }
 });
 
+// L10 (owner, 2026-10-21): a failed interactive explanation inserts nothing and never turns into text by itself; it gives the
+// line back to retry and offers a plain explanation, whose line narrows /explain to text. A made one names itself.
+test('/explain: a made interactive explanation is inserted; a failed one keeps the line and offers a plain explanation', async () => {
+  const made = harness({ result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene: { id: 's', duration: 1, objects: [], timeline: [] } } });
+  const out = await made.run('/explain interactive binary search');
+  assert.equal(out.notice.text, 'Added an interactive explanation.');
+  assert.equal(made.did.find(entry => entry[0] === 'block')[1].type, 'animation');
+  const failed = harness({ result: 'validation_error', primitive: 'animation', error: 'grid "g" carries values and must declare matrixKind' });
+  const notice = await failed.run('/explain interactive binary search');
+  assert.ok(!failed.did.some(entry => entry[0] === 'block'));
+  assert.equal(notice.notice.tone, 'error');
+  assert.equal(notice.keep, '/explain interactive binary search');
+  assert.match(notice.notice.detail, /matrixKind/);
+  assert.deepEqual(notice.notice.actions, [{ label: 'Make a plain explanation instead', line: '/explain in plain text: interactive binary search' }]);
+  const plain = harness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'B', body: 'b' } });
+  await plain.run(notice.notice.actions[0].line);
+  assert.equal(plain.did.find(entry => entry[0] === 'post')[2].args, 'in plain text: interactive binary search');
+});
+
 test('an unknown command says so', async () => {
   const { did, run } = harness();
   assert.match((await run('/frobnicate')).notice.text, /not a Learn command/);

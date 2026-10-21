@@ -17,6 +17,8 @@ import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
+import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
+import { sceneProblem, withSamplesNote } from './learn-scene-gates.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
@@ -26,6 +28,18 @@ const lengths = schema => Object.entries(schema.properties || {}).filter(([, fie
   .map(([key, field]) => ` Keep ${key} under ${field.maxLength.toLocaleString('en-US')} characters (about ${Math.floor(field.maxLength / 7 / 10) * 10} words): longer is refused.`).join('');
 
 import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
+// Server-only parts of a primitive, kept out of the browser bundle learn-primitives.js is also in: the interactive scene's
+// authoring contract (appended to its tool description) and its gates, which run the existing scene validators on the block
+// the shared adapter built. A gate's first problem goes to the model as the one repair; a scene that still fails is no card.
+const CONTRACTS = { animation: SCENE_AUTHORING };
+const GATES = {
+  animation: block => {
+    const scene = withSamplesNote(block.scene, block.calculation);
+    const problem = sceneProblem(scene);
+    if (problem) throw new Error(problem);
+    return { ...block, scene };
+  },
+};
 import { withAttemptKind, noteUsageResult } from './learn-usage.js';
 export { ARTIFACT_SYSTEM };
 
@@ -49,14 +63,19 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
   const { request, ready } = plan;
   const tools = [...ready.map(id => ({
     name: toolName(id),
-    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}`,
+    description: `${PRIMITIVES[id].about}${lengths(PRIMITIVES[id].schema)}${contract(id).paid ? ' Paid: it is proposed to the learner, who confirms before anything is generated.' : ''}${CONTRACTS[id] || ''}`,
     input_schema: PRIMITIVES[id].schema,
   })).map(tool => input.imageSource ? imageExtractionTool(tool) : tool), CLARIFY];
   const text = JSON.stringify({ command: `/${request.command}`, request: request.prompt, learnerText: input.args || '', selection: request.selection, context: input.context || null });
   // The canvas's switched-on context documents come first (canvas-context-docs.md), then the request.
   const messages = [{ role: 'user', content: input.documents?.length ? [...input.documents, { type: 'text', text }] : text }];
+  // The task's cap, or a longer one a primitive on offer needs (the interactive scene's 16,000); spend admission bounds it.
+  const maxTokens = Math.max(LEARN_TASKS.artifact.maxTokens, ...ready.map(id => PRIMITIVES[id].maxTokens || 0));
   const ask = async (history, kind) => {
-    const response = await callModel(kind ? withAttemptKind(env, kind) : env, { max_tokens: LEARN_TASKS.artifact.maxTokens, system: input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
+    const response = await callModel(kind ? withAttemptKind(env, kind) : env, { max_tokens: maxTokens, system: input.imageSource ? `${ARTIFACT_SYSTEM}\n${IMAGE_EXTRACTION_SYSTEM}` : ARTIFACT_SYSTEM, tools, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages: history }, LEARN_TASKS.artifact.model, null);
+    // A refused spend admission says why (learn-spend.js spendMessage), never only its status.
+    const refused = response.status === 429 ? (await response.clone().json().catch(() => null)) : null;
+    if (refused?.code === 'spend_limited' && refused.error) throw new Error(refused.error);
     if (!response.ok) throw new Error((await notConfiguredMessage(response)) || `Artifact generation unavailable (model HTTP ${response.status}). Try again.`);
     const result = await response.json();
     const calls = result.content?.filter(part => part.type === 'tool_use') || [];
@@ -83,6 +102,7 @@ export async function generateArtifact(env, input, { callModel = loggedModel('ar
         if (checked.result.kind === 'clarify') return { result: 'clarification', question: checked.result.question };
         ({ extraction, ...block } = checked.result);
       } else block = artifactBlock(id, call.input);
+      if (GATES[id]) block = GATES[id](block);
       if (contract(id).paid) return { result: 'paid_proposal', primitive: id, block, message: 'This uses paid generation.', estimatedCost: contract(id).estimatedCost ?? null, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
       return { result: 'artifact', primitive: id, block, repaired: attempt > 0, ...(extraction ? { extraction } : {}) };
     } catch (error) {

@@ -25,7 +25,7 @@ const PINS = {
   chatSnapshot: '75fd4965a31b942c', // an app ask carrying a lesson_snapshot (legacy selection contract)
   chatOutline: '8e4510902ef9b033',
   repository: 'dd59f312d45aad50',
-  artifact: '870e84a3aa127657',
+  artifact: '20dc07a7bfe8bca7', // 2026-10-21 L10: when to make an interactive scene (make_animation)
   board: '4436c297d574838d', // env without DESMOS_API_KEY, so BOARD_NO_DESMOS is appended
   boardReview: 'bce6f95a93d18528',
   gradingMessage: '1b9c8ceb43a290f2', // the challengePrompt fixture below
