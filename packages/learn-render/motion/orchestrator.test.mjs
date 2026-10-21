@@ -103,10 +103,10 @@ test('the grant: a bad signature, an expired grant and one issued before a resta
   const { req } = await start(t, { run });
   const forged = job({ token: 'f'.repeat(40) });
   assert.deepEqual(await req('/jobs', { method: 'POST', body: forged }).then(async r => [r.status, (await r.json()).error]), [403, 'grant_refused']);
-  const tampered = job(); tampered.grant.micros = 20_000_000;
+  const tampered = job(); tampered.grant.micros = 25_000_000;
   assert.equal((await req('/jobs', { method: 'POST', body: tampered })).status, 403, 'the amount is signed');
   assert.equal((await req('/jobs', { method: 'POST', body: job({ at: Math.floor(Date.now() / 1000) - GRANT_MAX_AGE_S - 5 }) })).status, 403);
-  assert.equal((await req('/jobs', { method: 'POST', body: job({ micros: 30_000_000 }) })).status, 403, 'above the largest hold');
+  assert.equal((await req('/jobs', { method: 'POST', body: job({ micros: 25_000_001 }) })).status, 403, 'above the largest hold');
   const first = job();
   const a = await (await req('/jobs', { method: 'POST', body: first })).json();
   const again = await req('/jobs', { method: 'POST', body: first });

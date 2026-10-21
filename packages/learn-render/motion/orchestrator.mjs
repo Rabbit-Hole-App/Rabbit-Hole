@@ -56,8 +56,8 @@ const toMicros = value => Math.ceil(Number((value * 1e6).toFixed(6)));
 // shared orchestrator token. The worker signs the same string with WebCrypto (motion-provider.js motionGrant).
 export const grantMessage = (key, micros, issuedAt) => `motion-grant|${key}|${micros}|${issuedAt}`;
 export const signGrant = (token, key, micros, issuedAt) => createHmac('sha256', token).update(grantMessage(key, micros, issuedAt)).digest('hex');
-// The largest hold one job may carry, whatever a grant says ($20).
-export const MAX_GRANT_MICROS = 20_000_000;
+// The largest hold one job may carry, whatever a grant says ($25; the enforced-limit worst case is about $20.21).
+export const MAX_GRANT_MICROS = 25_000_000;
 // A resent submission comes within the worker's poll window; anything older is refused.
 export const GRANT_MAX_AGE_S = 600;
 

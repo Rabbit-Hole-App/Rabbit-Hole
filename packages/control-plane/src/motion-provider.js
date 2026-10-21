@@ -91,7 +91,7 @@ export async function motionRequestCacheKey(input) {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// The per-job hold (owner items 1 and 6, 2026-10-21): MOTION_JOB_RESERVATION_USD, a decimal above 0 and at most 20, in
+// The per-job hold (owner items 1 and 6, 2026-10-21): MOTION_JOB_RESERVATION_USD, a decimal above 0 and at most 25, in
 // integer micro-USD. Missing or invalid is null, and null starts nothing: never unlimited.
 const DECIMAL = /^\d+(\.\d{1,6})?$/;
 export function motionReservationMicros(env) {
@@ -99,7 +99,7 @@ export function motionReservationMicros(env) {
   if (!DECIMAL.test(text)) return null;
   const [whole, fraction = ''] = text.split('.');
   const micros = Number(whole) * 1e6 + Number(fraction.padEnd(6, '0'));
-  return micros > 0 && micros <= 20e6 ? micros : null;
+  return micros > 0 && micros <= 25e6 ? micros : null;
 }
 
 // The grant the orchestrator verifies (orchestrator.mjs signGrant): the hold for one idempotency key, HMAC-SHA256 with the

@@ -139,8 +139,8 @@ test('motion_request is exactly {op, request: a /motion line, location: {concept
 });
 
 test('the per-job hold is configured, never unlimited, and the grant the worker signs is the one the orchestrator verifies', async () => {
-  assert.deepEqual(['2', '2.5', ' 0.75 ', '20'].map(v => motionReservationMicros({ MOTION_JOB_RESERVATION_USD: v })), [2e6, 2.5e6, 750000, 20e6]);
-  for (const bad of [undefined, '', '0', '-1', '20.01', 'Infinity', '1e3', '2 USD']) assert.equal(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: bad }), null, String(bad));
+  assert.deepEqual(['2', '2.5', ' 0.75 ', '25'].map(v => motionReservationMicros({ MOTION_JOB_RESERVATION_USD: v })), [2e6, 2.5e6, 750000, 25e6]);
+  for (const bad of [undefined, '', '0', '-1', '25.01', 'Infinity', '1e3', '2 USD']) assert.equal(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: bad }), null, String(bad));
   const token = 't'.repeat(40);
   const grant = await motionGrant(token, spend.opId, 2000000, 1761000000);
   assert.deepEqual(grant, { micros: 2000000, issued_at: 1761000000, sig: signGrant(token, spend.opId, 2000000, 1761000000) });
