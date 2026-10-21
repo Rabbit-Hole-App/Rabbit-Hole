@@ -12,7 +12,8 @@ export const SOMETHING_ELSE = 'Learn something else';
 // intended behaviour asked separately, a proposed change, or a concept shown in this code.
 // roles: the file roles its source map starts from. criteria: the goal's completion criterion, as agreed criteria. Each carries
 // the codebase rubric (owner finding 5B), so an answer is judged by the rubric route against these criteria and the cited
-// source at its commit (control-plane learn-rubric-assessment.js), behind TUTOR_RUBRIC_ASSESSMENT_ENABLED like every rubric.
+// source at its commit (control-plane learn-rubric-assessment.js), behind TUTOR_CODEBASE_ASSESSMENT_ENABLED (or the general
+// TUTOR_RUBRIC_ASSESSMENT_ENABLED).
 export const CODEBASE_RUBRIC = 'rubric-codebase-1';
 export const CODEBASE_GOALS = [
   {
