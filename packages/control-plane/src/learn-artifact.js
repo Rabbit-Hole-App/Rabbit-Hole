@@ -18,7 +18,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
-import { calculationProblem, sceneProblem, withSamplesNote } from './learn-scene-gates.js';
+import { calculationProblem, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
 
 const CLARIFY = { name: 'ask_clarifying_question', description: 'Ask the learner one short question when the request is too underspecified to make a correct artifact.', input_schema: { type: 'object', additionalProperties: false, required: ['question'], properties: { question: { type: 'string', minLength: 1, maxLength: 300 } } } };
 const toolName = id => `make_${id}`;
@@ -34,7 +34,7 @@ import { ARTIFACT_SYSTEM } from './agents/learn-artifact.js';
 const CONTRACTS = { animation: SCENE_AUTHORING };
 const GATES = {
   animation: block => {
-    const scene = withSamplesNote(block.scene, block.calculation);
+    const scene = withSamplesNote(withDataSizes(block.scene), block.calculation);
     const problem = calculationProblem(block.scene, block.calculation) || sceneProblem(scene);
     if (problem) throw new Error(problem);
     return { ...block, scene };

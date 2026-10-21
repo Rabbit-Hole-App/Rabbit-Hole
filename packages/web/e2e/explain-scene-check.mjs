@@ -63,7 +63,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 3 + 3 * scenes.length + 1;
+const total = 3 + 3 * scenes.length;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); }

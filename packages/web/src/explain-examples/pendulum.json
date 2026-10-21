@@ -321,7 +321,8 @@
       ],
       "cellHighlight": {
        "$derive": "len"
-      }
+      },
+      "w": 380
      }
     },
     {
@@ -425,5 +426,6 @@
   "selectedObject": null,
   "marked": null,
   "calculation": "precomputed"
- }
+ },
+ "adapted": "data-object sizes filled after the run by the server adapter (withDataSizes), as it now does for every scene"
 }

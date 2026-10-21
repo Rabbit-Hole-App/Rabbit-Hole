@@ -90,6 +90,20 @@ export function calculationProblem(scene, calculation) {
   return null;
 }
 
+// The frame is fitted to each object's authored w and h (scene-layout.js sceneContentBounds); a data object that authors
+// none is measured by its label alone, so its cells or bars past the label were cropped (a real run's 11-bar chart showed 9).
+// The renderer's own size for it (getSceneState, at the default inputs) is written in: what is drawn does not change.
+const DATA_TYPES = new Set(['strip', 'grid', 'bars', 'tokens']);
+export function withDataSizes(scene) {
+  let drawn;
+  try { drawn = new Map(evaluateScene(structuredClone(scene), scene.duration, {}).state.objects.map(object => [object.id, object])); } catch { return scene; }
+  return { ...scene, objects: (scene.objects || []).map(object => {
+    const state = object?.initialState || {}, size = drawn.get(object?.id);
+    if (!DATA_TYPES.has(object?.type) || !size || (state.w != null && state.h != null)) return object;
+    return { ...object, initialState: { ...state, w: state.w ?? size.w, h: state.h ?? size.h } };
+  }) };
+}
+
 // A precomputed scene gets the fixed note under its content, as an ordinary text object: the renderer is unchanged.
 export function withSamplesNote(scene, calculation) {
   const objects = (scene.objects || []).filter(object => object?.id !== 'samples-note');

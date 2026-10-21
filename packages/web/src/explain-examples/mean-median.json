@@ -242,7 +242,9 @@
       "cellHighlight": 4,
       "values": {
        "$derive": "data"
-      }
+      },
+      "w": 300,
+      "h": 60
      }
     },
     {
@@ -264,7 +266,8 @@
       ],
       "values": {
        "$derive": "data"
-      }
+      },
+      "w": 350
      }
     },
     {
@@ -286,7 +289,8 @@
       ],
       "values": {
        "$derive": "medBar"
-      }
+      },
+      "w": 350
      }
     },
     {
@@ -391,5 +395,6 @@
   "selectedObject": null,
   "marked": null,
   "calculation": "precomputed"
- }
+ },
+ "adapted": "data-object sizes filled after the run by the server adapter (withDataSizes), as it now does for every scene"
 }

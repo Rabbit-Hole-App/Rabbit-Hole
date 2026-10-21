@@ -106,6 +106,14 @@ test('a scene that only selects stored numbers cannot claim to calculate them li
   assert.ok(out.block.scene.objects.some(object => object.id === 'samples-note'));
 });
 
+test('a data object with no authored size gets the size the renderer draws, so the frame never crops its cells or bars', async () => {
+  const out = await generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, scripted(['make_animation', scene()]));
+  const sized = Object.fromEntries(out.block.scene.objects.map(object => [object.id, object.initialState]));
+  assert.deepEqual([sized.scores.w, sized.scores.h], [3 * 56, 56], 'a strip: one cell per value');
+  assert.deepEqual([sized.parts.w, sized.parts.h], [3 * 64, 120], 'bars: one pitch per bar, the authored height');
+  assert.equal(sized.question.w, undefined, 'text keeps its estimate');
+});
+
 test('a refused spend admission is said in its own words, never as a bare status', async () => {
   const refusal = { error: 'Paid Learn calls are paused because the platform daily dollar cap has been reached.', code: 'spend_limited', reason: 'daily_cap_reached' };
   await assert.rejects(generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, { callModel: async () => Response.json(refusal, { status: 429 }) }),
