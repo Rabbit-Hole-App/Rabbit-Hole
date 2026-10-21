@@ -72,20 +72,21 @@ await dock.getByRole('button', { name: 'Commands' }).click();
 await dock.locator('[data-slash-search]').pressSequentially('add an expl');
 await dock.locator('[data-slash-search]').press('Enter');
 await pill.waitFor();
-ok('picking /explain shows the Explain pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} / ${await composer().inputValue()}`);
+// The pill reads the command's label, never /name (owner, 2026-10-20).
+ok('picking /explain shows the Explain pill and keeps the text', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Explain' && await composer().inputValue() === 'why softmax', `${await pill.getAttribute('data-command-pill')} ${JSON.stringify(await pill.innerText())} / ${await composer().inputValue()}`);
 await page.screenshot({ path: `${OUT}/02-explain-pill.png` });
 await dock.getByRole('button', { name: 'Remove Explain', exact: true }).click();
 ok('Remove Explain drops the pill and keeps the text', await pill.count() === 0 && await composer().inputValue() === 'why softmax');
 await composer().fill('/explain ');
 await pill.waitFor();
-ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && await dock.getByRole('button', { name: 'Remove Explain', exact: true }).count() === 1);
+ok('typing /explain makes the same pill', await pill.getAttribute('data-command-pill') === 'explain' && (await pill.innerText()).trim() === 'Explain' && await dock.getByRole('button', { name: 'Remove Explain', exact: true }).count() === 1);
 await dock.getByRole('button', { name: 'Remove Explain', exact: true }).click();
 await composer().fill('');
 
 // 3. A source command opens the finder with its query; the draft waits for the finder.
 await composer().fill('/youtube ');
 await pill.waitFor();
-ok('typing /youtube makes its pill, Remove Search YouTube', await pill.getAttribute('data-command-pill') === 'youtube' && await dock.getByRole('button', { name: 'Remove Search YouTube', exact: true }).count() === 1);
+ok('typing /youtube makes its pill, Search YouTube, Remove Search YouTube', await pill.getAttribute('data-command-pill') === 'youtube' && (await pill.innerText()).trim() === 'Search YouTube' && await dock.getByRole('button', { name: 'Remove Search YouTube', exact: true }).count() === 1);
 await composer().fill('attention');
 await composer().press('Enter');
 await finder.waitFor({ timeout: 10000 });

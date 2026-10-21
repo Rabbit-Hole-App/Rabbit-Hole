@@ -61,7 +61,10 @@ test('the same command looks the same everywhere: the / picker, the composer pil
   const pill = read('./CommandPill.jsx');
   assert.match(pill, /const tone = commandTone\(name\);/);
   assert.match(pill, /data-command-pill=\{name\} data-command-tone=\{tone \|\| undefined\}/);
-  assert.match(pill, /font-medium">\{command\?\.pillLabel \|\| `\/\$\{name\}`\}<\/button>/, 'explicit CAD label; other commands retain literal /command and no icon');
+  // Owner, 2026-10-20: the selected pill reads the registry label, never /name (/simplify: Simplify); the tint stays, no icon.
+  assert.match(pill, /const label = commandLabel\(name\);/);
+  assert.match(pill, /font-medium">\{label\}<\/button>/);
+  assert.doesNotMatch(pill, /`\/\$\{name\}`/);
   assert.doesNotMatch(pill, /CommandIcon/);
   for (const code of [ask, read('./agent/AgentBar.jsx')]) assert.doesNotMatch(code, /CommandIcon/);
   // The empty "/" slot stays the quiet neutral control; the selected-card strip stays neutral too.

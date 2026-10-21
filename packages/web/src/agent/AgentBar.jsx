@@ -19,7 +19,7 @@ import { learnAction } from './learn-hook.js';
 import { journeyMessage, journeyStarted, NEEDS_TOPIC, teachPlan } from './teach-plan.js';
 import ResultSheet from './ResultSheet.jsx';
 import BarCommandsSheet from './BarCommandsSheet.jsx';
-import { placeOf } from './slash.js';
+import { commandLabel, placeOf } from './slash.js';
 import { route } from './router.js';
 import { chipsFor, contextWithout, crumbsShown, endpointFor, scopeKey, scopeOf } from './scope.js';
 import { clearPick, getSurface, pickedKey, useSurface } from './surface.js';
@@ -584,10 +584,10 @@ export default function AgentBar({ page }) {
             {!sheet && line && !panelHosts(surface, line.scope) && <button type="button" data-result-open aria-label="Open the conversation" title={lineOf(line)}
               onMouseDown={(e) => e.preventDefault()} onClick={() => setSheet(line.scope)} className={COMPOSER_ADD}><MessageSquare size={16} /></button>}
             {shortcut
-            ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{shortcut}<button type="button" aria-label="Remove the command" onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
+            ? <span data-command-pill data-command-tone={commandTone(shortcut) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">{commandLabel(shortcut)}<button type="button" aria-label={`Remove ${commandLabel(shortcut)}`} onClick={() => { setShortcut(null); inputRef.current?.focus(); }} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>
             : mode === 'auto'
             ? <button type="button" aria-haspopup="listbox" aria-expanded={pickerOpen} onMouseDown={(e) => { e.preventDefault(); if (pickerOpen) { setPicker(false); inputRef.current?.focus(); } else { setPicker(true); setQuery(''); } }} className={COMPOSER_PILL}>Auto</button>
-            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">/{mode}<button type="button" aria-label="Back to Auto" onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
+            : <span data-command-pill data-command-tone={commandTone(mode) || undefined} className="inline-flex h-9 shrink-0 items-center gap-1 rounded-lg border bg-hover pr-1.5 pl-2.5 text-sm text-ink">{commandLabel(mode)}<button type="button" aria-label={`Remove ${commandLabel(mode)}`} onClick={() => setMode('auto')} className="cursor-pointer rounded-full p-0.5 text-ink-2 hover:bg-active hover:text-ink"><X size={11} /></button></span>}
           </>} />
       </div>
     </div>
