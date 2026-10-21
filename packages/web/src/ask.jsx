@@ -31,7 +31,7 @@ import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
-import { answersInChat, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
+import { answersInChat, commandLine, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { openOnce } from './learn-opening.js';
@@ -463,11 +463,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   }, [chatThread?.restore.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // The restore keeps the transcript this pane shows, so a remounted Chat pane comes back to it, not to the thread as opened.
   useEffect(() => { if (chatThread) chatThread.restore.messages = msgs; }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
-  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null } = {}) => {
-    // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the slot goes back to "/".
-    // A typed /command replaces the pill rather than nesting inside it.
-    if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; sentDraft.current = { command, text: raw }; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
-    if (!regenerate && slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; sentDraft.current = { command: null, text: raw }; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+  // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
+  // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false } = {}) => {
+    // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
+    // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
+    // while another command runs is still there to release (releaseLine).
+    const line = !regenerate && slash ? commandLine(raw, { command, prompted }) : null;
+    if (line) { promptCommand.current = parseSlash(line)?.name || null; sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
@@ -503,7 +506,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
-    if (!message || busy) { tutor?.slash?.(null); return; }
+    if (!message || busy) { tutor?.slash?.(null); return false; }
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
@@ -584,7 +587,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
       // A Tutor turn's question is saved now, before the Tutor generates; the thread is this Chat's at once (saved, it also
       // becomes the canvas's active thread: onAsked).
-      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); savedId(replyId, autoSave.user(message)).then(askedId, () => askedId(null)); }
+      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); savedId(replyId, autoSave.user(message, { command: commandName })).then(askedId, () => askedId(null)); }
       if (late()) return; // another thread or canvas is open in this Chat now: nothing of this turn is drawn there
       // In the Chat pane each message carries { messageId, status } (contract A2): local ids until `done` names the server's.
       // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
@@ -1115,7 +1118,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         </div>}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
