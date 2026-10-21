@@ -100,6 +100,7 @@ import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
 import { cardModel } from './home/provenance.js';
 import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsavedKey } from './home/canvas-local.js';
 import { editorClosed, editorOpened } from './chunk-reload.js';
+import { chatSaving } from './chat-persist.js';
 import { blockedStorage } from './storage-fallback.js';
 import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
 import { boardPending, boardText, serial, sharingOf, withPendingWork } from './canvas-persist.js';
@@ -1424,9 +1425,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const answered = boardLoaded.current && !(board && sharingOf(sharingRef.current) !== 'shared');
     return boardPending({ live, copy: blockedStorage.includes('localStorage') ? null : copy, answered, synced: boardSynced.current });
   };
-  const unsavedRef = useRef(boardUnsaved);
-  unsavedRef.current = boardUnsaved;
-  useEffect(() => { editorOpened(boardPath, () => unsavedRef.current()); return () => editorClosed(boardPath); }, [boardPath]);
+  // "Reload to update" asks more than Retry's reload (owner clarification 8, 2026-10-20): the server answered for this board
+  // and holds exactly the live one (boardUnsaved false), storage is not memory-only, no card's file is still only in this
+  // browser, and no chat message is still on its way. Anything it cannot confirm blocks the reload.
+  const boardDurable = () => {
+    const answered = boardLoaded.current && !(board && sharingOf(sharingRef.current) !== 'shared');
+    const uploading = (canvas()?.boardNow?.()?.blocks || []).some(block => [block.fileRef, ...(block.fileRef?.bundle || [])].some(ref => ref?.local && !ref.source?.id));
+    return answered && !blockedStorage.length && !boardUnsaved() && !uploading && !chatSaving();
+  };
+  const unsavedRef = useRef(boardUnsaved), durableRef = useRef(boardDurable);
+  unsavedRef.current = boardUnsaved; durableRef.current = boardDurable;
+  useEffect(() => { editorOpened(boardPath, () => unsavedRef.current(), () => durableRef.current()); return () => editorClosed(boardPath); }, [boardPath]);
   const changeSharing = async next => {
     setShareBusy(true);
     setShareError(null);

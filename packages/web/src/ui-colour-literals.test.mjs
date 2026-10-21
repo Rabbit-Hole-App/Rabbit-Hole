@@ -21,14 +21,16 @@ const SCOPE = [
   { file: 'ChatOutputs.jsx' },
   { file: 'CadCard.jsx' },
   { file: 'three-d-renderer.js' },
+  { file: 'cad-viewer-background.js' },
   { file: 'ui.jsx', from: 'export function Button(', to: '\n}\n' },
 ];
 const ALLOW = [
   { file: 'ChatComposer.jsx', literal: 'rgba(35,131,226,0.2)', count: 2, why: 'the focus ring shadow: --color-accent at 20% in a shadow-[] value' },
   { file: 'ChatComposer.jsx', literal: 'rgba(15,15,15,0.05)', count: 1, why: 'the flat composer shadow, the same as --shadow-pop\'s first layer' },
   { file: 'ChatMessages.jsx', literal: '#b42318', count: 3, why: 'the chosen next-step chip\'s red (border, tint, icon); predates this check' },
-  { file: 'CadCard.jsx', literal: 'text-red-700', count: 1, why: 'the job error line; a palette shade, not themed (text-fail is the token). Lane L2 owns the file.' },
-  { file: 'three-d-renderer.js', literal: '#f4f5f7', count: 1, why: 'the 3D viewport background: model content, not app chrome' },
+  { file: 'three-d-renderer.js', literal: '#f4f5f7', count: 1, why: 'the imported-model viewer\'s default viewport background (ModelCard): model content, not app chrome' },
+  { file: 'cad-viewer-background.js', literal: '#ffffff', count: 1, why: 'the CAD viewport\'s White background (owner brief section 4): model viewport, never the app theme' },
+  { file: 'cad-viewer-background.js', literal: '#000000', count: 1, why: 'the CAD viewport\'s Black background (owner brief section 4): model viewport, never the app theme' },
   { file: 'three-d-renderer.js', literal: '0xffffff', count: 2, why: 'the scene lights (hemisphere sky, directional): white light, not a UI colour' },
   { file: 'three-d-renderer.js', literal: '0x667788', count: 1, why: 'the hemisphere light\'s ground colour' },
   { file: 'ui.jsx', literal: 'rgba(0,0,0,0.12)', count: 1, why: 'the secondary Button\'s faint drop shadow' },

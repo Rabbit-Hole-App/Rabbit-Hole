@@ -253,7 +253,9 @@
     "packages/web/src/media-*.js": ["file-import-check.mjs","canvas-file-drop-check.mjs","file-edge-check.mjs","file-converter-ui-check.mjs"],
     "packages/web/src/svg-sanitize.js": ["file-import-check.mjs"],
     "packages/web/src/viewer-slots.js": ["model-viewer-check.mjs","model-fixture-cards-check.mjs"],
-    "packages/web/src/CadCard.jsx": ["cad-shared-interaction-check.mjs", "cad-check.mjs", "cad-runtime-browser-check.mjs", "card-select-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs"],
+    "packages/web/src/cad-viewer-background.js": ["cad-viewer-check.mjs"],
+    "packages/web/src/cad-viewer-store.js": ["cad-viewer-check.mjs"],
+    "packages/web/src/CadCard.jsx": ["cad-viewer-check.mjs", "cad-shared-interaction-check.mjs", "cad-check.mjs", "cad-runtime-browser-check.mjs", "card-select-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs"],
     "packages/web/src/cad-client.js": ["cad-check.mjs", "cad-runtime-browser-check.mjs", "card-edit-check.mjs", "canvas-forking-check.mjs"],
     "packages/web/src/file-chat-ref.js": ["add-to-chat-check.mjs", "file-doc-cards-check.mjs", "inline-ai-check.mjs"],
     "packages/web/src/card-layout.js": ["card-scroll-check.mjs", "card-edit-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs", "canvas-forking-check.mjs"],
@@ -642,6 +644,7 @@
   ],
   "secondsSource": "Linux checks: their own run time in fast-e2e run 38501772960 (Task B4), rounded up to 5 s, at least 10; windows-only: placeholder",
   "checks": {
+    "cad-viewer-check.mjs": {"runner":"windows-only","why":"a local-stack check (BASE, SMALL_CP, VARS or packages/control-plane/.dev.vars) for the CAD card viewer and controls (UI changes brief section 4, clarifications 4, 7, 8; cad-controls placement): fixture GLB, CAD job routes and a 404 model-loaders chunk answered in the browser, every model-capable route aborted; new, not yet passed three times on Linux and the release gate does not run it, so it runs by hand on the local stack. UI wiring only, no CAD execution","seconds":120},
     "cad-check.mjs": {"runner":"windows-only","why":"Manual keyless CAD fixture browser check against an authorized existing local stack (BASE, SMALL_CP, TEST_BYPASS_SECRET or VARS); has not completed three Linux qualification runs, and the fast runner does not provision its fixture environment. Keep separate local browser evidence; not runtime or model coverage.","seconds":180},
     "cad-real-check.mjs": {"runner":"windows-only","why":"MANUAL PAID VERIFICATION ONLY, never automatic CI or release gate: exactly four approved scenarios require owner-confirmed subscription/billing route, deployed per-board budget guard, explicit run acknowledgment and existing dev session. This category excludes Linux CI execution; it is an authorization/environment boundary, not an OS claim. Real-model evidence is separate.","seconds":3600},
     "cad-final-recovery-check.mjs": {"runner":"windows-only","why":"MANUAL PAID VERIFICATION ONLY: bounded continuation of the same four approved scenarios, with exact existing jobs, preserved failed receipts and reconciled usage. Never automatic CI or release gate; no additional scenarios or automatic reruns.","seconds":3600},

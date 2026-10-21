@@ -1807,7 +1807,7 @@ export function describeBlock(block) {
   return null;
 }
 
-export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
+export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appName, onAskRegion, onGrade, onAskScene, onPracticeHeight, onControlsHeight, selected = true, readOnly = false, onCadEdit, cadAccount = '' }) {
   if (block.type === 'challenge') return <ChallengeBody block={block} onChange={onChange} onFile={onFile} onGrade={onGrade} appName={appName} />;
   if (block.type === 'quiz') return <QuizBody block={block} onChange={onChange} onFile={onFile} />;
   if (block.type === 'flashcards') return <FlashcardsBody block={block} onChange={onChange} />;
@@ -1816,7 +1816,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'explanation' && isExcerpt(block)) return <ExcerptBody block={block} onChange={onChange} appName={appName} readOnly={readOnly} />;
   if (block.type === 'explanation') return <ExplanationBody block={block} onFile={onFile} />;
   if (block.type === 'table') return <TableBody block={block} onFile={onFile} />;
-  if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} onExplain={onCadExplain} />;
+  if (block.type === 'cad') return <CadCard block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} appName={appName} selected={selected} readOnly={readOnly} onEdit={onCadEdit} account={cadAccount} />;
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;

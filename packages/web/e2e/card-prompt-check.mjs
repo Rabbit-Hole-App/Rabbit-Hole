@@ -172,7 +172,11 @@ await step('/cad makes a CAD card whose row holds its typed line, kept while the
 const cadText = () => rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText();
 const editCad = async words => {
   const editor = page.locator('[data-inline-ai]');
-  await page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-action="edit"]`).click();
+  // No Edit button on the card any more (UI changes brief section 4): select it, Ctrl+K, Edit mode.
+  await page.locator(`[data-block-id="${cadBlock.id}"] [data-drag-zone]`).first().click();
+  await page.keyboard.press('Control+k');
+  await editor.locator('[data-inline-mode-toggle]').click();
+  await editor.locator('[data-inline-mode="edit"]').click();
   await editor.locator('[data-inline-prompt]').fill(words);
   await editor.locator('[data-inline-submit]').click();
   await editor.locator('[data-paid-generate]').click();
@@ -181,7 +185,7 @@ const editCad = async words => {
 await step('a rejected CAD edit leaves the typed line; an accepted edit replaces it with the edit words', async () => {
   cadReady();
   await page.reload(); // as cad-check: the ready job reaches the card through the page's own job list
-  await until(async () => (await page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-action="edit"]`).isEnabled()), 'the CAD card never became editable');
+  await page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-state="ready"]`).waitFor();
   await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
   let editor = await editCad(REJECTED_WORDS);
   await editor.locator('[data-inline-reject]').click();

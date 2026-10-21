@@ -35,6 +35,8 @@ export async function retried(run, waits = SAVE_WAITS) {
 // concurrent inserts of it, so each request for a client_id starts only after the one before it has settled. A 200
 // duplicate is a success like a 201.
 const inFlight = new Map();
+// A message still on its way to the server: a reload now could lose it (CAD viewer's Reload to update, chunk-reload.js).
+export const chatSaving = () => inFlight.size > 0;
 export function saveMessage({ threadId, ...body }, call = api) {
   const key = `${threadId}:${body.client_id}`;
   const sent = (inFlight.get(key) || Promise.resolve()).catch(() => {}).then(() => call(`/api/learn/chat/threads/${encodeURIComponent(threadId)}/messages`, { method: 'POST', body: JSON.stringify(body) }));

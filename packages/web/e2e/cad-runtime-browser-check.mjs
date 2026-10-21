@@ -47,14 +47,14 @@ check('real saved GLBs load and interact without moving cards',async()=>{
     const card=page.locator(`[data-block-id="${job.cardId}"]`);
     await page.evaluate(()=>document.activeElement?.blur());await page.keyboard.press('Shift+Digit1');await page.waitForTimeout(700);await card.locator('[data-drag-zone]').first().click();
     const viewer=card.locator('[data-cad-viewer]');await viewer.locator('canvas').waitFor();
-    await viewer.getByRole('button',{name:'Interact',exact:true}).waitFor();
-    await page.waitForFunction(id=>{const card=document.querySelector(`[data-block-id="${id}"]`);return [...card.querySelectorAll('button')].some(button=>button.textContent==='Interact'&&!button.disabled);},job.cardId);
+    const interact=card.locator('[data-cad-tools] [data-cad-interact]');await interact.waitFor();
+    await page.waitForFunction(id=>{const button=document.querySelector(`[data-block-id="${id}"] [data-cad-tools] [data-cad-interact]`);return !!button&&!button.disabled;},job.cardId);
     assert.equal(await card.getByRole('alert').count(),0);
-    const before=await card.boundingBox();await viewer.getByRole('button',{name:'Interact',exact:true}).click();
+    const before=await card.boundingBox();await interact.click();
     const box=await viewer.boundingBox();await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+40,box.y+box.height/2+15,{steps:8});await page.mouse.up();
     const after=await card.boundingBox();for(const key of ['x','y','width','height'])assert.ok(Math.abs(before[key]-after[key])<2,`${key} changed during orbit`);
-    await viewer.getByRole('button',{name:'Done',exact:true}).focus();await page.keyboard.press('Escape');
-    assert.equal(await viewer.getByRole('button',{name:'Interact',exact:true}).count(),1);
+    await interact.focus();await page.keyboard.press('Escape');
+    assert.equal(await interact.getAttribute('aria-pressed'),'false');
     await page.screenshot({path:resolve(OUT,`real-model-${index+1}.png`)});
   }
 });
