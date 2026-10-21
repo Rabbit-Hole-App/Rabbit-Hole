@@ -4,6 +4,13 @@
 
 **AUTHORIZE AS A NEW CORE PRODUCT SUBSYSTEM.**
 
+> **Superseded in part (owner, 2026-10-20).**
+> - Learning paths (syllabi) are built in the Table of contents conversation and on explicit course-building requests; a
+>   learning intent typed on a canvas starts a guided goal, not the full intake and diagnostic (1a).
+> - §15, §17 and §32: probes and nudges run only while the Tutor mode is selected, On and unpaused, and never from views,
+>   clicks or elapsed time (2a, 3a).
+> - §9 and §24: see the Tutor workflow's durable goals, attempts and assessments (5a).
+
 Primary product goal:
 
 > **Rabbit Hole intelligently constructs a full adaptive learning path for what the learner wants to learn, then teaches one section at a time while continuously adapting the path from learner evidence.**

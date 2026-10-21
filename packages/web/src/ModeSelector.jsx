@@ -3,14 +3,17 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { COMPOSER_TOOL } from './ChatComposer.jsx';
 import { cn } from './ui.jsx';
+import { TutorSwitch } from './use-learn-coaching.jsx';
 
 // The Auto / Ask / Tutor selector in the Chat composer toolbar (owner brief section 5), bound to
 // useChatWorkspace().thread.mode. Interaction modes, never model names, and separate from the / command slot: a command
 // never changes the mode and the mode never rewrites a command. Changing it keeps the draft, attachments and conversation.
+// Owner decision 1a (2026-10-20): Tutor is the teaching Tutor, with its On/Off switch immediately beside it (TutorSwitch,
+// hidden in Auto and Ask); syllabus building moved to the Table of contents conversation and explicit course requests.
 export const MODES = [
   ['auto', 'Auto', 'Answers, or starts a syllabus when you ask for a course'],
-  ['ask', 'Ask', 'Questions, explanations and your materials'],
-  ['tutor', 'Tutor', 'Builds and refines a syllabus'],
+  ['ask', 'Ask', 'Answers only: questions, explanations and your materials'],
+  ['tutor', 'Tutor', 'Teaches step by step, with suggestions you can switch off'],
 ];
 
 export default function ModeSelector({ disabled = false }) {
@@ -44,7 +47,7 @@ export default function ModeSelector({ disabled = false }) {
     else if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); }
     else if (event.key === 'Tab') setOpen(false);
   };
-  return (
+  return (<>
     <div ref={box} className="relative shrink-0">
       <button ref={button} type="button" aria-label="Mode" title={`Mode: ${MODES[current][1]}`} aria-haspopup="menu" aria-expanded={open} data-chat-mode={MODES[current][0]} disabled={disabled}
         onMouseDown={event => event.preventDefault()} onClick={() => (open ? setOpen(false) : show())}
@@ -64,5 +67,6 @@ export default function ModeSelector({ disabled = false }) {
         </div>
       )}
     </div>
-  );
+    {mode === 'tutor' && chat.coaching && <TutorSwitch coaching={chat.coaching} />}
+  </>);
 }

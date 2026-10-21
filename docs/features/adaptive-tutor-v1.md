@@ -1,5 +1,17 @@
 # Adaptive Tutor v1 (post-NC10 handoff milestone — not started)
 
+> **Superseded in part (owner, 2026-10-20; Tutor workflow decisions 1a-8a, `docs/features/tutor-progress-implementation.md`).**
+> - The freeze and "do not implement" status no longer apply.
+> - Proactive behaviour, including T9's evidence-based depth suggestions and the probes, runs only when the composer's
+>   Tutor mode is selected, switched On and not paused; Auto (still the default) and Ask answer explicit requests (2a).
+> - Evidence is durable: a submitted attempt is saved before it is evaluated, and the runtime loop gains SAVE ATTEMPT
+>   before EVALUATE (5a).
+> - J5's "error → tutor model" and J14's background pre-evaluation are replaced by: an unavailable evaluator leaves the
+>   evidence unassessed; a confident contradiction reaches the escalation decision, else it stays Needs review (7a).
+> - Nothing is assessed unless it was explicitly submitted (3a).
+> - T1's state vocabulary and its transfer rule stand for the Tutor router; learner-facing Progress uses the per-criterion
+>   summaries (pending owner Q1).
+
 Decided by the owner 2026-09-28. **Do not implement during NanoGPT completion.** The card agent
 finishes the NanoGPT card checklist (NC7–NC10, docs/progress.md) first, then hands the completed
 tool registry and card system to a dedicated Tutor Agent workstream, branched from the merged

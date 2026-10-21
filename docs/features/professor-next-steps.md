@@ -11,6 +11,17 @@ At a useful stopping point the Tutor offers exactly three curiosity hooks. A hoo
 
 ## Changes since bab01392 (for Parallel and the Tutor Evaluation agent)
 
+> **Superseded in part (owner, 2026-10-20, decisions 2a, 3a, 4a, 5a).**
+> - Hooks are proactive suggestions: they show only while the Tutor mode is selected, switched On and not paused.
+> - Opening, restoring, selecting Tutor or switching it On makes no model call; saved choices or a static invitation show
+>   instead, so the blank-canvas hooks "at rest" (1.2) are not requested.
+> - A refresh follows only a meaningful learner change in that state; a title change, loading saved content, moving cards
+>   or inserting Tutor-made material does not trigger one.
+> - A hole's automatic opening turn runs only for an explicit guided Rabbit Hole entry, once; restore, refresh, Back and
+>   reopening make none (4a).
+> - §4.1-4.2: Auto answers explicit requests on every canvas, but proactive teaching belongs to the Tutor mode (2a).
+> - §4.5: starting another learning path pauses the current one instead of archiving it (5a).
+
 UI-facing contract and integration points (details in 1.3, 1.4, 1.7):
 
 1. Voice Mode: a hook click while Voice is on is `voice.say('', { nextStep, selectedAt })`, never a typed `askStep`. It takes the floor like a barge-in while the Tutor is speaking, waits while an avatar clip holds Voice (newest click wins), and is refused (shown as busy) only while a turn is thinking or Voice is off. This replaces the typed-only recipe in 1.4.

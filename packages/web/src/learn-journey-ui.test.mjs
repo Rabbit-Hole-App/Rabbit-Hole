@@ -194,7 +194,7 @@ test('ask.jsx: on a journey canvas the Tutor is the one path; the composer calls
   // A question about attached repository lines or a file (codeTurn) goes to the repository's reader instead (repository-browser.md).
   // The path is chat-route.js tutorTurn: the Tutor in Auto (and off the Chat pane); Ask and Tutor modes post to /api/learn/ask.
   // A turn with an imported file attached goes to /api/learn/ask, which reads file refs (chat-route.js fileTurn).
-  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, fileTurn, chat, mode: chat\?\.thread\.mode \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
+  assert.match(ask, /const viaTutor = tutorTurn\(\{ tutor, codeTurn, pageTurn: turnHasPage\(target, attachedRefs\) && !pdfPage, fileTurn, chat, mode: chat\?\.thread\.mode, toc: tocView \}\);\n\s+if \(!viaTutor \|\| isDemo\) begin\(\);/);
   assert.match(ask, /await tutor\.ask\(\{ raw: raw\.trim\(\), targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null, image: tutorImage, page: pdfPage, opening, signal: flight\.signal, skipJourney, resolved: sheetMode, begin: sheetMode \? null : begin, \.\.\.canvasArgs, inspected: tutorImage && imageObject \? \[imageObject\] : \[\], onCard: cardSink \}\)/); // onCard: the turn's cards kept under its question (UI changes brief 5)
   assert.match(ask, /if \(reply\?\.handled\) \{ if \(reply\.failed\) setInput\(current => current \|\| raw\); return; \}/);
   assert.match(ask, /await journeyStarter\(/);
@@ -242,7 +242,8 @@ test('controller: an evaluate refusal (400) still advances the walker exactly on
   await h.view().answer('a');
   assert.deepEqual(h.calls.map(c => c.path), ['/api/learn/journey?app=canvas-0a1b2c3d&board=main', '/api/learn/tutor/evaluate', '/api/learn/journey']);
   assert.deepEqual(h.calls[1].body, { app: APP, board: 'main', journey_id: 'j1', probe_id: 'p2', option_id: 'a' });
-  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', action: 'probe_advance', probe_id: 'p2', revision: 4 });
+  // Every action names its journey (Tutor T1 report limit 5: a parked journey shares no write with the current one).
+  assert.deepEqual(h.calls[2].body, { app: APP, board: 'main', journey_id: 'j1', action: 'probe_advance', probe_id: 'p2', revision: 4 });
   assert.equal(h.view().tray.id, explainTray.id);
   assert.equal(h.view().tray.error, undefined, 'an evaluator error shows nothing: placement goes on');
 });
@@ -279,7 +280,7 @@ test('controller: free text answers the goal slot with intake_answer, and a prob
   assert.deepEqual(await probe.view().handleText('It squashes any number into 0 to 1', { answerProbe }), { handled: true });
   assert.deepEqual(probe.actions(), ['resolve', 'probe_advance']);
   assert.deepEqual(answered, [['p3', ['sigmoid/shape'], 'Explain the sigmoid in your words.', 'It squashes any number into 0 to 1']]);
-  assert.deepEqual(probe.calls[2].body, { app: APP, board: 'main', action: 'probe_advance', probe_id: 'p3', revision: 4 });
+  assert.deepEqual(probe.calls[2].body, { app: APP, board: 'main', journey_id: 'j1', action: 'probe_advance', probe_id: 'p3', revision: 4 });
   // An option-only probe (keyed: the route grades free text on a keyless probe only) stays open for a pick.
   const mcq = harness(ok(j, probeTray), [{ status: 200, d: { kind: 'tray_answer' } }]);
   await mcq.refresh();
@@ -389,7 +390,7 @@ test('controller: a path edit on an active, paused or completed journey with no 
   const review = harness(ok(j, previewTray), [ok({ ...j, revision: 5, pending: 'revise' }, null)]);
   await review.refresh();
   assert.deepEqual(await review.view().handleText('Could we do Python first?'), { handled: true });
-  assert.deepEqual(review.calls[1].body, { app: APP, board: 'main', action: 'path_edit', text: 'Could we do Python first?', revision: 4 });
+  assert.deepEqual(review.calls[1].body, { app: APP, board: 'main', journey_id: 'j1', action: 'path_edit', text: 'Could we do Python first?', revision: 4 });
 });
 
 test('controller: topic_required asks for the topic; the typed topic starts once, wrapped only when it is not already a request', async () => {
@@ -1324,7 +1325,7 @@ test('ask.jsx and LearnPage.jsx: the sheet opens only for a Tutor reply; slash p
   assert.match(ask, /targetId: \(target \|\| canvasSeed\?\.target\)\?\.id \|\| null/);
   // Final review C-I1: a hole's opening turn is sent once, from the dock - never again from each block's composer
   // (Continue convo), which gets the same Tutor in a journey hole.
-  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
+  assert.match(ask, /if \(!\(dock \|\| chat\) \|\| !tutor\?\.opening \|\| busy \|\| chat\?\.coaching\?\.status === 'loading' \|\| !openOnce\(openedHoles, tutor\.opening\.key\)\) return;/);
 });
 
 // ---- LP1 Task 14 (architecture §13): the minimal journey context a Rabbit Hole opened from a journey section carries.
@@ -1390,9 +1391,9 @@ test('journeyDiveContext: null unless the journey is active', () => {
 });
 
 test('Task 14 wiring: LearnPage hands the live journey to useDive, the dive record carries it, and the hole Tutor reads its parent journey once', () => {
-  assert.match(read('LearnPage.jsx'), /const dive = useDive\(\{[^\n]*journeyContext: block => journeyDiveContext\(journey\.journey, journey\.path, block\) \}\);/);
+  assert.match(read('LearnPage.jsx'), /const dive = useDive\(\{[^\n]*journeyContext: block => journeyDiveContext\(journey\.journey, journey\.path, block\), entryControls: [^\n]*\}\);/);
   const diveSource = read('Dive.jsx');
-  assert.match(diveSource, /export function useDive\(\{[^}]*journeyContext = \(\) => null \}\)/);
+  assert.match(diveSource, /export function useDive\(\{[^}]*journeyContext = \(\) => null, entryControls = \(\) => null \}\)/);
   assert.match(diveSource, /diveRecord\(\{[^\n]*journey: journeyContext\(block\) \}\)/);
   const tutor = read('LearnTutor.jsx'), domains = read('learn-tutor-domains.js');
   // Active in a hole whose record carries a journey once the parent journey is read; a refusal (null) leaves it as it was.
