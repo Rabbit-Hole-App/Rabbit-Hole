@@ -11,6 +11,8 @@ class ValidationTests(unittest.TestCase):
     def test_dimensions(self):
         result=module.evaluate(self.facts,[{'kind':'bounds_mm','axis':'x','value':40},{'kind':'solid_count','value':2}])
         self.assertEqual([r['passed'] for r in result],[True,False])
+        # The axis travels with a size result, so the card can place its dimension label (cad-dimensions.js).
+        self.assertEqual(result[0]['axis'],'x'); self.assertNotIn('axis',result[1])
     def test_unchecked_is_not_pass(self):
         result=module.evaluate(self.facts,[{'kind':'manufacturing_safe','value':1}])
         self.assertEqual(result[0]['status'],'unchecked')

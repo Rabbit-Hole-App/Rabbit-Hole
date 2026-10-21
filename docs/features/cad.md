@@ -39,6 +39,64 @@ Artifact kinds: source, step, glb, thumbnail, stl, 3mf. Generated artifacts use
 existing Learn R2 and file-source/derivative access. Private input references
 are never copied into a publicly readable artifact manifest.
 
+## Controls, brief review and parameter rebuilds (cad/controls, backend)
+
+Design: `C:/s/spec/cad-controls/design.md` (owner brief and decisions 2026-10-20). UI comes after the CAD card lane.
+
+- Parameter definitions `cad-params/1` live in `brief.controls` and, once built, `manifest.controls`
+  (`cad-controls/1`: definitions, requested `values`, source-reported `computed`, `bindings` = inputs the trusted
+  build actually read). Shared validator `packages/web/src/cad-parameters.js`; no expression is read from metadata.
+- Source reads inputs with `cad_params.value(id)` (packages/cad-execute/runtime); the executor writes the validated
+  values to the read-only `parameters.json`. A rebuild reuses the accepted source text, never edits it.
+- `POST /:id/rebuild {requestId, expectedRevisionId, values}`: no model call, no review, no repair; ready result waits
+  for the existing revision-guarded Accept or Cancel (Discard). Failure keeps the accepted model; a `ValueError` from the
+  saved source becomes the reason. Models without bindings answer 409 `not_deterministic`.
+- Behind `CAD_BRIEF_FIRST=true` (off by default): one interpretation call, state `awaiting_approval`,
+  `POST /:id/brief {expectedBriefHash, brief}` (field edits, no call; structural changes 409 `reprepare_required`),
+  `POST /:id/approve {briefHash, confirmed:true}`; generation and repair cannot change the approved brief or checks.
+  Reservations are recorded per phase in `job.phaseUsd`.
+- `GET /api/learn/files/<fs>` for a `cad` source is owner-only; shared, member and forked boards keep the geometry
+  derivatives only.
+- Trusted inspection adds bounding-box min/max and circular edge centres; check results name their `kind`.
+- Local geometry: `node packages/cad-execute/local-fixtures.mjs <python with cadgen 0.7.21>` builds the five fixtures
+  in `packages/cad-execute/fixtures/` outside the Linux sandbox (geometry evidence only, not isolation).
+
+### UI phase (cad/controls, 2026-10-20)
+
+- **Quick edit** (`cad-quick-edit.jsx`, in the card's `data-cad-quick-edit-slot`, owner only): rows from the displayed
+  revision's definitions (`cad-quick-edit-model.js`), the first four by priority and the rest under More parameters.
+  Inputs are Requested, or Assumed when the definition says `assumed: true` (the brief chose the value; a rebuild or a
+  review edit that changes it drops the flag). Calculated values come from the saved source; Measured values come from
+  the trusted check mapped to the parameter, named by what it measured ("Measured diameter 6.0 mm"), or "Not measured".
+  Typing keeps a draft in this browser (`cad-draft-store.js`, per account, card and accepted revision; never on the
+  board). Preview change → building → Accept / Discard; a failed rebuild offers Edit values, Retry or Discard.
+  Discard (also of a failed rebuild) hands the card back to its accepted job; the job list skips discarded previews.
+  Everything below the viewport scrolls inside the card (`data-scroll`).
+- **Show dimensions** (`cad-dimensions-overlay.jsx`): labels on the model at the measured anchors, redrawn every frame
+  (`three-d-renderer.js` `project`/`onFrame`), and a legend with Measured, Requested and Assumed apart. A draft marks the
+  measurements as the displayed model's; a focused parameter highlights its dimension.
+- **Details** (`cad-details.jsx`): Design brief (current parameter values, apart from the card's prompt), Checks (each
+  check passed/failed/unchecked, generation apart from validation, fit/strength/interference/manufacturability never
+  assessed, what each download keeps), Code (owner only; the file route already refuses anyone else) and Revisions.
+- **Revisions and the prompt**: the accepted model record keeps `revisions` (parent, new revision, kind
+  `generated`/`ai_edit`/`parameters`, and a rebuild's parameter changes; at most 20, no words) and the board block gets a
+  copy. A parameter-only Accept keeps the last accepted prompt (`modelRecord`), so `acceptedResponse` still answers it.
+- **Executor capability**: `/health` lists `capabilities: ['parameters']` (`cad-execute/contract.mjs`). The control plane
+  refuses a rebuild with 409 `executor_unsupported` before creating a job when the executor does not list it (503
+  `executor_unavailable` when `/health` does not answer), and fails a retried rebuild before dispatch. Executors deployed before this change are refused; the field is additive, so the
+  current control plane keeps working with a new executor. Size check results now carry their `axis` (`validate.py`).
+- **Review design** (`CadReview.jsx`, above the Chat composer; `canvasOps.cadReviews/cadRead/cadAction` in LearnPage):
+  shown for the owner's cards in `awaiting_approval`. Original request exactly, interpreted object, parameters with
+  Assumed marked, requirements, context used, highlighted assumptions, missing information (blocks Generate) and
+  unsupported requirements. Edit details saves through `brief` (no call, new hash); Generate approves that hash; Cancel
+  ends it. It is the job's own state, so it survives a reload.
+- **Flag per environment**: `CAD_BRIEF_FIRST` in `vars` of `packages/web/wrangler.rabbit-hole-prod.jsonc` (production)
+  and `packages/web/wrangler.dev.jsonc` (dev clones; that config binds no `CAD_JOBS` today). Both are `"false"`.
+  Review-first takes at least three calls (brief, source, review); production's `CAD_MAX_CALLS` is 2, which fails such a
+  job before its review (control-plane test `CAD brief-first needs three calls`).
+- Browser check: `packages/web/e2e/cad-controls-check.mjs` (local stack, scripted CAD routes, real local-kernel facts in
+  `cad-controls-facts.json`).
+
 ## Durable orchestration
 
 One CadJobs Durable Object per authorized board uses the existing LearnScenes

@@ -1,4 +1,5 @@
 import { wsHeaders } from './api.js';
+import { handleAiRefusal } from './ai-refusal.js';
 
 // Stream real workflow stages; do not estimate completion percentages.
 export async function requestBoardExplanation(body, onProgress) {
@@ -42,7 +43,7 @@ async function requestBoardStep(body, onProgress) {
         if (!raw) continue;
         const data = JSON.parse(raw);
         if (type === 'progress') onProgress(data.stage);
-        if (type === 'error') throw new Error(data.error);
+        if (type === 'error') { handleAiRefusal(data); throw new Error(data.error); }
         if (type === 'plan' || type === 'preview') result = data;
       }
     }

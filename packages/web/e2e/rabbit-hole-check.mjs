@@ -1534,7 +1534,9 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await barInput(page).inputValue() === '/', 'Esc changed the draft');
     await barInput(page).fill('/te');
     await barInput(page).press('Enter');
-    await bar.getByRole('button', { name: 'Back to Auto' }).waitFor({ timeout: 3000 });
+    await bar.getByRole('button', { name: 'Remove Teach', exact: true }).waitFor({ timeout: 3000 });
+    // A selected command reads as its label, never /name (owner, 2026-10-20).
+    must((await bar.locator('[data-command-pill]').innerText()).trim() === 'Teach', `pill: ${await bar.locator('[data-command-pill]').innerText()}`);
     must(await barInput(page).inputValue() === '', 'the slash text stayed');
     must(await page.locator('[data-result-sheet]').count() === 0, 'Enter on the picker also sent the text');
     await barInput(page).press('Backspace');
@@ -1554,9 +1556,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await search.pressSequentially('/conn');
     must(JSON.stringify(await options.locator('[data-picker-name]').allTextContents()) === '["/connect"]', `search: ${await options.locator('[data-picker-name]').allTextContents()}`);
     await search.press('Enter');
-    await bar.getByRole('button', { name: 'Remove the command' }).waitFor({ timeout: 3000 });
+    await bar.getByRole('button', { name: 'Remove Connect', exact: true }).waitFor({ timeout: 3000 });
+    must((await bar.locator('[data-command-pill]').innerText()).trim() === 'Connect', `pill: ${await bar.locator('[data-command-pill]').innerText()}`);
     must(await barInput(page).evaluate((n) => n === document.activeElement), 'picking from the search did not focus the draft');
-    await bar.getByRole('button', { name: 'Remove the command' }).click();
+    await bar.getByRole('button', { name: 'Remove Connect', exact: true }).click();
     await bar.getByRole('button', { name: 'Auto', exact: true }).click();
     await search.press('Escape');
     must(await options.count() === 0, 'Esc on an empty search left the picker open');
@@ -1685,14 +1688,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       await bar.waitFor({ timeout: 10000 });
       await barInput(page).fill('/te');
       await barInput(page).press('Enter');
-      await bar.getByRole('button', { name: 'Back to Auto' }).waitFor({ timeout: 3000 });
+      await bar.getByRole('button', { name: 'Remove Teach', exact: true }).waitFor({ timeout: 3000 });
       if (text) await barInput(page).fill(text);
     };
     for (const to of ['/apps', ...(plain ? [`/apps/${plain.name}`] : [])]) {
       await teach();
       await spa(page, to);
       await bar.getByRole('button', { name: 'Auto', exact: true }).waitFor({ timeout: 5000 });
-      must(await bar.getByRole('button', { name: 'Back to Auto' }).count() === 0, `Teach carried to ${to}`);
+      must(await bar.getByRole('button', { name: 'Remove Teach', exact: true }).count() === 0, `Teach carried to ${to}`);
     }
     await teach('keep me');
     await spa(page, '/apps');

@@ -1,0 +1,12 @@
+{
+  "brief": {
+    "title": "Imported block with boss",
+    "units": "mm",
+    "requirements": [],
+    "assumptions": ["Imported geometry; no editable parameters"],
+    "parameters": {}
+  },
+  "checks": [
+    { "id": "one_solid", "kind": "solid_count", "value": 1, "tolerance": 0 }
+  ]
+}

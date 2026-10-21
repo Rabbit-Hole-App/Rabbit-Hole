@@ -31,9 +31,10 @@ import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
-import { answersInChat, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
+import { answersInChat, commandLine, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
+import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
@@ -41,6 +42,7 @@ import { askMode, tutorTurn } from './chat-route.js';
 import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
 import { TutorActivity } from './TutorActivity.jsx';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
+import { handleAiRefusal } from './ai-refusal.js';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -467,11 +469,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   }, [chatThread?.restore.key]); // eslint-disable-line react-hooks/exhaustive-deps
   // The restore keeps the transcript this pane shows, so a remounted Chat pane comes back to it, not to the thread as opened.
   useEffect(() => { if (chatThread) chatThread.restore.messages = msgs; }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
-  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null } = {}) => {
-    // A chosen command pill sends exactly "/command text" (LearnSlash runs it); the slot goes back to "/".
-    // A typed /command replaces the pill rather than nesting inside it.
-    if (!regenerate && slash && command && !raw.trim().startsWith('/')) { const line = `/${command} ${raw.trim()}`.trim(); promptCommand.current = command; sentDraft.current = { command, text: raw }; setCommand(null); setInput(''); slashRef.current?.intercept(line); return; }
-    if (!regenerate && slash && raw.trim().startsWith('/')) { promptCommand.current = parseSlash(raw)?.name || null; sentDraft.current = { command: null, text: raw }; setCommand(null); if (slashRef.current?.intercept(raw)) return; }
+  // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
+  // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false } = {}) => {
+    // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
+    // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
+    // while another command runs is still there to release (releaseLine).
+    const line = !regenerate && slash ? commandLine(raw, { command, prompted }) : null;
+    if (line) { promptCommand.current = parseSlash(line)?.name || null; sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
@@ -509,7 +514,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // @-chips ride at the front of the message text
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
-    if (!message || busy) { tutor?.slash?.(null); return; }
+    if (!message || busy) { tutor?.slash?.(null); return false; }
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
@@ -564,6 +569,14 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // The late-response guard (contract A5): the Chat's open thread when this turn was sent, against the one open now, read
     // from the thread hook itself, so a turn whose pane went away with its canvas is late too.
     const sentKey = chatThread?.liveKey(), late = () => !!chatThread && lateEvent(sentKey, chatThread.liveKey());
+    // A refused AI request (monthly allowance or platform limit; ai-refusal.js) explains itself once and gives the learner
+    // their words and attachment back in the composer, so nothing they wrote is lost (owner D4 section 4, L12).
+    const keepRefused = d => {
+      if (!handleAiRefusal(d) || regenerate || late()) return;
+      setInput(current => current || raw);
+      setMentions(current => (current.length ? current : mentions));
+      if (attached) setFile(current => current || attached);
+    };
     // Chat persistence (chat-persist.js): an Auto turn the Tutor answers is saved by this client, bound now to this canvas and
     // thread (a new chat's thread id is made here), so a late reply is saved where it was asked. Ask and Tutor modes are saved
     // by /api/learn/ask. A demo or a regenerated answer is no new turn.
@@ -590,7 +603,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (panelAsk) { setSheetOpen(true); setSheetHistory(false); }
       // A Tutor turn's question is saved now, before the Tutor generates; the thread is this Chat's at once (saved, it also
       // becomes the canvas's active thread: onAsked).
-      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); savedId(replyId, autoSave.user(message)).then(askedId, () => askedId(null)); }
+      if (viaTutor && autoSave) { if (!late()) chatThread.adopt(autoSave.threadId, askedTitle, { remember: false }); savedId(replyId, autoSave.user(message, { command: commandName })).then(askedId, () => askedId(null)); }
       if (late()) return; // another thread or canvas is open in this Chat now: nothing of this turn is drawn there
       // In the Chat pane each message carries { messageId, status } (contract A2): local ids until `done` names the server's.
       // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
@@ -725,6 +738,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           setChoices({ message, candidates: d.choose });
         } else {
           mirror(`✗ ${d.error || `HTTP ${r.status}`}`);
+          keepRefused(d);
         }
         return;
       }
@@ -761,7 +775,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             if (responseGraph && onGraph) onGraph(responseGraph);
             if (learnChat) setThreads(ts => ts.some(t => t.id === d.threadId) ? ts : [{ id: d.threadId, title: message.slice(0, 120) }, ...ts]);
           }
-          else if (type === 'error') { mirror(`✗ ${d.error}`); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
+          else if (type === 'error') { mirror(`✗ ${d.error}`); keepRefused(d); if (chatThread) setMsgs(messages => settle(messages, replyId, 'error')); }
         }
       }
     } catch (e) {
@@ -770,6 +784,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       if (e.name !== 'AbortError') {
         if (sheetMode && tutor && !codeTurn) { panelAsk = true; exchange = null; card = {}; }
         begin(); mirror(`✗ ${e.message}`);
+        keepRefused(e.data); // a Tutor turn's refusal (api.js data, readPlanStream)
       }
       if (chatThread) setMsgs(messages => settle(messages, replyId, e.name === 'AbortError' ? 'stopped' : 'error'));
     } finally {
@@ -1130,7 +1145,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
-        {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
+        {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
+        {!tocView && <CadReview ops={workspace?.canvasOps} />}
+        {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
