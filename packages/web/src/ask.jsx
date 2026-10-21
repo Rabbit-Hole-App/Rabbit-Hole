@@ -31,6 +31,7 @@ import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
+import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
 import { answersInChat, commandLine, holdsLine, parseSlash, releaseLine } from './learn-slash.js';
 import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
@@ -1161,7 +1162,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
           onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
-            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? 'Add details, or press Enter' : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
+            if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? `Add details, or press ${sendKeyLabel()}` : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}

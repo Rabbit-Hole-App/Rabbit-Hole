@@ -168,3 +168,24 @@ test('the allowance comes only from the server: no dollar amount is written into
     assert.doesNotMatch(source, /\$50\b|(?<![-\w])50(\.0+)?(?![-\w%])|50_?000_?000/, file);
   }
 });
+
+test('by feature: well-formed rows pass through with learner names, same names add up, odd rows drop the split only', async () => {
+  const { featureLabel, featureRows } = await import('./account-usage.js');
+  const rows = [{ feature: 'tutor', usedMicros: 4000, reservedMicros: 0, unknownAttempts: 0 }, { feature: 'inline_route', usedMicros: 100, reservedMicros: 0, unknownAttempts: 0 },
+    { feature: 'inline_generate', usedMicros: 900, reservedMicros: 300, unknownAttempts: 1 }, { feature: 'mystery', usedMicros: 5, reservedMicros: 0, unknownAttempts: 0 }];
+  const ready = readUsage(200, body({ byFeature: rows }));
+  assert.equal(ready.status, 'ready');
+  assert.deepEqual(featureRows(ready.usage.byFeature), [
+    { label: 'Tutor', used: 4000, reserved: 0, unknownAttempts: 0 },
+    { label: 'Ctrl+K edits', used: 1000, reserved: 300, unknownAttempts: 1 },
+    { label: 'Other', used: 5, reserved: 0, unknownAttempts: 0 },
+  ]);
+  assert.equal(featureLabel('ask'), 'Chat');
+  // A malformed split never hides the totals: the usage stays ready, just without byFeature.
+  for (const bad of [[{ feature: 'ask', usedMicros: -1, reservedMicros: 0 }], [{ usedMicros: 1, reservedMicros: 0 }], 'x']) {
+    const state = readUsage(200, body({ byFeature: bad }));
+    assert.equal(state.status, 'ready');
+    assert.equal('byFeature' in state.usage, false, JSON.stringify(bad));
+  }
+  assert.equal('byFeature' in readUsage(200, body()).usage, false, 'a server before the field');
+});
