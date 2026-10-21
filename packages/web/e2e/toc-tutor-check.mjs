@@ -85,6 +85,8 @@ const check = async (label, fn) => {
   try { await fn(); results.push({ label, ok: true }); console.log(`ok ${label}`); }
   catch (error) {
     const message = String(error?.message || error).split('\n')[0].slice(0, 300);
+    const at = String(error?.stack || '').split('\n').find(line => line.includes('toc-tutor-check.mjs'));
+    if (at) console.log(`  at ${at.trim()}`);
     results.push({ label, ok: false, error: message });
     console.log(`FAIL ${label} - ${message}`);
     await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
@@ -111,27 +113,49 @@ const setMode = async mode => {
   await page.locator(`[data-chat-mode-option="${mode}"]`).click();
   await waitFor(async () => await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode);
 };
+// Owner decision 1a (2026-10-20, Tutor workflow): Chat's Tutor is the teaching Tutor; syllabus and outline building happen in
+// the Table of contents conversation, whose held Tutor posts to /api/learn/ask with mode tutor. A Tutor turn here is that
+// conversation's; its proposals that fit apply at once (only a refused one waits as the Apply/Discard card).
+const tocBox = () => contents().locator('[data-toc-conversation], [data-toc-ask]');
+const tocField = () => tocBox().locator('[data-toc-composer] textarea').first();
+async function openToc() {
+  await tab('Table of contents').click();
+  await contents().locator('[data-toc-start] button, [data-toc-composer]').first().waitFor({ timeout: 10000 });
+  if (await contents().locator('[data-toc-start] button').count()) await contents().locator('[data-toc-start] button').click();
+  await tocField().waitFor();
+}
 async function turn(text, plan) {
-  await tab('Chat').click();
-  await setMode('tutor');
+  await openToc();
   next.push(plan);
   const n = captured.length;
-  await pane().locator('[data-chat-composer] textarea').first().fill(text);
-  await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
+  await tocField().fill(text);
+  await tocBox().locator('[data-toc-composer] button[aria-label="Send"]').click();
   await waitFor(() => captured.length > n, 20000);
-  await pane().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).first().waitFor({ timeout: 15000 });
-  await pane().locator('[data-chat-composer] button[aria-label="Send"]').waitFor({ timeout: 10000 });
+  await tocBox().getByText(`Canned reply ${captured[n].reply}.`, { exact: true }).first().waitFor({ timeout: 15000 });
+  await tocBox().locator('[data-toc-composer] button[aria-label="Send"]').waitFor({ timeout: 10000 });
   return captured[n].body;
 }
 
 let adopted = [];
-await check('1 a Tutor syllabus renders its topic descriptions and numbered subtopics, with Use as table of contents', async () => {
+await check('1 a Tutor syllabus in the TOC conversation renders its topic descriptions and numbered subtopics, with Use as table of contents', async () => {
+  // First use (owner UI brief 2026-10-20 section 6): with no TOC messages there is only the compact entry; pressed, its composer.
+  await tab('Chat').click();
+  await pane().locator('[data-chat-composer] textarea').first().fill('A Chat draft');
+  await tab('Table of contents').click();
+  assert.equal(await contents().locator('[data-toc-conversation], [data-toc-composer]').count(), 0, 'no TOC messages: no empty conversation or composer');
+  await contents().locator('[data-toc-start] button').click();
+  await tocField().waitFor();
+  assert.equal(await tocBox().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
+  assert.equal(await tocBox().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no Auto / Ask / Tutor menu');
+  assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline…');
+  assert.equal(await tocField().inputValue(), '', 'Chat\'s draft stays in Chat');
+  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no TOC request yet, no goal line - never sample text');
   const body = await turn('make me a syllabus on tides', { syllabus: SYLLABUS });
   assert.equal(body.mode, 'tutor');
-  assert.ok(body.context_refs.some(ref => ref.sourceId === chatOnlySource), 'normal Chat receives its uploaded document');
+  assert.ok(!(body.context_refs || []).some(ref => ref.sourceId === chatOnlySource), 'the TOC never carries Chat\'s uploaded document');
   assert.equal(body.outline, undefined, 'no headings yet, so no outline rides');
   assert.equal(body.outlineRevision, undefined);
-  const card = pane().locator('[data-syllabus]').last();
+  const card = tocBox().locator('[data-syllabus]').last();
   await card.waitFor({ timeout: 10000 });
   assert.equal(await card.locator('[data-syllabus-topic]').count(), 2);
   assert.deepEqual(await card.locator('[data-syllabus-subtopic]').allInnerTexts().then(t => t.map(s => s.replace(/\s+/g, ' ').trim())), ['1.1 The moon Its pull makes the bulges.', '1.2 The sun']);
@@ -140,26 +164,22 @@ await check('1 a Tutor syllabus renders its topic descriptions and numbered subt
   await card.screenshot({ path: `${OUT}/1-syllabus.png` });
 });
 
-await check('2 Use as table of contents proposes, Apply makes the headings with their descriptions, none completed', async () => {
-  const card = pane().locator('[data-syllabus]').last();
-  assert.deepEqual(await headings(), [], 'nothing changes before Apply');
+await check('2 Use as table of contents in the TOC conversation makes the headings with their descriptions at once, none completed', async () => {
+  const card = tocBox().locator('[data-syllabus]').last();
+  assert.deepEqual(await headings(), [], 'nothing changes before the press');
   await card.locator('[data-syllabus-contents]').click();
   assert.match(await card.locator('[data-syllabus-contents-status]').innerText(), /Proposed in Table of contents/);
-  assert.deepEqual(await headings(), [], 'the button itself applies nothing');
-  await tab('Table of contents').click();
-  await apply().waitFor({ timeout: 5000 });
-  await contents().screenshot({ path: `${OUT}/2-proposal.png` });
-  await apply().click();
   adopted = await waitFor(async () => { const h = await headings(); return h.length === 4 && h; });
   assert.deepEqual(adopted.map(h => [h.level, h.text, h.description, h.done]), [
     [1, 'Tides', 'Why the sea rises and falls twice a day.', false], [2, 'The moon', 'Its pull makes the bulges.', false], [2, 'The sun', '', false], [1, 'Tide tables', '', false],
   ]);
-  assert.equal(await apply().count(), 0, 'the proposal is gone once applied');
+  assert.equal(await apply().count(), 0, 'nothing waits for Apply');
+  await contents().screenshot({ path: `${OUT}/2-adopted.png` });
 });
 
 await check('3 pressing it again proposes nothing: the syllabus is already the contents', async () => {
-  await tab('Chat').click();
-  const card = pane().locator('[data-syllabus]').last();
+  await openToc();
+  const card = tocBox().locator('[data-syllabus]').last();
   await card.locator('[data-syllabus-contents]').click();
   assert.equal(await card.locator('[data-syllabus-contents-status]').innerText(), 'Already in the table of contents.');
   await tab('Table of contents').click();
@@ -173,10 +193,6 @@ await check('4 a Tutor turn sends the headings with ids, descriptions and outlin
   assert.deepEqual(body.outline.map(e => [e.id, e.level, e.label, e.description, e.done]), adopted.map(h => [h.id, h.level, h.text, h.description, false]));
   assert.match(body.outlineRevision, /^[0-9a-f]{8}$/);
   assert.equal(body.outlineRevision, outlineRevision(body.outline), 'the revision of exactly the headings sent');
-  await tab('Table of contents').click();
-  await apply().waitFor({ timeout: 5000 });
-  assert.match(await contents().innerText(), /Spring tides/);
-  await apply().click();
   const after = await waitFor(async () => { const h = await headings(); return h.length === 5 && h; });
   assert.deepEqual(after.map(h => [h.level, h.text, h.done]), [[1, 'Tides', false], [2, 'The moon', false], [2, 'The sun', false], [2, 'Spring tides', false], [1, 'Tide tables', false]]);
   assert.equal(after[3].description, 'When the sun and moon line up.');
@@ -230,8 +246,6 @@ if (panel) await check('8 a full syllabus (12 topics, 6 subtopics each: 84 adds)
 // so a reload restores it through the TOC's own open-thread pointer (slot 'toc').
 // Owner UI brief 2026-10-20 section 6: with no TOC messages there is only the compact entry (data-toc-start); pressed, its
 // composer (data-toc-ask) opens, and becomes the TOC conversation once a turn is sent.
-const tocBox = () => contents().locator('[data-toc-conversation], [data-toc-ask]');
-const tocField = () => tocBox().locator('[data-toc-composer] textarea').first();
 await check('9 the TOC conversation: Tutor only; a request there applies its outline change at once, numbered in place; the reply stays in TOC; Chat\'s draft and New chat leave it; a reload restores it', async () => {
   const TOC_THREAD = `canvaschat-${crypto.randomUUID()}`, ask = 'Add a section on tidal bores after Tides';
   for (const [role, content, client_id] of [['user', ask, 'toc-u'], ['assistant', 'The saved TOC reply.', 'toc-a']])
@@ -239,15 +253,10 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await tab('Chat').click();
   await setMode('ask'); // TOC must not inherit Chat's mode.
   await pane().locator('[data-chat-composer] textarea').first().fill('A Chat draft');
-  await tab('Table of contents').click();
-  assert.equal(await contents().locator('[data-toc-conversation], [data-toc-composer]').count(), 0, 'no TOC messages: no empty conversation or composer');
-  await contents().locator('[data-toc-start] button').click();
-  await tocField().waitFor();
+  // The TOC conversation exists already (steps 1-5, owner 1a); its first-use entry is checked in step 1.
+  await openToc();
   assert.equal(await tocBox().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
-  assert.equal(await tocBox().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no Auto / Ask / Tutor menu');
-  assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline…');
   assert.equal(await tocField().inputValue(), '', 'Chat\'s draft stays in Chat');
-  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no TOC request yet, no goal line - never sample text');
   const before = await headings(), tops = before.filter(h => h.level === 1), tides = tops.find(h => h.text === 'Tides');
   const n = captured.length;
   next.push({ threadId: TOC_THREAD, outline: () => [{ op: 'add', text: 'Tidal bores', level: 1, after: tides.id, description: 'A wave that runs up a river.' }] });
@@ -256,7 +265,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await waitFor(() => captured.length > n, 20000);
   const { body, reply } = captured[n];
   assert.equal(body.mode, 'tutor');
-  assert.equal(body.thread_id ?? null, null, 'a new TOC thread, never Chat\'s');
+  assert.equal(body.thread_id, 'toc-thread-1', 'the TOC\'s own thread (steps 1-5), never Chat\'s');
   assert.equal(body.message, ask, 'the TOC goal/request is its own');
   assert.deepEqual(body.outline.map(h => [h.id, h.level, h.label, h.description, h.done]), before.map(h => [h.id, h.level, h.text, h.description, h.done]), 'the current complete outline rides');
   assert.equal(body.outlineRevision, outlineRevision(body.outline));
@@ -270,8 +279,9 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   const numberOf = id => contents().locator(`[data-toc-entry="${id}"] [data-toc-number]`).innerText();
   assert.equal(await numberOf(after[at].id), '2', 'Tidal bores is section 2');
   assert.equal(await numberOf(after[at + 1].id), '3', 'the next section renumbered');
-  // The goal under the heading is the TOC conversation's latest request (lead ruling 2026-10-16), two lines at most.
-  assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), `Goal · ${ask}`);
+  // A planning request is not the accepted goal: the goal line reads the learner's structured goal record and none is
+  // accepted here (Tutor Task 11, draft acceptance 52, superseding the lead ruling of 2026-10-16 under owner decision 2a).
+  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no goal line from a planning message');
   assert.ok(await contents().isVisible(), 'the Table of contents stays open');
   await contents().screenshot({ path: `${OUT}/9-toc-conversation.png` });
   await tab('Chat').click();
@@ -288,7 +298,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   await tab('Table of contents').click();
   await tocBox().getByText('The saved TOC reply.', { exact: true }).waitFor({ timeout: 15000 });
   assert.equal(await tocField().inputValue(), 'A TOC draft', 'the TOC draft survives the reload');
-  assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), `Goal · ${ask}`, 'the goal from the restored TOC thread');
+  assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'a restored TOC thread is not a goal either (draft acceptance 52)');
   assert.ok((await headings()).some(h => h.text === 'Tidal bores'), 'the outline change survives the reload');
   await tab('Chat').click();
   await page.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
@@ -343,9 +353,9 @@ await check('10 repository TOC keeps its intentional repository commit and outli
   await contents().screenshot({ path: `${OUT}/10-repository-toc.png` });
 });
 await check('6 no model route was reached and the page raised no error', async () => {
-  assert.deepEqual(refused, []);
-  assert.deepEqual(outside, []);
-  assert.deepEqual(errors, []);
+  assert.deepEqual(refused, [], refused.join(', '));
+  assert.deepEqual(outside, [], outside.join(', '));
+  assert.deepEqual(errors, [], errors.join(' | '));
 });
 
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ results, asks: captured.length, requests: captured.map(({ body }) => body) }, null, 2));

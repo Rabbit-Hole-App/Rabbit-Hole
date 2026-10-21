@@ -40,8 +40,21 @@ export function validateCadManifest(job, result) {
   if (job.operation === 'export') { if (!kinds.has(job.exportFormat)) throw cadError('Requested export is missing', 422); }
   else if (!kinds.has('step')) throw cadError('Required STEP geometry is missing', 422);
   const validation = result.validation;
+  const controls = result.controls;
+  const ids = /^[a-z][a-z0-9_]{0,47}$/;
+  if (controls !== undefined && (!controls || !Array.isArray(controls.read) || controls.read.length > 40 || controls.read.some(x => typeof x !== 'string' || !ids.test(x)) || !controls.computed || typeof controls.computed !== 'object' || Array.isArray(controls.computed) || Object.entries(controls.computed).length > 40 || Object.entries(controls.computed).some(([k, v]) => !ids.test(k) || typeof v !== 'number' || !Number.isFinite(v)))) throw cadError('Invalid CAD controls report', 422);
   if (!validation || validation.baselinePassed !== true || validation.units !== job.brief.units || !Array.isArray(validation.checks) || validation.checks.some(c => c.passed === false && c.status !== 'unchecked')) throw cadError('Independent geometry validation did not pass', 422);
   return result;
+}
+// Requested values (validated inputs), computed values (the saved source's own report) and bindings (inputs the trusted
+// build actually read) for this revision only. Measured values stay in validation.facts. Viewers see this manifest, so it
+// carries no prompt, context or source text.
+export function cadControlsManifest(job, result) {
+  const defs = job.brief.controls.parameters, read = new Set(result.controls?.read || []), reported = result.controls?.computed || {};
+  return { schema: 'cad-controls/1', revisionId: job.revisionId, definitions: job.brief.controls,
+    values: Object.fromEntries(defs.filter(p => p.role === 'input').map(p => [p.id, p.value])),
+    computed: Object.fromEntries(defs.filter(p => p.role === 'computed' && Object.hasOwn(reported, p.id)).map(p => [p.id, reported[p.id]])),
+    bindings: defs.filter(p => p.role === 'input' && read.has(p.id)).map(p => p.id) };
 }
 export async function publishCadArtifacts(env, job, result) {
   validateCadManifest(job, result);
@@ -59,5 +72,6 @@ export async function publishCadArtifacts(env, job, result) {
   if (job.operation === 'export') return { ...job.manifest, artifacts: [...job.manifest.artifacts.filter(a => !artifacts.some(b => b.kind === a.kind)), ...artifacts] };
   return { schema:'cad-model/1', revisionId:job.revisionId, sourceId:job.source.id, title:job.brief.title, units:job.brief.units,
     parameters:job.brief.parameters, assumptions:job.brief.assumptions, validation:result.validation, runtime:result.runtime, timings:result.timings,
+    ...(job.brief.controls ? { controls: cadControlsManifest(job, result) } : {}),
     artifacts:[{name:'model.py',kind:'source',bytes:job.source.bytes,sha256:job.source.sha256,mediaType:'text/plain',url:`/api/learn/files/${job.source.id}`}, ...artifacts] };
 }

@@ -1,0 +1,27 @@
+{
+  "brief": {
+    "title": "Linked-edge cube",
+    "units": "mm",
+    "object": "A solid cube whose three edges share one length",
+    "requirements": ["All edges equal"],
+    "assumptions": ["Edge length 20 mm"],
+    "missing": [],
+    "unsupported": [],
+    "contextUsed": [],
+    "controls": {
+      "schema": "cad-params/1",
+      "parameters": [
+        { "id": "edge", "label": "Edge length", "role": "input", "type": "length", "unit": "mm", "value": 20, "min": 1, "max": 200, "step": 0.5, "precision": 1, "slider": true, "priority": 0, "check": "size_x" },
+        { "id": "face_diagonal", "label": "Face diagonal", "role": "computed", "type": "length", "unit": "mm", "dependsOn": ["edge"], "priority": 10 }
+      ],
+      "constraints": []
+    }
+  },
+  "checks": [
+    { "id": "size_x", "kind": "bounds_mm", "axis": "x", "expression": "edge", "tolerance": 0.001 },
+    { "id": "size_y", "kind": "bounds_mm", "axis": "y", "expression": "edge", "tolerance": 0.001 },
+    { "id": "size_z", "kind": "bounds_mm", "axis": "z", "expression": "edge", "tolerance": 0.001 },
+    { "id": "volume", "kind": "volume_mm3", "expression": "edge*edge*edge", "tolerance": 0.01 },
+    { "id": "one_solid", "kind": "solid_count", "value": 1, "tolerance": 0 }
+  ]
+}

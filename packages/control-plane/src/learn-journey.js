@@ -211,7 +211,7 @@ async function start(env, scope, body, callModel) {
   if (!STARTS.has(intent.kind)) return json({ error: 'not_a_learning_journey' }, 400);
   if (!intent.topic) return json({ error: 'topic_required', tray: ASK_TOPIC }, 400);
   // replace: the journey continue-or-start confirmed replacing. A start that plans nothing swaps in one batch (createJourney
-  // archives it in the insert's transaction). A fast start that replaces the live journey, in setup or active (owner
+  // parks it, a paused goal, in the insert's transaction: owner decision 5a). A fast start that replaces the live journey, in setup or active (owner
   // 2026-10-07, D2), is staged: made and planned off the board, then swapped in one batch, so a planner failure keeps the
   // old journey live with its progress and answers 502 with it; its Retry is the same start, and no staged row survives.
   if (body.replace != null && (typeof body.replace !== 'string' || !body.replace || body.replace.length > 64)) return json({ error: 'replace must be a journey id' }, 400);
@@ -243,6 +243,9 @@ async function act(env, scope, body, callModel, now) {
   // archived and replaced, perhaps in another tab, between the board save and the post or its replay) is refused before
   // the revision check, so no replay of it can record a stale heading on a new journey's section.
   if (body.action === 'section_materialized' && body.journey_id !== j.id) return reply(env, j, 409, { error: 'journey_changed' });
+  // Tutor T1 report limit 5 (decision 5a): a paused goal's journey is parked, not archived, and parking bumps revisions, so a
+  // revision alone cannot tell a parked journey from the current one. Any action naming another journey is refused here.
+  if (body.journey_id != null && body.journey_id !== j.id) return reply(env, j, 409, { error: 'journey_changed' });
   if (body.revision != null && body.revision !== j.revision) return reply(env, j, 409, { error: 'revision' });
   const refuse = step => reply(env, j, 409, { error: step.error });
   // The learner starts another topic on this board (§6.1 continue-or-start): the live journey is archived, read-only for

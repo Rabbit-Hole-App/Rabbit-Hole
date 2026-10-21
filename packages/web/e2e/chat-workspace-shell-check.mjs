@@ -114,7 +114,9 @@ await check('History opens a list inside Chat; New chat starts a fresh conversat
   await pane.getByRole('button', { name: 'New chat', exact: true }).click();
   await settle();
   assert.match(await pane.locator('[data-chat-title]').innerText(), /New chat/);
-  assert.match(await pane.getByRole('button', { name: 'Mode', exact: true }).innerText(), /Auto/, 'a new chat starts in Auto');
+  // Owner decision 1a (2026-10-20, Tutor workflow): the mode is the learner's canvas preference, not a thread's, so New chat
+  // keeps it (Ask, from Add to chat above); a canvas with no saved choice starts in Auto.
+  assert.match(await pane.getByRole('button', { name: 'Mode', exact: true }).innerText(), /Ask/, 'a new chat keeps the canvas mode');
   assert.equal(await page.locator('[data-block-id="c-c"]').count(), 1, 'the canvas card is still there');
 });
 

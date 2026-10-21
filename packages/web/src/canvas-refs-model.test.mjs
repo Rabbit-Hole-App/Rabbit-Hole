@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAX_REFS, REF_CARD, cardParam, reIdRefs, refCardSpot, withRef, withoutRef, withoutCardParam } from './canvas-refs-model.js';
+import { chromeObstacles } from './canvas-slots.js';
 
 const card = { id: 'c1', type: 'explanation', dx: 0, dy: 0 };
 
@@ -71,6 +72,25 @@ test('insertRefCard placement: a click hemmed in by a sticky and a card column s
   assert.ok(box.x >= visible.x && box.x + box.w <= visible.x + visible.w, 'inside the view');
   assert.ok(!obstacles.some(obstacle => overlap(box, obstacle)) && !overlap(box, { ...point, w: 1, h: 1 }), 'free, the point uncovered');
   assert.ok(Math.hypot(spot.x - point.x, spot.y - point.y) < 260, 'near the click');
+});
+
+test('insertRefCard placement: a spot in view keeps clear of the floating bottom chrome, the hidden hooks corner included', () => {
+  // canvas-refs-check step 2's board (C:/s/spec/refs-flake, surface px at view {0,0,1}): the column a1-a4, a reference card and
+  // a sticky; the view's centre is on a3. Placed among the cards alone, the card lands lower right, where the Next Steps
+  // skeleton appears the moment the insert changes their input.
+  const view = { x: 0, y: 0, z: 1 }, height = 952, visible = { x: 24, y: 24, w: 1152, h: 904 }, centre = { x: 600, y: 476 };
+  const obstacles = [[380, 24, 820, 195], [380, 215, 820, 386], [380, 406, 820, 577], [380, 597, 820, 725], [24, 276, 344, 348], [59, 83, 221, 245]]
+    .map(([l, t, r, b]) => ({ x: l, y: t, w: r - l, h: b - t }));
+  const hooks = { left: 1068, right: 1276, top: 688 }, zoom = { left: -28, right: 156, top: 770 };
+  const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const under = (spot, rect) => overlap({ x: spot.x, y: spot.y, ...REF_CARD }, { x: rect.left, y: rect.top, w: rect.right - rect.left, h: height - rect.top });
+  assert.ok(under(refCardSpot(centre, obstacles, visible), hooks), 'the board reproduces the bug: without the chrome the card lands under the hooks');
+  const spot = refCardSpot(centre, [...obstacles, ...chromeObstacles([hooks, zoom], height, view)], visible);
+  assert.equal(spot.offscreen, false);
+  assert.ok(!under(spot, hooks) && !under(spot, zoom), `clear of the bottom chrome (${spot.x},${spot.y})`);
+  assert.ok(!obstacles.some(box => overlap({ x: spot.x, y: spot.y, ...REF_CARD }, box)), 'and of every card');
+  // World units: the same chrome at another camera is the same screen region.
+  assert.deepEqual(chromeObstacles([hooks], height, { x: -100, y: 50, z: 2 }), [{ x: 584, y: 319, w: 104, h: 132 }]);
 });
 
 test('card= parsing: the id or null, and the address without it', () => {

@@ -21,7 +21,8 @@ import { validateLessonSnapshot } from './learn-context.js';
 import { PEXELS_TOOL, INSPECT_IMAGE_TOOL, inspectImage, searchPexels } from './pexels.js';
 
 import { BOARD_SYSTEM, BOARD_NO_DESMOS } from './agents/learn-board.js';
-import { withAttemptKind } from './learn-usage.js';
+import { withAttemptKind, usageRefusal } from './learn-usage.js';
+import { refusalBody } from './learn-spend-ledger.js';
 export { BOARD_SYSTEM };
 
 export const BOARD_TOOL = { name: 'explain_on_canvas', description: 'Propose a bounded visual explanation, rendered by the application after validation.', input_schema: {
@@ -343,7 +344,7 @@ export async function boardFetch(req, env, generate = generateBoardPlan) {
         try {
           const result = await generateResult(stage => emit('progress', { stage }));
           emit(result.previewPlan ? 'preview' : 'plan', result);
-        } catch (error) { emit('error', { error: error.message }); }
+        } catch (error) { emit('error', usageRefusal(env) ? refusalBody(usageRefusal(env)) : { error: error.message }); } // a refused admission names itself
         finally { if (!cancelled) controller.close(); }
       },
       cancel() { cancelled = true; },

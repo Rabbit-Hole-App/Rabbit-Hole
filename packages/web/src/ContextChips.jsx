@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CircleAlert, FileCode2, FileText, Film, Globe, Group, Image, Loader2, RotateCw, Shapes, StickyNote, X } from 'lucide-react';
+import { ChartColumnIncreasing, CircleAlert, FileCode2, FileText, Film, Globe, Group, Image, Loader2, RotateCw, Shapes, StickyNote, X } from 'lucide-react';
 import { Menu } from './ui.jsx';
 import { refWhere } from './repo-context.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
@@ -11,7 +11,7 @@ import { labelOnlyChip } from './pdf-source.js';
 // First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
 // attached refs and any upload in flight or failed. A click opens the source beside Chat (never attaches); x detaches
 // from this conversation only, never deleting the file or the canvas object.
-export const REF_ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: Image, media: Film, web: Globe };
+export const REF_ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: Image, media: Film, web: Globe, progress: ChartColumnIncreasing };
 export const RefIcon = ({ kind, size = 14, className = 'shrink-0 text-ink-3' }) => {
   const Icon = REF_ICONS[kind] || FileText;
   return <Icon size={size} strokeWidth={1.75} aria-hidden className={className} />;
@@ -89,7 +89,8 @@ export default function ContextChips({ readPaper = null, selection = null, code 
             <li key={item.id || refKey(ref)} data-context-chip={state} data-ref-key={refKey(ref)} data-label-only={labelOnly || undefined}
               {...(selected && !codeSelected(ref) ? { 'data-canvas-target': true, 'data-selected-card': selection.id } : {})} data-code-pinned={codeSelected(ref) || undefined}
               className={`${CHIP} pr-0.5 ${state === 'failed' ? 'border-red-300' : selected ? 'border-accent' : ''}`}>
-              <button type="button" disabled={state !== 'ready'} onClick={() => chat.openSource(ref)} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
+              {/* A progress chip (Tutor Task 10) opens Progress, which keeps its viewed goal; every other chip opens its source. */}
+              <button type="button" disabled={state !== 'ready'} onClick={() => (ref.kind === 'progress' ? chat.panels.companion.show('progress') : chat.openSource(ref))} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
                 className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent">
                 {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" />
                   : state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}

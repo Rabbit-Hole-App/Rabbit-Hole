@@ -375,7 +375,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   // A creation's composer stands at its anchor, where the result wants to go: there the composer, with all the room it may
   // grow into, is in the way too, so the result never lands under it where its ghost could not be seen. A selection's
   // composer is placed clear of the selection already, and the result goes beside the selection.
-  const obstaclesNow = ids => [...canvas.obstacles(ids), ...(target.creation ? [{ x: (place.left - view.x) / view.z, y: (place.top - view.y) / view.z, w: place.width / view.z, h: height / view.z }] : [])];
+  const obstaclesNow = ids => [...canvas.obstacles(ids), ...canvas.placementChrome(), ...(target.creation ? [{ x: (place.left - view.x) / view.z, y: (place.top - view.y) / view.z, w: place.width / view.z, h: height / view.z }] : [])];
   const placeFor = size => {
     // A creation: the whole result near the anchor (inline-placement.js placeResult), never beside a selection it lacks.
     if (target.creation) {

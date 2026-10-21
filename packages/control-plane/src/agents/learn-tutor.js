@@ -66,11 +66,14 @@ export function readTutorAnswers(body, spec) {
 // gap on its own check. An idea the answer did not engage, or whose checks JEV could not settle, gets no event: it stays
 // not observed. The transfer check only names a pass's kind: a confident yes is demonstrated_in_transfer, anything else
 // demonstrated_here, and an unsure one stays explicit (transfer_unsure), so it never makes a claim understood. status:
-// settled when every check but transfer is confident, else uncertain.
+// settled when every check but transfer is confident and no idea is contested, else uncertain. Owner decision 7a
+// (2026-10-20): a contested idea (confidently stated and contradicted) is never settled by one evaluator's checks; it
+// waits for the escalation decision, and stays unsettled (needs review) when escalation is unavailable or refused.
 export function evaluationFrom(spec, answers, thresholds, evaluator) {
   const yes = p => p >= thresholds.yes, no = p => p <= thresholds.no, sure = key => yes(answers[key]) || no(answers[key]);
   const transferKey = key => /^c\d+_transfer$/.test(key);
-  const status = Object.keys(answers).filter(key => !transferKey(key)).every(sure) ? 'settled' : 'uncertain';
+  const contested = spec.claims.some((claim, c) => claim.ideas.some((_, i) => yes(answers[`c${c}_idea${i}`]) && yes(answers[`c${c}_contra${i}`])));
+  const status = Object.keys(answers).filter(key => !transferKey(key)).every(sure) && !contested ? 'settled' : 'uncertain';
   const gate = sure(spec.answering ? 'non_attempt' : 'attempt');
   const ideaSettled = (c, i) => gate && sure(`c${c}_idea${i}`) && sure(`c${c}_contra${i}`);
   const misSettled = c => Object.keys(answers).filter(key => key.startsWith(`c${c}_mis`)).every(sure);
@@ -94,7 +97,7 @@ export function evaluationFrom(spec, answers, thresholds, evaluator) {
       claim.ideas.forEach((_, i) => {
         const stated = yes(answers[`c${c}_idea${i}`]), contradicted = yes(answers[`c${c}_contra${i}`]);
         if (stated && !contradicted) passes.push(event(claim, ideaSettled(c, i) && misSettled(c), { result: 'pass', kind, idea: i, ...unsure }));
-        else if (contradicted) negatives.push(event(claim, ideaSettled(c, i), { result: 'fail', kind: null, idea: i, ...(stated ? { contested: true } : {}) }));
+        else if (contradicted) negatives.push(event(claim, ideaSettled(c, i) && !stated, { result: 'fail', kind: null, idea: i, ...(stated ? { contested: true } : {}) }));
       });
       claim.misconceptions.forEach((wrong, m) => {
         if (yes(answers[`c${c}_mis${m}`])) negatives.push(event(claim, gate, { result: 'misconception', misconception_id: wrong.id, kind: null }));

@@ -109,15 +109,15 @@ test('a search needs a key, and says so as a next step', async () => {
 test('a junk query is refused before any request', async () => {
   let called = 0;
   const fake = async () => { called += 1; return reply(200, { results: [] }); };
-  await assert.rejects(() => searchYouTube('', { EXA_API_KEY: 'k' }, fake), /Invalid video search/);
-  await assert.rejects(() => searchYouTube('x'.repeat(201), { EXA_API_KEY: 'k' }, fake), /Invalid video search/);
+  await assert.rejects(() => searchYouTube('', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, fake), /Invalid video search/);
+  await assert.rejects(() => searchYouTube('x'.repeat(201), { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, fake), /Invalid video search/);
   assert.equal(called, 0);
 });
 
 test('the key rides a header to exa.ai and only there', async () => {
   const calls = [];
   const fake = async (url, options) => { calls.push({ url, options }); return reply(200, { results: [] }); };
-  await searchYouTube('backprop', { EXA_API_KEY: 'secret-key' }, fake);
+  await searchYouTube('backprop', { EXA_API_KEY: 'secret-key', SMALL_ENV: 'test' }, fake);
   assert.equal(calls[0].url, 'https://api.exa.ai/search');
   assert.equal(calls[0].options.headers['x-api-key'], 'secret-key');
   const body = JSON.parse(calls[0].options.body);
@@ -126,12 +126,12 @@ test('the key rides a header to exa.ai and only there', async () => {
 });
 
 test('upstream failures become sentences naming the next step', async () => {
-  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => reply(401, {})), /key was refused/);
-  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => reply(429, {})), /rate-limited/);
-  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => reply(500, {})), /unavailable \(500\)/);
+  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, async () => reply(401, {})), /key was refused/);
+  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, async () => reply(429, {})), /rate-limited/);
+  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, async () => reply(500, {})), /unavailable \(500\)/);
   const timeout = new Error('timed out'); timeout.name = 'TimeoutError';
-  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => { throw timeout; }), /did not answer in time/);
-  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k' }, async () => { throw new Error('boom'); }), /Video search is unavailable/);
+  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, async () => { throw timeout; }), /did not answer in time/);
+  await assert.rejects(() => searchYouTube('q', { EXA_API_KEY: 'k', SMALL_ENV: 'test' }, async () => { throw new Error('boom'); }), /Video search is unavailable/);
 });
 
 // duplication-3: the one video-tool runner apiAsk and repositoryAsk share.
@@ -139,7 +139,7 @@ test('videoMomentTools offers the tools only with a provider, shows only found v
   const { videoMomentTools } = await import('../src/learn-youtube.js');
   assert.deepEqual(videoMomentTools({}, 'o').tools, []);
   assert.equal(videoMomentTools({}, 'o').system, null);
-  const videos = videoMomentTools({ EXA_API_KEY: 'k' }, 'o', async () => ({ videos: [{ videoId: 'Ilg3gGewQ5U', title: 'A', hasCaptions: false, hasPassages: false }], passages: [] }));
+  const videos = videoMomentTools({ EXA_API_KEY: 'k', SMALL_ENV: 'test' }, 'o', async () => ({ videos: [{ videoId: 'Ilg3gGewQ5U', title: 'A', hasCaptions: false, hasPassages: false }], passages: [] }));
   assert.deepEqual(videos.tools.map(tool => tool.name), ['find_video_moments', 'show_video']);
   assert.equal(await videos.run('read_source', {}), undefined);
   await assert.rejects(videos.run('show_video', { videoId: 'Ilg3gGewQ5U' }));

@@ -2,9 +2,9 @@
 // The platform cap is deliberately fail-closed: an unset cap or missing 0016 table refuses admission.
 import { MODEL_PRICES } from './learn-models.js';
 
-import { spendError, platformCaps, admitSpend, settleSpend, operationId, spendEnforced } from './learn-spend-ledger.js';
-import { beginAttempt, settleAttempt, toMicros } from './learn-usage.js';
-export { spendError, platformCaps, platformSpendStatus, admitSpend, settleSpend, operationId, spendEnforced } from './learn-spend-ledger.js';
+import { platformCaps, admitSpend, settleSpend, operationId, spendEnforced, refusalReply } from './learn-spend-ledger.js';
+import { settleAttempt, toMicros, usageRefusal } from './learn-usage.js';
+export { spendError, platformCaps, platformSpendStatus, admitSpend, settleSpend, operationId, spendEnforced, spendMessage } from './learn-spend-ledger.js';
 
 // Prices for the existing picker models, verified 2026-10-12 (not aliases of 5.5):
 // https://platform.claude.com/docs/en/models/opus-5/overview
@@ -55,7 +55,8 @@ export function requestSpendBound(body, model, provider = 'anthropic') {
 
 const admission = Symbol('server spend admission');
 const activeAdmissions = new WeakSet();
-const refusal = reason => Response.json({ error: spendMessage(reason), code: 'spend_limited', reason }, { status: 429 });
+// Refusals before admission (no cap, no bound) have no payer yet; an admission refusal is the request's noted refusal.
+const refusal = reason => refusalReply({ reason });
 
 // The private, single-call token prevents the Tutor wrapper and actual transport from reserving twice.
 // It is neither a request field nor an API-key bypass and cannot authorize a different request/model/database.
@@ -72,11 +73,12 @@ export async function spendTransport(env, body, model, org, transport, identity 
   const reservedUsd = requestSpendBound(body, model, provider);
   if (reservedUsd == null) return refusal('spend_bound_unavailable');
   const opId = operationId(identity.category || 'provider');
-  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: identity.userId || `provider:${org || 'platform'}`, org: org || 'platform', category: identity.category || 'provider', reservedUsd });
-  if (gate.refused) return refusal(gate.reason);
-  // Usage accounting (learn-usage.js, Phase 1): the same attempt beside the ledger row, best effort and never awaited
-  // before the provider call; finish() waits for it. It cannot refuse or fail this request.
-  const begun = beginAttempt(env, { attemptId: opId, kind: identity.kind, provider, model, reservedMicros: toMicros(reservedUsd) });
+  // The one admission (learn-spend-ledger.js): the platform guard and, for chargeable work, the session payer's monthly
+  // allowance, reserved in one transaction. identity.userId only labels the ledger row; it never chooses the payer.
+  const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: identity.userId || `provider:${org || 'platform'}`, org: org || 'platform', category: identity.category || 'provider', reservedUsd,
+    kind: identity.kind, provider, model });
+  if (gate.refused) return refusalReply({ reason: gate.reason, period: usageRefusal(env)?.period });
+  const begun = gate.attemptId;
   const token = { request: JSON.stringify(body), model, provider, db: env.LEARN_DB };
   activeAdmissions.add(token);
   const finish = async (result, error = null) => {
@@ -92,7 +94,7 @@ export async function spendTransport(env, body, model, org, transport, identity 
     // per-TTL breakdown, a one-hour write keeps its conservative reservation.
     if (JSON.stringify(body).includes('\"ttl\":\"1h\"') && usage?.cache_creation_input_tokens > 0) cost = null;
     await settleSpend(env.LEARN_DB, opId, { status: error ? 'failed' : 'settled', calls: 1, costUsd: cost, model: result?.model || model, provider, error });
-    await settleAttempt(env, await begun, { costMicros: toMicros(cost), status: error === 'stream_cancelled' ? 'cancelled' : error ? 'failed' : 'settled',
+    await settleAttempt(env, begun, { costMicros: toMicros(cost), status: error === 'stream_cancelled' ? 'cancelled' : error ? 'failed' : 'settled',
       model: result?.model || model, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens });
   };
   try {
@@ -139,10 +141,3 @@ export async function spendTransport(env, body, model, org, transport, identity 
   }
 }
 
-export const spendMessage = reason => reason === 'cap_unset'
-  ? 'Paid Learn calls are paused until the platform daily dollar cap is configured.'
-  : reason === 'spend_bound_unavailable'
-    ? 'This model request is paused because its maximum dollar cost cannot be bounded with the configured prices.'
-  : reason === 'daily_cap_reached'
-    ? 'Paid Learn calls are paused because the platform daily dollar cap has been reached.'
-    : 'Paid Learn calls are temporarily unavailable because spend controls are not ready.';
