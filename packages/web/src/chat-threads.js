@@ -44,6 +44,14 @@ export const withAnswerMeta = (messages, replyId, { messageId, kind, ...meta }) 
 export const withDone = (messages, replyId, { userMessageId, messageId }) => messages.map(m => (
   m.id === replyId ? { ...m, ...(messageId != null ? { messageId: String(messageId) } : {}), status: m.status === 'streaming' ? 'done' : m.status }
     : m.messageId === `local-q-${replyId}` && userMessageId != null ? { ...m, messageId: String(userMessageId) } : m));
+// A reply the browser saved itself (a turn handled here, chat-persist.js turnSaver) takes the id the server gave it, as a
+// streamed reply takes the done event's. Its card id (AnswerFooter cardIdFor) then matches the saved message after a reload.
+export const withSavedReply = (messages, replyId, messageId) => (messageId == null ? messages : messages.map(m => (
+  m.id === replyId && !/^\d+$/.test(String(m.messageId ?? '')) ? { ...m, messageId: String(messageId) } : m)));
+// A canvas's chat cards with the card `from` renamed `to` (LearnPage rekeyCard): unchanged when `from` is absent or `to` is
+// already there, so a card is never doubled or lost.
+export const rekeyed = (cards, from, to) => (from === to || !cards.some(card => card.id === from) || cards.some(card => card.id === to) ? cards
+  : cards.map(card => (card.id === from ? { ...card, id: to } : card)));
 // The end of a turn: a reply still streaming becomes `status` (done, stopped or error). A Stop keeps the partial text.
 export const settle = (messages, replyId, status) => messages.map(m => (m.id === replyId && m.status === 'streaming' ? { ...m, status } : m));
 // A saved interrupted or stopped reply (a Stop, chat-persist.js) reads as the stopped reply it was, never as a spinner.

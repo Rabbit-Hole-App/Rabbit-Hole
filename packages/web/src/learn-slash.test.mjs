@@ -239,6 +239,35 @@ test('a paid command holds no place until Generate; Generate holds it and the co
   assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video…', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
+// Duplicate card on reuse (owner priority 2, 2026-10-21): the server keys a paid video or scene job by its operation
+// (learn-video.js, learn-scene.js), so a Generate whose job a card here already shows would get that card's job back. That card
+// is revealed and no second card is inserted, also after a reload (the board's saved cards); a second press starts nothing more.
+test('a paid Generate reuses the card that already shows its job; repeated presses insert one card', async () => {
+  const operation = { op: 'generate_math_animation', id: 'sigmoid', concept: 'Sigmoid', scene: { title: 'Slope', steps: [] } };
+  const proposal = { result: 'paid_proposal', primitive: 'maths_animation', block: { type: 'video', mode: 'generate', status: 'idle', operation }, message: 'paid' };
+  const run = async blocks => {
+    const did = [];
+    const canvas = { blocks: () => blocks, focusBlock: id => did.push(['focus', id]), reserve: () => { did.push(['reserve']); return 'slot:1'; }, release: () => {},
+      insertBlock: block => { did.push(['block', block.operation]); return 'card-new'; } };
+    const out = await runLearnCommand('/video the sigmoid slope', { app: 'demo', canvas, post: async () => proposal, openSearch: () => {} });
+    return { did, generate: out.proposal.generate };
+  };
+  // The finished card from an earlier Generate (as the saved board restores it): revealed, nothing inserted, on every press.
+  const shown = { id: 'card-old', type: 'video', mode: 'generate', status: 'ready', src: '/v.mp4', placementId: 'p1', operation: structuredClone(operation) };
+  const reused = await run([shown]);
+  assert.deepEqual(reused.generate(), { reused: 'card-old' });
+  reused.generate();
+  assert.deepEqual(reused.did, [['focus', 'card-old']], 'revealed once, no skeleton, no card');
+  // No such card: one card however often Generate is pressed.
+  const fresh = await run([]);
+  fresh.generate(); fresh.generate();
+  assert.deepEqual(fresh.did.map(entry => entry[0]), ['reserve', 'block']);
+  // An unstarted card with the same operation (a + palette sample) is not that job; another operation is another job.
+  const sample = await run([{ ...shown, status: 'idle', src: '', placementId: undefined }, { ...shown, id: 'other', operation: { ...operation, id: 'tanh' } }]);
+  sample.generate();
+  assert.deepEqual(sample.did.map(entry => entry[0]), ['reserve', 'block']);
+});
+
 // /motion exists only in a development or review build (agent/slash.js MOTION_DEV). MOT-20 (owner message 39): it is a chat turn,
 // whose proposal card is the chat's (generation-proposal-chat.js); the command itself makes no request, card or confirmation.
 test('/motion: development and review builds only; the line becomes a chat turn, with no request, card or confirmation here', async () => {

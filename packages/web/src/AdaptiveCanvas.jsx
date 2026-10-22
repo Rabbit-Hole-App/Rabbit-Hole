@@ -83,6 +83,7 @@ import { EXCERPT_CARD, excerptChatRef } from './pdf-excerpt.js';
 import { EXCERPT_DRAG, EXCERPT_EVENT } from './pdf-excerpt-drafts.js';
 import { SEARCH_DRAG, applySearchDrop, paintSearchDrop, searchDrag, searchDropPlan } from './search-drag.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
+import { withPressId } from './learn-video-label.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -2134,7 +2135,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       insertBlock: (block, { into = null, after = null } = {}) => {
         if (!alive.current) return null;
         snapshot();
-        const added = { ...block, id: crypto.randomUUID(), dx: 0, dy: 0 };
+        // A confirmed /motion card lands with its press's request id (withPressId), so a reload can never start a second job.
+        const added = withPressId({ ...block, id: crypto.randomUUID(), dx: 0, dy: 0 });
         if (after == null) return insertAtView(added, into);
         perfMark(added.id, 'insert');
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });

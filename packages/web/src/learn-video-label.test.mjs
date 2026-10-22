@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { videoLabel, motionConfirm, MOTION_PAUSED, resumesJob, readsAgain, SETTLE_READS, RECOVERY_BUTTONS, recoveryButtons, motionUsageLine } from './learn-video-label.js';
+import { videoLabel, motionConfirm, MOTION_PAUSED, resumesJob, readsAgain, SETTLE_READS, RECOVERY_BUTTONS, recoveryButtons, motionUsageLine, pressOperation, withPressId } from './learn-video-label.js';
 import { motionVideoBlock } from '../../learn-render/motion/video-block.js';
 
 // The two samples' operations as BLOCK_TYPES.mathAnimation / videoGenerate build them (LearningBlocks.jsx).
@@ -92,4 +92,27 @@ test('a failed /motion card offers only its recovery actions, named as the rulin
   assert.equal(motionUsageLine({ usedMicros: 10_000, unknown: true }, { usd: 8.96, state: 'pending' }), 'Used 1 credit so far · reservation pending');
   assert.doesNotMatch(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'reserved' }), /\$|8\.96/);
   assert.equal(motionUsageLine(null, null), null);
+});
+
+// The reload race (owner priority 2, 2026-10-21): a confirmed /motion card is saved with confirmedStart before the save that
+// carries its started job; a reload then mounts it confirmed again and its Generate runs once more. Without a request id on the
+// saved card each mount made its own (two jobs, two holds); the card now lands with its press's id, so both mounts send one job.
+test('a confirmed /motion card restarted after a reload sends the same request id: one job', () => {
+  const block = { type: 'video', mode: 'generate', status: 'idle', confirmedStart: true, operation: { op: 'motion_request', request: '/motion 15s explain photosynthesis', location: { concept: null } } };
+  let n = 0;
+  const id = () => `press-${++n}aaaaaaa`;
+  // As the card was saved before (no id at insert): the first mount and the remount after a reload are two different jobs.
+  assert.notEqual(pressOperation(block, false, id).request_id, pressOperation(block, false, id).request_id);
+  // As it is inserted now: the saved card holds its id, and every mount sends it.
+  const saved = JSON.parse(JSON.stringify(withPressId(block)));
+  assert.match(saved.operation.request_id, /^[A-Za-z0-9_-]{8,64}$/);
+  assert.equal(pressOperation(saved, false, id).request_id, saved.operation.request_id);
+  assert.equal(pressOperation(saved, false, id).request_id, saved.operation.request_id);
+  // Owner message 37 holds: another press (another confirmed card) is another id; Retry keeps the key; other cards are untouched.
+  assert.notEqual(withPressId(block).operation.request_id, saved.operation.request_id);
+  assert.equal(pressOperation({ ...block, status: 'failed' }, true), block.operation);
+  const unconfirmed = { ...block, confirmedStart: undefined };
+  assert.equal(withPressId(unconfirmed), unconfirmed);
+  const other = { type: 'video', confirmedStart: true, operation: { op: 'generate_video', id: 'prism' } };
+  assert.equal(withPressId(other), other);
 });

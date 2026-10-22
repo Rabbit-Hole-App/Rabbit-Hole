@@ -26,6 +26,13 @@ export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED
 // MOT-11 (owner review of 274bd689): a card saved with its job's placement follows that job again after a reload, while it runs and
 // once it failed or was stopped, so its error and its settlement reads come back. Read-only: the list GET, never a start.
 export const resumesJob = block => !!block?.placementId && ['generating', 'queued', 'failed'].includes(block.status);
+// The operation a Generate press of a /motion request sends (owner message 37): its request id is made once for the press and
+// kept on the card, so a resend or a reload of that press is the same job; Retry of a failed card keeps the key it has.
+export const pressOperation = (block, retry = false, id = () => crypto.randomUUID()) =>
+  (block?.operation?.op === 'motion_request' && !retry && !block.operation.request_id ? { ...block.operation, request_id: id() } : block?.operation);
+// A /motion card inserted already confirmed (its Generate press) carries that press's request id from the moment it lands, so a
+// board saved before its start was written back still restarts the same job after a reload, never a second paid one.
+export const withPressId = block => (block?.confirmedStart && block.operation?.op === 'motion_request' ? { ...block, operation: pressOperation(block) } : block);
 // A failed or stopped job is read again while its hold is not confirmed settled (state pending), at most this many times per page
 // load (10 minutes at 5 s): an unknown cost stays pending until it is reconciled outside the app.
 export const SETTLE_READS = 120;

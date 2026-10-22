@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2, X } from 'lucide-react';
 import { apiFetch } from './api.js';
 import { materializeSection } from './learn-journey-materialize.js';
+import { existingGeneration } from './generation-state.js';
 import { STARTS, interactionInterpretation, journeyIntent } from '../../control-plane/src/learner-intent-journey.js';
 
 // A start the route refuses as no journey (a question after all, a repository course): the normal responder answers.
@@ -356,7 +357,10 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
       // Generate inserts the card confirmed, so it starts once (as a / command's paid proposal, learn-slash.js), right
       // after the card its step would have followed. Not now drops it; a declined paid step is optional.
       const [proposal, ...rest] = s.proposals;
-      if (optionId === 'generate' && proposal) canvas()?.insertBlock({ ...proposal.block, confirmedStart: true }, { after: proposal.after });
+      // A job a card here already shows (the server would reuse it) is that card, revealed (generation-state.js).
+      const existing = optionId === 'generate' && proposal && existingGeneration(canvas()?.blocks?.(), proposal.block);
+      if (existing) canvas().focusBlock?.(existing.id);
+      else if (optionId === 'generate' && proposal) canvas()?.insertBlock({ ...proposal.block, confirmedStart: true }, { after: proposal.after });
       set({ proposals: rest, local: proposalTray(rest[0]) });
       return { ok: true };
     }
