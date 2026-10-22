@@ -164,5 +164,7 @@ test('stage timing: marks, per-stage counters, and processing time without the a
   assert.throws(() => newTiming('fast'), { code: 'request_class' });
   assert.throws(() => beginStage(timing, 'publishing'), { code: 'timing_stage' });
   // No target is invented before measurements exist (Q10).
-  for (const target of Object.values(EXPLAIN_TARGETS)) assert.deepEqual(target, { firstFeedbackMs: null, proposalMs: null, resultMs: null, basis: 'unmeasured' });
+  // L4's frozen targets (t22-targets.json): simple from observed runs; researched and Edit unmeasured, so no number.
+  assert.deepEqual(EXPLAIN_TARGETS.simple, { firstFeedbackMs: 1000, proposalMs: null, resultMs: 75000, capabilityGapAnswerMs: 15000, reloadModelCalls: 0, basis: 'observed (t22-targets.json)' });
+  for (const c of ['researched', 'edit']) assert.deepEqual(EXPLAIN_TARGETS[c], { firstFeedbackMs: null, proposalMs: null, resultMs: null, basis: 'unmeasured' });
 });
