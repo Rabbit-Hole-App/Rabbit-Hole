@@ -600,6 +600,7 @@ await check('L9 Progress is a tab: Chat\'s thread, draft and scroll position sur
   await p2.waitForTimeout(300);
   const was = await scroller.evaluate(node => node.scrollTop);
   await field().fill('a draft kept across Progress');
+  await p2.waitForTimeout(1200); // past the 800 ms thread-state save of the draft (chat-threads.js SAVE_DELAY), as L2 waits
   const mark = chatRequests.length;
   await tab2('Progress').click();
   assert.deepEqual(await selected2(), ['progress']);

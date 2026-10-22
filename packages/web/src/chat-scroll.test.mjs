@@ -74,3 +74,12 @@ test('a following reader is back at the bottom after the box is hidden and shown
   observer.fn([]);
   assert.equal(box.scrollTop, 1000);
 });
+
+test('while shown, growth never moves a scrolled-up reader, even one the browser re-anchored before the scroll event', () => {
+  const { box, scroll, grow } = mount();
+  box.scrollTop = 200;
+  scroll();
+  box.scrollTop = 260; // scroll anchoring after content above grew; its scroll event comes later
+  grow(60);
+  assert.equal(box.scrollTop, 260);
+});
