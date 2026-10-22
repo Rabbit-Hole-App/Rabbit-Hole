@@ -78,12 +78,13 @@ export function CommentsToggle({ panel, comments }) {
   );
 }
 
-// The account area: signed out, a clear Sign in back to this page; signed in, the viewer's own canvases.
+// The account area: signed out, a clear Sign in back to this page; signed in, the viewer's own canvases (an initial, never an
+// email: the shared page shows no address, handle-check).
 export function ViewerAccount({ viewer }) {
   const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
   if (!viewer) return <Button type="button" variant="primary" data-sign-in onClick={() => window.location.assign(`/login?next=${next}`)}>Sign in</Button>;
   return (
-    <a data-viewer-account href="/apps" title={`Signed in as ${viewer}. Your canvases`} aria-label="Your canvases"
+    <a data-viewer-account href="/apps" title="Your canvases" aria-label="Your canvases"
       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hover text-sm font-semibold text-ink no-underline hover:bg-active">{viewer.slice(0, 1).toUpperCase()}</a>
   );
 }
