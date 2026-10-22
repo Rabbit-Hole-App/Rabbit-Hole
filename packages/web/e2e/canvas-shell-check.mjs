@@ -1,5 +1,5 @@
 // The Learn canvas shell at every Rabbit Hole depth, against the LOCAL stack only (see dive-check.mjs):
-// Home top left, tools left, navigator top right, no app rail - none of them over the canvas - the one main composer in the
+// Home top left, tools left, navigator at the top of the tools gutter (UI-17), no app rail - none of them over the canvas - the one main composer in the
 // Chat pane right of the canvas and the navigator (owner brief 2026-10-13 sections 2 and 4: no canvas dock), and the minimap
 // lower left of the canvas, clear of the Chat pane and its composer (the floating bottom strip, owner 2026-10-08, as
 // canvas-toolbar-check asserts it) - at the
@@ -46,10 +46,12 @@ async function checkShell(label) {
   assert.ok(g.toolbar.right <= g.surface.x + 0.5, `${label}: tools left of the canvas, never over cards`);
   assert.ok(g.home.x < 24 && g.home.y < 24 && g.home.right <= g.surface.x + 0.5, `${label}: Home in the top-left corner, off the canvas`);
   assert.equal(await page.getByRole('button', { name: 'Open sidebar' }).count(), 0, `${label}: no Open sidebar button in Learn`);
-  assert.ok(g.nav.x >= g.surface.right - 0.5 && g.nav.y < g.surface.y + 120, `${label}: navigator top right, beside the canvas`);
-  assert.ok(g.pane.x >= g.surface.right - 0.5 && g.pane.x >= g.nav.right - 0.5, `${label}: the Chat pane right of the canvas and the navigator: ${JSON.stringify({ pane: g.pane, surface: g.surface, nav: g.nav })}`);
+  // UI-17 (owner, 2026-10-21): the navigator sits at the top of the tools gutter, never in a column between the canvas and the panel.
+  assert.equal(g.navGutter, null, `${label}: no navigator column of its own`);
+  assert.ok(g.nav.x >= g.tools.x - 0.5 && g.nav.right <= g.tools.right + 0.5 && g.nav.right <= g.surface.x + 0.5 && g.nav.y < g.surface.y + 120, `${label}: navigator at the top of the tools gutter, beside the canvas: ${JSON.stringify({ nav: g.nav, tools: g.tools, surface: g.surface })}`);
+  assert.ok(g.pane.x >= g.surface.right - 0.5 && g.pane.x - g.surface.right <= 6, `${label}: the Chat pane right of the canvas, which runs to it: ${JSON.stringify({ pane: g.pane, surface: g.surface })}`);
   assert.ok(g.minimap.right <= g.pane.x + 0.5 && g.minimap.x < (g.surface.x + g.surface.right) / 2 && g.minimap.y > (g.surface.y + g.surface.bottom) / 2, `${label}: minimap lower left of the canvas, left of the Chat pane: ${JSON.stringify({ minimap: g.minimap, surface: g.surface, pane: g.pane })}`);
-  for (const [a, b] of [['home', 'toolbar'], ['nav', 'minimap'], ['minimap', 'composer'], ['toolbar', 'composer'], ['nav', 'composer']]) assert.ok(apart(g[a], g[b]), `${label}: ${a} and ${b} do not overlap`);
+  for (const [a, b] of [['home', 'toolbar'], ['home', 'nav'], ['nav', 'toolbar'], ['nav', 'minimap'], ['minimap', 'composer'], ['toolbar', 'composer'], ['nav', 'composer']]) assert.ok(apart(g[a], g[b]), `${label}: ${a} and ${b} do not overlap`);
   return g;
 }
 

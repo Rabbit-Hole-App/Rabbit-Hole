@@ -50,6 +50,18 @@ After the fix, measured the same way:
 A card wider than the canvas, such as a 640 px Notebook in a 628 px canvas, shows its start and runs on under the panel.
 That is the real edge of the canvas: ordinary clipping.
 
+## UI-17: no map column at any width (owner, 2026-10-21)
+
+The fix above kept the map's own column whenever the canvas row was 784 px or more (84 + 92 + 608), Chat alone for one. There
+the same blank strip came back: a full-height 92 px column between the surface and the panel, and cards cut at its edge.
+Measured from the layout (`src/canvas-shell.test.mjs`): a 784 px row gave a 608 px surface and a 92 px strip; a 1032 px row
+856 px and 92 px.
+
+Now the map always sits at the top of the tools' gutter, on either side, as it already did on narrow rows and with the tools
+docked right. No column, no overlay on the canvas: the surface is the row less the tools' gutter at every width (784 px: 700
+px; 1032 px: 948 px), and a card clips only at the panel. Map off hides it in place; the canvas width does not change.
+Saved card positions and sizes, the camera, selection and playback are untouched: only the map's slot moved.
+
 ## Check
 
 `e2e/canvas-clipping-check.mjs` (local stack, no model call):
@@ -61,3 +73,7 @@ That is the real edge of the canvas: ordinary clipping.
 - saved positions unchanged.
 
 Its "no blank strip" assertion fails on dc7f20e7 (96 px between the surface and the panel) and passes after.
+
+Since UI-17 it also covers Chat alone (a card reaches the panel edge, the map in the tools' gutter), the window resized so the
+row crosses 784 px (800, 784, 783, 760), View > Rabbit Hole Map off and on, and a wide video card beside the code and graph
+cards, with their saved geometry unchanged. It prints `N/19 checks passed`.
