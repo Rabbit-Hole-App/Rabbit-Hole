@@ -112,6 +112,14 @@ ancestor of `rabbit-hole/main`, keep any uncommitted work that matters, stop onl
 task started, check that no other worktree's `node_modules` points into it, then `git worktree
 remove` it and delete its local stack data and dev clone.
 
+No gate for UI and copy changes (owner, 2026-10-21). A candidate that changes only web UI or copy
+reuses the last passing gate: its gates note is `reuse <gated main sha>`. Reusable paths are
+`packages/web/src/**`, `packages/web/test/**`, `packages/web/e2e/**` (not `production-bundle-check.mjs`),
+`packages/web/public/**`, `docs/**` and root `*.md`, minus every file a Worker bundles (the
+`workerGraph` of `scripts/dev-deploy.mjs`). Unit CI and the web build still run on the exact SHA. Server
+code, money, sign-in, schema or migrations, config, dependencies and workflows keep the gate. A mixed
+batch needs the gate. Check a diff with `notReusableBetween` in `scripts/dev-deploy.mjs`.
+
 `small-cp-dev` uses the existing live control plane for app actions and real shared
 data. Its AWS preview has a separate connection-metadata database and scoped AWS
 installer credentials; job data stays in customer AWS. Sessions, Sources,

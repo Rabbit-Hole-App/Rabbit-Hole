@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { uiChanged, workerGraph, workerGraphAt, WORKER_ENTRIES } from './dev-deploy.mjs';
 import { gateVerdict, rerunVerdict, stageCount, GATE_STAGES, digest, deployedSha, decide, learnTables, servedSha, notReusable, entryScript, parseUpload, TEST_ONLY, UNIT_TEST, buildRecipe, CONFIRMATIONS, BRANCHES, HOST, URL_BASE, OLD_URL, WORKER } from './dev-deploy.mjs';
 
 // The real integration gate record of r33 (INT33, main 7198b971, refs/notes/gates), untouched.
@@ -154,6 +155,43 @@ test('policy A: only docs and the deploy and release scripts reuse a gate; app, 
   const app = ['packages/web/src/App.jsx', 'packages/web/package-lock.json', 'packages/web/wrangler.dev.jsonc', 'packages/control-plane/learn-migrations/0011-x.sql',
     'packages/web/dev-access-worker.js', 'packages/web/src/lessons/nanogpt.md', 'run.sh', 'scripts/rabbit-hole-dev-verify.mjs', 'packages/web/vite.config.js'];
   assert.deepEqual(notReusable(app), app);
+});
+
+test('UI only (owner, 2026-10-21): page source, its tests and static files reuse a gate, except what a Worker bundles', () => {
+  const worker = new Set(['packages/web/src/landing/auth-routes.js', 'packages/web/src/scene-format.js']);
+  const ui = ['packages/web/src/LearnPage.jsx', 'packages/web/src/index.css', 'packages/web/src/graph-card.test.mjs', 'packages/web/test/x.test.mjs',
+    'packages/web/e2e/toc-check.mjs', 'packages/web/public/favicon.svg', 'docs/features/x.md', 'README.md'];
+  assert.deepEqual(notReusable(ui, worker), [], 'a UI-only diff reuses');
+  assert.equal(uiChanged(ui), true);
+  assert.equal(uiChanged(['docs/a.md', 'scripts/dev-deploy.mjs']), false, 'docs and scripts keep the byte-identical build check');
+  const gated = ['packages/web/src/landing/auth-routes.js', 'packages/web/src/scene-format.js', 'packages/control-plane/src/learn-usage.js',
+    'packages/web/wrangler.dev.jsonc', 'packages/web/wrangler.rabbit-hole-prod.jsonc', 'package-lock.json', 'packages/web/package.json',
+    'packages/web/vite.config.js', 'packages/web/index.html', 'packages/web/dev-worker.js', 'packages/web/app-worker.js',
+    'packages/control-plane/migrations/0030-x.sql', 'packages/learn-render/src/x.js', 'packages/web/e2e/production-bundle-check.mjs', 'packages/web/design/x.html'];
+  for (const p of gated) assert.deepEqual(notReusable(['packages/web/src/App.jsx', p], worker), [p], p);
+  assert.deepEqual(notReusable(['packages/web/src/App.jsx']), ['packages/web/src/App.jsx'], 'without the Worker graph no UI path reuses');
+});
+
+test('the Worker graph follows relative imports from every entry and refuses a non-literal dynamic import', () => {
+  const files = { 'packages/web/dev-worker.js': "import { a } from '../control-plane/src/a.js';\nimport {\n  b,\n} from './src/b';\nexport * from './src/c.js';\nimport SHELL from './dist-dev/index.html';\nimport 'pkg';",
+    'packages/control-plane/src/a.js': "const m = await import('../../web/src/deep/index.js');", 'packages/web/src/b.js': '', 'packages/web/src/c.js': '', 'packages/web/src/deep/index.js': "import x from './d';", 'packages/web/src/deep/d/index.js': '' };
+  const g = workerGraph(p => files[p] ?? null, ['packages/web/dev-worker.js']);
+  for (const p of ['packages/control-plane/src/a.js', 'packages/web/src/b.js', 'packages/web/src/c.js', 'packages/web/src/deep/index.js', 'packages/web/src/deep/d/index.js']) assert.ok(g.has(p), p);
+  assert.ok(!g.has('pkg'));
+  assert.throws(() => workerGraph(p => p === 'e.js' ? 'await import(name)' : null, ['e.js']), /literal specifier/);
+  // This tree: the entries the four Workers deploy, and the landing routes dev-worker.js imports from packages/web/src.
+  const here = workerGraphAt('HEAD', fileURLToPath(new URL('..', import.meta.url)));
+  for (const p of [...WORKER_ENTRIES, 'packages/web/src/landing/auth-routes.js', 'packages/web/src/landing/support-routes.js']) assert.ok(here.has(p), p);
+  assert.ok(!here.has('packages/web/src/LearnPage.jsx'), 'the page itself is not bundled by a Worker');
+});
+
+test('the Worker graph covers every file esbuild bundles from the Worker entries', async t => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  let esbuild; try { esbuild = await import(new URL('../node_modules/esbuild/lib/main.js', import.meta.url)); } catch { return t.skip('esbuild not installed (before npm ci)'); }
+  const external = { name: 'external', setup(b) { b.onResolve({ filter: /^[^.]|dist(-dev)?\// }, a => a.kind === 'entry-point' ? null : { path: a.path, external: true }); } };
+  const r = await esbuild.build({ entryPoints: WORKER_ENTRIES, absWorkingDir: root, bundle: true, write: false, metafile: true, outdir: 'out', format: 'esm', platform: 'neutral', logLevel: 'silent', loader: { '.html': 'text', '.py': 'text' }, plugins: [external] });
+  const graph = workerGraphAt('HEAD', root);
+  assert.deepEqual(Object.keys(r.metafile.inputs).map(p => p.replaceAll('\\', '/')).filter(p => !graph.has(p)), []);
 });
 
 test('the smoke waits for the built entry script, in the form the dev build emits it', () => {
@@ -317,5 +355,5 @@ test('gates note: a full record deploys as before; "reuse <G>" needs G\'s own ga
   // The rest is dev-deploy.mjs's, unchanged: G must be an ancestor and every change reusable (or tested, with a rerun).
   const src = readFileSync(new URL('./dev-deploy.mjs', import.meta.url), 'utf8');
   assert.match(src, /if \(!isAncestor\(reuse, sha\)\) stop\(`the gated \$\{reuse\.slice\(0, 8\)\} is not an ancestor/);
-  assert.match(src, /const outside = notReusable\(changed\);\s+if \(outside\.length\) stop\(/);
+  assert.match(src, /const outside = notReusable\(changed, worker\);\s+if \(outside\.length\) stop\(/);
 });

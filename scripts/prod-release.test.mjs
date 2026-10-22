@@ -80,6 +80,19 @@ test('a reused-gate dev deploy releases only with its base G green on a full gat
   for (const [why, record, isAncestor] of refused) assert.equal(greenDevDeploy(SHA, record, { isAncestor, treeOf }), null, why);
 });
 
+test('UI only (owner, 2026-10-21): a reused deploy with another build releases only when the diff since G is UI-only', () => {
+  const G = 'c'.repeat(40), line = o => `${JSON.stringify(row(o))}\n`;
+  const record = line({ sha: G, gates: 'pass', smoke: 'pass', build: 'b1', bundle: 'w1' }) + line({ sha: SHA, gates: 'reused', app_gate_sha: G, smoke: 'pass', build: 'b2', bundle: 'w2' });
+  const yes = () => true;
+  assert.equal(greenDevDeploy(SHA, record, { isAncestor: yes, treeOf, uiOnly: (g, s) => g === G && s === SHA }).app_gate_sha, G);
+  assert.equal(checkPrepare({ ...ok, devRecord: record, isAncestor: yes, uiOnly: yes }), null);
+  assert.equal(greenDevDeploy(SHA, record, { isAncestor: yes, treeOf }), null, 'uiOnly defaults to no');
+  assert.equal(greenDevDeploy(SHA, record, { isAncestor: yes, treeOf, uiOnly: () => false }), null, 'a diff with server, config or lockfile changes');
+  assert.equal(greenDevDeploy(SHA, record, { isAncestor: () => false, treeOf, uiOnly: yes }), null, 'G must still be an ancestor');
+  assert.notEqual(record.replace('"app_gate_sha":"' + G + '","smoke":"pass"', 'x'), record);
+  assert.equal(greenDevDeploy(SHA, record.replace('"app_gate_sha":"' + G + '","smoke":"pass"', '"app_gate_sha":"' + G + '","smoke":"fail"'), { isAncestor: yes, treeOf, uiOnly: yes }), null, 'its own smoke must pass');
+});
+
 test('prepare refuses another checkout or a dirty tree, and passes the exact green commit', () => {
   assert.match(checkPrepare({ ...ok, head: OTHER }), /HEAD is/);
   assert.match(checkPrepare({ ...ok, clean: false }), /tracked tree has changes/);
