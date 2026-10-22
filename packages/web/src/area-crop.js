@@ -1,6 +1,7 @@
 // Ask about selection (EXP-T28): the canvas toolbar's one region path. A crop is bound to what it shows at the moment
 // it was taken: each card it touches by id and content revision, the crop's bounds inside that card, and the card's
-// moment (an Explanation's time, inputs and the objects under the crop; a paper's page and the region of that page).
+// moment (an Explanation's time, inputs and the objects under the crop; a whiteboard's shapes by tldraw id; a paper's
+// page and the region of that page).
 
 const NEWLINE = String.fromCharCode(10);
 
@@ -28,7 +29,7 @@ export function within(frame, inner) {
 }
 
 // One card under the crop. measured: { card, page?, objects? } client rects read the moment the crop was drawn
-// (objects: [{ id, rect }] for an Explanation's drawn objects).
+// (objects: [{ id, rect }] for an Explanation's drawn objects); shapes: a whiteboard's [{ id, type, text, author }].
 export function cropBinding(block, crop, measured) {
   const bounds = within(measured.card, crop);
   if (!bounds) return null;
@@ -38,6 +39,7 @@ export function cropBinding(block, crop, measured) {
     if (block.inputs && Object.keys(block.inputs).length) binding.inputs = { ...block.inputs };
     binding.objects = [...new Set((measured.objects || []).filter(entry => within(crop, entry.rect)).map(entry => entry.id))];
   }
+  if (block.type === 'whiteboard') binding.shapes = measured.shapes || [];
   if (block.type === 'paper' && block.paper) {
     const region = measured.page ? within(measured.page, crop) : null;
     binding.paperId = block.paper.id;
@@ -52,6 +54,10 @@ const describe = binding => {
   if (binding.type === 'animation') {
     return [`Explanation card "${binding.title}" (revision ${binding.revision}) paused at ${binding.time}s${binding.inputs ? ` with inputs ${JSON.stringify(binding.inputs)}` : ''}: ${where}.`,
       binding.objects.length ? `  Objects inside the crop: ${binding.objects.join(', ')}` : '  The crop contains no authored object.'].join(NEWLINE);
+  }
+  if (binding.type === 'whiteboard') {
+    return [`Learner whiteboard "${binding.title}" (revision ${binding.revision}): ${where}.`,
+      binding.shapes.length ? `  Selected shapes: ${binding.shapes.map(shape => `${shape.type}${shape.text ? ` "${shape.text}"` : ''} (${shape.author}, ${shape.id})`).join(', ')}` : '  The crop contains no shape.'].join(NEWLINE);
   }
   if (binding.type === 'paper') return `Paper "${binding.title}" (revision ${binding.revision}), page ${binding.page}: ${binding.region ? `region of the page ${JSON.stringify(binding.region)} (normalized x, y, w, h)` : where}.`;
   return `Card "${binding.title}" (${binding.type}, revision ${binding.revision}): ${where}.`;

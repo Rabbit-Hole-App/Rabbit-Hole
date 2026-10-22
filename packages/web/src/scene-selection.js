@@ -1,13 +1,13 @@
 // A card's transient highlight (EXP-T27): the object picked or the region outlined on an Explanation card, or a region
-// still drawn on a paper's page from the paper's old Ask selection. It is view state, not content: clearing it never
+// still drawn on a whiteboard or a paper's page from their old Ask selection. It is view state, not content: clearing it never
 // takes an undo step, and one card on a canvas holds it at a time.
 
 export const holdsSceneHighlight = block => (block?.type === 'animation' && !!(block.marked || block.selectedObject))
-  || (block?.type === 'paper' && !!block.paper?.selection);
+  || (block?.type === 'whiteboard' && !!block.marked) || (block?.type === 'paper' && !!block.paper?.selection);
 
 export const withoutSceneHighlight = block => (block.type === 'paper'
   ? { ...block, paper: { ...block.paper, selection: undefined } }
-  : { ...block, marked: null, selectedObject: null });
+  : block.type === 'whiteboard' ? { ...block, marked: null } : { ...block, marked: null, selectedObject: null });
 
 // Every card except those in `keep` lets go of its highlight. Untouched cards keep their identity, and with nothing
 // to release the same array comes back, so a state setter bails out without a render or a save.

@@ -1155,14 +1155,14 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
 
 // A tldraw board in a block: the learner draws with tldraw's own tools and a
 // selection can be sent to the tutor with a picture of what was selected.
-function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
+function WhiteboardBody({ block, appName, onChange }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       <Kicker author="learner">Whiteboard</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board</p>}>
-          <WhiteboardBlock block={block} appName={appName} onChange={onChange} onAskSelection={onAskSelection} />
+          <WhiteboardBlock block={block} appName={appName} onChange={onChange} />
         </Suspense>
       </div>
     </div>
@@ -1932,7 +1932,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
-  if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} onAskSelection={onAskRegion} />;
+  if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;

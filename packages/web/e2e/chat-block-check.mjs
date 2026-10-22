@@ -764,19 +764,10 @@ await check('the sigmoid board asks, draws and saves', async () => {
   await page.waitForTimeout(1200);
   const drawn = await node.locator('.tl-shape').count();
   if (drawn < 8) throw new Error(`the sigmoid was not drawn on the board (${drawn} shapes)`);
-  // the node floats, so it never satisfies the stability check; the pill
-  // appearing is the proof that the click selected it
+  // EXP-T28: a selected board has no Ask selection of its own; the canvas toolbar's Ask about selection is the one path.
   await node.locator('[data-drag-zone]').first().click({ force: true });
-  await page.getByRole('button', { name: 'Ask selection' }).click({ timeout: 10000 });
-  const frame = await node.locator('.tl-canvas').boundingBox();
-  await page.mouse.move(frame.x + frame.width * 0.3, frame.y + frame.height * 0.3);
-  await page.mouse.down();
-  await page.mouse.move(frame.x + frame.width * 0.75, frame.y + frame.height * 0.7, { steps: 12 });
-  await page.mouse.up();
-  await page.getByText('Whiteboard selection').waitFor({ timeout: 10000 });
-  await node.locator('[data-board-marker]').waitFor({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Clear selection' }).click();
-  if (await node.locator('[data-board-marker]').count()) throw new Error('the marked rectangle did not clear');
+  await page.waitForTimeout(300);
+  if (await page.getByRole('button', { name: 'Ask selection', exact: true }).count()) throw new Error('the board still has its own Ask selection');
   const board = await node.locator('.tl-canvas').boundingBox();
   await page.mouse.move(board.x + 120, board.y + 100);
   await page.keyboard.press('d'); // draw tool
@@ -793,26 +784,21 @@ await check('the sigmoid board asks, draws and saves', async () => {
   if (await reloaded.locator('.tl-shape').count() <= drawn) throw new Error('the drawing did not survive a reload');
 });
 
-// the board marker lives in page coordinates, the toolbar folds away, and the
-// answer to a board question can be drawn back onto that same board
-await check('the marked rectangle stays on what it was drawn over', async () => {
+// EXP-T28: the toolbar crop over the board arms one pill naming the board; the drawing tools fold away without
+// losing it, and the answer to that question can be drawn back onto that same board
+await check('the toolbar crop over the board arms one pill naming it', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('[data-drag-zone]').first().click({ force: true });
-  await page.getByRole('button', { name: 'Ask selection' }).click({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
   const area = await node.locator('.tl-canvas').boundingBox();
   await page.mouse.move(area.x + area.width * 0.3, area.y + area.height * 0.3);
   await page.mouse.down();
   await page.mouse.move(area.x + area.width * 0.7, area.y + area.height * 0.65, { steps: 10 });
   await page.mouse.up();
-  const marker = node.locator('[data-board-marker]');
-  await marker.waitFor({ timeout: 8000 });
-  const before = await marker.boundingBox();
-  const frame = await node.locator('.tl-canvas').boundingBox();
-  await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
-  await page.mouse.wheel(0, 220); // pan the board
-  await page.waitForTimeout(600);
-  const after = await marker.boundingBox();
-  if (Math.abs(after.y - before.y) < 60) throw new Error(`the marker did not travel with the board (${Math.round(before.y)} -> ${Math.round(after.y)})`);
+  const pill = page.locator('[data-canvas-target]');
+  await pill.first().waitFor({ timeout: 20000 });
+  if (await pill.count() !== 1) throw new Error(`${await pill.count()} pills, expected one`);
+  if (!/Selected area · /.test(await pill.getAttribute('title') || '')) throw new Error('the pill does not name the crop');
+  await canvas.locator('[data-area-mark] rect').first().waitFor({ timeout: 5000 });
 });
 
 await check('the drawing tools fold away', async () => {
