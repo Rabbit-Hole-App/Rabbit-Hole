@@ -94,6 +94,8 @@ const rowGroup = id => allActions().find(entry => entry.id === id)?.group || nul
 // S1's one permission model (canvas-permissions.js, contract-permissions.md). ponytail: a glob so this branch builds before
 // S1's module merges; once both are on main this becomes a plain import of { can }.
 const permissionModel = Object.values(import.meta.glob('./canvas-permissions.js', { eager: true }))[0] || null;
+import { rabbitHoleTarget } from './canvas-actions-types.js';
+import { loadMediaOriginal } from './media-storage.js';
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -1140,12 +1142,14 @@ function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, on
 
 // An equation (docs/features/canvas-equations.md): its LaTeX rendered by KaTeX, and while edited MathLive's field with
 // the palette above it (EquationEditor.jsx, loaded on the first edit). Double-click edits; a click away or Esc finishes.
-function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone, onDraft, generation }) {
+function EquationItem({ item, zoom, tool, selected, onSelect, onMove, onGesture, onDelete, onSnap, onPatch, onDone, onDraft, generation, editOn = null }) {
   const [editing, setEditing] = useState(!!item.fresh);
   const size = item.size || EQUATION_SIZE;
   const still = item.latex ? <MathText expression={item.latex} display /> : <span className="text-[0.6em] text-ink-3 italic">Empty equation</span>;
   const edit = useContext(CanvasEdit), locked = edit.readOnly || edit.locked.has(item.id);
   useEffect(()=>{if(locked)setEditing(false);},[locked]);
+  // Edit LaTeX from the right-click menu (UI-25): the same editor a double-click opens.
+  useEffect(() => { if (editOn?.id === item.id && !locked) setEditing(true); }, [editOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const down = event => {
     if (event.button !== 0) return;
     if (tool === 'eraser') { event.preventDefault(); event.stopPropagation(); if (!locked) onDelete(item.id); return; }
@@ -2195,16 +2199,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         const center = viewCenter();
         setItems(previous => [...previous, { id: crypto.randomUUID(), kind: 'section', x: center.x - DIVIDER_W / 2, y: center.y, w: DIVIDER_W, text: '' }]);
       },
-      insertText: () => {
+      insertText: (at = null) => {
         snapshot();
-        const center = viewCenter();
+        const center = at || viewCenter();
         const id = crypto.randomUUID();
         setItems(previous => [...previous, { id, kind: 'text', x: center.x - 48, y: center.y - 16, text: '', color: textArm.c || color, opacity, level, ...armedText('text'), fresh: true }]);
         setSelection([id]);
       },
-      insertSticky: () => {
+      insertSticky: (at = null) => {
         snapshot();
-        const center = viewCenter();
+        const center = at || viewCenter();
         const id = crypto.randomUUID();
         setItems(previous => [...previous, { id, kind: 'sticky', x: center.x - 80, y: center.y - 80, text: '', color, opacity, ...armedText('sticky'), fresh: true }]);
         setSelection([id]);
@@ -3743,7 +3747,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // (selection-ref.js): Chat opens in Ask, the draft stays, its composer takes the focus, nothing is sent. The card's selection
   // chip steps aside, so one card is never two chips or sent twice. A view-only board has no workspace and keeps the path below.
   const chatWorkspace = useChatWorkspace();
-  const addToChat = () => {
+  // quote: text selected inside the object, captured when the right-click menu opened (UI-25 Add selection to chat); it is
+  // the selection's quote, so a source card (PDF, file, code) adds that text rather than the whole source.
+  const addToChat = options => {
+    const given = typeof options?.quote === 'string' ? options.quote : null;
     const ids = selectedRef.current.filter(id => objectById(id) || shapesRef.current.some(shape => shape.id === id));
     if (!ids.length) return false;
     const object = ids.length === 1 ? objectById(ids[0]) : null;
@@ -3755,7 +3762,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // A PDF excerpt is its own ref (pdf-excerpt.js): the verbatim text, or its crop's image file - the selection chip's identity.
       // A repository code card is its code ref: the file and lines at its commit, read under the owner check (UI-09).
       const sourceRef = excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object);
-      if (sourceRef) {
+      if (sourceRef && given === null) {
         // An uploaded code card carries its stored text, as CodeCard's own Add to chat does; an unreadable asset adds its name only.
         if (object.type === 'repo-code' && object.source?.kind === 'upload') {
           loadAsset(object.source.assetKey).then(value => (typeof value === 'string' ? value : value?.text?.() ?? ''))
@@ -3768,7 +3775,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const read = () => (described ? liveAskText(object.id, described)() : groupTargetText(ids.map(askEntryOf).filter(Boolean)));
       const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
       const picked = window.getSelection(), node = picked && !picked.isCollapsed ? picked.anchorNode : null;
-      const quote = object && (node?.nodeType === 1 ? node : node?.parentElement)?.closest('[data-block-id]')?.getAttribute('data-block-id') === object.id ? picked.toString() : '';
+      const quote = given ?? (object && (node?.nodeType === 1 ? node : node?.parentElement)?.closest('[data-block-id]')?.getAttribute('data-block-id') === object.id ? picked.toString() : '');
       const ref = selectionRef({ ids, kind: objectKind(object), name: object ? objectName(object, described) : selectionName(ids.map(nameOf), group), content: read(), quote, text: read });
       chatWorkspace.addToChat(ref);
       // Keep the existing snapshot path; the matching pinned ref makes this one chip, not a second selection chip.
@@ -5190,6 +5197,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const rabbitHoleHere = !!(divePortals?.open && !readOnly) || !!(readOnly && onStartRabbitHole);
   // The handler context every row runs with (contract section 7). The permission model is S1's can() with the page's
   // `permissions` ctx (SharedBoardPage builds it) when given, else today's props (legacyCan).
+  // A blob to the person's disk, as the cards' own Download links save it.
+  const saveFile = (blob, name) => { const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   const actionCtx = {
     can: permissions && permissionModel?.can ? capability => permissionModel.can(capability, permissions) : legacyCan({ readOnly, comment: !!onAddComment, rabbitHole: rabbitHoleHere }),
     readOnly,
@@ -5198,7 +5207,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     commands: commandsRef.current || {},
     canvas: {
       select: ids => { selectedRef.current = ids; setSelection(ids); },
-      canStartRabbitHole: id => rabbitHoleHere && blocksRef.current.some(block => block.id === id),
+      canStartRabbitHole: id => rabbitHoleHere && rabbitHoleTarget(blocksRef.current.find(block => block.id === id)),
       // Your canvas: the card's Rabbit Hole, entered when it has one and made first otherwise (Dive.jsx); a view-only
       // board: the viewer's own private Rabbit Hole (shared-canvas-rabbit-hole.md).
       startRabbitHole: id => (readOnly ? onStartRabbitHole(id) : portalOf(id) ? divePortals.enter(portalOf(id).name) : divePortals.open(id, undefined, 'learner_menu')),
@@ -5208,7 +5217,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       rename: id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: block.title, rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); },
       renameGroup: gid => setChipEdit(gid),
       describable: target => target.ids.length > 0 && (!!chatWorkspace || target.objects.some(object => object && describeObject(object))),
-      addToChat: () => addToChat(),
+      addToChat: options => addToChat(options),
       quickEdit: inlineAi ? () => openInline(performance.now(), false, 'edit') : null,
       copyText: text => navigator.clipboard?.writeText(text),
       copyable: ids => ids.some(id => ['block', 'chat', 'item', 'shape'].includes(menuObject(id)?.family)),
@@ -5229,17 +5238,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       downloadCad: (object, format) => downloadCadArtifact(cadArtifact(object.manifest, format), cadCanMutate(object, readOnly)).catch(problem => toast(problem.message, { tone: 'error' })),
       toggleDone: id => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === id ? { ...entry, done: !entry.done } : entry)); },
       presentFrom: id => presentFrom(id),
-      // A file the card already holds, saved by the browser (Download rows); nothing is fetched or generated.
-      downloadText: (name, text, type = 'text/plain') => {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(new Blob([text], { type }));
-        link.download = name;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 0);
-      },
       // A row S1 answers with signIn: the page's sign-in, keeping the draft and selection (false: none here, the reason shows).
       signIn: onSignIn ? (capability, target) => { onSignIn(capability, target); return true; } : null,
       toast,
+      // Per-type rows (canvas-actions-types.js, lane U2): the card's own handlers.
+      appName,
+      edit: id => commandsRef.current.editSelected(id),
+      editEquation: id => setEditTarget({ id, n: Date.now() }),
+      patchItem: (id, patch) => { snapshot(); patchItem(id, patch); },
+      updateBlock: (id, patch) => { snapshot(); setBlocks(previous => previous.map(entry => (entry.id === id ? { ...entry, ...patch } : entry))); },
+      openStyle: () => setStyleOpen(true),
+      insertText: at => commandsRef.current.insertText(at),
+      insertSticky: at => commandsRef.current.insertSticky(at),
+      downloadText: (name, text, type) => saveFile(new Blob([text], { type }), name),
+      downloadUrl: (url, name) => fetch(url, { headers: wsHeaders() }).then(response => (response.ok ? response.blob() : Promise.reject(new Error(`Download failed (${response.status})`))))
+        .then(blob => saveFile(blob, name)).catch(problem => toast(problem.message, { tone: 'error' })),
+      // The bytes the card's own Download reads (media-storage.js), saved as a file that can never render in the page.
+      downloadOriginal: object => loadMediaOriginal(object).then(value => (value && typeof value !== 'string'
+        ? saveFile(new Blob([value], { type: 'application/octet-stream' }), object.label || 'file')
+        : toast('This file is not in this browser or saved with the board yet.'))),
     },
   };
   const actionCtxRef = useRef(actionCtx);
@@ -5593,7 +5610,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         })}
         <div ref={itemsLayer} className={drawing || tool === 'hand' ? 'pointer-events-none' : ''}>
           {items.map(item => item.kind === 'equation'
-            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} />
+            ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} editOn={editTarget} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
             onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             cameraKey={`${view.x}:${view.y}:${view.z}`} getTooltipSpace={() => { const area = visibleArea(), frame = surface.current.getBoundingClientRect(); return { left: frame.left + area.left, right: frame.left + area.right, top: frame.top + area.top, bottom: frame.top + area.bottom }; }}

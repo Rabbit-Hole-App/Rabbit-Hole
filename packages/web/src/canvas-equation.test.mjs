@@ -109,7 +109,8 @@ test('Add to chat: the chip shows the LaTeX and the request carries it', () => {
   const add = COMMON_ACTIONS.find(entry => entry.id === 'add-to-chat');
   assert.deepEqual([add.label, add.hint], ['Add to chat', 'Ctrl L']);
   assert.deepEqual(add.attrs({ type: 'equation' }), { 'data-menu-ask-equation': '' });
-  assert.match(canvas, /addToChat: \(\) => addToChat\(\),/);
+  // The per-type Add selection to chat passes only the quote captured at open (canvas-actions-types.js); nothing sends.
+  assert.match(canvas, /addToChat: options => addToChat\(options\),/);
   assert.doesNotMatch(canvas, /EQUATION_QUESTION/);
 });
 

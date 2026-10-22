@@ -5,6 +5,7 @@ import { api, apiFetch } from './api.js';
 import { fileScope, scopeQuery } from './file-source-client.js';
 import { inspectGlb, MAX_MODEL_BYTES } from './three-d-asset.js';
 import { activateViewer, deactivateViewer, claimViewer, releaseViewer } from './viewer-slots.js';
+import { holdViewerGestures } from './content-gestures.js';
 import { cadArtifact, cadClient, cadRunning, cadStage, mergeCadBlock } from './cad-client.js';
 import { BACKGROUND_LABELS, VIEWER_BACKGROUNDS, viewerBackground } from './cad-viewer-background.js';
 import { dropView, publishView, useCadDimensions, useCadView } from './cad-viewer-store.js';
@@ -69,8 +70,8 @@ const reloadBlock = () => updateReloadBlock({ online: navigator.onLine, durable:
 
 // The live 3D view of a saved model (owner clarification 4). It renders by default while on screen and holding one of the
 // shared renderer slots (viewer-slots.js, MAX_LIVE); otherwise, and while loading, it shows the saved preview image. Until
-// the person clicks into it (or presses Interact in the toolbar outside the card, CadViewerTools), a press selects the card
-// and the wheel pans the canvas; inside, orbit, pan and zoom stay in the viewer, and Esc, Done, a press outside or losing
+// the person clicks into it (or presses Interact in the toolbar outside the card, CadViewerTools), a press selects the card;
+// the wheel and pinch over a live viewer zoom the model, never the canvas; inside, orbit, pan and zoom stay in the viewer, and Esc, Done, a press outside or losing
 // the selection ends it. A viewer whose module cannot load shows the preview with Retry and, only for a confirmed stale
 // build, Reload to update (chunk-reload.js; clarification 8). `viewKey` names it to its toolbar (cad-viewer-store.js);
 // `showDimensions` is the toolbar's ruler toggle: the dimensions overlay (cad-dimensions-overlay.jsx); `draftPending` says a
@@ -83,9 +84,10 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
   const glb = cadArtifact(manifest,'glb'), thumb = cadArtifact(manifest,'thumbnail');
   const cameraKey = id && `${id}:${manifest?.revisionId || ''}`, colour = (glb || thumb) ? VIEWER_BACKGROUNDS[background] ?? null : null;
   const keepCamera = () => { const camera = engine.current?.camera(); if (camera && cameraKey) cameras.set(cameraKey, camera); };
-  // On screen (with a margin) asks for a slot; off screen for a while gives it back.
+  // On screen (with a margin) asks for a slot; off screen for a while gives it back. The newest entry decides: a fast pan can
+  // deliver enter then leave together, and the first alone kept the viewer for good (as the webpage tiles, r2/l5 4fea3edb).
   useEffect(()=>{
-    let timer=0;const observer=new IntersectionObserver(([seen])=>{clearTimeout(timer);if(seen.isIntersecting)setVisible(true);else timer=setTimeout(()=>setVisible(false),OFFSCREEN_RELEASE_MS);},{rootMargin:'200px'});
+    let timer=0;const observer=new IntersectionObserver(entries=>{const seen=entries.at(-1);clearTimeout(timer);if(seen.isIntersecting)setVisible(true);else timer=setTimeout(()=>setVisible(false),OFFSCREEN_RELEASE_MS);},{rootMargin:'200px'});
     if(root.current)observer.observe(root.current);return()=>{clearTimeout(timer);observer.disconnect();};
   },[]);
   useEffect(()=>{
@@ -134,10 +136,10 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
     // goes no further (it neither deselects the card nor closes the expanded panel).
     const outside=event=>{if(!root.current?.contains(event.target) && !event.target.closest?.('[data-cad-tools]'))exitRef.current();};
     const escape=event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();exitRef.current();}};
-    // Native listeners, so they hold before the canvas's own native wheel and press handlers.
+    // A native listener, so it holds before the canvas's own native press handler.
     const element=root.current,keep=event=>event.stopPropagation();
-    document.addEventListener('pointerdown',outside,true);window.addEventListener('keydown',escape,true);element.addEventListener('wheel',keep,{passive:true});element.addEventListener('pointerdown',keep);
-    return()=>{document.removeEventListener('pointerdown',outside,true);window.removeEventListener('keydown',escape,true);element.removeEventListener('wheel',keep);element.removeEventListener('pointerdown',keep);};
+    document.addEventListener('pointerdown',outside,true);window.addEventListener('keydown',escape,true);element.addEventListener('pointerdown',keep);
+    return()=>{document.removeEventListener('pointerdown',outside,true);window.removeEventListener('keydown',escape,true);element.removeEventListener('pointerdown',keep);};
   },[interacting]);
   // Stale build: checked only once Retry has failed too, against the chunk the browser named.
   useEffect(()=>{if(!failure?.module || !tries)return;let live=true;chunkGone(failure.url).then(gone=>{if(live)setStale(gone);});return()=>{live=false;};},[failure,tries]);
@@ -149,6 +151,8 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
   // A click (not the end of a drag across the viewer) enters; a paused viewer first takes a slot back.
   const click=event=>{const start=press.current;press.current=null;if(start && Math.hypot(event.clientX-start.x,event.clientY-start.y)>4)return;if(!slot){setAttempt(n=>n+1);return;}enter();};
   const live=slot && ready && !failure;
+  // The wheel and pinch over a live viewer zoom the model only, hover is enough (owner, 2026-10-22; content-gestures.js).
+  useEffect(()=>{if(!live || !root.current)return undefined;return holdViewerGestures(root.current,()=>engine.current);},[live]);
   // The toolbar's handle on this viewer: one object for the viewer's life, calling the current functions.
   const handle=useRef(null), current=useRef({});current.current={enter,exit,fit:()=>engine.current?.fit()};
   handle.current ||= {enter:()=>current.current.enter(),exit:()=>current.current.exit(),fit:()=>current.current.fit()};

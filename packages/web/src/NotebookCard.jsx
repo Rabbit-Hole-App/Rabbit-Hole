@@ -28,6 +28,8 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
   const [files, setFiles] = useState(false);
   const [menu, setMenu] = useState(false);
   const [kind, setKind] = useState('notebook');
+  const kindRef = useRef(kind);
+  kindRef.current = kind;
   const ready = useRef(false);
   const pending=useRef(new Map()),frameRevision=useRef(null),applying=useRef(false);
   const [cellBusy,setCellBusy]=useState(false);
@@ -40,6 +42,8 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
     capture:async()=>{const result=await requestCells('cells-snapshot');frameRevision.current=result.revision;latest.current.onDocument(result.path,result.ipynb);return {...result,id:block.id,notebookId:block.notebook_id};},
     apply:async input=>{applying.current=true;try{const result=await requestCells('cells-apply',input);frameRevision.current=result.revision;return result;}finally{applying.current=false;}},
     restore:async input=>{applying.current=true;try{const result=await requestCells('cells-restore',input);frameRevision.current=result.revision;return result;}finally{applying.current=false;}},
+    // The header's Run all and Restart, for the canvas menu (UI-25).
+    ready:()=>ready.current,isNotebook:()=>kindRef.current==='notebook',runAll:()=>send('run-all'),restart:()=>send('restart'),
   }),[block.id,block.notebook_id]);
   useEffect(()=>()=>{for(const entry of pending.current.values()){clearTimeout(entry.timer);entry.reject(new Error('The notebook closed.'));}pending.current.clear();},[]);
   useEffect(()=>{

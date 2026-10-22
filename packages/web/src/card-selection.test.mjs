@@ -150,12 +150,12 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   assert.match(canvas, /<SelectionActionBar anchor=\{barAnchor\} box=\{barBox\} \/>/);
   // Add to chat: one object is its card chip, asked (its answer lands as a card linked to it); a dropped image is shown to the tutor
   // too; a group, several objects or a shape are ONE chip with their ids and a text read at send; the draft is untouched, nothing is sent.
-  const add = canvas.slice(canvas.indexOf('const addToChat = () => {'), canvas.indexOf('// Selecting a card is choosing what the next question is about'));
+  const add = canvas.slice(canvas.indexOf('const addToChat = options => {'), canvas.indexOf('// Selecting a card is choosing what the next question is about'));
   assert.match(add, /askedId\.current = object\.id;\n\s+if \(!armTarget\(object\)\) return false;/);
   assert.match(add, /\.\('image-attach', \{ blockId: object\.id, mediaId: object\.mediaId, label: object\.label \}\);/);
   assert.match(add, /\} else armCollection\(ids\);\n\s+askDraft\(\);/, 'no text: the composer is revealed and focused, its draft stays');
   assert.doesNotMatch(add, /askDraft\([A-Za-z'\`]/, 'no ready question is written');
-  const collection = canvas.slice(canvas.indexOf('const armCollection = (ids, ref = null) => {'), canvas.indexOf('const addToChat = () => {'));
+  const collection = canvas.slice(canvas.indexOf('const armCollection = (ids, ref = null) => {'), canvas.indexOf('const addToChat = options => {'));
   assert.match(collection, /get text\(\) \{ return groupTargetText\(ids\.map\(askEntryOf\)\.filter\(Boolean\)\); \}/, 'content is resolved when it is read at send');
   // Owner brief UI-09 (2026-10-21): the chip is named from the objects, a group by its name, never "1 item" (selection-ref.test.mjs).
   assert.match(collection, /const label = selectionName\(ids\.map\(nameOf\), group\);/, 'one chip: the group name, or the objects names');
