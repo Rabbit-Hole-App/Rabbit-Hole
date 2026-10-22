@@ -36,6 +36,9 @@ export const SLASH = [
   { name: 'practice', kind: 'prompt', group: 'learn', places: ['learn'], label: 'Practice', desc: 'Let me try it', about: 'Creates a practice card (a challenge, explain-back, quiz or coding task) on the selected card or a topic, then waits for your answer.', prompt: 'Give me one practice task on {target} and wait for my answer.',
     family: ['challenge', 'explain_back', 'quiz', 'code_exercise'],
     narrow: [[/explain(ing)? it back/i, 'explain_back'], [/\bcoding\b/i, 'code_exercise'], [/multiple[- ]choice/i, 'quiz']] },
+  // /goal (owner, 2026-10-21): goal management in Progress - add, edit, delete and choose the current goal. The words after it
+  // fill a new goal's field, unsaved. Explicit only: no model runs, and plain words never route to it (inline-ai-route.js).
+  { name: 'goal', kind: 'dialog', group: 'learn', places: ['learn'], label: 'Goal', desc: 'Set a learning goal', about: 'Opens your learning goals in Progress: add one (what you type after /goal fills it in, unsaved), edit or delete one, or choose your current goal. No AI is used.', action: 'goal', deterministic: true },
   { name: 'quiz', kind: 'prompt', group: 'learn', places: ['learn'], label: 'Quiz', desc: 'Test me', about: 'Creates a one-question quiz card on the selected card or a topic, then waits for your answer.', prompt: 'Ask me one short question on {target}, then wait for my answer.', family: ['quiz'] },
   // Create: tool overrides (user, 2026-09-28). Auto stays the default; a command names the family the tutor
   // must return a validated block from, or it asks a clarifying question. Deterministic ones run no model.
@@ -101,7 +104,7 @@ export function unavailableCommand(name, { listed = true } = {}) {
 
 // The Learn picker's primary menu, in order. Every other Learn command is listed under More learning tools.
 export const LEARN_MENU = {
-  learn: ['dive', 'practice', 'quiz'],
+  learn: ['dive', 'practice', 'quiz', 'goal'],
   create: ['explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook'],
   search: ['image', 'youtube', 'arxiv', 'wikipedia'],
 };

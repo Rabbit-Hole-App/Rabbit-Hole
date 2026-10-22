@@ -50,8 +50,9 @@ export const DIMENSIONS = ['fit', 'reasoning', 'assistance', 'application', 'ret
 export const ENTRY_KINDS = ['loading', 'recovery', 'quiet', 'welcome', 'existing_work', 'resume', 'completed'];
 export const ENTRY_ACTIONS = ['retry', 'set_goal', 'explain', 'review', 'build_lesson', 'continue', 'recap', 'quick_check', 'resume', 'next_goal', 'something_else'];
 export const FOCUS_KINDS = ['answer', 'resume', 'create_goal', 'clarify'];
-// POST /api/learn/coaching actions (Task 02). activate_goal is the explicit return to a paused goal.
-export const COACHING_ACTIONS = ['save_controls', 'create_goal', 'change_scope', 'activate_goal', 'activate_activity', 'pause_activity'];
+// POST /api/learn/coaching actions (Task 02). activate_goal is the explicit return to a paused goal; edit_goal and delete_goal
+// are goal management (/goal, owner 2026-10-21), each naming the goal revision it was made on.
+export const COACHING_ACTIONS = ['save_controls', 'create_goal', 'change_scope', 'activate_goal', 'activate_activity', 'pause_activity', 'edit_goal', 'delete_goal'];
 // reduceTutorControls events. question and check_review are listed so callers can prove they change nothing.
 export const CONTROL_EVENTS = ['select_mode', 'set_tutor_enabled', 'not_now', 'resume', 'start_guided', 'question', 'check_review', 'continue_own_work', 'undo'];
 export const CONTROL_EFFECTS = ['persist', 'suspend_coaching', 'show_choices', 'show_undo'];

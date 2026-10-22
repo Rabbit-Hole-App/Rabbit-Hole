@@ -876,6 +876,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           reserve: slot => canvasApi.current?.reserve(slot),
           release: id => canvasApi.current?.release(id),
           dive: args => dive.run(args),
+          goal: args => chat.goals?.open(args), // /goal: goal management in Progress (chat-workspace.jsx goals.open)
         }, sink),
         // A Chat source command's finder (the shared opener): settles { added } when it closes, so the composer keeps its
         // draft until then; focus goes back to the composer.

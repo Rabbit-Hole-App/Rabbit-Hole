@@ -17,6 +17,8 @@ import { threadWithControls } from './learn-coaching-client.js';
 //   sources  (chat-sources.js, A4b) the active source, back stack, reading position per source
 // Surfaces outside a Learn canvas get null from useChatWorkspace() and keep their old behaviour.
 const ChatWorkspace = createContext(null);
+// Goal requests are numbered across the page, so a remounted workspace never repeats one Progress already opened.
+let goalRequests = 0;
 export const useChatWorkspace = () => useContext(ChatWorkspace);
 
 // canvasOps (LearnPage fills it from canvasApi): { insertNotebook(cells, language), insertChat(chat), insertCard(block, { same }), hasBlock(id), locate(id),
@@ -60,9 +62,15 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
   // ask(turn) (MOT-20b): another surface's command turn through the same loop, e.g. Ctrl+K's /motion: { prompt, command, about }.
   const ask = useCallback(turn => sender.current?.(turn), []);
+  // /goal and Progress's Set a goal (owner, 2026-10-21): the one entry to goal management. open(draft) shows Progress and asks it
+  // to open the learner's goals, draft (the words after /goal) in the new goal's field, unsaved. Nothing is sent or saved here.
+  const [goalRequest, setGoalRequest] = useState(null);
+  const showProgress = panels.companion.show;
+  const openGoals = useCallback((draft = '') => { showProgress('progress'); setGoalRequest({ seq: ++goalRequests, draft: String(draft || '').trim().slice(0, 200) }); }, [showProgress]);
+  const goals = useMemo(() => ({ request: goalRequest, open: openGoals }), [goalRequest, openGoals]);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
-  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching]);
+  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching, goals }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching, goals]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
 

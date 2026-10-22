@@ -7,12 +7,16 @@ import { cardsFor } from './learn-slash.js';
 export const CHAT_EXAMPLES = {
   dive: { about: 'A topic, or the card you select', note: 'Opens a Rabbit Hole. It writes no chat answer and adds no card here.', footer: 'What happens on the canvas.',
     answer: 'With no card selected, opens a Rabbit Hole about **how cells produce ATP**. With a card selected, `/dive` alone opens that card\'s Rabbit Hole, or starts one under it; the card gets a green outline you can enter it from. With neither, it asks what to go deeper into.' },
+  // /goal (owner, 2026-10-21) opens Progress on the learner's goals: no card, no chat answer, no model.
+  goal: { about: 'What you want to learn, or nothing', note: 'Opens your learning goals in Progress. It writes no chat answer, adds no card and uses no AI.', footer: 'What happens in Progress.',
+    answer: 'Opens **Progress** on your learning goals with **read a balance sheet with confidence** in a new goal, ready to edit and save. `/goal` alone opens the list: add, edit or delete a goal, or choose your current one.' },
 };
 
 // What a command does, in one word the sheet shows beside it: it creates a card, opens a Rabbit Hole, or searches (owner,
 // 2026-10-20). Media say where their content comes from: found and credited, or made by AI.
 const SEARCHES = new Set(['image', 'youtube', 'arxiv', 'wikipedia']);
-export const effectOf = name => (name === 'dive' ? 'Opens a Rabbit Hole' : SEARCHES.has(name) ? 'Searches' : 'Creates a card');
+// /goal opens goals (owner, 2026-10-21).
+export const effectOf = name => (name === 'dive' ? 'Opens a Rabbit Hole' : name === 'goal' ? 'Opens goals' : SEARCHES.has(name) ? 'Searches' : 'Creates a card');
 export const MEDIA = { image: 'Sourced', youtube: 'Sourced', video: 'AI-generated', 'generate-image': 'AI-generated', motion: 'AI-generated' };
 
 // /youtube, /arxiv and /wikipedia open the source finder on their source with what follows them, and search at once; the

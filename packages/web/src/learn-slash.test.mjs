@@ -20,7 +20,7 @@ const harness = reply => {
 test('/ opens the grouped picker: LEARN, CREATE, SEARCH, then every other command under More learning tools', () => {
   const sections = pickerSections('/');
   assert.deepEqual(sections.map(section => section.title), ['Learn', 'Create', 'Search', 'More learning tools']);
-  assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz']);
+  assert.deepEqual(sections[0].items.map(item => item.name), ['dive', 'practice', 'quiz', 'goal']);
   assert.deepEqual(sections[1].items.map(item => item.name), ['explain', 'code', 'graph', 'diagram', 'flashcards', 'notebook']);
   // /motion takes /animate's place in a development or review build (owner, 2026-10-20), with the owner's words.
   assert.deepEqual(pickerSections('/', { motionDev: true })[1].items.slice(3, 6), [{ name: 'diagram', desc: 'Add a diagram' }, { name: 'motion', desc: 'Create an animated explainer video' }, { name: 'flashcards', desc: 'Add flashcards' }]);

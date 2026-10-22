@@ -5,10 +5,11 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 
 // schema: the SQL to build from (default: repository-schema.sql, the whole dev LEARN_DB).
-export function learnDb(t, schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8')) {
-  const sqlite = new DatabaseSync(':memory:');
-  t.after(() => sqlite.close());
-  sqlite.exec(schema);
+// file: a database file instead of memory, so a test can close it and open it again (a reload); schema null opens it as is.
+export function learnDb(t, schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'), file = ':memory:') {
+  const sqlite = new DatabaseSync(file);
+  t.after(() => { if (sqlite.isOpen) sqlite.close(); });
+  if (schema) sqlite.exec(schema);
   const LEARN_DB = {
     prepare: sql => {
       let args = [];

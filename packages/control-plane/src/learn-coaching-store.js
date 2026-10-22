@@ -103,15 +103,28 @@ function criteriaFrom(list) {
 }
 const refsOk = (kind, list, max) => Array.isArray(list) && list.length <= max && list.every(r => validateCoachingRecord(kind, r).ok);
 
-async function ownGoal(env, actor, goalId) {
+// closed: also return a completed or archived goal (delete_goal decides what that means).
+async function ownGoal(env, actor, goalId, { closed = false } = {}) {
   if (typeof goalId !== 'string' || goalId.length > 200) throw invalid('goalId required');
   // Another learner's goal, another canvas's or a made-up id all read as missing: nothing about them is told.
   const g = await env.LEARN_DB.prepare(`SELECT g.*, j.archived_at AS journey_archived_at FROM learn_goals g LEFT JOIN learning_journeys j ON j.id = g.journey_id WHERE g.id = ? AND g.org = ? AND g.owner_user_id = ? AND g.app = ? AND g.board = ?`)
     .bind(goalId, ...key(actor)).first();
   if (!g) throw missing('unknown_goal');
-  if (g.lifecycle !== 'open' || g.journey_archived_at) throw new CoachingConflict('goal_closed');
+  if (!closed && (g.lifecycle !== 'open' || g.journey_archived_at)) throw new CoachingConflict('goal_closed');
   return g;
 }
+// Goal management (/goal, owner 2026-10-21): an edit or delete names the goal revision the learner saw. Another tab's or the
+// Tutor's change to that goal since is 409 goal_changed with the current state, so the learner's own words are never lost
+// to, or silently written over, a newer goal.
+const sameGoalRevision = (goal, revision) => {
+  if (!Number.isInteger(revision)) throw invalid('revision (the goal revision you saw) required');
+  if (revision !== goal.revision) throw new CoachingConflict('goal_changed');
+};
+const goalText = payload => {
+  if (!sized(payload.label, 200)) throw invalid('label must be 1-200 characters');
+  if (payload.outcome != null && (typeof payload.outcome !== 'string' || payload.outcome.length > 1000)) throw invalid('outcome must be at most 1000 characters');
+  return { label: payload.label.trim(), outcome: (payload.outcome ?? '').trim() };
+};
 
 // --- statements -------------------------------------------------------------------------------------------------------
 // Moving the pointer to another goal: the board's live journey gets a goal row if older code made it without one, then
@@ -154,6 +167,37 @@ const PLANS = {
       ],
       next: { activeGoalId: id, activeActivityId: null },
     };
+  },
+
+  // The goal's own words. Its criteria are not touched: what earlier answers were assessed against stays as it was (a scope
+  // change is change_scope, which adds a new criteria version and never rewrites one).
+  async edit_goal(env, actor, row, payload, rev, now) {
+    only(payload, ['goalId', 'revision', 'label', 'outcome']);
+    const goal = await ownGoal(env, actor, payload.goalId);
+    sameGoalRevision(goal, payload.revision);
+    const text = goalText(payload);
+    if (text.label === goal.label && (payload.outcome == null || text.outcome === goal.outcome)) return null;
+    return {
+      statements: [env.LEARN_DB.prepare(`UPDATE learn_goals SET label = ?, outcome = ?, revision = revision + 1, updated_at = ? WHERE id = ? AND ${GUARD}`)
+        .bind(text.label, payload.outcome == null ? goal.outcome : text.outcome, now, goal.id, ...key(actor), rev)],
+      next: {},
+    };
+  },
+
+  // Delete is the archived lifecycle: the goal leaves every list and pointer, and its attempts, assessments and criteria stay
+  // as recorded (evidence is never orphaned or rewritten). The active pointer (and its activity) clears when it named this goal;
+  // a journey-backed goal's journey is parked off the board, never archived. Deleting a goal already gone changes nothing.
+  async delete_goal(env, actor, row, payload, rev, now) {
+    only(payload, ['goalId', 'revision']);
+    const goal = await ownGoal(env, actor, payload.goalId, { closed: true });
+    if (goal.lifecycle === 'archived' || goal.journey_archived_at) return null;
+    sameGoalRevision(goal, payload.revision);
+    const g = [...key(actor), rev], active = goal.id === row.active_goal_id;
+    const statements = [env.LEARN_DB.prepare(`UPDATE learn_goals SET lifecycle = 'archived', revision = revision + 1, updated_at = ? WHERE id = ? AND ${GUARD}`).bind(now, goal.id, ...g)];
+    if (goal.journey_id) statements.push(env.LEARN_DB.prepare(`UPDATE learning_journeys SET board = 'parked:' || id, updated_at = ?, revision = revision + 1 WHERE id = ? AND org = ? AND owner_user_id = ? AND app = ? AND board = ? AND archived_at IS NULL AND ${GUARD}`)
+      .bind(now, goal.journey_id, ...key(actor), ...g));
+    if (goal.activity_id) statements.push(env.LEARN_DB.prepare(`UPDATE learn_activities SET status = 'paused', updated_at = ? WHERE id = ? AND status = 'in_progress' AND ${GUARD}`).bind(now, goal.activity_id, ...g));
+    return { statements, next: active ? { activeGoalId: null, activeActivityId: null } : {} };
   },
 
   async change_scope(env, actor, row, payload, rev, now) {

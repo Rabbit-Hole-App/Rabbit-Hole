@@ -8,6 +8,7 @@ import { api } from './api.js';
 import { STATUS_LABEL, fetchProgress, progressModel } from './learn-progress-client.js';
 import { NextActivity } from './TutorActivity.jsx';
 import { askTutorAbout, progressRef } from './learn-progress-question.js';
+import GoalManager from './GoalManager.jsx';
 
 const ICON = { demonstrated_independently: CircleCheck, demonstrated_with_help: CircleHelp, practising: CircleDashed, needs_review: CircleAlert, not_checked: Circle };
 const TONE = { demonstrated_independently: 'text-pass', demonstrated_with_help: 'text-[#b45309] dark:text-[#f5b14c]', needs_review: 'text-fail', practising: 'text-ink-2', not_checked: 'text-ink-3' };
@@ -28,7 +29,17 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
   const keep = `${scope.app}\n${scope.board}`;
   const [viewedGoalId, setViewedGoalId] = useState(() => kept.get(keep)?.viewedGoalId ?? null);
   const [expanded, setExpanded] = useState(() => kept.get(keep)?.expanded ?? null);
-  useEffect(() => { kept.set(keep, { viewedGoalId, expanded }); }, [keep, viewedGoalId, expanded]);
+  // Goal management (/goal, Set a goal; owner 2026-10-21): chat.goals.open asks for it (a new request seq), kept per canvas.
+  const request = chat?.goals?.request ?? null;
+  const [managing, setManaging] = useState(() => kept.get(keep)?.managing ?? false);
+  useEffect(() => { kept.set(keep, { viewedGoalId, expanded, managing, seq: kept.get(keep)?.seq ?? 0 }); }, [keep, viewedGoalId, expanded, managing]);
+  useEffect(() => {
+    if (!request || request.seq <= (kept.get(keep)?.seq ?? 0)) return;
+    kept.set(keep, { ...kept.get(keep), seq: request.seq });
+    setManaging(true);
+  }, [request?.seq]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Set a goal runs the /goal flow (one entry, chat-workspace.jsx goals.open); without a Chat workspace it focuses the composer.
+  const setGoal = () => (chat?.goals ? chat.goals.open('') : composer.focus());
   const [load, setLoad] = useState({ status: 'idle', view: null });
   const [resuming, setResuming] = useState(false);
   const heading = useRef(null);
@@ -69,13 +80,17 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
           className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} strokeWidth={1.8} aria-hidden /></button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        {model.state === 'no_goal' && <div data-progress-empty className="flex flex-col items-start gap-3">
+        {!managing && model.state === 'no_goal' && <div data-progress-empty className="flex flex-col items-start gap-3">
           <p className="text-sm text-ink">No learning goal set yet.</p>
           <p className="text-sm text-ink-2">Tell the Tutor what you want to learn, and your progress on it shows here. Ordinary chat works as always.</p>
-          <button type="button" onClick={() => { composer.focus(); if (!globalThis.matchMedia?.('(min-width: 64rem)').matches) onClose(); }} className={`${BUTTON} bg-ink text-white`}>Set a goal</button>
+          <button type="button" data-progress-set-goal onClick={setGoal} className={`${BUTTON} bg-ink text-white`}>Set a goal</button>
         </div>}
-        {model.state !== 'no_goal' && <>
-          <label className="block text-xs font-medium tracking-wide text-ink-2 uppercase" htmlFor="progress-goal">Learning goal</label>
+        {managing && <GoalManager scope={scope} coaching={coaching} chat={chat} seed={request} onDone={() => { setManaging(false); requestAnimationFrame(() => heading.current?.focus()); }} />}
+        {!managing && model.state !== 'no_goal' && <>
+          <div className="flex items-center gap-2">
+            <label className="block min-w-0 flex-1 text-xs font-medium tracking-wide text-ink-2 uppercase" htmlFor="progress-goal">Learning goal</label>
+            <button type="button" data-progress-manage onClick={setGoal} className="shrink-0 cursor-pointer text-xs font-medium text-ink underline-offset-2 hover:underline">Manage goals</button>
+          </div>
           <select id="progress-goal" data-progress-goal value={goalId || ''} onChange={event => { setViewedGoalId(event.target.value); setExpanded(null); }}
             className="mt-1.5 h-9 w-full cursor-pointer rounded-lg border border-line bg-white px-2 text-sm text-ink">
             {model.goals.map(goal => <option key={goal.goalId} value={goal.goalId}>{goal.label}{goal.active ? ' (current)' : ''}</option>)}
@@ -87,10 +102,10 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
             </div>
             : <p className="mt-2 text-xs text-ink-2">{model.active ? 'Your current goal' : 'Not your current goal'}</p>}
         </>}
-        {model.state === 'loading' && <p role="status" data-progress-loading className="mt-4 text-sm text-ink-2">Loading your progress…</p>}
-        {model.state === 'error' && <p role="alert" data-progress-error className="mt-4 flex flex-wrap items-center gap-2 text-sm text-fail">Your progress could not be loaded. Nothing has been lost.
+        {!managing && model.state === 'loading' && <p role="status" data-progress-loading className="mt-4 text-sm text-ink-2">Loading your progress…</p>}
+        {!managing && model.state === 'error' && <p role="alert" data-progress-error className="mt-4 flex flex-wrap items-center gap-2 text-sm text-fail">Your progress could not be loaded. Nothing has been lost.
           <button type="button" onClick={read} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
-        {model.state === 'ready' && <>
+        {!managing && model.state === 'ready' && <>
           <div data-progress-count className="mt-4">
             <p className="text-ink"><span className="text-3xl font-semibold">{model.count}</span> <span className="text-sm text-ink-2">of {model.total}</span></p>
             <p className="text-sm text-ink-2">skills demonstrated independently</p>

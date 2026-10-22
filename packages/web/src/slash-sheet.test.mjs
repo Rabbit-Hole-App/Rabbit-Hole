@@ -20,7 +20,7 @@ const read = file => readFileSync(new URL(file, import.meta.url), 'utf8');
 
 // Owner, 2026-10-20: the window lists every retained command, says what each does, and keeps every one discoverable without /more.
 test('every command in the sheet has a demo, an example, what it does and what it needs selected', () => {
-  assert.equal(commands.length, 17);
+  assert.equal(commands.length, 18); // /goal added (owner, 2026-10-21)
   assert.equal(demoOf('cad'), 'cad', 'CAD describes its workflow without fabricated artifacts');
   assert.deepEqual(devCommands.map(({ name }) => name).filter(name => !commands.some(command => command.name === name)), ['motion']);
   for (const { name } of devCommands) {
@@ -28,11 +28,12 @@ test('every command in the sheet has a demo, an example, what it does and what i
     assert.ok(demo, `/${name} has a demo`);
     assert.ok(EXAMPLES[name]?.startsWith(`/${name}`), `/${name} has an e.g. line`);
     assert.ok(toolOf(name).about, `/${name} says what it does`);
-    assert.ok(['Creates a card', 'Opens a Rabbit Hole', 'Searches'].includes(effectOf(name)), `/${name}`);
+    assert.ok(['Creates a card', 'Opens a Rabbit Hole', 'Opens goals', 'Searches'].includes(effectOf(name)), `/${name}`);
     if (demo === 'chat') assert.ok(CHAT_EXAMPLES[name].about && CHAT_EXAMPLES[name].answer, `/${name} exchange`);
     if (demo === 'cards') assert.ok(sheetCards(name).length, `/${name} cards`);
   }
-  assert.deepEqual(commands.filter(({ name }) => demoOf(name) === 'chat').map(({ name }) => name), ['dive']);
+  assert.deepEqual(commands.filter(({ name }) => demoOf(name) === 'chat').map(({ name }) => name), ['dive', 'goal']);
+  assert.equal(effectOf('goal'), 'Opens goals');
   // Searches, openings and cards, said plainly.
   assert.deepEqual(['image', 'youtube', 'arxiv', 'wikipedia'].map(effectOf), ['Searches', 'Searches', 'Searches', 'Searches']);
   assert.equal(effectOf('dive'), 'Opens a Rabbit Hole');
