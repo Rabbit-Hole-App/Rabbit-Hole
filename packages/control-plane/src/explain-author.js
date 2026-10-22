@@ -8,7 +8,7 @@ import { compileVisual } from '../../web/src/visual-components/compile.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { validateReviewFinding } from '../../web/src/explain-contract.js';
 import { cardAtSettings, sceneProblem } from './learn-scene-gates.js';
-import { AUTHOR_TOOL, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_REVIEW_SYSTEM, GAP_NEEDS, REVIEW_TOOL } from './agents/explain-author.js';
+import { authorTool, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_REVIEW_SYSTEM, GAP_NEEDS, REVIEW_TOOL } from './agents/explain-author.js';
 import { EXPLAIN_ROLES, ExplainPolicyError, callExplainRole } from './explain-policy.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -88,7 +88,7 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
     catalogue: cat, supported: compilerSupport(), limits,
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),
   });
-  const out = await ctx.call('author', { system: EXPLAIN_AUTHOR_SYSTEM, tool: AUTHOR_TOOL, content });
+  const out = await ctx.call('author', { system: EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat), content });
   const { input: reply } = out;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new ExplainPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');

@@ -40,6 +40,10 @@ test('the author receives the actual catalogue (every capability and parameter l
   assert.equal(sent.request, 'Explain where rain comes from.');
   assert.deepEqual(sent.examples, [], 'no examples unless explicitly selected');
   assert.deepEqual([body.model, body.tool_choice, body.tools.map(x => x.name)], ['claude-opus-5-5', { type: 'auto' }, ['author_explanation']]);
+  // The tool states the instance shape and the registered names (a real run with a bare object wrote "type", spend.md row 2).
+  const instance = body.tools[0].input_schema.properties.spec.properties.components.items;
+  assert.deepEqual(instance.required, ['id', 'component', 'version']);
+  assert.deepEqual(instance.properties.component.enum, catalogue().map(entry => entry.name));
   // The compiled result is the trusted compiler's.
   assert.equal(out.compiled.counts.authored, 1);
   assert.equal(out.compiled.componentVersions.flow, 1);
@@ -74,6 +78,8 @@ test('invented components, invalid parameters and complexity over the limits are
     [{ ...SPEC, components: [module('m', 'x'.repeat(201))] }, /at most 200/],
     [{ ...SPEC, components: Array.from({ length: 41 }, (_, i) => module(`m${i}`, `Unit ${i}`)) }, /40/],
     [{ ...SPEC, connections: [{ from: 'cycle.nowhere', to: 'cycle.top' }] }, /not an anchor/],
+    // The real 2026-10-22 run's shape: "type" in place of "component".
+    [{ ...SPEC, components: [{ id: 'root', type: 'stack', version: 1, params: {} }] }, /component/],
   ];
   for (const [spec, why] of cases) {
     provider(t, [{ kind: 'spec', spec }]);
