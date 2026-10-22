@@ -39,7 +39,7 @@ export default function PeopleWithAccess({ base }) {
       <form onSubmit={invite} className="flex items-center gap-1.5">
         <input aria-label="Add people by email" placeholder="Add people by email" value={emails} onChange={event => setEmails(event.target.value)}
           className="h-8 min-w-0 flex-1 rounded-md border border-line px-2 text-sm outline-none focus:border-line-strong" />
-        <button type="submit" data-invite-button disabled={busy || !emails.trim()} className="flex h-8 items-center gap-1 rounded-md bg-[#2383e2] px-2.5 text-xs font-medium text-white hover:bg-[#1f74c9] disabled:opacity-40"><UserPlus size={13} />Invite</button>
+        <button type="submit" data-invite-button disabled={busy || !emails.trim()} className="flex h-8 items-center gap-1 rounded-md bg-primary-fill px-2.5 text-xs font-medium text-white hover:bg-primary-fill-hover disabled:opacity-40"><UserPlus size={13} />Invite</button>
       </form>
       <p className="mt-1.5 text-xs text-ink-3">{verbs} They can't edit. They'll confirm this email address before joining.</p>
       {notes.map(text => <p key={text} role="alert" className="mt-1 text-xs text-red-700">{text}</p>)}

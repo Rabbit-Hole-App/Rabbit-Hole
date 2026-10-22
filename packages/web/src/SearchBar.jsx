@@ -183,7 +183,7 @@ export default function SearchBar({ app, initialSource = null, initialQuery = ''
         {!busy && !error && current && !!results?.length && (
           <div data-finder-add className="flex items-center justify-end gap-3 border-t border-line px-3 py-2">
             <button type="button" onClick={() => choose(results[active] || results[0])}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-hover">
+              className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-fill px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-fill-hover">
               Add to canvas</button>
           </div>
         )}

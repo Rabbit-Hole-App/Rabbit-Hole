@@ -101,7 +101,7 @@ function ProposalCard({ proposal, onDone, onChange }) {
         <button
           disabled={busy}
           onClick={approve}
-          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-sm bg-accent px-2.5 text-[13px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-sm bg-primary-fill px-2.5 text-[13px] font-medium text-white hover:bg-primary-fill-hover disabled:opacity-50"
         >
           {busy && <Loader2 size={12} className="animate-spin" />} Run
         </button>

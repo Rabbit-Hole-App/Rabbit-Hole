@@ -35,6 +35,12 @@
   --color-surface: #ffffff;
   --color-accent: #2383e2;
   --color-accent-hover: #1b6fc2;
+  /* The filled primary button (Button variant primary and the buttons styled like it; owner 2026-10-22, "contrast yes"):
+     white on --color-accent is 3.9:1, under the 4.5:1 small-text floor; white on this fill is 5.1:1, its hover darker.
+     .dark leaves both alone, so they hold in both themes. Links, rings, shapes and the canvas keep --color-accent.
+     primary-button.test.mjs. */
+  --color-primary-fill: #1b6fc2;
+  --color-primary-fill-hover: #165ca3;
   /* The canvas selection (rings, outlines, handles). The inline AI editor turns its own target's selection purple while
      it is open (owner 2026-10-13: purple, not blue) by setting --color-select to --color-ai on that target only. */
   --color-select: #2383e2;
@@ -451,6 +457,7 @@ html {
 /* White text stays white on a blue or red surface; the hex blue too (Publish to Explore, the canvas question bubble -
    black on blue in dark mode, owner 2026-10-08). */
 .dark [class*='bg-accent'],
+.dark [class*='bg-primary-fill'],
 .dark [class*='bg-[#2383e2]'],
 .dark [class*='bg-(--action-blue)'],
 .dark [class*='bg-danger'] {

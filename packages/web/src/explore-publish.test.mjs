@@ -86,6 +86,6 @@ test('a published board keeps its files and notebook workspaces live too, not on
 // into the dark surface, so text-white needs the blue-surface reset; a hex blue matches no bg-accent class, so it is named.
 test('dark mode keeps white text white on the hex blue: Publish to Explore and the canvas question bubble', () => {
   const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(css, /\.dark \[class\*='bg-accent'\],\n\.dark \[class\*='bg-\[#2383e2\]'\],\n\.dark \[class\*='bg-\(--action-blue\)'\],\n\.dark \[class\*='bg-danger'\] \{\n\s+--color-white: #ffffff;/);
-  assert.match(readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8'), /data-publish disabled=\{busy\} onClick=\{\(\) => onPublish\(true\)\} className="[^"]*bg-\[#2383e2\][^"]*text-white/);
+  assert.match(css, /\.dark \[class\*='bg-accent'\],\n\.dark \[class\*='bg-primary-fill'\],\n\.dark \[class\*='bg-\[#2383e2\]'\],\n\.dark \[class\*='bg-\(--action-blue\)'\],\n\.dark \[class\*='bg-danger'\] \{\n\s+--color-white: #ffffff;/);
+  assert.match(readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8'), /data-publish disabled=\{busy\} onClick=\{\(\) => onPublish\(true\)\} className="[^"]*bg-primary-fill[^"]*text-white/);
 });

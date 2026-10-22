@@ -73,7 +73,7 @@ function ExploreRow({ published, token, busy, onPublish }) {
       <div className="mt-2 flex justify-end">
         {published
           ? <button type="button" data-unpublish disabled={busy} onClick={() => onPublish(false)} className="h-7 rounded-md border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:opacity-40">Remove from Explore</button>
-          : <button type="button" data-publish disabled={busy} onClick={() => onPublish(true)} className="h-7 rounded-md bg-[#2383e2] px-2.5 text-xs font-medium text-white hover:bg-[#1f74c9] disabled:opacity-40">Publish to Explore</button>}
+          : <button type="button" data-publish disabled={busy} onClick={() => onPublish(true)} className="h-7 rounded-md bg-primary-fill px-2.5 text-xs font-medium text-white hover:bg-primary-fill-hover disabled:opacity-40">Publish to Explore</button>}
       </div>
     </div>
   );

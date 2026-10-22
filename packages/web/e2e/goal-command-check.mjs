@@ -59,9 +59,9 @@ const send = async (text, p = page) => { await field(p).click(); await field(p).
 // A bare /goal: Enter on the open picker makes the Goal pill, and Enter again runs it.
 const goalCommand = async (p = page) => { await field(p).click(); await field(p).fill('/goal'); await field(p).press('Enter'); await pill(p).waitFor(); await field(p).press('Enter'); };
 
-// Add goal is the house primary Button (ui.jsx variant primary): the accent blue with white text in both themes, a darker hover,
-// a visible keyboard focus ring. Its white-on-blue contrast is measured and printed; the check holds the WCAG 1.4.11 3:1
-// floor for a control (the house primary text is 3.9:1, under the 4.5:1 for small text: reported to the owner, 2026-10-22).
+// Add goal is the house primary Button (ui.jsx variant primary): --color-primary-fill with white text in both themes, a darker
+// hover, a visible keyboard focus ring. Its white-on-blue contrast is measured and printed; the check holds the WCAG 1.4.3
+// 4.5:1 floor for small text (white on the accent blue was 3.9:1; the owner decided to raise it, 2026-10-22 "contrast yes").
 const primaryLooks = async () => {
   const add = manager().locator('[data-goal-add-save]');
   // Add goal is disabled until the saved goals have loaded (GoalManager `ready`), and a disabled button is skipped by Tab:
@@ -72,13 +72,13 @@ const primaryLooks = async () => {
   await page.keyboard.press('Tab'); // Add goal, by keyboard: focus-visible
   assert.equal(await add.evaluate(node => node === document.activeElement), true, 'Add goal is next in the Tab order');
   const [bg, fg, outline] = await add.evaluate(node => [getComputedStyle(node).backgroundColor, getComputedStyle(node).color, getComputedStyle(node).outlineStyle]);
-  assert.deepEqual([bg, fg], ['rgb(35, 131, 226)', 'rgb(255, 255, 255)'], 'the accent blue with white text');
+  assert.deepEqual([bg, fg], ['rgb(27, 111, 194)', 'rgb(255, 255, 255)'], 'the primary fill with white text');
   assert.notEqual(outline, 'none', 'a visible focus ring');
   const ratio = await page.evaluate(([a, b]) => { const lum = c => { const [r, g, bl] = c.match(/\d+/g).slice(0, 3).map(n => { n /= 255; return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * bl; }; const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); }, [fg, bg]);
   console.log(`primary button contrast ${ratio.toFixed(2)}:1`);
-  assert.ok(ratio >= 3, `contrast ${ratio.toFixed(2)}:1`);
+  assert.ok(ratio >= 4.5, `contrast ${ratio.toFixed(2)}:1`);
   await add.hover();
-  await until(async () => (await add.evaluate(node => getComputedStyle(node).backgroundColor)) === 'rgb(27, 111, 194)', 'the hover blue');
+  await until(async () => (await add.evaluate(node => getComputedStyle(node).backgroundColor)) === 'rgb(22, 92, 163)', 'the hover blue');
   await page.mouse.move(0, 0);
 };
 

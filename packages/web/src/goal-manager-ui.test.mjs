@@ -40,7 +40,7 @@ test('Add goal is the house primary button: blue, white text, hover, focus-visib
   const html = render(GOALS, 'g1');
   const add = html.match(/<button[^>]*data-goal-add-save[^>]*>[\s\S]*?<\/button>/)[0];
   assert.equal(text(add).trim(), 'Add goal');
-  for (const cls of ['bg-accent', 'text-white', 'hover:bg-accent-hover', 'focus-visible:outline-2', 'disabled:opacity-50', 'disabled:cursor-default']) assert.ok(add.includes(cls), cls);
+  for (const cls of ['bg-primary-fill', 'text-white', 'hover:bg-primary-fill-hover', 'focus-visible:outline-2', 'disabled:opacity-50', 'disabled:cursor-default']) assert.ok(add.includes(cls), cls);
   assert.doesNotMatch(add, /bg-ink/, 'not the old black fill');
   assert.doesNotMatch(text(html), /\.\.\.|…/, 'no ellipsis in the copy');
   // Saving states (busy only while a save is in flight, so read from the source): the same words for add and edit.

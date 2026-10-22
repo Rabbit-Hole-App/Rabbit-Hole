@@ -80,7 +80,7 @@ function QuizQuestion({ quiz, name }) {
       <input type="radio" name={name} value={key} checked={picked === key} onChange={() => setPicked(key)} className="mt-1 shrink-0 accent-accent" />
       <span className="min-w-0 flex-1"><PlanMarkdown text={`**${key}.** ${label}`} /></span>
     </label>)}</fieldset>
-    {!feedback?.correct && <button type="submit" disabled={!picked || picked === checked} className="rounded-md bg-accent px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-40">Check answer</button>}
+    {!feedback?.correct && <button type="submit" disabled={!picked || picked === checked} className="rounded-md bg-primary-fill px-3 py-2 text-sm text-white hover:bg-primary-fill-hover disabled:opacity-40">Check answer</button>}
     {feedback && <div role="status" className="mt-3 text-sm"><p className={`font-medium ${feedback.correct ? 'text-green-700' : 'text-amber-700'}`}>{feedback.correct ? 'Correct.' : 'Not quite. Choose another answer and check again.'}</p>{feedback.text && <PlanMarkdown text={feedback.text} />}</div>}
   </form>;
 }
@@ -191,7 +191,7 @@ export default function LessonPlanPreview({ view, selected, onSelect, course, ed
     <button type="button" onClick={onBack} className="mb-4 inline-flex items-center gap-1.5 rounded-md border border-line px-3 py-1.5 text-xs text-ink-2 hover:bg-hover"><ArrowLeft size={14} />{reviewing ? 'Back to curriculum' : 'Back to Practice'}</button>
     <h2 className="text-xl font-semibold">{plan ? item.title.replace(/ —.*$/, '') : item.title.replace(/\s*\u2014\s*/g, ': ')}</h2>
     <p className="mt-2 mb-5 text-sm text-ink-2">{reviewing ? plan ? 'Draft material plan · review before rendering or generating assets' : 'Curriculum outline · the detailed material plan has not been written yet' : plan ? 'Read the lesson pages, then try the quiz, flashcards and optional notebook.' : 'Outline only · the full lesson pages are not available yet.'}</p>
-    {selected === 0 && <button type="button" disabled={!onPreview} onClick={onPreview} className="mb-5 inline-flex items-center gap-2 rounded-md bg-accent px-3 py-2 text-sm text-white hover:opacity-90 disabled:opacity-40"><ArrowRight size={15} />Play Lesson 1</button>}
+    {selected === 0 && <button type="button" disabled={!onPreview} onClick={onPreview} className="mb-5 inline-flex items-center gap-2 rounded-md bg-primary-fill px-3 py-2 text-sm text-white hover:bg-primary-fill-hover disabled:opacity-40"><ArrowRight size={15} />Play Lesson 1</button>}
     {selected === 0 && Object.keys(edits).some(id => id.startsWith(`lesson-1-r${lessonOneRevision}-page-1-`) || id.startsWith(`lesson-1-r${lessonOneRevision}-page-2-`)) && <p className="mb-4 text-sm text-ink-2">This preview uses the saved Markdown plan. Your chat draft edits are retained here; rebuilding from those edits is not available yet.</p>}
     {plan && planTiming && <section aria-label="Lesson timing" className="mb-5 text-sm text-ink-2"><PlanMarkdown text={reviewing ? planTiming : learnerText(planTiming)} /></section>}
     {reviewing && plan && course?.revision > 1 && <p className="mb-4 rounded border border-line p-3 text-sm">This plan belongs to the original supplied curriculum. Review it against any curriculum changes before building.</p>}

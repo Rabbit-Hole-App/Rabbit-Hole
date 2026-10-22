@@ -121,6 +121,8 @@ async function oneSize(cards, { min = 900, max = 1000 } = {}) {
 const typeWords = loc => loc.evaluateAll(ns => ns.flatMap(n => [...n.querySelectorAll('*')].filter(e => !e.children.length && /^(Canvas|Project|Standalone)$/.test(e.textContent.trim())).map(e => e.textContent.trim())));
 const rgb = (loc, prop) => loc.evaluate((n, p) => getComputedStyle(n)[p], prop);
 const ACCENT = 'rgb(35, 131, 226)';
+// The primary Button's fill, --color-primary-fill (owner 2026-10-22, "contrast yes": white text on it clears 4.5:1).
+const PRIMARY = 'rgb(27, 111, 194)';
 // The portaled ⋮ menu closes on any scroll (ui.jsx Menu); a scroll landing just after the press closes it again, so
 // one more press is allowed before the check fails.
 const openMenu = async card => {
@@ -380,11 +382,11 @@ await check('15 Explore, as the owner: own card badged, no Start/Fork, its read-
   assert.equal((await mine.locator('[data-fork-count]').innerText()).trim(), '1 fork', 'your own card: the read-only count, once forked');
   assert.equal(await theirs.locator('[data-owner-badge]').count(), 0);
   assert.equal((await theirs.locator('[data-creator]').innerText()).trim(), `@${H.other}`);
-  assert.equal(await rgb(theirs.locator('[data-card-start-rabbit-hole]'), 'background-color'), ACCENT);
+  assert.equal(await rgb(theirs.locator('[data-card-start-rabbit-hole]'), 'background-color'), PRIMARY);
   // "make the fork button more visible on the cards" and "the fork button should itself have the counts like github"
   // (owner, 2026-10-08): the soft accent fill, the count inside, 0 included, and no second count in the footer.
   const forkBg = await rgb(theirs.locator('[data-fork-button]'), 'background-color');
-  assert.ok(forkBg !== 'rgb(255, 255, 255)' && forkBg !== ACCENT && forkBg !== 'rgba(0, 0, 0, 0)', `soft, below the primary: ${forkBg}`);
+  assert.ok(forkBg !== 'rgb(255, 255, 255)' && forkBg !== PRIMARY && forkBg !== ACCENT && forkBg !== 'rgba(0, 0, 0, 0)', `soft, below the primary: ${forkBg}`);
   assert.equal((await theirs.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim(), '1');
   assert.equal(await theirs.locator('[data-fork-button]').getAttribute('aria-label'), 'Fork, 1 fork');
   assert.equal((await prisms.locator('[data-fork-button] [data-fork-count-value]').innerText()).trim(), '0');
