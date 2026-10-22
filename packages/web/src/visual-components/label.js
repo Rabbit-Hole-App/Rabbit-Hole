@@ -65,24 +65,27 @@ export function wrapLabel(label, maxWidth, typography = 'body') {
 export const lineFields = (line, field = 'label') => ({ [field]: line.plain, ...(line.runs ? { runs: line.runs } : {}) });
 
 const PAD = 16;
-// A box whose label fits on one line keeps it as the box's own label (drawn
-// centred by the renderer); a longer one wraps into text lines inside the
-// box. Width grows with the label between minWidth and maxWidth.
-export function labelledBox({ id, label, role = 'neutral', minWidth, maxWidth, minHeight = 56, typography = 'body' }) {
+// A centred box whose label fits on one line keeps it as the box's own label
+// (drawn centred by the renderer); a longer one, or any start-aligned box,
+// carries left-aligned text lines. Width grows with the label between
+// minWidth and maxWidth and shrinks to the longest wrapped line (render
+// review 2026-10-22: wrapped boxes were left half empty).
+export function labelledBox({ id, label, role = 'neutral', minWidth, maxWidth, minHeight = 56, typography = 'body', align = 'center' }) {
   const oneLine = labelWidth(label, typography) + 2 * PAD;
-  if (oneLine <= maxWidth) {
+  if (align === 'center' && oneLine <= maxWidth) {
     const w = Math.max(minWidth, oneLine);
     const [line] = wrapLabel(label, Infinity, typography);
     return { w, h: minHeight, objects: [{ id, type: 'box', initialState: { ...lineFields(line), x: 0, y: 0, w, h: minHeight, role } }] };
   }
   const lines = wrapLabel(label, maxWidth - 2 * PAD, typography);
+  const w = Math.max(minWidth, Math.min(maxWidth, Math.max(...lines.map(line => textWidth(line.plain, typography))) + 2 * PAD));
   const step = lineHeight(typography);
   const h = Math.max(minHeight, lines.length * step + 2 * PAD);
   const top = (h - lines.length * step) / 2;
   return {
-    w: maxWidth, h,
+    w, h,
     objects: [
-      { id, type: 'box', initialState: { x: 0, y: 0, w: maxWidth, h, role } },
+      { id, type: 'box', initialState: { x: 0, y: 0, w, h, role } },
       // A text object draws from its baseline; 0.75 of a line sits above it.
       ...lines.map((line, index) => ({ id: `${id}-line${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), x: PAD, y: Math.round(top + index * step + step * 0.75), typography } })),
     ],

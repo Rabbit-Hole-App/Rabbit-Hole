@@ -16,7 +16,7 @@ export default {
   anchors: ['top', 'bottom', 'left', 'right'],
   fixtures: ['pipeline', 'pendulum-law'],
   compile({ params, hints }) {
-    const box = labelledBox({ id: 'box', label: params.text, role: TONE[params.tone], minWidth: hints.width, maxWidth: hints.width });
+    const box = labelledBox({ id: 'box', label: params.text, role: TONE[params.tone], minWidth: hints.width, maxWidth: hints.width, align: 'start' });
     return { ...box, anchors: sides(box.w, box.h) };
   },
 };

@@ -7,7 +7,7 @@ import { evaluateScene } from '../scene-evaluate.js';
 import { checkLayoutLint } from '../scene-layout-lint.js';
 import { legibilityIssues } from '../scene-layout.js';
 import { budgetIssues, chooseDensity, measureScene } from './budget.js';
-import { lineFields, wrapLabel } from './label.js';
+import { labelWidth, lineFields, wrapLabel } from './label.js';
 import { componentFor, resolveHints, resolveParams } from './registry.js';
 
 const PAD = 32, GAP = 32;
@@ -109,13 +109,20 @@ export function compileVisual(raw) {
     const parts = [connection.from, connection.to].map(ref => partOf.get(ref.split('.')[0])).filter(part => part !== undefined);
     if (new Set(parts).size > 1) throw new Error(`Connection ${index + 1} joins two different parts`);
     const id = `link${index}`;
-    const label = connection.label === undefined ? undefined : lineFields(wrapLabel(connection.label, Infinity, 'body')[0]);
-    objects.push({
-      id, type: connection.kind === 'flow' ? 'arrow' : 'line', semanticId: id,
-      ...(parts.length ? { part: parts[0] } : {}),
-      initialState: { from: ends[0], to: ends[1], ...(label ?? {}), role: 'neutral' },
-    });
+    const onPart = parts.length ? { part: parts[0] } : {};
+    objects.push({ id, type: connection.kind === 'flow' ? 'arrow' : 'line', semanticId: id, ...onPart, initialState: { from: ends[0], to: ends[1], role: 'neutral' } });
     objectMap[id] = { component: connection.from.split('.')[0], anchor: connection.from.split('.')[1], evidence: [] };
+    // The label sits at the middle of the connection, beside it, as its own
+    // text: a stroke's own label is drawn at its start, which lands on the
+    // frame or box the connection leaves (render review 2026-10-22).
+    if (connection.label !== undefined) {
+      const line = wrapLabel(connection.label, Infinity, 'annotation')[0];
+      const mid = { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
+      const flat = Math.abs(ends[1].x - ends[0].x) >= Math.abs(ends[1].y - ends[0].y);
+      const at = flat ? { x: round(mid.x - labelWidth(connection.label, 'annotation') / 2), y: round(mid.y - 8) } : { x: round(mid.x + 8), y: round(mid.y + 5) };
+      objects.push({ id: `${id}-label`, type: 'text', semanticId: `${id}-label`, ...onPart, initialState: { ...lineFields(line, 'text'), ...at, typography: 'annotation' } });
+      objectMap[`${id}-label`] = objectMap[id];
+    }
   });
 
   const { presentation } = spec;

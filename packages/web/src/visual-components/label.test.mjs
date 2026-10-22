@@ -31,7 +31,7 @@ test('fractions, subscripts, superscripts and mixed labels compile in every labe
   ], { connections: [{ from: 'ratio.bottom', to: 'out.top', label: { runs: [text('scaled by '), math('\\sqrt{d_k}')] } }] }));
   const tex = withRuns(compiled).flatMap(object => object.initialState.runs.filter(run => run.kind === 'math').map(run => run.tex));
   assert.deepEqual(tex.sort(), ['\\frac{a}{b}', '\\sqrt{d_k}', 'e^{i\\pi}', 'q \\cdot k^{T}', 'x_i'].sort());
-  assert.ok(compiled.scene.objects.find(object => object.id === 'link0').initialState.runs);
+  assert.ok(compiled.scene.objects.find(object => object.id === 'link0-label').initialState.runs);
   assert.ok(validateScene(structuredClone(compiled.scene)));
 });
 

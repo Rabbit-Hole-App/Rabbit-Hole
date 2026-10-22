@@ -169,3 +169,23 @@ test('definitions keep layout hints apart from semantic parameters', () => {
     for (const hint of Object.keys(definition.hints)) assert.ok(!(hint in definition.params), `${name}.${hint}`);
   }
 });
+
+test('render review fixes: connector labels sit mid-connection clear of every box; callouts read left-aligned; wrapped boxes fit their text', async () => {
+  const { estimateTextBox } = await import('../scene-layout.js');
+  const compiled = compileVisual(spec([
+    { id: 'row', component: 'stack', version: 1, hints: { direction: 'row', gap: 96 } },
+    { id: 'left', component: 'section', version: 1, parent: 'row', params: { title: 'Client' } }, mod('ask', 'Send request', { parent: 'left' }),
+    { id: 'right', component: 'section', version: 1, parent: 'row', params: { title: 'Server' } }, mod('reply', 'Build answer', { parent: 'right' }),
+  ], { connections: [{ from: 'ask.right', to: 'reply.left', label: 'HTTP' }] }));
+  const label = compiled.scene.objects.find(object => object.id === 'link0-label').initialState;
+  const box = estimateTextBox({ text: label.text, x: label.x, y: label.y, fontSize: 13, anchor: 'start', baseline: 'auto' });
+  for (const other of compiled.scene.objects.filter(object => object.type === 'box' && !object.id.endsWith('.frame'))) {
+    const s = other.initialState;
+    assert.ok(box.xMax <= s.x || box.xMin >= s.x + s.w || box.yMax <= s.y || box.yMin >= s.y + s.h, `label overlaps ${other.id}`);
+  }
+  const callout = compileVisual(spec([{ id: 'c', component: 'callout', version: 1, params: { text: 'Short note.' } }]));
+  assert.equal(callout.scene.objects[0].initialState.label, undefined);
+  assert.equal(callout.scene.objects[1].initialState.text, 'Short note.');
+  const wrapped = compileVisual(spec([mod('m', 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen', { hints: { maxWidth: 640 } })]));
+  assert.ok(wrapped.scene.objects[0].initialState.w <= 640);
+});
