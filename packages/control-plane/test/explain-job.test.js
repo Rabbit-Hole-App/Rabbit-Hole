@@ -179,7 +179,7 @@ test('three correction rounds shared by all gates, then a stop; calls never exce
 async function proposeBrief(s, job, { app = BOARD.app, briefHash = job.briefHash, messageId = 1 } = {}) {
   const p = await signProposal(s.env, { command: 'explain', title: 'Pendulum', description: 'One. Two. Three.', settings: {}, source_refs: [], input: { org: OWNER.org, app, job: job.id, brief_hash: briefHash } }, OWNER.email);
   s.sqlite.prepare("INSERT OR IGNORE INTO threads VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, app);
-  s.sqlite.prepare("INSERT INTO chat_message_meta VALUES (?, 'th1', 'assistant', ?)").run(messageId, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
+  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, 'th1', 'assistant', ?)").run(messageId, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
   return p;
 }
 const stateOf = async (s, p) => (await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, p.proposal_id)).state;
@@ -218,7 +218,7 @@ test('a stale tab\'s first Generate, and a revision racing Generate: only the cu
   const v1 = await proposeBrief(s, waiting);
   // A refinement (new answer row) publishes v2 against the state its turn read; the stale tab still holds v1.
   const v2 = await signProposal(s.env, { ...v1, settings: { presentation: 'steps' } }, OWNER.email, { id: v1.proposal_id, version: 2 });
-  s.sqlite.prepare("INSERT INTO chat_message_meta VALUES (9, 'th1', 'assistant', ?)").run(JSON.stringify({ proposal: v2 }));
+  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (9, 'th1', 'assistant', ?)").run(JSON.stringify({ proposal: v2 }));
   const read = await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, v1.proposal_id);
   assert.equal(await publishRevision(s.env.LEARN_DB, read, v2), true);
   const stale = await s.send('approve', { proposal: v1 }, job.id);

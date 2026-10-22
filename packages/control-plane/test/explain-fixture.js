@@ -18,7 +18,7 @@ export function d1(t) {
   sqlite.exec('CREATE TABLE learn_boards (id TEXT PRIMARY KEY, app TEXT, board TEXT, org TEXT, owner_email TEXT)');
   sqlite.prepare('INSERT INTO learn_boards VALUES (?, ?, ?, ?, ?)').run(BOARD.id, BOARD.app, BOARD.board, OWNER.org, OWNER.email);
   // The chat tables the proposal state lives on (repository-schema.sql threads and chat_message_meta, the columns it reads).
-  sqlite.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL); CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, meta_json TEXT NOT NULL)");
+  sqlite.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL); CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, alternative_of INTEGER, meta_json TEXT NOT NULL)");
   const LEARN_DB = {
     prepare(text) {
       let args = [];
@@ -53,7 +53,9 @@ export function durable(data = new Map()) {
 export function explainStack(t, { pipeline, used = 0 } = {}) {
   const { sqlite, LEARN_DB } = d1(t);
   if (used) spent(sqlite, used);
-  const env = { SMALL_ENV: 'dev', ANTHROPIC_API_KEY: 'test-key', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_DB, EXPLAIN_V2_ENABLED: 'true' };
+  const env = { SMALL_ENV: 'dev', ANTHROPIC_API_KEY: 'test-key', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_DB, EXPLAIN_V2_ENABLED: 'true',
+    // Configured brief thresholds: a simple request within them goes straight to authoring (explain-brief.js).
+    EXPLAIN_BRIEF_THRESHOLDS: JSON.stringify({ components: 12, credits: 400 }) };
   const state = durable();
   const object = () => new ExplainJobs(state, env, pipeline);
   const actor = object();

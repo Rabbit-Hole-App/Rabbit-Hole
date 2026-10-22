@@ -42,7 +42,7 @@ function stack(t) {
   const actor = name => { if (!actors.has(name)) { if (!stored.has(name)) stored.set(name, new Map()); actors.set(name, new ExplainJobs(durable(stored.get(name)), env, pipeline)); } return actors.get(name); };
   const live = liveDb();
   const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: { calls: live.calls, prepare: live.prepare, batch: live.batch }, RUNS: liveRuns(), ASSETS: FAKE_ASSETS,
-    ANTHROPIC_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', EXPLAIN_V2_ENABLED: 'true',
+    ANTHROPIC_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', EXPLAIN_V2_ENABLED: 'true', EXPLAIN_BRIEF_THRESHOLDS: JSON.stringify({ components: 12, credits: 400 }),
     // A stub's fetch(url, init) arrives at the object as one Request, as on Cloudflare.
     EXPLAIN_JOBS: { idFromName: name => name, get: name => ({ fetch: (url, init) => actor(name).fetch(new Request(url, init)) }) },
     CONTROL_PLANE: { fetch: async req => Response.json({ org: req.headers.get('x-small-workspace') || 'team', email: OWNER, orgName: 'Team', user_id: 'u-owner' }) } };

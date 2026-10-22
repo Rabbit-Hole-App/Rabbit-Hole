@@ -21,7 +21,8 @@ import { refusalBody } from './learn-spend-ledger.js';
 import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
-import { consumeProposal, verifyProposal } from './generation-proposal.js';
+import { consumeProposal, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
+import { needsPreparation, prepareStage } from './explain-brief.js';
 import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
 import { compiledHash, renderStates, reserveCaptures } from './explain-render.js';
 import { reviewCaptures } from './explain-review.js';
@@ -44,8 +45,7 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 
 // The capability's stages: author and validate (T17, explain-author.js), render and review (T18, Lane D's explain-render.js
 // renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
-// Preparation (T16) is not wired yet: a prepared request stops there and says so.
-const notReady = async () => { throw fail('Explanation generation is not available yet.', 503, 'explain_not_ready'); };
+// Preparation: the sourced brief (T16, explain-brief.js).
 
 // Render: the compiled scene's finished state per part, light and dark where the round's captures allow, as one manifest
 // reserved before rendering. PNGs go to LEARN_MEDIA under the job (renderStates); the job keeps keys and hashes, not bytes.
@@ -76,7 +76,7 @@ export async function reviewStage(job, ctx) {
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: serious.length > 0 && serious.every(f => f.specRepairable && ['spec', 'source'].includes(f.category)), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
-export const explainPipeline = Object.freeze({ prepare: notReady, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage });
+export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage });
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
@@ -108,6 +108,7 @@ function validateCreate(p) {
   if (!REQUEST_CLASSES.includes(p.requestClass)) throw fail('Unknown request class.');
   if (p.context != null && JSON.stringify(p.context).length > 60000) throw fail('The attached context is too large.', 413);
   if (p.baseRevision != null && !KEY.test(p.baseRevision)) throw fail('Invalid base revision.');
+  if (p.threadId != null && (typeof p.threadId !== 'string' || !p.threadId || p.threadId.length > 64)) throw fail('Invalid chat thread.');
   try { selectExamples(p.examples ?? []); } catch (error) { throw fail(error.message); }
 }
 
@@ -129,7 +130,7 @@ export async function explainRoute(path, req, env, deps = {}) {
   if (!board) return json({ error: 'Not available' }, 404);
   const rest = path.slice(PREFIX.length).split('/').filter(Boolean).map(decodeURIComponent);
   const action = req.method === 'GET' ? (rest[0] ? 'get' : 'list') : (rest[0] ? rest[1] : 'create');
-  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve'].includes(action) || rest.length > 2) return json({ error: 'Not found' }, 404);
+  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve', 'refine'].includes(action) || rest.length > 2) return json({ error: 'Not found' }, 404);
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin }) });
@@ -169,6 +170,7 @@ export class ExplainJobs {
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
     if (action === 'approve') return this.approve(job, payload);
+    if (action === 'refine') return this.refine(job, payload);
     throw fail('Not found', 404);
   }
 
@@ -188,7 +190,8 @@ export class ExplainJobs {
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
       prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (T16 owns the rule); until then a researched request prepares one.
-      prepare: payload.requestClass === 'researched',
+      // A brief is prepared unless the request is simple and within the configured thresholds (explain-brief.js).
+      prepare: needsPreparation(this.env, payload.requestClass), threadId: payload.threadId ?? null, settings: null, decision: null, refinement: null, pendingProposal: null,
       stage: 'queued', attempt: 1, round: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
       counts: { brief: 0, author: 0, review: 0, repair: 0 }, reservedMicros: 0, calls: [], renders: 0,
       prepKey: `xp${hex()}`, actionKey: `xg${hex()}`, resultId: `er_${hex()}`, revision: `xr_${hex()}`,
@@ -198,6 +201,8 @@ export class ExplainJobs {
     };
     // Generation is admitted up front on the direct path; a prepared request is admitted at approve. Refused: nothing is
     // stored, no fence, no call, so the learner's request and draft stay theirs to retry.
+    // The chat thread a reviewed brief is posted on: the owner's own, on this canvas.
+    if (job.threadId && !await this.env.LEARN_DB.prepare('SELECT id FROM threads WHERE id = ? AND org = ? AND user = ? AND scope_ref = ?').bind(job.threadId, user.org, user.email, board.app).first()) throw fail('Not available', 404);
     if (!job.prepare) await this.admitGeneration(job);
     await this.prune(jobs);
     await this.wake();
@@ -256,6 +261,35 @@ export class ExplainJobs {
     return json({ job: publicExplainJob(job) }, 202);
   }
 
+  // The reviewed brief as the common signed proposal, on the learner's chat thread (an answer row, as chat-modes.js recordAnswer
+  // writes one). A first version starts its one state; a refinement is the next version of the same proposal, published by
+  // MOT-22's compare-and-swap on that state. A Generate or another revision that landed first wins; this one is kept off.
+  async postBrief(job) {
+    const db = this.env.LEARN_DB, previous = job.pendingProposal;
+    const record = previous ? await proposalRecord(db, job.owner.email, job.app, previous.id) : null;
+    if (record?.state?.used) return;
+    const p = await signProposal(this.env, { command: 'explain', title: job.brief.title, description: job.brief.summary, settings: { presentation: job.brief.presentation }, source_refs: [],
+      input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: job.briefHash, request: job.prompt.slice(0, 500) } }, job.owner.email, previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {});
+    const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', 'Here is the plan for your explanation. Generate makes it.').first();
+    const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(previous ? {} : { proposalState: proposalState(p) }) };
+    await db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) VALUES (?, ?, 'assistant', NULL, ?)").bind(row.id, job.threadId, JSON.stringify(meta)).run();
+    if (previous && !(record?.root && await publishRevision(db, record, p))) return;
+    job.pendingProposal = { id: p.proposal_id, version: p.version, messageId: String(row.id) };
+  }
+  // A refinement through the composer: the brief is prepared again with the learner's words (an admitted brief call); the
+  // previous approval no longer counts. Only while awaiting approval, within the refinement limit.
+  async refine(job, payload) {
+    if (job.stage !== 'awaiting_approval') throw fail('This brief can no longer be changed.', 409, 'brief_stale');
+    const message = typeof payload.message === 'string' ? payload.message.trim() : '';
+    if (!message || message.length > MESSAGE_LIMIT) throw fail('Say what to change.');
+    if (job.counts.brief >= EXPLAIN_LIMITS.calls.brief * (1 + EXPLAIN_LIMITS.refinements)) throw fail('This brief reached its change limit. Start a new request.', 429);
+    endStage(job.timing, 'refined');
+    Object.assign(job, { refinement: message, approval: null, stage: 'preparing' });
+    beginStage(job.timing, 'preparing');
+    await this.save(job); await this.wake();
+    return json({ job: publicExplainJob(job) }, 202);
+  }
+
   // Generate on a prepared brief: the signed /explain proposal for this job and its current brief, consumed through the one
   // atomic proposal state (generation-proposal.js consumeProposal, MOT-22) with the job id as the press key, so a repeated
   // Generate of the same job is idempotent and any other use is refused. The allowance is checked first: a refused Generate
@@ -271,6 +305,7 @@ export class ExplainJobs {
     const used = await consumeProposal(this.env.LEARN_DB, p, job.owner.email, { org: job.owner.org, app: job.app }, job.id);
     if (used) throw fail(used.error, 409, used.code);
     job.proposal = { id: p.proposal_id, version: p.version };
+    job.settings = p.settings; // the card's settings at Generate (presentation), applied to authoring
     markTiming(job.timing, 'generate');
     Object.assign(job, { approval: { briefHash: job.briefHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     beginStage(job.timing, 'authoring');
@@ -395,9 +430,17 @@ export class ExplainJobs {
     // with what is missing: no repair, no simpler substitute card.
     if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (stage === 'preparing') {
-      job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null;
-      endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
+      job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null; job.refinement = null;
+      job.decision = out.decision ?? { capability: 'explain', requiresBrief: true, briefReasons: ['threshold_missing'] };
       await this.finishUsage({ ...job, actionKey: null }, 'completed');
+      if (!job.decision.requiresBrief) {
+        // No trigger fired: straight on to generation, after its own allowance check (a refusal stops the job, nothing spent).
+        await this.admitGeneration(job);
+        markTiming(job.timing, 'generate'); next('authoring');
+      } else {
+        endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
+        if (job.threadId) await this.postBrief(job);
+      }
     } else if (stage === 'authoring') { job.spec = out.spec; next('validating'); }
     else if (stage === 'validating') {
       if (out.problems?.length) { job.findings.push({ round: job.round, stage, problems: out.problems }); return this.repairOrStop(job, out); }
@@ -463,11 +506,11 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
-      const refused = error.code === 'spend_limited' || error.status === 429;
+      const refused = ['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429;
       const policy = error instanceof ExplainPolicyError;
       endStage(current.timing, 'failed');
       Object.assign(current, { stage: 'failed', stopReason: error.stopReason || (refused ? 'budget' : 'error'),
-        failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'renderer', message: error.status || policy ? error.message : 'The explanation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' } });
+        failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'internal', message: error.status || policy ? error.message : 'The explanation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' } });
       // Private, structured: what failed, never the learner's words or the provider's raw text in a log.
       current.findings.push({ round: current.round, stage: current.failure.stage, error: error.code || error.name || 'error' });
       await this.save(current); await this.finishUsage(current, 'failed');

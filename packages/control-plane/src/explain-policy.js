@@ -130,6 +130,11 @@ export function explainToolInput(role, result, tool) {
 
 // A model the provider says it does not have is explicit, never retried on another model.
 async function roleFailure(role, response) {
+  // Spend admission refused the call (the learner's allowance or the platform cap): nothing was sent; say why, as budget.
+  if ([429, 503].includes(response.status)) {
+    const body = await response.clone().json().catch(() => null);
+    if (['allowance_limited', 'spend_limited'].includes(body?.code)) return new ExplainPolicyError('spend_refused', body.error || 'AI is not available right now.', { status: response.status, reason: body.reason ?? null });
+  }
   if (response.status === 404) {
     const body = await response.clone().json().catch(() => null);
     if (body?.error?.type === 'not_found_error') return new ExplainPolicyError('model_unavailable', `${explainModel(role)} is not available for /explain right now. Nothing else was used.`);

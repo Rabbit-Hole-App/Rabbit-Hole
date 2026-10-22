@@ -97,7 +97,9 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
 }
 // The job's author stage (explain-job.js pipeline).
 export async function authorStage(job, ctx) {
-  const { spec, gap } = await authorCall({ prompt: job.prompt, brief: job.brief, context: job.context, evidence: job.evidence, examples: job.examples }, ctx);
+  // The card's presentation setting at Generate overrides the brief's.
+  const brief = job.brief && job.settings?.presentation ? { ...job.brief, presentation: job.settings.presentation } : job.brief;
+  const { spec, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples }, ctx);
   return gap ? { gap } : { spec };
 }
 
