@@ -2,7 +2,7 @@
 // board's server copy, awaited. Fake storage and a fake onSave: no browser, no network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boardHasContent, boardPending, boardText, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
+import { boardFromText, boardHasContent, boardPending, boardText, conflictBaseKey, conflictDoc, lightBlocks, pendingWork, persistBoard, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 
 const big = `data:image/png;base64,${'A'.repeat(120001)}`, small = 'data:image/png;base64,AAAA';
 const state = { strokes: [{ id: 's' }], shapes: [], items: [], links: [], blocks: [{ id: 'a', src: big }, { id: 'b', src: small }, { id: 'c' }], groups: [], areas: [] };
@@ -160,4 +160,68 @@ test('on the server copy: additions appended, an edit applied where the server s
   assert.deepEqual(withPendingWork(server, undefined), { state: server, count: 0, conflicts: 0 }, 'no canvas on screen: the server copy as it is');
   const ink = { tool: 'pen', points: [] };
   assert.deepEqual(withPendingWork({ strokes: [ink] }, { strokes: { added: [ink], changed: [], removed: [] } }).count, 0, 'ink the server already holds is not doubled');
+});
+
+// 409 recovery (owner 2026-10-22: a conflicting save never loses either device's edits; LearnPage refused + Load). The board
+// text the server held before the 409 is the base; this browser's edits since it go onto the server's newer copy.
+const stroke = (id, x) => ({ id, points: [[x, 0], [x + 1, 1]], color: '#000', width: 2 });
+const card = (id, body) => ({ id, type: 'explanation', dx: 0, dy: 0, title: id, body });
+const baseBoard = { strokes: [stroke('s0', 0)], blocks: [card('e1', 'one'), card('e2', 'two')], doc: { blocks: [{ id: 'p', text: 'start' }] } };
+const recover = ({ server, baseText, live }) => withPendingWork(server, pendingWork(boardFromText(baseText), live), id => `${id}-mine`);
+const memoryStorage = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: k => m.delete(k) }; };
+
+test('two devices editing the same canvas at once: both edits survive the 409', () => {
+  const baseText = boardText(baseBoard);
+  const server = { ...baseBoard, strokes: [...baseBoard.strokes, stroke('sA', 10)], blocks: [card('e1', 'one, edited on A'), card('e2', 'two')] };
+  const live = { ...baseBoard, strokes: [...baseBoard.strokes, stroke('sB', 20)], blocks: [card('e1', 'one'), card('e2', 'two, edited on B')] };
+  const merged = recover({ server, baseText, live });
+  assert.deepEqual(merged.state.strokes.map(s => s.id), ['s0', 'sA', 'sB']);
+  assert.deepEqual(merged.state.blocks.map(b => b.body), ['one, edited on A', 'two, edited on B']);
+  assert.equal(merged.conflicts, 0);
+  // Pen ink without ids is kept by content too.
+  const inkOnly = recover({ server: { strokes: [{ points: [[1, 1]] }] }, baseText: boardText({}), live: { strokes: [{ points: [[2, 2]] }] } });
+  assert.equal(inkOnly.state.strokes.length, 2);
+});
+
+test('conflict recovery after a 409: a card both devices changed keeps both versions; a removal never drops a newer edit', () => {
+  const baseText = boardText(baseBoard);
+  const server = { ...baseBoard, blocks: [card('e1', 'A wrote this'), card('e2', 'two, edited on A')] };
+  const live = { ...baseBoard, blocks: [card('e1', 'B wrote this')] }; // B changed e1 and removed e2
+  const merged = recover({ server, baseText, live });
+  assert.deepEqual(merged.state.blocks.map(b => [b.id, b.body]), [['e1', 'A wrote this'], ['e2', 'two, edited on A'], ['e1-mine', 'B wrote this']]);
+  assert.equal(merged.conflicts, 1, 'the caller says both versions are on the canvas');
+  // An unchanged card B removed is removed.
+  assert.deepEqual(recover({ server: baseBoard, baseText, live: { ...baseBoard, blocks: [card('e1', 'one')] } }).state.blocks.map(b => b.id), ['e1']);
+  // The document: B's goes up only when A left it as it was; when both changed it, the server's stays (B's is offered back).
+  const mineDoc = { blocks: [{ id: 'p', text: 'B' }] };
+  assert.deepEqual(conflictDoc({ base: boardFromText(baseText), server: baseBoard, mine: mineDoc }), mineDoc);
+  assert.equal(conflictDoc({ base: boardFromText(baseText), server: { doc: { blocks: [] } }, mine: mineDoc }), null);
+  assert.equal(conflictDoc({ base: boardFromText(baseText), server: baseBoard, mine: baseBoard.doc }), null);
+  assert.equal(conflictDoc({ base: boardFromText(boardText({})), server: {}, mine: null }), null);
+});
+
+test('reload during a pending conflict: the base outlives the page, and the edits in this browser\'s copy still go up', () => {
+  const storage = memoryStorage(), key = 'learn:board:canvas-1';
+  const live = { ...baseBoard, strokes: [...baseBoard.strokes, stroke('sB', 20)] };
+  // The 409: the base is kept beside this browser's copy; then the page reloads before the server's copy came back.
+  storage.setItem(conflictBaseKey(key), boardText(baseBoard));
+  storage.setItem(key, JSON.stringify(live));
+  const server = { ...baseBoard, strokes: [...baseBoard.strokes, stroke('sA', 10)] };
+  const reloaded = JSON.parse(storage.getItem(key));
+  const merged = recover({ server, baseText: storage.getItem(conflictBaseKey(key)), live: reloaded });
+  assert.deepEqual(merged.state.strokes.map(s => s.id), ['s0', 'sA', 'sB']);
+  assert.deepEqual(boardFromText(boardText(baseBoard)), { strokes: baseBoard.strokes, shapes: [], items: [], links: [], blocks: baseBoard.blocks, groups: [], areas: [], exchanges: [], sources: [], doc: baseBoard.doc });
+  assert.equal('doc' in boardFromText(boardText({})), false, 'no document reads as none');
+});
+
+test('switching canvases with an unsaved conflicted edit: each canvas keeps its own base until it is merged', () => {
+  const storage = memoryStorage(), one = 'learn:board:canvas-1', two = 'learn:board:canvas-2';
+  storage.setItem(conflictBaseKey(one), boardText(baseBoard));
+  storage.setItem(conflictBaseKey(two), boardText({}));
+  assert.notEqual(conflictBaseKey(one), conflictBaseKey(two));
+  // Back on canvas 1: its base, not canvas 2's, decides what its edits were.
+  const live = { ...baseBoard, blocks: [...baseBoard.blocks, card('e3', 'new on B')] };
+  const merged = recover({ server: { ...baseBoard, strokes: [] }, baseText: storage.getItem(conflictBaseKey(one)), live });
+  assert.deepEqual(merged.state.blocks.map(b => b.id), ['e1', 'e2', 'e3']);
+  assert.deepEqual(merged.state.strokes, [], 'a stroke removed on the other device stays removed');
 });

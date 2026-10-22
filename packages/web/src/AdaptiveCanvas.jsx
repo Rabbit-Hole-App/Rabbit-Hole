@@ -2403,12 +2403,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return persistBoard({ state: { ...boardRef.current, ...(live ? { doc: live } : {}) }, storageKey, storage: () => localStorage, onSave: onSaveRef.current });
       },
       toggleLock: () => setLock(previous => !previous),
-      retire: () => {
+      // `base`: the board the work is counted from - the server's copy before a 409 (conflictBaseKey), else the mounted one.
+      retire: (base = mountedBoard.current) => {
         retired.current = true;
-        const work = pendingWork(mountedBoard.current, boardRef.current);
+        const work = pendingWork(base, boardRef.current);
         // The document as typed, its words still in the editor's pause included: the page offers it back, never drops it.
         const live = docRef.current && { ...docRef.current, blocks: docLive.current || docRef.current.blocks || [] };
-        return live && JSON.stringify(live) !== JSON.stringify(mountedBoard.current.doc ?? null) ? { ...work, doc: live } : work;
+        return live && JSON.stringify(live) !== JSON.stringify(base.doc ?? null) ? { ...work, doc: live } : work;
       },
       // The card thumbnail (card-thumbnails.md): this canvas's content drawn at 800 x 400 in the light theme without its
       // chrome (card-thumbnail.js CHROME, data-thumbnail-hide here), or null when it is empty.

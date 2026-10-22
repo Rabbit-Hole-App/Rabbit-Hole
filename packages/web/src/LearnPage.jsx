@@ -111,7 +111,7 @@ import { editorClosed, editorOpened } from './chunk-reload.js';
 import { chatSaving } from './chat-persist.js';
 import { blockedStorage } from './storage-fallback.js';
 import { canvasThumbnail } from './card-thumbnail.js';
-import { boardPending, boardText, serial, sharingOf, withPendingWork } from './canvas-persist.js';
+import { boardFromText, boardPending, boardText, conflictBaseKey, conflictDoc, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
@@ -124,6 +124,7 @@ const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
 // sends nothing rather than an empty board. Storage blocked outright is held in memory for the page (storage-fallback.js), so
 // edits save to the account but nothing outlives the page here, which the canvas says on open.
 const UNREADABLE_COPY = "Not saved: this browser can't read its copy of this canvas, so nothing was sent to replace the saved one.";
+const CONFLICT_MERGED = 'This board changed on another device. Your edits here are added to its latest version.';
 const UNKEPT = "This browser is blocking storage, so nothing is kept in this browser: your edits save to your account only while you're online.";
 // A review board named main gets a slug of its own (owner decision 3, 2026-10-07): review boards stay apart from the learner's
 // real board, so ?board=main never shares its server row, journey or Tutor store.
@@ -1193,6 +1194,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // based on; the boardText the server holds at boardVersion; an edit not on the server yet (offline, or refused); a 409,
   // which stops pushing until reload; and the last refusal shown, so an over-cap board says so once, not on every edit.
   const boardLoaded = useRef(false), boardSynced = useRef(null), boardUnsynced = useRef(false), boardStopped = useRef(false), boardRefused = useRef(null);
+  // After a 409: the board text the server held before it (conflictBaseKey), and the recoveries since the last save (refused).
+  const conflictBase = useRef(null), recoveries = useRef(0);
   // The canvas's document (docs/features/blocknote-canvas.md). Canvas or Editor, this browser's choice for this person and
   // canvas (owner decision B1); the save status of the board that holds it (Saving / Saved / Couldn't save, the server's
   // answer, never assumed); its size against the server's 1.9 MB; a 409 (this canvas changed elsewhere) and a document a
@@ -1304,11 +1307,22 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       boardSynced.current = boardText(data.state);
       const mine = readBoardVersion(storage, versionKey);
       if (!unreadable && mine !== null && data.version <= mine) {
-        try { localStorage.removeItem(docKeepKey); } catch { /* nothing to keep: this browser's copy is the newest */ }
+        try { localStorage.removeItem(docKeepKey); localStorage.removeItem(conflictBaseKey(boardStorageKey)); } catch { /* nothing to keep: this browser's copy is the newest */ }
+        conflictBase.current = null;
         if (boardText(boardSnapshot()) !== boardSynced.current) pushBoard();
         return;
       }
-      const { exchanges: chats, sources: list, ...state } = data.state || {};
+      let { exchanges: chats, sources: list, ...state } = data.state || {};
+      // After a 409 (conflictBaseKey; owner 2026-10-22): the edits made here since the server's copy this browser last had,
+      // here or before a reload or a canvas switch, go onto the server's newer copy below instead of being replaced by it.
+      let base;
+      try { const text = conflictBase.current ?? localStorage.getItem(conflictBaseKey(boardStorageKey)); base = text ? boardFromText(text) : undefined; } catch { base = undefined; }
+      conflictBase.current = null;
+      if (base && Array.isArray(chats)) {
+        const known = new Set([...(base.exchanges || []), ...chats].map(entry => entry?.id));
+        const asked = (exchangesRef.current || []).filter(entry => entry?.id != null && !known.has(entry.id));
+        if (asked.length) { chats = [...chats, ...asked]; setTimeout(() => pushBoard(), 0); }
+      }
       try {
         // ponytail: what the server copy replaces is kept under :replaced when it held other content, so content that never
         // reached the server is recoverable by hand; only its document has a restore action (below), the rest has no UI.
@@ -1317,25 +1331,29 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         // over that copy or push it; it answers what was made on it since mount, the document as typed included
         // (board-empty-report). Its board work goes onto the server's copy below; its document is this browser's document
         // that the server's replaces, so docOnServerCopy keeps it aside and offers it back (Restore my unsaved document).
-        const mine = canvas()?.retire?.() || {};
+        const mine = canvas()?.retire?.(base) || {};
         const local = hasLocal && copy && boardText(boardSnapshot()) !== boardSynced.current ? boardSnapshot() : null;
         // After Reload and keep my document, the document kept at that press goes over the server's board; words typed while
         // that reload ran are newer still, so the canvas's live document is the one kept. Otherwise it is the document the
         // server's replaces, kept aside and offered back.
         const keptAtPress = JSON.parse(localStorage.getItem(docKeepKey) || 'null');
-        const replaced = mine.doc && !keptAtPress ? { ...(local || {}), doc: mine.doc } : local;
+        // After a 409, a document only this browser changed since the base goes up as the newer edit (conflictDoc).
+        const ownDoc = base ? conflictDoc({ base, server: state, mine: mine.doc }) : null;
+        const replaced = mine.doc && !keptAtPress && !ownDoc ? { ...(local || {}), doc: mine.doc } : local;
         // The document (blocknote-canvas.md): Reload and keep my document (after a 409) puts this browser's document over
         // the newer server copy as the newer edit, pushed below. Whatever document loses - the server's then, this
         // browser's on a plain open - is kept under :replaced and offered back (docOnServerCopy).
-        const kept = keptAtPress && mine.doc ? mine.doc : keptAtPress;
+        const kept = keptAtPress && mine.doc ? mine.doc : keptAtPress || ownDoc;
         const next = docOnServerCopy(state, { kept, replaced });
         if (next.replaced) localStorage.setItem(`${boardStorageKey}:replaced`, JSON.stringify(next.replaced));
         // What was made on the canvas while the board loaded is added to the server's copy and pushed, so neither the server's
         // content nor that work is lost.
         const work = withPendingWork(next.state, mine);
         localStorage.setItem(boardStorageKey, JSON.stringify(work.state)); localStorage.setItem(versionKey, String(data.version));
+        localStorage.removeItem(conflictBaseKey(boardStorageKey));
         if (work.count) setTimeout(() => pushBoard(), 0);
-        if (work.conflicts) toast(`${work.conflicts === 1 ? 'A card you changed while this board loaded was' : `${work.conflicts} cards you changed while this board loaded were`} also changed elsewhere. Both versions are on the canvas.`);
+        const where = base ? 'here' : 'while this board loaded';
+        if (work.conflicts) toast(`${work.conflicts === 1 ? `A card you changed ${where} was` : `${work.conflicts} cards you changed ${where} were`} also changed elsewhere. Both versions are on the canvas.`);
         localStorage.removeItem(docKeepKey);
         if (next.push) setTimeout(() => pushBoard(), 0);
         if (next.offer) setDocRestore(next.offer);
@@ -1345,7 +1363,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       setCanvasEpoch(epoch => epoch + 1);
       // A Rabbit Hole just started from a shared canvas opens on its one anchor card (docs/features/shared-canvas-rabbit-hole.md).
       const startedFromShare = data.version === 1 && data.state?.blocks?.[0]?.anchor?.source === 'shared';
-      toast(data.forked ? 'Your fork is ready. It is yours to edit.' : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
+      toast(base ? CONFLICT_MERGED : data.forked ? 'Your fork is ready. It is yours to edit.' : startedFromShare ? 'Your Rabbit Hole is ready. It is private to you.' : 'You are seeing the latest saved version of this board.');
     }).catch(error => { if (live) setSharing(error.status === 404 ? (error.data?.sharing || { shared: false }) : { unavailable: error.message }); })
       .finally(() => { if (live) setRestoredBoard(boardPath); });
     return () => { live = false; };
@@ -1415,6 +1433,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
       if (saved.board_id) setCommentBoard(saved.board_id);
       boardSynced.current = text;
+      recoveries.current = 0;
       thumbs.current?.saved(text);
       try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }
       if (first) requestWorkspaceExports();
@@ -1431,6 +1450,22 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // reconnect. 409: another tab or device saved since, so pushing stops until reload. Anything else (over 1.9 MB): the
   // server's own words, once, and the next edit tries again; Home and the Library keep calling it browser-only (step 8).
   const refused = error => {
+    // 409 (owner 2026-10-22: a conflicting save never loses either device's edits): the server's newer copy loads, this
+    // browser's edits since the copy it had go onto it (Load, conflictBaseKey) and that board is pushed. The document is one
+    // object, so a document changed here goes to the person as before (decision 3: [data-doc-conflict], Reload and keep my
+    // document), as does a fourth 409 without a save in between; the base is kept for that reload too.
+    if (error.status === 409) {
+      conflictBase.current = boardSynced.current ?? boardText({});
+      try { localStorage.setItem(conflictBaseKey(boardStorageKey), conflictBase.current); } catch { /* kept in memory for this page */ }
+    }
+    const docChanged = error.status === 409 && JSON.stringify(boardSnapshot().doc ?? null) !== JSON.stringify(boardFromText(conflictBase.current).doc ?? null);
+    if (error.status === 409 && !docChanged && recoveries.current < 3) {
+      recoveries.current += 1;
+      boardStopped.current = true;
+      setSaveState({ state: 'saving' });
+      setBoardLoad(load => load + 1);
+      return;
+    }
     boardUnsynced.current = true;
     setSaveState({ state: 'error', status: error.status || 0, unreadable: !!error.unreadable, message: error.status === 413 ? 'Not saved: this canvas is over the 1.9 MB limit. Remove large images or long content, then retry.' : error.status === 409 ? 'Not saved: this canvas changed elsewhere.' : error.status || error.unreadable ? error.message : 'Not saved yet: offline. It saves when you are back online.' });
     if (error.status === 409) setDocConflict(true);

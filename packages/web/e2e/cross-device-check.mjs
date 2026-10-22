@@ -185,7 +185,7 @@ await check('2 edit on B, then reopen A: B\'s edit is there', async () => {
   assert.equal((await local(A.page, keysOf(C1.name).ink)).strokes.length, 2);
 });
 
-await check('3 concurrent edits on A and B: the second gets the 409 message, overwrites nothing and stops pushing', async () => {
+await check('3 concurrent edits on A and B: the stale save is refused (409), then both edits are on the server and nothing is overwritten', async () => {
   await open(B.page, C1.name, '[data-block-id="e1"]');
   // Both on the same version only once the board stops changing: a save B (or A's notebook) makes after B loads bumps the
   // version, and A's stroke is then a stale save (409) that never reaches the server (fast-e2e 39726853274: PUT 200 then
@@ -200,19 +200,22 @@ await check('3 concurrent edits on A and B: the second gets the 409 message, ove
   let lastA = null;
   const afterA = await until('A\'s saves settled', async () => { const b = await boardOf(C1.name); await new Promise(r => setTimeout(r, 1500)); const settled = b.version === lastA; lastA = b.version; return settled && b; });
   assert.equal(afterA.state.strokes.length, 3, 'A\'s stroke stays on the server');
+  // Owner 2026-10-22: a conflicting save never loses either device's edits (LearnPage refused, Load conflictBaseKey). B's
+  // stale PUT is a 409; B loads A's copy, puts its own stroke on it and saves that, one version on from A's.
   const puts = [];
-  B.page.on('request', request => { if (request.method() === 'PUT' && new URL(request.url()).pathname === `/api/learn/boards/${C1.name}/main`) puts.push(Date.now()); }); // the board, not its files
+  B.page.on('response', response => { if (response.request().method() === 'PUT' && new URL(response.url()).pathname === `/api/learn/boards/${C1.name}/main`) puts.push(response.status()); }); // the board, not its files
   await draw(B.page, 3);
-  await B.page.locator('[data-toast-error]').filter({ hasText: 'This board changed in another tab or on another device. Reload to see those changes; your newer edits here are not saved.' }).waitFor({ timeout: 15000 });
+  await until("B's stroke on the server beside A's", async () => (await boardOf(C1.name)).state.strokes.length === 4);
+  await until('B says its edit was added', () => B.page.evaluate(() => window.__toasts.includes('This board changed on another device. Your edits here are added to its latest version.')));
   const now = await boardOf(C1.name);
-  assert.deepEqual([now.version, now.state.strokes.length], [afterA.version, 3], 'A\'s save stands; B\'s stale save is not written');
-  assert.equal(puts.length, 1, 'one refused PUT');
-  await shot(B.page, '03-B-conflict-409');
+  assert.deepEqual(puts.slice(0, 2), [409, 200], "B's stale PUT is refused, then the merged board is saved");
+  assert.equal(now.version, afterA.version + 1, "saved on top of A's version");
+  assert.ok(afterA.state.strokes.every(stroke => now.state.strokes.some(kept => JSON.stringify(kept) === JSON.stringify(stroke))), 'every stroke A saved is still there');
+  await shot(B.page, '03-B-conflict-merged');
   await draw(B.page, 4);
-  await B.page.waitForTimeout(3000);
-  assert.equal(puts.length, 1, 'no PUT after the 409 until reload');
-  await open(B.page, C1.name, '[data-block-id="e1"]');
-  assert.equal((await local(B.page, keysOf(C1.name).ink)).strokes.length, 3, 'reload loads the server copy');
+  await until('B saves on as usual after the merge', async () => (await boardOf(C1.name)).state.strokes.length === 5);
+  await open(A.page, C1.name, '[data-block-id="e1"]');
+  await until("A sees both devices' strokes", async () => (await local(A.page, keysOf(C1.name).ink))?.strokes?.length === 5);
 });
 
 // A notebook card's kernel downloads Pyodide packages while it starts; going offline mid-start leaves that kernel dead for
