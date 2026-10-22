@@ -208,9 +208,9 @@ for (const n of SIZES) {
 
     if (n === SIZES.at(-1)) {
       // Zoom out until every card is on screen: still bounded by what the viewport shows.
-      const bare2 = await barePoint(page); await page.mouse.move(bare2.x, bare2.y);
+      // From a bare point each step: a card that slides under the pointer zooms its own page, not the canvas (owner, 2026-10-22).
       await page.keyboard.down('Control');
-      for (let i = 0; i < 12 && (await tileState(page)).visible < n; i += 1) { await page.mouse.wheel(0, 300); await page.waitForTimeout(80); }
+      for (let i = 0; i < 12 && (await tileState(page)).visible < n; i += 1) { const bare2 = await barePoint(page); if (bare2) await page.mouse.move(bare2.x, bare2.y); await page.mouse.wheel(0, 300); await page.waitForTimeout(80); }
       await page.keyboard.up('Control'); await page.waitForTimeout(2000);
       const zoomed = await tileState(page);
       Object.assign(row, { zoomVisible: zoomed.visible, zoomMounted: zoomed.mounted, zoomBound: zoomed.bound });

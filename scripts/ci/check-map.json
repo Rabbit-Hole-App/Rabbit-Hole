@@ -284,6 +284,7 @@
     "packages/web/src/media-*.js": ["file-import-check.mjs","canvas-file-drop-check.mjs","file-edge-check.mjs","file-converter-ui-check.mjs"],
     "packages/web/src/svg-sanitize.js": ["file-import-check.mjs"],
     "packages/web/src/viewer-slots.js": ["model-viewer-check.mjs","model-fixture-cards-check.mjs"],
+    "packages/web/src/content-gestures.js": ["webpage-card-check.mjs","webpage-card-perf-check.mjs","model-viewer-check.mjs","cad-viewer-check.mjs","slash-3d-check.mjs"],
     "packages/web/src/cad-viewer-background.js": ["cad-viewer-check.mjs"],
     "packages/web/src/cad-viewer-store.js": ["cad-viewer-check.mjs"],
     "packages/web/src/cad-quick-edit.jsx": ["cad-controls-check.mjs"],

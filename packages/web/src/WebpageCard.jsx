@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Copy, ExternalLink, Highlighter, Lock, LockOpen, MessageSquarePlus, RotateCw, Trash2, X } from 'lucide-react';
+import { Copy, ExternalLink, Highlighter, Loader2, Lock, LockOpen, MessageSquarePlus, RotateCw, Trash2, X } from 'lucide-react';
 import { Button } from './ui.jsx';
 import { Boxes, ToolButton, placeNear } from './selection-toolbar.jsx';
 import { EXCERPT_LIMIT, textAnchor, toViewport } from './pdf-anchor.js';
@@ -8,7 +8,8 @@ import { canWrite, fileScope } from './file-source-client.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { selectionRef } from './selection-ref.js';
 import { capturePage, captureFile, readCapture, rescreen } from './webcard-api.js';
-import { applyResult, askText, captureViewport, cardState, clampScroll, highlightBody, highlightSource, highlightView, keyScroll, lineageOf, runStyle, runsByTile, startPending, wheelScroll } from './webcard.js';
+import { holdContentGestures, wheelPixels } from './content-gestures.js';
+import { applyResult, askText, captureViewport, cardState, clampScroll, highlightBody, highlightSource, highlightView, keyScroll, lineageOf, magnifyAt, runStyle, runsByTile, startPending, wheelScroll } from './webcard.js';
 
 // The webpage card (C:/s/spec/day-1021/webcard-brief.md, webcard-interface.md): a saved capture of a public page as image tiles,
 // a transparent text layer over them (the PDF reader's .textLayer), the PDF reader's selection popover with Highlight, Copy and
@@ -67,8 +68,10 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   const [manifest, setManifest] = useState(null), [runs, setRuns] = useState([]), [error, setError] = useState('');
   const [width, setWidth] = useState(0), [viewHeight, setViewHeight] = useState(0);
   const [top, setTop] = useState(block.scrollTop || 0);
+  // Content zoom (1 = the card's width) and the sideways offset it opens: this viewer's view only, never saved or fetched.
+  const [magnify, setMagnify] = useState(1), [left, setLeft] = useState(0);
   // A new version on show (Refresh) opens where applyResult put it (the top), not at the old version's offset.
-  useEffect(() => { setTop(latest.current.scrollTop || 0); }, [shown?.manifestId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setTop(latest.current.scrollTop || 0); setLeft(0); setMagnify(1); }, [shown?.manifestId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [visible, setVisible] = useState(() => new Set());
   const [answer, setAnswer] = useState(null), [reload, setReload] = useState(0);
   const [bar, setBar] = useState(null), [menu, setMenu] = useState(null), [message, setMessage] = useState(null);
@@ -125,9 +128,10 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   }, [source?.key, source?.manifest, reload]); // eslint-disable-line react-hooks/exhaustive-deps
   const { current: highlights, earlier } = highlightView(answer, shown?.sha256);
 
-  // ---- geometry: card pixels per capture pixel, the visible height in capture pixels, the page's own height.
+  // ---- geometry: card pixels per capture pixel (the card scale, times the content zoom for the drawn page), the visible size in
+  // capture pixels, the page's own size.
   const page = { width: shown?.width || manifest?.width || 1280, height: shown?.height || manifest?.height || 1 };
-  const scale = width / page.width || 1, windowHeight = viewHeight / scale;
+  const scale = width / page.width || 1, drawn = scale * magnify, windowHeight = viewHeight / drawn, windowWidth = width / drawn;
   useLayoutEffect(() => {
     const el = frame.current;
     if (!el) return undefined;
@@ -137,7 +141,7 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     observer.observe(el);
     return () => observer.disconnect();
   }, [!!shown]); // eslint-disable-line react-hooks/exhaustive-deps
-  const offset = clampScroll(top, page.height, windowHeight);
+  const offset = clampScroll(top, page.height, windowHeight), offsetX = clampScroll(left, page.width, windowWidth);
   // The scroll position is the card's, saved quietly once the wheel rests (client state; nothing is fetched).
   useEffect(() => {
     if (Math.round(offset) === Math.round(latest.current.scrollTop || 0)) return undefined;
@@ -145,20 +149,32 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
     return () => clearTimeout(timer);
   }, [offset]); // eslint-disable-line react-hooks/exhaustive-deps
   const live = useRef(null);
-  live.current = { locked, offset, scale, zoom, pageHeight: page.height, windowHeight };
+  live.current = { locked, offset, offsetX, scale, magnify, zoom, page, width, viewHeight };
   useEffect(() => {
     const el = frame.current;
     if (!el) return undefined;
-    // Unlocked: the wheel scrolls the page and stops here. Locked, or with Ctrl/Cmd: it reaches the canvas (pan or zoom).
-    const wheel = event => {
-      const now = live.current;
-      const next = wheelScroll({ locked: now.locked, ctrl: event.ctrlKey || event.metaKey, top: now.offset, deltaY: event.deltaY, zoom: now.zoom, scale: now.scale, pageHeight: now.pageHeight, viewHeight: now.windowHeight });
-      if (next == null) return;
-      event.preventDefault(); event.stopPropagation();
-      setTop(next);
+    // The content under the cursor owns the wheel and the pinch (owner, 2026-10-22; content-gestures.js). Unlocked, a wheel
+    // scrolls the page and Ctrl/Cmd+wheel or a pinch zooms it, at the cursor; neither moves the canvas or zooms the browser, and
+    // at a limit the gesture stops here. Locked, a plain wheel goes on to the canvas (it pans) and a zoom gesture is held:
+    // nothing zooms. The card's place and size never change; nothing is fetched.
+    const magnifyBy = (factor, clientX, clientY) => {
+      const now = live.current, box = el.getBoundingClientRect(), z = now.zoom || 1;
+      if (now.locked) return;
+      const next = magnifyAt({ magnify: now.magnify, factor, at: [(clientX - box.left) / z, (clientY - box.top) / z], top: now.offset, left: now.offsetX, scale: now.scale, page: now.page, view: [now.width, now.viewHeight] });
+      setMagnify(next.magnify); setTop(next.top); setLeft(next.left);
     };
-    el.addEventListener('wheel', wheel, { passive: false });
-    return () => el.removeEventListener('wheel', wheel);
+    return holdContentGestures(el, {
+      wheel: event => {
+        const now = live.current, zooming = event.ctrlKey || event.metaKey;
+        if (now.locked) return zooming ? undefined : false;
+        if (zooming) { magnifyBy(Math.exp(-wheelPixels(event) * 0.002), event.clientX, event.clientY); return undefined; }
+        const d = now.scale * now.magnify;
+        const next = wheelScroll({ top: now.offset, left: now.offsetX, deltaX: event.deltaX, deltaY: event.deltaY, zoom: now.zoom, scale: d, pageWidth: now.page.width, pageHeight: now.page.height, viewWidth: now.width / d, viewHeight: now.viewHeight / d });
+        setTop(next.top); setLeft(next.left);
+        return undefined;
+      },
+      scale: magnifyBy,
+    });
   }, [!!shown]); // eslint-disable-line react-hooks/exhaustive-deps
   const keys = event => {
     if (locked || event.target !== frame.current) return;
@@ -246,6 +262,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   try { host = new URL(block.url).hostname; } catch { /* the guard normalised it; show it as pasted */ }
   const title = block.title || host;
   const statusLine = notice && <div data-webcard-status={notice.status} role={notice.retry ? 'alert' : 'status'} className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 text-xs text-ink-2">
+    {/* Capturing and checking show a spinner (a still one under reduced motion); it goes with the state on success, failure or a stop. */}
+    {waiting && <Loader2 size={13} aria-hidden="true" data-webcard-spinner className="shrink-0 animate-spin text-ink-3 motion-reduce:animate-none" />}
     <span className="min-w-0 flex-1">{notice.refresh && notice.status !== 'capturing' && notice.status !== 'screening' ? 'Refresh: ' : ''}{notice.text}{notice.reason ? `. ${notice.reason}` : ''}</span>
     {owner && notice.retry && <Button size="sm" variant="secondary" onClick={retry}>Retry</Button>}
     {owner && notice.remove && onRemove && <Button size="sm" variant="secondary" onClick={() => onRemove(block.id)}><Trash2 size={13} />Remove</Button>}
@@ -282,7 +300,7 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
       onPointerDown={event => { if (event.button === 0 && selected && (!locked || event.target.closest('.textLayer span'))) event.stopPropagation(); }}>
       <div ref={frame} data-webcard-frame data-scroll={locked ? undefined : ''} tabIndex={0} role="group" aria-label={`${title}, captured page`} onKeyDown={keys}
         className="absolute inset-0 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-[#2383e2]/40">
-        <div ref={column} data-webcard-column className="relative w-full" style={{ height: page.height * scale, transform: `translateY(${-offset * scale}px)` }}>
+        <div ref={column} data-webcard-column className="relative" style={{ width: page.width * drawn, height: page.height * drawn, transform: `translateX(${-offsetX * drawn}px) translateY(${-offset * drawn}px)` }}>
           {tiles.map(tile => <Tile key={tile.key} tile={tile} page={page} onSeen={seen} />)}
           {highlights.length > 0 && <div className="pointer-events-none absolute inset-0 z-[2]">
             {highlights.map(h => <Boxes key={h.id} as="button" type="button" data-webcard-highlight data-highlight-id={h.id} parts={toViewport(h, viewport)}
@@ -290,10 +308,10 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
               onClick={event => setMenu(menu?.h.id === h.id ? null : { h, el: event.currentTarget })}
               className="pointer-events-none rounded-sm focus-visible:outline-2 focus-visible:outline-accent" boxClassName="pointer-events-auto cursor-pointer bg-yellow-300/40" />)}
           </div>}
-          <div ref={layer} aria-label="Page text" onPointerDown={event => { if (event.button === 0) pressText(); }} className="textLayer" style={{ '--total-scale-factor': scale, fontFamily: 'sans-serif' }}>
+          <div ref={layer} aria-label="Page text" onPointerDown={event => { if (event.button === 0) pressText(); }} className="textLayer" style={{ '--total-scale-factor': drawn, fontFamily: 'sans-serif' }}>
             {tiles.filter(tile => visible.has(tile.index)).flatMap(tile => (byTile[tiles.indexOf(tile)] || []).map((run, i) => {
               const style = runStyle(run, measure);
-              return [<span key={`${tile.index}:${i}`} style={{ left: style.left * scale, top: style.top * scale, '--font-height': `${style.fontHeight}px`, '--scale-x': style.scaleX }}>{run.text}</span>, '\n'];
+              return [<span key={`${tile.index}:${i}`} style={{ left: style.left * drawn, top: style.top * drawn, '--font-height': `${style.fontHeight}px`, '--scale-x': style.scaleX }}>{run.text}</span>, '\n'];
             }))}
             <div className="endOfContent" />
           </div>
@@ -307,6 +325,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
       {menu && <div ref={menuEl} data-webcard-highlight-menu role="menu" aria-label="Highlight" className="absolute z-30 flex w-44 flex-col rounded-lg border border-line bg-white p-1 shadow-pop" style={{ left: 0, top: 0 }}>
         <button type="button" role="menuitem" autoFocus onClick={() => removeHighlight(menu.h)} className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover"><Trash2 size={14} className="shrink-0 text-ink-2" />Remove highlight</button>
       </div>}
+    </div> : waiting ? <div aria-hidden="true" data-webcard-skeleton className="flex min-h-0 flex-1 flex-col gap-2.5 px-3 py-3">
+      {['w-2/3', 'w-full', 'w-5/6', 'w-full', 'w-1/2'].map((size, i) => <div key={i} className={`h-2.5 ${size} rounded bg-hover motion-safe:animate-pulse`} />)}
     </div> : !notice && <p role="status" className="px-3 py-3 text-sm text-ink-2">No capture yet</p>}
   </section>;
 }
