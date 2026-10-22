@@ -9,7 +9,14 @@ const STAGES = {
   validating: 'Checking it', rendering: 'Rendering it', reviewing: 'Reviewing the render', repairing: 'Fixing what the review found',
   ready: 'Ready', cancelled: 'Stopped',
 };
-export const explainStage = job => (job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status');
+export const explainStage = job => (explainUnavailable(job) ? EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status');
+// Provider-cap resilience (owner, 2026-10-22): the AI provider refused for a spend cap, a usage limit or overload. The server
+// pauses the job with its finished stages kept (Lane L1, provider_unavailable); the learner's request stays on the card and
+// Retry continues the same job, never a second one. Credits only, no ellipsis.
+export const explainUnavailable = job => job?.failure?.category === 'provider_unavailable' || job?.stopReason === 'provider_unavailable';
+export const EXPLAIN_UNAVAILABLE = 'Explanations are temporarily unavailable. Your request is kept. Try again in a few minutes.';
+// The Retry a job offers now: render again, a new attempt, or (paused by the provider) a new attempt; null for none.
+export const explainRetry = job => job?.recovery?.find(action => action === 'retry_render' || action === 'new_attempt') || (explainUnavailable(job) ? 'new_attempt' : null);
 // Polled while the server is working; a brief awaiting approval waits on the learner, not on a timer.
 export const explainRunning = job => !!job && !job.terminal && job.stage !== 'awaiting_approval';
 
@@ -26,10 +33,15 @@ export function explainClient(api, boardId) {
 export const explainDisabled = error => error?.status === 404 && (error.data?.code === 'explain_disabled' || !error.data?.code);
 
 // The card a submitted job holds until its result arrives: an Explanation card with no scene yet. Its id is the job's cardId.
-export const explainPendingBlock = ({ job, title, prompt }) => ({
+// threadId: the chat thread a reviewed brief is posted on, so that thread shows it when the job waits for Generate.
+export const explainPendingBlock = ({ job, title, prompt, threadId = null }) => ({
   id: job.cardId, type: 'animation', title: String(title || prompt || 'Explanation').slice(0, 200), scene: null,
-  explainJob: { id: job.id, boardId: job.boardId, stage: job.stage },
+  explainJob: { id: job.id, boardId: job.boardId, stage: job.stage, ...(threadId ? { threadId } : {}) },
 });
+// A job changed from outside its card (Generate approved its brief, a refinement started its next version): its card polls
+// again. A brief became ready for review: the chat showing its thread reloads it, so the brief and its Generate appear.
+export const EXPLAIN_JOB_EVENT = 'rh-explain-job';
+export const EXPLAIN_BRIEF_EVENT = 'rh-explain-brief';
 
 const LAYOUT = ['dx', 'dy', 'w', 'h', 'space', 'cardLayout', 'locked', 'prompt'];
 // The job's result as this card, or null when it is not this card's result on this canvas: a different card id, another
