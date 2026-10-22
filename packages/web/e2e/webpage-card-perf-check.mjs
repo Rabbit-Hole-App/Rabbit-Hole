@@ -15,7 +15,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { tileJpegs, makeCapture, heldResult, webpageBlock, TILE_H } from './webpage-card-fixtures.mjs';
 
-const total = 24; // ok() lines: 7 per board size (3 sizes), zoom at 20, heap, page errors; keep it equal
+const total = 33; // ok() lines: 10 per board size (3 sizes), zoom at 20, heap, page errors; keep it equal
 const BUDGET = { fps: 50, renderMs: 5000, heapGrowthMiB: 64, requestsPerTile: 2, margin: 400 };
 const SIZES = [1, 10, 20], TILES_PER_CARD = 8, CYCLE = ['red', 'green', 'blue', 'amber'];
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -141,15 +141,16 @@ for (const n of SIZES) {
     ok(`${n} cards: mounted tiles stay within the viewport bound, and only those were requested`, first.mounted <= first.bound && tileRequests.size <= first.bound, `${first.mounted} mounted, ${tileRequests.size} requested, bound ${first.bound} of ${n * TILES_PER_CARD}`);
     const m0 = await metrics(cdp); row.heapMiB = +(m0.JSHeapUsedSize / MiB).toFixed(1); row.nodes = m0.Nodes;
 
-    // A board with no thumbnail yet draws one about 4 s after it opens, inside the scroll and pan windows below. It is
-    // measured, not waited out: the scheduler must not draw while the learner pans (card-thumbnail.js `quiet`).
+    // FIRST LOAD: a board with no thumbnail yet has one due about 4 s after it opens, inside the scroll and pan windows
+    // below. They are measured from first open, not after it: the scheduler must not draw while the learner pans
+    // (card-thumbnail.js `quiet`; before that fix 32.2 and 24.3 fps at 10 and 20 cards, fast-e2e 39749160898).
     // Card scroll: wheel over the first card's body, down then up.
     const body = await page.locator('[aria-label="Lesson canvas"] [data-block-id="w0"] [data-webcard-frame]').boundingBox();
     await page.mouse.click(body.x + body.width / 2, body.y + 20);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
     const scroll = await fpsDuring(page, 1500, i => page.mouse.wheel(0, i < 40 ? 80 : -80));
     Object.assign(row, { scrollFps: scroll.fps, scrollP95: scroll.p95 });
-    ok(`${n} cards: scrolling a card runs at ${BUDGET.fps} fps or more`, scroll.fps >= BUDGET.fps, `${scroll.fps} fps, p95 ${scroll.p95} ms, worst ${scroll.worst} ms`);
+    ok(`${n} cards, first load: scrolling a card runs at ${BUDGET.fps} fps or more`, scroll.fps >= BUDGET.fps, `${scroll.fps} fps, p95 ${scroll.p95} ms, worst ${scroll.worst} ms`);
 
     // Canvas pan: wheel over bare canvas, back and forth.
     const bare = await barePoint(page);
@@ -159,9 +160,7 @@ for (const n of SIZES) {
     Object.assign(row, { panFps: pan.fps, panP95: pan.p95 });
     // Diagnosis: board thumbnail uploads relative to the pan window's start (ms; the window is 0 to 1500).
     const thumbAt = thumbs.map(t => t - panFrom).join(' ') || 'none';
-    // Diagnosis only: the same pan once more straight after (a one-time stall, such as a first raster, does not repeat).
-    const again = await fpsDuring(page, 1500, i => page.mouse.wheel((i % 20) < 10 ? 60 : -60, (i % 20) < 10 ? 30 : -30));
-    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}, ${pan.frames} frames, worst frame ends at ${pan.worstAt} ms, long frames ${JSON.stringify(pan.loaf)}; second pan (not judged) ${again.fps} fps, worst ${again.worst} ms at ${again.worstAt} ms`);
+    ok(`${n} cards, first load: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}, ${pan.frames} frames, worst frame ends at ${pan.worstAt} ms, long frames ${JSON.stringify(pan.loaf)}`);
 
     // Offscreen unload: pan every card off screen, wait past the release delay, then come back.
     // A card that slides under the pointer takes the wheel (an unlocked card scrolls its page), so pan from a bare point each time.
@@ -176,6 +175,25 @@ for (const n of SIZES) {
     row.maxReqPerTile = worstTile;
     ok(`${n} cards: tiles unload off screen and come back with at most ${BUDGET.requestsPerTile} requests per tile`, away.visible === 0 && away.mounted <= away.bound && back.decoded > 0 && worstTile <= BUDGET.requestsPerTile,
       `away ${away.visible} visible, ${away.mounted} mounted (bound ${away.bound}), back ${back.decoded} decoded, worst tile ${worstTile} requests`);
+
+    // STEADY STATE: the board's first thumbnail has been drawn in a pause (the scheduler still draws it), then a card's page
+    // and the canvas are scrolled and panned again, on a card that is on screen now.
+    const waitFrom = Date.now();
+    while (!thumbs.length && Date.now() - waitFrom < 20000) await page.waitForTimeout(100);
+    ok(`${n} cards: the first thumbnail is still drawn, in a pause`, thumbs.length > 0, thumbs.length ? `sent ${thumbs[0] - waitFrom} ms after the wait began` : 'none in 20 s');
+    const onScreen = await page.evaluate(() => { const f = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-webcard-frame]')].map(e => e.getBoundingClientRect())
+      .find(r => { const x = r.x + r.width / 2, y = r.y + r.height / 2; return x > 100 && x < innerWidth - 440 && y > 100 && y < innerHeight - 100 && document.elementFromPoint(x, y)?.closest('[data-webcard-frame]'); });
+      return f && { x: f.x, y: f.y, width: f.width, height: f.height }; });
+    let steadyScroll = { fps: 0, p95: 0, worst: 0 };
+    if (onScreen) {
+      await page.mouse.move(onScreen.x + onScreen.width / 2, onScreen.y + onScreen.height / 2);
+      steadyScroll = await fpsDuring(page, 1500, i => page.mouse.wheel(0, i < 40 ? 80 : -80));
+    }
+    ok(`${n} cards, steady state: scrolling a card runs at ${BUDGET.fps} fps or more`, !!onScreen && steadyScroll.fps >= BUDGET.fps, onScreen ? `${steadyScroll.fps} fps, p95 ${steadyScroll.p95} ms, worst ${steadyScroll.worst} ms` : 'no card page under a free point on screen');
+    const bare3 = await barePoint(page); if (bare3) await page.mouse.move(bare3.x, bare3.y);
+    const steadyPan = await fpsDuring(page, 1500, i => page.mouse.wheel((i % 20) < 10 ? 60 : -60, (i % 20) < 10 ? 30 : -30));
+    Object.assign(row, { steadyScrollFps: steadyScroll.fps, steadyPanFps: steadyPan.fps });
+    ok(`${n} cards, steady state: panning the canvas runs at ${BUDGET.fps} fps or more`, steadyPan.fps >= BUDGET.fps, `${steadyPan.fps} fps, p95 ${steadyPan.p95} ms, worst ${steadyPan.worst} ms, long frames ${JSON.stringify(steadyPan.loaf)}`);
 
     if (n === SIZES.at(-1)) {
       // Zoom out until every card is on screen: still bounded by what the viewport shows.
