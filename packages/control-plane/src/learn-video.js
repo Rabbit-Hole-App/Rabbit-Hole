@@ -6,7 +6,7 @@ import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, mot
 import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
-import { learnMedia } from './learn-storage.js';
+import { byteRange, learnMedia } from './learn-storage.js';
 import { admitSpend, operationId, settleSpend, spendEnforced, spendMessage } from './learn-spend-ledger.js';
 import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity, finishAction, finishActionOf } from './learn-usage.js';
 import { admitRender, releaseRender } from './learn-render-admission.js';
@@ -76,7 +76,7 @@ export async function privateLessonAssetFetch(req, env, binding) {
   const app = await authorizedBoardApp(req, env, url.searchParams.get('app'));
   if (app instanceof Response) return app;
   if (!app.email || !app.org) return json({ error: 'Sign in first' }, 401);
-  if (!['GET', 'POST'].includes(req.method)) return json({ error: 'GET or POST required' }, 405);
+  if (!['GET', 'HEAD', 'POST'].includes(req.method)) return json({ error: 'GET, HEAD or POST required' }, 405);
   if (req.method === 'POST' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);
   // Cache and placements are private to this learner in this app/workspace.
   const id = binding.idFromName(JSON.stringify([app.org, app.name, app.email]));
@@ -116,13 +116,31 @@ const forwardedRepository = req => {
 
 // A stored clip, with range support. Its type is the job's own (Avatar Teacher §13: WebM with alpha stays
 // video/webm); jobs that recorded none are MP4, as every FAL and Manim clip is.
+// The status comes from the Range we parsed, never from object.range: R2 sets range on every get, {offset 0, length size}
+// without one, so a plain GET was answered 206 (owner follow-up 3, 2026-10-21).
 export async function serveClip(env, job, req) {
-  const object = await learnMedia(env).get(job.storageKey, { range: req.headers });
-  if (!object) return json({ error: 'Video unavailable' }, 404);
+  const bucket = learnMedia(env), isHead = req.method === 'HEAD';
+  const asked = req.headers.get('range'), ifRange = req.headers.get('if-range'), noneMatch = req.headers.get('if-none-match');
   const headers = new Headers({ 'Content-Type': job.contentType || 'video/mp4', 'Cache-Control': 'private, max-age=3600', 'Accept-Ranges': 'bytes', 'X-Content-Type-Options': 'nosniff' });
-  headers.set('Content-Length', String(object.range?.length ?? object.size));
-  if (object.range) headers.set('Content-Range', `bytes ${object.range.offset}-${object.range.offset + object.range.length - 1}/${object.size}`);
-  return new Response(object.body, { status: object.range ? 206 : 200, headers });
+  let meta = null, range = null;
+  if (isHead || asked || noneMatch) {
+    meta = await bucket.head(job.storageKey);
+    if (!meta) return json({ error: 'Video unavailable' }, 404);
+    if (meta.httpEtag) headers.set('ETag', meta.httpEtag);
+    const weak = tag => tag.trim().replace(/^W\//, '');
+    if (noneMatch && meta.httpEtag && noneMatch.split(',').some(tag => tag.trim() === '*' || weak(tag) === weak(meta.httpEtag))) return new Response(null, { status: 304, headers });
+    // If-Range must match our ETag exactly (we send no Last-Modified, so a date never does): otherwise the whole clip.
+    if (asked && (!ifRange || ifRange === meta.httpEtag)) {
+      range = byteRange(asked, meta.size);
+      if (range === false) { headers.set('Content-Range', `bytes */${meta.size}`); return new Response(null, { status: 416, headers }); }
+    }
+  }
+  const object = isHead ? meta : await bucket.get(job.storageKey, range ? { range } : undefined);
+  if (!object) return json({ error: 'Video unavailable' }, 404);
+  if (object.httpEtag) headers.set('ETag', object.httpEtag);
+  headers.set('Content-Length', String(range ? range.length : object.size));
+  if (range) headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}`);
+  return new Response(isHead ? null : object.body, { status: range ? 206 : 200, headers });
 }
 
 // A finished clip from the provider's URL (the adapter has already checked its host). sniffed: the caller types
@@ -149,7 +167,7 @@ export async function downloadClip(url, { sniffed = false } = {}) {
 export class LearnVideos {
   constructor(state, env) { this.state = state; this.env = env; }
   async fetch(req) {
-    if (req.method === 'GET') {
+    if (req.method === 'GET' || req.method === 'HEAD') {
       const key = new URL(req.url).searchParams.get('asset');
       if (key) {
         if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid asset' }, 400);

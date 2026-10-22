@@ -5,11 +5,11 @@
 //   PUT  /api/learn/files/<source id>      the bytes; stored only when their count and sha256 match the declaration
 //   GET  /api/learn/files/<source id>      the original as an attachment, with Range; ?share=<token>, ?member=<board id> or ?app=&board=
 // Any other /api/learn/files path is not this module's (null): the JOBS routes live beside it.
-import { boardOwner, byteRange, ownerRow } from './learn-boards.js';
+import { boardOwner, ownerRow } from './learn-boards.js';
 import { authorizeFileSource } from './file-access.js';
 import { memberContext } from './canvas-comments.js';
 import { repositoryIdentity } from './repositories.js';
-import { learnMedia } from './learn-storage.js';
+import { byteRange, learnMedia } from './learn-storage.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { BOARD_FILE_LIMIT, family as familyById, formatBytes } from '../../web/src/file-capabilities.js';
 import { HEAD_BYTES, sniffUpload } from './file-sniff.js';

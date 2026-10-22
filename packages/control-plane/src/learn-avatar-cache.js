@@ -124,7 +124,7 @@ export class LearnAvatarClips {
   constructor(state, env, deps = {}) { this.state = state; this.env = env; this.deps = deps; }
 
   async fetch(req) {
-    if (req.method === 'GET') {
+    if (req.method === 'GET' || req.method === 'HEAD') {
       const key = new URL(req.url).searchParams.get('asset');
       if (key == null) return json({ clips: [...(await this.state.storage.list({ prefix: 'ready:' })).values()] });
       if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid asset' }, 400);
@@ -247,7 +247,7 @@ export class LearnAvatarClips {
 // The scope-checked read route (§14 "Playback"): any signed-in learner reads the public course's ready list and
 // clips; there is no learner write path to the shared store. ?course= must be the V1 course.
 export async function avatarClipFetch(req, env, { authorize = authorizedBoardApp } = {}) {
-  if (req.method !== 'GET') return json({ error: 'GET required' }, 405);
+  if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'GET or HEAD required' }, 405);
   const url = new URL(req.url);
   if (url.searchParams.get('course') !== V1_COURSE) return json({ error: 'Unknown course' }, 404);
   if (url.searchParams.has('workspace')) {

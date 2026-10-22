@@ -8,7 +8,7 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { repositoryIdentity } from './repositories.js';
 import { sha256Hex } from './learn-grade-jev.js';
-import { learnMedia } from './learn-storage.js';
+import { byteRange, learnMedia } from './learn-storage.js';
 import { sniffImageType } from './learn-media.js';
 import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
@@ -65,16 +65,6 @@ async function putAsset(req, env, row, key) {
   return json({ key, size: got.length });
 }
 
-// One satisfiable `bytes=` range as R2's { offset, length }; null to serve the whole file (none, several, or malformed:
-// RFC 9110 lets a server ignore those); false when it cannot be satisfied (416).
-export function byteRange(header, size) {
-  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || '').trim());
-  if (!m || (!m[1] && !m[2])) return null;
-  if (!m[1]) { const suffix = Number(m[2]); return suffix > 0 && size > 0 ? { offset: Math.max(0, size - suffix), length: Math.min(suffix, size) } : false; }
-  const start = Number(m[1]), end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
-  return start < size && end >= start ? { offset: start, length: end - start + 1 } : false;
-}
-
 // `req`, when given, may ask for one byte range (a video seeking): 206 with Content-Range, for every reader of this file.
 export async function getAsset(env, row, key, req = null) {
   if (!learnMedia(env) || !ASSET_KEY.test(key)) return json({ error: 'No such file on this board' }, 404);
@@ -98,7 +88,8 @@ export async function getAsset(env, row, key, req = null) {
       'Content-Security-Policy': "sandbox; default-src 'none'",
       'Content-Disposition': 'attachment',
       'Accept-Ranges': 'bytes',
-      ...(range ? { 'Content-Range': `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}`, 'Content-Length': String(range.length) } : {}),
+      'Content-Length': String(range ? range.length : object.size),
+      ...(range ? { 'Content-Range': `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}` } : {}),
       // A notebook's workspace copy changes under the same key: always revalidate.
       'Cache-Control': 'private, no-cache',
     },

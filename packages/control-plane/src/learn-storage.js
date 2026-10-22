@@ -16,3 +16,13 @@ export const learnMedia = env => env?.LEARN_MEDIA || env?.RUNS;
 // keeps using DB, unchanged. ponytail: the Learn dev D1 has no learn_moments table
 // yet (owner decision 1, 2026-09-29), so dev moments go quiet until it is added.
 export const learnMomentsDb = env => env?.LEARN_DB || env?.DB;
+
+// One satisfiable `bytes=` range as R2's { offset, length }; null to serve the whole file (none, several, or malformed:
+// RFC 9110 lets a server ignore those); false when it cannot be satisfied (416).
+export function byteRange(header, size) {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header || '').trim());
+  if (!m || (!m[1] && !m[2])) return null;
+  if (!m[1]) { const suffix = Number(m[2]); return suffix > 0 && size > 0 ? { offset: Math.max(0, size - suffix), length: Math.min(suffix, size) } : false; }
+  const start = Number(m[1]), end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+  return start < size && end >= start ? { offset: start, length: end - start + 1 } : false;
+}
