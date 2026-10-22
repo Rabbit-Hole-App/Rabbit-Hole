@@ -7,7 +7,7 @@
 // a race with another tab, a chat refinement or a Generate, or one after it made its video is a 409 with the current proposal,
 // never applied, so the browser keeps the learner's choice beside the latest.
 import { repositoryIdentity } from './repositories.js';
-import { PROPOSAL_STALE, PROPOSAL_USED, proposalRecord, reviseSettings, saveRevision } from './generation-proposal.js';
+import { PROPOSAL_STALE, proposalRecord, proposalUsedText, reviseSettings, saveRevision } from './generation-proposal.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const PATH = /^\/api\/learn\/chat\/messages\/(\d{1,15})\/proposal$/;
@@ -31,7 +31,7 @@ export async function chatProposalFetch(req, env, deps = {}) {
   if (!Number.isSafeInteger(body?.expected_version)) return json({ error: 'expected_version (the revision this change was made from) is required' }, 400);
   const record = await proposalRecord(db, user.email, row.scope_ref, meta.proposal.proposal_id);
   const conflict = async (code, error) => { const now = await proposalRecord(db, user.email, row.scope_ref, meta.proposal.proposal_id); return json({ error, code, current: now.current, current_message_id: now.currentMessageId }, 409); };
-  if (record.state?.used) return conflict('proposal_used', PROPOSAL_USED);
+  if (record.state?.used) return conflict('proposal_used', proposalUsedText(meta.proposal.command));
   if (!record.state || record.state.sig !== meta.proposal.sig || record.state.version !== body.expected_version) return conflict('proposal_stale', PROPOSAL_STALE);
   const revised = await reviseSettings(env, meta.proposal, body.settings, user.email, { org: user.org, app: row.scope_ref });
   if (revised.error) return json({ error: revised.error }, 400);

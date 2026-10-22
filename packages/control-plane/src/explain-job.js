@@ -21,6 +21,7 @@ import { refusalBody } from './learn-spend-ledger.js';
 import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
+import { consumeProposal, verifyProposal } from './generation-proposal.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -217,10 +218,21 @@ export class ExplainJobs {
     return json({ job: publicExplainJob(job) }, 202);
   }
 
-  // Generate on a prepared brief: only the current brief (its hash) and only while awaiting approval.
+  // Generate on a prepared brief: the signed /explain proposal for this job and its current brief, consumed through the one
+  // atomic proposal state (generation-proposal.js consumeProposal, MOT-22) with the job id as the press key, so a repeated
+  // Generate of the same job is idempotent and any other use is refused. The allowance is checked first: a refused Generate
+  // consumes nothing and the proposal stays current.
   async approve(job, payload) {
-    if (job.stage !== 'awaiting_approval' || typeof payload.briefHash !== 'string' || payload.briefHash !== job.briefHash) throw fail('This brief changed. Review it again before generating.', 409, 'brief_stale');
+    const stale = () => fail('This brief changed. Review it again before generating.', 409, 'brief_stale');
+    if (job.proposal && job.proposal.id === payload.proposal?.proposal_id && job.proposal.version === payload.proposal?.version) return json({ job: publicExplainJob(job) });
+    if (job.stage !== 'awaiting_approval') throw stale();
+    const p = payload.proposal, refused = await verifyProposal(this.env, p, job.owner.email);
+    if (refused) throw fail(refused, 409, 'proposal_invalid');
+    if (p.command !== 'explain' || p.input?.job !== job.id || p.input?.brief_hash !== job.briefHash) throw stale();
     await this.admitGeneration(job);
+    const used = await consumeProposal(this.env.LEARN_DB, p, job.owner.email, { org: job.owner.org, app: job.app }, job.id);
+    if (used) throw fail(used.error, 409, used.code);
+    job.proposal = { id: p.proposal_id, version: p.version };
     markTiming(job.timing, 'generate');
     Object.assign(job, { approval: { briefHash: job.briefHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     beginStage(job.timing, 'authoring');

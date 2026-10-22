@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { ExplainJobs, explainRoute, explainPipeline } from '../src/explain-job.js';
 import { explainReservation } from '../src/explain-policy.js';
 import { periodOf } from '../src/learn-usage.js';
+import { signProposal, publishRevision, proposalRecord, proposalState } from '../src/generation-proposal.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
 const NOW = Math.floor(Date.now() / 1000), PERIOD = periodOf(NOW);
@@ -22,6 +23,8 @@ function d1(t) {
   for (const file of ['0016-usage-operations.sql', '0022-usage-accounting.sql']) sqlite.exec(sql(file));
   sqlite.exec('CREATE TABLE learn_boards (id TEXT PRIMARY KEY, app TEXT, board TEXT, org TEXT, owner_email TEXT)');
   sqlite.prepare('INSERT INTO learn_boards VALUES (?, ?, ?, ?, ?)').run(BOARD.id, BOARD.app, BOARD.board, OWNER.org, OWNER.email);
+  // The chat tables the proposal state lives on (repository-schema.sql threads and chat_message_meta, the columns it reads).
+  sqlite.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL); CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, meta_json TEXT NOT NULL)");
   const LEARN_DB = {
     prepare(text) {
       let args = [];
@@ -229,15 +232,34 @@ test('three correction rounds shared by all gates, then a stop; calls never exce
   assert.deepEqual([(await u.run(job.id)).stopReason, u.model.calls.length], ['unsupported_repair', 2]);
 });
 
-test('a prepared request: brief call, approval of the current brief only, then generation under its own action', async t => {
+// The brief's proposal as T16 saves it: signed for the learner with the job, brief and canvas bound into its input, on the
+// chat's answer row with its one state (MOT-22). Motion is unconfigured here: no MOTION_ORCHESTRATOR_TOKEN.
+async function proposeBrief(s, job, { app = BOARD.app, briefHash = job.briefHash, messageId = 1 } = {}) {
+  const p = await signProposal(s.env, { command: 'explain', title: 'Pendulum', description: 'One. Two. Three.', settings: {}, source_refs: [], input: { org: OWNER.org, app, job: job.id, brief_hash: briefHash } }, OWNER.email);
+  s.sqlite.prepare("INSERT OR IGNORE INTO threads VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, app);
+  s.sqlite.prepare("INSERT INTO chat_message_meta VALUES (?, 'th1', 'assistant', ?)").run(messageId, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
+  return p;
+}
+const stateOf = async (s, p) => (await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, p.proposal_id)).state;
+
+test('a prepared request: brief call, then Generate with the current signed proposal only, under its own action', async t => {
   const s = setup(t);
+  assert.equal(s.env.MOTION_ORCHESTRATOR_TOKEN, undefined);
   const { body } = await s.create({ requestClass: 'researched' });
   const waiting = await s.run(body.job.id);
   assert.equal(waiting.stage, 'awaiting_approval');
   assert.deepEqual(s.model.calls.map(c => c.role), ['brief']);
-  assert.equal((await s.send('approve', { briefHash: 'stale' }, body.job.id)).body.code, 'brief_stale');
-  const approved = await s.send('approve', { briefHash: waiting.briefHash }, body.job.id);
+  const p = await proposeBrief(s, waiting);
+  assert.match(p.sig, /^v2\.[0-9a-f]{64}$/);
+  // Tampered, for another brief, or for another canvas: refused, nothing consumed.
+  for (const bad of [{ ...p, title: 'Changed' }, await proposeBrief(s, waiting, { briefHash: 'f'.repeat(64), messageId: 2 }), await proposeBrief(s, waiting, { app: 'canvas-b', messageId: 3 })])
+    assert.equal((await s.send('approve', { proposal: bad }, body.job.id)).status, 409);
+  assert.equal((await stateOf(s, p)).used, null);
+  const approved = await s.send('approve', { proposal: p }, body.job.id);
   assert.equal(approved.status, 202);
+  assert.deepEqual((await stateOf(s, p)).used, { version: 1, key: body.job.id });
+  // The same Generate again (a double click, a resent request) is the same job, unchanged.
+  assert.equal((await s.send('approve', { proposal: p }, body.job.id)).status, 200);
   assert.equal((await s.run(body.job.id)).stage, 'ready');
   assert.deepEqual(s.model.calls.map(c => c.role), ['brief', 'author', 'review']);
   const attempts = rows(s.sqlite, 'usage_attempts').filter(a => a.provider === 'anthropic');
@@ -245,6 +267,41 @@ test('a prepared request: brief call, approval of the current brief only, then g
   assert.deepEqual(rows(s.sqlite, 'usage_actions').filter(a => a.feature === 'artifact').map(a => a.status), ['completed', 'completed']);
   const timing = s.state.data.get(`job:${body.job.id}`).timing;
   assert.ok(timing.marks.proposalReady && timing.marks.generate && timing.marks.result);
+});
+
+test('a stale tab\'s first Generate, and a revision racing Generate: only the current revision starts, once', async t => {
+  const s = setup(t);
+  const job = (await s.create({ requestClass: 'researched' })).body.job;
+  const waiting = await s.run(job.id);
+  const v1 = await proposeBrief(s, waiting);
+  // A refinement (new answer row) publishes v2 against the state its turn read; the stale tab still holds v1.
+  const v2 = await signProposal(s.env, { ...v1, settings: { presentation: 'steps' } }, OWNER.email, { id: v1.proposal_id, version: 2 });
+  s.sqlite.prepare("INSERT INTO chat_message_meta VALUES (9, 'th1', 'assistant', ?)").run(JSON.stringify({ proposal: v2 }));
+  const read = await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, v1.proposal_id);
+  assert.equal(await publishRevision(s.env.LEARN_DB, read, v2), true);
+  const stale = await s.send('approve', { proposal: v1 }, job.id);
+  assert.deepEqual([stale.status, stale.body.code], [409, 'proposal_stale']);
+  assert.equal((await stateOf(s, v1)).used, null, 'the stale Generate consumed nothing');
+  assert.equal(s.state.data.get(`job:${job.id}`).stage, 'awaiting_approval');
+  assert.equal((await s.send('approve', { proposal: v2 }, job.id)).status, 202);
+  // A refinement that read the state before that Generate landed loses: it is not published.
+  const v3 = await signProposal(s.env, { ...v2 }, OWNER.email, { id: v1.proposal_id, version: 3 });
+  assert.equal(await publishRevision(s.env.LEARN_DB, read, v3), false);
+  assert.deepEqual((await stateOf(s, v1)).used, { version: 2, key: job.id });
+  assert.equal(s.model.calls.filter(c => c.role === 'author').length, 0, 'no work before the alarm');
+});
+
+test('a Generate refused for allowance consumes nothing and keeps the proposal current', async t => {
+  const s = setup(t);
+  const job = (await s.create({ requestClass: 'researched' })).body.job; // preparation starts without the generation check
+  const waiting = await s.run(job.id);
+  const p = await proposeBrief(s, waiting);
+  spent(s.sqlite, 49e6); // about $1 left: less than generation's worst case
+  const refused = await s.send('approve', { proposal: p }, job.id);
+  assert.deepEqual([refused.status, refused.body.code, refused.body.reason], [429, 'allowance_limited', 'insufficient']);
+  assert.deepEqual(await stateOf(s, p), proposalState(p));
+  assert.equal(s.state.data.get(`job:${job.id}`).stage, 'awaiting_approval');
+  assert.deepEqual(s.model.calls.map(c => c.role), ['brief']);
 });
 
 test('the production pipeline is not wired yet: a job fails plainly with no model call', async t => {

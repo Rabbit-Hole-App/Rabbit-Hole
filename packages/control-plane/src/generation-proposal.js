@@ -13,16 +13,21 @@
 import { validateMotionContext } from './motion-context.js';
 import { MotionRequestProvider, motionReservationMicros } from './motion-provider.js';
 import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
+import { hmacHex } from './token.js';
+import { explainReservation } from './explain-policy.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
-const ID = /^gp-[0-9a-f]{16}$/, SIG = /^[0-9a-f]{64}$/;
+const ID = /^gp-[0-9a-f]{16}$/, SIG = /^(v2\.)?[0-9a-f]{64}$/;
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
 // CR-1: which commands are proposed is the capability declaration's flow (web/src/inline-ai-route.js CHAT_CAPABILITIES). A
 // proposed command also needs its settings validator below.
 export const reviewRequired = command => chatCapability(command)?.flow === 'proposal';
 export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewRequired));
+// What the server may sign: the chat tool's commands plus /explain, whose brief the server prepares itself (EXP-T12/T16).
+// The chat model is offered only WIRED; /explain joins it when its capability is declared (Lane B, CHAT_CAPABILITIES).
+export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain'])]);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // The bounds are the declaration's Duration field: one definition with the card.
@@ -38,7 +43,18 @@ const SETTINGS = {
     if (!Number.isInteger(seconds) || seconds < MOTION_DURATION.min || seconds > MOTION_DURATION.max) return { error: `settings.duration_seconds must be a whole number from ${MOTION_DURATION.min} to ${MOTION_DURATION.max}` };
     return { value: { duration_seconds: seconds, audio: false } };
   },
+  // /explain (EXP-T12 slice 3): an optional presentation (plan section 1.2); no Duration or Audio, which belong to Motion.
+  explain(value) {
+    if (value === undefined) return { value: {} };
+    if (!plain(value)) return { error: 'settings must be {presentation}' };
+    const extra = Object.keys(value).find(k => k !== 'presentation');
+    if (extra) return { error: `settings.${extra} is not an explanation setting` };
+    if (value.presentation === undefined) return { value: {} };
+    if (!['static', 'steps', 'time', 'experiment'].includes(value.presentation)) return { error: 'settings.presentation must be static, steps, time or experiment' };
+    return { value: { presentation: value.presentation } };
+  },
 };
+export const validateSettings = (command, value) => SETTINGS[command]?.(value) ?? { error: 'These settings cannot be changed here.' };
 
 // Offered only where a video can start: an orchestrator is configured and new generation is not paused (owner message 28:
 // MOTION_GENERATION_PAUSED "1"; nothing new starts or is reserved, and a /motion chat turn is answered before any model call).
@@ -102,18 +118,38 @@ export const motionRequestLine = message => `/motion ${String(message || '').rep
 const SIGNED = ['proposal_id', 'version', 'command', 'title', 'description', 'settings', 'source_refs', 'input', 'expires_at'];
 const canonical = p => JSON.stringify(SIGNED.map(k => p[k] ?? null));
 const hex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
-// HMAC-SHA256 with the worker's Motion secret (the orchestrator token, set wherever Motion can start), domain-separated from
-// the job grant ('motion-grant|'). The learner is part of what is signed, never of what the browser holds.
-async function signature(env, p, user) {
-  if (!env.MOTION_ORCHESTRATOR_TOKEN) throw new Error('Motion is not available in this environment yet.');
-  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(env.MOTION_ORCHESTRATOR_TOKEN), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`generation-proposal|${String(user).toLowerCase()}|${canonical(p)}`)));
+// v1: HMAC-SHA256 with the worker's Motion secret (the orchestrator token), domain-separated from the job grant
+// ('motion-grant|'). Verified for Motion only, so proposals already on cards keep working; signed only where no v2 key exists.
+// v2 (EXP-T12, open-questions Q4): capability-neutral, so /explain works with Motion unconfigured. Its key is derived from the
+// secret a model-calling worker must hold anyway, in learn-inline-route.js signingKey's order, under its own label: no new
+// secret. The learner is part of what is signed, never of what the browser holds.
+const v2Secret = env => env.INLINE_DECISION_KEY || env.TYPESAFE_API_KEY || env.VERCEL_TYPESAFE_API_KEY || env.ANTHROPIC_API_KEY;
+const hmac = async (secret, text) => {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return hex(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text)));
+};
+const unavailable = command => new Error(command === 'motion' ? 'Motion is not available in this environment yet.' : 'Generation proposals are not available in this environment yet.');
+async function signature(env, p, user, version) {
+  if (version === 'v2') {
+    const secret = v2Secret(env);
+    if (!secret) throw unavailable(p.command);
+    return `v2.${await hmac(await hmacHex(secret, 'generation-proposal-v2'), `generation-proposal|v2|${String(user).toLowerCase()}|${canonical(p)}`)}`;
+  }
+  if (p.command !== 'motion' || !env.MOTION_ORCHESTRATOR_TOKEN) throw unavailable(p.command);
+  return hmac(env.MOTION_ORCHESTRATOR_TOKEN, `generation-proposal|${String(user).toLowerCase()}|${canonical(p)}`);
 }
+const signingVersion = env => (v2Secret(env) ? 'v2' : 'v1');
 
 // What generating it uses, from the server's own settings (owner messages 30-33: credits only, 1 credit = $0.01): the estimate
 // (MOTION_ESTIMATE_USD) and the temporary reservation while it runs (MOTION_JOB_RESERVATION_USD). Unsigned: display only.
 const credits = usd => (Number.isFinite(usd) && usd > 0 ? Math.ceil(Number((usd * 100).toFixed(6))) : null);
 export function proposalUsage(env, command) {
+  // /explain: its estimate when configured (EXPLAIN_ESTIMATE_USD, from measured runs), and the policy's generation worst case
+  // as what the job checks the allowance for. Never Motion's estimate or hold.
+  if (command === 'explain') {
+    const estimate = Number(String(env.EXPLAIN_ESTIMATE_USD ?? '').trim() || NaN);
+    return { estimate_credits: credits(estimate), reserve_credits: credits(explainReservation().generationMicros / 1e6) };
+  }
   if (command !== 'motion') return { estimate_credits: null, reserve_credits: null };
   const estimate = Number(String(env.MOTION_ESTIMATE_USD ?? '').trim() || NaN), hold = motionReservationMicros(env);
   return { estimate_credits: credits(estimate), reserve_credits: hold == null ? null : credits(hold / 1e6) };
@@ -123,13 +159,13 @@ export function proposalUsage(env, command) {
 export async function signProposal(env, fields, user, { id = null, version = 1, now = Math.floor(Date.now() / 1000) } = {}) {
   const p = { proposal_id: id || `gp-${hex(crypto.getRandomValues(new Uint8Array(8)))}`, version, command: fields.command, title: fields.title, description: fields.description,
     settings: fields.settings, source_refs: fields.source_refs || [], input: fields.input, expires_at: now + PROPOSAL_TTL_S };
-  return { ...p, sig: await signature(env, p, user), usage: proposalUsage(env, p.command) };
+  return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command) };
 }
 
 // The shape only (synchronous, for motion_request validation); verifyProposal checks the signature.
 export function proposalShape(p) {
   if (!plain(p) || Object.keys(p).some(k => ![...SIGNED, 'sig', 'usage'].includes(k))) return 'the proposal is not a generation proposal';
-  if (!ID.test(p.proposal_id || '') || !Number.isSafeInteger(p.version) || p.version < 1 || !WIRED.includes(p.command) || !SIG.test(p.sig || '') || !Number.isSafeInteger(p.expires_at) || !plain(p.settings) || !plain(p.input)) return 'the proposal is not a generation proposal';
+  if (!ID.test(p.proposal_id || '') || !Number.isSafeInteger(p.version) || p.version < 1 || !SIGNABLE.includes(p.command) || !SIG.test(p.sig || '') || !Number.isSafeInteger(p.expires_at) || !plain(p.settings) || !plain(p.input)) return 'the proposal is not a generation proposal';
   return null;
 }
 // -> null when this is a proposal the worker signed for this learner and it has not expired, else why it is refused.
@@ -138,7 +174,8 @@ export async function verifyProposal(env, p, user, now = Math.floor(Date.now() /
   if (bad) return bad;
   if (!user) return 'Sign in first';
   let want;
-  try { want = await signature(env, p, user); } catch (error) { return error.message; }
+  // The envelope names its version; a v1 envelope is valid only for Motion (signature refuses any other command).
+  try { want = await signature(env, p, user, p.sig.startsWith('v2.') ? 'v2' : 'v1'); } catch (error) { return error.message; }
   let diff = want.length ^ p.sig.length;
   for (let i = 0; i < Math.min(want.length, p.sig.length); i++) diff |= want.charCodeAt(i) ^ p.sig.charCodeAt(i);
   if (diff) return 'This proposal was not made for you, or it was changed. Ask for it again in chat.';
@@ -151,8 +188,8 @@ export async function verifyProposal(env, p, user, now = Math.floor(Date.now() /
 export async function reviseSettings(env, p, settings, user, bind = null) {
   const refused = await verifyProposal(env, p, user);
   if (refused) return { error: refused };
-  const checked = SETTINGS[p.command]?.(settings);
-  if (!checked || checked.error) return { error: checked?.error || 'These settings cannot be changed here.' };
+  const checked = validateSettings(p.command, settings);
+  if (checked.error) return { error: checked.error };
   return { proposal: await signProposal(env, { ...p, settings: checked.value, input: { ...p.input, ...bind } }, user, { id: p.proposal_id, version: p.version + 1 }) };
 }
 
@@ -165,6 +202,8 @@ export async function reviseSettings(env, p, settings, user, bind = null) {
 const RECORD = "SELECT mm.message_id, mm.meta_json FROM chat_message_meta mm JOIN threads t ON t.id = mm.thread_id WHERE t.user = ? AND t.scope_ref = ? AND mm.role = 'assistant' AND json_extract(mm.meta_json, '$.proposal.proposal_id') = ?";
 export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the latest card in the chat.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
+// The used text per capability (Motion's unchanged).
+export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : PROPOSAL_USED);
 export const proposalState = p => ({ version: p.version, sig: p.sig, used: null });
 // -> {rows, root, state, current}: current is the published revision's proposal (null while its answer is being written).
 export async function proposalRecord(db, user, app, id) {
@@ -203,7 +242,7 @@ export async function consumeProposal(db, p, user, dest, key) {
   if (!dest?.app || !dest.org || p.input?.app !== dest.app || p.input?.org !== dest.org) return { error: p.input?.app ? 'This proposal was made on another canvas. Ask for it again in chat here.' : 'This proposal needs refreshing: change a setting on its card or ask for it again in chat.', code: 'proposal_canvas' };
   const record = await proposalRecord(db, user, dest.app, p.proposal_id);
   if (!record.state) return { error: 'This proposal is not in your chat on this canvas. Ask for it again in chat.', code: 'proposal_stale' };
-  if (record.state.used) return record.state.used.key === key ? null : { error: PROPOSAL_USED, code: 'proposal_used' };
+  if (record.state.used) return record.state.used.key === key ? null : { error: proposalUsedText(p.command), code: 'proposal_used' };
   if (record.state.sig !== p.sig) return { error: PROPOSAL_STALE, code: 'proposal_stale' };
   return landed(await swapRoot(db, record.root, { ...record.state, used: { version: p.version, key } }).run()) ? null : { error: PROPOSAL_STALE, code: 'proposal_stale' };
 }
