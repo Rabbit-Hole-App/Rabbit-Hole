@@ -3,7 +3,7 @@ import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
-import { MOTION_PAUSED, motionPaused, verifyProposal } from './generation-proposal.js';
+import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
@@ -78,7 +78,7 @@ export async function privateLessonAssetFetch(req, env, binding) {
   if (req.method === 'POST' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);
   // Cache and placements are private to this learner in this app/workspace.
   const id = binding.idFromName(JSON.stringify([app.org, app.name, app.email]));
-  return binding.get(id).fetch(withCanvasRepository(forwardUsagePayer(req, usageContext(env)?.identity || app), await canvasRepository(env, app)));
+  return binding.get(id).fetch(withLessonApp(withCanvasRepository(forwardUsagePayer(req, usageContext(env)?.identity || app), await canvasRepository(env, app)), app));
 }
 
 // The canvas's repository, from the server's own records and never the browser (mgrnd ruling, 2026-10-21): a repository
@@ -100,6 +100,14 @@ export function withCanvasRepository(req, repository) {
   if (repository) headers.set(REPOSITORY_HEADER, JSON.stringify(repository));
   return new Request(req, { headers });
 }
+// MOT-22: the authorized canvas and workspace this request is for, set here from the server's access check, never the browser's.
+const LESSON_APP_HEADER = 'x-rh-lesson-app';
+export function withLessonApp(req, app) {
+  const headers = new Headers(req.headers);
+  headers.set(LESSON_APP_HEADER, JSON.stringify({ org: app.org, app: app.name }));
+  return new Request(req, { headers });
+}
+const forwardedLessonApp = req => { try { return JSON.parse(req.headers.get(LESSON_APP_HEADER) || 'null'); } catch { return null; } };
 const forwardedRepository = req => {
   try { const r = JSON.parse(req.headers.get(REPOSITORY_HEADER) || 'null'); return r && REPO.test(r.repo || '') && SHA.test(r.commit || '') ? { repo: r.repo, commit: r.commit } : null; } catch { return null; }
 };
@@ -218,8 +226,9 @@ export class LearnVideos {
         const key = maths ? await mathCacheKey(input.spec, version) : motion ? await motionCacheKey(input) : motionRequest ? await motionRequestCacheKey(input) : await videoCacheKey(input, version);
         // MOT-20: an approved proposal is one the worker signed for this learner, unexpired (generation-proposal.js), before any hold.
         // Where no orchestrator is configured, startMotion refuses the job as it always has (nothing starts), so the card says why.
+        const proposer = input.proposal && usageContext(usageFromForwarded(this.env, req, 'video'))?.identity?.email;
         if (input.proposal && !provider.unavailable()) {
-          const proposalRefused = await verifyProposal(this.env, input.proposal, usageContext(usageFromForwarded(this.env, req, 'video'))?.identity?.email);
+          const proposalRefused = await verifyProposal(this.env, input.proposal, proposer);
           if (proposalRefused) return json({ error: proposalRefused, code: 'proposal_refused' }, 409);
         }
         let job = await this.state.storage.get(`job:${key}`);
@@ -231,6 +240,12 @@ export class LearnVideos {
           // One video per proposal: its first Generate owns it (a retry of that video is the same key); another version is refused.
           const owner = input.proposal && await this.state.storage.get(`proposal:${input.proposal.proposal_id}`);
           if (owner && owner !== key) return json({ error: 'This proposal already made a video. Ask for a new version in chat to make another.', code: 'proposal_used' }, 409);
+          // MOT-22: only the current revision, signed for this canvas and workspace, starts; consumed atomically with that check
+          // (generation-proposal.js consumeProposal), before any hold or orchestrator call.
+          if (input.proposal && !owner && !provider.unavailable()) {
+            const stale = await consumeProposal(this.env.LEARN_DB, input.proposal, proposer, forwardedLessonApp(req), key);
+            if (stale) return json(stale, 409);
+          }
           if (input.proposal && !owner) await this.state.storage.put(`proposal:${input.proposal.proposal_id}`, key);
           // A retry of the same Motion job spends from the same ceiling: what earlier attempts used (or may have used) carries over.
           job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER, ...(motionRequest ? { consumedMicros: job?.consumedMicros || 0 } : {}) };

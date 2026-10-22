@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LearnVideos, MOTION_PAUSED, withCanvasRepository } from '../src/learn-video.js';
+import { LearnVideos, MOTION_PAUSED, withCanvasRepository, withLessonApp } from '../src/learn-video.js';
 import { forwardUsagePayer, periodOf, usageTotals } from '../src/learn-usage.js';
 import { motionOrchestrator } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
@@ -846,8 +846,16 @@ test('one Generate press resent concurrently stays one job (MOT-06 with a reques
 // ---------- UI-15 / MOT-20: Generate with the approved proposal (generation-proposal.js) ----------
 
 const WATER = 'Sunlight warms a body of water, causing evaporation. Moist air rises and cools, forming droplets that gather into clouds. The droplets grow and fall as rain. Water collects again, completing the cycle.';
-const approved = async (env, over = {}, user = 'alice@example.test', at = {}) => signProposal(env, { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings: { duration_seconds: 10, audio: false }, source_refs: [], input: { request: motionOp.request, concept: 'Attention' }, ...over }, user, at);
-const withProposal = (p, request_id = 'press-0100-aaaa') => ask({}, { ...motionOp, request_id, proposal: p });
+const approved = async (env, over = {}, user = 'alice@example.test', at = {}) => signProposal(env, { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings: { duration_seconds: 10, audio: false }, source_refs: [], input: { request: motionOp.request, concept: 'Attention', org: 'team', app: 'demo' }, ...over }, user, at);
+// The authorized canvas the worker forwards (learn-video.js privateLessonAssetFetch), as it would for app=demo.
+const withProposal = (p, request_id = 'press-0100-aaaa') => withLessonApp(ask({}, { ...motionOp, request_id, proposal: p }), { org: 'team', name: 'demo' });
+// MOT-22: the proposal as the learner's chat on that canvas holds it (its current revision lives there).
+function chatted(sqlite, p) {
+  sqlite.exec("CREATE TABLE IF NOT EXISTS threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL, commit_sha TEXT NOT NULL, title TEXT); INSERT OR IGNORE INTO threads (id, org, user, scope_ref, commit_sha) VALUES ('t1', 'team', 'alice@example.test', 'demo', 'canvas');");
+  sqlite.exec(sql('0019-chat-message-meta.sql'));
+  sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, 't1', 'assistant', ?)").run(Math.floor(Math.random() * 1e9), JSON.stringify({ version: 1, kind: 'answer', proposal: p }));
+  return p;
+}
 // The /jobs bodies the worker sent, read beside world()'s orchestrator double (restored only while it is still this wrapper).
 function jobBodies(t) {
   const bodies = [], inner = globalThis.fetch;
@@ -863,7 +871,7 @@ test('MOT-20 Generate with the approved proposal: one job, and the orchestrator 
   const bodies = jobBodies(t);
   const env = env0(LEARN_DB);
   const actor = new LearnVideos(durable('video-a'), env);
-  const p = await approved(env);
+  const p = chatted(sqlite, await approved(env));
   const [x, y] = await Promise.all([actor.fetch(withProposal(p)), actor.fetch(withProposal(p))]).then(rs => Promise.all(rs.map(r => r.json())));
   assert.equal(x.placementId, y.placementId, 'a double click is one press: one card');
   await settle(actor, async () => (await video(actor)).status === 'ready');
@@ -877,7 +885,7 @@ test('MOT-20 refused before any hold or POST: a forged, edited, other-learner or
   const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
   const env = env0(LEARN_DB);
   const actor = new LearnVideos(durable('video-a'), env);
-  const p = await approved(env);
+  const p = chatted(sqlite, await approved(env));
   const refusedWith = async (proposal, why, id) => {
     const response = await actor.fetch(withProposal(proposal, id));
     assert.equal(response.status, 409, why);

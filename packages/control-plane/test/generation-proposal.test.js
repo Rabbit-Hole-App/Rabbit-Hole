@@ -96,7 +96,7 @@ test('PUT /api/learn/chat/messages/:id/proposal: the owner\'s stored proposal be
   sqlite.exec("INSERT INTO messages (id, thread_id, role, content) VALUES (40, '7', 'assistant', 'Here is a proposal.')");
   const p = await sign();
   sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (40, '7', 'assistant', ?)").run(JSON.stringify({ version: 1, kind: 'answer', proposal: p }));
-  const LEARN_DB = { prepare: sql => { const s = sqlite.prepare(sql); return { bind: (...a) => ({ first: async () => s.get(...a) || null, run: async () => ({ meta: s.run(...a) }) }) }; } };
+  const LEARN_DB = { prepare: sql => { const s = sqlite.prepare(sql); return { bind: (...a) => ({ first: async () => s.get(...a) || null, all: async () => ({ results: s.all(...a) }), run: async () => ({ meta: s.run(...a) }) }) }; } };
   const put = (body, who = 'alice@example.test', id = 40) => chatProposalFetch(new Request(`https://dev.test/api/learn/chat/messages/${id}/proposal`, { method: 'PUT', body: JSON.stringify(body) }), { ...env, LEARN_DB }, { identity: async () => ({ org: 'w', email: who }) });
   const ok = await put({ settings: { duration_seconds: 25, audio: false } });
   assert.equal(ok.status, 200);

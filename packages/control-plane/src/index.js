@@ -13,7 +13,7 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { verifyChatRoute } from './chat-capability-route.js';
-import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
+import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
 import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
@@ -1086,7 +1086,9 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         const checked = validateProposalInput(input, chat?.contextRefs || []);
         if (checked.error) return refused(checked.error);
         const current = generation.current?.command === checked.command ? generation.current : null;
-        proposed = await signProposal(env, { ...checked, input: current ? current.input : { request: motionRequestLine(message), ...generation.motion } }, user.email, current ? { id: current.proposal_id, version: current.version + 1 } : {});
+        // MOT-22: signed for this canvas and workspace (the authorized scope, never the browser's); a revision of an old unbound one binds it.
+        const bind = { org: user.org, app: scopeRef };
+        proposed = await signProposal(env, { ...checked, input: { ...(current ? current.input : { request: motionRequestLine(message), ...generation.motion }), ...bind } }, user.email, current ? { id: current.proposal_id, version: current.version + 1 } : {});
         return { proposed: 1, applied: false, note: 'Shown to the learner as a card with Generate; nothing is generated until they press it. Reply in one short sentence and do not repeat the description.' };
       }
       if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
@@ -1259,7 +1261,9 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     system = chatSystem(system, answerMetaSystem({ repository: !!repository, motion: !!generation }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
-    // A refinement revises the learner's unanswered proposal: the model sees what the card says now.
+    // A refinement revises the learner's unanswered proposal: the model sees what the card says now. MOT-22: the server's current
+    // revision on this canvas, not the browser's copy (stale in another tab, or already generated: the turn proposes anew).
+    if (generation?.current) generation.current = await currentRevision(db, user.email, scopeRef, generation.current);
     const current = generation?.current;
     if (current) context = `${context}\n\nThe proposal you made, not generated yet (version ${current.version}): ${JSON.stringify({ command: current.command, title: current.title, description: current.description, settings: current.settings, source_ref_ids: current.source_refs.map(r => r.sourceId) })}`;
   }

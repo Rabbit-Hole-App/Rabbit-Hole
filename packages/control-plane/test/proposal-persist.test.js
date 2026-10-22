@@ -12,11 +12,11 @@ import { DatabaseSync } from 'node:sqlite';
 import { devWorker } from './worker-import.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 import { LearnVideos } from '../src/learn-video.js';
-import { verifyProposal } from '../src/generation-proposal.js';
+import { signProposal, verifyProposal } from '../src/generation-proposal.js';
 import { madeFrom, proposalActive, proposalBlock } from '../../web/src/generation-proposal-chat.js';
 
 const worker = (await devWorker()).default;
-const CANVAS = 'canvas-0a1b2c3d', OWNER = 'owner@test';
+const CANVAS = 'canvas-0a1b2c3d', OTHER = 'canvas-1b2c3d4e', OWNER = 'owner@test';
 const TOKEN = 'm'.repeat(48);
 const WATER = 'Sunlight warms a body of water, causing evaporation. Moist air rises and cools, forming droplets that gather into clouds. The droplets grow and fall as rain. Water collects again, completing the cycle.';
 const BOARD = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], sources: [], blocks: [] };
@@ -34,7 +34,8 @@ function durable(id, data) {
 function stack(t) {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
   sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
-  sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES('team',?,?,'Weather')").run(CANVAS, OWNER);
+  // The proposal's canvas, another canvas the learner owns, and the same canvas name in another workspace they belong to.
+  for (const [org, name] of [['team', CANVAS], ['team', OTHER], ['lab', CANVAS]]) sqlite.prepare("INSERT INTO canvases(org,name,owner_email,title) VALUES(?,?,?,'Weather')").run(org, name, OWNER);
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }), now: () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   // One storage map per object name; actors are the live instances, dropped by restart().
@@ -46,7 +47,7 @@ function stack(t) {
   const env = { LEARN_DB, LEARN_MEDIA: memoryBucket(), DB, RUNS: liveRuns(), ANTHROPIC_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50',
     MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '2',
     LEARN_VIDEOS: { idFromName: name => name, get: name => actor(name) },
-    CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: OWNER, orgName: 'Team', user_id: 'u-owner' }) } };
+    CONTROL_PLANE: { fetch: async req => Response.json({ org: req.headers.get('x-small-workspace') || 'team', email: OWNER, orgName: 'Team', user_id: 'u-owner' }) } };
   t.after(() => assert.deepEqual([env.DB.calls, env.RUNS.calls], [[], []], 'touched the control-plane database or the runs bucket'));
 
   // The stubs: a scripted model, and an orchestrator that accepts each POST /jobs as a new job that is ready at once.
@@ -70,8 +71,8 @@ function stack(t) {
     return Response.json({ status: 'ready', title: job.body.approved_proposal?.title, render_id: 'a'.repeat(32), motion: { duration_seconds: job.body.approved_proposal?.duration_seconds }, spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 }, renders: 1, render_states: ['ready'] });
   };
 
-  const send = async (method, path, body) => worker.fetch(new Request(`https://dev.example${path}`, { method, headers: { cookie: 'small_session=s', ...(body ? { 'content-type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }), env, { waitUntil() {} });
-  const read = async (method, path, body) => { const res = await send(method, path, body); return { status: res.status, body: await res.json() }; };
+  const send = async (method, path, body, headers = {}) => worker.fetch(new Request(`https://dev.example${path}`, { method, headers: { cookie: 'small_session=s', ...(body ? { 'content-type': 'application/json' } : {}), ...headers }, ...(body ? { body: JSON.stringify(body) } : {}) }), env, { waitUntil() {} });
+  const read = async (method, path, body, headers) => { const res = await send(method, path, body, headers); return { status: res.status, body: await res.json() }; };
   // The Motion reservations the ledger holds (one per admitted attempt) and the jobs the orchestrator was asked to start.
   const reservations = () => sqlite.prepare("SELECT reserved_micros, cost_state, status FROM usage_attempts WHERE attempt_id LIKE 'motion-%' ORDER BY rowid").all().map(r => ({ ...r }));
   const videos = () => [...actors.values()];
@@ -100,7 +101,7 @@ async function restore(s, threadId, messageId) {
 }
 // Generate as the card does (LearningBlocks generate): the proposal's card, its request id made once for the press.
 const press = (p, request_id = crypto.randomUUID()) => ({ ...proposalBlock(p).operation, request_id });
-const generate = (s, operation, extra = {}) => s.read('POST', `/api/learn/video?app=${CANVAS}`, { operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed: true, ...extra });
+const generate = (s, operation, extra = {}, { at = CANVAS, headers } = {}) => s.read('POST', `/api/learn/video?app=${at}`, { operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed: true, ...extra }, headers);
 async function untilReady(s, placementId) {
   for (let i = 0; i < 20; i++) {
     for (const v of s.videos()) await v.alarm();
@@ -169,13 +170,151 @@ test('case b: a generated proposal and its canvas card restored after a reload: 
   // 3. A new press of the restored proposal (a second Generate): refused before any hold.
   const second = await generate(s, press(restored));
   assert.deepEqual([second.status, second.body.code], [409, 'proposal_used']);
-  // 4. A revision saved after it was generated, then Generate: the proposal already made its video.
+  // 4. A revision after it was generated is refused (MOT-22: the proposal is consumed), so there is no newer version to start.
   const revised = await s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { duration_seconds: 20, audio: false } });
-  assert.equal(revised.body.proposal.version, 2);
-  const third = await generate(s, press(revised.body.proposal));
-  assert.deepEqual([third.status, third.body.code], [409, 'proposal_used']);
+  assert.deepEqual([revised.status, revised.body.code], [409, 'proposal_used']);
+  assert.deepEqual((await restore(s, threadId, messageId)).proposal, { ...restored }, 'the stored revision is unchanged');
   for (const v of s.videos()) await v.alarm();
   assert.equal(s.orchestrator.jobs.length, 1, 'no second Motion job');
   assert.deepEqual(s.reservations(), [{ reserved_micros: 2_000_000, cost_state: 'settled', status: 'settled' }], 'no second reservation');
   assert.equal((await s.read('GET', `/api/learn/video?app=${CANVAS}`)).body.videos.length, 1, 'one video card on the server');
+});
+
+// ---------- MOT-22: only the current revision, on its own canvas and workspace, may start; once ----------
+
+const putSettings = (s, messageId, duration_seconds) => s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { duration_seconds, audio: false } });
+const nothingStarted = (s, why) => assert.deepEqual([s.orchestrator.jobs.length, s.orchestrator.health, s.reservations().length], [0, 0, 0], why);
+const CLOUDS = 'Sunlight warms the sea and water evaporates. The vapour rises and cools into tiny droplets. The droplets gather into clouds that grow darker. The clouds release rain over the land.';
+// A chat refinement from a tab holding `current`: the model revises whatever proposal the server says is current.
+async function refine(s, threadId, current) {
+  s.model.replies.push({ content: [{ type: 'tool_use', id: 'tu2', name: 'propose_generation', input: { command: 'motion', title: 'Water cycle: clouds', description: CLOUDS, settings: { duration_seconds: 15, audio: false } } }], stop_reason: 'tool_use' },
+    'Updated.\n<answer_meta>{}</answer_meta>');
+  const res = await s.send('POST', '/api/learn/ask', { scope: { app: CANVAS }, thread_id: threadId, message: 'focus more on clouds', mode: 'auto', generation: { motion: { concept: 'Weather' }, current } });
+  assert.equal(res.status, 200);
+  const meta = sse(await res.text()).find(e => e.event === 'answer_meta').data;
+  return { messageId: meta.messageId, proposal: meta.proposal };
+}
+
+test('MOT-22 owner repro: v1 revised to v2 and v3, then v1 from a stale tab is refused before any hold or job; v3 still starts, once', async t => {
+  const s = stack(t);
+  const { threadId, messageId, proposal: v1 } = await propose(s);
+  const v2 = (await putSettings(s, messageId, 20)).body.proposal;
+  const v3 = (await putSettings(s, messageId, 25)).body.proposal;
+  assert.deepEqual([v2.version, v3.version], [2, 3]);
+  for (const stale of [v1, v2]) {
+    const refused = await generate(s, press(stale));
+    assert.deepEqual([refused.status, refused.body.code], [409, 'proposal_stale'], `v${stale.version} is superseded`);
+  }
+  nothingStarted(s, 'a stale version reserves nothing and calls no orchestrator');
+  // Reload: the restored card is v3, and it is still usable.
+  s.restart();
+  const { proposal } = await restore(s, threadId, messageId);
+  assert.deepEqual(proposal, v3);
+  const operation = press(proposal);
+  const [x, y] = await Promise.all([generate(s, operation), generate(s, operation)]);
+  assert.deepEqual([x.status, y.status, x.body.placementId], [202, 202, y.body.placementId], 'a double click is one press');
+  assert.equal(s.orchestrator.jobs[0].body.approved_proposal.duration_seconds, 25);
+  await untilReady(s, x.body.placementId);
+  assert.equal((await generate(s, press(v1))).status, 409, 'v1 after v3 made its video: still refused');
+  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length], [1, 1], 'one job, one reservation');
+});
+
+test('MOT-22 two tabs: a settings change and a chat refinement, out-of-order and concurrent saves, and stale-versus-current Generate races', async t => {
+  const s = stack(t);
+  const { threadId, messageId: first, proposal: v1 } = await propose(s);
+  // Tab B changes the duration on the card; tab A, still showing v1, refines in chat: the server revises v2, not A's v1.
+  const v2 = (await putSettings(s, first, 20)).body.proposal;
+  const { messageId: second, proposal: v3 } = await refine(s, threadId, v1);
+  assert.deepEqual([v3.proposal_id, v3.version, v3.description], [v1.proposal_id, 3, CLOUDS]);
+  // Tab B saves again on its old card (out of order): refused, nothing written.
+  const late = await putSettings(s, first, 30);
+  assert.deepEqual([late.status, late.body.code], [409, 'proposal_stale']);
+  // Both tabs change the current card at once: each save that wins is the next version; none is lost or doubled.
+  const saves = await Promise.all([putSettings(s, second, 10), putSettings(s, second, 12), putSettings(s, second, 14)]);
+  const won = saves.filter(r => r.status === 200).map(r => r.body.proposal);
+  assert.ok(won.length >= 1);
+  for (const r of saves.filter(r => r.status !== 200)) assert.deepEqual([r.status, r.body.code], [409, 'proposal_stale']);
+  assert.deepEqual(won.map(p => p.version).sort(), won.map((_, i) => 4 + i), 'distinct consecutive versions');
+  const { proposal: current } = await restore(s, threadId, second);
+  assert.equal(current.version, 3 + won.length);
+  for (const stale of [v1, v2, v3, ...won.filter(p => p.version !== current.version)]) {
+    const refused = await generate(s, press(stale));
+    assert.deepEqual([refused.status, refused.body.code], [409, 'proposal_stale'], `v${stale.version}`);
+  }
+  nothingStarted(s, 'no stale version reserved or started anything');
+  // Stale and current presses at once, with a double click of the current one and a second tab's own press.
+  const pressed = press(current);
+  const race = await Promise.all([generate(s, press(v2)), generate(s, pressed), generate(s, pressed), generate(s, press(current)), generate(s, press(v3))]);
+  assert.deepEqual([race[1].status, race[2].status, race[1].body.placementId], [202, 202, race[2].body.placementId]);
+  for (const i of [0, 3, 4]) assert.equal(race[i].status, 409, `press ${i} is refused`);
+  await untilReady(s, race[1].body.placementId);
+  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length], [1, 1], 'one job, one reservation');
+  assert.equal(s.orchestrator.jobs[0].body.approved_proposal.duration_seconds, current.settings.duration_seconds);
+  // A chat refinement of the generated proposal proposes anew (a new id), never a version of the used one.
+  const { proposal: fresh } = await refine(s, threadId, current);
+  assert.notEqual(fresh.proposal_id, v1.proposal_id);
+  assert.equal(fresh.version, 1);
+});
+
+test('MOT-22 a revision racing Generate: exactly one wins, and the proposal still makes exactly one video', async t => {
+  for (let round = 0; round < 4; round++) {
+    await t.test(`round ${round}`, async t => {
+      const s = stack(t);
+      const { threadId, messageId, proposal } = await propose(s);
+      const [saved, started] = await Promise.all([putSettings(s, messageId, 20), generate(s, press(proposal))]);
+      assert.ok((saved.status === 200) !== (started.status === 202), `one winner: PUT ${saved.status}, Generate ${started.status}`);
+      if (started.status === 202) assert.deepEqual([saved.status, ['proposal_used', 'proposal_stale'].includes(saved.body.code)], [409, true]);
+      else {
+        assert.deepEqual([started.status, started.body.code], [409, 'proposal_stale']);
+        nothingStarted(s, 'the losing Generate reserved nothing');
+        const { proposal: latest } = await restore(s, threadId, messageId);
+        assert.equal((await generate(s, press(latest))).status, 202, 'the revision that won starts');
+      }
+      assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length], [1, 1]);
+    });
+  }
+});
+
+test('MOT-22 canvas binding: replay to another owned canvas, another workspace, a tampered proposal or a forged destination is refused with no hold or job', async t => {
+  const s = stack(t);
+  const { proposal } = await propose(s);
+  assert.deepEqual([proposal.input.org, proposal.input.app], ['team', CANVAS], 'signed for the canvas and workspace it was asked on');
+  const other = await generate(s, press(proposal), {}, { at: OTHER });
+  assert.deepEqual([other.status, other.body.code], [409, 'proposal_canvas'], 'another canvas the learner owns');
+  const lab = await generate(s, press(proposal), {}, { at: `${CANVAS}&workspace=lab` });
+  assert.deepEqual([lab.status, lab.body.code], [409, 'proposal_canvas'], 'the same canvas name in another workspace');
+  const tampered = await generate(s, press({ ...proposal, input: { ...proposal.input, app: OTHER } }), {}, { at: OTHER });
+  assert.deepEqual([tampered.status, tampered.body.code], [409, 'proposal_refused'], 'a changed binding breaks the signature');
+  const forged = await generate(s, press(proposal), {}, { at: OTHER, headers: { 'x-rh-lesson-app': JSON.stringify({ org: 'team', app: CANVAS }) } });
+  assert.deepEqual([forged.status, forged.body.code], [409, 'proposal_canvas'], 'the destination is the server\'s, never the browser\'s');
+  nothingStarted(s, 'no refusal reserved or started anything');
+  const own = await generate(s, press(proposal));
+  assert.equal(own.status, 202);
+  await untilReady(s, own.body.placementId);
+  assert.equal((await generate(s, press(proposal), {}, { at: OTHER })).status, 409, 'and still refused elsewhere after it made its video');
+  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length], [1, 1]);
+});
+
+test('MOT-22 an old unbound proposal needs a refresh: Generate is refused, its next revision binds it, and the made video plays', async t => {
+  const s = stack(t);
+  // A proposal saved before MOT-22 (no org or app in its input), on an answer in this canvas's chat.
+  const old = await signProposal(s.env, { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings: { duration_seconds: 10, audio: false }, source_refs: [], input: { request: '/motion explain the water cycle', concept: 'Weather' } }, OWNER);
+  const thread = 'canvaschat-00000000-0000-4000-8000-000000000001';
+  s.sqlite.prepare("INSERT INTO threads (id, org, user, scope_ref, commit_sha) VALUES (?, 'team', ?, ?, '')").run(thread, OWNER, CANVAS);
+  const id = Number(s.sqlite.prepare("INSERT INTO messages (thread_id, role, content) VALUES (?, 'assistant', 'Here is a proposal.')").run(thread).lastInsertRowid);
+  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, ?, 'assistant', ?)").run(id, thread, JSON.stringify({ version: 1, kind: 'answer', proposal: old }));
+  const refused = await generate(s, press(old));
+  assert.deepEqual([refused.status, refused.body.code], [409, 'proposal_canvas']);
+  assert.match(refused.body.error, /needs refreshing/);
+  nothingStarted(s, 'an unbound proposal starts nothing');
+  const refreshed = (await putSettings(s, id, 10)).body.proposal;
+  assert.deepEqual([refreshed.version, refreshed.input.org, refreshed.input.app], [2, 'team', CANVAS], 'the next revision binds it to its canvas');
+  const started = await generate(s, press(refreshed));
+  assert.equal(started.status, 202);
+  const ready = await untilReady(s, started.body.placementId);
+  // Playback reads the stored clip by its job key; it never consults the proposal.
+  const key = [...(await s.videos()[0].state.storage.list({ prefix: 'job:' })).keys()][0].slice(4);
+  const clip = await s.send('GET', `/api/learn/video?app=${CANVAS}&asset=${key}`);
+  assert.deepEqual([ready.status, clip.status, clip.headers.get('content-type')], ['ready', 200, 'video/mp4']);
+  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length], [1, 1]);
 });
