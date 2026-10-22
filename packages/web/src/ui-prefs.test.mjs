@@ -76,3 +76,16 @@ test('text size scales chrome tokens only: the canvas world puts authored conten
   assert.match(readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), /<div ref=\{worldRef\} data-canvas-world /);
   assert.match(readFileSync(new URL('./main.jsx', import.meta.url), 'utf8'), /applyUiPrefs\(\); \/\/ text size and reduced motion/);
 });
+
+test('View > Comments is remembered like the other View switches; the card menu Full content is one checkable row (owner, 2026-10-21)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { readUiPrefs: read } = await import('./ui-prefs.js');
+  const mem = new Map();
+  const storage = { getItem: k => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, v) };
+  assert.equal(read(storage).comments, true);
+  storage.setItem('rh.ui-prefs', JSON.stringify({ comments: false }));
+  assert.equal(read(storage).comments, false);
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /data-card-layout-toggle role=\"menuitemcheckbox\" aria-checked=\{supportsCardLayout\(block\) && block\.cardLayout\?\.mode === 'full'\}/);
+  assert.doesNotMatch(canvas, /data-card-layout-menu|role="menuitemradio"/);
+});

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { commentsApi, displayName } from './comments-api.js';
+import { saveUiPref, uiPrefs } from '../ui-prefs.js';
 
 // A page's comments state (docs/features/canvas-comments.md section 5), kept out of the pages: the open draft (an anchor
 // from Add comment), the selected thread, and the pins the canvas draws. `base` is the route family: your canvas's main
@@ -28,7 +29,8 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
     return THREAD.test(asked || '') ? asked : null;
   });
   const [threads, setThreads] = useState([]);
-  const [showPins, setShowPins] = useState(true);
+  // View > Comments (owner, 2026-10-21): a switch remembered on this device like the other View widgets (ui-prefs.js).
+  const [showPins, setShowPins] = useState(() => uiPrefs().comments);
   // Bumped after a pin's colour or delete, so the panel reloads its list (and with it the pins) from the server.
   const [stamp, setStamp] = useState(0);
   const active = !!enabled && !!base;
@@ -56,7 +58,7 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
     active,
     unread: active ? threads.filter(thread => thread.unread).length : 0,
     open: active ? openCount(threads) : 0,
-    showPins, togglePins: () => setShowPins(on => !on),
+    showPins, setPins: on => { setShowPins(on); try { saveUiPref('comments', on); } catch { /* storage refused: holds until a reload */ } },
     openPin, addComment,
     canvasProps: active ? { onAddComment: canAdd ? addComment : null, commentPins: pins, onCommentPin: openPin, onPinColor: colorPin, onPinDelete: deletePin } : {},
     panelProps: active ? {

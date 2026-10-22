@@ -265,6 +265,29 @@ await check('8 comments never touch the board: same version; a reload keeps thre
 const visitor = { session: await sessionFor(`comments-visitor-${run}@example.com`, `visitor_${run}`) };
 let token;
 const share = () => page.locator('[role="dialog"][aria-label="Share this board"]');
+// Owner 2026-10-21: View > Comments is a switch like Minimap; off hides the pins, on brings them back, remembered on this device.
+await check('8b View > Comments: a switch, on by default; off hides the pins and survives a reload; on shows them again', async () => {
+  const bar = page.getByRole('menubar', { name: 'Canvas menu' });
+  const toggle = bar.getByRole('switch', { name: 'Comments', exact: true });
+  const set = async on => {
+    if (!(await toggle.count())) await bar.getByRole('menuitem', { name: 'View' }).click();
+    await toggle.waitFor({ timeout: 5000 });
+    if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click();
+    await page.waitForFunction(v => document.querySelector('[role="menubar"] [role="switch"][aria-label="Comments"]')?.getAttribute('aria-checked') === v, String(on), { timeout: 5000 });
+    await page.keyboard.press('Escape');
+  };
+  await bar.getByRole('menuitem', { name: 'View' }).click();
+  assert.equal(await toggle.getAttribute('aria-checked'), 'true', 'on by default');
+  await page.keyboard.press('Escape');
+  await set(false);
+  await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 0, null, { timeout: 5000 });
+  await page.reload(); await card('k-exp').waitFor({ timeout: 60000 });
+  await page.waitForTimeout(1500);
+  assert.equal(await pins().count(), 0, 'off after a reload: no pins');
+  await set(true);
+  await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 1, null, { timeout: 15000 });
+});
+
 await check('10 Share: Allow comments (on by default); published, Public comments Off / Open / Closed, disabled while comments are off', async () => {
   token = (await api(`/api/apps/${canvas.name}/publish`, { method: 'POST', body: '{}' })).body.publication_token;
   assert.ok(token, 'published');

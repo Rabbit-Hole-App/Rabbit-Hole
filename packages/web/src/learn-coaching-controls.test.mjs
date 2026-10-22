@@ -69,14 +69,14 @@ test('off_blocks_queued_coaching: Off stops a hook already scheduled, and proact
 test('hooks gate: open and restore ask nothing; a rename, moved or Tutor-made cards never re-ask; a learner turn asks once', () => {
   const memory = {}, gate = (basis, trigger, allowed = true, visible = true) => gateHooks(memory, { basis, stop: null }, { allowed, visible, trigger });
   const rest = hooksTrigger({ journey: { journey: { evidence: { seq: 4 }, active_section_id: 's1' }, path: { version: 2 } }, canvasState: { attempts: 1 }, graded: 0 });
-  assert.deepEqual(gate('nb_open', rest), { basis: null, stop: 'at_rest' }, 'opening in Tutor On: zero requests');
-  assert.deepEqual(gate('nb_renamed', rest), { basis: null, stop: 'at_rest' }, 'a rename, a loaded board, a moved or Tutor-made card: still at rest');
+  assert.deepEqual(gate('nb_open', rest), { basis: null, stop: 'curious_empty' }, 'opening in Tutor On: zero requests, the empty state shows (View > Curious on shows it)');
+  assert.deepEqual(gate('nb_renamed', rest), { basis: null, stop: 'curious_empty' }, 'a rename, a loaded board, a moved or Tutor-made card: still at rest');
   const turned = hooksTrigger({ lastTurn: { turn_id: 't1' }, journey: { journey: { evidence: { seq: 4 }, active_section_id: 's1' }, path: { version: 2 } }, canvasState: { attempts: 1 } });
   assert.deepEqual(gate('nb_after_turn', turned), { basis: 'nb_after_turn', stop: null }, 'a finished learner turn asks');
   assert.deepEqual(gate('nb_cards_landed', turned), { basis: 'nb_after_turn', stop: null }, 'material the Tutor inserted after it never re-asks');
   assert.deepEqual(gate('nb_cards_landed', turned, true, false), { basis: 'nb_after_turn', stop: 'hidden' }, 'Chat closed: held back, baseline kept');
   assert.deepEqual(gate('nb_x', turned, false), { basis: null, stop: 'off' }, 'Auto, Ask, Off or paused: none');
-  assert.deepEqual(gate('nb_back_on', turned), { basis: null, stop: 'at_rest' }, 'switching On again starts at rest');
+  assert.deepEqual(gate('nb_back_on', turned), { basis: null, stop: 'curious_empty' }, 'switching On again starts at rest');
   assert.notEqual(hooksTrigger({ canvasState: { attempts: 2 } }), hooksTrigger({ canvasState: { attempts: 1 } }), 'a practice attempt is a learner change');
   assert.equal(hooksTrigger({ canvasState: { attempts: 1, cards: [['k1']], title: 'Renamed' } }), hooksTrigger({ canvasState: { attempts: 1, cards: [['k1'], ['k2']] } }), 'cards and titles are not triggers');
 });

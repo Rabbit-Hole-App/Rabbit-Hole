@@ -2094,7 +2094,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         { divider: true },
         { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
         { label: 'Page guides', icon: FileText, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
-        ...(comments.active ? [{ label: 'Show comments', icon: MessageCircle, checked: comments.showPins, onSelect: comments.togglePins }] : []),
+        ...(comments.active ? [{ label: 'Comments', icon: MessageCircle, toggle: comments.showPins, onToggle: comments.setPins }] : []),
         { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
         { divider: true },
         // The canvas's document (docs/features/blocknote-canvas.md): Editor shows it on the canvas, Canvas hides it (never
