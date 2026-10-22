@@ -97,6 +97,24 @@ test('only the production app config runs app-worker.js; every dev and review wo
   assert.match(raw(APP), /"main": "app-worker\.js"/);
 });
 
+// The gate's local stacks run these configs through the provider-tripwire entries (e2e/tripwire-*-worker.js); wrangler refuses
+// to start a worker whose config binds a Durable Object class its entry does not export (ExplainJobs, release/explain-found
+// shard-1, 2026-10-22). Names come from the entry's `export { ... }` lines, following `export *`.
+test('every Durable Object class a web config binds is exported by its entry and by that entry\'s tripwire entry', () => {
+  const exported = url => raw(url).split('\n').flatMap(line => {
+    const star = line.match(/^export \* from '(.+)'/), named = line.match(/^export \{([^}]+)\} from/);
+    return star ? exported(new URL(star[1], url)) : named ? named[1].split(',').map(name => name.trim()) : [];
+  });
+  const web = new URL('../../web/', here);
+  for (const name of ['wrangler.dev.jsonc', 'wrangler.parallel.jsonc', 'wrangler.rabbit-hole-prod.jsonc']) {
+    const c = config(new URL(name, web)), classes = c.durable_objects.bindings.map(b => b.class_name);
+    for (const entry of [c.main, `e2e/tripwire-${c.main}`, ...(c.main === 'dev-worker.js' ? ['e2e/explain-gate-stub-worker.js'] : [])]) {
+      const names = exported(new URL(entry, web));
+      for (const cls of classes) assert.ok(names.includes(cls), `${entry} does not export ${cls}, which ${name} binds`);
+    }
+  }
+});
+
 // The notebook iframes run user Python with allow-same-origin, so their sites must be a different site from
 // digrabbithole.com: static Workers on the rabbit-hole account's workers.dev, no bindings, no route.
 test('the production notebook sites are static rabbit-hole Workers on workers.dev with nothing bound', () => {

@@ -6,7 +6,7 @@
 // tripwire, which refuses and counts it.
 import worker from './tripwire-dev-worker.js';
 import { SCENE_STUB } from './explain-gate-fixtures.js';
-export { RepositoryImports, LearnScenes, LearnVideos, FileJobs } from './tripwire-dev-worker.js';
+export * from './tripwire-dev-worker.js';
 
 const calls = [];
 const tripwire = globalThis.fetch;
