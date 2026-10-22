@@ -84,6 +84,9 @@ test('a direct job runs author -> validate -> render -> review to one saved resu
   assert.deepEqual(actions.filter(a => a.feature === 'render').map(a => [a.charge_class, a.status]), [['free', 'completed']]);
   const view = await s.job(body.job.id);
   assert.equal(view.job.terminal, true);
+  // Stage timing in the job view: each stage entered, with its calls, and a processing total.
+  assert.deepEqual(view.job.timing.stages.map(stage => stage.stage), ['authoring', 'validating', 'rendering', 'reviewing']);
+  assert.deepEqual([view.job.timing.requestClass, view.job.timing.calls, typeof view.job.timing.processingMs], ['simple', 2, 'number']);
   assert.equal(view.job.usage.credits, Math.ceil(2 * (1000 * 4 + 500 * 20) / 10000));
   assert.deepEqual(Object.keys(view.job.result).sort(), ['baseRevision', 'canvas', 'cardId', 'compiledHash', 'componentVersions', 'jobId', 'policyVersion', 'promptRef', 'resultId', 'revision', 'specHash']);
   assert.deepEqual([view.job.result.cardId, view.job.result.canvas.boardId, view.job.result.componentVersions], ['card-0001', 'board-1', { box: 1 }]);

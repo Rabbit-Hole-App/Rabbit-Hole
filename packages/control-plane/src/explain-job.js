@@ -94,7 +94,9 @@ export function publicExplainJob(job) {
     id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage,
     terminal: TERMINAL.has(job.stage), round: job.round, stopReason: job.stopReason, failure: job.failure,
     recovery: recoveryOf(job), usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
-    result: job.result, ...(job.brief ? { brief: job.brief, briefHash: job.briefHash } : {}), createdAt: job.createdAt, updatedAt: job.updatedAt,
+    result: job.result, ...(job.brief ? { brief: job.brief, briefHash: job.briefHash } : {}),
+    // Stage timing (plan 3.6): durations and counts only, the measurements T22 and the targets use.
+    timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
 }
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
