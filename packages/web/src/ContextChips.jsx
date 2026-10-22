@@ -6,12 +6,13 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { rangeLabel, refKey, sameRef } from './chat-context.js';
 import { refIds } from './chat-canvas-context.js';
 import { labelOnlyChip } from './pdf-source.js';
+import { CanvasMentionChip } from './CanvasMention.jsx';
 
 // Sub-lane A4a owns this file: attached-context chips under the composer text area (brief section 7). A3a mounts it.
 // First a fixed "This canvas" indicator (the canvas scope the server always reads, contract A5), then this conversation's
 // attached refs and any upload in flight or failed. A click opens the source beside Chat (never attaches); x detaches
 // from this conversation only, never deleting the file or the canvas object.
-export const REF_ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: Image, media: Film, web: Globe, progress: ChartColumnIncreasing };
+export const REF_ICONS = { doc: FileText, card: StickyNote, group: Group, code: FileCode2, image: Image, media: Film, web: Globe, progress: ChartColumnIncreasing, canvas: Shapes };
 export const RefIcon = ({ kind, size = 14, className = 'shrink-0 text-ink-3' }) => {
   const Icon = REF_ICONS[kind] || FileText;
   return <Icon size={size} strokeWidth={1.75} aria-hidden className={className} />;
@@ -94,6 +95,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
         {chips.map(item => {
           const { ref, state } = item, label = rangeLabel(ref.kind === 'excerpt' ? null : ref.range), busy = state === 'uploading' || state === 'processing', labelOnly = state === 'ready' && labelOnlyChip(ref, readPaper);
           const selected = (!!selection?.pinned && state === 'ready' && sameRef(selection.ref, ref)) || (state === 'ready' && codeSelected(ref));
+          if (ref.kind === 'canvas') return <CanvasMentionChip key={refKey(ref)} refItem={ref} onRemove={() => chat.context.detach(ref)} />; // "Mention a canvas": never opens
           return (
             <li key={item.id || refKey(ref)} data-context-chip={state} data-ref-key={refKey(ref)} data-label-only={labelOnly || undefined}
               {...(selected && !codeSelected(ref) ? { 'data-canvas-target': true, 'data-selected-card': selection.id } : {})} data-code-pinned={codeSelected(ref) || undefined}
