@@ -92,6 +92,8 @@ await check('typed /goal <words> opens goal management with the words in a new g
 });
 
 await check('the / picker offers Goal; picking it makes the inline Goal pill, which x and Backspace remove, keeping the words', async () => {
+  // Owner 2026-10-22: Progress is a tab of Chat's panel, so /goal left Chat behind it; the Chat tab brings the composer back.
+  await page.locator('[data-panel-tab="chat"]').click();
   await field().click();
   await field().fill('/go');
   await chatPane().locator('[data-slash-command="goal"]').click();
