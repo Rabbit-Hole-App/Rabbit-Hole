@@ -82,7 +82,7 @@ export const hookContext = (where, read, recordPending = false) => (recordPendin
 // canvasContext(options) (LearnPage, chat-canvas-context.js): the turn's whole-canvas package, built from the live canvas.
 // coaching(kind) (Q5, integrator ruling; owner 3a): the learner's current Tutor controls as mayRun reads them (LearnPage). A
 // follow-up question, practice, unrequested material and next-step offers run only while it allows them; null holds nothing.
-export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null, coaching = null }) {
+export function useTutor({ app, board, access, canvasApi, canvasState, dive, courseCanvas = false, journey = null, canvasVersion = null, openResearch = null, repository = null, describe = null, canvasContext = null, coaching = null, startExplain = null }) {
   const record = dive.tree?.dive || null;
   const root = dive.tree?.path?.[0];
   // The parent journey of a hole whose record carries one (Task 14): { journey, path } once read, else null.
@@ -278,7 +278,15 @@ export function useTutor({ app, board, access, canvasApi, canvasState, dive, cou
       onNotice: notice => { if (notice.tone !== 'done') put({ notices: [...desk.notices, notice] }); },
       // Task 07: a card arriving after the learner moved to another canvas or board is not inserted anywhere else; the turn's
       // reply stays with its origin. A requested card still goes in after Tutor Off; an unrequested one does not (Q5).
-      canvas: withCardSink({ insertNotebook: () => (stillHere() ? canvasApi.current?.insertNotebook() : null), insertBlock: (b, o) => (stillHere() ? canvasApi.current?.insertBlock(b, o) : null), reserve: s => (stillHere() ? canvasApi.current?.reserve(s) : null), release: id => canvasApi.current?.release(id) }, onCard),
+      canvas: withCardSink({ insertNotebook: () => (stillHere() ? canvasApi.current?.insertNotebook() : null), insertBlock: (b, o) => (stillHere() ? canvasApi.current?.insertBlock(b, o) : null), reserve: s => (stillHere() ? canvasApi.current?.reserve(s) : null), release: id => canvasApi.current?.release(id),
+        // EXP-T21: the chosen explanation tool opens the shared /explain job and its card directly (no second intent call); off
+        // here (null) it runs as before. A turn whose canvas changed starts no job ({ blockId: null }: nothing to report).
+        ...(startExplain ? { startExplain: async (prompt, options) => {
+          if (!stillHere()) return { blockId: null };
+          const out = await startExplain(prompt, options);
+          if (out?.blockId) onCard?.(out.blockId);
+          return out;
+        } } : {}) }, onCard),
       post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(access.pending ? { pending: access.pending } : {}) }) }),
     }).catch(error => console.info('[tutor] create_material', error.message));
     result.mark('canvas_action_complete');

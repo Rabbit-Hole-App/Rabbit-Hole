@@ -210,7 +210,7 @@ test('LearnPage.jsx: useJourney off the nanoGPT course, its props on the Chat co
   assert.match(page, /const journey = useJourney\(\{ app, board: boardName, access: askScope, canvasApi, enabled: learnPreview && isCanvas && !hole \}\)/);
   assert.match(page, /journey, journeyStarter: journey\.journey \? null : journey\.start, journeySetup: inJourneySetup\(journey\.journey\), tray: journey\.trayProps/);
   // LP1 Task 12: the journey reaches useTutor, so the Chat's tutor prop is the Tutor on a journey canvas (D1).
-  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching \}\);/);
+  assert.match(page, /const journey = useJourney\([^\n]*\n[\s\S]*?const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching, startExplain: explainLatest }\);/);
   assert.match(page, /tutor: tutor\.active \? tutor : null, journey,/);
 });
 

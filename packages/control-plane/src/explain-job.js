@@ -16,6 +16,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
+import { resolveExplainRefs } from './explain-context-refs.js';
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
@@ -29,7 +30,7 @@ import { authorStage, selectExamples, specFacts, validateStage } from './explain
 import { reviewCaptures } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
-import { defectKeys, presentationFix, repairStage } from './explain-repair.js';
+import { allowedRepairs, defectKeys, presentationFix, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -62,10 +63,15 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
   const { compiledHash, renderStates, reserveCaptures } = render;
   const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
-  const themes = parts * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
+  // Every admitted state is reviewed: each named step of a steps presentation (validateStage keeps parts x steps within one
+  // review), else the finished state.
+  const states = scene.presentation?.mode === 'steps' && scene.presentation.steps?.length ? scene.presentation.steps.map(step => ({ step: step.id, time: step.at })) : [{ time: scene.duration }];
+  const themes = parts * states.length * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
   const entries = [];
-  for (let part = 0; part < parts; part++) for (const theme of themes) entries.push({ id: `${parts > 1 ? `p${part}-` : ''}${theme}`, part, time: scene.duration, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
-  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
+  for (let part = 0; part < parts; part++) for (const state of states) for (const theme of themes) {
+    entries.push({ id: [parts > 1 && `p${part}`, state.step && `s-${state.step}`, theme].filter(Boolean).join('-'), part, ...(state.step ? { step: state.step } : {}), time: state.time, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
+  }
+  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, states: states.length, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
   let out;
   try { out = await renderStates(ctx.env, job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) { throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' }); }
@@ -84,7 +90,7 @@ export async function reviewStage(job, ctx) {
   try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts(job.spec), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
-  return { accepted: out.accepted, findings, repairable: serious.length > 0 && serious.every(f => f.specRepairable && ['spec', 'source'].includes(f.category)), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
+  return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
 export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage });
 
@@ -101,6 +107,10 @@ export function publicExplainJob(job) {
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
 }
+// The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
+const explainDiagnostics = job => ({ spec: job.spec, findings: job.findings, candidates: job.candidates || [], settings: job.settings,
+  calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
+
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
 // new_attempt: a paid retry within this job's remaining ceiling. edit_request: always, a new request.
 export function recoveryOf(job) {
@@ -108,7 +118,8 @@ export function recoveryOf(job) {
   if (job.inFlight) return ['reconcile'];
   const actions = [];
   if (job.failure?.stage === 'rendering' && job.compiled) actions.push('retry_render');
-  else if (job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
+  // Paused for the provider: the refused call was never counted, so resuming is always within the ceiling.
+  else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
   return [...actions, 'edit_request'];
 }
 const withinCeiling = job => job.counts.author < EXPLAIN_LIMITS.calls.author || (job.spec && job.round < EXPLAIN_LIMITS.correctionRounds);
@@ -161,9 +172,18 @@ export async function explainRoute(path, req, env, deps = {}) {
     await learnMedia(env).put(key, JSON.stringify({ mediaType: image.source.media_type, data: image.source.data }), { httpMetadata: { contentType: 'application/json' } });
     body.reference = { key, role: 'layout_reference', mediaType: image.source.media_type };
   }
+  // EXP-T20 slice 3: the Chat's pinned and temporary refs, read here under this canvas's authorization, never the browser's text.
+  if (action === 'create' && body.context_refs != null) {
+    let got;
+    try { got = await resolveExplainRefs(req, env, { user, board }, body.context_refs); } catch (error) { return json({ error: error.message }, error.status || 400); }
+    body.context = { ...(body.context && typeof body.context === 'object' ? body.context : {}), refs: got.refs, ...(got.text ? { refText: got.text } : {}) };
+  }
+  delete body.context_refs;
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin }) });
+    body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
+      // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
+      detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true' }) });
 }
 
 export class ExplainJobs {
@@ -188,7 +208,7 @@ export class ExplainJobs {
     }
   }
 
-  async action({ action, id, payload = {}, board, user, origin }) {
+  async action({ action, id, payload = {}, board, user, origin, detail = false }) {
     if (action === 'list') {
       const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(j => j.owner.email === user.email);
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
@@ -196,7 +216,7 @@ export class ExplainJobs {
     if (action === 'create') return this.create(payload, board, user, origin);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
-    if (action === 'get') return json({ job: publicExplainJob(job), ...(job.stage === 'ready' ? { block: await this.block(job) } : {}) });
+    if (action === 'get') return json({ job: publicExplainJob(job), ...(job.stage === 'ready' ? { block: await this.block(job) } : {}), ...(detail ? { diagnostics: explainDiagnostics(job) } : {}) });
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
     if (action === 'approve') return this.approve(job, payload);
@@ -300,8 +320,11 @@ export class ExplainJobs {
     if (actions.includes('retry_render')) {
       Object.assign(job, { stage: 'rendering', failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else if (actions.includes('new_attempt')) {
-      await this.admitGeneration(job);
-      const stage = job.spec ? 'validating' : 'authoring';
+      // A job paused for the provider resumes at the stage it paused in, keeping every completed stage (its spec, compiled
+      // result and captures); preparation is admitted per call, so only generation is checked against the allowance.
+      const paused = job.failure?.category === 'provider_unavailable' ? job.failure.stage : null;
+      if (paused !== 'preparing') await this.admitGeneration(job);
+      const stage = paused || (job.spec ? 'validating' : 'authoring');
       Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
     beginStage(job.timing, job.stage);
@@ -411,8 +434,11 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
       const usage = out?.usage, cost = usage ? costUsd({ model: out.identity.served || out.identity.requested, ...usage }) : null;
-      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: error ? 'failed' : 'settled',
-        costMicros: toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
+      // A provider refusal (cap, limit, overload) ran nothing and cost nothing: it does not use the job's call ceiling.
+      const refused = error?.code === 'provider_unavailable';
+      if (refused) { current.counts[role]--; current.reservedMicros -= call.boundMicros; }
+      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled',
+        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
       await this.save(current);
@@ -504,8 +530,9 @@ export class ExplainJobs {
       await this.recordRenders(job, out.renders || []);
       next('reviewing');
     } else if (stage === 'reviewing') {
+      // The reviewer's findings are kept for an accepted result too (minor ones do not block it).
+      job.findings.push({ round: job.round, stage, accepted: out.accepted === true, findings: out.findings || [] });
       if (out.accepted === true) return this.accept(job, out);
-      job.findings.push({ round: job.round, stage, findings: out.findings || [] });
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {
       // Every candidate is recorded (round, operation, hash); a refused or empty repair stops the job rather than spend again.
@@ -560,9 +587,16 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
+      endStage(current.timing, 'failed');
+      if (error.code === 'provider_unavailable') {
+        // Paused, not lost: stage, spec, compiled result and captures stay; Retry resumes at this stage (retry()).
+        Object.assign(current, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: current.stage, category: 'provider_unavailable', message: error.message, retryable: true } });
+        // Not a finding: a paused repair resumes from the findings it was given (the refused call is in calls, status refused).
+        await this.save(current); await this.finishUsage(current, 'failed');
+        return;
+      }
       const refused = ['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429;
       const policy = error instanceof ExplainPolicyError;
-      endStage(current.timing, 'failed');
       Object.assign(current, { stage: 'failed', stopReason: error.stopReason || (refused ? 'budget' : 'error'),
         failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'internal', message: error.status || policy ? error.message : 'The explanation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' } });
       // Private, structured: what failed, never the learner's words or the provider's raw text in a log.

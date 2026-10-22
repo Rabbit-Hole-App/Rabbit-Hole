@@ -49,8 +49,10 @@
   "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }],
   // The one public origin; the control plane sets the same value.
   "vars": {
-    // /explain v2 (EXP-T12): off until the M5 activation (EXP-T23); off, its routes answer 404 and /explain keeps today's path.
-    "EXPLAIN_V2_ENABLED": "false",
+    // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
+    "EXPLAIN_V2_ENABLED": "true",
+    // A simple request within these goes straight to authoring; missing thresholds would review every request (explain-brief.js).
+    "EXPLAIN_BRIEF_THRESHOLDS": "{\"components\":12,\"credits\":400}",
     "PUBLIC_ORIGIN": "https://digrabbithole.com",
     "CAD_PRODUCTION_REQUIRED": "true",
     "CAD_MODEL_REQUIRE_DEDICATED": "true",
