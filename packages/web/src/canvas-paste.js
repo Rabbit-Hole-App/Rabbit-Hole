@@ -2,10 +2,12 @@
 // the canvas's own copied cards paste only while the clipboard still holds their marker, so text copied elsewhere
 // afterwards wins; code (`code`: copied from a Files reader, or looksLikeCode) asks Code card or Jupyter notebook first
 // (docs/features/repository-browser.md "Files in Learn"); other text becomes a text card. `marker` is CARDS_COPIED, `copying` the in-flight marker write.
-export function pasteKind({ images = 0, text = '', marker, copying = false, cards = 0, code = false }) {
+// `url` (the canvas offers webpage cards): text that is one http(s) URL asks Paste as text or Add webpage card first.
+export function pasteKind({ images = 0, text = '', marker, copying = false, cards = 0, code = false, url = false }) {
   const ours = text === marker;
   if (images && !copying && !ours) return 'image';
   if (cards && (ours || copying || !text.trim())) return 'cards';
+  if (url && isWebUrl(text)) return 'url';
   if (text.trim() && !ours) return code ? 'code' : 'text';
   return null;
 }
@@ -19,4 +21,11 @@ export function looksLikeCode(text) {
   const lines = String(text || '').split('\n').filter(line => line.trim());
   if (lines.length < 2) return false;
   return lines.filter(line => CODE_LINE.test(line)).length / lines.length >= 0.6;
+}
+
+// One http(s) URL and nothing else (no whitespace inside once trimmed): the only paste that offers a webpage card.
+export function isWebUrl(text) {
+  const value = String(text || '').trim();
+  if (!value || /\s/.test(value) || !/^https?:\/\//i.test(value)) return false;
+  try { const url = new URL(value); return (url.protocol === 'http:' || url.protocol === 'https:') && !!url.hostname; } catch { return false; }
 }

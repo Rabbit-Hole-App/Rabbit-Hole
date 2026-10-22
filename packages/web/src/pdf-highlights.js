@@ -3,7 +3,8 @@ import { wsHeaders } from './api.js';
 // The author's reader highlights and the server's identity of a PDF (pdf-excerpts contract, "Server API"): thin wrappers over
 // /api/learn/pdf-source and /api/learn/pdf-highlights. `home` rides only when it is another canvas, as paperBytesUrl does.
 // A refusal throws an Error with the server's message and `status` (404 not available, 409 document changed).
-const query = ({ app, key, home }) => new URLSearchParams({ app, key, ...(home && home !== app ? { home } : {}) }).toString();
+// A webpage capture's highlights (key web:<lineage>) name its manifest in place of home (webcard-interface.md section 1).
+const query = ({ app, key, home, manifest }) => new URLSearchParams({ app, key, ...(home && home !== app ? { home } : {}), ...(manifest ? { manifest } : {}) }).toString();
 async function call(url, init = {}) {
   const response = await fetch(url, { ...init, headers: { ...wsHeaders(), ...(init.body ? { 'content-type': 'application/json' } : {}), ...init.headers } });
   const body = await response.json().catch(() => null);

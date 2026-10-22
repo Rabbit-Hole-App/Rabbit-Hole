@@ -24,3 +24,33 @@ test('nothing to paste: whitespace, or the marker with no cards', () => {
   assert.equal(pasteKind({ text: '   ', marker }), null);
   assert.equal(pasteKind({ text: marker, marker }), null);
 });
+
+test('one http(s) URL asks first (url kind) only where the canvas offers webpage cards', async () => {
+  const { isWebUrl } = await import('./canvas-paste.js');
+  assert.equal(pasteKind({ text: 'https://example.com/a?b=1', marker, url: true }), 'url');
+  assert.equal(pasteKind({ text: '  http://example.com  ', marker, url: true }), 'url');
+  // Without the canvas's offer, or for anything but one URL, the paste stays what it was.
+  assert.equal(pasteKind({ text: 'https://example.com', marker }), 'text');
+  assert.equal(pasteKind({ text: 'see https://example.com', marker, url: true }), 'text');
+  assert.equal(pasteKind({ text: 'https://a.com\nhttps://b.com', marker, url: true }), 'text');
+  assert.equal(pasteKind({ text: 'javascript:alert(1)', marker, url: true }), 'text');
+  assert.equal(pasteKind({ text: 'file:///etc/passwd', marker, url: true }), 'text');
+  // An image and the canvas's own cards still win.
+  assert.equal(pasteKind({ images: 1, text: 'https://example.com', marker, url: true }), 'image');
+  assert.equal(pasteKind({ text: marker, marker, cards: 1, url: true }), 'cards');
+  assert.equal(isWebUrl('https://'), false);
+  assert.equal(isWebUrl('ftp://example.com'), false);
+});
+
+test('the URL chooser sits behind the canvas paste guards: editors and the composer keep their paste, a view-only board never asks', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  const handler = src.slice(src.indexOf('const paste = event => {'), src.indexOf("window.addEventListener('paste', paste, true);"));
+  assert.ok(handler.indexOf('if (typingIn(active)) return;') > -1 && handler.indexOf('if (typingIn(active)) return;') < handler.indexOf("kind === 'url'"), 'typing in a field returns before any choice');
+  assert.match(handler, /url: !readOnlyRef\.current/);
+  assert.match(handler, /if \(kind === 'url'\) \{ event\.preventDefault\(\); setUrlPaste\(/);
+  // The two choices, by their words; Esc and a click elsewhere place nothing.
+  assert.match(src, />Paste as text<\/button>/);
+  assert.match(src, />Add webpage card<\/button>/);
+  assert.match(src, /if \(event\.key === 'Escape'\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); choosePaste\(null\); \}/);
+});

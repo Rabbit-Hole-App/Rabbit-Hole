@@ -85,6 +85,8 @@ export function describeCanvasObject(object) {
     return null;
   }
   if (object.type === 'wiki') return { kind: 'Wikipedia', title: object.title, text: `Wikipedia article on the canvas: ${object.title}${object.section ? ` (section ${object.section})` : ''}`, material: 'wiki' };
+  // A webpage card (WebpageCard.jsx): what it is and where it came from; the captured text stays on the card unless a passage is asked about.
+  if (object.type === 'webpage') return { kind: 'Webpage', title: object.title || object.url, text: `Webpage on the canvas: ${object.title || object.url} (${object.url})`, material: 'webpage' };
   if (object.type === 'pdf') return { kind: 'PDF', title: object.label || 'PDF', text: `PDF on the canvas: ${object.label || 'untitled'}`, material: 'pdf' };
   // An imported model (ModelCard.jsx): its name, format and the counts its file declares - never the geometry itself.
   if (object.type === 'file' && object.kind === 'model') return { kind: '3D model', title: object.label || '3D model', text: modelText(object), material: 'file' };

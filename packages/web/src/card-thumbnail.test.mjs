@@ -55,6 +55,20 @@ test('a snapshot per pause in saving, never per keystroke; at most one per 30 s;
   assert.deepEqual(sent, ['shot-1', 'shot-2'], 'stopped when the canvas closes');
 });
 
+test('a due snapshot waits while the learner pans, scrolls or types, and is drawn 1.5 s into the pause', async () => {
+  // fast-e2e 39749160898: the capture inside a pan was a 514 ms frame at 10 webpage cards and a 1.2 s stall at 20.
+  const c = clock(), sent = [];
+  let input = -Infinity;
+  const s = thumbnailScheduler({ capture: async () => 'shot', upload: async blob => { sent.push(blob); }, active: () => input, now: c.now, timers: c.timers });
+  s.saved('a');
+  for (let i = 0; i < 8; i += 1) { await c.tick(500); input = c.now(); } // panning from 0 to 4 s, past the 4 s delay
+  await c.tick(1000);
+  assert.deepEqual(sent, [], 'not while panning, nor 1 s into the pause');
+  assert.equal(c.pending, 500);
+  await c.tick(500);
+  assert.deepEqual(sent, ['shot'], 'drawn once the pause reaches 1.5 s');
+});
+
 test('an empty canvas sends nothing and counts as done; a failed upload is tried again on the next save', async () => {
   const c = clock(), sent = [];
   let fail = true, empty = true;
