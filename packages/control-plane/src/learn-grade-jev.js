@@ -133,8 +133,9 @@ export async function verdictLogicFingerprint() {
 
 // One POST to the gateway. 3 s per attempt; a 429 or 529 is retried once after
 // min(Retry-After, 1 s); a timeout is never retried. `ms` is the whole wall
-// time, retry wait included; `retries` (0 or 1) counts that 429/529 retry.
-export async function askJev(env, request, { transport = 'gateway', timeoutMs = 3000, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
+// time, retry wait included; `retries` (0 or 1) counts that 429/529 retry. `headers` adds request headers (image
+// screening sends TypeSafe-Danger-Zone-Images); they cannot replace Authorization or Content-Type.
+export async function askJev(env, request, { transport = 'gateway', timeoutMs = 3000, headers = {}, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)), fetchImpl = (...args) => fetch(...args) } = {}) {
   const started = Date.now();
   const enforced = spendEnforced(env);
   // https://docs.typesafe.ai/models: pinned Jev 1.13, 64K total input, .042/M, free output.
@@ -164,7 +165,7 @@ export async function askJev(env, request, { transport = 'gateway', timeoutMs = 
       response = await fetchImpl(url, {
         method: 'POST',
         signal: controller.signal,
-        headers: { Authorization: `Bearer ${env[key]}`, 'Content-Type': 'application/json' },
+        headers: { ...headers, Authorization: `Bearer ${env[key]}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(request),
       });
       body = await response.json().catch(() => null);
