@@ -14,6 +14,8 @@
 // HELD_SUM), so concurrent spending elsewhere can still refuse a later call; the job then stops with an allowance reason and
 // keeps its spec. Upgrade when the ledger can admit calls against a parent hold.
 import { repositoryIdentity } from './repositories.js';
+import { authorizedBoardApp } from './learn-board.js';
+import { tutorImageContext } from './learn-image-context.js';
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
@@ -91,7 +93,7 @@ const credits = micros => Math.ceil((micros || 0) / 10000);
 export function publicExplainJob(job) {
   const settled = job.calls.reduce((t, c) => t + (c.costMicros || 0), 0);
   return {
-    id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage,
+    id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage, attempt: job.attempt,
     terminal: TERMINAL.has(job.stage), round: job.round, stopReason: job.stopReason, failure: job.failure,
     recovery: recoveryOf(job), usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
     result: job.result, ...(job.brief ? { brief: job.brief, briefHash: job.briefHash } : {}),
@@ -143,6 +145,22 @@ export async function explainRoute(path, req, env, deps = {}) {
   const rest = path.slice(PREFIX.length).split('/').filter(Boolean).map(decodeURIComponent);
   const action = req.method === 'GET' ? (rest[0] ? 'get' : 'list') : (rest[0] ? rest[1] : 'create');
   if (!['get', 'list', 'create', 'cancel', 'retry', 'approve', 'refine'].includes(action) || rest.length > 2) return json({ error: 'Not found' }, 404);
+  // EXP-T15 on v2: an attached image is read here, under this canvas's authorization, by the existing reader (as
+  // /api/learn/artifact does), stored for the job and offered to the author as a layout reference only. Never a browser key.
+  delete body.reference;
+  if (action === 'create' && (body.image_context !== undefined || body.image_role !== undefined)) {
+    if ((body.image_role ?? 'layout_reference') !== 'layout_reference' || body.image_context === undefined) return json({ error: 'image_role must be layout_reference, with an image_context' }, 400);
+    if (typeof body.requestId !== 'string' || !/^[A-Za-z0-9_-]{8,128}$/.test(body.requestId)) return json({ error: 'requestId is required.' }, 400);
+    const access = await (deps.access || authorizedBoardApp)(req, env, board.app);
+    if (access instanceof Response) return access;
+    const got = await (deps.images || tutorImageContext)(env, access, { image_context: body.image_context, board: board.board }).catch(() => null);
+    if (got?.error) return json({ error: got.error }, got.status || 400);
+    const image = got?.blocks?.find(part => part.type === 'image');
+    if (!image) return json({ error: got?.notice || 'The attached image is unavailable. Attach it again and resend.', code: 'image_unavailable' }, 409);
+    const key = `explain-reference/${board.id}/${body.requestId}`;
+    await learnMedia(env).put(key, JSON.stringify({ mediaType: image.source.media_type, data: image.source.data }), { httpMetadata: { contentType: 'application/json' } });
+    body.reference = { key, role: 'layout_reference', mediaType: image.source.media_type };
+  }
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin }) });
@@ -188,7 +206,7 @@ export class ExplainJobs {
 
   async create(payload, board, user, origin) {
     validateCreate(payload);
-    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? []]));
+    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? [], payload.image_context ?? null]));
     const fence = await this.state.storage.get(`request:${payload.requestId}`);
     if (fence) {
       if (fence.fingerprint !== fingerprint) throw fail('This request id belongs to a different explanation.', 409);
@@ -202,7 +220,7 @@ export class ExplainJobs {
     const job = {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
-      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], source: payload.source ?? 'explicit', base, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
+      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], source: payload.source ?? 'explicit', base, reference: payload.reference ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (T16 owns the rule); until then a researched request prepares one.
       // A brief is prepared unless the request is simple and within the configured thresholds (explain-brief.js).
       prepare: needsPreparation(this.env, payload.requestClass), threadId: payload.threadId ?? null, settings: null, decision: null, refinement: null, pendingProposal: null,

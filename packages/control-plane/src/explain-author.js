@@ -8,6 +8,7 @@ import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { sceneProblem } from './learn-scene-gates.js';
 import { authorTool, EXPLAIN_AUTHOR_SYSTEM, GAP_NEEDS } from './agents/explain-author.js';
 import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
+import { learnMedia } from './learn-storage.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
@@ -56,6 +57,20 @@ export function capabilityGap(needs, reason, source) {
   return { capability: 'explain', needs: known, source, message, reason: typeof reason === 'string' ? reason.trim().slice(0, 400) : null };
 }
 
+// What an attached image is for (EXP-T15). The same words as Lane B2's IMAGE_ROLES in learn-artifact.js (explain/b2-t15):
+// only a layout reference exists; its facts need verification, so they are never taken as true.
+// shortcut: a copy of B2's text until explain/b2-t15 is on this branch; then import IMAGE_ROLES from learn-artifact.js.
+export const IMAGE_ROLES = Object.freeze({
+  layout_reference: 'The learner attached the image below as a layout reference for this explanation: follow its arrangement, grouping and reading order where they fit the request. Do not take facts, numbers, labels or claims from it as true; the request and the other context decide the content.',
+});
+// The job's stored reference image (explain-job.js route), read back for the author call.
+async function referenceImage(env, reference) {
+  const object = await learnMedia(env)?.get(reference.key);
+  if (!object) throw Object.assign(new Error('The attached image is no longer available. Attach it again and resend.'), { status: 409, category: 'source' });
+  const saved = JSON.parse(await object.text());
+  return { mediaType: saved.mediaType, data: saved.data };
+}
+
 // Explicit ExampleSelection: bundled example ids, at most two; empty works. Composition guidance only, never facts.
 export function selectExamples(ids = []) {
   if (!Array.isArray(ids) || ids.length > MAX_EXAMPLES) throw new ExplainPolicyError('examples', `Choose at most ${MAX_EXAMPLES} examples.`);
@@ -91,7 +106,9 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
     catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),
   });
-  const out = await ctx.call('author', { system: EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat), content });
+  // A layout reference image goes beside the text with its role said first; it is never an evidence record.
+  const blocks = input.reference ? [{ type: 'text', text: content }, { type: 'text', text: IMAGE_ROLES.layout_reference }, { type: 'image', source: { type: 'base64', media_type: input.reference.mediaType, data: input.reference.data } }] : content;
+  const out = await ctx.call('author', { system: EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat), content: blocks });
   const { input: reply } = out;
   if (reply.kind === 'capability_gap') {
     if (!Array.isArray(reply.gap?.needs) || !reply.gap.needs.length) throw new ExplainPolicyError('invalid_turn', 'The author reported a gap without saying what is needed.');
@@ -104,7 +121,8 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
 export async function authorStage(job, ctx) {
   // The card's presentation setting at Generate overrides the brief's.
   const brief = job.brief && job.settings?.presentation ? { ...job.brief, presentation: job.settings.presentation } : job.brief;
-  const { spec, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit: job.base ? { spec: job.base.spec } : null }, ctx);
+  const reference = job.reference ? await referenceImage(ctx.env, job.reference) : null;
+  const { spec, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit: job.base ? { spec: job.base.spec } : null, reference }, ctx);
   return gap ? { gap } : { spec };
 }
 
