@@ -21,6 +21,7 @@ import { CadPreview, cadCanMutate } from './CadCard.jsx';
 import { cadRunning, cadStage } from './cad-client.js';
 import { Md, Code } from './Md.jsx';
 import { cardEditSelectionReason } from './inline-card-edit.js';
+import { explainEditProblem } from './explain-client.js';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Check, ChevronDown, CircleHelp, Loader2, RotateCcw, Square, X } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
@@ -108,7 +109,12 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const cadAccept=async(action)=>{setCadPending(true);setCadError('');try{await config.cadAction(cadJob.id,action,action==='accept'?{expectedRevisionId:cadJob.baseRevisionId}:{});if(cadLive.current)onClose();}catch(problem){if(cadLive.current)setCadError(problem.message);}finally{if(cadLive.current)setCadPending(false);}};
   const notebookTarget=target.notebook&&target.ids?.length===1&&target.notebook.id===target.ids[0];
   const imageTarget = !!config.prepareImage && !readOnly && !target.creation && target.ids?.length===1 && !canvas.locked?.(target.ids[0]) && canvas.board?.().blocks?.find(block=>block.id===target.ids[0]&&editableImage(block));
-  const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && cardEditSelectionReason(target.ids || [], canvas.board?.() || {});
+  // A selected Explanation (EXP-T20 slice 2): Edit revises that card through an /explain v2 edit job where the page offers one
+  // (config.explainEdit); a card made before v2 says why it cannot. Without it, Explanations keep the generic refusal.
+  const explainTarget = !!config.explainEdit && !readOnly && !target.creation && target.ids?.length === 1 && canvas.board?.().blocks?.find(block => block.id === target.ids[0] && block.type === 'animation');
+  const explainEditReason = explainTarget ? explainEditProblem(explainTarget) : null;
+  const [explainError, setExplainError] = useState('');
+  const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target.creation && (explainTarget ? explainEditReason : cardEditSelectionReason(target.ids || [], canvas.board?.() || {}));
   const fileLocked = !imageTarget && !cadTarget && !target.creation && fileEditLocked(target.ids || [], canvas.board?.());
   const [mode, setMode] = useState(target.creation || fileLocked || cardEditReason ? 'explain' : ['edit', 'explain'].includes(initialMode) ? initialMode : target.range ? 'edit' : 'explain');
   const [prompt, setPrompt] = useState('');
@@ -345,6 +351,13 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       if(!config.cad){setCadError('CAD generation is not available on this canvas.');return;}
       const made=prepare(selectionOnly,out.text);
       setCadConfirmation({text:out.text, editing:!!(out.mode==='edit' && cadTarget), options:{context:made.context,...(out.mode==='edit' && cadTarget ? {cardId:cadTarget.id,baseRevisionId:cadTarget.revisionId} : {})}});
+      return;
+    }
+    if (out.mode === 'edit' && explainTarget && !explainEditReason) {
+      if (!out.text.trim()) { setExplainError('What would you like to change?'); return; }
+      setExplainError('');
+      try { await config.explainEdit(explainTarget, out.text.trim()); onClose(); }
+      catch (problem) { setExplainError(problem.message); }
       return;
     }
     submit(out.prompt, out.mode);
@@ -888,6 +901,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <p className="text-xs text-ink-2">Closing this editor keeps the saved job running. You can review it on the CAD card later.</p>
         </div>}
         {cadConfirmation && <PaidConfirm message="Generate this CAD revision? Bounded generation includes model and executor work." onCancel={()=>setCadConfirmation(null)} onGenerate={generateCad} />}
+        {explainError && <p data-explain-edit-status role="status" className="mt-2 text-xs text-ink-2">{explainError}</p>}
         {(cadPending || cadError) && <p data-cad-submit-status role="status" className="mt-2 text-xs text-ink-2">{cadPending ? 'Saving the CAD job' : cadError}</p>}
         {refused && <p data-inline-unsupported={refused} role="status" className="mt-2 text-xs text-ink-2">{unsupportedText(refused)}</p>}
         {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}

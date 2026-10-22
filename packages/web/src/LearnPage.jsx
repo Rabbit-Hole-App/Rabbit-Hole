@@ -3,7 +3,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
-import { explainClient, explainDisabled, explainPendingBlock } from './explain-client.js';
+import { explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -978,6 +978,20 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const blockId = canvasApi.current?.placeExplain(withPrompt(explainPendingBlock({ job: result.job, prompt }), promptUsed));
     return { blockId: blockId || result.job.cardId };
   };
+  // Ctrl+K Edit on an Explanation (EXP-T20 slice 2): an edit job bound to the card and the revision the learner saw; the card
+  // shows its stage, then Current / Proposed with Apply changes and Discard (ExplainEditBar).
+  const startExplainEdit = async (block, instruction) => {
+    const off = 'Editing explanations is not available here yet.';
+    if (explainOff.current || !commentBoard) throw new Error(off);
+    const problem = explainEditProblem(block);
+    if (problem) throw new Error(problem);
+    const payload = explainEditRequest(block, instruction);
+    let result;
+    try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
+    catch (error) { if (explainDisabled(error)) { explainOff.current = true; throw new Error(off); } throw error; }
+    canvasApi.current?.updateBlock(block.id, current => (explainEditProblem(current) ? null : explainEditing(current, result.job, instruction)));
+    return result.job;
+  };
   // promptUsed: the typed line the card keeps (card-prompt.js); the inline editor's words are the prompt itself. An edit keeps
   // none here: the server's Accept answer carries the accepted revision's words (cad-jobs.js acceptedResponse), on the card's
   // Accept, the inline editor's and after a reload alike; a rejected edit leaves the old prompt.
@@ -1030,6 +1044,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       sourcesRef.current=next;setSources(next);return true;
     },
     cad: startCad,
+    explainEdit: startExplainEdit,
     cadRead: id => cadClient(api,app.name,boardName).get(id),
     cadAction: async (id,action,body) => {
       const destination=canvasApi.current;

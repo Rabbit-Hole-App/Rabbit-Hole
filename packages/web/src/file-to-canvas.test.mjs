@@ -80,7 +80,10 @@ test('Ctrl+K preserves file-family restrictions and additionally requires a safe
   assert.equal(fileEditLocked(['v'], null), false);
   const editor = readFileSync(new URL('./InlineAiEditor.jsx', import.meta.url), 'utf8');
   assert.match(editor, /block\.type === 'cad' && block\.revisionId && !block\.locked && cadCanMutate\(block,readOnly\)/, 'only mutable accepted CAD revisions use the separate CAD edit route');
-  assert.match(editor, /const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target\.creation && cardEditSelectionReason\(target\.ids \|\| \[\], canvas\.board\?\.\(\) \|\| \{\}\);/, 'the same runtime eligibility guard controls the editor');
+  // EXP-T20 slice 2: a single selected Explanation takes the /explain v2 edit guard (explainEditProblem); every other selection
+  // keeps the same runtime eligibility guard.
+  assert.match(editor, /const explainTarget = !!config\.explainEdit && !readOnly && !target\.creation && target\.ids\?\.length === 1 && canvas\.board\?\.\(\)\.blocks\?\.find\(block => block\.id === target\.ids\[0\] && block\.type === 'animation'\);/, 'only a single selected Explanation, where the page offers v2 Edit');
+  assert.match(editor, /const cardEditReason = !imageTarget && !notebookTarget && !cadTarget && !target\.creation && \(explainTarget \? explainEditReason : cardEditSelectionReason\(target\.ids \|\| \[\], canvas\.board\?\.\(\) \|\| \{\}\)\);/, 'the same runtime eligibility guard controls the editor');
   assert.match(editor, /const fileLocked = !imageTarget && !cadTarget && !target\.creation && fileEditLocked\(target\.ids \|\| \[\], canvas\.board\?\.\(\)\);/);
   assert.match(editor, /useState\(target\.creation \|\| fileLocked \|\| cardEditReason \? 'explain'/, 'opens in Explain');
   assert.match(editor, /disabled=\{\(target\.creation \|\| fileLocked \|\| cardEditReason\) && value === 'edit'\}/, 'Edit is disabled in the mode menu');

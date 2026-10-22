@@ -1,5 +1,6 @@
 import CadCard from './CadCard.jsx';
 import ExplainPending from './ExplainPending.jsx';
+import ExplainEditBar from './ExplainEditBar.jsx';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
@@ -1182,6 +1183,9 @@ function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
 // A short animation from scene JSON: deterministic playback the learner can
 // pause, scrub and ask about without the scene ever changing.
 function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPracticeHeight, onControlsHeight }) {
+  // A same-card Edit's candidate, while the learner looks at Proposed (ExplainEditBar): drawn, never saved or changed.
+  const [candidate, setCandidate] = useState(null);
+  const ignore = () => {};
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       {/* A card that is one step of a sequence says so, quietly, where the
@@ -1190,9 +1194,12 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         {/* An /explain v2 job still making this card (EXP-T20): its stage until the result attaches here. */}
+        {block.explainEdit && <ExplainEditBar block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onPreview={setCandidate} />}
         {block.explainJob && !block.scene
           ? <ExplainPending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} />
-          : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
+          : candidate
+            ? <AnimatedScene key="proposed" block={{ ...candidate, id: block.id }} onChange={ignore} onChangeQuiet={ignore} />
+            : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { explainClient, explainDisabled, explainPendingBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
+import { applyExplainEdit, discardExplainEdit, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
 import { submitCadOnce } from './cad-client.js';
 import { runLearnCommand } from './learn-slash.js';
 
@@ -96,4 +96,39 @@ test('the canvas places a job\'s card once under its own id, never a second one,
   assert.deepEqual(inserted.map(block => block.id), ['card-1']);
   assert.equal(place(true)({ ...card, id: 'card-2' }), null);
   assert.equal(place()({ ...card, type: 'cad', id: 'card-3' }), null);
+});
+
+// EXP-T20 slice 2: same-card Edit, Apply / Discard (plan section 1.3).
+test('Edit is offered only on a v2 Explanation, bound to the card and the revision the learner saw', () => {
+  const accepted = { id: 'card-1', type: 'animation', title: 'Heap', scene, explain: identity({ revision: 'xr_1' }), dx: 10, dy: 20, inputs: { k: 1 } };
+  assert.equal(explainEditProblem(accepted), null);
+  assert.match(explainEditProblem({ ...accepted, explain: undefined }), /made before explanations could be edited/, 'a legacy card says why, never a silent replacement');
+  assert.match(explainEditProblem({ id: 'x', type: 'explanation' }), /Only an Explanation card/);
+  assert.match(explainEditProblem({ ...accepted, locked: true }), /locked/);
+  assert.match(explainEditProblem({ ...accepted, explainEdit: { id: 'ej_9' } }), /already being made or edited/);
+  assert.deepEqual(explainEditRequest(accepted, 'show the swap step'), { prompt: 'show the swap step', requestClass: 'edit', source: 'command', cardId: 'card-1', baseRevision: 'xr_1' });
+});
+
+test('Apply replaces this card in place at its expected revision; a stale card keeps the candidate; Discard leaves it as it was', () => {
+  const accepted = { id: 'card-1', type: 'animation', title: 'Heap', scene, explain: identity({ revision: 'xr_1' }), dx: 10, dy: 20, inputs: { k: 1 }, prompt: { text: '/explain heaps' } };
+  const editing = explainEditing(accepted, job({ id: 'ej_2', stage: 'authoring' }), 'show the swap step');
+  const done = job({ id: 'ej_2', stage: 'ready', terminal: true, result: identity({ jobId: 'ej_2', resultId: 'er_2', revision: 'xr_2', baseRevision: 'xr_1' }) });
+  const candidate = { type: 'animation', id: 'card-1', title: 'Heap, with the swap', scene: { ...scene, duration: 3 }, explain: done.result };
+  const applied = applyExplainEdit(editing, done, candidate);
+  assert.equal(applied.ok, true);
+  assert.deepEqual([applied.block.id, applied.block.dx, applied.block.dy, applied.block.title, applied.block.explain.revision, applied.block.time, applied.block.prompt.text],
+    ['card-1', 10, 20, 'Heap, with the swap', 'xr_2', 3, '/explain heaps']);
+  assert.equal(applied.block.explainEdit, undefined);
+  // The card moved on (another accepted edit) since this one started: refused, candidate and instruction kept on the card.
+  const moved = { ...editing, explain: identity({ revision: 'xr_3' }) };
+  const stale = applyExplainEdit(moved, done, candidate);
+  assert.deepEqual([stale.ok, stale.stale], [false, true]);
+  assert.match(stale.reason, /proposed version and your request are kept/);
+  // Another card, another canvas or another job's candidate never applies.
+  assert.equal(applyExplainEdit({ ...editing, id: 'card-2' }, done, candidate).ok, false);
+  assert.equal(applyExplainEdit(editing, { ...done, result: identity({ baseRevision: 'xr_1', canvas: { boardId: 'board-B' } }) }, candidate).ok, false);
+  assert.equal(applyExplainEdit(editing, { ...done, id: 'ej_3' }, candidate).ok, false);
+  assert.equal(applyExplainEdit(editing, job({ id: 'ej_2', stage: 'reviewing' }), candidate).ok, false);
+  const discarded = discardExplainEdit(editing);
+  assert.deepEqual(discarded, accepted, 'Discard: exactly the accepted card');
 });
