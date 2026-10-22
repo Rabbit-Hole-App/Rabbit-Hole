@@ -150,14 +150,18 @@ await check('7 the empty canvas: Add text, Add sticky note and Fit canvas; a not
 
 await check('8 selected text in a card: Copy selected text copies the selection, not the card', async () => {
   const body = page.locator('[data-block-id="t-exp"]').getByText('near ocean', { exact: false }).first();
-  await body.evaluate(node => {
-    const text = node.firstChild && node.firstChild.nodeType === 3 ? node.firstChild : [...node.childNodes].find(child => child.nodeType === 3);
+  // Select the words, then right-click on them (the selection's own rectangle), as a learner does.
+  const box = await body.evaluate(node => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let text = walker.nextNode();
+    while (text && !text.textContent.includes('near ocean')) text = walker.nextNode();
     const at = text.textContent.indexOf('near ocean');
     const range = document.createRange(); range.setStart(text, at); range.setEnd(text, at + 'near ocean'.length);
     const picked = getSelection(); picked.removeAllRanges(); picked.addRange(range);
+    const rect = range.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
   });
-  const box = await body.boundingBox();
-  await page.mouse.click(box.x + 20, box.y + box.height / 2, { button: 'right' });
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
   await menu().waitFor();
   const rows = await rowsText();
   assert.ok(rows.includes('Copy selected text') && rows.includes('Add selection to chat'), rows.join(', '));
