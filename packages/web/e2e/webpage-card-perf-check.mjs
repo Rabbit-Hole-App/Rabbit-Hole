@@ -104,9 +104,11 @@ const fpsDuring = async (page, ms, act) => {
     const tick = now => { t.push(now - last); last = now; if (now < end) requestAnimationFrame(tick); else { observer?.disconnect(); resolve({ t, loaf }); } }; requestAnimationFrame(tick); }), ms);
   const stop = Date.now() + ms; let i = 0;
   while (Date.now() < stop) { await act(i); i += 1; }
-  const sampled = await sampling, t = sampled.t.slice(1).sort((a, b) => a - b);
+  const sampled = await sampling, raw = sampled.t.slice(1), t = [...raw].sort((a, b) => a - b);
+  // Diagnosis: where the worst frame ends, in ms from the window start.
+  const worstAt = Math.round(raw.slice(0, raw.indexOf(Math.max(...raw)) + 1).reduce((a, b) => a + b, 0));
   const mean = t.reduce((a, b) => a + b, 0) / t.length;
-  return { fps: +(1000 / mean).toFixed(1), p95: +t[Math.floor(t.length * 0.95)].toFixed(1), worst: +t[t.length - 1].toFixed(1), frames: t.length, loaf: sampled.loaf };
+  return { fps: +(1000 / mean).toFixed(1), p95: +t[Math.floor(t.length * 0.95)].toFixed(1), worst: +t[t.length - 1].toFixed(1), frames: t.length, loaf: sampled.loaf, worstAt };
 };
 const barePoint = page => page.evaluate(() => {
   const limit = Math.min(...[...document.querySelectorAll('[data-chat-pane],[data-sources-pane]')].filter(e => e.offsetWidth).map(e => e.getBoundingClientRect().x), innerWidth) - 30;
@@ -155,7 +157,9 @@ for (const n of SIZES) {
     Object.assign(row, { panFps: pan.fps, panP95: pan.p95 });
     // Diagnosis: board thumbnail uploads relative to the pan window's start (ms; the window is 0 to 1500).
     const thumbAt = thumbs.map(t => t - panFrom).join(' ') || 'none';
-    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}, ${pan.frames} frames, long frames ${JSON.stringify(pan.loaf)}`);
+    // Diagnosis only: the same pan once more straight after (a one-time stall, such as a first raster, does not repeat).
+    const again = await fpsDuring(page, 1500, i => page.mouse.wheel((i % 20) < 10 ? 60 : -60, (i % 20) < 10 ? 30 : -30));
+    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}, ${pan.frames} frames, worst frame ends at ${pan.worstAt} ms, long frames ${JSON.stringify(pan.loaf)}; second pan (not judged) ${again.fps} fps, worst ${again.worst} ms at ${again.worstAt} ms`);
 
     // Offscreen unload: pan every card off screen, wait past the release delay, then come back.
     // A card that slides under the pointer takes the wheel (an unlocked card scrolls its page), so pan from a bare point each time.

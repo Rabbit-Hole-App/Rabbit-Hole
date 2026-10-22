@@ -362,7 +362,11 @@ await check('scrolling the card moves the capture, not the canvas; zero AI reque
     const body = await part(ID, SEL.body).boundingBox(), cam = await camera(), top = await scrollTop(ID);
     const at = await cardPoint(ID); assert.ok(at, 'a point of the card on top'); await page.mouse.click(at.x, at.y);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
-    for (let i = 0; i < 8; i += 1) { await page.mouse.wheel(0, 250); await frames(); }
+    // About 1300 capture px down, whatever the card's scale and the canvas zoom: past 1000, with tile 1 (RUN_2, which the
+    // selection steps use) still in view. A fixed 2000 screen px clamped a 560 px card at the page bottom, where only tile 2's
+    // text is mounted (fast-e2e 39745217786: the text layer held only RUN_3).
+    const perPx = (await part(ID, SEL.column).evaluate((c, width) => c.offsetWidth / width, TILE_W)) * await zoom(); // screen px per capture px
+    for (let i = 0; i < 5; i += 1) { await page.mouse.wheel(0, (1300 * perPx) / 5); await frames(); }
     await waitFor(async () => await scrollTop(ID) >= top + 1000, 4000, `the capture did not scroll (scroll-top ${await scrollTop(ID)})`);
     assert.equal(await camera(), cam, 'the canvas did not move');
     await waitFor(async () => showsTile(await tilesShown(ID), V1, 1), 10000, 'the second tile did not load after the scroll');
