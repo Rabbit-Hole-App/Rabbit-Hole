@@ -37,7 +37,9 @@ function Tile({ tile, page, onSeen }) {
   const box = useRef(null), [url, setUrl] = useState(null), [seen, setSeen] = useState(false);
   useEffect(() => {
     let timer = 0;
-    const observer = new IntersectionObserver(([entry]) => { clearTimeout(timer); if (entry.isIntersecting) setSeen(true); else timer = setTimeout(() => setSeen(false), RELEASE_MS); }, { rootMargin: '200px' });
+    // The newest entry decides: a fast pan can queue enter then leave in one delivery, and the first alone kept the tile mounted
+    // for good (webpage-card-perf "tiles unload off screen", 4 mounted with every card away; fast-e2e 39818018560, 39821059780).
+    const observer = new IntersectionObserver(entries => { const entry = entries.at(-1); clearTimeout(timer); if (entry.isIntersecting) setSeen(true); else timer = setTimeout(() => setSeen(false), RELEASE_MS); }, { rootMargin: '200px' });
     observer.observe(box.current);
     return () => { clearTimeout(timer); observer.disconnect(); };
   }, []);

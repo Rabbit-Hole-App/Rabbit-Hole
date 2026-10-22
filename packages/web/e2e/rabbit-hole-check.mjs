@@ -100,7 +100,11 @@ const only = (process.env.ONLY || '').split(',').filter(Boolean);
 const failures = [];
 const check = async (label, fn) => {
   if (only.length && !only.some((p) => label.startsWith(p))) return;
-  try { await fn(); console.log(`ok: ${label}`); } catch (e) { failures.push(label); console.log(`FAIL: ${label} - ${e.message.split('\n')[0]}`); }
+  try { await fn(); console.log(`ok: ${label}`); } catch (e) {
+    failures.push(label); console.log(`FAIL: ${label} - ${e.message.split('\n')[0]}`);
+    // Playwright's call log says which locator timed out and why (not stable, another element receives the click): keep its tail.
+    for (const line of e.message.split('\n').slice(1).filter((l) => l.trim()).slice(-8)) console.log(`  | ${line.trim()}`);
+  }
 };
 const must = (cond, message) => { if (!cond) throw new Error(message); };
 
@@ -2209,6 +2213,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await graph6(fx).getByRole('textbox', { name: 'Search repository' }).fill(''); // pickNode's search would filter the decision out
     await openLayers(fx);
     await layer(fx, 'Decisions').click();
+    // Every drawn node can be clicked: its centre hits the graph itself, never the zoom controls a narrow panel drew a top row
+    // under, nor the rows below a graph clipped by a short panel (gate 39765600792: Reset graph took the click on a decision node).
+    const covered = await graph6(fx).evaluate((graph) => [...graph.querySelectorAll('[data-graph-node]')].map((node) => {
+      const b = node.querySelector('circle, rect').getBoundingClientRect(), hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2);
+      return hit?.closest('svg[role="img"]') ? null : `${node.dataset.graphNode} under ${hit?.getAttribute('title') || hit?.tagName || 'nothing'}`;
+    }).filter(Boolean));
+    must(!covered.length, `graph nodes under other elements: ${covered.join(', ')}`);
     const decision = graph6(fx).locator('[data-graph-node="fx-d-fused-qkv"] :is(circle, rect)').first();
     await decision.click({ modifiers: ['Shift'] });
     await graph6(fx).locator('[data-graph-node="fx-d-fused-qkv"][data-selected]').waitFor({ timeout: 10000 });

@@ -102,7 +102,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
       </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
       {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
-        <RepositoryGraph key={snapshot.commit} graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
+        <RepositoryGraph key={snapshot.commit} fit graph={shown} selectedIds={selected} onSelect={choose} query={query} answerView={answerView} focusRequest={explore} onNodeMenu={openMenu} onShown={ids => { onScreen.current = ids; }}
           camera={camera} onCamera={value => repository.graph.setCamera({ ...value, commit: snapshot.commit })} />
       </div> : <p data-graph-empty className="text-sm text-ink-2">This repository has no code graph. You can still ask about its code in Chat.</p>}
       <p className="shrink-0 text-xs text-ink-3">{snapshot.files?.length ?? 0} files · {snapshot.graph.nodes.length} nodes · {snapshot.graph.edges.length} relationships{snapshot.skipped?.length ? ` · ${snapshot.skipped.length} excluded` : ''}</p>
