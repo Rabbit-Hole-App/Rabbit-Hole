@@ -61,6 +61,8 @@ const objectSchema = z.object({
     label: z.string().max(200).optional(),
     text: z.string().max(600).optional(),
     runs: z.array(runSchema).min(1).max(16).optional(),
+    // A text object's x is its start (default) or, with middle, its centre: a wrapped label in a centred box.
+    align: z.enum(['start', 'middle']).optional(),
     x: z.number().default(0),
     y: z.number().default(0),
     w: z.number().positive().max(2000).optional(),
@@ -573,6 +575,7 @@ export function getSceneState(scene, time) {
     // number is, without re-deriving it themselves - see scene-derive.js.
     provenance: object.initialState.provenance,
     typography: object.initialState.typography,
+    align: object.initialState.align ?? 'start',
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,
     src: object.initialState.src ?? null,

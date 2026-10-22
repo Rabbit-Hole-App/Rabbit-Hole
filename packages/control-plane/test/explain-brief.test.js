@@ -34,9 +34,7 @@ function stack(t, { thresholds = true } = {}) {
   const s = explainStack(t, { pipeline: { ...explainPipeline, render: STUB_RENDER } });
   if (!thresholds) delete s.env.EXPLAIN_BRIEF_THRESHOLDS;
   assert.equal(s.env.MOTION_ORCHESTRATOR_TOKEN, undefined, 'Motion unconfigured');
-  s.sqlite.prepare("INSERT INTO threads VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, BOARD.app);
-  // messages: the chat answer rows a brief posts (repository-schema.sql shape).
-  s.sqlite.exec('CREATE TABLE messages (id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL)');
+  s.sqlite.prepare("INSERT INTO threads (id, org, user, scope_ref) VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, BOARD.app);
   return s;
 }
 const posted = s => rows(s.sqlite, 'chat_message_meta').map(r => JSON.parse(r.meta_json));
@@ -80,8 +78,25 @@ test('a reviewed brief: one brief call, original wording kept, posted as the sig
   assert.equal(meta.proposal.usage.reserve_credits, 332);
   assert.equal(meta.proposalState.version, 1);
   // Another learner's thread, or one on another canvas, cannot receive it.
-  s.sqlite.prepare("INSERT INTO threads VALUES ('th-other', ?, 'someone@example.com', ?)").run(OWNER.org, BOARD.app);
+  s.sqlite.prepare("INSERT INTO threads (id, org, user, scope_ref) VALUES ('th-other', ?, 'someone@example.com', ?)").run(OWNER.org, BOARD.app);
   assert.equal((await s.create({ requestId: 'req-00000002', cardId: 'card-0002', requestClass: 'researched', threadId: 'th-other' })).status, 404);
+});
+
+test('a brief needing review with no chat thread (Tutor, Ctrl+K) goes on the canvas open thread, a new one when none; never skipped', async t => {
+  const s = stack(t, { thresholds: false });
+  scripted(t, { explain_brief: [brief(), brief()] });
+  const first = await s.run((await s.create()).body.job.id);
+  assert.equal(first.stage, 'awaiting_approval');
+  assert.match(first.threadId, /^canvaschat-[0-9a-f-]{36}$/);
+  const thread = rows(s.sqlite, 'threads').find(r => r.id === first.threadId);
+  assert.deepEqual([thread.org, thread.user, thread.scope_ref], [OWNER.org, OWNER.email, BOARD.app]);
+  const active = rows(s.sqlite, 'chat_thread_state').find(r => r.thread_id === `active:${BOARD.app}:${OWNER.org}:${OWNER.email}`);
+  assert.equal(JSON.parse(active.context_json).threadId, first.threadId, 'the new thread is the canvas open Chat thread');
+  assert.equal(posted(s).length, 1);
+  // The next request with no thread joins that open thread instead of making another.
+  const second = await s.run((await s.create({ requestId: 'req-00000002', cardId: 'card-0002' })).body.job.id);
+  assert.equal(second.threadId, first.threadId);
+  assert.deepEqual([posted(s).length, rows(s.sqlite, 'threads').length], [2, 2]);
 });
 
 test('a refinement re-prepares the brief as the next version; the old version is refused, the current one generates with its settings', async t => {
@@ -111,8 +126,9 @@ test('a refinement re-prepares the brief as the next version; the old version is
 });
 
 // Steps compile since the integration (component step), so an experiment is the unsupported presentation left.
-test('preflight: a brief that plans an unsupported presentation or an unknown component is a capability gap, with no card and no proposal', async t => {
-  for (const [reply, need] of [[brief({ presentation: 'experiment' }), 'experiment'], [brief({ components: ['galaxy'] }), 'component']]) {
+// Every presentation compiles since L3's experiment controls; a planned component the catalogue lacks is still a gap.
+test('preflight: a brief that plans an unknown component is a capability gap, with no card and no proposal', async t => {
+  for (const [reply, need] of [[brief({ components: ['galaxy'] }), 'component']]) {
     const s = stack(t);
     const model = scripted(t, { explain_brief: [reply] });
     const done = await s.run((await s.create({ requestClass: 'researched', threadId: 'th1' })).body.job.id);

@@ -44,7 +44,7 @@ Call report_review exactly once.`;
 
 const b64Length = data => Math.floor((data.length * 3) / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
 const toBase64 = bytes => (typeof Buffer !== 'undefined' ? Buffer.from(bytes).toString('base64') : btoa(String.fromCharCode(...bytes)));
-const stateText = c => `theme ${c.theme || 'light'}, time ${c.time ?? 'end'}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}`;
+const stateText = c => `theme ${c.theme || 'light'}, ${c.step ? `step "${c.step}", ` : ''}time ${c.time ?? 'end'}s${c.inputs && Object.keys(c.inputs).length ? `, inputs ${JSON.stringify(c.inputs)}` : ''}`;
 
 // Validate and build the user turn. input: { request, compiledHash, facts: [string], evidence: [EvidenceRecord-ish],
 // captures: [{ id, compiledHash, theme, time, inputs, png: Uint8Array } | { ..., data: base64, mediaType }] }.

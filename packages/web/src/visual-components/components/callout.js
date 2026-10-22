@@ -2,7 +2,9 @@
 import { labelledBox } from '../label.js';
 import { sides } from '../text.js';
 
-const TONE = { note: 'neutral', key: 'output', caution: 'warning' };
+// The takeaway is neutral: a role colour means something in the diagram and its legend (L4 review t11-r1: a green
+// takeaway read as 'where the answer is made' beside a legend naming green). It stands out by its tone of voice and place.
+const TONE = { note: 'neutral', key: 'neutral', caution: 'warning' };
 
 export default {
   name: 'callout', version: 1,

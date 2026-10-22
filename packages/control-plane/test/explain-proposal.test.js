@@ -74,7 +74,7 @@ function chatDb(t) {
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
   sqlite.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL); CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, meta_json TEXT NOT NULL)");
-  sqlite.prepare("INSERT INTO threads VALUES ('th', 'acme', ?, 'canvas-a')").run(ALICE);
+  sqlite.prepare("INSERT INTO threads (id, org, user, scope_ref) VALUES ('th', 'acme', ?, 'canvas-a')").run(ALICE);
   const db = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }), now: () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   return { sqlite, db };
