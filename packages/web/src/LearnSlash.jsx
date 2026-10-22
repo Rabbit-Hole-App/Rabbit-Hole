@@ -113,7 +113,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
               onCancel={() => setProposal(null)}
               onGenerate={async () => {
                 const chosen = proposal; setProposal(null); setBusy(true);
-                try { await chosen.generate(); setNotice(chosen.tracked ? null : { tone: 'done', text: 'Generating on the canvas.' }); }
+                try { const done = await chosen.generate(); setNotice(done?.reused ? { tone: 'done', text: 'Already on the canvas.', blockId: done.reused } : chosen.tracked ? null : { tone: 'done', text: 'Generating on the canvas.' }); }
                 catch (error) { setNotice({ tone: 'error', text: error.message }); }
                 finally { setBusy(false); }
               }} />}

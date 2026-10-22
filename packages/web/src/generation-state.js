@@ -24,3 +24,21 @@ export function generationState(block) {
 
 // The stable line a settled job shows (the indicator's words); active jobs say "Generating on the canvas".
 export const SETTLED_TEXT = { done: 'Generated on the canvas', failed: 'Generation failed', cancelled: 'Generation cancelled', waiting: 'Waiting for your answer on the card', idle: 'Not started', missing: 'The card was removed' };
+
+// The job a paid video or scene card starts, as the server keys it (control-plane learn-video.js, learn-scene.js: the card's
+// operation). A /motion request is its own job per Generate press (request_id, owner message 37) or per approved proposal (one
+// video each); one with neither has no fixed job, so it never matches. Whole-operation equality is conservative: two
+// operations that differ only in a field the server ignores still get two cards, as before.
+const jobOf = block => {
+  const op = block?.operation;
+  if (!op?.op || !['video', 'scene'].includes(block.type)) return null;
+  if (op.op === 'motion_request') return op.proposal?.proposal_id ? `proposal:${op.proposal.proposal_id}` : op.request_id ? `press:${op.request_id}` : null;
+  return `${block.type}:${JSON.stringify(op)}`;
+};
+// The card already on the canvas for the job `block` would start, once that card has started it (an unstarted sample with the
+// same operation is not one): the server would answer with that card's job, so its card is reused, never a second card.
+export function existingGeneration(blocks, block) {
+  const job = jobOf(block);
+  if (!job) return null;
+  return (blocks || []).find(other => other !== block && jobOf(other) === job && (other.status !== 'idle' || other.confirmedStart || other.placementId)) || null;
+}

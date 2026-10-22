@@ -8,6 +8,7 @@ import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand, unavail
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
+import { existingGeneration } from './generation-state.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -222,10 +223,16 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   // Generate inserts the card already confirmed, so it starts once (useConfirmedStart). Confirming commits it:
   // its place is held at once (the camera glides there), and the card - which shows its own progress while the
   // paid job runs - takes that slot as soon as the skeleton has been drawn. Cancel holds nothing.
-  if (result.result === 'paid_proposal') return { proposal: { primitive: result.primitive, message: result.message, generate: () => {
+  // One proposal starts once (a second press, or a second confirmation, is the same one), and a job the canvas already shows -
+  // the server would reuse it - is that card, revealed: never a second card for it (existingGeneration).
+  if (result.result === 'paid_proposal') { let started = null; return { proposal: { primitive: result.primitive, message: result.message, generate: () => {
+    if (started) return started;
+    const existing = existingGeneration(canvas.blocks?.(), result.block);
+    if (existing) { canvas.focusBlock?.(existing.id); return (started = { reused: existing.id }); }
     const held = hold();
     afterPaint(() => canvas.insertBlock(withPrompt({ ...result.block, confirmedStart: true }, promptUsed), { into: held }));
-  } } };
+    return (started = { started: true });
+  } } }; }
   if (result.result === 'clarification') return { notice: { tone: 'question', text: result.question }, keep: `/${name} ` };
   if (result.result === 'unsupported') return { notice: { tone: 'info', text: result.message } };
   // An interactive scene that failed its checks (and its one repair) is no card and never silently text: the line comes back

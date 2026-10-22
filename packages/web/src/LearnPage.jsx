@@ -873,6 +873,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
+          // A paid Generate whose job a card here already shows reveals that card (learn-slash.js existingGeneration).
+          blocks: () => canvasApi.current?.blocks?.() || [],
+          focusBlock: id => canvasApi.current?.focusBlock(id),
           reserve: slot => canvasApi.current?.reserve(slot),
           release: id => canvasApi.current?.release(id),
           dive: args => dive.run(args),
