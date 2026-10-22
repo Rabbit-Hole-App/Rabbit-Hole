@@ -5,7 +5,7 @@ import ResizableSidePanel from './ResizableSidePanel.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { slashOpensFind } from './source-finder.js';
-import { can } from './canvas-permissions.js';
+import { sharedPanelTabs } from './canvas-permissions.js';
 import { Button } from './ui.jsx';
 
 // The shared canvas's shell pieces (SHARE-01, owner brief 2026-10-22 sections 1-2, 6): a share link or publication
@@ -36,8 +36,7 @@ export function useSharedPanel(initial) {
 // comments: useCanvasComments; commentsAttr: the page's data attribute on the shown Comments ('data-shared-comments').
 // outline / activeSection: AdaptiveCanvas onState; canvasApi: its api (showSection only - navigation, no request).
 export function SharedPanel({ panel, permissions, chat = null, search, onOpenAction, comments, commentsAttr, outline = [], activeSection = null, canvasApi }) {
-  const tabs = ['chat', 'find', 'toc', 'comments'].filter(id => (id === 'chat' ? !!chat && can('panel.chat', permissions).allowed : id === 'find' ? can('panel.find', permissions).allowed
-    : id === 'toc' ? can('toc.navigate', permissions).allowed : !can('comment.read', permissions).hidden));
+  const tabs = sharedPanelTabs(permissions, { chat: !!chat });
   const label = { chat: 'Chat', find: 'Search', toc: 'Table of contents', comments: 'Comments' }[panel.tab];
   const commentsShown = panel.open && panel.tab === 'comments' && comments.active;
   return (

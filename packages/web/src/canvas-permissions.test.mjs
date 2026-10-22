@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CAPABILITIES, can, roleFor } from './canvas-permissions.js';
+import { CAPABILITIES, can, roleFor, sharedPanelTabs } from './canvas-permissions.js';
 
 const shared = role => ({ role, shared: true, comments: { read: true, post: true } });
 
@@ -80,4 +80,10 @@ test('fork and child canvases need an account; an unknown capability or role is 
   assert.equal(can('nope', shared('owner')).allowed, false);
   assert.equal(can('source.write', { role: 'root' }).allowed, false);
   assert.ok(CAPABILITIES.length > 30);
+});
+
+test('the shared right panel: Chat where the page has one, Find, TOC, Comments only where the canvas has them; never Progress', () => {
+  assert.deepEqual(sharedPanelTabs(shared('guest'), { chat: true }), ['chat', 'find', 'toc', 'comments']);
+  assert.deepEqual(sharedPanelTabs({ role: 'commenter', shared: true }), ['find', 'toc']);
+  assert.ok(!sharedPanelTabs(shared('owner'), { chat: true }).includes('progress'));
 });
