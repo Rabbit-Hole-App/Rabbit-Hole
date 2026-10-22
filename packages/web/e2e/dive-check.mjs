@@ -123,39 +123,6 @@ await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); //
 await shot('holes-map-02-clamped');
 assert.equal(await page.locator('[data-dive-grip]').evaluate(node => node.tagName === 'BUTTON' && node.tabIndex === 0 && node.getAttribute('aria-label')), 'Move Rabbit Holes Map', 'a focusable, named grip');
 await page.locator('[data-dive-grip]').focus();
-// DIAG (temporary, reverted): e21f23ca's path - ArrowRight, ArrowUp x2, reload - then what the grip's dblclick would hit.
-{
-  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
-  await open(ROOT_URL);
-  const diag = await page.evaluate(() => {
-    const rect = el => { const r = el?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom, w: r.width, h: r.height }; };
-    const who = el => el && { tag: el.tagName, role: el.getAttribute('role'), aria: el.getAttribute('aria-label'), data: Object.fromEntries(Object.entries(el.dataset)), cls: String(el.className).slice(0, 60), z: getComputedStyle(el).zIndex };
-    const hit = (x, y) => { const el = document.elementFromPoint(x, y); return { x, y, el: who(el), toolbar: !!el?.closest('[role="toolbar"][aria-label="Canvas tools"]'), grip: !!el?.closest('[data-dive-grip]'), card: el?.closest('[data-block-id]')?.dataset.blockId || null }; };
-    const grip = document.querySelector('[data-dive-grip]'), g = rect(grip), toolbar = document.querySelector('[role="toolbar"][aria-label="Canvas tools"]'), t = rect(toolbar);
-    const card = document.querySelector('[data-block-id]:not([data-chat-block])'), c = rect(card), strip = rect(card?.querySelector('[data-drag-zone]'));
-    const surface = rect(document.querySelector('[data-canvas-surface]'));
-    const cy = c && (Math.max(c.y, t.y) + Math.min(c.bottom, t.bottom)) / 2;
-    return {
-      locator: '[data-dive-grip] (dblclick, dive-check.mjs:132 on e21f23ca)', viewport: { w: innerWidth, h: innerHeight },
-      clickPoint: { x: g.x + g.w / 2, y: g.y + g.h / 2 },
-      rects: { canvasSurface: surface, canvasFrame: rect(grip.closest('[data-tool-gutter]').parentElement), toolGutter: rect(grip.closest('[data-tool-gutter]')), toolbar: t, map: rect(document.querySelector('[data-dive-map]')), grip: g, firstCard: c, firstCardStrip: strip },
-      mapZ: getComputedStyle(document.querySelector('[data-dive-map]')).zIndex, toolbarZ: getComputedStyle(toolbar).zIndex,
-      atClick: hit(g.x + g.w / 2, g.y + g.h / 2),
-      cardProbes: c && {
-        cardStripPoint: strip && hit(strip.x + 12, strip.y + 8),
-        cardLeftEdgeAtToolbarRow: hit(Math.max(c.x, surface.x) + 4, cy),
-        toolbarColumnAtCardRow: hit(t.x + t.w / 2, cy),
-        surfaceStartsRightOfToolbar: surface.x >= t.right,
-      },
-    };
-  });
-  console.log('DIAG ' + JSON.stringify(diag));
-  const trial = await page.locator('[data-dive-grip]').dblclick({ trial: true, timeout: 3000 }).then(() => 'actionable', e => e.message.split('\n').filter(l => /intercepts|locator resolved|attempting/.test(l)).slice(0, 3).join(' | '));
-  console.log('DIAG trial dblclick: ' + trial);
-  await page.locator('[data-dive-grip]').focus();
-  await page.keyboard.press('ArrowLeft'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown');
-  near(await mapAt(), clamped, 'DIAG: back to the clamped spot');
-}
 // Six steps right clear the 84 px tools gutter: since UI-17 the map's slot sits above the toolbar, so the toolbar ends lower
 // and covers a map stepped only up from the corner (fast-e2e 39721083356: the toolbar took the grip's double-click).
 for (const key of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp']) await page.keyboard.press(key);
