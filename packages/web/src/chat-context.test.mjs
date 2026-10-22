@@ -195,7 +195,7 @@ test('Context rows: Use in this chat, then File options with the full name, Incl
   assert.match(source, /const toggleChat = item => \{ if \(!item\.attached\) return context\.attach\(item\.ref\); context\.detach\(item\.ref\); onSwitchOff\?\.\(item\.ref\); \};/);
   // File options: the visible label, a popover beside its button (ui.jsx Menu: bounds, outside press, Escape back to the button).
   assert.match(source, /<button type="button" \{\.\.\.m\.buttonProps\} aria-haspopup="dialog" data-material-action="more" disabled=\{pending\}\s+aria-label=\{`File options for \$\{name\}`\}/);
-  assert.match(source, /<MoreHorizontal size=\{13\} aria-hidden \/>\}File options\n/);
+  assert.match(source, /<MoreHorizontal size=\{13\} aria-hidden \/>\}File options\r?\n/);
   assert.match(source, /<Menu portal anchor=\{m\.button\.current\} open onClose=\{m\.onClose\} style=\{style\} className="w-72">/);
   assert.match(source, /setAbove\(r\.bottom \+ 4 \+ h > window\.innerHeight - 8 && r\.top - 4 - h >= 8 \? h : null\);/, 'above its button when there is no room below');
   const order = ['data-material-menu-name', 'data-material-action="context"', 'data-material-action="canvas"', 'data-material-action="remove"'].map(at => source.indexOf(at));
@@ -216,7 +216,7 @@ test('Context rows: Use in this chat, then File options with the full name, Incl
   assert.match(source, /Could not remove \$\{item\.ref\.name\} from context: \$\{error\.message\}\. Try again from File options\./);
   assert.match(source, /if \(rows\[key\]\?\.busy\) return;/, 'one action at a time per row');
   // Success: back to Files when its reader is open, only on the canvas that asked.
-  assert.match(source, /const now = live\.current;\n\s+if \(now\?\.canvas !== canvas\) return;\n\s+if \(now\.sources\.active\?\.sourceId === item\.ref\.sourceId\) now\.sources\.close\(\);/);
+  assert.match(source, /const now = live\.current;\r?\n\s+if \(now\?\.canvas !== canvas\) return;\r?\n\s+if \(now\.sources\.active\?\.sourceId === item\.ref\.sourceId\) now\.sources\.close\(\);/);
   // The reader replaces the list, with Back to Files and the title once.
   assert.match(source, /if \(reading\) \{/);
   assert.match(source, /<ArrowLeft size=\{15\} aria-hidden \/>Back to Files<\/button>/);
