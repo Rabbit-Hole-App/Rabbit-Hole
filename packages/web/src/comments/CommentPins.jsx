@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Plus } from 'lucide-react';
 import { Button } from '../ui.jsx';
-import { pinCount, pinPoint, pinSpot } from './anchors.js';
+import { pinCount, pinPoint, pinTopCentre } from './anchors.js';
 
 // Comment pins (docs/features/canvas-comments.md section 5): a speech bubble whose tail is the anchor, at a constant
 // screen size over the canvas, showing how many live comments its thread has (owner, 2026-10-08). Unread: an accent ring. Open in the panel: an ink ring. The draft's
@@ -14,9 +14,8 @@ import { pinCount, pinPoint, pinSpot } from './anchors.js';
 const SIZE = 30;
 export const PIN_DEFAULT = '#f59e0b'; // the canvas palette's orange
 // slotOf(object id): that object's box, its pill row's width and its chip's in world units ({ x, y, w, h, row, lead }), or null when it is gone.
-// Its pins touch it (pinSpot, anchors.js): on its top edge just left of the row, else down its left edge, at the pins'
-// constant screen size; the row keeps at least its 100% width on screen, as the floating actions bar does not shrink with
-// the zoom. The stored offset is not used. A pin on a bare canvas point stays where it was placed.
+// Its pins sit at its top centre (pinTopCentre, anchors.js; owner, 2026-10-21), at the pins' constant screen size, in the
+// same screen space as the card's box, so zoom and pan keep them there. The stored offset is not used. A pin on a bare canvas point stays where it was placed.
 const GAP = 4;
 export default function CommentPins({ pins, view, board, slotOf = null, onPin, picked = null, onPick = null, ask = null, onConfirm, onCancel }) {
   const taken = {};
@@ -29,7 +28,7 @@ export default function CommentPins({ pins, view, board, slotOf = null, onPin, p
           if (!slot) return null;
           const index = taken[pin.anchor.object_id] = (taken[pin.anchor.object_id] ?? -1) + 1;
           const box = { left: slot.x * view.z + view.x, top: slot.y * view.z + view.y, right: (slot.x + slot.w) * view.z + view.x, bottom: (slot.y + slot.h) * view.z + view.y };
-          ({ left, top, tail } = pinSpot(box, slot.row * Math.max(view.z, 1), index, SIZE, GAP, (slot.lead || 0) * view.z));
+          ({ left, top, tail } = pinTopCentre(box, index, SIZE, GAP));
         } else {
           const at = pinPoint(pin.anchor, board);
           if (!at) return null;
