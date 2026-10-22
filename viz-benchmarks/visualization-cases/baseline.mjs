@@ -55,7 +55,8 @@ export function assertFrozen(path = BASELINE) {
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
 const redact = body => JSON.parse(JSON.stringify(body, (key, value) => (value?.type === 'base64' && typeof value.data === 'string'
   ? { type: 'base64', media_type: value.media_type, redacted: true, sha256: sha256(Buffer.from(value.data, 'base64')), bytes: Buffer.from(value.data, 'base64').length } : value)));
-const stageOf = body => (body.tools || []).some(t => t.name === 'report_check') ? 'verify'
+const stageOf = body => (body.tools || []).length === 1 && !body.tools[0].name.startsWith('make_') && body.tools[0].name !== 'report_check' ? body.tools[0].name // an /explain role call: its one tool names the stage
+  : (body.tools || []).some(t => t.name === 'report_check') ? 'verify'
   : (body.messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'tool_result')) ? 'repair' : 'author';
 
 // Wraps a transport (body, model) => Response with recording and a pre-call budget check.
