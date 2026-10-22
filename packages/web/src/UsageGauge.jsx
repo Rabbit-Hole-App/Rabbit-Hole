@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Gauge } from 'lucide-react';
-import { barParts, featureRows, formatMicros, formatRemaining, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
+import { barParts, creditCount, featureRows, formatCredits, formatReset, unknownLine, usageStore, usageView } from './account-usage.js';
 import { SettingsRow } from './ui.jsx';
 
 // The monthly AI allowance on screen (owner D4 sections 1-3): the canvas top bar's gauge and its popover, and Settings > AI usage.
@@ -32,7 +32,7 @@ export function UsageBar({ usage }) {
   const { usedPct, reservedPct } = barParts(usage);
   return (
     <div data-usage-bar role="meter" aria-label="AI allowance used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct}
-      aria-valuetext={`${formatMicros(usage.used)} of ${formatMicros(usage.allowance)} used${usage.reserved > 0 ? `, ${formatMicros(usage.reserved)} reserved for processing` : ''}`}
+      aria-valuetext={`${formatCredits(usage.used)} of ${formatCredits(usage.allowance)} used${usage.reserved > 0 ? `, ${formatCredits(usage.reserved)} reserved for processing` : ''}`}
       className="flex h-1.5 w-full overflow-hidden rounded-full bg-hover">
       <span className="h-full bg-ink-2" style={{ width: `${usedPct}%` }} />
       {reservedPct > 0 && <span data-usage-bar-reserved className="h-full bg-ink-3" style={{ width: `${reservedPct}%` }} />}
@@ -51,11 +51,11 @@ export function UsageDetails({ state, onViewUsage }) {
       {usage ? (
         <>
           <p data-usage-remaining className={`mt-2 text-2xl font-semibold tabular-nums ${view.tone === 'empty' ? 'text-fail' : 'text-ink'}`}>
-            {formatRemaining(usage.remaining)} <span className="text-sm font-normal text-ink-2">remaining</span>
+            {formatCredits(usage.remaining)} <span className="text-sm font-normal text-ink-2">remaining</span>
           </p>
           {view.tone === 'empty' && <p className="text-xs text-ink-2">No AI allowance remaining.</p>}
-          <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatMicros(usage.used)} used of {formatMicros(usage.allowance)}</p>
-          {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Reserved for processing: {formatMicros(usage.reserved)}</p>}
+          <p data-usage-used className="text-xs text-ink-2 tabular-nums">{formatCredits(usage.used)} used of {creditCount(usage.allowance)}</p>
+          {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Reserved for processing: {formatCredits(usage.reserved)}</p>}
           {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
           <div className="mt-2"><UsageBar usage={usage} /></div>
           <p data-usage-reset className="mt-2 text-xs text-ink-2">Resets {formatReset(usage.resetsAt, { year: false })} (00:00 UTC)</p>
@@ -129,16 +129,16 @@ export function UsageSettings({ Heading, store = usageStore }) {
       {usage ? (
         <>
           <div className="pt-4"><UsageBar usage={usage} /></div>
-          <SettingsRow title="Monthly allowance"><Amount>{formatMicros(usage.allowance)}</Amount></SettingsRow>
-          <SettingsRow title="Used"><Amount>{formatMicros(usage.used)}</Amount></SettingsRow>
+          <SettingsRow title="Monthly allowance"><Amount>{formatCredits(usage.allowance)}</Amount></SettingsRow>
+          <SettingsRow title="Used"><Amount>{formatCredits(usage.used)}</Amount></SettingsRow>
           {usage.reserved > 0 && (
             <SettingsRow title="Reserved for processing" desc="Held for AI work still running, until its cost is known.">
-              <Amount>{formatMicros(usage.reserved)}</Amount>
+              <Amount>{formatCredits(usage.reserved)}</Amount>
             </SettingsRow>
           )}
           {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="pb-1 text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
           <SettingsRow title="Remaining" desc={view.tone === 'empty' ? 'No AI allowance remaining.' : null}>
-            <Amount className={view.tone === 'empty' ? 'text-fail' : ''}>{formatRemaining(usage.remaining)}</Amount>
+            <Amount className={view.tone === 'empty' ? 'text-fail' : ''}>{formatCredits(usage.remaining)}</Amount>
           </SettingsRow>
           <SettingsRow title="Next reset" desc="At the start of each calendar month, 00:00 UTC. Unused allowance does not carry over.">
             <Amount>{formatReset(usage.resetsAt)}</Amount>
@@ -148,8 +148,8 @@ export function UsageSettings({ Heading, store = usageStore }) {
             <Heading>This month by feature</Heading>
             <div data-usage-by-feature>
               {featureRows(usage.byFeature).map(row => (
-                <SettingsRow key={row.label} title={row.label} desc={[row.reserved > 0 && `${formatMicros(row.reserved)} reserved`, unknownLine(row.unknownAttempts)].filter(Boolean).join(' · ') || null}>
-                  <Amount>{formatMicros(row.used)}</Amount>
+                <SettingsRow key={row.label} title={row.label} desc={[row.reserved > 0 && `${formatCredits(row.reserved)} reserved`, unknownLine(row.unknownAttempts)].filter(Boolean).join(' · ') || null}>
+                  <Amount>{formatCredits(row.used)}</Amount>
                 </SettingsRow>
               ))}
             </div>

@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TRACKING_NOTE, USAGE_PATH, barParts, createUsageStore, formatMicros, formatRemaining, formatReset, readUsage, unknownLine, usageView } from './account-usage.js';
+import { TRACKING_NOTE, USAGE_PATH, barParts, createUsageStore, creditCount, formatCredits, formatReset, readUsage, unknownLine, usageView } from './account-usage.js';
 
 const body = (over = {}) => ({ enforced: false, currency: 'USD', period: '2026-10', resetsAt: '2026-11-01T00:00:00.000Z',
   allowanceMicros: 50_000_000, usedMicros: 17_400_000, reservedMicros: 0, estimatedMicros: 0, remainingMicros: 32_600_000, ...over });
@@ -23,8 +23,8 @@ test('positive: allowance left is green, says how much, and says it is not enfor
   assert.deepEqual(state.usage, { allowance: 50_000_000, used: 17_400_000, reserved: 0, remaining: 32_600_000, resetsAt: '2026-11-01T00:00:00.000Z', period: '2026-10', enforced: false, unknownAttempts: 0 });
   const view = usageView(state);
   assert.equal(view.tone, 'ok');
-  assert.equal(view.label, 'AI allowance: $32.60 remaining');
-  assert.equal(view.title, `AI allowance: $32.60 remaining. ${TRACKING_NOTE}`);
+  assert.equal(view.label, 'AI allowance: 3,260 credits remaining');
+  assert.equal(view.title, `AI allowance: 3,260 credits remaining. ${TRACKING_NOTE}`);
   assert.equal(TRACKING_NOTE, 'Tracking only - limits are not enforced yet.');
 });
 
@@ -34,10 +34,10 @@ test('exhausted: red only when the server reports remaining 0', async () => {
   assert.equal(view.tone, 'empty');
   assert.equal(view.label, 'No AI allowance remaining');
   assert.match(view.title, /not enforced yet/);
-  // A tiny balance is still a balance: green, and never shown as $0.00.
+  // A tiny balance is still a balance: green, and never shown as 0 credits.
   const tiny = usageView(readUsage(200, body({ remainingMicros: 3_000 })));
   assert.equal(tiny.tone, 'ok');
-  assert.equal(tiny.label, 'AI allowance: less than $0.01 remaining');
+  assert.equal(tiny.label, 'AI allowance: less than 1 credit remaining');
 });
 
 test('reserved: running work is held apart from what is used, and the remaining figure is the server\'s', async () => {
@@ -45,7 +45,7 @@ test('reserved: running work is held apart from what is used, and the remaining 
   const state = await settle(store);
   assert.equal(state.usage.reserved, 500_000);
   assert.equal(state.usage.used, 17_400_000, 'a reservation is never reported as spend');
-  assert.equal(usageView(state).label, 'AI allowance: $32.10 remaining');
+  assert.equal(usageView(state).label, 'AI allowance: 3,210 credits remaining');
 });
 
 test('unavailable and errors are neutral, never red or a zero balance', async () => {
@@ -136,15 +136,19 @@ test('requests with cost not yet known: a count, never an amount; a missing coun
   assert.equal(usageView(some).tone, 'ok', 'unknown cost alone never turns the gauge red');
 });
 
-test('dollars from integer micros: two decimals, half up, no float drift', () => {
-  assert.equal(formatMicros(32_600_000), '$32.60');
-  assert.equal(formatMicros(0), '$0.00');
-  assert.equal(formatMicros(4_999), '$0.00');
-  assert.equal(formatMicros(5_000), '$0.01');
-  assert.equal(formatMicros(100_000 + 200_000), '$0.30', '0.1 + 0.2 in micros is exactly 0.30');
-  assert.equal(formatMicros(1_234_567_890), '$1,234.57');
-  assert.equal(formatRemaining(0), '$0.00');
-  assert.equal(formatRemaining(4_999), 'less than $0.01');
+test('credits from integer micros (owner messages 32-33): 1 credit = $0.01, nearest credit, never 0 for nonzero usage', () => {
+  assert.equal(formatCredits(46_440_000), '4,644 credits');
+  assert.equal(formatCredits(3_560_000), '356 credits');
+  assert.equal(creditCount(50_000_000), '5,000');
+  assert.equal(formatCredits(50_000_000), '5,000 credits');
+  assert.equal(formatCredits(10_000), '1 credit');
+  assert.equal(formatCredits(14_999), '1 credit');
+  assert.equal(formatCredits(15_000), '2 credits', 'half a credit rounds up');
+  assert.equal(formatCredits(0), '0 credits', 'exactly 0 is the only 0');
+  for (const tiny of [1, 4_000, 4_999]) assert.equal(formatCredits(tiny), 'less than 1 credit', String(tiny));
+  assert.equal(formatCredits(5_000), '1 credit');
+  assert.equal(formatCredits(100_000 + 200_000), '30 credits', '0.1 + 0.2 in micros is exactly 30');
+  assert.equal(formatCredits(1_234_567_890), '123,457 credits');
 });
 
 test('the reset date is the UTC start of the month, whatever the local zone', () => {
@@ -161,7 +165,7 @@ test('the usage bar: used then reserved, in whole percents of the allowance, nev
 
 test('the allowance comes only from the server: no dollar amount is written into the client', () => {
   const changed = usageView(readUsage(200, body({ allowanceMicros: 75_000_000, usedMicros: 0, remainingMicros: 75_000_000 })));
-  assert.equal(changed.label, 'AI allowance: $75.00 remaining');
+  assert.equal(changed.label, 'AI allowance: 7,500 credits remaining');
   for (const file of ['./account-usage.js', './UsageGauge.jsx']) {
     const source = readFileSync(new URL(file, import.meta.url), 'utf8');
     // A bare 50 (not a class like z-50), $50, or 50 dollars in micros.

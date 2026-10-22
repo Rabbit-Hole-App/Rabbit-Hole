@@ -111,7 +111,7 @@ await check('View usage opens Settings at AI usage, which agrees: nothing remain
   const settings = page.locator('[data-usage-settings]');
   await settings.waitFor({ timeout: 15000 });
   await settings.getByText('No AI allowance remaining.').waitFor({ timeout: 15000 });
-  assert.match(await settings.innerText(), /Used\s*\$50\.00[\s\S]*Remaining\s*No AI allowance remaining\.\s*\$0\.00/);
+  assert.match(await settings.innerText(), /Used\s*5,000 credits[\s\S]*Remaining\s*No AI allowance remaining\.\s*0 credits/);
   assert.equal(await page.locator('[data-usage-note]').count(), 0);
   await shot('view-usage');
   await page.keyboard.press('Escape');

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import PaidConfirm from './PaidConfirm.jsx';
+import { formatCredits } from './account-usage.js';
 
 // Inline seam only. Parent creates an owner/canvas-scoped controller and applies
 // accepted transactions through the existing canvas edit/Undo mechanism.
@@ -50,7 +51,7 @@ export default function BackgroundRemovalPreview({ controller, savedEnvelope = n
     onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); } }}>
     <p>{regional ? 'Edit the selected rectangle of this saved PNG image.' : 'Remove the background of this saved PNG image.'} Your original image and its canvas position stay available until you apply the preview.</p>
     <p>Generation can cost money before Apply. Closing or requesting cancellation does not guarantee a refund. The actual charge is not yet known.</p>
-    {quote?.available && <p data-image-reservation>Maximum reserved for this request: ${String(quote.maximumReservedUsd)}. This is a reservation, not a confirmed charge.</p>}
+    {quote?.available && <p data-image-reservation>Maximum reserved for this request: {formatCredits(Math.round(quote.maximumReservedUsd * 1e6))}. This is a reservation, not a confirmed charge.</p>}
     {!quote && !error && <p role="status">Checking availability...</p>}
     {quote && !quote.available && <p role="status">{regional ? 'Regional editing' : 'Background removal'} is not configured. No request will be started.</p>}
     {phase === 'quote' && quote?.available && !busy && <PaidConfirm message={regional ? 'Approve the displayed reservation to upload the mask and start regional editing.' : 'Approve the displayed reservation to start background removal.'} onGenerate={start} onCancel={close}/>}
