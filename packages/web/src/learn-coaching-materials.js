@@ -250,6 +250,16 @@ async function apply(action, current, deps) {
       blockId = canvas.insertBlock({ ...block, tutor_action: action.actionId, coaching: { goalId: action.originContext.goalId, activityId: id } }, beside ? { after: beside } : options);
       return blockId;
     },
+    // EXP-T21: an explanation is the shared /explain job, its waiting card stamped as above, so a retried action finds it
+    // (duplicate) and the same checks hold before the job starts. null (v2 off here) runs today's path through insertBlock.
+    // shortcut: the job's card goes where the learner looks, not beside besideBlockId; pass `after` to placeExplain if needed.
+    ...(canvas.startExplain ? { startExplain: async (prompt, options = {}) => {
+      late = gate(action, now());
+      if (late) return { blockId: null };
+      const out = await canvas.startExplain(prompt, { ...options, stamp: { tutor_action: action.actionId, coaching: { goalId: action.originContext.goalId, activityId: id } } });
+      if (out?.blockId) blockId = out.blockId;
+      return out;
+    } } : {}),
   };
   try { await makeMaterial(material, { canvas: stamped }); } catch { /* reported below: the activity and its objective stay */ }
   if (late) return { status: 'applied', state, activityId: id, material: late.status, reason: late.reason };

@@ -360,6 +360,14 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
       catch (problem) { setExplainError(problem.message); }
       return;
     }
+    // EXP-T20 slice 3: a command-bearing /explain is the shared /explain job and its card, with the selection's words as
+    // context (no routing call). Where v2 is off here (null) it is sent as before.
+    if (out.command === 'explain' && out.text.trim() && config.explainCreate) {
+      setExplainError('');
+      const context = (prepare(selectionOnly, out.text).context?.target?.objects || []).map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n').slice(0, 8000);
+      try { if (await config.explainCreate(out.text.trim(), { context: context || null, source: 'command' })) { onClose(); return; } }
+      catch (problem) { setExplainError(problem.message); return; }
+    }
     submit(out.prompt, out.mode);
   };
   const generateCad = async () => {
