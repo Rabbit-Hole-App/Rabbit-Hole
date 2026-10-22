@@ -299,6 +299,16 @@ export const exampleRecordSchema = z.object({
   componentVersions: z.record(id, z.number().int().positive()),
   reuse: z.enum(['eligible', 'private', 'quarantined']),
   spec: z.record(z.string(), z.unknown()).optional(),
+  // Plan section 6: what the example is for and where it came from. Lineage
+  // ties crops, variants and derived specs to one family member, so a
+  // derivative of a held-out case can never become an author example.
+  intent: text(300).optional(),
+  tags: z.array(id).max(16).default([]),
+  lineage: id.optional(),
+  provenance: text(300).optional(),
+  limitations: z.array(text(300)).max(8).default([]),
+  // Compilation alone is not acceptance: render and semantic review too.
+  checks: z.object({ compile: z.enum(['pass', 'fail', 'unrun']), render: z.enum(['pass', 'fail', 'unrun']), semantic: z.enum(['pass', 'fail', 'unrun']) }).strict().optional(),
 }).strict();
 
 export const exampleSelectionSchema = z.object({

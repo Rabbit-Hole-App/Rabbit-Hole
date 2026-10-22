@@ -157,6 +157,8 @@ test('server records: evidence needs a revision or hash; policy prices every mod
   rejects('ExplainJob', raw => { raw.terminal = { state: 'succeeded' }; }, /Invalid/);
   rejects('CapabilityDecision', raw => { raw.capability = 'motion'; }, /Invalid/);
   rejects('ExampleRecord', raw => { raw.reuse = 'public'; }, /Invalid/);
+  rejects('ExampleRecord', raw => { raw.checks = { compile: 'pass', render: 'maybe', semantic: 'pass' }; }, /Invalid/);
+  assert.ok(validateContract('ExampleRecord', { ...MINIMAL.ExampleRecord, intent: 'show a repeating block', tags: ['repeat'], lineage: 'decoder', checks: { compile: 'pass', render: 'pass', semantic: 'unrun' } }));
   rejects('ReviewFinding', raw => { raw.category = 'vibes'; }, /Invalid/);
 });
 
