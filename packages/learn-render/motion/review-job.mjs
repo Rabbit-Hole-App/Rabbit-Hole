@@ -18,7 +18,7 @@
 // All of them block, so a blank opening or a missing object spends the repair round before any
 // final render. Reviewers are fresh calls per pass and never see findings, sources or notes.
 import { randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { inventoryChange, runAuthor } from './author.js';
 import { DEFAULT_RENDERER, JOB_STATUSES, MODEL_ROLES, STAGE, afterNeedsRevision, afterReview, classifyFindings, noRepairs, startRepair, validateJob } from './contracts.js';
@@ -205,7 +205,7 @@ export async function runMotionJob({
     if (revised) out.repair.storyboard.inventory = revised;
     const fixed = await repairAuthor({ brief, storyboard: sb, call, env, effort, round: 1, renderer, repair: source ? { source, findings: blocking, ...(revised ? { revision: revised } : {}) } : null });
     record(fixed);
-    if (fixed.output?.source && dir) writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); // diagnostics
+    if (fixed.output?.source && dir) { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, `composition.repaired.${renderer === 'hyperframes' ? 'html' : 'jsx'}`), fixed.output.source); } // diagnostics (a recovery's job directory may not exist yet: nothing rendered before its repair)
     out.repair.author = { status: fixed.status, ...(fixed.check?.errors?.length ? { errors: fixed.check.errors } : {}), ...(fixed.error ? { error: fixed.error, detail: fixed.detail } : {}) };
     current = { storyboard: sb, author: fixed };
   }

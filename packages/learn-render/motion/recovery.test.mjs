@@ -89,7 +89,8 @@ test('content findings: the saved review findings feed the targeted repair verba
   assert.equal(r.checkpoint.frames.length, 3, 'its preview keyframes');
   assert.deepEqual(recoveryActions(r.cause, r.checkpoint), ['fix', 'edit']);
   const w2 = world({ reviews: [[], []] });
-  const fixed = await runMotionRequest({ call: async () => assert.fail('doubled'), service, dir: tmp(), stages: w2.stages, recover: { mode: 'fix', checkpoint: r.checkpoint } });
+  // A recovery's job directory does not exist yet: nothing renders before its repair (found by the real E2E, mrec 2026-10-21).
+  const fixed = await runMotionRequest({ call: async () => assert.fail('doubled'), service, dir: join(tmp(), 'new-job'), stages: w2.stages, recover: { mode: 'fix', checkpoint: r.checkpoint } });
   assert.equal(fixed.status, 'ready');
   const [revision, repair, ...rest] = w2.log;
   assert.deepEqual(revision, ['storyboard_revision', r.checkpoint.findings], 'storyboard-level findings: the one Director revision gets the exact findings');
