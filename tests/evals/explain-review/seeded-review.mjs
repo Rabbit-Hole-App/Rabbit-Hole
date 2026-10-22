@@ -5,10 +5,9 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { HERE } from './cases.mjs';
-import { anthropicTransport, readKeys, recordingModel } from './baseline.mjs';
+import { anthropicTransport, readKeys, recordingModel } from '../../../viz-benchmarks/visualization-cases/baseline.mjs';
 import { neutralCaptures, score } from './seeded-pairs.mjs';
-import { reviewCaptures } from '../../packages/control-plane/src/explain-review.js';
+import { reviewCaptures } from '../../../packages/control-plane/src/explain-review.js';
 
 export const REVIEW_MODEL = 'claude-opus-5-5';
 
@@ -45,15 +44,16 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const [runId] = process.argv.slice(2);
   const cap = Number(process.argv[process.argv.indexOf('--cap-usd') + 1]);
   if (!runId || !(cap > 0)) { console.error('usage: node seeded-review.mjs <runId> --cap-usd <n>'); process.exit(1); }
-  const outPath = join(HERE, 'critic-calibration', `${runId}.json`);
+  const HERE = fileURLToPath(new URL('.', import.meta.url));
+  const outPath = join(HERE, 'runs', `${runId}.json`);
   if (existsSync(outPath)) throw new Error(`${runId} exists; calibration history is immutable`);
-  const { MODEL_PRICES } = await import('../../packages/control-plane/src/learn-models.js');
-  const { captureScene } = await import('../../packages/web/e2e/viz-benchmark-capture.mjs');
+  const { MODEL_PRICES } = await import('../../../packages/control-plane/src/learn-models.js');
+  const { captureScene } = await import('../../../packages/web/e2e/viz-benchmark-capture.mjs');
   const keys = readKeys(['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID']);
   const { callModel, ledger } = recordingModel(anthropicTransport(keys), { capUsd: cap, prices: MODEL_PRICES });
-  const dist = join(HERE, '..', '..', 'packages', 'web', 'dist-render');
+  const dist = join(HERE, '..', '..', '..', 'packages', 'web', 'dist-render');
   const out = await runSeeded({ render: async scene => (await captureScene(scene, [{ id: 'c' }], { dist })).captures[0].png, callRole: directCallRole(callModel) });
-  mkdirSync(join(HERE, 'critic-calibration'), { recursive: true });
+  mkdirSync(join(HERE, 'runs'), { recursive: true });
   const record = { runId, model: REVIEW_MODEL, spentUsd: +ledger.spentUsd.toFixed(4), unknownCost: ledger.unknownCost,
     calls: ledger.calls.map(({ request, ...c }) => c), ...out, results: out.results.map(({ calls, ...r }) => r) };
   writeFileSync(outPath, `${JSON.stringify(record, null, 2)}\n`);
