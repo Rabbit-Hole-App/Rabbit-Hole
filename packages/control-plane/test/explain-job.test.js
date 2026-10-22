@@ -269,7 +269,7 @@ test('the production pipeline authors and compiles a real spec; with no browser 
   const calls = authorReplies(t, [{ kind: 'spec', spec: SPEC }]);
   const { body } = await s.create({ prompt: 'Explain where rain comes from.' });
   const done = await s.run(body.job.id);
-  // Rendering is not wired into the worker until @cloudflare/puppeteer and BROWSER land: the job says so and keeps its result.
+  // No BROWSER binding here: the job says rendering is unavailable and keeps its result for Retry rendering.
   assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.failure.message], ['failed', 'rendering', 'renderer', 'Rendering explanations is not available here yet.']);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].model, 'claude-opus-5-5');

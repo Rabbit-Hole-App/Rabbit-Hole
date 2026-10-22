@@ -1,7 +1,8 @@
 // EXP-T18 render step: manifest bounds/dedup/staleness and the inert interception, with a fake browser.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RENDER_ENTRY, RENDER_ORIGIN, allowedAsset, checkManifest, compiledHash, interceptor, renderStates, reserveCaptures } from '../src/explain-render.js';
+import { renderStage } from '../src/explain-job.js';
+import { RENDER_ENTRY, RENDER_LIMITS, RENDER_ORIGIN, allowedAsset, checkManifest, compiledHash, interceptor, renderStates, reserveCaptures } from '../src/explain-render.js';
 
 const scene = { id: 's', width: 400, height: 300, duration: 2, objects: [], timeline: [] };
 const entry = (id, extra = {}) => ({ id, time: 1, inputs: {}, theme: 'light', width: 400, height: 300, dpr: 1, ...extra });
@@ -112,3 +113,24 @@ test('outage and timeouts fail with explicit codes and still close the browser',
   const noFonts = fakeBrowser({ renderResult: { ok: true, fonts: { missing: ['1em KaTeX_Main'] } } });
   await assert.rejects(renderStates({ ASSETS }, { scene }, manifest, { launch: async () => noFonts.browser }), { code: 'fonts_missing' });
 });
+
+// The ExplainJobs render stage (explain-job.js) on this module, as the production pipeline runs it; only the browser is injected.
+test('the job render stage renders through renderStates: inert interception, light and dark, PNGs stored under the job', async () => {
+  const { state, browser } = fakeBrowser({ pageRequests: ['https://render.invalid/static/render-abc.js', 'https://example.com/x.js', 'https://render.invalid/api/learn/boards'] });
+  const stored = [];
+  const out = await renderStage({ launch: async () => browser, store: async key => stored.push(key) })({ id: 'job1', compiled: { scene } }, { env: { ASSETS } });
+  assert.deepEqual(out.captures.map(c => c.id), ['light', 'dark']);
+  assert.ok(out.captures.every(c => c.key?.startsWith('explain/job1/') && c.mediaType === 'image/png' && !('png' in c)));
+  assert.deepEqual(stored, out.captures.map(c => c.key));
+  assert.equal(state.interception, true);
+  assert.deepEqual(state.intercepted.map(r => r.outcome), ['respond:200:text/html', 'respond:200:text/javascript', 'abort:blockedbyclient', 'abort:blockedbyclient']);
+  assert.equal(state.closed, true);
+});
+
+test('the job render stage: no BROWSER binding is "not available"; a bound BROWSER is launched, and a launch failure asks for Retry', async () => {
+  const job = { id: 'job2', compiled: { scene } };
+  await assert.rejects(renderStage()(job, { env: { ASSETS } }), { code: 'render_unavailable', category: 'renderer', message: 'Rendering explanations is not available here yet.' });
+  await assert.rejects(renderStage({ launch: async env => { throw new Error(`no session for ${typeof env.BROWSER}`); } })(job, { env: { ASSETS, BROWSER: {} } }), { category: 'renderer', message: 'The explanation could not be rendered (render_unavailable). Retry rendering.' });
+});
+
+test('a launched render browser idles at most 10 s for reuse (billed browser time)', () => assert.ok(RENDER_LIMITS.keepAliveMs <= 10_000));

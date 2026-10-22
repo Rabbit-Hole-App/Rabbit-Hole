@@ -4,8 +4,8 @@
 //
 // Stages: queued -> [preparing -> awaiting_approval] -> authoring -> validating -> rendering -> reviewing -> ready, with
 // repairing -> validating for at most EXPLAIN_LIMITS.correctionRounds rounds across all gates; failed and cancelled are terminal.
-// The stage work (brief, author, compile, render, review, repair) is a pipeline injected at construction: T16-T19 supply it.
-// Until then explainPipeline refuses, and the whole route is off unless EXPLAIN_V2_ENABLED is 'true'.
+// The stage work (brief, author, compile, render, review, repair) is a pipeline injected at construction (explainPipeline by
+// default, T16-T19's stages); the whole route is off unless EXPLAIN_V2_ENABLED is 'true'.
 //
 // Money: every model call is admitted on its own by spendTransport (the existing ledger), under one stable usage action per
 // job phase (preparation, generation) so the learner sees one action; review calls are kind evaluation. Before generation
@@ -27,6 +27,7 @@ import { consumeProposal, proposalRecord, proposalState, publishRevision, signPr
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
 import { reviewCaptures } from './explain-review.js';
+import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
 import { defectKeys, presentationFix, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
@@ -53,13 +54,12 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 
 // Render: the compiled scene's finished state per part, light and dark where the round's captures allow, as one manifest
 // reserved before rendering. PNGs go to LEARN_MEDIA under the job (renderStates); the job keeps keys and hashes, not bytes.
-// deps.render: Lane D's explain-render.js module, injected. Its Browser Rendering path imports @cloudflare/puppeteer, which
-// is not a dependency until the webpage card lands (with the BROWSER binding), and the worker bundle cannot resolve it before
-// then; so the production pipeline renders nothing yet (below). shortcut: injected, not imported; when @cloudflare/puppeteer
-// and BROWSER are on main, import explain-render.js here and make render: renderStage(). Other deps (launch, store, browser)
-// are renderStates' own.
-export const renderStage = ({ render, ...deps } = {}) => async (job, ctx) => {
-  if (!render) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
+// deps.render defaults to Lane D's explain-render.js: renderStates drives Browser Rendering (env.BROWSER, @cloudflare/puppeteer,
+// keep_alive 10 s) on the render entry served from this Worker's own assets (env.ASSETS, render/scene.html in every build),
+// with request interception that serves only that entry and its built /static/ files. Tests inject launch or browser.
+// A deployment without BROWSER says rendering is unavailable and keeps the compiled result for Retry rendering.
+export const renderStage = ({ render = explainRender, ...deps } = {}) => async (job, ctx) => {
+  if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
   const { compiledHash, renderStates, reserveCaptures } = render;
   const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
   const themes = parts * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
