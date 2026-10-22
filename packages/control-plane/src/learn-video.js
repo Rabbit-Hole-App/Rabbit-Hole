@@ -181,7 +181,8 @@ export class LearnVideos {
         const version = maths ? await provider.workerVersion() : provider.version;
         const key = maths ? await mathCacheKey(input.spec, version) : motion ? await motionCacheKey(input) : motionRequest ? await motionRequestCacheKey(input) : await videoCacheKey(input, version);
         // MOT-20: an approved proposal is one the worker signed for this learner, unexpired (generation-proposal.js), before any hold.
-        if (input.proposal) {
+        // Where no orchestrator is configured, startMotion refuses the job as it always has (nothing starts), so the card says why.
+        if (input.proposal && !provider.unavailable()) {
           const proposalRefused = await verifyProposal(this.env, input.proposal, usageContext(usageFromForwarded(this.env, req, 'video'))?.identity?.email);
           if (proposalRefused) return json({ error: proposalRefused, code: 'proposal_refused' }, 409);
         }
