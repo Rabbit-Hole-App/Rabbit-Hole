@@ -1,6 +1,8 @@
 // UI-25 per-type rows of the canvas action registry (canvas-actions.js; contract C:/s/spec/share/contract-actions.md).
 // Owned by lane U2 (its superset replaces this seed): U1 seeded it with the rows the old right-click menu already had,
 // unchanged in label, order and handler, plus Start Rabbit Hole, Copy selected text and Fit canvas (U2's per board log). Every handler reaches the canvas through ctx.canvas only; nothing here runs on open.
+import { ipynbPath } from './learn-notebook.js';
+
 const CAD_FORMATS = ['step', 'glb', 'stl', '3mf']; // CadCard.jsx CAD_DOWNLOADS: one row per format the card actually saved
 
 const block = type => (t => t.family === 'block' && t.type === type);
@@ -57,6 +59,10 @@ export const TYPE_ACTIONS = [
     applies: (t, ctx) => !!ctx.canvas.cadArtifact?.(t.object, format), requires: 'card.open', data: { 'data-menu-cad-download': format },
     run: (t, ctx) => ctx.canvas.downloadCad(t.object, format) })),
 
+  // A notebook's existing .ipynb (its header ⋮ and the right-click menu alike): the file the card holds, nothing fetched.
+  { id: 'notebook.download', label: t => `Download ${ipynbPath(t.object).split('/').pop()}`, icon: 'Download', group: 'type', order: 75,
+    targets: ['card'], types: ['notebook'], requires: 'content.copy', data: 'data-menu-download', applies: t => !!t.object.ipynb,
+    run: (t, ctx) => ctx.canvas.downloadText(ipynbPath(t.object).split('/').pop(), JSON.stringify(t.object.ipynb, null, 1), 'application/x-ipynb+json') },
   { id: 'heading.done', label: t => (t.object.done ? 'Mark not done' : 'Mark done'), icon: t => (t.object.done ? 'Circle' : 'CircleCheck'), group: 'type', order: 80,
     targets: ['card'], types: ['heading'], requires: 'canvas.local-edit', mutates: true, run: (t, ctx) => ctx.canvas.toggleDone(t.id) },
   { id: 'heading.present', label: 'Present from here', icon: 'Play', group: 'type', order: 81, targets: ['card'], types: ['heading'], requires: 'canvas.local-edit',

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Download, FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
+import { FolderTree, MoreHorizontal, Play, RotateCcw } from 'lucide-react';
 import { NOTEBOOK_ORIGIN, NOTEBOOK_PROTOCOL, activePath, ipynbPath, notebookUrl, trimOutputs } from './learn-notebook.js';
 import { EXPORT_WORKSPACES, workspaceIdFor, workspaceStore } from './learn-board-assets.js';
 import { toast } from './ui.jsx';
+import { CardActionRows } from './CanvasMenu.jsx';
 import { perfMark } from './learn-perf.js';
 import { registerNotebookEditor, notebookCellRequest } from './notebook-inline-client.js';
 
@@ -116,15 +117,6 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
 
   const send = (type, extra = {}) => frame.current?.contentWindow?.postMessage({ protocol: NOTEBOOK_PROTOCOL, type, ...extra }, NOTEBOOK_ORIGIN);
   const toggleFiles = () => { send('files', { open: !files }); setFiles(!files); };
-  const notebookName = ipynbPath(block).split('/').pop();
-  const download = () => {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([JSON.stringify(block.ipynb, null, 1)], { type: 'application/x-ipynb+json' }));
-    link.download = notebookName;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    setMenu(false);
-  };
   const action = 'flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink disabled:opacity-40';
   const stop = event => event.stopPropagation();
 
@@ -140,8 +132,9 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
         <button type="button" aria-label="More notebook actions" className={action} onPointerDown={stop} onClick={() => setMenu(open => !open)}><MoreHorizontal size={14} /></button>
         {menu && (
-          <div role="menu" className="absolute top-8 right-3 z-30 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
-            <button type="button" role="menuitem" className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-ink hover:bg-hover" onClick={download}><Download size={13} />Download {notebookName}</button>
+          // UI-25: the card's own rows from the canvas action registry, run like the right-click menu's (CanvasMenu.jsx).
+          <div role="menu" aria-label="Notebook actions" data-card-menu className="absolute top-8 right-3 z-30 w-60 rounded-lg border border-line bg-white p-1 shadow-md" onPointerDown={stop}>
+            <CardActionRows id={block.id} groups={['type', 'content']} onDone={() => setMenu(false)} />
           </div>
         )}
       </div>

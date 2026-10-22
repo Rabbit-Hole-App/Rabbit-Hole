@@ -260,3 +260,21 @@ test('the canvas uses the registry: one CanvasMenu, keyboard shortcuts through r
   for (const id of ['duplicate', 'lock', 'delete']) assert.match(canvas, new RegExp(`keyActionRef\\.current\\('${id}'\\)`));
   assert.doesNotMatch(canvas, /Mark a region to ask about/);
 });
+
+test("a card's own ⋮ menu draws the same rows and runs them through runAction (NotebookCard)", () => {
+  const card = readFileSync(new URL('./NotebookCard.jsx', import.meta.url), 'utf8'), canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(card, /<CardActionRows id=\{block\.id\} groups=\{\['type', 'content'\]\}/);
+  assert.match(canvas, /run: \(id, actionId\) => \{ const done = runAction\(actionId, cardTarget\(id\), actionCtx\);/);
+  const { ctx, calls } = fakeCtx();
+  ctx.canvas.downloadText = (...args) => { calls.push(['downloadText', args[0], args[2]]); };
+  const nb = { id: 'nb', type: 'notebook', ipynb: { cells: [] }, ipynb_path: 'work/lesson.ipynb' };
+  board.blocks.push(nb);
+  try {
+    const target = selectionTarget(model(['nb']));
+    const row = actionsFor(target, ctx).find(entry => entry.id === 'notebook.download');
+    assert.equal(row.label, 'Download lesson.ipynb');
+    assert.deepEqual(calls, [], 'listing the rows downloads nothing');
+    assert.equal(runAction('notebook.download', target, ctx).ran, true);
+    assert.deepEqual(calls.at(-1), ['downloadText', 'lesson.ipynb', 'application/x-ipynb+json']);
+  } finally { board.blocks.pop(); }
+});

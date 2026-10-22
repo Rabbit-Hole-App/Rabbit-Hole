@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowDown, ArrowDownToLine, ArrowUp, BookOpen, BoxSelect, BringToFront, Circle, CircleCheck, ClipboardPaste, Copy, CopyPlus, Download,
   ExternalLink, Eye, Group, Link2, Lock, LockOpen, MessageCircle, MessageSquarePlus, NotebookPen, PaintRoller, Paperclip, Pencil, PencilLine,
   Pipette, Play, Scan, Scissors, ScrollText, SendToBack, Trash2, UnfoldVertical, Ungroup, Unlink, Wand, ZoomIn, Check,
+  Maximize, Palette, Rotate3d, RotateCcw, Sigma, StickyNote, Type,
 } from 'lucide-react';
 import { MenuItem } from './ui.jsx';
 
@@ -17,8 +18,35 @@ export const ICONS = {
   ArrowDown, ArrowDownToLine, ArrowUp, BookOpen, BoxSelect, BringToFront, Circle, CircleCheck, ClipboardPaste, Copy, CopyPlus, Download,
   ExternalLink, Eye, Group, Link2, Lock, LockOpen, MessageCircle, MessageSquarePlus, NotebookPen, PaintRoller, Paperclip, Pencil, PencilLine,
   Pipette, Play, Scan, Scissors, ScrollText, SendToBack, Trash2, UnfoldVertical, Ungroup, Unlink, Wand, ZoomIn,
+  Maximize, Palette, Rotate3d, RotateCcw, Sigma, StickyNote, Type,
 };
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
+
+// One row, as the right-click menu and a card's own menu draw it.
+function ActionRow({ row, onPick }) {
+  const Icon = typeof row.icon === 'string' ? ICONS[row.icon] : row.icon;
+  const check = row.checked !== null;
+  return (
+    <MenuRow icon={Icon} data-action={row.id} {...row.attrs} disabled={row.disabled} title={row.reason || undefined} data-sign-in={row.signIn || undefined}
+      role={check ? 'menuitemcheckbox' : 'menuitem'} aria-checked={check ? row.checked : undefined}
+      aria-keyshortcuts={row.keyshortcuts || undefined} hint={row.hint || undefined}
+      className={`${row.reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}
+      onClick={() => onPick(row.id)}>
+      {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span></span> : row.label}
+      {row.reason && <span className="block text-xs text-ink-3">{row.reason}</span>}
+    </MenuRow>
+  );
+}
+
+// A card's own menu (its header ⋮) on the same rows and the same runAction as the right-click menu (brief section 4):
+// AdaptiveCanvas provides { rows(id, groups), run(id, actionId) }; outside a canvas there is nothing to show.
+export const CardActions = createContext(null);
+export function CardActionRows({ id, groups, onDone }) {
+  const actions = useContext(CardActions);
+  const rows = actions ? actions.rows(id, groups).filter(row => !row.separator) : [];
+  if (!rows.length) return <p className="px-2 py-1.5 text-xs text-ink-3">No actions here</p>;
+  return rows.map(row => <ActionRow key={row.id} row={row} onPick={actionId => { onDone?.(); actions.run(id, actionId); }} />);
+}
 
 // at: the cursor in the surface's pixels. surface: the canvas surface element. onClose(byKey): byKey is true for Escape
 // and Tab, when the caller gives the focus back.
@@ -63,21 +91,9 @@ export default function CanvasMenu({ rows, at, surface, onPick, onClose }) {
       style={{ left: pos?.x ?? at.x, top: pos?.y ?? at.y, maxHeight: pos?.maxH, visibility: pos ? undefined : 'hidden' }}
       className="absolute z-40 w-60 max-w-[calc(100vw-16px)] overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
       onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
-      {rows.map(row => {
-        if (row.separator) return <div key={row.key} role="separator" className="my-1 h-px bg-line" />;
-        const Icon = typeof row.icon === 'string' ? ICONS[row.icon] : row.icon;
-        const check = row.checked !== null;
-        return (
-          <MenuRow key={row.id} icon={Icon} data-action={row.id} {...row.attrs} disabled={row.disabled} title={row.reason || undefined} data-sign-in={row.signIn || undefined}
-            role={check ? 'menuitemcheckbox' : 'menuitem'} aria-checked={check ? row.checked : undefined}
-            aria-keyshortcuts={row.keyshortcuts || undefined} hint={row.hint || undefined}
-            className={`${row.reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}
-            onClick={() => onPick(row.id)}>
-            {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span></span> : row.label}
-            {row.reason && <span className="block text-xs text-ink-3">{row.reason}</span>}
-          </MenuRow>
-        );
-      })}
+      {rows.map(row => (row.separator
+        ? <div key={row.key} role="separator" className="my-1 h-px bg-line" />
+        : <ActionRow key={row.id} row={row} onPick={onPick} />))}
     </div>
   );
 }

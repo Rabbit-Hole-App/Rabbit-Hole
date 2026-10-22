@@ -88,8 +88,9 @@ import { EXCERPT_DRAG, EXCERPT_EVENT } from './pdf-excerpt-drafts.js';
 import { SEARCH_DRAG, applySearchDrop, paintSearchDrop, searchDrag, searchDropPlan } from './search-drag.js';
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { withPressId } from './learn-video-label.js';
-import CanvasMenu from './CanvasMenu.jsx';
-import { actionsFor, legacyCan, resolveTarget as resolveMenuTarget, runAction, selectionTarget } from './canvas-actions.js';
+import CanvasMenu, { CardActions } from './CanvasMenu.jsx';
+import { actionsFor, allActions, legacyCan, resolveTarget as resolveMenuTarget, runAction, selectionTarget } from './canvas-actions.js';
+const rowGroup = id => allActions().find(entry => entry.id === id)?.group || null;
 // S1's one permission model (canvas-permissions.js, contract-permissions.md). ponytail: a glob so this branch builds before
 // S1's module merges; once both are on main this becomes a plain import of { can }.
 const permissionModel = Object.values(import.meta.glob('./canvas-permissions.js', { eager: true }))[0] || null;
@@ -5202,6 +5203,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       downloadCad: (object, format) => downloadCadArtifact(cadArtifact(object.manifest, format), cadCanMutate(object, readOnly)).catch(problem => toast(problem.message, { tone: 'error' })),
       toggleDone: id => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === id ? { ...entry, done: !entry.done } : entry)); },
       presentFrom: id => presentFrom(id),
+      // A file the card already holds, saved by the browser (Download rows); nothing is fetched or generated.
+      downloadText: (name, text, type = 'text/plain') => {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([text], { type }));
+        link.download = name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 0);
+      },
       // A row S1 answers with signIn: the page's sign-in, keeping the draft and selection (false: none here, the reason shows).
       signIn: onSignIn ? (capability, target) => { onSignIn(capability, target); return true; } : null,
       toast,
@@ -5252,6 +5261,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const keyActionRef = useRef(keyAction);
   keyActionRef.current = keyAction;
+  // A card's own ⋮ menu (CanvasMenu.jsx CardActionRows): that card's rows, run like the right-click menu's.
+  const cardTarget = id => selectionTarget(menuModel({ selection: [id] }));
+  const cardActions = {
+    rows: (id, groups) => actionsFor(cardTarget(id), actionCtx).filter(row => row.separator || !groups || groups.includes(rowGroup(row.id))),
+    run: (id, actionId) => { const done = runAction(actionId, cardTarget(id), actionCtx); if (!done.ran && done.reason) toast(done.reason); },
+  };
   const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
@@ -5262,6 +5277,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CardActions.Provider value={cardActions}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
@@ -5761,6 +5777,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       </div>}
     </div>
     </SelectionActionsProvider>
+    </CardActions.Provider>
     </CanvasEdit.Provider>
   );
 }
