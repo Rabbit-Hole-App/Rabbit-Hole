@@ -3,7 +3,7 @@
 // the stored JPEG tiles and text runs, never the page. Every capture version is a set of file_sources rows (learn 0023):
 // a manifest, its tiles and its text runs, inserted 'uploading' and flipped to 'stored' together only when screening
 // passes. file-access.js serves 'stored' rows only, so an unscreened capture is unreachable through /api/learn/files,
-// share links, member boards and forks alike. No migration, no model call here (screening is webpage-screen.js).
+// a share link, a member board or a fork alike. No migration, no model call here (screening is webpage-screen.js).
 //   POST /api/learn/webpages                      { app, board, url, lineage? }  capture (lineage: Refresh)
 //   POST /api/learn/webpages/<manifest id>/screen { app, board }                 Retry screening
 //   GET  /api/learn/webpages/<manifest id>?app=&board=                           status
