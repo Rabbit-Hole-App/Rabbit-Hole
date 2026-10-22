@@ -35,8 +35,9 @@ export const docMeta = doc => {
 };
 const fileCount = n => `${n} file${n === 1 ? '' : 's'}`;
 // PDF-02 status (C:/s/spec/pdfctx/contract-pdf-status.md; a missing field is a legacy row, ready): how questions read a long
-// PDF, its pages without text, or why it failed (the server's message, verbatim, naming the next step).
-export const docNote = doc => [doc?.reads === 'pages' ? 'Questions read the relevant pages' : '', doc?.noText > 0 ? `${doc.noText} page${doc.noText === 1 ? '' : 's'} without text` : ''].filter(Boolean).join(' · ');
+// PDF, its pages without text, or why it failed (the server's message, verbatim, naming the next step). A failed one's pages
+// are not read yet, so it never claims questions read them.
+export const docNote = doc => [doc?.reads === 'pages' && doc?.status !== 'failed' ? 'Questions read the relevant pages' : '', doc?.noText > 0 ? `${doc.noText} page${doc.noText === 1 ? '' : 's'} without text` : ''].filter(Boolean).join(' · ');
 // Reading a PDF's pages in this tab (context-doc-pages.js): "Reading pages 120 of 312", or Uploading before the count is known.
 const readingLabel = job => (job?.total ? `Reading pages ${job.done} of ${job.total}` : '');
 
