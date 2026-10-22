@@ -418,13 +418,20 @@ export function holeOpening({ storage, load, record, title = null, hookTurns, se
 // content loading, moved cards and Tutor-made cards are not triggers, and they never re-ask an existing set: the basis the
 // controller keys on is the full basis taken when the trigger last changed. `visible` false (Chat closed) holds them back
 // without forgetting the baseline. memory is the caller's own object, one per mount.
+// shown false (View > Curious off, owner brief 2026-10-21 message 25 item 2): nothing is asked, learner turns included, and the
+// last set stays saved. Shown again, that saved set comes back as it was and nothing is asked for the turns made while hidden;
+// with none saved the stop is 'curious_empty' (the card's explicit request, memory.ask, asks once). Tutor's rules still come
+// first: shown never brings back what Off or paused hides.
 export const hooksTrigger = ({ lastTurn = null, journey = null, canvasState = null, graded = 0 }) => JSON.stringify([lastTurn?.turn_id ?? null,
   journey?.journey?.evidence?.seq ?? null, journey?.path?.version ?? null, journey?.journey?.active_section_id ?? null, canvasState?.attempts ?? 0, graded]);
-export function gateHooks(memory, state, { allowed, visible = true, trigger }) {
-  if (!allowed) { memory.baseline = memory.trigger = memory.basis = null; return { basis: null, stop: 'off' }; }
+export function gateHooks(memory, state, { allowed, visible = true, shown = true, trigger }) {
+  if (!allowed) { memory.baseline = memory.trigger = memory.basis = null; memory.resumed = memory.ask = false; return { basis: null, stop: 'off' }; }
+  if (!shown) { memory.hidden = true; memory.ask = false; return { basis: memory.basis ?? null, stop: 'curious_hidden' }; }
+  if (memory.hidden) { memory.hidden = false; memory.resumed = true; memory.trigger = trigger; if (memory.basis == null) memory.baseline = trigger; }
+  if (memory.ask && state.basis != null) { memory.ask = memory.resumed = false; memory.basis = state.basis; memory.trigger = trigger; }
   if (state.basis == null) return state;
   if (memory.baseline == null) memory.baseline = trigger;
-  if (memory.basis == null && trigger === memory.baseline) return { basis: null, stop: 'at_rest' };
-  if (trigger !== memory.trigger) { memory.trigger = trigger; memory.basis = state.basis; }
+  if (memory.basis == null && trigger === memory.baseline) return { basis: null, stop: memory.resumed ? 'curious_empty' : 'at_rest' };
+  if (trigger !== memory.trigger) { memory.trigger = trigger; memory.basis = state.basis; memory.resumed = false; }
   return { ...state, basis: memory.basis, ...(visible ? {} : { stop: state.stop || 'hidden' }) };
 }

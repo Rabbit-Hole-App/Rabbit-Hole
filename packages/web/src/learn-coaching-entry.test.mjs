@@ -58,7 +58,7 @@ test('current_drawing_survives_resume: a saved task plus newer edits resumes the
 
 test('the three return choices, and a finished activity offers a review or a next goal instead of Continue', () => {
   const checkpoint = checkpointOf(state);
-  assert.deepEqual(['continue', 'recap', 'quick_check'].map(a => entryAction(a, checkpoint).label), ['Continue where I left off', 'Give me a short recap', 'Try a quick check']);
+  assert.deepEqual(['continue', 'recap', 'quick_check'].map(a => entryAction(a, checkpoint).label), ['Continue where I left off', 'Short recap', 'Quick check']);
   assert.equal(entryAction('recap', checkpoint).send, 'Give me a short recap of Logistic regression thresholds.', 'a recap is an explicit request, sent as the learner\'s own');
   const done = entry({ checkpoint: { goal, activity: { ...activity, status: 'completed' } } });
   assert.deepEqual([done.kind, done.allowedActions], ['completed', ['review', 'next_goal']]);

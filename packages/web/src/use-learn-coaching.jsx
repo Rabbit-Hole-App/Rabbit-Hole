@@ -3,7 +3,7 @@
 // waiting opening above the composer. Nothing here calls a model: opening, restoring, selecting Tutor, switching it On or
 // Off, Not now, Resume and Undo only read or save the learner's controls. A choice the learner presses that needs new
 // content goes through the Chat's normal send, as the learner's own request.
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { api } from './api.js';
 import { Toggle } from './ui.jsx';
 import { controlsNote, createCoachingSync, effectiveControls, guidedOpening } from './learn-coaching-client.js';
@@ -60,6 +60,7 @@ export function TutorSwitch({ coaching }) {
 
 const LINK = 'shrink-0 cursor-pointer font-medium text-ink underline-offset-2 hover:underline';
 const CHOICE = 'cursor-pointer rounded-full border border-line bg-white px-3 py-1 text-xs font-medium text-ink hover:bg-hover disabled:cursor-default disabled:opacity-50';
+const PRIMARY = 'cursor-pointer rounded-full border border-ink bg-ink px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-default disabled:opacity-50';
 
 // Above the Chat composer (ask.jsx): the controls' status line, a guided Rabbit Hole opening that is waiting for the learner
 // (owner 4a: shown, never sent, where coaching may not run), and the static entry card (Task 04). chat: the workspace;
@@ -69,6 +70,11 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
   const { coaching, thread, composer, canvasOps } = chat;
   const [engaged, setEngaged] = useState(null); // the canvas whose entry the learner already acted on in this view
   const [shown, setShown] = useState(null); // the saved activity prompt Continue put back in view
+  // The activity each canvas opened with: one started in this view is not a return, so the returning card never competes with
+  // it (owner brief 2026-10-21 "Activity states").
+  const opened = useRef({});
+  if (coaching.status === 'ready' && !Object.hasOwn(opened.current, chat.canvas)) opened.current[chat.canvas] = coaching.state?.activeActivityId ?? null;
+  const startedHere = Object.hasOwn(opened.current, chat.canvas) && (coaching.state?.activeActivityId ?? null) !== opened.current[chat.canvas];
   const controls = effectiveControls(coaching, thread);
   const checkpoint = checkpointOf(coaching.state);
   const workspace = canvasOps?.workspace?.() || { loaded: false, content: 0 };
@@ -91,7 +97,7 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
       composer.focus();
     }
   };
-  const offer = ['welcome', 'existing_work', 'resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu;
+  const offer = ['welcome', 'existing_work', 'resume', 'completed'].includes(entry.kind) && engaged !== chat.canvas && !codebase.menu && !startedHere;
   return <>
     {note && <p role={note.tone === 'error' ? 'alert' : 'status'} data-tutor-status={note.action || note.tone} className={`mb-1.5 flex flex-wrap items-center gap-x-2 text-xs ${note.tone === 'error' ? 'text-fail' : 'text-ink-2'}`}>
       {note.text}
@@ -109,7 +115,7 @@ export function TutorCoaching({ chat, send, sendOpening, waitingOpening = null, 
     {offer && <section data-tutor-entry={entry.kind} aria-label="Tutor" className="mb-2 flex flex-col gap-2 rounded-xl border border-line bg-white p-3">
       <p className="text-sm text-ink">{entryCopy(entry, checkpoint)}</p>
       <div className="flex flex-wrap gap-1.5">
-        {entry.allowedActions.map(action => { const run = entryAction(action, checkpoint); return run && <button key={action} type="button" data-tutor-choice={action} disabled={busy} onClick={() => pick(action)} className={CHOICE}>{run.label}</button>; })}
+        {entry.allowedActions.map(action => { const run = entryAction(action, checkpoint); return run && <button key={action} type="button" data-tutor-choice={action} disabled={busy} onClick={() => pick(action)} className={action === 'continue' ? PRIMARY : CHOICE}>{run.label}</button>; })}
         <button type="button" data-tutor-own-work onClick={() => { setEngaged(chat.canvas); coaching.dispatch({ type: 'continue_own_work' }); }} className={CHOICE}>Continue my own work</button>
         <button type="button" data-tutor-not-now onClick={() => coaching.dispatch({ type: 'not_now' })} className={CHOICE}>Not now</button>
       </div>

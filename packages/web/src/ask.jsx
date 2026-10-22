@@ -192,6 +192,15 @@ export function NextStepsCard({ steps, onPick }) {
   useEffect(() => { if (steps?.status === 'ready' && frame.current) height.current = frame.current.offsetHeight; });
   if (!steps) return null;
   const visible = steps.status === 'loading' || steps.status === 'stale' || (steps.status === 'ready' && steps.options.length === 3);
+  // View > Curious shown again with no saved set (owner brief 2026-10-21 message 25 item 2): a compact empty state. Only its
+  // button asks for a set (useNextSteps request); showing Curious never does.
+  if (steps.status === 'unavailable' && steps.reason === 'curious_empty' && typeof steps.request === 'function') return (
+    <section data-next-steps="empty" aria-label="Curious where this goes?" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
+      <span className="text-xs font-medium whitespace-nowrap text-ink-2">No suggestions yet</span>
+      <button type="button" data-next-steps-request aria-label="Suggest next steps" title="Suggest next steps for this canvas" onClick={() => steps.request()}
+        className="shrink-0 rounded-full px-2.5 py-1 text-xs font-medium text-ink hover:bg-hover">Suggest</button>
+    </section>
+  );
   if (minimized && visible) return (
     <section data-next-steps={steps.status} data-next-steps-minimized aria-label="Curious where this goes? (minimized)" className="ml-auto flex w-max max-w-full items-center gap-1 rounded-full border border-line bg-white py-1 pr-1 pl-3 shadow-pop">
       <span className="truncate text-xs font-medium text-ink-2">Curious where this goes?</span>
@@ -926,10 +935,17 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // live in the Sources pane beside it, so here there is no content panel to hide the transcript or for send() to close.
   if (chat) contentPanel = null;
   else if (repository && filePeek) contentPanel = <RepositorySource appName={fileApp} {...filePeek} commit={repositoryCommit || repositoryContext?.commit} onClose={() => setFilePeek(null)} />;
-  // One entry per document and page (pdf-materials-refinement.md section 6): in the Chat pane a selected object whose ref is
-  // attached marks that chip (pinned), and a selected PDF card or page not attached is a chip of its own; neither is also a pill.
+  // One entry per source (pdf-materials-refinement.md section 6; UI-09): in the Chat pane a selected object whose ref is attached
+  // marks that chip (pinned), and any other selection is a chip of its own inside the composer; neither is also a pill above it.
+  // The board's paper and image attachments: above the composer elsewhere, among the Chat composer's chips (UI-09).
+  const boardPending = <>
+    {!tocView && boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
+    {!tocView && boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
+      <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
+      <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
+    </div>}
+  </>;
   const pinnedTarget = !!(chat && canvasTarget?.ref && chat.context.isAttached(canvasTarget.ref));
-  const chipTarget = pinnedTarget || !!(chat && canvasTarget?.ref && canvasTarget.pdf);
   return (
     <div className={cn('flex min-h-0 flex-col', compact ? 'max-h-[320px]' : 'flex-1', sheetMode && 'relative')}>
       {/* The Chat pane's own header (ChatPane: title, History, New chat) replaces this row there. */}
@@ -1137,7 +1153,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           {passage?.excerpt.length > 0 && <pre data-context-excerpt className="mt-1 max-w-full overflow-hidden rounded border border-green-600/25 bg-white px-1.5 py-1 font-mono text-[10px] leading-4 text-ink">{passage.excerpt.map(line => <div key={line.n} className="truncate"><span className="mr-2 text-ink-3">{line.n}</span>{colorLine(line.text)}</div>)}{passage.more && <div className="text-ink-3">…</div>}</pre>}
         </div>; })()}
         {/* The selected card (or armed region, area or group) the next question is about: always visible while it rides. */}
-        {canvasTarget && !chipTarget && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
+        {canvasTarget && !chat && <div data-canvas-target {...(canvasTarget.card ? { 'data-selected-card': canvasTarget.id, title: `${canvasTarget.kind}: ${String(canvasTarget.title ?? '')}` } : {})} className="mb-1.5 inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
           {canvasTarget.preview && <img src={canvasTarget.preview} alt="Selected region" className="h-7 w-10 shrink-0 rounded border border-line bg-white object-contain" />}
           {canvasTarget.preview && !canvasTarget.paper && !canvasTarget.docPage && !canvasTarget.image && !canvasTarget.id?.startsWith?.('area:') && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">text only</span>}
           {/* A card shows its material icon, unless it has a picture; a title that already names its kind (a group called Group 2) is shown once. */}
@@ -1147,11 +1163,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           <button type="button" aria-label={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} title={canvasTarget.card ? 'Remove selected card context' : 'Clear block selection'} onClick={onClearCanvasTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
         </div>}
         {codeSelection&&<div aria-label="Selected code attachment" className="mb-2 rounded-lg border border-accent/40 bg-accent/5 p-2 text-xs text-ink"><div className="flex items-start gap-2"><div className="min-w-0 flex-1"><div className="text-ink-2">Asking about selected code</div><div className="mt-1 truncate font-mono font-medium">{codeSelection.path}:{codeSelection.start}–{codeSelection.end}</div></div><button type="button" aria-label="Clear code selection" onClick={()=>setCodeSelection(null)}><X size={13}/></button></div><pre className="mt-2 max-h-20 overflow-auto rounded border border-line bg-white p-2 font-mono text-[10px] leading-4">{codeSelection.text.split('\n').slice(0,4).map((line,i)=><div key={i}><span className="mr-2 text-ink-3">{codeSelection.start+i}</span>{colorLine(line)}</div>)}{codeSelection.end-codeSelection.start>=4&&<span className="text-ink-3">… {codeSelection.end-codeSelection.start+1} selected lines</span>}</pre></div>}
-        {!tocView && boardContext?.paper && <div className="mb-2 flex items-center gap-2 rounded border border-line p-2 text-xs"><span className="min-w-0 flex-1">Asking about: {boardContext.paper.title} / Page {boardContext.paper.page}</span><button type="button" aria-label="Clear paper context" onClick={boardContext.clearPaper}><X size={12} /></button></div>}
-        {!tocView && boardContext?.preview && <div className="relative mb-2 w-28" data-canvas-attachment>
-          <img src={boardContext.preview} alt={boardContext.previewKind === 'paper' ? 'Selected paper region' : 'Selected canvas preview'} className="h-20 w-28 rounded-lg border border-line bg-white object-contain" />
-          <button type="button" aria-label={boardContext.previewKind === 'paper' ? 'Remove paper selection' : 'Remove canvas image'} title="Remove image preview" onClick={boardContext.removeImage} className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-ink-2 shadow-sm hover:bg-hover"><X size={12} /></button>
-        </div>}
+        {!chat && boardPending}
         {chat && !tocView && chat.coaching && <TutorCoaching chat={chat} send={text => send(text)} sendOpening={sendOpening} waitingOpening={waitingOpening} messages={msgs.length} busy={busy} />}
         {chat && !tocView && chat.coaching?.state && <TutorActivity chat={chat} board={chat.board || 'main'} />}
         {tray?.tray && <TutorPromptTray tray={tray.tray} onOption={async id => { const out = await tray.onOption(id); if (out?.ask) send(out.ask, undefined, { skipJourney: true }); }} />}
@@ -1165,7 +1177,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? `Add details, or press ${sendKeyLabel()}` : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
-            selection={chipTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null}
+            selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} extra={boardPending}
             code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => { if (codebase) dropRef(codebase, ref); dropCardRef(ref); } } : null} /> : null}
           leading={<>
           {!tocView && <div className="relative shrink-0">

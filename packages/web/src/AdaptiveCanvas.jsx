@@ -8,6 +8,7 @@ import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
 import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
+import { saveUiPref, uiPrefs } from './ui-prefs.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
@@ -35,7 +36,7 @@ import { addToChatAllowed, claimChord, quickEditAllowed } from './shortcut-owner
 import { askDraft } from './agent/scope.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { fileChatRef } from './file-chat-ref.js';
-import { objectKind, selectionRef } from './selection-ref.js';
+import { objectKind, objectName, selectionName, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt from './CardPrompt.jsx';
@@ -72,7 +73,7 @@ import CanvasRefChips, { CanvasRefs } from './CanvasRefChips.jsx';
 import CanvasRefCard from './CanvasRefCard.jsx';
 import { GRAPH_CARD } from './graph-card.js';
 import CodeCard from './CodeCard.jsx';
-import { CODE_CARD, CODE_DRAG, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
+import { CODE_CARD, CODE_DRAG, codeCardRef, dragSource, insertCodeCard, repoCodeCard } from './code-card.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { DOC_CARD, DOC_KINDS } from './file-doc-import.js';
 import { droppedFiles } from './model-drop.js';
@@ -1840,7 +1841,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   }, [gapAdding]);
   const [guides, setGuides] = useState([]);
   const [grid, setGrid] = useState(false);
-  const [minimap, setMinimap] = useState(true);
+  // View > Minimap, Rabbit Hole Map, Curious (owner brief 2026-10-21 item 3): this device's choice (ui-prefs.js), on by default.
+  // Hidden, the Rabbit Hole Map and Curious stay mounted (display: none), so their state is there when they come back.
+  const [minimap, setMinimap] = useState(() => uiPrefs().minimap);
+  const [holeMap, setHoleMap] = useState(() => uiPrefs().holeMap);
+  const [curious, setCurious] = useState(() => uiPrefs().curious);
+  const showWidget = (name, on) => {
+    ({ minimap: setMinimap, holeMap: setHoleMap, curious: setCurious })[name](on);
+    try { saveUiPref(name, on); } catch { /* storage refused: the choice holds in this page until a reload */ }
+  };
   const [pages, setPages] = useState(false);
   // Present mode: null when editing, otherwise the step being shown.
   const [presenting, setPresenting] = useState(null);
@@ -2354,7 +2363,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       },
       // The divider used to live on the zoom pill; the menubar is its home now.
       toggleGrid: () => setGrid(previous => !previous),
-      toggleMinimap: () => setMinimap(previous => !previous),
+      showWidget,
       // Page guides: false (off), 'portrait' or 'landscape' A4.
       setPages,
       // One snapshot for the whole restructure, so Ctrl+Z reverts the proposal
@@ -2731,7 +2740,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!strip || !at) return [];
     const rects = [...strip.querySelectorAll(':scope > * > *')].flatMap(boxesIn).filter(rect => rect.width && rect.height);
     const slot = strip.querySelector('[data-hooks-slot]'), room = hooksRoom.current, edge = strip.getBoundingClientRect();
-    if (slot && room && !slot.getBoundingClientRect().height) rects.push({ left: edge.right - room.right - room.w, right: edge.right - room.right, top: edge.bottom - room.bottom - room.h });
+    if (curious && slot && room && !slot.getBoundingClientRect().height) rects.push({ left: edge.right - room.right - room.w, right: edge.right - room.right, top: edge.bottom - room.bottom - room.h });
     return chromeObstacles(rects.map(rect => ({ left: rect.left - at.left, right: rect.right - at.left, top: rect.top - at.top })), at.height, viewRef.current);
   };
   // What the learner can see of the surface: less what floats over it - the chat sheet above the composer, the
@@ -2892,7 +2901,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: viewing, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: viewing, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -3587,10 +3596,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const askedId = useRef(null);
   // The selected object's chat-context identity (pdf-materials-refinement.md section 6): a PDF card or page is its document and
   // page (pdfRef), anything else the ref Add to chat gives it. The composer shows a selection and an attachment of one ref once.
-  const chatRefOf = object => excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
+  // A code card is its code-card.js codeCardRef, the one its own Add to chat gives (UI-09/UI-10): a repository card its file and
+  // lines at its commit, an uploaded one its stored file (its text is read in addToChat below).
+  // A repository card the viewer cannot read arrives redacted (repository-cards.js: no path): it stays a plain card ref.
+  const codeChatRef = object => (object?.type === 'repo-code' && (object.source?.kind === 'upload' || object.source?.path) ? codeCardRef(object) : null);
+  const chatRefOf = object => excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object) || (object ? { sourceId: `${objectKind(object)}:${object.id}`, kind: objectKind(object), range: null } : null);
   const armTarget = block => {
-    const described = describeObject(block);
-    if (!described) return false;
+    const found = describeObject(block);
+    if (!found) return false;
+    // An untitled card's chip is its first line or its kind, never empty (UI-09).
+    const described = { ...found, title: objectName(block, found) };
     armedId.current = block.id;
     // card: a selected card's context (the strip above the composer), kept after a send; context: its identities.
     const card = { card: true, asked: askedId.current === block.id, context: { ...selectedCardContext(block, described.title), material_type: block.type || described.material }, ref: chatRefOf(block), pdf: !!(pdfRef(block) || fileChatRef(block)) };
@@ -3632,11 +3647,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const shape = shapesRef.current.find(entry => entry.id === id);
     return shape?.text ? { text: shape.text } : null;
   };
+  // Each selected object's name, read from the object itself (UI-09: never "1 item"); a shape is in none of objectById's lists.
+  const nameOf = id => { const object = objectById(id) || shapesRef.current.find(shape => shape.id === id); return objectName(object, object && describeObject(object)); };
   const armCollection = (ids, ref = null) => {
     const gids = new Set(ids.map(groupOf));
     const gid = gids.size === 1 && !gids.has(null) ? [...gids][0] : null;
     const group = gid && membersOf(gid).length === ids.length ? groups.find(entry => entry.id === gid) : null;
-    const label = group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`;
+    const label = selectionName(ids.map(nameOf), group);
     const id = group ? group.id : `selection:${[...ids].sort().join('+')}`;
     armedId.current = null;
     armedGroup.current = group ? group.id : null;
@@ -3667,9 +3684,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Its selection chip steps aside, as a card's does below, so the page is one chip.
       // An imported file card is its file ref (file-chat-ref.js: source revision + scope), the selection chip's own identity.
       // A PDF excerpt is its own ref (pdf-excerpt.js): the verbatim text, or its crop's image file - the selection chip's identity.
-      const sourceRef = excerptChatRef(object) || pdfRef(object) || fileChatRef(object);
+      // A repository code card is its code ref: the file and lines at its commit, read under the owner check (UI-09).
+      const sourceRef = excerptChatRef(object) || pdfRef(object) || fileChatRef(object) || codeChatRef(object);
       if (sourceRef) {
-        if (chatWorkspace.addToChat(sourceRef, { fileRef: object.fileRef }) === false) return false;
+        // An uploaded code card carries its stored text, as CodeCard's own Add to chat does; an unreadable asset adds its name only.
+        if (object.type === 'repo-code' && object.source?.kind === 'upload') {
+          loadAsset(object.source.assetKey).then(value => (typeof value === 'string' ? value : value?.text?.() ?? ''))
+            .then(text => chatWorkspace.addToChat(codeCardRef(object, text)), () => chatWorkspace.addToChat(sourceRef));
+        } else if (chatWorkspace.addToChat(sourceRef, { fileRef: object.fileRef }) === false) return false;
         if (askTargetId === object.id) { armedId.current = null; onAskTargetRef.current?.(null); }
         return true;
       }
@@ -3678,7 +3700,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const group = ids.length > 1 && groups.find(entry => ids.every(id => groupOf(id) === entry.id) && membersOf(entry.id).length === ids.length);
       const picked = window.getSelection(), node = picked && !picked.isCollapsed ? picked.anchorNode : null;
       const quote = object && (node?.nodeType === 1 ? node : node?.parentElement)?.closest('[data-block-id]')?.getAttribute('data-block-id') === object.id ? picked.toString() : '';
-      const ref = selectionRef({ ids, kind: objectKind(object), name: described?.title || (group ? `Group: ${group.label || `${ids.length} items`}` : `${ids.length} item${ids.length === 1 ? '' : 's'}`), content: read(), quote, text: read });
+      const ref = selectionRef({ ids, kind: objectKind(object), name: object ? objectName(object, described) : selectionName(ids.map(nameOf), group), content: read(), quote, text: read });
       chatWorkspace.addToChat(ref);
       // Keep the existing snapshot path; the matching pinned ref makes this one chip, not a second selection chip.
       if (!object) armCollection(ids, ref);
@@ -5557,7 +5579,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           row under the canvas instead - the toolbar scrolling in it - with the
           overview on the next row. The style panel opens from it. */}
       {/* The Rabbit Hole navigator's own gutter, top right, while the tools dock left (Dive.jsx). */}
-      {presenting === null && gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter className="flex w-[92px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden">{gutterTop}</div>}
+      {presenting === null && gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter className={`${holeMap ? 'flex' : 'hidden'} w-[92px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden`}>{gutterTop}</div>}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
@@ -5566,7 +5588,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator when the tools dock right. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
-          {(toolSide === 'right' || !mapBeside) && gutterTop}
+          {(toolSide === 'right' || !mapBeside) && gutterTop && <div className={holeMap ? undefined : 'hidden'}>{gutterTop}</div>}
         </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
@@ -5721,7 +5743,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Lower right: the hooks, bottom-aligned with the composer and right of it, the width the left stack gave them. It
             also balances the left column, so the composer stays centred. On a phone, above the composer at the right. */}
         <div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">
-          {hooks && <div data-hooks-slot ref={hooksSlot} className="w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)]">{hooks}</div>}
+          {hooks && <div data-hooks-slot ref={hooksSlot} className={`w-[clamp(208px,calc(50cqw-500px),300px)] empty:hidden max-md:w-[min(100%,300px)] ${curious ? '' : 'hidden'}`}>{hooks}</div>}
         </div>
       </div>}
     </div>

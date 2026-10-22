@@ -114,7 +114,9 @@ await check('a hidden composer comes back, with its draft, when Add to chat is p
 });
 await shot('02-shape-chip-composer-revealed');
 
-await check('a group is ONE chip, named Group: <name>; several objects are ONE chip with their count', async () => {
+// Owner brief UI-09 (2026-10-21): a chip is named from its objects - a group by its name, several objects by their names, never
+// a count of items (the count shows beside the name).
+await check('a group is ONE chip, named by the group with its count; several objects are ONE chip named by their names', async () => {
   await clearChips();
   await clearAll();
   await clickCard('c-a');
@@ -123,7 +125,7 @@ await check('a group is ONE chip, named Group: <name>; several objects are ONE c
   await addToChat().click();
   await settle();
   assert.equal(await chips().count(), 1);
-  assert.match(await chips().innerText(), /Group: Pair/);
+  assert.match(await chips().innerText(), /^Pair\s+2 cards/);
   await shot('03-group-chip');
   await clearChips();
   await clearAll();
@@ -133,7 +135,7 @@ await check('a group is ONE chip, named Group: <name>; several objects are ONE c
   await addToChat().click();
   await settle();
   assert.equal(await chips().count(), 1);
-  assert.match(await chips().innerText(), /2 items/);
+  assert.match(await chips().innerText(), /^Gate, Latch\s+2 cards/);
   await shot('04-selection-chip');
   assert.equal(sent.length, 0);
 });

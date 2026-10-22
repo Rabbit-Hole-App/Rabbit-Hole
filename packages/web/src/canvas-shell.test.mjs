@@ -81,11 +81,25 @@ test('fit, focus and a new card stop above the floating chrome over their span (
 });
 
 test('the Rabbit Hole navigator coexists: its own right gutter with the tools left, the tools gutter top when they dock right', () => {
-  assert.match(canvas, /gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter/);
-  assert.match(canvas, /\{\(toolSide === 'right' \|\| !mapBeside\) && gutterTop\}/);
+  assert.match(canvas, /gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter className=\{`\$\{holeMap \? 'flex' : 'hidden'\} w-\[92px\] /);
+  // View > Rabbit Hole Map off (owner brief 2026-10-21 item 3): hidden, never unmounted, in either place, so its column is free.
+  assert.match(canvas, /\{\(toolSide === 'right' \|\| !mapBeside\) && gutterTop && <div className=\{holeMap \? undefined : 'hidden'\}>\{gutterTop\}<\/div>\}/);
   // canvas-clipping.md: the map's column only while the canvas keeps a card column beside it; narrower it joins the tools.
   assert.match(canvas, /const mapBeside = !shellWidth \|\| shellWidth - 84 - 92 >= COLUMN \+ 48;/);
   assert.match(page, /gutterTop=\{dive\.tree \? <DiveNavigator \{\.\.\.dive\.navigator\} \/> : null\}/);
+});
+
+// Owner brief 2026-10-21 item 3: View lists Minimap, Rabbit Hole Map and Curious as three identical switch rows (one shape, one
+// switch component), each saved on this device (ui-prefs.js) through the canvas's showWidget; the browser run is
+// e2e/view-menu-check.mjs.
+test('View: three identical switch rows for the minimap, the Rabbit Hole Map and Curious, remembered on this device', () => {
+  const rows = [...page.matchAll(/\{ label: '([^']+)', icon: \w+, toggle: canvasState\.(\w+), onToggle: on => canvas\(\)\?\.showWidget\('(\w+)', on\) \}/g)];
+  assert.deepEqual(rows.map(row => [row[1], row[2], row[3]]), [['Minimap', 'minimap', 'minimap'], ['Rabbit Hole Map', 'holeMap', 'holeMap'], ['Curious', 'curious', 'curious']]);
+  const bar = read('CanvasMenubar.jsx');
+  assert.match(bar, /<Toggle on=\{item\.toggle\} onChange=\{item\.onToggle\} aria-label=\{item\.label\} \/>/);
+  assert.doesNotMatch(bar.slice(bar.indexOf('item.toggle !== undefined'), bar.indexOf('item.choice ?')), /setOpen\(null\)/, 'a switch keeps the menu open');
+  assert.match(canvas, /const \[minimap, setMinimap\] = useState\(\(\) => uiPrefs\(\)\.minimap\);\n\s+const \[holeMap, setHoleMap\] = useState\(\(\) => uiPrefs\(\)\.holeMap\);\n\s+const \[curious, setCurious\] = useState\(\(\) => uiPrefs\(\)\.curious\);/);
+  assert.match(canvas, /try \{ saveUiPref\(name, on\); \}/);
 });
 
 test('every Learn level renders the same shell: a pending or nested hole is the same LearnSurface', () => {

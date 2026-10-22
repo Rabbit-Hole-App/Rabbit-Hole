@@ -96,12 +96,14 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   assert.match(page, /const nextStepsHere = learnPreview && \(app\.hosting !== 'aws' \|\| !!app\.app_chat\) && !\(reviewTools && board\);/);
   // The canvas dock is gone (owner brief 2026-10-13 section 4): the right-side Chat is the one main composer.
   assert.doesNotMatch(page, /data-learn-dock|composerOnly dock/);
-  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\} repositoryCommit=\{repository\?\.commit \|\| null\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
+  assert.match(page, /<NextStepsHost on=\{nextStepsHere\} coaching=\{hooksCoaching\} tutor=\{tutor\} journey=\{journey\} canvasApi=\{canvasApi\} canvasState=\{canvasState\} record=\{dive\.tree\?\.dive \|\| null\} access=\{askScope\} title=\{app\.title \|\| ''\} graded=\{graded\} canvasVersion=\{canvasVersion\} board=\{boardName\} describe=\{describeBlock\} repositoryCommit=\{repository\?\.commit \|\| null\} shown=\{canvasState\.curious !== false\}>\{steps => <AdaptiveCanvas key=\{canvasEpoch\}/);
   assert.match(page, /function NextStepsHost\(\{ on, children, \.\.\.props \}\) \{\n\s+return on \? <NextStepsMounted \{\.\.\.props\}>\{children\}<\/NextStepsMounted> : children\(null\);\n\}\nfunction NextStepsMounted\(\{ children, \.\.\.props \}\) \{\n\s+return children\(useNextSteps\(props\)\);/);
   // Voice Mode's caption keeps the canvas's lower-left stack (tutor.extras stay drawn there while Voice is on); the hook card is
   // the bottom strip's lower right, beside the composer (owner, 2026-10-08).
   assert.match(page, /leftRail=\{voiceOn \? <TutorCaption caption=\{voice\.caption\} state=\{voice\.state\} extras=\{tutor\.extras\} \/> : null\}\n\s+hooks=\{steps \? <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => \(step\.section \? journey\?\.nextSection\?\.\(\) : \(chatRef\.current\?\.panels\.openChat\(\), nextStepSend\.current\?\.\(step, hook\.hook\)\)\)\} \/> : null\}/);
-  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot ref=\{hooksSlot\} className="w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\]">\{hooks\}<\/div>\}/);
+  assert.match(canvas, /<div data-canvas-lower-right className="flex justify-end md:min-w-fit md:flex-1 md:basis-0 max-md:order-1">\n\s+\{hooks && <div data-hooks-slot ref=\{hooksSlot\} className=\{`w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] empty:hidden max-md:w-\[min\(100%,300px\)\] \$\{curious \? '' : 'hidden'\}`\}>\{hooks\}<\/div>\}/);
+  // View > Curious off (owner brief 2026-10-21 item 3) hides the mounted card and frees its corner: no reserved room either.
+  assert.match(canvas, /if \(curious && slot && room && !slot\.getBoundingClientRect\(\)\.height\) rects\.push\(/);
   // A hook click opens Chat and sends through the Chat AskPanel's nextStepRef (chatAskProps).
   assert.match(page, /tray: journey\.trayProps, voice, nextStepRef: nextStepSend,/);
   assert.match(canvas, /<div data-left-stack className="absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
@@ -129,7 +131,7 @@ test('LearnPage: canvasVersion, graded, no /ask or /teach, the repository detach
 });
 
 test('SharedBoardPage: the shared hooks start the private hole with the step; stale restarts without it; signed out it waits for this link and hook', () => {
-  assert.match(shared, /function SharedNextSteps\(\{ token, card, version, signedIn, startRef \}\) \{\n\s+const steps = useSharedNextSteps\(\{ token, card, version, signedIn \}\);\n\s+return <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => startRef\.current\?\.\(card, step, hook\.id\)\} \/>;/);
+  assert.match(shared, /function SharedNextSteps\(\{ token, card, version, signedIn, startRef \}\) \{\n(\s+\/\/[^\n]*\n){2}\s+const \[curious\] = useState\(\(\) => uiPrefs\(\)\.curious\);\n\s+const steps = useSharedNextSteps\(\{ token: curious \? token : null, card, version, signedIn \}\);\n\s+return <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => startRef\.current\?\.\(card, step, hook\.id\)\} \/>;/);
   assert.match(shared, /hooks=\{<SharedNextSteps token=\{token\} card=\{card\?\.id \|\| null\} version=\{shared\.version\} signedIn=\{!!shared\.viewer\} startRef=\{rabbitStart\} \/>\}/);
   assert.match(shared, /let made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\), step \}\);\n\s+if \(made\.stale\) made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\) \}\);/);
   assert.match(shared, /if \(made\.signIn\) \{\n\s+if \(step\) keepPendingStep\(sessionStorage, token, step\);\n\s+window\.location\.href = resumeHref\(window\.location\.pathname, cardId, step \? hookId : null\);/);

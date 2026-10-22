@@ -1,14 +1,19 @@
 // Interface preferences kept on this device (Settings > Appearance & input): text size, reduced decorative motion and the chat
 // send key. There is no account preferences table yet (C:/s/spec/ui-changes/L11-report.md), so Settings labels each one
 // "This device". One JSON entry; a missing, unreadable or odd value is the default, never an error.
+// The canvas View menu's three widgets (owner brief 2026-10-21 item 3) are kept here too: minimap, holeMap (the Rabbit Hole
+// Map) and curious (the Curious suggestions), all on by default, for every canvas on this device.
 const KEY = 'rh.ui-prefs';
-export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter' });
+export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true });
 // Interface text only: index.css scales the chrome's text tokens by these and the canvas world keeps authored content at 1.
 export const TEXT_SIZES = { default: 1, large: 1.125, larger: 1.25 };
 const VALID = {
   textSize: value => Object.hasOwn(TEXT_SIZES, value),
   reduceMotion: value => typeof value === 'boolean',
   chatSend: value => value === 'enter' || value === 'mod',
+  minimap: value => typeof value === 'boolean',
+  holeMap: value => typeof value === 'boolean',
+  curious: value => typeof value === 'boolean',
 };
 
 const store = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };
