@@ -225,9 +225,15 @@ await page.context().close();
 ({ page } = await contextFor(viewer));
 watchSets(page);
 await page.goto(`${BASE}/b/${token}`);
+// Owner priority 1 (2026-10-21, "/b Next steps charging credits automatically"): opening the link reads the saved set only;
+// with none it is idle and the card offers Suggest, the viewer's explicit (charged) ask.
+await page.locator('[data-next-steps="empty"]').waitFor({ timeout: 60000 });
+const viewed = last(`/api/learn/boards/shared/${token}/next-steps`);
+await page.locator('[data-next-steps-request]').click();
 await ready();
 const sharedSet = last(`/api/learn/boards/shared/${token}/next-steps`);
-await check('9 shared canvas: the same card with the 3 shared hooks, verbatim and in order', async () => {
+await check('9 shared canvas: opening the link generates nothing (idle, Suggest); on Suggest, the same card with the 3 shared hooks, verbatim and in order', async () => {
+  assert.deepEqual(viewed, { idle: true });
   assert.deepEqual(await hooks(), sharedSet.options.map(option => option.hook));
   assert.ok(sharedSet.options.every(option => option.selected_next_step.scope === 'shared'));
 });

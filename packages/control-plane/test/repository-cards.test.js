@@ -145,7 +145,7 @@ test('the shared ask, shared next steps and a Rabbit Hole from a share see nothi
   const sent = scriptModel(t);
   const { token } = await f.shareProject({ state: STATE });
   await f.ask(token, 'ben', { message: 'What does this canvas show?' });
-  await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: 'ben', body: { origin: null } });
+  await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as: 'ben', body: { origin: null, generate: true } });
   assert.ok(sent.length >= 1, 'the model was asked');
   // This share is the repository's own project, whose pin passes its repository context to the model on purpose (the same
   // repository, commit and code reach it with no card on the board); what the cards hold - title, node ids, app - never does.

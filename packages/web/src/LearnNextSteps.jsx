@@ -122,17 +122,26 @@ const whoIsSignedIn = signal => fetch('/api/me', { credentials: 'same-origin', s
 // anonymous viewer to sign in. viewer_states only for a signed-in viewer, from their own tab store, never anyone else's; the
 // server filters them again. A refusal throws with its status (429 is limited). Task 14 C-R1: one 60 s signal, made before
 // the identity read, covers it and the hook request, so a hang in either records the basis failed.
+// Owner priority 1 (2026-10-21): a view sends no generate and the server answers its saved set or idle (thrown as reason
+// curious_empty, the card's Suggest button); generate goes only with the viewer's explicit ask or a Refresh. The last set this
+// tab received for this viewer, link, card and version is kept in sessionStorage, so a reload shows it without a request
+// (the edge cache is per data center and absent on workers.dev).
 const sharedPost = read => async (body, extra = {}) => {
-  const { token, signedIn } = read();
+  const { token, signedIn, version } = read();
   const signal = AbortSignal.timeout(HOOK_TIMEOUT_MS);
   const who = signedIn ? await whoIsSignedIn(signal) : null;
   const states = who?.email ? viewerStates(loadStore(globalThis.sessionStorage, storeKey(who))) : {};
+  const generate = body.generate === true || !!extra.refresh;
+  const kept = who?.email ? `small.shared-steps:${JSON.stringify([who.email, token, body.origin ?? null, version ?? null])}` : null;
+  if (kept && !generate) { try { const set = JSON.parse(globalThis.sessionStorage.getItem(kept) || 'null'); if (set) return set; } catch { /* ask the server */ } }
   const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/next-steps`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...extra, ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...extra, ...(generate ? { generate: true } : {}), ...(Object.keys(states).length ? { viewer_states: states } : {}) }),
     signal,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw Object.assign(new Error(data.error || `HTTP ${response.status}`), { status: response.status });
+  if (data.idle) throw Object.assign(new Error('No saved suggestions'), { reason: 'curious_empty' });
+  if (kept && Array.isArray(data.options)) { try { globalThis.sessionStorage.setItem(kept, JSON.stringify(data)); } catch { /* best effort */ } }
   return data;
 };
 
@@ -141,9 +150,12 @@ const sharedPost = read => async (body, extra = {}) => {
 // origin card or root (and the viewer's own claim states). Triggers (contract §2.3, shared): the selected card or root, the board version and
 // the signed-in state, nothing else. Telemetry only while a sink is registered, each event from the set itself: the source
 // the server minted into its steps (share version, origin) with the one-way share key, the server's input summary and its
-// trim counts (runtime.planner_input); user_id is the harness sink's (the viewer's own session), never the sharer's. Nothing
-// is persisted.
+// trim counts (runtime.planner_input); user_id is the harness sink's (the viewer's own session), never the sharer's. Only the
+// tab's last set per trigger is kept (sharedPost). Owner priority 1 (2026-10-21): a trigger reads the saved set and never
+// generates; request() is the viewer's explicit ask for the trigger on screen, its own basis, posted with generate: true.
 export function sharedSteps(read, { post = sharedPost(read), ...timers } = {}) {
+  const asked = new Set();
+  const trigger = () => { const { token, card, version } = read(); return JSON.stringify([token, card ?? null, version ?? null]); };
   const ids = set => ({ scope: 'shared', mode: 'shared', summary: set.telemetry?.summary ?? null, trim: set.telemetry?.trim ?? null,
     identity: { source: { share_key: set.telemetry?.share_key ?? null, ...set.options?.[0]?.selected_next_step?.source } } });
   const life = held(() => nextStepsController({
@@ -157,9 +169,10 @@ export function sharedSteps(read, { post = sharedPost(read), ...timers } = {}) {
     // saved content still shows. The server refuses a signed-out request the same way (learn-boards.js).
     state() {
       const { token, card, version, signedIn } = read();
-      return token && signedIn ? { basis: JSON.stringify([token, card ?? null, version ?? null, true]), stop: null } : { basis: null, stop: 'off' };
+      return token && signedIn ? { basis: JSON.stringify([token, card ?? null, version ?? null, true, asked.has(trigger())]), stop: null } : { basis: null, stop: 'off' };
     },
-    update: ({ basis, stop }) => life.controller().update({ basis, stop, input: () => { const { card } = read(); return { input: { origin: card ? { block_id: card } : null } }; } }),
+    update: ({ basis, stop }) => life.controller().update({ basis, stop, input: () => { const { card } = read(); return { input: { origin: card ? { block_id: card } : null, ...(asked.has(trigger()) ? { generate: true } : {}) } }; } }),
+    request() { asked.add(trigger()); this.update(this.state()); },
     view: life.view,
     subscribe: life.subscribe,
     select: id => life.controller().select(id),
@@ -177,5 +190,5 @@ export function useSharedNextSteps({ token, card = null, version = null, signedI
   const { basis, stop } = shared.state();
   useEffect(() => { shared.update({ basis, stop }); }, [basis, stop]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => shared.dispose, [shared]);
-  return { ...useSyncExternalStore(shared.subscribe, shared.view, shared.view), select: shared.select, refresh: shared.refresh };
+  return { ...useSyncExternalStore(shared.subscribe, shared.view, shared.view), select: shared.select, refresh: shared.refresh, request: () => shared.request() };
 }

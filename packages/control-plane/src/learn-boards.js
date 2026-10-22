@@ -375,7 +375,8 @@ async function askAboutShared(req, env, token) {
 }
 
 // Professor Next Steps on a shared canvas (docs/features/professor-next-steps.md §1.5, §2.1): whoever may open the link, and
-// signed in even on a public one (owner R3 decision, 2026-10-16: no AI generation for signed-out viewers; the viewer pays).
+// signed in even on a public one (owner R3 decision, 2026-10-16: no AI generation for signed-out viewers; the viewer pays),
+// and generated only on the viewer's explicit ask (owner priority 1, 2026-10-21; sharedNextSteps).
 // The hooks are built from the shared board here (learn-next-steps-routes.js); nothing of the board's, its owner's or any
 // Tutor or journey row is written. A signed-in viewer may add their own claim states.
 async function nextStepsAboutShared(req, env, token) {

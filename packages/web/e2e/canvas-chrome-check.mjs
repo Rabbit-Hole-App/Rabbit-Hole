@@ -14,8 +14,8 @@
 // the owned pages' one learner turn each, answered here. Owner decision 3a (2026-10-20, Tutor workflow): owned-canvas hooks are
 // proactive Tutor suggestions - only while Tutor is selected, On and unpaused, never on open, loaded only after a meaningful
 // learner change - so the owned canvas selects Tutor (its saved control) and each owned page takes one finished learner turn
-// before its hooks are measured, as next-steps-wiring-check does. The shared canvas still loads its set at rest
-// (useSharedNextSteps, for a signed-in viewer): unchanged.
+// before its hooks are measured, as next-steps-wiring-check does. The shared canvas reads its saved set at rest and never
+// generates on open (owner priority 1, 2026-10-21): with none saved its card offers Suggest, pressed here (sharedReady).
 // Usage: BASE=http://127.0.0.1:8858 SMALL_CP=http://127.0.0.1:8859 [TEST_BYPASS_SECRET=<that stack's>] node e2e/canvas-chrome-check.mjs [shotsDir]
 // The hooks must load, so the stack's hook planner must answer without a model: a keyless stack (e2e/journey-local-stack.md,
 // the one blank-canvas-hooks-check uses) answers from its fixtures; a stack with model keys trips the provider tripwire.
@@ -159,6 +159,12 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
 };
 const fits = [];
 const ready = page => page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 60000 });
+// The shared card at rest: its saved set (ready), or Suggest (empty) when none is saved yet, pressed as the viewer would.
+const sharedReady = async page => {
+  await page.locator('[data-hooks-slot] section[data-next-steps="ready"], [data-hooks-slot] section[data-next-steps="empty"]').first().waitFor({ timeout: 60000 });
+  if (await page.locator('[data-hooks-slot] [data-next-steps-request]').count()) await page.locator('[data-hooks-slot] [data-next-steps-request]').click();
+  await ready(page);
+};
 // A board's load notice is a passing toast; the screenshots wait it out so they show the chrome itself.
 const settle = page => page.getByText('You are seeing the latest saved version of this board.').waitFor({ state: 'detached', timeout: 10000 }).catch(() => {});
 
@@ -186,7 +192,7 @@ for (const [label, viewport, phone] of [['1440', { width: 1440, height: 900 }, f
   await check(`shared canvas at ${label}: the same placement`, async () => {
     const page = await open(viewer, `/b/${token}`, viewport);
     await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
-    await ready(page);
+    await sharedReady(page);
     await page.waitForTimeout(600);
     await settle(page);
     await page.screenshot({ path: `${SHOTS}/chrome-shared-${label}.png` });
@@ -200,7 +206,7 @@ await check('a set on its way is a skeleton with a spinner - the same card size 
   const page = await open(viewer, `/b/${token}`, { width: 1440, height: 900 });
   // Hold the next set: the card shows what it shows while it waits, recorded on every change.
   await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
-  await ready(page);
+  await sharedReady(page);
   const before = await box(page, '[data-hooks-slot] section[data-next-steps]');
   let release;
   const held = new Promise(resolve => { release = resolve; });
@@ -223,9 +229,10 @@ await check('a set on its way is a skeleton with a spinner - the same card size 
   assert.equal((await skeleton.locator('.sr-only').innerText()).trim(), 'Loading suggestions');
   assert.ok(Math.abs(during.bottom - before.bottom) <= 1 && Math.abs(during.x - before.x) <= 1 && Math.abs(during.h - before.h) <= 1 && Math.abs(during.w - before.w) <= 1, `the same size and slot: ${JSON.stringify(round(before))} -> ${JSON.stringify(round(during))}`);
   release();
-  await ready(page);
+  // The new card has no saved set: Suggest (owner priority 1), then its set.
+  await sharedReady(page);
   const seen = await page.evaluate(() => window.__seen);
-  assert.ok(seen.every(state => state.status === 'ready' ? state.hooks === 3 : state.hooks === 0 && state.rows === 3 && state.busy === 'true'), `never a previous hook while loading: ${JSON.stringify(seen.slice(0, 6))}`);
+  assert.ok(seen.every(state => state.status === 'ready' ? state.hooks === 3 : state.status === 'empty' ? state.hooks === 0 && state.rows === 0 : state.hooks === 0 && state.rows === 3 && state.busy === 'true'), `never a previous hook while loading: ${JSON.stringify(seen.slice(0, 6))}`);
   await page.context().close();
 });
 

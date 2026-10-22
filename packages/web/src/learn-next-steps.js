@@ -290,7 +290,7 @@ export function nextStepsController({ post, onSet = () => {}, onShown = () => {}
         const got = await post(built.input);
         outcome = usableSet(got) ? { set: got } : { failed: 'failed' };
       }
-    } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : 'failed' }; }
+    } catch (error) { outcome = { failed: error?.status === 429 ? 'limited' : error?.reason === 'curious_empty' ? 'curious_empty' : 'failed' }; }
     flying = null;
     if (disposed) return;
     // ponytail: never evicted (eviction would allow a second request for a basis), so the map grows with the distinct bases

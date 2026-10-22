@@ -565,7 +565,8 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
     const f = setup(t, { vars });
     const { token } = await f.shareProject();
     Object.assign(usageContext(vars), { identity: undefined, action: null, final: null });
-    const got = await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body: { origin: null } });
+    // generate: the viewer's explicit ask (owner priority 1, 2026-10-21: a view alone never generates; the test below).
+    const got = await f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body: { origin: null, generate: true } });
     if (!expected) {
       assert.deepEqual([got.status, got.body.signIn], [401, true], got.text);
       assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS n FROM usage_actions').get().n, 0, 'no action, no attempt');
@@ -578,6 +579,50 @@ test('shared canvas Next Steps: a signed-out visitor is asked to sign in and rec
     assert.ok(actions[0].attempts >= 1);
     assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS n FROM usage_actions WHERE user_id = 'u-ana-5d1e'").get().n, 0, 'the owner never pays for a viewer');
   }
+});
+
+// Owner priority 1 (2026-10-21, "/b Next steps charging credits automatically"): opening or reloading a share link asks only
+// for the saved set. With none saved the answer is idle: no provider call, no action, no share-link count, nothing debited from
+// the viewer or the canvas owner. Only an explicit ask (generate: true) generates, charged to the signed-in asker; the next
+// view, by anyone, is that cached set, free.
+test('shared canvas Next Steps: viewing or reloading never generates or charges; an explicit ask charges the asker once and later views are the cached set, free', async t => {
+  const { setup } = await import('./shared-canvas-fixture.js');
+  const { fixtureModel } = await import('../src/learn-journey-fixtures.js');
+  t.mock.method(console, 'log', () => {});
+  const original = globalThis.fetch;
+  let provider = 0;
+  globalThis.fetch = async (url, options) => { assert.equal(new URL(url).host, 'api.anthropic.com'); provider += 1; return fixtureModel(null, JSON.parse(options.body)); };
+  t.after(() => { globalThis.fetch = original; });
+  const store = new Map(), had = 'caches' in globalThis, caches = globalThis.caches;
+  globalThis.caches = { default: { match: async key => store.get(key)?.clone(), put: async (key, response) => { store.set(key, response); } } };
+  t.after(() => { if (had) globalThis.caches = caches; else delete globalThis.caches; });
+  const vars = withUsage({ SMALL_ENV: 'dev', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50' }, { feature: 'shared_next_steps' });
+  const f = setup(t, { vars });
+  const { token } = await f.shareProject();
+  // Each call is a fresh request context, as the dev-worker boundary makes one per request.
+  const hooks = (as, body) => { Object.assign(usageContext(vars), { identity: undefined, action: null, final: null, refusal: null }); return f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body }); };
+  const charged = () => f.sqlite.prepare('SELECT a.user_id, COUNT(t.attempt_id) AS attempts FROM usage_actions a LEFT JOIN usage_attempts t USING (action_id) GROUP BY a.action_id ORDER BY a.started_at').all().map(r => [r.user_id, r.attempts > 0]);
+  const counted = () => f.sqlite.prepare('SELECT COUNT(*) AS n FROM shared_ask_events').get().n;
+  // The viewer (ben) and the owner (ana) open the link, reload, and select a card: nothing is generated or charged.
+  for (const [as, origin] of [['ben', null], ['ben', null], ['ana', null], ['ben', { block_id: 'b1' }]]) {
+    const got = await hooks(as, { origin });
+    assert.deepEqual(charged(), [], `${as} viewing must not debit anyone: ${got.text.slice(0, 120)}`);
+    assert.deepEqual([got.status, got.body.idle, got.body.options, provider, counted()], [200, true, undefined, 0, 0], got.text.slice(0, 200));
+  }
+  // ben asks: one generation, charged to ben, never ana.
+  const asked = await hooks('ben', { origin: null, generate: true });
+  assert.deepEqual([asked.status, asked.body.options?.length, asked.body.telemetry?.cached], [200, 3, false], asked.text.slice(0, 200));
+  const calls = provider;
+  assert.ok(calls >= 1);
+  assert.deepEqual(charged(), [['u-ben-9a2b', true]], 'the asker pays, once');
+  // ben reloads and ana opens the link: the cached set, with no provider call and no new action for either.
+  for (const as of ['ben', 'ana']) {
+    const again = await hooks(as, { origin: null });
+    assert.deepEqual([again.status, again.body.set_id, again.body.telemetry.cached, again.body.telemetry.cost_usd], [200, asked.body.set_id, true, 0], as);
+  }
+  assert.deepEqual([provider, charged()], [calls, [['u-ben-9a2b', true]]], 'views of a saved set are free');
+  // A signed-out visitor is still asked to sign in, even to read a saved set (owner R3 decision, 2026-10-16).
+  assert.equal((await hooks(null, { origin: null })).status, 401);
 });
 
 test('a signed-in user without a workspace is still the payer by their user id, never an anonymous visitor', async t => {

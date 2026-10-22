@@ -174,7 +174,8 @@ export function sharedStepIds(state, options) {
 // (body.viewer_states, filtered to the server scope; not_yet_observed is no evidence): never cached, never served to anyone
 // else, capped per viewer and per share link and billed to the viewer. All under shared_canvas_hooks, never the shared-ask
 // budget. An input the cap cannot fit (input_too_large), or over input_refuse, is refused before the cache, the limiter or the
-// planner. row: the shared learn_boards row; state: its parsed board; title: sharedTitle's; viewer: the signed-in { email } or
+// planner. A request without generate: true (a view) is answered from the content cache or idle, never generated (owner
+// priority 1, 2026-10-21). row: the shared learn_boards row; state: its parsed board; title: sharedTitle's; viewer: the signed-in { email } or
 // null; origin: originOf's.
 export async function sharedNextSteps(env, { row, state, title, key, viewer, origin, body }, { callModel, cache = globalThis.caches?.default } = {}) {
   const options = { origin, key, version: row.version, title };
@@ -194,10 +195,15 @@ export async function sharedNextSteps(env, { row, state, title, key, viewer, ori
   const input = personal ? sharedInput(state, { ...options, viewerStates: personal }).input : content;
   // A Refresh (owner task 2) is its own entry: the same id on a retry, the next id only after one landed.
   const fingerprint = await titleFingerprint(title), cacheKey = `${ORIGIN}/shared/${encodeURIComponent(content.basis)}/${fingerprint}${body?.refresh ? `/${body.refresh}` : ''}`;
-  if (!personal) {
+  // Owner priority 1 (2026-10-21, "/b Next steps charging credits automatically"): a view (opening or reloading the link,
+  // selecting a card) only reads the saved content-only set; with none it is idle. Only the signed-in viewer's explicit ask
+  // (generate: true) reaches the limiter, the planner and that viewer's allowance.
+  const generate = body?.generate === true;
+  if (!personal || !generate) {
     const hit = await nextStepsReply(cache, cacheKey);
     if (hit) return json({ ...hit, telemetry: { ...hit.telemetry, cached: true, calls: 0, usage: NO_USAGE, cost_usd: 0 } });
   }
+  if (!generate) return json({ idle: true });
   const limit = sharedAskLimits(env);
   const refused = await admitUsage(env.LEARN_DB, { category: 'shared_canvas_hooks', viewer: personal ? viewer.email : '', shareKey: key, boardId: row.id, owner: row.owner_email,
     viewerHour: personal ? limit.SHARED_ASK_VIEWER_HOUR : NO_CAP, viewerDay: personal ? limit.SHARED_ASK_VIEWER_DAY : NO_CAP, shareHour: limit.SHARED_ASK_SHARE_HOUR, shareDay: limit.SHARED_ASK_SHARE_DAY });
