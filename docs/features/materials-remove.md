@@ -17,8 +17,8 @@ Owner brief C:/s/spec/pdfctx/brief.md sections 1-4. This supersedes the row acti
   any other drops it by the removed ids. Its reader, if open, returns to Files (same canvas only). A failure keeps the row
   with "Could not remove <file> from context: <reason>. Try again from File options."
 - Checks: web/src/context-docs.test.mjs (one DELETE, the answer in the event, out-of-order reads), chat-context.test.mjs;
-  web/e2e/context-remove-check.mjs and context-states-check.mjs (fork, fast-e2e: canvas switch during a pending removal,
-  failed list re-reads after a removal, a failed long PDF's Retry and Reading pages, an upload's Reading pages).
+  web/e2e/context-remove-check.mjs and context-remove-race-check.mjs (fork, fast-e2e: canvas switch during a pending
+  removal, failed list re-reads after a removal).
 
 # Materials rows and Remove from Materials
 
