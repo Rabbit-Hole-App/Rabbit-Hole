@@ -2159,6 +2159,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setBlocks(previous => { const at = indexAfter(previous, after); return [...previous.slice(0, at), added, ...previous.slice(at)]; });
         return revealAfter(added.id);
       },
+      // An /explain v2 job's card (EXP-T20): placed once under the job's own card id, so a resent press or a reload finds it
+      // instead of adding a second card; the result attaches to it later (ExplainPending).
+      placeExplain: (card, { into = null } = {}) => {
+        if (!alive.current || readOnlyRef.current || !card?.id || card.type !== 'animation') return null;
+        if (blocksRef.current.some(block => block.id === card.id)) return card.id;
+        snapshot();
+        const added = { ...card, dx: 0, dy: 0 };
+        blocksRef.current = [...blocksRef.current, added];
+        return insertAtView(added, into);
+      },
       reconcileCad: (incoming, { insert = true } = {}) => {
         if (!alive.current || readOnlyRef.current || !incoming?.id || incoming.type !== 'cad') return null;
         const previous = blocksRef.current.find(block => block.id === incoming.id);

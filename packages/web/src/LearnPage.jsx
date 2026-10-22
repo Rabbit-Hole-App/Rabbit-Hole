@@ -3,6 +3,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
+import { explainClient, explainDisabled, explainPendingBlock } from './explain-client.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -877,6 +878,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         attachedImage: imageAttached && imageContext?.id ? imageContext.id : null,
         canvas: withCardSink({
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
+          startExplain: async (prompt, options) => { const result = await startExplain(prompt, options); if (result?.blockId) sink?.(result.blockId); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           // A paid Generate whose job a card here already shows reveals that card (learn-slash.js existingGeneration).
@@ -964,6 +966,18 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The inline AI editor (docs/features/inline-ai-editor.md): this canvas's routes - the registry's commands available
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const cadRequests = useRef(new Map());
+  // /explain v2 (EXP-T20 slice 1): one job per press, its card placed at once under the job's card id. null where v2 is off
+  // here (the server's 404), which keeps today's /explain; remembered so later presses do not ask again.
+  const explainRequests = useRef(new Map()), explainOff = useRef(false);
+  const startExplain = async (prompt, { context = null, promptUsed = prompt, source = 'explicit' } = {}) => {
+    if (explainOff.current || !commentBoard || !prompt.trim()) return null;
+    const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}) };
+    let result;
+    try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
+    catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
+    const blockId = canvasApi.current?.placeExplain(withPrompt(explainPendingBlock({ job: result.job, prompt }), promptUsed));
+    return { blockId: blockId || result.job.cardId };
+  };
   // promptUsed: the typed line the card keeps (card-prompt.js); the inline editor's words are the prompt itself. An edit keeps
   // none here: the server's Accept answer carries the accepted revision's words (cad-jobs.js acceptedResponse), on the card's
   // Accept, the inline editor's and after a reload alike; a rejected edit leaves the old prompt.

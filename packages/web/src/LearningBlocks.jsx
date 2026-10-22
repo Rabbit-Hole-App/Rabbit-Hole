@@ -1,4 +1,5 @@
 import CadCard from './CadCard.jsx';
+import ExplainPending from './ExplainPending.jsx';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
@@ -1188,7 +1189,10 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
       <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
-        <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />
+        {/* An /explain v2 job still making this card (EXP-T20): its stage until the result attaches here. */}
+        {block.explainJob && !block.scene
+          ? <ExplainPending block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} />
+          : <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />}
       </div>
       <SceneActivity block={block} onChange={onChange} onHeight={onPracticeHeight} />
     </div>

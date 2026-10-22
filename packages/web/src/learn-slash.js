@@ -227,6 +227,13 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
     return { notice: { tone: 'info', text: 'The selected area is still being attached. Send /explain again in a moment.' }, keep: `/explain ${args}`.trimEnd() + ' ' };
   }
   if (image && !args.trim()) return { notice: { tone: 'question', text: 'What should the explanation show? The image is used as a layout reference.' }, keep: '/explain ' };
+  // /explain v2 (EXP-T20 slice 1): a durable job whose card is placed at once and fills in when the job is ready. Where the
+  // server has it off (startExplain answers null) the command runs as it always has. shortcut: an attached image keeps
+  // today's path until the job API resolves images on the server (Lane C), so it is never dropped.
+  if (name === 'explain' && canvas.startExplain && !image && args.trim()) {
+    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
+    if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
+  }
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
   try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, post }); }
