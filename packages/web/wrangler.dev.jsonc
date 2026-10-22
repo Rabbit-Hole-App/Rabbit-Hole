@@ -74,6 +74,8 @@
       "fallthrough": true
     }
   ],
+  // Browser Run for webpage card captures (control-plane/src/webpage-capture.js).
+  "browser": { "binding": "BROWSER" },
   "r2_buckets": [
     // No RUNS: production small-runs is never bound on a dev or review worker
     // (docs/features/dev-prod-write-barrier.md). Run outputs come from CONTROL_PLANE, the dev control

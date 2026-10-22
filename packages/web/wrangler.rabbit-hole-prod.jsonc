@@ -37,6 +37,8 @@
     { "binding": "LEARN_DB", "database_name": "rabbit-hole-learn-prod", "database_id": "f28417c4-d8ce-448e-8687-cc7bc2edf3a8" }
   ],
   // No RUNS: hosted small apps are not part of Rabbit Hole. No BYOC_DB until the owner decides BYOC ships.
+  // Browser Run for webpage card captures (control-plane/src/webpage-capture.js).
+  "browser": { "binding": "BROWSER" },
   "r2_buckets": [
     { "binding": "LEARN_MEDIA", "bucket_name": "rabbit-hole-prod-learn-media" },
     { "binding": "REPOSITORY_SNAPSHOTS", "bucket_name": "rabbit-hole-prod-repositories" }

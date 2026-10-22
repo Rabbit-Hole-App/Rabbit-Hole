@@ -11,6 +11,7 @@ import { readOwnDocument } from './learn-context-docs.js';
 import { paperIdentity, readUploadedPaper } from './learn-paper.js';
 import { boardOwner, ownerRow } from './learn-boards.js';
 import { learnMedia } from './learn-storage.js';
+import { authorizeFileSource } from './file-access.js';
 import { family } from '../../web/src/file-capabilities.js';
 import { fileCardFromSource } from '../../web/src/file-to-canvas.js';
 
@@ -18,7 +19,9 @@ export const NOT_AVAILABLE = 'This file is not available to you.';
 export const CHANGED = 'This document changed since you selected this.';
 export const CROP_LIMITS = Object.freeze({ bytes: 4 * 1024 * 1024, side: 4096 });
 export const HIGHLIGHT_LIMITS = Object.freeze({ rects: 64, quote: 8000, context: 500, label: 40 });
-const KEY = /^(doc:ctx|pdf:upload):[0-9a-f]{12}$/;
+// web:<lineage> is a webpage card's capture lineage (webpage-capture.js); its version is the manifest the card shows.
+const KEY = /^((doc:ctx|pdf:upload):[0-9a-f]{12}|web:wc_[0-9a-f]{24})$/;
+const FS_ID = /^fs_[0-9a-f]{24}$/;
 const HIGHLIGHT_ID = /^pdfh_[0-9a-f]{24}$/, EXCERPT_ID = /^pdfx_[0-9a-f]{24}$/, SHA = /^[0-9a-f]{64}$/;
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
@@ -31,13 +34,25 @@ export const pdfExcerptsRoute = path => path === '/api/learn/pdf-source' || path
   || /^\/api\/learn\/pdf-highlights\/[^/]+$/.test(path) || /^\/api\/learn\/pdf-excerpts\/[^/]+\/crop$/.test(path);
 
 // { app, name, bytes } of the session's own stored PDF, or null for any refusal (no canvas access, not theirs, gone).
-async function readSource(req, env, { app: appName, key, home }, deps) {
+async function readSource(req, env, { app: appName, key, home, manifest }, deps) {
   if (typeof appName !== 'string' || typeof key !== 'string' || !KEY.test(key)) return null;
   // learn-board.js imports index.js, which imports modules that import this one: load it here (as learn-context-docs.js does).
   const authorize = deps.authorize || (await import('./learn-board.js')).authorizedBoardApp;
   const app = await authorize(req, env, appName);
   if (app instanceof Response || !app?.email) return null;
   try {
+    // A webpage capture: the screened manifest this viewer reads as its owner or through their own board's reference.
+    // Its sha256 is the version; file-access.js serves 'stored' (screened) manifests only.
+    if (key.startsWith('web:')) {
+      if (typeof manifest !== 'string' || !FS_ID.test(manifest)) return null;
+      let found = await authorizeFileSource(req, env, manifest);
+      if (found instanceof Response) {
+        const row = await ownerRow(env, app, appName, 'main');
+        found = row ? await authorizeFileSource(req, env, manifest, { row }) : found;
+      }
+      if (found instanceof Response || found.source.family !== 'webpage' || found.source.declared_type !== 'webpage-manifest') return null;
+      return { app, name: found.source.name, sha: found.source.sha256 };
+    }
     if (key.startsWith('doc:')) {
       const doc = await readOwnDocument(env, app, key.slice(4));
       return doc && { app, name: doc.name, bytes: doc.bytes };
@@ -99,7 +114,7 @@ export async function pdfExcerptsFetch(req, env, deps = {}) {
     if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
     const source = await readSource(req, env, params, deps);
     if (!source) return refuse();
-    const sha = await sourceHash(db, source.app, params.key, source.bytes);
+    const sha = (source.sha || await sourceHash(db, source.app, params.key, source.bytes));
     if (path === '/api/learn/pdf-source') return json({ key: params.key, sha256: sha, name: source.name, bytes: source.bytes.length });
     const mine = 'org = ? AND owner_email = ? AND source_key = ?', who = [source.app.org, source.app.email, params.key];
     const rows = (await db.prepare(`SELECT * FROM pdf_highlights WHERE ${mine} AND source_sha256 = ? ORDER BY page_index, created_at, id`).bind(...who, sha).all()).results;
@@ -127,7 +142,7 @@ export async function pdfExcerptsFetch(req, env, deps = {}) {
     if (typeof anchor === 'string') return json({ error: anchor }, 400);
     const source = await readSource(req, env, body, deps);
     if (!source) return refuse();
-    const sha = await sourceHash(db, source.app, body.key, source.bytes);
+    const sha = (source.sha || await sourceHash(db, source.app, body.key, source.bytes));
     if (body.sha256 !== sha) return json({ error: CHANGED, sha256: sha }, 409);
     const anchorJson = JSON.stringify(anchor), now = Date.now();
     await db.prepare('INSERT INTO pdf_highlights (id, org, owner_email, source_key, source_sha256, kind, page_index, anchor_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING')
@@ -152,7 +167,7 @@ export async function pdfExcerptsFetch(req, env, deps = {}) {
   if (owner instanceof Response || owner.org !== source.app.org || owner.email !== source.app.email) return refuse();
   const boardRow = await ownerRow(env, owner, params.app, board);
   if (!boardRow) return json({ error: 'Save this board first.' }, 404);
-  const sha = await sourceHash(db, source.app, params.key, source.bytes);
+  const sha = (source.sha || await sourceHash(db, source.app, params.key, source.bytes));
   if (params.sha256 !== sha) { await req.body?.cancel().catch(() => {}); return json({ error: CHANGED, sha256: sha }, 409); }
   const declared = req.headers.get('content-length');
   if (declared !== null && Number(declared) > CROP_LIMITS.bytes) { await req.body?.cancel().catch(() => {}); return json({ error: `A crop is at most ${CROP_LIMITS.bytes / (1024 * 1024)} MB.` }, 413); }
