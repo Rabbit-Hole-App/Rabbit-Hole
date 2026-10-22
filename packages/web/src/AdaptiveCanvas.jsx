@@ -1863,11 +1863,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const measure = () => {
       // The gutter is the canvas row's height; below 640px it is a strip under
       // the canvas and the toolbar scrolls sideways, so nothing to cap.
-      // The Rabbit Hole navigator shares the gutter above it (Dive.jsx); with it the column is
-      // full, so the overview button below (32px and its gap) is reserved too.
+      // The Rabbit Hole navigator shares the gutter above it (Dive.jsx): its slot and the gap (gap-2) are reserved. The
+      // overview button is hidden from 641px, so it takes no room here (since UI-17 the map is always in this slot, and
+      // reserving it cut the toolbar to under 120px at 1280x720 with a deep map: dive-check, fast-e2e 39723974033).
       const slot = bar.parentElement.querySelector('[data-gutter-top]');
       // Less the gutter's bottom padding: the floating strip's column on the tools' side (--chrome-left/right).
-      const room = bar.parentElement.clientHeight - parseFloat(getComputedStyle(bar.parentElement).paddingBottom || 0) - 16 - (slot ? slot.offsetHeight + 48 : 0), pad = 4; // p-1
+      const room = bar.parentElement.clientHeight - parseFloat(getComputedStyle(bar.parentElement).paddingBottom || 0) - 16 - (slot ? slot.offsetHeight + 8 : 0), pad = 4; // p-1
       if (shell.current?.clientWidth < 640 || bar.scrollHeight <= room) { setToolCap(null); return; }
       // Measured from the bar's own top: the gutter is the offset parent, and the navigator moves the bar down in it.
       const ends = [...bar.children].map(child => child.offsetTop - bar.offsetTop + child.offsetHeight).filter(end => end + pad <= room);
