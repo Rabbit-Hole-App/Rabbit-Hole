@@ -16,6 +16,7 @@ import { planModel } from './ask.js';
 import { LEARN_TASKS, ARTIFACT_REPAIRS, loggedModel, notConfiguredMessage } from './learn-models.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
+import { tutorImageContext } from './learn-image-context.js';
 import { IMAGE_EXTRACTION_SYSTEM, imageExtractionTool, checkImageExtraction } from './inline-image-extraction.js';
 import { SCENE_AUTHORING } from './agents/learn-scene-author.js';
 import { calculationProblem, cardAtSettings, sceneProblem, withDataSizes, withSamplesNote } from './learn-scene-gates.js';
@@ -136,9 +137,16 @@ export async function sceneVerdict(env, callModel, request, block) {
   return kept.length ? `A check of the card found statements that are false: ${kept.map((problem, i) => `${i + 1}) ${problem.setting ? `with ${problem.setting}, ` : ''}"${problem.object}" says "${problem.says}", against "${problem.against}": ${problem.finding}`).join(' ')}` : null;
 }
 
-// POST /api/learn/artifact {app, command, args, selection, context}. Any
+// EXP-T15: what an attached image is for, said to the author beside the pixels. Only a layout reference exists yet: using an
+// image's facts needs verification (T13/T16), so no other role is accepted.
+export const IMAGE_ROLES = Object.freeze({
+  layout_reference: 'The learner attached the image below as a layout reference for this explanation: follow its arrangement, grouping and reading order where they fit the request. Do not take facts, numbers, labels or claims from it as true; the request and the other context decide the content.',
+});
+
+// POST /api/learn/artifact {app, command, args, selection, context, image_context?, image_role?}. Any
 // family or allowedPrimitives in the body is ignored: the command decides.
-export async function artifactFetch(req, env, generate = generateArtifact) {
+// images: the existing authorized image reader (learn-image-context.js), injected by tests.
+export async function artifactFetch(req, env, generate = generateArtifact, { images = tutorImageContext } = {}) {
   const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
   if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
@@ -149,6 +157,8 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
     body = JSON.parse(raw);
     if (!body || typeof body.command !== 'string' || typeof (body.args ?? '') !== 'string' || (body.args || '').length > 1000 || (body.context != null && (typeof body.context !== 'string' || body.context.length > 8000))) throw new Error('Invalid artifact request');
     artifactPlan(body.command, body); // unknown command or selection: 400 before auth or model
+    if (body.image_context !== undefined && body.command !== 'explain') throw new Error('Only /explain takes an attached image');
+    if ((body.image_role ?? 'layout_reference') !== 'layout_reference' || (body.image_role !== undefined && body.image_context === undefined)) throw new Error('image_role must be layout_reference, with an image_context');
   } catch (error) { return json({ error: error.message }, 400); }
   const access = await authorizedBoardApp(req, env, body.app, body.pending);
   if (access instanceof Response) return access;
@@ -156,6 +166,13 @@ export async function artifactFetch(req, env, generate = generateArtifact) {
   if (ownerRefused) return ownerRefused;
   let documents;
   try { documents = await contextDocumentBlocks(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  // The image's bytes, read here under this canvas's authorization: never a browser-claimed URL, and never silently dropped.
+  if (body.image_context !== undefined) {
+    const got = await images(env, access, { image_context: body.image_context, board: body.board ?? 'main' }).catch(() => null);
+    if (got?.error) return json({ error: got.error }, got.status || 400);
+    if (!got?.blocks?.some(part => part.type === 'image')) return json({ error: got?.notice || 'The attached image is unavailable. Attach it again and resend.', code: 'image_unavailable' }, 409);
+    documents = [...documents, { type: 'text', text: IMAGE_ROLES.layout_reference }, ...got.blocks];
+  }
   try {
     const out = await generate(env, { command: body.command, args: body.args || '', selection: body.selection || null, context: body.context || null, ...(documents.length ? { documents } : {}) });
     noteUsageResult(env, out?.result === 'validation_error' ? 'none' : 'full'); // usage accounting: a rejected artifact delivered nothing

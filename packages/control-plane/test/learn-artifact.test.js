@@ -173,3 +173,31 @@ test('a model HTTP failure on a card names only the status', async () => {
   await assert.rejects(generateArtifact({}, { command: 'practice', args: 'multiple choice' }, { callModel: async () => Response.json({ error: { message: 'overloaded' } }, { status: 503 }) }),
     { message: 'Artifact generation unavailable (model HTTP 503). Try again.' });
 });
+
+// EXP-T15: /explain's attached image is read by the server under the canvas's own authorization and sent to the author with
+// its role; an unreadable image refuses the request (no silent drop), and no other command or role takes one.
+test('/explain resolves an attached image on the server, with its layout-reference role, or refuses', async () => {
+  const post = body => new Request('https://dev.example/api/learn/artifact', { method: 'POST', headers: { cookie: 's' }, body: JSON.stringify(body) });
+  const env = { CONTROL_PLANE: { fetch: async () => Response.json({ name: 'demo' }) } };
+  const pixels = { blocks: [{ type: 'text', text: 'Image: heap.png' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0K' } }] };
+  const seen = [], asked = [];
+  const generate = async (_, input) => { seen.push(input); return { result: 'artifact' }; };
+  const images = reply => async (_env, access, body) => { asked.push([access.name, body]); return reply; };
+  const body = { app: 'demo', command: 'explain', args: 'how a heap keeps its order', image_context: { id: 'media:0123456789ab' }, image_role: 'layout_reference' };
+  assert.equal((await artifactFetch(post(body), env, generate, { images: images(pixels) })).status, 200);
+  assert.deepEqual(asked[0], ['demo', { image_context: { id: 'media:0123456789ab' }, board: 'main' }]);
+  const documents = seen[0].documents;
+  assert.match(documents.at(-3).text, /layout reference/);
+  assert.deepEqual(documents.slice(-2), pixels.blocks, 'the actual pixels reach the author');
+  // Unreadable: refused with the reader's own reason, nothing generated.
+  const unreadable = await artifactFetch(post(body), env, generate, { images: images({ blocks: [{ type: 'text', text: 'The referenced image is unavailable.' }], notice: 'The image could not be read.' }) });
+  assert.deepEqual([unreadable.status, (await unreadable.json()).code], [409, 'image_unavailable']);
+  const foreign = await artifactFetch(post(body), env, generate, { images: images({ error: 'That image is not on this board.', status: 403 }) });
+  assert.equal(foreign.status, 403);
+  // Wrong command, role without image, or an unverified factual role: 400 before any read.
+  for (const bad of [{ ...body, command: 'quiz' }, { app: 'demo', command: 'explain', args: 'x', image_role: 'layout_reference' }, { ...body, image_role: 'facts' }]) {
+    assert.equal((await artifactFetch(post(bad), env, generate, { images: images(pixels) })).status, 400);
+  }
+  assert.equal(seen.length, 1);
+  assert.equal(asked.length, 3);
+});

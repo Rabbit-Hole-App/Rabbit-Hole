@@ -505,3 +505,24 @@ test('/motion with a selected card: the chat turn sends it as context.selection,
   assert.equal(generationField({ offered: true, concept: 'Biology' }).motion.context, undefined, 'no selection, no context');
   assert.equal(generationField({ offered: true, target: { id: 'b-empty', kind: 'Whiteboard', text: '  ' } }).motion.context, undefined, 'a card with no text has nothing to ground on');
 });
+
+// EXP-T15: an attached image rides /explain as a media id the server resolves, with its role; never a URL, never dropped.
+test('/explain carries the attached image as a layout reference; an image alone asks first and sends nothing', async () => {
+  const card = { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'Heap' } };
+  const { did, run } = harness(card);
+  await run('/explain how this heap keeps its order', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  const [, path, body] = did.find(entry => entry[0] === 'post');
+  assert.equal(path, '/api/learn/artifact');
+  assert.deepEqual([body.command, body.args, body.image_context, body.image_role], ['explain', 'how this heap keeps its order', { id: 'media:0123456789ab' }, 'layout_reference']);
+  assert.ok(!JSON.stringify(body).includes('http'), 'no browser URL');
+  const alone = harness(card);
+  const asked = await alone.run('/explain', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  assert.equal(asked.notice.tone, 'question');
+  assert.equal(asked.keep, '/explain ');
+  assert.deepEqual(alone.did, [], 'no call and no card');
+  // Other commands and an image-less /explain send no image.
+  const plain = harness(card);
+  await plain.run('/explain how heaps work', { id: 'card-2', title: 'Notes' });
+  await plain.run('/quiz heaps', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  for (const [, , sent] of plain.did.filter(entry => entry[0] === 'post')) assert.equal(sent.image_context, undefined);
+});

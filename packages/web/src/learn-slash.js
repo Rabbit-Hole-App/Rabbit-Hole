@@ -154,9 +154,11 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // One artifact command's generation, with no side effect: the /api/learn/artifact answer ({ result: 'artifact' |
 // 'paid_proposal' | 'clarification' | 'unsupported' | ... }). runLearnCommand inserts what comes back; the inline editor
 // stages it as a preview (docs/features/inline-ai-editor.md §7). A caller's signal (Cancel) aborts it too.
-export function generateCommand(name, args, { app, selection = null, context = null, post, signal = null }) {
+// image (EXP-T15, /explain only): an uploaded image's media id; the server reads its bytes under this canvas's own
+// authorization (learn-image-context.js), never from a browser URL. Its role is a layout reference by default.
+export function generateCommand(name, args, { app, selection = null, context = null, image = null, post, signal = null }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.
@@ -216,9 +218,12 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
   const hold = () => canvas.reserve?.({ label: `Creating /${name}`, card: cardsFor(name)[0]?.card ?? null, ...(String(promptUsed ?? '').trim() ? { prompt: true } : {}) });
+  // /explain with an attached image (the target's uploaded media id): the words say what to show; an image alone asks.
+  const image = name === 'explain' && typeof target?.image === 'string' ? target.image : null;
+  if (image && !args.trim()) return { notice: { tone: 'question', text: 'What should the explanation show? The image is used as a layout reference.' }, keep: '/explain ' };
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, post }); }
+  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, post }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.

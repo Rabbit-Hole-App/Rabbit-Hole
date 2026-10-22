@@ -163,21 +163,27 @@ export const CHAT_CAPABILITIES = Object.freeze({
   // explicit: reached only by a typed /goal, the picker or Set a goal, never offered to the router (CHAT_ROUTES), so plain
   // words never start goal changes (owner, 2026-10-21).
   goal: { flow: 'direct', explicit: true, intent: 'Manage learning goals: add, edit, delete or choose the current goal.' },
+  // EXP-T15: /explain makes a new explanation card. Typed, picked or a command-bearing suggestion it dispatches with no call,
+  // as before. guarded: offered to the router for plain words only where the server enables /explain v2
+  // (EXPLAIN_V2_ENABLED, chat-capability-route.js); a selected card never turns it into an edit of that card.
+  explain: { flow: 'direct', guarded: true, intent: 'A new visual explanation card drawn on the canvas (a labelled diagram, steps or an interactive scene with controls), asked for as the output: for example "make a visual explanation of how a heap works" or "draw an interactive explainer of compound interest". Not a question to answer in chat ("explain X", "why does Y"), not a change to a selected card, and not a video.' },
 });
 const CHAT_META = {
   several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
   none: 'None of these fits: an action neither a chat reply nor these tools can do, such as sending an email or booking something.',
 };
 // The chat choice options: 'answer', every declared capability the router may choose (not an explicit-only one), several, none.
-export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([, entry]) => !entry.explicit)) });
+export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([, entry]) => !entry.explicit && !entry.guarded)) });
+// The routes with the guarded capabilities this server enables added (EXP-T15): the server decides, never the browser.
+export const chatRoutesWith = (offered = []) => Object.freeze({ ...CHAT_ROUTES, ...Object.fromEntries(offered.filter(id => CHAT_CAPABILITIES[id]?.guarded).map(id => [id, CHAT_CAPABILITIES[id]])) });
 // One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
 export const chatCapability = id => {
   const entry = SLASH.find(command => command.name === id), chat = CHAT_CAPABILITIES[id];
   return chat && entry ? { id, label: entry.label || (typeof entry.desc === 'string' ? entry.desc : id), kind: entry.kind, action: entry.action || null, needs: entry.needs || null, settings: null, ...chat } : null;
 };
 // The JEV request: one Choice question over the chat routes. State is compact text: never the canvas package or an image.
-export function chatRouteRequest({ text, selection = null, sourceRefs = null }, model) {
-  const criteria = { ...Object.fromEntries(Object.entries(CHAT_ROUTES).map(([id, route]) => [id, route.intent])), ...CHAT_META };
+export function chatRouteRequest({ text, selection = null, sourceRefs = null }, model, routes = CHAT_ROUTES) {
+  const criteria = { ...Object.fromEntries(Object.entries(routes).map(([id, route]) => [id, route.intent])), ...CHAT_META };
   const selected = selection && typeof selection === 'object' ? `${selection.kind || 'card'} "${String(selection.title || '').slice(0, 100)}" ${String(selection.text || '').slice(0, 400)}`.trim() : '';
   const attached = Array.isArray(sourceRefs) ? sourceRefs.slice(0, 8).map(ref => `${ref?.kind}${ref?.name ? ` "${String(ref.name).slice(0, 80)}"` : ''}`).join('; ') : '';
   return {
@@ -186,7 +192,7 @@ export function chatRouteRequest({ text, selection = null, sourceRefs = null }, 
     questions: { route: { type: 'choice', instructions: `Which does the learner's chat message ask for? ${GUARD} Answer is the default for questions. Negations count: "explain it, but don't make a video" does not ask for a video; "why is this video wrong" and "can Motion make audio?" ask about something, not for it; "find a video" searches, it does not make one.`, criteria } },
   };
 }
-export const readChatRoute = body => readRoute(body, CHAT_ROUTES, CHAT_META);
+export const readChatRoute = (body, routes = CHAT_ROUTES) => readRoute(body, routes, CHAT_META);
 
 // JEV's validated answer, or its failure ({ error }), to what happens next.
 export function decideRoute(read, { enabled = ['note'], thresholds = ROUTE_THRESHOLDS } = {}) {
