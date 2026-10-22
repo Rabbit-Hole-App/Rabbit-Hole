@@ -66,6 +66,10 @@ test('the budget cap refuses a call before it is sent', async () => {
   const unpriced = recordingModel(async () => Response.json({}), { capUsd: 100, prices: {} });
   const response = await unpriced.callModel({}, { messages: [], max_tokens: 10 }, 'unknown-model');
   assert.equal(response.status, 429, 'an unpriced model is never called');
+  const refused = recordingModel(async () => Response.json({ error: { message: 'You have reached your specified API usage limits.' } }, { status: 400 }), { capUsd: 1, prices: PRICES });
+  await refused.callModel({}, { messages: [], max_tokens: 10 }, 'claude-opus-5');
+  assert.equal(refused.ledger.spentUsd, 0, 'a refused 4xx request is not billed');
+  assert.match(refused.ledger.calls[0].error, /usage limits/);
 });
 
 test('a frozen baseline refuses to run once a system file changed', () => {

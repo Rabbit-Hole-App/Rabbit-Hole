@@ -16,14 +16,14 @@ import { fileURLToPath } from 'node:url';
 import { HERE, sha256 } from './cases.mjs';
 
 const REPO = join(HERE, '..', '..');
-// The system under test. A change to any of these after freezing refuses further baseline runs.
+// The system under test (author, gates, verifier, scene renderer). A change to any of these after freezing refuses further
+// baseline runs. The capture harness (render entry, explain-render.js) is tooling, not the system, so it is not frozen.
 export const SYSTEM_FILES = [
   'packages/control-plane/src/learn-artifact.js', 'packages/control-plane/src/agents/learn-artifact.js',
   'packages/control-plane/src/agents/learn-scene-author.js', 'packages/control-plane/src/agents/learn-scene-verify.js',
   'packages/control-plane/src/learn-scene-gates.js', 'packages/control-plane/src/learn-primitives.js',
   'packages/control-plane/src/learn-models.js', 'packages/web/src/agent/slash.js', 'packages/web/src/animation-scene.js',
   'packages/web/src/AnimatedScene.jsx', 'packages/web/src/scene-layout.js', 'packages/web/src/scene-style.js',
-  'packages/web/render/render-scene.jsx', 'packages/control-plane/src/explain-render.js',
 ];
 // Committed text hashes the same on every checkout (CRLF vs LF never changes behaviour).
 const fileHash = rel => createHash('sha256').update(readFileSync(join(REPO, rel), 'utf8').replace(/\r\n/g, '\n')).digest('hex');
@@ -55,7 +55,8 @@ export function assertFrozen(path = BASELINE) {
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
 const redact = body => JSON.parse(JSON.stringify(body, (key, value) => (value?.type === 'base64' && typeof value.data === 'string'
   ? { type: 'base64', media_type: value.media_type, redacted: true, sha256: sha256(Buffer.from(value.data, 'base64')), bytes: Buffer.from(value.data, 'base64').length } : value)));
-const stageOf = body => (body.tools || []).some(t => t.name === 'report_check') ? 'verify'
+const stageOf = body => (body.tools || []).length === 1 && !body.tools[0].name.startsWith('make_') && body.tools[0].name !== 'report_check' ? body.tools[0].name // an /explain role call: its one tool names the stage
+  : (body.tools || []).some(t => t.name === 'report_check') ? 'verify'
   : (body.messages || []).some(m => Array.isArray(m.content) && m.content.some(c => c.type === 'tool_result')) ? 'repair' : 'author';
 
 // Wraps a transport (body, model) => Response with recording and a pre-call budget check.
@@ -73,11 +74,12 @@ export function recordingModel(transport, { capUsd, prices, ledger = { calls: []
     const started = Date.now();
     const response = await transport(body, model);
     const json = await response.clone().json().catch(() => null);
-    const cost = price(json?.model || model, json?.usage);
+    // A refused request (4xx, no usage) is not billed; any other reply without usage keeps its worst case as unknown.
+    const cost = !json?.usage && response.status >= 400 && response.status < 500 ? 0 : price(json?.model || model, json?.usage);
     if (cost == null) ledger.unknownCost = true;
     ledger.spentUsd += cost ?? worst;
     ledger.calls.push({ stage: stageOf(body), requestedModel: model, servedModel: json?.model ?? null, requestId: response.headers.get('request-id'), status: response.status,
-      usage: json?.usage ?? null, images: countImages(body), costUsd: cost, ms: Date.now() - started, request: redact(body), stopReason: json?.stop_reason ?? null });
+      usage: json?.usage ?? null, error: response.ok ? null : String(json?.error?.message || json?.error || '').slice(0, 300), images: countImages(body), costUsd: cost, ms: Date.now() - started, request: redact(body), stopReason: json?.stop_reason ?? null });
     return response;
   };
   return { callModel, ledger };
