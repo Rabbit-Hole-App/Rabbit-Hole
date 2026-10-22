@@ -62,8 +62,23 @@ let { context, page } = await contextFor('light');
 const panel = () => page.locator('aside[aria-label="Learn agent chat"]');
 const search = () => panel().locator('[data-canvas-search]');
 const linkResult = id => search().locator(`[data-search-result="${id}"]`);
-const filter = id => search().locator(`[data-search-filter="${id}"]`);
-const countOf = async id => Number((await filter(id).innerText()).match(/(\d+)\s*$/)[1]);
+// The Filter dropdown (owner 2026-10-22): one button, its menu of checkbox rows with counts. pick(id) leaves exactly that
+// category picked ('all' clears the pick) and closes the menu; countOf(id) reads a row's count ('all': the unfiltered
+// result count, read with nothing picked).
+const filterButton = () => search().locator('[data-search-filter-button]');
+const menu = () => page.locator('[data-search-filter-menu]');
+const row = id => menu().locator(`[data-search-filter="${id}"]`);
+const closeMenu = async () => { await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' }); };
+const pick = async id => {
+  await filterButton().click(); const clear = menu().locator('[data-search-filter-clear]'); await clear.waitFor();
+  if (await clear.isEnabled()) await clear.click();
+  if (id !== 'all') await row(id).click();
+  await closeMenu();
+};
+const countOf = async id => {
+  if (id === 'all') { const text = await search().locator('[data-find-count]').innerText(); return Number((text.match(/of (\d+)/) || text.match(/^(\d+)/))[1]); }
+  await filterButton().click(); const value = Number(await row(id).locator('[data-menu-hint]').innerText()); await closeMenu(); return value;
+};
 const selected = () => page.$$eval('[data-block-id][aria-current="true"]', nodes => nodes.map(node => node.dataset.blockId));
 const waitFor = async (fn, ms, what) => { for (const end = Date.now() + ms; ; await page.waitForTimeout(100)) { const value = await fn().catch(() => false); if (value) return value; if (Date.now() > end) throw Error(what); } };
 // The opening toast (bottom right) passes over the panel's foot; shots wait for it to go.
@@ -75,7 +90,7 @@ const open = async (canvas, id) => {
 };
 const openLinks = async () => {
   await page.locator('[data-panel-tab="find"]').click();
-  await filter('links').click();
+  await pick('links');
   await waitFor(async () => (await search().locator('[data-search-result^="link:"]').count()) === 3, 15000, 'the Links filter never showed three links');
 };
 
@@ -94,8 +109,8 @@ await check('2 Search lists the links and backlinks by canvas title, counted und
   for (const label of [T.title, B.title, 'Unavailable canvas', A1, A2, B1, 'Linked from this canvas', 'Links here (backlink)']) assert.ok(text.includes(label), `the Links results lack "${label}"`);
   for (const id of [T.id, X.id, B.id, X.title]) assert.ok(!text.includes(id), `the Links results show "${id}"`);
   assert.equal(await linkResult(`link:to:${B.id}`).getAttribute('data-links-direction'), 'to');
-  await filter('all').click();
-  assert.equal(await countOf('all'), (await countOf('cards')) + 3, 'All counts the cards and the three links');
+  await pick('all');
+  assert.equal(await countOf('all'), (await search().locator('[data-search-result^="object:"]').count()) + 3, 'All counts the cards and the three links');
   assert.equal(await search().locator('[data-search-result^="link:"]').count(), 3, 'All lists the links');
   await search().getByRole('textbox', { name: 'Find text on canvas' }).fill('Graph traversal');
   // The link, and the card whose reference chip names that canvas (an existing References match).
@@ -104,7 +119,7 @@ await check('2 Search lists the links and backlinks by canvas title, counted und
   await search().getByRole('textbox', { name: 'Find text on canvas' }).fill(B1);
   await waitFor(async () => (await countOf('links')) === 1, 5000, 'a backlink is not matched by its card title');
   await search().getByRole('textbox', { name: 'Find text on canvas' }).fill('');
-  await filter('links').click();
+  await pick('links');
   await shot('01-links-in-search-light');
 });
 
@@ -146,11 +161,18 @@ await check('5 a link opens its canvas in this tab; a backlink chip opens the so
 await check('6 keyboard and names: the Links filter, the new-tab buttons, the TOC entry and its close button', async () => {
   await open(A, 'a1');
   await page.locator('[data-panel-tab="find"]').click();
-  await filter('all').focus();
-  await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab');
-  await expect(filter('links')).toBeFocused();
-  await page.keyboard.press('Enter');
-  assert.equal(await filter('links').getAttribute('aria-pressed'), 'true');
+  // The Filter dropdown by keyboard: Enter opens it on its first row, End reaches the last enabled row (Rabbit Holes; Clear is
+  // greyed out with nothing picked), ArrowUp reaches Links, Space toggles it, Escape closes the menu back onto the button.
+  await pick('all');
+  await filterButton().focus(); await page.keyboard.press('Enter');
+  await expect(menu().locator('[role="menuitemcheckbox"]').first()).toBeFocused();
+  await page.keyboard.press('End'); await expect(row('rabbit-holes')).toBeFocused();
+  await page.keyboard.press('ArrowUp'); await expect(row('links')).toBeFocused();
+  assert.equal(await row('links').getAttribute('title'), 'Other canvases this one links to or from', 'Links explains itself');
+  await page.keyboard.press('Space');
+  await expect(row('links')).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await expect(filterButton()).toBeFocused(); await expect(filterButton()).toHaveText('Filter (1)');
   await waitFor(async () => (await search().locator('[data-search-result^="link:"]').count()) === 3, 15000, 'Links by keyboard');
   for (const [id, name] of [[`link:from:${T.id}`, `Open ${T.title} in new tab`], [`link:to:${B.id}`, `Open ${B.title} in new tab`], [`link:to:${B.id}`, `Open ${B1} in new tab`]]) {
     const button = linkResult(id).getByRole('button', { name, exact: true });

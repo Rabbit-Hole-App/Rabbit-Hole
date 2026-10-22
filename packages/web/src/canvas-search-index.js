@@ -7,7 +7,15 @@ import { validSources } from './card-sources.js';
 import { cadArtifact } from './cad-client.js';
 import { codeLang } from './code-lang.js';
 
-export const SEARCH_FILTERS = ['all', 'cards', 'text', 'comments', 'references', 'links', 'code', 'rabbit-holes'];
+// Search's filter categories by card type (owner 2026-10-22: a Filter dropdown of Content types, Sources and Other); a file
+// card is keyed file:<kind>. Labels live in canvas-search-panel.js SEARCH_FILTER_GROUPS. A card of no listed type is 'other-cards'.
+export const SEARCH_TYPE_CATEGORY = { video: 'video', videoGenerate: 'video', 'file:clip': 'video', pdf: 'pdf', paper: 'paper', notebook: 'notebook',
+  image: 'image', imageGenerate: 'image', 'file:image': 'image', 'file:svg': 'image', whiteboard: 'whiteboard',
+  flow: 'diagram', mermaid: 'diagram', knowledge: 'diagram', 'repo-graph': 'diagram', graph: 'graph', plot: 'graph', vector: 'graph',
+  quiz: 'quiz', flashcards: 'flashcards', challenge: 'challenge', explainBack: 'challenge', explanation: 'explanation', walkthrough: 'explanation',
+  table: 'table', 'file:table': 'table', 'file:workbook': 'table', cad: 'cad', model3d: 'cad', scene: 'cad', 'file:model': 'cad',
+  animation: 'animation', mathAnimation: 'animation', audio: 'audio', 'file:audio': 'audio', slide: 'slides', 'file:presentation': 'slides',
+  'file:document': 'document', 'file:markdown': 'document', 'file:text': 'document' };
 const string = value => typeof value === 'string' ? value : '';
 const at = (collection, id) => collection instanceof Map ? collection.get(id) : collection?.[id];
 const array = value => Array.isArray(value) ? value : [];
@@ -25,6 +33,17 @@ function referencesFor(object, supplied) {
   if (object.type === 'paper' && object.paper?.id) refs.push({ kind: 'paper', id: object.paper.id, title: object.title, page: object.paper.page, arxiv: object.paper.id });
   const seen = new Set();
   return refs.map(safeReference).filter(ref => { const key = referenceKey(ref); if (seen.has(key)) return false; seen.add(key); return true; });
+}
+const ARXIV = /^https:\/\/([\w-]+\.)*arxiv\.org\//i, WIKIPEDIA = /^https:\/\/([\w-]+\.)*wikipedia\.org\//i, YOUTUBE = /^https:\/\/([\w-]+\.)*(youtube\.com|youtu\.be)\//i;
+// Where a card's material comes from, from its stored type and references only (no fetch): arXiv, Wikipedia, YouTube, Web, Repository.
+function sourceCategories(object, references) {
+  const urls = [object.url, ...references.map(ref => ref.url)].map(string).filter(Boolean), out = [];
+  if (references.some(ref => ref.arxiv) || urls.some(url => ARXIV.test(url))) out.push('arxiv');
+  if (object.type === 'wiki' || urls.some(url => WIKIPEDIA.test(url))) out.push('wikipedia');
+  if ((object.type === 'video' && /^[\w-]{11}$/.test(string(object.videoId))) || urls.some(url => YOUTUBE.test(url))) out.push('youtube');
+  if (urls.some(url => /^https:\/\//i.test(url) && !ARXIV.test(url) && !WIKIPEDIA.test(url) && !YOUTUBE.test(url))) out.push('web');
+  if (object.type === 'repo-graph' || references.some(ref => ref.kind === 'code')) out.push('repository');
+  return out;
 }
 function notebookFields(object) {
   const names = [...new Set([object.ipynb_path || 'notebook.ipynb', object.active_path, ...array(object.files)].filter(value => typeof value === 'string' && value))];
@@ -90,8 +109,11 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
   if (resolvedCanvas) object = { ...object, title: resolvedCanvas.unavailable ? '' : resolvedCanvas.title || '', label: '', text: '' };
   const title = string(object.title || object.label || object.name || object.question || object.prompt);
   const references = referencesFor(object, suppliedRefs), rabbitHoles = children.filter(child => child.origin_block_id === object.id && !child.unavailable && !child.pending);
-  const categories = [kind === 'card' ? 'cards' : 'text'];
-  if (CODE.has(object.type) || object.mode === 'code') categories.push('code');
+  const categories = kind === 'card' ? [] : ['text'];
+  const code = CODE.has(object.type) || object.mode === 'code', type = SEARCH_TYPE_CATEGORY[object.type === 'file' ? `file:${object.kind}` : object.type];
+  if (type) categories.push(type);
+  if (code) categories.push('code');
+  if (kind === 'card') { categories.push(...sourceCategories(object, references)); if (!type && !code) categories.push('other-cards'); }
   if (references.length) categories.push('references');
   if (rabbitHoles.length) categories.push('rabbit-holes');
   let content;
@@ -161,9 +183,11 @@ export function updateSearchIndex(previous, input) {
   return { scopeKey: input.scopeKey, revision: input.revision, entries, inputs, availability: input.availability };
 }
 const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-export function querySearchIndex(index, { query = '', filter = 'all', includeResolved = false } = {}) {
-  const phrase = String(query).trim(), matcher = phrase ? new RegExp(escape(phrase), 'giu') : null;
-  const counts = Object.fromEntries(SEARCH_FILTERS.map(name => [name, 0])), availability = { status: 'ready', loading: 0, partial: 0, unavailable: 0, error: 0 };
+// filters: the categories picked in the Filter dropdown, ORed; none picked means everything. counts: per category, over
+// the query's matches regardless of the filters, so the dropdown can list what has results.
+export function querySearchIndex(index, { query = '', filters = [], includeResolved = false } = {}) {
+  const phrase = String(query).trim(), matcher = phrase ? new RegExp(escape(phrase), 'giu') : null, wanted = new Set(filters);
+  const counts = { all: 0 }, availability = { status: 'ready', loading: 0, partial: 0, unavailable: 0, error: 0 };
   const matches = [];
   for (const entry of index.entries.values()) {
     if (entry.resolved && !includeResolved) continue;
@@ -187,8 +211,8 @@ export function querySearchIndex(index, { query = '', filter = 'all', includeRes
     const { fields: _fields, ...result } = entry;
     const preview = entry.preview?.kind === 'code' ? { ...entry.preview, text: undefined, lines: codeExcerpt(entry.preview, entry, first, matcher) } : entry.preview;
     const value = { ...result, preview, occurrenceCount, snippet, location, match: first ? { field: field.key, kind: field.kind, location } : undefined, target: { ...entry.target, quote, location } };
-    counts.all++; for (const category of entry.categories) counts[category]++;
-    if (filter === 'all' || entry.categories.includes(filter)) matches.push({ value, rank });
+    counts.all++; for (const category of entry.categories) counts[category] = (counts[category] || 0) + 1;
+    if (!wanted.size || entry.categories.some(category => wanted.has(category))) matches.push({ value, rank });
   }
   matches.sort((a, b) => a.rank - b.rank);
   if (availability.loading) availability.status = 'loading';

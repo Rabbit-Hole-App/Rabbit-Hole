@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns, ROW } from './canvas-search-panel.js';
+import { searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns, ROW, searchFilterGroups, searchFilterLabel } from './canvas-search-panel.js';
 import { createRequire } from 'node:module';
 import { mkdtempSync, unlinkSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const dir = mkdtempSync(join(tmpdir(), 'canvas-search-panel-')), outfile = join(dir, 'panel.cjs');
-await esbuild.build({ stdin: { contents: "export { default as Panel } from './CanvasSearchPanel.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' }, bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent' });
+await esbuild.build({ stdin: { contents: "export { default as Panel, SearchFilterRows } from './CanvasSearchPanel.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' }, bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent' });
 const B = createRequire(import.meta.url)(outfile);
 unlinkSync(outfile); rmdirSync(dir);
 const render = props => B.renderToStaticMarkup(B.createElement(B.Panel, { canvasKey: 'canvas-a', ...props }));
@@ -37,11 +37,14 @@ test('keyboard steps through the list and clamps at both ends', () => {
   assert.equal(searchKeyIndex('Enter', 0, 5), null);
 });
 test('empty states never mislabel loading or failed retrieval as no results', () => {
-  assert.match(searchEmptyMessage('loading', 'term', 'cards'), /Loading/);
-  assert.match(searchEmptyMessage('error', 'term', 'cards'), /could not/);
-  assert.match(searchEmptyMessage('partial', 'term', 'cards'), /available content/);
-  assert.match(searchEmptyMessage('ready', '', 'rabbit-holes'), /Rabbit Holes/);
-  assert.equal(searchEmptyMessage('ready', 'term', 'all'), 'No matches on this canvas.');
+  assert.match(searchEmptyMessage('loading', 'term', ['video']), /Loading/);
+  assert.match(searchEmptyMessage('error', 'term', ['video']), /could not/);
+  assert.match(searchEmptyMessage('partial', 'term', ['video']), /available content/);
+  assert.match(searchEmptyMessage('ready', '', ['rabbit-holes']), /Rabbit Holes/);
+  assert.equal(searchEmptyMessage('ready', '', ['links']), 'No links to or from this canvas yet.');
+  assert.equal(searchEmptyMessage('ready', '', ['pdf', 'video']), 'Nothing on this canvas matches these filters yet.');
+  assert.equal(searchEmptyMessage('ready', '', []), 'No searchable objects on this canvas yet.');
+  assert.equal(searchEmptyMessage('ready', 'term', []), 'No matches on this canvas.');
 });
 test('document and file locations are disclosed without inventing canvas placement', () => {
   assert.equal(searchLocation({ blockId: 'bn-1' }), 'Document');
@@ -55,12 +58,34 @@ test('render bounds a large result set and preserves original target identity', 
   assert.match(html, /data-search-result="card:0"/);
   assert.match(html, /data-find-match="object-0"/);
   assert.match(html, /aria-setsize="10000"/);
-  assert.equal((html.match(/data-search-filter=/g) || []).length, 7, 'a shared view has no Links filter');
-  assert.match(render({ showLinks: true }), /data-search-filter="links"/);
+  assert.equal((html.match(/data-search-filter-button/g) || []).length, 1, 'one Filter button, no chip row');
+  assert.match(html, />Filter</); assert.match(render({ filters: ['video', 'pdf'] }), />Filter \(2\)</);
+});
+// The Filter dropdown (owner 2026-10-22): grouped checkbox rows with counts; content types and sources only where they have
+// results (or are picked), Other always; Links only where the page shows links; References and Links explain themselves.
+test('the Filter dropdown lists grouped checkbox rows with counts, a Clear row and the References and Links tooltips', () => {
+  const counts = { all: 4, video: 2, youtube: 1, text: 1 };
+  const groups = searchFilterGroups(counts, ['pdf'], false);
+  assert.deepEqual(groups.map(group => [group.title, group.items.map(item => `${item.label} ${item.count}${item.checked ? ' checked' : ''}`)]), [
+    ['Content types', ['Video 2', 'PDF 0 checked']], ['Sources', ['YouTube 1']], ['Other', ['Text 1', 'Comments 0', 'References 0', 'Rabbit Holes 0']]]);
+  assert.ok(searchFilterGroups(counts, [], true).at(-1).items.some(item => item.id === 'links'), 'a page with links lists Links');
+  assert.equal(searchFilterLabel([]), 'Filter'); assert.equal(searchFilterLabel(['a', 'b']), 'Filter (2)');
+  const rows = picked => B.renderToStaticMarkup(B.createElement(B.SearchFilterRows, { groups: searchFilterGroups(counts, picked, true), filters: picked }));
+  const html = rows(['video']);
+  assert.match(html, /role="menu" aria-label="Search filters"/);
+  assert.match(html, /role="menuitemcheckbox" aria-checked="true" data-search-filter="video"/);
+  assert.match(html, /role="menuitemcheckbox" aria-checked="false" data-search-filter="youtube"/);
+  assert.match(html, /data-search-filter="references" title="Cards on this canvas that cite a source" aria-describedby="search-filter-hint-references"/);
+  assert.match(html, /id="search-filter-hint-references" hidden="">Cards on this canvas that cite a source</);
+  assert.match(html, /data-search-filter="links" title="Other canvases this one links to or from" aria-describedby="search-filter-hint-links"/);
+  assert.match(html, /id="search-filter-hint-links" hidden="">Other canvases this one links to or from</);
+  assert.doesNotMatch(html, /data-search-filter-clear[^>]*disabled/, 'Clear is live with a pick');
+  assert.match(rows([]), /data-search-filter-clear="true" disabled=""/, 'Clear is greyed out with nothing picked');
+  assert.doesNotMatch(html, /\.\.\.|…/);
 });
 // Owner UI brief 2026-10-20 section 7: the former Links tab's results - a canvas title, its direction and count, its cards.
 test('link results name their canvas and cards, open in a new tab, and an unavailable target exposes nothing', () => {
-  const html = render({ showLinks: true, filter: 'links', results: [
+  const html = render({ showLinks: true, filters: ['links'], results: [
     { id: 'link:from:t', kind: 'link', title: 'Graph basics', location: 'Linked from this canvas', link: { direction: 'from', href: '/apps/canvas-1', cards: [{ id: 'r1', object: 'a1', title: 'Recursion' }] } },
     { id: 'link:to:s', kind: 'link', title: 'Trees', location: 'Links here (backlink)', link: { direction: 'to', href: '/apps/canvas-2', cards: [{ id: 'r2', object: 'b1', title: 'Depth', href: '/apps/canvas-2?card=b1' }] } },
     { id: 'link:from:x', kind: 'link', title: 'Unavailable canvas', location: 'Linked from this canvas', link: { direction: 'from', unavailable: true, href: null, cards: [{ id: 'r3', object: 'a2', title: 'Origin' }] } }] });

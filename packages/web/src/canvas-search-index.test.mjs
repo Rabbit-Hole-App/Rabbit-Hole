@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSearchIndex, updateSearchIndex, querySearchIndex } from './canvas-search-index.js';
+import { readFileSync } from 'node:fs';
+import { createSearchIndex, updateSearchIndex, querySearchIndex, SEARCH_TYPE_CATEGORY } from './canvas-search-index.js';
+import { SEARCH_FILTER_GROUPS } from './canvas-search-panel.js';
 import { createSearchContentRegistry } from './canvas-search-content.js';
 const index = (board, extra = {}) => updateSearchIndex(createSearchIndex(), { scopeKey: 'one', board, ...extra });
-const query = (value, text = '', filter = 'all', extra = {}) => querySearchIndex(value, { query: text, filter, ...extra });
+const query = (value, text = '', filter = 'all', extra = {}) => querySearchIndex(value, { query: text, filters: filter === 'all' ? [] : [].concat(filter), ...extra });
 
 // Owner UI brief 2026-10-20 section 7: the former Links tab in Search - links and backlinks are results under Links, in All
 // and its counts, matched by canvas and card titles; an unavailable target keeps no title and is never matched by one.
@@ -17,7 +19,7 @@ test('links and backlinks are Links results, counted in All, matched by canvas a
   assert.deepEqual(query(value, 'graph').results.map(r => r.id), ['link:from:t']);
   assert.equal(query(value, 'unavailable').results.length, 0, 'an unavailable target is not matched by a label it does not have');
   assert.equal(query(value, '', 'links').results[2].link.cards[0].title, 'Untitled card');
-  assert.equal(query(index({ blocks: [] })).counts.links, 0, 'no links supplied (a shared view), no Links results');
+  assert.equal(query(index({ blocks: [] })).counts.links ?? 0, 0, 'no links supplied (a shared view), no Links results');
 });
 test('literal phrase matching keeps code punctuation and counts every occurrence once per object', () => {
   const value = index({ blocks: [{ id: 'b', type: 'snippet', title: 'Example', code: 'a.b(x) + a.b(x)\nsrc/a.js' }] });
@@ -212,4 +214,35 @@ test('a code card read from its source shows the matched stored lines; unread co
   assert.deepEqual(query(read, 'optimizer').results[0].preview.lines, [{ n: 42, text: '    optimizer.step()' }, { n: 43, text: '    return 1' }]);
   assert.equal(query(read, 'optimizer').results[0].preview.path, 'src/train.py');
   assert.deepEqual(query(index(board), 'train').results[0].preview.lines, [], 'nothing read, nothing shown');
+});
+
+// The Filter dropdown (owner 2026-10-22): content types and sources from each card's stored type and references; several
+// picked are ORed, none picked is everything, and counts list what each category holds.
+test('cards fall into content-type and source categories, and picked filters OR together', () => {
+  const value = index({ blocks: [
+    { id: 'v', type: 'video', title: 'Lecture', videoId: 'dQw4w9WgXcQ' },
+    { id: 'p', type: 'paper', title: 'Attention', paper: { id: '1706.03762' } },
+    { id: 'n', type: 'notebook', title: 'Lab', ipynb: { cells: [] } },
+    { id: 'w', type: 'wiki', title: 'Graph theory' },
+    { id: 'f', type: 'file', kind: 'workbook', label: 'Budget' },
+    { id: 'e', type: 'explanation', title: 'Why', sources: [{ kind: 'web', title: 'Docs', url: 'https://example.com/docs' }] },
+    { id: 'm', type: 'mystery', title: 'Unknown' }] });
+  const all = query(value);
+  assert.equal(all.counts.all, 7);
+  for (const [category, ids] of Object.entries({ video: ['v'], youtube: ['v'], paper: ['p'], arxiv: ['p'], notebook: ['n'], code: ['n'], wikipedia: ['w'], table: ['f'], explanation: ['e'], web: ['e'], 'other-cards': ['w', 'm'] }))
+    assert.deepEqual(query(value, '', category).results.map(r => r.objectId).sort(), ids.sort(), category);
+  assert.deepEqual(query(value, '', ['video', 'table']).results.map(r => r.objectId).sort(), ['f', 'v'], 'two picked filters are ORed');
+  assert.equal(query(value, '', []).results.length, 7, 'none picked is everything');
+  assert.equal(all.counts.youtube, 1); assert.equal(all.counts.pdf, undefined, 'a type with no cards has no count');
+  assert.equal(query(value, 'lecture', 'table').counts.video, 1, 'counts follow the query, not the picked filters');
+});
+test('every card type in the registry and every category has a Filter dropdown label', () => {
+  const source = readFileSync(new URL('./LearningBlocks.jsx', import.meta.url), 'utf8'), body = source.slice(source.indexOf('export const BLOCK_TYPES = {'));
+  const registry = [...body.matchAll(/^  ([A-Za-z0-9_]+): \{\s*\n\s*label: '/gm)].map(match => match[1]);
+  assert.ok(registry.length > 15, `read the registry (${registry.length} types)`);
+  const code = new Set(['snippet', 'code']);
+  assert.deepEqual(registry.filter(type => !SEARCH_TYPE_CATEGORY[type] && !code.has(type)), [], 'a registry card type with no content-type filter');
+  const labels = new Set(SEARCH_FILTER_GROUPS.flatMap(group => group.items.map(([id]) => id)));
+  for (const id of [...Object.values(SEARCH_TYPE_CATEGORY), 'code', 'other-cards', 'arxiv', 'wikipedia', 'youtube', 'web', 'repository', 'text', 'comments', 'references', 'links', 'rabbit-holes']) assert.ok(labels.has(id), `${id} has a label`);
+  assert.ok(SEARCH_FILTER_GROUPS.flatMap(group => group.items).every(([, label]) => !/\.\.\.|…/.test(label)));
 });

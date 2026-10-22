@@ -173,7 +173,12 @@ const linkFromMenu = async (title, p = page) => { await linkItem(p).click(); awa
 const linksPanel = (p = page) => p.locator('[data-canvas-search]');
 const linksTab = async (p = page) => {
   await p.locator('[data-panel-tab="find"]').click();
-  await linksPanel(p).locator('[data-search-filter="links"]').click();
+  // The Filter dropdown (owner 2026-10-22): Links alone picked, then the menu closed.
+  await linksPanel(p).locator('[data-search-filter-button]').click();
+  const menu = p.locator('[data-search-filter-menu]'), clear = menu.locator('[data-search-filter-clear]'); await clear.waitFor();
+  if (await clear.isEnabled()) await clear.click();
+  await menu.locator('[data-search-filter="links"]').click();
+  await p.keyboard.press('Escape'); await menu.waitFor({ state: 'detached' });
   await waitFor(async () => (await linksPanel(p).locator('[data-search-result^="link:"]').count()) > 0 && !(await linksPanel(p).getByText('references are still loading').count()), 15000, 'Search never listed the Links results');
 };
 const savedRefs = (name, id, test, what) => waitFor(async () => { const refs = await refsOn(name, id); return test(refs) && refs; }, 15000, what);
