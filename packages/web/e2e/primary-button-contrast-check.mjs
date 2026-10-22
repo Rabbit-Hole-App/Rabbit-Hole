@@ -33,11 +33,11 @@ const api = async (who, path, init = {}) => {
 const post = (who, path, body = {}) => api(who, path, { method: 'POST', body: JSON.stringify(body) });
 const STATE = text => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'c1', type: 'explanation', dx: 0, dy: 0, title: text, body: `${text}, explained.` }] });
 
-// ---- rows: the owner's canvas (saved, with a view link), and another person's public canvas ----
+// ---- rows: the owner's canvas (saved, with a view link anyone may open signed out), and another person's public canvas ----
 const TITLE = { mine: `Contrast ${run}`, theirs: `Orbits contrast ${run}` };
 const mine = await post(owner, '/api/canvases', { title: TITLE.mine });
 await api(owner, `/api/learn/boards/${mine.name}/main`, { method: 'PUT', body: JSON.stringify({ state: STATE('Buoyancy') }) });
-const view = (await post(owner, `/api/learn/boards/${mine.name}/main/share`, { shared: true, view: true, state: STATE('Buoyancy') })).sharing.view;
+const view = (await post(owner, `/api/learn/boards/${mine.name}/main/share`, { shared: true, view: true, public_view: true, state: STATE('Buoyancy') })).sharing.view;
 const theirs = await post(other, '/api/canvases', { title: TITLE.theirs });
 await api(other, `/api/learn/boards/${theirs.name}/main`, { method: 'PUT', body: JSON.stringify({ state: STATE('Ellipses') }) });
 await post(other, `/api/apps/${theirs.name}/publish`);
