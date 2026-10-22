@@ -643,10 +643,11 @@ function gateFetch(matches) {
   return gate;
 }
 
-// A Stop accepted while the alarm is mid-await (on close() when the start answer was lost, or on the job poll), with or without a
-// Durable Object restart after which the alarm reruns from storage. Owner review of 0e399bc8, item 1: exactly one orchestrator
-// POST, no stage after the cancel (no further model call, no render), cancel sent, settled exactly once at the in-flight cost,
-// the usage action labelled cancelled.
+// A Stop accepted while the alarm is mid-await (on close() when the start answer was lost, or on the job poll). Without a restart
+// the alarm then resumes with its older copy. With a restart the object is evicted mid-await: that alarm never resumes (its request
+// is never answered and its promise is dropped), and a new instance over the same storage reruns the alarm. Owner review of
+// 0e399bc8, item 1: exactly one orchestrator POST, no stage after the cancel (no further model call, no render), cancel sent (and
+// by whom), settled exactly once at the in-flight cost, the usage action labelled cancelled.
 async function stopDuringAlarm(t, { at, restart }) {
   const { sqlite, LEARN_DB } = d1(t);
   const w = world(t); await w.orchestrator.start(); w.script(stopScript);
@@ -663,13 +664,19 @@ async function stopDuringAlarm(t, { at, restart }) {
   await until(() => gate.reached, `the alarm awaiting ${at}`);
   const v = (await (await actor.fetch(stopping(placementId))).json()).videos[0];
   assert.deepEqual([v.status, v.error], ['failed', 'Stopped.']);
-  const callsAtStop = w.model.calls.length;
-  gate.release(); await polling; gate.restore();
-  // Restart: a new instance over the same storage; its alarm reruns from what is stored.
-  const now = restart ? new LearnVideos(durable('video-a', data), env) : actor;
-  await now.alarm();
+  const callsAtStop = w.model.calls.length, cancelsAtStop = w.orchestrator.cancels;
+  // The Stop handler cancels only a job whose ticket it holds: the poll case has one, the close case does not yet.
+  assert.equal(cancelsAtStop, at === 'poll' ? 1 : 0, 'cancels sent by the Stop handler itself');
+  let now = actor;
+  if (restart) {
+    gate.restore(); // the evicted alarm's request stays unanswered; nothing of it runs again
+    now = new LearnVideos(durable('video-a', data), env);
+    await now.alarm();
+  } else { gate.release(); await polling; gate.restore(); }
   const recovered = [...w.orchestrator.o.jobs.values()][0];
-  assert.ok(w.orchestrator.cancels >= 1 && recovered.controller.signal.aborted, 'cancel sent: the job is told to stop');
+  assert.ok(recovered.controller.signal.aborted, 'the job is told to stop');
+  if (at === 'close') assert.equal(w.orchestrator.cancels, 1, restart ? 'exactly one cancel, sent by the rerun alarm after the restart' : 'exactly one cancel, sent by the resumed alarm once it found the job');
+  else assert.ok(w.orchestrator.cancels - cancelsAtStop <= 1, `the Stop handler sent the cancel; the ${restart ? 'rerun' : 'resumed'} alarm sent at most one more, idempotent (${w.orchestrator.cancels} in all)`);
   const after = await video(now);
   assert.deepEqual([after.status, after.error], ['failed', 'Stopped.'], 'the Stop is not overwritten');
   w.model.held(); // the call in flight lands and is priced
@@ -684,11 +691,13 @@ async function stopDuringAlarm(t, { at, restart }) {
 }
 test('MOT-09 review: a Stop accepted while the alarm awaits close() is never overwritten; the job its key started is cancelled and settles once as cancelled', t => stopDuringAlarm(t, { at: 'close' }));
 test('MOT-09 review: a Stop accepted while the alarm awaits the job poll is never overwritten, and the job settles once as cancelled', t => stopDuringAlarm(t, { at: 'poll' }));
-test('MOT-09 review: a Stop accepted while the alarm awaits close(), then a Durable Object restart: the rerun alarm cancels, one POST, settled once as cancelled', t => stopDuringAlarm(t, { at: 'close', restart: true }));
-test('MOT-09 review: a Stop accepted while the alarm awaits the job poll, then a Durable Object restart: the rerun alarm cancels, settled once as cancelled', t => stopDuringAlarm(t, { at: 'poll', restart: true }));
+test('MOT-09 review: a Stop accepted while the alarm awaits close(), then the object is evicted mid-await: the rerun alarm sends the one cancel, one POST, settled once as cancelled', t => stopDuringAlarm(t, { at: 'close', restart: true }));
+test('MOT-09 review: a Stop accepted while the alarm awaits the job poll, then the object is evicted mid-await: the Stop cancels, the rerun alarm adds at most one, settled once as cancelled', t => stopDuringAlarm(t, { at: 'poll', restart: true }));
 
-// Owner review of 0e399bc8, item 2 (MOT-08): Motion admission (the hold, /health, the grant write and the POST) shares one deadline
-// inside Generate's 30 s blockConcurrencyWhile. Mocked clock (t.mock.timers: setTimeout and Date), no real waits. The orchestrator
+// Owner review of 0e399bc8, item 2 (MOT-08): Motion admission (the hold, /health, the grant write and the POST) shares one 25 s
+// deadline inside Generate's 30 s blockConcurrencyWhile. Mocked clock (t.mock.timers: setTimeout and Date), no real waits. The clock
+// moves only while the orchestrator double answers slowly, so these tests prove that /health and the POST wait only for what is
+// left of the 25 s, and what happens when too little is left; they do not measure real CPU or storage time inside the block. The orchestrator
 // is a double with injectable delays: it starts a job when a POST with a grant for its current boot arrives, whatever the client
 // then does; it can restart (a new boot) right after answering /health.
 function slowOrchestrator(t, o) {
@@ -731,16 +740,16 @@ async function onClock(t, promise, o) {
   while (!done) { await new Promise(r => setImmediate(r)); if (o.waiting) t.mock.timers.tick(10); }
   return promise;
 }
-// The time each blockConcurrencyWhile call held the object (what Cloudflare limits to 30 s), on the mocked clock.
+// The mocked time spent inside each blockConcurrencyWhile call: the network waits only (see above).
 function blockSpans(actor) {
   const inner = actor.state.blockConcurrencyWhile, spans = [];
   actor.state.blockConcurrencyWhile = fn => inner(async () => { const start = Date.now(); try { return await fn(); } finally { spans.push(Date.now() - start); } });
   return spans;
 }
-// The owner budget: about 25 s for the whole admission, at least 5 s under the 30 s limit (50 ms for the 10 ms clock steps).
-const UNDER_BLOCK = took => assert.ok(took <= 25050, `the block took ${took} ms: admission inside 25 s, at least 5 s under the 30 s limit`);
+// The admission deadline: 25 s, 5 s under the 30 s limit (50 ms for the 10 ms clock steps).
+const UNDER_BLOCK = took => assert.ok(took <= 25050, `the network waits took ${took} ms of mocked time: inside the 25 s admission deadline`);
 
-test('MOT-08 review: /health 15.5 s then a POST of 15.5 s: admission ends at its 25 s deadline, 5 s under the block; the hold is kept and the alarm reconciles the one job', async t => {
+test('MOT-08 review: /health 15.5 s then a POST of 15.5 s: the POST waits only for what is left of the 25 s admission deadline; the hold is kept and the alarm reconciles the one job', async t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
   const { sqlite, LEARN_DB } = d1(t);
   const o = slowOrchestrator(t, { healthMs: 15500, postMs: 15500 });
@@ -756,7 +765,7 @@ test('MOT-08 review: /health 15.5 s then a POST of 15.5 s: admission ends at its
   assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite).length], [1, 1, 1], 'never resent');
 });
 
-test('MOT-08 review: too little of the deadline left for the POST, or /health past it: refused before any POST, the hold released, nothing started', async t => {
+test('MOT-08 review: too little of the 25 s admission deadline left for the POST, or /health past it: refused before any POST, the hold released, nothing started', async t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
   for (const [healthMs, why] of [[23500, /too slow to answer\. Nothing was started/], [26000, /did not answer\. Nothing was started/]]) {
     const { sqlite, LEARN_DB } = d1(t);
