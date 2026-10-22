@@ -239,3 +239,17 @@ test('no supplied source: the Director gets an empty pack and the state, the bri
   assert.ok(validateBrief({ ...r.brief, grounding: { status: 'not_in_source' } }).some(e => /searched \(not_in_source\)/.test(e)));
   assert.ok(validateBrief({ ...r.brief, source_refs: [{ id: 'S1', kind: 'card', card_id: 'c' }] }).some(e => /an ungrounded brief cites nothing/.test(e)));
 });
+
+// MOT-20: the approved proposal is binding input. Its duration is the decision and its title the brief's; the Director sees it.
+test('an approved proposal: the brief keeps its exact title and duration, and the Director is told to keep its scope', async () => {
+  const approved = { title: 'Softmax turns scores into weights', duration_seconds: 20, description: 'One row of scores appears. Future positions are blocked. Softmax turns the rest into weights that sum to one.' };
+  const fake = fakeModel(toolMessage(goodBrief()));
+  const r = await runDirector({ turn: softmaxTurn(), grounding: groundTarget(softmaxTurn(), source), call: fake.call, clock, approved });
+  assert.equal(r.status, 'brief', JSON.stringify(r.errors));
+  assert.deepEqual([r.brief.title, r.brief.duration.seconds], [approved.title, 20], 'the harness sets both, never the model');
+  assert.deepEqual(validateBrief(r.brief), []);
+  const { body } = fake.requests[0];
+  assert.ok(body.messages[0].content.includes(`"approved_proposal":${JSON.stringify(approved)}`), 'the approved proposal rides the Director context');
+  assert.match(body.messages[0].content, /"duration":\{"seconds":20/);
+  assert.match(body.system[0].text, /approved_proposal[^.]*binding|They are binding/);
+});

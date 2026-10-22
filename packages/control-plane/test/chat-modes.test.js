@@ -124,7 +124,8 @@ test('chat context: one uploaded PDF rides per turn; every other uploaded-PDF pa
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
 const apiAskSource = source.match(/export async function apiAsk\([^]*?\n\}/)[0].replace(/^export /, '');
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
-const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js'].map(path => import(path)));
+const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js', '../src/generation-proposal.js'].map(path => import(path)));
+const { verifyProposal } = await import('../src/generation-proposal.js');
 const baseDeps = Object.fromEntries(modules.flatMap(m => Object.entries(m)).filter(([name]) => name !== 'default'));
 // A test double of B4's trailer functions (on this base they are stubs): the wiring is what is under test here.
 const fakeMeta = {
@@ -780,3 +781,63 @@ test('a sent PDF excerpt chip comes back with its quote, note and source, and th
 });
 
 function lastText(call) { const last = call.messages.at(-1).content; return typeof last === 'string' ? last : last.map(block => block.text || '').join(''); }
+
+// ---------- UI-15 / MOT-20: a generation proposal is a chat turn (generation-proposal.js) ----------
+
+const MOTION_ENV = { MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
+const WATER = 'Sunlight warms a body of water, causing evaporation. Moist air rises and cools, forming droplets that gather into clouds. The droplets grow and fall as rain. Water collects again, completing the cycle.';
+const proposeCall = (id, over = {}) => ({ content: [{ type: 'tool_use', id, name: 'propose_generation', input: { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings: { duration_seconds: 10, audio: false }, ...over } }], stop_reason: 'tool_use' });
+
+test('a /motion chat turn proposes on the chat path: one model turn, the signed card in answer_meta and in the answer meta; nothing generated', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV);
+  f.replies.push(proposeCall('tu1'), 'Here is a 10-second video proposal.\n<answer_meta>{}</answer_meta>');
+  const { res, events } = await f.ask({ message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: { concept: 'Weather' } } });
+  assert.equal(res.status, 200);
+  assert.ok(f.calls[0].tools.some(tool => tool.name === 'propose_generation'), 'the proposal tool rides this chat turn');
+  assert.match(f.calls[0].system, /Generation proposals:/);
+  const meta = events.find(e => e.event === 'answer_meta').data;
+  const p = meta.proposal;
+  assert.deepEqual([p.command, p.version, p.title, p.description, p.settings, p.input, p.usage], ['motion', 1, 'Water cycle: evaporation to rain', WATER, { duration_seconds: 10, audio: false }, { request: '/motion explain the water cycle', concept: 'Weather' }, { estimate_credits: 100, reserve_credits: 896 }]);
+  assert.equal(await verifyProposal(f.env, p, 'owner@example.test'), null, 'signed for the asker');
+  const stored = JSON.parse(f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant'")[0].meta_json);
+  assert.deepEqual(stored.proposal, p, 'kept with the answer, so a reload draws the card again');
+  assert.equal(f.calls.length, 2, 'the proposal and the reply: no Director, author or render call');
+  assert.equal(events.find(e => e.event === 'chunk').data.text, 'Here is a 10-second video proposal.');
+});
+
+test('refinement through chat: the learner\'s words change the unanswered proposal into its next version, with the same id and input', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV);
+  f.replies.push(proposeCall('tu1'), 'Proposed.\n<answer_meta>{}</answer_meta>');
+  const first = (await f.ask({ message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: { concept: 'Weather' } } })).events.find(e => e.event === 'answer_meta').data.proposal;
+  const clouds = 'Sunlight warms the sea and water evaporates. The vapour rises and cools into tiny droplets. The droplets gather into clouds that grow darker. The clouds release rain over the land.';
+  f.replies.push(proposeCall('tu2', { description: clouds, settings: { duration_seconds: 20, audio: false } }), 'Updated.\n<answer_meta>{}</answer_meta>');
+  const second = (await f.ask({ message: 'make it 20 seconds and focus more on clouds', mode: 'auto', generation: { motion: { concept: 'Weather' }, current: first } })).events.find(e => e.event === 'answer_meta').data.proposal;
+  assert.deepEqual([second.proposal_id, second.version, second.settings.duration_seconds, second.description, second.input], [first.proposal_id, 2, 20, clouds, first.input]);
+  assert.match(lastText(f.calls[2]), /The proposal you made, not generated yet \(version 1\)/, 'the model sees the card it revises');
+  // A proposal changed in the browser is not a current one: the next proposal starts over as a new one.
+  f.replies.push(proposeCall('tu3'), 'New.\n<answer_meta>{}</answer_meta>');
+  const forged = (await f.ask({ message: 'again', mode: 'auto', generation: { motion: {}, current: { ...second, title: 'Edited' } } })).events.find(e => e.event === 'answer_meta').data.proposal;
+  assert.notEqual(forged.proposal_id, first.proposal_id);
+  assert.equal(forged.version, 1);
+});
+
+test('paused or with no orchestrator, a /motion chat turn is answered before any model call; without the generation fields no tool rides', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV, { MOTION_GENERATION_PAUSED: '1' });
+  const paused = await f.ask({ message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: {} } });
+  assert.equal(paused.res.status, 503);
+  assert.deepEqual(await paused.res.json(), { error: 'Motion generation is temporarily unavailable while we fix a reliability issue.', code: 'motion_paused' });
+  delete f.env.MOTION_GENERATION_PAUSED; delete f.env.MOTION_ORCHESTRATOR_URL;
+  const unavailable = await f.ask({ message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: {} } });
+  assert.equal(unavailable.res.status, 503);
+  assert.equal(f.calls.length, 0, 'no model call');
+  Object.assign(f.env, MOTION_ENV);
+  await f.ask({ message: 'what is rain?', mode: 'ask' });
+  assert.equal(f.calls[0].tools.some(tool => tool.name === 'propose_generation'), false, 'a turn without the generation fields offers no proposal tool');
+  f.replies.push(proposeCall('tu1', { description: 'It rains.' }), 'Could not propose.\n<answer_meta>{}</answer_meta>');
+  const bad = await f.ask({ message: 'a video of rain', mode: 'ask', generation: { motion: {} } });
+  assert.equal(bad.events.find(e => e.event === 'answer_meta').data.proposal, undefined, 'an invalid proposal reaches no card');
+  assert.match(JSON.stringify(f.calls.at(-1).messages), /Not proposed: the description must be 3 to 10 complete sentences/);
+});
