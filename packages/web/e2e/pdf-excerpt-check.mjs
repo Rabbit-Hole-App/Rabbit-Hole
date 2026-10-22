@@ -301,10 +301,17 @@ const readerReady = () => waitFor(async () => (await where())?.of === N, 30000, 
 // The reader on one source (a Materials row), at a page; a source with no row is opened from its PDF card (Enter).
 const openReader = async (sourceId, { index = null, cardId = null } = {}) => {
   await openCompanion();
-  if (!(await row(sourceId).count()) && cardId) { await selectBlock(cardId); await page.evaluate(() => document.activeElement?.blur?.()); await page.keyboard.press('Enter'); await openCompanion(); }
-  await row(sourceId).waitFor({ timeout: 10000 }).catch(() => { throw Error(`Sources shows no row for ${sourceId}`); });
-  const toggle = row(sourceId).locator('button[aria-expanded]').first();
-  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  // UI-26: the reader replaces the file list. Already open on this source: its reader bar's row names it; else Back to Files.
+  const readerOn = () => page.locator(`[data-sources-pane] [data-sources-header] [data-material-row][data-source-id="${sourceId}"]`);
+  if (!(await readerOn().count())) {
+    const back = page.locator('[data-sources-pane] [data-back-to-files]');
+    if (await back.count()) await back.click();
+    if (!(await row(sourceId).count()) && cardId) { await selectBlock(cardId); await page.evaluate(() => document.activeElement?.blur?.()); await page.keyboard.press('Enter'); await openCompanion(); }
+    if (!(await readerOn().count())) {
+      await row(sourceId).waitFor({ timeout: 10000 }).catch(() => { throw Error(`Sources shows no row for ${sourceId}`); });
+      await row(sourceId).locator('button').first().click(); // the filename opens its reader
+    }
+  }
   await readerReady();
   if (index) await goTo(index);
 };

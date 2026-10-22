@@ -316,9 +316,10 @@ await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
 await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
 await page.waitForTimeout(1500);
-// Context (the companion column left of Chat, opened from Chat's header), then the document's own row action Add to canvas.
+// Context (the companion column left of Chat, opened from Chat's header), then the document's own File options > Add to canvas (UI-26).
 await page.locator('[data-panel-companion]').click({ timeout: 5000 });
-await page.locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${NAME}"]`) }).first().locator('[data-material-action="canvas"]').click({ timeout: 10000 });
+await page.locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${NAME}"]`) }).first().locator('[data-material-action="more"]').click({ timeout: 10000 });
+await page.locator('[data-material-menu] [data-material-action="canvas"]').click({ timeout: 10000 });
 const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]');
 await dialog.waitFor({ timeout: 10000 });
 await waitFor(async () => (await dialog.locator('[data-pdf-total]').innerText().catch(() => '')).trim() === '4 pages', 20000, 'the dialog did not count 4 pages');

@@ -4,17 +4,18 @@
 // aborted and counted, and none may happen.
 // Setup: a canvas and five context documents built here (each page says "<TAG> PAGE n"): alpha.pdf (5 pages), beta.pdf (4),
 // two different documents both named same-name.pdf (2 and 3 pages), remove-me.pdf (3), and one with a very long name (2).
-// The row contract (sections 1-2): [data-material-row][data-source-id="doc:ctx:<id>"], its name [data-material-name] (title =
-// the full name), and, in order (owner review UI-10, 2026-10-21), [data-material-action] chat (the one Use in this chat toggle,
-// aria-pressed), canvas (Add to canvas, the inverse Button), more (the row menu holding context: the canvas default for new
-// chats, a menuitemcheckbox with aria-checked), remove (Remove from Materials, red, confirmed in [data-material-remove-confirm]);
-// the actions sit in [data-material-actions]; Upload is [data-materials-upload]; the old header [data-source-add-canvas] is gone.
+// The row contract (UI-26, owner brief 2026-10-22 sections 1-4): [data-material-row][data-source-id="doc:ctx:<id>"], its name
+// [data-material-name] (title = the full name), then, in order, [data-material-action] chat (Use in this chat, a labelled
+// checkbox) and more (File options: a portaled popover [data-material-menu] holding the full name, context - Include in new
+// chats, the canvas default, a checkbox - canvas (Add to canvas) and remove (Remove from context, red, confirmed inline in
+// [data-material-remove-confirm] by [data-material-remove-yes])); the actions sit in [data-material-actions]; Upload is
+// [data-materials-upload] in the Context header; a filename opens its reader in place of the list, Back to Files returns.
 // Covered (section 8): 1 every row action affects only its own PDF; 2 the reader shows A while B's Add to canvas opens B's
 // dialog and a double-clicked confirm inserts once; 3 identical filenames stay distinct by id; 4 canvas context and chat
-// attachment are independent; 10 Remove from Materials (Cancel, a failed DELETE keeps the row, then remove, reload, the chip
+// attachment are independent; 10 Remove from context (Cancel, a failed DELETE keeps the row, then remove, reload, the chip
 // dropped, while its pages still render, the reader opens page 2 and a page question sends the doc ref at that page);
-// 11 a long name truncates with its full-name title, the four actions stay visible and unclipped at Sources widths 320 and
-// 480 px in light and dark, Tab reaches each action with a visible focus style; screenshots of the rows at rest.
+// 11 a long name truncates with its full-name title, the row actions stay visible and unclipped at Context widths 320 and
+// 480 px in light and dark, Tab reaches each action (and File options' own) with a visible focus style; the rows at rest.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/materials-rows-check.mjs
 import { chromium } from '@playwright/test';
@@ -150,15 +151,19 @@ const sourcesPane = () => page.locator('[data-sources-pane]');
 // Sources is the right panel's Context tab (docs/features/hide-right-panel.md): its tabpanel spans the panel's width.
 const sourcesPanel = () => page.locator('[data-context-panel]');
 const row = doc => page.locator(`[data-material-row][data-source-id="doc:${doc.id}"]`);
-// The canvas default (context) lives in the row's More menu (owner review UI-10); every other action is on the row.
-const action = (doc, name) => (name === 'context' ? page.locator('[data-material-menu] [data-material-action="context"]') : row(doc).locator(`[data-material-action="${name}"]`));
-const openMenu = async doc => { if (!(await page.locator('[data-material-menu]').count())) await row(doc).locator('[data-material-action="more"]').click(); await action(doc, 'context').waitFor({ timeout: 5000 }); };
-const closeMenu = async () => { if (await page.locator('[data-material-menu]').count()) { await page.keyboard.press('Escape'); await waitFor(async () => !(await page.locator('[data-material-menu]').count()), 3000, 'the row menu stayed open'); } };
-const expander = doc => row(doc).locator('button[aria-expanded]').first();
+// UI-26: the canvas default (context), Add to canvas and Remove from context live in the row's File options popover; Use in
+// this chat and File options are on the row.
+const IN_MENU = ['context', 'canvas', 'remove'];
+const action = (doc, name) => (IN_MENU.includes(name) ? page.locator(`[data-material-menu] [data-material-action="${name}"]`) : row(doc).locator(`[data-material-action="${name}"]`));
+const closeMenu = async () => { if (await page.locator('[data-material-menu]').count()) { await page.keyboard.press('Escape'); await waitFor(async () => !(await page.locator('[data-material-menu]').count()), 3000, 'File options stayed open'); } };
+// Always this row's own popover (two documents share the name same-name.pdf, so an open one is closed first).
+const openMenu = async doc => { await closeMenu(); await row(doc).locator('[data-material-action="more"]').click(); await action(doc, 'context').waitFor({ timeout: 5000 }); };
+// The filename button: it opens the file's reader in place of the list.
+const expander = doc => row(doc).locator('button').first();
 const pressed = async (doc, name) => {
-  if (name !== 'context') return (await action(doc, name).getAttribute('aria-pressed')) === 'true';
+  if (name !== 'context') return action(doc, name).isChecked();
   await openMenu(doc);
-  const on = (await action(doc, 'context').getAttribute('aria-checked')) === 'true';
+  const on = await action(doc, 'context').isChecked();
   await closeMenu();
   return on;
 };
@@ -169,7 +174,9 @@ const clearChat = async (...docs) => {
     await waitFor(async () => !(await pressed(doc, 'chat')), 5000, 'a chat attachment did not clear');
   }
 };
-const readerTitle = () => page.evaluate(() => document.querySelector('[data-sources-header] h2')?.textContent?.trim() || '');
+const readerTitle = () => page.evaluate(() => document.querySelector('[data-sources-header] h2[data-context-title]')?.textContent?.trim() || '');
+// The source the list marks active (open in the reader, or put down by Back to Files).
+const activeRow = () => page.evaluate(() => document.querySelector('[data-sources-pane] [data-source-section="active"]')?.dataset.sourceId || '');
 // Context shows when the companion column is open on it (a collapsed column keeps its content's own width inside).
 const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
 // Chat and Context share the panel: a step on the composer or the selection pill shows the Chat tab first.
@@ -177,23 +184,26 @@ const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'
 const openSources = async () => {
   if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
-  // Every row is listed and ready (its expand control enabled).
+  // The reader replaces the list (UI-26): back to Files first.
+  if (await page.locator('[data-back-to-files]').count()) await page.locator('[data-back-to-files]').click();
+  // Every row is listed and ready (its filename button enabled).
   await waitFor(async () => {
     for (const doc of [A, B, C1, C2, L]) if (!(await expander(doc).isEnabled().catch(() => false))) return false;
     return true;
   }, 30000, 'the Materials rows are not all listed and ready');
 };
 const closeSources = async () => { if (await sourcesOpen()) { await page.locator('[data-companion-close]').click(); await page.waitForTimeout(300); } };
-// Click one row action and check it neither expanded its row nor switched the reader.
+// Click one row action (File options' own through its popover) and check it neither opened a reader nor switched the active source.
 const press = async (doc, name) => {
   // A row action lives in the Context tab; a step on Chat (send, select) left Chat showing.
   if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 });
-  const expanded = await expander(doc).getAttribute('aria-expanded'), reader = await readerTitle();
-  if (name === 'context') await openMenu(doc);
+  const reader = await readerTitle(), marked = await activeRow();
+  if (IN_MENU.includes(name)) await openMenu(doc);
   await action(doc, name).click();
   await page.waitForTimeout(300);
-  assert.equal(await expander(doc).getAttribute('aria-expanded'), expanded, `${name} on ${doc.name} changed its row's expansion`);
+  if (name === 'context') await closeMenu();
   assert.equal(await readerTitle(), reader, `${name} on ${doc.name} switched the reader`);
+  assert.equal(await activeRow(), marked, `${name} on ${doc.name} changed the active source`);
 };
 // The canvas-level flag of a document, once it changed from `from` (the PATCH is async).
 const flagBecomes = (doc, want) => waitFor(async () => (await serverDoc(doc))?.attached === want, 8000, `${doc.name} (${doc.id}) canvas context did not become ${want}`);
@@ -277,14 +287,16 @@ const P = await profile('A');
 page = P.page;
 await openCanvas(page);
 
-await check('Materials lists every document as its own row with the four actions in order; Upload is a labelled button; no header Add to canvas', async () => {
+await check('Context lists every document as its own row with Use in this chat then File options; Upload is a labelled button in the header; no header Add to canvas', async () => {
   await openSources();
   for (const doc of [A, B, C1, C2, R, L]) {
     assert.equal(await row(doc).count(), 1, `one row for ${doc.name} (${doc.id})`);
     const order = await row(doc).locator('[data-material-action]').evaluateAll(els => els.map(el => el.dataset.materialAction));
-    assert.deepEqual(order, ['chat', 'canvas', 'more', 'remove'], `${doc.name}: the actions in order`);
+    assert.deepEqual(order, ['chat', 'more'], `${doc.name}: the row actions in order`);
   }
   assert.equal(await page.locator('[data-materials-upload]').count(), 1, 'one Upload button');
+  assert.equal(await page.locator('[data-companion-header] [data-materials-upload]').count(), 1, 'Upload sits in the Context header');
+  assert.equal(await sourcesPane().locator('[data-materials-upload]').count(), 0, 'never between the files');
   assert.match((await page.locator('[data-materials-upload]').innerText()).trim(), /^Upload$/, 'Upload is labelled');
   // Owner brief 2026-10-16 item 4: the rows show directly (no Sources or Materials heading), Upload is the blue filled button
   // with a white label, and a document row says its kind.
@@ -294,30 +306,33 @@ await check('Materials lists every document as its own row with the four actions
   const meta = await row(A).locator('[data-material-meta]').innerText();
   assert.match(meta, /^PDF · /, `the row says its kind: ${meta}`);
   assert.equal(await page.locator('[data-source-add-canvas]').count(), 0, 'no document action is left in the header');
-  // Names: tooltips and accessible names say the document and the scope.
-  // Owner review UI-10 (2026-10-21): one Use in this chat toggle, the inverse Add to canvas, the canvas default (new chats) in
-  // the row's More menu with its scope said, and a red Remove from Materials.
+  // Names: the row's controls say the document; File options holds the full name, the canvas default with its scope said, Add to
+  // canvas and a red Remove from context (UI-26).
+  assert.equal(await action(A, 'chat').getAttribute('type'), 'checkbox', 'Use in this chat is a checkbox');
+  assert.equal(await action(A, 'chat').getAttribute('aria-label'), 'Use alpha.pdf in this chat');
+  assert.equal(typeof await action(A, 'chat').isChecked(), 'boolean', 'chat attachment exposes its state');
+  assert.match(await action(A, 'chat').locator('xpath=..').innerText(), /^Use in this chat$/, 'the checkbox is labelled');
+  const more = [await action(A, 'more').getAttribute('title'), await action(A, 'more').getAttribute('aria-label')];
+  assert.deepEqual(more, ['File options for alpha.pdf', 'File options for alpha.pdf'], 'File options names its document, aria-label matching its tooltip');
+  assert.match(await action(A, 'more').innerText(), /^File options$/, 'the visible label is File options');
+  assert.equal(await action(A, 'more').getAttribute('aria-haspopup'), 'dialog');
   await openMenu(A);
-  const labels = async doc => Object.fromEntries(await Promise.all(['context', 'canvas', 'chat', 'more', 'remove'].map(async name => [name, [await action(doc, name).getAttribute('title'), await action(doc, name).getAttribute('aria-label')]])));
-  const a = await labels(A);
-  assert.equal(a.context[0], 'Include alpha.pdf in new chats on this canvas');
-  assert.match(await page.locator('[data-material-menu-note]').innerText(), /^New chats on this canvas start with it\. This chat is unchanged\.$/);
-  assert.ok(['true', 'false'].includes(await action(A, 'context').getAttribute('aria-checked')), 'the canvas default exposes its state');
-  assert.equal(await action(A, 'context').evaluate(el => el === document.activeElement), true, 'the menu takes the focus');
-  await closeMenu();
-  assert.equal(await action(A, 'more').evaluate(el => el === document.activeElement), true, 'Escape hands the focus back to More');
-  assert.equal(a.canvas[0], 'Add alpha.pdf to canvas');
-  assert.equal(a.chat[0], 'Use alpha.pdf in this chat');
-  assert.equal(a.more[0], 'More actions for alpha.pdf');
-  assert.equal(a.remove[0], 'Remove alpha.pdf from Materials');
-  for (const [name, [title, label]] of Object.entries(a)) assert.ok(label && label === title, `${name}: aria-label matches its tooltip (${label})`);
-  assert.ok(['true', 'false'].includes(await action(A, 'chat').getAttribute('aria-pressed')), 'chat attachment exposes its state');
-  assert.match(await action(A, 'chat').innerText(), /^Use in this chat$/, 'the toggle is labelled');
+  const menu = page.locator('[data-material-menu]');
+  assert.equal(await menu.getAttribute('role'), 'dialog');
+  assert.equal((await menu.locator('[data-material-menu-name]').innerText()).trim(), A.name, 'the popover shows the full name');
+  assert.equal(await action(A, 'context').getAttribute('type'), 'checkbox', 'Include in new chats is a checkbox');
+  assert.equal(typeof await action(A, 'context').isChecked(), 'boolean', 'the canvas default exposes its state');
+  assert.match(await action(A, 'context').locator('xpath=ancestor::label[1]').innerText(), /^Include in new chats/, 'the canvas default is labelled');
+  assert.match(await page.locator('[data-material-menu-note]').innerText(), /^New chats on this canvas start with this file\. Your current chat stays unchanged\.$/);
+  assert.equal(await action(A, 'context').evaluate(el => el === document.activeElement), true, 'the popover takes the focus');
   assert.match(await action(A, 'canvas').innerText(), /^Add to canvas$/, 'Add to canvas is labelled');
+  assert.match(await action(A, 'remove').innerText(), /^Remove from context$/, 'Remove from context is labelled');
   const colors = await page.evaluate(() => { const ink = document.createElement('span'); ink.className = 'bg-ink text-danger'; document.body.append(ink); const s = getComputedStyle(ink), out = [s.backgroundColor, s.color]; ink.remove(); return out; });
-  assert.equal(await action(A, 'canvas').evaluate(el => getComputedStyle(el).backgroundColor), colors[0], 'Add to canvas is the inverse (ink) Button');
-  assert.equal(await action(A, 'remove').evaluate(el => getComputedStyle(el).color), colors[1], 'the removal icon is red');
+  assert.notEqual(await action(A, 'canvas').evaluate(el => getComputedStyle(el).backgroundColor), colors[0], 'Add to canvas is neutral, never the inverse (ink) fill');
+  assert.equal(await action(A, 'remove').evaluate(el => getComputedStyle(el).color), colors[1], 'Remove from context is red');
   await shot('01-materials-rows');
+  await closeMenu();
+  assert.equal(await action(A, 'more').evaluate(el => el === document.activeElement), true, 'Escape hands the focus back to File options');
 });
 
 // Scenario 1: every row action affects only its own PDF.
@@ -341,9 +356,9 @@ await check('two PDFs: canvas context and chat attachment on one row change only
   assert.equal(await pressed(A, 'chat'), false, 'A is not attached to this chat');
   assert.equal(await chipsOf(B).count(), 1, 'one chip for B');
   assert.equal(await chipsOf(A).count(), 0, 'no chip for A');
-  // Owner review UI-10: one labelled toggle whose name stays Use beta.pdf in this chat; aria-pressed says it is on.
-  assert.equal(await action(B, 'chat').getAttribute('title'), 'Use beta.pdf in this chat', 'the toggle keeps its name');
-  assert.equal(await action(B, 'chat').getAttribute('aria-pressed'), 'true', 'and is pressed');
+  // One labelled checkbox whose name stays Use beta.pdf in this chat; checked says it is on.
+  assert.equal(await action(B, 'chat').getAttribute('aria-label'), 'Use beta.pdf in this chat', 'the checkbox keeps its name');
+  assert.equal(await action(B, 'chat').isChecked(), true, 'and is checked');
   const cap = await send('What do the attached documents say?');
   const refs = refsOf(cap);
   facts.scenario1 = { refs };
@@ -354,14 +369,18 @@ await check('two PDFs: canvas context and chat attachment on one row change only
   assert.equal(await chipsOf(B).count(), 0, 'B\'s chip is gone');
 });
 
-// Scenario 2: the reader shows A while Add to canvas is pressed on row B; a double-clicked confirm inserts once.
-await check('reader on A, Add to canvas on row B: the dialog is B\'s (name, page count), the pages carry B\'s key, a double-click inserts once, the reader stays on A', async () => {
+// Scenario 2: A is the open source while Add to canvas is pressed on row B; a double-clicked confirm inserts once. The reader
+// replaces the list (UI-26), so A is opened, then put down with Back to Files (still the active source), then B is added.
+await check('A open, Add to canvas on row B: the dialog is B\'s (name, page count), the pages carry B\'s key, a double-click inserts once, A stays the open source', async () => {
   await openSources();
   await expander(A).click();
   await waitFor(async () => (await readerTitle()) === A.name, 10000, `the reader did not open ${A.name}`);
+  assert.equal(await row(B).count(), 0, 'the reader replaces the list');
+  await page.locator('[data-back-to-files]').click();
+  await waitFor(async () => (await activeRow()) === `doc:${A.id}`, 5000, 'Back to Files did not list A as the active source');
   await openAddFor(B);
   assert.equal((await dialog().locator('[data-pdf-file]').innerText()).trim(), B.name, 'the dialog names the clicked row\'s file');
-  assert.equal(await readerTitle(), A.name, 'the reader still shows A');
+  assert.equal(await activeRow(), `doc:${A.id}`, 'A is still the active source');
   await choosePages(2, 3);
   assert.equal((await confirmButton().innerText()).trim(), 'Add 2 pages', 'the confirm button names the count');
   const before = (await inkBlocks()).filter(b => b.type === 'slide').length;
@@ -373,8 +392,11 @@ await check('reader on A, Add to canvas on row B: the dialog is B\'s (name, page
   facts.scenario2 = { added: added.map(b => [b.pdf, b.number]) };
   assert.deepEqual(added.map(b => [b.pdf, b.number]), [[`doc:${B.id}`, 2], [`doc:${B.id}`, 3]], 'B\'s pages 2 and 3, once');
   assert.ok(!slides.some(b => b.pdf === `doc:${A.id}`), 'nothing of A was inserted');
-  assert.equal(await readerTitle(), A.name, 'the reader is still on A');
+  assert.equal(await activeRow(), `doc:${A.id}`, 'A is still the active source');
+  await expander(A).click();
+  await waitFor(async () => (await readerTitle()) === A.name, 10000, 'its filename reopens A\'s reader');
   await shot('02-reader-a-add-b');
+  await page.locator('[data-back-to-files]').click();
 });
 
 // Scenario 3: identical filenames, different ids.
@@ -409,8 +431,8 @@ await check('two documents both named same-name.pdf stay distinct: each row acts
   assert.equal((await inkBlocks()).length, before, 'Escape added nothing');
 });
 
-// Scenario 4: canvas context and chat attachment are independent.
-await check('canvas context and chat attachment are independent: toggling one leaves the other (state, aria-pressed, server flag)', async () => {
+// Scenario 4: canvas context (Include in new chats) and chat attachment (Use in this chat) are independent.
+await check('canvas context and chat attachment are independent: toggling one leaves the other (state, checked, server flag)', async () => {
   await newChat();
   await openSources();
   const flag = (await serverDoc(A)).attached, context = await pressed(A, 'context');
@@ -431,9 +453,9 @@ await check('canvas context and chat attachment are independent: toggling one le
   assert.equal((await serverDoc(A)).attached, flag, 'detaching from this chat left the canvas context flag');
 });
 
-// Scenario 10: Remove from Materials.
+// Scenario 10: Remove from context.
 let rPages = [];
-await check('Remove from Materials: R\'s pages are on the canvas and R is attached to this chat (setup)', async () => {
+await check('Remove from context: R\'s pages are on the canvas and R is attached to this chat (setup)', async () => {
   await newChat();
   await setMode('ask');
   await openSources();
@@ -450,7 +472,7 @@ await check('Remove from Materials: R\'s pages are on the canvas and R is attach
   await waitFor(async () => pressed(R, 'chat'), 5000, 'R did not show attached to this chat');
 });
 
-await check('Remove from Materials: a failed removal shows an error and keeps the row for retry; Cancel keeps it', async () => {
+await check('Remove from context: a failed removal shows an actionable error and keeps the row for retry; Cancel keeps it', async () => {
   failDelete = R.id;
   try {
     await press(R, 'remove');
@@ -458,11 +480,12 @@ await check('Remove from Materials: a failed removal shows an error and keeps th
     await confirm.waitFor({ timeout: 5000 });
     const text = (await confirm.innerText()).trim();
     facts.remove_confirm = text.slice(0, 400);
-    assert.match(text, /Materials/, 'the confirmation names Materials');
+    assert.match(text, /context/, 'the confirmation names the context');
     assert.match(text, /canvas/i, 'and says what happens to the canvas');
     await shot('10a-remove-confirm');
-    await confirm.getByRole('button', { name: 'Remove from Materials', exact: true }).click();
+    await page.locator('[data-material-remove-yes]').click();
     await waitFor(async () => (await row(R).locator('[role="alert"]').count()) > 0, 8000, 'no role=alert in the row after the failed removal');
+    assert.match(await row(R).locator('[data-material-error]').innerText(), /^Could not remove remove-me\.pdf from context: Forced failure \(materials-rows-check\)\. Try again from File options\.$/, 'the error names the reason and the retry');
     assert.equal(await row(R).count(), 1, 'the row stays');
     assert.ok(await serverDoc(R), 'the document is still listed');
     await shot('10b-remove-failed');
@@ -476,12 +499,12 @@ await check('Remove from Materials: a failed removal shows an error and keeps th
   assert.ok(await serverDoc(R), 'and the document');
 });
 
-await check('Remove from Materials: confirmed, the row and its chat chip go and no other document changes; after a reload it stays gone', async () => {
+await check('Remove from context: confirmed, the row and its chat chip go and no other document changes; after a reload it stays gone', async () => {
   const others = Object.fromEntries(await Promise.all([A, B, C1, C2, L].map(async doc => [doc.id, (await serverDoc(doc))?.attached])));
   await press(R, 'remove');
   const confirm = page.locator('[data-material-remove-confirm]');
   await confirm.waitFor({ timeout: 5000 });
-  await confirm.getByRole('button', { name: 'Remove from Materials', exact: true }).click();
+  await page.locator('[data-material-remove-yes]').click();
   await waitFor(async () => (await row(R).count()) === 0, 8000, 'the row stayed');
   await waitFor(async () => !(await serverDoc(R)), 8000, 'the server still lists R');
   await waitFor(async () => (await chipsOf(R).count()) === 0, 5000, 'R\'s chat chip stayed');
@@ -490,12 +513,12 @@ await check('Remove from Materials: confirmed, the row and its chat chip go and 
   await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
   await page.waitForTimeout(1500);
   await openSources();
-  assert.equal(await row(R).count(), 0, 'after a reload R is still gone from Materials');
+  assert.equal(await row(R).count(), 0, 'after a reload R is still gone from Context');
   assert.equal(await chipsOf(R).count(), 0, 'and no chip brings it back');
   await shot('10c-removed-after-reload');
 });
 
-await check('Remove from Materials kept R\'s pages: they render, the reader opens page 2, and a question on page 2 sends the doc ref at page 2', async () => {
+await check('Remove from context kept R\'s pages: they render, the reader opens page 2, and a question on page 2 sends the doc ref at page 2', async () => {
   await closeSources();
   const ids = rPages.map(b => b.id);
   await waitFor(async () => {
@@ -520,7 +543,7 @@ await P.context.close();
 
 // Scenario 11: a long name, Sources at 320 and 480 px, light and dark, keyboard focus; the rows at rest.
 for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
-  await check(`${theme} ${width}px: the long name truncates with its full-name title, the four actions stay visible inside the pane, Tab reaches each with a visible focus`, async () => {
+  await check(`${theme} ${width}px: the long name truncates with its full-name title, the row actions stay visible inside the pane, Tab reaches each (and File options' own) with a visible focus`, async () => {
     const Q = await profile(`${theme}-${width}`, { 'small.theme': theme, 'rh.companion.width': String(width) });
     page = Q.page;
     try {
@@ -538,8 +561,8 @@ for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
       assert.equal(await name.getAttribute('title'), LONG_NAME, 'the long name keeps its full name as its title');
       assert.ok(await name.evaluate(el => el.scrollWidth > el.clientWidth), 'the long name truncates');
       const nameBox = await name.boundingBox();
-      for (const kind of ['chat', 'canvas', 'more', 'remove']) {
-        const b = await action(L, kind).boundingBox();
+      for (const kind of ['chat', 'more']) {
+        const b = await (kind === 'chat' ? action(L, kind).locator('xpath=..') : action(L, kind)).boundingBox();
         assert.ok(b && b.width >= 20 && b.height >= 20, `${kind} has a usable target (${b && `${b.width}x${b.height}`})`);
         assert.ok(b.x >= panel.x - 0.5 && b.x + b.width <= panel.x + panel.width + 0.5, `${kind} sits inside the pane`);
         const overlaps = !(b.x >= nameBox.x + nameBox.width || b.x + b.width <= nameBox.x || b.y >= nameBox.y + nameBox.height || b.y + b.height <= nameBox.y);
@@ -553,22 +576,27 @@ for (const theme of ['light', 'dark']) for (const width of [320, 480]) {
       await page.mouse.move(5, 995);
       await page.waitForTimeout(300);
       await sourcesPanel().screenshot({ path: `${OUT}/11-rows-rest-${theme}-${width}.png` });
-      // Keyboard: Tab walks the four actions in order, each with a visible focus style.
+      // Keyboard: Tab walks the row actions in order, each with a visible focus style.
+      const focusStyle = locator => locator.evaluate(el => { const s = getComputedStyle(el); return { outline: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0, shadow: s.boxShadow !== 'none', visible: el.matches(':focus-visible') }; });
+      const focused = () => page.evaluate(() => document.activeElement?.dataset?.materialAction || null);
       await action(L, 'chat').focus();
-      for (const kind of ['canvas', 'more', 'remove']) {
-        await page.keyboard.press('Tab');
-        const focused = await page.evaluate(() => document.activeElement?.dataset?.materialAction || null);
-        assert.equal(focused, kind, `Tab moves to ${kind} (got ${focused})`);
-        const style = await action(L, kind).evaluate(el => { const s = getComputedStyle(el); return { outline: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0, shadow: s.boxShadow !== 'none', visible: el.matches(':focus-visible') }; });
-        assert.ok(style.visible && (style.outline || style.shadow), `${kind} shows a visible focus style (${JSON.stringify(style)})`);
-      }
+      await page.keyboard.press('Tab');
+      assert.equal(await focused(), 'more', 'Tab moves from Use in this chat to File options');
+      const style = await focusStyle(action(L, 'more'));
+      assert.ok(style.visible && (style.outline || style.shadow), `File options shows a visible focus style (${JSON.stringify(style)})`);
       await sourcesPanel().screenshot({ path: `${OUT}/11-rows-focus-${theme}-${width}.png` });
-      // The canvas default from the keyboard: Enter on More opens its menu with the focus inside; Escape hands it back.
-      await action(L, 'more').focus();
+      // File options from the keyboard: Enter opens it with the focus on the canvas default, Tab walks Add to canvas and Remove
+      // from context with a visible focus, and Escape hands the focus back to File options.
       await page.keyboard.press('Enter');
-      await waitFor(async () => action(L, 'context').evaluate(el => el === document.activeElement).catch(() => false), 3000, 'Enter on More did not focus the canvas default');
+      await waitFor(async () => action(L, 'context').evaluate(el => el === document.activeElement).catch(() => false), 3000, 'Enter on File options did not focus the canvas default');
+      for (const kind of ['canvas', 'remove']) {
+        await page.keyboard.press('Tab');
+        assert.equal(await focused(), kind, `Tab moves to ${kind} inside File options`);
+        const inner = await focusStyle(action(L, kind));
+        assert.ok(inner.visible && (inner.outline || inner.shadow), `${kind} shows a visible focus style (${JSON.stringify(inner)})`);
+      }
       await page.keyboard.press('Escape');
-      await waitFor(async () => action(L, 'more').evaluate(el => el === document.activeElement), 3000, 'Escape did not hand the focus back to More');
+      await waitFor(async () => action(L, 'more').evaluate(el => el === document.activeElement), 3000, 'Escape did not hand the focus back to File options');
     } finally { await Q.context.close(); }
   });
 }

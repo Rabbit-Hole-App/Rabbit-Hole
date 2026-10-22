@@ -67,7 +67,7 @@ import { SearchContentProvider } from './canvas-search-content.jsx';
 import { sourceTarget } from './card-sources.js';
 import TocConversation from './TocConversation.jsx';
 import { outlinePlan, planRevisionOf } from './learn-outline-model.js';
-import SourcesPane from './SourcesPane.jsx';
+import SourcesPane, { ContextUpload } from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { useCanvasLinks } from './LinksPanel.jsx';
 import { newNotebookBlock } from './learn-notebook.js';
@@ -2416,7 +2416,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         mounted while hidden, so the draft, the reader's page and the graph survive a switch or a hide. Below lg one column
         shows at a time: the companion in Chat's place, with Back to chat. */}
     <ResizableSidePanel aria-label="Viewer" data-companion phoneHeight="max-lg:h-[60%] max-lg:min-h-[28rem]" resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
-      <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />
+      <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} actions={companionView === 'context' ? <ContextUpload /> : null} />
       <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane onSwitchOff={ref => { releaseCodeRef(repository, ref); if (askTarget?.ref && sameRef(askTarget.ref, ref)) clearAskTarget(); }} /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}

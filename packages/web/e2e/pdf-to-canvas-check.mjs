@@ -172,7 +172,8 @@ const assertImages = async (p = page, ids = null) => {
 // ---------------------------------------------------------------- Sources, the dialog and the canvas
 const pane = () => page.locator('[data-chat-pane]');
 const sourcesPane = () => page.locator('[data-sources-pane]');
-// Add to canvas is on the document's own Materials row (pdf-materials-refinement.md section 1), whatever the reader shows.
+// Add to canvas is the labelled button on the document's own reader bar (UI-26: the reader replaces the list; in the list it is
+// inside File options), named for that document.
 const addButton = () => sourcesPane().locator(`[data-material-row][data-source-id="${DOC_KEY}"] [data-material-action="canvas"]`);
 const dialogRoot = () => page.locator('[data-pdf-add-dialog]');
 const dialog = () => page.locator('[data-pdf-add-dialog] [role="dialog"]');
@@ -194,7 +195,10 @@ const openSources = async () => {
       if (await page.locator('[data-panel-companion]').getAttribute('aria-pressed') !== 'true') await page.locator('[data-panel-companion]').click({ timeout: 5000 });
       await page.locator('[data-companion-view="context"]').click({ timeout: 5000 });
       await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });
-      await sourcesPane().locator('section button[aria-expanded]').filter({ hasText: DOC_NAME }).first().click({ timeout: 5000 });
+      const back = sourcesPane().locator('[data-back-to-files]');
+      if (await back.count()) await back.click({ timeout: 5000 });
+      // The filename opens its reader in place of the list.
+      await sourcesPane().locator(`li[data-material-row][data-source-id="${DOC_KEY}"] button`).first().click({ timeout: 5000 });
     }
   }
   await sourcesPane().waitFor({ state: 'visible', timeout: 10000 });

@@ -57,11 +57,14 @@ test('Add to canvas: one insert through the canvas (the ordinary save follows), 
 
 test('the Context row: Add to canvas runs on its own row and never attaches or detaches', () => {
   const pane = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
-  assert.match(pane, /const canAddFile = ready && !canAdd && !!canvasFamilyOf\(ref\) && !!chat\.canvasOps\?\.insertCard;/);
-  const button = pane.slice(pane.indexOf('{canAddFile &&'), pane.indexOf('</button>}', pane.indexOf('{canAddFile &&')));
-  assert.match(button, /run\(item, 'canvas', \(\) => addFileToCanvas\(\{ ref, app: chat\.canvas, ops: chat\.canvasOps, headers: wsHeaders\(\) \}\)\)/);
+  // UI-26: an imported file (no context document, so no File options) keeps its own Add to canvas on the row.
+  const adder = pane.slice(pane.indexOf('const adder = (item, ref) => {'), pane.indexOf('return null;', pane.indexOf('const adder = (item, ref) => {')));
+  assert.match(adder, /if \(ready && !!canvasFamilyOf\(ref\) && !!chat\.canvasOps\?\.insertCard\) return \(\) => run\(item, 'canvas', \(\) => addFileToCanvas\(\{ ref, app: chat\.canvas, ops: chat\.canvasOps, headers: wsHeaders\(\) \}\)\);/);
+  assert.doesNotMatch(adder, /attach|detach|canvasContext/, 'its handler changes no chat or context state');
+  const button = pane.slice(pane.indexOf('{ready && !item.doc && add &&'), pane.indexOf('</Button>}', pane.indexOf('{ready && !item.doc && add &&')));
+  assert.match(button, /onClick=\{add\}/);
   assert.match(button, /aria-label=\{`Add \$\{name\} to canvas`\}/);
-  assert.doesNotMatch(button, /attach|detach|canvasContext/, 'its handler changes no chat or context state');
+  assert.doesNotMatch(button, /attach|detach|canvasContext/, 'its button changes no chat or context state');
 });
 
 test('Ctrl+K preserves file-family restrictions and additionally requires a safe inline card schema', () => {

@@ -76,7 +76,8 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
 
 // The companion column's header: its viewers as labelled tabs, then Close (the column only; Chat stays). Below lg the column
 // shows in Chat's place, so Back to chat stands in for Close there.
-export function CompanionHeader({ views, view, onView, onClose }) {
+// actions: the view's own header controls beside Close (Context's Upload, SourcesPane.jsx ContextUpload).
+export function CompanionHeader({ views, view, onView, onClose, actions = null }) {
   // A view switch (pressed buttons), not a second tablist: Chat's tabs stay the page's one tablist.
   return (
     <div data-companion-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
@@ -90,6 +91,7 @@ export function CompanionHeader({ views, view, onView, onClose }) {
           </button>
         ))}
       </div>
+      {actions}
       <button type="button" data-companion-close onClick={onClose} aria-label="Close viewer" title="Close viewer"
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink max-lg:hidden"><X size={15} strokeWidth={1.8} aria-hidden /></button>
     </div>

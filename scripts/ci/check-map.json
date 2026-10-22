@@ -803,6 +803,7 @@
     "canvas-mention-check.mjs": {"runner":"fork","seconds":60},
     "card-redesign-check.mjs": {"runner":"fork","seconds":30},
     "card-select-check.mjs": {"runner":"fork","seconds":35},
+    "context-remove-check.mjs": {"runner":"fork","seconds":180},
     "card-sources-check.mjs": {"runner":"windows-only","why":"needs positional arguments (<base> <board> <outDir>) that run-part.sh does not pass; also the deployed dev worker and the .env secret","seconds":120},
     "card-thumbnails-check.mjs": {"runner":"fork","seconds":75},
     "chat-block-check.mjs": {"runner":"windows-only","why":"targets the deployed dev worker (SMALL_BASE) with RABBIT_HOLE_DEV_TEST_BYPASS from the repo .env; no local mode","seconds":120},
