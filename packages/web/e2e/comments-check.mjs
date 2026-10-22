@@ -152,11 +152,20 @@ await check('3b the toolbar Comments button counts the open threads (it went 0 t
   assert.equal(await button.locator('[data-comments-count]').innerText(), '1');
   assert.equal(await button.getAttribute('aria-label'), 'Comments, 1 open');
   assert.equal(await button.getAttribute('aria-pressed'), 'true', 'the panel is on Comments');
+  // A closed right panel slides its aside to 0 wide (inert) and clips the Comments panel, which keeps its own box inside, so
+  // Playwright's hidden never fires: measure what is on screen, as hide-right-panel-check does (gate 39735737303).
+  const onScreen = width => page.waitForFunction(([wide]) => {
+    const e = document.querySelector('[data-comments-panel]'); if (!e) return !wide;
+    const r = e.getBoundingClientRect(), a = e.closest('aside')?.getBoundingClientRect() ?? r;
+    const shown = Math.max(0, Math.min(r.right, a.right) - Math.max(r.left, a.left));
+    return wide ? shown > 200 : shown < 1;
+  }, [width], { timeout: 5000 });
   await button.click();
-  await panel().waitFor({ state: 'hidden' });
+  await onScreen(false);
+  assert.equal(await page.locator('[data-comments-panel]').evaluate(e => e.closest('aside')?.hasAttribute('inert')), true, 'the closed panel takes no focus or clicks');
   assert.equal(await button.getAttribute('aria-pressed'), 'false');
   await button.press('Enter');
-  await panel().waitFor({ state: 'visible' });
+  await onScreen(true);
   assert.equal(await page.locator('[role="tab"][aria-selected="true"]').getAttribute('data-panel-tab'), 'comments');
   await page.locator('[data-panel-tab="chat"]').click();
   await button.focus();
