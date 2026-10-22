@@ -7,6 +7,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { intake, loadCases } from './cases.mjs';
 import { runCorpus } from './corpus-run.mjs';
+import * as explainRender from '../../packages/control-plane/src/explain-render.js';
+import { compileVisual } from '../../packages/web/src/visual-components/compile.js';
+import { EXAMPLES } from '../../packages/web/src/visual-components/examples/index.js';
 
 function png(w, h, salt) { const b = Buffer.alloc(40); Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b); b.writeUInt32BE(13, 8); b.write('IHDR', 12); b.writeUInt32BE(w, 16); b.writeUInt32BE(h, 20); b[39] = salt; return b; }
 function corpus() {
@@ -70,14 +73,13 @@ test('v2 reference-guided is recorded as transport_unavailable, with no call mad
 
 test('bank review (EXP-T11) reviews only records that lack nothing but the semantic check, every pager part in both themes', async () => {
   const { reviewBank, reviewStates } = await import('./bank-review.mjs');
-  const paged = { inputs: [{ name: 'part', type: 'index', of: 'parts', presentation: 'pager' }], exampleData: { parts: ['a', 'b'] } };
-  assert.deepEqual(reviewStates(paged).map(s => s.id), ['part-0-light', 'part-0-dark', 'part-1-light', 'part-1-dark']);
-  assert.deepEqual(reviewStates({}).map(s => s.id), ['light', 'dark']);
+  assert.deepEqual((await reviewStates(compileVisual(EXAMPLES['request-path-parts']).scene)).map(s => [s.id, s.inputs]), [['s0-light', { part: 0 }], ['s0-dark', { part: 0 }], ['s1-light', { part: 1 }], ['s1-dark', { part: 1 }], ['s2-light', { part: 2 }], ['s2-dark', { part: 2 }]]);
+  assert.deepEqual((await reviewStates(compileVisual(EXAMPLES.pipeline).scene)).map(s => s.id), ['light', 'dark']);
   const entry = (id, reasons) => ({ record: { id, intent: 'i', specHash: 'h', componentVersions: {} }, spec: { title: id }, reasons });
   const reviewed = [];
   const rows = await reviewBank({
     entries: [entry('ok', ['semantic check unrun']), entry('held', ['semantic check unrun', 'derived from the held-out corpus lineage "x"']), entry('bad', ['semantic check unrun'])],
-    compile: () => ({ scene: {} }), facts: () => [], hash: async () => 'c', capture: async (scene, states) => ({ captures: states.map(s => ({ ...s, png: Buffer.from(s.id) })) }),
+    compile: () => compileVisual(EXAMPLES.pipeline), facts: () => [], hash: async () => 'c', capture: async (scene, states) => ({ captures: states.map(s => ({ ...s, png: Buffer.from(s.id) })) }),
     review: async input => { reviewed.push(input.request); const fail = input.request.startsWith('bad'); return { captures: input.captures.map(c => ({ captureId: c.id, semantic: fail ? 'fail' : 'pass', visual: 'pass', findings: [] })) }; } });
   assert.deepEqual(reviewed, ['ok (i)', 'bad (i)'], 'a held-out derivative is never sent for review');
   assert.deepEqual(rows.map(r => [r.id, r.reviewed, r.semantic ?? null]), [['ok', true, 'pass'], ['held', false, null], ['bad', true, 'fail']]);
@@ -96,10 +98,93 @@ test('a provider usage-limit refusal pauses the remaining paid cases instead of 
   assert.equal(out.spentUsd, 0, 'a refused call is not billed');
 });
 
-test('the flow reviews what the product job reviews: every part of a paged card, both themes while they fit one review', async () => {
+// EXP-12 parity: the tooling captures what the product job captures. jobManifest is the manifest explain-job.js renderStage
+// builds and hands to renderStates (caught there, so no browser opens); the flow and the bank review must produce the same
+// entries for the same compiled spec, deduplicate to the same renders and refuse the same over-budget cards.
+async function jobManifest(compiled) {
+  const { renderStage } = await import('../../packages/control-plane/src/explain-job.js');
+  let manifest = null;
+  const stage = renderStage({ render: { ...explainRender, renderStates: async (env, given, built) => { manifest = built; return { compiledHash: built.compiledHash, captures: [] }; } }, browser: {} });
+  await stage({ id: 'parity', compiled }, { env: {} });
+  return manifest;
+}
+const mod = (id, label, extra = {}) => ({ id, component: 'module', version: 1, params: { label }, ...extra });
+const stepsSpec = count => ({ version: 1, id: 'm', title: 'M', components: [mod('a', 'Request'), ...Array.from({ length: count - 1 }, (_, i) => mod(`n${i}`, `Stage ${i + 1}`, { step: `s${i + 1}` }))],
+  presentation: { mode: 'steps', steps: Array.from({ length: count }, (_, i) => ({ id: `s${i}`, title: `Step ${i}` })) } });
+const pendulum = EXAMPLES['pendulum-experiment'];
+const [lengthExperiment, massExperiment] = pendulum.presentation.experiments;
+// Pager parts x lengths, and steps x masses: the combined states production captures.
+const pagedPendulum = { ...pendulum, parts: [{ id: 'a', title: 'Pendulum' }, { id: 'b', title: 'Law' }], components: [{ ...pendulum.components[0], part: 0 }, { ...pendulum.components[1], part: 1 }],
+  presentation: { ...pendulum.presentation, experiments: [lengthExperiment] } };
+const steppedPendulum = { ...pendulum, components: [{ ...pendulum.components[0], step: 's0' }, { ...pendulum.components[1], step: 's1' }],
+  presentation: { mode: 'steps', steps: [{ id: 's0', title: 'The pendulum' }, { id: 's1', title: 'The law' }], experiments: [massExperiment] } };
+const withMasses = values => ({ ...pendulum, presentation: { ...pendulum.presentation, experiments: [lengthExperiment, { ...massExperiment, domain: { values } }] } });
+const unsuffixed = (entries, round) => entries.map(entry => ({ ...entry, id: entry.id.replace(new RegExp(`-r${round}$`), '') }));
+const refusal = promise => promise.then(() => null, error => ({ code: error.code, message: error.message }));
+
+test('EXP-12: the flow and the bank review capture the job manifest: steps, experiment values, combined states', async () => {
   const { captureEntries } = await import('./explain-flow.mjs');
-  assert.deepEqual(captureEntries({}, 0).map(e => e.id), ['light-r0', 'dark-r0']);
-  const three = captureEntries({ exampleData: { partTitles: ['a', 'b', 'c'] } }, 1);
-  assert.deepEqual(three.map(e => [e.id, e.inputs.part]), [['p0-light-r1', 0], ['p0-dark-r1', 0], ['p1-light-r1', 1], ['p1-dark-r1', 1], ['p2-light-r1', 2], ['p2-dark-r1', 2]]);
-  assert.deepEqual(captureEntries({ exampleData: { partTitles: ['a', 'b', 'c', 'd'] } }, 0).map(e => e.theme), ['light', 'light', 'light', 'light'], 'four parts in both themes would not fit one review');
+  const { reviewStates } = await import('./bank-review.mjs');
+  const expected = {
+    'three steps': [stepsSpec(3), ['t0-light', 't0-dark', 't1-light', 't1-dark', 't2-light', 't2-dark']],
+    'four steps, light only': [stepsSpec(4), ['t0-light', 't1-light', 't2-light', 't3-light']],
+    'experiment values': [pendulum, ['s0-light', 's1-light', 's2-light', 's3-light', 's4-light', 's5-light']],
+    'parts x experiment values': [pagedPendulum, ['s0-light', 's1-light', 's2-light', 's3-light', 's4-light', 's5-light']],
+    'steps x experiment values': [steppedPendulum, ['s0-t0-light', 's0-t1-light', 's1-t0-light', 's1-t1-light']],
+    'parts': [EXAMPLES['request-path-parts'], ['s0-light', 's0-dark', 's1-light', 's1-dark', 's2-light', 's2-dark']],
+  };
+  for (const [name, [spec, ids]] of Object.entries(expected)) {
+    const compiled = compileVisual(spec);
+    const job = await jobManifest(compiled);
+    assert.deepEqual(job.entries.map(entry => entry.id), ids, name);
+    assert.deepEqual(unsuffixed(await captureEntries(compiled.scene, 2), 2), job.entries, name);
+    assert.deepEqual(await reviewStates(compiled.scene), job.entries, name);
+  }
+  // What the entries carry: the step each frame shows, and every control and pager value of its state.
+  const stepped = await jobManifest(compileVisual(steppedPendulum));
+  assert.deepEqual(stepped.entries.map(entry => [entry.step, entry.inputs]), [['The pendulum', { pend_mass: 0 }], ['The law', { pend_mass: 0 }], ['The pendulum', { pend_mass: 1 }], ['The law', { pend_mass: 1 }]]);
+  const paged = await jobManifest(compileVisual(pagedPendulum));
+  assert.deepEqual(paged.entries.map(entry => entry.inputs), [{ part: 0, pend_length: 1 }, { part: 0, pend_length: 0 }, { part: 0, pend_length: 2 }, { part: 1, pend_length: 0 }, { part: 1, pend_length: 1 }, { part: 1, pend_length: 2 }]);
+});
+
+test('EXP-12: identical frames dedup to the same renders, and an over-budget card is refused the same way', async () => {
+  const { captureEntries } = await import('./explain-flow.mjs');
+  const { reviewBank, reviewStates } = await import('./bank-review.mjs');
+  // A steps scene whose last two steps draw the same frame (explain-capture-manifest.test.js): captured once, the other an alias.
+  const { scene } = compileVisual(stepsSpec(3));
+  const same = { ...scene, duration: 3, presentation: { ...scene.presentation, steps: [...scene.presentation.steps, { id: 's3', title: 'Step 3', at: 3 }] } };
+  const job = await jobManifest({ scene: same });
+  const rendered = async entries => (await explainRender.checkManifest({ ...job, entries }, same)).entries.map(entry => [entry.id, entry.aliases]);
+  assert.deepEqual(await rendered(job.entries), [['t0-light', []], ['t0-dark', []], ['t1-light', []], ['t1-dark', []], ['t2-light', ['t3-light']], ['t2-dark', ['t3-dark']]]);
+  assert.deepEqual(await rendered(await captureEntries(same, 0)), [['t0-light-r0', []], ['t0-dark-r0', []], ['t1-light-r0', []], ['t1-dark-r0', []], ['t2-light-r0', ['t3-light-r0']], ['t2-dark-r0', ['t3-dark-r0']]]);
+  assert.deepEqual(await rendered(await reviewStates(same)), await rendered(job.entries));
+  // Over budget: seven steps, or nine control states, are more distinct frames than one review covers. The job refuses;
+  // so do the flow and the bank review, with the same error, and the bank review records the card as not reviewed.
+  for (const spec of [stepsSpec(7), withMasses([0.5, 1, 2])]) {
+    const compiled = compileVisual(spec);
+    assert.equal((await refusal(jobManifest(compiled)))?.code, 'over_budget');
+    const production = await refusal(explainRender.captureManifest(compiled.scene, { reserved: explainRender.reserveRound({ cap: 6 }) }));
+    assert.equal(production.code, 'over_budget');
+    assert.deepEqual(await refusal(captureEntries(compiled.scene, 0)), production);
+    assert.deepEqual(await refusal(reviewStates(compiled.scene)), production);
+    const rows = await reviewBank({ entries: [{ record: { id: 'big', intent: 'i' }, spec, reasons: ['semantic check unrun'] }], compile: () => compiled, facts: () => [], hash: async () => 'c',
+      capture: async () => { throw new Error('must not render'); }, review: async () => { throw new Error('must not review'); } });
+    assert.deepEqual(rows, [{ id: 'big', reviewed: false, why: [production.message] }]);
+  }
+});
+
+test('EXP-12: runFlow renders exactly the job manifest and hands the reviewer each capture with its step', async () => {
+  const { runFlow } = await import('./explain-flow.mjs');
+  const job = await jobManifest(compileVisual(steppedPendulum));
+  let captured = null, reviewed = null;
+  const ctx = { env: {}, call: async (role, request) => {
+    if (role === 'author') return { input: { kind: 'spec', spec: steppedPendulum } };
+    reviewed = request.content.filter(block => block.type === 'text' && block.text.startsWith('Capture ')).map(block => block.text);
+    throw new Error('no model in this test');
+  } };
+  const capture = async (scene, entries) => { captured = entries; return { captures: entries.map(entry => ({ ...entry, aliases: [], png: png(2, 2, 1) })) }; };
+  const out = await runFlow('Show what the mass does.', { ctx, capture });
+  assert.equal(out.result, 'review_failed');
+  assert.deepEqual(unsuffixed(captured, 0), job.entries);
+  assert.deepEqual(reviewed, [0, 1].flatMap(mass => [['t0', 'The pendulum', 0], ['t1', 'The law', 1]].map(([t, step, time]) => `Capture s${mass}-${t}-light-r0 (theme light, step "${step}", time ${time}s, inputs {"pend_mass":${mass}}):`)));
 });
