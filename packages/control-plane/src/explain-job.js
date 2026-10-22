@@ -23,7 +23,6 @@ import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, verifyProposal } from './generation-proposal.js';
 import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
-import { compiledHash, renderStates, reserveCaptures } from './explain-render.js';
 import { reviewCaptures } from './explain-review.js';
 import { learnMedia } from './learn-storage.js';
 import { defectKeys, repairStage } from './explain-repair.js';
@@ -49,8 +48,14 @@ const notReady = async () => { throw fail('Explanation generation is not availab
 
 // Render: the compiled scene's finished state per part, light and dark where the round's captures allow, as one manifest
 // reserved before rendering. PNGs go to LEARN_MEDIA under the job (renderStates); the job keeps keys and hashes, not bytes.
-// deps: renderStates' own (launch, store, browser), injected by tests and the M3 harness; production uses BROWSER.
-export const renderStage = (deps = {}) => async (job, ctx) => {
+// deps.render: Lane D's explain-render.js module, injected. Its Browser Rendering path imports @cloudflare/puppeteer, which
+// is not a dependency until the webpage card lands (with the BROWSER binding), and the worker bundle cannot resolve it before
+// then; so the production pipeline renders nothing yet (below). shortcut: injected, not imported; when @cloudflare/puppeteer
+// and BROWSER are on main, import explain-render.js here and make render: renderStage(). Other deps (launch, store, browser)
+// are renderStates' own.
+export const renderStage = ({ render, ...deps } = {}) => async (job, ctx) => {
+  if (!render) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
+  const { compiledHash, renderStates, reserveCaptures } = render;
   const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
   const themes = parts * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
   const entries = [];
