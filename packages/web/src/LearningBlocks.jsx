@@ -1551,8 +1551,13 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const generate = async (current = block) => {
     clearTimeout(polling.current); settleReads.current = 0;
     setError(''); setConfirming(false);
+    // Owner message 37: each Generate press of a /motion request is its own video. Its request id is made once for the press and
+    // kept on the card, so a resend or reload of that press reuses it; Retry of a failed card keeps the key it has (old cards none).
+    const retry = current.status === 'failed';
+    const operation = current.operation?.op === 'motion_request' && !retry && !current.operation.request_id ? { ...current.operation, request_id: crypto.randomUUID() } : current.operation;
+    current = { ...current, operation };
     onChange({ ...current, status: 'generating' });
-    try { const { placementId } = await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(placementId); }
+    try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
     catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
   useConfirmedStart(block, onChange, generate);
@@ -1612,7 +1617,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   )}
                 </>
               : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(offer) : undefined} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
-              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
+              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? (motionRequest ? 'Generate again' : 'Retry render') : label.button}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}

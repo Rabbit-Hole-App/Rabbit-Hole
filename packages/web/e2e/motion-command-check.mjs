@@ -9,7 +9,8 @@
 //   3. typed /motion: the confirmation shows the exact line; Cancel starts nothing and adds no card;
 //   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
 //      motion_request; the card shows its progress, then the ready video with the job's title (no meta line, owner message 31);
-//   5. MOCKED failure: the stubbed job fails; the card says why and offers Retry render; nothing else starts;
+//   5. MOCKED failure: the stubbed job fails; the card says why and offers Generate again; nothing else starts;
+//   5e. MOCKED identical prompt twice (owner message 37): two Generate presses send two starts with different request ids;
 //   5d. MOCKED Stop asks first (owner message 35): Cancel and Escape send nothing, keep it generating and return focus to Stop;
 //      the confirmation's Stop sends exactly one stop request and the card shows Stopped.;
 //   5c. MOCKED reload of an ended job (MOT-11): failed, stopped and interrupted cards whose hold is still pending keep their error
@@ -72,7 +73,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 26; // per theme: 13 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 28; // per theme: 14 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -292,14 +293,14 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
-  await step(`${theme}: MOCKED failure: the card says why and offers Retry render; nothing else starts`, async () => {
+  await step(`${theme}: MOCKED failure: the card says why and offers Generate again; nothing else starts`, async () => {
     stub = { id: `p-fail-${theme}`, polls: 0, end: 'failed' };
     const posts = videoPosts().length;
     await composer().fill('/motion 10s explain the causal mask'); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').click();
     const mine = page.locator('[data-block-id]', { hasText: 'still blocking after the repair round: blank_frame' });
     await mine.waitFor({ timeout: 20000 });
-    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
     // Its final cost is not confirmed yet (MOCKED pending), and the card still shows no amount or reservation (owner message 30).
     assert.equal(await mine.locator('[data-video-hold]').count(), 0, 'no hold line');
     assert.doesNotMatch(await mine.innerText(), /\$\d|reserv|Reconciliation/i);
@@ -347,6 +348,22 @@ for (const theme of ['light', 'dark']) {
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06b-reloaded-ready-card.png` });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED identical prompt twice: two Generate presses send two starts with different request ids`, async () => {
+    stub = { id: `p-twice-${theme}`, polls: 0, end: 'ready', held: true };
+    const posts = videoPosts().length;
+    for (let i = 0; i < 2; i++) {
+      await composer().fill(`/motion 9s explain residual streams ${theme}`); await composer().press('Enter');
+      await dock.locator('[data-paid-generate]').click();
+      await until(() => videoPosts().length - posts === i + 1, `press ${i + 1} sent its start`);
+    }
+    const ids = videoPosts().slice(posts).map(r => JSON.parse(r.body).operation.request_id);
+    assert.equal(ids.length, 2, 'two starts');
+    assert.ok(ids.every(id => /^[A-Za-z0-9_-]{8,64}$/.test(id || '')), `request ids ${ids.join(', ')}`);
+    assert.notEqual(ids[0], ids[1], 'each press has its own request id');
+    stub.held = false;
     await dismiss();
   });
 
@@ -408,7 +425,7 @@ for (const theme of ['light', 'dark']) {
       const polled = stub.polls;
       await until(() => stub.polls > polled, `the reloaded ${kind} card reads its job`);
       await mine.getByText(error, { exact: false }).waitFor({ timeout: 10000 });
-      assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+      assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
       const again = stub.polls;
       await until(() => stub.polls > again, `the ${kind} card keeps reading while its hold is pending`);
       // The server settles the hold: one more read sees it released, then reading stops.
@@ -432,7 +449,7 @@ for (const theme of ['light', 'dark']) {
     await dock.locator('[data-paid-generate]').click();
     const mine = page.locator('[data-block-id]', { hasText: REFUSED });
     await mine.waitFor({ timeout: 20000 });
-    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
     assert.equal(videoPosts().length - posts, 1, 'one request, answered by the real worker');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-07-refused-card.png` });

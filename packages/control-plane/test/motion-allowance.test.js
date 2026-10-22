@@ -708,8 +708,9 @@ function slowOrchestrator(t, o) {
     signal?.addEventListener('abort', () => { clearTimeout(id); fail(signal.reason); }, { once: true });
   }).finally(() => { o.waiting--; }); };
   const original = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => {
-    const path = new URL(url).pathname;
+  const mine = async (url, init = {}) => {
+    const { host, pathname: path } = new URL(url);
+    if (host !== 'orchestrator.test') return original(url, init); // only the worker's orchestrator: transparent to every other call
     if (path === '/health') {
       await wait(o.healthMs, init.signal);
       const boot = o.boot;
@@ -730,7 +731,9 @@ function slowOrchestrator(t, o) {
     if (/^\/jobs\/[0-9a-f]{32}$/.test(path)) return Response.json({ status: 'running', spend: { cost_usd: null, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 });
     return Response.json({ error: 'not_found' }, { status: 404 });
   };
-  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = mine;
+  o.restore = () => { if (globalThis.fetch === mine) globalThis.fetch = original; };
+  t.after(o.restore);
   return o;
 }
 // Runs a promise to its end on the mocked clock: 10 ms per step, and only while the orchestrator double is answering slowly.
@@ -750,7 +753,7 @@ function blockSpans(actor) {
 const UNDER_BLOCK = took => assert.ok(took <= 25050, `the network waits took ${took} ms of mocked time: inside the 25 s admission deadline`);
 
 test('MOT-08 review: /health 15.5 s then a POST of 15.5 s: the POST waits only for what is left of the 25 s admission deadline; the hold is kept and the alarm reconciles the one job', async t => {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() }); t.after(() => t.mock.timers.reset());
   const { sqlite, LEARN_DB } = d1(t);
   const o = slowOrchestrator(t, { healthMs: 15500, postMs: 15500 });
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB)), spans = blockSpans(actor);
@@ -766,7 +769,7 @@ test('MOT-08 review: /health 15.5 s then a POST of 15.5 s: the POST waits only f
 });
 
 test('MOT-08 review: too little of the 25 s admission deadline left for the POST, or /health past it: refused before any POST, the hold released, nothing started', async t => {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() }); t.after(() => t.mock.timers.reset());
   for (const [healthMs, why] of [[23500, /too slow to answer\. Nothing was started/], [26000, /did not answer\. Nothing was started/]]) {
     const { sqlite, LEARN_DB } = d1(t);
     const o = slowOrchestrator(t, { healthMs, postMs: 100 });
@@ -777,11 +780,12 @@ test('MOT-08 review: too little of the 25 s admission deadline left for the POST
     assert.deepEqual([v.status, v.retryable, v.hold?.state], ['failed', true, 'released'], `health ${healthMs} ms`);
     assert.match(v.error, why);
     assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite)], [0, 0, [[2_000_000, 'settled', 0, 'cancelled']]], 'one hold, released; no start');
+    o.restore();
   }
 });
 
 test('MOT-08 review: a slow cold /health, then the POST lands on a restarted process: its old-boot grant is refused, released, nothing started; a clean retry starts once', async t => {
-  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() }); t.after(() => t.mock.timers.reset());
   const { sqlite, LEARN_DB } = d1(t);
   const o = slowOrchestrator(t, { healthMs: 15500, postMs: 100, restartAfterHealth: true });
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB)), spans = blockSpans(actor);
@@ -810,4 +814,30 @@ test('the list returns the Motion estimate in credits: 100 for MOTION_ESTIMATE_U
     { MOTION_ESTIMATE_USD: '1.00', MOTION_GENERATION_PAUSED: '1' }, { MOTION_ESTIMATE_USD: '1.00', MOTION_ORCHESTRATOR_URL: undefined }]) {
     assert.equal('motionEstimateCredits' in await list(extra), false, JSON.stringify(extra));
   }
+});
+
+// Owner message 37: an identical /motion prompt generates a new video. Each Generate press carries its own request id.
+test('two separate Generate presses with an identical prompt: two jobs, two holds, two settlements, two cards', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  const press = id => ask({}, { ...motionOp, request_id: id });
+  const a = await (await actor.fetch(press('press-0001-aaaa'))).json();
+  await settle(actor, async () => (await actor.list()).videos.every(v => v.status === 'ready'));
+  const b = await (await actor.fetch(press('press-0002-bbbb'))).json();
+  await settle(actor, async () => (await actor.list()).videos.length === 2 && (await actor.list()).videos.every(v => v.status === 'ready'));
+  assert.notEqual(a.placementId, b.placementId, 'two cards');
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, w.model.calls.length], [2, 2, 6], 'two jobs');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled'], [2_000_000, 'settled', 800_000, 'settled']], 'two holds, each settled once');
+});
+
+test('one Generate press resent concurrently stays one job (MOT-06 with a request id)', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  const press = () => ask({}, { ...motionOp, request_id: 'press-0003-cccc' });
+  const [x, y] = await Promise.all([actor.fetch(press()), actor.fetch(press())]).then(rs => Promise.all(rs.map(r => r.json())));
+  assert.equal(x.placementId, y.placementId);
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite)], [1, 1, [[2_000_000, 'settled', 800_000, 'settled']]]);
 });

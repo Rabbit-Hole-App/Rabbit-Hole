@@ -390,3 +390,17 @@ test('MOT-07 only a verified refusal is a no-start: a 500, a 502, a malformed su
     await assert.rejects(submit(response), e => !e.definite, `HTTP ${response.status}`);
   }
 });
+
+// Owner message 37: the same /motion prompt pressed again is a new video. The request id made once per Generate press is part of the
+// key; a request without one (saved before) keeps exactly its old key; a malformed one is refused.
+test('motion_request keys: a request id per Generate press makes a new job; none keeps the old key', async () => {
+  const plain = validateMotionRequest(motionOp);
+  const old = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${line}|Attention`)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  assert.equal(await motionRequestCacheKey(plain), old, 'an old placement keeps its key');
+  const first = validateMotionRequest({ ...motionOp, request_id: 'press-0001-aaaa' }), second = validateMotionRequest({ ...motionOp, request_id: 'press-0002-bbbb' });
+  assert.equal(first.request_id, 'press-0001-aaaa');
+  assert.notEqual(await motionRequestCacheKey(first), old);
+  assert.notEqual(await motionRequestCacheKey(first), await motionRequestCacheKey(second), 'two presses, two jobs');
+  assert.equal(await motionRequestCacheKey(first), await motionRequestCacheKey(validateMotionRequest({ ...motionOp, request_id: 'press-0001-aaaa' })), 'one press resent, one job');
+  for (const bad of ['short', 'x'.repeat(65), 'has space id', 12345678]) assert.throws(() => validateMotionRequest({ ...motionOp, request_id: bad }), /request_id/, String(bad));
+});
