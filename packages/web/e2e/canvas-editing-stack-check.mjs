@@ -120,8 +120,10 @@ check('and the line break and indentation', lines.replace(/\n$/, '') === 'Line o
 check('and the lock badge', await fresh.page.locator(`[data-lock-badge="${shape.id}"]`).count() === 1);
 await fresh.context.close();
 
-// The view-only share link: formatting shows, nothing edits.
+// The share link: formatting shows. SHARE-02 (owner brief 2026-10-22): a visitor edits a temporary copy of their own, so
+// whatever they type or delete there never reaches the source on the server.
 const shared = await api(owner, `/api/learn/boards/${name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true }) });
+const sourceBefore = JSON.stringify((await api(owner, `/api/learn/boards/${name}/main`)).state);
 const view = await pageFor(viewer);
 await view.page.goto(`${BASE}/b/${shared.sharing.view}`);
 await view.page.locator(`[data-item-id="${text.id}"]`).waitFor({ timeout: 60000 });
@@ -129,8 +131,11 @@ const viewBold = await view.page.locator(`[data-item-id="${text.id}"] span[data-
 const tb = await view.page.locator(`[data-item-id="${text.id}"]`).boundingBox();
 await view.page.mouse.dblclick(tb.x + 10, tb.y + 8);
 await view.page.keyboard.press('Delete');
-check('the shared view shows the formatting and opens no editor', viewBold && await view.page.locator('[data-rich-editor]').count() === 0 && await view.page.locator('[data-style-panel]').count() === 0);
-check('the shared view has no lock badges and deletes nothing', await view.page.locator('[data-lock-badge]').count() === 0 && await view.page.locator(`[data-item-id="${text.id}"]`).count() === 1);
+await view.page.keyboard.press('Escape');
+await view.page.keyboard.press('Delete');
+await view.page.waitForTimeout(800);
+check('the shared view shows the formatting', viewBold);
+check('visitor typing and deleting stay in their copy: the source on the server is unchanged', JSON.stringify((await api(owner, `/api/learn/boards/${name}/main`)).state) === sourceBefore);
 if (OUT) await view.page.screenshot({ path: `${OUT}/stack-shared.png` });
 await view.context.close();
 

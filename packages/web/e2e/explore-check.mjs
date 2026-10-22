@@ -133,8 +133,8 @@ await card.locator('[data-card-title]').click();
 await viewer.page.waitForURL(new RegExp(`/e/${token}$`), { timeout: 30000 });
 await viewer.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 const header = viewer.page.locator('header');
-check('Explore -> the published canvas: read-only, Published by @handle, [Start Rabbit Hole] [Fork 0]', (await viewer.page.locator('[data-shared-creator]').innerText()).trim() === `Published by @${H.owner}`
-  && (await header.innerText()).includes('View only') && await viewer.page.locator('[data-start-rabbit-hole]').count() === 1
+check('Explore -> the published canvas: Published by @handle, [Start Rabbit Hole] [Fork 0]', (await viewer.page.locator('[data-shared-creator]').innerText()).trim() === `Published by @${H.owner}`
+  && !(await header.innerText()).includes('View only') && await viewer.page.locator('[data-start-rabbit-hole]').count() === 1
   && (await viewer.page.locator('[data-fork-button]').getAttribute('aria-label')) === 'Fork, 0 forks' && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '05-explore-to-canvas');
 

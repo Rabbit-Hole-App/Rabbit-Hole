@@ -222,14 +222,15 @@ check('Search reveals late full-card content and Back restores camera with the p
     await until(async () => (await f.geometry()).camera === before.camera, 'Back restores camera');
   } finally { await f.context.close(); }
 });
-check('shared reader sees Full content but cannot resize or persist layout', async () => {
+// SHARE-02 (owner brief 2026-10-22): the reader resizes their temporary copy; the owner's saved layout never changes.
+check('shared reader sees Full content, resizes only their copy, and never persists layout', async () => {
   const f = await fixture(); let viewer; try {
     await f.setLayout('Full content'); await f.waitSaved('full');
     const shared = await api(f.path + '/share', 'POST', { shared: true, view: true, public_view: true }); assert.ok(shared.sharing?.view);
     viewer = await browser.newContext({ viewport: { width: 1500, height: 950 } }); await guard(viewer);
     const page = await viewer.newPage(); await page.goto(`${BASE}/b/${shared.sharing.view}`);
     const card = page.locator('[data-block-id="subject"]'); await card.waitFor({ timeout: 60000 }); assert.equal(await card.getAttribute('data-card-layout'), 'full');
-    assert.equal(await card.getByRole('slider', { name: /Resize card width/ }).count(), 0);
+    assert.equal(await card.getByRole('slider', { name: /Resize card width/ }).count(), 2, 'the copy resizes');
     const before = await f.saved();
     const point = await card.evaluate(e => {
       const r = e.getBoundingClientRect(), viewport = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
@@ -239,7 +240,7 @@ check('shared reader sees Full content but cannot resize or persist layout', asy
       return { x: left + 15, y: top + 15 };
     });
     await page.mouse.click(point.x, point.y);
-    await page.locator('[data-view-selection="subject"]').waitFor();
+    await page.locator('[data-block-id="subject"][aria-current="true"]').waitFor(); // SHARE-02: selected on the visitor's copy
     await page.mouse.click(point.x, point.y, { button: 'right' });
     assert.equal(await page.getByRole('menuitem', { name: 'Layout', exact: true }).count(), 0); assert.deepEqual(await f.saved(), before);
   } finally { await viewer?.close(); await f.context.close(); }

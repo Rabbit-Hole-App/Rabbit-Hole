@@ -8,6 +8,7 @@
 // {name, handle?, avatar_url?}, read by reference so a renamed handle shows at once.
 import { repositoryIdentity } from './repositories.js';
 import { HANDLE_OF, NAME_OF } from './canvases.js';
+import { sharedState } from './shared-privacy.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { boardAsset } from './learn-boards.js';
@@ -313,6 +314,12 @@ async function readThread(env, ctx, id, params) {
 
 const hashOf = parts => sha256Hex(JSON.stringify(parts));
 
+async function onCanvas(env, boardId, id) {
+  const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(boardId).first();
+  const state = JSON.parse(row?.state_json || '{}');
+  return ['blocks', 'exchanges', 'items', 'shapes', 'groups'].some(key => Array.isArray(state[key]) && state[key].some(entry => entry?.id === id));
+}
+
 async function startThread(req, env, ctx) {
   const input = await readJson(req);
   if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
@@ -321,6 +328,9 @@ async function startThread(req, env, ctx) {
   if (!allowed(ctx, 'post', audience)) return postRefusal(ctx, audience);
   const anchor = anchorOf(input.anchor);
   if (!anchor || JSON.stringify(anchor).length > 1024) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
+  // SHARE-02: a visitor's temporary copy has objects only they see; a comment may name only an object on the canvas itself.
+  // The owner is exempt: an object they drew a moment ago may not have reached the server copy yet.
+  if (anchor.kind === 'object' && !ctx.actor.owner && !await onCanvas(env, ctx.board.id, anchor.object_id)) return refuse("That object isn't on this canvas, so it can't take a comment.", 'object_not_on_canvas', 409);
   const { body, error } = bodyOf(input.body);
   if (error) return error;
   const mentions = mentionsOf(input.mentions);
@@ -557,7 +567,9 @@ async function readBoard(env, ctx) {
   const row = await env.LEARN_DB.prepare('SELECT state_json, version, updated_at FROM learn_boards WHERE id = ?').bind(ctx.board.id).first();
   const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), { org: ctx.actor.org, email: ctx.actor.email });
   // The owner is sent to their own page; only they learn its name here.
-  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at, state });
+  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at,
+    // A member sees what was placed on the canvas, never the owner's own answers, attempts, ticks or highlights (SHARE-01).
+    state: ctx.actor.owner ? state : sharedState(state) });
 }
 
 // Library → Shared with you (section 5): canvases where I am an active member, with their owner, last change and how many

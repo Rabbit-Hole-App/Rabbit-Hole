@@ -64,6 +64,9 @@ const goalCommand = async (p = page) => { await field(p).click(); await field(p)
 // floor for a control (the house primary text is 3.9:1, under the 4.5:1 for small text: reported to the owner, 2026-10-22).
 const primaryLooks = async () => {
   const add = manager().locator('[data-goal-add-save]');
+  // Add goal is disabled until the saved goals have loaded (GoalManager `ready`), and a disabled button is skipped by Tab:
+  // wait for that observable state, then assert the order.
+  await until(() => add.isEnabled(), 'Add goal enabled once the saved goals load');
   await newGoal().focus();
   await page.keyboard.press('Tab'); // the outcome field
   await page.keyboard.press('Tab'); // Add goal, by keyboard: focus-visible

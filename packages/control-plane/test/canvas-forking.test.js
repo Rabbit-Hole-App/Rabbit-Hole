@@ -522,3 +522,65 @@ test('forkState copies the canvas document as an independent object', () => {
   assert.equal('doc' in forkState({ blocks: [] }), false, 'a board without a document gets none');
   assert.equal('doc' in forkState({ doc: [1] }), false, 'a list is not a document');
 });
+
+// SHARE-02 (C:/s/spec/share/contract-guest-draft.md): a visitor's temporary copy goes into their fork. Cards come from the
+// source as the forker may read it, the visitor's marks from the draft; the source never changes; one action is one fork.
+test('fork with a guest draft: source cards with the draft layout, the visitor marks, nothing the source does not name', async t => {
+  const f = setup(t);
+  const a = await f.canvas('ana', 'Attention');
+  const source = { ...BOARD, blocks: [{ id: 'b1', type: 'explanation', title: 'Softmax', dx: 0, dy: 0 }, { id: 'p', type: 'pdf', assetKey: 'pdf:p', dx: 0, dy: 0 }, { id: 'gone', type: 'quiz', question: 'Q?' }] };
+  await f.save('ana', a.name, source);
+  await f.call('PUT', `/api/learn/boards/${a.name}/main/assets/${encodeURIComponent('pdf:p')}`, { as: 'ana', raw: new Uint8Array([4, 5]), headers: { 'Content-Type': 'application/pdf' } });
+  // Ana's private file on another canvas of hers: a draft naming it must not reach it.
+  const other = await f.canvas('ana', 'Private');
+  await f.save('ana', other.name, { blocks: [{ id: 'secret', type: 'pdf', assetKey: 'pdf:secret' }] });
+  await f.call('PUT', `/api/learn/boards/${other.name}/main/assets/${encodeURIComponent('pdf:secret')}`, { as: 'ana', raw: new Uint8Array([9]), headers: { 'Content-Type': 'application/pdf' } });
+  const link = (await f.share('ana', a.name)).view;
+  const before = (await f.call('GET', `/api/learn/boards/shared/${link}`, { as: 'ben' })).body;
+  const draft = { base_version: before.version, state: {
+    strokes: [], links: [], groups: [], areas: [],
+    shapes: [{ id: 'mine', kind: 'rect', x1: 0, y1: 0, x2: 10, y2: 10 }], items: [{ id: 'note2', kind: 'text', text: 'my note', x: 5, y: 5 }],
+    blocks: [
+      // moved, and its content tampered with: the layout is kept, the content is the source's
+      { id: 'p', type: 'pdf', assetKey: 'pdf:secret', title: 'tampered', dx: 40, dy: 80, cardLayout: { mode: 'full', fullWidth: 600 } },
+      { id: 'b1-copy', copyOf: 'b1', type: 'explanation', title: 'injected', dx: 28, dy: 28 }, // a duplicate
+      { id: 'b1', type: 'explanation', title: 'Softmax', dx: 0, dy: 0 },
+      { id: 'evil', type: 'pdf', assetKey: 'pdf:secret' }, // never on the source
+      { id: 'evil2', copyOf: 'nope', type: 'pdf', assetKey: 'pdf:secret' }, // a copy of nothing on the source
+      // 'gone' deleted by the visitor
+    ] } };
+  const made = await f.fork('ben', { token: link }, { draft });
+  assert.equal(made.status, 201);
+  assert.deepEqual([made.body.draft_dropped, made.body.source_fork_count, made.body.files], [2, 1, 1]);
+  const state = (await f.board('ben', made.body.name)).state;
+  assert.deepEqual(state.blocks.map(b => b.id), ['p', 'b1-copy', 'b1']);
+  assert.deepEqual(state.blocks[0], { id: 'p', type: 'pdf', assetKey: 'pdf:p', dx: 40, dy: 80, cardLayout: { mode: 'full', fullWidth: 600 }, home: a.name });
+  assert.deepEqual(state.blocks[1], { id: 'b1-copy', type: 'explanation', title: 'Softmax', dx: 28, dy: 28 });
+  assert.deepEqual(state.shapes, draft.state.shapes);
+  assert.deepEqual(state.items, draft.state.items);
+  assert.deepEqual(state.exchanges, BOARD.exchanges, 'chat cards are the source\'s');
+  assert.deepEqual((await f.call('GET', `/api/learn/boards/${made.body.name}/main/assets`, { as: 'ben' })).body.keys, ['pdf:p']);
+  assert.equal((await f.call('GET', `/api/learn/boards/${made.body.name}/main/assets/${encodeURIComponent('pdf:secret')}`, { as: 'ben' })).status, 404);
+  // The source is exactly as it was.
+  const after = (await f.call('GET', `/api/learn/boards/shared/${link}`, { as: 'ben' })).body;
+  assert.deepEqual([after.version, after.state], [before.version, before.state]);
+  assert.deepEqual((await f.board('ana', a.name)).state.blocks, source.blocks);
+});
+
+test('fork with a guest draft is one fork per action, and a malformed draft forks nothing', async t => {
+  const f = setup(t);
+  const a = await f.canvas('ana', 'Attention');
+  await f.save('ana', a.name, BOARD);
+  const link = (await f.share('ana', a.name)).view;
+  const body = { source: { token: link }, key: 'draft-click-0001', draft: { base_version: 1, state: { ...BOARD, shapes: [{ id: 'mine' }] } } };
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { body })).status, 401, 'signed out: sign in first, nothing made');
+  const [one, two] = await Promise.all([f.call('POST', '/api/learn/boards/fork', { as: 'ben', body }), f.call('POST', '/api/learn/boards/fork', { as: 'ben', body })]);
+  assert.deepEqual([one.status, two.status].sort(), [200, 201]);
+  const retry = await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body });
+  assert.deepEqual([retry.body.replayed, retry.body.name, retry.body.source_fork_count], [true, one.body.name, 1]);
+  assert.equal((await f.library('ben')).length, 1);
+  for (const draft of [{ state: [] }, { state: 'x' }, {}]) assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { ...body, key: 'draft-bad-0001', draft } })).status, 400);
+  assert.equal((await f.call('POST', '/api/learn/boards/fork', { as: 'ben', body: { ...body, key: 'draft-big-0001', draft: { state: { items: [{ id: 'x', text: 'x'.repeat(2_000_000) }] } } } })).status, 413);
+  assert.equal((await f.library('ben')).length, 1);
+  assert.equal((await f.call('GET', `/api/learn/boards/shared/${link}`, { as: 'cara' })).body.fork_count, 1);
+});

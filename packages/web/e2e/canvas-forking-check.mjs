@@ -181,6 +181,58 @@ await shot(viewerPage, '07-original-unavailable');
 const refused = await fetch(`${BASE}/api/learn/boards/fork`, { method: 'POST', headers: { cookie: `small_session=${viewer.session}`, 'content-type': 'application/json' }, body: JSON.stringify({ source: { canvas: source.name }, key: `refuse-${run}` }) });
 check('a private canvas of someone else is refused', refused.status === 404 || refused.status === 403, String(refused.status));
 
+// ---- SHARE-02 (owner brief 2026-10-22 sections 3 and 9): signed out, a visitor edits a temporary copy; the source never
+// changes; Fork goes through sign-in with the copy kept, and the fork holds the visitor's edit ----
+const guestSource = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: 'Guest draft (fork check)' }) });
+const guestShare = await api(owner, `/api/learn/boards/${guestSource.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: SEED }) });
+const ownerShapes = async () => (await api(owner, `/api/learn/boards/${guestSource.name}/main`)).state?.shapes?.length;
+const guestContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const guestPage = await guestContext.newPage();
+guestPage.on('pageerror', error => errors.push(error.message));
+const writes = [];
+// A write to the source: any non-GET naming its board or its link, other than the read-only hooks and questions routes.
+guestPage.on('request', request => {
+  const path = new URL(request.url()).pathname;
+  if (!['GET', 'HEAD'].includes(request.method()) && (path.includes(guestSource.name) || path.includes(`/shared/${guestShare.sharing.view}`)) && !/\/(next-steps|ask)$/.test(path)) writes.push(`${request.method()} ${path}`);
+});
+await guestPage.goto(`${BASE}/b/${guestShare.sharing.view}`);
+await guestPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
+await guestPage.waitForTimeout(800);
+check('signed out, no unsaved notice before an edit', await guestPage.locator('[data-guest-draft-notice]').count() === 0);
+const toScreen = (x, y) => guestPage.evaluate(([x, y]) => {
+  const world = document.querySelector('[data-canvas-surface] > div[style*="scale"]'), m = new DOMMatrix(getComputedStyle(world).transform), box = world.parentElement.getBoundingClientRect();
+  return { x: box.left + m.e + x * m.a, y: box.top + m.f + y * m.d };
+}, [x, y]);
+await guestPage.keyboard.press('r');
+const from = await toScreen(420, 360), to = await toScreen(560, 440);
+await guestPage.mouse.move(from.x, from.y); await guestPage.mouse.down(); await guestPage.mouse.move(to.x, to.y, { steps: 6 }); await guestPage.mouse.up();
+await guestPage.keyboard.press('Escape');
+await guestPage.locator('[data-guest-draft-notice]').waitFor({ timeout: 10000 });
+check('after the first edit: "Changes aren\'t saved. Fork to keep them."', (await guestPage.locator('[data-guest-draft-notice]').innerText()).trim() === "Changes aren't saved. Fork to keep them.");
+await guestPage.waitForTimeout(800);
+check('the guest\'s edit never reaches the source', await ownerShapes() === 1 && writes.length === 0, writes.join(', '));
+await shot(guestPage, '08-guest-draft-notice');
+const guestCount = async () => (await canvases(owner)).find(c => c.name === guestSource.name)?.fork_count;
+await guestPage.locator('[data-fork-button]').click();
+await dialog(guestPage).getByRole('button', { name: 'Fork', exact: true }).click();
+await guestPage.waitForURL(/\/login\?next=/, { timeout: 20000 });
+const next = new URL(guestPage.url()).searchParams.get('next');
+check('signed out, Fork goes through sign-in and back to this link', next === `/b/${guestShare.sharing.view}?fork=1` && await guestCount() === 0, next);
+// Back from sign-in in the same tab (the session set as the sign-in page would): the copy is still there, the dialog opens again.
+await guestContext.addCookies([{ name: 'small_session', value: viewer.session, url: BASE }]);
+await guestPage.goto(`${BASE}${next}`);
+await dialog(guestPage).waitFor({ timeout: 60000 });
+check('back from sign-in: the copy and its notice are kept, the Fork dialog is open', await guestPage.locator('[data-guest-draft-notice]').count() === 1 && await guestPage.locator('[data-shape-id]').count() === 2);
+await dialog(guestPage).getByRole('button', { name: 'Fork', exact: true }).dblclick();
+await guestPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
+const guestFork = new URL(guestPage.url()).pathname.split('/').pop();
+const forkShapes = (await api(viewer, `/api/learn/boards/${guestFork}/main`)).state?.shapes || [];
+check('the fork holds the visitor\'s edit beside the source content', forkShapes.length === 2 && forkShapes.some(shape => shape.id === 'seed-rect'), String(forkShapes.length));
+check('one fork, one count, and the source unchanged', await guestCount() === 1 && await ownerShapes() === 1);
+check('the kept copy is cleared once it is in the fork', await guestPage.evaluate(token => sessionStorage.getItem(`rh.guest-draft:${token}`), guestShare.sharing.view) === null);
+await shot(guestPage, '09-guest-fork');
+await guestContext.close();
+
 check('no page errors', errors.length === 0, errors.join(' | '));
 await browser.close();
 const failed = results.filter(ok => !ok).length;

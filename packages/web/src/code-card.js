@@ -100,3 +100,8 @@ export function dragSource(dataTransfer) {
   if (!value || typeof value.app !== 'string' || typeof value.repo !== 'string' || !/^[0-9a-f]{40}$/.test(value.commit || '') || typeof value.path !== 'string' || !value.path) return null;
   return value;
 }
+
+// What a mounted code card shows and its Open source (UI-25 menu rows): CodeCard publishes them, null until it has read its code.
+const shown = new Map();
+export function publishCodeCard(id, card) { shown.set(id, card); return () => { if (shown.get(id) === card) shown.delete(id); }; }
+export const codeCardOf = id => shown.get(id) || null;

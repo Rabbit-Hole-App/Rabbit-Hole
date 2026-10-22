@@ -305,11 +305,11 @@ await check('2b Rename (owner, 2026-10-21): right-click, Rename, type, Enter sav
 });
 await shot('01b-card-renamed');
 
-await check('2c Rename a group (owner, 2026-10-21): right-click its chip, Rename, the caret at the end, Enter saves and survives a reload; Escape cancels', async () => {
+await check('2c Rename a group (owner, 2026-10-21; UI-25 label Rename group): right-click its chip, Rename group, the caret at the end, Enter saves and survives a reload; Escape cancels', async () => {
   const chip = page.locator('[data-group-chip="g-1"]');
   const rename = () => menu().locator('[data-menu-rename-group]');
   await chip.click({ button: 'right' }); await menu().waitFor();
-  assert.equal((await rename().innerText()).trim(), 'Rename');
+  assert.equal((await rename().innerText()).trim(), 'Rename group');
   await rename().click();
   await page.waitForTimeout(250);
   await page.keyboard.type(' 2');
@@ -328,6 +328,103 @@ await check('2c Rename a group (owner, 2026-10-21): right-click its chip, Rename
   assert.equal((await chip.textContent()).trim(), 'Tide notes 2', 'Escape cancels');
 });
 
+// ---- UI-25 (owner brief 2026-10-22): one action registry; the menu targets what was clicked ----
+// A point on the bare canvas: no object, group, control or minimap under it.
+const barePoint = () => page.evaluate(() => {
+  const s = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+  for (let y = s.top + 40; y < s.bottom - 40; y += 24) for (let x = s.left + 40; x < s.right - 40; x += 24) {
+    const hit = document.elementFromPoint(x, y);
+    if (hit?.closest('[data-canvas-surface]') && !hit.closest('[data-block-id],[data-item-id],[data-shape-id],[data-connection],[data-group-box],[data-group-chip],button,a,[role="toolbar"],[role="dialog"],[data-minimap],[data-canvas-doc],[data-selection-bar]')) return { x, y };
+  }
+  return null;
+});
+const rowNames = () => menu().locator('[role^="menuitem"]').evaluateAll(items => items.map(item => (item.querySelector(':scope > span') || item).innerText.split('\n')[0].trim()));
+
+await check('8 opening and dismissing menus calls no model, runs nothing, captures nothing and writes nothing', async () => {
+  const calls = [];
+  const watch = request => { if (request.method() !== 'GET' || /\/api\/(learn\/(ask|tutor|explain)|inline|notebook|code|run|webcard|capture|motion|cad|scene)/.test(request.url())) calls.push(`${request.method()} ${new URL(request.url()).pathname}`); };
+  await page.waitForTimeout(2000); // the rename's save above settles first
+  page.on('request', watch);
+  await rightClick('m-b'); await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.locator('[data-item-id="n-1"]').click({ button: 'right', position: { x: 30, y: 30 } }); await menu().waitFor(); await page.mouse.click(5, 5); await menu().waitFor({ state: 'detached' });
+  await page.locator('[data-group-chip="g-1"]').click({ button: 'right' }); await menu().waitFor(); await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  const bare = await barePoint();
+  assert.ok(bare, 'a bare canvas point');
+  await page.mouse.click(bare.x, bare.y, { button: 'right' }); await menu().waitFor(); await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.evaluate(() => document.querySelector('[data-block-id="m-a"]').focus()); await page.keyboard.press('Shift+F10');
+  if (await menu().waitFor({ timeout: 1500 }).then(() => true, () => false)) { await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' }); }
+  await page.waitForTimeout(1500);
+  page.off('request', watch);
+  assert.deepEqual(calls, [], 'no request while menus opened and closed');
+  assert.deepEqual(asks, []);
+});
+
+await check('9 right-click targets the thing clicked: another card replaces the selection, the bare canvas clears it, Delete removes only the clicked card and Undo brings it back', async () => {
+  await select('m-a');
+  await rightClick('m-c');
+  assert.deepEqual(await selectedIds(), ['m-c'], 'the right-clicked card, never the earlier m-a');
+  const card = await rowNames();
+  for (const label of ['Duplicate', 'Copy card', 'Lock', 'Bring to front', 'Delete']) assert.ok(card.includes(label), `${label} in ${card.join(', ')}`);
+  assert.ok(card.indexOf('Duplicate') < card.indexOf('Copy card') && card.indexOf('Copy card') < card.indexOf('Lock') && card.indexOf('Lock') < card.indexOf('Bring to front') && card.indexOf('Bring to front') < card.indexOf('Delete'), card.join(', '));
+  await menu().getByRole('menuitem', { name: 'Delete', exact: true }).click();
+  await page.locator('[data-block-id="m-c"]').waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(await page.locator('[data-block-id="m-a"]').count(), 1, 'the earlier selection is untouched');
+  await page.keyboard.press('Control+z');
+  await page.locator('[data-block-id="m-c"]').waitFor({ timeout: 5000 });
+  await select('m-a');
+  const bare = await barePoint();
+  await page.mouse.click(bare.x, bare.y, { button: 'right' }); await menu().waitFor();
+  assert.deepEqual(await selectedIds(), [], 'the bare canvas clears the selection');
+  const empty = await rowNames();
+  for (const label of ['Paste', 'Select all']) assert.ok(empty.includes(label), `${label} on the canvas: ${empty.join(', ')}`);
+  for (const label of ['Delete', 'Duplicate', 'Lock', 'Copy card']) assert.ok(!empty.includes(label), `no ${label} on the bare canvas`);
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.locator('[data-group-chip="g-1"]').click({ button: 'right' }); await menu().waitFor();
+  const group = await rowNames();
+  assert.ok(group.includes('Ungroup') && group.includes('Delete group and contents') && !group.includes('Delete'), group.join(', '));
+  await menu().getByRole('menuitem', { name: 'Ungroup', exact: true }).click();
+  await page.waitForTimeout(400);
+  assert.equal(await page.locator('[data-item-id="n-2"]').count() + await page.locator('[data-item-id="n-3"]').count(), 2, 'Ungroup keeps both notes');
+  await page.keyboard.press('Control+z'); await page.locator('[data-group-chip="g-1"]').waitFor({ timeout: 5000 });
+});
+
+await check('10 inside an editor the browser keeps its own menu: a sticky being edited opens no canvas menu', async () => {
+  const note = page.locator('[data-item-id="n-1"]');
+  await note.dblclick({ position: { x: 30, y: 30 } });
+  const body = note.locator('[contenteditable="true"]');
+  await body.waitFor({ timeout: 5000 });
+  const prevented = await body.evaluate(node => { const r = node.getBoundingClientRect(), event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + 8, clientY: r.top + 8 }); node.dispatchEvent(event); return event.defaultPrevented; });
+  await page.waitForTimeout(300);
+  assert.equal(prevented, false, 'the native menu is not prevented');
+  assert.equal(await menu().count(), 0, 'no canvas menu over the editor');
+  await page.mouse.click(5, 5); await page.waitForTimeout(300);
+});
+
+await check('11 keyboard, dark theme and a narrow window: arrows move between rows, Escape returns focus, the menu fits and follows the theme', async () => {
+  await rightClick('m-b');
+  const first = await page.evaluate(() => (document.activeElement?.closest('[data-canvas-menu]') ? document.activeElement.textContent : null));
+  assert.ok(first, 'the first row has the focus');
+  await page.keyboard.press('ArrowDown');
+  const second = await page.evaluate(() => document.activeElement?.textContent);
+  assert.notEqual(second, first, 'ArrowDown moves to the next row');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.waitForTimeout(800);
+  // On a phone-width window the card may sit under the panel or off the surface: the bare canvas's menu, or the focused
+  // card's keyboard menu when no bare point shows.
+  const bare = await barePoint();
+  if (bare) await page.mouse.click(bare.x, bare.y, { button: 'right' });
+  else { await page.evaluate(() => document.querySelector('[data-block-id="m-b"]').focus()); await page.keyboard.press('Shift+F10'); }
+  await menu().waitFor();
+  assert.ok((await inside()).ok, JSON.stringify(await inside()));
+  const bg = await menu().evaluate(node => getComputedStyle(node).backgroundColor);
+  assert.notEqual(bg, 'rgb(255, 255, 255)', 'the dark theme paints the menu dark');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
+
 // ---- a view-only board: the viewer's own private Rabbit Hole, from the right-clicked card ----
 const shared = (await api(owner, `/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: STATE }) })).body;
 const token = shared.sharing.view;
@@ -337,16 +434,19 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   page.on('request', request => { if (request.url().includes('/rabbit-hole') && request.method() === 'POST') sent.push(JSON.parse(request.postData() || '{}')); });
   await page.goto(`${BASE}/b/${token}`);
   await page.locator('[data-start-rabbit-hole]').waitFor({ timeout: 30000 }); await page.waitForTimeout(1500);
-  // A view-only board selects by a click through the hand tool (shared-rabbit-hole-check clickCard), so press by coordinates.
+  // A visitor's board (SHARE-02: their temporary copy) selects by a click, as shared-rabbit-hole-check clickCard does, so press by coordinates.
   const point = async id => { const box = await page.locator(`[data-block-id="${id}"]`).first().boundingBox(); return [box.x + box.width / 2, box.y + Math.min(40, box.height / 2)]; };
   const [ax, ay] = await point('m-a'); await page.mouse.click(ax, ay); await page.waitForTimeout(300);
   const [bx, by] = await point('m-b'); await page.mouse.click(bx, by, { button: 'right' });
   await menu().waitFor();
   assert.equal((await startItem().innerText()).trim(), 'Start Rabbit Hole');
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
-  // View-only edits nothing: Start Rabbit Hole is the only item (no Duplicate, Group, Select all or Delete).
-  assert.deepEqual((await menu().locator('[role="menuitem"]').allInnerTexts()).map(text => text.trim()), ['Start Rabbit Hole']);
-  assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group]').count(), 0, 'a viewer never sees Rename');
+  // SHARE-02 (owner brief 2026-10-22): a visitor edits a temporary copy - Duplicate and Delete act on it, never on the source -
+  // and still never renames or quick-edits a card's content.
+  const rows = await menu().locator('[role="menuitem"]').evaluateAll(nodes => nodes.map(node => { const copy = node.cloneNode(true); copy.querySelectorAll('[data-menu-reason], [data-menu-hint]').forEach(extra => extra.remove()); return copy.textContent.trim(); }));
+  assert.equal(rows[0], 'Start Rabbit Hole');
+  for (const local of ['Duplicate', 'Delete']) assert.ok(rows.includes(local), `${local} in ${rows.join(', ')}`);
+  assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group], [data-menu-inline-ai]').count(), 0, 'a viewer never sees Rename or Quick Edit');
   await iconsOnEveryItem('a view-only board');
   await shot('04-shared-view-only-menu');
   await startItem().click();
@@ -364,6 +464,6 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
 
 await check('no page errors, no model call', async () => { assert.deepEqual(errors, []); assert.deepEqual(asks, []); });
 await browser.close();
-const total = 14;
+const total = 18;
 console.log(`${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);

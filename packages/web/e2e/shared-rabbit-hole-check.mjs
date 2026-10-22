@@ -158,8 +158,10 @@ await check('10 back: the map leads to the shared source, view only', async () =
   await page.locator('[data-dive-navigator] [aria-label="Up to the parent hole"]').click();
   await page.waitForURL(new RegExp(`/b/${kitchen.token}$`), { timeout: 20000 });
   await page.locator('[data-start-rabbit-hole]').waitFor();
-  assert.ok(await page.getByText('View only').isVisible(), 'still the view-only shared page');
-  assert.equal(await page.locator('[role="toolbar"][aria-label="Canvas tools"]').count(), 0, 'no editing tools on the source');
+  assert.equal(await page.getByText('View only').count(), 0, 'a visitor edits a temporary copy, so no view-only pill');
+  assert.ok(await page.locator('[data-shared-title]').isVisible(), 'still the shared page');
+  // SHARE-02 (owner brief 2026-10-22): the visitor's tools edit their temporary copy, never the source.
+  assert.equal(await page.locator('[role="toolbar"][aria-label="Canvas tools"]').count(), 1, 'tools for the visitor copy');
 });
 await shot('05-back-to-shared-source');
 
@@ -168,7 +170,7 @@ let cardHole;
 await openShared(bridges);
 await check('4 a selected card is the origin (flashcards, on another shared canvas)', async () => {
   await clickCard('b-cards');
-  await page.locator('[data-view-selection="b-cards"]').waitFor({ timeout: 5000 });
+  await page.locator('[data-block-id="b-cards"][aria-current="true"]').waitFor({ timeout: 5000 }); // SHARE-02: selected on the visitor's copy
   assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'b-cards');
   assert.match(await page.locator('[data-start-rabbit-hole]').getAttribute('title'), /from ".+", or a blank canvas\. This canvas stays as it is\./);
   await shot('03-shared-card-selected');
