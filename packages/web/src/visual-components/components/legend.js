@@ -1,5 +1,7 @@
 // Legend: what each colour means, one swatch and name per role in use.
-import { BOX_ROLES, labelText, sides, textWidth } from '../text.js';
+import { labelWidth, lineFields, wrapLabel } from '../label.js';
+import { BOX_ROLES, sides } from '../text.js';
+import { validateLabelContent } from '../../explain-contract.js';
 
 const SWATCH = 16, GAP = 8, ROW = 28;
 
@@ -20,11 +22,11 @@ export default {
     params.entries.forEach((entry, index) => {
       const role = entry?.role ?? 'neutral';
       if (!BOX_ROLES.includes(role)) throw new Error(`entries.${index}.role must be one of ${BOX_ROLES.join(', ')}`);
-      const text = labelText(entry?.label);
-      if (!text) throw new Error(`entries.${index} needs a label`);
-      const width = SWATCH + GAP + textWidth(text, 'annotation');
+      if (!entry?.label) throw new Error(`entries.${index} needs a label`);
+      const label = validateLabelContent(entry.label);
+      const width = SWATCH + GAP + labelWidth(label, 'annotation');
       objects.push({ id: `swatch${index}`, type: 'box', initialState: { x, y: y + (ROW - SWATCH) / 2, w: SWATCH, h: SWATCH, role } });
-      objects.push({ id: `name${index}`, type: 'text', initialState: { text, x: x + SWATCH + GAP, y: y + ROW / 2 + 5, typography: 'annotation' } });
+      objects.push({ id: `name${index}`, type: 'text', initialState: { ...lineFields(wrapLabel(label, Infinity, 'annotation')[0], 'text'), x: x + SWATCH + GAP, y: y + ROW / 2 + 5, typography: 'annotation' } });
       w = Math.max(w, x + width);
       if (hints.direction === 'row') x += width + hints.spacing; else y += ROW;
     });

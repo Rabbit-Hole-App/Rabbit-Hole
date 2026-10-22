@@ -108,10 +108,10 @@ test('duplicates and executable fields are refused before anything compiles', ()
   assert.throws(() => compileVisual(spec([mod('a', 'A', { params: { label: 'A', style: 'x' } })])), /forbidden field "style"/);
 });
 
-test('math labels are refused until typeset labels exist, never shown as raw LaTeX', () => {
-  assert.throws(() => compileVisual(spec([mod('a', { runs: [{ kind: 'math', tex: 'T = 2\\pi\\sqrt{L/g}' }] })])), /math labels are not supported/);
+test('plain-text runs join into one ordinary label (math runs: label.test.mjs)', () => {
   const mixed = compileVisual(spec([mod('a', { runs: [{ kind: 'text', text: 'Plain ' }, { kind: 'text', text: 'words' }] })]));
   assert.ok(textOf(mixed).includes('Plain words'));
+  assert.equal(mixed.scene.objects[0].initialState.runs, undefined);
 });
 
 test('detail parts become pages of the existing pager; shared context shows on every part', () => {

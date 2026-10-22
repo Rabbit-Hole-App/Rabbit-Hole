@@ -1,5 +1,6 @@
 // Section: a titled frame around its children, which stack in a column.
-import { labelText, sides, textWidth, wrapText, lineHeight } from '../text.js';
+import { labelWidth, lineFields, wrapLabel } from '../label.js';
+import { lineHeight, sides, textWidth } from '../text.js';
 
 export default {
   name: 'section', version: 1, container: true,
@@ -13,13 +14,12 @@ export default {
   anchors: ['top', 'bottom', 'left', 'right'],
   fixtures: ['pipeline'],
   compile({ params, hints, children }) {
-    const title = labelText(params.title);
     const inner = Math.max(160, ...children.map(child => child.w));
-    const lines = wrapText(title, Math.max(inner, Math.min(textWidth(title, 'heading'), 640)), 'heading');
+    const lines = wrapLabel(params.title, Math.max(inner, Math.min(labelWidth(params.title, 'heading'), 640)), 'heading');
     const step = lineHeight('heading');
-    const w = Math.max(inner, ...lines.map(line => textWidth(line, 'heading'))) + 2 * hints.padding;
+    const w = Math.max(inner, ...lines.map(line => textWidth(line.plain, 'heading'))) + 2 * hints.padding;
     const objects = [{ id: 'frame', type: 'box', initialState: { x: 0, y: 0, w, h: 1, role: 'neutral' } }];
-    lines.forEach((line, index) => objects.push({ id: `title${index}`, type: 'text', initialState: { text: line, x: hints.padding, y: hints.padding + index * step + Math.round(step * 0.75), typography: 'heading' } }));
+    lines.forEach((line, index) => objects.push({ id: `title${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), x: hints.padding, y: hints.padding + index * step + Math.round(step * 0.75), typography: 'heading' } }));
     let y = hints.padding + lines.length * step + hints.gap;
     const places = children.map(child => { const at = { x: hints.padding, y }; y += child.h + hints.gap; return at; });
     const h = y - hints.gap + hints.padding;

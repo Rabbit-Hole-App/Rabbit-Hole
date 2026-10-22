@@ -1,6 +1,7 @@
 // Module: one named unit (a layer, a stage, a part of a machine) drawn as a
 // box. Ports are its four sides.
-import { BOX_ROLES, labelText, labelledBox, sides } from '../text.js';
+import { labelledBox } from '../label.js';
+import { BOX_ROLES, sides } from '../text.js';
 
 export default {
   name: 'module', version: 1,
@@ -17,7 +18,7 @@ export default {
   anchors: ['top', 'bottom', 'left', 'right'],
   fixtures: ['pipeline'],
   compile({ params, hints }) {
-    const box = labelledBox({ id: 'box', text: labelText(params.label), role: params.role, minWidth: hints.width, maxWidth: Math.max(hints.width, hints.maxWidth) });
+    const box = labelledBox({ id: 'box', label: params.label, role: params.role, minWidth: hints.width, maxWidth: Math.max(hints.width, hints.maxWidth) });
     return { ...box, anchors: sides(box.w, box.h) };
   },
 };

@@ -1,6 +1,8 @@
 // Flow: an ordered sequence of steps joined by arrows. Each step is a
 // module-like box; step anchors are step-0 .. step-(n-1) plus first and last.
-import { BOX_ROLES, labelText, labelledBox, sides } from '../text.js';
+import { labelledBox } from '../label.js';
+import { BOX_ROLES, sides } from '../text.js';
+import { validateLabelContent } from '../../explain-contract.js';
 
 export default {
   name: 'flow', version: 1,
@@ -20,9 +22,8 @@ export default {
       const label = typeof step === 'object' && step && !Array.isArray(step) && 'label' in step ? step.label : step;
       const role = (typeof step === 'object' && step?.role) || 'neutral';
       if (!BOX_ROLES.includes(role)) throw new Error(`steps.${index}.role must be one of ${BOX_ROLES.join(', ')}`);
-      const text = labelText(label);
-      if (!text) throw new Error(`steps.${index} needs a label`);
-      return labelledBox({ id: `step${index}`, text, role, minWidth: hints.nodeWidth, maxWidth: hints.nodeWidth });
+      if (!label) throw new Error(`steps.${index} needs a label`);
+      return labelledBox({ id: `step${index}`, label: validateLabelContent(label), role, minWidth: hints.nodeWidth, maxWidth: hints.nodeWidth });
     });
     // One cross size for every step, so arrows run straight between centres.
     const cross = Math.max(...boxes.map(box => (horizontal ? box.h : box.w)));

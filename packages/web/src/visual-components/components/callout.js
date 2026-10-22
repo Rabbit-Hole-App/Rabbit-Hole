@@ -1,5 +1,6 @@
 // Callout: the takeaway or a caution, in a tinted box that wraps its text.
-import { labelText, labelledBox, sides } from '../text.js';
+import { labelledBox } from '../label.js';
+import { sides } from '../text.js';
 
 const TONE = { note: 'neutral', key: 'output', caution: 'warning' };
 
@@ -15,7 +16,7 @@ export default {
   anchors: ['top', 'bottom', 'left', 'right'],
   fixtures: ['pipeline', 'pendulum-law'],
   compile({ params, hints }) {
-    const box = labelledBox({ id: 'box', text: labelText(params.text), role: TONE[params.tone], minWidth: hints.width, maxWidth: hints.width });
+    const box = labelledBox({ id: 'box', label: params.text, role: TONE[params.tone], minWidth: hints.width, maxWidth: hints.width });
     return { ...box, anchors: sides(box.w, box.h) };
   },
 };

@@ -7,7 +7,7 @@ import { evaluateScene } from '../scene-evaluate.js';
 import { checkLayoutLint } from '../scene-layout-lint.js';
 import { legibilityIssues } from '../scene-layout.js';
 import { budgetIssues, chooseDensity, measureScene } from './budget.js';
-import { labelText } from './text.js';
+import { lineFields, wrapLabel } from './label.js';
 import { componentFor, resolveHints, resolveParams } from './registry.js';
 
 const PAD = 32, GAP = 32;
@@ -109,11 +109,11 @@ export function compileVisual(raw) {
     const parts = [connection.from, connection.to].map(ref => partOf.get(ref.split('.')[0])).filter(part => part !== undefined);
     if (new Set(parts).size > 1) throw new Error(`Connection ${index + 1} joins two different parts`);
     const id = `link${index}`;
-    const label = connection.label === undefined ? undefined : labelText(connection.label);
+    const label = connection.label === undefined ? undefined : lineFields(wrapLabel(connection.label, Infinity, 'body')[0]);
     objects.push({
       id, type: connection.kind === 'flow' ? 'arrow' : 'line', semanticId: id,
       ...(parts.length ? { part: parts[0] } : {}),
-      initialState: { from: ends[0], to: ends[1], ...(label ? { label } : {}), role: 'neutral' },
+      initialState: { from: ends[0], to: ends[1], ...(label ?? {}), role: 'neutral' },
     });
     objectMap[id] = { component: connection.from.split('.')[0], anchor: connection.from.split('.')[1], evidence: [] };
   });
