@@ -55,7 +55,7 @@ export function lineRuns(runs) {
   return out;
 }
 export function searchEmptyMessage(state, query, filter) {
-  if (state === 'loading') return 'Loading searchable content…';
+  if (state === 'loading') return 'Loading searchable content';
   if (state === 'error') return 'Some content could not be loaded. Try again.';
   if (state === 'partial') return 'No matches in the available content.';
   if (query.trim()) return 'No matches on this canvas.';

@@ -10,7 +10,7 @@ export function ExcerptNote({ block, onChange, readOnly = false }) {
   useEffect(() => setText(block.note || ''), [block.note]);
   if (readOnly && !text) return null;
   return (
-    <textarea data-excerpt-note aria-label="Your note" placeholder="Add a note…" value={text} readOnly={readOnly} rows={2}
+    <textarea data-excerpt-note aria-label="Your note" placeholder="Add a note" value={text} readOnly={readOnly} rows={2}
       onPointerDown={event => event.stopPropagation()} onChange={event => setText(event.target.value)}
       onBlur={() => { if (text !== (block.note || '')) onChange?.({ ...block, note: text }); }}
       className="mt-2 w-full resize-none rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink placeholder:text-ink-3 focus:border-line-strong focus:outline-none" />

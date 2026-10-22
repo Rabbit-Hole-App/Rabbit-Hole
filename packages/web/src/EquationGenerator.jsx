@@ -171,7 +171,7 @@ export default function EquationGenerator({
             maxLength={1000}
             disabled={readOnly}
             onChange={(event) => setPrompt(event.target.value)}
-            placeholder="Describe the equation you want…"
+            placeholder="Describe the equation you want"
             className="mt-1 min-h-16 w-full resize-y rounded border border-line bg-surface p-2 text-ink"
           />
         </label>
@@ -186,7 +186,7 @@ export default function EquationGenerator({
             }
             className="rounded border border-line px-2 py-1 disabled:opacity-50"
           >
-            {busy ? "Generating…" : "Generate"}
+            {busy ? "Generating" : "Generate"}
           </button>
           {busy && (
             <button

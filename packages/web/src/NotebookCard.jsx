@@ -134,7 +134,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
         <span className="text-[11px] font-semibold tracking-wider text-ink-2 uppercase">Notebook</span>
         <span className="text-[11px] text-ink-3">· Python</span>
         <span className="flex-1" />
-        {onEditCells&&<button type="button" data-notebook-edit-cells className={action} disabled={!loaded||kind!=='notebook'||cellBusy||block.locked} onPointerDown={stop} onClick={editCells}>{cellBusy?'Reading cells…':'Edit selected cells'}</button>}
+        {onEditCells&&<button type="button" data-notebook-edit-cells className={action} disabled={!loaded||kind!=='notebook'||cellBusy||block.locked} onPointerDown={stop} onClick={editCells}>{cellBusy?'Reading cells':'Edit selected cells'}</button>}
         <button type="button" aria-pressed={files} className={`${action} ${files ? 'bg-hover text-ink' : ''}`} disabled={!loaded} onPointerDown={stop} onClick={toggleFiles}><FolderTree size={12} />Files</button>
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('run-all')}><Play size={12} />Run all</button>
         <button type="button" className={action} disabled={!loaded || kind !== 'notebook'} onPointerDown={stop} onClick={() => send('restart')}><RotateCcw size={12} />Restart</button>
@@ -149,7 +149,7 @@ export default function NotebookBody({ block, onSelect, onDocument, onManifest, 
         <iframe key={attempt} ref={frame} data-notebook-frame title="Jupyter notebook" src={notebookUrl(workspaceIdFor(block.notebook_id))} className="h-full w-full bg-white"
           sandbox="allow-scripts allow-same-origin allow-downloads" allow="clipboard-write"
           onLoad={open} />
-        {!loaded && !stalled && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python…</p>}
+        {!loaded && !stalled && <p className="pointer-events-none absolute inset-0 grid place-items-center bg-white text-sm text-ink-2">Starting Python</p>}
         {!loaded && stalled && (
           <div data-notebook-stalled className="absolute inset-0 grid place-items-center bg-white p-6 text-center">
             <div className="max-w-xs space-y-2 text-sm text-ink-2">

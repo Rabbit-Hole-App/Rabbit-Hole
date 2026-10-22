@@ -441,7 +441,7 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
   // The answer is drawn onto the board this question came from, so the
   // explanation lands on the thing it is about.
   const explainOnBoard = async () => {
-    setDrawing('Preparing explanation...');
+    setDrawing('Preparing explanation');
     try {
       const board = boardAsk(boardId);
       // Without this the button would quietly reset and look like nothing happened.
@@ -484,10 +484,10 @@ function ChatCard({ exchange, zoom, selected, connected, boardId, onSelect, onMo
       <div ref={body} data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         {exchange.answer
           ? <div className="text-sm"><Md text={exchange.answer} onFile={onFile} /></div>
-          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? <span className="shimmer not-italic">Thinking…</span> : waitingText(exchange.status)}</p>}
+          : <p className="text-sm text-ink-2 italic">{exchange.status === 'thinking' ? <span className="shimmer not-italic">Thinking</span> : waitingText(exchange.status)}</p>}
         {replies.map(turn => <div key={turn.id} className="mt-3 border-t border-line pt-3">
           <div className="mb-3 flex justify-end"><span className="rounded-xl bg-accent px-3 py-1.5 text-sm whitespace-pre-wrap text-white">{turn.question}</span></div>
-          <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking…</span>}</span>}</div>
+          <div className="text-sm">{turn.answer ? <Md text={turn.answer} onFile={onFile} /> : <span className="text-ink-2">{turn.status === 'done' ? 'No answer received. Try again.' : <span className="shimmer">Thinking</span>}</span>}</div>
         </div>)}
       </div>
       {/* A chat card's prompt is its question (docs/features/card-prompt.md). */}
@@ -600,7 +600,7 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
         onPointerDown={event => { if (selected) event.stopPropagation(); }}>
         {url
           ? <iframe src={url} title={block.label || 'PDF'} className={`h-full w-full ${selected ? '' : 'pointer-events-none'}`} />
-          : <p className="p-4 text-sm text-ink-2">{missing ? 'This PDF is not in this browser. Upload it again from Sources.' : 'Opening…'}</p>}
+          : <p className="p-4 text-sm text-ink-2">{missing ? 'This PDF is not in this browser. Upload it again from Sources.' : 'Opening'}</p>}
       </div>
     </CanvasNode>
   );
@@ -660,13 +660,13 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
       <div data-pointer-body className="min-h-0 px-3 pb-3" onPointerDown={event => { if ((clip || block.kind === 'audio') && selected) event.stopPropagation(); }}>
         {/* A region excerpt (pdf-excerpt.js): the stored crop of the PDF page, the learner's note, the source footer. */}
         {block.excerpt
-          ? <div data-excerpt-card data-excerpt-kind="region"><Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening…</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
+          ? <div data-excerpt-card data-excerpt-kind="region"><Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
             <ExcerptNote block={block} onChange={onChange} readOnly={editing.readOnly || editing.locked.has(block.id)} /><ExcerptSource excerpt={block.excerpt} app={appName} /></div>
           : media
-          ? <Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening…</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
+          ? <Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
           : url
             ? <img src={url} alt={block.label || 'Dropped image'} style={block.meta?.width && block.meta?.height ? { aspectRatio: `${block.meta.width} / ${block.meta.height}` } : undefined} className="w-full rounded-lg border border-line bg-white object-contain" />
-            : <p className="p-2 text-sm text-ink-2">{missing ? 'This file is not in this browser. Drop it here again.' : 'Opening…'}</p>}
+            : <p className="p-2 text-sm text-ink-2">{missing ? 'This file is not in this browser. Drop it here again.' : 'Opening'}</p>}
       </div>
     </CanvasNode>
   );
@@ -859,10 +859,10 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file…</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
   // An imported 3D model, point cloud, splat or CAD model (ModelCard.jsx): the header strip moves it, the viewer is explicit.
   if (block.type === 'file' && block.kind === 'model') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || 560} height={block.h || 460} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the 3D viewer…</p>}><ModelCard block={block} selected={selected} onChange={onChange} onSelect={onSelect} /></Suspense></CanvasNode>;
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the 3D viewer</p>}><ModelCard block={block} selected={selected} onChange={onChange} onSelect={onSelect} /></Suspense></CanvasNode>;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} appName={appName} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
@@ -874,7 +874,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
   if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph…</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
+    <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
@@ -1104,7 +1104,7 @@ function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, on
           </div>
         </div>
       )}
-      {code && editing ? <Suspense fallback={<div role="status">Loading code editor…</div>}>
+      {code && editing ? <Suspense fallback={<div role="status">Loading code editor</div>}>
         <CodeBoxEditor key={item.id} value={item.text || ''} language={item.lang} filename={item.filename} base={base}
           readOnly={locked} zoom={zoom} cameraKey={cameraKey} getTooltipSpace={getTooltipSpace} onApi={onEditorApi}
           onLanguageChange={value => !locked && onLang?.(item.id, value)} onInlineAI={!locked ? onInlineAI : null}
@@ -1114,7 +1114,7 @@ function CanvasItem({ item, zoom, cameraKey, getTooltipSpace, tool, selected, on
             setEditing(false); setPoint(null); return true;
           }} />
       </Suspense> : <RichText entry={item} base={base} colorOf={ink} code={code} colors={colors?.key === colorKey ? colors.runs : null} editing={editing} point={point}
-        placeholder={sticky ? 'Note…' : code ? 'Code…' : 'Text…'} aria-label={sticky ? 'Sticky note' : code ? 'Code' : 'Text'}
+        placeholder={sticky ? 'Note' : code ? 'Code' : 'Text'} aria-label={sticky ? 'Sticky note' : code ? 'Code' : 'Text'}
         style={{ ...objectStyle(item, base, ink), ...(code ? { fontWeight: 400, fontStyle: 'normal', textAlign: 'left' } : {}) }}
         className={`${sticky ? 'flex-1 empty:before:text-[color:var(--sticky-ph)]' : 'empty:before:opacity-50'} empty:before:content-[attr(data-placeholder)]`}
         onApi={onEditorApi} onCommit={(runs, how) => { setEditing(false); setPoint(null); onCommit(item.id, runs, how); }} />}
@@ -1217,7 +1217,7 @@ function BlockMenu({ className, filter, onFilter, onPick }) {
   return (
     <div role="menu" aria-label="Lesson blocks" className={`absolute z-40 flex max-h-[70vh] w-52 flex-col overflow-hidden rounded-xl border border-line bg-white shadow-md ${className}`}>
       <input type="search" autoFocus value={filter} onChange={event => onFilter(event.target.value)}
-        aria-label="Filter blocks" placeholder="Filter…"
+        aria-label="Filter blocks" placeholder="Filter"
         className="m-1 h-7 shrink-0 rounded-lg border border-line px-2 text-xs outline-none focus:border-ink-3" />
       {/* Grouped the way learners think (learn-insert-palette.js); it scrolls
           rather than running off the canvas. */}
@@ -5206,7 +5206,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {docError ? <>
               <p role="alert">Couldn&apos;t load this canvas&apos;s document. Your saved document is unchanged.</p>
               {onDocRetry && <button type="button" onClick={onDocRetry} className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-ink hover:bg-hover">Retry</button>}
-            </> : <p>Loading the document…</p>}
+            </> : <p>Loading the document</p>}
           </div>
         )}
         <div ref={worldRef} data-canvas-world style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: '0 0' }} className={`absolute top-0 left-0 ${glide ? 'transition-transform duration-200 ease-out motion-reduce:transition-none' : ''}`}>
@@ -5229,7 +5229,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <div data-canvas-doc-editor className="flex-1 px-4 py-14 [&_.bn-editor]:px-10">
               {unknownDocBlock(doc.blocks)
                 ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
-                : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document…</p>}>
+                : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document</p>}>
                   <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
                 </Suspense>}
             </div>
@@ -5343,7 +5343,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <rect x={Math.min(areaMarquee.x1, areaMarquee.x2)} y={Math.min(areaMarquee.y1, areaMarquee.y2)}
               width={Math.abs(areaMarquee.x2 - areaMarquee.x1)} height={Math.abs(areaMarquee.y2 - areaMarquee.y1)}
               fill="rgba(220, 38, 38, 0.06)" stroke="#dc2626" strokeWidth={2 / view.z} strokeDasharray={`${6 / view.z} ${4 / view.z}`} />
-            {areaMarquee.busy && <text x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} fill="#dc2626" fontSize={12 / view.z} fontWeight="600">Capturing…</text>}
+            {areaMarquee.busy && <text x={Math.min(areaMarquee.x1, areaMarquee.x2) + 6 / view.z} y={Math.min(areaMarquee.y1, areaMarquee.y2) - 6 / view.z} fill="#dc2626" fontSize={12 / view.z} fontWeight="600">Capturing</text>}
           </svg>
         )}
         {marquee && (
@@ -5519,7 +5519,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {/* Start Rabbit Hole's own mark, as on the shared page's header and the Explore card. */}
               {startHole && <MenuRow icon={ArrowDownToLine} data-menu-start-rabbit-hole data-origin={block.id} onClick={act(startHole)}>Start Rabbit Hole</MenuRow>}
               {addComment && commentOn && <MenuRow icon={MessageCircle} data-menu-add-comment aria-keyshortcuts="C" hint="C" onClick={act(addComment)}>Add comment</MenuRow>}
-              {!readOnly && onLinkCanvas && (block ? block.type !== 'canvas-ref' : !menuAt.id && !menuAt.group) && <MenuRow icon={Link2} data-menu-link-canvas onClick={act(() => onLinkCanvas(block ? { blockId: block.id } : { point: { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z } }))}>Link to canvas…</MenuRow>}
+              {!readOnly && onLinkCanvas && (block ? block.type !== 'canvas-ref' : !menuAt.id && !menuAt.group) && <MenuRow icon={Link2} data-menu-link-canvas onClick={act(() => onLinkCanvas(block ? { blockId: block.id } : { point: { x: (menuAt.x - view.x) / view.z, y: (menuAt.y - view.y) / view.z } }))}>Link to canvas</MenuRow>}
               {/* A view-only board edits nothing: Start Rabbit Hole is its only card action here. */}
               {!readOnly && <>
               {block && (supportsCardLayout(block) ? <details data-card-layout-menu className="rounded text-sm">

@@ -72,7 +72,7 @@ function DocReader({ app, sourceRef, position, save, startPage, plainChat }) {
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
   }, [app, id]);
   const range = sourceRef.range || {};
-  if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}…</p>;
+  if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}</p>;
   if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} quote={range.quote} quotePage={range.page || 1} save={save}
     companion={{ key: pdfKeyOfRef(sourceRef), home: null, anchor: range.excerpt || null, plainChat }} />;
   return doc.text == null ? <Unavailable sourceRef={sourceRef} refused={!!doc.refused} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;

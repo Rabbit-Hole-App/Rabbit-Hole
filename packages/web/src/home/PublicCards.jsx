@@ -84,7 +84,7 @@ export function Recommended({ found, me, kind }) {
   return (
     <section data-explore-recommended={kind} aria-label="Recommended" className="pb-8">
       <h2 className="pb-2 text-xs text-ink-2">Recommended</h2>
-      {found === 'loading' ? <p data-recommended-loading className="text-sm text-ink-3">Finding the best matches…</p>
+      {found === 'loading' ? <p data-recommended-loading className="text-sm text-ink-3">Finding the best matches</p>
         : !picks.length ? <p data-recommended-note className="text-sm text-ink-3">{found.note || (kind === 'creators' ? 'No creator fits that yet.' : 'Nothing published fits that yet.')}</p>
         : kind === 'creators' ? <CreatorCards creators={picks} />
         : <PublicCards cards={picks} me={me} attr="data-recommended-card" />}

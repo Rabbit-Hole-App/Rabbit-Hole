@@ -78,7 +78,7 @@ const tray = (mode, id, prompt, options, extra = {}) => ({ id: `${mode}:${id}`, 
 // the caller passes it as signals.probe; signals.resumed marks a return to an active journey.
 export function trayFor(journey, path, signals = {}) {
   if (!journey) return null;
-  if (journey.pending != null) return { id: 'busy', mode: null, options: [], busy: 'Working on it...', free_text: false, dismissible: false };
+  if (journey.pending != null) return { id: 'busy', mode: null, options: [], busy: 'Working on it', free_text: false, dismissible: false };
   if (journey.error) return { id: 'error', mode: null, options: [{ id: 'retry', label: 'Try again' }], error: { message: journey.error.message }, free_text: false, dismissible: false };
   switch (journey.state) {
     case 'intake': {

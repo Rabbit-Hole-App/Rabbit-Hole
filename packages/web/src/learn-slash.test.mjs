@@ -183,12 +183,12 @@ const slotHarness = reply => {
 test('a card command reserves before the request and its card takes that slot', async () => {
   const { did, run } = slotHarness({ result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'T', body: 'B' } });
   const out = await run('/explain why a token id is only an index');
-  assert.deepEqual(did, [['reserve', { label: 'Creating /explain…', card: 'explanation', prompt: true }], ['post', true], ['block', 'explanation', { into: 'slot:1' }]], 'the card keeps its typed line, so the slot holds its Prompt row');
+  assert.deepEqual(did, [['reserve', { label: 'Creating /explain', card: 'explanation', prompt: true }], ['post', true], ['block', 'explanation', { into: 'slot:1' }]], 'the card keeps its typed line, so the slot holds its Prompt row');
   assert.equal(out.notice.blockId, 'card-1');
   // Sized as the command's own card: /graph as a graph, /quiz as a quiz.
   const graph = slotHarness({ result: 'clarification', question: 'Which function?' });
   await graph.run('/graph');
-  assert.deepEqual(graph.did[0], ['reserve', { label: 'Creating /graph…', card: 'graph', prompt: true }]);
+  assert.deepEqual(graph.did[0], ['reserve', { label: 'Creating /graph', card: 'graph', prompt: true }]);
 });
 
 test('a question, a proposal, an unsupported or invalid result, a failure or a timeout gives the slot up', async () => {
@@ -236,7 +236,7 @@ test('a paid command holds no place until Generate; Generate holds it and the co
   // Cancel: the composer drops the proposal and nothing reaches the canvas.
   assert.ok(!did.some(entry => entry[0] === 'reserve' || entry[0] === 'block'));
   out.proposal.generate();
-  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video…', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
+  assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
 // Duplicate card on reuse (owner priority 2, 2026-10-21): the server keys a paid video or scene job by its operation

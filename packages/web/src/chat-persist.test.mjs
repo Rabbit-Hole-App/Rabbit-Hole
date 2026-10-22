@@ -252,7 +252,7 @@ test('loading, empty and failed are three states; Retry restores; a turn sent me
   const view = T.mount(T.useChatThread, 'canvas-0000000a');
   await settle();
   assert.equal(view.current.status, 'loading');
-  assert.equal(T.chatTitle(view.current), 'Loading chat…');
+  assert.equal(T.chatTitle(view.current), 'Loading chat');
   release();
   await settle();
   assert.equal(view.current.status, 'error', 'a failed fetch is an error, not an empty New chat');

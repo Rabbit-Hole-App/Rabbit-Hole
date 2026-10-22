@@ -14,7 +14,7 @@ import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, 
 import { reviewRequired } from './proposal-capabilities.js';
 import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs, inlineRouteTool } from './inline-ai-decide.js';
 
-export const STAGES = Object.freeze({ routing: 'Checking the request…', note: 'Writing the explanation…', edit: 'Preparing the edit…', shapes: 'Drawing the diagram…', artifact: 'Making the {label}…' });
+export const STAGES = Object.freeze({ routing: 'Checking the request', note: 'Writing the explanation', edit: 'Preparing the edit', shapes: 'Drawing the diagram', artifact: 'Making the {label}' });
 // A proposed capability is proposed in the Chat (MOT-20b): what the editor says once the Chat has the turn.
 export const PROPOSAL_HANDOFF = 'Sent to Chat: review the proposal there, then Generate.';
 const busyStates = new Set(['routing', 'generating', 'streaming']);
@@ -115,7 +115,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const objects = request.context?.target?.objects || [];
       const selection = { id: request.frozen?.ids?.[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title: input.concept,
         text: objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n') };
-      set({ status: 'generating', stage: 'Sending to Chat…', stream: null });
+      set({ status: 'generating', stage: 'Sending to Chat', stream: null });
       const handed = await propose?.(route, input.args, { selection, concept: input.concept });
       if (!handed) throw Object.assign(new Error(unavailableText(route).text), { code: 'unavailable' });
       if (!live(mine)) return null;
@@ -209,7 +209,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       controller = new AbortController();
       mark(id, 'submit');
       let snapshot;
-      try{snapshot=prepare();if(snapshot?.then){set({status:'routing',stage:'Reading selected notebook cells…'});snapshot=await snapshot;if(!live(mine))return 'dropped';}}
+      try{snapshot=prepare();if(snapshot?.then){set({status:'routing',stage:'Reading selected notebook cells'});snapshot=await snapshot;if(!live(mine))return 'dropped';}}
       catch(error){if(!live(mine))return 'dropped';set({status:shown('error'),error:error.message||'The selected content could not be read.'});finish(id,'invalid');return 'invalid';}
       if (snapshot.error) { set({ error: snapshot.error, notice: null }); finish(id, 'unsupported'); return 'unsupported'; }
       mark(id, 'refreshed');

@@ -174,7 +174,7 @@ export function TutorActivity({ chat, board }) {
     }
     const sourceRefs = cited.map(wireRef), draft = JSON.stringify([content, sourceRefs]), sentDraft = draftOf(answer, cited);
     if (key.current.for !== draft) key.current = { for: draft, value: newKey() };
-    setResult({ text: 'Saving your answer…', tone: 'info' });
+    setResult({ text: 'Saving your answer', tone: 'info' });
     try {
       const out = await api('/api/learn/tutor/attempts', { method: 'POST', body: JSON.stringify({ app: chat.canvas, board, activityId: activity.activityId, activityRevision: activity.revision, submissionKey: key.current.value, submittedContent: content, sourceRefs, assistanceRefs: [] }) });
       setResult({ text: assessmentText(out.assessment), tone: 'info' }); setReviewed(sentDraft); setVerdicts(verdictsOf(out.assessment));

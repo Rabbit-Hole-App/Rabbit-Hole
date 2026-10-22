@@ -99,7 +99,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
                   <label className="text-xs font-medium text-ink-2" htmlFor={`goal-outcome-${goal.goalId}`}>What you will be able to do (optional)</label>
                   <textarea id={`goal-outcome-${goal.goalId}`} rows={2} maxLength={OUTCOME_MAX} value={edit.outcome} onChange={event => setEdits(previous => ({ ...previous, [goal.goalId]: { ...previous[goal.goalId], outcome: event.target.value } }))} className={`${FIELD} resize-none`} />
                   <div className="flex gap-2">
-                    <button type="submit" data-goal-save disabled={busy(`edit:${goal.goalId}`)} className={PRIMARY}>{busy(`edit:${goal.goalId}`) ? 'Saving…' : 'Save'}</button>
+                    <button type="submit" data-goal-save disabled={busy(`edit:${goal.goalId}`)} className={PRIMARY}>{busy(`edit:${goal.goalId}`) ? 'Saving' : 'Save'}</button>
                     <button type="button" onClick={() => stopEdit(goal.goalId)} className={QUIET}>Cancel</button>
                   </div>
                   {errorFor(`edit:${goal.goalId}`)}
@@ -111,7 +111,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
                     {current
                       ? <p className="mt-1 flex items-center gap-1 text-xs font-medium text-pass"><Check size={13} aria-hidden />Current goal</p>
                       : <button type="button" data-goal-switch disabled={busy(`switch:${goal.goalId}`)} onClick={() => run(`switch:${goal.goalId}`, 'activate_goal', { goalId: goal.goalId })}
-                        className="mt-1 cursor-pointer text-xs font-medium text-ink underline-offset-2 hover:underline disabled:opacity-50">{busy(`switch:${goal.goalId}`) ? 'Switching…' : 'Make this my current goal'}</button>}
+                        className="mt-1 cursor-pointer text-xs font-medium text-ink underline-offset-2 hover:underline disabled:opacity-50">{busy(`switch:${goal.goalId}`) ? 'Switching' : 'Make this my current goal'}</button>}
                   </div>
                   <button type="button" data-goal-edit aria-label={`Edit ${goal.label}`} title="Edit" onClick={() => { setConfirming(null); startEdit(goal); }} className={ICON}><Pencil size={15} strokeWidth={1.8} aria-hidden /></button>
                   <button type="button" data-goal-delete aria-label={`Delete ${goal.label}`} title="Delete" onClick={() => setConfirming(goal.goalId)} className={ICON}><Trash2 size={15} strokeWidth={1.8} aria-hidden /></button>
@@ -119,7 +119,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
               {!edit && confirming === goal.goalId && <div role="group" aria-label={`Delete ${goal.label}?`} data-goal-confirm onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setConfirming(null); } }}
                 className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-hover px-2 py-1.5">
                 <span className="min-w-0 flex-1 text-xs text-ink">Delete this goal? Its saved answers stay recorded.</span>
-                <button type="button" data-goal-confirm-delete autoFocus disabled={busy(`delete:${goal.goalId}`)} onClick={() => remove(goal)} className={`${BUTTON} border border-fail text-fail hover:bg-fail/10`}>{busy(`delete:${goal.goalId}`) ? 'Deleting…' : 'Delete'}</button>
+                <button type="button" data-goal-confirm-delete autoFocus disabled={busy(`delete:${goal.goalId}`)} onClick={() => remove(goal)} className={`${BUTTON} border border-fail text-fail hover:bg-fail/10`}>{busy(`delete:${goal.goalId}`) ? 'Deleting' : 'Delete'}</button>
                 <button type="button" onClick={() => setConfirming(null)} className={QUIET}>Cancel</button>
               </div>}
               {!edit && (errorFor(`switch:${goal.goalId}`) || errorFor(`delete:${goal.goalId}`))}
@@ -132,7 +132,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
         <input id="goal-new" ref={addField} data-goal-new maxLength={LABEL_MAX} placeholder="For example: read a balance sheet with confidence" value={add.label} onChange={event => setAdd(previous => ({ ...previous, label: event.target.value }))} className={FIELD} />
         <label className="sr-only" htmlFor="goal-new-outcome">What you will be able to do (optional)</label>
         <textarea id="goal-new-outcome" data-goal-new-outcome rows={2} maxLength={OUTCOME_MAX} placeholder="What you will be able to do (optional)" value={add.outcome} onChange={event => setAdd(previous => ({ ...previous, outcome: event.target.value }))} className={`${FIELD} resize-none`} />
-        <div><button type="submit" data-goal-add-save disabled={busy('add')} className={`${PRIMARY} inline-flex items-center gap-1.5`}><Plus size={15} aria-hidden />{busy('add') ? 'Adding…' : 'Add goal'}</button></div>
+        <div><button type="submit" data-goal-add-save disabled={busy('add')} className={`${PRIMARY} inline-flex items-center gap-1.5`}><Plus size={15} aria-hidden />{busy('add') ? 'Adding' : 'Add goal'}</button></div>
         <p className="text-xs text-ink-3">A new goal becomes your current goal. Saved goals use no AI.</p>
         {errorFor('add')}
       </form>

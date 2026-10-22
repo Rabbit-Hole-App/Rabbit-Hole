@@ -104,7 +104,7 @@ export default function MemberBoardPage({ boardId }) {
   }, []);
 
   if (problem) return <main className="grid h-screen place-items-center bg-white p-6"><div className="max-w-sm text-center"><h1 className="text-lg font-semibold text-ink">{problem}</h1><a href="/" className="mt-3 inline-block text-sm text-ink-2 underline">Go to {PRODUCT}</a></div></main>;
-  if (!board) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the canvas…</main>;
+  if (!board) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the canvas</main>;
   const { exchanges = EMPTY_EXCHANGES, ...state } = board.state || {};
   const owner = board.owner;
   return (

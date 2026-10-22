@@ -22,7 +22,7 @@ function sync(sample){
   for(const button of host.querySelectorAll('[data-pause],[data-reset],[data-portal],[data-travel]'))button.disabled=!ready;
   pauseButton.textContent=paused?'Resume':'Pause';pauseButton.setAttribute('aria-label',paused?'Resume mascot':'Pause mascot');
   motionNote.hidden=!reduced;
-  const text=!ready?'Waking the rabbit…':paused?'Taking a pause':`${descriptions[controller.state]} · ${sample?.direction<0?'B → A':'A → B'}`;
+  const text=!ready?'Waking the rabbit':paused?'Taking a pause':`${descriptions[controller.state]} · ${sample?.direction<0?'B → A':'A → B'}`;
   if(status.textContent!==text)status.textContent=text;
   for(const button of portalButtons){const p=controller.portals[button.dataset.portal];button.style.left=`${p.x*100}%`;button.style.top=`${p.y*100}%`;}
   host.style.setProperty('--journey',String(controller.progress));

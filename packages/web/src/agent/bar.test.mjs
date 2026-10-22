@@ -118,15 +118,15 @@ test('× widens: dropping the resource drops its selection', () => {
 test('the placeholder follows the scope; the map status comes from the page first (T02 §12, §13)', () => {
   const catalog = [{ name: 'repo-1a2b', kind: 'repository', status: 'indexing' }, { name: 'repo-9f9f', kind: 'repository', status: 'ready' }];
   const surface = { resource: null, catalog };
-  assert.equal(placeholderFor(home, surface), 'Start, open, ask, or paste a link…');
+  assert.equal(placeholderFor(home, surface), 'Start, open, ask, or paste a link');
   assert.equal(placeholderFor(nano, surface), 'Code answers are available once the map is ready');
   // RepositoryPage's poll saw the map finish; the catalog Shell loaded has not.
-  assert.equal(placeholderFor(nano, { catalog, resource: { kind: 'project', slug: 'repo-1a2b', title: 'karpathy/nanoGPT', status: 'ready' } }), 'Ask about karpathy/nanoGPT…');
+  assert.equal(placeholderFor(nano, { catalog, resource: { kind: 'project', slug: 'repo-1a2b', title: 'karpathy/nanoGPT', status: 'ready' } }), 'Ask about karpathy/nanoGPT');
   // A draft held for another project reads that project's catalog row, not this page's status.
   assert.equal(placeholderFor(nano, { catalog, resource: { kind: 'project', slug: 'repo-9f9f', status: 'ready' } }), 'Code answers are available once the map is ready');
-  assert.equal(placeholderFor({ ...nano, slug: 'repo-9f9f', title: 'karpathy/minbpe' }, surface), 'Ask about karpathy/minbpe…');
-  assert.equal(placeholderFor({ ...attn, slug: 'repo-9f9f' }, surface), 'Ask about CausalSelfAttention…');
-  assert.equal(placeholderFor(counter, surface), 'Ask about counter…');
+  assert.equal(placeholderFor({ ...nano, slug: 'repo-9f9f', title: 'karpathy/minbpe' }, surface), 'Ask about karpathy/minbpe');
+  assert.equal(placeholderFor({ ...attn, slug: 'repo-9f9f' }, surface), 'Ask about CausalSelfAttention');
+  assert.equal(placeholderFor(counter, surface), 'Ask about counter');
 });
 
 test('catalog matches show as an empty state, pills, or a list (T02 §6.6)', () => {

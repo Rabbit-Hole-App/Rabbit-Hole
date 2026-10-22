@@ -166,7 +166,7 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
     {!glb && !poster && <p className="p-5 text-center text-xs text-ink-2">The interactive preview is not available yet.</p>}
     {/* Not a control (those are outside the card, CadViewerTools): the surface a click into the model enters from. */}
     {glb && !interacting && !failure && <div data-cad-click-surface onPointerDown={event=>{press.current={x:event.clientX,y:event.clientY};}} onClick={click} className="absolute inset-0 cursor-pointer"/>}
-    {glb && !interacting && !failure && !live && <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">{slot ? 'Opening the 3D view…' : 'Click to show the 3D view'}</p>}
+    {glb && !interacting && !failure && !live && <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">{slot ? 'Opening the 3D view' : 'Click to show the 3D view'}</p>}
     {interacting && <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish</p>}
     {failure && <div role="status" data-cad-viewer-fallback={failure.module ? 'module' : 'model'} className="absolute inset-x-0 bottom-0 flex flex-col gap-2 border-t border-line bg-white p-2 text-xs text-ink-2" onPointerDown={event=>event.stopPropagation()}>
       <p data-cad-viewer-notice>{notice}{poster ? ' The saved preview is shown.' : ''}{why && <span className="block pt-0.5">{BLOCKED[why]}</span>}</p>

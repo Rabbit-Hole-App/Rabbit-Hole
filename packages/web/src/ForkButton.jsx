@@ -42,7 +42,7 @@ export default function ForkButton({ source, title = '', resume = null, onForked
   useEffect(() => { if (auto) ask(); }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
   const Icon = phase === 'busy' ? Loader2 : phase === 'done' ? Check : GitFork;
   const tip = phase === 'done' ? 'Forked: your copy is in your Library' : 'Fork: make your own editable copy in your Library';
-  const label = phase === 'busy' ? 'Forking…' : phase === 'done' ? 'Forked' : 'Fork';
+  const label = phase === 'busy' ? 'Forking' : phase === 'done' ? 'Forked' : 'Fork';
   const n = counted ?? count;
   const counts = typeof n === 'number';
   return <>

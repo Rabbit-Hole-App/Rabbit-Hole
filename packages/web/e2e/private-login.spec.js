@@ -441,7 +441,7 @@ test('private Logs restores Bedrock chat, followups, history and the enlarged ru
   expect(feedbackBox.x + feedbackBox.width).toBeLessThanOrEqual(buttonBox.x + buttonBox.width + 1);
   await expect(page.locator('.fixed.bottom-5').getByText('Log link copied')).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(`${origin}/apps/aws-private-proof/runs/${runId}`);
-  const input = panel.getByPlaceholder('Ask about this run…');
+  const input = panel.getByPlaceholder('Ask about this run');
   await expect(input).toBeVisible();
   await input.fill('What happened?');
   await panel.getByRole('button', { name: 'Send', exact: true }).click();
@@ -457,7 +457,7 @@ test('private Logs restores Bedrock chat, followups, history and the enlarged ru
   await expect(panel.getByText('The run finished successfully.', { exact: false })).toHaveCount(2);
   await panel.getByRole('button', { name: 'Open as page', exact: true }).click();
   await expect(page).toHaveURL(/\/runs\/r-/);
-  await expect(page.getByPlaceholder('Ask about this run…')).toBeVisible();
+  await expect(page.getByPlaceholder('Ask about this run')).toBeVisible();
   await expect(page.getByText('The run finished successfully.', { exact: false })).toHaveCount(2);
   // Change run through the SPA router; a document reload would hide stale component state.
   await page.evaluate(() => {
@@ -465,7 +465,7 @@ test('private Logs restores Bedrock chat, followups, history and the enlarged ru
     window.dispatchEvent(new PopStateEvent('popstate'));
   });
   await expect(page.getByText('The run finished successfully.', { exact: false })).toHaveCount(0);
-  await page.getByPlaceholder('Ask about this run…').fill('Explain this second run.');
+  await page.getByPlaceholder('Ask about this run').fill('Explain this second run.');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect.poll(() => state.chats.size).toBe(2);
   expect([...state.chats.values()].map((chat) => chat.messages.length)).toEqual([4, 2]);
@@ -477,7 +477,7 @@ test('private Agent uses Bedrock with app history, sources, enlarge and minimize
   const state = await fixture(page, 'chat');
   await page.goto('/apps/aws-private-proof?tab=agent');
   await page.getByRole('link', { name: 'Continue test sign-in' }).click();
-  const input = page.getByPlaceholder('Ask about aws-private-proof…');
+  const input = page.getByPlaceholder('Ask about aws-private-proof');
   await expect(input).toBeVisible();
   await expect(page.getByRole('button', { name: 'Bedrock', exact: true })).toBeVisible();
   await input.fill('How do I use this app?');
@@ -508,7 +508,7 @@ test('private Agent uses Bedrock with app history, sources, enlarge and minimize
   await page.getByRole('tab', { name: 'Logs', exact: true }).click();
   await page.getByRole('cell', { name: '1788978', exact: true }).click();
   const panel = page.getByRole('dialog');
-  await expect(panel.getByPlaceholder('Ask about this run…')).toBeVisible();
+  await expect(panel.getByPlaceholder('Ask about this run')).toBeVisible();
   await expect(panel.getByText('This job accepts a count', { exact: false })).toHaveCount(0);
   expect(state.chats.size).toBe(1);
   expect(state.unexpected).toEqual([]);

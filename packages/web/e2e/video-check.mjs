@@ -55,7 +55,7 @@ await page.waitForTimeout(3000);
 
 // --- picking one (Insert > Search YouTube; Release B removed the top-bar Search control) ---
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
-await page.getByRole('menuitem', { name: 'Search YouTube…', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Search YouTube', exact: true }).click();
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('youtube');

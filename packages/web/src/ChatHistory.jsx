@@ -35,7 +35,7 @@ export default function ChatHistory() {
       <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">
         {/* Loading, empty and failed are three states; Try again fetches the list again and keeps the rows already shown. */}
         {error && <p role="alert" className="flex items-center gap-2 px-2 py-2 text-sm text-fail">{error}<button type="button" data-chat-history-retry onClick={() => { setError(null); setAttempt(n => n + 1); }} className="font-medium text-ink underline-offset-2 hover:underline">Try again</button></p>}
-        {rows === null ? (!error && <p role="status" className="flex items-center gap-2 px-2 py-3 text-sm text-ink-3"><Loader2 size={14} aria-hidden="true" className="animate-spin" />Loading chats…</p>)
+        {rows === null ? (!error && <p role="status" className="flex items-center gap-2 px-2 py-3 text-sm text-ink-3"><Loader2 size={14} aria-hidden="true" className="animate-spin" />Loading chats</p>)
           : rows.length === 0 ? <p className="px-2 py-3 text-sm text-ink-3">{q.trim() ? 'No chats match this search.' : 'No past chats on this canvas yet.'}</p>
           : (
             <ul aria-label="Chats on this canvas" className="flex flex-col">

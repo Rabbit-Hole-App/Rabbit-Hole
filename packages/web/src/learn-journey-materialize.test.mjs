@@ -58,7 +58,7 @@ test('materializeSection: section 1 current - one heading in the painted slot, t
   assert.equal(plan.teaching_sequence.length, 3);
   const inserts = canvas.inserts();
   assert.equal(inserts.length, 4);
-  assert.deepEqual(canvas.calls[0], ['reserve', { label: 'Preparing section 1…' }]);
+  assert.deepEqual(canvas.calls[0], ['reserve', { label: 'Preparing section 1' }]);
   const [heading, ...blocks] = inserts;
   assert.deepEqual(heading[1], { type: 'heading', level: 1, text: section1.title, done: false, journey_section_id: 's1' });
   assert.deepEqual(heading[2], { into: 'slot:1' });

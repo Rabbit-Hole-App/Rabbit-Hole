@@ -165,7 +165,7 @@ await check('item 8: a view-only member cannot add or remove a reference - the s
   assert.deepEqual(after.state.blocks.find(b => b.id === 's1').refs, [sRef], 'the source card\'s references changed');
   assert.deepEqual(ok(await linksOf(A, S.id), 'A reads S\'s links again'), linksBefore, 'the links of S changed');
 });
-await check('item 8: on the member page the reference is read-only - a title link to the member URL and a new-tab button, no Remove reference, no Link to canvas…', async () => {
+await check('item 8: on the member page the reference is read-only - a title link to the member URL and a new-tab button, no Remove reference, no Link to canvas', async () => {
   await openCanvas(pageB, `/c/${S.id}`, 's1');
   const chips = pageB.locator('[data-block-id="s1"] [data-ref-chips] [data-ref-chip]');
   await chips.first().waitFor({ timeout: 15000 });
@@ -185,11 +185,11 @@ await check('item 8: on the member page the reference is read-only - a title lin
   const box = await pageB.locator('[data-block-id="s1"]').boundingBox();
   await pageB.mouse.click(box.x + box.width / 2, box.y + 14, { button: 'right' });
   await pageB.waitForTimeout(300);
-  assert.equal(await pageB.getByText('Link to canvas…', { exact: true }).count(), 0, 'the card menu offers Link to canvas… to a member');
+  assert.equal(await pageB.getByText('Link to canvas', { exact: true }).count(), 0, 'the card menu offers Link to canvas… to a member');
   await pageB.keyboard.press('Escape');
   await pageB.mouse.click(box.x + box.width + 260, box.y + 200, { button: 'right' });
   await pageB.waitForTimeout(300);
-  assert.equal(await pageB.getByText('Link to canvas…', { exact: true }).count(), 0, 'the canvas menu offers Link to canvas… to a member');
+  assert.equal(await pageB.getByText('Link to canvas', { exact: true }).count(), 0, 'the canvas menu offers Link to canvas… to a member');
   await pageB.keyboard.press('Escape');
   await shot(pageB, '02-member-chip-read-only');
   // A view-only member can follow a destination they may read.

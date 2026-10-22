@@ -91,7 +91,7 @@ export function useTutorCodebase({ chat, entry, typing = false }) {
       <label className="text-sm text-ink" htmlFor="codebase-focus">{goal.clarify}</label>
       <input id="codebase-focus" data-codebase-question value={question} maxLength={500} disabled={busy} onChange={event => setQuestion(event.target.value)} className="w-full rounded-lg border border-line px-2 py-1.5 text-sm text-ink" />
       <div className="flex flex-wrap gap-1.5">
-        <button type="submit" data-codebase-start disabled={busy || !question.trim()} className={CHOICE}>{busy ? 'Reading the source…' : 'Start'}</button>
+        <button type="submit" data-codebase-start disabled={busy || !question.trim()} className={CHOICE}>{busy ? 'Reading the source' : 'Start'}</button>
         <button type="button" onClick={() => { setPending(null); setNote(null); }} disabled={busy} className={CHOICE}>Back</button>
       </div>
     </form>}

@@ -843,7 +843,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           </div>
         )}
         {preview?.imageTransform && !busy(status) && <div data-inline-image-preview className="mt-2 rounded-lg bg-hover/60 p-2 text-xs">
-          {imageRevision?.requestId===preview.requestId?<img src={imageRevision.value.previewURL} alt="Proposed image revision" className="max-h-48 w-full object-contain"/>:<p role="status">{imageError||'Preparing image preview...'}</p>}
+          {imageRevision?.requestId===preview.requestId?<img src={imageRevision.value.previewURL} alt="Proposed image revision" className="max-h-48 w-full object-contain"/>:<p role="status">{imageError||'Preparing image preview'}</p>}
           <p className="mt-1 text-ink-2">Accept replaces this image with a saved revision. The original remains retained. Cancel may leave an unused stored upload; it never deletes the original.</p>
         </div>}
         {preview?.kind === 'diagram' && !busy(status) && (
@@ -888,7 +888,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           <p className="text-xs text-ink-2">Closing this editor keeps the saved job running. You can review it on the CAD card later.</p>
         </div>}
         {cadConfirmation && <PaidConfirm message="Generate this CAD revision? Bounded generation includes model and executor work." onCancel={()=>setCadConfirmation(null)} onGenerate={generateCad} />}
-        {(cadPending || cadError) && <p data-cad-submit-status role="status" className="mt-2 text-xs text-ink-2">{cadPending ? 'Saving the CAD job...' : cadError}</p>}
+        {(cadPending || cadError) && <p data-cad-submit-status role="status" className="mt-2 text-xs text-ink-2">{cadPending ? 'Saving the CAD job' : cadError}</p>}
         {refused && <p data-inline-unsupported={refused} role="status" className="mt-2 text-xs text-ink-2">{unsupportedText(refused)}</p>}
         {state.declined && <p data-inline-decision={state.declined.decision} role="status" className="mt-2 text-xs text-ink-2">{state.declined.message}</p>}
         {state.error && <p data-inline-error role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-[#b42318]">{state.error}
@@ -981,7 +981,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {contextOpen && (
           <div role="dialog" aria-label="Context" data-inline-context-popover data-scroll
             className={`absolute left-0 z-50 max-h-64 w-80 max-w-full overflow-y-auto rounded-xl border border-line bg-white p-2 text-xs text-ink-2 shadow-[0_2px_12px_rgba(15,15,15,0.12)] ${popBelow ? 'top-full mt-1.5' : 'bottom-full mb-1.5'}`}>
-            {!prepared ? <p>Preparing context…</p> : (
+            {!prepared ? <p>Preparing context</p> : (
               <ul data-inline-context-list className="space-y-0.5">
                 <li data-inline-context-target className="font-medium text-ai">{target.creation ? 'Adding at the insertion point' : `Selected${mode === 'edit' ? ' · the only thing an edit changes' : ''}`}</li>
                 {target.creation && <li data-inline-context-entry="anchor" className="pl-2">{prepared.context.related.length ? 'Nothing selected; read with what is around it.' : 'Empty canvas here: your words and the default look.'}</li>}

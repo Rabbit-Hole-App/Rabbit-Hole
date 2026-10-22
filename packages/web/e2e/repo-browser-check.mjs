@@ -474,7 +474,7 @@ await check('9 another repository or canvas never inherits the context: a canvas
 await check('15 §2: the Graph\'s search focuses the matching nodes', async () => {
   await open();
   await graph();
-  assert.equal(await search.getAttribute('placeholder'), 'Search files or symbols…');
+  assert.equal(await search.getAttribute('placeholder'), 'Search files or symbols');
   await search.fill('Block');
   await shot('B-graph-search');
   const shown = await graphPanel.locator('[data-graph-node]').evaluateAll((all) => all.map((n) => n.getAttribute('aria-label')));

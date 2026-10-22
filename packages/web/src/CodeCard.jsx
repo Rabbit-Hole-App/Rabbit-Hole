@@ -75,7 +75,7 @@ export default function CodeCard({ block, onChange }) {
         {view && (view.excerpt || expanded) && view.total > 0 && <button type="button" data-code-card-expand aria-expanded={expanded} className={BUTTON}
           onClick={() => onChange?.({ ...block, expanded: !expanded })}>{expanded ? <><ChevronsDownUp size={13} aria-hidden />Collapse</> : <><ChevronsUpDown size={13} aria-hidden />Expand</>}</button>}
       </div>
-      {status === 'loading' && <p role="status" className="flex items-center gap-1.5 px-3 py-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" aria-hidden />Loading the code…</p>}
+      {status === 'loading' && <p role="status" className="flex items-center gap-1.5 px-3 py-2 text-xs text-ink-2"><Loader2 size={13} className="animate-spin" aria-hidden />Loading the code</p>}
       {status === 'unavailable' && <p data-code-card-unavailable className="px-3 py-2 text-xs text-ink-2">{source.kind === 'upload' ? 'This file is not available here.' : 'Repository content unavailable.'}</p>}
       {status === 'failed' && <div role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The code could not be read.
         <button type="button" data-code-card-retry className={BUTTON} onClick={retry}>Retry</button></div>}

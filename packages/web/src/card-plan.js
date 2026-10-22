@@ -21,7 +21,7 @@ export function planProblems(plan) {
   const problems = [];
   const need = (ok, message) => { if (!ok) problems.push(message); };
   need(text(plan.concept), 'plan.concept names the concept the card belongs to');
-  need(text(plan.objective) && plan.objective.startsWith(OBJECTIVE_STEM), `plan.objective completes "${OBJECTIVE_STEM}…"`);
+  need(text(plan.objective) && plan.objective.startsWith(OBJECTIVE_STEM), `plan.objective completes "${OBJECTIVE_STEM}"`);
   if (text(plan.objective)) {
     const body = plan.objective.slice(OBJECTIVE_STEM.length).trim();
     need(body.endsWith('.') && !/[.!?]\s/.test(body.slice(0, -1)), 'plan.objective is one sentence');

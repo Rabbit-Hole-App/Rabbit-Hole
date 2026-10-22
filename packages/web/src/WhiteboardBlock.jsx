@@ -122,10 +122,10 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
       relatedObjects: [],
       lessonContext: { topic: (block.title || 'Whiteboard').slice(0, 150), currentStage: 'explanation', recentExplanations: [] },
     };
-    onStage?.('Planning explanation...');
+    onStage?.('Planning explanation');
     const { plan } = await requestBoardExplanation({ app: appName, snapshot, question, answer }, stage => onStage?.(stage));
     if (plan.needsClarification) throw new Error(plan.summary);
-    onStage?.('Drawing...');
+    onStage?.('Drawing');
     const { drawExplanation } = await import('./learn-board-renderer.js');
     // This board has no paid job runner, so a video or scene says it is
     // unavailable here rather than offering a Generate that cannot run.
@@ -223,7 +223,7 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
       )}
       {block.tooLarge && <span className="shrink-0 text-xs text-amber-700">This board is too large to save; it stays until you reload.</span>}
       <div className="shrink-0 space-y-1.5">
-        <textarea value={block.narration || ''} rows={2} placeholder="Narration for this board…"
+        <textarea value={block.narration || ''} rows={2} placeholder="Narration for this board"
           onChange={event => onChange({ ...latest.current, narration: event.target.value })}
           className="w-full resize-y rounded-lg border border-line p-2 text-xs outline-none focus:border-ink-3" />
         {/* Once a player exists for this text, the player is the control. */}

@@ -69,7 +69,7 @@ function ThreeDViewer({ shape, editor }) {
           <button style={{ color: 'inherit' }} onClick={() => patch({ animation: { ...shape.props.animation, autoplay: !shape.props.animation.autoplay } })}>{shape.props.animation.autoplay ? 'Pause animation' : 'Play animation'}</button>
           <select style={{ color: 'inherit' }} aria-label="Animation clip" value={clips.includes(shape.props.animation.clipName) ? shape.props.animation.clipName : clips[0]} onChange={e => patch({ animation: { ...shape.props.animation, clipName: e.target.value }, animationTime: 0 })}>{clips.map((name, i) => <option key={i} value={name}>{name || `Clip ${i + 1}`}</option>)}</select>
         </div>}
-        {(!ready || error) && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', padding: 20, background: '#f4f5f7', fontSize: 13 }}>{error || 'Loading 3D model…'}{error && <button onPointerDown={stop} onClick={() => setAttempt(n => n + 1)}>Retry model</button>}</div>}
+        {(!ready || error) && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', padding: 20, background: '#f4f5f7', fontSize: 13 }}>{error || 'Loading 3D model'}{error && <button onPointerDown={stop} onClick={() => setAttempt(n => n + 1)}>Retry model</button>}</div>}
       </div>
     </div>
   </HTMLContainer>;

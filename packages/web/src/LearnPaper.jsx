@@ -300,7 +300,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   };
   // Each entry keeps its id and body, so Retry resends exactly the same request (the route is retry-safe).
   const saveHighlights = async entries => {
-    setNotice({ text: 'Saving highlight…' });
+    setNotice({ text: 'Saving highlight' });
     const failed = [];
     for (const entry of entries) {
       try { const result = await putHighlight(entry.id, entry.body); const next = result?.highlight || { id: entry.id, ...entry.body }; setSaved(list => [...list.filter(h => h.id !== next.id), next]); }
@@ -330,7 +330,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
     if (busy.current || !area?.box || !ready) return;
     const rects = regionRects();
     if (action === 'highlight') { setArea(null); saveHighlights([{ id: newId('pdfh'), body: highlightBody('region', rects, null) }]); return; }
-    busy.current = true; setNotice({ text: 'Preparing the region…' });
+    busy.current = true; setNotice({ text: 'Preparing the region' });
     try { const crop = await renderCrop(pdfPage.current, { rects }); setNotice(null); setArea(null); sendExcerpt(action, put(draftOf('region', rects, null), crop)); }
     catch (error) { setNotice({ text: error.message }); }
     finally { busy.current = false; }

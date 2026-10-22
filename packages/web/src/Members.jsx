@@ -221,7 +221,7 @@ function MembersContent({ data }) {
                       onPick={(it) => it.email && addToTeam(t.name, it.email)}
                       people={pool.members}
                       exclude={t.members}
-                      placeholder="Add from members…"
+                      placeholder="Add from members"
                     />
                   </form>
                   {t.members.length > 0 && <div className="pt-1 pb-0.5 text-xs text-ink-3">In this group</div>}

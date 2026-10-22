@@ -430,7 +430,7 @@ export default function AgentBar() {
     switchTo({ ...target, selected: next }, false);
     setContext(next);
   };
-  const work = [...(streaming ? [{ id: 'answer', label: `Answering in ${streaming}…` }] : []), ...(surface.activity || [])].filter((a) => !hiddenWork.has(`${a.id}:${a.label}`));
+  const work = [...(streaming ? [{ id: 'answer', label: `Answering in ${streaming}` }] : []), ...(surface.activity || [])].filter((a) => !hiddenWork.has(`${a.id}:${a.label}`));
   return (
     <div ref={root} data-agent-bar onKeyDown={onKeyDown}
       className={cn('fixed right-0 bottom-0 left-0 z-20 border-t border-line bg-white transition-[left] duration-200 md:left-[var(--sidebar-w,0px)]', DOCK_PAD)}>

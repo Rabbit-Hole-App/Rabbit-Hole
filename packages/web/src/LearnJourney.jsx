@@ -18,7 +18,7 @@ import { STARTS, interactionInterpretation, journeyIntent } from '../../control-
 const NOT_HERE = new Set(['not_a_learning_journey', 'journeys_on_canvases_only']);
 const SETUP = new Set(['intake', 'diagnostic', 'path_review']);
 const JOURNEY = '/api/learn/journey';
-const BUSY = 'Working on it...';
+const BUSY = 'Working on it';
 const UNSAVED = 'This section is on the canvas but could not be saved yet.';
 const CLARIFY = [{ id: 'answer', label: 'Answer the question' }, { id: 'edit', label: 'Change the path' }, { id: 'tutor', label: 'Ask the Tutor' }];
 // The composer's suggestion pills (ask.jsx), dimmed while the tray works.
@@ -245,7 +245,7 @@ export function journeyController({ where, fetchJson: send, onChange = () => {},
       if (load && (!(await read()) || (plan = due())?.section_id !== id || s.data.journey?.id !== jid)) return;
       set({ error: null });
       const out = await materializeSection({ canvas: target, journey: { ...s.data.journey, path: s.data.path, materialized: (sid, heading) => materialized(sid, heading, jid) }, sectionPlan: plan, post: artifact,
-        onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}...` }) });
+        onProgress: ({ step, of }) => set({ busy: `Preparing step ${step} of ${of}` }) });
       if (out.proposals.length) set({ proposals: out.proposals, local: proposalTray(out.proposals[0]) });
       if (out.failed_step) set({ error: { message: 'Part of this section could not be made.', again: () => materialize(), keep: true } });
       else if (out.unsaved) { held = true; set({ waiting: { target, journey: jid, id, heading: out.heading_block_id } }); }

@@ -57,7 +57,7 @@ test('Library only: the card menu shows Move to folder only with the Library\'s 
   assert.match(menu, /<FolderInput size=\{16\}[^>]*\/>\s*<span className="min-w-0 flex-1">Move to folder<\/span>/);
   assert.match(menu, /role="menuitemradio" aria-checked=\{inFolder === f\.id\} data-folder-option=\{f\.id\}/);
   assert.match(menu, /style=\{\{ background: folderInk\(f\.color\) \}\}/);
-  assert.match(menu, /<MenuItem icon=\{FolderPlus\} data-menu-folder-new .*>New folder…<\/MenuItem>/);
+  assert.match(menu, /<MenuItem icon=\{FolderPlus\} data-menu-folder-new .*>New folder<\/MenuItem>/);
   assert.match(menu, /\{inFolder && <MenuItem icon=\{FolderMinus\} data-menu-folder-remove .*>Remove from folder<\/MenuItem>\}/);
   assert.match(menu, /folders\.newFolder\(a\.name\)/, 'New folder… files the card in the same step');
 });

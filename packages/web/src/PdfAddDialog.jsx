@@ -19,7 +19,7 @@ export default function PdfAddDialog({ name, total, busy, progress, error, onCan
   const [to, setTo] = useState(String(total || 1));
   const ready = total != null;
   const range = !ready ? null : mode === 'pdf' ? { from: 1, to: total } : span === 'all' ? pageRange(1, total, total) : pageRange(from, to, total);
-  const label = !ready ? 'Reading…' : busy ? progress || 'Adding…' : mode === 'pdf' ? 'Add PDF card'
+  const label = !ready ? 'Reading' : busy ? progress || 'Adding' : mode === 'pdf' ? 'Add PDF card'
     : range.error ? 'Add pages' : `Add ${range.count} page${range.count === 1 ? '' : 's'}`;
   return createPortal(
     <div data-pdf-add-dialog>
@@ -28,7 +28,7 @@ export default function PdfAddDialog({ name, total, busy, progress, error, onCan
         onConfirm={() => { if (!busy && ready && !range.error) onConfirm({ mode, from: range.from, to: range.to }); }}
         body={<span className="block">
           <span data-pdf-file className="block truncate font-mono text-[13px] text-ink" title={name}>{name}</span>
-          <span data-pdf-total className="block pb-3 text-xs text-ink-3">{ready ? `${total} page${total === 1 ? '' : 's'}` : 'Counting pages…'}</span>
+          <span data-pdf-total className="block pb-3 text-xs text-ink-3">{ready ? `${total} page${total === 1 ? '' : 's'}` : 'Counting pages'}</span>
           <span role="radiogroup" aria-label="Add as" className="flex flex-wrap gap-2">
             {choice(mode, setMode, 'pdf', 'PDF card')}{choice(mode, setMode, 'pages', 'Separate pages')}
           </span>

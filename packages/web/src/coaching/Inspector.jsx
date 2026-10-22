@@ -28,7 +28,7 @@ function Conversation({ item, onOpen }) {
   return <>
     <div className="sticky top-0 z-10 space-y-2 border-b border-line bg-white pb-3">
       <div className="flex flex-wrap gap-2">
-        <Input aria-label="Search conversation" placeholder="Search the full conversation…" value={query} onChange={e => setQuery(e.target.value)} className="min-w-32 flex-1" />
+        <Input aria-label="Search conversation" placeholder="Search the full conversation" value={query} onChange={e => setQuery(e.target.value)} className="min-w-32 flex-1" />
         <select aria-label="Filter by speaker" className="rounded-sm border border-line bg-white px-2 text-xs" value={role} onChange={e => setRole(e.target.value)}>
           {['All speakers', ...new Set(item.messages.map(m => m.role))].map(r => <option key={r}>{r}</option>)}
         </select>

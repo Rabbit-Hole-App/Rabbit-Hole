@@ -3,7 +3,7 @@ import { Button } from './ui.jsx';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
 
 export default function LearnOutline({ allowSample = true, state, onOpen, disabled, sample, onSampleChange, activeId, activePage, completed, onToggleComplete }) {
-  if (!state.loaded) return <p className="p-3 text-sm text-ink-2">{state.error || 'Loading curriculum…'}</p>;
+  if (!state.loaded) return <p className="p-3 text-sm text-ink-2">{state.error || 'Loading curriculum'}</p>;
   const curriculum = !sample && state.course?.curriculum;
   if (!curriculum && !allowSample) return <p className="p-3 text-sm text-ink-2">No approved course yet. The project owner can create one in Edit course.</p>;
   const lessons = curriculum?.lessons || sampleCourse.lessons;

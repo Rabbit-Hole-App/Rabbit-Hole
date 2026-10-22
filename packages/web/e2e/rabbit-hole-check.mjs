@@ -931,11 +931,11 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must((await select.innerText()).trim() === 'dev' && (await card.innerText()).includes('branch dev'), `the pick did not rebuild the card: ${await card.innerText()}`);
     must(await card.getByRole('button', { name: 'Confirm' }).isEnabled(), 'Confirm is not offered for the picked branch');
     await select.click();
-    await page.getByRole('button', { name: 'More branches…', exact: true }).click();
+    await page.getByRole('button', { name: 'More branches', exact: true }).click();
     await page.waitForTimeout(600);
     must(pages.join() === '1,2', `pages fetched: ${pages}`);
     await select.click();
-    must(await page.getByRole('button', { name: 'feature/x', exact: true }).count() === 1 && await page.getByRole('button', { name: 'More branches…', exact: true }).count() === 0, 'page 2 is not listed, or More branches stayed');
+    must(await page.getByRole('button', { name: 'feature/x', exact: true }).count() === 1 && await page.getByRole('button', { name: 'More branches', exact: true }).count() === 0, 'page 2 is not listed, or More branches stayed');
     await page.getByRole('button', { name: 'feature/x', exact: true }).click();
     await page.waitForTimeout(300);
     must((await card.innerText()).includes('branch feature/x'), 'the page-2 branch did not rebuild the card');
@@ -1203,7 +1203,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.locator('[data-shell-sidebar] ~ main').waitFor({ timeout: 20000 }); // Home is a lazy chunk
     must(await page.locator('[data-agent-bar]').count() === 1, 'more than one bar');
     must(await page.locator('[data-scope-chip]').count() === 0, 'a chip on Home');
-    must(await barInput(page).getAttribute('placeholder') === 'Start, open, ask, or paste a link…', 'not the workspace placeholder');
+    must(await barInput(page).getAttribute('placeholder') === 'Start, open, ask, or paste a link', 'not the workspace placeholder');
     const { x, height } = await bar.boundingBox();
     const pad = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-shell-sidebar] ~ main')).paddingBottom));
     must(Math.abs(parseFloat(await barH(page)) - height) < 1 && Math.abs(pad - height) < 1, `bar ${height}, --agent-bar-h ${await barH(page)}, main padding ${pad}`);

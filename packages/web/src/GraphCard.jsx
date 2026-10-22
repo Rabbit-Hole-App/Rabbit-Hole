@@ -67,14 +67,14 @@ function GraphCardBody({ block }) {
       {source.status === 'ready' && source.skipped?.length > 0 && <span className="shrink-0 text-ink-3" title="Files the indexer excluded are not in this graph">· {source.skipped.length} excluded</span>}
     </div>
     {source.status !== 'ready' ? <div role="status" data-graph-card-state={source.stale ? 'stale' : source.status} className="flex flex-1 flex-col items-start gap-2 text-sm text-ink-2">
-      {source.status === 'loading' ? <span className="flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden />Loading the graph…</span>
+      {source.status === 'loading' ? <span className="flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" aria-hidden />Loading the graph</span>
         : source.stale ? <p>This card shows commit {short(block.repository?.commit)}; the repository is now at {short(source.stale)}, so its graph is not loaded.</p>
         : source.status === 'unavailable' ? <p>Repository content unavailable.</p> : <p>The graph could not load.</p>}
       {source.status !== 'loading' && <Button size="sm" variant="secondary" data-graph-card-retry onClick={source.retry}>Retry</Button>}
     </div> : <>
       <label className="relative shrink-0">
         <Search size={13} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
-        <Input aria-label="Search this graph" placeholder="Search this graph…" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
+        <Input aria-label="Search this graph" placeholder="Search this graph" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
       </label>
       <div data-graph-card-body className="flex min-h-0 flex-1 flex-col">
         {graph.nodes.length ? <RepositoryGraph graph={graph} selectedIds={selected} onSelect={choose} query={query} cap={CARD_NODE_CAP} />

@@ -127,7 +127,7 @@ export function RunResultCard({ runId, app }) {
       <div className="flex items-center gap-2 pb-1.5">
         {meta?.status === 'running' && <Loader2 size={13} className="animate-spin text-ink-3" />}
         <span className="font-medium">Run {runId.replace(/^r-/, '').slice(0, 7)}</span>
-        <span className="text-ink-2">{meta?.status || 'starting…'}</span>
+        <span className="text-ink-2">{meta?.status || 'starting'}</span>
         {runUrl && (
           <button className="ml-auto cursor-pointer text-xs text-accent hover:underline" onClick={() => window.history.pushState(null, '', runUrl) || window.dispatchEvent(new PopStateEvent('popstate'))}>
             open

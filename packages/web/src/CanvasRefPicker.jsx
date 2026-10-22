@@ -77,11 +77,11 @@ export default function CanvasRefPicker({ exclude, linked = [], onPick, onClose,
         <label className="mx-4 flex h-9 items-center gap-2 rounded-lg border border-line px-2.5 focus-within:border-ink-3">
           <Search size={15} aria-hidden className="shrink-0 text-ink-3" />
           <input ref={input} type="text" role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list"
-            aria-activedescendant={chosen ? `${listId}-${chosen.id}` : undefined} aria-label="Search canvases" placeholder="Search canvases…"
+            aria-activedescendant={chosen ? `${listId}-${chosen.id}` : undefined} aria-label="Search canvases" placeholder="Search canvases"
             value={query} onChange={event => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3" />
         </label>
         <div data-picker-state={result.state} aria-busy={result.state === 'loading' || undefined} className="mt-2 min-h-24 flex-1 overflow-y-auto px-2">
-          {result.state === 'loading' && <p className="px-2 py-3 text-sm text-ink-2">Searching…</p>}
+          {result.state === 'loading' && <p className="px-2 py-3 text-sm text-ink-2">Searching</p>}
           {result.state === 'empty' && <p className="px-2 py-3 text-sm text-ink-2">{query.trim() ? 'No canvases match.' : 'No other canvases to link yet.'}</p>}
           {result.state === 'error' && <div className="flex items-center gap-2 px-2 py-3 text-sm text-ink-2">Couldn't load canvases.<Button variant="secondary" size="sm" onClick={() => setAttempt(n => n + 1)}>Retry</Button></div>}
           <ul id={listId} role="listbox" aria-label="Canvases" className={result.state === 'ready' ? '' : 'hidden'}>

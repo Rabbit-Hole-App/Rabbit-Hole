@@ -167,7 +167,7 @@ export default function SharedBoardPage({ token }) {
       </main>
     );
   }
-  if (!shared) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board…</main>;
+  if (!shared) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board</main>;
   const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
   return (
     <main className="flex h-screen flex-col bg-white">
@@ -365,7 +365,7 @@ function SharedAsk({ token, viewer, context, draft, target = null, onClearTarget
                   <Md text={turn.content} />
                   {turn.notice && <p data-shared-notice className="mt-2 text-xs text-ink-3">{turn.notice}</p>}
                 </div>
-                : <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{turn.status || 'Thinking…'}</span></span>}
+                : <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{turn.status || 'Thinking'}</span></span>}
             </div>
           ))}
         </div>
@@ -388,7 +388,7 @@ function SharedAsk({ token, viewer, context, draft, target = null, onClearTarget
         <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
       </div>}
       <ChatComposer dock value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} onStop={() => flight.current?.abort()} maxLength={4000}
-        placeholder={viewer ? 'Ask about this canvas…' : 'Ask about this canvas… (sign in to send)'} />
+        placeholder={viewer ? 'Ask about this canvas' : 'Ask about this canvas… (sign in to send)'} />
     </div>
   );
 }

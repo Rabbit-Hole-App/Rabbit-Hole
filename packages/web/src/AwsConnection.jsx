@@ -69,13 +69,13 @@ export default function AwsConnection({ workspace, apps = [], onChanged, onAcces
       : connection?.state === 'connected' ? <Button variant="soft" size="sm" disabled={busy || !connection.can_deploy} title={connection.can_deploy ? 'Disconnect AWS' : 'Only the installer can disconnect AWS'} onClick={() => { setError(''); setConfirmDisconnect(true); }}><Check size={14} />Connected</Button>
       : connection !== undefined && <div className="flex flex-wrap justify-end gap-2">
         {(!connection || connection.can_deploy) && <Button variant="soft" size="sm" disabled={busy} onClick={reconnect ? connect : install}>
-          {busy ? 'Working…' : connection?.state === 'installed' ? 'Finish connecting' : connection?.state === 'pending' ? 'Open AWS installation' : 'Connect AWS'}{!reconnect && <ExternalLink size={14} />}</Button>}
+          {busy ? 'Working' : connection?.state === 'installed' ? 'Finish connecting' : connection?.state === 'pending' ? 'Open AWS installation' : 'Connect AWS'}{!reconnect && <ExternalLink size={14} />}</Button>}
       </div>}
     </SettingsRow>
     {confirmDisconnect && <ConfirmDialog
       title="Disconnect AWS?"
       body={<><p>This disconnects AWS from Small for this workspace. Your AWS resources and data stay intact, and you can reconnect later. Existing access may take up to 3 minutes to expire.</p>{error && <p role="alert" className="mt-2 text-danger">{error}</p>}</>}
-      confirmLabel={busy ? 'Disconnecting…' : 'Disconnect'}
+      confirmLabel={busy ? 'Disconnecting' : 'Disconnect'}
       onConfirm={disconnect}
       onCancel={() => { if (!busy) { setConfirmDisconnect(false); setError(''); } }}
     />}

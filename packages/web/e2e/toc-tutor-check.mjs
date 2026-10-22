@@ -147,7 +147,7 @@ await check('1 a Tutor syllabus in the TOC conversation renders its topic descri
   await tocField().waitFor();
   assert.equal(await tocBox().locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'tutor');
   assert.equal(await tocBox().getByRole('button', { name: 'Mode', exact: true }).count(), 0, 'no Auto / Ask / Tutor menu');
-  assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline…');
+  assert.equal(await tocField().getAttribute('placeholder'), 'Describe your goal or refine the outline');
   assert.equal(await tocField().inputValue(), '', 'Chat\'s draft stays in Chat');
   assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'no TOC request yet, no goal line - never sample text');
   const body = await turn('make me a syllabus on tides', { syllabus: SYLLABUS });

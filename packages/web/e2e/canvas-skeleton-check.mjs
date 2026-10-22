@@ -15,13 +15,13 @@
 //   P. A paid command (/video) shows its proposal and no skeleton; Cancel shows none; Generate shows one, and the
 //      confirmed card takes its slot.
 //   D. Sharing and forks: a push made while a skeleton waits, and a fork of that board, carry no skeleton.
-//   E. Research: no skeleton while searching; one at the committed "Opening…", filled by the paper; a suppressed
+//   E. Research: no skeleton while searching; one at the committed "Opening", filled by the paper; a suppressed
 //      article's goes when the answer ends; a paper already on the canvas takes the slot's place.
 //   F. The Tutor: "show me this visually" holds the place before the plan and the card fills it, selected, at the
 //      learner's zoom, inside the part of the canvas the open chat leaves visible;
 //      a question gets none; text only, Stop, a failure and a timeout leave none; a card already there is focused.
 //   G. A pending Rabbit Hole is not kept by a skeleton - only by the card - and the card opens at the asked part.
-//   The chat status reads "Preparing answer…": one ellipsis character, never "......".
+//   The chat status reads "Preparing answer": one ellipsis character, never "......".
 import { chromium } from '@playwright/test';
 import http from 'node:http';
 import { readFileSync, mkdirSync } from 'node:fs';
@@ -133,7 +133,7 @@ const shownIn = Date.now() - sentAt;
 check('A1 the skeleton appears on send, before any answer', shownIn < 1500, `${shownIn} ms`);
 await page.waitForTimeout(400); // the 200 ms glide
 const slotA = slots().first();
-check('A2 it says what is being made, with the time waited', /Creating \/explain…/.test(await slotA.getAttribute('aria-label')) && /^\d+\.\ds$/.test(await slotA.locator('[data-slot-elapsed]').innerText()));
+check('A2 it says what is being made, with the time waited', /Creating \/explain/.test(await slotA.getAttribute('aria-label')) && /^\d+\.\ds$/.test(await slotA.locator('[data-slot-elapsed]').innerText()));
 const atReserve = await column(), reservedA = atReserve.find(entry => entry.slot);
 check('A3 sized as a typical explanation card (440 x 330), not its 520 cap', reservedA.w === 440 && reservedA.h === 330, `${reservedA.w}x${reservedA.h}`);
 check('A4 it holds the slot the card would take: the end of the column', atReserve.at(-1).slot);
@@ -302,7 +302,7 @@ await waitFor(async () => (await column()).length === paidBlocks + 1, 'the confi
 await page.waitForTimeout(600);
 const [paidSlot] = await page.evaluate(() => window.__slotsSeen);
 const paidCard = (await column()).find(entry => entry.top === paidSlot?.top);
-check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/video…/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
+check('P4 Generate shows a skeleton, and the confirmed card takes its slot', (await slotsSeen()) === 1 && /Creating \/video/.test(paidSlot.label) && !!paidCard && !paidCard.slot && (await page.locator(`[data-block-id="${paidCard.id}"]`).innerText()).includes(PAID.title), JSON.stringify(paidSlot));
 await shot('05c-paid-confirmed-card-in-slot');
 
 // ---- D. Sharing: a push made while a skeleton waits carries none, and neither does a fork of the board ----
@@ -326,18 +326,18 @@ const fork = await call(forker, `/api/learn/boards/shared/${shared.sharing.view}
 const forked = fork.name ? await call(forker, `/api/learn/boards/${fork.name}/main`) : null;
 check('D3 a fork of the board copies the card and never a skeleton', !!forked && JSON.stringify(forked.state).includes('Shared while waiting') && !SLOT_ID.test(JSON.stringify(forked)), fork.name || JSON.stringify(fork).slice(0, 160));
 
-// ---- E. Research: speculative steps reserve nothing; the committed "Opening…" does ----
+// ---- E. Research: speculative steps reserve nothing; the committed "Opening" does ----
 const PAPER = { id: '1706.03762', page: 1, title: 'Attention Is All You Need', pdfUrl: 'https://arxiv.org/pdf/1706.03762' };
 const ask = async (text, script) => { askScript = script; await send(text); };
 await ask('Which paper introduced attention?', [[0, 'progress', { stage: 'Finding papers...' }], [1200, 'progress', { stage: `Opening ${PAPER.title}...`, card: 'paper' }], [2200, 'chunk', { text: 'The Transformer paper.' }], [0, 'paper', PAPER], [0, 'done', { ok: true }]]);
 await page.waitForTimeout(700);
 check('E1 no skeleton while it is only searching', (await slots().count()) === 0);
 const status = await page.locator('[data-chat-sheet] .shimmer').last().innerText();
-check('E1b the chat status ends in one ellipsis character', status === 'Finding papers…', JSON.stringify(status));
+check('E1b the chat status ends in one ellipsis character', status === 'Finding papers', JSON.stringify(status));
 await slots().first().waitFor({ timeout: 3000 });
 await page.waitForTimeout(400);
 const researchSlot = (await column()).find(entry => entry.slot);
-check('E2 "Opening…" reserves the paper card\'s place, at its size', /Opening the paper…/.test(await slots().first().getAttribute('aria-label')) && researchSlot.w === 620 && researchSlot.h === 560, `${researchSlot.w}x${researchSlot.h}`);
+check('E2 "Opening" reserves the paper card\'s place, at its size', /Opening the paper/.test(await slots().first().getAttribute('aria-label')) && researchSlot.w === 620 && researchSlot.h === 560, `${researchSlot.w}x${researchSlot.h}`);
 await shot('06-research-skeleton-mid-wait');
 await noSlot();
 await page.waitForTimeout(500);
@@ -388,7 +388,7 @@ await slots().first().waitFor({ timeout: 2000 });
 const plansAtSlot = plans.length;
 await page.waitForTimeout(400);
 const tutorSlot = (await column()).find(entry => entry.slot);
-check('F2 the skeleton is up before the plan has answered, sized as a typical slice card, centred in the visible canvas, zoom kept', /Creating a card…/.test(await slots().first().getAttribute('aria-label')) && await centred(slots().first()) && await zoom() === tutorZoom && tutorSlot.w === 981 && tutorSlot.h === 1014, `${plansAtSlot} plan request(s) in flight, ${tutorSlot.w}x${tutorSlot.h}`);
+check('F2 the skeleton is up before the plan has answered, sized as a typical slice card, centred in the visible canvas, zoom kept', /Creating a card/.test(await slots().first().getAttribute('aria-label')) && await centred(slots().first()) && await zoom() === tutorZoom && tutorSlot.w === 981 && tutorSlot.h === 1014, `${plansAtSlot} plan request(s) in flight, ${tutorSlot.w}x${tutorSlot.h}`);
 await page.waitForTimeout(1500);
 await shot('08-tutor-skeleton-mid-wait');
 gate.release();

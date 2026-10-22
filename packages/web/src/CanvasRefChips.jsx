@@ -25,7 +25,7 @@ function useDismiss(open, setOpen, box) {
 // The destination's title as a real link (plain click: this tab via go; Ctrl/Cmd, middle and right click: native),
 // or a muted Unavailable that names nothing.
 export function RefTitle({ target, go, className }) {
-  if (!target) return <span aria-busy="true" className="text-ink-3">Loading…</span>;
+  if (!target) return <span aria-busy="true" className="text-ink-3">Loading</span>;
   if (target.unavailable) return <span className="text-ink-3">Unavailable</span>;
   return (
     <a href={target.href} title={target.title} onClick={event => { if (plainClick(event)) { event.preventDefault(); go(target.href); } }}

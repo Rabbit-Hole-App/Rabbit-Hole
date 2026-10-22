@@ -79,7 +79,7 @@ test('a grade in flight reads as reading; a saved grading state with no request 
   const c = card(challenge, async () => { await wait.promise; });
   c.type('an answer');
   const running = c.render().commit();
-  assert.equal(c.render().waiting, 'Reading your answer…');
+  assert.equal(c.render().waiting, 'Reading your answer');
   const reloaded = card({ ...challenge, answer: 'an answer', attemptId: 'a-saved-attempt', verdict: '', grading: true });
   assert.equal(reloaded.render().waiting, 'Grading was interrupted. Answer again to retry.');
   wait.release();

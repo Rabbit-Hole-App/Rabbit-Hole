@@ -22,7 +22,7 @@ export default function PrivateAuthGate({ children }) {
         <div className="flex items-center gap-2 text-2xl font-semibold tracking-tight">small <ByocDevBadge /></div>
         <h1 className="text-xl font-medium">Sign in to Small</h1>
         <p className="text-sm text-ink-2">Use your account for this workspace.</p>
-        {status === 'loading' ? <p role="status" className="text-sm text-ink-2">Opening Small…</p> : (
+        {status === 'loading' ? <p role="status" className="text-sm text-ink-2">Opening Small</p> : (
           <>
             {status === 'error' && <p role="alert" className="text-sm text-danger">Sign-in could not be completed. Try again.</p>}
             <button onClick={signIn} className="h-9 rounded-sm bg-ink px-4 text-sm font-medium text-paper hover:opacity-90">Sign in</button>
