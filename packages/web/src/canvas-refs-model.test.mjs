@@ -89,6 +89,14 @@ test('insertRefCard placement: a spot in view keeps clear of the floating bottom
   assert.equal(spot.offscreen, false);
   assert.ok(!under(spot, hooks) && !under(spot, zoom), `clear of the bottom chrome (${spot.x},${spot.y})`);
   assert.ok(!obstacles.some(box => overlap({ x: spot.x, y: spot.y, ...REF_CARD }, box)), 'and of every card');
+  // UI-19 (owner, 2026-10-21): on a narrow canvas (a 640 px row less the 84 px tools column) the one minimap floats lower
+  // left above the zoom row; its column (184 x 124 minimap, 8 px gap, 32 px zoom row, 12 px in) is chrome like the zoom row.
+  const narrow = { height: 844, visible: { x: 24, y: 24, w: 508, h: 796 }, centre: { x: 150, y: 700 } };
+  const stack = { left: 12, right: 196, top: 844 - 12 - 32 - 8 - 124 };
+  const underStack = spot => overlap({ x: spot.x, y: spot.y, ...REF_CARD }, { x: stack.left, y: stack.top, w: stack.right - stack.left, h: narrow.height - stack.top });
+  assert.ok(underStack(refCardSpot(narrow.centre, [], narrow.visible)), 'without the chrome the card lands under the minimap');
+  const clear = refCardSpot(narrow.centre, chromeObstacles([stack], narrow.height, view), narrow.visible);
+  assert.ok(!clear.offscreen && !underStack(clear), `with it, clear of the minimap and zoom column (${clear.x},${clear.y})`);
   // World units: the same chrome at another camera is the same screen region.
   assert.deepEqual(chromeObstacles([hooks], height, { x: -100, y: 50, z: 2 }), [{ x: 584, y: 319, w: 104, h: 132 }]);
 });

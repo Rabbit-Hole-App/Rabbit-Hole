@@ -366,6 +366,12 @@ const acrossNarrow = async label => {
     for (let i = 0; i < 3; i += 1) { const c = await controls(); await page.setViewportSize({ width: page.viewportSize().width + target - Math.round(c.row.w), height: viewport.height }); await settle(); }
     const c = await controlsHold(`${label}, row ${target}`);
     seen.push(Math.round(c.row.w));
+    // Controls never obstruct cards: zoom to fit (the minimap's own button) frames every card clear of the minimap and zoom.
+    await page.getByRole('button', { name: 'Back to content' }).click();
+    await settle();
+    const fitted = await geometry(), stack = await page.locator('[data-zoom-stack]').boundingBox();
+    const under = Object.entries(fitted.cards).filter(([, card]) => card && card.x < stack.x + stack.width && card.right > stack.x && card.y < stack.y + stack.height && card.bottom > stack.y);
+    assert.equal(under.length, 0, `${label}, row ${target}: after zoom to fit no card is under the minimap or zoom row: ${JSON.stringify({ stack, under })}`);
     await shot(`06d-ui19-${label.replace(/\W+/g, '-')}-${target}`);
   }
   assert.ok(seen.some(w => w <= 640) && seen.some(w => w >= 641), `${label}: rows on both sides of 640/641 px: ${seen.join(', ')}`);

@@ -108,6 +108,20 @@ test('UI-19: one vertical tools column at every width, one minimap, no overview 
   assert.match(canvas, /const \[minimap, setMinimap\] = useState\(\(\) => uiPrefs\(\)\.minimap\);/, 'the View menu\'s persisted choice owns it');
 });
 
+// UI-19 follow-up (integrator, 2026-10-21: controls must not obstruct cards): now that the minimap shows at every width, it
+// must count as floating chrome everywhere a card is fitted, revealed or placed. Those all read the bottom strip's
+// grandchildren (chromeTop for fit/focus/reveal, placementChrome for an insert in view), so the minimap must sit inside one:
+// the zoom stack, a direct child of the strip's first column, with the minimap inside it.
+test('UI-19: the minimap is floating chrome for fit, reveal and placement (a grandchild of the bottom strip)', () => {
+  const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
+  const column = strip.slice(strip.indexOf('\n') + 1, strip.indexOf('<div data-zoom-stack'));
+  assert.match(column, /^\s+<div className="flex items-end gap-2 md:min-w-fit md:flex-1 md:basis-0">\n/, 'the strip\'s first column opens first');
+  assert.equal((column.match(/<div\b/g) || []).length, 1, 'the zoom stack is a direct child of that column (a strip grandchild)');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{minimap && <div data-canvas-minimap>/, 'the minimap is inside the zoom stack, so its box is the stack\'s');
+  assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\)/, 'fit, focus and reveal stop above every strip grandchild');
+  assert.match(canvas, /const placementChrome = \(\) => \{[\s\S]*?strip\.querySelectorAll\(':scope > \* > \*'\)/, 'a card placed in view keeps clear of every strip grandchild');
+});
+
 test('the canvas row: the drawing surface runs to the panel edge at every width, no map column (UI-17)', () => {
   for (const width of [628, 712, 783, 784, 1032, 1180]) {
     const row = rowOf(width);
