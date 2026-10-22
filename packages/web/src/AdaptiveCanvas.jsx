@@ -3,7 +3,7 @@ import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, dow
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical, Check, PencilLine } from 'lucide-react';
+import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical, Check, PencilLine, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
 import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-rename.js';
@@ -39,6 +39,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { fileChatRef } from './file-chat-ref.js';
 import { objectKind, objectName, selectionName, selectionRef } from './selection-ref.js';
 import LearnWiki from './LearnWiki.jsx';
+import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
 import CardPrompt from './CardPrompt.jsx';
 import { PROMPT_ROW_H } from './card-prompt.js';
@@ -58,7 +59,7 @@ import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
-import { looksLikeCode, pasteKind } from './canvas-paste.js';
+import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
 import { anchorAt, objectLabel } from './comments/anchors.js';
@@ -842,7 +843,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
+function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
@@ -860,6 +861,9 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A YouTube moment (videoId) gets its own card; a hosted or generated clip
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
+  // A webpage card (WebpageCard.jsx): a saved capture of a public page, scrolled and selected inside the card.
+  if (block.type === 'webpage') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+    <WebpageCard block={block} appName={appName} selected={selected} zoom={zoom} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onChange={onChange} onChangeQuiet={onChangeQuiet} onRemove={onRemove} /></CanvasNode>;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
@@ -2572,6 +2576,32 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   dropFilesRef.current = onDropFiles;
   // Pasted code asks Code card or Jupyter notebook first (LearnPage, docs/features/repository-browser.md "Files in Learn"); without the page's
   // handler it stays a text paste.
+  // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
+  const [urlPaste, setUrlPaste] = useState(null);
+  const addWebpage = url => {
+    if (readOnlyRef.current || !isWebUrl(url)) return null;
+    let host = url;
+    try { host = new URL(url).hostname; } catch { /* isWebUrl parsed it */ }
+    const id = crypto.randomUUID();
+    askCapture(id);
+    snapshot();
+    insertAtView({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, locked: false });
+    setSelection([id]);
+    return id;
+  };
+  useEffect(() => {
+    if (!urlPaste) return undefined;
+    const away = event => { if (!event.target.closest?.('[data-paste-url]')) setUrlPaste(null); };
+    window.addEventListener('pointerdown', away, true);
+    return () => window.removeEventListener('pointerdown', away, true);
+  }, [urlPaste]);
+  const choosePaste = choice => {
+    const chosen = urlPaste;
+    setUrlPaste(null);
+    chosen?.back?.focus?.();
+    if (!chosen) return;
+    if (choice === 'card') addWebpage(chosen.text); else if (choice === 'text') pasteTextRef.current(chosen.text);
+  };
   const pasteCodeRef = useRef(onPasteCode);
   pasteCodeRef.current = onPasteCode;
   pasteIdsRef.current = pasteIds;
@@ -2939,6 +2969,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setShapes(previous => previous.filter(shape => !ids.includes(shape.id)));
     setLinks(previous => previous.filter(link => !ids.includes(link.id) && !nodes.has(link.from) && !nodes.has(link.to)));
     setSelection(previous => previous.filter(id => !ids.includes(id)));
+  };
+  // A webpage card's Remove (a capture that was refused): the card and its connections, one undo step.
+  const removeBlock = id => {
+    if (readOnlyRef.current || !blocksRef.current.some(block => block.id === id)) return;
+    snapshot();
+    setBlocks(previous => previous.filter(block => block.id !== id));
+    setLinks(previous => previous.filter(link => link.from !== id && link.to !== id));
+    setSelection(previous => previous.filter(other => other !== id));
   };
   const presentingRef = useRef(null);
   // Present mode's laser pointer: on by default, L or the bar's Laser toggles it.
@@ -3395,6 +3433,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // graph node act on the graph, never on canvas cards. So do a graph card's own controls (GraphCard.jsx): Delete on a focused
       // node never deletes the card; the card is deleted by selecting it as a canvas object.
       if (document.activeElement?.closest?.('[data-companion],[data-graph-card]')) return;
+      // The pasted-URL choice owns its keys (Tab, Enter, Esc): Enter never opens a card, Delete never deletes one.
+      if (document.activeElement?.closest?.('[data-paste-url]')) return;
+      // A focused, unlocked webpage card scrolls its page with the arrows, Page Up/Down, Home and End (WebpageCard.jsx), never nudging it.
+      if (document.activeElement?.closest?.('[data-webcard-frame][data-scroll]') && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) return;
       // An active 3D viewer (ModelCard.jsx) owns its keys too: Esc ends its interaction first, never the selection.
       // A CAD viewer's Esc is its own wherever the focus is (its Interact sits in the toolbar outside the card): CadCard.jsx.
       if (document.activeElement?.closest?.('[data-viewer-active]') || (event.key === 'Escape' && document.querySelector('[data-cad-viewer][data-viewer-active]'))) return;
@@ -3565,7 +3607,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code });
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current });
+      // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
+      if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
       if (kind === 'cards' && pasteIdsRef.current(clipboard.current, 28, true)) { event.preventDefault(); return; }
       if (kind === 'code') { event.preventDefault(); pasteCodeRef.current(text); return; }
@@ -5219,6 +5263,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
+        {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
+        {urlPaste && <div role="dialog" aria-label="Paste a link" data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
+          className="absolute top-1/3 left-1/2 z-40 flex w-72 max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-1 rounded-lg border border-line bg-white p-1 shadow-pop">
+          <p className="truncate px-2 pt-1 pb-0.5 text-xs text-ink-2" title={urlPaste.text}>{urlPaste.text}</p>
+          <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>
+          <button type="button" data-paste-url-choice="card" onClick={() => choosePaste('card')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Globe size={14} className="shrink-0 text-ink-2" />Add webpage card</button>
+        </div>}
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
@@ -5317,7 +5369,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its

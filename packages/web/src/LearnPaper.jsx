@@ -9,29 +9,10 @@ import { EXCERPT_LIMIT, rectsFor, regionAnchor, splitText, textAnchor, toViewpor
 import { deleteHighlight, getSource, listHighlights, newId, putHighlight } from './pdf-highlights.js';
 import { EXCERPT_DRAG, EXCERPT_EVENT, excerptDraft, put, sendExcerpt } from './pdf-excerpt-drafts.js';
 import { renderCrop } from './pdf-crop.js';
+import { Boxes, ToolButton, placeNear } from './selection-toolbar.jsx';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const pct = n => `${n * 100}%`;
-// A floating control beside `rect` (client px): inside the visible reader `frame`, above the rect when there is room, else
-// below it, else pinned to the nearest visible edge. `origin` is its positioned parent.
-function placeNear(el, rect, frame, origin) {
-  if (!el || !rect || !frame || !origin) return;
-  const vis = frame.getBoundingClientRect(), base = origin.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
-  const left = clamp(rect.left + rect.width / 2 - w / 2, vis.left + 4, Math.max(vis.left + 4, vis.right - w - 4));
-  const above = rect.top - h - 6, below = rect.bottom + 6;
-  const top = above >= vis.top + 4 ? above : below + h <= vis.bottom - 4 ? below : clamp(above, vis.top + 4, Math.max(vis.top + 4, vis.bottom - h - 4));
-  el.style.left = `${left - base.left}px`; el.style.top = `${top - base.top}px`;
-}
-// Boxes (fractions of the page) drawn inside their union, so the outer element's own box is where the excerpt is.
-function Boxes({ parts, className, boxClassName = '', as: Tag = 'div', ...props }) {
-  if (!parts.length) return null;
-  const left = Math.min(...parts.map(p => p.left)), top = Math.min(...parts.map(p => p.top));
-  const width = Math.max(...parts.map(p => p.left + p.width)) - left, height = Math.max(...parts.map(p => p.top + p.height)) - top;
-  return <Tag {...props} className={`absolute ${className}`} style={{ left: pct(left), top: pct(top), width: pct(width), height: pct(height) }}>
-    {parts.map((p, i) => <span key={i} className={`absolute block rounded-[2px] ${boxClassName}`} style={{ left: pct((p.left - left) / width), top: pct((p.top - top) / height), width: pct(p.width / width), height: pct(p.height / height) }} />)}
-  </Tag>;
-}
-const ToolButton = ({ label, icon: Icon, ...props }) => <Button aria-label={label} title={label} onMouseDown={event => event.preventDefault()} className="min-w-8 justify-center px-2 text-ink-2 hover:text-ink" {...props}><Icon size={15} /></Button>;
 const MenuItem = ({ icon: Icon, children, ...props }) => <button type="button" role="menuitem" className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35" {...props}><Icon size={14} className="shrink-0 text-ink-2" />{children}</button>;
 const SPLIT_NOUN = { canvas: 'cards', chat: 'attachments', highlight: 'highlights' };
 const arrows = event => { // Up/Down move between a menu's items
