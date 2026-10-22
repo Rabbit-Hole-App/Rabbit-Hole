@@ -294,11 +294,12 @@ const dropPdf = async doc => {
   await dialog().waitFor({ timeout: 15000 });
   await waitFor(async () => (await dialog().locator('[data-pdf-total]').innerText()).trim() === `${doc.count} pages`, 20000, `the dropped PDF shows no "${doc.count} pages"`);
 };
-// Upload through the Context panel's own file input, as the Upload button does; returns the listed document.
+// Upload through the Context panel's own file input, as the Upload button does; returns the listed document. UI-26: the
+// input sits with Upload in the Context header (PanelHeader CompanionHeader), beside Close.
 const uploadContext = async doc => {
   await openCompanion();
   const posts = uploads.length;
-  await sourcesPane().locator('input[type="file"]').first().setInputFiles({ name: doc.name, mimeType: 'application/pdf', buffer: doc.bytes });
+  await page.locator('[data-companion-header] input[type="file"]').first().setInputFiles({ name: doc.name, mimeType: 'application/pdf', buffer: doc.bytes });
   await waitFor(() => uploads.length > posts, 60000, `the ${doc.count}-page PDF was never uploaded (POST /api/learn/context)`);
   const listed = await waitFor(async () => (await docsNow()).find(d => d.name === doc.name), 30000, `${doc.name} is not listed`);
   return { listed, post: uploads[posts] };
