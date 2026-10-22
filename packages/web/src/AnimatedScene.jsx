@@ -391,6 +391,39 @@ const typeset = expression => {
   catch { return null; }
 };
 
+// A label authored as typed runs (EXP-T04, animation-scene.js runSchema):
+// prose stays text, each math run is KaTeX markup with the same bounds as
+// MathText. validateScene already refused a formula KaTeX cannot parse.
+const typesetRun = expression => katex.renderToString(expression, {
+  displayMode: false, throwOnError: false, trust: false, maxSize: 10, maxExpand: 1000, strict: 'ignore', output: 'html',
+});
+
+// One row in a foreignObject, placed where the SVG <text> it replaces would
+// sit: the same anchor (start/middle/end) and baseline. The box is wider and
+// taller than the estimate and the row is justified to the anchor inside it,
+// so an estimate that runs short never clips a glyph.
+function RunsLabel({ runs, text, x, y, anchor, baseline, type, fill }) {
+  const box = estimateTextBox({ text, x, y, fontSize: type.fontSize, anchor, baseline });
+  const width = (box.xMax - box.xMin) * 1.5 + type.fontSize * 4;
+  const height = type.fontSize * 2.6;
+  const left = anchor === 'end' ? x - width : anchor === 'middle' ? x - width / 2 : x;
+  const middle = baseline === 'central' ? y : baseline === 'hanging' ? y + type.fontSize * 0.5 : y - type.fontSize * 0.35;
+  return (
+    <foreignObject data-label-runs x={left} y={middle - height / 2} width={width} height={height} style={{ overflow: 'visible' }}>
+      <div xmlns="http://www.w3.org/1999/xhtml" aria-label={text} style={{
+        display: 'flex', height: '100%', alignItems: 'center', whiteSpace: 'nowrap',
+        justifyContent: anchor === 'end' ? 'flex-end' : anchor === 'middle' ? 'center' : 'flex-start',
+        fontSize: type.fontSize, fontWeight: type.fontWeight, fontFamily: type.fontFamily ?? 'inherit', color: fill,
+      }}>
+        {/* Only typesetRun() output is set as HTML; authored prose is a text child. */}
+        {runs.map((run, index) => (run.kind === 'math'
+          ? <span key={index} data-label-math dangerouslySetInnerHTML={{ __html: typesetRun(run.tex) }} />
+          : <span key={index} style={{ whiteSpace: 'pre' }}>{run.text}</span>))}
+      </div>
+    </foreignObject>
+  );
+}
+
 function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop, onInputPick = null, lockedInputs = [] }) {
   const host = useRef(null);
   const drag = useRef(null);
@@ -604,7 +637,11 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
                     dangerouslySetInnerHTML={{ __html: maths }} />
                 </foreignObject>
               )}
-              {!maths && (
+              {!maths && object.runs && object.textProgress >= 1 && (
+                <RunsLabel runs={object.runs} text={object.label} x={label.x} y={label.y} anchor={label.anchor} baseline={label.baseline}
+                  type={{ ...type, fontFamily: type.fontFamily ?? (isCircle ? MONO : undefined) }} fill={labelFill} />
+              )}
+              {!maths && !(object.runs && object.textProgress >= 1) && (
                 <text
                   x={label.x} y={label.y} textAnchor={label.anchor} dominantBaseline={label.baseline}
                   fontSize={type.fontSize}

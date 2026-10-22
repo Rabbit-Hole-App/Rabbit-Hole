@@ -2,12 +2,45 @@ import { z } from 'zod';
 import { GEOMETRY, HEAT_MODES, IDENTITY_SLOTS, ROLES, SOUNDS, TIMING, TYPE_ROLES } from './scene-vocab.js';
 import { adaptLegacyScene } from './scene-legacy.js';
 import { computeValueChainGroups, resolveDerived } from './scene-derive.js';
+import { validateEquationResult } from './inline-equation-result.js';
 
 // The animation source of truth: scene JSON plus a pure evaluator. Neither
 // React nor tldraw is imported here, so the live canvas and the video exporter
 // read the same state for the same time.
 
 const vector = z.object({ x: z.number(), y: z.number() });
+
+// Typed label content (EXP-T04; shape in C:/s/spec/explain/runs-shape.md):
+// mixed prose and math as an explicit sequence, never inferred from a string
+// that happens to look like maths. Only these types draw a caption that can
+// carry it - code stays code, an equation already is math, data labels stay
+// plain.
+export const RUN_TYPES = ['box', 'circle', 'text', 'arrow', 'line'];
+const runSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('text'), text: z.string().min(1).max(200) }).strict(),
+  z.object({ kind: z.literal('math'), tex: z.string().min(1).max(200) }).strict(),
+]);
+
+// A readable plain-text reading of a LaTeX run, for the fallback label the
+// tutor context, accessibility and the text-box estimate use. Not a renderer
+// and not a converter for authored strings: KaTeX draws the run itself.
+const SYMBOLS = {
+  alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', theta: 'θ', lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', phi: 'φ', omega: 'ω',
+  Delta: 'Δ', Sigma: 'Σ', Omega: 'Ω', cdot: '·', times: '×', pm: '±', le: '≤', leq: '≤', ge: '≥', geq: '≥', ne: '≠', neq: '≠', approx: '≈', infty: '∞', to: '→', sum: 'Σ', partial: '∂',
+};
+export function plainMath(tex) {
+  let out = tex;
+  for (let pass = 0; pass < 4; pass += 1) {
+    out = out.replace(/([\^_])\{([^{}]*)\}/g, '$1$2')
+      .replace(/\\frac\{([^{}]*)\}\{([^{}]*)\}/g, '($1)/($2)').replace(/\\sqrt\{([^{}]*)\}/g, '√($1)');
+  }
+  return out
+    .replace(/\\(?:left|right|displaystyle|quad|mathrm|text|operatorname)(?![A-Za-z])|\\[,;!]/g, '')
+    .replace(/\\([A-Za-z]+)/g, (whole, name) => SYMBOLS[name] ?? name)
+    .replace(/\(([A-Za-z0-9.]+)\)\//g, '$1/').replace(/\/\(([A-Za-z0-9.]+)\)/g, '/$1')
+    .replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
+}
+export const plainRuns = runs => runs.map(run => (run.kind === 'math' ? plainMath(run.tex) : run.text)).join('');
 
 // Every type here has a branch in AnimatedScene.jsx. Adding a member without
 // one produces an object that validates and draws nothing, which is how arrow,
@@ -27,6 +60,7 @@ const objectSchema = z.object({
   initialState: z.object({
     label: z.string().max(200).optional(),
     text: z.string().max(600).optional(),
+    runs: z.array(runSchema).min(1).max(16).optional(),
     x: z.number().default(0),
     y: z.number().default(0),
     w: z.number().positive().max(2000).optional(),
@@ -316,6 +350,14 @@ export function validateScene(raw) {
         throw new Error(`Object "${object.id}": an image needs a width and height`);
       }
     }
+    const runs = object.initialState.runs;
+    if (runs) {
+      if (!RUN_TYPES.includes(object.type)) throw new Error(`Object "${object.id}": a ${object.type} cannot carry label runs (only ${RUN_TYPES.join(', ')})`);
+      // Same renderer bounds as every other KaTeX surface; a formula that will
+      // not typeset is refused here, never drawn as raw syntax.
+      const bad = runs.find(run => run.kind === 'math' && !validateEquationResult({ latex: run.tex }).ok);
+      if (bad) throw new Error(`Object "${object.id}": the formula "${bad.tex}" cannot be typeset`);
+    }
     if (object.type === 'equation' && !(object.initialState.w && object.initialState.h)) {
       throw new Error(`Object "${object.id}": an equation needs a width and height`);
     }
@@ -498,7 +540,8 @@ export function getSceneState(scene, time) {
     from: object.initialState.from ?? null,
     to: object.initialState.to ?? null,
     src: object.initialState.src ?? null,
-    label: object.initialState.label ?? object.initialState.text ?? '',
+    label: object.initialState.label ?? object.initialState.text ?? (object.initialState.runs ? plainRuns(object.initialState.runs) : ''),
+    runs: object.initialState.runs ?? null,
     textProgress: 1,
     highlighted: false,
     rows: object.initialState.rows ?? null,
@@ -560,8 +603,9 @@ export function getSceneState(scene, time) {
       case 'rotate': if (object) object.rotation = object.rotation + ((event.value ?? 0) - object.rotation) * progress; break;
       case 'highlight': if (object) object.highlighted = progress > 0; break;
       case 'unhighlight': if (object) object.highlighted = progress < 1; break;
-      case 'change_text': if (object && progress >= 1) { object.label = String(event.value ?? ''); object.textProgress = 1; } break;
-      case 'type_text': if (object) { object.label = String(event.value ?? object.label); object.textProgress = progress; } break;
+      // Replaced text is plain: the typed runs belonged to the old label.
+      case 'change_text': if (object && progress >= 1) { object.label = String(event.value ?? ''); object.textProgress = 1; object.runs = null; } break;
+      case 'type_text': if (object) { object.label = String(event.value ?? object.label); object.textProgress = progress; object.runs = null; } break;
       case 'change_value': if (object) object.label = String(event.value ?? object.label); break;
       case 'draw_path':
       case 'connect': {
