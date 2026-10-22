@@ -124,10 +124,11 @@ export function compileVisual(raw) {
     const height = bottom - GAP + PAD;
 
     const partOf = new Map(spec.components.map(item => [item.id, item.part]));
+    const landed = spreadSharedEnds(spec.connections, anchors);
     spec.connections.forEach((connection, index) => {
-      const ends = [connection.from, connection.to].map(ref => {
+      const ends = [connection.from, connection.to].map((ref, end) => {
         if (!anchors[ref]) throw new Error(`Connection ${index + 1}: "${ref}" is not an anchor of that component`);
-        return anchors[ref];
+        return landed.get(`${index}:${end}`) || anchors[ref];
       });
       const parts = [connection.from, connection.to].map(ref => partOf.get(ref.split('.')[0])).filter(part => part !== undefined);
       if (new Set(parts).size > 1) throw new Error(`Connection ${index + 1} joins two different parts`);
@@ -142,7 +143,8 @@ export function compileVisual(raw) {
         const line = wrapLabel(connection.label, Infinity, 'annotation')[0];
         const mid = { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
         const flat = Math.abs(ends[1].x - ends[0].x) >= Math.abs(ends[1].y - ends[0].y);
-        const at = flat ? { x: round(mid.x - labelWidth(connection.label, 'annotation') / 2), y: round(mid.y - 8) } : { x: round(mid.x + 8), y: round(mid.y + 5) };
+        const at = clearSpot(ends, labelWidth(connection.label, 'annotation'), flat, objects.filter(object => object.type === 'box' && (object.part === undefined || parts[0] === undefined || object.part === parts[0])))
+          || (flat ? { x: round(mid.x - labelWidth(connection.label, 'annotation') / 2), y: round(mid.y - 8) } : { x: round(mid.x + 8), y: round(mid.y + 5) });
         objects.push({ id: `${id}-label`, type: 'text', semanticId: `${id}-label`, ...onPart, initialState: { ...lineFields(line, 'text'), ...at, typography: 'annotation' } });
         objectMap[`${id}-label`] = objectMap[id];
       }
@@ -216,6 +218,10 @@ export function compileVisual(raw) {
       diagnostics.push({ code: issue.check, message: issue.message.slice(0, 300), ...(objectMap[issue.objectId] ? { component: objectMap[issue.objectId].component } : {}) });
     }
   }
+  for (const item of spec.components) {
+    const raw = rawMath([item.params, item.label]);
+    if (raw) diagnostics.push({ code: 'raw-math', component: item.id, message: `"${raw}" is written as plain text and will show its markup: write it as a math run` });
+  }
   for (const issue of legibilityIssues(scene)) diagnostics.push({ code: 'legibility', message: `${issue.textClass} text would draw at ${issue.effectivePx}px, below its ${issue.floor}px floor`.slice(0, 300) });
   for (const issue of budget) diagnostics.push({ code: issue.code, message: `${issue.value} is over the limit of ${issue.limit}${issue.part === undefined ? '' : ` on part ${issue.part + 1}`}` });
 
@@ -230,6 +236,53 @@ export function compileVisual(raw) {
     coverage: { states: measure.settings, timeCheckpoints: measure.timeCheckpoints, complete: scene.timeline.length === 0, stateInputs: stateInputs(scene) },
     diagnostics,
   });
+}
+
+// Subscripts, superscripts and TeX commands left in plain text (L4 render review 2026-10-22: a box read "Noisy image x_t"
+// while its note typeset x_t). Text is never converted (plan 1.2); this only reports it, so the author can repair it.
+const RAW_MATH = /(?:^|[\s(])([A-Za-z][_^](?:\{[^}\s]{1,12}\}|[A-Za-z0-9])|[\\](?:frac|sqrt|sum|alpha|beta|theta|epsilon|pi|sigma|cdot)\b)/;
+function rawMath(value) {
+  if (typeof value === 'string') return RAW_MATH.exec(value)?.[1] || null;
+  if (Array.isArray(value)) { for (const entry of value) { const found = rawMath(entry); if (found) return found; } return null; }
+  if (value && typeof value === 'object') {
+    for (const [key, entry] of Object.entries(value)) { if (key === 'tex') continue; const found = rawMath(entry); if (found) return found; }
+  }
+  return null;
+}
+
+// Several connections into (or out of) the same side anchor would meet in one point (L4 render review 2026-10-22: three
+// token arrows converged on one spot of the sequence box). Spread them along that side of the component, in the order of
+// their other ends, so they do not cross. -> Map "connection:end" -> point, only for shared side anchors.
+const SIDES = { top: 'x', bottom: 'x', left: 'y', right: 'y' };
+function spreadSharedEnds(connections, anchors) {
+  const shared = new Map();
+  connections.forEach((connection, index) => [connection.from, connection.to].forEach((ref, end) => {
+    if (!SIDES[ref.split('.')[1]]) return;
+    shared.set(ref, [...(shared.get(ref) || []), { index, end, other: anchors[end ? connection.from : connection.to] }]);
+  }));
+  const out = new Map();
+  for (const [ref, list] of shared) {
+    const [instance, side] = ref.split('.');
+    const frame = ['left', 'right', 'top', 'bottom'].map(name => anchors[`${instance}.${name}`]);
+    if (list.length < 2 || frame.some(point => !point) || list.some(item => !item.other)) continue;
+    const axis = SIDES[side], [lo, hi] = axis === 'x' ? [frame[0].x, frame[1].x] : [frame[2].y, frame[3].y];
+    list.sort((a, b) => a.other[axis] - b.other[axis]);
+    list.forEach((item, at) => out.set(`${item.index}:${item.end}`, { ...anchors[ref], [axis]: round(lo + ((hi - lo) * (at + 1)) / (list.length + 1)) }));
+  }
+  return out;
+}
+
+// A connection label clear of every box: along the connection (middle first), beside it, above then below. -> its
+// position, or null when nothing is clear (the caller keeps the middle; the layout lint reports it).
+function clearSpot(ends, width, flat, boxes) {
+  const hits = (x, y) => boxes.some(({ initialState: b }) => x < b.x + b.w + 4 && x + width > b.x - 4 && y - 12 < b.y + b.h + 4 && y + 4 > b.y - 4);
+  for (const t of [0.5, 0.35, 0.65, 0.2, 0.8]) {
+    const point = { x: ends[0].x + (ends[1].x - ends[0].x) * t, y: ends[0].y + (ends[1].y - ends[0].y) * t };
+    const spots = flat ? [{ x: point.x - width / 2, y: point.y - 8 }, { x: point.x - width / 2, y: point.y + 18 }] : [{ x: point.x + 8, y: point.y + 5 }, { x: point.x - 8 - width, y: point.y + 5 }];
+    const free = spots.find(spot => !hits(spot.x, spot.y));
+    if (free) return { x: round(free.x), y: round(free.y) };
+  }
+  return null;
 }
 
 // Layout repair: change declared repairWritable hints and nothing else, so
