@@ -1,46 +1,32 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { TYPE_ACTIONS, contentText, rabbitHoleTarget } from './canvas-actions-types.js';
+import { GROUPS, actionsFor, runAction, legacyCan } from './canvas-actions.js';
 import { publishCodeCard } from './code-card.js';
 import { registerNotebookEditor } from './notebook-inline-client.js';
 import { publishView, dropView } from './cad-viewer-store.js';
 
-// The engine's filter as contract-actions.md section 2 states it (U1 owns the real one, canvas-actions.js actionsFor).
-// shortcut: a local mirror until U1's engine is on this branch; then these tests call actionsFor.
-const KINDS = ['primary', 'chat', 'type', 'content', 'clipboard', 'lock', 'arrange', 'group', 'canvas', 'delete'];
-function rows(target, ctx) {
-  const out = [];
-  for (const entry of TYPE_ACTIONS) {
-    if (!entry.targets.includes(target.kind)) continue;
-    const members = target.kind === 'multi' ? target.members : [target];
-    if (entry.types && !members.every(member => entry.types.includes(member.type))) continue;
-    if (entry.part && !entry.part.includes(target.part?.kind)) continue;
-    if (target.kind === 'multi' ? entry.applies && !members.every(member => entry.applies(member, ctx)) : entry.applies && !entry.applies(target, ctx)) continue;
-    const state = entry.state?.(target, ctx) || null;
-    if (state?.hidden) continue;
-    if (entry.mutates && ctx.readOnly) continue;
-    const allowed = entry.requires ? ctx.can(entry.requires) : { allowed: true };
-    if (!allowed.allowed && !allowed.signIn && (entry.denied || 'hide') === 'hide') continue;
-    const reason = state?.disabled || (!allowed.allowed && !allowed.signIn ? allowed.reason : null) || (entry.mutates && ctx.locked?.(target.id) ? 'Locked' : null);
-    out.push({ id: entry.id, label: typeof entry.label === 'function' ? entry.label(target, ctx) : entry.label, disabled: !!reason, reason, checked: entry.checked?.(target, ctx), run: () => entry.run(target, ctx) });
-  }
-  return out.sort((a, b) => KINDS.indexOf(byId(a.id).group) - KINDS.indexOf(byId(b.id).group) || byId(a.id).order - byId(b.id).order);
-}
+// The engine (lane U1, canvas-actions.js) filters and orders the rows; these tests read only this file's rows from it.
+const TYPE_IDS = new Set(TYPE_ACTIONS.map(entry => entry.id));
+const KINDS = GROUPS;
+const rows = (target, ctx) => actionsFor(target, ctx).filter(row => TYPE_IDS.has(row.id)).map(row => ({ ...row, run: () => runAction(row.id, target, ctx) }));
 const byId = id => TYPE_ACTIONS.find(entry => entry.id === id);
 
 // S1's rules (contract-permissions.md) for the capabilities these rows use.
 const writes = role => role === 'owner' || role === 'editor';
 const owned = what => role => (writes(role) ? { allowed: true } : role === 'guest' ? { allowed: false, signIn: true, reason: `Sign in to ${what}` } : { allowed: false, reason: `Fork to ${what} in your own copy` });
-const RULES = {
+const S1 = {
   'canvas.view': () => ({ allowed: true }), 'canvas.local-edit': () => ({ allowed: true }), 'content.copy': () => ({ allowed: true }),
-  'card.open': () => ({ allowed: true }), 'media.playback': () => ({ allowed: true }), 'chat.ask': () => ({ allowed: true }),
-  'canvas.child': role => (role === 'guest' ? { allowed: false, signIn: true, reason: 'Sign in to start a Rabbit Hole' } : { allowed: true }),
-  'code.execute': owned('run code'), 'webpage.capture': owned('capture webpages'),
+  'card.open': () => ({ allowed: true }), 'chat.ask': () => ({ allowed: true }),
 };
-const USED = new Set(Object.keys(RULES));
+// The engine's names until S1's model is wired, and what each means in S1 (contract-permissions.md).
+const ALIAS = { edit: 'canvas.local-edit', copy: 'content.copy', chat: 'chat.ask', open: 'card.open', navigate: 'canvas.view' };
+const RULES = Object.fromEntries(Object.entries(ALIAS).map(([name, s1]) => [name, role => S1[s1](role)]));
+const USED = new Set(Object.keys(ALIAS));
 
 // Every hook a row may call, recorded; opening the menu must call none of the ones that act.
-function context({ role = 'owner', readOnly = false, locked = [], job = null, attached = [], cardAction = true } = {}) {
+const families = {};
+function context({ role = 'owner', readOnly = false, legacy = false, locked = [], attached = [], cardAction = true } = {}) {
   const calls = [];
   const act = name => (...args) => { calls.push([name, ...args]); return true; };
   const canvas = {
@@ -49,14 +35,17 @@ function context({ role = 'owner', readOnly = false, locked = [], job = null, at
     openUrl: act('openUrl'), copyText: act('copyText'), addToChat: act('addToChat'), edit: act('edit'), editEquation: act('editEquation'),
     patchItem: act('patchItem'), updateBlock: act('updateBlock'), openStyle: act('openStyle'), openInNotebook: act('openInNotebook'),
     downloadText: act('downloadText'), downloadUrl: act('downloadUrl'), downloadOriginal: act('downloadOriginal'), downloadCad: act('downloadCad'),
-    insertText: act('insertText'), insertSticky: act('insertSticky'), zoomFit: act('zoomFit'),
+    insertText: act('insertText'), insertSticky: act('insertSticky'), toggleDone: act('toggleDone'), select: () => {},
   };
-  return { role, readOnly, calls, canvas, can: capability => RULES[capability](role), locked: id => locked.includes(id), jobOf: () => job };
+  // legacy: today's wiring (canvas-actions.js legacyCan from readOnly); otherwise S1's rules for the role.
+  const can = legacy ? legacyCan({ readOnly }) : capability => (RULES[capability] ? RULES[capability](role) : { allowed: false, reason: 'Not available' });
+  return { role, readOnly, calls, canvas, can, locked: id => locked.includes(id), lockable: () => true, groupOf: () => null, familyOf: id => families[id] || null, commands: {} };
 }
-const card = (object, extra = {}) => ({ kind: 'card', family: 'block', type: object.type, id: object.id, object, ids: [object.id], part: null, point: { x: 10, y: 20 }, ...extra });
-const item = object => ({ kind: 'object', family: 'item', type: object.kind, id: object.id, object, ids: [object.id], part: null, point: { x: 0, y: 0 } });
-const shape = object => ({ kind: 'object', family: 'shape', type: object.kind, id: object.id, object, ids: [object.id], part: null, point: { x: 0, y: 0 } });
-const connector = object => ({ kind: 'connector', family: 'link', type: 'connector', id: object.id, object, ids: [object.id], part: null, point: { x: 0, y: 0 } });
+const of = (family, kind, type, object, extra = {}) => { families[object.id] = family; return { kind, family, type, id: object.id, object, ids: [object.id], objects: [object], part: null, point: { x: 10, y: 20 }, group: null, ...extra }; };
+const card = (object, extra = {}) => of('block', 'card', object.type, object, extra);
+const item = object => of('item', 'object', object.kind, object);
+const shape = object => of('shape', 'object', object.kind, object);
+const connector = object => of('link', 'connector', 'connector', object);
 const labels = (target, ctx) => rows(target, ctx).map(row => row.label);
 const run = (target, ctx, label) => { const row = rows(target, ctx).find(entry => entry.label === label); assert.ok(row, `${label} is offered`); assert.ok(!row.disabled, `${label} is enabled`); row.run(); return ctx.calls.at(-1); };
 
@@ -94,7 +83,7 @@ const TARGETS = () => [
   card({ id: 'wp', type: 'webpage', url: 'https://example.com/a', title: 'Example', scrollLocked: false }),
   card({ id: 'h1', type: 'heading', title: 'Part 1' }),
   card({ id: 't1', type: 'table', title: 'Moons', columns: ['Name', 'Km'], rows: [['Io', '3643']] }),
-  { kind: 'card', family: 'chat', type: 'chat', id: 'q1', object: { id: 'q1', question: 'Why?', answer: 'Because.' }, ids: ['q1'], part: null, point: { x: 0, y: 0 } },
+  of('chat', 'card', 'chat', { id: 'q1', question: 'Why?', answer: 'Because.' }),
   item({ id: 'tx', kind: 'text', text: 'Hello' }),
   item({ id: 'st', kind: 'sticky', text: 'Note' }),
   item({ id: 'cb', kind: 'text', mode: 'code', text: 'print(1)', lang: 'python' }),
@@ -102,7 +91,7 @@ const TARGETS = () => [
   shape({ id: 'sh', kind: 'rect' }),
   shape({ id: 'ar', kind: 'arrow' }),
   connector({ id: 'ln', from: 'a', to: 'b' }),
-  { kind: 'canvas', family: null, type: null, id: null, object: null, ids: [], part: null, point: { x: 120, y: 80 } },
+  { kind: 'canvas', family: null, type: null, id: null, object: null, ids: [], objects: [], part: null, point: { x: 120, y: 80 } },
 ];
 
 test('opening a menu on any object, for any role, calls no handler, no fetch and no model', async () => {
@@ -111,44 +100,33 @@ test('opening a menu on any object, for any role, calls no handler, no fetch and
   globalThis.fetch = (...args) => { fetches.push(args); return Promise.reject(new Error('no network in a menu')); };
   try {
     for (const role of ['owner', 'editor', 'viewer', 'guest']) {
-      for (const readOnly of [false, true]) {
-        const ctx = context({ role, readOnly });
-        for (const target of TARGETS()) rows(target, ctx);
-        assert.deepEqual(ctx.calls, [], `${role} readOnly=${readOnly}: nothing acted`);
+      for (const [readOnly, legacy] of [[false, false], [true, false], [false, true], [true, true]]) {
+        const ctx = context({ role, readOnly, legacy });
+        for (const target of TARGETS()) actionsFor(target, ctx);
+        assert.deepEqual(ctx.calls, [], `${role} readOnly=${readOnly} legacy=${legacy}: nothing acted`);
       }
     }
   } finally { globalThis.fetch = realFetch; }
   assert.deepEqual(fetches, []);
 });
 
-test('general cards: Start Rabbit Hole on content, Copy text of the card itself', () => {
+test('general cards: Copy text of the card itself; Start Rabbit Hole only on content (the engine row asks rabbitHoleTarget)', () => {
   const ctx = context();
   const [explanation] = TARGETS();
-  assert.deepEqual(labels(explanation, ctx), ['Start Rabbit Hole', 'Copy text']);
+  assert.deepEqual(labels(explanation, ctx), ['Copy text']);
   assert.deepEqual(run(explanation, ctx, 'Copy text'), ['copyText', 'Tides\n\nThe moon pulls.']);
-  assert.deepEqual(run(explanation, ctx, 'Start Rabbit Hole'), ['startRabbitHole', 'e1']);
   assert.equal(contentText(TARGETS()[18]), 'Moons\nName\tKm\nIo\t3643');
   assert.equal(contentText(TARGETS()[19]), 'Why?\n\nBecause.');
-  // Structure is not a Rabbit Hole origin.
   for (const type of ['heading', 'divider', 'canvas-ref']) assert.equal(rabbitHoleTarget({ type }), false, type);
   assert.equal(rabbitHoleTarget({ type: 'file', kind: 'attachment' }), false);
-  assert.ok(!labels(TARGETS()[17], ctx).includes('Start Rabbit Hole'), 'not on a heading');
-});
-
-test('Start Rabbit Hole: disabled while generating, hidden on a failed card, sign-in for a guest, none without the flow', () => {
-  const explanation = TARGETS()[0];
-  assert.deepEqual(rows(explanation, context({ job: 'running' })).find(row => row.id === 'card.start-rabbit-hole').reason, 'Still generating');
-  assert.ok(!labels(card({ id: 'f', type: 'video', status: 'failed', title: 'x' }), context()).includes('Start Rabbit Hole'));
-  const guest = rows(explanation, context({ role: 'guest', readOnly: true })).find(row => row.id === 'card.start-rabbit-hole');
-  assert.ok(guest && !guest.disabled, 'a guest keeps it and goes through sign-in');
-  const none = context(); none.canvas.startRabbitHole = null;
-  assert.ok(!labels(explanation, none).includes('Start Rabbit Hole'));
+  assert.equal(rabbitHoleTarget({ type: 'video', status: 'failed' }), false);
+  for (const target of TARGETS().filter(target => target.family === 'block' && !['heading'].includes(target.type))) assert.ok(rabbitHoleTarget(target.object), target.type);
 });
 
 test('wiki, paper, PDF and slide open their reader at the right page; their sources open', () => {
   const ctx = context({ attached: ['wiki:w1'] });
   const [, wiki, , , paper, pdf, slide] = TARGETS();
-  assert.deepEqual(labels(wiki, ctx), ['Start Rabbit Hole', 'Open in reader', 'Open on Wikipedia', 'Detach article from tutor']);
+  assert.deepEqual(labels(wiki, ctx), ['Open in reader', 'Open on Wikipedia', 'Detach article from tutor']);
   assert.deepEqual(run(wiki, ctx, 'Open in reader'), ['cardAction', 'wiki-reader', { title: 'Tide', section: 2 }]);
   assert.deepEqual(run(wiki, ctx, 'Open on Wikipedia'), ['openUrl', 'https://en.wikipedia.org/wiki/Tide']);
   assert.deepEqual(run(wiki, ctx, 'Detach article from tutor'), ['cardAction', 'attach-toggle', { sourceId: 'wiki:w1' }]);
@@ -167,13 +145,13 @@ test('video: a YouTube moment opens at its time; a generated or Motion clip has 
   const [, , youtube, motion] = TARGETS();
   assert.deepEqual(run(youtube, ctx, 'Open on YouTube'), ['openUrl', 'https://www.youtube.com/watch?v=abc&t=61s']);
   assert.ok(labels(youtube, ctx).includes('Attach video to tutor'));
-  assert.deepEqual(labels(motion, ctx), ['Start Rabbit Hole'], 'no Open on YouTube with an undefined id, no invented play or download');
+  assert.deepEqual(labels(motion, ctx), [], 'no Open on YouTube with an undefined id, no invented play or download');
 });
 
 test('images, audio and 3D files download their original; an image shows to the tutor', () => {
   const ctx = context();
   const [image, audio, model] = TARGETS().slice(7, 10);
-  assert.deepEqual(labels(image, ctx), ['Start Rabbit Hole', 'Attach image to tutor', 'Show the tutor this image', 'Download original']);
+  assert.deepEqual(labels(image, ctx), ['Attach image to tutor', 'Show the tutor this image', 'Download original']);
   assert.deepEqual(run(image, ctx, 'Show the tutor this image'), ['cardAction', 'image-attach', { blockId: 'i1', mediaId: 'm1', label: 'cat.png' }]);
   assert.equal(run(audio, ctx, 'Download original')[0], 'downloadOriginal');
   assert.equal(run(model, ctx, 'Download original')[1].id, 'm1');
@@ -186,18 +164,18 @@ test('code: Copy code, Open in notebook (Python only), Edit only for a code box,
   const targets = TARGETS();
   const [snippet, exercise, repo] = targets.slice(10, 13);
   const box = targets[22];
-  assert.deepEqual(labels(snippet, ctx), ['Start Rabbit Hole', 'Open in notebook', 'Copy code']);
+  assert.deepEqual(labels(snippet, ctx), ['Open in notebook', 'Copy code']);
   assert.deepEqual(run(snippet, ctx, 'Copy code'), ['copyText', 'for i in range(3): print(i)']);
   assert.deepEqual(run(exercise, ctx, 'Copy code'), ['copyText', 'total = n']);
   assert.deepEqual(run(snippet, ctx, 'Open in notebook'), ['openInNotebook', 'c1']);
   const js = rows(card({ id: 'j', type: 'snippet', language: 'javascript', code: 'x' }), ctx).find(row => row.id === 'code.open-notebook');
   assert.equal(js.reason, 'Notebooks run Python only');
   // A repository card offers its code once read, and its own Open source; never Edit.
-  assert.deepEqual(labels(repo, ctx), ['Start Rabbit Hole']);
+  assert.deepEqual(labels(repo, ctx), []);
   let opened = 0;
   const unpublish = publishCodeCard('r1', { code: 'import torch', openSource: () => { opened += 1; } });
   try {
-    assert.deepEqual(labels(repo, ctx), ['Start Rabbit Hole', 'Open source', 'Copy code']);
+    assert.deepEqual(labels(repo, ctx), ['Open source', 'Copy code']);
     assert.deepEqual(run(repo, ctx, 'Copy code'), ['copyText', 'import torch']);
     rows(repo, ctx).find(row => row.label === 'Open source').run();
     assert.equal(opened, 1);
@@ -209,12 +187,11 @@ test('code: Copy code, Open in notebook (Python only), Edit only for a code box,
 test('selected text and code lines: copied and added to chat as the quote, never as the whole card', () => {
   const ctx = context();
   const page = card({ id: 'wp', type: 'webpage', url: 'https://example.com', title: 'E' }, { part: { kind: 'text', text: 'the quoted bit' } });
-  assert.deepEqual(labels(page, ctx).filter(label => /select/i.test(label)), ['Add selection to chat', 'Copy selected text']);
+  assert.deepEqual(actionsFor(page, ctx).filter(row => ['selection.add-to-chat', 'copy-selection'].includes(row.id)).map(row => row.label), ['Add selection to chat', 'Copy selected text'], 'with the engine\'s Copy selected text');
   assert.deepEqual(run(page, ctx, 'Add selection to chat'), ['addToChat', { quote: 'the quoted bit' }]);
-  assert.deepEqual(run(page, ctx, 'Copy selected text'), ['copyText', 'the quoted bit']);
   const lines = card({ id: 'c1', type: 'snippet', language: 'python', code: 'a\nb' }, { part: { kind: 'code-lines', text: 'b' } });
   assert.ok(labels(lines, ctx).includes('Add selected lines to chat'));
-  assert.ok(!labels(lines, ctx).includes('Copy code'), 'Copy selected text, not the whole code, while lines are selected');
+  assert.ok(!labels(lines, ctx).includes('Copy code'), 'the selected lines, not the whole code, while lines are selected');
   assert.ok(labels(lines, context({ role: 'guest', readOnly: true })).includes('Add selected lines to chat'), 'a guest asks with the same allowance');
 });
 
@@ -231,7 +208,7 @@ test('notebook: Run all and Restart wait for Python and a notebook file; the .ip
     kind = 'notebook';
     run(notebook, ctx, 'Run all'); run(notebook, ctx, 'Restart');
     assert.deepEqual(sent, ['run-all', 'restart']);
-    assert.ok(!labels(notebook, context({ role: 'viewer', readOnly: true })).includes('Run all'), 'a view-only board runs nothing');
+    assert.ok(!labels(notebook, context({ readOnly: true, legacy: true })).includes('Run all'), 'a view-only board runs nothing');
     assert.deepEqual(rows(notebook, context({ locked: ['n1'] })).find(row => row.label === 'Run all').reason, 'Locked');
   } finally { unregister(); }
   assert.deepEqual(run(notebook, ctx, 'Download lesson.ipynb'), ['downloadText', 'lesson.ipynb', JSON.stringify({ cells: [] }, null, 1), 'application/x-ipynb+json']);
@@ -249,7 +226,8 @@ test('text, sticky notes, shapes, arrows and connectors: local edit and the exis
   assert.deepEqual(labels(link, ctx), ['Edit label', 'Style']);
   assert.deepEqual(run(link, ctx, 'Edit label'), ['edit', 'ln']);
   assert.deepEqual(run(rect, ctx, 'Style'), ['openStyle']);
-  assert.deepEqual(labels(text, context({ role: 'viewer', readOnly: true })), ['Copy text'], 'read-only keeps only copying');
+  assert.deepEqual(labels(text, context({ readOnly: true, legacy: true })), [], 'a view-only board edits nothing (today)');
+  assert.deepEqual(labels(text, context({ role: 'viewer' })), ['Edit text', 'Style', 'Copy text'], 'S1: a viewer edits the local copy');
   assert.deepEqual(rows(text, context({ locked: ['tx'] })).filter(row => row.disabled).map(row => row.reason), ['Locked', 'Locked']);
 });
 
@@ -266,12 +244,12 @@ test('equations: Edit and Copy LaTeX, display size from the existing ladder', ()
 test('CAD: only the saved formats download; Interact and Reset view only while its viewer is live', () => {
   const ctx = context();
   const cad = TARGETS()[14];
-  assert.deepEqual(labels(cad, ctx), ['Start Rabbit Hole', 'Download STEP', 'Download GLB']);
-  assert.deepEqual(run(cad, ctx, 'Download STEP'), ['downloadCad', cad.object, { kind: 'step', url: '/a.step', name: 'part.step' }]);
+  assert.deepEqual(labels(cad, ctx), ['Download STEP', 'Download GLB']);
+  assert.deepEqual(run(cad, ctx, 'Download STEP'), ['downloadCad', cad.object, 'step']);
   const did = [];
   publishView('k1', { live: true, interacting: false, api: { enter: () => did.push('enter'), exit: () => did.push('exit'), fit: () => did.push('fit') } });
   try {
-    assert.deepEqual(labels(cad, ctx), ['Start Rabbit Hole', 'Interact', 'Reset view', 'Download STEP', 'Download GLB']);
+    assert.deepEqual(labels(cad, ctx), ['Interact', 'Reset view', 'Download STEP', 'Download GLB']);
     rows(cad, ctx).find(row => row.label === 'Interact').run();
     rows(cad, ctx).find(row => row.label === 'Reset view').run();
     assert.deepEqual(did, ['enter', 'fit']);
@@ -281,7 +259,7 @@ test('CAD: only the saved formats download; Interact and Reset view only while i
 test('webpage: open the original URL and lock scrolling; no Refresh from the menu', () => {
   const ctx = context();
   const page = TARGETS()[16];
-  assert.deepEqual(labels(page, ctx), ['Start Rabbit Hole', 'Open original page', 'Lock scroll']);
+  assert.deepEqual(labels(page, ctx), ['Open original page', 'Lock scroll']);
   assert.deepEqual(run(page, ctx, 'Lock scroll'), ['updateBlock', 'wp', { scrollLocked: true }]);
   assert.equal(rows(card({ ...page.object, scrollLocked: true }), ctx).find(row => row.label === 'Lock scroll').checked, true);
   assert.ok(!TYPE_ACTIONS.some(entry => /refresh|capture/i.test(entry.id)), 'Refresh stays on the card (webpage.capture), not invented here');
@@ -289,24 +267,25 @@ test('webpage: open the original URL and lock scrolling; no Refresh from the men
 
 test('Explanation: no invented playback or edit rows; headings keep Mark done and Present', () => {
   const ctx = context();
-  assert.deepEqual(labels(TARGETS()[15], ctx), ['Start Rabbit Hole']);
+  assert.deepEqual(labels(TARGETS()[15], ctx), []);
   const heading = TARGETS()[17];
   assert.deepEqual(labels(heading, ctx), ['Mark done', 'Present from here']);
-  assert.deepEqual(run(heading, ctx, 'Mark done'), ['updateBlock', 'h1', { done: true }]);
+  assert.deepEqual(run(heading, ctx, 'Mark done'), ['toggleDone', 'h1']);
 });
 
-test('empty canvas: add text or a note where the menu opened, Fit canvas; a view-only board only fits', () => {
+test('empty canvas: add text or a note where the menu opened; nothing for a view-only board', () => {
   const ctx = context();
   const blank = TARGETS().at(-1);
-  assert.deepEqual(labels(blank, ctx), ['Add text', 'Add sticky note', 'Fit canvas']);
+  assert.deepEqual(labels(blank, ctx), ['Add text', 'Add sticky note']);
   assert.deepEqual(run(blank, ctx, 'Add sticky note'), ['insertSticky', { x: 120, y: 80 }]);
-  assert.deepEqual(labels(blank, context({ role: 'guest', readOnly: true })), ['Fit canvas']);
+  assert.deepEqual(labels(blank, context({ readOnly: true, legacy: true })), []);
+  assert.deepEqual(labels(blank, context({ role: 'guest' })), ['Add text', 'Add sticky note'], 'a guest edits the local copy (S1 canvas.local-edit, S2)');
 });
 
 test('mixed selections show only rows valid for every member', () => {
   const ctx = context();
   const targets = TARGETS();
-  const multi = members => ({ kind: 'multi', family: null, type: null, id: null, object: null, ids: members.map(member => member.id), members, part: null, point: { x: 0, y: 0 } });
+  const multi = members => ({ ...members[0], kind: 'multi', ids: members.map(member => member.id), objects: members.map(member => member.object) });
   assert.deepEqual(labels(multi([targets[20], targets[24], targets[26]]), ctx), ['Style'], 'text, shape and connector share Style');
   assert.deepEqual(labels(multi([targets[20], targets[0]]), ctx), [], 'a card in the mix: no per-type row');
   assert.deepEqual(labels(multi([targets[10], targets[11]]), ctx), [], 'no single-object row on two code cards');
