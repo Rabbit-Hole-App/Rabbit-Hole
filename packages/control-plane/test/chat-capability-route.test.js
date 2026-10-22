@@ -104,6 +104,8 @@ test('a router timeout, failure, malformed answer or missing key answers normall
   assert.deepEqual([keyless.route, keyless.code, ask.calls.length], ['answer', 'unavailable', 0]);
 });
 
+// The last base64url character carries ignored padding bits (1 in 16 tampers still verified); flip a middle one, whose 6 bits all count.
+const tamper = token => { const i = token.length >> 1; return token.slice(0, i) + (token[i] === 'A' ? 'B' : 'A') + token.slice(i + 1); };
 test('the signed decision keeps the canvas, words, mode, selection, refs and Motion input, for this learner only', async () => {
   const selection = { id: 'k-card', kind: 'card', title: 'Photosynthesis', text: 'Light reactions' };
   const refs = [{ kind: 'doc', sourceId: 'doc:12', name: 'Leaf.pdf' }];
@@ -112,7 +114,7 @@ test('the signed decision keeps the canvas, words, mode, selection, refs and Mot
   const ask = { scope: { app: 'canvas-0a1b2c3d' }, message: 'Make this into a video', mode: 'auto', canvas_target: selection, context_refs: refs, generation: { motion }, route_token: out.token };
   assert.deepEqual(await verifyChatRoute(ENV, ask, EMAIL), { cap: 'motion', flow: 'proposal' });
   assert.deepEqual(await verifyChatRoute(ENV, { ...ask, canvas_target: { text: 'Light reactions', title: 'Photosynthesis', kind: 'card', id: 'k-card' } }, EMAIL), { cap: 'motion', flow: 'proposal' }, 'key order is not part of it');
-  for (const changed of [{ scope: { app: 'canvas-ffffffff' } }, { message: 'Make this into a long video' }, { mode: 'ask' }, { canvas_target: { ...selection, id: 'k-other' } }, { canvas_target: undefined }, { context_refs: [] }, { generation: { motion: { concept: 'Respiration' } } }, { route_token: out.token.replace(/.$/, c => (c === 'A' ? 'B' : 'A')) }]) {
+  for (const changed of [{ scope: { app: 'canvas-ffffffff' } }, { message: 'Make this into a long video' }, { mode: 'ask' }, { canvas_target: { ...selection, id: 'k-other' } }, { canvas_target: undefined }, { context_refs: [] }, { generation: { motion: { concept: 'Respiration' } } }, { route_token: tamper(out.token) }]) {
     assert.equal(await verifyChatRoute(ENV, { ...ask, ...changed }, EMAIL), null, JSON.stringify(Object.keys(changed)));
   }
   assert.equal(await verifyChatRoute(ENV, ask, 'someone@example.test'), null, 'another learner');
