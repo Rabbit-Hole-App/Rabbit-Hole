@@ -10,7 +10,7 @@
 // canvas above the chat composer you are cutting the canvas too much") the strip floats: the canvas runs to the bottom under
 // it, the empty strip lets the pointer through to the canvas, its controls stay clickable, and zoom to fit frames every card
 // clear of the composer, the hooks, the minimap and zoom (a bottom inset). UI-19 (owner, 2026-10-21): the tools stay one
-// vertical column left of the canvas at every width, and the one minimap sits above the zoom row at every width, a phone too. Against the
+// vertical column at the canvas's left edge at every width (floating over it since the owner decision of 2026-10-22), and the one minimap sits above the zoom row at every width, a phone too. Against the
 // LOCAL keyless stack only: the hook planner answers from its fixtures, the provider tripwire must count 0, nothing is sent but
 // the owned pages' one learner turn each, answered here. Owner decision 3a (2026-10-20, Tutor workflow): owned-canvas hooks are
 // proactive Tutor suggestions - only while Tutor is selected, On and unpaused, never on open, loaded only after a meaningful
@@ -112,7 +112,9 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
   assert.ok((await hit(gapX, zoom.y + zoom.h / 2)).surface, `${where}: the empty strip at (${Math.round(gapX)}, ${Math.round(zoom.y + zoom.h / 2)}) does not reach the canvas`);
   if (phone) {
     const tools = await box(page, '[role="toolbar"][aria-label="Canvas tools"]');
-    assert.ok(!tools || (tools.right <= surface.x + 1 && tools.x < surface.x && tools.h > tools.w), `${where}: on a phone the tools are not a vertical column left of the canvas ${JSON.stringify(round(tools))} ${JSON.stringify(round(surface))}`);
+    // Owner decision 2026-10-22 (no reserved gutter): the column floats over the canvas's left edge and takes no pointer itself.
+    assert.ok(!tools || (tools.x >= surface.x - 0.5 && tools.x - surface.x <= 12 && tools.h > tools.w), `${where}: on a phone the tools are not a vertical column at the canvas's left edge ${JSON.stringify(round(tools))} ${JSON.stringify(round(surface))}`);
+    if (tools) assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('[data-tool-gutter]')).pointerEvents), 'none', `${where}: the tools column takes the pointer: an invisible band`);
   }
   if (phone) {
     // Above the dock, or above the canvas's own bottom (the Chat pane is under it), at the right.

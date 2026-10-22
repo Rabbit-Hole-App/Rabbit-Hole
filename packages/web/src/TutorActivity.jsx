@@ -59,7 +59,7 @@ export function NextActivity({ chat, board, goal, view, journey, onClose }) {
     const out = await startActivity(chat, board, next);
     if (out.status !== 'applied' && out.status !== 'duplicate') throw Object.assign(new Error(out.reason), { data: { error: out.reason } });
     chat.composer.focus();
-    if (!globalThis.matchMedia?.('(min-width: 64rem)').matches) onClose?.();
+    onClose?.(); // Progress is a tab beside Chat (owner 2026-10-22): the activity shows above Chat's composer, so go there
   });
   const current = choice.source === 'saved' && activity && choice.activityId === state?.activeActivityId;
   const box = (body, actions) => <div data-progress-next data-progress-activity={choice.reason} className="mt-4 rounded-xl bg-hover p-3">

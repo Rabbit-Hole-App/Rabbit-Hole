@@ -8,16 +8,16 @@ const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replac
 
 test('the companion column shares the right side\'s open state; Context, Files and Graph are its views, never Chat tabs', () => {
   const panels = read('./chat-panels.js');
-  assert.match(panels, /const \[companionOpen, setCompanionOpen\] = useState\(false\), \[view, setView\] = useState\('context'\), \[viewer, setViewer\] = useState\('context'\);/, 'closed, on Context, by default');
+  assert.match(panels, /const \[companionOpen, setCompanionOpen\] = useState\(false\), \[view, setView\] = useState\('context'\);/, 'closed, on Context, by default');
   assert.match(panels, /sourcesOpen: open && companionOpen && view === 'context'/, 'sourcesOpen is derived from the right side, the column and its view');
   assert.match(panels, /if \(reveal\) setOpen\(true\);\n\s+if \(!reveal && !open\) return;/, 'a late completion never reopens a hidden right side');
   // Owner brief 2026-10-16 item 4: the labelled tabs move between the views, so there is no Back to <view>; the header's one
   // control toggles the column, reopening it on the view it last showed.
   assert.doesNotMatch(panels, /previous|back/);
-  // Tutor Task 09: Progress is the column's own view from the Chat header; the viewers' control reopens the last viewer.
-  assert.match(panels, /const toggle = \(\) => \(open && companionOpen && view !== 'progress' \? close\(\) : show\(viewer\)\);/);
-  assert.match(panels, /if \(next !== 'progress'\) setViewer\(next\);/);
-  assert.match(panels, /progress: \{ open: progressOpen, toggle: \(\) => \(progressOpen \? close\(\) : show\('progress'\)\) \},/);
+  assert.match(panels, /const toggle = \(\) => \(open && companionOpen \? close\(\) : show\(view\)\);/);
+  // Owner 2026-10-22: Progress is a tab of Chat's panel, never a view of this column; below lg it puts the viewer away.
+  assert.doesNotMatch(panels, /show\('progress'\)|view === 'progress'|progressOpen/);
+  assert.match(panels, /openProgress: \(\) => \{ setOpen\(true\); setTab\('progress'\); if \(!wide\(\)\) close\(\); \},/);
   assert.match(panels, /companion: \{ open: companionOpen, view, show, close, toggle \}/, 'Interface 1');
   assert.match(panels, /openSources: options => show\('context', options\)/);
   assert.match(panels, /closeSources: close,/, 'closing Sources closes the column, never Chat or the right side');
@@ -26,7 +26,7 @@ test('the companion column shares the right side\'s open state; Context, Files a
 
 test('the page mounts the companion LEFT of Chat, every view mounted while hidden, and Hide right panel hides both', () => {
   const page = read('./LearnPage.jsx');
-  const companion = page.indexOf(`<ResizableSidePanel aria-label={companionView === 'progress' ? 'Progress' : 'Viewer'} data-companion`), chat = page.indexOf('<ResizableSidePanel aria-label="Learn agent chat"');
+  const companion = page.indexOf('<ResizableSidePanel aria-label="Viewer" data-companion'), chat = page.indexOf('<ResizableSidePanel aria-label="Learn agent chat"');
   assert.ok(companion > 0 && companion < chat, 'canvas, companion, then Chat: side by side');
   assert.match(page, /defaultWidth=\{360\} storageKey="rh\.companion\.width" collapsed=\{!panelOpen \|\| !companion\.open\} reserve=\{panelOpen \? chatWidth : 0\}/, 'own width; hidden with the right side; leaves the canvas its room beside Chat');
   assert.match(page, /<ResizableSidePanel aria-label="Learn agent chat" [^\n]*collapsed=\{!panelOpen\} reserve=\{panelOpen && companion\.open \? companionWidth : 0\} narrowHidden=\{companion\.open\}/, 'Chat leaves the open companion\'s width out of its maximum; below lg one column at a time, Chat still mounted');

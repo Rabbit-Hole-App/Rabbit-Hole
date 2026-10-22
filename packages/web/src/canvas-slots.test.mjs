@@ -91,6 +91,27 @@ test('the visible area leaves out the chat sheet over the composer, and a margin
   assert.deepEqual(freeArea(surface, []), { left: 24, top: 24, right: 1416, bottom: 776 });
 });
 
+// Owner decision 2026-10-22: the surface no longer starts after an 84 px tools gutter and below the header row; it fills the
+// workspace and they float over it. The opening camera is compensated so a saved board does not jump: every saved world point
+// lands on the same pixel of the canvas workspace as in the old layout, at every width (narrow ones hit the 24 px minimum).
+test('homeView: a saved board opens with every object where the old gutter layout drew it', async () => {
+  const { homeView } = await import('./canvas-slots.js');
+  const GUTTER = 84, HEADER = 44;
+  const oldView = width => ({ x: Math.max(24, (width - 560) / 2), y: 24, z: 1 }); // the old opening camera, on the old surface
+  for (const workspace of [640, 700, 784, 1032, 1440, 1720]) {
+    const was = oldView(workspace - GUTTER), now = homeView({ left: GUTTER, top: HEADER, right: workspace, bottom: 900 });
+    for (const point of [{ x: 0, y: 0 }, { x: 560, y: 1200 }, { x: -300, y: -80 }]) {
+      // Workspace px: old surface origin (GUTTER, HEADER) + old camera; new surface origin (0, 0) + new camera.
+      assert.deepEqual({ x: now.x + point.x * now.z, y: now.y + point.y * now.z }, { x: GUTTER + was.x + point.x * was.z, y: HEADER + was.y + point.y * was.z }, `${workspace} px at ${JSON.stringify(point)}`);
+    }
+    assert.equal(now.z, 1);
+  }
+  // Nothing floating (a read-only board, no header over it): the column centres in the whole surface.
+  assert.deepEqual(homeView({ left: 0, top: 0, right: 1200, bottom: 800 }), { x: 320, y: 24, z: 1 });
+  // A toolbar docked right: the column centres in what it leaves.
+  assert.deepEqual(homeView({ left: 0, top: 44, right: 1116, bottom: 800 }), { x: 278, y: 68, z: 1 });
+});
+
 test('the camera pans a card into the visible area and never changes the zoom', async () => {
   const { panInto } = await import('./canvas-slots.js');
   const area = { left: 24, top: 24, right: 1416, bottom: 436 };

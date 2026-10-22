@@ -118,6 +118,12 @@ test('the Holes Map spot is clamped inside the canvas frame, remembered on this 
   assert.deepEqual(clampSpot({ x: 800, y: 900 }, frame, map, [{ left: 0, right: 799, top: 100 }]), { x: 800, y: 480 }); // nothing under it: the frame
   assert.deepEqual(clampSpot({ x: 0, y: 900 }, frame, map, [{ left: 0, right: 100, top: 60 }]), { x: 0, y: 0 }); // no room above: the top edge
   assert.deepEqual(clampSpot({ x: 0, y: 100 }, frame, map, chrome), { x: 0, y: 100 }); // a spot already clear stays put
+  // Owner decision 2026-10-22: the page header floats over the canvas; its controls are a ceiling over the map's span, 8 px under them.
+  const header = [{ left: 12, right: 44, bottom: 44 }, { left: 300, right: 700, bottom: 40 }];
+  assert.deepEqual(clampSpot({ x: 400, y: -20 }, frame, map, [], header), { x: 400, y: 48 }); // under the centred group
+  assert.deepEqual(clampSpot({ x: 0, y: 10 }, frame, map, [], header), { x: 0, y: 52 }); // under Home
+  assert.deepEqual(clampSpot({ x: 150, y: 0 }, frame, map, [], header), { x: 150, y: 0 }); // between them: the top edge
+  assert.deepEqual(clampSpot({ x: 400, y: 200 }, frame, map, chrome, header), { x: 400, y: 200 }); // a spot already clear stays put
   const local = memory();
   assert.equal(mapSpot(local), null, 'no spot: the gutter');
   keepMapSpot(local, { x: 300, y: 201 });

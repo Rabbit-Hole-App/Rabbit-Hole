@@ -37,7 +37,7 @@ test('the picker lists /goal under Learn and its pill reads Goal; Set a goal cal
   assert.match(read('./LearnPage.jsx'), /goal: args => chat\.goals\?\.open\(args\)/);
   assert.match(read('./LearnProgress.jsx'), /const setGoal = \(\) => \(chat\?\.goals \? chat\.goals\.open\(''\) : composer\.focus\(\)\);/);
   assert.match(read('./LearnProgress.jsx'), /data-progress-set-goal onClick=\{setGoal\}/);
-  assert.match(read('./chat-workspace.jsx'), /const openGoals = useCallback\(\(draft = ''\) => \{ showProgress\('progress'\);/);
+  assert.match(read('./chat-workspace.jsx'), /const showProgress = panels\.openProgress;\s+const openGoals = useCallback\(\(draft = ''\) => \{ showProgress\(\);/);
 });
 
 test('a second press while saving does nothing, and a retry after a lost connection replays the same action id', async () => {

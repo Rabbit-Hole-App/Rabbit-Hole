@@ -66,31 +66,31 @@ const shot = async (name, target = page) => { await target.waitForTimeout(400); 
 const settle = (ms = 400) => page.waitForTimeout(ms);
 const chatPane = (p = page) => p.locator('[data-chat-pane]');
 const field = (p = page) => chatPane(p).locator('[data-chat-composer] textarea').first();
-const icon = (p = page) => p.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true }); // the right panel's header, next to Comments (owner 2026-10-21)
+const icon = (p = page) => p.locator('[data-panel-header]').getByRole('tab', { name: 'Progress', exact: true }); // the right panel's Progress tab, after Comments (owner 2026-10-22)
 const progress = (p = page) => p.locator('[data-progress-pane]');
 const box = async locator => (await locator.boundingBox()) || { x: -1, y: -1, width: 0, height: 0 };
 const open = async (p = page) => { await p.goto(`${BASE}/apps/${canvas.name}`); await chatPane(p).waitFor({ state: 'visible', timeout: 60000 }); await field(p).waitFor({ timeout: 30000 }); await p.waitForTimeout(1500); };
 
-await check('the Progress icon in the panel header opens Progress left of Chat; the draft, mode and Chat stay', async () => {
+// Owner 2026-10-22: Progress is a tab of the right panel; it shows in Chat's place, and no column opens beside Chat.
+await check('the Progress tab shows Progress in the right panel, no column beside Chat; back on Chat the draft and mode stay', async () => {
   await open();
   await field().fill('my own words, unsent');
   assert.equal(await icon().getAttribute('title'), 'Progress');
   await icon().click();
   await progress().locator('[data-progress-count]').waitFor({ timeout: 10000 });
-  // The companion column slides in: read the layout once it has settled, bounded (measured mid-slide under load it overlapped
-  // Chat by 42 px, then settled at x 820 within 1.5 s; int-fix-report.md).
-  let pane, chat, card;
-  for (let i = 0; i < 20; i++) {
-    [pane, chat, card] = [await box(progress()), await box(chatPane()), await box(page.locator(`[data-block-id="${CARD.id}"]`).first())];
-    if (pane.x + pane.width <= chat.x + 2) break;
-    await settle(250);
-  }
-  assert.ok(pane.width > 200 && chat.width > 200, 'both panes visible');
-  assert.ok(card.x < pane.x && pane.x + pane.width <= chat.x + 2, 'Canvas, then Progress, then Chat');
+  await settle(700); // past any column slide
+  const [pane, card, aside] = [await box(progress()), await box(page.locator(`[data-block-id="${CARD.id}"]`).first()), await box(page.locator('aside[aria-label="Learn agent chat"]'))];
+  assert.ok(pane.width > 200, 'Progress visible');
+  assert.ok(card.x < pane.x && pane.x >= aside.x && pane.x + pane.width <= aside.x + aside.width + 1, 'Canvas, then Progress inside the right panel');
+  assert.ok((await box(page.locator('[data-companion]'))).width < 2, 'no column beside Chat');
+  assert.equal(await chatPane().isVisible(), false, 'Chat is put away, still mounted');
+  assert.equal(await icon().getAttribute('aria-selected'), 'true');
+  await shot('progress-01-open-light');
+  await page.locator('[data-panel-tab="chat"]').click();
   assert.equal(await field().inputValue(), 'my own words, unsent', 'the draft is kept');
   assert.match(await chatPane().getByRole('button', { name: 'Mode', exact: true }).innerText(), /Auto/, 'the mode is unchanged');
-  assert.equal(await icon().getAttribute('aria-pressed'), 'true');
-  await shot('progress-01-open-light');
+  await icon().click();
+  await progress().locator('[data-progress-count]').waitFor({ timeout: 10000 });
 });
 
 // The view the pane must show: the stub's, or (REAL_PROGRESS=1) the real route's own answer for this learner.
@@ -127,14 +127,14 @@ await check('viewing another goal is read only: the active goal stays, Resume is
   assert.equal((await coachingOf()).activeGoalId, knn, 'browsing never switches the active goal');
 });
 
-await check('Escape closes Progress and returns focus to the icon; reopening keeps the viewed goal', async () => {
+await check('Escape leaves Progress for Chat with focus on the Chat tab; reopening keeps the viewed goal', async () => {
   await progress().getByRole('combobox', { name: 'Learning goal' }).focus();
   await page.keyboard.press('Escape');
   await settle(600);
-  // A retracted column keeps its content mounted (ResizableSidePanel, inert at width 0), so closed is the column's width.
-  assert.equal(await icon().getAttribute('aria-pressed'), 'false', 'closed');
-  assert.ok((await box(page.locator('[data-companion]'))).width < 2, 'the column is retracted');
-  assert.ok(await page.evaluate(() => document.activeElement?.hasAttribute('data-chat-progress')), 'focus is back on the Progress icon');
+  // Progress stays mounted, hidden under Chat, so its selection is kept.
+  assert.equal(await icon().getAttribute('aria-selected'), 'false', 'closed');
+  assert.ok(await chatPane().isVisible(), 'Chat is back');
+  assert.equal(await page.evaluate(() => document.activeElement?.dataset.panelTab), 'chat', 'focus is on the Chat tab');
   assert.equal(await field().inputValue(), 'my own words, unsent');
   await icon().click();
   await progress().locator('[data-progress-viewing]').waitFor({ timeout: 5000 });
@@ -149,21 +149,21 @@ await check('Resume this goal is its own action: it switches the active goal, an
   assert.deepEqual(model, [], `no model request: ${model.join()}`);
 });
 
-await check('the panes resize by keyboard within bounds; Progress in Tutor, Ask and Off changes no control', async () => {
-  const separator = page.getByRole('separator', { name: 'Resize viewer' });
+await check('the panel resizes by keyboard within bounds with Progress in it; Progress in Tutor, Ask and Off changes no control', async () => {
+  const separator = page.getByRole('separator', { name: 'Resize Learn panel' });
   const before = (await box(progress())).width;
   await separator.focus();
   await page.keyboard.press('ArrowLeft');
   await settle(500);
   const after = (await box(progress())).width;
   assert.notEqual(Math.round(after), Math.round(before), 'resized');
-  const chat = await box(chatPane());
-  assert.ok(chat.width >= 300, 'Chat keeps a readable width');
+  assert.ok(after >= 300, 'Progress keeps a readable width');
   const before2 = await coachingOf();
+  await page.locator('[data-panel-tab="chat"]').click();
   await chatPane().getByRole('button', { name: 'Mode', exact: true }).click();
   await page.getByRole('menuitemradio', { name: /^Tutor/ }).click();
   await settle(900);
-  await icon().click(); await settle(); await icon().click(); await settle();
+  await icon().click(); await settle(); await page.locator('[data-panel-tab="chat"]').click(); await settle(); await icon().click(); await settle();
   const after2 = await coachingOf();
   assert.deepEqual([after2.controls.mode, after2.controls.tutorEnabled, after2.controls.suggestionsPaused], ['tutor', before2.controls.tutorEnabled, before2.controls.suggestionsPaused], 'opening Progress changed no control');
   await shot('progress-03-tutor-mode-light');
@@ -199,8 +199,8 @@ await check('narrow screen: Progress at full width with Close; closing returns t
   await field(phone).fill('phone draft');
   await icon(phone).click();
   await progress(phone).locator('[data-progress-count]').waitFor({ timeout: 10000 });
-  const pane = await box(progress(phone));
-  assert.ok(pane.width >= 400 - 2, `full width (${pane.width}px)`);
+  const pane = await box(progress(phone)), aside = await box(phone.locator('aside[aria-label="Learn agent chat"]'));
+  assert.ok(aside.width >= 420 - 2 && pane.width >= aside.width - 48, `full width: the panel ${aside.width}px, Progress ${pane.width}px inside its padding`);
   assert.equal(await chatPane(phone).isVisible(), false, 'Chat is put away, still mounted');
   await shot('progress-05-narrow-light', phone);
   await progress(phone).getByRole('button', { name: 'Close Progress' }).click();

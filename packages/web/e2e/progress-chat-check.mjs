@@ -95,7 +95,7 @@ const check = async (label, fn) => { await fn(); results.push(label); console.lo
 const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const chatPane = () => page.locator('[data-chat-pane]');
 const field = () => chatPane().locator('[data-chat-composer] textarea').first();
-const icon = () => page.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true }); // the right panel's header, next to Comments (owner 2026-10-21)
+const icon = () => page.locator('[data-panel-header]').getByRole('tab', { name: 'Progress', exact: true }); // the right panel's Progress tab, after Comments (owner 2026-10-22)
 const progress = () => page.locator('[data-progress-pane]');
 const chips = () => chatPane().locator('[data-context-chip][data-ref-key^="progress:"]');
 const box = async locator => (await locator.boundingBox()) || { x: -1, y: -1, width: 0, height: 0 };
@@ -129,14 +129,17 @@ await check('attach_context_does_not_send: Ask tutor about this attaches a remov
   assert.match(await chatPane().locator('[data-tutor-switch]').innerText(), /Off/, 'the switch is unchanged');
   assert.deepEqual(await controls(), ['tutor', false, ACTIVE], 'mode, switch and active goal unchanged on the server');
   assert.equal(asks.length, sent, 'attaching sends nothing');
-  const pane = await box(progress()), chat = await box(chatPane());
-  assert.ok(pane.width > 200 && chat.width > 200 && pane.x + pane.width <= chat.x + 2, 'both panes visible, Progress left of Chat');
+  // Owner 2026-10-22: Progress is a tab of the right panel, so the question takes the learner to the Chat tab.
+  assert.ok((await box(chatPane())).width > 200, 'Chat shows');
+  assert.equal(await progress().isVisible(), false, 'Progress gave way to Chat');
+  assert.equal(await page.locator('[data-panel-tab="chat"]').getAttribute('aria-selected'), 'true');
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA', 'the composer has focus');
   await shot('pchat-01-ask-attached');
   // Removable: x takes the chip off this chat only; the draft stays.
   await chips().first().getByRole('button', { name: /Remove .* from this chat/ }).click();
   assert.equal(await chips().count(), 0);
   assert.equal(await field().inputValue(), 'my own words, unsent');
+  await openSkill(); // the Progress tab kept its viewed goal and open skill
   await progress().locator('[data-progress-ask]').click();
   await chips().first().waitFor({ timeout: 5000 });
   assert.equal(await chips().count(), 1, 'attaching again adds it once');
@@ -209,7 +212,7 @@ await check('Question this feedback is a draft until Send; at Send one dispute i
 await check('narrow screen: Ask tutor about this returns to Chat with the chip; Progress keeps its selection for reopening', async () => {
   await page.setViewportSize({ width: 900, height: 900 });
   await page.waitForTimeout(600);
-  // Below lg one column shows at a time: with Progress open, Chat is behind it.
+  // Progress and Chat are tabs of one panel: with Progress open, Chat is behind it.
   if (await progress().isVisible()) await progress().locator('[data-progress-close]').click();
   await field().fill('a narrow draft');
   await icon().click();

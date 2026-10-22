@@ -80,6 +80,13 @@ export function freeArea(surface, overlays, pad = 24) {
   return { left: area.left + pad, top: area.top + pad, right: area.right - pad, bottom: area.bottom - pad };
 }
 
+// The opening camera (owner, 2026-10-22: the drawing surface fills the canvas workspace and the toolbar and the header float
+// over it): zoom 1, the column centred in `area`, what the floating controls leave of the surface (surface px, from
+// freeArea over their measured rectangles, no margin), 24 px below its top. Saved coordinates never change; with the
+// toolbar and the header where the old 84 px gutter and header row stood, the world origin lands on the same screen spot as
+// before, so an existing board opens without a jump.
+export const homeView = (area, column = 560) => ({ x: area.left + Math.max(24, (area.right - area.left - column) / 2), y: area.top + 24, z: 1 });
+
 // The floating bottom chrome as obstacles for a card placed in view, in world units (owner rule: canvas utilities never
 // cover content): each control's span (surface px: left, right, top) from its top down to the surface's bottom, the floor
 // chromeTop gives a reveal over that span. height: the surface's; view { x, y, z }.

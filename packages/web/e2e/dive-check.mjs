@@ -58,7 +58,8 @@ const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/c
 // inset lets it reach at most 8 px past the gutter onto the surface's edge - never further into the canvas.
 // It stays clear of the toolbar, and the toolbar keeps its usable height.
 // UI-17 (owner, 2026-10-21): the map sits at the top of the tools gutter at every width, never in a 92 px column of its own.
-const MAP_OVERHANG = 8;
+// Owner decision 2026-10-22: the surface fills the workspace and the tools column floats over it, so the map is on the
+// surface by design; it must stay inside the tools column and below the floating page header instead.
 const gutterProblems = g => {
   const problems = [];
   const apart = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
@@ -66,13 +67,12 @@ const gutterProblems = g => {
   if (g.column) problems.push('the map has a column of its own ([data-dive-gutter])');
   if (g.nav.x < g.gutter.x - 1 || g.nav.right > g.gutter.right + 1) problems.push(`navigator ${g.nav.x}-${g.nav.right} outside the tools gutter (${g.gutter.x}-${g.gutter.right})`);
   if (Math.abs(g.nav.y - g.slot) > 1) problems.push(`navigator top ${g.nav.y} not at the top of the gutter's slot (${g.slot})`);
-  const into = Math.min(g.nav.right, g.surface.right) - Math.max(g.nav.x, g.surface.x);
-  if (into > MAP_OVERHANG + 1) problems.push(`navigator reaches ${into} px into the canvas (at most ${MAP_OVERHANG})`);
+  if (g.header != null && g.nav.y < g.header - 0.5) problems.push(`navigator top ${g.nav.y} above the header's bottom (${g.header})`);
   if (!apart(g.nav, g.toolbar)) problems.push('navigator overlaps the toolbar');
   if (g.toolbar.bottom - g.toolbar.y <= 120) problems.push('toolbar lost its usable height');
   return problems;
 };
-const geometry = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), slot: (() => { const el = document.querySelector('[data-dive-navigator]')?.closest('[data-gutter-top]'); return el ? el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop) : null; })(), column: !!document.querySelector('[data-dive-gutter]'), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
+const geometry = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), slot: (() => { const el = document.querySelector('[data-dive-navigator]')?.closest('[data-gutter-top]'); return el ? el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop) : null; })(), column: !!document.querySelector('[data-dive-gutter]'), header: (() => { const rects = [...(document.querySelector('[data-canvas-header]')?.children || [])].map(el => el.getBoundingClientRect()).filter(r => r.width && r.height); return rects.length ? Math.max(...rects.map(r => r.bottom)) : null; })(), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
 const inGutter = async label => {
   const problems = gutterProblems(await geometry());
   assert.deepEqual(problems, [], `${label}: Rabbit Holes Map placement`);
@@ -132,6 +132,20 @@ await open(ROOT_URL);
 near(await mapAt(), stepped, 'a reload keeps the spot');
 await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); // actionable: nothing intercepts the grip
 await shot('holes-map-03-after-reload');
+// Owner decision 2026-10-22: the page header floats over the canvas, and the map is never dragged under its controls. Dragged
+// to the window's top edge under the centred header group, it stops 8 px below the group, clear of Home and the group.
+{
+  const controls = () => page.evaluate(() => [...(document.querySelector('[data-canvas-header]')?.children || [])].map(el => el.getBoundingClientRect()).filter(r => r.width && r.height).map(r => ({ x: r.x, y: r.y, right: r.right, bottom: r.bottom })));
+  const group = (await page.locator('[data-header-group]').boundingBox()), grip = await page.locator('[data-dive-grip]').boundingBox();
+  assert.ok(group, 'the canvas header group is there to clear');
+  const under = await dragMap(group.x + group.width / 2 - (grip.x + grip.width / 2), 2 - (grip.y + grip.height / 2));
+  for (const box of await controls()) assert.ok(apart(under, box), `the dragged map stays clear of the header control ${JSON.stringify(box)}: ${JSON.stringify(under)}`);
+  const ceiling = Math.max(...(await controls()).filter(box => box.x < under.right && box.right > under.x).map(box => box.bottom));
+  assert.ok(Number.isFinite(ceiling), `the map was dragged under the header group's span: ${JSON.stringify({ under, group })}`);
+  assert.ok(Math.abs(under.y - (ceiling + 8)) <= 1, `pinned 8 px under the header's controls: map top ${under.y}, controls bottom ${ceiling}`);
+  await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); // its grip is reachable, not under the header
+  await shot('holes-map-03b-under-header');
+}
 await page.locator('[data-dive-grip]').dblclick();
 near(await mapAt(), home, 'double-click puts it back in the gutter');
 assert.equal(await page.evaluate(() => localStorage.getItem('small.dive.mapSpot')), null, 'and forgets the spot');

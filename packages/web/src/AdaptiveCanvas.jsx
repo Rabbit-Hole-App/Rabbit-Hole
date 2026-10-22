@@ -56,7 +56,7 @@ import { DivePortals } from './Dive.jsx';
 import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
-import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
 import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
@@ -1905,13 +1905,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (!element || !boxes.length) return;
     const left = Math.min(...boxes.map(box => box.x)), top = Math.min(...boxes.map(box => box.y));
     const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
-    const w = element.clientWidth;
+    // The toolbar and the header float over the surface (owner, 2026-10-22): framed inside what their measured rectangles
+    // leave (controlArea), never under them.
+    const area = controlArea(), w = area.right - area.left;
     const fit = h => Math.max(0.2, Math.min(maxZoom, (w - pad * 2) / Math.max(1, right - left), (h - pad * 2) / Math.max(1, bottom - top)));
-    const across = z => (w - (right - left) * z) / 2 - left * z;
+    // Wider than the room even at the zoom floor: from its left edge, beside the toolbar (as a tall span is framed from its top).
+    const across = z => area.left + Math.max(0, (w - (right - left) * z) / 2) - left * z;
     // The floating bottom chrome over the framed span is a bottom inset: nothing is framed under the composer, the
     // minimap and zoom, or the hooks. A refit only narrows the span, so the first span's inset still holds.
-    let z = fit(element.clientHeight);
-    const h = Math.min(element.clientHeight, chromeTop(across(z) + left * z, across(z) + right * z));
+    let z = fit(area.bottom - area.top);
+    const h = Math.min(area.bottom, chromeTop(across(z) + left * z, across(z) + right * z)) - area.top;
     z = fit(h);
     // Centred horizontally; vertically too when the section is short enough to
     // sit in the middle of the screen, which is what reads as a slide.
@@ -1919,7 +1922,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setView({
       z,
       x: across(z),
-      y: (height + pad * 2 < h ? (h - height) / 2 : pad) - top * z,
+      y: area.top + (height + pad * 2 < h ? (h - height) / 2 : pad) - top * z,
     });
   };
   // Frame everything on the canvas. An infinite surface you can pan forever needs
@@ -2050,7 +2053,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       group: groupSelection, ungroup: ungroupSelection, arrange,
       zoomIn: () => zoomCenter(1.25),
       zoomOut: () => zoomCenter(1 / 1.25),
-      zoomReset: () => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 }),
+      zoomReset: () => setView(homeView(controlArea(), COLUMN)),
       // Everything inserted lands where the learner is looking: headings and
       // cards join the column at the card nearest the middle of the screen,
       // free items land at its centre, and the camera only moves if the new
@@ -2693,6 +2696,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   itemsRef.current = items;
   const surface = useRef(null);
   const gutter = useRef(null), shell = useRef(null), bottomStrip = useRef(null);
+  // The page's canvas header (LearnPage [data-canvas-header]), floating over this canvas when nothing sits between them.
+  const pageHeader = () => document.querySelector('[data-canvas-header]');
   // The floating strip's side columns, as CSS lengths on the shell from its bottom edge: the Voice caption sits above the
   // left one (--chrome-left), the tools' gutter pads its side's one (--chrome-left / --chrome-right).
   useLayoutEffect(() => {
@@ -2702,11 +2707,15 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const bottom = host.getBoundingClientRect().bottom;
       host.style.setProperty('--chrome-left', `${Math.max(0, bottom - strip.firstElementChild.getBoundingClientRect().top)}px`);
       host.style.setProperty('--chrome-right', `${Math.max(0, bottom - strip.lastElementChild.getBoundingClientRect().top)}px`);
+      // The page header floating over the canvas (owner, 2026-10-22): the tools column and the canvas's top notices start below it.
+      const header = pageHeader();
+      host.style.setProperty('--canvas-top', `${header ? Math.max(0, header.getBoundingClientRect().bottom - host.getBoundingClientRect().top) : 0}px`);
     };
     sync();
     const observer = new ResizeObserver(sync);
     for (const column of strip.children) observer.observe(column);
     observer.observe(host);
+    if (pageHeader()) observer.observe(pageHeader());
     return () => observer.disconnect();
   }, [presenting]);
   const column = useRef(null);
@@ -2772,13 +2781,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (curious && slot && room && !slot.getBoundingClientRect().height) rects.push({ left: edge.right - room.right - room.w, right: edge.right - room.right, top: edge.bottom - room.bottom - room.h });
     return chromeObstacles(rects.map(rect => ({ left: rect.left - at.left, right: rect.right - at.left, top: rect.top - at.top })), at.height, viewRef.current);
   };
+  // The floating controls over the drawing surface (owner, 2026-10-22: the surface fills the canvas workspace; the toolbar,
+  // the Rabbit Hole navigator above it and the page header's controls float over it), as their measured rectangles in
+  // surface px - never a constant gutter. Fit, reveal, placement and the opening camera keep clear of them.
+  const controlRects = () => {
+    const frame = surface.current.getBoundingClientRect();
+    return [...(gutter.current?.querySelectorAll('[role="toolbar"], [data-gutter-top] > *') || []), ...(pageHeader()?.children || [])]
+      .map(node => node.getBoundingClientRect()).filter(rect => rect.width && rect.height && rect.right > frame.left && rect.left < frame.right && rect.bottom > frame.top && rect.top < frame.bottom)
+      .map(rect => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top }));
+  };
+  const controlArea = () => freeArea({ w: surface.current.clientWidth, h: surface.current.clientHeight }, controlRects(), 0);
   // What the learner can see of the surface: less what floats over it - the chat sheet above the composer, the
-  // Voice caption, the page's contents rail (edgeInset) - and a margin (canvas-slots.js freeArea).
+  // Voice caption, the page's contents rail (edgeInset), the floating controls - and a margin (canvas-slots.js freeArea).
   const visibleArea = () => {
     const frame = surface.current.getBoundingClientRect();
     const overlays = [...(shell.current?.querySelectorAll('[data-chat-sheet], [data-voice-rail] > *') || [])]
       .map(node => node.getBoundingClientRect()).filter(rect => rect.width && rect.height)
       .map(rect => ({ left: rect.left - frame.left, top: rect.top - frame.top, right: rect.right - frame.left, bottom: rect.bottom - frame.top }));
+    overlays.push(...controlRects());
     if (edgeInset) overlays.push({ left: frame.width - edgeInset, top: 0, right: frame.width, bottom: frame.height });
     return freeArea({ w: frame.width, h: frame.height }, overlays);
   };
@@ -3129,7 +3149,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const undo = () => travelHistory(history,future);
   const redo = () => travelHistory(future,history);
-  useEffect(() => { setView(v => (autoView.current = { ...v, x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2) })); }, []);
+  // The opening camera, compensated for the controls that now float over the surface (homeView): no jump on load.
+  useEffect(() => { setView(autoView.current = homeView(controlArea(), COLUMN)); }, []);
   // Wheel pans the world; ctrl/cmd+wheel zooms at the cursor. Non-passive so
   // the page behind the canvas does not scroll. Empty space in the tools'
   // gutter pans too, so the gutter is no dead zone; its controls, menus and
@@ -3376,8 +3397,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     chromeRects: () => {
       const at = surface.current?.getBoundingClientRect();
       if (!at) return [];
-      return [...(shell.current?.querySelectorAll('[data-style-panel], [data-canvas-bottom] > * > *, [data-chat-sheet]') || [])].flatMap(boxesIn)
-        .filter(rect => rect.width && rect.height).map(rect => ({ x: rect.left - at.left, y: rect.top - at.top, w: rect.width, h: rect.height }));
+      return [...[...(shell.current?.querySelectorAll('[data-style-panel], [data-canvas-bottom] > * > *, [data-chat-sheet]') || [])].flatMap(boxesIn)
+        .filter(rect => rect.width && rect.height).map(rect => ({ x: rect.left - at.left, y: rect.top - at.top, w: rect.width, h: rect.height })),
+      ...controlRects().map(rect => ({ x: rect.left, y: rect.top, w: rect.right - rect.left, h: rect.bottom - rect.top }))];
     },
     objectCount: () => blocksRef.current.length + itemsRef.current.length + shapesRef.current.length + present.current.links.length,
     describe: object => describeObject(object),
@@ -3902,10 +3924,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const sheet = (shell.current || element.parentElement)?.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
     const open = sheet?.height ? Math.max(120, sheet.top - element.getBoundingClientRect().top) : element.clientHeight;
     // The canvas's own move, not the learner's (autoView); above the floating chrome over the card too.
+    const area = controlArea();
     setView(v => {
-      const x = element.clientWidth / 2 - (box.x + box.w / 2) * v.z;
-      const h = Math.max(120, Math.min(open, chromeTop(x + box.x * v.z, x + (box.x + box.w) * v.z)));
-      return (autoView.current = { ...v, x, y: h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z });
+      const x = (area.left + area.right) / 2 - (box.x + box.w / 2) * v.z;
+      const h = Math.max(120, Math.min(open, chromeTop(x + box.x * v.z, x + (box.x + box.w) * v.z)) - area.top);
+      return (autoView.current = { ...v, x, y: area.top + h / 2 - (box.y + Math.min(box.h, h / v.z) / 2) * v.z });
     });
   };
   useEffect(() => {
@@ -4642,9 +4665,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   // Where the learner is looking, in world coordinates.
   const viewCenter = () => {
-    const element = surface.current;
-    const w = element?.clientWidth || 0, h = element?.clientHeight || 0;
-    return { x: (w / 2 - view.x) / view.z, y: (h / 2 - view.y) / view.z };
+    if (!surface.current) return { x: -view.x / view.z, y: -view.y / view.z };
+    // The middle of what the floating controls leave (controlArea).
+    const area = controlArea();
+    return { x: ((area.left + area.right) / 2 - view.x) / view.z, y: ((area.top + area.bottom) / 2 - view.y) / view.z };
   };
   // The column slot nearest the middle of the screen: before the first card
   // whose middle is below the screen's middle.
@@ -4771,7 +4795,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       element.scrollLeft = 0; element.scrollTop = 0;
       flushSync(() => setView(v => (autoView.current = { ...v, x: v.x - dx, y: v.y - dy })));
     }
-    const frame = element.getBoundingClientRect(), bottom = Math.min(frame.bottom, frame.top + chromeTop(0, frame.width)) - 48, top = frame.top + 48;
+    const frame = element.getBoundingClientRect(), bottom = Math.min(frame.bottom, frame.top + chromeTop(0, frame.width)) - 48, top = frame.top + controlArea().top + 48;
     const by = box.bottom > bottom ? bottom - box.bottom : box.top < top ? top - box.top : 0;
     if (by) setView(v => (autoView.current = { ...v, y: v.y + by }));
   };
@@ -5296,9 +5320,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         // the capture phase, so the pill's own stopPropagation cannot save it.
         if (editable && !active.contains(event.target) && !pressKeepsDocFocus(active, event.target) && !event.target.closest?.('[data-keep-focus]')) active.blur();
       }}>
-      {/* The canvas and its tools share this row and never overlap: the tools get
-          their own gutter, a column at every width (UI-19), so nothing on
-          the canvas can be panned under them and no card has to know they exist. */}
+      {/* The drawing surface fills this row, to the workspace's outer edges and the right panel (owner, 2026-10-22,
+          superseding the reserved tools gutter): the tools column floats over it, a column at every width (UI-19), and
+          fit, reveal and placement keep clear of the tools' measured rectangles (controlRects). */}
       <div className="flex min-h-0 flex-1">
       {/* With the grid on, the canvas draws its own dots instead of borrowing
           the page's: these ride the camera, so the grid you snap to is the grid
@@ -5313,7 +5337,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           The stack stays left of the centred dock (780 px) and the answer sheet above it, down to 208 px wide. */}
       {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0"
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
-        <div data-left-stack className="absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto">{leftRail}</div>
+        <div data-left-stack className={`absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] ${toolSide === 'left' ? 'left-24' : 'left-3'} flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto`}>{leftRail}</div>
       </div>}
       <div ref={surface} data-canvas-surface data-space-pan={spacePan ? '' : undefined}
         onPointerDownCapture={event => {
@@ -5356,9 +5380,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>}
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
-        {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-3 left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
+        {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
         {docView === 'editor' && !doc && (docError || (!docReady && !readOnly)) && (
-          <div data-canvas-doc data-doc-state={docError ? 'error' : 'loading'} className="absolute top-12 left-1/2 z-40 w-80 -translate-x-1/2 rounded-md border border-line bg-white p-4 text-sm text-ink-2 shadow-md dark:bg-side">
+          <div data-canvas-doc data-doc-state={docError ? 'error' : 'loading'} className="absolute top-[calc(var(--canvas-top,0px)+3rem)] left-1/2 z-40 w-80 -translate-x-1/2 rounded-md border border-line bg-white p-4 text-sm text-ink-2 shadow-md dark:bg-side">
             {docError ? <>
               <p role="alert">Couldn&apos;t load this canvas&apos;s document. Your saved document is unchanged.</p>
               {onDocRetry && <button type="button" onClick={onDocRetry} className="mt-2 rounded-md border border-line px-2 py-1 text-xs text-ink hover:bg-hover">Retry</button>}
@@ -5617,18 +5641,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             onBlur={() => done(true, false)} />;
         })()}
       </div>
-      {/* The tools' gutter: 84px beside the canvas, the toolbar hanging the rest
-          of its width into the page edge as before. It sits on the side the
-          toolbar docks (left by default; drag the grip to move it), and docked
-          right it keeps clear of the page's contents rail (edgeInset). It is a
-          column at every width (owner UI-19): no strip under a narrow canvas and
-          no overview here - the one minimap is the bottom strip's. The style
-          panel opens from it. */}
+      {/* The tools' column: 84px at the side the toolbar docks (left by default; drag the grip to move it), floating over
+          the surface from below the page header (--canvas-top) down to the bottom strip's column. Owner, 2026-10-22: it
+          is no gutter - it clips nothing and takes no pointer; only its controls do, and the canvas pans, draws and
+          selects under the rest. Docked right it keeps clear of the page's contents rail (edgeInset). A column at every
+          width (owner UI-19): no strip under a narrow canvas and no overview here - the one minimap is the bottom strip's.
+          The style panel opens from it. */}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
-          // Docked right it mirrors the left side (84px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
+          // Docked right it mirrors the left side (84px, 8px in from the edge) and clears the contents rail (edgeInset).
           style={{ '--edge': `${edgeInset || 0}px` }}
-          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? 'order-first items-start pl-2 pb-(--chrome-left) w-[84px]' : 'items-end pr-2 mr-(--edge) pb-(--chrome-right) w-[84px]'}`}>
+          className={`pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col justify-center gap-2 [&>*]:pointer-events-auto ${toolSide === 'left' ? 'left-0 items-start pl-2 pb-(--chrome-left) w-[84px]' : 'right-(--edge) items-end pr-2 pb-(--chrome-right) w-[84px]'}`}>
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
@@ -5752,7 +5775,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           <IconBtn title="Scroll down" onClick={() => scrollBy(1)}><ChevronDown size={14} /></IconBtn>
           <span className="mx-0.5 h-5 w-px bg-line" />
           <IconBtn title="Zoom out" onClick={() => zoomCenter(1 / 1.25)}><Minus size={14} /></IconBtn>
-          <button type="button" title="Reset zoom" onClick={() => setView({ x: Math.max(24, (surface.current.clientWidth - COLUMN) / 2), y: 24, z: 1 })} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
+          <button type="button" title="Reset zoom" onClick={() => setView(homeView(controlArea(), COLUMN))} className="min-w-11 flex-1 px-1 text-center text-xs tabular-nums text-ink-2 hover:text-ink">{Math.round(view.z * 100)}%</button>
           <IconBtn title="Zoom in" onClick={() => zoomCenter(1.25)}><Plus size={14} /></IconBtn>
         </div>
         </div>

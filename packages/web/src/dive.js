@@ -72,10 +72,13 @@ export const keepMapSpot = (storage, spot) => write(storage, MAP_SPOT, spot);
 // strip (minimap, zoom row, composer, hooks: `chrome`, boxes in frame px) is a floor under the map's span, MAP_GAP above
 // the highest one there, so the map never slides under it and its grip stays reachable (r29 gate, 2026-10-08).
 export const MAP_GAP = 8;
-export const clampSpot = ({ x, y }, frame, map, chrome = []) => {
+// `above`: the floating page header's controls over the frame ({ left, right, bottom }, frame px; owner decision 2026-10-22:
+// the header floats over the canvas), a ceiling 8 px under the lowest one over the map's span. The ceiling wins over the floor.
+export const clampSpot = ({ x, y }, frame, map, chrome = [], above = []) => {
   const left = Math.round(Math.min(Math.max(0, x), Math.max(0, frame.w - map.w)));
   const floor = Math.min(frame.h, ...chrome.filter(box => box.left < left + map.w && box.right > left).map(box => box.top - MAP_GAP));
-  return { x: left, y: Math.round(Math.min(Math.max(0, y), Math.max(0, floor - map.h))) };
+  const ceiling = Math.max(0, ...above.filter(box => box.left < left + map.w && box.right > left).map(box => box.bottom + MAP_GAP));
+  return { x: left, y: Math.round(Math.max(ceiling, Math.min(Math.max(0, y), Math.max(0, floor - map.h)))) };
 };
 
 // A topic anchor's display title from the learner's own words: "explain softmax" -> "Softmax".

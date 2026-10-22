@@ -77,3 +77,13 @@ Its "no blank strip" assertion fails on dc7f20e7 (96 px between the surface and 
 Since UI-17 it also covers Chat alone (a card reaches the panel edge, the map in the tools' gutter), the window resized so the
 row crosses 784 px (800, 784, 783, 760), View > Rabbit Hole Map off and on, and a wide video card beside the code and graph
 cards, with their saved geometry unchanged. It prints `N/19 checks passed`.
+
+## Owner decision 2026-10-22: no reserved gutter or header band
+
+The owner's screenshot showed a shape cut along an invisible vertical line beside the toolbar and a horizontal line below
+the header while the dotted workspace ran on. The surface now fills the workspace from the outer left edge and the page top
+to the right panel (LearnPage's `pr-1` is gone too); the tools column and the header float over it with the pointer through
+except on their controls. Fit, reveal and placement avoid the controls' measured rectangles; the opening camera is
+compensated (`homeView`, unit-tested in canvas-slots.test.mjs) so saved coordinates stay and boards do not jump.
+`e2e/canvas-clipping-check.mjs` covers the four edges at several zooms (117% included), zero, one and two right panels,
+resize and reload, and pointer use in the newly usable top and left areas.
