@@ -87,11 +87,14 @@ const domain = z.union([
   z.object({ min: z.number().finite(), max: z.number().finite(), step: z.number().positive() }).strict()
     .refine(range => range.max > range.min && (range.max - range.min) / range.step <= 256, 'a range needs min < max and at most 256 steps'),
 ]);
+// A component's learner control is instance.control, a compiled object instance.local (r2-contract.md); a bare id
+// stays valid for saved-scene shaped payloads.
+const idOrRef = z.union([id, anchorRef]);
 const experiment = z.object({
-  id, purpose: text(300).min(1), input: id, domain,
-  affects: z.array(id).min(1).max(32),
+  id, purpose: text(300).min(1), input: idOrRef, domain,
+  affects: z.array(idOrRef).min(1).max(32),
   contrasts: z.array(text(200).min(1)).min(1).max(8),
-  dependsOn: z.array(id).max(8).default([]),
+  dependsOn: z.array(idOrRef).max(8).default([]),
   // Mirrors Lane B's gate (explain/b2-t26m2): an invariant experiment is valid only when its listed
   // results stay the same and the card shows which setting is in effect.
   invariant: z.boolean().optional(),
@@ -166,6 +169,16 @@ const hintSpec = z.object({
   if (hint.type === 'number' && !(Number.isFinite(hint.min) && Number.isFinite(hint.max) && hint.min <= hint.default && hint.default <= hint.max)) ctx.addIssue({ code: 'custom', message: 'a number hint needs finite min <= default <= max' });
   if (hint.type === 'enum' && !hint.values?.includes(hint.default)) ctx.addIssue({ code: 'custom', message: 'an enum hint default must be one of its values' });
 });
+// A learner control (r2-contract.md): the semantic parameter a learner may vary. Its allowed values are the
+// parameter's own spec; the compiler calls compile once per admitted value.
+const controlSpec = z.object({
+  param: id,
+  label: z.string().min(1).max(60),
+  unit: z.string().min(1).max(12).optional(),
+  optionsFrom: id.optional(),
+  affects: text(200).min(1),
+  invariant: text(200).min(1).optional(),
+}).strict();
 export const componentDefinitionSchema = z.object({
   name: id,
   version: z.number().int().positive(),
@@ -177,10 +190,22 @@ export const componentDefinitionSchema = z.object({
   fixtures: z.array(id).max(16).default([]),
   // A container lays out the instances that name it as parent.
   container: z.boolean().default(false),
+  controls: z.record(id, controlSpec).default({}),
   compile: z.custom(value => typeof value === 'function', 'compile must be a function'),
 }).strict().superRefine((definition, ctx) => {
   for (const path of definition.repairWritable) if (!(path in definition.hints)) ctx.addIssue({ code: 'custom', message: `repairWritable "${path}" is not a declared hint` });
   for (const name of Object.keys(definition.hints)) if (name in definition.params) ctx.addIssue({ code: 'custom', message: `"${name}" is both a semantic parameter and a layout hint` });
+  for (const [name, control] of Object.entries(definition.controls)) {
+    const param = definition.params[control.param];
+    const fail = message => ctx.addIssue({ code: 'custom', message: `control "${name}": ${message}` });
+    if (!param) { fail(`"${control.param}" is not a declared parameter`); continue; }
+    const numeric = param.type === 'int' || param.type === 'number';
+    if (!numeric && !['enum', 'string'].includes(param.type)) fail(`a ${param.type} parameter cannot be a control`);
+    if (numeric && !(Number.isFinite(param.min) && Number.isFinite(param.max))) fail('a number control needs its parameter to declare min and max');
+    if (control.unit && !numeric) fail('only a number control has a unit');
+    if ((param.type === 'string') !== (control.optionsFrom !== undefined)) fail('a string control names its options with optionsFrom, and only it does');
+    if (control.optionsFrom !== undefined && definition.params[control.optionsFrom]?.type !== 'list') fail(`optionsFrom "${control.optionsFrom}" is not a list parameter`);
+  }
 });
 
 export const compiledVisualSchema = z.object({
@@ -190,7 +215,9 @@ export const compiledVisualSchema = z.object({
   counts: z.object({ authored: count, compiled: count, perPart: z.array(count).max(4), renderWork: count }).strict(),
   componentVersions: z.record(id, z.number().int().positive()),
   objectMap: z.record(z.string().max(64), z.object({ component: id, anchor: id.optional(), evidence: z.array(id).max(32).default([]) }).strict()),
-  coverage: z.object({ states: count, timeCheckpoints: z.array(z.number().min(0).max(120)).max(64), complete: z.boolean() }).strict(),
+  // stateInputs: every admitted control state, default first (r2-contract.md); states is its length when present.
+  coverage: z.object({ states: count, timeCheckpoints: z.array(z.number().min(0).max(120)).max(64), complete: z.boolean(),
+    stateInputs: z.array(z.record(z.string().max(40), z.number().int().min(0))).max(64).optional() }).strict(),
   diagnostics: z.array(z.object({ code: id, message: text(300), component: id.optional() }).strict()).max(200).default([]),
 }).strict();
 

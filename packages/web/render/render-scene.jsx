@@ -10,13 +10,11 @@ import '../src/index.css';
 
 const host = document.getElementById('root');
 const root = createRoot(host);
-// Each capture mounts a fresh card at its state: a reused AnimatedScene keeps the step it showed first (live run r3b,
-// 2026-10-22: four steps of one session rendered identically), while a card opened at a saved time starts there.
-let captures = 0;
 const frames = n => new Promise(resolve => { const step = left => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
 
 // Inter (UI and scene labels), JetBrains Mono (scene numerals and code, index.css) and the KaTeX faces equations use; each load resolves once the face is usable.
 const FACES = ['400 1em "Inter Variable"', '600 1em "Inter Variable"', '400 1em "JetBrains Mono"', '1em KaTeX_Main', 'italic 1em KaTeX_Math', '1em KaTeX_Size1', '1em KaTeX_Size2'];
+let mounts = 0; // one fresh card per capture (see below)
 
 // request: { scene, time, inputs, theme: 'light'|'dark', width, height }
 // width/height size the diagram frame (default: the scene's own); the transport and any experiment
@@ -32,7 +30,9 @@ window.__renderScene = async request => {
   const block = { id: 'render', type: 'animation', dx: 0, dy: 0, title: scene.title || scene.id, scene, time: time ?? scene.duration, selectedObject: null, marked: null, ...(inputs ? { inputs } : {}) };
   flushSync(() => root.render(
     <div data-render-target className="flex h-full flex-col bg-white p-3">
-      <AnimatedScene key={++captures} block={block} onChange={() => {}} onChangeQuiet={() => {}} onAskRegion={() => {}} />
+      {/* A fresh card per capture, as on reload: the card reads block.time only when it mounts, so a reused one kept the
+          first capture's time and every named step rendered as step one (T18 per-step capture, 2026-10-22). */}
+      <AnimatedScene key={++mounts} block={block} onChange={() => {}} onChangeQuiet={() => {}} onAskRegion={() => {}} />
     </div>,
   ));
   await frames(2);
@@ -41,14 +41,20 @@ window.__renderScene = async request => {
     window.__renderDone = { ok: false, error: host.textContent.trim().slice(0, 500) || 'nothing rendered' };
     return window.__renderDone;
   }
-  // Grow the card by its own chrome (padding, border, controls) so the frame gets exactly the declared size.
-  const chromeW = host.clientWidth - frame.clientWidth, chromeH = host.clientHeight - frame.clientHeight;
-  host.style.width = `${width + chromeW}px`;
-  host.style.height = `${height + chromeH}px`;
   await Promise.all(FACES.map(face => document.fonts.load(face)));
   await document.fonts.ready;
-  await frames(3);
-  const box = frame.getBoundingClientRect();
+  // Grow the card by its own chrome (padding, border, controls) so the frame gets exactly the declared size. The chrome
+  // can settle a frame late (the controls row measures itself, and Reset experiment appears only off the defaults: a
+  // non-default experiment state came out 40 px off, 2026-10-22), so measure again until it holds, at most three times.
+  let box;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const chromeW = host.clientWidth - frame.clientWidth, chromeH = host.clientHeight - frame.clientHeight;
+    host.style.width = `${width + chromeW}px`;
+    host.style.height = `${height + chromeH}px`;
+    await frames(3);
+    box = frame.getBoundingClientRect();
+    if (Math.round(box.width) === width && Math.round(box.height) === height) break;
+  }
   if (Math.round(box.width) !== width || Math.round(box.height) !== height) {
     window.__renderDone = { ok: false, error: `frame is ${Math.round(box.width)}x${Math.round(box.height)}, declared ${width}x${height}` };
     return window.__renderDone;

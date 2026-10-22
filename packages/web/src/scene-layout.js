@@ -49,10 +49,12 @@ const TITLE_ABOVE_COLUMN_HEADERS_GAP = COLUMN_LABEL_GAP + SPACE[3];
 // 'start', baseline 'auto', the same as kind.text actually draws it. Without
 // this, a caption sitting just above a grid's own label was invisible to
 // the stacking check below - it has no frame, so nothing said it was there.
+// A text object draws from its x (start) or centred on it (align middle, animation-scene.js).
+const textAnchor = state => (state.align === 'middle' ? 'middle' : 'start');
 function footprint(object) {
   if (object.h != null) return { xMin: object.x, xMax: object.x + (object.w || 0), yMin: object.y, yMax: object.y + object.h };
   const fontSize = textStyle(object.typography || 'body').fontSize;
-  return estimateTextBox({ text: object.label || '', x: object.x, y: object.y, fontSize, anchor: 'start', baseline: 'auto' });
+  return estimateTextBox({ text: object.label || '', x: object.x, y: object.y, fontSize, anchor: textAnchor(object), baseline: 'auto' });
 }
 
 // The bottom edge of the closest OTHER object sitting above this one and
@@ -106,7 +108,7 @@ export const labelAt = (object, kind, centre, objects = []) => {
     const y = aboveBottom != null && naturalY - aboveBottom < gap ? (aboveBottom + ownEdge) / 2 : naturalY;
     return { x: object.x, y, anchor: 'start', baseline: 'auto' };
   }
-  if (kind.text) return { x: object.x, y: object.y, anchor: 'start', baseline: 'auto' };
+  if (kind.text) return { x: object.x, y: object.y, anchor: textAnchor(object), baseline: 'auto' };
   return { x: centre.x, y: centre.y, anchor: 'middle', baseline: 'central' };
 };
 
@@ -265,7 +267,7 @@ export function sceneContentBounds(scene) {
       grow({ xMin: x, xMax: x + state.w, yMin: y, yMax: y + state.h }, object.id);
     } else {
       const fontSize = textStyle(state.typography || 'body').fontSize;
-      grow(estimateTextBox({ text: widestText(scene, object), x, y, fontSize, anchor: 'start', baseline: 'auto' }), object.id);
+      grow(estimateTextBox({ text: widestText(scene, object), x, y, fontSize, anchor: textAnchor(state), baseline: 'auto' }), object.id);
     }
     for (const box of gridAxisLabelBoxes({ type: object.type, ...state })) {
       grow(estimateTextBox({ ...box, fontSize: ROW_LABEL_FONT_SIZE }), object.id);

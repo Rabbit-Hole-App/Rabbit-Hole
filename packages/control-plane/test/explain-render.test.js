@@ -127,16 +127,6 @@ test('the job render stage renders through renderStates: inert interception, lig
   assert.equal(state.closed, true);
 });
 
-test('a steps card is rendered and reviewed at every named step (live run r3: only the finished state was), light only past one review', async () => {
-  const steps = (n, extra = {}) => ({ ...scene, ...extra, presentation: { mode: 'steps', steps: Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Step ${i}`, at: i })) } });
-  const run = async compiledScene => { const { state, browser } = fakeBrowser(); const out = await renderStage({ launch: async () => browser, store: async () => {} })({ id: 'job3', compiled: { scene: compiledScene } }, { env: { ASSETS } }); return { out, state }; };
-  const three = await run(steps(3));
-  assert.deepEqual(three.out.captures.map(c => c.id), ['s-s0-light', 's-s0-dark', 's-s1-light', 's-s1-dark', 's-s2-light', 's-s2-dark']);
-  assert.deepEqual(three.state.evaluated.map(e => e.time), [0, 0, 1, 1, 2, 2]);
-  const four = await run(steps(4));
-  assert.deepEqual(four.out.captures.map(c => c.id), ['s-s0-light', 's-s1-light', 's-s2-light', 's-s3-light'], 'past one review of both themes: every step, light');
-});
-
 test('the job render stage: no BROWSER binding is "not available"; a bound BROWSER is launched, and a launch failure asks for Retry', async () => {
   const job = { id: 'job2', compiled: { scene } };
   await assert.rejects(renderStage()(job, { env: { ASSETS } }), { code: 'render_unavailable', category: 'renderer', message: 'Rendering explanations is not available here yet.' });

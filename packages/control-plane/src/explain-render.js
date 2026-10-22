@@ -5,6 +5,9 @@
 // aborts everything else, so the page has no network, no cookies and no Cloudflare Access hop. The scene goes
 // in with page.evaluate, never in a URL. Images inside scenes are refused by the gates, so no private asset
 // is ever fetched.
+import { evaluateScene } from '../../web/src/scene-evaluate.js';
+import { LIMITS as SCENE_LIMITS, timeCheckpoints } from '../../web/src/visual-components/budget.js';
+import { stateInputs } from '../../web/src/visual-components/compile.js';
 import { learnMedia } from './learn-storage.js';
 
 export const RENDER_ORIGIN = 'https://render.invalid'; // never resolves: every request is answered or aborted here
@@ -29,9 +32,49 @@ export const compiledHash = scene => sha256Hex(canonicalJson(scene));
 const pixelsOf = entry => entry.width * entry.height * entry.dpr * entry.dpr;
 
 // Worst-case capture budget fixed BEFORE authoring from enforced limits (plan 3.5); the compiled manifest must fit it.
-export function reserveCaptures({ parts = 1, states = 1, checkpoints = 1, themes = 1, width = 1200, height = 900, dpr = 2 }) {
-  const captures = parts * states * checkpoints * themes;
+// cap: the round's capture allowance (explain-policy.js EXPLAIN_LIMITS.render.capturesPerRound); the reservation is the
+// product of the dimensions, never more than the cap or the renderer's own maxCaptures.
+export function reserveCaptures({ parts = 1, states = 1, checkpoints = 1, themes = 1, width = 1200, height = 900, dpr = 2, cap = Infinity }) {
+  const captures = Math.min(parts * states * checkpoints * themes, cap, RENDER_LIMITS.maxCaptures);
   return { captures, pixels: captures * width * height * dpr * dpr };
+}
+
+// The round's reservation before anything is authored: the cap's worth of captures at the largest card the scene limits
+// admit (budget.js LIMITS, the same bound the compiler enforces), so no compiled manifest can need more pixels.
+export const reserveRound = ({ cap, dpr = 1 }) => reserveCaptures({ states: Infinity, width: SCENE_LIMITS.width, height: SCENE_LIMITS.height, dpr, cap });
+
+// The moments a capture must show (plan 3.5, EXP-T18): every named step of a steps card (each is its own frame, earlier
+// context staying), every declared time checkpoint of a time card (stills prove only those moments), else the end.
+export function captureMoments(scene) {
+  const mode = scene.presentation?.mode;
+  if (mode === 'steps') return scene.presentation.steps.map(step => ({ time: step.at, step: step.title }));
+  if (mode === 'time') return timeCheckpoints(scene).map(time => ({ time }));
+  return [{ time: scene.duration }];
+}
+
+// The bounded capture manifest (plan 3.5, r2-contract.md section 4): every admitted state (pager parts included) x every
+// moment x the themes that fit. Captures of the same evaluated frame share a frameHash, so checkManifest renders them once
+// and keeps the others as aliases. Both themes when the distinct frames fit twice, else light; if even that does not fit
+// the representation is refused (over_budget), never sampled. Ids name only the dimensions that vary, so a static
+// single-state card keeps the ids light and dark.
+export async function captureManifest(scene, { reserved, themes = ['light', 'dark'], dpr = 1, target = 'frame' }) {
+  const states = stateInputs(scene), moments = captureMoments(scene);
+  const frames = [];
+  for (const [s, inputs] of states.entries()) {
+    for (const [m, moment] of moments.entries()) {
+      const drawn = evaluateScene(structuredClone(scene), moment.time, inputs).state.objects;
+      frames.push({ s, m, inputs, moment, frameHash: await sha256Hex(canonicalJson(drawn)) });
+    }
+  }
+  const unique = new Set(frames.map(frame => frame.frameHash)).size;
+  const fit = themes.filter((_, index) => unique * (index + 1) <= reserved.captures).length;
+  if (!fit) throw new RenderError('over_budget', `this card has ${unique} distinct frames (${states.length} control states x ${moments.length} moments) and a round reviews at most ${reserved.captures}: use fewer steps or control values`);
+  const name = (frame, theme) => [states.length > 1 && `s${frame.s}`, moments.length > 1 && `t${frame.m}`, theme].filter(Boolean).join('-');
+  const entries = frames.flatMap(frame => themes.slice(0, fit).map(theme => ({
+    id: name(frame, theme), part: frame.inputs.part ?? 0, ...(frame.moment.step ? { step: frame.moment.step } : {}), time: frame.moment.time,
+    inputs: frame.inputs, theme, width: scene.width, height: scene.height, dpr, target, frameHash: frame.frameHash,
+  })));
+  return { compiledHash: await compiledHash(scene), reserved, entries, coverage: { states: states.length, moments: moments.length, frames: unique, themes: themes.slice(0, fit) } };
 }
 
 // Exact manifest after compile: dedups identical states by hash, refuses (never trims) an over-budget manifest
@@ -46,7 +89,9 @@ export async function checkManifest(manifest, scene, limits = RENDER_LIMITS) {
     const entry = { part: 0, step: undefined, time: 0, inputs: {}, theme: 'light', dpr: 1, target: 'frame', ...raw };
     if (!(entry.width >= 16 && entry.width <= limits.maxSide && entry.height >= 16 && entry.height <= limits.maxSide) || ![1, 2].includes(entry.dpr)) throw new RenderError('bad_entry', `capture ${entry.id} has an unsupported size`);
     if (!['light', 'dark'].includes(entry.theme) || !['frame', 'body'].includes(entry.target)) throw new RenderError('bad_entry', `capture ${entry.id} has an unknown theme or target`);
-    const stateHash = await sha256Hex(canonicalJson({ compiledHash: actual, part: entry.part, step: entry.step, time: entry.time, inputs: entry.inputs, theme: entry.theme, width: entry.width, height: entry.height, dpr: entry.dpr, target: entry.target }));
+    // A frameHash (captureManifest: the evaluated frame) identifies the pixels; without one, the requested state does.
+    const state = entry.frameHash ? { frameHash: entry.frameHash } : { part: entry.part, step: entry.step, time: entry.time, inputs: entry.inputs };
+    const stateHash = await sha256Hex(canonicalJson({ compiledHash: actual, ...state, theme: entry.theme, width: entry.width, height: entry.height, dpr: entry.dpr, target: entry.target }));
     if (seen.has(stateHash)) seen.get(stateHash).aliases.push(entry.id);
     else seen.set(stateHash, { ...entry, stateHash, aliases: [] });
   }
@@ -117,7 +162,7 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
         const element = await page.$(entry.target === 'body' ? '[data-render-target]' : '[data-animation-frame]');
         if (!element) throw new RenderError('scene_invalid', `capture target missing for ${entry.id}`);
         const png = new Uint8Array(await element.screenshot({ type: 'png' }));
-        const capture = { id: entry.id, aliases: entry.aliases, stateHash: entry.stateHash, theme: entry.theme, time: entry.time, inputs: entry.inputs, png, sha256: await sha256Hex(png) };
+        const capture = { id: entry.id, aliases: entry.aliases, stateHash: entry.stateHash, theme: entry.theme, time: entry.time, inputs: entry.inputs, ...(entry.step ? { step: entry.step } : {}), png, sha256: await sha256Hex(png) };
         if (deps.jobId || deps.store) {
           capture.key = `explain/${deps.jobId || 'adhoc'}/${entry.stateHash.slice(0, 16)}.png`;
           await (deps.store ? deps.store(capture.key, png) : learnMedia(env).put(capture.key, png, { httpMetadata: { contentType: 'image/png' } }));
