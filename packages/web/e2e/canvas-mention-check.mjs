@@ -54,7 +54,9 @@ await context.route('**/api/**', route => {
       + frame('done', { ok: true, threadId: body.thread_id || `mention-${run}`, userMessageId: 'u-1', messageId: 'm-1' }) });
   }
   if (/^\/api\/learn\/chat\/(threads|messages)\/mention-/.test(path)) return route.fulfill({ json: { ok: true } });
-  if (MODEL.test(path) && !(path === '/api/learn/journey' && request.method() === 'GET')) { model.push(`${request.method()} ${path}`); return route.abort(); }
+  // Professor Next Steps asks for hooks on opening a canvas (panel-header-check lets it through); it is never a pick's or a pill's.
+  if (path === '/api/learn/tutor/next-steps') return route.continue();
+  if (MODEL.test(path) && request.method() !== 'GET') { model.push(`${request.method()} ${path}`); return route.abort(); }
   return route.continue();
 });
 const routed = [];
