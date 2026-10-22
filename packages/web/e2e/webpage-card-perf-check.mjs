@@ -183,13 +183,17 @@ for (const n of SIZES) {
     ok(`${n} cards: the first thumbnail is still drawn, in a pause`, thumbs.length > 0, thumbs.length ? `sent ${thumbs[0] - waitFrom} ms after the wait began` : 'none in 20 s');
     // A point on some card's page, clear of the chat pane, wherever the cards came back to (fast-e2e 39755588357: requiring a
     // card's centre on screen found none).
-    const onScreen = await page.evaluate(() => {
+    const cardPagePoint = () => page.evaluate(() => {
       const limit = Math.min(...[...document.querySelectorAll('[data-chat-pane],[data-sources-pane]')].filter(e => e.offsetWidth).map(e => e.getBoundingClientRect().x), innerWidth) - 30;
       for (let y = 120; y < innerHeight - 120; y += 30) for (let x = 120; x < limit; x += 30) {
         if (document.elementFromPoint(x, y)?.closest('[data-webcard-frame]')) return { x: x - 1, y: y - 1, width: 2, height: 2 };
       }
       return null;
     });
+    // After the unload step only the edge of a card may be back on screen: keep panning the same way until a page is in reach.
+    let onScreen = await cardPagePoint();
+    for (let i = 0; i < 20 && !onScreen; i += 1) { await wheelBare(200); onScreen = await cardPagePoint(); }
+    await page.waitForTimeout(500);
     let steadyScroll = { fps: 0, p95: 0, worst: 0 };
     if (onScreen) {
       await page.mouse.move(onScreen.x + onScreen.width / 2, onScreen.y + onScreen.height / 2);

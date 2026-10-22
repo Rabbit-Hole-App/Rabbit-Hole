@@ -212,8 +212,8 @@ const tilesShown = id => card(id).locator(`${SEL.tile} img`).evaluateAll(list =>
   x.drawImage(i, 0, 0, i.naturalWidth, i.naturalHeight / 4, 0, 0, 8, 8);
   const d = x.getImageData(0, 0, 8, 8).data, s = [0, 0, 0];
   for (let k = 0; k < d.length; k += 4) { s[0] += d[k]; s[1] += d[k + 1]; s[2] += d[k + 2]; }
-  return { index: Number(i.closest('[data-webcard-tile]').dataset.webcardTile), rgb: s.map(v => v / 64) };
-}));
+  return { index: Number(i.closest('[data-webcard-tile]')?.dataset.webcardTile), rgb: s.map(v => v / 64) };
+}).filter(t => Number.isInteger(t.index))); // an <img> React just detached has no tile (fast-e2e 39757030436: null.dataset)
 const tinted = (rgb, name) => rgb.every((v, k) => Math.abs(v - COLORS[name][k]) <= 30);
 // `cap` is on show: some tile decoded, every decoded tile has that version's colour at its place, and its tiles came from the server.
 const shows = (seen, cap) => seen.length > 0 && seen.every(t => tinted(t.rgb, cap.colors[t.index])) && fileGets.some(f => cap.tileIds.includes(f.id));
