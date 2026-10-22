@@ -48,6 +48,7 @@ import FileImportDialog from './FileImportDialog.jsx';
 import { useDocImport } from './DocImport.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
 import { pdfBytesUrl, pdfKeyOfRef } from './pdf-source.js';
+import { PDF_PAGE_MAX, readPageTexts } from './context-doc-pages.js';
 import { checkImport, codeBlock, importBlock, importKind, pasteBlock, pasteName } from './learn-file-import.js';
 import { insertCodeCard } from './code-card.js';
 import { copiedCode, languageOf } from './map-files.js';
@@ -637,20 +638,19 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   };
   const takePdf = async file => {
     if (!file) return;
-    // The reader can only take the learner to a page the model will also read,
-    // and paper_context refuses anything past 100. Say so before the upload
-    // rather than failing on every question afterwards.
+    // Any length (PDF-02): every page opens in the reader. A PDF past 100 pages or 5 MB cannot ride a question whole, so its
+    // page text is read here (pdf.js, no model call) and stored with it; questions then read the relevant pages.
     let pdf;
-    try {
-      pdf = await readPdf(await file.arrayBuffer());
-      if (pdf.numPages > 100) { toast(`That PDF has ${pdf.numPages} pages. The tutor can read up to 100.`); return; }
-    } catch { toast(`${file.name || 'That file'}: could not be read as a PDF.`); return; }
+    try { pdf = await readPdf(await file.arrayBuffer()); } catch { toast(`${file.name || 'That file'}: could not be read as a PDF.`); return; }
+    if (pdf.numPages > PDF_PAGE_MAX) { toast(`That PDF has ${pdf.numPages.toLocaleString('en-US')} pages. A PDF can have at most ${PDF_PAGE_MAX.toLocaleString('en-US')} pages.`); return; }
     let stored = null; // uploaded once: Add again after a failed draw reuses it
     await askPdf({ name: file.name, total: pdf.numPages, place: async (choice, progress) => {
       if (!stored) {
-        progress('Uploading');
         const body = new FormData();
         body.append('file', file, file.name);
+        try { body.append('pages', JSON.stringify(await readPageTexts(pdf, { onPage: (done, total) => progress(`Reading page ${done} of ${total}`) }))); }
+        catch (error) { if (pdf.numPages > 100 || file.size > 5 * 1024 * 1024) throw new Error(`${error.message} Nothing was uploaded; try again.`); }
+        progress('Uploading');
         const response = await fetch(`/api/learn/paper?app=${encodeURIComponent(app.name)}`, { method: 'POST', body, headers: wsHeaders() });
         const reply = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(reply?.error || 'That PDF could not be uploaded.');

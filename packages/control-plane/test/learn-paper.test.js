@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { uploadedPaperId, paperObjectKey, uploadedPaperTitle, PAPER_UPLOAD_LIMIT } from '../src/learn-paper.js';
+import { uploadedPaperId, paperObjectKey, uploadedPaperTitle, PAPER_UPLOAD_LIMIT, PAPER_PAGE_LIMIT } from '../src/learn-paper.js';
+import { WHOLE_PDF_BYTES } from '../src/pdf-pages.js';
 
 const identity = { org: 'workspace-a', name: 'nanogpt', email: 'owner@example.test' };
 
@@ -61,6 +62,9 @@ test('a title cannot smuggle newlines', () => {
   assert.equal(uploadedPaperTitle('a\nb\rc\td'), 'a b c d');
 });
 
-test('the upload ceiling is stated once and is conservative', () => {
-  assert.equal(PAPER_UPLOAD_LIMIT, 5 * 1024 * 1024);
+// PDF-02: a PDF up to 25 MB is stored and read by the reader; only one up to 5 MB and 100 pages rides a question whole.
+test('the upload ceiling is stated once, and the whole-PDF ceiling stays conservative', () => {
+  assert.equal(PAPER_UPLOAD_LIMIT, 25 * 1024 * 1024);
+  assert.equal(WHOLE_PDF_BYTES, 5 * 1024 * 1024);
+  assert.equal(PAPER_PAGE_LIMIT, 100);
 });

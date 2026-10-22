@@ -3,6 +3,7 @@
 // use the hook; a change in one is announced so the other re-reads.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { wsHeaders } from './api.js';
+import { PDF_UPLOAD_LIMIT, openPdf, processing, readPageTexts } from './context-doc-pages.js';
 // ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
 const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
 
@@ -18,26 +19,48 @@ async function request(method, path, body) {
   return data;
 }
 
-// The model reads at most 100 PDF pages; say so before uploading rather than failing on every question.
-async function pdfPages(file) {
-  const { getDocument } = await import('./learn-paper-figures.js');
-  return (await getDocument({ data: new Uint8Array(await file.arrayBuffer()), isEvalSupported: false }).promise).numPages;
-}
-
-// Upload one file to a canvas's context: the stored document, or an Error with the reason (the page check's or the
+// Upload one file to a canvas's context: the stored document, or an Error with the reason (the PDF check's or the
 // server's). Every list of that canvas re-reads. The hook's upload toasts the outcome; the Chat's chips show it instead.
+// A PDF of any length (PDF-02): its page text is read here first (context-doc-pages.js, shown as processing) and rides the
+// upload, so questions read the relevant pages. If reading fails the PDF is still stored, listed failed with a Retry.
 export async function uploadContextDoc(app, file) {
-  if (/\.pdf$/i.test(file.name) || file.type === 'application/pdf') {
-    let pages;
-    try { pages = await pdfPages(file); } catch { throw new Error('That file could not be read as a PDF.'); }
-    if (pages > 100) throw new Error(`That PDF has ${pages} pages. The agent can read up to 100.`);
-  }
   const body = new FormData();
   body.append('app', app);
   body.append('file', file, file.name);
-  const data = await request('POST', '/api/learn/context', body);
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
-  return data.document;
+  const send = async () => {
+    const data = await request('POST', '/api/learn/context', body);
+    window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+    return data.document;
+  };
+  if (!(/\.pdf$/i.test(file.name) || file.type === 'application/pdf')) return send();
+  if (file.size > PDF_UPLOAD_LIMIT) throw new Error(`That PDF is larger than ${PDF_UPLOAD_LIMIT / (1024 * 1024)} MB.`);
+  return processing(app, file.name, null, async progress => {
+    let pdf;
+    try { pdf = await openPdf(await file.arrayBuffer()); } catch { throw new Error('That file could not be read as a PDF.'); }
+    try { body.append('pages', JSON.stringify(await readPageTexts(pdf, { onPage: progress }))); }
+    catch (error) {
+      if (/at most/.test(error.message)) throw error; // over the page limit: nothing is uploaded
+      body.append('page_count', String(pdf.numPages));
+      body.append('pages_error', error.message || 'This browser could not read the pages.');
+    } finally { pdf.destroy?.(); }
+    return send();
+  });
+}
+
+// Retry (contract-pdf-status.md section 3): read a stored PDF's pages again in this browser and store them. Resolves with
+// the updated document entry; throws an Error with the reason. Every list of that canvas re-reads.
+export async function retryContextDoc(app, id, name = '') {
+  return processing(app, name, id, async progress => {
+    const response = await fetch(`/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`, { credentials: 'same-origin', headers: wsHeaders() });
+    if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || `HTTP ${response.status}`);
+    let pdf;
+    try { pdf = await openPdf(await response.arrayBuffer()); } catch { throw new Error('That file could not be read as a PDF.'); }
+    let pages;
+    try { pages = await readPageTexts(pdf, { onPage: progress }); } finally { pdf.destroy?.(); }
+    const data = await request('PUT', `/api/learn/context/${encodeURIComponent(id)}/pages`, { app, pages });
+    window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+    return data.document;
+  });
 }
 
 // Remove from canvas context (materials-remove.md): the document leaves the list and future requests, its file stays for

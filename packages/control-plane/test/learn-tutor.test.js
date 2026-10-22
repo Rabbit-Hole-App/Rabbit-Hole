@@ -289,7 +289,7 @@ test('plan: a PDF page rides as page_context - its PDF and a line naming the pag
   assert.deepEqual(content[0], pdf);
   assert.match(content[1].text, /page 12 of "pages\.pdf"/);
   assert.equal((await w.post('/api/learn/tutor/plan', { ...body, page_context: { doc: { id: 'ctx:0123456789ab', page: 3 } } }, deps)).status, 200);
-  assert.deepEqual(asked.at(-1), { also: ['ctx:0123456789ab'] }, 'the page document rides beside the switched-on ones');
+  assert.deepEqual(asked.at(-1), { also: ['ctx:0123456789ab'], page: new Map([['ctx:0123456789ab', 3]]), query: 'what does this page say?' }, 'the page document rides beside the switched-on ones, read from its page (PDF-02)');
   assert.match(calls[1].body.messages[0].content[0].text, /page 3 of the attached document doc:ctx:0123456789ab/);
   const unread = { ...deps, readPaper: async () => { throw new Error('That PDF is no longer stored'); } };
   assert.equal((await w.post('/api/learn/tutor/plan', { ...body, page_context: { paper: { id: 'upload:0123456789ab', page: 12 } } }, unread)).status, 200);

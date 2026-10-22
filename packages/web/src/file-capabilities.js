@@ -40,8 +40,8 @@ export const FAMILIES = [
     card: 'file:audio', chooser: null, route: 'media', can: { store: true, preview: true, edit: false, download: true, context: false }, limits: { bytes: 25 * MiB, durationSec: 4 * 3600 },
     notes: 'browser playback when a decode probe proves it (MP3, PCM/float WAV, Ogg Vorbis/Opus/FLAC, FLAC, AAC M4A in Chrome and Firefox); ADPCM WAV, ALAC and AC-3 M4A need the audio-playback converter (awaiting converter until cards carry a stored source)' },
   { id: 'pdf', label: 'PDF', lane: 2, status: 'shipped', extensions: ['pdf'], mime: ['application/pdf'], sniff: SNIFF.pdf,
-    card: 'pdf', chooser: 'pdf', route: 'pdf', can: { store: true, preview: true, edit: false, download: true, context: true }, limits: { bytes: 5 * MiB, pages: 100 },
-    notes: 'download is the browser PDF viewer\'s own control; the tutor reads up to 100 pages' },
+    card: 'pdf', chooser: 'pdf', route: 'pdf', can: { store: true, preview: true, edit: false, download: true, context: true }, limits: { bytes: 25 * MiB, pages: 2000 },
+    notes: 'download is the browser PDF viewer\'s own control; every page opens in the reader; up to 100 pages and 5 MiB the tutor reads the whole PDF, past that the page text read in the browser at upload (context-doc-pages.js), the relevant pages per question' },
   // Lane 2 (FileDocCard.jsx): text and Markdown read from their original asset; the decode is the structure check (a BOM or strict
   // UTF-8, else an encoding choice; NUL bytes refuse a binary file). preview.chars: drawn in 64 KiB chunks up to this many;
   // context.chars: what a chat question reads (the excerpt says when it is partial).

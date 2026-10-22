@@ -202,7 +202,7 @@ async function inlineCard({ env, allowed, decided, route, context, revise, reque
   const first = context.target?.objects?.[0];
   const selection = first ? { kind: 'canvas_object', id: String(first.id), title: String(first.text || first.kind || first.type).slice(0, 200) } : null;
   let docs;
-  try { docs = await documents(env, allowed); } catch (error) { return json({ error: `Context documents: ${error.message}`, code: 'error' }, 502); }
+  try { docs = await documents(env, allowed, null, { query: String(decided.prompt ?? '') }); } catch (error) { return json({ error: `Context documents: ${error.message}`, code: 'error' }, 502); }
   try {
     const sources = [...docs, ...pictures];
     const out = await artifact(env, { command: route, args: input.args, selection, context: artifactContext(context, revise), ...(sources.length ? { documents: sources } : {}), ...(imageSource ? { imageSource } : {}) });
