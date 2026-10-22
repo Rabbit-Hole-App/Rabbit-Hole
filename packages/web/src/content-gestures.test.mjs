@@ -21,7 +21,9 @@ const { window, document } = parseHTML('<!doctype html><html><body><div id="canv
 Object.assign(globalThis, { window, document, HTMLElement: window.HTMLElement, Node: window.Node, Element: window.Element, IS_REACT_ACT_ENVIRONMENT: true });
 globalThis.localStorage ||= { getItem: () => null, setItem() {}, removeItem() {} };
 globalThis.ResizeObserver = class { observe() {} disconnect() {} unobserve() {} };
-globalThis.IntersectionObserver = class { constructor(callback) { this.callback = callback; } observe(target) { this.callback([{ isIntersecting: true, target }]); } disconnect() {} };
+// Every observer, so a test can deliver entries itself; observing reports the target on screen at once.
+const observers = [];
+globalThis.IntersectionObserver = class { constructor(callback) { this.callback = callback; observers.push(this); } observe(target) { this.target = target; this.callback([{ isIntersecting: true, target }]); } disconnect() { this.target = null; } };
 globalThis.requestAnimationFrame = callback => setTimeout(callback, 0);
 globalThis.cancelAnimationFrame = id => clearTimeout(id);
 // A card frame 640 x 400 at the canvas's 100%.
@@ -42,9 +44,16 @@ const FAKE_RENDERER = `export function createThreeDRenderer(host, props, onChang
   return { interact(value) { on = value; }, zoom(factor) { globalThis.__three.zoom.push(factor); }, update() {}, destroy() {}, camera() { return null; }, fit() {}, background() {}, poster() { return null; }, redraw() {}, project() { return []; } };
 }`;
 
+// The imported-model card's files (model-storage.js) as one ready GLB, so the card reaches its viewer without storage.
+const FAKE_STORAGE = `export const modelFromPlan = block => block.model || {};
+export const useModelUploads = () => ({ failed: [], pending: 0, retry() {} });
+export const openModelFiles = async () => ({ plan: { entries: [{ path: 'm.glb', format: 'glb', render: 'mesh', deps: [] }] }, files: new Map([['m.glb', new Uint8Array(0)]]), download: null });
+export const addModelFiles = async block => block;
+export const chooseModel = block => block;`;
+
 const dir = mkdtempSync(join(tmpdir(), 'content-gestures-')), outfile = join(dir, 'cards.cjs');
 await esbuild.build({
-  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { CadPreview } from './CadCard.jsx'; export { default as WebpageCard } from './WebpageCard.jsx'; export { setFileScope } from './file-source-client.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { LearningBlockBody } from './LearningBlocks.jsx'; export { CadPreview } from './CadCard.jsx'; export { default as WebpageCard } from './WebpageCard.jsx'; export { default as ModelCard } from './ModelCard.jsx'; export { setFileScope } from './file-source-client.js'; export { createElement, act } from 'react'; export { createRoot } from 'react-dom/client';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'error',
   loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty', '.wasm': 'empty', '.woff2': 'empty', '.ttf': 'empty' },
   plugins: [{ name: 'stubs', setup(build) {
@@ -52,6 +61,8 @@ await esbuild.build({
     build.onLoad({ filter: /.*/, namespace: 'asset' }, () => ({ contents: 'export default ""' }));
     build.onResolve({ filter: /three-d-renderer\.js$/ }, () => ({ path: 'renderer', namespace: 'fake3d' }));
     build.onLoad({ filter: /.*/, namespace: 'fake3d' }, () => ({ contents: FAKE_RENDERER }));
+    build.onResolve({ filter: /model-storage\.js$/ }, () => ({ path: 'storage', namespace: 'fakestorage' }));
+    build.onLoad({ filter: /.*/, namespace: 'fakestorage' }, () => ({ contents: FAKE_STORAGE }));
   } }],
 });
 // Bundled, React's act() queues its tasks through a MessageChannel, whose ports would keep the run alive after the last test;
@@ -144,6 +155,28 @@ test('the gesture helper: a wheel the content gives back goes on; a Ctrl+wheel i
   stop(); reset(); wheel(host);
   assert.equal(canvas.wheel, 1, 'removed: the wheel is the canvas\'s again');
   host.remove();
+});
+
+// A fast pan can deliver a viewer's enter and leave in one IntersectionObserver call. The newest entry decides: the viewer gives
+// its renderer back after the 2 s release, as the webpage tiles do (r2/l5 4fea3edb). Reading only the first entry kept it live.
+const panPast = target => { for (const o of observers.filter(o => o.target === target)) o.callback([{ isIntersecting: true, target }, { isIntersecting: false, target }]); };
+const release = () => B.act(async () => { await new Promise(resolve => setTimeout(resolve, 2300)); });
+
+test('a 3D viewer that a fast pan carries past is released (enter and leave in one delivery: the newest entry decides)', async () => {
+  const manifest = { revisionId: 'r1', artifacts: [{ kind: 'glb', url: '/api/learn/cad/x.glb' }] };
+  await mount(B.createElement(B.CadPreview, { manifest, active: true, id: 'c2' }));
+  const cad = document.querySelector('[data-cad-viewer]');
+  assert.equal(cad.getAttribute('data-viewer-live'), 'true');
+  await B.act(async () => panPast(cad));
+  await release();
+  assert.equal(cad.getAttribute('data-viewer-live'), null, 'the CAD viewer gave its renderer back');
+
+  await mount(B.createElement(B.ModelCard, { block: { id: 'mc1', type: 'file', kind: 'model', label: 'm.glb', model: { entry: 'm.glb', format: 'glb', render: 'mesh' } }, selected: false, onChange() {} }));
+  const card = document.querySelector('[data-model-card]');
+  assert.equal(card.getAttribute('data-model-state'), 'ready', 'the model viewer is live');
+  await B.act(async () => panPast(card));
+  await release();
+  assert.equal(card.getAttribute('data-model-state'), 'idle', 'the model viewer gave its renderer back');
 });
 
 // ---- the webpage card

@@ -84,9 +84,10 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
   const glb = cadArtifact(manifest,'glb'), thumb = cadArtifact(manifest,'thumbnail');
   const cameraKey = id && `${id}:${manifest?.revisionId || ''}`, colour = (glb || thumb) ? VIEWER_BACKGROUNDS[background] ?? null : null;
   const keepCamera = () => { const camera = engine.current?.camera(); if (camera && cameraKey) cameras.set(cameraKey, camera); };
-  // On screen (with a margin) asks for a slot; off screen for a while gives it back.
+  // On screen (with a margin) asks for a slot; off screen for a while gives it back. The newest entry decides: a fast pan can
+  // deliver enter then leave together, and the first alone kept the viewer for good (as the webpage tiles, r2/l5 4fea3edb).
   useEffect(()=>{
-    let timer=0;const observer=new IntersectionObserver(([seen])=>{clearTimeout(timer);if(seen.isIntersecting)setVisible(true);else timer=setTimeout(()=>setVisible(false),OFFSCREEN_RELEASE_MS);},{rootMargin:'200px'});
+    let timer=0;const observer=new IntersectionObserver(entries=>{const seen=entries.at(-1);clearTimeout(timer);if(seen.isIntersecting)setVisible(true);else timer=setTimeout(()=>setVisible(false),OFFSCREEN_RELEASE_MS);},{rootMargin:'200px'});
     if(root.current)observer.observe(root.current);return()=>{clearTimeout(timer);observer.disconnect();};
   },[]);
   useEffect(()=>{
