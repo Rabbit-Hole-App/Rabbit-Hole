@@ -118,9 +118,11 @@ test('VisualSpec connections and bindings name real instances through namespaced
 test('LabelContent: text, math or mixed runs; unsafe LaTeX refused', () => {
   assert.equal(validateContract('LabelContent', 'plain'), 'plain');
   assert.ok(validateContract('LabelContent', { runs: [{ kind: 'math', tex: '\\frac{a}{b}' }] }));
+  // One backslash on purpose: in a JS literal it makes a form feed, the lost-backslash bug.
   rejects('LabelContent', () => ({ runs: [{ kind: 'math', tex: '\\href{https://x}{y}' }] }), /unsupported LaTeX/);
   rejects('LabelContent', () => ({ runs: [{ kind: 'math', tex: '\\def\\x{1}' }] }), /unsupported LaTeX/);
   rejects('LabelContent', () => ({ runs: [] }), /too_small|at least|>=1/i);
+  rejects('LabelContent', () => ({ runs: [{ kind: 'math', tex: '\frac{a}{b}' }] }), /control character/);
   rejects('LabelContent', () => ({ runs: [{ kind: 'html', text: 'b' }] }), /Invalid/);
 });
 
@@ -131,6 +133,8 @@ test('ExplanationPresentation: mode decides which fields are allowed', () => {
   assert.ok(validateContract('ExplanationPresentation', { mode: 'time', duration: 8 }));
   const experiment = { id: 'len', purpose: 'Does length change the period?', input: 'length', domain: { min: 0.5, max: 2, step: 0.5 }, affects: ['period'], contrasts: ['short swings faster'] };
   assert.ok(validateContract('ExplanationPresentation', { mode: 'static', experiments: [experiment] }));
+  assert.equal(validateContract('ExplanationPresentation', { mode: 'static', experiments: [{ ...experiment, invariant: true }] }).experiments[0].invariant, true);
+  rejects('ExplanationPresentation', () => ({ mode: 'static', experiments: [{ ...experiment, invariant: 'yes' }] }), /Invalid/);
   rejects('ExplanationPresentation', () => ({ mode: 'static', experiments: [{ ...experiment, contrasts: [] }] }), /too_small|at least|>=1/i);
   rejects('ExplanationPresentation', () => ({ mode: 'static', experiments: [{ ...experiment, domain: { min: 0, max: 1000, step: 1 } }] }), /at most 256 steps/);
 });
