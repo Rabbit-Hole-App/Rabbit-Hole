@@ -5651,7 +5651,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           className={`pointer-events-none absolute top-[var(--canvas-top,0px)] bottom-0 z-20 flex flex-col justify-center gap-2 [&>*]:pointer-events-auto ${toolSide === 'left' ? 'left-0 items-start pl-2 pb-(--chrome-left) w-[84px]' : 'right-(--edge) items-end pr-2 pb-(--chrome-right) w-[84px]'}`}>
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator. Canvas home is the page's top-left corner (LearnPage). */}
-        <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
+        <div data-gutter-top className={`pointer-events-none mb-auto flex flex-col gap-3 [&>*]:pointer-events-auto ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
           {/* The Rabbit Holes Map always sits here, on either side, never in a column of its own: a full-height 92 px column
               ended the canvas (overflow hidden) short of the panel, a blank strip cutting cards early (UI-17, canvas-clipping.md). */}
           {gutterTop && <div className={holeMap ? undefined : 'hidden'}>{gutterTop}</div>}
