@@ -154,7 +154,7 @@ test('pendulum: drawn length is proportional to L, quarter length halves the per
 test('playback, steps and controls make no model or network call: the scene card and its modules have no network path', async () => {
   const { readFileSync } = await import('node:fs');
   const files = ['AnimatedScene.jsx', 'SceneControls.jsx', 'scene-evaluate.js', 'animation-scene.js', 'scene-inputs.js', 'scene-activity.js',
-    'scene-derive.js', 'scene-format.js', 'scene-layout.js', 'scene-style.js', 'scene-vocab.js', 'scene-legacy.js', 'scene-engine.js', 'scene-behaviors.js', 'scene-sound.js', 'learn-audio.js', 'inline-equation-result.js'];
+    'scene-derive.js', 'scene-format.js', 'scene-layout.js', 'scene-style.js', 'scene-vocab.js', 'scene-legacy.js', 'scene-engine.js', 'scene-behaviors.js', 'scene-sound.js', 'learn-audio.js', 'inline-equation-result.js', 'scene-selection.js'];
   for (const file of files) {
     const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
     assert.doesNotMatch(source, /\bfetch\s*\(|\/api\/|XMLHttpRequest|sendBeacon|new WebSocket|EventSource/, `${file} has a network path`);
