@@ -125,36 +125,52 @@ export async function drawThumbnail(node, region) {
 // and only for content that differs from the last snapshot sent. A capture with nothing to draw (null) counts as sent.
 // `flush(text)` on leaving the canvas, while it is still on screen: a change not yet in a snapshot (saved, or `text`, the
 // board as its waiting save will send it) is drawn now, past `delay` and `gap`, so Home and other devices never keep the
-// old picture (owner follow-up 5, 2026-10-21).
+// old picture (owner follow-up 5, 2026-10-21). A snapshot still uploading does not hold it back: the new one is drawn at
+// once and goes up after it.
 export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000, now = () => Date.now(), timers = globalThis }) {
-  let timer = null, pending = null, sent = null, last = -Infinity, busy = false;
-  const schedule = wait => { timers.clearTimeout(timer); timer = timers.setTimeout(run, wait); };
+  let timer = null, pending = null, sent = null, queued = null, last = -Infinity, chain = null, stopped = false;
+  const schedule = wait => { timers.clearTimeout(timer); timer = stopped ? null : timers.setTimeout(run, wait); };
+  // Draws `text` now - the async wrapper runs capture() up to its first await, so the canvas is copied while it is on
+  // screen - and uploads it after any upload still on its way, in order.
+  function send(text) {
+    const shot = (async () => capture())();
+    queued = text;
+    const job = (chain || Promise.resolve()).then(async () => {
+      try {
+        const blob = await shot;
+        if (blob) { await upload(blob); last = now(); }
+        sent = text;
+      } catch { /* the next save tries again */ }
+    });
+    chain = job;
+    job.then(() => { if (chain === job) chain = null; });
+    return job;
+  }
   async function run() {
     timer = null;
-    if (busy || pending === sent) return;
+    if (chain || pending === sent) return;
     const wait = last + gap - now();
     if (wait > 0) return schedule(wait);
-    busy = true;
     const text = pending;
-    try {
-      const blob = await capture();
-      if (blob) { await upload(blob); last = now(); }
-      sent = text;
-    } catch { /* the next save tries again */ } finally { busy = false; }
+    await send(text);
     if (pending !== sent && pending !== text) schedule(delay);
   }
   return {
-    saved(text) { pending = text; if (!busy) schedule(delay); },
-    stop() { timers.clearTimeout(timer); timer = null; },
+    saved(text) { pending = text; if (!chain) schedule(delay); },
+    stop() { stopped = true; timers.clearTimeout(timer); timer = null; },
     flush(text = pending) {
       timers.clearTimeout(timer); timer = null;
-      if (text == null || text === sent) return;
-      pending = text; last = -Infinity;
-      // shortcut: a capture already running when the canvas closes is the last one; flush during it if cards stay stale.
-      if (!busy) return run();
+      if (text == null || text === sent || text === queued) return chain || Promise.resolve();
+      pending = text;
+      return send(text);
     },
   };
 }
+
+// One canvas's picture, as LearnPage wires it: each canvas page has its own, so leaving canvas A for canvas B (a new page,
+// keyed by canvas) flushes A's under A's name, even when A's upload lands after B has opened, and never touches B's.
+export const canvasThumbnail = ({ name, capture, put, ...timing }) =>
+  thumbnailScheduler({ capture, upload: async blob => { await put(blob); bumpThumbnail(name); }, ...timing });
 
 // A picture chosen for Change thumbnail: what is wrong with it, in one line, or null.
 export function coverProblem(file) {
