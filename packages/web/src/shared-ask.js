@@ -5,17 +5,46 @@ export const askPath = token => `/api/learn/boards/shared/${encodeURIComponent(t
 const draftKey = token => `small.shared-ask-draft:${token}`;
 const chatKey = (token, viewer) => `small.shared-ask:${token}:${viewer}`;
 
-// Signed out, Send keeps the draft for this link and goes through sign-in, back here with ?ask=1 - as Fork
-// does with ?fork=1 (ForkButton.jsx). Returns where to go.
+const targetKey = token => `small.shared-ask-target:${token}`;
+// Signed out, Send (or "Sign in to continue" after the guest trial, SHARE-03) keeps the draft and the attached card for this
+// link and goes through sign-in, back here with ?ask=1 - as Fork does with ?fork=1 (ForkButton.jsx). Returns where to go.
 // `page` is where the link opened: /b/<token> for a share, /e/<token> for an Explore publication.
-export function signInForAsk(token, draft, storage = globalThis.sessionStorage, page = `/b/${token}`) {
-  try { storage.setItem(draftKey(token), draft); } catch { /* the draft is lost, sign-in still works */ }
+// target: the selected card's pill ({ id, kind, title }), restored beside the draft; only its id is ever sent.
+export function signInForAsk(token, draft, storage = globalThis.sessionStorage, page = `/b/${token}`, target = null) {
+  try {
+    storage.setItem(draftKey(token), draft);
+    if (target?.id) storage.setItem(targetKey(token), JSON.stringify({ id: target.id, kind: target.kind ?? null, title: target.title ?? null }));
+  } catch { /* the draft is lost, sign-in still works */ }
   return `/login?next=${encodeURIComponent(`${page}?ask=1`)}`;
 }
 
 // Back from sign-in: the kept draft, once. It goes into the composer; the viewer presses Send.
 export function takeDraft(token, storage = globalThis.sessionStorage) {
   try { const draft = storage.getItem(draftKey(token)) || ''; storage.removeItem(draftKey(token)); return draft; } catch { return ''; }
+}
+// ...and the card it was about, once (null when none was attached).
+export function takeTarget(token, storage = globalThis.sessionStorage) {
+  try { const target = JSON.parse(storage.getItem(targetKey(token)) || 'null'); storage.removeItem(targetKey(token)); return target?.id ? target : null; } catch { return null; }
+}
+
+// Guest Chat (SHARE-03, C:/s/spec/share/contract-guest-chat.md). A signed-out visitor's conversation is kept under GUEST in
+// this tab; after sign-in it becomes the viewer's (adoptGuestChat), so the conversation survives authentication.
+export const GUEST = 'guest';
+export function adoptGuestChat(token, viewer, storage = globalThis.sessionStorage) {
+  if (!viewer || viewer === GUEST) return;
+  const guest = loadChat(token, GUEST, storage);
+  if (!guest.length) return;
+  if (!loadChat(token, viewer, storage).length) saveChat(token, viewer, guest, storage);
+  try { storage.removeItem(chatKey(token, GUEST)); } catch { /* nothing kept */ }
+}
+// One request identity per Send (X-RH-Action-Key), reused by its transport retry so the server counts it once.
+export const sendKey = () => `ask-${crypto.randomUUID()}`;
+// The guest trial as the server counts it: { limit, used, remaining }, or null signed in or unreadable (the server decides).
+export async function readGuestAllowance(token, fetcher = globalThis.fetch) {
+  try {
+    const response = await fetcher(askPath(token), { headers: { 'Content-Type': 'application/json' } });
+    return response.ok ? (await response.json()).guest ?? null : null;
+  } catch { return null; }
 }
 
 // The viewer's own conversation about this link, in this tab only: never on the server, never the owner's.

@@ -16,7 +16,7 @@ test('/e/<token> opens the shared page, served to anyone like /b/<token>', () =>
   // Signed out, Ask goes through sign-in and comes back to the page it was on - /e stays /e.
   assert.equal(signInForAsk('tok', 'q', memory(), '/e/tok'), `/login?next=${encodeURIComponent('/e/tok?ask=1')}`);
   assert.equal(signInForAsk('tok', 'q', memory()), `/login?next=${encodeURIComponent('/b/tok?ask=1')}`, 'a share keeps /b');
-  assert.match(read('./SharedBoardPage.jsx'), /signInForAsk\(token, text, undefined, window\.location\.pathname\)/);
+  assert.match(read('./SharedChat.jsx'), /signInForAsk\(token, text, undefined, window\.location\.pathname, target\)/);
 });
 
 test('a board published to Explore keeps its server copy live, as a shared one does', () => {
