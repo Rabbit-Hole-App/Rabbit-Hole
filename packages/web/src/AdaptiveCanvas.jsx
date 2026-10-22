@@ -3,9 +3,10 @@ import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, dow
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
+import { PencilLine, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
+import { renamable, renameBlock } from './card-rename.js';
 import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
@@ -1525,6 +1526,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [dropHover, setDropHover] = useState(false);
   const [marquee, setMarquee] = useState(null);
   const [menuAt, setMenuAt] = useState(null); // right-click canvas actions
+  const [renaming, setRenaming] = useState(null); // { id, title, rect }: a card's title being renamed in place (card-rename.js)
   const [composerHidden, setComposerHidden] = useState(false);
   const hideComposer = useCallback(() => setComposerHidden(true), []);
   // Ask in chat (askDraft) writes a ready question into the composer: a hidden composer comes back to show it.
@@ -5528,6 +5530,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               </details> : <MenuRow icon={ScrollText} disabled title="Full content is not supported for this interactive or source viewer.">Layout unavailable for this card</MenuRow>)}
               {inlineAi && <MenuRow icon={Wand} data-menu-inline-ai hint="Ctrl K" disabled={!selection.length} onClick={act(() => openInline(performance.now(), false, 'edit'))}>Quick Edit</MenuRow>}
               {described && <MenuRow icon={MessageSquarePlus} data-menu-add-to-chat hint="Ctrl L" onClick={act(() => addToChat())}>Add to chat</MenuRow>}
+              {renamable(block) && !lockedIds.has(block.id) && <MenuRow icon={PencilLine} data-menu-rename onClick={act(() => setRenaming({ id: block.id, title: block.title, rect: document.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`)?.getBoundingClientRect() }))}>Rename</MenuRow>}
               {typed}
               {(described || typed.length > 0) && <div className="my-1 h-px bg-line" />}
               <MenuRow icon={Scissors} disabled={!selection.length} hint="Ctrl X" onClick={act(cutSelection)}>Cut</MenuRow>
@@ -5554,6 +5557,26 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               </>}
             </div>
           );
+        })()}
+        {/* Rename (card-rename.js): the card's title edited in place over its top edge; Enter or blur saves, Escape cancels, focus goes back to the card. */}
+        {renaming && !readOnly && renaming.rect && (() => {
+          const done = save => {
+            if (renaming.closed) return; // a blur after Enter or Escape must not save again
+            renaming.closed = true;
+            const { id, title } = renaming;
+            setRenaming(null);
+            const next = save ? renameBlock(blocks, id, title) : blocks;
+            if (next !== blocks) { snapshot(); setBlocks(next); }
+            requestAnimationFrame(() => document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.focus?.());
+          };
+          return <input autoFocus data-card-rename aria-label="Card title" value={renaming.title}
+            style={{ position: 'fixed', left: renaming.rect.left, top: renaming.rect.top, width: Math.max(160, renaming.rect.width) }}
+            className="z-50 rounded-md border border-accent bg-white px-2 py-1.5 text-sm text-ink shadow-pop outline-none"
+            onFocus={event => event.currentTarget.select()}
+            onPointerDown={event => event.stopPropagation()}
+            onChange={event => setRenaming(previous => ({ ...previous, title: event.target.value }))}
+            onKeyDown={event => { event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); done(true); } else if (event.key === 'Escape') { event.preventDefault(); done(false); } }}
+            onBlur={() => done(true)} />;
         })()}
       </div>
       {/* The tools' gutter: 84px beside the canvas, the toolbar hanging the rest
