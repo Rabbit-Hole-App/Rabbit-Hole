@@ -28,11 +28,26 @@ export function runsByTile(runs, tiles) {
 // The scroll offset (capture pixels) kept inside the page: 0 to page height minus the visible height.
 export const clampScroll = (top, pageHeight, viewHeight) => Math.max(0, Math.min(Math.max(0, pageHeight - viewHeight), Number.isFinite(top) ? top : 0));
 
-// A wheel over the card. Locked, or Ctrl/Cmd held (zoom): null, the canvas takes it (pans or zooms). Unlocked: the page's new
-// offset; the wheel's screen pixels are card pixels over the canvas zoom, then capture pixels over the card scale.
-export function wheelScroll({ locked, ctrl = false, top, deltaY, zoom = 1, scale = 1, pageHeight, viewHeight }) {
-  if (locked || ctrl) return null;
-  return clampScroll(top + deltaY / (zoom || 1) / (scale || 1), pageHeight, viewHeight);
+// A plain wheel over an unlocked card scrolls the page (both ways once the content is zoomed in) and stops at its ends: the
+// wheel never passes on to the canvas (owner, 2026-10-22). The wheel's screen pixels are card pixels over the canvas zoom,
+// then capture pixels over the scale the page is drawn at (card scale times content zoom). Sizes are in capture pixels.
+export function wheelScroll({ top, left = 0, deltaX = 0, deltaY, zoom = 1, scale = 1, pageWidth = 0, pageHeight, viewWidth = pageWidth, viewHeight }) {
+  const step = (zoom || 1) * (scale || 1);
+  return { top: clampScroll(top + deltaY / step, pageHeight, viewHeight), left: clampScroll(left + deltaX / step, pageWidth, viewWidth) };
+}
+
+// Content zoom (Ctrl/Cmd+wheel or a pinch over an unlocked card): from the card's own width (1) to 4x, about the point under
+// the cursor, which stays put. `at` is that point in card pixels from the frame's top left; `scale` the card scale (card width
+// over capture width); `view` the frame's size in card pixels. Past a limit the zoom holds there.
+export const CONTENT_ZOOM = { min: 1, max: 4 };
+export function magnifyAt({ magnify, factor, at: [x, y], top, left, scale, page, view: [width, height] }) {
+  const next = Math.min(CONTENT_ZOOM.max, Math.max(CONTENT_ZOOM.min, magnify * factor));
+  const before = scale * magnify, after = scale * next;
+  return {
+    magnify: next,
+    top: clampScroll(top + y / before - y / after, page.height, height / after),
+    left: clampScroll(left + x / before - x / after, page.width, width / after),
+  };
 }
 
 // Keys that scroll a focused, unlocked card, in capture pixels.
