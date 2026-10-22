@@ -4,7 +4,7 @@
 // repositoryAsk (repositories.js).
 import { arxivId, paperDocument } from './arxiv.js';
 import { paperSelectionImage } from './learn-preview-review.js';
-import { isCanvasName, isUploadedPaperId, paperIdentity } from './learn-paper.js';
+import { isCanvasName, isUploadedPaperId, paperIdentity, PAPER_PAGE_LIMIT } from './learn-paper.js';
 import { PDF_PAGE_MAX } from './pdf-pages.js';
 import { isUploadedMediaId } from './learn-media.js';
 import { validateOutline, validateOutlineOmitted, renderOutline, MAX_OUTLINE_HEADINGS } from './learn-context.js';
@@ -33,7 +33,7 @@ export function validateLearnContext(body, conversation) {
     try {
       // A learner's own upload is a paper too; only the source of the bytes differs.
       if (!isUploadedPaperId(body.paper_context?.id)) arxivId(body.paper_context?.id);
-      if (conversation !== 'learn' || !Number.isInteger(body.paper_context?.page) || body.paper_context.page < 1 || body.paper_context.page > PDF_PAGE_MAX) throw new Error('Invalid paper');
+      if (conversation !== 'learn' || !Number.isInteger(body.paper_context?.page) || body.paper_context.page < 1 || body.paper_context.page > (isUploadedPaperId(body.paper_context.id) ? PDF_PAGE_MAX : PAPER_PAGE_LIMIT)) throw new Error('Invalid paper');
       if (body.paper_context.selection !== undefined) paperSelectionImage(body.paper_context.selection);
       // home: the canvas a copied page's upload lives on (pdf-to-canvas.md); only ever this learner's own (paperIdentity).
       if (body.paper_context.home !== undefined && !isCanvasName(body.paper_context.home)) throw new Error('Invalid home');

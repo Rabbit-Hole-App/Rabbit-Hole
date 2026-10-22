@@ -161,7 +161,7 @@ export async function contextDocsFetch(req, env, deps = {}) {
   }
   if (req.method === 'PUT') {
     if (row.kind !== 'pdf') return json({ error: 'Only a PDF has pages' }, 400);
-    const texts = readPageTexts(body.pages);
+    const texts = readPageTexts(body?.pages);
     if (texts.error) return json({ error: texts.error }, 400);
     await putPageTexts(learnMedia(env), await objectKey(who, id), texts.pages);
     const documents = await list(env, who);

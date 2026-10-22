@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import { readPageTexts, processing, currentProcessing, PDF_UPLOAD_LIMIT, PDF_PAGE_MAX, PAGE_TEXT_CHARS, CUT_MARK } from './context-doc-pages.js';
+import { readPageTexts, processing, currentProcessing, PDF_UPLOAD_LIMIT, PDF_PAGE_MAX, PAGE_TEXT_CHARS, CUT_MARK, INDEX_TEXT_CHARS } from './context-doc-pages.js';
 import * as server from '../../control-plane/src/pdf-pages.js';
 import { longPdf, DEEP_PAGE, DEEP_WORDS } from '../e2e/long-pdf-fixture.mjs';
 
@@ -12,7 +12,7 @@ const open = bytes => { const task = getDocument({ data: bytes, isEvalSupported:
 test.after(() => Promise.all(tasks.map(task => task.destroy())));
 
 test('the browser and the server keep the same PDF limits', () => {
-  assert.deepEqual([PDF_UPLOAD_LIMIT, PDF_PAGE_MAX, PAGE_TEXT_CHARS, CUT_MARK], [server.PDF_UPLOAD_LIMIT, server.PDF_PAGE_MAX, server.PAGE_TEXT_CHARS, server.CUT_MARK]);
+  assert.deepEqual([PDF_UPLOAD_LIMIT, PDF_PAGE_MAX, PAGE_TEXT_CHARS, CUT_MARK, INDEX_TEXT_CHARS], [server.PDF_UPLOAD_LIMIT, server.PDF_PAGE_MAX, server.PAGE_TEXT_CHARS, server.CUT_MARK, server.INDEX_TEXT_CHARS]);
 });
 
 for (const total of [99, 100, 101, 312]) {
@@ -45,6 +45,10 @@ test('a page longer than 20,000 characters is cut and marked, never dropped; a p
   assert.equal(pages[1], `${'x'.repeat(PAGE_TEXT_CHARS)}\n${CUT_MARK}`);
   assert.equal(pages[2], '');
   assert.equal(server.readPageTexts(pages).pages.length, 3, 'the cut page fits the server limit');
+  // Past 8 MB of text in all: refused while reading, before anything is uploaded, naming the limit.
+  const many = { numPages: 500, getPage: async () => page('y'.repeat(PAGE_TEXT_CHARS)) };
+  await assert.rejects(readPageTexts(many), /^Error: That PDF has more than 8 MB of text\. A PDF can have at most 8 MB of text\.$/);
+  assert.equal(INDEX_TEXT_CHARS, 8 * 1024 * 1024);
 });
 
 test('processing: one document at a time, each listed for its canvas until it settles', async () => {

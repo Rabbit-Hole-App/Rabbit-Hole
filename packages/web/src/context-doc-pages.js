@@ -9,6 +9,7 @@ export const PDF_PAGE_MAX = 2000;
 export const PAGE_TEXT_CHARS = 20000;
 export const CUT_MARK = '[page text cut at 20,000 characters]';
 export const READ_SECONDS = 120;
+export const INDEX_TEXT_CHARS = 8 * 1024 * 1024;
 
 // One page's words in reading order: pdf.js text items, a line break where pdf.js ends a line.
 const pageText = content => content.items.map(item => (item.str ?? '') + (item.hasEOL ? '\n' : '')).join('').trim();
@@ -20,12 +21,15 @@ export async function readPageTexts(pdf, { onPage = () => {}, seconds = READ_SEC
   const total = pdf.numPages;
   if (total > PDF_PAGE_MAX) throw new Error(`That PDF has ${total.toLocaleString('en-US')} pages. A PDF can have at most ${PDF_PAGE_MAX.toLocaleString('en-US')} pages.`);
   const end = Date.now() + seconds * 1000, pages = [];
+  let chars = 0;
   for (let n = 1; n <= total; n++) {
     if (Date.now() > end) throw new Error(`Reading the pages stopped after ${seconds} seconds, at page ${n} of ${total}.`);
     const page = await pdf.getPage(n);
     let text = '';
     try { text = pageText(await page.getTextContent()); } finally { page.cleanup(); }
     pages.push(text.length > PAGE_TEXT_CHARS ? `${text.slice(0, PAGE_TEXT_CHARS)}\n${CUT_MARK}` : text);
+    chars += pages.at(-1).length;
+    if (chars > INDEX_TEXT_CHARS) throw new Error('That PDF has more than 8 MB of text. A PDF can have at most 8 MB of text.');
     onPage(n, total);
   }
   return pages;
