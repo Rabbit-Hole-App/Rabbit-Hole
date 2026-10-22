@@ -61,7 +61,8 @@ await check('typed /goal <words> opens goal management with the words in a new g
   await open();
   await send('/goal read a balance sheet with confidence');
   await manager().waitFor({ timeout: 15000 });
-  assert.equal(await newGoal().inputValue(), 'read a balance sheet with confidence');
+  // The words land in a passive effect after the manager mounts (GoalManager.jsx seed), so wait for them, as step 3 does.
+  await until(async () => (await newGoal().inputValue()) === 'read a balance sheet with confidence', 'the words fill the new goal field');
   await until(async () => (await page.evaluate(() => document.activeElement?.id)) === 'goal-new', 'focus in the new goal field');
   assert.equal(listed(await coachingOf()).length, 0, 'not auto-saved');
   assert.equal(await field().inputValue(), '');
