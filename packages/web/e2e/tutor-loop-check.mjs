@@ -101,8 +101,8 @@ const open = async page => {
   await page.waitForTimeout(1500);
 };
 const openProgress = async page => {
-  if (!(await progress(page).isVisible().catch(() => false))) await page.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true }).click(); // the right panel's header (owner 2026-10-21)
-  await progress(page).locator('[data-progress-count], [data-progress-empty]').first().waitFor({ timeout: 15000 });
+  if (!(await progress(page).isVisible().catch(() => false))) await page.locator('[data-panel-header]').getByRole('tab', { name: 'Progress', exact: true }).click(); // the right panel's Progress tab (owner 2026-10-22)
+  await progress(page).locator('[data-progress-count], [data-progress-no-skills], [data-progress-empty]').first().waitFor({ timeout: 15000 });
 };
 const skills = page => progress(page).locator('[data-progress-skill]').evaluateAll(nodes => nodes.map(node => node.dataset.progressSkill));
 
@@ -168,6 +168,7 @@ const first = scope[0];
 const progressRead = async () => (await api(`/api/learn/progress?app=${canvas.name}&board=main&goalId=${goalId}`)).progress;
 let saved = null;
 await check('assess and read Progress: the skill moves from Not checked to Practising (reasoning not shown yet), counted once, nothing pending', async () => {
+  await openProgress(a.page); // starting the activity went to the Chat tab, where its card shows
   const row = progress(a.page).locator('[data-progress-skill]').first();
   await progress(a.page).locator('[data-progress-skill="practising"]').first().waitFor({ timeout: 15000 });
   assert.match(await row.innerText(), new RegExp(`${first.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*Practising`));

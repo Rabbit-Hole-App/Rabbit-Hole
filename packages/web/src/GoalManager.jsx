@@ -2,22 +2,24 @@
 // delete or make current. Every save is one coaching action (learn-goals.js); none calls a model. A save in flight disables
 // its control (a second press does nothing), a failed save keeps the learner's words with the reason, and a goal changed
 // elsewhere shows its saved version beside the learner's kept edit. Delete asks once, inline. Deleting the current goal
-// leaves no current goal: the others are offered to choose from, or the empty state. Drafts outlive the pane per canvas
-// (below lg a closed column unmounts).
+// leaves no current goal: the others are offered to choose from, or the empty state. Drafts outlive the pane per canvas:
+// Back unmounts this, and neither Back nor Close saves or discards a draft (owner 2026-10-22).
+// Add goal and Save changes are the house primary Button (ui.jsx: blue, white text, hover, focus-visible and disabled).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Button } from './ui.jsx';
 import { LABEL_MAX, OUTCOME_MAX, createGoalOps, goalWords, goalsView, listedGoals, refsToGoal } from './learn-goals.js';
 
 const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium disabled:cursor-default disabled:opacity-50';
-const PRIMARY = `${BUTTON} bg-ink text-white hover:opacity-90`;
 const QUIET = `${BUTTON} border border-line text-ink hover:bg-hover`;
 const ICON = 'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50';
 const FIELD = 'w-full rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink outline-none focus:border-ink-3';
 const drafts = new Map(); // canvas -> { add: {label, outcome}, edits: {goalId: {label, outcome, revision}}, seeded }
 
 // scope { app, board }; coaching: the workspace's (use-learn-coaching.jsx); chat: the workspace, for the attachments a delete
-// clears; seed { seq, draft }: the request that opened this (goals.open), its words put in the new goal's field once.
-export default function GoalManager({ scope, coaching, chat = null, seed = null, onDone }) {
+// clears; seed { seq, draft }: the request that opened this (goals.open), its words put in the new goal's field once. onBack:
+// returns to the Progress overview; titleRef: the pane's heading, focused after a delete.
+export default function GoalManager({ scope, coaching, chat = null, seed = null, onBack, titleRef }) {
   const keep = `${scope.app}\n${scope.board}`;
   if (!drafts.has(keep)) drafts.set(keep, { add: { label: '', outcome: '' }, edits: {}, seeded: 0 });
   const saved = drafts.get(keep);
@@ -26,7 +28,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
   const [error, setError] = useState(null); // { key, message }
   useEffect(() => { drafts.set(keep, { ...drafts.get(keep), add, edits }); }, [keep, add, edits]);
   const ops = useMemo(() => createGoalOps({ act: coaching.act }), [coaching.act]);
-  const addField = useRef(null), heading = useRef(null);
+  const addField = useRef(null);
   const view = goalsView(coaching), ready = view === 'list' || view === 'empty';
   const goals = ready ? listedGoals(coaching.state) : [], activeId = coaching.state?.activeGoalId ?? null;
   // /goal <words>: the words fill the new goal's field (not saved); /goal alone or Set a goal keeps any draft. Focus goes to
@@ -72,7 +74,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
     setConfirming(null); stopEdit(goal.goalId);
     // No attachment keeps naming the deleted goal: its Ask tutor about this chips leave the Chat and the Table of contents.
     for (const context of [chat?.context, chat?.toc?.context]) for (const ref of refsToGoal(context?.attached, goal.goalId)) context.detach(ref);
-    requestAnimationFrame(() => heading.current?.focus());
+    requestAnimationFrame(() => titleRef?.current?.focus());
   };
   const errorFor = key => error?.key === key && <p role="alert" data-goal-error className="mt-1.5 text-xs text-fail">{error.message}</p>;
   const busy = key => pending === key;
@@ -81,10 +83,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
 
   return (
     <div data-goal-manager className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <h3 ref={heading} tabIndex={-1} className="min-w-0 flex-1 text-sm font-semibold text-ink outline-none">Your learning goals</h3>
-        <button type="button" data-goal-done onClick={onDone} className={QUIET}>Done</button>
-      </div>
+      <Button type="button" size="sm" data-goal-back onClick={onBack} className="-ml-2 self-start"><ArrowLeft size={15} strokeWidth={1.8} aria-hidden />Back</Button>
       {orphan && <p role="alert" data-goal-error className="text-xs text-fail">{error.message}</p>}
       {goals.length > 0 && !activeId && <p role="status" data-goal-choose className="text-sm text-ink-2">No current goal. Choose one below, or add a new one.</p>}
       {view === 'loading' && <p role="status" data-goal-loading className="text-sm text-ink-2">Loading your goals</p>}
@@ -101,10 +100,10 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
                   {edit.newer && <p role="status" data-goal-conflict className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">Saved elsewhere as “{edit.newer.label}”. Save to replace it with your edit, or Cancel to keep it.</p>}
                   <label className="text-xs font-medium text-ink-2" htmlFor={`goal-label-${goal.goalId}`}>Goal</label>
                   <input id={`goal-label-${goal.goalId}`} data-goal-edit-label autoFocus maxLength={LABEL_MAX} value={edit.label} onChange={event => setEdits(previous => ({ ...previous, [goal.goalId]: { ...previous[goal.goalId], label: event.target.value } }))} className={FIELD} />
-                  <label className="text-xs font-medium text-ink-2" htmlFor={`goal-outcome-${goal.goalId}`}>What you will be able to do (optional)</label>
+                  <label className="text-xs font-medium text-ink-2" htmlFor={`goal-outcome-${goal.goalId}`}>What would success look like? (optional)</label>
                   <textarea id={`goal-outcome-${goal.goalId}`} rows={2} maxLength={OUTCOME_MAX} value={edit.outcome} onChange={event => setEdits(previous => ({ ...previous, [goal.goalId]: { ...previous[goal.goalId], outcome: event.target.value } }))} className={`${FIELD} resize-none`} />
                   <div className="flex gap-2">
-                    <button type="submit" data-goal-save disabled={busy(`edit:${goal.goalId}`)} className={PRIMARY}>{busy(`edit:${goal.goalId}`) ? 'Saving' : 'Save'}</button>
+                    <Button type="submit" variant="primary" data-goal-save disabled={busy(`edit:${goal.goalId}`)} aria-busy={busy(`edit:${goal.goalId}`) || undefined}>{busy(`edit:${goal.goalId}`) ? 'Saving' : 'Save changes'}</Button>
                     <button type="button" onClick={() => stopEdit(goal.goalId)} className={QUIET}>Cancel</button>
                   </div>
                   {errorFor(`edit:${goal.goalId}`)}
@@ -134,11 +133,11 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
       </ul>}
       <form data-goal-add onSubmit={submitAdd} className="flex flex-col gap-1.5">
         <label className="text-xs font-medium tracking-wide text-ink-2 uppercase" htmlFor="goal-new">New goal</label>
-        <input id="goal-new" ref={addField} data-goal-new maxLength={LABEL_MAX} placeholder="For example: read a balance sheet with confidence" value={add.label} onChange={event => setAdd(previous => ({ ...previous, label: event.target.value }))} className={FIELD} />
-        <label className="sr-only" htmlFor="goal-new-outcome">What you will be able to do (optional)</label>
-        <textarea id="goal-new-outcome" data-goal-new-outcome rows={2} maxLength={OUTCOME_MAX} placeholder="What you will be able to do (optional)" value={add.outcome} onChange={event => setAdd(previous => ({ ...previous, outcome: event.target.value }))} className={`${FIELD} resize-none`} />
-        <div><button type="submit" data-goal-add-save disabled={busy('add') || !ready} className={`${PRIMARY} inline-flex items-center gap-1.5`}><Plus size={15} aria-hidden />{busy('add') ? 'Adding' : 'Add goal'}</button></div>
-        <p className="text-xs text-ink-3">A new goal becomes your current goal. Saved goals use no AI.</p>
+        <input id="goal-new" ref={addField} data-goal-new maxLength={LABEL_MAX} placeholder="Learn logistic regression" value={add.label} onChange={event => setAdd(previous => ({ ...previous, label: event.target.value }))} className={FIELD} />
+        <label className="mt-1 text-xs font-medium text-ink-2" htmlFor="goal-new-outcome">What would success look like? (optional)</label>
+        <textarea id="goal-new-outcome" data-goal-new-outcome rows={2} maxLength={OUTCOME_MAX} value={add.outcome} onChange={event => setAdd(previous => ({ ...previous, outcome: event.target.value }))} className={`${FIELD} resize-none`} />
+        <div><Button type="submit" variant="primary" data-goal-add-save disabled={busy('add') || !ready} aria-busy={busy('add') || undefined}><Plus size={15} aria-hidden />{busy('add') ? 'Saving' : 'Add goal'}</Button></div>
+        <p className="text-xs text-ink-3">A new goal becomes your current goal.</p>
         {errorFor('add')}
       </form>
     </div>

@@ -99,7 +99,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
               {...(selected && !codeSelected(ref) ? { 'data-canvas-target': true, 'data-selected-card': selection.id } : {})} data-code-pinned={codeSelected(ref) || undefined}
               className={`${CHIP} pr-0.5 ${state === 'failed' ? 'border-red-300' : selected ? 'border-accent' : ''}`}>
               {/* A progress chip (Tutor Task 10) opens Progress, which keeps its viewed goal; every other chip opens its source. */}
-              <button type="button" disabled={state !== 'ready'} onClick={() => (ref.kind === 'progress' ? chat.panels.companion.show('progress') : chat.openSource(ref))} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
+              <button type="button" disabled={state !== 'ready'} onClick={() => (ref.kind === 'progress' ? chat.panels.openProgress() : chat.openSource(ref))} title={state === 'failed' ? item.error : labelOnly ? `Open ${ref.name}. ${LABEL_ONLY}` : `Open ${ref.name}`}
                 className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover disabled:cursor-default disabled:hover:bg-transparent">
                 {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" />
                   : state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}
