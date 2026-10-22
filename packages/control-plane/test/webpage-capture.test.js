@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
 import { filesFetch } from '../src/learn-files.js';
-import { pdfExcerptsFetch } from '../src/pdf-excerpts.js';
+import { NOT_AVAILABLE, pdfExcerptsFetch } from '../src/pdf-excerpts.js';
 import { checkUrl, isPrivateIp } from '../src/url-guard.js';
 import { WEBPAGE_LIMITS, capturePage, sweepWebpageSources, tilePlan, webpagesFetch } from '../src/webpage-capture.js';
 
@@ -406,4 +406,14 @@ test('highlights under web:<lineage>: refused before screening; tied to the mani
   assert.deepEqual([got.body.highlights.length, got.body.changed], [0, 1], 'old highlights stay on the old version, never re-attached');
   got = await call('GET', `/api/learn/pdf-highlights?app=demo-app&key=${key}&manifest=${v1.body.capture.manifestId}`);
   assert.equal(got.body.highlights.length, 1, 'still shown on the version they were made on');
+});
+
+test('GET /api/learn/pdf-source with a web:<lineage> key is the one 404, not a crash: a webpage capture has no PDF bytes (R4 audit)', async t => {
+  const { capture, setVerdict, env } = await setup(t);
+  setVerdict({ status: 'passed' });
+  const v1 = await capture('owner', { url: 'https://example.com/' });
+  assert.equal(v1.status, 200, JSON.stringify(v1.body));
+  const response = await pdfExcerptsFetch(new Request(`https://dev.test/api/learn/pdf-source?app=demo-app&key=web:${v1.body.lineage}&manifest=${v1.body.capture.manifestId}`, { headers: { cookie: 'small_session=owner' } }), env);
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: NOT_AVAILABLE });
 });

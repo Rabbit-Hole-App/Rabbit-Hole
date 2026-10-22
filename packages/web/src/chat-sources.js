@@ -12,13 +12,19 @@ const STACK_LIMIT = 50; // ponytail: the oldest back steps fall off past 50; nob
 export const pushSource = (stack, ref) => (stack.at(-1)?.sourceId === ref.sourceId ? [...stack.slice(0, -1), ref] : [...stack, ref]).slice(-STACK_LIMIT);
 
 // Reading positions per sourceId ({ page, section, scrollTop }), merged, so a page turn keeps the scroll and the reverse.
-// An open that names a range (a citation) is an instruction to land there, so that source's saved position is forgotten.
+// An open that names a range (a citation) is an instruction to land there, so that source's saved position is forgotten,
+// except its zoom and Rotate page turn: the learner's view is not a place (an excerpt's Open source kept resetting both).
 export function positionStore() {
   const saved = new Map();
   return {
     get: sourceId => saved.get(sourceId),
     set: (sourceId, position) => saved.set(sourceId, { ...saved.get(sourceId), ...position }),
-    opened: ref => { if (ref.range) saved.delete(ref.sourceId); },
+    opened: ref => {
+      if (!ref.range) return;
+      const { zoom, rotation } = saved.get(ref.sourceId) || {}, view = { ...(zoom ? { zoom } : {}), ...(rotation ? { rotation } : {}) };
+      saved.delete(ref.sourceId);
+      if (zoom || rotation) saved.set(ref.sourceId, view);
+    },
   };
 }
 

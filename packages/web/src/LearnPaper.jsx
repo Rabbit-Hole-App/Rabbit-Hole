@@ -33,12 +33,15 @@ const arrows = event => { // Up/Down move between a menu's items
 // are stored on; `anchor` an excerpt to return to; `plainChat(text)` attaches a passage as a quote when there is no excerpt
 // identity, returning an error message or null. With it come the selection toolbar, Select region, the author's saved
 // highlights, Rotate page and page labels; without it (the canvas paper card) the reader is unchanged.
-export default function LearnPaper({ app, paper, onClose, onPage,
+// `zoomStart` / `onZoom`, `rotationStart` / `onRotation`: the zoom and Rotate page turn to open at, and a report of each change
+// (SourceReader keeps both across Open source).
+export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1, onZoom = null, rotationStart = 0, onRotation = null,
   highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, src = null, companion = null }) {
   const report = usePerf();
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(zoomStart);
+  useEffect(() => { onZoom?.(zoom); }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
   const [textDrawn, setTextDrawn] = useState(0);
   const canvas = useRef(null);
   const text = useRef(null);
@@ -47,7 +50,8 @@ export default function LearnPaper({ app, paper, onClose, onPage,
   const pdfPage = useRef(null), lastRender = useRef(null), scroller = useRef(null), pageBox = useRef(null), sectionEl = useRef(null);
   const barEl = useRef(null), regionEl = useRef(null), regionBarEl = useRef(null), menuEl = useRef(null), emphasisEl = useRef(null);
   const [view, setView] = useState(null);
-  const [rotation, setRotation] = useState(0);
+  const [rotation, setRotation] = useState(rotationStart);
+  useEffect(() => { onRotation?.(rotation); }, [rotation]); // eslint-disable-line react-hooks/exhaustive-deps
   const [labels, setLabels] = useState(null);
   const [refused, setRefused] = useState(false);
   const [noText, setNoText] = useState(false);
@@ -67,7 +71,7 @@ export default function LearnPaper({ app, paper, onClose, onPage,
   useEffect(() => {
     const controller = new AbortController();
     let task;
-    setDocument(null); setError(''); setZoom(1); setRefused(false); setLabels(null);
+    setDocument(null); setError(''); setZoom(zoomStart); setRefused(false); setLabels(null);
     (async () => {
       // paper.home: a copied page's own canvas (pdf-to-canvas.md), read as this learner only.
       const response = await fetch(src || paperBytesUrl(app, paper.id, paper.home), { headers: wsHeaders(), signal: controller.signal });
