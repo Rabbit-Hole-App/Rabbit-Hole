@@ -13,7 +13,8 @@ import { Button, ConfirmDialog, Input, toast } from './ui.jsx';
 // `count` is the source's canonical direct-fork count, inside the button the GitHub way, [Fork | N], 0 included;
 // after a fork the button takes the server's new count from the reply, never a guess, so a failed fork
 // leaves it as it was. The result shows on the button itself, never in a far corner.
-export default function ForkButton({ source, title = '', resume = null, onForked, auto = false, count = null, variant = 'secondary', size, className = '' }) {
+// `draft`: () => a visitor's temporary copy of this shared canvas (guest-draft.js forDraft) or null; the fork copies it.
+export default function ForkButton({ source, title = '', resume = null, onForked, auto = false, count = null, draft = null, variant = 'secondary', size, className = '' }) {
   const fork = useRef(null);
   fork.current ||= forkAction();
   const busy = useRef(false);
@@ -28,7 +29,7 @@ export default function ForkButton({ source, title = '', resume = null, onForked
     busy.current = true;
     setPhase('busy');
     try {
-      const made = await fork.current({ source, title: name.trim() });
+      const made = await fork.current({ source, title: name.trim(), draft: draft?.() || null });
       if (typeof made.source_fork_count === 'number') setCounted(made.source_fork_count);
       setPhase('done');
       setTimeout(() => setPhase('idle'), 1600);

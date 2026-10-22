@@ -667,7 +667,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
         {/* A region excerpt (pdf-excerpt.js): the stored crop of the PDF page, the learner's note, the source footer. */}
         {block.excerpt
           ? <div data-excerpt-card data-excerpt-kind="region"><Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
-            <ExcerptNote block={block} onChange={onChange} readOnly={editing.readOnly || editing.locked.has(block.id)} /><ExcerptSource excerpt={block.excerpt} app={appName} /></div>
+            <ExcerptNote block={block} onChange={onChange} readOnly={editing.readOnly || editing.localCopy || editing.locked.has(block.id)} /><ExcerptSource excerpt={block.excerpt} app={appName} /></div>
           : media
           ? <Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
           : url
@@ -865,7 +865,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   // A webpage card (WebpageCard.jsx): a saved capture of a public page, scrolled and selected inside the card.
   if (block.type === 'webpage') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-    <WebpageCard block={block} appName={appName} selected={selected} zoom={zoom} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onChange={onChange} onChangeQuiet={onChangeQuiet} onRemove={onRemove} /></CanvasNode>;
+    <WebpageCard block={block} appName={appName} selected={selected} zoom={zoom} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onChange={onChange} onChangeQuiet={onChangeQuiet} onRemove={onRemove} /></CanvasNode>;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
@@ -899,7 +899,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.promptUsed && <CardPrompt text={block.promptUsed} onHeight={setPromptHeight} />}
@@ -1512,10 +1512,15 @@ const CARDS_COPIED = 'rabbit-hole:copied-cards';
 // menu's MenuItem, its icon at 16px beside the label. A new row passes only its icon.
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, localCopy = false }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
+  // Local-copy mode (SHARE-02, C:/s/spec/share/contract-guest-draft.md): a visitor edits a temporary copy of a shared canvas -
+  // shapes, text, moving, resizing, duplicating, arranging, styling, deleting, undo - saved only through onSave (the guest
+  // draft), never to the source. Card bodies and the document stay read-only, and nothing in here starts server work.
+  const localCopyRef = useRef(localCopy);
+  localCopyRef.current = localCopy;
   // The C key's way in to Add comment (set each render where comments are on; null elsewhere).
   const commentKeyRef = useRef(null);
   // A picked comment pin (owner, 2026-10-08): not a board object, so it never joins the selection - picking one clears
@@ -2509,7 +2514,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
-    const copyNode = node => ({ ...node, id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const copyNode = node => ({ ...node, ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(copyNode);
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
@@ -2583,7 +2588,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
   const [urlPaste, setUrlPaste] = useState(null);
   const addWebpage = url => {
-    if (readOnlyRef.current || !isWebUrl(url)) return null;
+    if (readOnlyRef.current || localCopyRef.current || !isWebUrl(url)) return null;
     let host = url;
     try { host = new URL(url).hostname; } catch { /* isWebUrl parsed it */ }
     const id = crypto.randomUUID();
@@ -3611,7 +3616,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current });
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current });
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
       if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
@@ -4765,7 +4770,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Editor view on a canvas with no document yet: one empty sheet, placed once (its world position is saved), then framed.
   // Only after the page has the board's saved copy (docReady), so an empty sheet is never made over one still loading.
   useEffect(() => {
-    if (docView !== 'editor' || doc || readOnly || !docReady || docError) return;
+    if (docView !== 'editor' || doc || readOnly || localCopy || !docReady || docError) return;
     const fresh = placeDoc();
     if (!fresh) return;
     docLive.current = fresh.blocks;
@@ -5156,7 +5161,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
@@ -5267,7 +5272,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {unknownDocBlock(doc.blocks)
                 ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
                 : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document</p>}>
-                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
+                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly && !localCopy} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
                 </Suspense>}
             </div>
           </div>
@@ -5333,7 +5338,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -5350,7 +5355,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-select" />
         )}
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
-        {presenting === null && !readOnly && !selection.length && gaps.filter(gap => gap.index === hoverGap).map(gap => (
+        {presenting === null && !readOnly && !localCopy && !selection.length && gaps.filter(gap => gap.index === hoverGap).map(gap => (
           <GapRail key={gap.index} gap={gap} zoom={view.z} span={railSpan}
             // Its buttons start at the far left; the toolbar is in its own gutter, never over them.
             edge={-view.x / view.z}
@@ -5450,7 +5455,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly || localCopy ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             cameraKey={`${view.x}:${view.y}:${view.z}`} getTooltipSpace={() => { const area = visibleArea(), frame = surface.current.getBoundingClientRect(); return { left: frame.left + area.left, right: frame.left + area.right, top: frame.top + area.top, bottom: frame.top + area.bottom }; }}
             onInlineAI={readOnly ? null : () => openInline(performance.now(), true)} onDiscardCode={() => endEdit(false, 'items')} />)}
           {equationDraft&&!readOnly&&<EquationItem key={equationDraft.id} item={equationDraft} zoom={view.z} tool="select" selected onSelect={()=>{}} onMove={()=>{}} onGesture={()=>{}} onDelete={()=>setEquationDraft(null)} onPatch={()=>{}} onDone={finishEquation} onDraft={()=>{}} generation={equationGeneration(equationDraft)}/>}
@@ -5544,7 +5549,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           const portal = block && divePortals?.portals?.[block.id];
           const startHole = !block ? null
             : divePortals?.open && !readOnly ? () => (portal ? divePortals.enter(portal.name) : divePortals.open(block.id, undefined, 'learner_menu'))
-            : readOnly && onStartRabbitHole ? () => onStartRabbitHole(block.id) : null;
+            : (readOnly || localCopy) && onStartRabbitHole ? () => onStartRabbitHole(block.id) : null;
           // Add comment (docs/features/canvas-comments.md section 5): the pin goes where the right-click was, on the object
           // or group under it (relative to it, so it follows) or on the canvas. Only the page's panel saves anything.
           const commentOn = menuAt.id || menuAt.group;
@@ -5635,7 +5640,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
-        {!readOnly && import.meta.env.VITE_COACHING_DEV === 'true' && (
+        {!readOnly && !localCopy && import.meta.env.VITE_COACHING_DEV === 'true' && (
           <div className={`absolute top-3 ${toolSide === 'left' ? 'left-2' : '-right-6'} z-20`}>
             <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
               onClick={() => setInsertOpen(previous => !previous)}

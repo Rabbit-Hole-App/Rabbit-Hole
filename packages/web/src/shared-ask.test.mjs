@@ -38,7 +38,8 @@ test('the shared page puts Learn\'s composer shell in the canvas composer slot, 
   // readOnly may be followed by onState (the selected card a Rabbit Hole starts from, shared-canvas-rabbit-hole.md) and
   // onStartRabbitHole (the card right-click menu starts it from the card it was opened on), then the read-only Rabbit
   // Holes Map (gutterTop, dive-v1.md "Shared map").
-  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+hooks=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\}\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\} \/>/);
+  // SHARE-02: a visitor edits a temporary copy (localCopy, the guest draft); only an owner or editor gets the view-only mount here.
+  assert.match(page, /<AdaptiveCanvas [^\n]*onState=\{onCanvasState\} onStartRabbitHole=\{startFromCard\}\n\s+\{\.\.\.\(localCopy \? \{ localCopy: true, boardState: guest\.state \|\| board, onSave: guest\.save \} : \{ readOnly: true, boardState: board \}\)\}(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+hooks=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\}\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\} \/>/);
   assert.match(page, /import ChatComposer from '\.\/ChatComposer\.jsx';/);
   assert.match(composer, /<ChatComposer dock value=\{input\} onChange=\{setInput\} onSubmit=\{send\}/);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);
@@ -67,7 +68,8 @@ test('back from sign-in: the draft is restored and focused, ?ask=1 leaves the ad
 test('A: the viewer\'s chat stays private - the heading says so, and Fork sends only the link, never the chat', () => {
   assert.match(composer, /<Lock size=\{11\} \/>Only you see this chat\. Fork to make your own editable copy\.<\/span>/);
   // count is the canvas's canonical fork count from the server, shown on the button (canvas-forking.md).
-  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\} onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
+  // SHARE-02: the visitor's temporary copy of the canvas (guest-draft.js, this tab only) rides with the fork; the chat never does.
+  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\} draft=\{guest\.forDraft\} onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
   assert.doesNotMatch(page, /<ForkButton[^>]*snapshot=/, 'no browser state rides with a shared fork');
   // The chat goes to this tab's sessionStorage (saveChat) and, as history, only with this viewer's own questions.
   assert.deepEqual(composer.match(/saveChat\([^)]*\)|askHistory\([^)]*\)/g), ['saveChat(token, viewer, turns)', 'askHistory(turns)']);

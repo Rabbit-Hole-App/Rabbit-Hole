@@ -34,6 +34,7 @@ import { sharedTree } from './shared-holes.js';
 import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 import { uiPrefs } from './ui-prefs.js';
+import { useGuestDraft } from './guest-draft.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -96,7 +97,18 @@ export default function SharedBoardPage({ token }) {
     fetch(commentsBase, { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
     return () => { live = false; };
   }, [commentsBase]);
-  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}`, shown: commentsOpen });
+  // Signed out, a visitor drafts where a signed-in visitor could post (public setting Open, comments on); posting goes
+  // through sign-in with the draft kept (SHARE-02, CommentsPanel).
+  const guestMayDraft = !!commentsInfo && !commentsInfo.signed_in && commentsInfo.public_mode === 'open' && !!commentsInfo.comments_enabled;
+  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post || guestMayDraft, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}`, shown: commentsOpen });
+  // The visitor's temporary copy (SHARE-02, C:/s/spec/share/contract-guest-draft.md): anyone who may not write the source edits
+  // a copy kept in this tab; Fork carries it into their own canvas. S1's access.role decides; no role yet reads as a visitor.
+  const localCopy = !!shared && !['owner', 'editor'].includes(shared.access?.role);
+  const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
+  // Comments name only what is on the canvas itself, never an object of the visitor's copy (the server refuses it too).
+  const sourceIds = useMemo(() => new Set(['blocks', 'exchanges', 'items', 'shapes', 'groups'].flatMap(key => (shared?.state?.[key] || []).map(entry => entry?.id))), [shared]);
+  const addComment = comments.canvasProps.onAddComment;
+  const commentProps = addComment ? { ...comments.canvasProps, onAddComment: anchor => (anchor?.kind === 'object' && !sourceIds.has(anchor.object_id) ? toast("This is only on your copy, so it can't take a comment.") : addComment(anchor)) } : comments.canvasProps;
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -193,7 +205,8 @@ export default function SharedBoardPage({ token }) {
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
         {/* The viewer's own monthly AI allowance (owner D4 section 2), never the owner's; signed out, no personal allowance. */}
         {learnPreview && <UsageGauge signedIn={!!shared.viewer} onViewUsage={goToUsageSettings} />}
-        <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
+        {guest.edited && <span data-guest-draft-notice role="status" className="shrink-0 text-xs text-ink-2">Changes aren't saved. Fork to keep them.</span>}
+        <ForkButton source={{ token }} title={shared.title} auto={forkRequested} draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count} />
         {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here.
             Last, at the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
         <ProvenanceRow provenance={provenance} />
@@ -201,7 +214,8 @@ export default function SharedBoardPage({ token }) {
       <div className="relative flex min-h-0 flex-1 max-lg:flex-col">
       <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
         <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
-          <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} docView={docShown ? 'editor' : 'canvas'} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
+          <AdaptiveCanvas {...commentProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={docShown ? 'editor' : 'canvas'} onState={onCanvasState} onStartRabbitHole={startFromCard}
+            {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}
             gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
             hooks={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
             onAskTarget={setTarget} askTargetId={target?.id ?? null}
