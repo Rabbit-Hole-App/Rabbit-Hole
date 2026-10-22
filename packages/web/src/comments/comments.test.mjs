@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CONTACT, INTO, anchorAt, anchorText, objectOrigin, pinCount, pinPoint, pinSpot } from './anchors.js';
 import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
+import { badgeText, openCount } from './useCanvasComments.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -225,6 +226,21 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
   assert.match(sheet, /\['Comment on the selection \(a card, a shape or a group\)', \['C'\]\]/);
   assert.match(page, /\{comments\.active && <button type="button" data-comments-header/);
   assert.match(header, /\{id === 'comments' && commentsOn && commentsUnread > 0 && <span data-unread-dot/);
+});
+
+test('toolbar Comments badge (owner, 2026-10-21): counts the open threads the Comments tab lists, hidden at 0, 99+ past 99; the button toggles the Comments tab', () => {
+  assert.equal(openCount([]), 0);
+  assert.equal(openCount([{ status: 'open', comments: 2 }, { status: 'resolved', comments: 1 }, { status: 'open', comments: 0 }, { status: 'open' }]), 2, 'resolved and fully deleted threads are not counted');
+  assert.equal(badgeText(7), '7');
+  assert.equal(badgeText(99), '99');
+  assert.equal(badgeText(100), '99+');
+  const page = read('../LearnPage.jsx');
+  const button = page.slice(page.indexOf('<button type="button" data-comments-header'), page.indexOf('{/* Progress (Tutor Task 09'));
+  assert.match(button, /aria-label=\{\['Comments', comments\.open && `\$\{badgeText\(comments\.open\)\} open`, comments\.unread && `\$\{comments\.unread\} unread`\]\.filter\(Boolean\)\.join\(', '\)\}/, 'Comments, 3 open');
+  assert.match(button, /aria-pressed=\{commentsShown\} onClick=\{commentsShown \? \(\) => setPanelOpen\(false\) : openComments\}/, 'the same press again closes, as Progress');
+  assert.match(button, /\{comments\.open > 0 && <span data-comments-count aria-hidden/, 'hidden at 0');
+  assert.match(page, /const commentsShown = panelOpen && panelTab === 'comments';/);
+  assert.doesNotMatch(button, /…/);
 });
 
 test('Library: comment news on your canvases\' cards and a Shared with you section; Home is left to its own lane', () => {

@@ -111,6 +111,7 @@ await check('2 Add comment opens Comments on a draft: a ghost pin, the card name
   assert.equal(await page.locator('[role="tab"][aria-selected="true"]').getAttribute('data-panel-tab'), 'comments');
   assert.match(await panel().innerText(), /New comment[\s\S]*on Why salt melts ice[\s\S]*Visible to[\s\S]*Members only/);
   assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 1, 'the ghost pin');
+  assert.equal(await page.locator('[data-comments-header] [data-comments-count]').count(), 0, 'no toolbar badge at 0 open');
   await shot('02-draft');
 });
 
@@ -134,6 +135,25 @@ await check('3 Send posts the thread: the author\'s name and avatar, and a pin o
   await page.waitForTimeout(400);
   assert.equal(await askPill().count(), 0, 'deselected');
   assert.deepEqual(await pins().first().boundingBox(), pin, 'the same slot, selected or not');
+});
+
+await check('3b the toolbar Comments button counts the open threads (it went 0 to 1 on Send) and toggles the Comments tab by click, Enter and Space', async () => {
+  const button = page.locator('[data-comments-header]');
+  await button.locator('[data-comments-count]').waitFor();
+  assert.equal(await button.locator('[data-comments-count]').innerText(), '1');
+  assert.equal(await button.getAttribute('aria-label'), 'Comments, 1 open');
+  assert.equal(await button.getAttribute('aria-pressed'), 'true', 'the panel is on Comments');
+  await button.click();
+  await panel().waitFor({ state: 'hidden' });
+  assert.equal(await button.getAttribute('aria-pressed'), 'false');
+  await button.press('Enter');
+  await panel().waitFor({ state: 'visible' });
+  assert.equal(await page.locator('[role="tab"][aria-selected="true"]').getAttribute('data-panel-tab'), 'comments');
+  await page.locator('[data-panel-tab="chat"]').click();
+  await button.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await page.locator('[role="tab"][aria-selected="true"]').getAttribute('data-panel-tab'), 'comments', 'from another tab a press opens Comments');
+  assert.equal(await button.getAttribute('aria-pressed'), 'true');
 });
 
 await check('4 a reply lands in the thread, oldest first', async () => {
