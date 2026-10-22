@@ -50,7 +50,8 @@ function MotionSettings({ settings, disabled, onChange }) {
 
 const SETTINGS = { motion: MotionSettings };
 
-export default function GenerationProposalCard({ proposal, active = true, onGenerate, onSettingsChange, busy = false }) {
+// made: this proposal already added its card (inactive, but not superseded).
+export default function GenerationProposalCard({ proposal, active = true, onGenerate, onSettingsChange, busy = false, made = false }) {
   const key = `${proposal.proposal_id}:${proposal.version}`;
   // One press, one job (owner message 37): the ref stops a double-click before React re-renders; state shows it disabled.
   const sent = useRef(null);
@@ -72,7 +73,8 @@ export default function GenerationProposalCard({ proposal, active = true, onGene
       {usage && <p data-proposal-usage className="text-xs text-ink-2">{usage}</p>}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" variant="action" data-proposal-generate disabled={!active || busy || sentKey === key} onClick={generate}>Generate</Button>
-        {!active && <span data-proposal-superseded className="text-xs text-ink-2">Updated below</span>}
+        {made ? <span data-proposal-made className="text-xs text-ink-2">Added to the canvas</span>
+          : !active && <span data-proposal-superseded className="text-xs text-ink-2">Updated below</span>}
       </div>
     </section>
   );

@@ -72,6 +72,10 @@ test('Generate is inert while busy and when superseded; a superseded card says s
   assert.match(out, /<button[^>]*data-proposal-generate="true" disabled=""/);
   assert.match(out, /<select data-proposal-duration="true" disabled=""/);
   assert.match(out, /data-proposal-audio="off" aria-pressed="true" disabled=""/);
+  // A proposal that already added its card is inactive too, and says where it went rather than that it was updated.
+  const made = html({ active: false, made: true });
+  assert.match(made, /Added to the canvas/);
+  assert.doesNotMatch(made, /Updated below/);
 });
 
 test('Audio: Off selected, On disabled with the coming-soon tooltip', () => {
