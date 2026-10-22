@@ -10,6 +10,9 @@ import '../src/index.css';
 
 const host = document.getElementById('root');
 const root = createRoot(host);
+// Each capture mounts a fresh card at its state: a reused AnimatedScene keeps the step it showed first (live run r3b,
+// 2026-10-22: four steps of one session rendered identically), while a card opened at a saved time starts there.
+let captures = 0;
 const frames = n => new Promise(resolve => { const step = left => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
 
 // Inter (UI and scene labels), JetBrains Mono (scene numerals and code, index.css) and the KaTeX faces equations use; each load resolves once the face is usable.
@@ -29,7 +32,7 @@ window.__renderScene = async request => {
   const block = { id: 'render', type: 'animation', dx: 0, dy: 0, title: scene.title || scene.id, scene, time: time ?? scene.duration, selectedObject: null, marked: null, ...(inputs ? { inputs } : {}) };
   flushSync(() => root.render(
     <div data-render-target className="flex h-full flex-col bg-white p-3">
-      <AnimatedScene block={block} onChange={() => {}} onChangeQuiet={() => {}} onAskRegion={() => {}} />
+      <AnimatedScene key={++captures} block={block} onChange={() => {}} onChangeQuiet={() => {}} onAskRegion={() => {}} />
     </div>,
   ));
   await frames(2);
