@@ -313,7 +313,9 @@ test('only the production app config points at the Motion orchestrator, with a c
     if (name.endsWith('/web/wrangler.rabbit-hole-prod.jsonc')) {
       assert.match(text, /"MOTION_ORCHESTRATOR_URL": "https:\/\/rabbit-hole-motion-orchestrator\.fly\.dev"/);
       assert.ok(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: text.match(/"MOTION_JOB_RESERVATION_USD": "([^"]+)"/)?.[1] }) > 0, 'a valid hold');
-    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION/, name);
+      // Owner message 28: new generation paused in production until MOT-06/07 are fixed; dev, preview and local stay unpaused.
+      assert.match(text, /"MOTION_GENERATION_PAUSED": "1"/);
+    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED/, name);
   }
 });
 

@@ -28,7 +28,7 @@ import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import SceneActivity from './SceneActivity.jsx';
 import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
-import { sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
+import { motionHold, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { motionConfirm, motionHoldStatus, videoLabel } from './learn-video-label.js';
 import { describeNotebook } from './learn-notebook.js';
@@ -1507,7 +1507,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const [placement, setPlacement] = useState(null);
   // A /motion job's reservation as the server reports it ({usd, state}), and the amount it would reserve for a new one.
   const [hold, setHold] = useState(null);
-  const [holdUsd, setHoldUsd] = useState(null);
+  const [offer, setOffer] = useState(null); // what a new start would hold: the amount, 'paused' or null (motionHold)
   // Follows the exact job this Generate started (see SceneBody). Its placement id is kept on the card, so a reload resumes
   // following the same job (a /motion job runs for minutes) instead of showing it generating forever.
   const follow = async placementId => {
@@ -1516,7 +1516,6 @@ function VideoBody({ block, appName, onChange, onFile }) {
     try {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
-      if (Number.isFinite(list.motionHoldUsd)) setHoldUsd(list.motionHoldUsd);
       if (!mine) return;
       setHold(mine.hold || null);
       const current = latest.current;
@@ -1556,8 +1555,8 @@ function VideoBody({ block, appName, onChange, onFile }) {
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
   const motionRequest = block.operation?.op === 'motion_request';
-  // A failed /motion card can be generated again: its confirmation names the reservation the server returned.
-  useEffect(() => { if (motionRequest && !pending && holdUsd == null) videoList(appName).then(list => Number.isFinite(list?.motionHoldUsd) && setHoldUsd(list.motionHoldUsd), () => {}); }, [motionRequest, pending]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A failed /motion card can be generated again: its confirmation names the reservation the server returned, or the pause.
+  useEffect(() => { if (motionRequest && !pending) motionHold(appName).then(setOffer, () => {}); }, [motionRequest, pending]); // eslint-disable-line react-hooks/exhaustive-deps
   const holdLine = motionRequest ? motionHoldStatus(hold) : null;
   // A card saved while its job ran: follow that job again (a read, never a new start). Cards saved without a placement id
   // (before this) keep their old behaviour.
@@ -1602,7 +1601,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
                   {holdLine && <p data-video-hold={hold.state} className="max-w-sm text-[11px] text-ink-2">{holdLine}</p>}
                   {label.stoppable && placement && <button type="button" data-stop-video onClick={stop} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
                 </>
-              : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(holdUsd) : undefined} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
+              : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(offer) : undefined} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
               : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
             {!pending && holdLine && <p data-video-hold={hold.state} className="max-w-sm text-[11px] text-ink-2">{holdLine}</p>}

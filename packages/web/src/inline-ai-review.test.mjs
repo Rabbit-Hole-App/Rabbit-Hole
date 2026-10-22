@@ -170,8 +170,8 @@ test('command input: a routed sentence goes as written with the selection as Mot
 test('command input: the page gives inline Motion the selection, never the canvas title', async () => {
   const { readFileSync } = await import('node:fs');
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
-  // Owner message 25: it also passes the reservation the server returns (learn-scene-client.js motionHoldUsd), never a literal.
-  assert.match(page, /motion: isLearnCommand\('motion'\) \? async \(args, about = \{\}\) => motionProposal\(args, \{ concept: about\.concept \|\| null \}, about\.selection, await motionHoldUsd\(app\.name\)\.catch\(\(\) => null\)\) : null,/);
+  // Owner messages 25 and 28: it also passes what the server returns (learn-scene-client.js motionHold: the reservation or paused).
+  assert.match(page, /motion: isLearnCommand\('motion'\) \? async \(args, about = \{\}\) => motionProposal\(args, \{ concept: about\.concept \|\| null \}, about\.selection, await motionHold\(app\.name\)\.catch\(\(\) => null\)\) : null,/);
 });
 
 import * as transportModule from './inline-ai-transport.js';

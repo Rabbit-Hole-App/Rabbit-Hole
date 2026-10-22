@@ -31,6 +31,10 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
 const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
 const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
+// Owner message 28: new Motion generation is paused (MOTION_GENERATION_PAUSED "1") until MOT-06/07 are fixed. Nothing new starts or
+// is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
+export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
+const motionPaused = env => env.MOTION_GENERATION_PAUSED === '1';
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
 export async function videoFetch(req, env) {
@@ -155,6 +159,8 @@ export class LearnVideos {
         const maths = body.operation?.op === 'generate_math_animation';
         const motion = body.operation?.op === 'motion_render';
         const motionRequest = body.operation?.op === 'motion_request';
+        // Before any admission or hold: Generate, Retry, inline Motion and Ctrl+K all start here.
+        if (motionRequest && motionPaused(this.env)) return json({ error: MOTION_PAUSED, code: 'motion_paused' }, 503);
         const provider = maths ? new ManimProvider(this.env) : motion ? new MotionProvider(this.env) : motionRequest ? new MotionRequestProvider(this.env) : videoProvider(this.env);
         const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : motion ? validateMotionRender(body.operation) : motionRequest ? validateMotionRequest(body.operation) : validateVideo(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page are required');
@@ -210,8 +216,9 @@ export class LearnVideos {
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     // motionHoldUsd: the per-job reservation the server admits (MOTION_JOB_RESERVATION_USD), only where Motion can start, so the
     // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
-    const holdMicros = !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
-    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), videos: [...placements.values()].map(p => {
+    const paused = motionPaused(this.env);
+    const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
+    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
       return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}) };
     }) };
@@ -284,7 +291,8 @@ export class LearnVideos {
     const provider = new MotionRequestProvider(this.env);
     const late = Date.now() - job.startedAt > maxWait(job);
     if (!job.ticket) {
-      try { job.ticket = await provider.submit(job.input, job.spend, job.repository); }
+      // Paused: no resend (it could start the work if the first submission never landed); like no answer, the hold stays.
+      try { if (motionPaused(this.env)) throw new Error(MOTION_PAUSED); job.ticket = await provider.submit(job.input, job.spend, job.repository); }
       catch (error) {
         if (!error.definite && !late) return;
         // A refused resend of a fresh grant started nothing; a grant refused after a restart, or no answer at all, may have.
