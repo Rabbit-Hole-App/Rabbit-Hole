@@ -61,7 +61,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   if (capability) return pick(capability, 'capability', text.trim());
   const command = explicitCommand(text);
   if (command) return pick(command.name, 'command', command.args);
-  if (fields.mode === 'tutor' || fields.mode === 'ask') return answer('mode'); // the learner chose Tutor or Ask: an answer
+  if (fields.mode === 'tutor') return answer('mode');
   if (isPlainExplain(text)) return answer('default');
   const transport = jevTransport(env);
   const started = Date.now();

@@ -13,6 +13,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { chatRouteAnswer } from './dev-cp.mjs';
 
 const total = 38; // the number of check() steps below; keep it equal (memory rule: totals must match)
 const BASE = process.env.BASE || 'http://127.0.0.1:8881';
@@ -126,9 +127,8 @@ const router = async route => {
     captured.push({ route: 'plan', body, reply });
     return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
   }
-  // MOCKED CR-1 route decision (chat-route-interface.md): an answer, as JEV would decide for a question. A code, page or file turn
-  // in Auto asks it before /api/learn/ask, and CI has no JEV key, so the real route would fall back and send nothing.
-  if (path === '/api/learn/chat/route') return route.fulfill({ json: { route: 'answer', via: 'jev', capability: null, flow: null, token: null } });
+  // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
+  if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(JSON.parse(route.request().postData() || '{}')) });
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } }); // the canned thread ids exist nowhere
   if (method === 'POST' && ['/api/learn/paper', '/api/learn/context'].includes(path)) uploads.push(path);

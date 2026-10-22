@@ -17,6 +17,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.TUTOR_BASE || 'http://127.0.0.1:8898';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8899';
@@ -86,6 +87,8 @@ async function open(who) {
     seen.shared.push(body);
     return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: CANNED })}\n\nevent: done\ndata: ${JSON.stringify({ ok: true, notice: NOTICE })}\n\n` });
   });
+  // CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+  await mockChatRoute(context);
   const page = await context.newPage();
   page.on('pageerror', error => console.log(`PAGEERROR ${error.message}`));
   page.on('response', async response => {
