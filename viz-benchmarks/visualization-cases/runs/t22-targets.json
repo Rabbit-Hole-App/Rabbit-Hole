@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "task": "EXP-T22 (plan section 3.6)",
+  "frozenAt": "2026-10-22T10:05:00-07:00",
+  "frozenBy": "r2 lane L4, from observed numbers only, before any qualification run; not to be relaxed after qualification results",
+  "systemSha": "ebd0ea74110ff2a945c7880227d3bbe354b6a41c",
+  "targets": {
+    "simple": {
+      "firstFeedbackMs": 1000,
+      "proposalMs": null,
+      "resultMs": 75000,
+      "capabilityGapAnswerMs": 15000,
+      "reloadModelCalls": 0,
+      "basis": "observed"
+    },
+    "researched": { "firstFeedbackMs": null, "proposalMs": null, "resultMs": null, "basis": "unmeasured: no researched (brief + evidence) run exists yet, live or corpus" },
+    "edit": { "firstFeedbackMs": null, "proposalMs": null, "resultMs": null, "basis": "unmeasured: no live same-card Edit run exists yet" }
+  },
+  "observed": {
+    "simpleAcceptedProductPath": {
+      "source": "L1 live job runs on the L1 dev clone (Browser Rendering inside the job), C:/s/spec/explain/renders/r2-live/*/job.json timing; spend.md rows 19, 22, 23",
+      "generateToResultSeconds": { "r1-cache-hit-miss (1 repair)": 53.3, "r2b-request-path": 41.2, "r3-heap-insert": 53.4 },
+      "n": 3,
+      "firstFeedbackMs": { "values": [316, 109, 98, 217], "n": 4 },
+      "stageSeconds": "author 13.3 to 33.3, validate up to 1.0, render 9.7 to 13.0, review 7.1 to 12.3, repair 12.7"
+    },
+    "simpleAcceptedHarness": { "source": "Lane D e2e-r4 (spend.md row 10), local headless render", "seconds": 41, "n": 1 },
+    "simpleNotAcceptedHarness": { "source": "corpus pilot t22-p1 / t22-p1b", "renderedReviewedSeconds": [60.9, 64.6, 75.3], "invalidAfterThreeRepairsSeconds": [100.7], "capabilityGapSeconds": { "n": 8, "min": 3.3, "median": 4.9, "max": 10.3 } },
+    "frozenBaselineT02": { "source": "t02-b1 and t02-b1r (claude-opus-5 artifact path at 6f0b7a3e)", "singleCallNonSceneSeconds": [23.4, 20.8, 25.2], "twoCallsInvalidSeconds": [36.9], "fourCallsStoppedSeconds": [58.0], "scenesProduced": 0 }
+  },
+  "rationale": {
+    "simple.firstFeedbackMs": "Observed 98 to 316 ms (n=4) on the clone. 1 s is about 3 times the slowest observation, leaving room for a cold Worker or Durable Object while staying immediate to the learner.",
+    "simple.resultMs": "Observed accepted results took 41.2 to 53.4 s (n=3 product path, n=1 harness); the one-repair run took 53.3 s. One more render and review round adds about 20 to 25 s (render 9.7 to 13.0 s, review 7.1 to 12.3 s), so 75 s covers an accepted result after one repair round with that margin. A result needing more rounds is expected to miss the target, which the qualification report shows rather than hides. n is small: this is a target, not a percentile.",
+    "simple.capabilityGapAnswerMs": "Observed 3.3 to 10.3 s for the author's capability-gap answer (n=8, one author call each). 15 s is the slowest observation plus about 50 percent.",
+    "simple.reloadModelCalls": "Plan section 3.6: reload/open and local controls make zero model calls. Lane D e2e-r4 save/reload round trip measured 0 model calls and identical pixels; L1 live r1 save/reload returned the identical scene (model calls not counted there). Reload latency itself is not measured here.",
+    "proposalMs and researched/edit": "No observation exists, so no number is set (section 3.6 forbids invented targets). They stay unmeasured until a researched or Edit run is recorded."
+  },
+  "limits": "Samples are tiny (n=1 to 8); medians and tails are not reliable percentiles. Product-path numbers come from one dev clone in one hour; harness numbers use local headless Chromium and include a cold browser per render. Cache state was not controlled: L1 jobs record cache null, and 20 of 21 pilot calls read a cached system prompt prefix (889 to 3051 tokens), so the pilot is warm for that prefix and cold otherwise. Learner approval time is excluded (approvalWaitMs 0 in every simple run)."
+}

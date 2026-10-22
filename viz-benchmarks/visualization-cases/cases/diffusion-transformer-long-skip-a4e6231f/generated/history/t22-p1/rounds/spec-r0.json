@@ -1,0 +1,342 @@
+{
+  "version": 1,
+  "id": "diffusion-transformer-tokens-skips",
+  "title": "How a token-based diffusion transformer predicts noise, using long skip connections",
+  "parts": [
+    {
+      "id": "overview",
+      "title": "The whole path"
+    },
+    {
+      "id": "tokens",
+      "title": "Everything becomes a token"
+    },
+    {
+      "id": "skips",
+      "title": "Long skips and the noise readout"
+    }
+  ],
+  "components": [
+    {
+      "id": "path",
+      "component": "flow",
+      "version": 1,
+      "part": 0,
+      "hints": {
+        "nodeWidth": 150,
+        "gap": 32
+      },
+      "params": {
+        "steps": [
+          {
+            "label": "Noisy image, time step, condition",
+            "role": "input"
+          },
+          "Embed each as tokens",
+          "One token sequence",
+          "Transformer blocks with long skips",
+          "Patch tokens to pixels",
+          {
+            "label": "Predicted noise",
+            "role": "prediction"
+          }
+        ]
+      }
+    },
+    {
+      "id": "loss-note",
+      "component": "callout",
+      "version": 1,
+      "part": 0,
+      "params": {
+        "tone": "key",
+        "text": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Training goal: make the predicted noise match the noise that was added. "
+            },
+            {
+              "kind": "math",
+              "tex": "\\mathcal{L} = \\lVert \\epsilon - \\epsilon_\\theta(x_t, t, c) \\rVert^2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tok-sec",
+      "component": "section",
+      "version": 1,
+      "part": 1,
+      "params": {
+        "title": "Three kinds of input, one sequence"
+      }
+    },
+    {
+      "id": "tok-row",
+      "component": "stack",
+      "version": 1,
+      "parent": "tok-sec",
+      "hints": {
+        "direction": "row",
+        "gap": 32
+      },
+      "params": {}
+    },
+    {
+      "id": "t-tok",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-row",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Time step "
+            },
+            {
+              "kind": "math",
+              "tex": "t"
+            },
+            {
+              "kind": "text",
+              "text": " → time token"
+            }
+          ]
+        },
+        "role": "input"
+      }
+    },
+    {
+      "id": "c-tok",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-row",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Condition "
+            },
+            {
+              "kind": "math",
+              "tex": "c"
+            },
+            {
+              "kind": "text",
+              "text": " (class or text) → condition token(s)"
+            }
+          ]
+        },
+        "role": "input"
+      }
+    },
+    {
+      "id": "p-tok",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-row",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Noisy image "
+            },
+            {
+              "kind": "math",
+              "tex": "x_t"
+            },
+            {
+              "kind": "text",
+              "text": " cut into patches → patch tokens"
+            }
+          ]
+        },
+        "role": "input"
+      }
+    },
+    {
+      "id": "seq",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-sec",
+      "hints": {
+        "width": 360
+      },
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "One sequence: "
+            },
+            {
+              "kind": "math",
+              "tex": "[\\,t,\\ c,\\ p_1, \\dots, p_N\\,]"
+            },
+            {
+              "kind": "text",
+              "text": " plus position embeddings"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "tok-note",
+      "component": "callout",
+      "version": 1,
+      "parent": "tok-sec",
+      "params": {
+        "tone": "key",
+        "text": "Every block attends over all tokens, so the time and condition steer each patch through ordinary attention. No separate conditioning path is needed."
+      }
+    },
+    {
+      "id": "skip-sec",
+      "component": "section",
+      "version": 1,
+      "part": 2,
+      "params": {
+        "title": "Shallow blocks feed matching deep blocks"
+      }
+    },
+    {
+      "id": "in-1",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "label": "Shallow block 1"
+      }
+    },
+    {
+      "id": "in-2",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "label": "Shallow block 2"
+      }
+    },
+    {
+      "id": "mid",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "label": "Middle block"
+      }
+    },
+    {
+      "id": "out-2",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "label": "Deep block 2"
+      }
+    },
+    {
+      "id": "out-1",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "label": "Deep block 1"
+      }
+    },
+    {
+      "id": "readout",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Keep patch tokens → linear → unpatchify → "
+            },
+            {
+              "kind": "math",
+              "tex": "\\hat{\\epsilon}"
+            }
+          ]
+        },
+        "role": "prediction"
+      }
+    },
+    {
+      "id": "skip-note",
+      "component": "callout",
+      "version": 1,
+      "part": 2,
+      "params": {
+        "tone": "note",
+        "text": "A long skip carries a shallow block's tokens straight to its mirror deep block, where they are combined with the deep tokens (for example by concatenating, then a linear layer). Fine, low-level detail reaches the output directly, which helps pixel-level noise prediction and makes training easier."
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "t-tok.bottom",
+      "to": "seq.top",
+      "kind": "flow"
+    },
+    {
+      "from": "c-tok.bottom",
+      "to": "seq.top",
+      "kind": "flow"
+    },
+    {
+      "from": "p-tok.bottom",
+      "to": "seq.top",
+      "kind": "flow"
+    },
+    {
+      "from": "in-1.bottom",
+      "to": "in-2.top",
+      "kind": "flow"
+    },
+    {
+      "from": "in-2.bottom",
+      "to": "mid.top",
+      "kind": "flow"
+    },
+    {
+      "from": "mid.bottom",
+      "to": "out-2.top",
+      "kind": "flow"
+    },
+    {
+      "from": "out-2.bottom",
+      "to": "out-1.top",
+      "kind": "flow"
+    },
+    {
+      "from": "out-1.bottom",
+      "to": "readout.top",
+      "kind": "flow"
+    },
+    {
+      "from": "in-2.right",
+      "to": "out-2.right",
+      "kind": "relation",
+      "label": "long skip"
+    },
+    {
+      "from": "in-1.left",
+      "to": "out-1.left",
+      "kind": "relation",
+      "label": "long skip"
+    }
+  ],
+  "presentation": {
+    "mode": "static"
+  }
+}

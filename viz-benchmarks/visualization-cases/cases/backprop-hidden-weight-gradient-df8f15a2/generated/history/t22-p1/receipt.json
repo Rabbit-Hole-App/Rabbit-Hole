@@ -1,0 +1,69 @@
+{
+  "system": "v2",
+  "costUsd": 0.356915,
+  "calls": 4,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 100719,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "accepted": false,
+  "rounds": 3,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 31923,
+      "calls": 2
+    },
+    {
+      "stage": "validate-r0",
+      "ms": 199,
+      "calls": 2
+    },
+    {
+      "stage": "repair-r1",
+      "ms": 19201,
+      "calls": 3
+    },
+    {
+      "stage": "validate-r1",
+      "ms": 90,
+      "calls": 3
+    },
+    {
+      "stage": "repair-r2",
+      "ms": 23528,
+      "calls": 4
+    },
+    {
+      "stage": "validate-r2",
+      "ms": 341,
+      "calls": 4
+    },
+    {
+      "stage": "repair-r3",
+      "ms": 23876,
+      "calls": 5
+    },
+    {
+      "stage": "validate-r3",
+      "ms": 1559,
+      "calls": 5
+    }
+  ],
+  "gap": null,
+  "stop": null,
+  "caseId": "backprop-hidden-weight-gradient-df8f15a2",
+  "runId": "t22-p1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "example",
+  "family": "gradient-math",
+  "examples": [],
+  "outcome": "failed",
+  "error": "invalid",
+  "outputSha256": null,
+  "promptSha256": "c3eacdec52f1ac060e4223dc368c8c52c3453db6531b4fdaf845452a17281584",
+  "recordedAt": "2026-10-22T16:29:27.834Z"
+}

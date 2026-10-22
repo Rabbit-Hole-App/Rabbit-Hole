@@ -1,0 +1,42 @@
+{
+  "system": "v2",
+  "costUsd": 0.024722,
+  "calls": 1,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 4858,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "accepted": false,
+  "rounds": 0,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 4600,
+      "calls": 1
+    }
+  ],
+  "gap": {
+    "capability": "explain",
+    "needs": [
+      "evidence"
+    ],
+    "source": "author",
+    "message": "This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.",
+    "reason": "Trinity Large's design is specific to that model: its layer count, how it mixes attention types, its head counts, and its expert count and top-k routing all come from Arcee AI's own documents. None of those sources were provided. Please attach the model card, technical report or config, and the card can then show its decoder block, attention mix and MoE layer accurately."
+  },
+  "stop": null,
+  "caseId": "arcee-trinity-large-architecture-b9673a24",
+  "runId": "t22-p1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "example",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Trinity Large's design is specific to that model: its layer count, how it mixes a",
+  "outputSha256": null,
+  "promptSha256": "e946f3cc7bf4079e4a9574bf1dd71aa88c4e8bc347cc597498b7c79ccad645fc",
+  "recordedAt": "2026-10-22T16:27:46.683Z"
+}

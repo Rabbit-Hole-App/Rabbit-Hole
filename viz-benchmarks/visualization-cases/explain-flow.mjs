@@ -7,6 +7,16 @@ import { HERE } from './cases.mjs';
 
 const cp = name => import(`../../packages/control-plane/src/${name}`);
 
+// The captures the product job reviews (explain-job.js renderStage): every part of a paged card, both themes while
+// parts x 2 fits one review (6 images), else light only; dpr 1. t22-p1 captured themes only, so a paged card's review saw part 0.
+export function captureEntries(scene, round, themes = ['light', 'dark'], maxCaptures = 6) {
+  const parts = scene.exampleData?.partTitles?.length || 1;
+  const shown = parts * themes.length <= maxCaptures ? themes : themes.slice(0, 1);
+  const entries = [];
+  for (let part = 0; part < parts; part++) for (const theme of shown) entries.push({ id: `${parts > 1 ? `p${part}-` : ''}${theme}-r${round}`, theme, ...(parts > 1 ? { inputs: { part } } : {}) });
+  return entries;
+}
+
 // ctx: { env, call(role, request) }. save(name, value) records each artifact; ledger counts calls for stage timing.
 export async function runFlow(prompt, { ctx, save = () => {}, ledger = { calls: [] }, dist = join(HERE, '..', '..', 'packages', 'web', 'dist-render'), themes = ['light', 'dark'] }) {
   const { authorStage, validateStage } = await cp('explain-author.js');
@@ -40,7 +50,7 @@ export async function runFlow(prompt, { ctx, save = () => {}, ledger = { calls: 
     out.compiled = checked.compiled;
     save(`compiled-scene-r${job.round}.json`, out.compiled.scene);
     const hash = await compiledHash(out.compiled.scene);
-    const rendered = await timed(`render-r${job.round}`, () => captureScene(out.compiled.scene, themes.map(theme => ({ id: `${theme}-r${job.round}`, theme })), { dist }));
+    const rendered = await timed(`render-r${job.round}`, () => captureScene(out.compiled.scene, captureEntries(out.compiled.scene, job.round, themes), { dist, dpr: 1 }));
     out.captures = rendered.captures;
     job.captures = rendered.captures.map(c => ({ id: c.id, compiledHash: hash, theme: c.theme, time: c.time, inputs: c.inputs, png: c.png, data: Buffer.from(c.png).toString('base64'), mediaType: 'image/png' }));
     out.review = await timed(`review-r${job.round}`, () => reviewCaptures({ request: prompt, compiledHash: hash, captures: job.captures }, { callRole: ctx.call }).catch(error => ({ error: `${error.code || ''} ${error.message}` })));

@@ -1,0 +1,43 @@
+{
+  "system": "v2",
+  "costUsd": 0.027634,
+  "calls": 1,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 5711,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "accepted": false,
+  "rounds": 0,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 5710,
+      "calls": 14
+    }
+  ],
+  "gap": {
+    "capability": "explain",
+    "needs": [
+      "evidence",
+      "component"
+    ],
+    "source": "author",
+    "message": "This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.",
+    "reason": "Qwen3-Next-80B-A3B's exact layout (how many layers, the ratio of Gated DeltaNet layers to gated attention layers, and how many experts are routed per token) comes from a specific model release, and no source for it was provided. The catalogue also has no Gated DeltaNet block (its state-space block only draws Mamba-2), and its mixture-of-experts diagram tops out at 256 experts."
+  },
+  "stop": null,
+  "caseId": "qwen3-next-80b-hybrid-attention-a5798b99",
+  "runId": "t22-p1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "heldout",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Qwen3-Next-80B-A3B's ",
+  "outputSha256": null,
+  "promptSha256": "66f9198da450ffdfddd87b5ad635eefe7265af7a331b7ab8dc6a813d03db17c3",
+  "recordedAt": "2026-10-22T16:31:19.880Z"
+}

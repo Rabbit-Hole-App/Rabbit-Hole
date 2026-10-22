@@ -1,0 +1,115 @@
+{
+  "captures": [
+    {
+      "captureId": "p0-light-r0",
+      "semantic": "pass",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "p0-light-r0",
+            "object": "Noisy image x_t"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The first box shows raw markup 'x_t' instead of a rendered x with subscript t, while the note below renders x_t correctly. It looks inconsistent and like leaked syntax."
+        }
+      ]
+    },
+    {
+      "captureId": "p1-light-r0",
+      "semantic": "pass",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "p1-light-r0",
+            "object": "token arrows"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "All three arrows converge on one point near the left of the sequence box. The condition and patch arrows nearly merge near the arrowhead, and the long patch arrow runs almost flat along the top border of the 'One token sequence' box, so it's hard to follow."
+        }
+      ]
+    },
+    {
+      "captureId": "p2-light-r0",
+      "semantic": "pass",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "p2-light-r0",
+            "object": "long skip (Shallow block 2 → Deep block 2)"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The lower 'long skip' label sits on the bottom edge of the Middle block box, and its connector passes just under the box, so the label and the box border collide."
+        }
+      ]
+    },
+    {
+      "captureId": "p3-light-r0",
+      "semantic": "pass",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf4",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "p3-light-r0",
+            "object": "training/sampling note"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "'Subtract the predicted noise step by step' simplifies real samplers (DDPM/DDIM rescale and may add noise back). Acceptable for a learner, but it is a simplification."
+        }
+      ]
+    }
+  ],
+  "accepted": false,
+  "calls": [
+    {
+      "identity": {
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "matches": true
+      },
+      "usage": {
+        "input_tokens": 3246,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 1030,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 1754,
+        "output_tokens_details": {
+          "thinking_tokens": 650
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "imageBlocks": 4
+    }
+  ]
+}
