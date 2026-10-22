@@ -87,6 +87,9 @@ export async function runMotionJob({
   prior = null, signal = null,
   // M7B: the backend for every render and the Author repair; Remotion unless the caller says otherwise.
   renderer = DEFAULT_RENDERER,
+  // Recovery (owner message 38): save(checkpoint) receives the job's reusable state whenever it changes (a valid composition,
+  // then its review), and resume {findings} starts a recovery attempt at the repair with a saved review's exact findings.
+  save = () => {}, resume = null,
 }) {
   const stop = () => checkpoint(signal);
   const polling = signal ? { sleep: abortableSleep(signal) } : {};
@@ -108,7 +111,9 @@ export async function runMotionJob({
   const set = status => { if (!JOB_STATUSES.includes(status)) throw Error(status); job.status = status; job.updated_at = at(); log(`job: ${status}`); };
   const record = r => { out.calls.push(...(r.calls || [])); job.format_retries.push(...(r.format_retries || [])); job.transport_retries.push(...(r.transport_retries || [])); };
   const finish = () => ({ ...out, job_errors: validateJob(job) });
-  const fail = reason => { job.failure_reason = reason; set('failed'); return finish(); };
+  // cause: what recovery fits (pipeline.mjs CAUSES): content, renderer or model.
+  const fail = (reason, cause) => { job.failure_reason = reason; out.cause = cause; set('failed'); return finish(); };
+  const keep = (composition, findings = []) => save({ storyboard: current.storyboard, composition, findings, frames: job.preview_refs?.keyframes ?? [] });
 
   let current = { storyboard, author };
   // round: the Author's pass, 0 first and 1 after the Author repair.
@@ -118,19 +123,22 @@ export async function runMotionJob({
     const pass = { round, author: a?.status ?? null };
     out.passes.push(pass);
     let findings = [];
-    if (a?.status === 'failed') return fail(`author${round ? ' (Author repair)' : ''}: ${a.error}: ${a.detail}`);
+    if (a?.status === 'failed') return fail(`author${round ? ' (Author repair)' : ''}: ${a.error}: ${a.detail}`, 'model');
     if (a?.status === 'needs_revision') {
       pass.reason = a.output.reason;
-      if (afterNeedsRevision(job) === 'fail') return fail(`the Author returned needs_revision with a repair already spent (storyboard ${job.repairs.storyboard}, Author ${job.repairs.author}): ${a.output.reason}`);
+      if (afterNeedsRevision(job) === 'fail') return fail(`the Author returned needs_revision with a repair already spent (storyboard ${job.repairs.storyboard}, Author ${job.repairs.author}): ${a.output.reason}`, 'content');
     } else {
       if (a?.status === 'author_invalid') findings = [harness(round, 'renderer_failure', `The composition broke the Author contract: ${a.check.errors.slice(0, 5).join('; ')}`)];
+      // A recovery attempt's first pass: the saved review's findings, so the repair starts without reviewing again.
+      else if (resume?.findings && round === 0) findings = resume.findings;
       else {
+        keep({ output: a.output, state: 'unreviewed' });
         stop();
         set('rendering_preview');
         const p = await preview({ brief, storyboard: current.storyboard, author: a, service, dir: roundDir, origin, renderer, ...polling });
         pass.preview = p.submitted ? p.result : { submitted: false, reason: p.reason, errors: p.errors };
         const infra = renderInfraFailure(p);
-        if (infra) return fail(`the renderer failed, not the composition (${infra}); the Author repair was not used`);
+        if (infra) return fail(`the renderer failed, not the composition (${infra}); the Author repair was not used`, 'renderer');
         findings = harnessFindings(p, round);
         if (p.submitted && p.result.status === 'ready') {
           job.preview_refs = { video: `round-${round}/preview.mp4`, contact_sheet: `round-${round}/contact-sheet.png`, keyframes: p.result.frames.map(f => `round-${round}/${f.file}`) };
@@ -140,7 +148,7 @@ export async function runMotionJob({
           const reviews = await Promise.all(reviewers.map(reviewer => review({ reviewer, brief, storyboard: current.storyboard, frames: p.result.frames, dir: roundDir, call, env, effort, round })));
           for (const [i, r] of reviews.entries()) {
             record(r);
-            if (r.status !== 'reviewed') return fail(`${reviewers[i]} review${round ? ' (after the Author repair)' : ''}: ${r.error}: ${r.detail}`);
+            if (r.status !== 'reviewed') return fail(`${reviewers[i]} review${round ? ' (after the Author repair)' : ''}: ${r.error}: ${r.detail}`, 'model');
             findings.push(...r.findings);
           }
         }
@@ -149,17 +157,18 @@ export async function runMotionJob({
       const { blocking, advisory } = classifyFindings(findings);
       const decision = afterReview(job, findings);
       Object.assign(pass, { findings, blocking: blocking.length, advisory: advisory.length, decision });
-      if (decision === 'fail') return fail(`still blocking after the Author repair: ${[...new Set(blocking.map(f => f.category))].join(', ')}`);
+      if (a?.status === 'composition') keep({ output: a.output, state: decision === 'render_final' ? 'accepted' : 'blocking' }, findings);
+      if (decision === 'fail') return fail(`still blocking after the Author repair: ${[...new Set(blocking.map(f => f.category))].join(', ')}`, 'content');
       if (decision === 'render_final') {
         stop();
         set('rendering_final');
         const r = await final({ brief, storyboard: current.storyboard, author: a, service, dir: join(dir, 'final'), origin, renderer, ...polling });
-        if (!r.submitted) return fail(`final render refused: ${r.reason}`);
+        if (!r.submitted) return fail(`final render refused: ${r.reason}`, 'renderer');
         out.render = r.result;
         out.composition = { composition_id: a.output.composition_id, source: a.output.source };
         set('validating_final');
         job.final_validation = r.result.validation;
-        if (r.result.status !== 'ready') return fail(`final: ${r.result.status}: ${r.result.failure.category}: ${r.result.failure.detail}`);
+        if (r.result.status !== 'ready') return fail(`final: ${r.result.status}: ${r.result.failure.category}: ${r.result.failure.detail}`, r.result.status === 'render_failed' ? 'renderer' : 'content');
         job.final_ref = 'final/final.mp4'; // ponytail: a job-directory file until M7 stores it in LEARN_MEDIA
         set('ready');
         return finish();
@@ -183,7 +192,7 @@ export async function runMotionJob({
       const s = await revise({ brief, call, env, effort, round: 1, revision: { storyboard: sb, findings: blocking } });
       record(s);
       out.repair.storyboard = { status: s.status, ...(s.check?.errors?.length ? { errors: s.check.errors } : {}), ...(s.error ? { error: s.error, detail: s.detail } : {}) };
-      if (s.status !== 'storyboard') return fail(`storyboard repair (Director revision): ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`);
+      if (s.status !== 'storyboard') return fail(`storyboard repair (Director revision): ${s.status}${s.error ? `: ${s.error}: ${s.detail}` : `: ${s.check.errors.slice(0, 3).join('; ')}`}`, s.status === 'failed' ? 'model' : 'content');
       sb = s.storyboard;
       job.storyboard = sb;
       out.storyboard_revised = true;

@@ -145,8 +145,12 @@ export class MotionRequestProvider {
   }
   // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
   // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
-  async submit(input, spend, repository = null, timeoutMs = 20000) {
-    const response = await this.request('/jobs', { method: 'POST', timeoutMs, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+  // recover {mode, checkpoint, seal}: a recovery attempt (POST /recover) from the sealed checkpoint the worker saved; it is
+  // admitted, answered and reconciled exactly as a new job is.
+  async submit(input, spend, repository = null, timeoutMs = 20000, recover = null) {
+    const response = await this.request(recover ? '/recover' : '/jobs', { method: 'POST', timeoutMs, body: recover
+      ? { idempotency_key: spend.opId, grant: spend.grant, mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal }
+      : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);
@@ -173,6 +177,13 @@ export class MotionRequestProvider {
   async job(ticket) {
     const response = await this.request(`/jobs/${ticket.id}`);
     if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Motion orchestrator HTTP ${response.status}`);
+    return response.json();
+  }
+  // The job's recovery artifacts (orchestrator GET /jobs/<id>/artifacts): its sealed checkpoint, cause, actions, findings and
+  // keyframes. Read while it runs (each new checkpoint) and once it ends, before its record can go.
+  async artifacts(ticket) {
+    const response = await this.request(`/jobs/${ticket.id}/artifacts`);
     if (!response.ok) throw new Error(`Motion orchestrator HTTP ${response.status}`);
     return response.json();
   }
