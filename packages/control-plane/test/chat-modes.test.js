@@ -845,6 +845,49 @@ test('CR-1 hand-off: a signed chat route to Motion makes the ordinary turn its p
   assert.equal(f.calls.length, 2, 'the proposal and the reply: no Director, author or render call');
 });
 
+test('CR-1 through the real route with a simulated JEV: an Ask-mode question routes to answer and /ask answers it; an Ask-mode video request gets a token /ask accepts; a malformed JEV body falls back', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV, { VERCEL_TYPESAFE_API_KEY: 'test-only' }); // a JEV transport; the JEV call itself is the stub below
+  const { chatRouteFetch } = await import('../src/chat-capability-route.js');
+  const { chatRouteAnswer } = await import('../../web/e2e/dev-cp.mjs');
+  const authorize = async () => ({ email: owner.email, org: owner.org, kind: 'owner' });
+  const jevSays = body => { const ask = async () => { ask.calls += 1; return { body, ms: 40, model: 'jev-1.13.0', inputTokens: 600, cost: 0.0000252 }; }; ask.calls = 0; return ask; };
+  const choice = name => ({ model: 'jev-1.13.0', answers: { route: { type: 'choice', choice: name, confidence: 0.9, probabilities: { [name]: 0.92 } } } });
+  const route = async (text, ask, over = {}) => {
+    const res = await chatRouteFetch(new Request('https://dev.test/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request_id: 'req-00000001', app: 'canvas-0a1b2c3d', text, mode: 'ask', ...over }) }), f.env, { authorize, ask });
+    assert.equal(res.status, 200);
+    return res.json();
+  };
+  // An Ask-mode question: one JEV call, an answer with no token, exactly the e2e fixture's fields; /ask then answers it.
+  const question = 'Why does a metal spoon feel colder than a wooden one?';
+  const asked = jevSays(choice('answer'));
+  const answered = await route(question, asked);
+  assert.equal(asked.calls, 1, 'Ask mode is routed: one JEV call');
+  assert.deepEqual([answered.route, answered.via, answered.args, answered.token, answered.retryable], ['answer', 'jev', question, null, false]);
+  const fixtureAnswer = chatRouteAnswer({ text: question });
+  assert.deepEqual(Object.keys(answered).sort(), Object.keys(fixtureAnswer).sort(), 'the e2e fixture has every field the server answers');
+  assert.deepEqual(Object.keys(answered.meta).sort(), Object.keys(fixtureAnswer.meta).sort());
+  const plain = await f.ask({ message: question, mode: 'ask' });
+  assert.equal(plain.res.status, 200);
+  assert.equal(plain.events.at(-1).event, 'done');
+  assert.ok(!(f.calls.at(-1).tools || []).some(tool => tool.name === 'propose_generation'), 'an answer: no proposal tool');
+  // An Ask-mode video request: JEV picks Motion, the route signs a token bound to this turn, and /ask makes it the proposal turn.
+  const words = 'Create a 15-second animated explanation of photosynthesis';
+  const video = await route(words, jevSays(choice('motion')), { motion: { concept: 'Weather' } });
+  assert.deepEqual([video.route, video.flow, video.via, typeof video.token], ['capability:motion', 'proposal', 'jev', 'string']);
+  const sent = f.calls.length;
+  f.replies.push(proposeCall('tu-ask'), 'Here is a proposal.\n<answer_meta>{}</answer_meta>');
+  const proposed = await f.ask({ message: words, mode: 'ask', generation: { motion: { concept: 'Weather' } }, route_token: video.token });
+  assert.equal(proposed.res.status, 200);
+  assert.deepEqual(f.calls[sent].tools.map(tool => tool.name), ['propose_generation'], 'the token makes it the /motion proposal turn');
+  assert.equal(proposed.events.find(e => e.event === 'answer_meta').data.proposal.command, 'motion');
+  const moved = await f.ask({ message: words, mode: 'auto', generation: { motion: { concept: 'Weather' } }, route_token: video.token });
+  assert.deepEqual([moved.res.status, (await moved.res.json()).code], [400, 'route_mismatch'], 'the token is bound to the mode it was routed in');
+  // A malformed JEV body: the answer fallback (retryable), never a capability or a token.
+  const broken = await route(question, jevSays({ model: 'jev-1.13.0', answers: { route: { type: 'choice', choice: 'rocket', confidence: 1, probabilities: { rocket: 1 } } } }));
+  assert.deepEqual([broken.route, broken.via, broken.code, broken.retryable, broken.token, broken.capability], ['answer', 'fallback', 'malformed', true, null, null]);
+});
+
 test('paused or with no orchestrator, a /motion chat turn is answered before any model call; without the generation fields no tool rides', async t => {
   const f = fixture(t);
   Object.assign(f.env, MOTION_ENV, { MOTION_GENERATION_PAUSED: '1' });

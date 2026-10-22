@@ -12,6 +12,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { chatRouteAnswer } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9101';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9103';
@@ -75,6 +76,8 @@ const router = async route => {
       + frame('answer_meta', { messageId: `m-${n}`, actions: [], followUps: [], alternatives: [`m-${n}`], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id, userMessageId: `u-${n}`, messageId: `m-${n}` }) });
   }
+  // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
+  if (request.method() === 'POST' && url.pathname === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(JSON.parse(route.request().postData() || '{}')) });
   if (MODEL.test(url.pathname) && request.method() !== 'GET') { refused.push(url.pathname); return route.abort(); }
   return route.fallback();
 };

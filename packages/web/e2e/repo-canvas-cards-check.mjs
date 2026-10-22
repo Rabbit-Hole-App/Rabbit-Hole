@@ -18,6 +18,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { COMMIT, REPO, SNAPSHOT, content, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { mockChatRoute } from './dev-cp.mjs';
 
 // ---------------------------------------------------------------- names the lanes own (aligned at merge)
 // Labels are the brief's own words (section 1 and "Card contents"); data-* names not fixed by the contract live here only.
@@ -159,6 +160,8 @@ const openContext = async ({ viewport = { width: 1800, height: 1000 }, as = sess
     await routeRepository(context); // registered first, so the router below runs first and falls back to it
   }
   await context.route('**/*', router);
+  // CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+  await mockChatRoute(context);
   page = await context.newPage();
   page.setDefaultTimeout(15000); // an action on a missing control fails in 15 s instead of waiting forever
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));

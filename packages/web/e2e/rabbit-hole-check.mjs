@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
-import { DEV_CP } from './dev-cp.mjs';
+import { DEV_CP, mockChatRoute } from './dev-cp.mjs';
 import { COMMIT, REPO, repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
 
 const LOCAL = process.env.LOCAL === '1';
@@ -55,6 +55,9 @@ const localGuard = async (context) => {
   if (!LOCAL) return;
   await routeRepository(context);
   await context.route('**/api/learn/ask', (route) => route.abort());
+  // CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs). The local
+  // stack has no JEV key, so the real route would fall back and the Ask turns below would never reach /api/learn/ask.
+  await mockChatRoute(context);
 };
 // LOCAL only: the stubbed project's row in local D1, so POST /api/canvases with project REPO finds it (canvases.js). A canvas
 // create needs only repository_apps (no learn_boards main board). Delete first, so a rerun on the same persist works; it is
