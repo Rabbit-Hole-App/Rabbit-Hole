@@ -112,7 +112,7 @@ test('time coverage is honest: a static scene has one checkpoint and is complete
   assert.deepEqual(timeCheckpoints(scene([box('a')], { duration: 3 })), [3]);
   assert.deepEqual(timeCheckpoints(scene([box('a')], { duration: 3, timeline: [{ at: 0.5, action: 'appear', target: 'a', duration: 1 }, { at: 5, action: 'pause' }] })), [0.5, 1.5, 3]);
   const compiled = compileVisual({ version: 1, id: 'c', title: 'C', components: [{ id: 'a', component: 'module', version: 1, params: { label: 'A' } }], presentation: { mode: 'static' } });
-  assert.deepEqual(compiled.coverage, { states: 1, timeCheckpoints: [1], complete: true });
+  assert.deepEqual(compiled.coverage, { states: 1, timeCheckpoints: [1], complete: true, stateInputs: [{}] });
   const review = measureScene(compiled.scene).review;
   assert.deepEqual(review, { captures: 2, imageTokens: 2 * 4784 });
 });

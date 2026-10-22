@@ -271,6 +271,59 @@
         "render": "pass",
         "semantic": "unrun"
       }
+    },
+    {
+      "example": "pendulum-experiment",
+      "version": 1,
+      "id": "pendulum-experiment",
+      "family": "physics-pendulum",
+      "run": "bundled-r2-l3",
+      "split": "development",
+      "specHash": "fnv64-d66ca1261939585e",
+      "componentVersions": {
+        "pendulum": 1,
+        "callout": 1
+      },
+      "reuse": "eligible",
+      "intent": "A to-scale pendulum with length and mass experiments: geometry, period readout and plot point change together; mass is an invariant",
+      "tags": [
+        "experiment",
+        "invariant",
+        "plot"
+      ],
+      "provenance": "Lane L3 bundled example (r2), written for /explain from textbook physics and ordinary cache behaviour; every admitted state rendered and inspected in both themes (renders/r2-l3)",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "cache-paths",
+      "version": 1,
+      "id": "cache-paths",
+      "family": "web-request",
+      "run": "bundled-r2-l3",
+      "split": "development",
+      "specHash": "fnv64-aee8364e1def2363",
+      "componentVersions": {
+        "flow": 1
+      },
+      "reuse": "eligible",
+      "intent": "A flow whose case control switches between a cache hit (route round the skipped steps) and a miss",
+      "tags": [
+        "experiment",
+        "flow",
+        "cases"
+      ],
+      "provenance": "Lane L3 bundled example (r2), written for /explain from textbook physics and ordinary cache behaviour; every admitted state rendered and inspected in both themes (renders/r2-l3)",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
     }
   ]
 }
