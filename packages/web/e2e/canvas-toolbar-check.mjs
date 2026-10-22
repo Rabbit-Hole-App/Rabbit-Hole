@@ -5,13 +5,15 @@
 // Chat pane's, no canvas dock). The strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are
 // cutting the canvas too much"): the canvas runs to the bottom under it, the empty strip passes the pointer to the canvas,
 // and zoom to fit frames every card clear of it. Chrome may float over the canvas but never hides what the learner cannot
-// reach, so the edge probes stop above the strip, and on a phone the tools' strip sits above the canvas.
+// reach, so the edge probes stop above the strip. UI-19 (owner, 2026-10-21): the tools stay one vertical column left of the
+// canvas at every width, there is no separate Show/Hide overview button, and the one minimap is the bottom strip's.
 // Desktop (the review viewport, 1720 x 1100): the widest card is panned hard right, then hard left; the
 // card is on top all along each canvas edge, the tools, navigator and minimap sit wholly outside the
 // canvas surface, the minimap stays on the canvas, clear of the Chat pane. A wheel over empty gutter space pans the canvas;
 // the tools still work; zoom stays 100%. Wide screen (2200 x 1200): the same shell. Phone (390 x 844):
-// the canvas has a real working height, the tools are a scrolling strip below it, the overview opens
-// below the strip (not over the card), the zoom controls sit clear of the Chat pane's composer (a tap on its
+// the canvas has a real working height, the tools are the same vertical column left of it (scrolling its last control into
+// view), no overview toggle, the minimap above the zoom row clear of the tools and the composer, the zoom controls sit clear
+// of the Chat pane's composer (a tap on its
 // field reaches the field; the Chat side of the Chat/Sources switch when the phone shows one) and of the canvas, and the
 // table of contents is reachable.
 //
@@ -45,15 +47,16 @@ const fail = message => { failures.push(message); console.log(`  ✗ ${message}`
 const browser = await chromium.launch();
 const results = {};
 
-// Surface, gutter, toolbar and overview rectangles, straight from the DOM.
+// Surface, gutter, toolbar and minimap rectangles, straight from the DOM.
 const geometry = page => page.evaluate(() => {
   const box = element => { if (!element) return null; const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
   return {
     surface: box(document.querySelector('[data-canvas-surface]')),
     gutter: box(document.querySelector('[data-tool-gutter]')),
     toolbar: box(document.querySelector('[role="toolbar"][aria-label="Canvas tools"]')),
-    // The gutter overview is the phone strip's; the desktop minimap is the bottom strip's.
-    overview: box(document.querySelector('[data-tool-gutter] [aria-label="Canvas overview"]')?.parentElement),
+    // UI-19: one minimap on the page, the bottom strip's; none in the tools' gutter.
+    minimaps: document.querySelectorAll('[aria-label="Canvas overview"]').length,
+    gutterMinimap: !!document.querySelector('[data-tool-gutter] [aria-label="Canvas overview"]'),
     minimap: (() => { const r = document.querySelector('[data-canvas-minimap] [aria-label="Canvas overview"]')?.getBoundingClientRect(); return r && r.width ? { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom } : null; })(),
     navigator: box(document.querySelector('[data-dive-navigator]')),
     composer: box(document.querySelector('[data-chat-pane] [data-chat-composer]')),
@@ -157,7 +160,8 @@ async function probeEdge(page, card, title, label, side = 'right') {
     if (g.minimap.w < 150) fail(`desktop: the minimap is only ${Math.round(g.minimap.w)}px wide`);
     aligned(g, 'desktop');
   }
-  if (g.overview) fail('desktop: the gutter overview is open; the desktop minimap is the bottom strip\'s');
+  if (g.gutterMinimap || g.minimaps !== 1) fail(`desktop: ${g.minimaps} minimap(s)${g.gutterMinimap ? ', one in the tools\' gutter' : ''}; the one minimap is the bottom strip's (UI-19)`);
+  if (await page.getByRole('button', { name: /^(Show|Hide) overview$/ }).count()) fail('desktop: a separate Show/Hide overview button is back; View > Minimap owns the minimap (UI-19)');
   {
     const at = await page.evaluate(([gx, gy]) => {
       const r = document.querySelector('[title="Reset zoom"]').getBoundingClientRect();
@@ -286,10 +290,21 @@ if (local) {
   const { context, page, canvas } = await open({ width: 390, height: 844 });
   let g = await geometry(page);
   if (g.surface.h < 0.45 * 844) fail(`phone: the canvas is only ${Math.round(g.surface.h)}px tall`);
-  if (!disjoint(g.toolbar, g.surface) || g.toolbar.bottom > g.surface.y + 1) fail('phone: the tool strip is not above the canvas');
+  // UI-19: the same vertical tools column as on desktop, left of the canvas, never a strip above or below it.
+  if (!(g.toolbar.right <= g.surface.x + 0.5) || !disjoint(g.toolbar, g.surface)) fail(`phone: the tools ${JSON.stringify(round(g.toolbar))} are not left of the canvas ${JSON.stringify(round(g.surface))}`);
+  if (!disjoint(g.gutter, g.surface)) fail(`phone: the tools' gutter ${JSON.stringify(round(g.gutter))} overlaps the canvas`);
+  if (!(g.toolbar.h > g.toolbar.w)) fail(`phone: the tools ${JSON.stringify(round(g.toolbar))} are not a vertical column`);
   if (!(g.surface.bottom >= g.strip.bottom - 2)) fail(`phone: the canvas ${JSON.stringify(round(g.surface))} stops above the strip ${JSON.stringify(round(g.strip))}`);
-  if (g.toolbar.x < 0 || g.toolbar.right > 390) fail('phone: the tool strip runs off screen');
-  if (g.overview) fail('phone: the overview is open by default');
+  if (g.toolbar.x < 0 || g.toolbar.right > 390 || g.toolbar.y < 0 || g.toolbar.bottom > 844) fail('phone: the tools column runs off screen');
+  if (await page.getByRole('button', { name: /^(Show|Hide) overview$/ }).count()) fail('phone: a separate Show/Hide overview button is back; View > Minimap owns the minimap (UI-19)');
+  // The one minimap: lower left of the canvas, directly above the zoom row, clear of the tools column.
+  if (!g.minimap || g.gutterMinimap || g.minimaps !== 1) fail(`phone: not one minimap in the bottom strip (${g.minimaps}${g.gutterMinimap ? ', one in the tools\' gutter' : ''})`);
+  else {
+    if (!(g.minimap.bottom <= g.zoomRow.y + 0.5) || Math.abs(g.minimap.x - g.zoomRow.x) > 1.5 || g.zoomRow.y - g.minimap.bottom > 12) fail(`phone: the minimap ${JSON.stringify(round(g.minimap))} is not directly above the zoom row ${JSON.stringify(round(g.zoomRow))} on its left edge`);
+    if (!disjoint(g.minimap, g.toolbar)) fail(`phone: the minimap ${JSON.stringify(round(g.minimap))} overlaps the tools ${JSON.stringify(round(g.toolbar))}`);
+    if (g.minimap.x < 0 || g.minimap.right > 390) fail('phone: the minimap runs off screen');
+    aligned(g, 'phone');
+  }
   // The zoom row floats over the canvas now; the empty strip right of it passes the pointer to the canvas (measured before
   // the scroll to the Chat pane below).
   const through = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest('[data-canvas-surface]'), [(g.zoomRow.right + g.surface.right) / 2, g.zoomRow.y + g.zoomRow.h / 2]);
@@ -303,31 +318,29 @@ if (local) {
     const box = element => { if (!element) return null; const r = element.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; };
     const input = document.querySelector(FIELD), r = input.getBoundingClientRect();
     const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-    return { zoom: box(document.querySelector('[aria-label="Zoom controls"]')), form: box(input.closest('form')), surface: box(document.querySelector('[data-canvas-surface]')), onInput: !!hit && input.contains(hit), hit: hit?.closest('[aria-label]')?.getAttribute('aria-label') || hit?.tagName };
+    return { zoom: box(document.querySelector('[aria-label="Zoom controls"]')), minimap: box(document.querySelector('[data-canvas-minimap] [aria-label="Canvas overview"]')), form: box(input.closest('form')), surface: box(document.querySelector('[data-canvas-surface]')), onInput: !!hit && input.contains(hit), hit: hit?.closest('[aria-label]')?.getAttribute('aria-label') || hit?.tagName };
   }, FIELD);
   if (!dock.zoom || !dock.form) fail('phone: the zoom controls or the composer are missing');
   if (!disjoint(dock.zoom, dock.form)) fail(`phone: the zoom controls ${JSON.stringify(round(dock.zoom))} overlap the composer ${JSON.stringify(round(dock.form))}`);
+  if (!dock.minimap || !disjoint(dock.minimap, dock.form)) fail(`phone: the minimap ${JSON.stringify(round(dock.minimap))} is missing or overlaps the composer ${JSON.stringify(round(dock.form))}`);
   if (!dock.onInput) fail(`phone: a tap on the composer input lands on ${dock.hit}, not the input`);
   if (!through) fail('phone: the empty strip beside the zoom row does not reach the canvas');
   await page.getByRole('button', { name: 'Pen', exact: true }).click();
   const armed = await page.getByRole('button', { name: 'Pen', exact: true }).getAttribute('aria-pressed');
   if (armed !== 'true') fail('phone: the pen tool did not arm');
   await page.getByRole('button', { name: 'Select and move', exact: true }).click();
+  // The column scrolls (vertically, capped at the last whole control) when it does not fit; either way its last control,
+  // Style, comes wholly into view inside the column and the screen.
   const strip = page.locator('[role="toolbar"][aria-label="Canvas tools"]');
-  const scrollable = await strip.evaluate(el => el.scrollWidth > el.clientWidth);
-  await strip.evaluate(el => { el.scrollLeft = el.scrollWidth; });
-  const styleBox = await strip.locator('[aria-label="Style"]').boundingBox();
-  if (!scrollable || !styleBox || styleBox.x < 0 || styleBox.x + styleBox.width > 390) fail('phone: the strip does not scroll its last control into view');
-  await strip.evaluate(el => { el.scrollLeft = 0; });
-  await page.getByRole('button', { name: 'Show overview', exact: true }).click();
-  await page.waitForTimeout(400);
-  g = await geometry(page);
-  if (!g.overview) fail('phone: Show overview did not open it');
-  if (!disjoint(g.overview, g.surface)) fail('phone: the open overview overlaps the canvas');
-  if (g.overview && g.overview.y < g.toolbar.bottom - 1) fail('phone: the open overview is not below the strip');
+  const scrollable = await strip.evaluate(el => el.scrollHeight > el.clientHeight);
+  await strip.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  const styleBox = await strip.locator('[aria-label="Style"]').boundingBox(), column = await strip.boundingBox();
+  if (!styleBox || !column || styleBox.y < column.y - 0.5 || styleBox.y + styleBox.height > column.y + column.height + 0.5 || styleBox.y + styleBox.height > 844) fail('phone: the tools column does not bring its last control into view');
+  await strip.evaluate(el => { el.scrollTop = 0; });
   await reveal(page, canvas, cardLocator(canvas, cards[0]));
-  await page.screenshot({ path: `${OUT}/phone-canvas-strip-overview.png` });
-  const heightWithOverview = Math.round(g.surface.h);
+  g = await geometry(page);
+  await page.screenshot({ path: `${OUT}/phone-canvas-tools-column.png` });
+  const workingHeight = Math.round(g.surface.h);
   // The right panel starts closed (Learn, 2026-09-28); opened, it stacks under the canvas on a phone.
   const showPanel = page.getByRole('button', { name: 'Show the right panel' }).first();
   if (await showPanel.count()) { await showPanel.click(); await page.waitForTimeout(500); }
@@ -339,8 +352,8 @@ if (local) {
   await toc.scrollIntoViewIfNeeded();
   const tocVisible = await toc.isVisible();
   if (!tocVisible) fail('phone: the table of contents cannot be scrolled into view');
-  results.phone = { surface: round((await geometry(page)).surface), heightWithOverview, strip: round(g.toolbar), overview: round(g.overview), zoomControls: round(dock.zoom), composer: round(dock.form), composerTappable: dock.onInput, penArmed: armed === 'true', stripScrolls: scrollable, tocReachable: tocVisible };
-  console.log(`phone: canvas ${results.phone.surface.h}px tall (${heightWithOverview}px with the overview open), strip below it scrolls, overview opens below the strip, zoom controls clear of the composer, table of contents reachable`);
+  results.phone = { surface: round((await geometry(page)).surface), workingHeight, toolbar: round(g.toolbar), minimap: round(g.minimap), zoomControls: round(dock.zoom), composer: round(dock.form), composerTappable: dock.onInput, penArmed: armed === 'true', toolbarScrolls: scrollable, tocReachable: tocVisible };
+  console.log(`phone: canvas ${workingHeight}px tall, tools a vertical column left of it (${scrollable ? 'scrolling' : 'fits'}), no overview toggle, one minimap above the zoom row, zoom controls and minimap clear of the composer, table of contents reachable`);
   await context.close();
 }
 

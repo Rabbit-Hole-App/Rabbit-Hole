@@ -340,6 +340,74 @@ await check('View > Rabbit Hole Map off, then on: the map hides and comes back i
   assert.ok(Math.abs(on.surface.w - before.surface.w) <= 1, `the canvas width is unchanged: ${Math.round(before.surface.w)} -> ${Math.round(on.surface.w)}`);
 });
 
+// UI-19 (owner, 2026-10-21): the canvas tools stay one vertical column left of the canvas at every panel width, and the one
+// minimap sits lower left above the zoom row (View > Minimap owns it) - no Show/Hide overview button, no strip under a
+// narrow canvas. Checked with two, one and no right panels, a canvas row either side of 640/641 px, in dark mode and after
+// a reload; the tools answer the keyboard. The next step then proves no card moved.
+const controls = () => page.evaluate(() => {
+  const r = s => { const b = document.querySelector(s)?.getBoundingClientRect(); return b && b.width ? { x: b.x, y: b.y, w: b.width, h: b.height, right: b.right, bottom: b.bottom } : null; };
+  return { surface: r('[data-canvas-surface]'), row: { w: document.querySelector('[data-canvas-surface]')?.parentElement.getBoundingClientRect().width || 0 },
+    toolbar: r('[role="toolbar"][aria-label="Canvas tools"]'), minimap: r('[data-canvas-minimap] [aria-label="Canvas overview"]'), zoom: r('[data-zoom]'),
+    minimaps: document.querySelectorAll('[aria-label="Canvas overview"]').length, overviewButtons: document.querySelectorAll('[aria-label="Show overview"],[aria-label="Hide overview"]').length };
+});
+const controlsHold = async label => {
+  const c = await controls();
+  assert.ok(c.toolbar && c.surface, `${label}: the Canvas tools toolbar and the canvas are on screen`);
+  assert.ok(c.toolbar.h > c.toolbar.w && c.toolbar.right <= c.surface.x + 0.5, `${label}: the toolbar is a vertical column left of the canvas, never over cards: ${JSON.stringify({ toolbar: c.toolbar, surface: c.surface })}`);
+  assert.equal(c.overviewButtons, 0, `${label}: no Show/Hide overview button`);
+  assert.equal(c.minimaps, 1, `${label}: one canvas minimap`);
+  assert.ok(c.minimap && c.zoom && c.minimap.bottom <= c.zoom.y + 0.5 && Math.abs(c.minimap.x - c.zoom.x) <= 1, `${label}: the minimap sits directly above the zoom row: ${JSON.stringify({ minimap: c.minimap, zoom: c.zoom })}`);
+  assert.ok(c.minimap.x < c.surface.x + c.surface.w / 2 && c.minimap.y > c.surface.y + c.surface.h / 2, `${label}: the minimap is at the canvas's lower left: ${JSON.stringify({ minimap: c.minimap, surface: c.surface })}`);
+  return c;
+};
+const acrossNarrow = async label => {
+  const viewport = page.viewportSize(), seen = [];
+  for (const target of [641, 640]) {
+    for (let i = 0; i < 3; i += 1) { const c = await controls(); await page.setViewportSize({ width: page.viewportSize().width + target - Math.round(c.row.w), height: viewport.height }); await settle(); }
+    const c = await controlsHold(`${label}, row ${target}`);
+    seen.push(Math.round(c.row.w));
+    await shot(`06d-ui19-${label.replace(/\W+/g, '-')}-${target}`);
+  }
+  assert.ok(seen.some(w => w <= 640) && seen.some(w => w >= 641), `${label}: rows on both sides of 640/641 px: ${seen.join(', ')}`);
+  await page.setViewportSize(viewport);
+  await settle();
+};
+await check('UI-19: two, one and no right panels, rows across 640/641 px, dark mode, reload and the keyboard: the tools a vertical column at the left, one minimap above the zoom row, no overview toggle', async () => {
+  assert.ok(await chatOpen(), 'Chat is open (one right panel)');
+  await controlsHold('one panel');
+  await acrossNarrow('one panel');
+  await page.locator('[data-panel-companion]').click({ timeout: 5000 });
+  await settle();
+  assert.equal((await geometry()).panels, 2, 'Chat and the companion column are open');
+  await controlsHold('two panels');
+  await page.locator('[data-companion-close]').click({ timeout: 5000 });
+  await page.getByRole('button', { name: 'Hide the right panel' }).click({ timeout: 5000 });
+  await settle();
+  assert.equal((await geometry()).panels, 0, 'no right panel is open');
+  await controlsHold('no panel');
+  await acrossNarrow('no panel');
+  await page.getByRole('button', { name: 'Show the right panel' }).click({ timeout: 5000 });
+  await settle();
+  assert.ok(await chatOpen(), 'Chat is open again');
+  // The keyboard: a focused tool takes Enter.
+  const toolbar = page.getByRole('toolbar', { name: 'Canvas tools' });
+  for (const name of ['Rectangle', 'Select and move']) {
+    await toolbar.getByRole('button', { name, exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await waitFor(async () => (await toolbar.getByRole('button', { name, exact: true }).getAttribute('aria-pressed')) === 'true', 3000, `Enter on the focused ${name} tool did not arm it`);
+  }
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await settle();
+  await controlsHold('dark');
+  await shot('06e-ui19-dark');
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.reload();
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  await page.locator('[data-tool-gutter]').waitFor({ timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await controlsHold('after a reload');
+});
+
 await check('every saved card position and size is unchanged by opening, closing, resizing and zooming', async () => {
   assert.deepEqual(await saved(), positions);
 });
@@ -427,7 +495,7 @@ await check('nothing left the local stack, no page error; every model-capable re
 
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ canvas: canvas.name, results, facts }, null, 2));
 await browser.close();
-const total = 19;
+const total = 20;
 const passed = results.filter(r => r.ok).length;
 console.log(`${passed}/${total} checks passed`);
 process.exit(passed === total && results.length === total ? 0 : 1);
