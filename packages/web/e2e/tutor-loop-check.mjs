@@ -101,7 +101,7 @@ const open = async page => {
   await page.waitForTimeout(1500);
 };
 const openProgress = async page => {
-  if (!(await progress(page).isVisible().catch(() => false))) await page.locator('[data-canvas-header]').getByRole('button', { name: 'Progress', exact: true }).click(); // the canvas toolbar (owner 2026-10-21)
+  if (!(await progress(page).isVisible().catch(() => false))) await page.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true }).click(); // the right panel's header (owner 2026-10-21)
   await progress(page).locator('[data-progress-count], [data-progress-empty]').first().waitFor({ timeout: 15000 });
 };
 const skills = page => progress(page).locator('[data-progress-skill]').evaluateAll(nodes => nodes.map(node => node.dataset.progressSkill));

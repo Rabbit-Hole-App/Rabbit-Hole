@@ -136,13 +136,13 @@ await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
 // Owner UI brief 2026-10-20 section 7: Links left the tray for Search's Links filter (toc-links-search-check.mjs), so four tabs.
-await check('1 the header is seven icon buttons in the owner\'s order: four tabs (Chat first, Comments last, no Links), the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
+await check('1 the header is eight icon buttons in the owner\'s order: four tabs (Chat first, Comments last, no Links), the Progress toggle next to Comments, the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
-  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
+  assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Progress', 'Progress'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
-  assert.equal(await header.locator('button svg').count(), 7);
+  assert.equal(await header.locator('button svg').count(), 8);
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 4, 'the four tabs share one group');
   // Owner brief 2026-10-16 items 3-4: one Context / Files / Graph control (named Context on a canvas with no repository), not a tab,
   // set apart from the navigation icons by spacing.
@@ -346,21 +346,24 @@ await check('13 Close shuts the panel and changes no canvas content', async () =
 });
 await shot('05-closed');
 
-// Owner 2026-10-21: Progress left Chat's header for the canvas toolbar, right after Comments. With the right side hidden (13),
-// it opens the Progress column and reveals the right side; by keyboard: Enter opens, Escape closes and refocuses it, Space toggles.
-await check('13b Progress sits in the canvas toolbar right after Comments, not in Chat\'s header, and toggles its pane by keyboard', async () => {
-  const progress = page.locator('[data-canvas-header]').getByRole('button', { name: 'Progress', exact: true });
+// Owner 2026-10-21: Progress left Chat's header for the right panel's header, right after the Comments tab; a pressed toggle, not
+// a tab, and not in the canvas toolbar. By keyboard: Enter opens its pane, Escape closes it and refocuses the icon, Space toggles.
+await check('13b Progress sits in the panel header right after the Comments tab, not in the toolbar or Chat\'s header, and toggles its pane by keyboard', async () => {
+  await openPanel();
+  const progress = page.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true });
   const companion = async () => (await page.locator('[data-companion]').boundingBox())?.width ?? 0;
-  assert.equal(await progress.count(), 1, 'one Progress button in the toolbar');
-  assert.equal(await progress.evaluate(node => node.previousElementSibling?.hasAttribute('data-comments-header')), true, 'right after Comments');
-  assert.equal(await page.locator('[data-chat-header] [data-chat-progress]').count(), 0, 'no longer in Chat\'s header');
+  assert.equal(await progress.count(), 1, 'one Progress button in the panel header');
+  assert.equal(await progress.evaluate(node => node.previousElementSibling?.querySelector('[role="tab"]:last-child')?.dataset.panelTab), 'comments', 'right after the Comments tab');
+  assert.equal(await progress.getAttribute('role'), null, 'a toggle, not a tab');
+  const [tabBox, progressBox] = [await page.locator('[data-panel-tab="comments"]').boundingBox(), await progress.boundingBox()];
+  assert.ok(progressBox.x - (tabBox.x + tabBox.width) < 12 && Math.abs(progressBox.y - tabBox.y) < 4, 'visibly next to Comments');
+  assert.equal(await page.locator('[data-canvas-header] [data-chat-progress], [data-chat-header] [data-chat-progress]').count(), 0, 'not in the toolbar or Chat\'s header');
   assert.equal(await progress.getAttribute('title'), 'Progress');
   assert.equal(await progress.getAttribute('aria-pressed'), 'false');
   await progress.focus();
   await page.keyboard.press('Enter');
   await page.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
   assert.equal(await progress.getAttribute('aria-pressed'), 'true');
-  assert.equal(await isOpen(), true, 'the hidden right side is revealed');
   await expect(page.locator('#progress-title')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(progress).toHaveAttribute('aria-pressed', 'false');
@@ -370,7 +373,7 @@ await check('13b Progress sits in the canvas toolbar right after Comments, not i
   await page.keyboard.press('Space');
   await expect(progress).toHaveAttribute('aria-pressed', 'true');
   await page.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
-  await shot('05b-progress-toolbar');
+  await shot('05b-progress-panel-header');
   await progress.focus();
   await page.keyboard.press('Space');
   await expect(progress).toHaveAttribute('aria-pressed', 'false');
