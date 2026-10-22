@@ -16,6 +16,7 @@ test('empty, whitespace or unchanged keeps the old title and the same array', ()
 
 test('a card without a title is not renamable', () => {
   assert.equal(renamable(blocks[1]), false);
+  assert.equal(renamable({ id: 'w', type: 'wiki', title: 'Tide' }), false);
   assert.equal(renameBlock(blocks, 'b', 'X'), blocks);
 });
 
