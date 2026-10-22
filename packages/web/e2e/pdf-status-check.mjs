@@ -65,6 +65,8 @@ const router = async route => {
     if (failNextPutFor === id) { failNextPutFor = null; return route.fulfill({ status: 500, json: { error: 'Fixture: storing the pages failed.' } }); }
     return route.fallback();
   }
+  // Reads go through, as in context-remove-check: a GET (the Journey state the canvas reads on open) calls no model.
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return route.fallback();
   if (MODEL.test(path)) { refused.push(`${method} ${path}`); return route.abort(); }
   return route.fallback();
 };

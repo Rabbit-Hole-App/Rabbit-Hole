@@ -258,6 +258,7 @@ test('Context row metadata: pages, how a long PDF is read, pages without text; l
   assert.equal(C.docMeta(doc), `PDF · 2 KB · ${day}`, 'a legacy row has no page count');
   assert.equal(C.docNote({ ...doc, reads: 'pages', noText: 3 }), 'Questions read the relevant pages · 3 pages without text');
   assert.equal(C.docNote({ ...doc, reads: 'whole', noText: 0 }), '');
+  assert.equal(C.docNote({ ...doc, reads: 'pages', status: 'failed', noText: 0 }), '', 'a failed PDF never reads as readable by page');
   assert.equal(C.docNote(doc), '');
 });
 
