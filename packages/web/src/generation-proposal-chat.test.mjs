@@ -74,10 +74,10 @@ test('route: the bound fields come from the ask payload; each decision becomes s
   assert.equal(sent.at(-1)[1].capability, 'motion', 'a clarification option asks again with the capability named');
 });
 
-test('the Chat routes plain turns and proposed commands; other command prompts, regenerations and Tutor turns do not', async () => {
+test('the Chat routes plain turns and proposed commands; explicit Ask turns, other command prompts, regenerations and Tutor turns do not', async () => {
   const { readFileSync } = await import('node:fs');
   const ask = readFileSync(new URL('./ask.jsx', import.meta.url), 'utf8');
-  assert.ok(ask.includes("if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; other command prompts never loop back through it');
+  assert.ok(ask.includes("if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName && (routeAs || payload.mode !== 'ask')) || reviewRequired(commandName))) {"), 'plain turns and proposed commands route; an explicit Ask answers unrouted; other command prompts never loop back through it');
   assert.ok(ask.includes('{ capability: routeAs ?? commandName ?? null }'), 'an explicit command names its capability: zero router calls');
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
   assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a shown decision gives the words back, never over a kept draft');

@@ -759,8 +759,9 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // proposed command's turn (typed, picked, Ctrl+K or a submitted suggestion) names its capability, so the server decides it
       // with zero router calls and signs its route. Other commands' prompts, Tutor turns, regenerations and attachments are not
       // routed. Only a decided answer or proposal is sent (a proposal with its route_token); a direct capability runs its own
-      // command; anything else gives the words back with the decision.
-      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
+      // command; anything else gives the words back with the decision. An explicit Ask is answered, never routed (owner: generate,
+      // search and ask stay distinct); a chosen clarification option or a proposed command in Ask still is.
+      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName && (routeAs || payload.mode !== 'ask')) || reviewRequired(commandName))) {
         const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }));
         if (late()) return;
         if (!outcome.send) {

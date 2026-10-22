@@ -39,7 +39,7 @@ test('every declared chat capability is a Learn command; proposal flow exactly w
   assert.equal(chatCapability('youtube').settings, null, 'search gets no generation card fields');
 });
 
-test('explicit commands, picker and suggestion ids, Tutor mode and plain explain make zero router calls', async t => {
+test('explicit commands, picker and suggestion ids, Tutor and Ask modes and plain explain make zero router calls', async t => {
   const fetches = noFetch(t);
   const ask = counted(jev('motion', 0.99));
   const motion = await decideWith(ask, '/motion 15s explain photosynthesis');
@@ -57,6 +57,9 @@ test('explicit commands, picker and suggestion ids, Tutor mode and plain explain
   assert.deepEqual([image.route, image.token], ['unsupported', null], 'a disabled feature stays disabled');
   assert.equal((await decideWith(ask, 'a diagram please', { capability: 'diagram', enabled: ['youtube'] })).route, 'unsupported', 'not in this canvas\'s enabled list');
   assert.deepEqual([(await decideWith(ask, 'make a video of rain', { over: { mode: 'tutor' } })).via], ['mode']);
+  const asked = await decideWith(ask, 'make a video of rain', { over: { mode: 'ask' } });
+  assert.deepEqual([asked.route, asked.via, asked.token], ['answer', 'mode', null], 'an explicit Ask is answered, never routed to a capability');
+  assert.equal((await decideWith(ask, '/motion rain', { over: { mode: 'ask' } })).route, 'capability:motion', 'a typed command in Ask still names its capability');
   assert.equal((await decideWith(ask, 'explain this')).via, 'default');
   assert.equal(ask.calls.length, 0, 'no router call');
   assert.deepEqual(fetches, []);
