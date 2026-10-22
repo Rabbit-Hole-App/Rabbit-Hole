@@ -844,7 +844,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null }) {
+function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
@@ -889,21 +889,13 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
-          {block.type === 'whiteboard' && (
-            <button type="button" title={block.marked ? 'Clear the marked region (or press Esc)' : 'Drag a rectangle over the part you want to ask about'}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => (block.marked ? boardAsk(block.id)?.clear() : boardAsk(block.id)?.arm())}
-              className={`flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap shadow-md hover:bg-hover ${block.marked ? 'border-red-600 text-red-600' : 'border-line text-ink'}`}>
-              {block.marked ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
-            </button>
-          )}
           {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
           <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-          <SelectionActionsHost id={block.id} divider={cadTools || ['whiteboard', 'code', 'snippet'].includes(block.type)} />
+          <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.promptUsed && <CardPrompt text={block.promptUsed} onHeight={setPromptHeight} />}
@@ -1733,6 +1725,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // board, until the learner clicks its outline to remove it.
   const [areas, setAreas] = useState(stored.current.areas || []);
   const areaById = id => areas.find(area => area.id === id);
+  // The board an answer was asked about: the whiteboard itself, or the board a toolbar area was drawn on (EXP-T28).
+  const boardOf = id => { const host = areaById(id)?.blockId || id; return blocks.find(block => block.id === host && block.type === 'whiteboard')?.id; };
   // The canvas's one document (docs/features/blocknote-canvas.md): { v, x, y, w, blocks } in world units, saved with the
   // board. Never part of the canvas's undo history (BlockNote keeps its own). docLive holds the editor's latest blocks at
   // once, so a chat turn reads unsaved words; the board copy (doc) follows after a pause, so typing never re-renders the canvas.
@@ -3789,22 +3783,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       text: 'The lesson card this question was attached to was deleted from the canvas before the question was sent.',
     });
   }, [blocks, exchanges, items, askTargetId]);
-  // A whiteboard's shape selection arms the composer (its own Ask selection pill). Every other region goes through the
-  // toolbar's Ask about selection (askArea, EXP-T28), which carries the animation moment and the paper page region.
-  const askRegion = (block, selection) => {
-    if (block.type !== 'whiteboard') return;
-    armedId.current = null;
-    onAskTargetRef.current?.({
-      id: block.id,
-      kind: 'Whiteboard selection',
-      title: block.title,
-      preview: selection.preview || undefined,
-      text: [
-        `Learner whiteboard: ${block.title}`,
-        `Selected shapes: ${selection.shapes.map(shape => `${shape.type}${shape.text ? ` "${shape.text}"` : ''} (${shape.author})`).join(', ')}`,
-      ].join(String.fromCharCode(10)),
-    });
-  };
   // A question asked about a block auto-links that block to its answer node. A card's answer goes beside its card in
   // free space (placeAnswers, the inline editor's placer): clear of every card, note, shape, connector and answer, the
   // ones placed in the same pass included, and nothing else moves. Placement repeats once the answer is complete, when
@@ -4185,7 +4163,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const card = node.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`);
       if (!card) return null;
       const objects = [...card.querySelectorAll('[data-animation-object]')].map(el => ({ id: el.getAttribute('data-animation-object'), rect: el.getBoundingClientRect() }));
-      return cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects });
+      const shapes = block.type === 'whiteboard' ? boardAsk(block.id)?.shapesIn(screen) : undefined;
+      return cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects, shapes });
     }).filter(Boolean);
     // A later crop supersedes this one, and a canvas switched or closed meanwhile takes nothing from it.
     const shot = ++areaShot.current, key = storageKeyRef.current;
@@ -5289,10 +5268,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {/* An answer to a red box, or to a card asked about (float, LearnPage), lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides, the cards or the box down. */}
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
-            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
-            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
+            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
+            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -5301,7 +5280,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {cardGhost && (
           <div data-inline-card-ghost data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute left-0 flex flex-col"
             style={{ top: (column.current?.offsetHeight || 0) + (column.current?.children.length ? 20 : 0), width: COLUMN, opacity: cardGhost.hidden ? 0 : 0.5 }}>
-            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onFile={noop} appName={appName} onAskRegion={noop} onGrade={noop} onWiki={noop} onWatch={noop} />
+            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onFile={noop} appName={appName} onGrade={noop} onWiki={noop} onWatch={noop} />
           </div>
         )}
         {readOnly && selected && bounds[selected] && (

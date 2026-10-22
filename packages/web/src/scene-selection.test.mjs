@@ -52,6 +52,8 @@ test('a region left drawn on a paper page is released too; the page and the pape
   const [next] = releaseSceneHighlights([paper]);
   assert.deepEqual(next.paper, { id: '1706.03762', page: 3, selection: undefined });
   assert.equal(holdsSceneHighlight(next), false);
+  const [board] = releaseSceneHighlights([{ id: 'w', type: 'whiteboard', marked: { x: 1, y: 2, w: 3, h: 4 }, snapshot: 'kept' }]);
+  assert.deepEqual(board, { id: 'w', type: 'whiteboard', marked: null, snapshot: 'kept' }, 'a whiteboard lets go of its old marker too');
 });
 
 test('a second card taking a highlight leaves exactly one holder', () => {

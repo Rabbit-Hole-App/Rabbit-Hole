@@ -43,3 +43,12 @@ test('within clips to the frame and refuses rectangles that do not meet', () => 
   assert.equal(within(rect(0, 0, 100, 100), rect(100, 0, 10, 10)), null);
   assert.equal(within(null, rect(0, 0, 1, 1)), null);
 });
+
+test('a crop over a whiteboard carries its shapes by tldraw id', () => {
+  const board = { id: 'w1', type: 'whiteboard', title: 'Sigmoid board', marked: null };
+  const shapes = [{ id: 'shape:a', type: 'text', text: 'sigmoid', author: 'assistant' }];
+  const binding = cropBinding(board, rect(0, 0, 50, 50), { card: rect(0, 0, 100, 100), shapes });
+  assert.deepEqual(binding.shapes, shapes);
+  assert.match(areaTarget({ id: 'area:w', bindings: [binding] }).text, /Selected shapes: text "sigmoid" \(assistant, shape:a\)/);
+  assert.deepEqual(cropBinding(board, rect(0, 0, 50, 50), { card: rect(0, 0, 100, 100) }).shapes, [], 'a board not yet loaded names no shapes');
+});
