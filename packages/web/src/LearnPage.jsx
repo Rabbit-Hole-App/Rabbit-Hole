@@ -478,6 +478,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // revealed, never added twice by a double-click or a retry; otherwise inserted where the learner looks, one undo step.
     // Returns { id, existed }.
     // `at` (a drop point): the card lands there in one undo step (insertImported); without it, where the learner is looking.
+    // Generate on an /explain brief (EXP-T20, Lane C approve): the job on this canvas whose card already waits. A brief made on
+    // another canvas is not found here and is refused by the server, never attached to this one. -> the card id.
+    approveExplain: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be generated only on its own canvas.');
+      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'approve', { proposal });
+      return job?.cardId || null;
+    },
     insertCard: (block, { same = null, at = null } = {}) => {
       const existing = same && canvasApi.current?.blocks?.().find(same);
       if (existing) { canvasApi.current.focusBlock(existing.id); return { id: existing.id, existed: true }; }
@@ -1132,6 +1140,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const [sharing, setSharing] = useState(null);
   // Comments (docs/features/canvas-comments.md): keyed by the main board's id, which the owner's board reads return.
   const [commentBoard, setCommentBoard] = useState(null);
+  const commentBoardRef = useRef(null);
+  commentBoardRef.current = commentBoard;
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });

@@ -132,3 +132,13 @@ test('Apply replaces this card in place at its expected revision; a stale card k
   const discarded = discardExplainEdit(editing);
   assert.deepEqual(discarded, accepted, 'Discard: exactly the accepted card');
 });
+
+// EXP-T20: an /explain brief's Generate approves its job (the card already waits); Motion keeps its card adapter.
+test('an /explain proposal approves its job instead of adding a card; other proposals keep their adapters', async () => {
+  const { approvesJob, proposalBlock } = await import('./generation-proposal-chat.js');
+  const explain = { command: 'explain', proposal_id: 'gp-0123456789abcdef', version: 1, title: 'Heaps', input: { job: 'ej_1', app: 'demo' }, settings: { presentation: 'static' } };
+  assert.equal(approvesJob(explain), true);
+  assert.equal(proposalBlock(explain), null, 'no second card');
+  assert.equal(approvesJob({ ...explain, input: {} }), false, 'no job named: nothing to approve');
+  assert.equal(approvesJob({ command: 'motion', input: { request: 'x' }, title: 'Video', settings: {} }), false);
+});

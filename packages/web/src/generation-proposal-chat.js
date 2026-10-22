@@ -34,6 +34,8 @@ const ADAPTERS = {
 };
 // -> the card to add, or null for a capability this build has no adapter for (its card cannot Generate).
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
+// /explain (EXP-T20, Lane C): no card to add, because the job's card already waits on its canvas; Generate approves that job.
+export const approvesJob = p => p?.command === 'explain' && typeof p.input?.job === 'string' && !proposalBlock(p);
 // MOT-22: a settings save the server refused because the proposal changed: the learner's choice (draft) beside the latest
 // (current). here: the latest is this answer's card, so it shows it and Use mine saves the draft from it; retryable: not generated.
 // -> null for any other failure.
