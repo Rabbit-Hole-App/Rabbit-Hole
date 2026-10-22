@@ -215,8 +215,11 @@ for (const theme of ['light', 'dark']) {
     // the confirmation names no amount of its own (the MOCKED steps below return one).
     assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves part of your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
     assert.doesNotMatch(await notice.innerText(), /\$\d/);
-    // A saved card's clip may load meanwhile (a GET of its asset); nothing else may reach the video route.
-    const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && !r.query.includes('asset='));
+    // Owner message 25: the confirmation reads the server's reservation (a GET of the video list) before Generate; nothing else
+    // may reach the video route (a saved card's clip may load meanwhile, a GET of its asset).
+    const reads = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method === 'GET' && !r.query.includes('asset='));
+    const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET');
+    assert.ok(reads().length >= 1, 'the confirmation read the reservation from the server');
     assert.equal(asked().length, 0, 'nothing asked of the video route before Generate');
     await notice.screenshot({ path: `${OUT}/${theme}-03-confirm.png` });
     await dock.locator('[data-paid-cancel]').click();
@@ -372,10 +375,10 @@ for (const theme of ['light', 'dark']) {
     await sheet.screenshot({ path: `${OUT}/${theme}-09-window-seeked-10s.png` });
     const during = seen.slice(before);
     // The canvas behind the window keeps its own persistence (the board thumbnail is drawn after its saves pause, LearnPage.jsx
-    // thumbnailScheduler) and may reload a saved card's clip (a GET of its asset). The window itself sends nothing: no POST, no
-    // generation or model route.
+    // thumbnailScheduler) and may reload a saved card's clip (a GET of its asset). Choosing /motion reads the server's reservation
+    // (a GET of the video list, owner message 25). The window itself sends nothing: no POST, no generation or model route.
     const persistence = r => r.method === 'PUT' && /^\/api\/learn\/boards\/[^/]+\/main(\/thumbnail)?$/.test(r.path);
-    const sent = during.filter(r => !persistence(r) && (r.method !== 'GET' || (/\/api\/learn\/(video|artifact|scene|image)/.test(r.path) && !r.query.includes('asset=')))).map(r => `${r.method} ${r.path}${r.query}`);
+    const sent = during.filter(r => !persistence(r) && (r.method !== 'GET' || (/\/api\/learn\/(artifact|scene|image)/.test(r.path) && !r.query.includes('asset=')))).map(r => `${r.method} ${r.path}${r.query}`);
     console.log(`   ${theme}: requests while the window was open: ${during.map(r => `${r.method} ${r.path}`).join(', ') || 'none'}`);
     assert.deepEqual(sent, [], `the window sends nothing: ${sent.join(' ')}`);
     } finally { await closeWindow(sheet); }
