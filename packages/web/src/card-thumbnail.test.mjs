@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, canvasPictures, redactRepositoryCards, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
+import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, canvasPictures, redactRepositoryCards, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, subscribeThumbnails, thumbnailBumps, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -65,6 +65,37 @@ test('an empty canvas sends nothing and counts as done; a failed upload is tried
   assert.deepEqual(sent, []);
   fail = false; s.saved('a'); await c.tick(4000);
   assert.deepEqual(sent, ['shot'], 'the same content, not yet sent, goes on the next save');
+});
+
+test('leaving the canvas draws its last change at once, past the 4 s pause and the 30 s gap (owner follow-up 5)', async () => {
+  const c = clock(), sent = [];
+  let frame = 0;
+  const s = thumbnailScheduler({ capture: async () => `shot-${++frame}`, upload: async blob => { sent.push(blob); }, now: c.now, timers: c.timers });
+  s.saved('a'); await c.tick(4000);
+  assert.deepEqual(sent, ['shot-1']);
+  s.saved('ab'); await c.tick(1000);
+  await s.flush();
+  assert.deepEqual(sent, ['shot-1', 'shot-2'], 'a saved change 5 s after the last snapshot: drawn on leave, not lost');
+  assert.equal(c.pending, null, 'nothing left waiting');
+  await s.flush();
+  assert.deepEqual(sent, ['shot-1', 'shot-2'], 'nothing new: no second snapshot');
+  await s.flush('abc');
+  assert.deepEqual(sent, ['shot-1', 'shot-2', 'shot-3'], 'a change whose save is still waiting: drawn as it will save');
+  const fresh = thumbnailScheduler({ capture: async () => 'shot', upload: async blob => { sent.push(blob); }, now: c.now, timers: c.timers });
+  await fresh.flush();
+  assert.equal(sent.length, 3, 'a canvas opened and left unchanged sends nothing');
+});
+
+test('a new picture re-renders the cards already on the page (Home, the Library)', () => {
+  let heard = 0;
+  const before = thumbnailBumps(), off = subscribeThumbnails(() => { heard += 1; });
+  bumpThumbnail('canvas-0000000c');
+  assert.equal(heard, 1);
+  assert.notEqual(thumbnailBumps(), before, 'useSyncExternalStore sees a new value');
+  off(); bumpThumbnail('canvas-0000000c');
+  assert.equal(heard, 1, 'unsubscribed');
+  for (const file of ['./Home.jsx', './LibraryViews.jsx']) assert.match(read(file), /useSyncExternalStore\(subscribeThumbnails, thumbnailBumps\)/, file);
+  assert.match(read('./LearnPage.jsx'), /useLayoutEffect\(\(\) => \(\) => leaveThumb\.current\(\), \[\]\)/, 'flushed while the canvas is still in the page');
 });
 
 test('a chosen picture: PNG, JPEG or WebP, at most 10 MB', () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { AppWindow, Archive, ArrowRight, ArrowUpRight, Check, FolderGit2, ListFilter, Loader2, Play, Shapes, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
 import { appPick } from './agent/surface.js';
@@ -6,7 +6,7 @@ import { ago, navigate } from './api.js';
 import { browserOnly, onAnotherDevice, readRecent } from './home/continue.js';
 import { cardModel } from './home/provenance.js';
 import LearningCard, { CARD_ROWS, IN_THIS_BROWSER, ON_ANOTHER_DEVICE } from './home/LearningCard.jsx';
-import { cardThumbnail } from './card-thumbnail.js';
+import { cardThumbnail, subscribeThumbnails, thumbnailBumps } from './card-thumbnail.js';
 import { hasCardMenu, useCardMenu } from './home/CardMenu.jsx';
 import { sortCards } from './home/card-sort.js';
 import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION_LIMIT, TYPES } from './library-filter.js';
@@ -29,6 +29,7 @@ const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 // `folders`: the Library's folders (LibraryFolders.jsx useLibraryFolders); `folderId`: the open one (?d=), whose items
 // alone show; at the top the filed cards sit in their tiles unless a search (`searching`) looks everywhere.
 export default function LibraryViews({ apps: listed, type, data, sort, onType, onArchive, onRun, runningOf, onForked, folders = null, folderId = null, searching = false }) {
+  useSyncExternalStore(subscribeThumbnails, thumbnailBumps); // a canvas's new picture landed: its card loads it (card-thumbnail.js)
   // The card ⋮ (home/CardMenu.jsx), the same menu Home's Recent cards open (owner, 2026-10-08); its Archive asks in App.jsx.
   const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps: data?.apps || [], onArchive, onChanged: onForked, folders });
   // Comment news (docs/features/canvas-comments.md): a line on your canvases' cards, and the canvases shared with you.
