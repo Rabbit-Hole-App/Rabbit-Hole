@@ -1,0 +1,15 @@
+{
+  // Lane D's own dev clone for the /explain render path (EXP-T18/T03 visual checks), never the shared dev worker.
+  // Deploy only with render/deploy-render-dev.mjs (it passes --name rabbit-hole-web-dev-explain-d).
+  "name": "rabbit-hole-web-dev-explain-d",
+  "account_id": "c08d3dbdc53a3afd3cb09a536ac42318",
+  "main": "render-dev-worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": { "enabled": true },
+  // The web build (npm run build -- --outDir dist-render); the worker serves none of it publicly.
+  "assets": { "directory": "../dist-render", "binding": "ASSETS", "run_worker_first": true },
+  "browser": { "binding": "BROWSER" }
+  // Secret RENDER_DEV_TOKEN (wrangler secret put), read by the worker; never in this file.
+}

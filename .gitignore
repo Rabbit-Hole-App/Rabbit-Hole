@@ -83,6 +83,7 @@ out
 dist
 dist-dev/
 dist-private/
+dist-render/
 .output
 
 # Gatsby files

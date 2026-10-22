@@ -9,7 +9,7 @@ import { learnMedia } from './learn-storage.js';
 
 export const RENDER_ORIGIN = 'https://render.invalid'; // never resolves: every request is answered or aborted here
 export const RENDER_ENTRY = '/render/scene.html';
-export const RENDER_LIMITS = Object.freeze({ maxCaptures: 64, maxPixels: 64 * 1600 * 1200 * 4, navigateMs: 15_000, captureMs: 10_000, totalMs: 90_000, maxSide: 4096 });
+export const RENDER_LIMITS = Object.freeze({ maxCaptures: 64, maxPixels: 64 * 1600 * 1200 * 4, navigateMs: 15_000, captureMs: 10_000, totalMs: 90_000, maxSide: 4096, keepAliveMs: 10_000 });
 
 export class RenderError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -87,21 +87,20 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
   const limits = { ...RENDER_LIMITS, ...(deps.limits || {}) };
   const checked = await checkManifest(manifest, compiled.scene, limits);
   if (!env?.ASSETS?.fetch) throw new RenderError('render_unavailable', 'render assets are not bound');
-  const launch = deps.launch || (async () => {
-    if (!env.BROWSER) throw new RenderError('render_unavailable', 'Browser Rendering is not bound');
-    const { default: puppeteer } = await import('@cloudflare/puppeteer');
-    return puppeteer.launch(env.BROWSER);
-  });
-  let browser;
-  try {
-    browser = await within(limits.navigateMs, launch(env), 'render_unavailable');
-  } catch (error) {
-    throw error instanceof RenderError ? error : new RenderError('render_unavailable', `browser launch failed: ${error.message}`);
+  let browser = deps.browser; // a caller-owned session (several scenes in one session); never closed here
+  const opened = Date.now();
+  if (!browser) {
+    try {
+      browser = await within(limits.navigateMs, (deps.launch || launchBrowser)(env, limits), 'render_unavailable');
+    } catch (error) {
+      throw error instanceof RenderError ? error : new RenderError('render_unavailable', `browser launch failed: ${error.message}`);
+    }
   }
   const requests = { served: [], blocked: [] };
   try {
     return await within(limits.totalMs, (async () => {
       const page = await browser.newPage();
+      try {
       await page.setRequestInterception(true);
       page.on('request', interceptor(env.ASSETS, requests));
       await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]); // settled states, no springs mid-flight
@@ -125,9 +124,17 @@ export async function renderStates(env, compiled, manifest, deps = {}) {
         }
         captures.push(capture);
       }
-      return { compiledHash: checked.compiledHash, captures, requests };
+      return { compiledHash: checked.compiledHash, captures, requests, browserMs: Date.now() - opened };
+      } finally { await page.close?.().catch(() => {}); }
     })(), 'render_timeout');
   } finally {
-    await browser.close().catch(() => {});
+    if (!deps.browser) await browser.close().catch(() => {});
   }
+}
+
+// Browser Rendering session (@cloudflare/puppeteer on env.BROWSER, as webpage-capture.js uses it).
+export async function launchBrowser(env, limits = RENDER_LIMITS) {
+  if (!env?.BROWSER) throw new RenderError('render_unavailable', 'Browser Rendering is not bound');
+  const { default: puppeteer } = await import('@cloudflare/puppeteer');
+  return puppeteer.launch(env.BROWSER, { keep_alive: limits.keepAliveMs }); // idle browser time is billed: at most 10 s
 }
