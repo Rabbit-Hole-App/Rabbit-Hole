@@ -1,7 +1,7 @@
 // Canvas context documents (docs/features/canvas-context-docs.md), browser side: the list, upload,
 // toggle and delete behind /api/learn/context. The Files panel and the composer's Context button each
 // use the hook; a change in one is announced so the other re-reads.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { wsHeaders } from './api.js';
 // ui.jsx's toast, by its event: importing the JSX kit would keep this module out of plain-node tests (selection-ref.test.mjs).
 const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { detail: { message: String(message) } }));
@@ -42,36 +42,68 @@ export async function uploadContextDoc(app, file) {
 
 // Remove from canvas context (materials-remove.md): the document leaves the list and future requests, its file stays for
 // the cards and pages that name it. Throws the server's reason, so the row that asked can show it and offer a retry.
-export async function removeContextDoc(app, id) {
-  const data = await request('DELETE', `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`);
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
-  return data;
+// One DELETE per document at a time (UI-26): a second press, from this or any other list, waits on the first. Its answer (the
+// list and removed ids after the removal) goes with the event, so every mounted list of that canvas applies it at once instead
+// of re-reading - no refresh, and no older read in flight can bring the row back (listSync).
+const removing = new Map();
+export function removeContextDoc(app, id) {
+  const key = `${app}|${id}`;
+  if (!removing.has(key)) removing.set(key, request('DELETE', `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`)
+    .then(data => { window.dispatchEvent(new CustomEvent(EVENT, { detail: { app, data } })); return data; })
+    .finally(() => removing.delete(key)));
+  return removing.get(key);
 }
 
 // A Materials row's canvas context switch (pdf-materials-refinement.md section 1): the canvas-level attached flag of that one
 // document. Throws the server's reason (the ten-on limit, the budget), so the row that asked can show it.
 export async function toggleContextDoc(app, id, attached) {
   const data = await request('PATCH', `/api/learn/context/${encodeURIComponent(id)}`, { app, attached });
-  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app, data } }));
   return data;
+}
+
+// A canvas's list arrives from reads and from changes, in any order. A read takes its number when it is sent; a change's answer
+// (DELETE, PATCH) takes the next number when it lands, so it outranks every read sent before it. Only a newer number applies:
+// a slow read sent before a removal can never bring the removed row back.
+export function listSync() {
+  let issued = 0, applied = 0;
+  return {
+    issue: () => ++issued,
+    settle: () => (applied = ++issued),
+    accept: n => (n > applied ? ((applied = n), true) : false),
+  };
 }
 
 export function useContextDocs(app) {
   const enabled = isContextCanvas(app);
-  const [docs, setDocs] = useState([]);
-  const [removed, setRemoved] = useState([]); // ids removed from this canvas's context: chips naming them are stale
+  // The list belongs to the canvas it was read for: an answer for another canvas (switched away meanwhile) never shows here.
+  const [list, setList] = useState({ app, docs: [], removed: [] });
   const [busy, setBusy] = useState(false);
+  const sync = useRef(null), current = useRef(app);
+  sync.current ||= listSync();
+  current.current = app;
+  const apply = useCallback((forApp, data) => {
+    if (forApp !== current.current) return;
+    setList(previous => ({ app: forApp, docs: data.documents || (previous.app === forApp ? previous.docs : []), removed: data.removed || (previous.app === forApp ? previous.removed : []) }));
+  }, []);
   const read = useCallback(() => {
     if (!enabled) return;
-    request('GET', `/api/learn/context?app=${encodeURIComponent(app)}`).then(data => { setDocs(data.documents || []); setRemoved(data.removed || []); }).catch(() => {});
-  }, [app, enabled]);
+    const n = sync.current.issue();
+    request('GET', `/api/learn/context?app=${encodeURIComponent(app)}`).then(data => { if (sync.current.accept(n)) apply(app, data); }).catch(() => {});
+  }, [app, enabled, apply]);
   useEffect(() => {
     read();
-    const on = event => { if (event.detail?.app === app) read(); };
+    const on = event => {
+      if (event.detail?.app !== app) return;
+      if (!event.detail.data) return read();
+      sync.current.settle();
+      apply(app, event.detail.data);
+    };
     window.addEventListener(EVENT, on);
     return () => window.removeEventListener(EVENT, on);
-  }, [read, app]);
-  const changed = data => { setDocs(data.documents || []); window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } })); };
+  }, [read, app, apply]);
+  const docs = list.app === app ? list.docs : [], removed = list.app === app ? list.removed : [];
+  const changed = data => window.dispatchEvent(new CustomEvent(EVENT, { detail: { app, data } }));
   const run = async (work, done) => {
     setBusy(true);
     try { changed(await work()); if (done) toast(done); } catch (error) { toast(`✗ ${error.message}`); }
@@ -84,6 +116,6 @@ export function useContextDocs(app) {
     setBusy(false);
   };
   const toggle = (id, attached) => run(() => request('PATCH', `/api/learn/context/${encodeURIComponent(id)}`, { app, attached }));
-  const remove = (id) => run(() => request('DELETE', `/api/learn/context/${encodeURIComponent(id)}?app=${encodeURIComponent(app)}`), 'Removed from context');
+  const remove = (id) => run(() => removeContextDoc(app, id), 'Removed from context');
   return { enabled, docs, removed, busy, upload, toggle, remove, on: docs.filter(doc => doc.attached).length };
 }

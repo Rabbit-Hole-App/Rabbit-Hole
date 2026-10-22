@@ -1,8 +1,9 @@
 // Context and shared actions (owner review UI-10, 2026-10-21, C:/s/spec/day-1021/review-findings-1240.md item 3), against the
-// LOCAL stack only: local D1 and a fresh browser profile. The Context row's one "Use in this chat" toggle is the same state as the
-// composer chip and the refs the next message sends; the canvas default (new chats on this canvas) sits apart in the row's More
-// menu and never changes this chat; a source open but not used says "Not attached"; a short expanded preview is content-sized and
-// a long one scrolls inside a bounded box; Add to canvas is the inverse Button, Upload blue, the removal icon red. A code card
+// LOCAL stack only: local D1 and a fresh browser profile. The Context row's one "Use in this chat" checkbox is the same state as
+// the composer chip and the refs the next message sends; the canvas default (Include in new chats) sits apart in the row's File
+// options popover and never changes this chat; a source open but not used says "Not attached"; the reader replaces the list
+// (UI-26), a short text shows whole and a long one scrolls inside the pane; Add to canvas is neutral (never the inverse ink
+// fill), Upload blue, Remove from context red. A code card
 // added from the canvas is its code-card.js ref (an uploaded card with its stored text, a repository card with its file, commit
 // and lines). The sends that compare refs to pills are answered here with canned text; every other model-capable route is
 // aborted and counted, and none may happen.
@@ -120,11 +121,14 @@ const field = () => pane().locator('[data-chat-composer] textarea').first();
 const row = doc => sourcesPane().locator(`[data-material-row][data-source-id="doc:${doc.id}"]`);
 const action = (doc, name) => (name === 'context' ? page.locator('[data-material-menu] [data-material-action="context"]') : row(doc).locator(`[data-material-action="${name}"]`));
 const useToggle = doc => action(doc, 'chat');
-const using = async doc => (await useToggle(doc).getAttribute('aria-pressed')) === 'true';
+const using = doc => useToggle(doc).isChecked();
+// UI-26: the filename opens its reader in place of the list; Back to Files returns to the list.
+const nameButton = doc => row(doc).locator('button', { has: page.locator('[data-material-name]') }).first();
+const backToFiles = async () => { if (await page.locator('[data-back-to-files]').isVisible().catch(() => false)) { await page.locator('[data-back-to-files]').click(); await settle(200); } };
 const chipOf = doc => pane().locator(`[data-chat-composer] [data-context-chip][data-ref-key^="doc:${doc.id}|"]`);
 const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.count() && await tab.getAttribute('aria-selected') !== 'true') await tab.click(); await pane().waitFor({ state: 'visible', timeout: 10000 }); };
 const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
-const openSources = async () => { if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 }); await sourcesPane().waitFor({ state: 'visible', timeout: 10000 }); await waitFor(async () => (await row(PDF).count()) && (await row(LONG).count()) && (await row(SHORT).count()), 20000, 'the Context rows did not show'); };
+const openSources = async () => { if (!(await sourcesOpen())) await page.locator('[data-panel-companion]').click({ timeout: 5000 }); await sourcesPane().waitFor({ state: 'visible', timeout: 10000 }); await backToFiles(); await waitFor(async () => (await row(PDF).count()) && (await row(LONG).count()) && (await row(SHORT).count()), 20000, 'the Context rows did not show'); };
 const setMode = async mode => { await chatTab(); if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode) return; await pane().getByRole('button', { name: 'Mode', exact: true }).click(); await page.locator(`[data-chat-mode-option="${mode}"]`).click(); await settle(200); };
 const newChat = async () => { await chatTab(); await pane().locator('[data-chat-new]').click(); await settle(400); };
 const openChat = async id => {
@@ -209,7 +213,8 @@ await check('Use in this chat: one toggle per row, synchronized with the compose
   await openSources();
   const flag = (await serverDoc(LONG)).attached;
   assert.equal(await using(LONG), false, 'a new chat does not use a document the canvas has off');
-  assert.match(await useToggle(LONG).innerText(), /^Use in this chat$/);
+  assert.equal(await useToggle(LONG).getAttribute('type'), 'checkbox', 'a labelled checkbox');
+  assert.match(await useToggle(LONG).locator('xpath=ancestor::label[1]').innerText(), /^Use in this chat$/);
   await useToggle(LONG).click();
   await waitFor(() => using(LONG), 5000, 'the toggle did not turn on');
   await chatTab();
@@ -228,13 +233,13 @@ await check('Use in this chat: one toggle per row, synchronized with the compose
   quiet('toggle', before - 0);
 });
 
-await check('the canvas default sits in More, says its scope, changes only new chats: this chat and a restored chat keep their own state', async () => {
+await check('the canvas default sits in File options, says its scope, changes only new chats: this chat and a restored chat keep their own state', async () => {
   const before = model.length;
   await openSources();
   await row(SHORT).locator('[data-material-action="more"]').click();
   await action(SHORT, 'context').waitFor({ timeout: 5000 });
-  assert.equal(await action(SHORT, 'context').getAttribute('aria-checked'), 'false');
-  assert.match(await page.locator('[data-material-menu-note]').innerText(), /This chat is unchanged\./);
+  assert.equal(await action(SHORT, 'context').isChecked(), false);
+  assert.match(await page.locator('[data-material-menu-note]').innerText(), /New chats on this canvas start with this file\. Your current chat stays unchanged\./);
   await action(SHORT, 'context').click();
   await waitFor(async () => (await serverDoc(SHORT)).attached === true, 8000, 'the canvas default did not turn on');
   assert.equal(await using(SHORT), false, 'this chat does not start using it');
@@ -246,45 +251,54 @@ await check('the canvas default sits in More, says its scope, changes only new c
   await waitFor(() => using(SHORT), 8000, 'a new chat does not start with the canvas default');
   await chatTab();
   assert.equal(await chipOf(SHORT).count(), 1, 'and shows its pill');
-  // Back off for the canvas, from the keyboard: Enter on More focuses the item, Space toggles it.
+  // Back off for the canvas, from the keyboard: Enter on File options focuses its checkbox, Space toggles it.
   await openSources();
   await row(SHORT).locator('[data-material-action="more"]').focus();
   await page.keyboard.press('Enter');
-  await waitFor(async () => action(SHORT, 'context').evaluate(el => el === document.activeElement).catch(() => false), 3000, 'the menu did not take the focus');
+  await waitFor(async () => action(SHORT, 'context').evaluate(el => el === document.activeElement).catch(() => false), 3000, 'the popover did not take the focus');
   await page.keyboard.press('Space');
   await waitFor(async () => (await serverDoc(SHORT)).attached === false, 8000, 'the canvas default did not turn off from the keyboard');
   assert.equal(await using(SHORT), true, 'turning the default off leaves this chat using it');
+  await page.keyboard.press('Escape');
+  await waitFor(async () => (await page.locator('[data-material-menu]').count()) === 0, 3000, 'Escape did not close File options');
   quiet('canvas default', before);
 });
 
 await check('preview only: an open source this chat does not use says Not attached; using it removes the note', async () => {
   const before = model.length;
   await openSources();
-  await row(LONG).locator('button[aria-expanded]').first().click();
+  await nameButton(LONG).click();
   await waitFor(async () => (await row(LONG).locator('[data-not-attached]').count()) === 1, 8000, 'no Not attached on the preview');
   assert.equal((await row(LONG).locator('[data-not-attached]').innerText()).trim(), 'Not attached');
   await useToggle(LONG).click();
   await waitFor(async () => (await row(LONG).locator('[data-not-attached]').count()) === 0, 5000, 'Not attached stayed after using it');
   await useToggle(LONG).click();
+  await backToFiles();
   quiet('preview', before);
 });
 
-await check('expanded previews: a short one is content-sized, a long one scrolls inside a bounded box', async () => {
+// UI-26: the reader replaces the list (no file rows while it shows), sized by the pane: a short text shows whole, a long one
+// scrolls inside the reader and never past the pane.
+await check('reader previews: the reader replaces the list; a short one shows whole, a long one scrolls inside the pane', async () => {
   await openSources();
-  const sectionOf = doc => page.locator('[data-sources-pane] section', { has: page.locator(`[data-material-row][data-source-id="doc:${doc.id}"]`) });
-  await row(SHORT).locator('button[aria-expanded]').first().click();
-  await waitFor(async () => /One line of notes/.test(await sectionOf(SHORT).innerText()), 10000, 'the short preview did not open');
-  const short = await sectionOf(SHORT).evaluate(el => el.getBoundingClientRect().height);
-  assert.ok(short < 200, `the short preview is content-sized (${Math.round(short)} px)`);
-  await row(LONG).locator('button[aria-expanded]').first().click();
-  await waitFor(async () => /Line 1 of a long document/.test(await sectionOf(LONG).innerText()), 10000, 'the long preview did not open');
-  const long = await sectionOf(LONG).evaluate(el => { const box = el.getBoundingClientRect(), view = el.querySelector('[data-source-text-view]'); return { h: box.height, vh: innerHeight, scrolls: !!view && view.scrollHeight > view.clientHeight + 10 }; });
-  assert.ok(long.h <= long.vh * 0.7 + 1, `the long preview is bounded (${Math.round(long.h)} of ${long.vh} px)`);
+  const view = () => sourcesPane().locator('[data-source-text-view]').first();
+  await nameButton(SHORT).click();
+  await waitFor(async () => /One line of notes/.test(await sourcesPane().innerText()), 10000, 'the short preview did not open');
+  assert.equal(await sourcesPane().locator('[data-material-name]').count(), 0, 'no file list beside the reader');
+  assert.equal((await sourcesPane().locator('[data-context-title]').innerText()).trim(), SHORT.name, 'the title once, in the reader header');
+  const short = await view().evaluate(el => ({ scrolls: el.scrollHeight > el.clientHeight + 1, text: el.querySelector('p').getBoundingClientRect().height }));
+  assert.ok(!short.scrolls && short.text < 200, `the short preview shows whole (${Math.round(short.text)} px of text)`);
+  await backToFiles();
+  await nameButton(LONG).click();
+  await waitFor(async () => /Line 1 of a long document/.test(await sourcesPane().innerText()), 10000, 'the long preview did not open');
+  const long = await view().evaluate(el => { const box = el.getBoundingClientRect(), pane = el.closest('[data-sources-pane]').getBoundingClientRect(); return { bottom: box.bottom, paneBottom: pane.bottom, scrolls: el.scrollHeight > el.clientHeight + 10 }; });
+  assert.ok(long.bottom <= long.paneBottom + 1, `the long preview stays inside the pane (${Math.round(long.bottom)} of ${Math.round(long.paneBottom)} px)`);
   assert.ok(long.scrolls, 'and scrolls inside');
   await page.screenshot({ path: `${OUT}/01-previews-light.png` });
+  await backToFiles();
 });
 
-await check('shared actions: Add to canvas is the inverse Button (ink in light, light in dark), Upload stays blue, the removal icon is red; narrow panel fits', async () => {
+await check('shared actions: Add to canvas is neutral (never the inverse ink fill), Upload stays blue, Remove from context is red; narrow panel fits', async () => {
   const seen = {};
   for (const [theme, width] of [['light', 480], ['dark', 480], ['dark', 320], ['light', 320]]) {
     await page.evaluate(([t, w]) => { localStorage.setItem('small.theme', t); localStorage.setItem('rh.companion.width', String(w)); }, [theme, width]);
@@ -294,29 +308,42 @@ await check('shared actions: Add to canvas is the inverse Button (ink in light, 
     await settle(200);
     // One probe per token: two text colours on one element would leave whichever the stylesheet orders last.
     const tokens = await page.evaluate(() => { const probe = (cls, prop) => { const el = document.createElement('span'); el.className = cls; document.body.append(el); const value = getComputedStyle(el)[prop]; el.remove(); return value; }; return { ink: probe('bg-ink', 'backgroundColor'), danger: probe('text-danger', 'color') }; });
-    const add = await action(PDF, 'canvas').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, text: el.innerText.trim() }));
-    assert.equal(add.text, 'Add to canvas');
-    assert.equal(add.bg, tokens.ink, `${theme}: Add to canvas uses the ink fill (${add.bg}, ink ${tokens.ink})`);
-    assert.equal(await action(PDF, 'remove').evaluate(el => getComputedStyle(el).color), tokens.danger, `${theme}: the removal icon is red`);
     // The --action-blue token: rgb(23, 108, 206) in light, its own dark-theme blue in dark.
     const blue = await page.evaluate(() => { const el = document.createElement('span'); el.style.backgroundColor = 'var(--action-blue)'; document.body.append(el); const value = getComputedStyle(el).backgroundColor; el.remove(); return value; });
     assert.equal(await page.locator('[data-materials-upload]').evaluate(el => getComputedStyle(el).backgroundColor), blue, `${theme}: Upload stays blue (${blue})`);
     if (theme === 'light') assert.equal(blue, 'rgb(23, 108, 206)');
     const fit = await sourcesPane().evaluate(el => { const box = el.getBoundingClientRect(); return { overflow: el.scrollWidth - el.clientWidth, outside: [...el.querySelectorAll('[data-material-action]')].filter(a => { const r = a.getBoundingClientRect(); return r.left < box.left - 1 || r.right > box.right + 1; }).length }; });
     assert.deepEqual(fit, { overflow: 0, outside: 0 }, `${theme} ${width}: the row actions fit`);
-    seen[theme] = add.bg;
     await page.locator('aside[data-companion]').first().screenshot({ path: `${OUT}/02-rows-${theme}-${width}.png` });
+    // Add to canvas and Remove from context live in the row's File options popover (UI-26).
+    await row(PDF).locator('[data-material-action="more"]').click();
+    const popover = page.locator('[data-material-menu]');
+    await popover.waitFor({ timeout: 5000 });
+    await page.mouse.move(5, 5);
+    await settle(150);
+    const add = await popover.locator('[data-material-action="canvas"]').evaluate(el => ({ bg: getComputedStyle(el).backgroundColor, text: el.innerText.trim() }));
+    assert.equal(add.text, 'Add to canvas');
+    assert.notEqual(add.bg, tokens.ink, `${theme}: Add to canvas is neutral, not the ink fill (${add.bg})`);
+    const remove = popover.locator('[data-material-action="remove"]');
+    assert.equal((await remove.innerText()).trim(), 'Remove from context');
+    assert.equal(await remove.evaluate(el => getComputedStyle(el).color), tokens.danger, `${theme}: Remove from context is red`);
+    seen[theme] = await popover.evaluate(el => getComputedStyle(el.parentElement).backgroundColor);
+    await page.keyboard.press('Escape');
+    await waitFor(async () => (await popover.count()) === 0, 3000, 'Escape did not close File options');
   }
-  assert.notEqual(seen.light, seen.dark, 'the ink fill flips with the theme (black in light, white in dark)');
+  assert.notEqual(seen.light, seen.dark, 'the popover surface follows the theme (light in light, dark in dark)');
   await page.evaluate(() => { localStorage.removeItem('small.theme'); localStorage.removeItem('rh.companion.width'); });
   // Removing context keeps its confirmation: it never deletes canvas cards, earlier messages or the stored file.
   await open();
   await openSources();
-  await action(SHORT, 'remove').click();
-  const confirm = page.getByRole('dialog', { name: 'Remove from Materials?' });
+  await row(SHORT).locator('[data-material-action="more"]').click();
+  await page.locator('[data-material-menu] [data-material-action="remove"]').click();
+  const confirm = page.locator('[data-material-menu] [data-material-remove-confirm]');
   await confirm.waitFor({ timeout: 5000 });
-  assert.match(await confirm.innerText(), /Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted\./);
+  assert.match(await confirm.innerText(), /Remove from context\? New requests stop reading it\. Canvas cards that use it keep working\./);
   await confirm.getByRole('button', { name: 'Cancel' }).click();
+  assert.equal(await row(SHORT).count(), 1, 'Cancel keeps the file');
+  await page.keyboard.press('Escape');
 });
 
 await check('no model route was called outside the canned sends, and no page error', async () => {

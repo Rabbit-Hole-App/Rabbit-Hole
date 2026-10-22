@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, ChevronRight, CircleAlert, ExternalLink, List, Loader2, MessageSquarePlus, MoreHorizontal, Paperclip, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
-import { Button, ConfirmDialog, Menu, MenuItem } from './ui.jsx';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowLeft, CircleAlert, CornerUpLeft, ExternalLink, Loader2, MoreHorizontal, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
+import { Button, Menu, MenuItem, useMenuButton } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
 import { CONTEXT_ACCEPT } from './context-docs.js';
@@ -10,186 +10,239 @@ import { pdfKeyOfRef } from './pdf-source.js';
 import { addFileToCanvas, canvasFamilyOf } from './file-to-canvas.js';
 import { wsHeaders } from './api.js';
 
-// Sub-lane A4a owns this file: the Sources pane left of Chat (brief section 6). A1 mounts it, unpadded, as the
-// Sources ResizableSidePanel's child. A compact header while a source is open (its icon and title, Back, All sources, Open
-// externally), then the blue Upload and the canvas's one context collection (chat-context.js items) as collapsible rows with
-// their kind, size and date - no Sources or Materials heading (owner brief 2026-10-16 item 4). Only the expanded row mounts its reader (A4b's SourceReader). Viewing never attaches, and Close never detaches
-// (contract A5). Every document action sits on its own row and names that row's document (pdf-materials-refinement.md
-// sections 1-5), never the one open in the reader: canvas context, Add to canvas, this chat, then Remove from Materials.
-const ICON_BUTTON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent';
-// A row action: a visible surface at rest (border and fill), stronger on hover; a pressed toggle is accent-filled and aria-pressed.
-// The pressed fill is its own class string, never a variant on the resting one: in dark mode index.css re-pins --color-white to
-// white inside any class naming bg-accent, which would turn the resting bg-white surface white.
-const ROW_ACTION = 'flex h-7 w-7 shrink-0 items-center justify-center rounded-md border focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-40';
-// Use in this chat: a labelled toggle, accent-filled while this chat uses the document (aria-pressed). Add to canvas is the
-// shared inverse Button (ink fill: black in light, white in dark), the same in Context, Files and Graph (owner review UI-10).
-const USE_TOGGLE = 'inline-flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 text-xs font-medium focus-visible:outline-2 focus-visible:outline-accent/35 disabled:opacity-40';
-const USE_ON = 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20';
-const USE_OFF = 'border-line bg-white text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink';
-const ADD_CANVAS = 'shrink-0 gap-1 px-1.5 text-xs';
-// The removal icon is red at rest and on hover (its own string: rowAction's text colours would override it).
-const REMOVE = 'border-line bg-white text-danger hover:border-line-strong hover:bg-hover';
-const rowAction = (pressed = false) => `${ROW_ACTION} ${pressed ? 'border-accent/40 bg-accent/10 text-accent hover:bg-accent/20' : 'border-line bg-white text-ink-2 hover:border-line-strong hover:bg-hover hover:text-ink'}`;
+// The Context panel (UI-26, owner brief 2026-10-22 sections 1-4): the companion column's Context view. Its header (PanelHeader
+// CompanionHeader) holds "Context", the one blue Upload (ContextUpload below) and Close. The body is either the file list or
+// one file's reader, never both: a filename opens its reader in place of the list, "Back to Files" returns. Each row: file icon,
+// the name (the full name as tooltip and in File options), its metadata, then "Use in this chat" (this conversation's
+// attachment) and File options (a popover: the full name, Include in new chats - the canvas default, a setting apart from this
+// chat - Add to canvas, and Remove from context with a short confirmation). Viewing never attaches, and Close never detaches.
+const ICON_BUTTON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35';
+const CHECK = 'inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-md px-1 text-xs whitespace-nowrap text-ink-2 hover:text-ink has-[:disabled]:cursor-default has-[:disabled]:opacity-40';
+const BOX = 'h-3.5 w-3.5 shrink-0 cursor-pointer accent-(--action-blue) disabled:cursor-default';
+const OPTIONS = 'inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs whitespace-nowrap text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35 disabled:opacity-40 aria-expanded:bg-hover aria-expanded:text-ink';
+const POPOVER_WIDTH = 288; // w-72
 
-// A document row's metadata: its kind, size and upload day, from the context-documents list (learn-context-docs.js); other
-// rows (canvas cards, a source opened from a citation) carry no document and show none.
+// A document row's metadata: its kind, pages, size and upload day, from the context-documents list (learn-context-docs.js);
+// other rows (canvas cards, a source opened from a citation) carry no document and show none.
 const KINDS = { pdf: 'PDF', text: 'Text', markdown: 'Markdown', md: 'Markdown', txt: 'Text' };
 const bytes = n => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : n >= 1e3 ? `${Math.round(n / 1e3)} KB` : `${n} B`);
 export const docMeta = doc => {
   if (!doc) return '';
   const day = doc.created_at ? new Date(`${String(doc.created_at).replace(' ', 'T')}${/Z|[+-]\d\d:?\d\d$/.test(doc.created_at) ? '' : 'Z'}`) : null;
-  return [KINDS[doc.kind] || (doc.kind ? String(doc.kind).toUpperCase() : ''), Number.isFinite(doc.size) && doc.size > 0 ? bytes(doc.size) : '', day && !Number.isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
+  return [KINDS[doc.kind] || (doc.kind ? String(doc.kind).toUpperCase() : ''), Number.isInteger(doc.pages) && doc.pages > 0 ? `${doc.pages} page${doc.pages === 1 ? '' : 's'}` : '',
+    Number.isFinite(doc.size) && doc.size > 0 ? bytes(doc.size) : '', day && !Number.isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
 };
+const fileCount = n => `${n} file${n === 1 ? '' : 's'}`;
+// PDF-02 status (C:/s/spec/pdfctx/contract-pdf-status.md; a missing field is a legacy row, ready): how questions read a long
+// PDF, its pages without text, or why it failed (the server's message, verbatim, naming the next step).
+export const docNote = doc => [doc?.reads === 'pages' ? 'Questions read the relevant pages' : '', doc?.noText > 0 ? `${doc.noText} page${doc.noText === 1 ? '' : 's'} without text` : ''].filter(Boolean).join(' · ');
+// ponytail: Retry and the page-reading progress come with pc/p1 (retryContextDoc, useContextProcessing); this row shows the failure only.
+
+// Upload, in the Context header beside Close (LearnPage passes it to CompanionHeader while Context shows).
+export function ContextUpload() {
+  const chat = useChatWorkspace(), picker = useRef(null);
+  if (!chat) return null;
+  return <>
+    <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; chat.context.upload(file); }} />
+    <Button variant="action" size="sm" data-materials-upload onClick={() => picker.current?.click()}><Upload size={14} aria-hidden /> Upload</Button>
+  </>;
+}
+
+// Use in this chat: this conversation's attachment, the same state as its composer chip and the refs the next message sends.
+function UseInChat({ item, name, disabled, onChange }) {
+  return <label className={CHECK}>
+    <input type="checkbox" data-material-action="chat" checked={!!item.attached} disabled={disabled} onChange={onChange}
+      aria-label={`Use ${name} in this chat`} className={BOX} />Use in this chat
+  </label>;
+}
+
+// File options: a small popover beside its button (ui.jsx Menu: kept inside the window, closed by a press outside, by Escape -
+// which hands focus back to the button - or when a scroll moves the button). It opens below the button, or above it when the
+// window has no room below. Nothing is inserted into the list.
+function FileOptions({ item, name, pending, canAdd, onAdd, onContext, onRemove }) {
+  const m = useMenuButton(), panel = useRef(null), [confirming, setConfirming] = useState(false), [above, setAbove] = useState(null);
+  const doc = item.doc, onCanvas = !!doc?.attached;
+  useEffect(() => { if (!m.open) setConfirming(false); }, [m.open]);
+  useLayoutEffect(() => {
+    if (!m.open) { setAbove(null); return; }
+    const box = panel.current?.parentElement, r = m.button.current?.getBoundingClientRect();
+    if (!box || !r) return;
+    const h = box.offsetHeight;
+    setAbove(r.bottom + 4 + h > window.innerHeight - 8 && r.top - 4 - h >= 8 ? h : null);
+  }, [m.open, confirming]); // eslint-disable-line react-hooks/exhaustive-deps
+  const r = m.open ? m.button.current?.getBoundingClientRect() : null;
+  const style = r ? { top: above != null ? r.top - 4 - above : r.bottom + 4, left: Math.max(8, r.right - POPOVER_WIDTH) } : undefined;
+  return <>
+    <button type="button" {...m.buttonProps} aria-haspopup="dialog" data-material-action="more" disabled={pending}
+      aria-label={`File options for ${name}`} title={`File options for ${name}`} className={OPTIONS}>
+      {pending ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <MoreHorizontal size={13} aria-hidden />}File options
+    </button>
+    {m.open && <Menu portal anchor={m.button.current} open onClose={m.onClose} style={style} className="w-72">
+      <div ref={panel} role="dialog" aria-label={`File options for ${name}`} data-material-menu data-menu-button-open>
+        <p data-material-menu-name className="px-2 pt-1.5 text-sm font-medium break-words text-ink">{name}</p>
+        {docMeta(doc) && <p className="px-2 pb-1.5 text-xs text-ink-3">{docMeta(doc)}</p>}
+        <div className="my-1 border-t border-line" />
+        {/* The canvas default: what NEW chats on this canvas start with. The open chat's own attachment is Use in this chat. */}
+        <label className="flex cursor-pointer items-start gap-2 rounded-sm px-2 py-1.5 hover:bg-hover">
+          <input type="checkbox" autoFocus data-material-action="context" checked={onCanvas} disabled={pending} onChange={() => onContext(!onCanvas)} className={`${BOX} mt-0.5`} />
+          <span className="min-w-0"><span className="block text-sm text-ink">Include in new chats</span>
+            <span data-material-menu-note className="block text-xs text-ink-3">New chats on this canvas start with this file. Your current chat stays unchanged.</span></span>
+        </label>
+        {canAdd && <MenuItem icon={SquarePlus} data-material-action="canvas" onClick={() => { m.close(); onAdd(); }} className="focus-visible:outline-2 focus-visible:outline-accent/35">Add to canvas</MenuItem>}
+        <div className="my-1 border-t border-line" />
+        {confirming
+          ? <div data-material-remove-confirm role="group" aria-label={`Remove ${name} from context`} className="px-2 py-1.5">
+            <p className="pb-2 text-xs text-ink-2">Remove from context? New requests stop reading it. Canvas cards that use it keep working.</p>
+            <div className="flex justify-end gap-2">
+              <Button size="sm" variant="secondary" autoFocus disabled={pending} onClick={() => setConfirming(false)}>Cancel</Button>
+              <Button size="sm" variant="danger" data-material-remove-yes disabled={pending} onClick={onRemove}>
+                {pending ? <><Loader2 size={13} aria-hidden className="animate-spin" />Removing</> : 'Remove'}</Button>
+            </div>
+          </div>
+          : <MenuItem icon={Trash2} data-material-action="remove" disabled={pending} onClick={() => setConfirming(true)} className="text-danger! focus-visible:outline-2 focus-visible:outline-accent/35">Remove from context</MenuItem>}
+      </div>
+    </Menu>}
+  </>;
+}
 
 // onSwitchOff(ref): Use in this chat switched off lets go of any selection holding the same ref (LearnPage), as a chip's x does.
 export default function SourcesPane({ onSwitchOff = null }) {
   const chat = useChatWorkspace();
   const active = chat?.sources.active ?? null;
-  // The active source folded away (All sources, or its own header); a newly opened source unfolds again.
+  // Back to Files puts the active source's reader down (the list shows); a newly opened source shows its reader again.
   const [folded, setFolded] = useState(null);
   useEffect(() => setFolded(null), [active]);
   const [menu, setMenu] = useState(false);
-  const picker = useRef(null), body = useRef(null);
-  // Remove from Materials waiting on its confirmation; per row (sourceId) the action running ('context' | 'remove') or its error.
-  const [removing, setRemoving] = useState(null);
+  const list = useRef(null), live = useRef(chat);
+  live.current = chat;
+  // Per row (sourceId): the action running ('context' | 'remove' | 'canvas') or its error.
   const [rows, setRows] = useState({});
-  // The open row menu: { key, item, top, left, anchor } (portaled, so the list's scroll never clips it).
-  const [rowMenu, setRowMenu] = useState(null);
   if (!chat) return null;
   const { context, sources } = chat;
   const sections = paneSections(context.items, active);
   const url = active && externalUrl(active);
-  const allSources = () => { setFolded(active); body.current?.scrollTo({ top: 0 }); };
   // One row action at a time per row; a failure stays on that row (role=alert) and the row stays for a retry.
   const run = async (item, action, work) => {
     const key = item.ref.sourceId;
+    if (rows[key]?.busy) return;
     setRows(state => ({ ...state, [key]: { busy: action } }));
     try { await work(); setRows(({ [key]: _, ...rest }) => rest); }
-    catch (error) { setRows(state => ({ ...state, [key]: { error: `Could not ${action === 'remove' ? 'remove' : 'change'} ${item.ref.name}: ${error.message}` } })); }
+    catch (error) {
+      setRows(state => ({ ...state, [key]: { error: action === 'remove' ? `Could not remove ${item.ref.name} from context: ${error.message}. Try again from File options.` : `Could not change ${item.ref.name}: ${error.message}` } }));
+    }
   };
-  const remove = item => {
-    setRemoving(null);
-    return run(item, 'remove', async () => {
-      await context.remove(item.doc);
-      // Open in the reader as a whole, it would stay listed as the active source: put the reader down.
-      if (active?.sourceId === item.ref.sourceId && !active.range) sources.close();
-    });
-  };
+  // Remove from context: membership only - excerpt cards, pages and the file they read stay. On success (context.remove applies
+  // the server's answer to every list at once) its reader, if open, goes back to Files, but only on the canvas that asked.
+  const remove = item => run(item, 'remove', async () => {
+    const canvas = chat.canvas;
+    await context.remove(item.doc);
+    const now = live.current;
+    if (now?.canvas !== canvas) return;
+    if (now.sources.active?.sourceId === item.ref.sourceId) now.sources.close();
+    // The popover and its row are gone: the focus lands on the list, never on the page body.
+    requestAnimationFrame(() => { if (document.activeElement === document.body) list.current?.focus({ preventScroll: true }); });
+  });
   // Add to canvas (docs/features/pdf-to-canvas.md): this row's stored PDF - a PDF context document or an uploaded paper.
-  // LearnPage owns the canvas and the dialog; the PDF's own bytes are read there, never uploaded again.
+  // LearnPage owns the canvas and the dialog; the PDF's own bytes are read there, never uploaded again. An imported file
+  // (file-to-canvas.js) becomes its family's card through the canvas's own insert.
   const addToCanvas = ref => window.dispatchEvent(new CustomEvent('small:pdf-to-canvas', { detail: { sourceId: ref.sourceId, kind: ref.kind, name: ref.name } }));
-  // A row action never also expands the row or switches the reader.
-  const act = work => event => { event.stopPropagation(); work(); };
+  const adder = (item, ref) => {
+    const ready = item.state === 'ready', doc = item.doc;
+    if (ready && !!pdfKeyOfRef(ref) && (ref.kind !== 'doc' || doc?.kind === 'pdf')) return () => addToCanvas(ref);
+    if (ready && !!canvasFamilyOf(ref) && !!chat.canvasOps?.insertCard) return () => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() }));
+    return null;
+  };
+  const toggleChat = item => { if (!item.attached) return context.attach(item.ref); context.detach(item.ref); onSwitchOff?.(item.ref); };
+  const options = (item, name, add) => item.doc && <FileOptions item={item} name={name} pending={!!item.removing || rows[item.ref.sourceId]?.busy === 'remove'} canAdd={!!add} onAdd={add}
+    onContext={on => run(item, 'context', () => context.canvasContext(item.doc, on))} onRemove={() => remove(item)} />;
+  const errorOf = item => { const row = rows[item.ref.sourceId] || {}; return row.error && <p role="alert" data-material-error className="px-3 pb-1.5 text-xs text-danger">{row.error}</p>; };
+  const reading = sections.find(section => section.active && folded !== active);
+
+  if (reading) {
+    const { item, ref } = reading, name = ref.name, add = adder(item, ref), ready = item.state === 'ready';
+    return (
+      <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
+        <div data-sources-header className="flex shrink-0 flex-col gap-1 border-b border-line px-2 py-1.5">
+          <div className="flex items-center gap-1">
+            <button type="button" data-back-to-files onClick={() => setFolded(active)} className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35">
+              <ArrowLeft size={15} aria-hidden />Back to Files</button>
+            <span className="flex-1" />
+            {sources.canBack && <button type="button" onClick={sources.back} aria-label="Back to the previous source" title="Back to the previous source" className={ICON_BUTTON}><CornerUpLeft size={15} aria-hidden /></button>}
+            {url && <span className="relative">
+              <button type="button" onClick={() => setMenu(open => !open)} aria-label="Source actions" title="Source actions" aria-haspopup="menu" aria-expanded={menu} className={ICON_BUTTON}><MoreHorizontal size={16} aria-hidden /></button>
+              <Menu open={menu} onClose={() => setMenu(false)} className="top-9 right-0 w-52">
+                <MenuItem icon={ExternalLink} onClick={() => { setMenu(false); window.open(url, '_blank', 'noopener'); }}>Open externally</MenuItem>
+              </Menu>
+            </span>}
+          </div>
+          {/* The document's title, once: the reader below shows its pages, not the name again. */}
+          <div className="flex min-w-0 items-center gap-1.5 px-1">
+            <RefIcon kind={active.kind} size={16} className="shrink-0 text-ink-2" />
+            <h2 data-context-title className="min-w-0 truncate text-sm font-medium text-ink" title={name}>{name}</h2>
+            {rangeLabel(active.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(active.range)}</span>}
+          </div>
+          {ready && <div data-material-row data-source-id={ref.sourceId} className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
+            <UseInChat item={item} name={name} disabled={!!item.removing} onChange={() => toggleChat(item)} />
+            {/* A source open here but not used in this chat is a preview only (owner review UI-10): it says so. */}
+            {!item.attached && <span data-not-attached className="shrink-0 rounded border border-line px-1 text-[11px] text-ink-2">Not attached</span>}
+            {add && <Button variant="secondary" size="sm" data-material-action="canvas" disabled={!!rows[ref.sourceId]?.busy} onClick={add}
+              aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className="gap-1 px-2 text-xs">{rows[ref.sourceId]?.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
+            <span className="flex-1" />
+            {options(item, name, add)}
+          </div>}
+          {errorOf(item)}
+        </div>
+        <div ref={list} tabIndex={-1} data-source-reader className="flex min-h-0 flex-1 flex-col px-2 pt-1 outline-none">
+          <SourceReader key={ref.sourceId} sourceRef={ref} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
-      {(active || sources.canBack) && <div data-sources-header className="flex h-12 shrink-0 items-center gap-1 border-b border-line px-2">
-        {sources.canBack && <button type="button" onClick={sources.back} aria-label="Back" title="Back" className={ICON_BUTTON}><ArrowLeft size={16} aria-hidden /></button>}
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 px-1">
-          {active ? <RefIcon kind={active.kind} size={16} className="shrink-0 text-ink-2" /> : null}
-          {active && <h2 className="min-w-0 truncate text-sm font-medium text-ink" title={active.name}>{active.name}</h2>}
-          {active && rangeLabel(active.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(active.range)}</span>}
-        </div>
-        {active && <button type="button" onClick={allSources} aria-label="All sources" title="All sources" className={ICON_BUTTON}><List size={16} aria-hidden /></button>}
-        {url && (
-          <span className="relative">
-            <button type="button" onClick={() => setMenu(open => !open)} aria-label="Source actions" title="Source actions" aria-haspopup="menu" aria-expanded={menu} className={ICON_BUTTON}><MoreHorizontal size={16} aria-hidden /></button>
-            <Menu open={menu} onClose={() => setMenu(false)} className="top-9 right-0 w-52">
-              <MenuItem icon={ExternalLink} onClick={() => { setMenu(false); window.open(url, '_blank', 'noopener'); }}>Open externally</MenuItem>
-            </Menu>
-          </span>
-        )}
-      </div>}
-      <div ref={body} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 py-2">
-        <div className="flex shrink-0 items-center justify-end gap-2 px-1 pb-2">
-          <input ref={picker} type="file" accept={CONTEXT_ACCEPT} className="hidden" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; context.upload(file); }} />
-          <Button variant="action" size="sm" data-materials-upload onClick={() => picker.current?.click()}>
-            <Upload size={14} aria-hidden /> Upload
-          </Button>
-        </div>
-        {!sections.length && <p className="px-1 py-2 text-xs text-ink-3">No sources yet. Upload a PDF, .txt or .md file, or add cards from the canvas to the chat.</p>}
-        {sections.map(({ key, item, ref, active: isActive }) => {
-          const open = isActive && folded !== active, ready = item.state === 'ready', busy = !ready && item.state !== 'failed';
-          const toggle = () => { if (isActive) setFolded(open ? active : null); else chat.openSource(ref); };
-          const name = ref.name, doc = item.doc, row = rows[ref.sourceId] || {};
-          const canAdd = ready && !!pdfKeyOfRef(ref) && (ref.kind !== 'doc' || doc?.kind === 'pdf');
-          // An imported file (file-to-canvas.js): its stored source becomes a card through the canvas's own insert, so the board
-          // save records its reference; this row's chat and context state stay as they are.
-          const canAddFile = ready && !canAdd && !!canvasFamilyOf(ref) && !!chat.canvasOps?.insertCard;
-          const onCanvas = !!doc?.attached;
-          return (
-            <section key={key} data-source-section={isActive ? 'active' : ''} className={open ? 'flex max-h-[70vh] min-h-0 shrink-0 flex-col' : 'shrink-0'}>
-              {/* Narrower than 34rem, the actions take a second line of their own under the name, never a random wrap. */}
-              <div data-material-row data-source-id={ref.sourceId} className="@container rounded-md hover:bg-hover">
-                <div className="flex flex-col @[34rem]:flex-row @[34rem]:items-center @[34rem]:gap-1">
-                  <button type="button" aria-expanded={open} disabled={!ready} onClick={toggle} title={item.error || name}
-                    className="flex min-h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-1 text-left text-sm text-ink disabled:cursor-default">
-                    <ChevronRight size={14} aria-hidden className={`shrink-0 text-ink-3 transition-transform ${open ? 'rotate-90' : ''} ${ready ? '' : 'invisible'}`} />
-                    {busy ? <Loader2 size={14} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : item.state === 'failed' ? <CircleAlert size={14} aria-hidden className="shrink-0 text-red-700" /> : <RefIcon kind={ref.kind} />}
-                    <span className="flex min-w-0 flex-col leading-tight">
-                      <span data-material-name title={name} className={`min-w-0 truncate ${isActive ? 'font-medium' : ''}`}>{name}</span>
-                      {docMeta(doc) && <span data-material-meta className="truncate text-[11px] text-ink-3">{docMeta(doc)}</span>}
+      <div ref={list} tabIndex={-1} data-context-files className="flex min-h-0 flex-1 flex-col overflow-y-auto py-1 outline-none">
+        {sections.length > 0 && <p data-context-count aria-live="polite" className="px-3 pt-1 pb-1.5 text-xs text-ink-3">{fileCount(sections.length)}</p>}
+        {!sections.length && <p data-context-empty aria-live="polite" className="px-3 py-2 text-xs text-ink-3">No sources yet. Upload a PDF, .txt or .md file, or add cards from the canvas to the chat.</p>}
+        <ul aria-label="Files" className="flex flex-col">
+          {sections.map(({ key, item, ref, active: isActive }) => {
+            const ready = item.state === 'ready', busy = item.state === 'uploading' || item.state === 'processing', failed = item.state === 'failed';
+            const name = ref.name, add = adder(item, ref), pending = !!item.removing || rows[ref.sourceId]?.busy === 'remove';
+            const meta = busy ? (item.state === 'processing' ? 'Processing' : 'Uploading') : pending ? 'Removing' : docMeta(item.doc);
+            const range = rangeLabel(ref.kind === 'excerpt' ? null : ref.range);
+            return (
+              <li key={key} data-material-row data-source-id={ref.sourceId} data-source-section={isActive ? 'active' : ''} aria-busy={pending || busy || undefined}
+                className="@container border-b border-line/70 last:border-b-0">
+                {/* Narrower than 30rem the two actions take their own line under the name; the name keeps the row's width. */}
+                <div className="flex flex-col px-2 py-1 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-2">
+                  <button type="button" disabled={!ready} onClick={() => (isActive ? setFolded(null) : chat.openSource(ref))} title={item.error || name}
+                    className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:hover:bg-transparent">
+                    {busy || pending ? <Loader2 size={15} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : failed || item.doc?.status === 'failed' ? <CircleAlert size={15} aria-hidden className="shrink-0 text-danger" /> : <RefIcon kind={ref.kind} size={15} className="shrink-0 text-ink-2" />}
+                    <span className={`flex min-w-0 flex-1 flex-col leading-tight ${pending ? 'opacity-60' : ''}`}>
+                      <span data-material-name title={name} className={`min-w-0 truncate text-sm text-ink ${isActive ? 'font-medium' : ''}`}>{name}</span>
+                      {(meta || range) && <span data-material-meta className="truncate text-xs text-ink-3">{[meta, range].filter(Boolean).join(' · ')}</span>}
                     </span>
-                    {rangeLabel(ref.kind === 'excerpt' ? null : ref.range) && <span className="shrink-0 text-xs text-ink-3">{rangeLabel(ref.kind === 'excerpt' ? null : ref.range)}</span>}
-                    {busy && <span className="shrink-0 text-xs text-ink-3">{item.state === 'processing' ? 'Processing' : 'Uploading'}</span>}
-                    {/* A source open here but not used in this chat is a preview only (owner review UI-10): it says so. */}
-                    {open && !item.attached && <span data-not-attached className="shrink-0 rounded border border-line px-1 text-[11px] text-ink-2">Not attached</span>}
                   </button>
-                  <div data-material-actions className="flex shrink-0 flex-wrap items-center gap-1 pb-1 pl-1 @[34rem]:pr-1 @[34rem]:pb-0 @[34rem]:pl-0">
-                    {/* Use in this chat (owner review UI-10, 2026-10-21): the one toggle, this conversation's attachment - the same state
-                        as its composer chip and the refs the next message sends. */}
-                    {ready && <button type="button" data-material-action="chat" aria-pressed={!!item.attached}
-                      onClick={act(() => { if (!item.attached) return context.attach(item.ref); context.detach(item.ref); onSwitchOff?.(item.ref); })}
-                      aria-label={`Use ${name} in this chat`} title={`Use ${name} in this chat`}
-                      className={`${USE_TOGGLE} ${item.attached ? USE_ON : USE_OFF}`}>{item.attached ? <Check size={13} aria-hidden /> : <MessageSquarePlus size={13} aria-hidden />}Use in this chat</button>}
-                    {canAdd && <Button variant="inverse" size="sm" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
-                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}><SquarePlus size={13} aria-hidden className="@max-[22rem]:hidden" />Add to canvas</Button>}
-                    {canAddFile && <Button variant="inverse" size="sm" data-material-action="canvas" disabled={!!row.busy}
-                      onClick={act(() => run(item, 'canvas', () => addFileToCanvas({ ref, app: chat.canvas, ops: chat.canvasOps, headers: wsHeaders() })))}
-                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className={ADD_CANVAS}>{row.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden className="@max-[22rem]:hidden" />}Add to canvas</Button>}
-                    {/* The canvas default is its own scope, apart from this chat: it decides what NEW chats on this canvas start with. */}
-                    {ready && doc && <button type="button" data-material-action="more" aria-haspopup="menu" aria-expanded={rowMenu?.key === key} disabled={!!row.busy}
-                      onClick={event => { event.stopPropagation(); const box = event.currentTarget.getBoundingClientRect(); setRowMenu(open => (open?.key === key ? null : { key, item, top: box.bottom + 4, left: Math.max(8, box.right - 256), anchor: event.currentTarget })); }}
-                      aria-label={`More actions for ${name}`} title={`More actions for ${name}`} className={rowAction()}>{row.busy === 'context' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <MoreHorizontal size={14} aria-hidden />}</button>}
-                    {ready && doc && <>
-                      <span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line @max-[22rem]:hidden" />
-                      <button type="button" data-material-action="remove" onClick={act(() => setRemoving(item))} disabled={!!row.busy}
-                        aria-label={`Remove ${name} from Materials`} title={`Remove ${name} from Materials`}
-                        className={`${ROW_ACTION} ${REMOVE}`}>{row.busy === 'remove' ? <Loader2 size={14} aria-hidden className="animate-spin" /> : <Trash2 size={14} aria-hidden />}</button>
-                    </>}
-                    {item.state === 'failed' && <>
-                      <button type="button" onClick={act(item.retry)} aria-label={`Retry uploading ${name}`} title="Retry" className={rowAction()}><RotateCw size={14} aria-hidden /></button>
-                      <button type="button" onClick={act(item.dismiss)} aria-label={`Dismiss ${name}`} title="Dismiss" className={rowAction()}><X size={14} aria-hidden /></button>
+                  <div data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @[30rem]:pb-0 @[30rem]:pl-0">
+                    {ready && <UseInChat item={item} name={name} disabled={pending} onChange={() => toggleChat(item)} />}
+                    {ready && options(item, name, add)}
+                    {ready && !item.doc && add && <Button variant="secondary" size="sm" data-material-action="canvas" disabled={!!rows[ref.sourceId]?.busy} onClick={add}
+                      aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className="gap-1 px-2 text-xs">{rows[ref.sourceId]?.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
+                    {failed && <>
+                      <button type="button" onClick={item.retry} aria-label={`Retry uploading ${name}`} title="Retry" className={ICON_BUTTON}><RotateCw size={14} aria-hidden /></button>
+                      <button type="button" onClick={item.dismiss} aria-label={`Dismiss ${name}`} title="Dismiss" className={ICON_BUTTON}><X size={14} aria-hidden /></button>
                     </>}
                   </div>
                 </div>
-                {item.state === 'failed' && <p role="alert" className="px-7 pb-1 text-xs text-red-700">{item.error}</p>}
-                {row.error && <p role="alert" data-material-error className="px-7 pb-1 text-xs text-red-700">{row.error}</p>}
-              </div>
-              {open && (
-                <div data-source-reader className="flex min-h-0 flex-1 flex-col pt-1">
-                  <SourceReader key={ref.sourceId} sourceRef={ref} position={sources.position(ref.sourceId)} onPosition={position => sources.savePosition(ref.sourceId, position)} />
-                </div>
-              )}
-            </section>
-          );
-        })}
+                {failed && <p role="alert" className="px-3 pb-1.5 text-xs text-danger">{item.error}</p>}
+                {item.doc?.status === 'failed' && <p role="alert" data-material-doc-error className="px-3 pb-1.5 text-xs text-danger">{item.doc.error?.message || 'This file could not be read.'}</p>}
+                {docNote(item.doc) && <p data-material-note className="px-3 pb-1.5 pl-10 text-xs text-ink-3">{docNote(item.doc)}</p>}
+                {errorOf(item)}
+              </li>
+            );
+          })}
+        </ul>
       </div>
-      {rowMenu && (() => { const { item } = rowMenu, doc = item.doc, onCanvas = !!doc?.attached; return (
-        <Menu portal anchor={rowMenu.anchor} open onClose={() => { rowMenu.anchor?.focus(); setRowMenu(null); }} style={{ top: rowMenu.top, left: rowMenu.left }} className="w-64">
-          {/* Keyboard: the item takes the focus when the menu opens; Escape or a choice hands it back to More. */}
-          <div data-material-menu>
-            <MenuItem autoFocus role="menuitemcheckbox" aria-checked={onCanvas} data-material-action="context" icon={onCanvas ? Check : Paperclip} hint="Canvas default"
-              onClick={() => { rowMenu.anchor?.focus(); setRowMenu(null); run(item, 'context', () => context.canvasContext(doc, !onCanvas)); }}
-              aria-label={`Include ${item.ref.name} in new chats on this canvas`} title={`Include ${item.ref.name} in new chats on this canvas`} className="focus-visible:outline-2 focus-visible:outline-accent/35">Include in new chats</MenuItem>
-            <p data-material-menu-note className="px-2 pt-0.5 pb-1.5 text-xs text-ink-3">New chats on this canvas start with it. This chat is unchanged.</p>
-          </div>
-        </Menu>); })()}
-      {/* The wrapper takes the dialog's own overlay box (fixed, full screen), so the confirmation is one visible element. */}
-      {removing && <div data-material-remove-confirm className="fixed inset-0 z-50">
-        <ConfirmDialog title="Remove from Materials?" confirmLabel="Remove from Materials"
-          body={`${removing.ref.name} is removed from Materials and from future AI requests. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted.`}
-          onConfirm={() => remove(removing)} onCancel={() => setRemoving(null)} />
-      </div>}
     </div>
   );
 }

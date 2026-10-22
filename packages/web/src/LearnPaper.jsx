@@ -371,15 +371,20 @@ export default function LearnPaper({ app, paper, onClose, onPage,
   const dragHandle = onDragStart => <button type="button" draggable aria-label="Drag to canvas" title="Drag onto the canvas" onDragStart={onDragStart}
     className="flex h-8 min-w-6 cursor-grab items-center justify-center rounded-lg text-ink-3 select-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35"><GripVertical size={15} /></button>;
   return <section ref={sectionEl} aria-label="Paper reader" className="relative flex min-h-0 flex-1 flex-col">
-    {/* One control row: title, pages, zoom and the region picker together. */}
-    <header className="flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink">
-      <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-medium">{paper.title}</h3><p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{companion ? where : document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
+    {/* One control row: title, pages, zoom and the region picker together. In the companion (the Context reader) the title
+        is the Context header's, shown once (UI-26); pages and zoom are each one group. */}
+    <header className={`flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink ${companion ? 'flex-wrap' : ''}`}>
+      <div className="min-w-0 flex-1">{!companion && <h3 className="truncate text-sm font-medium">{paper.title}</h3>}<p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{companion ? where : document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
       {document && <>
-        <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} /></button>
-        <button type="button" aria-label="Next paper page" title="Next page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronRight size={14} /></button>
-        <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Minus size={14} /></button>
-        <span aria-label="Paper zoom" className="min-w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-        <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
+        <div role="group" aria-label="Pages" className="flex items-center gap-0.5">
+          <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} /></button>
+          <button type="button" aria-label="Next paper page" title="Next page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronRight size={14} /></button>
+        </div>
+        <div role="group" aria-label="Zoom" className="flex items-center gap-0.5">
+          <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Minus size={14} /></button>
+          <span aria-label="Paper zoom" className="min-w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
+          <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
+        </div>
         {companion && <button type="button" aria-label="Rotate page" title="Rotate page" onClick={() => setRotation(r => (r + 90) % 360)} className="rounded border border-line p-1 hover:bg-hover"><RotateCw size={14} /></button>}
         {regionTool && <button type="button" aria-label="Select region" aria-pressed={!!area} disabled={!ready} title={area ? 'Stop selecting a region (Esc)' : 'Select a region of the page'}
           onClick={event => (area ? setArea(null) : startArea(event.detail === 0))}

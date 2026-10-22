@@ -45,11 +45,15 @@ export const canvasDocRefs = (docs, offered) => docs.filter(doc => doc.attached 
 // The one collection both panes show: uploads in flight first, then the canvas's docs, then any other attached ref
 // (cards, groups, code, web, a doc passage). A ref already listed is not listed twice.
 // ponytail: a restored doc ref whose file was since deleted still reads ready; a 'missing' state needs useContextDocs to say when its list has loaded.
-export function contextItems(docs, attached, uploads = []) {
+// removing: ids of documents whose Remove from context is in flight; their items read removing (pending, no second press).
+export function contextItems(docs, attached, uploads = [], removing = []) {
   const byId = new Map(docs.map(doc => [`doc:${doc.id}`, doc]));
   const items = docs.map(doc => ({ ref: docRef(doc), state: 'ready' }));
   for (const ref of attached) if (!items.some(item => sameRef(item.ref, ref))) items.push({ ref, state: 'ready' });
-  return [...uploads, ...items].map(item => ({ ...item, ...(byId.has(item.ref.sourceId) ? { doc: byId.get(item.ref.sourceId) } : {}), attached: attached.some(ref => sameRef(ref, item.ref)) }));
+  return [...uploads, ...items].map(item => {
+    const doc = byId.get(item.ref.sourceId);
+    return { ...item, ...(doc ? { doc } : {}), ...(doc && removing.includes(doc.id) ? { removing: true } : {}), attached: attached.some(ref => sameRef(ref, item.ref)) };
+  });
 }
 
 // The Sources pane's sections: one per item, the active source marked on its own item (same range first, else the same
@@ -122,7 +126,18 @@ export function useChatContext(canvas, thread) {
   const [uploads, setUploads] = useState([]);
   const attach = useCallback(ref => dispatch({ type: 'attach', ref }), []);
   const detach = useCallback(ref => dispatch({ type: 'detach', ref }), []);
-  const remove = useCallback(async doc => { await removeContextDoc(canvas, doc.id); dispatch({ type: 'detach', ref: docRef(doc) }); }, [canvas]);
+  // Remove from context (UI-26): the row reads pending until the DELETE answers; a second press waits on the same request.
+  // The answer lands on every list of this canvas at once (context-docs.js); the whole-document chip leaves this chat only if
+  // the learner is still on the canvas and conversation that asked (the removed ids drop it from any other, staleRef).
+  const [removing, setRemoving] = useState([]);
+  const remove = useCallback(async doc => {
+    const startedIn = key.current, ref = docRef(doc);
+    setRemoving(ids => (ids.includes(doc.id) ? ids : [...ids, doc.id]));
+    try {
+      await removeContextDoc(canvas, doc.id);
+      if (key.current === startedIn) dispatch({ type: 'detach', ref });
+    } finally { setRemoving(ids => ids.filter(id => id !== doc.id)); }
+  }, [canvas]);
   // The canvas-level switch never reaches this chat (pdf-materials-refinement.md section 1): marked offered first, a document
   // switched on from its row does not join a new conversation that follows the canvas's switched-on documents.
   const canvasContext = useCallback(async (doc, on) => { offered.current.add(`doc:${doc.id}`); await toggleContextDoc(canvas, doc.id, on); }, [canvas]);
@@ -146,8 +161,8 @@ export function useChatContext(canvas, thread) {
     await send(file, id);
   }, [send]);
   return useMemo(() => ({
-    items: contextItems(docs, attached, uploads), attached, detach, upload, remove, canvasContext,
+    items: contextItems(docs, attached, uploads, removing), attached, detach, upload, remove, canvasContext,
     attach: ref => { if (attached.length >= MAX_REFS && !attached.some(item => sameRef(item, ref))) toast(`✗ A chat holds up to ${MAX_REFS} attachments. Remove one first.`); else attach(ref); },
     isAttached: ref => attached.some(item => sameRef(item, ref)),
-  }), [docs, attached, uploads, attach, detach, upload, remove, canvasContext]);
+  }), [docs, attached, uploads, removing, attach, detach, upload, remove, canvasContext]);
 }

@@ -46,10 +46,13 @@ test('the page mounts the companion LEFT of Chat, every view mounted while hidde
   const ask = read('./ask.jsx');
   assert.doesNotMatch(ask, /data-chat-sources|data-explore-codebase|Explore codebase|Open Context|onExploreCodebase/);
   assert.match(ask, /<MenuItem icon=\{Upload\} data-upload-context onClick=\{\(\) => \{ setPlusOpen\(false\); fileRef\.current\?\.click\(\); \}\}>Upload Context<\/MenuItem>/);
-  assert.match(read('./SourcesPane.jsx'), /<Button variant="action" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\}>\n\s+<Upload size=\{14\} aria-hidden \/> Upload\n/);
+  // UI-26: the Context header holds the one blue Upload beside Close (CompanionHeader actions), never between the files.
+  assert.match(read('./SourcesPane.jsx'), /<Button variant="action" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\}><Upload size=\{14\} aria-hidden \/> Upload<\/Button>/);
+  assert.match(page, /<CompanionHeader [^\n]*actions=\{companionView === 'context' \? <ContextUpload \/> : null\} \/>/);
   assert.doesNotMatch(page, /data-companion-return|Back to \{/, 'no Back to graph or Back to files');
   const header = read('./PanelHeader.jsx');
   assert.match(header, /export const COMPANION_VIEWS = \[\n\s+\{ id: 'context', label: 'Context', Icon: Files \},\n\s+\{ id: 'files', label: 'Files', Icon: FolderTree \},\n\s+\{ id: 'graph', label: 'Graph', Icon: Network \},\n\];/);
   assert.match(header, /data-companion-back onClick=\{onClose\} aria-label="Back to chat"[^\n]*\n[^\n]*lg:hidden/, 'Back to chat below lg');
   assert.match(header, /data-companion-close onClick=\{onClose\} aria-label="Close viewer"[^\n]*\n[^\n]*max-lg:hidden/);
+  assert.match(header, /\{actions\}\n\s+<button type="button" data-companion-close/, "the view's own actions sit just before Close");
 });

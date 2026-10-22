@@ -1,3 +1,24 @@
+# Context panel and Remove from context (UI-26, 2026-10-22)
+
+Owner brief C:/s/spec/pdfctx/brief.md sections 1-4. This supersedes the row actions and wording below where they differ.
+- Header (PanelHeader CompanionHeader): "Context" left; the blue Upload (SourcesPane ContextUpload) and Close right.
+- The list: a file count, then one row per file: icon, name (full name as tooltip), metadata (kind, pages, size, day), then
+  "Use in this chat" (a labelled checkbox: this conversation's attachment) and "File options". Narrower than 30rem the two
+  actions take their own line under the name. Empty: the empty-state line, no count.
+- A filename opens its reader in place of the list: "Back to Files", the title once (the paper reader drops its own title in
+  the companion), Use in this chat, a neutral Add to canvas, File options; pages and zoom are each one group.
+- File options: a popover beside its button (ui.jsx Menu: kept inside the window, closed by a press outside, Escape returns
+  focus to the button). It holds the full name, "Include in new chats" (the canvas default, a setting apart from Use in this
+  chat), Add to canvas and "Remove from context" with a short inline confirmation.
+- Removal state (context-docs.js, chat-context.js): one DELETE per document at a time (a second press waits on it); the row
+  reads pending. The DELETE's answer goes with the `small:context-docs` event, so every mounted list applies it at once (no
+  re-read, no refresh). listSync numbers reads when sent and changes when they land: a list read sent before the removal can
+  never apply after it. Answers for another canvas are dropped. The whole-document chip leaves the conversation that asked;
+  any other drops it by the removed ids. Its reader, if open, returns to Files (same canvas only). A failure keeps the row
+  with "Could not remove <file> from context: <reason>. Try again from File options."
+- Checks: web/src/context-docs.test.mjs (one DELETE, the answer in the event, out-of-order reads), chat-context.test.mjs;
+  web/e2e/context-remove-check.mjs (fork, fast-e2e).
+
 # Materials rows and Remove from Materials
 
 The spec is C:/s/spec/pdf-materials-refinement.md, sections 1-5.

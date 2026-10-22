@@ -1,11 +1,11 @@
-// Remove from Materials (docs/features/materials-remove.md), against the LOCAL stack only: local D1 and a fresh browser
-// profile. No model is ever called: /api/learn/ask is answered here with canned text and its request bodies CAPTURED; every
-// other model-capable route is aborted and counted, and none may happen.
+// Remove from context (docs/features/materials-remove.md, UI-26 owner brief 2026-10-22 section 4), against the LOCAL stack
+// only: local D1 and a fresh browser profile. No model is ever called: /api/learn/ask is answered here with canned text and its
+// request bodies CAPTURED; every other model-capable route is aborted and counted, and none may happen.
 // Setup: a canvas and a 3-page PDF (each page "PAGE n" and a blue bar) uploaded as its context document; its pages are added
-// to the canvas through Sources' Add to canvas. Covered: the trash icon on the Materials row (label and tooltip "Remove <file>
-// from Materials"); Cancel keeps it; a failed removal (the DELETE answered 500) shows the error and keeps the row; Remove takes
-// the row and the chat's chip away; after a reload it is still gone, the page blocks still draw, the page's reader still
-// opens the PDF, and a question about page 2 still sends the doc ref at page 2 (never the whole document).
+// to the canvas through the row's File options > Add to canvas. Covered: File options on the Context row holds Remove from
+// context; its inline confirmation's Cancel keeps it; a failed removal (the DELETE answered 500) shows the actionable error and
+// keeps the row; Remove takes the row and the chat's chip away; after a reload it is still gone, the page blocks still draw,
+// the page's reader still opens the PDF, and a question about page 2 still sends the doc ref at page 2 (never the whole document).
 // Prints `ok <label>` per check; exits 1 on any failure. Evidence goes to OUT: results.json and *.png.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/materials-remove-check.mjs
 import { chromium } from '@playwright/test';
@@ -110,10 +110,19 @@ const shot = name => page.screenshot({ path: `${OUT}/${name}.png` }).catch(() =>
 const pane = () => page.locator('[data-chat-pane]');
 const sourcesPane = () => page.locator('[data-sources-pane]');
 const row = () => sourcesPane().locator(`[data-material-row][data-source-id="${DOC_KEY}"]`);
-const trash = () => row().locator('[data-material-action="remove"]');
+// UI-26: Add to canvas, Include in new chats and Remove from context live in the row's File options popover.
+const menu = () => page.locator('[data-material-menu]');
+const openOptions = async () => {
+  if (await menu().count()) { await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached', timeout: 3000 }); }
+  await row().locator('[data-material-action="more"]').click();
+  await menu().waitFor({ timeout: 5000 });
+};
+const trash = () => menu().locator('[data-material-action="remove"]');
+const confirmBox = () => page.locator('[data-material-remove-confirm]');
+const askRemove = async () => { await openOptions(); await trash().click(); await confirmBox().waitFor({ timeout: 5000 }); };
 // The main chat's chip, whichever tab is showing (Chat and Context share the right panel, docs/features/hide-right-panel.md).
 const chip = () => page.locator(`[data-chat-pane] [data-context-chip] button[title="Open ${DOC_NAME}"]`);
-const confirmDialog = () => page.getByRole('dialog', { name: 'Remove from Materials?' });
+
 // Sources is the right panel's Context tab: open when that tabpanel is on screen.
 // Context shows when the companion column is open on it (a collapsed column keeps its content's own width inside).
 const sourcesOpen = () => page.evaluate(() => ['aside[data-companion]', '[data-context-panel]'].every(s => (document.querySelector(s)?.getBoundingClientRect().width || 0) > 50));
@@ -155,11 +164,12 @@ const setMode = async mode => {
 // ================================================================ the run
 await openCanvas();
 
-await check('setup: the PDF is in Materials with its chip, and its 3 pages are added to the canvas', async () => {
+await check('setup: the PDF is in Context with its chip, and its 3 pages are added to the canvas', async () => {
   await waitFor(async () => (await chip().count()) > 0, 15000, 'the new chat has no chip for the context document');
   await openSources();
-  await waitFor(async () => (await row().count()) === 1, 10000, 'Materials has no row for the document');
-  await row().locator('[data-material-action="canvas"]').click({ timeout: 10000 });
+  await waitFor(async () => (await row().count()) === 1, 10000, 'Context has no row for the document');
+  await openOptions();
+  await menu().locator('[data-material-action="canvas"]').click({ timeout: 10000 });
   const dialog = page.locator('[data-pdf-add-dialog] [role="dialog"]');
   await dialog.waitFor({ timeout: 10000 });
   await waitFor(async () => (await dialog.locator('[data-pdf-total]').innerText().catch(() => '')).trim() === '3 pages', 20000, 'the dialog did not count 3 pages');
@@ -177,16 +187,19 @@ await check('setup: the PDF is in Materials with its chip, and its 3 pages are a
   await shot('01-materials-row');
 });
 
-await check('the row has its own trash icon, labelled and titled "Remove remove-me.pdf from Materials", after the other row actions', async () => {
+await check('File options of remove-me.pdf holds Remove from context, after Include in new chats and Add to canvas', async () => {
+  assert.equal(await row().locator('[data-material-action="more"]').getAttribute('aria-label'), `File options for ${DOC_NAME}`);
+  // Use in this chat stays on the row, checked (the new chat started with the document); the canvas default is in File options.
+  assert.equal(await row().getByRole('checkbox', { name: `Use ${DOC_NAME} in this chat` }).isChecked(), true, 'the chat attachment stays beside it, checked');
+  await openOptions();
+  assert.equal((await menu().locator('[data-material-menu-name]').innerText()).trim(), DOC_NAME, 'File options names the file');
   assert.equal(await trash().count(), 1);
-  assert.equal(await trash().getAttribute('aria-label'), `Remove ${DOC_NAME} from Materials`);
-  assert.equal(await trash().getAttribute('title'), `Remove ${DOC_NAME} from Materials`);
-  // Owner review UI-10 (2026-10-21): one Use in this chat toggle on the row; the canvas default (new chats) in the row's More menu.
-  assert.equal(await row().getByRole('button', { name: `Use ${DOC_NAME} in this chat` }).getAttribute('aria-pressed'), 'true', 'the chat attachment stays beside it, pressed');
-  await row().locator('[data-material-action="more"]').click();
-  assert.equal(await page.locator('[data-material-menu]').getByRole('menuitemcheckbox', { name: `Include ${DOC_NAME} in new chats on this canvas` }).getAttribute('aria-checked'), 'true', 'and the canvas default, on');
+  assert.match(await trash().innerText(), /^Remove from context$/, 'clearly labelled');
+  const order = await menu().locator('[data-material-action]').evaluateAll(els => els.map(el => el.dataset.materialAction));
+  assert.deepEqual(order, ['context', 'canvas', 'remove'], 'Remove from context comes last');
+  assert.equal(await menu().locator('[data-material-action="context"]').isChecked(), true, 'and the canvas default, on');
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('[data-material-menu]').count(), 0, 'Escape closes the menu');
+  assert.equal(await menu().count(), 0, 'Escape closes File options');
 });
 
 // The normal, non-hovered rows (owner hand-off): light and dark, at the default and the narrowest Sources width.
@@ -203,15 +216,16 @@ await check('the rows at rest: light and dark, default and narrow width, actions
     const long = sourcesPane().locator('[data-material-row]').filter({ has: page.locator(`[data-material-name][title="${LONG_NAME}"]`) });
     const name = await long.locator('[data-material-name]').evaluate(el => { const b = el.getBoundingClientRect(); return { clipped: el.scrollWidth > el.clientWidth, right: b.right, bottom: b.bottom, y: b.y }; });
     assert.ok(name.clipped, `${theme} ${width}: the long name truncates`);
-    const actions = await long.locator('[data-material-action]').evaluateAll(els => els.map(el => { const b = el.getBoundingClientRect(); return { action: el.dataset.materialAction, x: b.x, y: b.y, right: b.right, w: b.width }; }));
+    // A checkbox action is measured by its label (the visible control: box and text).
+    const actions = await long.locator('[data-material-action]').evaluateAll(els => els.map(el => { const b = (el.closest('label') || el).getBoundingClientRect(); return { action: el.dataset.materialAction, x: b.x, y: b.y, right: b.right, w: b.width }; }));
     const pane = await sourcesPane().evaluate(el => el.getBoundingClientRect().right);
-    assert.deepEqual(actions.map(a => a.action), ['chat', 'canvas', 'more', 'remove'], `${theme} ${width}: the four actions in order`);
+    assert.deepEqual(actions.map(a => a.action), ['chat', 'more'], `${theme} ${width}: the row actions in order`);
     assert.ok(actions.every(a => a.w >= 27 && a.right <= pane), `${theme} ${width}: every action whole and inside the pane`);
     assert.ok(actions.every(a => a.y === actions[0].y), `${theme} ${width}: the actions share one line`);
     assert.ok(actions.every(a => a.x >= name.right - 1 || a.y >= name.bottom - 1), `${theme} ${width}: no action over the name`);
     (facts.rows ||= {})[`${theme}-${width}`] = { second_line: actions[0].y >= name.bottom - 1 };
   }
-  // Owner review UI-10: the labelled Use in this chat and Add to canvas take their own line under the name below 34rem (544 px).
+  // UI-26: Use in this chat and File options take their own line under the name below 30rem (480 px).
   assert.deepEqual([facts.rows['light-400'].second_line, facts.rows['light-320'].second_line], [true, true], 'a second action line at 400 and 320 px');
   await page.evaluate(() => { localStorage.setItem('small.theme', 'light'); localStorage.setItem('rh.companion.width', '400'); });
   await openCanvas();
@@ -219,31 +233,33 @@ await check('the rows at rest: light and dark, default and narrow width, actions
 });
 
 await check('Cancel in the confirmation keeps the document', async () => {
-  await trash().click();
-  await confirmDialog().waitFor({ timeout: 5000 });
+  await askRemove();
   await shot('02-confirm');
-  await confirmDialog().getByRole('button', { name: 'Cancel' }).click();
+  await confirmBox().getByRole('button', { name: 'Cancel' }).click();
   await page.waitForTimeout(500);
+  assert.equal(await confirmBox().count(), 0, 'the confirmation closed');
   assert.equal(await row().count(), 1, 'the row stays');
   assert.equal(await listed(), true, 'the server list is unchanged');
 });
 
 await check('a failed removal shows the error and keeps the row for a retry', async () => {
   failDelete = true;
-  await trash().click();
-  await confirmDialog().getByRole('button', { name: 'Remove from Materials', exact: true }).click();
+  await askRemove();
+  await page.locator('[data-material-remove-yes]').click();
   const error = row().locator('[data-material-error]');
   await error.waitFor({ timeout: 8000 });
-  assert.match(await error.innerText(), /Could not remove remove-me\.pdf: The server is unavailable/);
-  assert.equal(await trash().isEnabled(), true, 'the trash icon is there to retry');
+  assert.match(await error.innerText(), /^Could not remove remove-me\.pdf from context: The server is unavailable\. Try again from File options\.$/);
+  await openOptions();
+  assert.equal(await trash().isEnabled(), true, 'Remove from context is there to retry');
+  await page.keyboard.press('Escape');
   assert.equal(await listed(), true, 'nothing changed on the server');
   await shot('03-failed');
   failDelete = false;
 });
 
-await check('Remove takes the row out of Materials and the chip out of the chat', async () => {
-  await trash().click();
-  await confirmDialog().getByRole('button', { name: 'Remove from Materials', exact: true }).click();
+await check('Remove takes the row out of Context and the chip out of the chat', async () => {
+  await askRemove();
+  await page.locator('[data-material-remove-yes]').click();
   await waitFor(async () => (await row().count()) === 0, 8000, 'the row stayed');
   await waitFor(async () => (await chip().count()) === 0, 8000, 'the chip stayed');
   const list = await listNow();
@@ -256,7 +272,7 @@ await check('after a reload: still gone; the page blocks draw; the page reader o
   await openCanvas();
   await openSources();
   await page.waitForTimeout(1000);
-  assert.equal(await row().count(), 0, 'not back in Materials');
+  assert.equal(await row().count(), 0, 'not back in Context');
   assert.equal(await chip().count(), 0, 'no chip came back');
   await waitFor(async () => (await slides()).filter(b => b.loaded).length === 3, 30000, 'the page blocks did not draw');
   if (await sourcesOpen()) { await page.locator('[data-companion-close]').click(); await page.waitForTimeout(300); }

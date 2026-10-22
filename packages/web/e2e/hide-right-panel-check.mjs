@@ -103,6 +103,8 @@ const width = selector => page.evaluate(s => {
 }, selector);
 const surfaceWidth = () => width('[data-canvas-surface]');
 const sourcesWidth = () => width('[data-sources-pane]');
+// UI-26: a Context file opens by its name button (the reader then replaces the list; Back to Files returns to it).
+const fileButton = name => page.locator('[data-sources-pane] [data-material-row] button:has([data-material-name])').filter({ hasText: name }).first();
 // Hidden: the panel slid to 0, its resize handle gone, the Sources surface 0 wide, the toggle says Show and is not pressed.
 const assertHidden = async () => {
   await waitFor(async () => (await width(PANEL)) < 1, 5000, `the panel is still ${Math.round(await width(PANEL))}px wide`);
@@ -209,7 +211,7 @@ await check('hide and reopen from Context without an open reader: Context opens 
 });
 
 await check('hide and reopen from Context with a PDF open: the same reader, document and page come back; Chat keeps its draft', async () => {
-  await page.locator('[data-sources-pane] section button[aria-expanded]').filter({ hasText: DOC_NAME }).first().click();
+  await fileButton(DOC_NAME).click();
   const reader = page.locator('[data-sources-pane] [data-source-reader]').first(); // SourcesPane's wrapper; SourceReader inside carries the same attribute
   await reader.waitFor({ state: 'visible', timeout: 10000 });
   // The reader's DOM node is tagged: the same node after the reopen means the reader (its document, page and scroll) was kept.
@@ -236,7 +238,9 @@ await check('hiding while a PDF is loading in the Context reader: the late load 
   // Settled into a value either way, so a step that fails first never leaves this wait to crash the run.
   const bytes = page.waitForResponse(response => response.url().includes(LATE_HEX) && response.request().method() === 'GET', { timeout: 30000 }).catch(error => error);
   await page.locator('[data-companion-view="context"]').click();
-  await page.locator('[data-sources-pane] section button[aria-expanded]').filter({ hasText: LATE_NAME }).first().click();
+  // The first document's reader is open: Back to Files shows the list again.
+  if (await page.locator('[data-back-to-files]').isVisible().catch(() => false)) await page.locator('[data-back-to-files]').click();
+  await fileButton(LATE_NAME).click();
   await hide();
   release();
   holdLate = null;

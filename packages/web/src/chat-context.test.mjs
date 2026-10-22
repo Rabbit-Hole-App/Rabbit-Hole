@@ -15,7 +15,7 @@ await esbuild.build({
   stdin: { contents: [
     "export * from './chat-context.js';",
     "export { default as ContextChips } from './ContextChips.jsx';",
-    "export { default as SourcesPane } from './SourcesPane.jsx';",
+    "export { default as SourcesPane, ContextUpload, docMeta, docNote } from './SourcesPane.jsx';",
     "export { ChatWorkspaceProvider } from './chat-workspace.jsx';",
     "export { createElement } from 'react';",
     "export { renderToStaticMarkup } from 'react-dom/server';",
@@ -149,9 +149,11 @@ test('chips and pane: nothing outside a Learn canvas; This canvas first; an empt
   assert.match(inCanvas(C.ContextChips), /^<div data-context-chips="true"><ul aria-label="Context for this chat"[^>]*><li data-canvas-context="true"/);
   assert.equal(text(inCanvas(C.ContextChips)), 'This canvas');
   const pane = text(inCanvas(C.SourcesPane));
-  // Owner brief 2026-10-16 item 4: the blue Upload first, no Sources or Materials heading.
-  assert.match(pane, /^Upload No sources yet/);
-  assert.match(pane, /No sources yet/);
+  // UI-26: no Sources or Materials heading, and Upload sits in the Context header (ContextUpload), never between the files.
+  assert.match(pane, /^No sources yet/);
+  assert.doesNotMatch(pane, /\d+ files?\b/, 'no count in an empty list');
+  assert.equal(text(inCanvas(C.ContextUpload)), 'Upload');
+  assert.equal(C.renderToStaticMarkup(C.createElement(C.ContextUpload)), '', 'no Upload outside a Learn canvas');
 });
 
 // materials-remove.md: Remove from Materials. A whole-document chip of a removed document is stale (it would keep
@@ -167,49 +169,64 @@ test('a removed context document: its whole-document chip is stale, a page of it
   const { readFileSync } = require('node:fs');
   const hook = readFileSync(new URL('./chat-context.js', import.meta.url), 'utf8');
   assert.match(hook, /for \(const ref of attached\) if \(staleRef\(ref, removed\)\) dispatch\(\{ type: 'detach', ref \}\);\r?\n  \}, \[removed, attached\]\);/);
-  assert.match(hook, /const remove = useCallback\(async doc => \{ await removeContextDoc\(canvas, doc\.id\); dispatch\(\{ type: 'detach', ref: docRef\(doc\) \}\); \}, \[canvas\]\);/);
+  // UI-26: the chip goes at once, but only in the conversation that asked; any other drops it by the removed ids above.
+  assert.match(hook, /await removeContextDoc\(canvas, doc\.id\);\r?\n      if \(key\.current === startedIn\) dispatch\(\{ type: 'detach', ref \}\);/);
 });
 
-// pdf-materials-refinement.md sections 1-5, as the owner review UI-10 (2026-10-21) changed them: one Use in this chat toggle,
-// the shared inverse Add to canvas, the canvas default (new chats) in the row's More menu apart from this chat, then a red Remove
-// from Materials; each names its own row's document; Upload always a visible blue button; removal confirmed and scoped.
-test('Materials rows: Use in this chat, Add to canvas, More (canvas default), then Remove from Materials, each on its own row', async () => {
+// UI-26 section 4: a document whose removal is in flight reads removing (its row pending, no second press); others do not.
+test('contextItems marks only the document being removed', () => {
+  const other = { ...doc, id: 'ctx:ffffffffffff', name: 'Other.pdf' };
+  const items = C.contextItems([doc, other], [C.docRef(doc)], [], [doc.id]);
+  assert.deepEqual(items.map(item => [item.ref.sourceId, !!item.removing, item.attached]), [[`doc:${doc.id}`, true, true], [`doc:${other.id}`, false, false]]);
+  assert.equal(C.contextItems([doc], [], []).some(item => item.removing), false, 'nothing pending by default');
+});
+
+// UI-26 (owner brief 2026-10-22 sections 1-4): the Context list and the reader replace each other; each row is its icon, name
+// and metadata, then Use in this chat (a labelled checkbox) and File options (a popover: the full name, Include in new chats,
+// Add to canvas, Remove from context with a short confirmation). Add to canvas is a neutral labelled button, never inverse.
+test('Context rows: Use in this chat, then File options with the full name, Include in new chats, Add to canvas and Remove from context', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
-  const order = ['chat', 'canvas', 'more', 'remove', 'context'].map(action => source.indexOf(`data-material-action="${action}"`));
-  assert.ok(order.every(at => at > 0) && order.every((at, i) => !i || at > order[i - 1]), `the row actions in order, the canvas default in the menu (${order})`);
-  assert.match(source, /<div data-material-row data-source-id=\{ref\.sourceId\} className="@container/, 'one row per material, named by its own source id');
+  assert.match(source, /<li key=\{key\} data-material-row data-source-id=\{ref\.sourceId\}/, 'one row per file, named by its own source id');
   assert.match(source, /<span data-material-name title=\{name\} className=\{`min-w-0 truncate/, 'a long name truncates, with the full name as its tooltip');
-  assert.match(source, /data-material-actions className="flex shrink-0 flex-wrap items-center gap-1 pb-1 pl-1 @\[34rem\]:pr-1 @\[34rem\]:pb-0 @\[34rem\]:pl-0"/, 'narrow rows put the actions on a second line');
-  // The canvas default: the canvas-level flag of this row's document, a checkbox in its More menu; never this chat's attachment.
-  assert.match(source, /role="menuitemcheckbox" aria-checked=\{onCanvas\} data-material-action="context"[^]*?context\.canvasContext\(doc, !onCanvas\)[^]*?aria-label=\{`Include \$\{item\.ref\.name\} in new chats on this canvas`\}[^]*?<p data-material-menu-note [^>]*>New chats on this canvas start with it\. This chat is unchanged\.<\/p>/);
-  // Add to canvas: this row's ref, PDFs only.
-  assert.match(source, /const canAdd = ready && !!pdfKeyOfRef\(ref\) && \(ref\.kind !== 'doc' \|\| doc\?\.kind === 'pdf'\);/);
-  assert.match(source, /<Button variant="inverse" size="sm" data-material-action="canvas" onClick=\{act\(\(\) => addToCanvas\(ref\)\)\}\s+aria-label=\{`Add \$\{name\} to canvas`\}[^]{0,200}?>Add to canvas<\/Button>/);
+  assert.match(source, /data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @\[30rem\]:pb-0 @\[30rem\]:pl-0"/, 'narrow rows put the actions on their own line');
+  // Use in this chat: the conversation's attachment, a labelled checkbox.
+  assert.match(source, /<input type="checkbox" data-material-action="chat" checked=\{!!item\.attached\} disabled=\{disabled\} onChange=\{onChange\}\s+aria-label=\{`Use \$\{name\} in this chat`\} className=\{BOX\} \/>Use in this chat/);
+  assert.match(source, /const toggleChat = item => \{ if \(!item\.attached\) return context\.attach\(item\.ref\); context\.detach\(item\.ref\); onSwitchOff\?\.\(item\.ref\); \};/);
+  // File options: the visible label, a popover beside its button (ui.jsx Menu: bounds, outside press, Escape back to the button).
+  assert.match(source, /<button type="button" \{\.\.\.m\.buttonProps\} aria-haspopup="dialog" data-material-action="more" disabled=\{pending\}\s+aria-label=\{`File options for \$\{name\}`\}/);
+  assert.match(source, /<MoreHorizontal size=\{13\} aria-hidden \/>\}File options\n/);
+  assert.match(source, /<Menu portal anchor=\{m\.button\.current\} open onClose=\{m\.onClose\} style=\{style\} className="w-72">/);
+  assert.match(source, /setAbove\(r\.bottom \+ 4 \+ h > window\.innerHeight - 8 && r\.top - 4 - h >= 8 \? h : null\);/, 'above its button when there is no room below');
+  const order = ['data-material-menu-name', 'data-material-action="context"', 'data-material-action="canvas"', 'data-material-action="remove"'].map(at => source.indexOf(at));
+  assert.ok(order.every(at => at > 0) && order.every((at, i) => !i || at > order[i - 1]), `the popover: name, new chats, Add to canvas, Remove (${order})`);
+  // Include in new chats: the canvas default, its own setting apart from this chat.
+  assert.match(source, /data-material-action="context" checked=\{onCanvas\} disabled=\{pending\} onChange=\{\(\) => onContext\(!onCanvas\)\}/);
+  assert.match(source, />Include in new chats<\/span>\s+<span data-material-menu-note [^>]*>New chats on this canvas start with this file\. Your current chat stays unchanged\.<\/span>/);
+  assert.match(source, /onContext=\{on => run\(item, 'context', \(\) => context\.canvasContext\(item\.doc, on\)\)\}/);
+  // Add to canvas: this row's PDF (or imported file), a neutral button in the reader, a popover item in the list.
+  assert.match(source, /if \(ready && !!pdfKeyOfRef\(ref\) && \(ref\.kind !== 'doc' \|\| doc\?\.kind === 'pdf'\)\) return \(\) => addToCanvas\(ref\);/);
   assert.match(source, /const addToCanvas = ref => window\.dispatchEvent\(new CustomEvent\('small:pdf-to-canvas', \{ detail: \{ sourceId: ref\.sourceId, kind: ref\.kind, name: ref\.name \} \}\)\);/);
-  // Use in this chat: the conversation's attachment (the composer chip and the sent refs), pressed state exposed.
-  assert.match(source, /data-material-action="chat" aria-pressed=\{!!item\.attached\}\s+onClick=\{act\(\(\) => \{ if \(!item\.attached\) return context\.attach\(item\.ref\); context\.detach\(item\.ref\); onSwitchOff\?\.\(item\.ref\); \}\)\}\s+aria-label=\{`Use \$\{name\} in this chat`\}[^]{0,400}?\/>\}Use in this chat<\/button>/);
-  // A source open in the reader but not used in this chat says so.
-  assert.match(source, /\{open && !item\.attached && <span data-not-attached [^>]*>Not attached<\/span>\}/);
-  // Remove from Materials: set apart, asks first, scoped, a failure kept on the row.
-  assert.match(source, /<span aria-hidden className="mx-1 h-4 w-px shrink-0 bg-line @max-\[22rem\]:hidden" \/>\s+<button type="button" data-material-action="remove" onClick=\{act\(\(\) => setRemoving\(item\)\)\}/);
-  assert.match(source, /className=\{`\$\{ROW_ACTION\} \$\{REMOVE\}`\}>\{row\.busy === 'remove'/, 'the removal icon is red');
-  assert.match(source, /const REMOVE = 'border-line bg-white text-danger hover:border-line-strong hover:bg-hover';/);
-  assert.match(source, /aria-label=\{`Remove \$\{name\} from Materials`\} title=\{`Remove \$\{name\} from Materials`\}/);
-  assert.match(source, /<div data-material-remove-confirm className="fixed inset-0 z-50">\s+<ConfirmDialog title="Remove from Materials\?" confirmLabel="Remove from Materials"/);
-  assert.match(source, /is removed from Materials and from future AI requests\. Canvas cards and pages that use it keep working, earlier messages stay as they are, and the file is not deleted\./);
-  assert.match(source, /onConfirm=\{\(\) => remove\(removing\)\} onCancel=\{\(\) => setRemoving\(null\)\}/);
-  assert.match(source, /if \(active\?\.sourceId === item\.ref\.sourceId && !active\.range\) sources\.close\(\);/, 'a removed document open in the reader is put down');
-  assert.match(source, /catch \(error\) \{ setRows\(state => \(\{ \.\.\.state, \[key\]: \{ error: `Could not/, 'a failure keeps the row and names why');
-  assert.match(source, /\{row\.error && <p role="alert" data-material-error/);
-  // Every row action stops there; the header keeps no document action; Upload is a visible button.
-  assert.match(source, /const act = work => event => \{ event\.stopPropagation\(\); work\(\); \};/);
-  // An imported file's own Add to canvas (file-to-canvas.js; file-to-canvas.test.mjs) is a seventh, on its own row too.
-  assert.equal((source.match(/onClick=\{act\(/g) || []).length, 6, 'chat, canvas (PDF), canvas (imported file), remove, retry and dismiss all go through act');
-  assert.match(source, /data-material-action="more"[^]{0,200}?onClick=\{event => \{ event\.stopPropagation\(\);/, 'More stops there too');
-  assert.doesNotMatch(source, /data-source-add-canvas|Attach to this chat<\/MenuItem>|Detach from this chat/);
-  assert.match(source, /<Button variant="action" size="sm" data-materials-upload onClick=\{\(\) => picker\.current\?\.click\(\)\}>\s+<Upload size=\{14\} aria-hidden \/> Upload/);
-  assert.doesNotMatch(source, /data-sources-close/, 'one Close: the companion column header closes the viewer (PanelHeader.jsx CompanionHeader)');
+  assert.match(source, /<Button variant="secondary" size="sm" data-material-action="canvas"/);
+  assert.doesNotMatch(source, /variant="inverse"/, 'no competing inverse Add to canvas');
+  // Remove from context: clearly labelled, a short confirmation, pending while it runs, an actionable error on failure.
+  assert.match(source, /data-material-action="remove" disabled=\{pending\} onClick=\{\(\) => setConfirming\(true\)\} className="text-danger! [^"]*">Remove from context<\/MenuItem>/);
+  assert.match(source, /<Button size="sm" variant="danger" data-material-remove-yes disabled=\{pending\} onClick=\{onRemove\}>/);
+  assert.match(source, /Remove from context\? New requests stop reading it\. Canvas cards that use it keep working\./);
+  assert.match(source, /Could not remove \$\{item\.ref\.name\} from context: \$\{error\.message\}\. Try again from File options\./);
+  assert.match(source, /if \(rows\[key\]\?\.busy\) return;/, 'one action at a time per row');
+  // Success: back to Files when its reader is open, only on the canvas that asked.
+  assert.match(source, /const now = live\.current;\n\s+if \(now\?\.canvas !== canvas\) return;\n\s+if \(now\.sources\.active\?\.sourceId === item\.ref\.sourceId\) now\.sources\.close\(\);/);
+  // The reader replaces the list, with Back to Files and the title once.
+  assert.match(source, /if \(reading\) \{/);
+  assert.match(source, /<ArrowLeft size=\{15\} aria-hidden \/>Back to Files<\/button>/);
+  assert.match(source, /<h2 data-context-title /);
+  assert.match(source, /\{!item\.attached && <span data-not-attached [^>]*>Not attached<\/span>\}/, 'a preview not used in this chat says so');
+  assert.match(source, /<p data-context-count aria-live="polite" [^>]*>\{fileCount\(sections\.length\)\}<\/p>/);
+  assert.doesNotMatch(source, /data-sources-close|from Materials/, 'one Close (CompanionHeader); the old Materials wording is gone');
+  const paper = readFileSync(new URL('./LearnPaper.jsx', import.meta.url), 'utf8');
+  assert.match(paper, /\{!companion && <h3 className="truncate text-sm font-medium">\{paper\.title\}<\/h3>\}/, 'the Context reader shows no second title');
+  assert.match(paper, /<div role="group" aria-label="Pages"[^]*?<div role="group" aria-label="Zoom"/, 'pages and zoom each one group');
 });
 
 // pdf-materials-refinement.md section 1: the row's canvas context switch and this chat are separate - switching a document on
@@ -224,11 +241,22 @@ test('the canvas context switch never attaches the document to this chat', () =>
   assert.match(docs, /export async function toggleContextDoc\(app, id, attached\) \{\r?\n  const data = await request\('PATCH', `\/api\/learn\/context\/\$\{encodeURIComponent\(id\)\}`, \{ app, attached \}\);/);
 });
 
-// Dark mode re-pins --color-white to white inside any class naming bg-accent (index.css): a resting row action never names it.
-test('a resting Materials row action keeps its dark surface', async () => {
+// Dark mode re-pins --color-white to white inside any class naming bg-accent (index.css): the row controls name neither, and
+// carry no surface of their own (neutral rows on the panel's own surface, both themes).
+test('Context row controls keep the panel surface in both themes', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
-  const base = source.match(/const ROW_ACTION = '([^']+)'/)[1], rest = source.match(/: '(border-line bg-white[^']+)'/)[1];
-  assert.doesNotMatch(`${base} ${rest}`, /bg-accent/);
-  assert.match(source, /const rowAction = \(pressed = false\) => `\$\{ROW_ACTION\} \$\{pressed \? 'border-accent\/40 bg-accent\/10 text-accent hover:bg-accent\/20' : 'border-line bg-white/);
+  for (const name of ['CHECK', 'OPTIONS', 'BOX']) assert.doesNotMatch(source.match(new RegExp(`const ${name} = '([^']+)'`))[1], /bg-accent|bg-white|bg-ink/, name);
+});
+
+// PDF-02 status on a Context row (contract-pdf-status.md): pages in the metadata; a long PDF's reading and its pages without
+// text as a note; a legacy row (no new fields) reads as before.
+test('Context row metadata: pages, how a long PDF is read, pages without text; legacy rows unchanged', () => {
+  const day = new Date('2026-10-13T22:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  assert.equal(C.docMeta({ ...doc, pages: 312, size: 2_400_000 }), `PDF · 312 pages · 2.4 MB · ${day}`);
+  assert.equal(C.docMeta({ ...doc, pages: 1 }), `PDF · 1 page · 2 KB · ${day}`);
+  assert.equal(C.docMeta(doc), `PDF · 2 KB · ${day}`, 'a legacy row has no page count');
+  assert.equal(C.docNote({ ...doc, reads: 'pages', noText: 3 }), 'Questions read the relevant pages · 3 pages without text');
+  assert.equal(C.docNote({ ...doc, reads: 'whole', noText: 0 }), '');
+  assert.equal(C.docNote(doc), '');
 });
