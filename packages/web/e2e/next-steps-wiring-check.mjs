@@ -112,7 +112,10 @@ await composer().waitFor({ timeout: 60000 });
 await page.waitForTimeout(4000); // past the 1200 ms hook debounce
 await check('0 opening a canvas in Tutor On asks for no hooks (owner 3a); the learner\'s finished turn brings the first set', async () => {
   assert.equal(sets.length, 0, 'no set on open');
-  assert.equal(await page.locator('[data-next-steps]').count(), 0);
+  // Owner ruling 2026-10-21 (View > Curious on must visibly show): at rest, Curious's empty state with Suggest, no hook card.
+  assert.equal(await page.locator('[data-next-step]').count(), 0, 'no hook card at rest');
+  assert.equal(await page.locator('[data-next-steps]:not([data-next-steps="empty"])').count(), 0, 'no set card at rest');
+  await page.locator('[data-hooks-slot] section[data-next-steps="empty"]').getByRole('button', { name: 'Suggest next steps' }).waitFor({ timeout: 5000 });
   await composer().fill(SEED_QUESTION);
   await composer().press('Enter');
   await chatReplies(SEED_REPLY).first().waitFor({ timeout: 30000 });
