@@ -276,19 +276,16 @@ test('the production pipeline authors and compiles a real spec; with no browser 
   assert.equal(done.compiled.counts.authored, 1);
   assert.deepEqual((await s.job(body.job.id)).job.recovery, ['retry_render', 'edit_request']);
 });
-// Steps compile since the integration (component step); an experiment is still a capability gap.
-test('the production pipeline: a request needing an experiment ends as a structured capability gap, with no repair and no card', async t => {
+// Experiments compile since L3's controls: one on a plain component (no control) is refused by the trusted check and never
+// drawn; the repair round that cannot fix it stops the job with no card.
+test('the production pipeline: an experiment whose input is not a control is refused before rendering, with no card', async t => {
   const s = setup(t, { pipeline: explainPipeline });
   const experiment = { ...SPEC, presentation: { mode: 'static', experiments: [{ id: 'e', purpose: 'Compare lengths.', input: 'length', domain: { values: [1, 4] }, affects: [SPEC.components[0].id], contrasts: ['Longer is slower.'] }] } };
-  authorReplies(t, [{ kind: 'spec', spec: experiment }]);
+  authorReplies(t, [{ kind: 'spec', spec: experiment }, { operation: 'none', reason: 'Needs a controllable component.' }]);
   const { body } = await s.create({ prompt: 'Show how the string length changes the period.' });
   const done = await s.run(body.job.id);
-  assert.deepEqual([done.stage, done.stopReason, done.failure.category, done.failure.gap.needs, done.failure.gap.source], ['failed', 'capability_gap', 'capability', ['experiment'], 'compiler']);
-  assert.equal(done.compiled, null);
-  const view = (await s.job(body.job.id)).job;
-  assert.deepEqual(view.recovery, ['edit_request']);
-  assert.equal(view.result, null);
-  assert.match(view.failure.message, /an interactive experiment/);
+  assert.deepEqual([done.stage, done.stopReason, done.compiled, done.result], ['failed', 'no_progress', null, null]);
+  assert.match(done.findings[0].problems.join(' '), /must name a component's control/);
 });
 
 test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', async t => {

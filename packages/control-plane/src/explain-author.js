@@ -35,7 +35,8 @@ export function compilerSupport() {
     time: probe({ presentation: { mode: 'time', duration: 4 } }),
     math: probe({ components: [{ id: 'a', component: 'module', version: 1, params: { label: { runs: [{ kind: 'math', tex: 'x^2' }] } } }] }),
     steps: probe({ presentation: { mode: 'steps', steps: [{ id: 's1', title: 'One' }, { id: 's2', title: 'Two' }] } }),
-    experiment: probe({ presentation: { mode: 'static', experiments: [{ id: 'e', purpose: 'Compare.', input: 'n', domain: { values: [1, 2] }, affects: ['a'], contrasts: ['More.'] }] } }),
+    // A controllable component (its catalogue entry lists controls, r2-contract.md): an input on a plain module never compiles.
+    experiment: probe({ components: [{ id: 'p', component: 'pendulum', version: 1, params: { length: 1 } }], presentation: { mode: 'static', experiments: [{ id: 'e', purpose: 'Compare.', input: 'p.length', domain: { values: [1, 4] }, affects: ['p'], contrasts: ['More.'] }] } }),
   });
   return support;
 }

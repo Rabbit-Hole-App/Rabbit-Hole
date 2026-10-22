@@ -111,8 +111,9 @@ test('a refinement re-prepares the brief as the next version; the old version is
 });
 
 // Steps compile since the integration (component step), so an experiment is the unsupported presentation left.
-test('preflight: a brief that plans an unsupported presentation or an unknown component is a capability gap, with no card and no proposal', async t => {
-  for (const [reply, need] of [[brief({ presentation: 'experiment' }), 'experiment'], [brief({ components: ['galaxy'] }), 'component']]) {
+// Every presentation compiles since L3's experiment controls; a planned component the catalogue lacks is still a gap.
+test('preflight: a brief that plans an unknown component is a capability gap, with no card and no proposal', async t => {
+  for (const [reply, need] of [[brief({ components: ['galaxy'] }), 'component']]) {
     const s = stack(t);
     const model = scripted(t, { explain_brief: [reply] });
     const done = await s.run((await s.create({ requestClass: 'researched', threadId: 'th1' })).body.job.id);
