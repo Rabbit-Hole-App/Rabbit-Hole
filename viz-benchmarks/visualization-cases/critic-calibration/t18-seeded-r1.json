@@ -1,0 +1,1040 @@
+{
+  "runId": "t18-seeded-r1",
+  "model": "claude-opus-5-5",
+  "spentUsd": 0.2849,
+  "unknownCost": false,
+  "calls": [
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzab26NGYrVDcK7j8oY",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2232,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 591,
+        "output_tokens_details": {
+          "thinking_tokens": 213
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.020748,
+      "ms": 7418,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzbpXyKb2stK8iYZwRW",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2227,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 399,
+        "output_tokens_details": {
+          "thinking_tokens": 190
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.016888,
+      "ms": 4958,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzdSoKu2a3ekkpReZqY",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2230,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 394,
+        "output_tokens_details": {
+          "thinking_tokens": 135
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.0168,
+      "ms": 5140,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzdvespWYFNdHM2Nfcc",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2239,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 722,
+        "output_tokens_details": {
+          "thinking_tokens": 241
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.023396,
+      "ms": 7767,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzfUe1ARokAYAYZYya8",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2238,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 578,
+        "output_tokens_details": {
+          "thinking_tokens": 177
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.020512,
+      "ms": 5413,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzhATBZYnTE66KmkGBw",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2230,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 422,
+        "output_tokens_details": {
+          "thinking_tokens": 129
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.01736,
+      "ms": 5367,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGziJBHqjQNPKgLvrWxd",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2228,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 740,
+        "output_tokens_details": {
+          "thinking_tokens": 237
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.023712,
+      "ms": 7507,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzixSvKVWqrkC5eBoQe",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2238,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 568,
+        "output_tokens_details": {
+          "thinking_tokens": 171
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.020312,
+      "ms": 6190,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzjWL4xRG7nFfQRQJjt",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2228,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 588,
+        "output_tokens_details": {
+          "thinking_tokens": 203
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.020672,
+      "ms": 6557,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzk48kjPxzKD16HYzqU",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2232,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 701,
+        "output_tokens_details": {
+          "thinking_tokens": 283
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.022948,
+      "ms": 8455,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzknGJ81naKLWcmxf6s",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2226,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 515,
+        "output_tokens_details": {
+          "thinking_tokens": 164
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.019204,
+      "ms": 5795,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzmHCbbjwTuyC45faD7",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2226,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 422,
+        "output_tokens_details": {
+          "thinking_tokens": 107
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.017344,
+      "ms": 4506,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGzmfqNhPTAV31kgo51p",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2239,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 847,
+        "output_tokens_details": {
+          "thinking_tokens": 290
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.025896,
+      "ms": 9028,
+      "stopReason": "tool_use"
+    },
+    {
+      "stage": "author",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgGznPzeRZiRJEQv9CBMe",
+      "status": 200,
+      "usage": {
+        "input_tokens": 2227,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 512,
+        "output_tokens_details": {
+          "thinking_tokens": 214
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "images": 1,
+      "costUsd": 0.019148,
+      "ms": 5247,
+      "stopReason": "tool_use"
+    }
+  ],
+  "results": [
+    {
+      "sid": "s01",
+      "key": "missing-greek-glyph:corrected",
+      "captureId": "s01",
+      "semantic": "fail",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s01",
+            "object": "Value vector"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "Only one value vector feeds the 'Weighted sum'. The request is about scaling each value by its own α and then adding the scaled values together. With a single input, nothing is being summed, and you can't see that each value has its own weight (or that the weights typically add up to 1). Show at least two or three values, each with its own α (e.g. 0.3, 0.7), joining at the sum."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s01",
+            "object": "edge label"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The diagram doesn't make the order of operations explicit: the arrow label 'scaled by weight α = 0.3' goes straight into the sum. Showing the scaled value α·v as a separate step before the sum would make 'scaled before summed' clear. The value α = 0.3 is fine as an example."
+        }
+      ]
+    },
+    {
+      "sid": "s02",
+      "key": "caption-over-arrow:corrected",
+      "captureId": "s02",
+      "semantic": "fail",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s02",
+            "object": "diagram"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The card correctly shows tokens being mapped to embeddings by an embedding-table lookup. It never shows the first transformer block, so it doesn't show the part the request asks about: that this happens before the first block. Add a 'Block 1' node after Embeddings, or say so in the text."
+        }
+      ]
+    },
+    {
+      "sid": "s03",
+      "key": "crowded-arrow-label:corrected",
+      "captureId": "s03",
+      "semantic": "pass",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s03",
+            "object": "keys label"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The 'keys' label sits at the arrow's start point and touches the Encoder box's right border. It should be centred along the arrow with some clearance from the box."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s03",
+            "object": "values label"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The 'values' label also touches the Encoder box's right border at the arrow's start. It should be moved toward the middle of the arrow and kept clear of the box edge."
+        }
+      ]
+    },
+    {
+      "sid": "s04",
+      "key": "long-crossing-connector:bad",
+      "captureId": "s04",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s04",
+            "object": "connector Attention layer → Detail"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The connector from 'Attention layer' to the detail panel runs diagonally straight through the 'Normalise' box. That makes it look like Normalise is part of the path or is being pointed at."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s04",
+            "object": "Detail: Q, K, V projections"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The request asks what happens inside the attention layer, but the detail panel only says 'Q, K, V projections'. It leaves out the core steps: query–key dot-product scores, scaling, softmax into attention weights, the weighted sum of values, and the output projection (plus multiple heads, if relevant). It does not explain the mechanism."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s04",
+            "object": "Normalise"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "'Normalise' floats beside the stack with no connection. Its role is unclear: is it a fourth layer, part of attention, or a residual/LayerNorm step? There are also no flow arrows between Embedding, Attention, and Feed-forward, so the order of the three-layer stack is not shown."
+        }
+      ]
+    },
+    {
+      "sid": "s05",
+      "key": "overlapping-badge:corrected",
+      "captureId": "s05",
+      "semantic": "fail",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s05",
+            "object": "Router arrows"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The router draws two identical arrows, to Expert 1 and to Expert 16. That reads as routing to both experts, not as picking one. The card needs to highlight a single chosen expert and show the others as not selected."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s05",
+            "object": "Expert set"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "Only Expert 1 and Expert 16 are drawn, with no ellipsis or stack for Experts 2–15. A learner may think the layer has two experts, so the fact that there are 16 experts is not clearly shown."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s05",
+            "object": "16 badge"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The green '16' badge has no label. It is unclear whether it means the total number of experts or repeats the Expert 16 index, so it does not clearly state that there are 16 experts in total."
+        }
+      ]
+    },
+    {
+      "sid": "s06",
+      "key": "crowded-arrow-label:bad",
+      "captureId": "s06",
+      "semantic": "pass",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s06",
+            "object": "values edge label"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The 'values from every encoder position' label sits right on the upper (keys) arrow, so the line runs through the text like a strikethrough. The label's right end also runs into the arrowhead at the Decoder border."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s06",
+            "object": "keys edge label"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The 'keys from every encoder position' and 'values from every encoder position' labels are stacked almost touching. Both sit between the two parallel arrows, so it is unclear which label belongs to which arrow."
+        }
+      ]
+    },
+    {
+      "sid": "s07",
+      "key": "missing-arrow-glyph:corrected",
+      "captureId": "s07",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s07",
+            "object": "diagram"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The card shows only one query and one key producing one score. It never shows that every query is compared with every key, for example with several queries and keys, a grid of scores, or a pairwise score matrix. That all-pairs comparison is the main point of the request."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s07",
+            "object": "caption"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The caption 'Q → K gives one score' uses an arrow from Q to K, which suggests a mapping or flow from query to key. It should describe a comparison between them, such as the dot product q·k, which produces the score."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s07",
+            "object": "connector"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The arrow to Score starts in empty space between the Query and Key boxes and does not attach to either one. Neither box visibly feeds the Score, so the comparison is unclear. Each box should have its own connector to the Score, or both should feed a visible comparison node."
+        },
+        {
+          "version": 1,
+          "id": "rf4",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "minor",
+          "target": {
+            "capture": "s07",
+            "object": "caption"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The caption sits off to the side and is not clearly tied to any part of the diagram, so the layout reads as unbalanced."
+        }
+      ]
+    },
+    {
+      "sid": "s08",
+      "key": "overlapping-badge:bad",
+      "captureId": "s08",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "blocker",
+          "target": {
+            "capture": "s08",
+            "object": "Expert 16"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "A small green rounded box labelled '16' sits on top of the 'Expert 16' label. The two texts overlap and read as 'Exper16t 16', so the label can't be read."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s08",
+            "object": "Router arrows"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The router has equal arrows to both Expert 1 and Expert 16. Nothing marks which one is chosen, so the card suggests the router sends input to several experts instead of picking one."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s08",
+            "object": "experts"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "Only Expert 1 and Expert 16 are drawn. There is no ellipsis or placeholder for experts 2–15, so a learner can't see that the layer has 16 experts. The empty gap between the two boxes doesn't show it either."
+        }
+      ]
+    },
+    {
+      "sid": "s09",
+      "key": "missing-arrow-glyph:bad",
+      "captureId": "s09",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "blocker",
+          "target": {
+            "capture": "s09",
+            "object": "Q·K label"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The operator between Q and K renders as a 'NO GLYPH' replacement box, so the learner can't see what operation is applied (probably a dot product, ·)."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "major",
+          "target": {
+            "capture": "s09",
+            "object": "arrow to Score"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The arrow starts in empty space between the Query and Key boxes and isn't attached to either one, so it's unclear that both inputs combine to make the score. Two connectors, or one joining from both boxes, would make this clear."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s09"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The card shows only one query and one key producing one score. It doesn't show the requested idea that each query is compared with each key (all pairs, which give a grid of scores). It needs several queries and keys, or a score matrix."
+        }
+      ]
+    },
+    {
+      "sid": "s10",
+      "key": "missing-greek-glyph:bad",
+      "captureId": "s10",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "blocker",
+          "target": {
+            "capture": "s10",
+            "object": "edge label 'scaled by weight α = 0.3'"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The alpha symbol is drawn as a missing-glyph box (tofu), so the label reads 'scaled by weight ▯ = 0.3'. The learner can't see that the weight is alpha."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s10",
+            "object": "Value vector → Weighted sum"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "Only one value vector goes into the 'Weighted sum'. The card never shows several values each scaled by their own alpha and then added together, so the 'before they are summed' part of the request isn't shown. Add at least two values with their own weights (e.g. α1·v1 + α2·v2) feeding a sum."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "semantic",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s10",
+            "object": "edge label"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "Because the glyph didn't render, the card never names alpha, which is the quantity the request asks about."
+        }
+      ]
+    },
+    {
+      "sid": "s11",
+      "key": "formula-touching-connector:bad",
+      "captureId": "s11",
+      "semantic": "pass",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s11",
+            "object": "softmax formula label"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The edge label w_i = e^{s_i} / Σ_j e^{s_j} sits right on the Scores→Weights arrow. The arrow line runs through the fraction, merging with the fraction bar and cutting through the denominator Σ_j e^{s_j}, so the formula is hard to read. Move the label above or below the connector, or give it a background and padding."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s11",
+            "object": "card"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The formula is correct standard softmax, but the card only shows it. It doesn't say that the weights are positive and add up to 1, or that larger scores get exponentially larger weights. Adding that would explain the formula better for a learner."
+        }
+      ]
+    },
+    {
+      "sid": "s12",
+      "key": "formula-touching-connector:corrected",
+      "captureId": "s12",
+      "semantic": "pass",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s12",
+            "object": "formula"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The softmax formula w_i = e^{s_i} / Σ_j e^{s_j} is correct, but the card is very thin. It never says that the weights are positive and add up to 1, which is the main reason softmax turns scores into weights."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "minor",
+          "target": {
+            "capture": "s12",
+            "object": "formula"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The formula floats below the diagram and has no visual link to the Scores→Weights arrow, which has no label. Labelling the arrow 'softmax' or placing the formula next to it would make the connection clear. The formula is small, but it reads fine."
+        }
+      ]
+    },
+    {
+      "sid": "s13",
+      "key": "long-crossing-connector:corrected",
+      "captureId": "s13",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s13",
+            "object": "Detail: Q, K, V projections"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The detail panel only names 'Q, K, V projections'. It does not explain what happens inside attention: no query-key dot-product scores, no scaling, no softmax, and no weighted sum of values producing the output. This does not answer the request."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s13",
+            "object": "Normalise"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The request asks for a three-layer stack, but the card shows four boxes. 'Normalise' sits beside Feed-forward, outside the stack, so it is unclear whether it is a layer, a sub-step, or something else."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "s13"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "No arrows connect Embedding, Attention layer and Feed-forward, so the card never shows that data flows from one layer to the next."
+        },
+        {
+          "version": 1,
+          "id": "rf4",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "major",
+          "target": {
+            "capture": "s13",
+            "object": "Normalise"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The stray Normalise box breaks the vertical column, making the stack read as a 2x2 grid. It sits under the empty space below the connector, with no link to anything."
+        },
+        {
+          "version": 1,
+          "id": "rf5",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "minor",
+          "target": {
+            "capture": "s13",
+            "object": "Detail: Q, K, V projections"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The label nearly fills the detail box, leaving very little padding against its left and right borders."
+        }
+      ]
+    },
+    {
+      "sid": "s14",
+      "key": "caption-over-arrow:bad",
+      "captureId": "s14",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "s14",
+            "object": "edge label 'lookup in the embedding table'"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The edge label sits directly on the arrow line, so the line runs through the text like a strikethrough. The label needs to move above or below the connector."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "s14",
+            "object": "diagram"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The request asks to show that tokens become embeddings before the first block, but the card has no first transformer block. Without it, the card shows the conversion but not where it happens in the model. Add a 'Block 1' node after Embeddings. The lookup claim itself is correct."
+        }
+      ]
+    }
+  ],
+  "score": {
+    "truePositives": 7,
+    "misses": 0,
+    "falsePositives": 3,
+    "trueNegatives": 4,
+    "bad": 7,
+    "corrected": 7,
+    "semanticFalseAlarms": 10
+  },
+  "errors": 0
+}

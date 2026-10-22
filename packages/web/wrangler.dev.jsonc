@@ -30,6 +30,11 @@
       {
         "name": "FILE_JOBS",
         "class_name": "FileJobs"
+      },
+      // /explain v2 jobs, one object per canvas (control-plane/src/explain-job.js, EXP-T12); routes off unless EXPLAIN_V2_ENABLED.
+      {
+        "name": "EXPLAIN_JOBS",
+        "class_name": "ExplainJobs"
       }
     ]
   },
@@ -56,6 +61,12 @@
       "tag": "file-jobs-1",
       "new_sqlite_classes": [
         "FileJobs"
+      ]
+    },
+    {
+      "tag": "explain-jobs-1",
+      "new_sqlite_classes": [
+        "ExplainJobs"
       ]
     }
   ],
@@ -109,6 +120,8 @@
     }
   ],
   "vars": {
+    // /explain v2 (EXP-T12): off until the M5 activation (EXP-T23); off, its routes answer 404 and /explain keeps today's path.
+    "EXPLAIN_V2_ENABLED": "false",
     "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",
     "LEARN_VIDEO_RESOLUTION": "480p",
     "SUBSCRIPTION_ONLY": "false",

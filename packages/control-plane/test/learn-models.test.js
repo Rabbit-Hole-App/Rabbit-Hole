@@ -179,8 +179,9 @@ test('the journey roles: exactly five LEARN_TASKS entries, one tool each, no fal
     journey_adapt: role('claude-sonnet-5-5', 'low', 4000),
   });
   assert.ok(Object.values(journey).every(Object.isFrozen));
-  // Appended after the Avatar roles, which stay; the hook planner roles follow the journey block.
-  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find']);
+  // Appended after the Avatar roles, which stay; the hook planner roles follow the journey block, then the /explain roles
+  // (EXP-T12; their values: explain-policy.test.js).
+  assert.deepEqual(Object.keys(LEARN_TASKS).slice(Object.keys(LEARN_TASKS).indexOf('home_ask'), -2), ['home_ask', 'avatar_director', 'avatar_script_reviewer', ...Object.keys(journey), 'tutor_next_steps', 'tutor_next_steps_escalation', 'explore_find', 'explain_brief', 'explain_author', 'explain_review', 'explain_repair']);
 });
 
 // Professor Next Steps (docs/features/professor-next-steps.md §2.4): Sonnet low first, Opus once as the escalation; the

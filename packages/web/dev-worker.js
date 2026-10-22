@@ -19,6 +19,8 @@ export { LearnScenes } from '../control-plane/src/learn-scene.js';
 export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
 import { cadRoute } from '../control-plane/src/cad-jobs.js';
+export { ExplainJobs } from '../control-plane/src/explain-job.js';
+import { explainRoute } from '../control-plane/src/explain-job.js';
 import { fileJobsRoute } from '../control-plane/src/file-jobs.js';
 import SHELL from './dist-dev/index.html';
 import LANDING from './dist-dev/design/rabbit-hole-hero.html';
@@ -308,6 +310,8 @@ const routes = {
     if (path.startsWith('/api/learn/provenance/')) { const provenance = await provenanceRoute(path, req, env); if (provenance) return provenance; }
     // Durable file-conversion jobs and the converter's callbacks (docs/features/canvas-file-imports.md section 5).
     if (path.startsWith('/api/learn/cad/')) return cadRoute(path, req, env);
+    // /explain v2 jobs (explain-job.js): 404 unless EXPLAIN_V2_ENABLED is 'true'.
+    if (path.startsWith('/api/learn/explain/')) { const explained = await explainRoute(path, req, env); if (explained) return explained; }
     if (path.startsWith('/api/learn/code-runs')) { const codeRun = await inlineCodeRoute(path, req, env); if (codeRun) return codeRun; }
     if (path.startsWith('/api/learn/files/image-edits')) { const imageJobs = await inlineImageJobsRoute(path, req, env); if (imageJobs) return imageJobs; }
     if (path.startsWith('/api/learn/files/')) { const jobs = await fileJobsRoute(path, req, env); if (jobs) return jobs; }

@@ -79,6 +79,13 @@ export const LEARN_TASKS = Object.freeze({
   // Explore's AI find (/api/learn/boards/published/find, explore-find.js; explore-publish.md): a sentence-length search
   // picks and ranks published canvases and creators. The small model, one JSON reply, cached per normalised query.
   explore_find: Object.freeze({ provider: 'anthropic', model: 'claude-haiku-4-5-20251001', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'none (no tools; one JSON reply)', maxTokens: 400 }),
+  // /explain v2 (EXP-T12, plan v2.1 section 3.2): its own roles, pinned to Opus 5.5, never the picker, Auto or `artifact`.
+  // Opus 5.5 400s a forced tool with thinking off, so each offers one tool on auto and a reply without exactly one call of
+  // it is an invalid turn (explain-policy.js explainToolInput). Limits and prices: explain-policy.js.
+  explain_brief: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 4000 }),
+  explain_author: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 10000 }),
+  explain_review: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 3000 }),
+  explain_repair: Object.freeze({ provider: 'anthropic', model: 'claude-opus-5-5', picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'auto (exactly one tool call)', maxTokens: 6000 }),
   // Slash-command cards (/api/learn/artifact).
   artifact: Object.freeze({ provider: 'plan', model: ASK_MODELS.auto, picker: false, fallback: 'none', thinking: 'model default', toolChoice: 'any', maxTokens: 4000 }),
   // The whiteboard (/api/learn/board): one model for plan, draft and review.

@@ -66,9 +66,12 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   assert.equal(app.vars.CAD_PRODUCTION_MONTHLY_MODEL_USD, '10');
   assert.equal(app.vars.CAD_PRODUCTION_ENABLED, undefined);
   assert.equal(app.vars.CAD_MODEL_ENABLED, undefined);
-  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}] };
+  // ExplainJobs (EXP-T12) is bound everywhere; in prod its tag follows the already-applied cad-jobs-1, since a migration tag
+  // placed before an applied one would never run.
+  const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
-  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}]);
+  assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}]);
+  assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'false');
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).
