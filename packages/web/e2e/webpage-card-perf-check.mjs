@@ -128,7 +128,8 @@ for (const n of SIZES) {
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.route('**/*', router);
   const page = await context.newPage();
-  page.on('pageerror', error => errors.push(`${n}: ${error.message.slice(0, 160)}`));
+  // The stack's first frames too (fast-e2e 39762305659 gave only "Cannot assign to read only property '0'").
+  page.on('pageerror', error => errors.push(`${n}: ${error.message.slice(0, 160)} [${String(error.stack || '').split(/\r?\n/).slice(1, 9).map(l => l.trim()).join(' | ').slice(0, 1400)}]`));
   const cdp = await context.newCDPSession(page); await cdp.send('Performance.enable');
   const row = { cards: n };
   try {
