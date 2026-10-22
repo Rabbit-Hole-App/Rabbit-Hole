@@ -10,6 +10,7 @@ import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { BOARDS, BOARD_REVIEW_STATES, BOARD_SEED_VERSIONS } from '../src/demo-scenes.js';
 import { evaluateScene } from '../src/scene-evaluate.js';
+import { presentationMode } from '../src/animation-scene.js';
 import { reveal } from './canvas-reveal.mjs';
 import { DEV_CP } from './dev-cp.mjs';
 
@@ -99,6 +100,9 @@ for (const block of all) {
   const card = cardEls.filter({ hasText: scene.title }).first();
   await reveal(page, canvas, card);
   if (await card.locator('[data-animation-frame] [data-input-control]').count()) fail(`${name}: controls drawn inside the visualization`);
+  // A static card has no transport row at all (not an empty one under the frame); a timed or stepped card keeps it.
+  const transports = await card.locator('[data-animation-transport]').count(), wantTransport = presentationMode(scene) === 'static' ? 0 : 1;
+  if (transports !== wantTransport) fail(`${name}: ${transports} transport row(s), want ${wantTransport} for a ${presentationMode(scene)} card`);
   const visible = (scene.inputs || []).filter(d => !d.hidden);
   let current = defaultsOf(scene);
   const baseline = expectedTexts(scene, current);

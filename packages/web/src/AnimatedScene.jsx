@@ -820,9 +820,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
             onAskRegion?.(next, { region: area, time: Number(shown.toFixed(2)), targets });
           }} />
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        {/* One transport for one state: Play/Pause, becoming Replay at the
-            end (plan v2.1 section 1.2). A static scene has none. */}
+      {/* One transport for one state: Play/Pause, becoming Replay at the
+          end (plan v2.1 section 1.2). A static scene has none, and no empty
+          row either (LearningBlocks sizeFor reserves no TRANSPORT for it). */}
+      {!staticScene && (
+      <div data-animation-transport className="flex shrink-0 items-center gap-1.5">
         {mode === 'time' && (
         <button type="button" data-animation-play onClick={play}
           className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
@@ -848,6 +850,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
         <span className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
         </>)}
       </div>
+      )}
       {/* INTERACT zone: the controls that change the concept, below the
           visualization and its transport, never scattered inside the diagram
           (spec: inside the visual = understand, below = manipulate). Direct

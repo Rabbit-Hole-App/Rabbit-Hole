@@ -21,7 +21,7 @@ import RepositoryGraph from './RepositoryGraph.jsx';
 import FlowDiagram from './FlowDiagram.jsx';
 import AnimatedScene from './AnimatedScene.jsx';
 const WhiteboardBlock = lazyFeature(() => import('./WhiteboardBlock.jsx'), 'The whiteboard');
-import { fromTemplate } from './animation-scene.js';
+import { fromTemplate, presentationMode } from './animation-scene.js';
 import { describeAnimation } from './scene-describe.js';
 import { sceneLegibility } from './scene-layout.js';
 import { axisScene, residualScene, sigmoidScene } from './demo-scenes.js';
@@ -65,8 +65,10 @@ const SIGMOID_FIGURE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy
 // of the frame, and, vertically, the drag strip, the ANIMATION kicker, the
 // title, and the transport row under the frame. Width re-measured 2026-09-28 on
 // the deployed board (a 998px scene got a 994px frame at 32, drawing a wide
-// scene at 0.995 - under the type floors).
+// scene at 0.995 - under the type floors). TRANSPORT: that row (h-8) and the
+// gap-2 above it, which a static scene does not draw (AnimatedScene).
 const FRAME_CHROME = { w: 36, h: 140 };
+const TRANSPORT = 40;
 
 // typicalHeight (a card whose height follows its content): what a skeleton holds for one on its way
 // (canvas-slots.js slotSize, docs/features/canvas-skeleton-cards.md) - the palette sample's rendered height,
@@ -493,7 +495,7 @@ export const BLOCK_TYPES = {
       // The practice section is not reserved here: it reports its measured
       // height (collapsed or open) and the card grows by it (SceneActivity
       // onHeight -> the canvas node's extraHeight).
-      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h + pager) };
+      return { width: Math.round(report.viewport.w + FRAME_CHROME.w), height: Math.round(report.viewport.h + FRAME_CHROME.h - (presentationMode(block.scene) === 'static' ? TRANSPORT : 0) + pager) };
     },
     sample: () => ({
       id: crypto.randomUUID(),
