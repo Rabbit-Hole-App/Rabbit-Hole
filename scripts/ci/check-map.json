@@ -246,6 +246,8 @@
     "packages/web/src/use-learn-coaching.jsx": ["tutor-controls-check.mjs","chat-workspace-shell-check.mjs","tutor-codebase-check.mjs"],
     "packages/web/src/TutorCodebase.jsx": ["tutor-codebase-check.mjs"],
     "packages/web/src/learn-codebase-goals.js": ["tutor-codebase-check.mjs"],
+    "packages/web/src/TutorCitations.jsx": ["tutor-codebase-check.mjs"],
+    "packages/web/src/tutor-citations.js": ["tutor-codebase-check.mjs"],
     "packages/control-plane/src/learn-codebase-source-map.js": ["tutor-codebase-check.mjs"],
     "packages/web/src/learn-coaching-client.js": ["tutor-controls-check.mjs","chat-workspace-shell-check.mjs"],
     "packages/web/src/learn-coaching-entry.js": ["tutor-controls-check.mjs","chat-workspace-shell-check.mjs"],
