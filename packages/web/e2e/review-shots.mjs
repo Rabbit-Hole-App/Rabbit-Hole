@@ -123,7 +123,7 @@ for (const block of blocks) {
   }
   index.push('');
   await reveal(page, canvas, card.locator('[data-scene-controls]'));
-  await card.locator('[data-scene-controls] [data-scene-reset]').click();
+  if (await card.locator('[data-scene-controls] [data-scene-reset]').count()) await card.locator('[data-scene-controls] [data-scene-reset]').click();
   await page.waitForTimeout(300);
 }
 writeFileSync(`${OUT}/INDEX.md`, index.join('\n'));

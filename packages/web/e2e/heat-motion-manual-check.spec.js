@@ -21,7 +21,7 @@
 //
 // What this file is still good for: a human who wants to SEE the cell
 // (heat-motion-harness.html - no app shell, no auth, no network, mounts
-// AnimatedScene directly) and drag the Animation time slider through the
+// AnimatedScene directly) and drag the Explanation time slider through the
 // blocked-to-revealed boundary, either by hand or via `npx playwright test
 // --config=playwright.heat-motion-manual-check.config.js`. Kept for that,
 // not run automatically anywhere.
@@ -33,7 +33,7 @@ test('manual check: a heat-mapped cell after a gradual scrub through blocked-to-
   const rect = cell.locator('rect').first();
   const text = cell.locator('text').first();
   const reference = page.locator('[data-animation-object="reference"] rect').first();
-  const input = page.locator('input[aria-label="Animation time"]');
+  const input = page.locator('input[aria-label="Explanation time"]');
 
   const blockedFill = await rect.evaluate(el => getComputedStyle(el).fill);
   for (const t of [0, 0.2, 0.4, 0.6, 0.8, 0.9, 0.95, 1.0, 1.05, 1.2, 1.5, 2]) {
@@ -52,7 +52,7 @@ test('manual check: bars and tokens fill after the same gradual scrub', async ({
   await page.goto('/e2e/heat-motion-harness.html');
   const barFill = page.locator('[data-animation-object="bar"] rect').first();
   const chipFill = page.locator('[data-animation-object="chip"] rect').first();
-  const input = page.locator('input[aria-label="Animation time"]');
+  const input = page.locator('input[aria-label="Explanation time"]');
 
   const barBefore = await barFill.evaluate(el => getComputedStyle(el).fill);
   const chipBefore = await chipFill.evaluate(el => getComputedStyle(el).fill);
