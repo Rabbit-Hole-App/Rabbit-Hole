@@ -85,8 +85,10 @@ const timeoutSignal = ms => {
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
-  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context'].includes(key));
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context', 'request_id'].includes(key));
   if (extra) throw new Error(`motion_request: unknown field ${extra}`);
+  // request_id (owner message 37): made once per Generate press, so the same prompt pressed again is a new video.
+  if (value.request_id !== undefined && (typeof value.request_id !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(value.request_id))) throw new Error('motion_request: request_id must be 8 to 64 characters [A-Za-z0-9_-]');
   if (value.op !== 'motion_request') throw new Error('motion_request: op must be motion_request');
   if (typeof value.request !== 'string' || !MOTION_LINE.test(value.request.trim()) || value.request.length > 500) throw new Error('motion_request: request must be a /motion line of at most 500 characters');
   const location = value.location ?? {};
@@ -94,12 +96,13 @@ export function validateMotionRequest(value) {
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
   const context = validateMotionContext(value.context);
-  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}) };
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}), ...(value.request_id ? { request_id: value.request_id } : {}) };
 }
 
-// A different selected card is a different video; a request with no context keeps the key it always had.
+// A different selected card is a different video; a request with no context keeps the key it always had. A request id (one per
+// Generate press, owner message 37) makes each press its own job; a request without one (saved before it) keeps its old key.
 export async function motionRequestCacheKey(input) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}`));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}${input.request_id ? `|press:${input.request_id}` : ''}`));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { videoLabel, motionConfirm, motionHoldNote, motionHoldStatus, MOTION_PAUSED } from './learn-video-label.js';
+import { videoLabel, motionConfirm, MOTION_PAUSED, resumesJob, readsAgain, SETTLE_READS } from './learn-video-label.js';
 import { motionVideoBlock } from '../../learn-render/motion/video-block.js';
 
 // The two samples' operations as BLOCK_TYPES.mathAnimation / videoGenerate build them (LearningBlocks.jsx).
@@ -53,18 +53,28 @@ test('an ungrounded Motion video is labelled on its card, never shown as sourced
   assert.deepEqual(motionVideoBlock({ brief, renderId: 'd'.repeat(32), jobId: 'motion-job-u' }).motion.grounding, { status: 'no_source_supplied' });
 });
 
-// Owner message 25: the amount is the server's (never a literal here), shown before confirmation; the card keeps the reservation
-// visible while it runs and says when reconciliation is pending.
-test('the Motion hold wording uses the amount the server returns, and the card shows reserved or pending', () => {
-  assert.equal(motionConfirm(8.96), 'This uses paid generation. Temporarily reserves $8.96 from your available AI allowance. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.');
-  assert.equal(motionHoldNote(2), 'Temporarily reserves $2.00 from your available AI allowance. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.');
-  for (const none of [null, undefined, NaN, 0]) assert.match(motionHoldNote(none), /^Temporarily reserves part of your available AI allowance\./, 'no amount of its own');
-  assert.equal(motionHoldStatus({ usd: 8.96, state: 'reserved' }), '$8.96 of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.');
-  assert.equal(motionHoldStatus({ usd: 8.96, state: 'pending' }), 'Reconciliation pending: the $8.96 reservation stays until the final cost is confirmed.');
-  for (const quiet of [{ usd: 8.96, state: 'released' }, null, { state: 'reserved' }]) assert.equal(motionHoldStatus(quiet), null);
+// Owner messages 30 and 32: the learner never sees the reservation amount or how it is held. The confirmation is the paid-generation
+// line with the server's estimate in credits (1 credit = $0.01), or PaidConfirm's default when the server sent none.
+test('the Motion confirmation: the server estimate in credits, else the plain paid-generation line; never a reservation (owner messages 30 and 32)', () => {
+  assert.equal(motionConfirm(100), 'This uses paid generation · about 100 credits');
+  assert.equal(motionConfirm(1), 'This uses paid generation · about 1 credit');
+  for (const none of [null, undefined, NaN, 0, -5, 8.96]) assert.equal(motionConfirm(none), 'This uses paid generation.', String(none));
 });
 
 test('while the server pauses new Motion generation, the confirmation says so (owner message 28)', () => {
   assert.equal(motionConfirm('paused'), 'Motion generation is temporarily unavailable while we fix a reliability issue.');
   assert.equal(MOTION_PAUSED, motionConfirm('paused'));
+});
+
+// MOT-11 (owner review of 274bd689): a reloaded card follows its saved job when it failed or was stopped too, not only while it runs,
+// and keeps reading (GET only) while its hold is pending, up to a bound; a released hold, or the bound, stops the reads.
+test('a reloaded failed or stopped card resumes its job, and reads again only while its hold is pending, bounded', () => {
+  for (const status of ['generating', 'queued', 'failed']) assert.equal(resumesJob({ status, placementId: 'p1' }), true, status);
+  for (const block of [{ status: 'failed' }, { status: 'ready', placementId: 'p1' }, { status: 'idle', placementId: 'p1' }, null]) assert.equal(resumesJob(block), false, JSON.stringify(block));
+  const pending = { status: 'failed', hold: { usd: 8.96, state: 'pending' } };
+  assert.equal(readsAgain(pending, 0), true);
+  assert.equal(readsAgain(pending, SETTLE_READS - 1), true);
+  assert.equal(readsAgain(pending, SETTLE_READS), false, 'bounded');
+  for (const done of [{ status: 'failed', hold: { usd: 8.96, state: 'released' } }, { status: 'failed' }, { status: 'ready', hold: { state: 'pending' } }, undefined]) assert.equal(readsAgain(done, 0), false, JSON.stringify(done));
+  assert.ok(SETTLE_READS > 0 && SETTLE_READS <= 120);
 });

@@ -18,9 +18,10 @@ export const sceneAssetUrl = (app, key) => new URL(`${endpoint(app)}&asset=${key
 const videoEndpoint = app => `/api/learn/video?app=${encodeURIComponent(app)}&workspace=${encodeURIComponent(getWs())}`;
 
 export const videoList = app => api(videoEndpoint(app));
-// What the server says a new /motion video would hold (LearnVideos list): 'paused' while new generation is paused (owner message
-// 28), else its per-job reservation (motionHoldUsd), or null where Motion cannot start.
-export const motionHold = async app => { const list = await videoList(app); return list?.motionPaused ? 'paused' : Number.isFinite(list?.motionHoldUsd) ? list.motionHoldUsd : null; };
+// What the confirmation may say about a new /motion video (LearnVideos list): 'paused' while new generation is paused (owner message
+// 28), else the server's estimate in credits (motionEstimateCredits, owner message 32), or null. Never derived here; the reservation
+// (motionHoldUsd) is internal and never read for display (owner message 30).
+export const motionHold = async app => { const list = await videoList(app); return list?.motionPaused ? 'paused' : Number.isInteger(list?.motionEstimateCredits) && list.motionEstimateCredits > 0 ? list.motionEstimateCredits : null; };
 
 export const startVideo = (app, operation, { confirmed = false, retry = false } = {}) =>
   api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ operation, lessonId: 'adaptive-canvas', page: 'canvas', confirmed, retry }) });
