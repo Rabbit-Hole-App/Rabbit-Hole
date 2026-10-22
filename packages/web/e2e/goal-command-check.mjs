@@ -179,6 +179,8 @@ await check('delete the current goal by keyboard: no current goal, the remaining
   await open();
   await goalCommand();
   await manager().waitFor();
+  // The saved goals load after the reload: wait for the server-confirmed list, never read the loading state as empty.
+  await item('Balance sheets, my words').waitFor();
   assert.deepEqual(await manager().locator('[data-goal-item]').evaluateAll(nodes => nodes.map(node => node.innerText.split('\n')[0])), ['Balance sheets, my words']);
   assert.equal(await item('Balance sheets, my words').getAttribute('data-goal-current'), 'true', 'the current goal persisted');
 });

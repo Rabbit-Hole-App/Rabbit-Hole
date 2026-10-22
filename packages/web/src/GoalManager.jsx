@@ -6,7 +6,7 @@
 // (below lg a closed column unmounts).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
-import { LABEL_MAX, OUTCOME_MAX, createGoalOps, goalWords, listedGoals, refsToGoal } from './learn-goals.js';
+import { LABEL_MAX, OUTCOME_MAX, createGoalOps, goalWords, goalsView, listedGoals, refsToGoal } from './learn-goals.js';
 
 const BUTTON = 'cursor-pointer rounded-lg px-3 py-1.5 text-sm font-medium disabled:cursor-default disabled:opacity-50';
 const PRIMARY = `${BUTTON} bg-ink text-white hover:opacity-90`;
@@ -27,7 +27,8 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
   useEffect(() => { drafts.set(keep, { ...drafts.get(keep), add, edits }); }, [keep, add, edits]);
   const ops = useMemo(() => createGoalOps({ act: coaching.act }), [coaching.act]);
   const addField = useRef(null), heading = useRef(null);
-  const goals = listedGoals(coaching.state), activeId = coaching.state?.activeGoalId ?? null;
+  const view = goalsView(coaching), ready = view === 'list' || view === 'empty';
+  const goals = ready ? listedGoals(coaching.state) : [], activeId = coaching.state?.activeGoalId ?? null;
   // /goal <words>: the words fill the new goal's field (not saved); /goal alone or Set a goal keeps any draft. Focus goes to
   // the field once the pane has taken its own focus.
   useEffect(() => {
@@ -46,6 +47,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
   };
   const submitAdd = async event => {
     event.preventDefault();
+    if (!ready) return; // Enter while the saved goals load: the words stay, nothing is sent
     const { words, error: invalid } = goalWords(add);
     if (invalid) { setError({ key: 'add', message: invalid }); addField.current?.focus(); return; }
     const out = await run('add', 'create_goal', words.outcome ? words : { label: words.label });
@@ -85,7 +87,10 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
       </div>
       {orphan && <p role="alert" data-goal-error className="text-xs text-fail">{error.message}</p>}
       {goals.length > 0 && !activeId && <p role="status" data-goal-choose className="text-sm text-ink-2">No current goal. Choose one below, or add a new one.</p>}
-      {goals.length === 0 && <p data-goal-empty className="text-sm text-ink-2">No learning goals yet. Add one: what do you want to be able to do?</p>}
+      {view === 'loading' && <p role="status" data-goal-loading className="text-sm text-ink-2">Loading your goals…</p>}
+      {view === 'error' && <p role="alert" data-goal-load-error className="flex flex-wrap items-center gap-2 text-sm text-fail">Your goals could not be loaded. Nothing has been lost.
+        <button type="button" onClick={coaching.retry} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
+      {view === 'empty' && <p data-goal-empty className="text-sm text-ink-2">No learning goals yet. Add one: what do you want to be able to do?</p>}
       {goals.length > 0 && <ul className="flex flex-col divide-y divide-line rounded-lg border border-line">
         {goals.map(goal => {
           const current = goal.goalId === activeId, edit = edits[goal.goalId];
@@ -132,7 +137,7 @@ export default function GoalManager({ scope, coaching, chat = null, seed = null,
         <input id="goal-new" ref={addField} data-goal-new maxLength={LABEL_MAX} placeholder="For example: read a balance sheet with confidence" value={add.label} onChange={event => setAdd(previous => ({ ...previous, label: event.target.value }))} className={FIELD} />
         <label className="sr-only" htmlFor="goal-new-outcome">What you will be able to do (optional)</label>
         <textarea id="goal-new-outcome" data-goal-new-outcome rows={2} maxLength={OUTCOME_MAX} placeholder="What you will be able to do (optional)" value={add.outcome} onChange={event => setAdd(previous => ({ ...previous, outcome: event.target.value }))} className={`${FIELD} resize-none`} />
-        <div><button type="submit" data-goal-add-save disabled={busy('add')} className={`${PRIMARY} inline-flex items-center gap-1.5`}><Plus size={15} aria-hidden />{busy('add') ? 'Adding…' : 'Add goal'}</button></div>
+        <div><button type="submit" data-goal-add-save disabled={busy('add') || !ready} className={`${PRIMARY} inline-flex items-center gap-1.5`}><Plus size={15} aria-hidden />{busy('add') ? 'Adding…' : 'Add goal'}</button></div>
         <p className="text-xs text-ink-3">A new goal becomes your current goal. Saved goals use no AI.</p>
         {errorFor('add')}
       </form>
