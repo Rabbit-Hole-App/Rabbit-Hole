@@ -143,7 +143,7 @@ test('Add to chat replaces the Ask in chat pills: hosts on the rows above the ob
   assert.match(canvas, /\{ask && sticky && askPill\}/);
   // The bar's one provider - the hosts and the floating bar both stand down while the editor is open, presenting or on a view-only
   // board - and the floating bar.
-  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| readOnly\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} onAddToChat=\{readOnly \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly \? quickEdit : null\}>/);
+  assert.match(canvas, /<SelectionActionsProvider sole=\{selection\.length === 1 \? selection\[0\] : null\} hidden=\{!!inline \|\| presenting !== null \|\| readOnly\} narrow=\{\(surface\.current\?\.clientWidth \|\| 1200\) < 640\} pinned=\{[^}]*\} onAddToChat=\{readOnly \? null : addToChat\} added=\{[^}]*isAttached\(chatRefOf\(objectById\(selection\[0\]\)\)\)\)\} onQuickEdit=\{inlineAi && !readOnly \? quickEdit : null\}>/);
   assert.match(canvas, /<SelectionActionBar anchor=\{barAnchor\} box=\{barBox\} \/>/);
   // Add to chat: one object is its card chip, asked (its answer lands as a card linked to it); a dropped image is shown to the tutor
   // too; a group, several objects or a shape are ONE chip with their ids and a text read at send; the draft is untouched, nothing is sent.

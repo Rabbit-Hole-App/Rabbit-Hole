@@ -20,3 +20,10 @@ export function anchorOf(boxes, view) {
   const right = Math.max(...boxes.map(box => box.x + box.w)), bottom = Math.max(...boxes.map(box => box.y + box.h));
   return { left: left * view.z + view.x, top: top * view.z + view.y, right: right * view.z + view.x, bottom: bottom * view.z + view.y };
 }
+
+// Whether object `id` shows the actions in its own row (a host) rather than the floating bar. Not on a narrow view (the row
+// can run off the edge), and not on an object with a comment pin (owner ruling, 2026-10-21): the pin sits at its top centre at
+// a constant screen size while the row scales with the zoom, so only the floating bar (placeBar) clears the pin at every zoom.
+export function usesHost({ sole, narrow = false, pinned = null }, id) {
+  return sole === id && !narrow && !pinned?.(id);
+}

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, MessageSquarePlus, Wand } from 'lucide-react';
 import { chordLabel, isMac } from './shortcut-owner.js';
-import { placeBar } from './selection-bar-place.js';
+import { placeBar, usesHost } from './selection-bar-place.js';
 
 // The selection action bar (owner brief 2026-10-13: "rename Ask in chat to Add to chat (ctrl + L) or Quick Edit (ctrl + k )"):
 // two clickable actions with their shortcut hints, for a selected card, shape, text object, group or several objects.
@@ -17,12 +17,12 @@ const Ctx = createContext(null);
 
 // added: the one selected object's ref is already in this chat (pdf-materials-refinement.md section 6), so Add to chat reads
 // Added to chat; pressing it again opens the chat and attaches nothing twice.
-export function SelectionActionsProvider({ sole, hidden = false, narrow = false, added = false, onAddToChat, onQuickEdit, children }) {
+export function SelectionActionsProvider({ sole, hidden = false, narrow = false, pinned = null, added = false, onAddToChat, onQuickEdit, children }) {
   const [hosted, setHosted] = useState(0);
   const busy = useCanvasBusy();
   const register = useCallback(() => { setHosted(count => count + 1); return () => setHosted(count => count - 1); }, []);
   const mac = useMemo(isMac, []);
-  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, added, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, added, onAddToChat, onQuickEdit, mac, hosted, register]);
+  const value = useMemo(() => ({ sole, hidden: hidden || busy, narrow, pinned, added, onAddToChat, onQuickEdit, mac, hosted, register }), [sole, hidden, busy, narrow, pinned, added, onAddToChat, onQuickEdit, mac, hosted, register]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -53,8 +53,8 @@ function Actions({ ctx, mode, className = '', style }) {
 // divider: a thin rule before it, where other controls of the row come first.
 export function SelectionActionsHost({ id, className = '', style, divider = false }) {
   const ctx = useContext(Ctx);
-  // On a narrow view an object's row can run off the edge with the object, so the floating bar (kept inside the view) takes over.
-  const here = !!ctx && ctx.sole === id && !ctx.narrow;
+  // On a narrow view, or on an object with a comment pin, the floating bar takes over (usesHost, selection-bar-place.js).
+  const here = !!ctx && usesHost(ctx, id);
   const register = ctx?.register;
   useLayoutEffect(() => (here ? register() : undefined), [here, register]);
   if (!here || ctx.hidden || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
