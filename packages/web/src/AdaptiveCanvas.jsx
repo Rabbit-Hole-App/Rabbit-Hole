@@ -2585,7 +2585,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const id = crypto.randomUUID();
     askCapture(id);
     snapshot();
-    insertAtView({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, locked: false });
+    insertAtView({ id, type: 'webpage', dx: 0, dy: 0, url, title: host, pending: { manifestId: null, lineage: null, status: 'capturing', reason: null, startedAt: Date.now() }, failure: null, scrollTop: 0, scrollLocked: false });
     setSelection([id]);
     return id;
   };

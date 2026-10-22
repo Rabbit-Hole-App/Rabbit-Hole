@@ -233,3 +233,14 @@ test('rendered: a refused first capture offers Remove; a hidden one Retry; a fai
   assert.match(render(card({ capture: { ...capture, truncated: { text: true } } })), /data-webcard-truncated[^>]*>Truncated</);
   B.setFileScope(null);
 });
+
+test('a capture file that 404s right after a version passed is retried (a stale board save can drop its index); other refusals are not', async () => {
+  const { captureFile } = await import('./webcard-api.js');
+  const replies = [404, 404, 200], seen = [];
+  const fetchImpl = async url => { seen.push(url); const status = replies.shift(); return { ok: status === 200, status, json: async () => ({ v: 1 }) }; };
+  assert.deepEqual(await captureFile('fs_1', { fetchImpl, wait: 0 }), { v: 1 });
+  assert.equal(seen.length, 3);
+  const refused = async status => { let n = 0; await assert.rejects(captureFile('fs_2', { fetchImpl: async () => { n += 1; return { ok: false, status }; }, wait: 0 }), /not available/); return n; };
+  assert.equal(await refused(403), 1, 'a 403 is not retried');
+  assert.equal(await refused(404), 5, 'a 404 is tried 5 times, then the card says so');
+});

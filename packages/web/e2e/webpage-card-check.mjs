@@ -150,13 +150,23 @@ const router = async route => {
 const results = [], facts = {};
 let page = null, context = null;
 const ONLY = process.env.ONLY || '';
+// Diagnosis: where the card, the camera and the canvas surface's own scroll are, and what holds the focus.
+const whereNow = () => page?.evaluate(id => {
+  const s = document.querySelector('[data-canvas-surface]'), w = s && [...s.children].find(e => /scale\(/.test(e.style.transform));
+  const c = id && document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`)?.getBoundingClientRect();
+  const a = document.activeElement;
+  return { camera: w?.style.transform || null, surfaceScroll: s ? [s.scrollLeft, s.scrollTop] : null, card: c ? [c.x, c.y, c.width, c.height].map(Math.round) : null,
+    active: a ? `${a.tagName}${[...a.attributes].filter(x => x.name.startsWith('data-') || x.name === 'aria-label').map(x => `[${x.name}]`).join('')}` : null };
+}, ID).catch(() => null);
 const check = async (label, fn) => {
   if (ONLY && !ONLY.split('|').some(part => label.includes(part))) return;
   phase = label;
   try { await fn(); results.push({ label, ok: true }); console.log(`ok ${label}`); }
   catch (error) {
     const message = String(error?.message || error).split('\n')[0].slice(0, 400);
-    results.push({ label, ok: false, error: message });
+    // Diagnosis in results.json: Playwright's whole message (its call log), and where the card, camera and surface are.
+    const where = await whereNow();
+    results.push({ label, ok: false, error: message, detail: String(error?.message || error).slice(0, 2000), where });
     console.log(`FAIL ${label} - ${message}${String(error?.stack || '').split('\n').filter(l => l.includes('webpage-card-check.mjs')).slice(0, 2).map(l => ` @${l.trim().replace(/.*check\.mjs:/, '')}`).join('')}`);
     if (page) await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
   }
@@ -375,8 +385,9 @@ await check('scrolling the card moves the capture, not the canvas; zero AI reque
 
 await check('the lock toggle: locked, the wheel pans the canvas and the capture stays; unlocked again; zero AI requests', async () => {
   await noAi('lock', async () => {
+    facts.lock_start = await whereNow();
     await part(ID, SEL.lock).click();
-    assert.equal(await part(ID, SEL.lock).getAttribute('aria-pressed'), 'true');
+    await waitFor(async () => await part(ID, SEL.lock).getAttribute('aria-pressed') === 'true', 3000, 'the lock is pressed');
     assert.match(String(await part(ID, SEL.lock).getAttribute('aria-label') || await part(ID, SEL.lock).innerText()), /unlock scrolling/i);
     const body = await part(ID, SEL.body).boundingBox(), cam = await camera(), top = await scrollTop(ID);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
@@ -384,7 +395,7 @@ await check('the lock toggle: locked, the wheel pans the canvas and the capture 
     await waitFor(async () => await camera() !== cam, 3000, 'locked: the wheel did not pan the canvas');
     assert.equal(await scrollTop(ID), top, 'locked: the capture did not scroll');
     await part(ID, SEL.lock).click();
-    assert.equal(await part(ID, SEL.lock).getAttribute('aria-pressed'), 'false');
+    await waitFor(async () => await part(ID, SEL.lock).getAttribute('aria-pressed') === 'false', 3000, 'the lock is released');
   });
 });
 
@@ -395,8 +406,9 @@ await check('keyboard: link, lock and Refresh are named and focusable; Space and
     assert.ok(info.tab >= 0 && !info.disabled, `${sel} is focusable`); assert.match(info.name, name, `${sel} name "${info.name}"`);
   }
   await part(ID, SEL.lock).focus();
-  await page.keyboard.press('Space'); assert.equal(await part(ID, SEL.lock).getAttribute('aria-pressed'), 'true', 'Space locks');
-  await page.keyboard.press('Enter'); assert.equal(await part(ID, SEL.lock).getAttribute('aria-pressed'), 'false', 'Enter unlocks');
+  const pressed = () => part(ID, SEL.lock).getAttribute('aria-pressed');
+  await page.keyboard.press('Space'); await waitFor(async () => await pressed() === 'true', 3000, `Space locks (aria-pressed ${await pressed()})`);
+  await page.keyboard.press('Enter'); await waitFor(async () => await pressed() === 'false', 3000, `Enter unlocks (aria-pressed ${await pressed()})`);
   await page.keyboard.press('Tab');
   assert.ok(await page.evaluate(() => !!document.activeElement && document.activeElement !== document.body), 'Tab moves on from the lock');
 });
@@ -438,7 +450,20 @@ await check('Highlight saves one highlight on this capture version (server lists
     assert.ok(bodyHas(rows[0], RUN_2), 'the row holds the words');
     const marks = await boxes(`[aria-label="Lesson canvas"] [data-block-id="${ID}"] ${SEL.highlight}`);
     assert.ok(marks.length >= 1, 'a highlight box is drawn');
-    assert.ok(Math.max(...marks.map(m => overlap(m, selected.box))) > 0.5, 'the box covers the selected words');
+    // The words where they are now: a notice line above the page (the Copy step's "Copied", replaced by "Saving highlight"
+    // and then cleared) moves the page between the selection and this check (fast-e2e 39750772575).
+    const words = await page.evaluate(([id, words]) => {
+      const layer = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"] [data-webcard] .textLayer`);
+      const walker = layer && document.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
+      for (let n; walker && (n = walker.nextNode());) {
+        const at = n.data.indexOf(words); if (at < 0) continue;
+        const range = document.createRange(); range.setStart(n, at); range.setEnd(n, at + words.length);
+        const r = range.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height };
+      }
+      return null;
+    }, [ID, RUN_2]);
+    assert.ok(words, 'the highlighted words are still in the text layer');
+    assert.ok(Math.max(...marks.map(m => overlap(m, words))) > 0.5, 'the box covers the selected words');
   });
 });
 

@@ -29,9 +29,14 @@ export const rescreen = (manifestId, { app, board }, fetchImpl = globalThis.fetc
 export const readCapture = (manifestId, { app, board }, fetchImpl = globalThis.fetch) =>
   result(`/api/learn/webpages/${encodeURIComponent(manifestId)}?${new URLSearchParams({ app, board })}`, {}, fetchImpl);
 
-// A capture file (manifest, tile, text runs) through this page's scope.
-export async function captureFile(id, { signal, as = 'json', fetchImpl = globalThis.fetch } = {}) {
-  const response = await fetchImpl(`/api/learn/files/${encodeURIComponent(id)}${scopeQuery()}`, { headers: headers(), signal });
-  if (!response.ok) throw Object.assign(new Error('This capture is not available.'), { status: response.status });
-  return as === 'blob' ? response.blob() : response.json();
+// A capture file (manifest, tile, text runs) through this page's scope. A version that just passed is indexed to its board
+// by the server, but a board save already on its way with the old card can drop that index; the card's own save of the new
+// version restores it, so a 404 is retried a few times before the card says the capture is not available.
+export async function captureFile(id, { signal, as = 'json', fetchImpl = globalThis.fetch, retries = 4, wait = 1000 } = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    const response = await fetchImpl(`/api/learn/files/${encodeURIComponent(id)}${scopeQuery()}`, { headers: headers(), signal });
+    if (response.ok) return as === 'blob' ? response.blob() : response.json();
+    if (response.status !== 404 || attempt >= retries || signal?.aborted) throw Object.assign(new Error('This capture is not available.'), { status: response.status });
+    await new Promise(resolve => setTimeout(resolve, wait));
+  }
 }
