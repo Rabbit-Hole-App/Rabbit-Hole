@@ -40,9 +40,11 @@ export default function SharedChat({ token, viewer, context = null, draft = null
     const message = raw.trim();
     if (!message || busy) return;
     if (spent) return toSignIn(raw); // the trial is used: Send is "Sign in to continue", the draft kept, nothing sent
-    const history = askHistory(turns), key = sendKey();
+    // Sending the same question again right after it failed is a retry of that Send: the same request id, never a second count.
+    const failed = turns.at(-1)?.error && turns.at(-2)?.content === message ? turns.at(-2).key : null;
+    const history = askHistory(turns), key = failed || sendKey();
     setInput(''); setBusy(true);
-    setTurns(all => [...all, { role: 'user', content: message }, { role: 'assistant', content: '', pending: true }]);
+    setTurns(all => [...all, { role: 'user', content: message, key }, { role: 'assistant', content: '', pending: true }]);
     const controller = new AbortController();
     flight.current = controller;
     let signIn = false, refusedGuest = null, limited = false, heard = false;

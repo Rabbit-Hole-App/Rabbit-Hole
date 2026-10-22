@@ -49,7 +49,9 @@ test('Chat sits in the shared page\'s right panel (not over the canvas), with re
   assert.match(composer, /\{target && <div data-canvas-target data-selected-card=\{target\.id\}[^\n]*\n\s+<MaterialIcon type=\{target\.context\?\.material_type\} \/>[\s\S]{0,200}aria-label="Remove selected card context"[^\n]*onClick=\{onClearTarget\}/);
   // Only the ask route, with this Send's request identity (the server counts a retry once).
   assert.match(composer, /streamAsk\(\{ path: askPath\(token\), body: \{ message, history, \.\.\.\(target \? \{ selected: target\.id \} : \{\}\) \}, signal: controller\.signal, headers: \{ 'X-RH-Action-Key': key \}, onEvent \}\)/);
-  assert.match(composer, /const history = askHistory\(turns\), key = sendKey\(\);/);
+  // A new Send gets a new id; the same question re-sent right after it failed reuses the failed Send's id (a retry).
+  assert.match(composer, /const failed = turns\.at\(-1\)\?\.error && turns\.at\(-2\)\?\.content === message \? turns\.at\(-2\)\.key : null;\n\s+const history = askHistory\(turns\), key = failed \|\| sendKey\(\);/);
+  assert.match(composer, /\{ role: 'user', content: message, key \}/);
   assert.doesNotMatch(composer, /\/api\/learn\/ask|\/api\/ask\b|\/api\/learn\/boards\/\$\{/);
   // Ask in Chat / Explain in Chat open this Chat (the page) and fill the composer (SharedChat), never sending.
   assert.match(page, /window\.addEventListener\('small:ask-focus', open\);/);
