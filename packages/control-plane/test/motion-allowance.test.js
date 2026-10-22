@@ -93,7 +93,7 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
   };
   let server = null, script = [];
   const original = globalThis.fetch;
-  const orchestrator = { posts: 0 };
+  const orchestrator = { posts: 0, cancels: 0 };
   // (Re)starts the orchestrator process: a restart is a new process with an empty memory and a later boot time.
   orchestrator.start = async ({ later = 0 } = {}) => {
     if (server) { server.close(); orchestrator.o.close(); }
@@ -107,6 +107,7 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
     const u = new URL(url);
     if (u.host !== 'orchestrator.test') return original(url, init);
     if (u.pathname === '/jobs') orchestrator.posts++;
+    if (u.pathname.endsWith('/cancel')) orchestrator.cancels++;
     return original(orchestrator.base + u.pathname, init);
   };
   t.after(() => { globalThis.fetch = original; server?.close(); orchestrator.o?.close(); });
@@ -642,51 +643,148 @@ function gateFetch(matches) {
   return gate;
 }
 
-test('MOT-09 review: a Stop accepted while the alarm awaits close() is never overwritten; the job its key started is cancelled and settles once as cancelled', async t => {
+// A Stop accepted while the alarm is mid-await (on close() when the start answer was lost, or on the job poll), with or without a
+// Durable Object restart after which the alarm reruns from storage. Owner review of 0e399bc8, item 1: exactly one orchestrator
+// POST, no stage after the cancel (no further model call, no render), cancel sent, settled exactly once at the in-flight cost,
+// the usage action labelled cancelled.
+async function stopDuringAlarm(t, { at, restart }) {
   const { sqlite, LEARN_DB } = d1(t);
   const w = world(t); await w.orchestrator.start(); w.script(stopScript);
-  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  const data = new Map(), env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a', data), env);
   const through = globalThis.fetch;
-  globalThis.fetch = async (url, init) => { const r = await through(url, init); if (new URL(url).pathname === '/jobs') throw new Error('socket hang up'); return r; };
+  if (at === 'close') globalThis.fetch = async (url, init) => { const r = await through(url, init); if (new URL(url).pathname === '/jobs') throw new Error('socket hang up'); return r; };
   const { placementId } = await (await actor.fetch(ask())).json();
   globalThis.fetch = through;
   await until(() => w.model.held, 'the first call in flight');
-  // The alarm's close() is answered only after the learner's Stop has been accepted and saved (no ticket yet, so no cancel).
-  const gate = gateFetch(path => path.endsWith('/close'));
+  // The alarm's request is answered only after the learner's Stop has been accepted and saved.
+  const gate = gateFetch(at === 'close' ? path => path.endsWith('/close') : (path, init) => /^\/jobs\/[0-9a-f]{32}$/.test(path) && (init?.method || 'GET') === 'GET');
   const polling = actor.alarm();
-  await until(() => gate.reached, 'the alarm awaiting close()');
+  await until(() => gate.reached, `the alarm awaiting ${at}`);
   const v = (await (await actor.fetch(stopping(placementId))).json()).videos[0];
   assert.deepEqual([v.status, v.error], ['failed', 'Stopped.']);
+  const callsAtStop = w.model.calls.length;
   gate.release(); await polling; gate.restore();
+  // Restart: a new instance over the same storage; its alarm reruns from what is stored.
+  const now = restart ? new LearnVideos(durable('video-a', data), env) : actor;
+  await now.alarm();
   const recovered = [...w.orchestrator.o.jobs.values()][0];
-  assert.ok(recovered.controller.signal.aborted, 'the job its key started is cancelled');
-  const after = await video(actor);
-  assert.deepEqual([after.status, after.error], ['failed', 'Stopped.'], 'the alarm did not overwrite the Stop');
-  w.model.held();
-  await settle(actor, async () => motionAttempts(sqlite)[0][1] !== 'reserved');
-  assert.deepEqual([w.orchestrator.posts, w.model.calls.length, w.renders.length], [1, 1, 0], 'no later paid stage or render');
-  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']], 'only the call in flight, settled once');
+  assert.ok(w.orchestrator.cancels >= 1 && recovered.controller.signal.aborted, 'cancel sent: the job is told to stop');
+  const after = await video(now);
+  assert.deepEqual([after.status, after.error], ['failed', 'Stopped.'], 'the Stop is not overwritten');
+  w.model.held(); // the call in flight lands and is priced
+  await settle(now, async () => motionAttempts(sqlite)[0][1] !== 'reserved');
+  await now.alarm();
+  assert.equal(w.orchestrator.posts, 1, 'exactly one orchestrator POST: no extra start');
+  assert.deepEqual([w.model.calls.length - callsAtStop, w.renders.length], [0, 0], 'no stage after the cancel: no model call, no render');
+  assert.equal(recovered.status, 'cancelled');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']], 'settled once at the in-flight $0.10');
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.category, o.cost_usd, o.calls]), [['motion', 0.1, 1]], 'one settlement');
   assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]], 'labelled cancelled, not failed');
+}
+test('MOT-09 review: a Stop accepted while the alarm awaits close() is never overwritten; the job its key started is cancelled and settles once as cancelled', t => stopDuringAlarm(t, { at: 'close' }));
+test('MOT-09 review: a Stop accepted while the alarm awaits the job poll is never overwritten, and the job settles once as cancelled', t => stopDuringAlarm(t, { at: 'poll' }));
+test('MOT-09 review: a Stop accepted while the alarm awaits close(), then a Durable Object restart: the rerun alarm cancels, one POST, settled once as cancelled', t => stopDuringAlarm(t, { at: 'close', restart: true }));
+test('MOT-09 review: a Stop accepted while the alarm awaits the job poll, then a Durable Object restart: the rerun alarm cancels, settled once as cancelled', t => stopDuringAlarm(t, { at: 'poll', restart: true }));
+
+// Owner review of 0e399bc8, item 2 (MOT-08): Motion admission (the hold, /health, the grant write and the POST) shares one deadline
+// inside Generate's 30 s blockConcurrencyWhile. Mocked clock (t.mock.timers: setTimeout and Date), no real waits. The orchestrator
+// is a double with injectable delays: it starts a job when a POST with a grant for its current boot arrives, whatever the client
+// then does; it can restart (a new boot) right after answering /health.
+function slowOrchestrator(t, o) {
+  Object.assign(o, { boot: 'a'.repeat(32), posts: 0, starts: 0, keys: new Map(), waiting: 0 });
+  // A slow answer: the only place the mocked clock moves (onClock), so real work elsewhere never spends the budget.
+  const wait = (ms, signal) => { o.waiting++; return new Promise((done, fail) => {
+    const id = setTimeout(done, ms);
+    signal?.addEventListener('abort', () => { clearTimeout(id); fail(signal.reason); }, { once: true });
+  }).finally(() => { o.waiting--; }); };
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    const path = new URL(url).pathname;
+    if (path === '/health') {
+      await wait(o.healthMs, init.signal);
+      const boot = o.boot;
+      if (o.restartAfterHealth) { o.boot = 'b'.repeat(32); o.restartAfterHealth = false; }
+      return Response.json({ ok: true, active: false, boot });
+    }
+    if (path === '/jobs') {
+      o.posts++;
+      const body = JSON.parse(init.body);
+      if (body.grant.boot !== o.boot) return Response.json({ error: 'grant_refused', detail: 'the grant was issued before the Motion service restarted; nothing was started' }, { status: 403 });
+      if (!o.keys.has(body.idempotency_key)) { o.starts++; o.keys.set(body.idempotency_key, crypto.randomUUID().replace(/-/g, '')); }
+      const id = o.keys.get(body.idempotency_key);
+      await wait(o.postMs, init.signal);
+      return Response.json({ job_id: id, status: 'running' }, { status: 202 });
+    }
+    const close = path.match(/^\/keys\/([^/]+)\/close$/);
+    if (close) { const id = o.keys.get(close[1]); return Response.json(id ? { job_id: id, status: 'running', boot: o.boot } : { job_id: null, closed: true, boot: o.boot }); }
+    if (/^\/jobs\/[0-9a-f]{32}$/.test(path)) return Response.json({ status: 'running', spend: { cost_usd: null, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 });
+    return Response.json({ error: 'not_found' }, { status: 404 });
+  };
+  t.after(() => { globalThis.fetch = original; });
+  return o;
+}
+// Runs a promise to its end on the mocked clock: 10 ms per step, and only while the orchestrator double is answering slowly.
+async function onClock(t, promise, o) {
+  let done = false;
+  promise.then(() => { done = true; }, () => { done = true; });
+  while (!done) { await new Promise(r => setImmediate(r)); if (o.waiting) t.mock.timers.tick(10); }
+  return promise;
+}
+// The time each blockConcurrencyWhile call held the object (what Cloudflare limits to 30 s), on the mocked clock.
+function blockSpans(actor) {
+  const inner = actor.state.blockConcurrencyWhile, spans = [];
+  actor.state.blockConcurrencyWhile = fn => inner(async () => { const start = Date.now(); try { return await fn(); } finally { spans.push(Date.now() - start); } });
+  return spans;
+}
+// The owner budget: about 25 s for the whole admission, at least 5 s under the 30 s limit (50 ms for the 10 ms clock steps).
+const UNDER_BLOCK = took => assert.ok(took <= 25050, `the block took ${took} ms: admission inside 25 s, at least 5 s under the 30 s limit`);
+
+test('MOT-08 review: /health 15.5 s then a POST of 15.5 s: admission ends at its 25 s deadline, 5 s under the block; the hold is kept and the alarm reconciles the one job', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+  const { sqlite, LEARN_DB } = d1(t);
+  const o = slowOrchestrator(t, { healthMs: 15500, postMs: 15500 });
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB)), spans = blockSpans(actor);
+  await onClock(t, actor.fetch(ask()), o);
+  UNDER_BLOCK(spans.at(-1));
+  const v = await video(actor);
+  assert.deepEqual([v.status, v.hold?.state], ['generating', 'reserved'], 'the POST may have started the job: held, never released');
+  assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite)], [1, 1, [[2_000_000, 'reserved', null, 'running']]], 'one hold, one start');
+  await onClock(t, actor.alarm(), o);
+  const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  assert.equal(job.ticket?.id, [...o.keys.values()][0], 'reconciled by its key to the one job the POST started');
+  assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite).length], [1, 1, 1], 'never resent');
 });
 
-test('MOT-09 review: a Stop accepted while the alarm awaits the job poll is never overwritten, and the job settles once as cancelled', async t => {
+test('MOT-08 review: too little of the deadline left for the POST, or /health past it: refused before any POST, the hold released, nothing started', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
+  for (const [healthMs, why] of [[23500, /too slow to answer\. Nothing was started/], [26000, /did not answer\. Nothing was started/]]) {
+    const { sqlite, LEARN_DB } = d1(t);
+    const o = slowOrchestrator(t, { healthMs, postMs: 100 });
+    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB)), spans = blockSpans(actor);
+    await onClock(t, actor.fetch(ask()), o);
+    UNDER_BLOCK(spans.at(-1));
+    const v = await video(actor);
+    assert.deepEqual([v.status, v.retryable, v.hold?.state], ['failed', true, 'released'], `health ${healthMs} ms`);
+    assert.match(v.error, why);
+    assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite)], [0, 0, [[2_000_000, 'settled', 0, 'cancelled']]], 'one hold, released; no start');
+  }
+});
+
+test('MOT-08 review: a slow cold /health, then the POST lands on a restarted process: its old-boot grant is refused, released, nothing started; a clean retry starts once', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.now() });
   const { sqlite, LEARN_DB } = d1(t);
-  const w = world(t); await w.orchestrator.start(); w.script(stopScript);
-  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
-  const { placementId } = await (await actor.fetch(ask())).json();
-  await until(() => w.model.held, 'the first call in flight');
-  const gate = gateFetch((path, init) => /^\/jobs\/[0-9a-f]{32}$/.test(path) && (init?.method || 'GET') === 'GET');
-  const polling = actor.alarm();
-  await until(() => gate.reached, 'the alarm awaiting the job poll');
-  const v = (await (await actor.fetch(stopping(placementId))).json()).videos[0];
-  assert.deepEqual([v.status, v.error], ['failed', 'Stopped.']);
-  gate.release(); await polling; gate.restore();
-  const after = await video(actor);
-  assert.deepEqual([after.status, after.error], ['failed', 'Stopped.'], 'the alarm did not overwrite the Stop');
-  w.model.held();
-  await settle(actor, async () => motionAttempts(sqlite)[0][1] !== 'reserved');
-  assert.deepEqual([w.model.calls.length, w.renders.length], [1, 0], 'no later paid stage or render');
-  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']]);
-  assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]], 'labelled cancelled, not failed');
-  assert.equal((await video(actor)).error, 'Stopped.');
+  const o = slowOrchestrator(t, { healthMs: 15500, postMs: 100, restartAfterHealth: true });
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB)), spans = blockSpans(actor);
+  await onClock(t, actor.fetch(ask()), o);
+  UNDER_BLOCK(spans.at(-1));
+  const v = await video(actor);
+  assert.deepEqual([v.status, v.retryable, v.hold?.state], ['failed', true, 'released']);
+  assert.match(v.error, /issued before the Motion service restarted; nothing was started/);
+  assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite)], [1, 0, [[2_000_000, 'settled', 0, 'cancelled']]], 'refused: nothing started, released in full');
+  o.healthMs = 300;
+  await onClock(t, actor.fetch(ask({ retry: true })), o);
+  UNDER_BLOCK(spans.at(-1));
+  assert.equal((await video(actor)).status, 'generating');
+  assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite)], [2, 1, [[2_000_000, 'settled', 0, 'cancelled'], [2_000_000, 'reserved', null, 'running']]], 'the retry: one hold, one start');
 });

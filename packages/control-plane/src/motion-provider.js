@@ -75,6 +75,13 @@ const definite = (message, code = null) => Object.assign(new Error(message), { d
 // a 500, a proxy's 502, a malformed success or no answer at all, may follow a job it accepted (MOT-07): never a no-start.
 const NO_START = { 400: ['invalid_request'], 401: ['unauthorized'], 403: ['grant_refused'], 429: ['busy'], 503: ['renderer_unavailable', 'not_configured'] };
 const BOOT = /^[0-9a-f]{32}$/;
+// A request timeout on setTimeout rather than AbortSignal.timeout, so tests can run admission on a mocked clock (no real waits).
+const timeoutSignal = ms => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), Math.max(0, ms));
+  id?.unref?.();
+  return controller.signal;
+};
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
@@ -129,17 +136,17 @@ export class MotionRequestProvider {
     if (new URL(this.url).protocol !== 'https:') return 'The Motion orchestrator requires HTTPS';
     return null;
   }
-  // timeoutMs: boot() and submit() run inside Generate's blockConcurrencyWhile (30 s), so each gets 12 s (MOT review, item 2a).
+  // timeoutMs: boot() and submit() get what is left of the admission deadline (learn-video.js startMotion); polls get 20 s.
   async request(path, { method = 'GET', body, timeoutMs = 20000 } = {}) {
     const refused = this.unavailable();
     if (refused) throw definite(refused);
     const transport = this.transport;
-    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
+    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: timeoutSignal(timeoutMs) });
   }
   // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
   // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
-  async submit(input, spend, repository = null) {
-    const response = await this.request('/jobs', { method: 'POST', timeoutMs: 12000, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+  async submit(input, spend, repository = null, timeoutMs = 20000) {
+    const response = await this.request('/jobs', { method: 'POST', timeoutMs, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);
@@ -147,9 +154,9 @@ export class MotionRequestProvider {
   }
   // The orchestrator process that answers now, read before a grant is signed for it (MOT-08). An idle one boots for this read.
   // Nothing has been sent yet, so any failure is a definite no-start.
-  async boot() {
+  async boot(timeoutMs = 20000) {
     let body = null;
-    try { const response = await this.request('/health', { timeoutMs: 12000 }); body = response.ok ? await response.json() : null; } catch (error) { if (error.definite) throw error; }
+    try { const response = await this.request('/health', { timeoutMs }); body = response.ok ? await response.json() : null; } catch (error) { if (error.definite) throw error; }
     if (!BOOT.test(body?.boot || '')) throw definite('The Motion service did not answer. Nothing was started.', 'unavailable');
     return body.boot;
   }

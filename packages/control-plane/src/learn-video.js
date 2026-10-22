@@ -31,6 +31,12 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
 const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
 const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
+// Motion admission runs inside Generate's blockConcurrencyWhile, which Cloudflare ends at 30 s. Everything from the job's creation
+// (its storage writes, the hold, /health, the grant write and the POST) shares one 25 s deadline, leaving 5 s. The POST waits only
+// for what is left; with under 2 s left it is not tried: refused before it, released, nothing started (MOT-08 review).
+export const MOTION_ADMISSION_MS = 25000;
+const MOTION_MIN_POST_MS = 2000;
+const SLOW = 'The Motion service was too slow to answer. Nothing was started; generate it again.';
 // Owner message 28: new Motion generation is paused (MOTION_GENERATION_PAUSED "1") until MOT-06/07 are fixed. Nothing new starts or
 // is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
@@ -126,6 +132,7 @@ export class LearnVideos {
     }
     // Serialize concurrent duplicate submissions, including the external POST.
     return this.state.blockConcurrencyWhile(async () => {
+      const entered = Date.now(); // a Motion admission deadline counts from here (MOTION_ADMISSION_MS)
       try {
         const raw = await req.text();
         if (raw.length > 15000) return json({ error: 'Video request too large' }, 413);
@@ -188,7 +195,7 @@ export class LearnVideos {
           // Persist before submitting. Never automatically repeat a potentially charged POST.
           await this.state.storage.put(`job:${key}`, job);
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
-          if (motionRequest) { job.repository = forwardedRepository(req); await this.startMotion(req, job, provider); }
+          if (motionRequest) { job.repository = forwardedRepository(req); await this.startMotion(req, job, provider, entered); }
           else try { job.ticket = maths ? await provider.submit(input, version) : await provider.submit(input); }
           // A Motion submit is a GET of a finished render (nothing charged), and a definite refusal
           // started nothing: both stay retryable. Anything else may have started a paid job.
@@ -226,15 +233,17 @@ export class LearnVideos {
   // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold. An
   // unconfirmed submission (MOT-07: no answer, a 500, a 502, a malformed success) keeps the job generating with its hold
   // reserved; it is never resent: the alarm reconciles its key (pollMotion).
-  async startMotion(req, job, provider) {
+  async startMotion(req, job, provider, entered = Date.now()) {
     const refused = provider.unavailable() || await this.admitMotion(req, job);
     if (refused) { Object.assign(job, { status: 'failed', error: refused, uncertain: false }); return; }
     await this.state.storage.put(`job:${job.key}`, job);
+    const left = () => entered + MOTION_ADMISSION_MS - Date.now();
     try {
       // The grant names the orchestrator process that answers now (MOT-08); it is stored before the one POST it may go out in.
-      job.spend.grant = await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, job.spend.opId, job.spend.micros, Math.floor(Date.now() / 1000), await provider.boot());
+      job.spend.grant = await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, job.spend.opId, job.spend.micros, Math.floor(Date.now() / 1000), await provider.boot(left()));
       await this.state.storage.put(`job:${job.key}`, job);
-      job.ticket = await provider.submit(job.input, job.spend, job.repository);
+      if (left() < MOTION_MIN_POST_MS) throw Object.assign(new Error(SLOW), { definite: true }); // no POST left: nothing started
+      job.ticket = await provider.submit(job.input, job.spend, job.repository, left());
     } catch (error) {
       if (!error.definite) return; // unconfirmed: the alarm reconciles the key, never resubmits
       await this.settleMotion(job, NOTHING);
