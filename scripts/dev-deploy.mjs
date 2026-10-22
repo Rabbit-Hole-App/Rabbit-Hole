@@ -182,7 +182,9 @@ const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-ga
 // A UI change legitimately changes the page build and the Worker bundle (it carries dist-dev/index.html), so no
 // byte-identity check applies to it; the build recipe must still be the gated one.
 export const UI_ONLY = [/^packages\/web\/src\//, /^packages\/web\/test\//, /^packages\/web\/e2e\/(?!production-bundle-check\.mjs$)/, /^packages\/web\/public\//];
-export const notReusable = (changed, worker = null) => changed.filter(p => !REUSABLE.some(r => r.test(p)) && !(worker && !worker.has(p) && UI_ONLY.some(r => r.test(p))));
+// Money and sign-in keep the gate even in page code (owner, 2026-10-21): any UI path naming them, tests included.
+export const MONEY_OR_SIGN_IN = /credit|allowance|usage|motion|video|sign-?in|auth|login|oauth|billing|payment/i;
+export const notReusable = (changed, worker = null) => changed.filter(p => !REUSABLE.some(r => r.test(p)) && !(worker && !worker.has(p) && !MONEY_OR_SIGN_IN.test(p) && UI_ONLY.some(r => r.test(p))));
 export const uiChanged = changed => changed.some(p => !REUSABLE.some(r => r.test(p)));
 
 // Every Worker's entry: the dev and Access dev workers, rabbit-hole-app (app-worker.js) and the control plane.

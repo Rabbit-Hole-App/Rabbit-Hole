@@ -170,6 +170,10 @@ test('UI only (owner, 2026-10-21): page source, its tests and static files reuse
     'packages/control-plane/migrations/0030-x.sql', 'packages/learn-render/src/x.js', 'packages/web/e2e/production-bundle-check.mjs', 'packages/web/design/x.html'];
   for (const p of gated) assert.deepEqual(notReusable(['packages/web/src/App.jsx', p], worker), [p], p);
   assert.deepEqual(notReusable(['packages/web/src/App.jsx']), ['packages/web/src/App.jsx'], 'without the Worker graph no UI path reuses');
+  const money = ['packages/web/src/CreditsPanel.jsx', 'packages/web/src/allowance-bar.js', 'packages/web/src/usage.test.mjs', 'packages/web/src/motion/MotionPage.jsx',
+    'packages/web/src/VideoCard.jsx', 'packages/web/src/SignIn.jsx', 'packages/web/src/signin-copy.js', 'packages/web/src/landing/Auth.jsx', 'packages/web/src/login.css',
+    'packages/web/src/oauth-return.js', 'packages/web/src/Billing.jsx', 'packages/web/src/payment-form.test.mjs', 'packages/web/test/credits.test.mjs'];
+  for (const p of money) assert.deepEqual(notReusable(['packages/web/src/App.jsx', p], worker), [p], `money or sign-in keeps the gate: ${p}`);
 });
 
 test('the Worker graph follows relative imports from every entry and refuses a non-literal dynamic import', () => {
