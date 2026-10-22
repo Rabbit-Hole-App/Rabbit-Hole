@@ -135,15 +135,16 @@ try {
 await page.waitForTimeout(2500); // past the 1200 ms hook debounce
 const hooksAtOpen = hookBases.length;
 
-// Owner UI brief 2026-10-20 section 7: Links left the tray for Search's Links filter (toc-links-search-check.mjs), so four tabs.
-await check('1 the header is eight icon buttons in the owner\'s order: four tabs (Chat first, Comments last, no Links), the Progress toggle next to Comments, the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
+// Owner UI brief 2026-10-20 section 7: Links left the tray for Search's Links filter (toc-links-search-check.mjs). Owner
+// 2026-10-22: Progress is the fifth tab, after Comments (no separate toggle, no column beside Chat).
+await check('1 the header is eight icon buttons in the owner\'s order: five tabs (Chat first, Comments, then Progress last, no Links), the one Context / Files / Graph control, Pin, Close; no visible text', async () => {
   await openPanel();
   const header = page.locator('[data-panel-header]');
   const names = await header.locator('button').evaluateAll(nodes => nodes.map(node => [node.getAttribute('aria-label'), node.getAttribute('title')]));
   assert.deepEqual(names, [['Chat', 'Chat'], ['Find text on canvas', 'Find text on canvas'], ['Table of contents', 'Table of contents'], ['Comments', 'Comments'], ['Progress', 'Progress'], ['Context', 'Context'], ['Keep sidebar open', 'Keep sidebar open'], ['Close sidebar', 'Close sidebar']]);
   assert.equal((await header.innerText()).trim(), '', 'icons only');
   assert.equal(await header.locator('button svg').count(), 8);
-  assert.equal(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').count(), 4, 'the four tabs share one group');
+  assert.deepEqual(await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.dataset.panelTab)), ['chat', 'find', 'toc', 'comments', 'progress'], 'the five tabs share one group');
   // Owner brief 2026-10-16 items 3-4: one Context / Files / Graph control (named Context on a canvas with no repository), not a tab,
   // set apart from the navigation icons by spacing.
   assert.equal(await page.locator('[data-panel-header] [role="tablist"] [data-panel-companion]').count(), 0, 'the companion control is not a tab');
@@ -217,14 +218,21 @@ await check('4 one tab at a time: Find replaces the outline and takes the typing
   assert.equal(await findInput().evaluate(node => node === document.activeElement), true);
 });
 
-await check('5 arrow keys move between the enabled tabs, Comments included on a saved canvas, and wrap', async () => {
+await check('5 arrow keys move between the enabled tabs, Comments and Progress included on a saved canvas, and wrap', async () => {
   await tab('Find text on canvas').focus();
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['toc']);
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['comments']);
   await page.keyboard.press('ArrowRight');
-  assert.deepEqual(await selected(), ['chat'], 'wraps after Comments, the last tab');
+  assert.deepEqual(await selected(), ['progress']);
+  await expect(tab('Progress')).toBeFocused(); // the pane mounting never takes the focus off the tabs
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await selected(), ['chat'], 'wraps after Progress, the last tab');
+  await page.keyboard.press('ArrowLeft');
+  assert.deepEqual(await selected(), ['progress'], 'and back the other way');
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await selected(), ['chat']);
   await page.keyboard.press('ArrowRight');
   assert.deepEqual(await selected(), ['find']);
   await page.keyboard.press('ArrowRight');
@@ -346,37 +354,42 @@ await check('13 Close shuts the panel and changes no canvas content', async () =
 });
 await shot('05-closed');
 
-// Owner 2026-10-21: Progress left Chat's header for the right panel's header, right after the Comments tab; a pressed toggle, not
-// a tab, and not in the canvas toolbar. By keyboard: Enter opens its pane, Escape closes it and refocuses the icon, Space toggles.
-await check('13b Progress sits in the panel header right after the Comments tab, not in the toolbar or Chat\'s header, and toggles its pane by keyboard', async () => {
+// Owner 2026-10-22: Progress is a normal tab of this panel, right after Comments: selected like the others (the soft purple,
+// aria-selected), its pane inside this panel, and no column opening beside Chat. Escape or Close in the pane goes back to Chat.
+await check('13b Progress is a tab after Comments: the selected purple in both themes, its pane in this panel, no column beside Chat; Escape and Close return to Chat', async () => {
   await openPanel();
-  const progress = page.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true });
+  const progress = tab('Progress');
   const companion = async () => (await page.locator('[data-companion]').boundingBox())?.width ?? 0;
-  assert.equal(await progress.count(), 1, 'one Progress button in the panel header');
-  assert.equal(await progress.evaluate(node => node.previousElementSibling?.querySelector('[role="tab"]:last-child')?.dataset.panelTab), 'comments', 'right after the Comments tab');
-  assert.equal(await progress.getAttribute('role'), null, 'a toggle, not a tab');
-  const [tabBox, progressBox] = [await page.locator('[data-panel-tab="comments"]').boundingBox(), await progress.boundingBox()];
-  assert.ok(progressBox.x - (tabBox.x + tabBox.width) < 12 && Math.abs(progressBox.y - tabBox.y) < 4, 'visibly next to Comments');
-  assert.equal(await page.locator('[data-canvas-header] [data-chat-progress], [data-chat-header] [data-chat-progress]').count(), 0, 'not in the toolbar or Chat\'s header');
+  assert.equal(await page.locator('[data-chat-progress]').count(), 0, 'no separate Progress toggle anywhere');
+  assert.equal(await progress.evaluate(node => node.previousElementSibling?.dataset.panelTab), 'comments', 'right after the Comments tab');
   assert.equal(await progress.getAttribute('title'), 'Progress');
-  assert.equal(await progress.getAttribute('aria-pressed'), 'false');
-  await progress.focus();
-  await page.keyboard.press('Enter');
-  await page.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
-  assert.equal(await progress.getAttribute('aria-pressed'), 'true');
-  await expect(page.locator('#progress-title')).toBeFocused();
+  await tab('Chat').click();
+  assert.equal(await progress.getAttribute('aria-selected'), 'false');
+  await progress.click();
+  assert.deepEqual(await selected(), ['progress']);
+  const pane = panel().getByRole('tabpanel', { name: 'Progress', exact: true });
+  await pane.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
+  assert.equal(await page.locator('[data-chat-pane]').isVisible(), false, 'Progress shows in Chat\'s place');
+  await page.waitForTimeout(700); // past any column slide
+  assert.ok((await companion()) < 2, 'no column opens beside Chat');
+  assert.equal(await pane.locator('#progress-title').innerText(), 'Progress');
+  const colors = () => progress.evaluate(node => [getComputedStyle(node).backgroundColor, getComputedStyle(node).color]);
+  assert.deepEqual(await colors(), ['rgb(238, 229, 252)', 'rgb(100, 49, 160)'], 'the selected purple, as every tab');
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  assert.deepEqual(await colors(), ['rgb(69, 48, 96)', 'rgb(225, 207, 249)'], 'the dark treatment');
+  await shot('05b-progress-tab-dark', panel());
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+  await shot('05b-progress-tab');
+  const close = pane.getByRole('button', { name: 'Close Progress', exact: true });
+  await close.focus();
   await page.keyboard.press('Escape');
-  await expect(progress).toHaveAttribute('aria-pressed', 'false');
-  await expect(progress).toBeFocused();
-  for (let i = 0; i < 20 && (await companion()) >= 2; i++) await page.waitForTimeout(100);
-  assert.ok((await companion()) < 2, 'the Progress column is retracted');
-  await page.keyboard.press('Space');
-  await expect(progress).toHaveAttribute('aria-pressed', 'true');
-  await page.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
-  await shot('05b-progress-panel-header');
-  await progress.focus();
-  await page.keyboard.press('Space');
-  await expect(progress).toHaveAttribute('aria-pressed', 'false');
+  assert.deepEqual(await selected(), ['chat'], 'Escape goes back to Chat');
+  await expect(tab('Chat')).toBeFocused();
+  await progress.click();
+  await close.click();
+  assert.deepEqual(await selected(), ['chat'], 'Close goes back to Chat');
+  await expect(tab('Chat')).toBeFocused();
+  assert.ok(await page.locator('[data-chat-pane]').isVisible());
 });
 
 // L: a canvas with a long contents list, in its own browser context (its own routes; the hook counts above stay this page's).
@@ -563,6 +576,60 @@ await check('L8 entered before Chat\'s saved thread loads: it restores into Chat
   assert.equal(await mode2(), 'ask', 'Chat restores its own saved mode');
 });
 
+// Owner 2026-10-22: Progress is a tab like the others. A visit to it (by mouse and by the arrow keys) leaves Chat's thread, draft
+// and scroll position as they were; it opens no column beside Chat and asks no model. A long saved Ask chat makes the
+// conversation scroll.
+const LONG_CHAT = Array.from({ length: 24 }, (_, i) => (i % 2
+  ? { role: 'assistant', content: `Answer ${i}: heat moves from the hotter object to the colder one until both reach the same temperature, and a metal conducts it faster than wood, so the spoon draws heat from your hand sooner.`, status: 'done' }
+  : { role: 'user', content: `Question ${i}: why does the metal spoon feel colder?`, status: 'done' }));
+await check('L9 Progress is a tab: Chat\'s thread, draft and scroll position survive a visit by mouse and by arrow keys; no column, no model request', async () => {
+  await p2.route(/\/api\/learn\/chat\/active\?(?!.*slot=toc)/, route => (route.request().method() === 'GET' ? route.fulfill({ json: { threadId: 'long-thread' } }) : route.fallback()));
+  await p2.route(/\/api\/ask\/threads\/long-thread$/, route => route.fulfill({ json: { id: 'long-thread', title: 'Long Ask chat', mode: 'ask', contextRefs: [], draft: null, messages: LONG_CHAT } }));
+  await p2.reload();
+  await p2.locator('[data-block-id="t-card"]').waitFor({ timeout: 60000 });
+  await p2.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
+  await p2.locator('[data-chat-pane]').getByText('Answer 23:', { exact: false }).waitFor();
+  // The conversation's own scroller: the box in the Chat pane that scrolls.
+  const marked = await p2.evaluate(() => { const box = [...document.querySelectorAll('[data-chat-pane] *')].find(el => getComputedStyle(el).overflowY === 'auto' && el.scrollHeight > el.clientHeight + 100); if (box) box.dataset.l9Scroll = '1'; return !!box; });
+  assert.ok(marked, 'the long conversation scrolls');
+  const scroller = p2.locator('[data-l9-scroll]');
+  const box = await scroller.boundingBox();
+  await p2.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await p2.mouse.wheel(0, -500);
+  await p2.waitForFunction(() => { const el = document.querySelector('[data-l9-scroll]'); return el.scrollHeight - el.scrollTop - el.clientHeight > 200; });
+  await p2.waitForTimeout(300);
+  const was = await scroller.evaluate(node => node.scrollTop);
+  await field().fill('a draft kept across Progress');
+  await p2.waitForTimeout(1200); // past the 800 ms thread-state save of the draft (chat-threads.js SAVE_DELAY), as L2 waits
+  const mark = chatRequests.length;
+  await tab2('Progress').click();
+  assert.deepEqual(await selected2(), ['progress']);
+  await panel2().getByRole('tabpanel', { name: 'Progress', exact: true }).locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
+  assert.equal(await p2.locator('[data-chat-pane]').isVisible(), false);
+  await p2.waitForTimeout(700);
+  assert.ok(((await p2.locator('[data-companion]').boundingBox())?.width ?? 0) < 2, 'no column beside Chat');
+  await tab2('Chat').click();
+  assert.equal(await field().inputValue(), 'a draft kept across Progress', 'the draft');
+  assert.equal(await p2.locator('[data-chat-pane]').getByText('Question 0:', { exact: false }).count(), 1, 'the thread');
+  await p2.waitForTimeout(300);
+  assert.ok(Math.abs((await scroller.evaluate(node => node.scrollTop)) - was) <= 2, `the scroll position (${was})`);
+  // By keyboard: Chat is first, so ArrowLeft wraps to Progress and ArrowRight comes back.
+  await tab2('Chat').focus();
+  await p2.keyboard.press('ArrowLeft');
+  assert.deepEqual(await selected2(), ['progress']);
+  assert.equal(await tab2('Progress').getAttribute('aria-selected'), 'true');
+  assert.equal(await tab2('Chat').getAttribute('aria-selected'), 'false');
+  await expect(tab2('Progress')).toBeFocused();
+  await p2.keyboard.press('ArrowRight');
+  assert.deepEqual(await selected2(), ['chat']);
+  await expect(tab2('Chat')).toBeFocused();
+  assert.equal(await field().inputValue(), 'a draft kept across Progress');
+  await p2.waitForTimeout(300);
+  assert.ok(Math.abs((await scroller.evaluate(node => node.scrollTop)) - was) <= 2, `the scroll position after the keys (${was})`);
+  assert.deepEqual(chatRequests.slice(mark).filter(request => !request.startsWith('GET ')), [], 'no chat, ask or Tutor request from visiting Progress');
+});
+await shot2('10-progress-tab-chat-kept', panel2());
+
 await check('L7 the long canvas: no other model route, no page error', async () => {
   assert.deepEqual(tocStray, []);
   assert.deepEqual(tocErrors, []);
@@ -586,5 +653,5 @@ await check('the canvas asked for no hooks on open, and nothing the panel did as
 });
 
 await browser.close();
-console.log(`${results.length}/26 checks passed`);
-process.exit(results.length === 26 ? 0 : 1);
+console.log(`${results.length}/27 checks passed`);
+process.exit(results.length === 27 ? 0 : 1);

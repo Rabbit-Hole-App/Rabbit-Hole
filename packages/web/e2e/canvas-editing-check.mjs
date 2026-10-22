@@ -1036,9 +1036,11 @@ await run('narrow', async () => {
   await page.waitForTimeout(200);
   const panel = await page.locator('[data-style-panel]').boundingBox();
   const editor = await page.locator('[data-shape-id="r1"] [data-shape-text]').boundingBox();
-  const canvas = await page.locator('[data-canvas-surface]').boundingBox();
+  const canvas = await page.locator('[data-canvas-surface]').boundingBox(), column = await page.locator('[data-tool-gutter]').boundingBox();
   const overlaps = panel && editor && !(panel.y + panel.height <= editor.y || editor.y + editor.height <= panel.y || panel.x + panel.width <= editor.x || editor.x + editor.width <= panel.x);
-  check('on a phone the style panel sits in the tools column left of the canvas (UI-19), never over the text being edited or the canvas', panel && !overlaps && panel.x + panel.width <= canvas.x + 1 && panel.x >= 0 && panel.y >= 0 && panel.y + panel.height <= 845, JSON.stringify({ panel, editor, canvas }));
+  // Owner decision 2026-10-22: the canvas fills the workspace and the tools column floats over its left edge, so the panel
+  // stays inside that column (no longer left of the canvas), never over the text being edited.
+  check('on a phone the style panel sits in the floating tools column (UI-19; owner 2026-10-22), never over the text being edited', panel && column && !overlaps && panel.x >= column.x - 1 && panel.x + panel.width <= column.x + column.width + 1 && canvas.x <= 0.5 && panel.y >= 0 && panel.y + panel.height <= 845, JSON.stringify({ panel, editor, canvas, column }));
   check('no horizontal page scroll on a phone', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await shot('narrow-panel');
   await context.close();

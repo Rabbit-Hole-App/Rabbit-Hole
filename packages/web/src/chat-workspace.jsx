@@ -65,8 +65,8 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   // /goal and Progress's Set a goal (owner, 2026-10-21): the one entry to goal management. open(draft) shows Progress and asks it
   // to open the learner's goals, draft (the words after /goal) in the new goal's field, unsaved. Nothing is sent or saved here.
   const [goalRequest, setGoalRequest] = useState(null);
-  const showProgress = panels.companion.show;
-  const openGoals = useCallback((draft = '') => { showProgress('progress'); setGoalRequest({ seq: ++goalRequests, draft: String(draft || '').trim().slice(0, 200) }); }, [showProgress]);
+  const showProgress = panels.openProgress;
+  const openGoals = useCallback((draft = '') => { showProgress(); setGoalRequest({ seq: ++goalRequests, draft: String(draft || '').trim().slice(0, 200) }); }, [showProgress]);
   const goals = useMemo(() => ({ request: goalRequest, open: openGoals }), [goalRequest, openGoals]);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
