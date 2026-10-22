@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CONTACT, INTO, anchorAt, anchorText, objectOrigin, pinCount, pinPoint, pinSpot } from './anchors.js';
+import { CONTACT, INTO, anchorAt, anchorText, objectOrigin, pinCount, pinPoint, pinSpot, pinTopCentre } from './anchors.js';
 import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -156,7 +156,7 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(canvas, /<CommentPins pins=\{commentPins\} view=\{view\} board=\{commentBoard\} slotOf=\{commentSlot\} /, 'object pins sit in their slot');
   assert.match(canvas, /return \{ x, y, w, h: [^\n]*, row: pillRow\(id\), lead \};/, "the slot is the object's box, its pill row and what its top left keeps clear");
   assert.match(canvas, /\(item && item\.kind !== 'sticky'\) \|\| \(shape && TEXT_BOX\[shape\.kind\]\) \? w : 0/, 'a text box, an equation and a text shape keep their whole top edge for their controls');
-  assert.match(read('./CommentPins.jsx'), /pinSpot\(box, slot\.row \* Math\.max\(view\.z, 1\), index, SIZE, GAP, \(slot\.lead \|\| 0\) \* view\.z\)/, 'every object pin goes through pinSpot');
+  assert.match(read('./CommentPins.jsx'), /pinTopCentre\(box, index, SIZE, GAP\)/, 'every object pin goes through pinTopCentre');
   assert.match(canvas, /Start Rabbit Hole<\/MenuRow>\}\r?\n\s+\{addComment && commentOn && <MenuRow icon=\{MessageCircle\} [^\n]*hint="C"[^\n]*>Add comment<\/MenuRow>\}/, 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
@@ -250,4 +250,16 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(panel, /data-copy-thread-link/);
   assert.match(panel, /\['Block and remove their comments', \(\) => act\(\(\) => client\.block\(message\.id, true\)\)\]/);
   assert.match(settings, /data-unblock onClick=\{\(\) => unblock\(block\.block_id\)\}/);
+});
+
+test('an object pin stays at the card top centre at every zoom (owner, 2026-10-21)', () => {
+  const card = { x: 120, y: 80, w: 300, h: 180 };
+  const SIZE = 30, GAP = 4;
+  for (const view of [{ x: 0, y: 0, z: 0.2 }, { x: 37, y: -12, z: 1 }, { x: -250, y: 90, z: 2 }]) {
+    const box = { left: card.x * view.z + view.x, top: card.y * view.z + view.y, right: (card.x + card.w) * view.z + view.x, bottom: (card.y + card.h) * view.z + view.y };
+    const at = pinTopCentre(box, 0, SIZE, GAP);
+    assert.equal(at.left + SIZE / 2, (card.x + card.w / 2) * view.z + view.x, `centre x at z=${view.z}`);
+    assert.equal(at.top + SIZE / 2, card.y * view.z + view.y, `centre y at z=${view.z}`);
+  }
+  assert.equal(pinTopCentre({ left: 0, top: 0, right: 100, bottom: 50 }, 1, SIZE, GAP).left, 50 - SIZE / 2 + SIZE + GAP, 'a second pin lines up to the right');
 });

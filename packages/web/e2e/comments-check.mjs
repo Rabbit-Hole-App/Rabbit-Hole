@@ -84,10 +84,11 @@ const pins = () => page.locator('[data-comment-pin]');
 const askPill = () => page.locator('[data-selection-bar]:visible').first();
 const contact = (a, b) => [Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x), Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y)];
 const touching = (pinBox, body) => contact(pinBox, body).every(overlap => overlap >= 2);
-const beside = async (pinBox, pill, object) => {
-  const [box, body] = [await pill.boundingBox(), await object.boundingBox()];
-  assert.ok(contact(pinBox, box).some(overlap => overlap <= 1), `never under the selection actions: ${JSON.stringify([pinBox, box])}`);
-  assert.ok(touching(pinBox, body), `touching its object: ${JSON.stringify([pinBox, body])}`);
+// An object's pin sits at its top centre at every zoom (owner, 2026-10-21; replaces the slot left of the selection actions).
+const topCentre = async (object, given = null) => {
+  const [pinBox, body] = [given || await pins().first().boundingBox(), await object.boundingBox()];
+  assert.ok(Math.abs(pinBox.x + pinBox.width / 2 - (body.x + body.width / 2)) <= 2 && Math.abs(pinBox.y + pinBox.height / 2 - body.y) <= 2, `the pin is at the card's top centre: ${JSON.stringify([pinBox, body])}`);
+  return pinBox;
 };
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -126,7 +127,7 @@ await check('3 Send posts the thread: the author\'s name and avatar, and a pin o
   assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 0, 'the ghost is gone');
   assert.equal(await pins().count(), 1, 'one pin');
   const pin = await pins().first().boundingBox();
-  await beside(pin, askPill(), card('k-exp'));
+  await topCentre(card('k-exp'));
   await shot('03-thread-posted');
   // The slot does not move when the card is let go, and the pill's place stays clear.
   const body = await card('k-exp').boundingBox();
@@ -134,6 +135,14 @@ await check('3 Send posts the thread: the author\'s name and avatar, and a pin o
   await page.waitForTimeout(400);
   assert.equal(await askPill().count(), 0, 'deselected');
   assert.deepEqual(await pins().first().boundingBox(), pin, 'the same slot, selected or not');
+  // Zoom in and out (owner, 2026-10-21): the pin stays at the card's top centre, at its own constant size.
+  for (const dy of [-300, -300, 600, 600, -300]) {
+    await page.mouse.move(body.x - 150, body.y + 250);
+    await page.keyboard.down('Control'); await page.mouse.wheel(0, dy); await page.keyboard.up('Control');
+    await page.waitForTimeout(400);
+    const at = await topCentre(card('k-exp'));
+    assert.ok(Math.abs(at.width - pin.width) <= 1, `the pin keeps its size at every zoom: ${JSON.stringify([pin, at])}`);
+  }
 });
 
 await check('4 a reply lands in the thread, oldest first', async () => {
@@ -396,7 +405,7 @@ await check('16 right-click a group (its outline, or its name chip): Add comment
   const groupPin = async () => { await page.waitForTimeout(400); return page.locator(`[data-comment-pin="${id}"]`).boundingBox(); };
   await shot('16a-group-comment');
   const before = await groupPin();
-  await beside(before, askPill(), page.locator('[data-group-box="g-ice"]'));
+  await topCentre(page.locator('[data-group-box="g-ice"]'), before);
   const [a, b] = [await shape('g-a').boundingBox(), await shape('g-b').boundingBox()];
   await dragBy({ x: (a.x + a.width + b.x) / 2, y: a.y + a.height / 2 }, 120, 60);
   const after = await groupPin();
