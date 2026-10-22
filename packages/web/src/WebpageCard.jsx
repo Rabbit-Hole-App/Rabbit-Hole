@@ -65,6 +65,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   const [manifest, setManifest] = useState(null), [runs, setRuns] = useState([]), [error, setError] = useState('');
   const [width, setWidth] = useState(0), [viewHeight, setViewHeight] = useState(0);
   const [top, setTop] = useState(block.scrollTop || 0);
+  // A new version on show (Refresh) opens where applyResult put it (the top), not at the old version's offset.
+  useEffect(() => { setTop(latest.current.scrollTop || 0); }, [shown?.manifestId]); // eslint-disable-line react-hooks/exhaustive-deps
   const [visible, setVisible] = useState(() => new Set());
   const [answer, setAnswer] = useState(null), [reload, setReload] = useState(0);
   const [bar, setBar] = useState(null), [menu, setMenu] = useState(null), [message, setMessage] = useState(null);

@@ -193,7 +193,7 @@ const versionIds = manifest => [...manifest.tiles.map(t => t.key), manifest.text
 
 // Screens one stored version and applies the verdict: passed -> every row 'stored'; failed -> rows 'failed', bytes deleted;
 // inconclusive or error -> rows stay 'uploading' (Retry). The verdict is kept beside it in R2.
-async function screenVersion(env, owner, manifestRow, manifest, deps, tiles = null) {
+async function screenVersion(env, owner, boardRow, manifestRow, manifest, deps, tiles = null) {
   const bucket = learnMedia(env), db = env.LEARN_DB, now = deps.now();
   await bucket.put(statusKey(manifestRow.id), encode({ status: 'pending', reason: null, at: now }), { httpMetadata: { contentType: 'application/json' } });
   if (!tiles) {
@@ -201,7 +201,7 @@ async function screenVersion(env, owner, manifestRow, manifest, deps, tiles = nu
     for (const t of manifest.tiles) {
       const row = await db.prepare('SELECT r2_key FROM file_sources WHERE id = ?').bind(t.key).first();
       const object = row && await bucket.get(row.r2_key);
-      if (!object) return finishScreen(env, owner, manifestRow, manifest, { status: 'error', reason: 'A capture tile is missing.' });
+      if (!object) return finishScreen(env, owner, boardRow, manifestRow, manifest, { status: 'error', reason: 'A capture tile is missing.' });
       tiles.push({ index: t.index, y: t.y, h: t.h, width: L.width, type: t.type, bytes: new Uint8Array(await object.arrayBuffer()) });
     }
   }
@@ -215,16 +215,21 @@ async function screenVersion(env, owner, manifestRow, manifest, deps, tiles = nu
   } catch (error) { verdict = { status: 'error', reason: String(error?.message || error).slice(0, 200) }; }
   finally { clearTimeout(timer); }
   if (!['passed', 'failed', 'inconclusive', 'error'].includes(verdict?.status)) verdict = { status: 'error', reason: 'Screening gave no verdict.' };
-  return finishScreen(env, owner, manifestRow, manifest, verdict);
+  return finishScreen(env, owner, boardRow, manifestRow, manifest, verdict);
 }
 
-async function finishScreen(env, owner, manifestRow, manifest, verdict) {
+async function finishScreen(env, owner, boardRow, manifestRow, manifest, verdict) {
   const bucket = learnMedia(env), db = env.LEARN_DB, now = Date.now(), ids = [manifestRow.id, ...versionIds(manifest)];
   const screening = { status: verdict.status, reason: verdict.reason || reasonOf(verdict.status), ...(verdict.policy ? { policy: verdict.policy } : {}) };
   await bucket.put(statusKey(manifestRow.id), encode({ ...screening, at: now }), { httpMetadata: { contentType: 'application/json' } });
   const mine = `id IN (SELECT value FROM json_each(?)) AND org = ? AND owner_email = ? AND status = 'uploading'`;
   if (verdict.status === 'passed') {
-    await db.prepare(`UPDATE file_sources SET status = 'stored', stored_at = ? WHERE ${mine}`).bind(now, JSON.stringify(ids), owner.org, owner.email).run();
+    // Index the version to the board it was captured on, as that board's next save would: the card reads its tiles through
+    // ?app=&board= at once (learn-files.js admits only what the board references), before its save lands. The save keeps
+    // these while the card names them and drops them when it does not (file-refs.js).
+    await db.batch([db.prepare(`UPDATE file_sources SET status = 'stored', stored_at = ? WHERE ${mine}`).bind(now, JSON.stringify(ids), owner.org, owner.email),
+      db.prepare(`INSERT OR IGNORE INTO file_source_refs (source_id, board_id) SELECT id, ? FROM file_sources WHERE id IN (SELECT value FROM json_each(?)) AND org = ? AND owner_email = ? AND status = 'stored'`)
+        .bind(boardRow.id, JSON.stringify(ids), owner.org, owner.email)]);
     const row = await db.prepare('SELECT * FROM file_sources WHERE id = ?').bind(manifestRow.id).first();
     return result({ status: 'ready', manifest, manifestRow: row, screening });
   }
@@ -315,7 +320,7 @@ export async function webpagesFetch(req, env, deps = {}) {
     } finally { await browser?.disconnect?.().catch(() => {}); }
     if (page.status !== 'ready') return json(result({ status: page.status, reason: page.reason, lineage }));
     const { manifest, manifestRow } = await store(env, owner, app, row, lineage, checked.url, page, now);
-    return json(await screenVersion(env, owner, manifestRow, manifest, deps, page.tiles));
+    return json(await screenVersion(env, owner, row, manifestRow, manifest, deps, page.tiles));
   }
 
   const [, id, screen] = path.match(/^\/api\/learn\/webpages\/([^/]+)(\/screen)?$/);
@@ -335,7 +340,7 @@ export async function webpagesFetch(req, env, deps = {}) {
   const stale = last.status === 'pending' && deps.now() - (last.at || row.created_at) > L.staleMs;
   if (isScreen) {
     if (last.status === 'pending' && !stale) return json(result({ status: 'screening', manifest, manifestRow: row, screening: { status: 'pending', reason: null } }));
-    return json(await screenVersion(env, access.owner, row, manifest, deps));
+    return json(await screenVersion(env, access.owner, access.row, row, manifest, deps));
   }
   if (stale) return json(result({ status: 'error', reason: reasonOf('error'), manifest, manifestRow: row, screening: { status: 'error', reason: reasonOf('error') } }));
   const status = last.status === 'pending' ? 'screening' : last.status;

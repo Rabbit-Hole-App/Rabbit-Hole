@@ -244,6 +244,8 @@ test('capture -> screening passed: rows stored, tiles served to the owner, the r
   assert.equal(cap.manifestId, fileRef.source.id);
   assert.deepEqual(fileRef.bundle.map(b => b.role), ['tile', 'tile', 'text']);
   for (const part of fileRef.bundle) assert.equal(await file(part.source.id, 'owner'), 200);
+  // The card reads its files through ?app=&board= as soon as the reply lands, before its board save (dev clone 2026-10-22: 404).
+  for (const id of [fileRef.source.id, ...fileRef.bundle.map(b => b.source.id)]) assert.equal(await file(id, 'owner', '?app=demo-app&board=main'), 200, 'through the board before its save');
   const manifestKey = rows().find(r => r.declared_type === 'webpage-manifest');
   const stored = JSON.parse(new TextDecoder().decode([...env.LEARN_MEDIA.objects.entries()].find(([k]) => k.startsWith(`file-sources/${manifestKey.id}/`))[1].bytes));
   assert.deepEqual(Object.keys(stored).sort(), ['blockedRequests', 'fetchedAt', 'finalUrl', 'height', 'lineage', 'pageHeight', 'screening', 'text', 'tiles', 'title', 'truncated', 'url', 'v', 'width']);
