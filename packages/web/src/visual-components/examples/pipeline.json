@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "id": "request-pipeline",
+  "title": "How a web request is served",
+  "components": [
+    { "id": "serve", "component": "section", "version": 1, "params": { "title": "Serving one request" } },
+    { "id": "path", "component": "flow", "version": 1, "parent": "serve", "params": { "steps": [
+      { "label": "Browser", "role": "input" }, "DNS lookup", "Load balancer", { "label": "App server", "role": "output" }
+    ] } },
+    { "id": "note", "component": "callout", "version": 1, "parent": "serve", "params": { "text": "Each hop adds latency, so caching near the browser removes whole steps.", "tone": "key" } },
+    { "id": "key", "component": "legend", "version": 1, "params": { "entries": [
+      { "label": "where the request starts", "role": "input" }, { "label": "where the answer is made", "role": "output" }
+    ] } }
+  ],
+  "presentation": { "mode": "static" }
+}
