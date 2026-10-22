@@ -11,7 +11,9 @@
 //   7. canvas switch: a job made on canvas A that finishes while canvas B is open attaches to nothing on B, and to its card on A;
 //   8. provider_unavailable: the card says the explanation is paused and keeps the request; Retry (twice) sends one Retry with
 //      the job's attempt, and the card then fills in;
-//   9. nothing else asked a model, left the stack, or threw.
+//   9. stale revision: a Ctrl+K Edit whose candidate was made from another revision of the card is refused at Apply, the card
+//      and the candidate kept;
+//  10. nothing else asked a model, left the stack, or threw.
 // Usage: BASE=http://127.0.0.1:9311 SMALL_CP=http://127.0.0.1:9313 VARS=<stack .dev.vars> node e2e/explain-entry-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -48,7 +50,7 @@ const view = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job
   usage: { credits: 0, unknown: false }, result: job.stage === 'ready' ? job.identity : null, createdAt: 0, updatedAt: 0 });
 const identity = job => ({ jobId: job.id, resultId: `er_${job.id}`, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: 'p', revision: `xr_${job.id}`, baseRevision: null,
   specHash: 's', compiledHash: 'c', componentVersions: {}, policyVersion: 'v' });
-const release = job => Object.assign(job, { stage: 'ready', identity: identity(job), failure: null, recovery: [] });
+const release = (job, extra = {}) => Object.assign(job, { stage: 'ready', identity: { ...identity(job), ...extra }, failure: null, recovery: [] });
 const lastCreate = () => creates.at(-1);
 const refused = [], outside = [], errors = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact))/;
@@ -88,7 +90,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 9;
+const total = 10;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); }
@@ -232,6 +234,27 @@ await step('provider_unavailable: paused with the request kept; Retry twice send
   assert.equal(creates.length, 7, 'Retry makes no new job');
   release(job);
   await drawn(page, job.cardId).waitFor({ timeout: 20000 });
+});
+
+await step('stale revision: an Edit made from another revision of the card is refused at Apply; the card and candidate stay', async () => {
+  const card = page.locator(`[data-block-id="${first.cardId}"]`);
+  const before = (await board(canvasA.name)).blocks.find(block => block.id === first.cardId);
+  await card.click({ position: { x: 70, y: 22 } });
+  await page.keyboard.press('Control+k');
+  const editor = page.locator('[data-inline-ai]');
+  await editor.waitFor();
+  await editor.locator('[data-inline-mode-toggle]').click();
+  await editor.locator('[data-inline-mode="edit"]').click();
+  await editor.locator('[data-inline-prompt]').fill('show the swap step');
+  const count = creates.length;
+  await editor.locator('[data-inline-submit]').click();
+  const job = await newJob(count + 1);
+  assert.deepEqual([lastCreate().requestClass, lastCreate().cardId, lastCreate().baseRevision], ['edit', first.cardId, before.explain.revision]);
+  release(job, { baseRevision: 'xr_another' });
+  await card.locator('[data-explain-apply]').waitFor({ timeout: 20000 });
+  await card.locator('[data-explain-apply]').click();
+  assert.match(await card.locator('[data-explain-edit-problem]').innerText(), /changed after the edit started/);
+  assert.equal((await board(canvasA.name)).blocks.find(block => block.id === first.cardId).explain.revision, before.explain.revision, 'the accepted explanation is unchanged');
 });
 
 await step('nothing else asked a model, left the stack, or threw', async () => {
