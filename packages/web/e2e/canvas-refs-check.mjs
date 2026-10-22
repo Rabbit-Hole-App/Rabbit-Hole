@@ -371,6 +371,8 @@ await check('4 chip links: the new-tab button, Ctrl-click and middle-click open 
   const opens = async (how, act) => {
     const [tab] = await Promise.all([context.waitForEvent('page', { timeout: 8000 }).catch(() => null), act()]);
     assert.ok(tab, `${how} opened no new tab`);
+    // A Ctrl- or middle-click popup starts on about:blank and navigates after: wait for that (8 s), then assert its URL.
+    await tab.waitForURL(url => url.href !== 'about:blank', { timeout: 8000 }).catch(() => {});
     await tab.waitForLoadState('domcontentloaded');
     assert.equal(new URL(tab.url()).pathname, `/apps/${T.name}`, `${how} opened ${tab.url()}`);
     await tab.close();
