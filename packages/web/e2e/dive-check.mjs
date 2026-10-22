@@ -132,6 +132,20 @@ await open(ROOT_URL);
 near(await mapAt(), stepped, 'a reload keeps the spot');
 await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); // actionable: nothing intercepts the grip
 await shot('holes-map-03-after-reload');
+// Owner decision 2026-10-22: the page header floats over the canvas, and the map is never dragged under its controls. Dragged
+// to the window's top edge under the centred header group, it stops 8 px below the group, clear of Home and the group.
+{
+  const controls = () => page.evaluate(() => [...(document.querySelector('[data-canvas-header]')?.children || [])].map(el => el.getBoundingClientRect()).filter(r => r.width && r.height).map(r => ({ x: r.x, y: r.y, right: r.right, bottom: r.bottom })));
+  const group = (await page.locator('[data-header-group]').boundingBox()), grip = await page.locator('[data-dive-grip]').boundingBox();
+  assert.ok(group, 'the canvas header group is there to clear');
+  const under = await dragMap(group.x + group.width / 2 - (grip.x + grip.width / 2), 2 - (grip.y + grip.height / 2));
+  for (const box of await controls()) assert.ok(apart(under, box), `the dragged map stays clear of the header control ${JSON.stringify(box)}: ${JSON.stringify(under)}`);
+  const ceiling = Math.max(...(await controls()).filter(box => box.x < under.right && box.right > under.x).map(box => box.bottom));
+  assert.ok(Number.isFinite(ceiling), `the map was dragged under the header group's span: ${JSON.stringify({ under, group })}`);
+  assert.ok(Math.abs(under.y - (ceiling + 8)) <= 1, `pinned 8 px under the header's controls: map top ${under.y}, controls bottom ${ceiling}`);
+  await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); // its grip is reachable, not under the header
+  await shot('holes-map-03b-under-header');
+}
 await page.locator('[data-dive-grip]').dblclick();
 near(await mapAt(), home, 'double-click puts it back in the gutter');
 assert.equal(await page.evaluate(() => localStorage.getItem('small.dive.mapSpot')), null, 'and forgets the spot');
