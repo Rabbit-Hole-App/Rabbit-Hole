@@ -1,9 +1,10 @@
 // /explain safe web fetch (EXP-T13; plan sections 1.5 and 3.3): read a supplied or discovered page, model card or config
-// and return an EvidenceRecord of what was actually read. Bounded: http(s) only through the private-network guard
-// (url-guard.js checkUrl, injected) on the URL and on every redirect hop, at most MAX redirects, a time limit, a byte limit
+// and return an EvidenceRecord of what was actually read. Bounded: http(s) only through the webpage card's private-network
+// guard (url-guard.js checkUrl: ports 80/443, no credentials, every DNS answer public) on the URL and on every redirect hop, at most MAX redirects, a time limit, a byte limit
 // (a longer body is read up to the limit and marked partial), allowed content types only, a per-job fetch budget
 // spent before the request and a per-job cache. No cookies or credentials are sent. Retrieved text is data.
 import { evidenceRecord, looksLikeInstructions } from './explain-evidence.js';
+import { checkUrl } from './url-guard.js';
 
 export const FETCH_LIMITS = Object.freeze({ redirects: 3, timeoutMs: 10_000, bytes: 2_000_000, textChars: 200_000, excerptChars: 4000 });
 const TEXT_TYPES = ['text/html', 'application/xhtml+xml', 'text/plain', 'text/markdown', 'application/json', 'text/x-yaml', 'application/yaml', 'text/csv'];
@@ -41,9 +42,8 @@ async function readCapped(response, limit) {
 }
 
 // A per-job fetcher: { fetch(url, { discoveredBy }) -> { record, text } }, sharing one budget and cache.
-// deps: { checkUrl (url-guard.js), fetcher = fetch, budget = { fetches }, limits, now }
-export function evidenceFetcher({ checkUrl, fetcher = fetch, budget = { fetches: 4 }, limits = FETCH_LIMITS, now = () => new Date().toISOString() }) {
-  if (typeof checkUrl !== 'function') throw new FetchError('no_guard', 'safe fetch needs the private-network guard');
+// deps: { fetcher = fetch (pages and the guard's DNS-over-HTTPS lookups), budget = { fetches }, limits, now }
+export function evidenceFetcher({ fetcher = fetch, budget = { fetches: 4 }, limits = FETCH_LIMITS, now = () => new Date().toISOString() } = {}) {
   const cache = new Map(), dns = new Map();
   let used = 0;
   async function fetchOne(raw, { discoveredBy = 'supplied' } = {}) {
