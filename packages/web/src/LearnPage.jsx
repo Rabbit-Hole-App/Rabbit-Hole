@@ -980,9 +980,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // /explain v2 (EXP-T20 slice 1): one job per press, its card placed at once under the job's card id. null where v2 is off
   // here (the server's 404), which keeps today's /explain; remembered so later presses do not ask again.
   const explainRequests = useRef(new Map()), explainOff = useRef(false);
-  const startExplain = async (prompt, { context = null, promptUsed = prompt, source = 'explicit' } = {}) => {
+  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit' } = {}) => {
     if (explainOff.current || !commentBoard || !prompt.trim()) return null;
-    const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}) };
+    const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) };
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }

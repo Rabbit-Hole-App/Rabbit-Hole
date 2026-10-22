@@ -67,7 +67,7 @@ test('the result attaches only to the card that waits for that job, on that canv
 
 test('/explain starts a v2 job where the server has it, and keeps today\'s path where it does not', async () => {
   const posts = [], started = [];
-  const canvas = on => ({ insertBlock: () => 'legacy-card', startExplain: async (prompt, options) => { started.push([prompt, options.context]); return on ? { blockId: 'card-1' } : null; } });
+  const canvas = on => ({ insertBlock: () => 'legacy-card', startExplain: async (prompt, options) => { started.push([prompt, options.context, ...(options.image ? [options.image] : [])]); return on ? { blockId: 'card-1' } : null; } });
   const post = async (path, body) => { posts.push([path, body]); return { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'T', scene } }; };
   const on = await runLearnCommand('/explain how a heap keeps its order', { app: 'demo', target: { id: 'c', title: 'Heap', text: 'a tree' }, canvas: canvas(true), post, openSearch: () => {} });
   assert.deepEqual([on.notice.tone, on.notice.blockId], ['done', 'card-1']);
@@ -76,10 +76,22 @@ test('/explain starts a v2 job where the server has it, and keeps today\'s path 
   const off = await runLearnCommand('/explain how a heap keeps its order', { app: 'demo', canvas: canvas(false), post, openSearch: () => {} });
   assert.equal(off.notice.tone, 'done');
   assert.equal(posts[0][0], '/api/learn/artifact', 'off here: today\'s /explain');
-  // An attached image keeps today's server-resolved path until the job API reads images (never dropped).
+  // EXP-T15 preview context: a region crop or image card (the target's image) and the composer's attachment go with the v2 job,
+  // never dropped; the target's own image wins, as for a question. Off here, today's path carries the same image.
   posts.length = 0; started.length = 0;
-  await runLearnCommand('/explain this layout', { app: 'demo', target: { id: 'c', title: 'Photo', image: 'media:0123456789ab' }, canvas: canvas(true), post, openSearch: () => {} });
-  assert.deepEqual([started.length, posts[0][1].image_context], [0, { id: 'media:0123456789ab' }]);
+  await runLearnCommand('/explain this layout', { app: 'demo', target: { id: 'area:1', title: 'Region', text: 'a sketch', image: 'media:0123456789ab', preview: 'data:image/png;base64,x' }, attachedImage: 'media:ffffffffffff', canvas: canvas(true), post, openSearch: () => {} });
+  assert.deepEqual([started, posts], [[['this layout', 'a sketch', 'media:0123456789ab']], []]);
+  started.length = 0;
+  await runLearnCommand('/explain this layout', { app: 'demo', attachedImage: 'media:ffffffffffff', canvas: canvas(true), post, openSearch: () => {} });
+  assert.deepEqual(started, [['this layout', null, 'media:ffffffffffff']]);
+  started.length = 0;
+  await runLearnCommand('/explain this layout', { app: 'demo', target: { id: 'c', title: 'Photo', image: 'media:0123456789ab' }, canvas: canvas(false), post, openSearch: () => {} });
+  assert.deepEqual(posts[0][1].image_context, { id: 'media:0123456789ab' });
+  // A crop whose upload has not landed waits (no call); an image with no words asks (no call).
+  posts.length = 0; started.length = 0;
+  const waiting = await runLearnCommand('/explain this layout', { app: 'demo', target: { id: 'area:2', preview: 'data:image/png;base64,x' }, canvas: canvas(true), post, openSearch: () => {} });
+  const wordless = await runLearnCommand('/explain', { app: 'demo', attachedImage: 'media:ffffffffffff', canvas: canvas(true), post, openSearch: () => {} });
+  assert.deepEqual([waiting.notice.tone, wordless.notice.tone, started.length, posts.length], ['info', 'question', 0, 0]);
 });
 
 // AdaptiveCanvas placeExplain, read from its source as cad-reconciliation.test.mjs reads reconcileCad: one card per job card id.

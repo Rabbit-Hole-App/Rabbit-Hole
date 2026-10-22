@@ -228,10 +228,11 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   }
   if (image && !args.trim()) return { notice: { tone: 'question', text: 'What should the explanation show? The image is used as a layout reference.' }, keep: '/explain ' };
   // /explain v2 (EXP-T20 slice 1): a durable job whose card is placed at once and fills in when the job is ready. Where the
-  // server has it off (startExplain answers null) the command runs as it always has. shortcut: an attached image keeps
-  // today's path until the job API resolves images on the server (Lane C), so it is never dropped.
-  if (name === 'explain' && canvas.startExplain && !image && args.trim()) {
-    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
+  // server has it off (startExplain answers null) the command runs as it always has. EXP-T15: the selected target's text and
+  // the image (a region crop, an image card or the composer's attachment) go with the job; the job API reads the image's
+  // bytes on the server under this canvas's authorization, as a layout reference only (explain-job.js explainRoute).
+  if (name === 'explain' && canvas.startExplain && args.trim()) {
+    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed });
     if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
   }
   const slot = mayConfirmPaid(name) ? null : hold();
