@@ -27,7 +27,7 @@ test('the top-left corner goes Back (owner, 2026-10-04: no longer a jump to Home
 // "move the 3 hooks options window to the bottom right aligned with the lower of the chat composer".
 test('the bottom strip: the minimap above the zoom row at lower left, the hooks lower right beside the composer', () => {
   const strip = canvas.slice(canvas.indexOf('<div data-canvas-bottom'));
-  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{minimap && <div data-canvas-minimap className="hidden md:block @max-\[640px\]:hidden">\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
+  assert.match(strip, /<div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">\n\s+\{minimap && <div data-canvas-minimap>\n\s+<CanvasMinimap [\s\S]*?<\/div>\}\n\s+<div data-zoom /, 'one group: the minimap, then the zoom row, stretched to one outer width (owner brief 2026-10-16 item 8)');
   assert.ok(strip.indexOf('data-canvas-minimap') < strip.indexOf('data-canvas-composer') && strip.indexOf('data-canvas-composer') < strip.indexOf('data-canvas-lower-right'), 'minimap left, composer, hooks right');
   assert.match(strip, /md:flex-row md:items-end/, 'one lower edge: the hooks\' bottom is the composer\'s');
   // On a phone the hooks sit above the composer, at the right.
@@ -61,8 +61,8 @@ test('the bottom strip floats: the canvas runs to the bottom, the strip lets the
   assert.match(canvas, /order-first items-start pl-2 pb-\(--chrome-left\) /);
   assert.match(canvas, /items-end pr-2 mr-\(--edge\) pb-\(--chrome-right\) /);
   assert.match(canvas, /parseFloat\(getComputedStyle\(bar\.parentElement\)\.paddingBottom \|\| 0\)/, 'the tools\' room leaves the column out');
-  // A phone: the tools' strip goes to the top, so the composer floats at the bottom.
-  assert.match(canvas, /@max-\[640px\]:order-first @max-\[640px\]:pb-0 /);
+  // A phone (UI-19, owner 2026-10-21): the tools stay the same left column, padded clear of the floating strip's left column.
+  assert.doesNotMatch(canvas, /@max-\[640px\]:(order-first|pb-0|grid|w-full)\b/);
 });
 
 test('fit, focus and a new card stop above the floating chrome over their span (a bottom inset); panning still reaches it', () => {
@@ -85,12 +85,29 @@ test('fit, focus and a new card stop above the floating chrome over their span (
 // (the tools gutter's class, the map column's class and its mapBeside rule), must leave the surface running to the panel edge.
 const COLUMN = Number(/const COLUMN = (\d+);/.exec(canvas)[1]);
 const rowOf = width => {
-  const tools = Number(/\$\{overviewOpen \? 'w-\[192px\]' : 'w-\[(\d+)px\]'\}/.exec(canvas)[1]);
+  const tools = Number(/pb-\(--chrome-left\) w-\[(\d+)px\]'/.exec(canvas)[1]);
   const column = /<div data-dive-gutter className=\{`[^`]*\bw-\[(\d+)px\]/.exec(canvas);
   const rule = /const mapBeside = !shellWidth \|\| shellWidth - (\d+) - (\d+) >= COLUMN \+ (\d+);/.exec(canvas);
   const map = column && (!rule || width - Number(rule[1]) - Number(rule[2]) >= COLUMN + Number(rule[3])) ? Number(column[1]) : 0;
   return { tools, map, surface: width - tools - map, strip: map };
 };
+// UI-19 (owner, 2026-10-21): the tools stay one vertical column on the left at every panel width, and the canvas has one
+// minimap, lower left above the zoom row, shown as View > Minimap says - no Show/Hide overview button, no narrow strip.
+test('UI-19: one vertical tools column at every width, one minimap, no overview toggle', () => {
+  const toolbar = /<div ref=\{toolbarRef\} role="toolbar" aria-label="Canvas tools"[\s\S]*?className=\{`([^`]*)`\}>/.exec(canvas);
+  assert.ok(toolbar, 'the Canvas tools toolbar');
+  assert.match(toolbar[1], /\bgrid-cols-2\b/, 'two tools per row: a vertical palette');
+  assert.doesNotMatch(toolbar[1], /@max-\[|grid-flow-col|col-start/, 'no narrow-width strip variant on the toolbar');
+  const gutter = canvas.slice(canvas.indexOf('<div ref={gutter} data-tool-gutter'), canvas.indexOf('{/* Presenting replaces the zoom pill'));
+  // The Rabbit Hole Map slot (data-gutter-top) keeps its own narrow rule (UI-17, settled); nothing else in the gutter has one.
+  assert.equal(gutter.match(/@max-\[640px\]|@min-\[641px\]/g)?.length || 0, 1, 'only the map slot has a narrow-width rule');
+  assert.doesNotMatch(gutter, /grid-flow-col|col-start|col-span-3/, 'no narrow strip layout in the tools gutter');
+  assert.doesNotMatch(canvas, /Show overview|Hide overview|setOverview|overviewOpen/, 'no separate overview toggle or state');
+  assert.equal(canvas.match(/<CanvasMinimap /g).length, 1, 'one canvas minimap');
+  assert.match(canvas, /<div className="flex min-h-0 flex-1">/, 'the canvas row never stacks the tools under the canvas');
+  assert.match(canvas, /const \[minimap, setMinimap\] = useState\(\(\) => uiPrefs\(\)\.minimap\);/, 'the View menu\'s persisted choice owns it');
+});
+
 test('the canvas row: the drawing surface runs to the panel edge at every width, no map column (UI-17)', () => {
   for (const width of [628, 712, 783, 784, 1032, 1180]) {
     const row = rowOf(width);

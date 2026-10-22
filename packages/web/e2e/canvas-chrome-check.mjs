@@ -9,7 +9,8 @@
 // at the right, above the Chat pane), and no chrome covers the Chat pane. The shared board keeps its own dock composer. And (owner, 2026-10-08: "in the
 // canvas above the chat composer you are cutting the canvas too much") the strip floats: the canvas runs to the bottom under
 // it, the empty strip lets the pointer through to the canvas, its controls stay clickable, and zoom to fit frames every card
-// clear of the composer, the hooks, the minimap and zoom (a bottom inset; on a phone the tools' strip is at the top). Against the
+// clear of the composer, the hooks, the minimap and zoom (a bottom inset). UI-19 (owner, 2026-10-21): the tools stay one
+// vertical column left of the canvas at every width, and the one minimap sits above the zoom row at every width, a phone too. Against the
 // LOCAL keyless stack only: the hook planner answers from its fixtures, the provider tripwire must count 0, nothing is sent but
 // the owned pages' one learner turn each, answered here. Owner decision 3a (2026-10-20, Tutor workflow): owned-canvas hooks are
 // proactive Tutor suggestions - only while Tutor is selected, On and unpaused, never on open, loaded only after a meaningful
@@ -79,7 +80,7 @@ const box = (page, selector) => page.evaluate(sel => { const e = document.queryS
 const disjoint = (a, b) => !a || !b || a.right <= b.x + 0.5 || b.right <= a.x + 0.5 || a.bottom <= b.y + 0.5 || b.bottom <= a.y + 0.5;
 const round = b => b && Object.fromEntries(Object.entries(b).map(([k, v]) => [k, Math.round(v)]));
 
-// The geometry rules, one page at a time. phone: the hooks above the composer at the right, the overview in the tools' strip.
+// The geometry rules, one page at a time. phone: the hooks above the composer at the right; the tools a column at the left.
 const layout = async (page, where, { phone = false, shared = false } = {}) => {
   const hooks = await box(page, '[data-hooks-slot] section[data-next-steps]');
   // The shared board's dock composer; the owned canvas has none, its composer is in the Chat pane.
@@ -111,7 +112,7 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
   assert.ok((await hit(gapX, zoom.y + zoom.h / 2)).surface, `${where}: the empty strip at (${Math.round(gapX)}, ${Math.round(zoom.y + zoom.h / 2)}) does not reach the canvas`);
   if (phone) {
     const tools = await box(page, '[role="toolbar"][aria-label="Canvas tools"]');
-    assert.ok(!tools || tools.bottom <= surface.y + 1, `${where}: on a phone the tools' strip is not above the canvas`);
+    assert.ok(!tools || (tools.right <= surface.x + 1 && tools.x < surface.x && tools.h > tools.w), `${where}: on a phone the tools are not a vertical column left of the canvas ${JSON.stringify(round(tools))} ${JSON.stringify(round(surface))}`);
   }
   if (phone) {
     // Above the dock, or above the canvas's own bottom (the Chat pane is under it), at the right.
@@ -124,12 +125,14 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
     assert.ok(Math.abs(hooks.bottom - base.bottom) <= 2, `${where}: the hooks' bottom ${Math.round(hooks.bottom)} is not the ${composer ? 'composer' : 'minimap and zoom group'} bottom ${Math.round(base.bottom)}`);
     assert.ok(hooks.x >= (composer || stack).right - 0.5, `${where}: the hooks are not right of the ${composer ? 'composer' : 'minimap and zoom'}`);
     if (!composer) assert.ok(hooks.right >= surface.right - 24 && hooks.right <= pane.x + 0.5, `${where}: the hooks ${JSON.stringify(round(hooks))} are not at the canvas's lower right ${JSON.stringify(round(surface))}, short of the Chat pane ${JSON.stringify(round(pane))}`);
-    // A canvas 640 px wide or less (1024 wide with the Chat pane open) keeps the overview in the tools, as a phone does.
-    if (strip.w <= 640) assert.ok(!minimap && await page.getByRole('button', { name: 'Show overview' }).count(), `${where}: a ${Math.round(strip.w)} px canvas offers no Show overview`);
-    else assert.ok(minimap, `${where}: a minimap`);
     if (minimap) assert.ok(minimap.bottom <= zoom.y + 0.5 && zoom.y - minimap.bottom <= 12 && Math.abs(minimap.x - zoom.x) <= 1.5, `${where}: the minimap ${JSON.stringify(round(minimap))} is not directly above the zoom row ${JSON.stringify(round(zoom))}`);
     if (minimap) assert.ok(minimap.right <= (composer ? composer.x : hooks.x) + 0.5, `${where}: the minimap is not left of the ${composer ? 'composer' : 'hooks'}`);
   }
+  // UI-19: one minimap at every width (a 640 px or narrower canvas and a phone too), never a separate overview button.
+  assert.ok(minimap, `${where}: a ${Math.round(strip.w)} px canvas has no minimap`);
+  assert.equal(await page.getByRole('button', { name: /^(Show|Hide) overview$/ }).count(), 0, `${where}: a separate overview button`);
+  assert.equal(await page.locator('[aria-label="Canvas overview"]').count(), 1, `${where}: more than one canvas minimap`);
+  if (phone) assert.ok(minimap.bottom <= zoom.y + 0.5 && zoom.y - minimap.bottom <= 12 && Math.abs(minimap.x - zoom.x) <= 1.5, `${where}: the minimap ${JSON.stringify(round(minimap))} is not directly above the zoom row ${JSON.stringify(round(zoom))}`);
   // The composer's field takes the pointer. A phone's Chat pane is under the canvas: scrolled to for the tap (after every
   // measure above), then the canvas back.
   const fieldSelector = composer ? '[data-canvas-composer] input[placeholder], [data-canvas-composer] textarea[placeholder]' : '[data-chat-pane] [data-chat-composer] textarea';
@@ -139,12 +142,10 @@ const layout = async (page, where, { phone = false, shared = false } = {}) => {
   await page.locator('[data-canvas-surface]').scrollIntoViewIfNeeded();
   // The Voice and Tutor caption's stack never holds the hooks now.
   assert.equal(await page.locator('[data-left-stack] [data-next-steps]').count(), 0, `${where}: hooks in the left stack`);
-  // Zoom to fit (the minimap's Back to content; on a phone the tools' strip opens the overview, which has the same button)
-  // frames every card clear of the floating chrome.
-  if (!minimap) await page.getByRole('button', { name: 'Show overview' }).click();
+  // Zoom to fit (the minimap's Back to content, at every width) frames every card clear of the floating chrome.
   await page.getByRole('button', { name: 'Back to content' }).first().click();
   await page.waitForTimeout(1500);
-  // Measured again after the fit: on a phone the open overview moved the canvas down.
+  // Measured again after the fit.
   const fitted = await box(page, '[data-canvas-surface]');
   const chrome = [['composer', await box(page, '[data-canvas-composer]')], ['hooks', await box(page, '[data-hooks-slot] section[data-next-steps]')], ['minimap and zoom', await box(page, '[data-zoom-stack]')]];
   const cards = await page.evaluate(() => [...document.querySelectorAll('[data-canvas-surface] [data-block-id]')].map(el => { const r = el.getBoundingClientRect(); return { id: el.getAttribute('data-block-id'), x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; }));

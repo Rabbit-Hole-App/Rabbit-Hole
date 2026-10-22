@@ -3,7 +3,7 @@ import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, dow
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
 import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Map as MapIcon, Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
+import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
 import './card-layout.css';
@@ -1861,15 +1861,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const bar = toolbarRef.current;
     if (!bar) return;
     const measure = () => {
-      // The gutter is the canvas row's height; below 640px it is a strip under
-      // the canvas and the toolbar scrolls sideways, so nothing to cap.
+      // The gutter is the canvas row's height at every width (UI-19: the toolbar stays a column on the left).
       // The Rabbit Hole navigator shares the gutter above it (Dive.jsx): its slot and the gap (gap-2) are reserved. The
-      // overview button is hidden from 641px, so it takes no room here (since UI-17 the map is always in this slot, and
+      // gutter has no overview button (UI-19; since UI-17 the map is always in this slot, and
       // reserving it cut the toolbar to under 120px at 1280x720 with a deep map: dive-check, fast-e2e 39723974033).
       const slot = bar.parentElement.querySelector('[data-gutter-top]');
       // Less the gutter's bottom padding: the floating strip's column on the tools' side (--chrome-left/right).
       const room = bar.parentElement.clientHeight - parseFloat(getComputedStyle(bar.parentElement).paddingBottom || 0) - 16 - (slot ? slot.offsetHeight + 8 : 0), pad = 4; // p-1
-      if (shell.current?.clientWidth < 640 || bar.scrollHeight <= room) { setToolCap(null); return; }
+      if (bar.scrollHeight <= room) { setToolCap(null); return; }
       // Measured from the bar's own top: the gutter is the offset parent, and the navigator moves the bar down in it.
       const ends = [...bar.children].map(child => child.offsetTop - bar.offsetTop + child.offsetHeight).filter(end => end + pad <= room);
       setToolCap(Math.max(0, ...ends) + pad);
@@ -2678,9 +2677,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     observer.observe(host);
     return () => observer.disconnect();
   }, [presenting]);
-  const [shellWidth, setShellWidth] = useState(0);
-  // null follows the width (open from 1400px of canvas); a click makes it the learner's choice.
-  const [overview, setOverview] = useState(null);
   const column = useRef(null);
   const measureNow = () => {
     const next = {};
@@ -3138,13 +3134,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     };
     element.addEventListener('scroll', scrolled);
     return () => element.removeEventListener('scroll', scrolled);
-  }, []);
-  // The canvas's own width decides whether the overview opens by default: on a
-  // wide canvas it sits beside the tools, anywhere narrower it starts collapsed.
-  useEffect(() => {
-    const observer = new ResizeObserver(([entry]) => setShellWidth(entry.contentRect.width));
-    observer.observe(shell.current);
-    return () => observer.disconnect();
   }, []);
   // ---------- Inline AI editor hooks (docs/features/inline-ai-editor.md) ----------
   // The live lists, never the last saved copy (§4). Layout comes separately (layout()), so content stays cheap to read.
@@ -5096,8 +5085,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     ...shapes.map(shape => ({ x: Math.min(shape.x1, shape.x2), y: Math.min(shape.y1, shape.y2), w: Math.abs(shape.x2 - shape.x1), h: Math.abs(shape.y2 - shape.y1) })),
     ...items.map(item => ({ x: item.x, y: item.y, w: item.w || 160, h: item.h || 40 })),
   ];
-  // The gutter's overview is the phone strip's; from 641px of canvas the minimap sits lower right in the bottom strip.
-  const overviewOpen = minimap && shellWidth > 0 && shellWidth < 641 && !!overview;
   const onCanvas = presenting === null ? contentBoxes() : [];
   const gaps = gapsFrom(onCanvas);
   const trackGap = event => {
@@ -5158,23 +5145,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         if (editable && !active.contains(event.target) && !pressKeepsDocFocus(active, event.target) && !event.target.closest?.('[data-keep-focus]')) active.blur();
       }}>
       {/* The canvas and its tools share this row and never overlap: the tools get
-          their own gutter (a strip below when too narrow for one), so nothing on
+          their own gutter, a column at every width (UI-19), so nothing on
           the canvas can be panned under them and no card has to know they exist. */}
-      <div className="flex min-h-0 flex-1 @max-[640px]:flex-col">
+      <div className="flex min-h-0 flex-1">
       {/* With the grid on, the canvas draws its own dots instead of borrowing
           the page's: these ride the camera, so the grid you snap to is the grid
           you can see. An opaque surface keeps the page dots from showing through
           and doubling them up. */}
       {/* Voice Mode's Tutor caption (VoiceMode.jsx): a zero-width anchor after the tools gutter (which docks
           order-first), so the small caption window floats at the surface's lower left, above the zoom pill, as the
-          owner asked (2026-10-01). On a phone it is an in-flow strip. Never while presenting. It sits over the canvas
+          owner asked (2026-10-01). At every width (UI-19: the canvas row no longer stacks). Never while presenting. It sits over the canvas
           but outside the surface's drop target, so a file dropped on it is ignored rather than opened by the browser.
           The rail is one stack there (owner, 2026-10-06), held in the stack's flow instead of its own corner; the
           Professor Next Steps card left it for the lower right, beside the composer (owner, 2026-10-08: `hooks` below).
           The stack stays left of the centred dock (780 px) and the answer sheet above it, down to 208 px wide. */}
-      {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0 @max-[640px]:w-full"
+      {leftRail && presenting === null && <div data-voice-rail className="relative z-20 w-0 shrink-0"
         onDragOver={event => event.preventDefault()} onDrop={event => event.preventDefault()}>
-        <div data-left-stack className="absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto @max-[640px]:static @max-[640px]:w-full">{leftRail}</div>
+        <div data-left-stack className="absolute bottom-[calc(var(--chrome-left,0px)+0.75rem)] left-3 flex w-[clamp(208px,calc(50cqw-500px),300px)] flex-col items-start gap-2 [&>[data-tutor-caption]]:relative [&>[data-tutor-caption]]:inset-auto">{leftRail}</div>
       </div>}
       <div ref={surface} data-canvas-surface data-space-pan={spacePan ? '' : undefined}
         onPointerDownCapture={event => {
@@ -5567,18 +5554,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           );
         })()}
       </div>
-      {/* The tools' gutter: 60px beside the canvas (168px while the overview is
-          open), the toolbar and overview hanging the rest of their width into the
-          page edge as before. It sits on the side the toolbar docks (left by
-          default; drag the grip to move it), and docked right it keeps clear of
-          the page's contents rail (edgeInset). Below 640px of canvas it is one
-          row under the canvas instead - the toolbar scrolling in it - with the
-          overview on the next row. The style panel opens from it. */}
+      {/* The tools' gutter: 84px beside the canvas, the toolbar hanging the rest
+          of its width into the page edge as before. It sits on the side the
+          toolbar docks (left by default; drag the grip to move it), and docked
+          right it keeps clear of the page's contents rail (edgeInset). It is a
+          column at every width (owner UI-19): no strip under a narrow canvas and
+          no overview here - the one minimap is the bottom strip's. The style
+          panel opens from it. */}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
-          // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
+          // Docked right it mirrors the left side (84px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
           style={{ '--edge': `${edgeInset || 0}px` }}
-          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 pb-(--chrome-left) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end pr-2 mr-(--edge) pb-(--chrome-right) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}`} @max-[640px]:order-first @max-[640px]:pb-0 @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
+          className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? 'order-first items-start pl-2 pb-(--chrome-left) w-[84px]' : 'items-end pr-2 mr-(--edge) pb-(--chrome-right) w-[84px]'}`}>
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
         {/* Top of the tools gutter: the Rabbit Hole navigator. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
@@ -5589,7 +5576,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
         {!readOnly && import.meta.env.VITE_COACHING_DEV === 'true' && (
-          <div className={`absolute top-3 ${toolSide === 'left' ? 'left-2' : '-right-6'} z-20 @max-[640px]:static @max-[640px]:col-start-1`}>
+          <div className={`absolute top-3 ${toolSide === 'left' ? 'left-2' : '-right-6'} z-20`}>
             <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
               onClick={() => setInsertOpen(previous => !previous)}
               className="flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink">
@@ -5600,12 +5587,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         )}
         {!readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
           style={toolDrag ? { position: 'absolute', left: toolDrag.x, top: toolDrag.y } : toolCap != null ? { maxHeight: toolCap } : undefined}
-          className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md @max-[640px]:col-start-2 @max-[640px]:mr-0 @max-[640px]:min-w-0 @max-[640px]:grid-flow-col @max-[640px]:grid-cols-none @max-[640px]:grid-rows-1 @max-[640px]:overflow-x-auto`}>
+          className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
           {/* The handle: drag the palette and it parks on whichever edge you let
-              go nearer to - left or right - never floating mid-canvas. A phone's
-              strip sits under the canvas either way, so it has no handle. */}
+              go nearer to - left or right - never floating mid-canvas. */}
           <div role="button" aria-label="Move the toolbar" title="Drag to the left or right edge"
-            className="col-span-2 flex h-5 cursor-grab items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink active:cursor-grabbing @max-[640px]:hidden"
+            className="col-span-2 flex h-5 cursor-grab items-center justify-center rounded-lg text-ink-3 hover:bg-hover hover:text-ink active:cursor-grabbing"
             onPointerDown={event => {
               if (event.button !== 0) return;
               event.preventDefault(); event.stopPropagation();
@@ -5628,13 +5614,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           </div>
           {/* The same tools, drawing into an Explain Back sketch: one toolbar, and it says where it draws. */}
           {drawTarget && <div data-sketch-badge title="These tools draw in the Explain Back sketch. Press the canvas or Esc to draw on the canvas again."
-            className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase @max-[640px]:col-span-1 @max-[640px]:px-1.5">Sketch</div>}
+            className="col-span-2 rounded-md bg-[#2383e2]/10 py-0.5 text-center text-[10px] font-semibold tracking-wide text-[#2383e2] uppercase">Sketch</div>}
           {NAV_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => setTool(value)} />)}
-          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
+          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
           {DRAW_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => pickTool(value)} />)}
-          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
+          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
           {SHAPE_TOOLS.map(([value, Icon, label, hint]) => <ToolButton key={value} value={value} Icon={Icon} label={label} hint={hint} active={tool === value} onPick={() => pickTool(value)} />)}
-          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line @max-[640px]:col-span-1 @max-[640px]:mx-0.5 @max-[640px]:my-1.5 @max-[640px]:h-auto @max-[640px]:w-px" />
+          <div className="col-span-2 mx-1.5 my-0.5 h-px bg-line" />
           {/* Keeps the armed tool armed after a draw, so shapes come in runs. */}
           <ToolButton Icon={lock ? Lock : LockOpen} label={lock ? 'Keep tool active — on' : 'Keep tool active — off'}
             active={lock} onPick={() => setLock(previous => !previous)} />
@@ -5649,23 +5635,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             <span style={{ background: color }} className="h-4 w-4 rounded-full ring-1 ring-line" />
           </button>
         </div>}
-        {/* The overview lives here, never over the canvas: open, the gutter
-            widens to hold it (on a phone it takes its own line under the strip). */}
-        {minimap && (
-          <button type="button" aria-label={overviewOpen ? 'Hide overview' : 'Show overview'} title={overviewOpen ? 'Hide overview' : 'Show overview'}
-            aria-expanded={overviewOpen} onClick={() => setOverview(!overviewOpen)}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-line shadow-md hover:text-ink @min-[641px]:hidden @max-[640px]:col-start-3 @max-[640px]:mr-0 ${overviewOpen ? 'bg-hover text-ink' : 'bg-white text-ink-2'}`}>
-            <MapIcon size={15} strokeWidth={1.7} />
-          </button>
-        )}
-        {overviewOpen && (
-          <div className={`shrink-0 @max-[640px]:col-span-3 @max-[640px]:mr-0 @max-[640px]:justify-self-start`}>
-            <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
-              surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
-              onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />
-          </div>
-        )}
-        <div aria-hidden="true" className="mt-auto @max-[640px]:hidden" />
+        <div aria-hidden="true" className="mt-auto" />
         {!readOnly && showStyle && (
           <StylePanel side={toolSide} panel={panel} values={panelValues} on={panelOn}
             flags={{ units, grouped, allLocked: selectionLocked, canPasteStyle, sketch: !!drawTarget }} />
@@ -5696,7 +5666,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           composer"): lower left, the minimap above the zoom row, one group on one left edge; the composer in the middle;
           lower right, the Next Steps hooks, their bottom level with the composer's. The side columns grow equally, keeping
           the composer centred while there is room. On a phone the zoom row, then the hooks at the right, then a full-width
-          composer, one per row (the overview lives in the tools' strip, at the top there).
+          composer, one per row; the minimap stays above the zoom row at every width (UI-19), shown as View > Minimap says.
           It floats (owner, 2026-10-08: "in the canvas above the chat composer you are cutting the canvas too much"): the
           canvas runs to the bottom, the strip is transparent and lets the pointer through, and only its controls (the
           strip's grandchildren) take it. Chrome may float over the canvas but never hides what the learner cannot reach:
@@ -5709,7 +5679,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             row, 8px apart, both one outer width - the column is as wide as its widest child (the minimap's fixed frame) and
             the zoom row stretches to it, its slack going to the percentage, so both edges line up at any zoom label. */}
         <div data-zoom-stack className="flex w-fit flex-col items-stretch gap-2">
-        {minimap && <div data-canvas-minimap className="hidden md:block @max-[640px]:hidden">
+        {minimap && <div data-canvas-minimap>
           <CanvasMinimap boxes={minimapBoxes} view={view} onFit={zoomFit}
             surface={{ w: surface.current?.clientWidth || 0, h: surface.current?.clientHeight || 0 }}
             onView={next => setView(v => ({ ...v, x: next.x, y: next.y }))} />

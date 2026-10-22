@@ -349,7 +349,7 @@ await check('11 light and dark: on and off tracks differ, the knob stands out on
   }
 });
 
-await check('12 narrow panel (1200 wide, Chat open): the map sits atop the tools; off, it leaves and the tools take its room; phone: Minimap off drops the overview button', async () => {
+await check('12 narrow panel (1200 wide, Chat open): the map sits atop the tools; off, it leaves and the tools take its room; phone (UI-19): the one minimap above the zoom row, no overview button, Minimap off drops it across a reload', async () => {
   const narrow = await fresh({ width: 1200, height: 800 });
   await open(narrow);
   // The canvas measures its width once laid out; the map then joins the tools (mapBeside, canvas-clipping.md).
@@ -368,14 +368,24 @@ await check('12 narrow panel (1200 wide, Chat open): the map sits atop the tools
   const phone = await fresh({ width: 390, height: 844 });
   await phone.goto(`${BASE}/apps/${canvas.name}`);
   await phone.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
-  await phone.getByRole('button', { name: 'Show overview' }).waitFor({ timeout: 10000 });
+  // UI-19 (owner, 2026-10-21): a phone has the same one minimap as a wide canvas, lower left directly above the zoom row,
+  // and no separate Show/Hide overview button; View > Minimap alone shows or hides it, remembered across a reload.
+  await waitBox(phone, MINIMAP, true);
+  const phoneMini = await box(phone, MINIMAP), phoneZoom = await box(phone, '[data-zoom]');
+  assert.ok(phoneMini.bottom <= phoneZoom.y + 0.5 && phoneZoom.y - phoneMini.bottom <= 12 && Math.abs(phoneMini.x - phoneZoom.x) <= 1.5, `phone: the minimap ${JSON.stringify(phoneMini)} is not directly above the zoom row ${JSON.stringify(phoneZoom)}`);
+  assert.equal(await phone.getByRole('button', { name: /^(Show|Hide) overview$/ }).count(), 0, 'phone: a separate overview button');
+  assert.equal(await phone.locator('[aria-label="Canvas overview"]').count(), 1, 'phone: one canvas minimap');
   await setSwitch(phone, 'Minimap', false);
   await closeView(phone);
-  await phone.getByRole('button', { name: 'Show overview' }).waitFor({ state: 'detached', timeout: 5000 });
+  await waitBox(phone, '[data-canvas-minimap]', false);
   await shot(phone, 'view-12-phone-minimap-off');
+  await phone.reload();
+  await phone.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
+  assert.equal(await box(phone, '[data-canvas-minimap]'), null, 'phone: Minimap off did not survive a reload');
+  assert.equal(await phone.getByRole('button', { name: /^(Show|Hide) overview$/ }).count(), 0, 'phone: a separate overview button after the reload');
   await setSwitch(phone, 'Minimap', true);
   await closeView(phone);
-  await phone.getByRole('button', { name: 'Show overview' }).waitFor({ timeout: 5000 });
+  await waitBox(phone, MINIMAP, true);
   await phone.context().close();
 });
 
