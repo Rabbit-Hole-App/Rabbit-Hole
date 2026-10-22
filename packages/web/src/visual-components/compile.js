@@ -44,7 +44,6 @@ export function compileVisual(raw) {
     if (item.parent !== undefined) {
       const parent = items.get(item.parent);
       if (!componentFor(parent.component, parent.version).container) where(`its parent "${item.parent}" is not a container`);
-      if (parent.part !== item.part) where(`it is on a different part from its parent "${item.parent}"`);
     }
     resolved.set(item.id, { item, definition, params, hints, where });
   }
@@ -55,6 +54,15 @@ export function compileVisual(raw) {
       seen.add(at);
     }
   }
+  // A child without a part is on its parent's part, so an author marks only
+  // the top of each sub-card; a child naming a different part is refused.
+  const inherit = item => {
+    if (item.parent === undefined) return item.part;
+    const parentPart = inherit(items.get(item.parent));
+    if (item.part !== undefined && item.part !== parentPart) resolved.get(item.id).where(`it is on a different part from its parent "${item.parent}"`);
+    return parentPart;
+  };
+  for (const item of spec.components) item.part = inherit(item);
   const componentNotes = [];
   const childrenOf = id => spec.components.filter(item => item.parent === id).map(item => item.id);
 

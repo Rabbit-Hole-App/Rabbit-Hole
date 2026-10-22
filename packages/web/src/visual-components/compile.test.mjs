@@ -21,7 +21,8 @@ test('every bundled example compiles to a scene the existing validators accept, 
   for (const [name, example] of Object.entries(EXAMPLES)) {
     const compiled = compileVisual(example);
     assert.deepEqual(compiled.diagnostics, [], name);
-    assert.ok(validateScene(structuredClone(compiled.scene)), name);
+    // A paged scene validates through the pager (evaluateScene), as the gates run it.
+    if (!compiled.scene.inputs) assert.ok(validateScene(structuredClone(compiled.scene)), name);
     assert.ok(evaluateScene(structuredClone(compiled.scene), compiled.scene.duration, {}).state.objects.length, name);
     assert.ok(compiled.scene.width <= 1120, `${name} fits the widest card`);
   }
@@ -189,4 +190,26 @@ test('render review fixes: connector labels sit mid-connection clear of every bo
   assert.equal(callout.scene.objects[1].initialState.text, 'Short note.');
   const wrapped = compileVisual(spec([mod('m', 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen', { hints: { maxWidth: 640 } })]));
   assert.ok(wrapped.scene.objects[0].initialState.w <= 640);
+});
+
+test('overview and detail: a request too big for one picture compiles as parts, children follow their parent part', async () => {
+  const { COMPOSITION } = await import('./registry.js');
+  assert.match(COMPOSITION.parts, /spec\.parts/);
+  assert.match(COMPOSITION.parts, /at most 4/);
+  const compiled = compileVisual(EXAMPLES['request-path-parts']);
+  assert.deepEqual(compiled.diagnostics, []);
+  assert.equal(compiled.coverage.states, 3);
+  for (const part of [0, 1, 2]) {
+    const shown = evaluateScene(structuredClone(compiled.scene), 1, { part }).scene.objects.filter(object => object.part === undefined || object.part === part);
+    assert.ok(shown.length <= 60);
+  }
+  assert.ok(compiled.scene.objects.filter(object => object.id.startsWith('dns-cache.')).every(object => object.part === 1), 'a child inherits its section part');
+  assert.throws(() => compileVisual({ ...EXAMPLES['request-path-parts'], components: EXAMPLES['request-path-parts'].components.map(item => (item.id === 'dns-cache' ? { ...item, part: 2 } : item)) }), /different part from its parent "before"/);
+  const crowded = { version: 1, id: 'one', title: 'One', presentation: { mode: 'static' }, components: EXAMPLES['request-path-parts'].components.map(({ part, ...rest }) => rest) };
+  assert.ok(compileVisual(crowded).diagnostics.some(item => item.code === 'legibility' || item.code === 'height' || item.code === 'width'), 'the same content on one card is flagged, which is why it needs parts');
+});
+
+test('every bundled example passes the generation gates a real /explain scene must pass', async () => {
+  const { sceneProblem } = await import('../../../control-plane/src/learn-scene-gates.js');
+  for (const [name, example] of Object.entries(EXAMPLES)) assert.equal(sceneProblem(compileVisual(example).scene), null, name);
 });

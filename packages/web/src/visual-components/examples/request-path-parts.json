@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "id": "request-path-parts",
+  "title": "How a request reaches a web server, and where caching helps",
+  "parts": [
+    { "id": "overview", "title": "The whole path" },
+    { "id": "before", "title": "Before the server" },
+    { "id": "at", "title": "At the server" }
+  ],
+  "components": [
+    { "id": "path", "component": "flow", "version": 1, "part": 0, "hints": { "nodeWidth": 128, "gap": 32 }, "params": { "steps": [
+      { "label": "Browser", "role": "input" }, "DNS lookup", "CDN edge", "Load balancer", "App server", { "label": "Database", "role": "output" }
+    ] } },
+    { "id": "overview-note", "component": "callout", "version": 1, "part": 0, "params": { "text": "Caching can cut this path short at four points; the next two pages show where.", "tone": "key" } },
+    { "id": "before", "component": "section", "version": 1, "part": 1, "params": { "title": "Browser to the network edge" } },
+    { "id": "before-path", "component": "flow", "version": 1, "parent": "before", "params": { "steps": [{ "label": "Browser", "role": "input" }, "DNS lookup", "CDN edge"] } },
+    { "id": "browser-cache", "component": "callout", "version": 1, "parent": "before", "params": { "text": "Browser cache: a repeat visit reuses saved files and sends no request at all.", "tone": "note" } },
+    { "id": "dns-cache", "component": "callout", "version": 1, "parent": "before", "params": { "text": "DNS cache: the resolver remembers the server address, so the lookup is skipped.", "tone": "note" } },
+    { "id": "cdn-cache", "component": "callout", "version": 1, "parent": "before", "params": { "text": "CDN cache: an edge server near the user answers without reaching the origin.", "tone": "note" } },
+    { "id": "at", "component": "section", "version": 1, "part": 2, "params": { "title": "Inside the origin" } },
+    { "id": "at-path", "component": "flow", "version": 1, "parent": "at", "params": { "steps": ["Load balancer", "App server", { "label": "Database", "role": "output" }] } },
+    { "id": "db-cache", "component": "callout", "version": 1, "parent": "at", "params": { "text": "Query cache: the app keeps recent results in memory and skips the database.", "tone": "note" } }
+  ],
+  "presentation": { "mode": "static" }
+}
