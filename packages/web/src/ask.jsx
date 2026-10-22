@@ -681,8 +681,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const pdfPage = tutorPage(target, attachedRefs);
     // A PDF excerpt (pdf-excerpt.js) rides as client text the Tutor's plan does not read: like a file, it goes to /api/learn/ask.
     // So does a progress question (Tutor Task 10): only that route reads the learner's evidence for it, read-only, and the
-    // Tutor's path could take the message for an answer to assess.
-    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress');
+    // Tutor's path could take the message for an answer to assess. A mentioned canvas too: only /api/learn/ask reads it.
+    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress' || ref?.kind === 'canvas');
     const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode, toc: tocView });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {

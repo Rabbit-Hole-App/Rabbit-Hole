@@ -183,10 +183,8 @@ await check('both themes: the picker and the pills follow light and dark', async
 await check('x removes a pill, and the next request carries only the remaining canvas, by id, with no title', async () => {
   await pane().getByRole('button', { name: `Remove Notes ${run} from this chat` }).click();
   await waitFor(async () => (await pills().count()) === 1, 5000, 'the pill was not removed');
-  // Ask mode: an Auto turn on a fresh canvas goes to the Tutor's plan route; Ask sends to /api/learn/ask, which reads the refs.
-  await pane().getByRole('button', { name: 'Mode', exact: true }).click();
-  await page.getByRole('menuitemradio', { name: /^Ask/ }).click();
-  await waitFor(async () => /Ask/.test(await pane().getByRole('button', { name: 'Mode', exact: true }).innerText()), 5000, 'Ask mode was not chosen');
+  // Auto, the default: with a Tutor on this canvas an Auto turn would go to the Tutor's plan route, which reads no refs; a turn
+  // with a mentioned canvas goes to /api/learn/ask (ask.jsx fileTurn), the one route that reads it.
   answer = 'canned';
   await field().fill('Compare the canvas I mentioned');
   await field().press('Enter');
