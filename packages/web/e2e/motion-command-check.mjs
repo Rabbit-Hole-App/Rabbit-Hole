@@ -8,7 +8,7 @@
 //   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
 //   3. typed /motion: the confirmation shows the exact line; Cancel starts nothing and adds no card;
 //   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
-//      motion_request; the card shows its progress, then the ready video with the job's title and 15s · Motion explainer;
+//      motion_request; the card shows its progress, then the ready video with the job's title (no meta line, owner message 31);
 //   5. MOCKED failure: the stubbed job fails; the card says why and offers Retry render; nothing else starts;
 //   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
 //      follows the same job (polls only, no second start) and shows the video once ready;
@@ -214,7 +214,7 @@ for (const theme of ['light', 'dark']) {
     assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
     // Owner message 30 (replacing message 25's wording): the plain paid-generation line, no amount or reservation sentence.
     assert.match(await notice.innerText(), /This uses paid generation\./);
-    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered/i);
+    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered|credit/i); // no orchestrator here: no estimate
     // The confirmation still reads the video list (a GET) before Generate, for the pause (owner message 28); nothing else
     // may reach the video route (a saved card's clip may load meanwhile, a GET of its asset).
     const reads = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method === 'GET' && !r.query.includes('asset='));
@@ -243,9 +243,9 @@ for (const theme of ['light', 'dark']) {
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, videos: [video('generating')], placementId: stub.id } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { motionHoldUsd: 8.96, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: Generate adds one card and starts one confirmed motion_request; the ready video plays in it`, async () => {
@@ -253,8 +253,8 @@ for (const theme of ['light', 'dark']) {
     const posts = videoPosts().length;
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
-    // Owner message 30: the server returned an amount (MOCKED 8.96), and the confirmation still shows none of it.
-    assert.match(await notice.innerText(), /This uses paid generation\./);
+    // Owner messages 30 and 32: the server's estimate in credits (MOCKED 100); its reservation (MOCKED 8.96) is never shown.
+    assert.match(await notice.innerText(), /This uses paid generation · about 100 credits/);
     assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered/i);
     await dock.locator('[data-paid-generate]').click();
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
@@ -273,7 +273,9 @@ for (const theme of ['light', 'dark']) {
     await video.waitFor({ timeout: 20000 });
     const duration = await video.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 10000); }));
     assert.equal(Math.round(duration), 15, `duration ${duration}`);
-    assert.match(await mine.innerText(), new RegExp(`${TITLE}[\\s\\S]*15s · Motion explainer · Remotion`));
+    // Owner message 31: the title shows; the meta line (15s · Motion explainer · Remotion · grounding) does not.
+    assert.match(await mine.innerText(), new RegExp(TITLE));
+    assert.doesNotMatch(await mine.innerText(), /Motion explainer|Not grounded/);
     const started = videoPosts().slice(posts);
     assert.equal(started.length, 1, 'exactly one start');
     const body = JSON.parse(started[0].body);
@@ -377,7 +379,9 @@ for (const theme of ['light', 'dark']) {
     assert.match(await sheet.locator('[data-slash-about]').innerText(), /^Creates an animated explainer video card/);
     assert.match(await sheet.innerText(), new RegExp(`e\\.g\\. ${LINE}`));
     assert.match(await sheet.locator('[data-slash-sample]').innerText(), /^A real Motion video, made from this example\./);
-    assert.match(await card.innerText(), new RegExp(`${TITLE}[\\s\\S]*15s · Motion explainer · Remotion[\\s\\S]*Sources: model\\.py:44–45, model\\.py:48–50, model\\.py:62–64, model\\.py:65–71`));
+    // Owner message 31: no meta line; the title and sources stay.
+    assert.match(await card.innerText(), new RegExp(`${TITLE}[\\s\\S]*Sources: model\\.py:44–45, model\\.py:48–50, model\\.py:62–64, model\\.py:65–71`));
+    assert.doesNotMatch(await card.innerText(), /Motion explainer|Not grounded/);
     assert.equal(await card.locator('[data-generate-video]').count(), 0, 'no Generate in the window');
     const duration = await video.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 10000); }));
     assert.equal(Math.round(duration), 15, `duration ${duration}`);

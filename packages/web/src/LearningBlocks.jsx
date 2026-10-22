@@ -1582,15 +1582,16 @@ function VideoBody({ block, appName, onChange, onFile }) {
                 <button type="button" aria-label="Next clip" onClick={() => onChange({ ...block, variant: (position + 1) % clips.length })} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronRight size={15} /></button>
               </div>
             )}
-            {label.sources && (
+            {/* Owner message 31: a Motion video's meta line (duration · Motion explainer · renderer · grounding) is not shown; the
+                label keeps it as data. Its sources still are. */}
+            {label.sources?.length > 0 && (
               <div data-video-meta className="mt-1.5 text-xs text-ink-2">
-                <p>{label.detail}</p>
-                {label.sources.length > 0 && <p className="mt-0.5">Sources: {label.sources.join(', ')}</p>}
+                <p>Sources: {label.sources.join(', ')}</p>
               </div>
             )}
           </>
         : <div className="mt-2 flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
-            <p className="text-xs text-ink-2">{label.detail}</p>
+            {!/^motion_(request|render)$/.test(block.operation?.op || '') && <p className="text-xs text-ink-2">{label.detail}</p>}
             {pending
               ? <>
                   <Progress seconds={elapsed} expected={label.expected} label={label.progress} />

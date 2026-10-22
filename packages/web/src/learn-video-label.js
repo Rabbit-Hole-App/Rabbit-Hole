@@ -18,8 +18,10 @@ const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source
 // Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
 // server refuses the start itself with the same text.
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
-// hold: what the server said (learn-scene-client.js motionHold): 'paused', or anything else (an amount, null): PaidConfirm's default.
-export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED : 'This uses paid generation.');
+// hold: what the server said (learn-scene-client.js motionHold): 'paused', its estimate in credits (owner message 32), or null, which
+// leaves PaidConfirm's default.
+export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED
+  : Number.isInteger(hold) && hold > 0 ? `This uses paid generation · about ${hold} credit${hold === 1 ? '' : 's'}` : 'This uses paid generation.');
 
 export function videoLabel(block) {
   const op = block.operation;

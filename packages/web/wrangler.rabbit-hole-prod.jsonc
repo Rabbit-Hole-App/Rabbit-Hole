@@ -70,6 +70,9 @@
     // and the per-job hold admitted against the learner's allowance before anything starts (motion-deploy-plan.md 2B).
     "MOTION_ORCHESTRATOR_URL": "https://rabbit-hole-motion-orchestrator.fly.dev",
     "MOTION_JOB_RESERVATION_USD": "8.96",
+    // The confirmation's estimate (owner message 32: 1 credit = $0.01, shown as "about 100 credits"): the measured actual cost of
+    // 6 real jobs on 2026-10-21 was $0.77 to $1.25. The hold above stays internal (owner message 30).
+    "MOTION_ESTIMATE_USD": "1.00",
     // Owner message 28 (2026-10-21): new Motion generation was paused ("1") until MOT-06/07 were fixed; restored ("0") with the
     // verified MOT-06..09 fix under the same GO. "1" refuses every new start; jobs already started still poll, stop, settle and play.
     "MOTION_GENERATION_PAUSED": "0"

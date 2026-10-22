@@ -31,6 +31,11 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
 const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
 const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
+// MOTION_ESTIMATE_USD (a typical job's actual cost) in credits, 1 credit = $0.01, rounded up; null when unset or invalid.
+export const motionEstimateCredits = env => {
+  const usd = /^\d+(\.\d{1,6})?$/.test(String(env?.MOTION_ESTIMATE_USD ?? '').trim()) ? Number(env.MOTION_ESTIMATE_USD) : 0;
+  return usd > 0 ? Math.ceil(Number((usd * 100).toFixed(6))) : null;
+};
 // Motion admission runs inside Generate's blockConcurrencyWhile, which Cloudflare ends at 30 s. Everything from the job's creation
 // (its storage writes, the hold, /health, the grant write and the POST) shares one 25 s deadline, leaving 5 s. The POST waits only
 // for what is left; with under 2 s left it is not tried: refused before it, released, nothing started (MOT-08 review).
@@ -225,7 +230,9 @@ export class LearnVideos {
     // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
     const paused = motionPaused(this.env);
     const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
-    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
+    // The confirmation's estimate (owner message 32: 1 credit = $0.01), only where Motion can start; the hold stays internal.
+    const estimate = holdMicros && motionEstimateCredits(this.env);
+    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), ...(estimate ? { motionEstimateCredits: estimate } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
       return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}) };
     }) };

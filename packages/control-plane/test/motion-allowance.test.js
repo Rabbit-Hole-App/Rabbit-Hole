@@ -797,3 +797,17 @@ test('MOT-08 review: a slow cold /health, then the POST lands on a restarted pro
   assert.equal((await video(actor)).status, 'generating');
   assert.deepEqual([o.posts, o.starts, motionAttempts(sqlite)], [2, 1, [[2_000_000, 'settled', 0, 'cancelled'], [2_000_000, 'reserved', null, 'running']]], 'the retry: one hold, one start');
 });
+
+// Owner message 32: the confirmation's estimate is the server's, in credits (1 credit = $0.01), only where Motion can start and is not
+// paused. The $2 TEST hold (8.96 in production) stays internal.
+test('the list returns the Motion estimate in credits: 100 for MOTION_ESTIMATE_USD 1.00; none without it, while paused or with no orchestrator', async t => {
+  const { LEARN_DB } = d1(t);
+  const list = extra => new LearnVideos(durable('video-a'), env0(LEARN_DB, '50', extra)).list();
+  const shown = await list({ MOTION_ESTIMATE_USD: '1.00' });
+  assert.deepEqual([shown.motionEstimateCredits, shown.motionHoldUsd], [100, 2]);
+  assert.equal((await list({ MOTION_ESTIMATE_USD: '1.10' })).motionEstimateCredits, 110, 'rounded up, without a float error');
+  for (const extra of [{}, { MOTION_ESTIMATE_USD: '' }, { MOTION_ESTIMATE_USD: 'about 1' }, { MOTION_ESTIMATE_USD: '0' },
+    { MOTION_ESTIMATE_USD: '1.00', MOTION_GENERATION_PAUSED: '1' }, { MOTION_ESTIMATE_USD: '1.00', MOTION_ORCHESTRATOR_URL: undefined }]) {
+    assert.equal('motionEstimateCredits' in await list(extra), false, JSON.stringify(extra));
+  }
+});

@@ -53,10 +53,12 @@ test('an ungrounded Motion video is labelled on its card, never shown as sourced
   assert.deepEqual(motionVideoBlock({ brief, renderId: 'd'.repeat(32), jobId: 'motion-job-u' }).motion.grounding, { status: 'no_source_supplied' });
 });
 
-// Owner message 30 (replacing message 25's wording): the learner never sees the reservation amount or how it is held; the
-// confirmation is PaidConfirm's default, whatever amount the server returned.
-test('the Motion confirmation is the plain paid-generation line: no amount, no reservation or rendering sentence (owner message 30)', () => {
-  for (const hold of [8.96, 2, null, undefined, NaN, 0]) assert.equal(motionConfirm(hold), 'This uses paid generation.', String(hold));
+// Owner messages 30 and 32: the learner never sees the reservation amount or how it is held. The confirmation is the paid-generation
+// line with the server's estimate in credits (1 credit = $0.01), or PaidConfirm's default when the server sent none.
+test('the Motion confirmation: the server estimate in credits, else the plain paid-generation line; never a reservation (owner messages 30 and 32)', () => {
+  assert.equal(motionConfirm(100), 'This uses paid generation · about 100 credits');
+  assert.equal(motionConfirm(1), 'This uses paid generation · about 1 credit');
+  for (const none of [null, undefined, NaN, 0, -5, 8.96]) assert.equal(motionConfirm(none), 'This uses paid generation.', String(none));
 });
 
 test('while the server pauses new Motion generation, the confirmation says so (owner message 28)', () => {
