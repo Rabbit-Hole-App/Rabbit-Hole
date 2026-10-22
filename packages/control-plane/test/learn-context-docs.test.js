@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { contextDocsFetch, contextDocsRoute, contextDocumentBlocks, readUpload, ATTACHED_LIMIT, TEXT_LIMIT } from '../src/learn-context-docs.js';
-import { PAPER_UPLOAD_LIMIT } from '../src/learn-paper.js';
+import { WHOLE_PDF_BYTES } from '../src/pdf-pages.js';
 
 // Canvas context documents (docs/features/canvas-context-docs.md). LEARN_DB is real SQLite, LEARN_MEDIA
 // an in-memory bucket, and the live DB and RUNS throw on use: writes go to Learn storage only.
@@ -87,7 +87,7 @@ const turn = (call, canvas, id, attached = true) => call('PATCH', `/api/learn/co
 test('context documents: switching on past the 15 MB budget is refused, naming what to switch off', async t => {
   const { canvas, call, upload } = fixture(t);
   const big = [];
-  for (const name of ['a.pdf', 'b.pdf', 'c.pdf']) big.push((await upload(name, pdfOf(PAPER_UPLOAD_LIMIT))).body.document);
+  for (const name of ['a.pdf', 'b.pdf', 'c.pdf']) big.push((await upload(name, pdfOf(WHOLE_PDF_BYTES))).body.document);
   assert.ok(big.every(d => d.attached), 'three 5 MB PDFs fit the budget exactly');
   const notes = (await upload('notes.md', new TextEncoder().encode('one more byte'))).body.document;
   assert.equal(notes.attached, false, 'an upload past the budget arrives switched off');
@@ -116,7 +116,7 @@ test('context documents: text has its own 2 MB budget', async t => {
 test('contextDocumentBlocks never sends past the budget, and says what it skipped', async t => {
   const { env, canvas, upload } = fixture(t);
   const warn = t.mock.method(console, 'warn', () => {});
-  for (const name of ['old.pdf', 'a.pdf', 'b.pdf', 'c.pdf']) await upload(name, pdfOf(PAPER_UPLOAD_LIMIT));
+  for (const name of ['old.pdf', 'a.pdf', 'b.pdf', 'c.pdf']) await upload(name, pdfOf(WHOLE_PDF_BYTES));
   // Rows switched on around the route (or before the budget existed): all four are on.
   await env.LEARN_DB.prepare('UPDATE canvas_context_documents SET attached=1').bind().run();
   const blocks = await contextDocumentBlocks(env, canvas);

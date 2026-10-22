@@ -413,10 +413,11 @@ export async function paperFetch(req, env) {
   if (req.method === 'POST') {
     // This route was read-only until now, so it had no CSRF guard to inherit.
     if (req.headers.has('origin') && req.headers.get('origin') !== url.origin) return Response.json({ error: 'Invalid origin' }, { status: 403 });
-    let file;
-    try { file = (await req.formData()).get('file'); } catch { return Response.json({ error: 'Send the PDF as multipart form data' }, { status: 400 }); }
+    let form, file;
+    try { form = await req.formData(); file = form.get('file'); } catch { return Response.json({ error: 'Send the PDF as multipart form data' }, { status: 400 }); }
     if (!file || typeof file === 'string') return Response.json({ error: 'No file received' }, { status: 400 });
-    try { return Response.json(await putUploadedPaper(env, identity, file)); }
+    // pages: the page text the browser read with pdf.js (pdf-pages.js), so a PDF past 100 pages can be asked about.
+    try { return Response.json(await putUploadedPaper(env, identity, file, form.get('pages'))); }
     catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
   }
   const raw = url.searchParams.get('id');

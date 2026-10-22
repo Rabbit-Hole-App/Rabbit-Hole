@@ -20,7 +20,7 @@ test('limits are per kind and the refusal names the file and the rule', () => {
   assert.match(classifyDrop(file('image/png', DROP_LIMITS.image + 1, 'big.png')).error, /^big\.png: images up to 5 MiB \(png, jpg, webp\)$/);
   assert.match(classifyDrop(file('image/gif', DROP_LIMITS.gif + 1, 'a.gif')).error, /GIFs up to 10 MiB$/);
   assert.match(classifyDrop(file('video/mp4', DROP_LIMITS.clip + 1, 'a.mp4')).error, /videos up to 50 MiB \(mp4, webm\)$/);
-  assert.match(classifyDrop(file('application/pdf', DROP_LIMITS.pdf + 1, 'a.pdf')).error, /PDFs up to 5 MiB$/);
+  assert.match(classifyDrop(file('application/pdf', DROP_LIMITS.pdf + 1, 'a.pdf')).error, /PDFs up to 25 MiB$/);
 });
 
 test('unknown types and empty files are refused with a visible reason', () => {

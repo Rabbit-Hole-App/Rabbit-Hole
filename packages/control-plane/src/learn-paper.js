@@ -6,12 +6,13 @@
 // exactly like the chat uploads at index.js. Add one when storage is measured.
 import { sha256, randomHex, base64 } from './token.js';
 import { learnMedia } from './learn-storage.js';
+import { PDF_UPLOAD_LIMIT, WHOLE_PDF_PAGES, wholeOk, readPageTexts, putPageTexts, readPageMeta, readPages, pagesDocument } from './pdf-pages.js';
 
-// Small on purpose. The whole file is base64'd into every turn that asks about
-// it, inside a 128 MB isolate, so this ceiling is about the ask path, not R2.
-export const PAPER_UPLOAD_LIMIT = 5 * 1024 * 1024;
-// Anthropic reads at most 100 pages, and index.js caps paper_context.page there.
-export const PAPER_PAGE_LIMIT = 100;
+// A PDF up to 5 MB and 100 pages is base64'd whole into every turn that asks about it; a longer or larger one (PDF-02,
+// pdf-pages.js) sends only the page text the question needs, so the upload ceiling is about storage and the reader.
+export const PAPER_UPLOAD_LIMIT = PDF_UPLOAD_LIMIT;
+// Anthropic reads at most 100 PDF pages per request: an arXiv paper (sent whole by URL) and its citations stay within it.
+export const PAPER_PAGE_LIMIT = WHOLE_PDF_PAGES;
 // One answer for a file that is gone and one that belongs to someone else (a copied card or page, pdf-to-canvas.md), so a
 // refusal reveals nothing about it.
 export const NOT_YOURS = 'This file is not available to you. Only the person who uploaded it can open it, and only while it is stored.';
@@ -42,19 +43,25 @@ export function uploadedPaperTitle(name) {
   return clean ? clean.slice(0, 200) : 'Uploaded PDF';
 }
 
-export async function putUploadedPaper(env, identity, file) {
+// pages: the browser's page texts (pdf-pages.js readPageTexts), required for a PDF that cannot ride whole.
+export async function putUploadedPaper(env, identity, file, pages = null) {
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!bytes.length) throw new Error('That file is empty');
   if (bytes.length > PAPER_UPLOAD_LIMIT) throw new Error(`That PDF is larger than ${PAPER_UPLOAD_LIMIT / (1024 * 1024)} MB`);
   // Trust the bytes, not the extension or the declared type.
   if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('That file is not a PDF');
+  const texts = pages == null ? null : readPageTexts(pages);
+  if (texts?.error) throw new Error(texts.error);
+  if (!texts && !wholeOk(bytes.length, null)) throw new Error('Reload the page and upload this PDF again: its pages must be read first.');
   const id = newUploadedPaperId();
   const title = uploadedPaperTitle(file.name);
-  await learnMedia(env).put(await paperObjectKey(identity, id), bytes, {
+  const key = await paperObjectKey(identity, id);
+  await learnMedia(env).put(key, bytes, {
     httpMetadata: { contentType: 'application/pdf' },
     customMetadata: { title },
   });
-  return { id, title };
+  if (texts) await putPageTexts(learnMedia(env), key, texts.pages);
+  return { id, title, pages: texts?.pages.length ?? null };
 }
 
 export async function readUploadedPaper(env, identity, id) {
@@ -66,14 +73,20 @@ export async function readUploadedPaper(env, identity, id) {
 // The shape readArxivPaper returns, so the ask path can treat both the same.
 // The bytes go on `document` only - never on anything pushed into research.papers,
 // which is serialised back to the browser.
-export async function uploadedPaperAsDocument(env, identity, id) {
-  const { bytes, title } = await readUploadedPaper(env, identity, id);
-  return {
-    id,
-    title,
-    pdfUrl: null,
-    document: { type: 'document', title, source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } },
-  };
+// page, query: a PDF past 100 pages or 5 MB sends the text of the learner's page, its neighbours and the pages the question
+// matches instead (pdf-pages.js), never the whole file; without stored page text it says the pages were not read.
+export async function uploadedPaperAsDocument(env, identity, id, { page = null, query = '' } = {}) {
+  const key = await paperObjectKey(identity, id);
+  const object = await learnMedia(env).get(key);
+  if (!object) throw new Error('That PDF is no longer stored');
+  const title = uploadedPaperTitle(object.customMetadata?.title), paper = { id, title, pdfUrl: null };
+  const meta = await readPageMeta(learnMedia(env), key);
+  // A long one's bytes are never read here: its page count alone says it cannot ride whole.
+  const bytes = wholeOk(0, meta?.total) ? new Uint8Array(await object.arrayBuffer()) : null;
+  if (bytes && wholeOk(bytes.length, meta?.total)) return { ...paper, document: { type: 'document', title, source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } } };
+  const texts = await readPages(learnMedia(env), key);
+  if (!texts) return { ...paper, document: { type: 'text', text: `${title} is a PDF too long to send whole, and its pages have not been read, so you have not seen it. Ask the learner to upload it again.` } };
+  return { ...paper, document: pagesDocument(title, texts, { page, query }) };
 }
 
 // One derivation, used by the route that stores an upload and by the ask path
