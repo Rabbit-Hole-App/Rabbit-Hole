@@ -15,14 +15,14 @@ import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { chatRouteAnswer } from './dev-cp.mjs';
 
-const total = 38; // the number of check() steps below; keep it equal (memory rule: totals must match)
+const total = 43; // the number of check() steps below; keep it equal (memory rule: totals must match)
 const BASE = process.env.BASE || 'http://127.0.0.1:8881';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8883';
 // CLONE=1: this branch's own dev clone with the dev control plane only (docs/features/parallel-dev-deploys.md), never
 // the shared preview or production. Model routes stay stubbed or aborted in the browser either way.
 const CLONE = process.env.CLONE === '1' && BASE === 'https://rabbit-hole-web-dev-pdf-excerpts.tryrabbithole.workers.dev' && CP === 'https://rabbit-hole-cp-dev.tryrabbithole.workers.dev';
 for (const url of [BASE, CP]) if (!CLONE && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pdf-excerpt-check runs against the local stack (or CLONE=1 on its own dev clone) only');
-const OUT = process.env.OUT || new URL('./shots/pdf-excerpt', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
+const OUT = process.env.OUT || process.argv[2] || new URL('./shots/pdf-excerpt', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 mkdirSync(OUT, { recursive: true });
 const vars = process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url);
 const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
@@ -43,6 +43,8 @@ const SECOND = 'SECOND EXCERPT sits on page four for distinct refs.';
 const CAPTION = 'Figure 1. A green block for the region check.';
 const FIGURE = [150, 400, 450, 600], DRAWN = [140, 390, 460, 610]; // the green rect, and the region drawn around it (PDF points)
 const ROTATED = 'ROTATED PASSAGE on the turned page five.';
+// A green figure on the /Rotate 90 page, clear of its line (R4 audit gap 3), and the region drawn around it (unrotated PDF points).
+const FIGURE_R = [400, 480, 560, 700], DRAWN_R = [390, 470, 570, 710];
 const LONG_LINES = Array.from({ length: 100 }, (_, i) => `Line ${String(i + 1).padStart(3, '0')} carries words for the limit check: alpha beta gamma delta epsilon zeta eta theta iota.`);
 const LONG = LONG_LINES.join(' ');
 const esc = s => s.replace(/[\\()]/g, m => `\\${m}`);
@@ -53,7 +55,8 @@ const PAGES = [
   { label: '1', ops: [line(72, 740, 18, 'Chapter 1'), ...PASSAGE_LINES.map(([y, s]) => line(72, y, 12, s)), line(72, 590, 12, CLOSING)] },
   { label: '2', ops: [line(72, 700, 12, SECOND), `0.1 0.6 0.2 rg ${FIGURE[0]} ${FIGURE[1]} ${FIGURE[2] - FIGURE[0]} ${FIGURE[3] - FIGURE[1]} re f`, '0 g', line(150, 375, 11, CAPTION)] },
   // Drawn turned a quarter left, so with /Rotate 90 it reads level on screen: in PDF space it runs up the page (tall, narrow rects).
-  { label: '3', rotate: 90, ops: [`BT /F1 14 Tf 0 1 -1 0 300 100 Tm (${esc(ROTATED)}) Tj ET`] },
+  { label: '3', rotate: 90, ops: [`BT /F1 14 Tf 0 1 -1 0 300 100 Tm (${esc(ROTATED)}) Tj ET`,
+    `0.1 0.6 0.2 rg ${FIGURE_R[0]} ${FIGURE_R[1]} ${FIGURE_R[2] - FIGURE_R[0]} ${FIGURE_R[3] - FIGURE_R[1]} re f`] },
   { label: '4', ops: ['0.2 0.3 0.8 rg 100 200 400 400 re f'] }, // scanned-like: a shape, no text
   { label: '5', ops: LONG_LINES.map((s, i) => line(40, 770 - i * 7, 6, s)) },
 ];
@@ -678,6 +681,11 @@ await check('anchors after zoom: at reader zoom 200% the saved highlight box sti
   await openSourceOf(cards.passage.id);
   await emphasisOn(3, 'Rivers carry', 'and the tides.', 'the emphasis after a zoom change');
   facts.zoom_at_emphasis = (await reader().locator('[aria-label="Paper zoom"]').innerText()).trim();
+  // R4 audit gap 6: Open source remounts the reader; the learner's zoom stays (chat-sources.js positionStore keeps it).
+  assert.equal(facts.zoom_at_emphasis, '200%', 'Open source keeps the reader zoom');
+  // Back to 100% for the steps below, which draw regions at page points.
+  for (let i = 0; i < 8 && (await reader().locator('[aria-label="Paper zoom"]').innerText()).trim() !== '100%'; i += 1) await reader().getByRole('button', { name: 'Zoom out paper' }).click();
+  assert.equal((await reader().locator('[aria-label="Paper zoom"]').innerText()).trim(), '100%');
 });
 
 await check('anchors after a panel resize: the viewer 150+ px narrower or wider, the highlight box and Open source still cover the passage', [3], async () => {
@@ -1195,6 +1203,180 @@ await check('another person\'s fork of the shared canvas: the crop shows, Open s
     assert.ok([403, 404].includes(del.status), `another person cannot delete the owner's highlight (${del.status})`);
     facts.other_person.source = src.status; facts.other_person.bytes = bytes.status;
   } finally { page = mine; await O.context.close(); await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) }); }
+});
+
+// ---------------------------------------------------------------- R4 audit gaps 2, 3 and 5 (C:/s/spec/pdfx-audit/report.md)
+// The reader's displayed turn: the page canvas landscape for a quarter turn, and the text layer redrawn at that turn (pdf.js sets
+// data-main-rotation, then the reader appends .endOfContent once the words are drawn, in the same task as its viewport state).
+const viewTurn = () => page.evaluate(() => {
+  const s = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"]'), c = s?.querySelector('[aria-label="Paper PDF page"]'), l = s?.querySelector('[aria-label="Paper page text"]');
+  return c && l ? { landscape: c.width > c.height, rotation: Number(l.dataset.mainRotation ?? -1), drawn: !!l.querySelector('.endOfContent') && !!l.textContent.trim() } : null;
+});
+const turnedTo = async (rotation, what) => {
+  await waitFor(async () => { const t = await viewTurn(); return t && t.rotation === rotation && t.landscape === (rotation % 180 !== 0) && t.drawn; }, 15000, `${what}: the view is not drawn at ${rotation} degrees (${JSON.stringify(await viewTurn())})`);
+  await frames();
+};
+// A US Letter PDF point on screen at a displayed turn of 0 or 90 degrees (pdf.js viewport: a quarter turn puts PDF y across, PDF x down).
+const pointAt = (px, py, rotation) => page.evaluate(([px, py, rotation]) => {
+  const r = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper PDF page"]').getBoundingClientRect();
+  return rotation === 90 ? { x: r.left + py / 792 * r.width, y: r.top + px / 612 * r.height } : { x: r.left + px / 612 * r.width, y: r.top + (792 - py) / 792 * r.height };
+}, [px, py, rotation]);
+// Select region, then one drag from corner to corner of a PDF rect on the displayed page, its middle scrolled into view.
+const drawRegionAt = async (rect, rotation) => {
+  await reader().getByRole('button', { name: 'Select region', exact: true }).click();
+  await page.locator('[data-sources-pane] [data-pdf-region-mode]').first().waitFor({ timeout: 5000 }).catch(() => { throw Error('Select region showed no [data-pdf-region-mode]'); });
+  const mid = await pointAt((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2, rotation);
+  await page.evaluate(y => { const box = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper PDF page"]').closest('.overflow-auto'), b = box.getBoundingClientRect(); box.scrollTop += y - (b.top + b.height / 2); }, mid.y);
+  await frames();
+  const a = await pointAt(rect[0], rect[3], rotation), b = await pointAt(rect[2], rect[1], rotation);
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 5 }); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
+  await page.locator('[data-pdf-region-toolbar]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error('the drawn region shows no [data-pdf-region-toolbar]'); });
+};
+// How much of a figure's on-screen box the emphasis covers, at a displayed turn of 0 or 90 degrees (figureCovered, any turn).
+const figureCoveredAt = async (fig, rotation) => {
+  const a = await pointAt(fig[0], fig[3], rotation), b = await pointAt(fig[2], fig[1], rotation);
+  const t = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), r: Math.max(a.x, b.x), b: Math.max(a.y, b.y) };
+  return page.evaluate(t => {
+    const marks = [...document.querySelectorAll('[data-sources-pane] [data-pdf-emphasis]')].map(e => e.getBoundingClientRect()).filter(m => m.width > 0);
+    if (!marks.length) return null;
+    const m = { x: Math.min(...marks.map(k => k.left)), y: Math.min(...marks.map(k => k.top)), r: Math.max(...marks.map(k => k.right)), b: Math.max(...marks.map(k => k.bottom)) };
+    const ix = Math.max(0, Math.min(m.r, t.r) - Math.max(m.x, t.x)), iy = Math.max(0, Math.min(m.b, t.b) - Math.max(m.y, t.y)), area = (t.r - t.x) * (t.b - t.y);
+    return { covered: ix * iy / area, size: (m.r - m.x) * (m.b - m.y) / area, inView: true };
+  }, t);
+};
+// A region card's crop as stored and drawn: served to its owner as a PNG, loaded, readable, the figure (green), no outline (red).
+const assertFigureCrop = async (card, aspect, what) => {
+  const x = card.data.excerpt;
+  const served = await waitFor(async () => { const reply = await fetch(`${BASE}/api/learn/files/${encodeURIComponent(x.crop.source.id)}?${query({ app: canvas.name, board: 'main' })}`, { headers: { cookie } }); return reply.status === 200 && reply; }, 30000, `${what}: the server does not serve the crop to its owner`);
+  assert.match(String(served.headers.get('content-type')), /image\/png/, `${what}: the stored crop is a PNG`);
+  const crop = await waitFor(async () => { const c = await cropOf(card.id); return c.loaded && c; }, 30000, `${what}: the crop <img data-excerpt-crop> did not load`);
+  assert.equal(crop.tainted, undefined, `${what}: the crop pixels are readable (${crop.tainted})`);
+  assert.ok(Math.max(crop.w, crop.h) <= 4096 && Math.min(crop.w, crop.h) >= 150, `${what}: readable, ${crop.w}x${crop.h}`);
+  assert.ok(Math.abs(crop.w / crop.h - aspect) < 0.03, `${what}: the crop ${crop.w}x${crop.h} (${(crop.w / crop.h).toFixed(3)}) is the region as the page shows it (${aspect.toFixed(3)})`);
+  assert.ok(crop.green > 0.6, `${what}: the crop is the figure, ${Math.round(crop.green * 100)}% figure green`);
+  assert.equal(crop.red, 0, `${what}: no red outline, handle or overlay in the crop`);
+  return crop;
+};
+
+await check('Rotate page (R4 audit gap 2): with the reader turned a quarter, the passage selected and added to the canvas stores the same PDF-space anchor as on the level page (rotate 0, the same rects), its highlight box covers it on the turned view, and Open source emphasizes it', ['gap 2', 3, 4], async () => {
+  await openReader(DOC_KEY, { index: 3 });
+  await turnedTo(0, 'before Rotate page');
+  await reader().getByRole('button', { name: 'Rotate page', exact: true }).click();
+  await turnedTo(90, 'Rotate page');
+  await shot('17-rotate-page-view');
+  const selected = await selectText('Rivers carry', 'and the tides.');
+  assert.equal(norm(selected), norm(PASSAGE), 'control: the browser selected the passage on the turned view');
+  const card = await addCard('[data-pdf-selection-toolbar]', 'text');
+  const x = card.data.excerpt;
+  assertTextExcerpt(x, { key: DOC_KEY, index: 3, label: '1', sha: PDF_SHA });
+  assert.equal(norm(x.quote?.exact), norm(PASSAGE), 'quote.exact is the passage');
+  assert.equal(x.rotate, 0, 'rotate is the page\'s own /Rotate, not the reader\'s view turn');
+  assert.deepEqual(x.view, [0, 0, 612, 792], 'the unrotated page box');
+  const level = unionOf(cards.passage.data.excerpt.rects), turned = unionOf(x.rects);
+  facts.rotate_page = { level: level.map(Math.round), turned: turned.map(Math.round) };
+  assert.ok(turned.every((v, i) => Math.abs(v - level[i]) <= 3), `the turned view's rects ${JSON.stringify(turned.map(Math.round))} are the level page's ${JSON.stringify(level.map(Math.round))} in PDF points`);
+  assert.equal((await viewTurn())?.rotation, 90, 'the reader is still turned');
+  assertCovers(await waitFor(() => coverage(highlightBoxes(x.highlightId), 'Rivers carry', 'and the tides.'), 10000, 'no highlight box on the turned view'), 'the highlight box on the turned view');
+  await openSourceOf(card.id);
+  await emphasisOn(3, 'Rivers carry', 'and the tides.', 'the emphasis of the excerpt taken on the turned view');
+});
+
+await check('Rotate page and a figure (R4 audit gaps 2 and 3): a region drawn around the figure on the turned view stores the figure\'s PDF rect (rotate 0); its crop is the figure the page\'s own way up (the rect\'s aspect), green, no outline; Open source emphasizes the figure', ['gap 2', 'gap 3', 2, 4], async () => {
+  await openReader(DOC_KEY, { index: 4 });
+  await turnedTo(0, 'before Rotate page');
+  await reader().getByRole('button', { name: 'Rotate page', exact: true }).click();
+  await turnedTo(90, 'Rotate page');
+  const before = crops.length;
+  await drawRegionAt(DRAWN, 90);
+  const card = await addCard('[data-pdf-region-toolbar]', 'region');
+  const x = card.data.excerpt, r = x.rects?.[0];
+  assert.deepEqual(x.page, { index: 4, label: '2' });
+  assert.equal(x.rotate, 0, 'the page\'s own /Rotate');
+  assert.equal(x.rects?.length, 1, 'exactly one rect');
+  assert.ok(r.every((v, i) => Math.abs(v - DRAWN[i]) <= 8), `the stored rect ${JSON.stringify(r.map(Math.round))} is the drawn one ${JSON.stringify(DRAWN)} in PDF points`);
+  assert.equal(crops.length, before + 1, 'one crop PUT');
+  facts.rotate_page_crop = await assertFigureCrop(card, (r[2] - r[0]) / (r[3] - r[1]), 'the turned view\'s crop');
+  await reveal(cardLocator(card.id));
+  await shot('18-rotate-page-region-card');
+  await openSourceOf(card.id);
+  const c = await waitFor(async () => (await where())?.index === 4 && figureCovered(), 8000, 'no [data-pdf-emphasis] on page 4 for the region taken on the turned view');
+  assertCovers(c, 'the region emphasis');
+});
+
+await check('a figure on the /Rotate 90 page (R4 audit gap 3): a region around it stores its unrotated PDF rect with rotate 90; its crop is the figure as the page shows it (width and height swapped against the PDF rect), green, no outline; Open source emphasizes it on that page', ['gap 3', 2, 4], async () => {
+  await openReader(DOC_KEY, { index: 5 });
+  await turnedTo(90, 'the /Rotate 90 page');
+  const before = crops.length;
+  await drawRegionAt(DRAWN_R, 90);
+  await shot('19-rotated-figure-region');
+  const card = await addCard('[data-pdf-region-toolbar]', 'region');
+  const x = card.data.excerpt, r = x.rects?.[0];
+  assert.deepEqual(x.page, { index: 5, label: '3' });
+  assert.equal(x.rotate, 90, 'rotate 90 at capture');
+  assert.deepEqual(x.view, [0, 0, 612, 792], 'the unrotated page box');
+  assert.equal(x.rects?.length, 1, 'exactly one rect');
+  assert.ok(r.every((v, i) => Math.abs(v - DRAWN_R[i]) <= 8), `the stored rect ${JSON.stringify(r.map(Math.round))} is the drawn one ${JSON.stringify(DRAWN_R)} in unrotated PDF points`);
+  assert.equal(crops.length, before + 1, 'one crop PUT');
+  assert.equal(crops.at(-1).page, '5', 'the crop PUT names page index 5');
+  // Turned a quarter, the region shows its PDF height across: the crop's aspect is the swapped one (pdf-crop.js uses the page's turn).
+  facts.rotated_figure_crop = await assertFigureCrop(card, (r[3] - r[1]) / (r[2] - r[0]), 'the /Rotate 90 page\'s crop');
+  await reveal(cardLocator(card.id));
+  await shot('20-rotated-figure-card');
+  await goTo(1);
+  await openSourceOf(card.id);
+  await waitFor(async () => (await where())?.index === 5, 8000, 'Open source did not open page index 5');
+  await turnedTo(90, 'Open source on the /Rotate 90 page');
+  const c = await waitFor(() => figureCoveredAt(FIGURE_R, 90), 8000, 'no [data-pdf-emphasis] on page 5 for the rotated figure');
+  assertCovers(c, 'the rotated figure\'s emphasis');
+  await shot('21-rotated-figure-open-source');
+});
+
+await check('a share-link viewer who has not forked (R4 audit gap 5): Open source on the text card says "Source not available", the card and its quote stay, nothing opens or is emphasized; the PDF and the owner\'s highlights are refused to them', ['gap 5', 15, 16], async () => {
+  await waitFor(async () => ((await boardOf()).state?.blocks || []).some(b => b.id === cards.passage.id), 30000, 'the server board does not hold the card');
+  const state = (await boardOf()).state;
+  const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
+  assert.ok(shared.sharing?.view, 'the canvas is shared by link');
+  const viewerSession = await mint(`pdfx-viewer-${run}@example.com`), viewer = `small_session=${viewerSession}`;
+  const V = await profile('viewer', viewerSession);
+  const mine = page;
+  try {
+    page = V.page;
+    await page.goto(`${BASE}/b/${shared.sharing.view}`);
+    await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+    const text = await waitFor(async () => (await excerptCards()).find(c => c.kind === 'text' && norm(c.quote) === norm(PASSAGE)), 30000, 'the shared view shows no text excerpt card with the passage');
+    assert.ok(text.open, 'the shared card keeps its Open source');
+    // A DOM click: the card may lie under the shared view's chrome or off screen; the press itself is what is under test.
+    await cardLocator(text.id).locator('[data-excerpt-source] [aria-label="Open source"]').first().dispatchEvent('click');
+    const notice = cardLocator(text.id).locator('[data-excerpt-source-unavailable]').first();
+    await notice.waitFor({ timeout: 15000 }).catch(() => { throw Error('the viewer\'s Open source shows no [data-excerpt-source-unavailable]'); });
+    assert.match(norm(await notice.innerText()), /Source not available/);
+    await page.waitForTimeout(1000);
+    assert.equal(await page.locator(EMPHASIS).count(), 0, 'nothing emphasized');
+    assert.equal(await page.locator('section[aria-label="Paper reader"]').count(), 0, 'no reader opened the PDF');
+    assert.equal(norm((await excerptCards()).find(c => c.id === text.id)?.quote), norm(PASSAGE), 'the card and its quote stay');
+    await page.screenshot({ path: `${OUT}/22-share-viewer-source-unavailable.png` });
+    const src = await getAs(viewer, `/api/learn/pdf-source?${query({ app: canvas.name, key: DOC_KEY })}`);
+    const hs = await highlightsOf(DOC_KEY, { who: viewer, app: canvas.name });
+    const bytes = await fetch(`${BASE}/api/learn/context/${encodeURIComponent(DOC.id)}?app=${canvas.name}`, { headers: { cookie: viewer } });
+    facts.share_viewer = { source: src.status, highlights: hs.status, bytes: bytes.status };
+    assert.equal(src.status, 404, 'pdf-source refuses the viewer'); assert.equal(src.body.error, REFUSED);
+    assert.equal(hs.status, 404, 'the highlights are refused'); assert.equal(hs.body.error, REFUSED);
+    assert.ok([403, 404].includes(bytes.status), `the PDF bytes are refused (${bytes.status})`);
+  } finally { page = mine; await V.context.close(); await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) }); }
+});
+
+await check('Remove from context keeps an existing excerpt card usable (R4 audit gap 5; owner brief 2026-10-22 section 4): the document leaves the list, the card stays after a reload, and Open source as the owner still opens page index 3 with the passage emphasized', ['gap 5', 10, 4], async () => {
+  const removed = await api(`/api/learn/context/${encodeURIComponent(DOC.id)}?app=${canvas.name}`, { method: 'DELETE' });
+  assert.equal((removed.documents || []).some(d => d.id === DOC.id), false, `the document leaves the context list (${JSON.stringify(removed).slice(0, 160)})`);
+  assert.equal((await docsNow()).some(d => d.id === DOC.id), false, 'and stays out of it');
+  await page.reload();
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  await waitFor(async () => (await excerptCards()).some(c => c.id === cards.passage.id), 30000, 'the excerpt card did not come back after the removal');
+  assert.equal(norm((await excerptCards()).find(c => c.id === cards.passage.id).quote), norm(PASSAGE), 'the card keeps its quote');
+  await openSourceOf(cards.passage.id);
+  assert.equal(await cardLocator(cards.passage.id).locator('[data-excerpt-source-unavailable]').count(), 0, 'the owner\'s source is still available');
+  await emphasisOn(3, 'Rivers carry', 'and the tides.', 'Open source after Remove from context');
+  await shot('23-open-source-after-remove');
 });
 
 await check('no model call beyond the turns this check sent, no other model-capable request, no page error', ['no AI calls'], async () => {

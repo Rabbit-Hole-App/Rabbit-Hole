@@ -113,7 +113,8 @@ export async function pdfExcerptsFetch(req, env, deps = {}) {
   if (path === '/api/learn/pdf-source' || path === '/api/learn/pdf-highlights') {
     if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
     const source = await readSource(req, env, params, deps);
-    if (!source) return refuse();
+    // A webpage capture (web:<lineage>) has highlights but no PDF bytes: pdf-source refuses it like any other non-PDF.
+    if (!source || (path === '/api/learn/pdf-source' && !source.bytes)) return refuse();
     const sha = (source.sha || await sourceHash(db, source.app, params.key, source.bytes));
     if (path === '/api/learn/pdf-source') return json({ key: params.key, sha256: sha, name: source.name, bytes: source.bytes.length });
     const mine = 'org = ? AND owner_email = ? AND source_key = ?', who = [source.app.org, source.app.email, params.key];

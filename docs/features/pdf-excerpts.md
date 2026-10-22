@@ -95,3 +95,15 @@ to `rabbit-hole-learn-dev` (2026-10-19 16:58 PT) and to production (2026-10-20).
 - Existing `e2e/pdf-to-canvas-check.mjs`: passes. `e2e/paper-highlight-check.mjs` fails the same way on main (stale).
 - Unit: web 3294 pass / 0 fail; control-plane 2008 pass / 0 fail.
 - Evidence on the operator's machine: C:/s/spec/pdf-excerpt-shots/RESULTS.md.
+
+## CI and the R4 audit (2026-10-22, lane G1)
+
+- `pdf-excerpt-check.mjs` and `pdf-excerpt-chat-state-check.mjs` run in fast-e2e (runner `fork` in
+  scripts/ci/check-map.json, the Linux keyless stack) on every push that touches them or a path mapped to them;
+  deploy-dev and deploy-prod require that run green at the exact SHA. Before this they were windows-only and no CI
+  job ran them.
+- pdf-excerpt-check now has 43 steps: Rotate page with a text excerpt (audit gap 2), a figure region on the turned view
+  and on the /Rotate 90 page (gap 3; the fixture's page 5 gained a green figure), a share-link viewer who has not
+  forked and Open source after Remove from context (gap 5), and the zoom step asserts Open source keeps 200% (gap 6).
+- Open source keeps the reader zoom: chat-sources.js positionStore forgets a cited source's place but not its zoom.
+- GET /api/learn/pdf-source with a `web:` key is the one 404 (a webpage capture has no PDF bytes); it used to throw.

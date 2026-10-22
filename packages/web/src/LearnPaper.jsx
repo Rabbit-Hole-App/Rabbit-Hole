@@ -33,12 +33,14 @@ const arrows = event => { // Up/Down move between a menu's items
 // are stored on; `anchor` an excerpt to return to; `plainChat(text)` attaches a passage as a quote when there is no excerpt
 // identity, returning an error message or null. With it come the selection toolbar, Select region, the author's saved
 // highlights, Rotate page and page labels; without it (the canvas paper card) the reader is unchanged.
-export default function LearnPaper({ app, paper, onClose, onPage,
+// `zoomStart` / `onZoom`: the zoom to open at and a report of each change (SourceReader keeps it across Open source).
+export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1, onZoom = null,
   highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, src = null, companion = null }) {
   const report = usePerf();
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(zoomStart);
+  useEffect(() => { onZoom?.(zoom); }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
   const [textDrawn, setTextDrawn] = useState(0);
   const canvas = useRef(null);
   const text = useRef(null);
@@ -67,7 +69,7 @@ export default function LearnPaper({ app, paper, onClose, onPage,
   useEffect(() => {
     const controller = new AbortController();
     let task;
-    setDocument(null); setError(''); setZoom(1); setRefused(false); setLabels(null);
+    setDocument(null); setError(''); setZoom(zoomStart); setRefused(false); setLabels(null);
     (async () => {
       // paper.home: a copied page's own canvas (pdf-to-canvas.md), read as this learner only.
       const response = await fetch(src || paperBytesUrl(app, paper.id, paper.home), { headers: wsHeaders(), signal: controller.signal });
