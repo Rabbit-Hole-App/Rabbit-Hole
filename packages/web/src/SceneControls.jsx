@@ -60,6 +60,28 @@ export function CardPager({ declaration, value, data, onInput }) {
   );
 }
 
+// A steps presentation (EXP-T26 M2): named moments of one timeline, earlier
+// context still drawn. The same row CardPager draws - where the learner is,
+// this step's name, Previous / Next by name - over the scene's own steps.
+export function StepPager({ steps, index, onStep }) {
+  const last = steps.length - 1;
+  const button = 'flex h-8 min-w-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium aria-disabled:cursor-default aria-disabled:opacity-40';
+  const step = to => { if (to >= 0 && to <= last) onStep(to); };
+  return (
+    <div data-step-pager role="group" aria-label="Steps" className="flex h-8 min-w-0 flex-1 items-center gap-3">
+      <span data-step-readout aria-live="polite" className="shrink-0 text-sm font-semibold tabular-nums text-ink">Step {index + 1} / {steps.length}</span>
+      <span className="min-w-0 flex-1 truncate text-sm text-ink-2">{steps[index].title}</span>
+      <button type="button" data-step="previous" aria-disabled={index <= 0} onClick={() => step(index - 1)}
+        className={`${button} shrink-0 border-line text-ink hover:bg-hover`}>← Previous</button>
+      <button type="button" data-step="next" aria-disabled={index >= last} onClick={() => step(index + 1)}
+        title={index < last ? `Next: ${steps[index + 1].title}` : undefined}
+        className={`${button} max-w-[45%] ${index < last ? 'border-ink bg-ink text-white hover:opacity-90' : 'border-line text-ink'}`}>
+        <span className="truncate">{index < last ? `Next: ${steps[index + 1].title}` : 'Last step'}</span>{index < last && <span aria-hidden="true">→</span>}
+      </button>
+    </div>
+  );
+}
+
 function IndexSlider({ declaration, value, data, onInput }) {
   const length = (data?.[declaration.of] || []).length;
   const stepButton = 'flex h-8 items-center rounded-lg border border-line px-2.5 text-xs text-ink hover:bg-hover disabled:cursor-default disabled:opacity-40';
@@ -163,7 +185,7 @@ export function InputWidget({ declaration, value, data, onInput, disabled = fals
   );
 }
 
-export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [], onHeight = null }) {
+export default function SceneControls({ declarations, inputs, data, onInput, onReset, locked = [], onHeight = null, experiments = [] }) {
   // EVERY meaningful input gets an obvious control here, below the visual -
   // the primary way to operate the experiment. An input whose scene object
   // also offers direct manipulation ('visual' index, a dragged vec2) keeps
@@ -185,6 +207,8 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
   return (
     <div ref={root} data-scene-controls className="shrink-0 rounded-lg border border-line bg-white px-3 pt-1.5 pb-2">
       <p className="mb-1.5 text-xs font-semibold tracking-wide text-ink-2 uppercase">Interact</p>
+      {/* Each declared experiment's question (EXP-T26 M2): what moving the control is for. */}
+      {experiments.map(experiment => <p key={experiment.id} data-experiment-purpose={experiment.input} className="mb-1.5 text-sm text-ink">{experiment.purpose}</p>)}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       {rows.map(declaration => {
         const Widget = declaration.type === 'index' && declaration.presentation === 'slider' ? IndexSlider : WIDGETS[declaration.type];

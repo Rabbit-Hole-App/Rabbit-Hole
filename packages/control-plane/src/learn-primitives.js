@@ -190,11 +190,13 @@ export const PRIMITIVES = {
         duration: { type: 'number', minimum: 0.5, maximum: 20 },
         inputs: list({ type: 'object' }, 0, 4), exampleData: { type: 'object' }, derived: { type: 'object' },
         objects: list(shape({ id: text(64), type: { type: 'string' }, part: { type: 'integer' }, semanticId: text(64), conceptId: text(64), initialState: { type: 'object' } }, ['id', 'type', 'initialState']), 1, 60),
-        timeline: list({ type: 'object' }, 0, 80), camera: { type: 'object' },
+        timeline: list({ type: 'object' }, 0, 80), camera: { type: 'object' }, presentation: { type: 'object' },
       }, ['id', 'duration', 'objects', 'timeline']),
     }, ['calculation', 'scene']),
     check: spec => { if (!(spec.title || spec.scene.title || '').trim()) fail('Give the card a title'); },
-    block: spec => ({ type: 'animation', title: spec.title || spec.scene.title, scene: { ...spec.scene, title: spec.scene.title || spec.title }, time: spec.scene.duration,
+    block: spec => ({ type: 'animation', title: spec.title || spec.scene.title, scene: { ...spec.scene, title: spec.scene.title || spec.title },
+      // A steps card opens on its first named step (EXP-T26 M2); every other card at its finished frame.
+      time: spec.scene.presentation?.mode === 'steps' ? spec.scene.presentation.steps?.[0]?.at ?? spec.scene.duration : spec.scene.duration,
       selectedObject: null, marked: null, calculation: spec.calculation }),
   },
   // Not generated yet. Each says so rather than being faked with a simpler card.

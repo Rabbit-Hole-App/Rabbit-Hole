@@ -107,7 +107,9 @@ test('precomputed samples carry the fixed note under the content; a live scene c
 test('a scene that only selects stored numbers cannot claim to calculate them live', async () => {
   const lookups = { scheme: { op: 'pick', args: ['weightSets', 'scheme'] }, partsNote: SCENE_EXAMPLE.derived.partsNote };
   const stored = scene({ derived: { weights: lookups.scheme, partsNote: lookups.partsNote },
-    objects: SCENE_EXAMPLE.objects.filter(object => !['parts', 'grade'].includes(object.id)), timeline: SCENE_EXAMPLE.timeline.filter(event => event.target !== 'parts') });
+    objects: SCENE_EXAMPLE.objects.filter(object => !['parts', 'grade'].includes(object.id)), timeline: SCENE_EXAMPLE.timeline.filter(event => event.target !== 'parts'),
+    // The dropped objects leave the weighting experiment's affects list with them.
+    presentation: { ...SCENE_EXAMPLE.presentation, experiments: SCENE_EXAMPLE.presentation.experiments.map(item => ({ ...item, affects: item.affects.filter(id => !['parts', 'grade'].includes(id)) })) } });
   const claimed = scripted(['make_animation', stored], ['make_animation', { ...stored, calculation: 'precomputed' }]);
   const out = await generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, claimed);
   assert.match(claimed.seen[1].messages.at(-1).content[0].content, /calculation is "live" but no derived op calculates anything/);

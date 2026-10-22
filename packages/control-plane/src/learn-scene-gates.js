@@ -187,8 +187,61 @@ function firstProblem(scene) {
     const count = snaps.length >= 3 && drawnEntriesProblem(name, snaps);
     if (count) return count;
   }
+  const presentation = presentationProblem(scene);
+  if (presentation) return presentation;
   const small = legibility[0];
   if (small) return `${small.textClass} text would draw at ${small.effectivePx}px, below its ${small.floor}px floor: the scene is too wide or tall for one card, so draw less or split it into parts with a pager`;
+  return null;
+}
+
+// The declared presentation earns its controls (EXP-T26 M2, plan v2.1 section 1.2), checked by comparing evaluated states,
+// never by reading words. Only a scene that declares a presentation is held to it; saved scenes without one keep the
+// card's static reading (animation-scene.js presentationMode). This supports, and does not replace, the independent review
+// of whether the experiment is useful.
+// What an object shows, without the attention marks: a highlight directs the eye, it does not change what is drawn.
+const substance = object => JSON.stringify([object.visible && object.opacity > 0.01, Math.round(object.opacity * 100), object.x, object.y, object.w, object.h,
+  object.from, object.to, object.rotation, object.label, object.runs, object.values, object.labels, object.tokens]);
+const listedValues = (input, data) => input.type === 'bool' ? [false, true] : input.type === 'choice' ? input.options.map(option => option.id)
+  : [...Array((data?.[input.of] || []).length).keys()];
+export function presentationProblem(scene) {
+  const presentation = scene?.presentation;
+  if (!presentation) return null;
+  let base;
+  try { base = evaluateScene(structuredClone(scene), scene.duration, {}); } catch (error) { return error.message; }
+  const timeline = base.scene.timeline;
+  if (presentation.mode === 'time' && timeline.every(event => ['appear', 'highlight', 'emphasize', 'pause'].includes(event.action))) {
+    return 'presentation: time mode on a timeline that only reveals or highlights: nothing is taught by playing it, so declare static (or steps that each change what is drawn)';
+  }
+  if (presentation.mode === 'steps') {
+    const at = time => evaluateScene(structuredClone(scene), time, {}).state.objects.map(substance).join('|');
+    const steps = base.scene.presentation.steps;
+    for (let i = 1; i < steps.length; i += 1) {
+      if (at(steps[i].at) === at(steps[i - 1].at)) return `presentation: step "${steps[i].title}" draws the same as "${steps[i - 1].title}" (a highlight alone is not a step): merge them or change what the step shows`;
+    }
+  }
+  const visible = (base.declarations || []).filter(input => !input.hidden && input.presentation !== 'pager');
+  const experiments = presentation.experiments || [];
+  const missing = visible.find(input => !experiments.some(experiment => experiment.input === input.name));
+  if (missing) return `presentation: control "${missing.name}" has no experiment: declare its purpose, the objects it affects and the contrasts to compare, or remove the control`;
+  for (const experiment of experiments) {
+    const input = visible.find(entry => entry.name === experiment.input);
+    const values = listedValues(input, scene.exampleData);
+    // dependsOn: the controls this effect needs set (a reference shown, a mode chosen); the change may show in any of their settings.
+    let contexts = [{}];
+    for (const name of experiment.dependsOn || []) {
+      const other = visible.find(entry => entry.name === name);
+      if (!other || name === input.name) return `presentation: experiment "${experiment.id}" depends on "${name}", which is not another visible control`;
+      contexts = contexts.flatMap(context => listedValues(other, scene.exampleData).map(value => ({ ...context, [name]: value })));
+    }
+    const drawn = contexts.map(context => values.map(value => new Map(evaluateScene(structuredClone(scene), scene.duration, { ...context, [input.name]: value }).state.objects.map(object => [object.id, substance(object)]))));
+    for (const target of experiment.affects) {
+      for (let i = 1; i < values.length; i += 1) {
+        if (drawn.every(series => series[i].get(target) === series[i - 1].get(target))) {
+          return `presentation: experiment "${experiment.id}" says "${input.name}" changes "${target}", but it draws the same at ${input.name} = ${JSON.stringify(values[i - 1])} and ${JSON.stringify(values[i])} (a moved highlight does not count): make every setting change it, or do not list it in affects`;
+        }
+      }
+    }
+  }
   return null;
 }
 
