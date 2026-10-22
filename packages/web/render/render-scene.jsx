@@ -38,13 +38,18 @@ window.__renderScene = async request => {
     window.__renderDone = { ok: false, error: host.textContent.trim().slice(0, 500) || 'nothing rendered' };
     return window.__renderDone;
   }
-  // Grow the card so the frame gets exactly the declared height under the controls' natural height.
-  const chrome = host.clientHeight - frame.clientHeight;
-  host.style.height = `${height + chrome}px`;
+  // Grow the card by its own chrome (padding, border, controls) so the frame gets exactly the declared size.
+  const chromeW = host.clientWidth - frame.clientWidth, chromeH = host.clientHeight - frame.clientHeight;
+  host.style.width = `${width + chromeW}px`;
+  host.style.height = `${height + chromeH}px`;
   await Promise.all(FACES.map(face => document.fonts.load(face)));
   await document.fonts.ready;
   await frames(3);
   const box = frame.getBoundingClientRect();
+  if (Math.round(box.width) !== width || Math.round(box.height) !== height) {
+    window.__renderDone = { ok: false, error: `frame is ${Math.round(box.width)}x${Math.round(box.height)}, declared ${width}x${height}` };
+    return window.__renderDone;
+  }
   const missing = FACES.filter(face => !document.fonts.check(face));
   window.__renderDone = { ok: true, frame: { width: Math.round(box.width), height: Math.round(box.height) }, fonts: { missing }, theme };
   return window.__renderDone;
