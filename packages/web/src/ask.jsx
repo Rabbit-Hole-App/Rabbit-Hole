@@ -494,7 +494,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   useEffect(() => { if (chatThread) chatThread.restore.messages = msgs; }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
-  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false } = {}) => {
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false } = {}) => {
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
@@ -556,7 +556,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     setBusy(true);
     const flight = new AbortController();
     answerFlight.current = flight;
-    if (!regenerate) { setInput(''); setMentions([]); }
+    if (!regenerate && !keepDraft) { setInput(''); setMentions([]); }
     const sourceRange = codeSelection;
     setCodeSelection(null);
     const attached = regenerate ? null : file;
@@ -738,7 +738,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         // path), exactly the chips attached at Send with card, group, image and media text resolved now.
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
-        ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(target ? { ...target, text: targetText } : null, currentProposal(msgs, canvasOps.proposalMade))) : {}),
+        ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(about?.selection ?? (target ? { ...target, text: targetText } : null), currentProposal(msgs, canvasOps.proposalMade), about?.concept)) : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
       };
@@ -835,7 +835,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   };
   // Regenerate (contract B5, chat.regenerate): the footer re-sends a turn through this loop with regenerate: { messageId };
   // the server reuses that turn's stored question, mode, command and refs, so nothing open now leaks in.
-  useEffect(() => (chatThread ? chat.registerSender(({ regenerate } = {}) => {
+  // A command turn from another surface (chat.ask, MOT-20b: Ctrl+K's /motion): the same loop, about its own selection, and the
+  // composer's draft and chips stay as they are.
+  useEffect(() => (chatThread ? chat.registerSender(({ regenerate, prompt, command: asked, about } = {}) => {
+    if (prompt) return send(prompt, undefined, { skipJourney: true, command: asked, prompted: true, about, keepDraft: true });
     const index = msgs.findIndex(m => m.messageId === regenerate?.messageId);
     const question = index > 0 ? msgs.slice(0, index).findLast(m => m.role === 'user')?.content : null;
     return question ? send(question, undefined, { skipJourney: true, regenerate }) : undefined;

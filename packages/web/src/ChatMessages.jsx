@@ -18,13 +18,13 @@ import { withPrompt } from './card-prompt.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
-// Generate adds the existing video card with the exact approved proposal, once (insertCard finds one it already made).
+// Generate adds its capability's card (proposalBlock, an adapter per capability) with the exact approved proposal, once (insertCard finds one it already made).
 function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false);
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
-  const active = !made && !!ops?.insertCard && proposalActive(p, msgs);
+  const active = !made && !!ops?.insertCard && !!proposalBlock(p) && proposalActive(p, msgs);
   const onSettingsChange = async settings => {
     if (!saved) return;
     setBusy(true); setError(null);

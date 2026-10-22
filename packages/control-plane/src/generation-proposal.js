@@ -19,18 +19,11 @@ const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
 const ID = /^gp-[0-9a-f]{16}$/, SIG = /^[0-9a-f]{64}$/;
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// When a generation needs the learner's review first (owner messages 40 and 41), explicit per command so it can be audited:
-// 'always' shows a proposal card for every request; 'direct' keeps the command's existing direct action. A command with no
-// entry keeps its existing behaviour; another command joins here, with its settings validator below, when it is wired.
-export const PROPOSAL_RULES = Object.freeze({
-  motion: 'always',
-  search: 'direct',
-  dive: 'direct',
-  notebook: 'direct',
-  whiteboard: 'direct',
-});
-export const reviewRequired = command => PROPOSAL_RULES[command] === 'always';
-export const WIRED = Object.keys(PROPOSAL_RULES).filter(reviewRequired);
+// Which commands are proposed first, and the card's fields (proposal-rules.js, shared with the web). A proposed command also
+// needs its settings validator below.
+export { PROPOSAL_RULES, reviewRequired } from './proposal-rules.js';
+import { PROPOSED } from './proposal-rules.js';
+export const WIRED = PROPOSED;
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // One declaration with the chat router's card fields (web/src/inline-ai-route.js CHAT_CAPABILITIES).

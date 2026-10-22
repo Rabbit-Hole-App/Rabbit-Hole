@@ -23,11 +23,16 @@ export function generationField({ offered, concept = null, target = null, curren
   const context = motionContext(target);
   return { motion: { concept: String(concept || '').slice(0, 100) || null, ...(context ? { context } : {}) }, ...(current ? { current } : {}) };
 }
-// Generate: the existing Motion video card, already confirmed, carrying the exact approved proposal (its request, concept and
-// card are the proposal's own input). The card makes its request id when it starts (one per press).
-export const proposalBlock = p => ({
-  type: 'video', mode: 'generate', title: p.title.slice(0, 120), src: '', caption: '', status: 'idle', confirmedStart: true,
-  operation: { op: 'motion_request', request: p.input.request, location: { concept: p.input.concept ?? null }, ...(p.input.context ? { context: p.input.context } : {}), proposal: p },
-});
+// Generate: each proposed capability's adapter (MOT-20b) builds the card its handler already starts, confirmed, carrying the exact
+// approved proposal; nothing else differs per capability. Motion: the existing video card (its request, concept and selected card
+// are the proposal's own input), which makes its request id when it starts (one per press).
+const ADAPTERS = {
+  motion: p => ({
+    type: 'video', mode: 'generate', title: p.title.slice(0, 120), src: '', caption: '', status: 'idle', confirmedStart: true,
+    operation: { op: 'motion_request', request: p.input.request, location: { concept: p.input.concept ?? null }, ...(p.input.context ? { context: p.input.context } : {}), proposal: p },
+  }),
+};
+// -> the card to add, or null for a capability this build has no adapter for (its card cannot Generate).
+export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // The card a proposal already made, so a second press (or a reload) finds it instead of adding another.
 export const madeFrom = proposalId => block => block?.operation?.proposal?.proposal_id === proposalId;

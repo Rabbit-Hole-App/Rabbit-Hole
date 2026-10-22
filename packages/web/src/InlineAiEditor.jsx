@@ -183,7 +183,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
   const rows = useRef([]);
   // One session per opened editor: its requests, their late results and their metrics end with it.
   const session = useMemo(() => createInlineSession({
-    transport: config.transport, boardKey: canvas.boardKey, enabled: config.enabled, motion: config.motion,
+    transport: config.transport, boardKey: canvas.boardKey, enabled: config.enabled, propose: config.propose,
     flushMs: config.flushMs ?? 50,
     validate: (result, plan, request) => validateResult(result, request.frozen),
     onChange: setState,

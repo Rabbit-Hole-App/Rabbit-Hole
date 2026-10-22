@@ -863,3 +863,21 @@ test('paused or with no orchestrator, a /motion chat turn is answered before any
   assert.equal(bad.events.find(e => e.event === 'answer_meta').data.proposal, undefined, 'an invalid proposal reaches no card');
   assert.match(JSON.stringify(f.calls.at(-1).messages), /Not proposed: the description must be 3 to 10 complete sentences/);
 });
+
+// MOT-20b: a submitted answer suggestion is an entry point. Motion is suggested only on a turn where a Motion video can start;
+// its Send is the Chat's /motion turn (web AnswerSuggestions prepares it, the composer sends it), so it is proposed first.
+test('answer suggestions: a motion action is offered only where Motion can start, and the prompt says so only there', async t => {
+  const realMeta = await import('../src/chat-answer-meta.js');
+  const trailer = '\n<answer_meta>{"actions":[{"capability":"motion","label":"Animate photosynthesis","subject":"photosynthesis in 15 seconds"}],"followUps":[]}</answer_meta>';
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV);
+  f.replies.push(`Photosynthesis makes glucose.${trailer}`);
+  const on = await f.ask({ message: 'what is photosynthesis?', mode: 'ask', generation: { motion: { concept: 'Biology' } } }, build(realMeta));
+  const offered = on.events.find(e => e.event === 'answer_meta').data.actions;
+  assert.deepEqual(offered.map(a => [a.capabilityId, a.args.subject, a.generationRequired]), [['motion', 'photosynthesis in 15 seconds', true]]);
+  assert.ok(f.calls[0].system.includes(realMeta.ANSWER_META_MOTION));
+  f.replies.push(`Photosynthesis makes glucose.${trailer}`);
+  const off = await f.ask({ message: 'what is photosynthesis?', mode: 'ask' }, build(realMeta));
+  assert.deepEqual(off.events.find(e => e.event === 'answer_meta').data.actions, [], 'no Motion offered on this turn: the action is dropped');
+  assert.ok(!f.calls[1].system.includes(realMeta.ANSWER_META_MOTION));
+});
