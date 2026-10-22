@@ -35,6 +35,9 @@ const json = (body, status = 200) => Response.json(body, { status, headers: { 'C
 const fail = (message, status = 400, code = null) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
+// Where the request came from (CapabilityDecision.source): explicit /explain, the picker, a command-bearing Ctrl+K, a
+// submitted suggestion, the shared router, or the Tutor's chosen tool.
+const SOURCES = ['explicit', 'picker', 'command', 'suggestion', 'classified', 'tutor'];
 const KIND = { brief: 'generation', author: 'generation', review: 'evaluation', repair: 'repair' };
 const JOBS_KEPT = 50; // per canvas; older terminal jobs are pruned (their card already holds its saved result)
 const jobKey = id => `job:${id}`;
@@ -114,6 +117,8 @@ function validateCreate(p) {
   if (p.context != null && JSON.stringify(p.context).length > 60000) throw fail('The attached context is too large.', 413);
   if (p.baseRevision != null && !KEY.test(p.baseRevision)) throw fail('Invalid base revision.');
   if (p.threadId != null && (typeof p.threadId !== 'string' || !p.threadId || p.threadId.length > 64)) throw fail('Invalid chat thread.');
+  if (p.source != null && !SOURCES.includes(p.source)) throw fail('Unknown request source.');
+  if (p.requestClass === 'edit' && !p.baseRevision) throw fail('Choose the explanation to edit.');
   try { selectExamples(p.examples ?? []); } catch (error) { throw fail(error.message); }
 }
 
@@ -189,11 +194,13 @@ export class ExplainJobs {
     }
     const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()];
     if (jobs.some(j => j.cardId === payload.cardId && !TERMINAL.has(j.stage))) throw fail('This card already has an explanation in progress.', 409);
+    // Same-card Edit (T20 slice 2): the card's accepted revision as it is saved on the canvas, and this canvas's saved spec for it.
+    const base = payload.requestClass === 'edit' ? await this.editBase(payload, board) : null;
     const now = Date.now(), reserve = explainReservation();
     const job = {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
-      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
+      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], source: payload.source ?? 'explicit', base, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (T16 owns the rule); until then a researched request prepares one.
       // A brief is prepared unless the request is simple and within the configured thresholds (explain-brief.js).
       prepare: needsPreparation(this.env, payload.requestClass), threadId: payload.threadId ?? null, settings: null, decision: null, refinement: null, pendingProposal: null,
@@ -213,6 +220,22 @@ export class ExplainJobs {
     await this.wake();
     await this.state.storage.put({ [jobKey(job.id)]: job, [`request:${payload.requestId}`]: { id: job.id, fingerprint } });
     return json({ job: publicExplainJob(job) }, 202);
+  }
+  // The base of an Edit: the card on the saved canvas must carry the revision the request was made from, and that revision's
+  // spec must be this canvas's own saved result for the same card. A card made before explanations could be edited, or whose
+  // saved spec is gone, gets an honest refusal, never a silent replacement; a newer card revision is a stale request.
+  async editBase(payload, board) {
+    const row = await this.env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(board.id).first();
+    let blocks = [];
+    try { blocks = JSON.parse(row?.state_json || '{}').blocks || []; } catch { /* an unreadable canvas has no card to edit */ }
+    const block = blocks.find(b => b?.id === payload.cardId);
+    if (!block) throw fail('Not available', 404);
+    const unsupported = () => fail('This card cannot be edited this way yet. Ask for a new explanation instead.', 409, 'edit_unsupported');
+    if (!block.explain?.revision || !block.explain.resultId) throw unsupported();
+    if (block.explain.revision !== payload.baseRevision) throw fail('This explanation changed. Reload before editing.', 409, 'edit_stale');
+    const saved = await this.state.storage.get(`result:${block.explain.resultId}`);
+    if (!saved || saved.identity.cardId !== payload.cardId || saved.identity.revision !== payload.baseRevision) throw unsupported();
+    return { revision: payload.baseRevision, resultId: block.explain.resultId, spec: saved.spec };
   }
   async prune(jobs) {
     const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);

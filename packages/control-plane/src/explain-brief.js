@@ -25,7 +25,7 @@ export function briefThresholds(env) {
 export const needsPreparation = (env, requestClass) => requestClass === 'researched' || !briefThresholds(env);
 
 // The server's decision (CapabilityDecision): which triggers fired. Any one means the learner reviews the brief first.
-export function briefDecision(env, brief, { evidence = [] } = {}) {
+export function briefDecision(env, brief, { evidence = [], source = 'explicit' } = {}) {
   const thresholds = briefThresholds(env), reasons = [];
   if (!thresholds) reasons.push('threshold_missing');
   if (evidence.some(record => ['web', 'paper', 'repository'].includes(record.kind))) reasons.push('research');
@@ -36,7 +36,7 @@ export function briefDecision(env, brief, { evidence = [] } = {}) {
   if (thresholds && brief.components.length > thresholds.components) reasons.push('density');
   const credits = proposalUsage(env, 'explain').reserve_credits;
   if (thresholds && credits > thresholds.credits) reasons.push('cost');
-  return { capability: 'explain', source: 'explicit', uncertain: !!brief.ambiguous, missingInputs: [], requiresBrief: reasons.length > 0, briefReasons: reasons,
+  return { capability: 'explain', source, uncertain: !!brief.ambiguous, missingInputs: [], requiresBrief: reasons.length > 0, briefReasons: reasons,
     permittedActions: reasons.length ? ['brief', 'clarify'] : ['generate'] };
 }
 
@@ -61,5 +61,5 @@ export async function prepareStage(job, ctx) {
   const brief = { version: 1, title: text(input.title, 120), summary, request: job.prompt, assumptions: list(input.assumptions, 300), presentation: input.presentation,
     components, evidenceIds: list(input.evidence_ids, 64, 16).filter(id => known.has(id)), limitations: list(input.limitations, 300),
     ambiguous: input.ambiguous === true, expanded: input.expanded === true };
-  return { brief, decision: briefDecision(ctx.env, brief, { evidence: job.evidence || [] }) };
+  return { brief, decision: briefDecision(ctx.env, brief, { evidence: job.evidence || [], source: job.source }) };
 }

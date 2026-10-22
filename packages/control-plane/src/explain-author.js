@@ -81,7 +81,7 @@ export function evidenceProblem(spec, evidence = []) {
 async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS } = {}) {
   const examples = selectExamples(input.examples || []);
   const content = JSON.stringify({
-    request: input.prompt, brief: input.brief ?? null, context: input.context ?? null,
+    request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
     evidence: (input.evidence || []).map(({ id, kind, location, excerpt, page, lines, limitations }) => ({ id, kind, location, excerpt, page, lines, limitations })),
     catalogue: cat, supported: compilerSupport(), limits,
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),
@@ -99,7 +99,7 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
 export async function authorStage(job, ctx) {
   // The card's presentation setting at Generate overrides the brief's.
   const brief = job.brief && job.settings?.presentation ? { ...job.brief, presentation: job.settings.presentation } : job.brief;
-  const { spec, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples }, ctx);
+  const { spec, gap } = await authorCall({ prompt: job.prompt, brief, context: job.context, evidence: job.evidence, examples: job.examples, edit: job.base ? { spec: job.base.spec } : null }, ctx);
   return gap ? { gap } : { spec };
 }
 
