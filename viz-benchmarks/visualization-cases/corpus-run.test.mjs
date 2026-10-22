@@ -58,3 +58,18 @@ test('v2 reference-guided is recorded as transport_unavailable, with no call mad
   assert.equal(calls, 0);
   assert.match(out.rows[0].error, /transport_unavailable/);
 });
+
+test('bank review (EXP-T11) reviews only records that lack nothing but the semantic check, every pager part in both themes', async () => {
+  const { reviewBank, reviewStates } = await import('./bank-review.mjs');
+  const paged = { inputs: [{ name: 'part', type: 'index', of: 'parts', presentation: 'pager' }], exampleData: { parts: ['a', 'b'] } };
+  assert.deepEqual(reviewStates(paged).map(s => s.id), ['part-0-light', 'part-0-dark', 'part-1-light', 'part-1-dark']);
+  assert.deepEqual(reviewStates({}).map(s => s.id), ['light', 'dark']);
+  const entry = (id, reasons) => ({ record: { id, intent: 'i', specHash: 'h', componentVersions: {} }, spec: { title: id }, reasons });
+  const reviewed = [];
+  const rows = await reviewBank({
+    entries: [entry('ok', ['semantic check unrun']), entry('held', ['semantic check unrun', 'derived from the held-out corpus lineage "x"']), entry('bad', ['semantic check unrun'])],
+    compile: () => ({ scene: {} }), facts: () => [], hash: async () => 'c', capture: async (scene, states) => ({ captures: states.map(s => ({ ...s, png: Buffer.from(s.id) })) }),
+    review: async input => { reviewed.push(input.request); const fail = input.request.startsWith('bad'); return { captures: input.captures.map(c => ({ captureId: c.id, semantic: fail ? 'fail' : 'pass', visual: 'pass', findings: [] })) }; } });
+  assert.deepEqual(reviewed, ['ok (i)', 'bad (i)'], 'a held-out derivative is never sent for review');
+  assert.deepEqual(rows.map(r => [r.id, r.reviewed, r.semantic ?? null]), [['ok', true, 'pass'], ['held', false, null], ['bad', true, 'fail']]);
+});
