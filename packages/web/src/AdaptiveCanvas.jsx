@@ -3092,7 +3092,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Undo and redo: snapshot the artifact lists before every mutating gesture.
   // ponytail: single-level lists + 100-step cap; both stacks die with the tab.
   const present = useRef(null);
-  present.current = { strokes, shapes, items, links, blocks };
+  // groups ride in every undo step (UI-25): Undo after Ungroup or Group brings back the group itself, its name included.
+  present.current = { strokes, shapes, items, links, blocks, groups };
   const history = useRef([]);
   const future = useRef([]);
   const notebookHistory=useRef(null);
@@ -3135,7 +3136,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before = blocksRef.current.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached), after = state.blocks.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached);
     for(const block of before.filter(block=>!after.some(next=>next.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:true}).catch(problem=>toast(problem.message));
     for(const block of after.filter(block=>!before.some(old=>old.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:false}).catch(problem=>toast(problem.message));
-    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); setSelected(null);
+    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); if (state.groups) setGroups(state.groups); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
   const travelHistory = (from,to) => {
