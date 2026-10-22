@@ -1,4 +1,22 @@
-export const SEARCH_FILTERS = [['all', 'All'], ['cards', 'Cards'], ['text', 'Text'], ['comments', 'Comments'], ['references', 'References'], ['links', 'Links'], ['code', 'Code'], ['rabbit-holes', 'Rabbit Holes']];
+// The Filter dropdown's options (owner 2026-10-22): ids are canvas-search-index.js categories. Content types and Sources
+// list only what has results (or is picked); Other always lists its rows, Links only where the page shows links.
+export const SEARCH_FILTER_GROUPS = [
+  { title: 'Content types', items: [['video', 'Video'], ['pdf', 'PDF'], ['paper', 'Paper'], ['notebook', 'Notebook'], ['code', 'Code'], ['image', 'Image'],
+    ['whiteboard', 'Whiteboard'], ['diagram', 'Diagram'], ['graph', 'Graph'], ['quiz', 'Quiz'], ['flashcards', 'Flashcards'], ['challenge', 'Challenge'],
+    ['explanation', 'Explanation'], ['table', 'Table'], ['cad', '3D/CAD'], ['animation', 'Animation'], ['audio', 'Audio'], ['slides', 'Slides'],
+    ['document', 'Document'], ['other-cards', 'Other cards']] },
+  { title: 'Sources', items: [['arxiv', 'arXiv'], ['wikipedia', 'Wikipedia'], ['youtube', 'YouTube'], ['web', 'Web'], ['repository', 'Repository']] },
+  { title: 'Other', always: true, items: [['text', 'Text'], ['comments', 'Comments'], ['references', 'References'], ['links', 'Links'], ['rabbit-holes', 'Rabbit Holes']] },
+];
+// What References and Links mean (owner 2026-10-22), shown as the rows' tooltips.
+export const SEARCH_FILTER_HINTS = { references: 'Cards on this canvas that cite a source', links: 'Other canvases this one links to or from' };
+const FILTER_LABELS = new Map(SEARCH_FILTER_GROUPS.flatMap(group => group.items));
+export function searchFilterGroups(counts = {}, selected = [], showLinks = false) {
+  return SEARCH_FILTER_GROUPS.map(group => ({ title: group.title, items: group.items
+    .filter(([id]) => (showLinks || id !== 'links') && (group.always || counts[id] > 0 || selected.includes(id)))
+    .map(([id, label]) => ({ id, label, count: counts[id] ?? 0, checked: selected.includes(id), hint: SEARCH_FILTER_HINTS[id] })) })).filter(group => group.items.length);
+}
+export const searchFilterLabel = selected => selected.length ? `Filter (${selected.length})` : 'Filter';
 
 // Compact preview rows (UI-12, owner brief 2026-10-21 message 21 item 1): one column, each row as tall as its layout - a text
 // or picture row, a code row by its excerpt's lines, plus the action row when it has one. Heights are fixed per result, so
@@ -54,14 +72,15 @@ export function lineRuns(runs) {
   for (const run of runs) run.t === '\n' ? out.push([]) : out[out.length - 1].push(run);
   return out;
 }
-export function searchEmptyMessage(state, query, filter) {
+export function searchEmptyMessage(state, query, filters = []) {
   if (state === 'loading') return 'Loading searchable content';
   if (state === 'error') return 'Some content could not be loaded. Try again.';
   if (state === 'partial') return 'No matches in the available content.';
   if (query.trim()) return 'No matches on this canvas.';
-  if (filter === 'links') return 'No links to or from this canvas yet.';
-  const label = SEARCH_FILTERS.find(([id]) => id === filter)?.[1] || 'objects';
-  return filter === 'all' ? 'No searchable objects on this canvas yet.' : `No ${label} on this canvas yet.`;
+  if (!filters.length) return 'No searchable objects on this canvas yet.';
+  if (filters.length > 1) return 'Nothing on this canvas matches these filters yet.';
+  if (filters[0] === 'links') return 'No links to or from this canvas yet.';
+  return `No ${FILTER_LABELS.get(filters[0]) || 'objects'} on this canvas yet.`;
 }
 export function searchLocation(location) {
   if (!location) return '';

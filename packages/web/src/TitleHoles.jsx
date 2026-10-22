@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { Menu, MenuItem } from './ui.jsx';
 
-// Arrow keys (and Home, End) move through a menu's rows; Enter clicks the focused row, Esc closes the menu (ui.jsx Menu).
+// Arrow keys (and Home, End) move through a menu's enabled rows (a disabled row takes no focus); Enter clicks the focused row,
+// Esc closes the menu (ui.jsx Menu).
 export function menuKeys(event) {
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  const rows = [...event.currentTarget.querySelectorAll('[role^="menuitem"]')], at = rows.indexOf(document.activeElement);
+  const rows = [...event.currentTarget.querySelectorAll('[role^="menuitem"]:not(:disabled)')], at = rows.indexOf(document.activeElement);
   rows[event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1 : (at + (event.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length]?.focus();
 }
 

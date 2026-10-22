@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Box, ChevronDown, ChevronUp, Code, ExternalLink, FileText, Film, Image, Link2, MessageCircle, Search, Shapes } from 'lucide-react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Box, Check, ChevronDown, ChevronUp, Code, ExternalLink, FileText, Film, Image, Link2, ListFilter, MessageCircle, Search, Shapes } from 'lucide-react';
 import { openInNewTab, plainClick } from './LinksPanel.jsx';
 import { highlightCode } from './code-lang.js';
-import { Button } from './ui.jsx';
+import { Button, Menu, MenuItem, useMenuButton } from './ui.jsx';
+import { menuKeys } from './TitleHoles.jsx';
 import { SEARCH_DRAG, searchDrag, searchDragPayload } from './search-drag.js';
-import { SEARCH_FILTERS, searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns } from './canvas-search-panel.js';
+import { searchFilterGroups, searchFilterLabel, searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns } from './canvas-search-panel.js';
 
 const button = 'rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-40';
 const labelOf = value => value.title || value.name || value.path || value.label || value.kind || 'Source';
@@ -63,6 +64,36 @@ function CodeExcerpt({ preview, hit }) {
   </pre>;
 }
 
+// The Filter dropdown (owner 2026-10-22): one button beside the search field opening checkbox rows grouped as Content types,
+// Sources and Other, each with its count. Several picked are ORed, none means all; Clear empties the pick. The menu stays
+// open while toggling: arrows move (menuKeys), Space or Enter toggles, Escape closes and returns focus to the button.
+function SearchFilter({ filters, counts, showLinks, onFiltersChange }) {
+  const m = useMenuButton();
+  const toggle = id => onFiltersChange(filters.includes(id) ? filters.filter(value => value !== id) : [...filters, id]);
+  return <>
+    <button type="button" data-search-filter-button {...m.buttonProps} className={`${button} flex h-9 shrink-0 items-center gap-1 px-2 text-xs ${filters.length ? 'text-ink' : 'text-ink-2'} hover:bg-hover ${m.open ? 'bg-hover' : ''}`}>
+      <ListFilter size={14} aria-hidden />{searchFilterLabel(filters)}<ChevronDown size={12} aria-hidden className="text-ink-3" />
+    </button>
+    <Menu portal anchor={m.button.current} open={m.open} onClose={m.onClose} style={m.style} className="w-56 border border-line">
+      <SearchFilterRows groups={searchFilterGroups(counts, filters, showLinks)} filters={filters} onToggle={toggle} onClear={() => onFiltersChange([])} />
+    </Menu>
+  </>;
+}
+// The dropdown's rows, on their own so they render without a click (canvas-search-panel.test.mjs).
+export function SearchFilterRows({ groups, filters, onToggle, onClear }) {
+  return <div data-menu-button-open data-search-filter-menu role="menu" aria-label="Search filters" onKeyDown={menuKeys}>
+    {groups.map(group => <div key={group.title} role="group" aria-label={group.title} className="pb-1">
+      <div aria-hidden className="px-2 pt-1.5 pb-0.5 text-[11px] font-medium text-ink-3">{group.title}</div>
+      {group.items.map(item => <Fragment key={item.id}><MenuItem role="menuitemcheckbox" aria-checked={item.checked} data-search-filter={item.id} title={item.hint}
+        aria-describedby={item.hint ? `search-filter-hint-${item.id}` : undefined} hint={item.count} onClick={() => onToggle(item.id)}>
+        <span className="flex items-center gap-2"><span aria-hidden className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-[3px] border ${item.checked ? 'border-accent bg-accent text-white' : 'border-line-strong'}`}>{item.checked && <Check size={10} strokeWidth={2.5} />}</span>{item.label}</span>
+      </MenuItem>{item.hint && <span id={`search-filter-hint-${item.id}`} hidden>{item.hint}</span>}</Fragment>)}
+    </div>)}
+    <hr className="my-1 border-line" />
+    <MenuItem role="menuitem" data-search-filter-clear disabled={!filters.length} onClick={onClear}>Clear</MenuItem>
+  </div>;
+}
+
 // A link result's own controls (the former Links tab): Open in a new tab for its canvas; its cards - on this canvas, Show
 // frames the origin card; on another canvas (a backlink), a link that opens that canvas at the card, with its own new tab.
 // A plain click stays in this tab through onOpenAction (the page saves first); modifier and middle clicks stay native.
@@ -82,7 +113,7 @@ function LinkActions({ result, onOpenAction }) {
   </>;
 }
 
-export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false, inputRef, scrollPositions, query = '', onQueryChange, filter = 'all', onFilterChange,
+export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false, inputRef, scrollPositions, query = '', onQueryChange, filters = [], onFiltersChange,
   includeResolved = false, onIncludeResolvedChange, results = [], counts = {}, status = {}, onRetry,
   activeId, onActiveIdChange, onActivate, onOpenAction, canGoBack, onGoBack, getPreview, onAddToCanvas, onDragLink, onDropNotice }) {
   const scroller = useRef(null), fallbackPositions = useRef(new Map()), pendingFocus = useRef(null);
@@ -92,7 +123,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
   const layout = searchWindow({ heights, ...viewport });
   const current = results.findIndex(result => result.id === activeId);
   const state = status.state || status.status || 'ready';
-  const session = `${canvasKey}\u0000${filter}\u0000${query}\u0000${includeResolved}`;
+  const session = `${canvasKey}\u0000${filters.join(',')}\u0000${query}\u0000${includeResolved}`;
   useLayoutEffect(() => {
     const element = scroller.current;
     if (!element || hidden) return;
@@ -140,17 +171,15 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
           onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); go(event.shiftKey ? -1 : 1); } if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onQueryChange(''); } if (event.key === 'ArrowDown' && results.length) { event.preventDefault(); onActiveIdChange?.(results[0].id); reveal(0, true); } }}
           className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3" />
       </label>
+      <SearchFilter filters={filters} counts={counts} showLinks={showLinks} onFiltersChange={onFiltersChange} />
       <button type="button" aria-label="Previous match" disabled={!results.length} onClick={() => go(-1)} className={`${button} p-1.5 hover:bg-hover`}><ChevronUp size={16} aria-hidden /></button>
       <button type="button" aria-label="Next match" disabled={!results.length} onClick={() => go(1)} className={`${button} p-1.5 hover:bg-hover`}><ChevronDown size={16} aria-hidden /></button>
     </div>
     <div className="my-2 flex items-center justify-between gap-2 text-xs text-ink-3"><span>This canvas</span><span data-find-count aria-live="polite">{current >= 0 ? `${current + 1} of ${results.length}` : `${results.length} result${results.length === 1 ? '' : 's'}`}</span></div>
-    <div role="group" aria-label="Search filters" className="mb-2 flex flex-wrap gap-1">
-      {SEARCH_FILTERS.filter(([id]) => showLinks || id !== 'links').map(([id, label]) => <button key={id} type="button" data-search-filter={id} aria-pressed={filter === id} onClick={() => onFilterChange(id)} className={`${button} flex items-center gap-1 px-2 py-1 text-xs ${filter === id ? 'bg-(--nav-selected-bg) text-(--nav-selected-fg)' : 'text-ink-2 hover:bg-hover'}`}>{label}<span className="tabular-nums opacity-70">{counts[id] ?? 0}</span></button>)}
-    </div>
-    {filter === 'comments' && <label className="mb-2 flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" checked={includeResolved} onChange={event => onIncludeResolvedChange?.(event.target.checked)} />Include resolved</label>}
+    {filters.includes('comments') && <label className="mb-2 flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" checked={includeResolved} onChange={event => onIncludeResolvedChange?.(event.target.checked)} />Include resolved</label>}
     {canGoBack && <button type="button" onClick={onGoBack} className={`${button} mb-2 flex items-center gap-1 self-start px-1 py-1 text-xs text-ink-2 hover:bg-hover`}><ArrowLeft size={13} aria-hidden />Back to previous view</button>}
     {(state !== 'ready' || status.message) && <div role="status" className="mb-2 text-xs text-ink-2">{status.message || (state === 'loading' ? 'Loading searchable content' : state === 'error' ? 'Some content could not be loaded.' : 'Some content is not available to Search.')}{onRetry && (state === 'error' || state === 'partial') && <button type="button" onClick={onRetry} className={`${button} ml-2 underline`}>Retry</button>}</div>}
-    {!results.length && <p className="py-4 text-sm text-ink-2">{searchEmptyMessage(state, query, filter)}</p>}
+    {!results.length && <p className="py-4 text-sm text-ink-2">{searchEmptyMessage(state, query, filters)}</p>}
     <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto" data-search-scroll onScroll={event => { const scrollTop = event.currentTarget.scrollTop; positions.set(session, scrollTop); setViewport(previous => ({ ...previous, scrollTop })); }}>
       <ol aria-label="Search results" className="relative m-0 list-none p-0" style={{ height: layout.totalHeight }}>
         {results.slice(layout.start, layout.end).map((result, offset) => {

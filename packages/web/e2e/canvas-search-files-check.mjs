@@ -64,7 +64,11 @@ async function drop(file) {
 const panel = () => page.locator('[data-canvas-search]:visible');
 async function searchSource(file, block) {
   await page.getByRole('tab', { name: 'Find text on canvas', exact: true }).click();
-  await panel().locator('[data-search-filter="all"]').click();
+  // No filter picked (the Filter dropdown, owner 2026-10-22): Clear any pick, then close the menu.
+  await panel().locator('[data-search-filter-button]').click();
+  const clear = page.locator('[data-search-filter-menu] [data-search-filter-clear]'); await clear.waitFor();
+  if (await clear.isEnabled()) await clear.click();
+  await page.keyboard.press('Escape'); await page.locator('[data-search-filter-menu]').waitFor({ state: 'detached' });
   await panel().getByRole('textbox', { name: 'Find text on canvas', exact: true }).fill(file.token);
   const result = panel().locator(`[data-search-result="object:${block.id}"]`);
   await result.waitFor({ timeout: 30000 });

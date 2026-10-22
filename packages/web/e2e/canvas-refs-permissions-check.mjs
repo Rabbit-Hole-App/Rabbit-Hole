@@ -137,7 +137,10 @@ await check('item 8: a private source is hidden from the target owner\'s backlin
   // The same through Search's Links filter on T (owner UI brief 2026-10-20 section 7: the Links tab moved into Search).
   await openCanvas(pageA, `/apps/${T.name}`, 't1');
   await pageA.locator('[data-panel-tab="find"]').click();
-  await pageA.locator('[data-canvas-search] [data-search-filter="links"]').click();
+  // The Filter dropdown (owner 2026-10-22): a fresh page has nothing picked, so Links alone, then the menu closed.
+  await pageA.locator('[data-canvas-search] [data-search-filter-button]').click();
+  await pageA.locator('[data-search-filter-menu] [data-search-filter="links"]').click();
+  await pageA.keyboard.press('Escape'); await pageA.locator('[data-search-filter-menu]').waitFor({ state: 'detached' });
   await pageA.locator(`[data-canvas-search] [data-search-result="link:to:${S.id}"]`).waitFor({ timeout: 15000 });
   const to = (await pageA.locator('[data-canvas-search] [data-search-result^="link:to:"]').allInnerTexts()).join('\n');
   assert.ok(to.includes(S.title), `the Backlinks section does not list S ("${to.slice(0, 160)}")`);

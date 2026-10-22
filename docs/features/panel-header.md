@@ -54,7 +54,7 @@ and Comments.
 
 ## Links live in Search (owner UI brief 2026-10-20 section 7)
 
-The fifth Links tab is gone. Its contents are Search's Links filter (`data-search-filter="links"`, LearnPage only; a shared
+The fifth Links tab is gone. Its contents are the Links row of Search's Filter dropdown (`data-search-filter="links"` in its Other group, LearnPage only; a shared
 view keeps links to its cards' chips): one result per destination canvas from `GET /api/learn/links` (already filtered for
 the viewer), "Linked from this canvas" or "Links here (backlink)", the canvas title and its reference count, counted in
 All and matched by canvas and card titles. Selecting a link opens its canvas in this tab (the page saves first); Enter in

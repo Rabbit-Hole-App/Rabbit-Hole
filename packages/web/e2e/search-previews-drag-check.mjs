@@ -38,8 +38,17 @@ const until = async (read, message, timeout = 15000) => { const end = Date.now()
 const panel = () => page.locator('[data-canvas-search]:visible');
 const input = () => panel().getByRole('textbox', { name: 'Find text on canvas', exact: true });
 const row = id => panel().locator(`[data-search-result="${id}"]`);
-const filter = id => panel().locator(`[data-search-filter="${id}"]`).click();
-const search = async (query, category = 'all') => { await filter(category); await input().fill(query); await until(async () => await input().inputValue() === query, 'query input did not update'); };
+// The Filter dropdown (owner 2026-10-22): pick exactly one category ('all' clears the pick) and close it. A content type or
+// source is listed only while it has results, so search() types the query first.
+const filterMenu = () => page.locator('[data-search-filter-menu]');
+const filter = async id => {
+  await panel().locator('[data-search-filter-button]').click();
+  const clear = filterMenu().locator('[data-search-filter-clear]'); await clear.waitFor();
+  if (await clear.isEnabled()) await clear.click();
+  if (id !== 'all') await filterMenu().locator(`[data-search-filter="${id}"]`).click();
+  await page.keyboard.press('Escape'); await filterMenu().waitFor({ state: 'detached' });
+};
+const search = async (query, category = 'all') => { await input().fill(query); await until(async () => await input().inputValue() === query, 'query input did not update'); await filter(category); };
 const openFind = async () => { await page.getByRole('tab', { name: 'Find text on canvas', exact: true }).click(); await panel().waitFor(); };
 const go = async () => { await page.goto(`${BASE}/apps/${canvas.name}`); await page.locator('[data-canvas-surface]').waitFor({ timeout: 60000 }); await page.locator('[data-block-id="mover"]').waitFor({ timeout: 60000 }); await openFind(); };
 const shot = name => page.screenshot({ path: resolve(OUT, `${name}.png`) });

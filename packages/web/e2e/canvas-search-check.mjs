@@ -37,9 +37,20 @@ const panel = () => page.locator('[data-canvas-search]:visible');
 const input = () => panel().getByRole('textbox', { name: 'Find text on canvas', exact: true });
 const result = id => panel().locator(`[data-search-result="${id}"]`);
 const activate = id => result(id).locator('[data-search-index]').click();
-const filter = id => panel().locator(`[data-search-filter="${id}"]`).click();
+// The Filter dropdown (owner 2026-10-22): pick exactly one category ('all' clears the pick) and close it; picked(id) reads
+// a row's checkbox state. A content type or source is listed only while it has results, so search() types the query first.
+const filterMenu = () => page.locator('[data-search-filter-menu]');
+const closeFilter = async () => { await page.keyboard.press('Escape'); await filterMenu().waitFor({ state: 'detached' }); };
+const filter = async id => {
+  await panel().locator('[data-search-filter-button]').click();
+  const clear = filterMenu().locator('[data-search-filter-clear]'); await clear.waitFor();
+  if (await clear.isEnabled()) await clear.click();
+  if (id !== 'all') await filterMenu().locator(`[data-search-filter="${id}"]`).click();
+  await closeFilter();
+};
+const picked = async id => { await panel().locator('[data-search-filter-button]').click(); const value = await filterMenu().locator(`[data-search-filter="${id}"]`).getAttribute('aria-checked'); await closeFilter(); return value; };
 const until = async (read, message, timeout = 15000) => { const end = Date.now() + timeout; while (Date.now() < end) { if (await read()) return; await new Promise(done => setTimeout(done, 80)); } throw Error(message); };
-const search = async (query, category = 'all') => { await filter(category); await input().fill(query); await until(async () => await input().inputValue() === query, 'query input did not update'); };
+const search = async (query, category = 'all') => { await input().fill(query); await until(async () => await input().inputValue() === query, 'query input did not update'); await filter(category); };
 const count = async () => { const text = await panel().locator('[data-find-count]').innerText(); return Number((text.match(/of (\d+)/) || text.match(/^(\d+)/))?.[1]); };
 const waitCount = value => until(async () => await count() === value, `expected ${value} results`);
 const openFind = async () => { await page.getByRole('tab', { name: 'Find text on canvas', exact: true }).click(); await panel().waitFor(); };
@@ -49,10 +60,11 @@ const shot = name => page.screenshot({ path: resolve(OUT, `${name}.png`) });
 const tests = [];
 const check = (name, action) => tests.push({ name, action });
 
-for (const category of ['all', 'cards', 'text', 'comments', 'references', 'code', 'rabbit-holes']) check(`empty query browses ${category}`, async () => {
+for (const category of ['all', 'explanation', 'text', 'comments', 'references', 'code', 'rabbit-holes']) check(`empty query browses ${category}`, async () => {
   await search('', category);
   await until(async () => await count() > 0, `${category} should contain fixture objects`);
-  assert.equal(await panel().locator(`[data-search-filter="${category}"]`).getAttribute('aria-pressed'), 'true');
+  if (category === 'all') assert.equal(await panel().locator('[data-search-filter-button]').innerText(), 'Filter');
+  else { assert.equal(await picked(category), 'true'); assert.equal(await panel().locator('[data-search-filter-button]').innerText(), 'Filter (1)'); }
   assert.equal(await input().inputValue(), '');
 });
 check('literal case-insensitive code/path matching and one-object multiple-occurrence counts', async () => {
@@ -107,7 +119,7 @@ check('comments default open, Include resolved works, exact thread opens without
   assert.equal(list.threads.find(row => row.id === thread.id).status, 'open', 'opening cannot resolve');
   await page.locator('[data-search-return]').click();
   assert.equal(await input().inputValue(), 'commentword');
-  assert.equal(await panel().locator('[data-search-filter="comments"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await picked('comments'), 'true');
 });
 check('unauthorized identity cannot retrieve owner board or comment content', async () => {
   const other = await makeSession(`search-other-${run}@example.com`);
@@ -190,10 +202,10 @@ check('keyboard result focus and activation never sends Chat; panel close/reopen
   await page.getByRole('button', { name: 'Close sidebar', exact: true }).click();
   await page.locator('[data-canvas-surface]').click({ position: { x: 20, y: 20 } }); await page.keyboard.press('/');
   await panel().waitFor(); assert.equal(await input().inputValue(), 'optimizer.step()');
-  assert.equal(await panel().locator('[data-search-filter="code"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await picked('code'), 'true');
 });
 check('large browse virtualizes results, keyboard reaches the last object, drag resizing remains responsive', async () => {
-  await go(large.name); await search('', 'cards'); await waitCount(320);
+  await go(large.name); await search('', 'explanation'); await waitCount(320);
   const mounted = await panel().locator('[data-search-result]').count(); assert.ok(mounted < 40, `only viewport results mount (${mounted})`);
   assert.equal(await panel().locator('iframe,video,canvas').count(), 0, 'results do not mount full renderers');
   await input().press('ArrowDown'); await page.keyboard.press('End');
@@ -209,7 +221,7 @@ check('large browse virtualizes results, keyboard reaches the last object, drag 
 
 check('mobile Search close and reopen retains its scrolled current-canvas results', async () => {
   await page.setViewportSize({ width: 800, height: 900 });
-  await go(large.name); await search('', 'cards'); await waitCount(320);
+  await go(large.name); await search('', 'explanation'); await waitCount(320);
   const scroll = () => panel().locator('[data-search-scroll]');
   await scroll().evaluate(element => { element.scrollTop = 1200; element.dispatchEvent(new Event('scroll')); });
   await until(async () => await scroll().evaluate(element => element.scrollTop) > 1000, 'mobile results did not scroll');
@@ -219,7 +231,7 @@ check('mobile Search close and reopen retains its scrolled current-canvas result
   await page.locator('[data-canvas-surface]').click({ position: { x: 20, y: 20 } }); await page.keyboard.press('/');
   await panel().waitFor();
   await until(async () => Math.abs(await scroll().evaluate(element => element.scrollTop) - before) < 2, 'mobile reopen lost result scroll');
-  assert.equal(await panel().locator('[data-search-filter="cards"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await picked('explanation'), 'true');
   await shot('mobile-retained-scroll');
   await page.setViewportSize({ width: 1440, height: 950 });
 });

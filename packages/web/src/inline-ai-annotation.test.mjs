@@ -103,7 +103,6 @@ const READERS = {
   'web/src/landing/docs.jsx': 'documentation link lists',
   'web/src/LearnPage.jsx': 'canvas references in Search and on cards, not board links',
   'web/src/LinksPanel.jsx': 'canvas references (links between canvases), not board links',
-  'web/src/CanvasSearchPanel.jsx': 'the Search Links filter (canvas references), not board links',
   'web/src/canvas-search-panel.js': 'the Search Links filter id',
   'web/src/comments/MemberBoardPage.jsx': 'canvas references, not board links',
 };

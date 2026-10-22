@@ -104,14 +104,24 @@ try {
     await page.locator('[data-block-id="viewer-card"]').waitFor({ timeout: 60000 });
     await expect(page.locator('[data-shape-id="viewer-shape"]')).toBeAttached();
     const panel = page.locator('[data-canvas-search]'), input = panel.getByRole('textbox', { name: 'Find text on canvas' });
-    const filter = id => panel.locator(`[data-search-filter="${id}"]`);
-    const search = async (query, category = 'all') => { await filter(category).click(); await input.fill(query); };
+    // The Filter dropdown (owner 2026-10-22): pick exactly one category ('all' clears the pick) and close it; picked(id) reads a
+    // row's checkbox. A content type is listed only while it has results, so search() types the query first.
+    const menu = page.locator('[data-search-filter-menu]'), filterButton = panel.locator('[data-search-filter-button]');
+    const closeFilter = async () => { await page.keyboard.press('Escape'); await expect(menu).toHaveCount(0); };
+    const filter = async id => {
+      await filterButton.click(); const clear = menu.locator('[data-search-filter-clear]'); await clear.waitFor();
+      if (await clear.isEnabled()) await clear.click();
+      if (id !== 'all') await menu.locator(`[data-search-filter="${id}"]`).click();
+      await closeFilter();
+    };
+    const picked = async id => { await filterButton.click(); const value = await menu.locator(`[data-search-filter="${id}"]`).getAttribute('aria-checked'); await closeFilter(); return value; };
+    const search = async (query, category = 'all') => { await input.fill(query); await filter(category); };
     const row = id => panel.locator(`[data-search-result="${id}"]`);
     await check(`${audience}: cards browse and focus without edit rights; panel resizes`, async () => {
       await page.locator('[data-search-button]').click();
       await expect(panel).toBeVisible();
       await expect(panel.getByText('This canvas', { exact: true })).toBeVisible();
-      await filter('cards').click(); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
+      await filter('explanation'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
       await input.fill('quartz'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
       await panel.locator('[data-find-match="viewer-card"]').click();
       await expect(panel.locator('[data-find-match="viewer-card"]')).toHaveAttribute('aria-current', 'true');
@@ -149,7 +159,7 @@ try {
       await expect(page.locator(`[data-comment-thread-view="${ids.open}"]`)).toContainText(`${audience} open celadon thread`);
       assert.equal((await api(`${base}/threads/${ids.open}`)).body.thread.status, 'open');
       await page.getByRole('button', { name: 'Back to Search', exact: true }).click();
-      await expect(input).toHaveValue(`${audience} open celadon`); await expect(filter('comments')).toHaveAttribute('aria-pressed', 'true');
+      await expect(input).toHaveValue(`${audience} open celadon`); assert.equal(await picked('comments'), 'true');
       await input.fill(`${audience} resolved celadon`); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');
       await panel.getByRole('checkbox', { name: 'Include resolved' }).check();
       await expect(row(`comment:${ids.resolved}`)).toBeVisible();
@@ -167,7 +177,7 @@ try {
       await input.fill(privateTitle); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');
       await page.getByRole('button', { name: 'Close Search', exact: true }).click();
       await page.locator('[data-search-button]').click();
-      await expect(input).toHaveValue(privateTitle); await expect(filter('references')).toHaveAttribute('aria-pressed', 'true');
+      await expect(input).toHaveValue(privateTitle); assert.equal(await picked('references'), 'true');
       if (audience === 'public') {
         await search('member open celadon', 'comments'); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');
         const denied = await context.request.get(`${BASE}${publicBase}/threads/${threads.member.open}`);
