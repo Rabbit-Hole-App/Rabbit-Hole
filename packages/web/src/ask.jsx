@@ -38,7 +38,7 @@ import { mergeOutputs, outputSink } from './chat-output-refs.js';
 import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
-import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
+import { lateEvent, settle, withAnswerMeta, withDone, withSavedReply } from './chat-threads.js';
 import { currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import RouteDecision from './RouteDecision.jsx';
 import { reviewRequired } from './proposal-capabilities.js';
@@ -49,6 +49,7 @@ import { TutorActivity } from './TutorActivity.jsx';
 import { fileReviews } from './learn-progress-question.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 import { handleAiRefusal } from './ai-refusal.js';
+import { cardIdFor } from './AnswerFooter.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -691,7 +692,13 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           // The reply as shown, or a Stop as interrupted, saved in the turn's own thread - even when the learner is elsewhere now.
           begin();
           const stopped = flight.signal.aborted;
-          autoSave?.assistant(reply, stopped ? 'interrupted' : 'done').catch(error => console.info('[chat] answer not saved:', error.message));
+          // Once saved, the reply takes its server id, and a card already added under its local id is re-keyed to it, so Add as
+          // card after a reload finds that card instead of adding a second one.
+          autoSave?.assistant(reply, stopped ? 'interrupted' : 'done').then(saved => {
+            if (saved?.messageId == null) return;
+            outputOps?.rekeyCard?.(cardIdFor({ messageId: `local-${replyId}` }), cardIdFor({ messageId: saved.messageId }));
+            setMsgs(messages => withSavedReply(messages, replyId, saved.messageId));
+          }).catch(error => console.info('[chat] answer not saved:', error.message));
           if (late()) return;
           mirror(reply);
           if (stopped && chatThread) setMsgs(messages => settle(messages, replyId, 'stopped'));

@@ -2,7 +2,7 @@
 // late-response guard, and how answer_meta, done and the end of a turn change the streamed messages.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lateEvent, putState, restoredMode, settle, threadsUrl, withAnswerMeta, withDone } from './chat-threads.js';
+import { lateEvent, putState, rekeyed, restoredMode, settle, threadsUrl, withAnswerMeta, withDone, withSavedReply } from './chat-threads.js';
 
 test('History asks for this canvas only, with a trimmed search and a limit', () => {
   assert.equal(threadsUrl('canvas-0a1b2c3d'), '/api/ask/threads?scope=learn&ref=canvas-0a1b2c3d&limit=30');
@@ -72,4 +72,27 @@ test('a state save that fails says why and stays pending for the next change; a 
   assert.deepEqual(pending.current, { id: 'canvaschat-b', state: { mode: 'tutor' } });
   assert.doesNotMatch(told.at(-1), /saved again/, 'never a promise it cannot keep');
   delete globalThis.window;
+});
+
+// Duplicate card on reuse (owner priority 2, 2026-10-21): a reply the browser saved itself kept its local id, so Add as card made
+// chat-local-<n>; after a reload the saved message is chat-<server id>, the footer did not find that card and Add made a second.
+// The save's answer now gives the reply its server id and re-keys a card added under the local one (AnswerFooter cardIdFor).
+test('a reply saved by the browser takes its server id, and its card follows it, so a reload finds one card', () => {
+  const card = message => `chat-${message.messageId ?? message.id}`; // AnswerFooter.jsx cardIdFor
+  const msgs = [{ role: 'user', messageId: 'local-q-r1' }, { role: 'assistant', id: 'r1', messageId: 'local-r1', status: 'done', content: 'A' }];
+  let canvas = [{ id: card(msgs[1]), answer: 'A' }]; // Add as card before the save answered
+  const saved = withSavedReply(msgs, 'r1', 42);
+  assert.equal(saved[1].messageId, '42');
+  assert.equal(saved[0], msgs[0], 'other messages unchanged');
+  canvas = rekeyed(canvas, card(msgs[1]), card(saved[1]));
+  // After a reload the restored message has only its server id: the footer finds the card (Added), so no second card.
+  assert.ok(canvas.some(entry => entry.id === card({ messageId: '42' })));
+  assert.equal(canvas.length, 1);
+  // A reply that already has a server id keeps it; no id from the save changes nothing.
+  assert.equal(withSavedReply(saved, 'r1', 43)[1].messageId, '42');
+  assert.equal(withSavedReply(msgs, 'r1', null), msgs);
+  // Never a lost or doubled card: an absent source or a taken target leaves the cards as they are.
+  const two = [{ id: 'chat-local-r1' }, { id: 'chat-42' }];
+  assert.equal(rekeyed(two, 'chat-local-r1', 'chat-42'), two);
+  assert.equal(rekeyed(canvas, 'chat-local-r9', 'chat-50'), canvas);
 });

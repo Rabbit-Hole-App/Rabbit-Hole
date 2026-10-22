@@ -30,7 +30,7 @@ import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { motionHold, recoverVideo, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
-import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, readsAgain, recoveryButtons, resumesJob, videoLabel } from './learn-video-label.js';
+import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, pressOperation, readsAgain, recoveryButtons, resumesJob, videoLabel } from './learn-video-label.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
@@ -1568,7 +1568,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
     // Owner message 37: each Generate press of a /motion request is its own video. Its request id is made once for the press and
     // kept on the card, so a resend or reload of that press reuses it; Retry of a failed card keeps the key it has (old cards none).
     const retry = current.status === 'failed';
-    const operation = current.operation?.op === 'motion_request' && !retry && !current.operation.request_id ? { ...current.operation, request_id: crypto.randomUUID() } : current.operation;
+    const operation = pressOperation(current, retry);
     current = { ...current, operation };
     onChange({ ...current, status: 'generating' });
     try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }

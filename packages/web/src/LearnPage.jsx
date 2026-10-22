@@ -117,6 +117,7 @@ import { typingIn } from './canvas-equation.js';
 import { codeRef, paperRef, wikiRef } from './chat-sources.js';
 import { draftChatRef, materialize, placeExcerpts } from './pdf-excerpt.js';
 import { EXCERPT_EVENT, get as excerptDraft } from './pdf-excerpt-drafts.js';
+import { rekeyed } from './chat-threads.js';
 
 const LearnNotes = lazyFeature(() => import('./LearnNotes.jsx'), 'Notes');
 // Follow-up R3 item 3: this browser's copy of a board cannot be read (blocked storage, a value that is not a board), so a save
@@ -448,6 +449,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     generation: (target, current, concept = app.title) => generationField({ offered: isLearnCommand('motion'), concept, target, current }),
     proposalMade: proposalId => !!canvasApi.current?.blocks?.().some(madeFrom(proposalId)),
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
+    // A chat card added under its answer's local id takes the saved message's id (ask.jsx), unless that id is already here.
+    rekeyCard: (from, to) => setExchanges(previous => rekeyed(previous, from, to)),
     locate: id => canvasApi.current?.focusBlock(id),
     // The Tutor entry (learn-coaching-entry.js): whether this board has been restored, and how much is on it (cards and native
     // objects). Never content: a count only.
