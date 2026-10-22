@@ -249,8 +249,11 @@ const selectBlock = async id => {
   }
   throw Error(`selecting block ${id} showed no [data-selected-card] pill`);
 };
-const undo = async () => { await focusCanvas(); await page.keyboard.press('Control+z'); await page.waitForTimeout(800); };
-const redo = async () => { await focusCanvas(); await page.keyboard.press('Control+Shift+z'); await page.waitForTimeout(800); };
+// Undo and Redo need the keyboard off any field (AdaptiveCanvas ignores them while typing). A canvas this full of cards can
+// leave no bare point to click (fast-e2e 39848544208, Split into N cards): then the focused field is left by blur instead.
+const offFields = async () => { if (await barePoint()) return focusCanvas(); await page.evaluate(() => document.activeElement?.blur?.()); await page.waitForTimeout(250); };
+const undo = async () => { await offFields(); await page.keyboard.press('Control+z'); await page.waitForTimeout(800); };
+const redo = async () => { await offFields(); await page.keyboard.press('Control+Shift+z'); await page.waitForTimeout(800); };
 
 // ---------------------------------------------------------------- Chat
 const chatTab = async () => { const tab = page.locator('[data-panel-tab="chat"]'); if (await tab.count() && await tab.getAttribute('aria-selected') !== 'true') await tab.click(); };
@@ -1395,5 +1398,5 @@ writeFileSync(`${OUT}/results.json`, JSON.stringify({ base: BASE, canvas: canvas
   crops, failed_crops: failedCrops, inline_requests: inline.map(b => ({ mode: b.request?.mode ?? null, image: b.request?.context?.image ?? null })), highlight_puts: highlightPuts.length, uploads, model_capable_refused: refused, outside_hosts: [...new Set(outside)], page_errors: errors,
   note: 'request payloads only: an image file ref proves the crop rode the request, not that a model understood the figure' }, null, 2));
 if (results.length !== total) console.log(`FAIL ran ${results.length} checks, but total says ${total}`);
-console.log(`${passed}/${total} passed`);
+console.log(`${passed}/${total} checks passed`);
 process.exit(passed === total && results.length === total ? 0 : 1);

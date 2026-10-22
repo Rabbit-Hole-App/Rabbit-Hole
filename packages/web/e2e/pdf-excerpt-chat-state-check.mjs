@@ -176,5 +176,6 @@ await browser.close();
 const failed = results.filter(r => !r.ok).length;
 console.log(`model requests aborted: ${refused.length}; outside hosts: ${[...new Set(outside)].join(', ') || 'none'}; page errors: ${errors.length}`);
 for (const error of errors) console.log(`  page error: ${error}`);
-console.log(`${results.length - failed}/4 passed`);
-process.exit(failed || results.length !== 4 || errors.length ? 1 : 0);
+const total = 4; // the number of check() steps above
+console.log(`${results.length - failed}/${total} checks passed`);
+process.exit(failed || results.length !== total || errors.length ? 1 : 0);
