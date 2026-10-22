@@ -7,9 +7,10 @@ import { cn } from './ui.jsx';
 // lead contract B2). It shows the command's label, never its /name (owner, 2026-10-20: /simplify reads Simplify), in the
 // command's tint (CommandTone.jsx); a command with no tint stays neutral. The label, when onOpen is given, reopens the
 // picker to swap it; the x calls onRemove, and the caller keeps the argument text, attachments and context - removing a
-// command never clears anything else. Sizes come from the caller (className for the pill, removeClassName for the x), so
+// command never clears anything else. Without onRemove (a sent Chat message, UI-16) it is read-only: no x and no action.
+// Sizes come from the caller (className for the pill, removeClassName for the x), so
 // each composer keeps its own height.
-export default function CommandPill({ name, onOpen = null, onRemove, disabled = false, className = '', removeClassName = '' }) {
+export default function CommandPill({ name, onOpen = null, onRemove = null, disabled = false, className = '', removeClassName = '' }) {
   const label = commandLabel(name);
   const tone = commandTone(name);
   return (
@@ -17,8 +18,8 @@ export default function CommandPill({ name, onOpen = null, onRemove, disabled = 
       {onOpen
         ? <button type="button" title="Change the command" disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={onOpen} className="inline-flex cursor-pointer items-center gap-1 font-medium">{label}</button>
         : <span className="inline-flex items-center gap-1 font-medium">{label}</span>}
-      <button type="button" aria-label={`Remove ${label}`} title={`Remove ${label}`} onMouseDown={event => event.preventDefault()} onClick={onRemove} disabled={disabled}
-        className={cn('flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink', removeClassName)}><X size={13} /></button>
+      {onRemove && <button type="button" aria-label={`Remove ${label}`} title={`Remove ${label}`} onMouseDown={event => event.preventDefault()} onClick={onRemove} disabled={disabled}
+        className={cn('flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink', removeClassName)}><X size={13} /></button>}
     </span>
   );
 }

@@ -1,6 +1,8 @@
 // The chat transcript (moved out of ask.jsx's AskPanel): one ChatMessage per message, and the cards a message can be.
 import { Component, useEffect, useRef, useState } from 'react';
 import { ArrowDown, Copy, CornerDownRight, Loader2, Network } from 'lucide-react';
+import CommandPill from './CommandPill.jsx';
+import { sentCommand } from './command-token.js';
 import { api, navigate } from './api.js';
 import { EvidencePill, Md } from './Md.jsx';
 import { waitingText } from './waiting-text.js';
@@ -186,7 +188,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
         <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">
           {m.canvasImage && <img src={m.canvasImage} alt="Canvas with the question’s target marked" className="mb-2 max-h-32 w-44 rounded border border-line bg-white object-contain" />}
           {m.passage && <blockquote className="mb-2 max-h-24 overflow-auto border-l-2 border-accent/40 pl-2 text-xs text-ink-2">{m.passage}</blockquote>}
-          {m.content}
+          <SentText m={m} />
         </div>
         {/* What this prompt made on the canvas (UI changes brief 5): a thumbnail or a compact card link each. */}
         <ChatOutputs outputs={m.outputs} ops={outputOps} />
@@ -264,4 +266,12 @@ ${line}` : line));
       )}
     </>
   );
+}
+
+// A sent message's command (UI-16, owner 2026-10-21): the composer's pill, read-only (no x, no action), inline before the
+// words as typed. Display only: the stored text and command are never rewritten.
+function SentText({ m }) {
+  const { command, text } = sentCommand(m);
+  if (!command) return m.content;
+  return <span className="whitespace-pre-wrap break-words"><CommandPill name={command} className="mr-1.5 h-5 rounded-md px-1.5 align-[-3px] text-xs" />{text}</span>;
 }
