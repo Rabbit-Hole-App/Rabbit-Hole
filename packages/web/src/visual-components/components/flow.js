@@ -1,6 +1,8 @@
 // Flow: an ordered sequence of steps joined by arrows. Each step is a
 // module-like box; step anchors are step-0 .. step-(n-1) plus first and last.
-import { BOX_ROLES, labelText, labelledBox, sides } from '../text.js';
+import { labelledBox } from '../label.js';
+import { BOX_ROLES, sides } from '../text.js';
+import { validateLabelContent } from '../../explain-contract.js';
 
 export default {
   name: 'flow', version: 1,
@@ -16,14 +18,18 @@ export default {
   fixtures: ['pipeline'],
   compile({ params, hints }) {
     const horizontal = hints.direction === 'horizontal';
-    const boxes = params.steps.map((step, index) => {
+    const build = minHeight => params.steps.map((step, index) => {
       const label = typeof step === 'object' && step && !Array.isArray(step) && 'label' in step ? step.label : step;
       const role = (typeof step === 'object' && step?.role) || 'neutral';
       if (!BOX_ROLES.includes(role)) throw new Error(`steps.${index}.role must be one of ${BOX_ROLES.join(', ')}`);
-      const text = labelText(label);
-      if (!text) throw new Error(`steps.${index} needs a label`);
-      return labelledBox({ id: `step${index}`, text, role, minWidth: hints.nodeWidth, maxWidth: hints.nodeWidth });
+      if (!label) throw new Error(`steps.${index} needs a label`);
+      return labelledBox({ id: `step${index}`, label: validateLabelContent(label), role, minWidth: hints.nodeWidth, maxWidth: hints.nodeWidth, ...(minHeight ? { minHeight } : {}) });
     });
+    // A row of steps shares one height, so a wrapped label does not leave one
+    // box taller than its neighbours (render review, request-path-parts).
+    let boxes = build();
+    const tallest = Math.max(...boxes.map(box => box.h));
+    if (horizontal && boxes.some(box => box.h !== tallest)) boxes = build(tallest);
     // One cross size for every step, so arrows run straight between centres.
     const cross = Math.max(...boxes.map(box => (horizontal ? box.h : box.w)));
     const objects = [], anchors = {}, frames = [];

@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "task": "EXP-T10",
+  "recordedAt": "2026-10-22",
+  "basis": "Each corpus image (local only, C:/Users/cyudhist/Desktop/workspace/small-deploy/test_visualizations; case ids from Lane D's intake manifest on explain/d-render) was viewed and mapped to the library at explain/a-t10. Metadata only: no pixels, no copied coordinates, never a runtime branch.",
+  "statuses": {
+    "covered": "a library component draws this with parameters, rendered and checked",
+    "partial": "drawable with existing components, but a visible element the image relies on is missing or approximated",
+    "gap": "needs a capability the library does not have; listed in backlog"
+  },
+  "cases": [
+    { "caseId": "arcee-trinity-large-architecture-b9673a24", "subject": "decoder stack, GQA + sliding-window attention in 3:1, MoE 256 experts + 1 shared, SwiGLU detail",
+      "capabilities": [
+        { "need": "repeated block (60 x) with interleave ratio", "component": "pattern-stack", "status": "covered" },
+        { "need": "MoE router, 256 experts, shared expert", "component": "router-experts", "status": "covered" },
+        { "need": "grouped-query attention head sharing", "component": "attention-fanout", "status": "partial" },
+        { "need": "pre-norm sublayers with residual adds", "component": "flow", "status": "gap", "gap": "merge-and-skip" },
+        { "need": "SwiGLU elementwise product", "component": null, "status": "gap", "gap": "merge-and-skip" },
+        { "need": "numeric side annotations with leader lines", "component": "callout", "status": "partial", "gap": "annotation-leaders" }
+      ] },
+    { "caseId": "diffusion-transformer-long-skip-a4e6231f", "subject": "DiT with long skip concatenations, patch tokens, conv head",
+      "capabilities": [
+        { "need": "transformer block detail", "component": "flow", "status": "partial", "gap": "merge-and-skip" },
+        { "need": "long skip connections into concat nodes", "component": null, "status": "gap", "gap": "merge-and-skip" },
+        { "need": "image patches as tokens", "component": null, "status": "gap", "gap": "image-tokens" }
+      ] },
+    { "caseId": "backprop-hidden-weight-gradient-df8f15a2", "subject": "two-layer network with chain-rule partial derivatives",
+      "capabilities": [
+        { "need": "typeset partial derivatives and the chain-rule sum", "component": "label runs (T04-M2)", "status": "covered" },
+        { "need": "node-link network with labelled weighted edges", "component": null, "status": "gap", "gap": "node-link-graph" }
+      ] },
+    { "caseId": "btl3-27b-hybrid-attention-6d5de116", "subject": "Gated DeltaNet / gated attention hybrid in 3:1, 64 layers",
+      "capabilities": [
+        { "need": "3:1 linear/full attention schedule", "component": "pattern-stack", "status": "covered" },
+        { "need": "gated attention detail (QK-norm, sigmoid output gate)", "component": "flow", "status": "partial", "gap": "branch-merge" },
+        { "need": "Gated DeltaNet block (gated delta rule)", "component": null, "status": "gap", "gap": "gated-deltanet" },
+        { "need": "pre-norm sublayers with residual adds", "component": null, "status": "gap", "gap": "merge-and-skip" }
+      ] },
+    { "caseId": "qwen3-next-80b-hybrid-attention-a5798b99", "subject": "Gated DeltaNet x3 + gated attention x1 with MoE, 48 layers",
+      "capabilities": [
+        { "need": "3 + 1 sublayer schedule", "component": "pattern-stack", "status": "covered" },
+        { "need": "MoE sublayer", "component": "router-experts", "status": "partial" },
+        { "need": "Gated DeltaNet block", "component": null, "status": "gap", "gap": "gated-deltanet" },
+        { "need": "gated attention detail", "component": "flow", "status": "partial", "gap": "branch-merge" },
+        { "need": "residual adds around each sublayer", "component": null, "status": "gap", "gap": "merge-and-skip" }
+      ] },
+    { "caseId": "zaya1-8b-architecture-8ed07e5a", "subject": "CCA + GQA in 4:1, MoE 16 experts top-1, SwiGLU",
+      "capabilities": [
+        { "need": "40 x repeated block, 4:1 interleave", "component": "pattern-stack", "status": "covered" },
+        { "need": "MoE 16 experts, 1 routed per token", "component": "router-experts", "status": "covered" },
+        { "need": "compressed convolutional attention internals", "component": null, "status": "gap", "gap": "unsourced-internals" },
+        { "need": "residual adds", "component": null, "status": "gap", "gap": "merge-and-skip" }
+      ] },
+    { "caseId": "deepseek-v3-mla-vs-mha-eea4928a", "subject": "multi-head latent attention versus multi-head attention, KV cache",
+      "capabilities": [
+        { "need": "MHA projections to Q, K, V", "component": "attention-fanout", "status": "partial" },
+        { "need": "latent compressed KV (MLA)", "component": null, "status": "gap", "gap": "latent-attention" },
+        { "need": "side-by-side comparison panels", "component": "stack + section", "status": "covered" }
+      ] },
+    { "caseId": "kimi-k3-architecture-3a80c547", "subject": "Kimi Delta Attention / gated MLA in 3:1, attention residuals across depth",
+      "capabilities": [
+        { "need": "3:1 schedule, 93 layers", "component": "pattern-stack", "status": "covered" },
+        { "need": "Kimi Delta Attention (gated delta rule)", "component": null, "status": "gap", "gap": "gated-deltanet" },
+        { "need": "gated MLA", "component": null, "status": "gap", "gap": "latent-attention" },
+        { "need": "weighted depth-source mixing (AttnRes)", "component": null, "status": "gap", "gap": "merge-and-skip" }
+      ] },
+    { "caseId": "minimax-m3-architecture-fe212e84", "subject": "GQA / sparse attention, MoE 128 experts top-4 + 1 shared, SwiGLU",
+      "capabilities": [
+        { "need": "60 x repeated block", "component": "pattern-stack", "status": "covered" },
+        { "need": "MoE 128 experts top-4 + shared", "component": "router-experts", "status": "covered" },
+        { "need": "SwiGLU elementwise product", "component": null, "status": "gap", "gap": "merge-and-skip" },
+        { "need": "residual adds", "component": null, "status": "gap", "gap": "merge-and-skip" }
+      ] },
+    { "caseId": "qwen3-coder-next-hybrid-attention-daa941f2", "subject": "Gated DeltaNet / gated attention 3:1 with MoE, layer schedule list",
+      "capabilities": [
+        { "need": "layer schedule 3:1", "component": "pattern-stack", "status": "covered" },
+        { "need": "Gated DeltaNet block", "component": null, "status": "gap", "gap": "gated-deltanet" },
+        { "need": "gated attention detail", "component": "flow", "status": "partial", "gap": "branch-merge" }
+      ] },
+    { "caseId": "self-attention-context-vector-959e8622", "subject": "context vector for query 2: projections, scores, softmax, weighted sum",
+      "capabilities": [
+        { "need": "symbolic attention steps for one query with rows 1, 2, T", "component": "attention-steps", "status": "covered" }
+      ] }
+  ],
+  "backlog": [
+    { "id": "merge-and-skip", "title": "Merge nodes (add, multiply, concatenate) and routed skip connectors", "cases": 7, "why": "residual adds, SwiGLU products and long skips need a connector that routes around boxes into a merge node; today connections are straight lines between anchors", "scope": "separate task: one merge-node component plus orthogonal connector routing in the compiler" },
+    { "id": "branch-merge", "title": "Parallel branches feeding one operation", "cases": 3, "why": "gated attention: Q, K, V and gate branches with their own norms meet at one box", "scope": "separate task; may share routing with merge-and-skip" },
+    { "id": "gated-deltanet", "title": "Gated DeltaNet / Kimi Delta Attention block", "cases": 4, "why": "linear-attention block (conv, L2 norm on q/k, alpha/beta gates, gated delta rule, RMSNorm, output gate); not Mamba-2, so state-space-block must not stand in for it", "scope": "separate task, verified against the target model's pinned implementation like T10" },
+    { "id": "latent-attention", "title": "Multi-head latent attention (compressed KV)", "cases": 2, "why": "attention-fanout models head sharing, not a latent KV projection", "scope": "separate task, verified against the DeepSeek-V3 reference implementation" },
+    { "id": "node-link-graph", "title": "Node-link network diagram", "cases": 1, "why": "layered neurons with labelled edges for backprop", "scope": "separate task" },
+    { "id": "annotation-leaders", "title": "Side annotations with leader lines", "cases": 1, "why": "numeric facts pointing at a part of the diagram", "scope": "small; may be callout + reference connection once connector routing exists" },
+    { "id": "image-tokens", "title": "Image patches as tokens", "cases": 1, "why": "generated scenes draw no images (learn-scene-gates); a patch would need a non-image stand-in", "scope": "product decision before any work" },
+    { "id": "unsourced-internals", "title": "Internals without a verified source", "cases": 1, "why": "compressed convolutional attention internals are not in any source we hold", "scope": "draw as an opaque module until a source is pinned" }
+  ]
+}

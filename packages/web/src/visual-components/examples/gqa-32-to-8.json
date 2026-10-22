@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "gqa-32-to-8",
+  "title": "Grouped-query attention: 32 query heads, 8 key/value heads",
+  "components": [
+    { "id": "heads", "component": "attention-fanout", "version": 1, "params": { "variant": "grouped-query", "queryHeads": 32, "kvHeads": 8 } },
+    { "id": "why", "component": "callout", "version": 1, "params": { "text": "Fewer key/value heads means a smaller cache to keep during generation; each group of 4 query heads reads the same keys and values." } }
+  ],
+  "presentation": { "mode": "static" }
+}

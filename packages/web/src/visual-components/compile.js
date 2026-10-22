@@ -6,11 +6,13 @@ import { EXPLAIN_CONTRACT_VERSION, canonicalJson, validateCompiledVisual, valida
 import { evaluateScene } from '../scene-evaluate.js';
 import { checkLayoutLint } from '../scene-layout-lint.js';
 import { legibilityIssues } from '../scene-layout.js';
-import { labelText } from './text.js';
+import { budgetIssues, chooseDensity, measureScene } from './budget.js';
+import { labelWidth, lineFields, wrapLabel } from './label.js';
 import { componentFor, resolveHints, resolveParams } from './registry.js';
 
 const PAD = 32, GAP = 32;
 const STATIC_DURATION = 1;
+const FATAL = new Set(['objects-per-part', 'objects-total', 'parts', 'timeline-events']);
 
 // shortcut: FNV-1a 64-bit, a determinism and identity hash, not a security one; switch ResultIdentity to SHA-256 if a hash ever guards access.
 export function contentHash(value) {
@@ -42,7 +44,6 @@ export function compileVisual(raw) {
     if (item.parent !== undefined) {
       const parent = items.get(item.parent);
       if (!componentFor(parent.component, parent.version).container) where(`its parent "${item.parent}" is not a container`);
-      if (parent.part !== item.part) where(`it is on a different part from its parent "${item.parent}"`);
     }
     resolved.set(item.id, { item, definition, params, hints, where });
   }
@@ -53,6 +54,16 @@ export function compileVisual(raw) {
       seen.add(at);
     }
   }
+  // A child without a part is on its parent's part, so an author marks only
+  // the top of each sub-card; a child naming a different part is refused.
+  const inherit = item => {
+    if (item.parent === undefined) return item.part;
+    const parentPart = inherit(items.get(item.parent));
+    if (item.part !== undefined && item.part !== parentPart) resolved.get(item.id).where(`it is on a different part from its parent "${item.parent}"`);
+    return parentPart;
+  };
+  for (const item of spec.components) item.part = inherit(item);
+  const componentNotes = [];
   const childrenOf = id => spec.components.filter(item => item.parent === id).map(item => item.id);
 
   // One block per instance, in its own coordinates; containers place their
@@ -61,7 +72,8 @@ export function compileVisual(raw) {
     const { item, definition, params, hints, where } = resolved.get(id);
     const children = childrenOf(id).map(block);
     let out;
-    try { out = definition.compile({ params, hints, label: item.label, children }); } catch (error) { where(error.message); }
+    try { out = definition.compile({ params, hints, label: item.label, evidence: item.evidence, children }); } catch (error) { where(error.message); }
+    for (const note of out.diagnostics || []) componentNotes.push({ code: note.code, message: note.message.slice(0, 300), component: id });
     const objects = out.objects.map(object => {
       const full = `${id}.${object.id}`;
       if (full.length > 64) where(`object id "${full}" is over 64 characters: use a shorter component id`);
@@ -107,13 +119,20 @@ export function compileVisual(raw) {
     const parts = [connection.from, connection.to].map(ref => partOf.get(ref.split('.')[0])).filter(part => part !== undefined);
     if (new Set(parts).size > 1) throw new Error(`Connection ${index + 1} joins two different parts`);
     const id = `link${index}`;
-    const label = connection.label === undefined ? undefined : labelText(connection.label);
-    objects.push({
-      id, type: connection.kind === 'flow' ? 'arrow' : 'line', semanticId: id,
-      ...(parts.length ? { part: parts[0] } : {}),
-      initialState: { from: ends[0], to: ends[1], ...(label ? { label } : {}), role: 'neutral' },
-    });
+    const onPart = parts.length ? { part: parts[0] } : {};
+    objects.push({ id, type: connection.kind === 'flow' ? 'arrow' : 'line', semanticId: id, ...onPart, initialState: { from: ends[0], to: ends[1], role: 'neutral' } });
     objectMap[id] = { component: connection.from.split('.')[0], anchor: connection.from.split('.')[1], evidence: [] };
+    // The label sits at the middle of the connection, beside it, as its own
+    // text: a stroke's own label is drawn at its start, which lands on the
+    // frame or box the connection leaves (render review 2026-10-22).
+    if (connection.label !== undefined) {
+      const line = wrapLabel(connection.label, Infinity, 'annotation')[0];
+      const mid = { x: (ends[0].x + ends[1].x) / 2, y: (ends[0].y + ends[1].y) / 2 };
+      const flat = Math.abs(ends[1].x - ends[0].x) >= Math.abs(ends[1].y - ends[0].y);
+      const at = flat ? { x: round(mid.x - labelWidth(connection.label, 'annotation') / 2), y: round(mid.y - 8) } : { x: round(mid.x + 8), y: round(mid.y + 5) };
+      objects.push({ id: `${id}-label`, type: 'text', semanticId: `${id}-label`, ...onPart, initialState: { ...lineFields(line, 'text'), ...at, typography: 'annotation' } });
+      objectMap[`${id}-label`] = objectMap[id];
+    }
   });
 
   const { presentation } = spec;
@@ -131,8 +150,18 @@ export function compileVisual(raw) {
 
   // The compiled scene must pass the existing validators for every part, and
   // the layout lint the generation gates run; lint findings are diagnostics.
+  // Over a limit the scene schema enforces: refuse here, naming the measured
+  // count and the density decision, before validateScene's bare error.
+  const measure = measureScene(scene, { authored: spec.components.length });
+  const budget = budgetIssues(measure);
+  const fatal = budget.filter(issue => FATAL.has(issue.code));
+  if (fatal.length) {
+    const density = chooseDensity(measure);
+    const advice = density.layout === 'split' ? `: split it into ${density.parts} detail parts` : ': draw less';
+    throw new Error(`Over budget (${fatal.map(issue => `${issue.code} ${issue.value} > ${issue.limit}`).join(', ')})${advice}`);
+  }
   const partIndexes = spec.parts.length ? spec.parts.map((_, index) => index) : [undefined];
-  const perPart = [], diagnostics = [];
+  const perPart = [], diagnostics = [...componentNotes];
   for (const part of partIndexes) {
     const result = evaluateScene(structuredClone(scene), scene.duration, part === undefined ? {} : { part });
     const onScreen = { ...result.scene, objects: result.scene.objects.filter(object => object.part === undefined || object.part === part) };
@@ -142,15 +171,17 @@ export function compileVisual(raw) {
     }
   }
   for (const issue of legibilityIssues(scene)) diagnostics.push({ code: 'legibility', message: `${issue.textClass} text would draw at ${issue.effectivePx}px, below its ${issue.floor}px floor`.slice(0, 300) });
+  for (const issue of budget) diagnostics.push({ code: issue.code, message: `${issue.value} is over the limit of ${issue.limit}${issue.part === undefined ? '' : ` on part ${issue.part + 1}`}` });
 
   return validateCompiledVisual({
     version: EXPLAIN_CONTRACT_VERSION,
     specHash: contentHash(spec),
     scene,
-    counts: { authored: spec.components.length, compiled: objects.length, perPart, renderWork: perPart.reduce((sum, n) => sum + n, 0) },
+    counts: { authored: spec.components.length, compiled: objects.length, perPart, renderWork: measure.renderNodesTotal },
     componentVersions: Object.fromEntries(spec.components.map(item => [item.component, item.version])),
     objectMap,
-    coverage: { states: partIndexes.length, timeCheckpoints: [scene.duration], complete: true },
+    // Stills prove only their own moments: a timeline is never complete coverage.
+    coverage: { states: measure.settings, timeCheckpoints: measure.timeCheckpoints, complete: scene.timeline.length === 0 },
     diagnostics,
   });
 }

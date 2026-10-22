@@ -2,12 +2,18 @@
 // ComponentDefinition contract when it is registered, so the compiler and the
 // author prompt (T17) read the same declared parameters, hints and anchors.
 import { validateComponentDefinition, validateLabelContent } from '../explain-contract.js';
+import { LIMITS } from './budget.js';
+import attentionFanout from './components/attention-fanout.js';
+import attentionSteps from './components/attention-steps.js';
 import callout from './components/callout.js';
 import flow from './components/flow.js';
 import legend from './components/legend.js';
 import module from './components/module.js';
+import patternStack from './components/pattern-stack.js';
+import routerExperts from './components/router-experts.js';
 import section from './components/section.js';
 import stack from './components/stack.js';
+import stateSpaceBlock from './components/state-space-block.js';
 
 const REGISTRY = new Map();
 
@@ -19,7 +25,7 @@ export function register(definition) {
   return checked;
 }
 
-for (const definition of [section, module, stack, flow, callout, legend]) register(definition);
+for (const definition of [section, module, stack, flow, callout, legend, patternStack, attentionFanout, attentionSteps, routerExperts, stateSpaceBlock]) register(definition);
 
 export function componentFor(name, version) {
   const found = REGISTRY.get(`${name}@${version}`);
@@ -27,6 +33,16 @@ export function componentFor(name, version) {
   const known = [...REGISTRY.values()].filter(item => item.name === name).map(item => item.version);
   throw new Error(known.length ? `component "${name}" has no version ${version} (known: ${known.join(', ')})` : `unknown component "${name}"`);
 }
+
+// How components combine into one card, for the author prompt beside the
+// catalogue (Lane C's explain-author.js states the same rules). Numbers come
+// from budget.js, so the guide cannot drift from what the compiler enforces.
+export const COMPOSITION = Object.freeze({
+  card: `One card is at most ${LIMITS.width} by ${LIMITS.height} pixels; a wider or taller layout is scaled down until its text is unreadable, so prefer columns and short rows.`,
+  parts: `Overview and detail: spec.parts [{id, title}] (at most ${LIMITS.parts}) becomes a pager of sub-cards. Put a component on one sub-card with part (its index); its children follow it. A component without part shows on every sub-card, so keep shared components few. Each sub-card shows at most ${LIMITS.objectsPerPart} objects. Connections join components of one part.`,
+  overviewDetail: 'When one picture does not fit, make part 0 a compact overview of the whole idea and give each later part one stretch of it in detail, with its notes beside it.',
+  hierarchy: 'Containers (container: true) lay out the components that name them as parent; nest them for groups inside groups.',
+});
 
 // What an author may use: the declarative half only, newest version of each.
 export function catalogue() {

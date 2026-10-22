@@ -12,7 +12,8 @@ const mod = (id, label, extra = {}) => ({ id, component: 'module', version: 1, p
 const textOf = compiled => compiled.scene.objects.map(object => object.initialState.label ?? object.initialState.text).filter(Boolean);
 
 test('the catalogue registers the six core components, each a valid definition', () => {
-  assert.deepEqual(catalogue().map(item => item.name).sort(), ['callout', 'flow', 'legend', 'module', 'section', 'stack']);
+  const names = catalogue().map(item => item.name);
+  for (const core of ['callout', 'flow', 'legend', 'module', 'section', 'stack']) assert.ok(names.includes(core), core);
   for (const item of catalogue()) assert.equal(item.compile, undefined, `${item.name}: the catalogue is declarative only`);
 });
 
@@ -20,7 +21,8 @@ test('every bundled example compiles to a scene the existing validators accept, 
   for (const [name, example] of Object.entries(EXAMPLES)) {
     const compiled = compileVisual(example);
     assert.deepEqual(compiled.diagnostics, [], name);
-    assert.ok(validateScene(structuredClone(compiled.scene)), name);
+    // A paged scene validates through the pager (evaluateScene), as the gates run it.
+    if (!compiled.scene.inputs) assert.ok(validateScene(structuredClone(compiled.scene)), name);
     assert.ok(evaluateScene(structuredClone(compiled.scene), compiled.scene.duration, {}).state.objects.length, name);
     assert.ok(compiled.scene.width <= 1120, `${name} fits the widest card`);
   }
@@ -108,10 +110,10 @@ test('duplicates and executable fields are refused before anything compiles', ()
   assert.throws(() => compileVisual(spec([mod('a', 'A', { params: { label: 'A', style: 'x' } })])), /forbidden field "style"/);
 });
 
-test('math labels are refused until typeset labels exist, never shown as raw LaTeX', () => {
-  assert.throws(() => compileVisual(spec([mod('a', { runs: [{ kind: 'math', tex: 'T = 2\\pi\\sqrt{L/g}' }] })])), /math labels are not supported/);
+test('plain-text runs join into one ordinary label (math runs: label.test.mjs)', () => {
   const mixed = compileVisual(spec([mod('a', { runs: [{ kind: 'text', text: 'Plain ' }, { kind: 'text', text: 'words' }] })]));
   assert.ok(textOf(mixed).includes('Plain words'));
+  assert.equal(mixed.scene.objects[0].initialState.runs, undefined);
 });
 
 test('detail parts become pages of the existing pager; shared context shows on every part', () => {
@@ -168,4 +170,46 @@ test('definitions keep layout hints apart from semantic parameters', () => {
     const definition = componentFor(name, 1);
     for (const hint of Object.keys(definition.hints)) assert.ok(!(hint in definition.params), `${name}.${hint}`);
   }
+});
+
+test('render review fixes: connector labels sit mid-connection clear of every box; callouts read left-aligned; wrapped boxes fit their text', async () => {
+  const { estimateTextBox } = await import('../scene-layout.js');
+  const compiled = compileVisual(spec([
+    { id: 'row', component: 'stack', version: 1, hints: { direction: 'row', gap: 96 } },
+    { id: 'left', component: 'section', version: 1, parent: 'row', params: { title: 'Client' } }, mod('ask', 'Send request', { parent: 'left' }),
+    { id: 'right', component: 'section', version: 1, parent: 'row', params: { title: 'Server' } }, mod('reply', 'Build answer', { parent: 'right' }),
+  ], { connections: [{ from: 'ask.right', to: 'reply.left', label: 'HTTP' }] }));
+  const label = compiled.scene.objects.find(object => object.id === 'link0-label').initialState;
+  const box = estimateTextBox({ text: label.text, x: label.x, y: label.y, fontSize: 13, anchor: 'start', baseline: 'auto' });
+  for (const other of compiled.scene.objects.filter(object => object.type === 'box' && !object.id.endsWith('.frame'))) {
+    const s = other.initialState;
+    assert.ok(box.xMax <= s.x || box.xMin >= s.x + s.w || box.yMax <= s.y || box.yMin >= s.y + s.h, `label overlaps ${other.id}`);
+  }
+  const callout = compileVisual(spec([{ id: 'c', component: 'callout', version: 1, params: { text: 'Short note.' } }]));
+  assert.equal(callout.scene.objects[0].initialState.label, undefined);
+  assert.equal(callout.scene.objects[1].initialState.text, 'Short note.');
+  const wrapped = compileVisual(spec([mod('m', 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen', { hints: { maxWidth: 640 } })]));
+  assert.ok(wrapped.scene.objects[0].initialState.w <= 640);
+});
+
+test('overview and detail: a request too big for one picture compiles as parts, children follow their parent part', async () => {
+  const { COMPOSITION } = await import('./registry.js');
+  assert.match(COMPOSITION.parts, /spec\.parts/);
+  assert.match(COMPOSITION.parts, /at most 4/);
+  const compiled = compileVisual(EXAMPLES['request-path-parts']);
+  assert.deepEqual(compiled.diagnostics, []);
+  assert.equal(compiled.coverage.states, 3);
+  for (const part of [0, 1, 2]) {
+    const shown = evaluateScene(structuredClone(compiled.scene), 1, { part }).scene.objects.filter(object => object.part === undefined || object.part === part);
+    assert.ok(shown.length <= 60);
+  }
+  assert.ok(compiled.scene.objects.filter(object => object.id.startsWith('dns-cache.')).every(object => object.part === 1), 'a child inherits its section part');
+  assert.throws(() => compileVisual({ ...EXAMPLES['request-path-parts'], components: EXAMPLES['request-path-parts'].components.map(item => (item.id === 'dns-cache' ? { ...item, part: 2 } : item)) }), /different part from its parent "before"/);
+  const crowded = { version: 1, id: 'one', title: 'One', presentation: { mode: 'static' }, components: EXAMPLES['request-path-parts'].components.map(({ part, ...rest }) => rest) };
+  assert.ok(compileVisual(crowded).diagnostics.some(item => item.code === 'legibility' || item.code === 'height' || item.code === 'width'), 'the same content on one card is flagged, which is why it needs parts');
+});
+
+test('every bundled example passes the generation gates a real /explain scene must pass', async () => {
+  const { sceneProblem } = await import('../../../control-plane/src/learn-scene-gates.js');
+  for (const [name, example] of Object.entries(EXAMPLES)) assert.equal(sceneProblem(compileVisual(example).scene), null, name);
 });

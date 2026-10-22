@@ -207,11 +207,14 @@ export default function SceneControls({ declarations, inputs, data, onInput, onR
         {/* Reset flows with the controls (left), never pinned right - a wide
             card can run under the floating drawing toolbar, and a control
             hidden there is a control that does not exist. Asking the tutor
-            lives only in the Ask-in-chat pill + bottom composer. */}
+            lives only in the Ask-in-chat pill + bottom composer. Offered only
+            while a value differs from what Reset restores (onReset null). */}
+        {onReset && (
         <button type="button" data-scene-reset onClick={onReset}
           className="flex h-8 items-center rounded-lg px-2.5 text-xs text-ink-2 hover:bg-hover hover:text-ink">
           Reset experiment
         </button>
+        )}
       </div>
     </div>
   );

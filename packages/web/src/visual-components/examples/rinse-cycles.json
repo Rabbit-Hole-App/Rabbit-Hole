@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "rinse-cycles",
+  "title": "A washing machine rinses in repeated cycles",
+  "components": [
+    { "id": "rinse", "component": "pattern-stack", "version": 1, "params": {
+      "title": "Rinse cycle",
+      "pattern": [{ "label": "Fill with clean water", "role": "input" }, "Agitate", { "label": "Drain and spin", "role": "output" }],
+      "count": 3
+    } }
+  ],
+  "presentation": { "mode": "static" }
+}

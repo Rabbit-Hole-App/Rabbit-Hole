@@ -58,7 +58,10 @@ const json = z.lazy(() => z.union([
 const UNSAFE_TEX = /\\(href|url|includegraphics|html\w*|def|gdef|edef|xdef|newcommand|renewcommand|providecommand|let|futurelet|input|include|write|immediate)\b/;
 const run = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string().min(1).max(600) }).strict(),
-  z.object({ kind: z.literal('math'), tex: z.string().min(1).max(200).refine(tex => !UNSAFE_TEX.test(tex), 'unsupported LaTeX command') }).strict(),
+  // A control character in TeX is a lost backslash (JS "\f" is a form feed):
+  // KaTeX would typeset the remains as plain letters, so refuse it.
+  z.object({ kind: z.literal('math'), tex: z.string().min(1).max(200).refine(tex => !UNSAFE_TEX.test(tex), 'unsupported LaTeX command')
+    .refine(tex => !/[\u0000-\u001f\u007f]/.test(tex), 'a control character in a formula (a lost backslash?)') }).strict(),
 ]);
 export const labelContentSchema = z.union([
   z.string().max(600),
@@ -89,6 +92,9 @@ const experiment = z.object({
   affects: z.array(id).min(1).max(32),
   contrasts: z.array(text(200).min(1)).min(1).max(8),
   dependsOn: z.array(id).max(8).default([]),
+  // Mirrors Lane B's gate (explain/b2-t26m2): an invariant experiment is valid only when its listed
+  // results stay the same and the card shows which setting is in effect.
+  invariant: z.boolean().optional(),
 }).strict();
 export const explanationPresentationSchema = z.object({
   mode: z.enum(['static', 'steps', 'time']),

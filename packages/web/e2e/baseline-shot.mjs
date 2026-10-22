@@ -20,11 +20,11 @@ await page.goto(`${base}/apps/repo-06745f10-nanogpt?tab=learn`);
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 await canvas.waitFor({ timeout: 30000 });
 await page.locator('[aria-label="Insert lesson block"]').click();
-await page.getByRole('menuitem', { name: 'Animation', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Visual explanation', exact: true }).click();
 const node = canvas.locator('[data-block-id]').last();
 await node.getByText('One token, all the way through').waitFor({ timeout: 5000 });
 // A fixed, deterministic moment: every object on screen, nothing mid-tween.
-await node.locator('input[aria-label="Animation time"]').fill('12.5');
+await node.locator('input[aria-label="Explanation time"]').fill('12.5');
 await page.waitForTimeout(900);
 await node.screenshot({ path: 'e2e/shots/token-journey-baseline.png' });
 console.log('baseline captured at t=12.5s');

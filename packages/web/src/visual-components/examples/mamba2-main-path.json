@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "mamba2-main-path",
+  "title": "Inside a Mamba-2 block",
+  "components": [
+    { "id": "block", "component": "state-space-block", "version": 1, "params": { "normBeforeGate": false, "scope": "main-path" } }
+  ],
+  "presentation": { "mode": "static" }
+}

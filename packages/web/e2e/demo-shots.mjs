@@ -32,9 +32,9 @@ for (const [label, times, slug] of shots) {
   await page.locator('[aria-label="Insert lesson block"]').click();
   await page.getByRole('menuitem', { name: label, exact: true }).click();
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('input[aria-label="Animation time"]').waitFor({ timeout: 8000 });
+  await node.locator('input[aria-label="Explanation time"]').waitFor({ timeout: 8000 });
   for (const t of times) {
-    await node.locator('input[aria-label="Animation time"]').fill(t);
+    await node.locator('input[aria-label="Explanation time"]').fill(t);
     await page.waitForTimeout(700);
     await node.screenshot({ path: `e2e/shots/demo-${slug}-${t.replace('.', 'p')}.png` });
   }
