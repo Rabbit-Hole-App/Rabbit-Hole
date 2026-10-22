@@ -673,8 +673,8 @@ await check('a scrubbed moment is what a question refers to', async () => {
 });
 
 // EXP-T27: Esc typed in the composer is the composer's and keeps the picked object; Esc that nothing else claims, a
-// blank click in the diagram and a blank click on the canvas each let it go.
-await check('Esc in the composer keeps a picked object; Esc and blank clicks clear it', async () => {
+// blank click in the diagram, a blank click on the canvas and selecting another card each let it go.
+await check('Esc in the composer keeps a picked object; Esc, blank clicks and another card clear it', async () => {
   const node = canvas.locator('[data-block-id]').last();
   const line = node.locator('[data-animation-selection]');
   const pick = async () => { await node.locator('[data-animation-object="tokens"]').click(); await line.waitFor({ timeout: 3000 }); };
@@ -694,6 +694,9 @@ await check('Esc in the composer keeps a picked object; Esc and blank clicks cle
   const box = await canvas.boundingBox();
   await page.mouse.click(box.x + 260, box.y + box.height - 30);
   await cleared('a blank click on the canvas');
+  await pick();
+  await canvas.locator('[data-chat-block]').first().locator('[data-drag-handle]').click();
+  await cleared('selecting another card');
 });
 
 // the abstraction test: a second subject through the same engine, built from
