@@ -36,10 +36,10 @@ async function checkShell(label) {
     return {
       surface: box('[data-canvas-surface]'), tools: box('[data-tool-gutter]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]'),
       home: box('[data-learn-home]'), nav: box('[data-dive-navigator]'), navGutter: box('[data-dive-gutter]'),
-      minimap: box('[aria-label="Canvas overview"]'), composer: box('[data-chat-pane] [data-chat-composer]'), pane: box('[data-chat-pane]'), rail: box('[data-shell-sidebar]'),
+      minimap: box('[aria-label="Canvas overview"]'), composer: box('[data-chat-pane] [data-chat-composer]'), pane: box('[data-chat-pane]'), panel: box('aside[aria-label="Learn agent chat"]'), rail: box('[data-shell-sidebar]'),
     };
   });
-  for (const key of ['surface', 'toolbar', 'home', 'nav', 'minimap', 'composer', 'pane']) assert.ok(g[key], `${label}: ${key} is on screen`);
+  for (const key of ['surface', 'toolbar', 'home', 'nav', 'minimap', 'composer', 'pane', 'panel']) assert.ok(g[key], `${label}: ${key} is on screen`);
   assert.equal(await page.locator('[data-canvas-composer]').count(), 0, `${label}: one main composer, in the Chat pane - no canvas dock`);
   const apart = (a, b) => a.right <= b.x + 0.5 || b.right <= a.x + 0.5 || a.bottom <= b.y + 0.5 || b.bottom <= a.y + 0.5;
   assert.equal(g.rail, null, `${label}: no app rail`);
@@ -49,7 +49,8 @@ async function checkShell(label) {
   // UI-17 (owner, 2026-10-21): the navigator sits at the top of the tools gutter, never in a column between the canvas and the panel.
   assert.equal(g.navGutter, null, `${label}: no navigator column of its own`);
   assert.ok(g.nav.x >= g.tools.x - 0.5 && g.nav.right <= g.tools.right + 0.5 && g.nav.right <= g.surface.x + 0.5 && g.nav.y < g.surface.y + 120, `${label}: navigator at the top of the tools gutter, beside the canvas: ${JSON.stringify({ nav: g.nav, tools: g.tools, surface: g.surface })}`);
-  assert.ok(g.pane.x >= g.surface.right - 0.5 && g.pane.x - g.surface.right <= 6, `${label}: the Chat pane right of the canvas, which runs to it: ${JSON.stringify({ pane: g.pane, surface: g.surface })}`);
+  // Measured at the panel's edge: the Chat pane sits inside the panel's border and px-5 padding (21 px in).
+  assert.ok(g.panel.x >= g.surface.right - 0.5 && g.panel.x - g.surface.right <= 6 && g.pane.x >= g.panel.x, `${label}: the Chat panel right of the canvas, which runs to it: ${JSON.stringify({ panel: g.panel, pane: g.pane, surface: g.surface })}`);
   assert.ok(g.minimap.right <= g.pane.x + 0.5 && g.minimap.x < (g.surface.x + g.surface.right) / 2 && g.minimap.y > (g.surface.y + g.surface.bottom) / 2, `${label}: minimap lower left of the canvas, left of the Chat pane: ${JSON.stringify({ minimap: g.minimap, surface: g.surface, pane: g.pane })}`);
   for (const [a, b] of [['home', 'toolbar'], ['home', 'nav'], ['nav', 'toolbar'], ['nav', 'minimap'], ['minimap', 'composer'], ['toolbar', 'composer'], ['nav', 'composer']]) assert.ok(apart(g[a], g[b]), `${label}: ${a} and ${b} do not overlap`);
   return g;
