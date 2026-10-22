@@ -277,6 +277,7 @@ export class LearnVideos {
     }
     job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
     Object.assign(spend, { settled: true, costMicros: known });
+    await this.stopLanded(job);
     await this.state.storage.put(`job:${job.key}`, job);
     // Each render as the renderer reported it (orchestrator.mjs render_states): a finished one completed, a failed one failed,
     // one never reported finished interrupted (outcome unknown), never completed. Written once, with the settlement guard above.
@@ -289,6 +290,15 @@ export class LearnVideos {
     }
   }
 
+  // The object accepts a Stop whenever it awaits a fetch, an alarm's poll included (MOT review, item 1). A Stop stored since this
+  // copy of the job was read wins: its stopped flag, status and error are kept, never overwritten. -> true when one landed.
+  async stopLanded(job) {
+    const stored = await this.state.storage.get(`job:${job.key}`);
+    if (!stored?.stopped || job.stopped) return false;
+    Object.assign(job, { stopped: true, status: stored.status, error: stored.error, uncertain: stored.uncertain });
+    return true;
+  }
+
   // One poll of a Motion job: reconcile an unconfirmed submission by its key, settle once the job ends and nothing is in flight,
   // then store the ready video or the reason it ended. A stopped job only settles.
   async pollMotion(job) {
@@ -299,6 +309,7 @@ export class LearnVideos {
       // the job the key started, or closes the key; closed by the process the grant was bound to, no job can ever start under it.
       let answer = job.spend?.grant ? null : { closed: true, boot: null };
       if (!answer) try { answer = await provider.close(job.spend.opId); } catch { /* unreachable: ask again */ }
+      await this.stopLanded(job);
       if (answer?.job_id) job.ticket = { id: answer.job_id };
       else if (answer?.closed && answer.boot === (job.spend?.grant?.boot ?? null)) {
         await this.settleMotion(job, NOTHING);
@@ -312,6 +323,7 @@ export class LearnVideos {
       } else return; // still being admitted, or unreachable: ask again
     }
     const view = await provider.job(job.ticket);
+    await this.stopLanded(job); // so a Stop during that poll is cancelled and settles as cancelled, not failed
     // Stop is durable (MOT-09): a job still running after Stop, recovered by its key or whose stop went unconfirmed, is told again.
     if (job.stopped && view?.status === 'running') await provider.cancel(job.ticket).catch(() => {});
     if (view?.status === 'running' && !late) return;
@@ -338,6 +350,8 @@ export class LearnVideos {
       if (job.provider === 'motion_request' && (job.status === 'generating' || needsSettling(job))) {
         try { await this.pollMotion(job); }
         catch (error) { if (error.final) { job.status = 'failed'; job.error = error.message; } } // transient: the next poll
+        // A Stop that landed after pollMotion's last look: kept, and its job told to stop now that it has a ticket.
+        if (await this.stopLanded(job) && job.ticket) await new MotionRequestProvider(this.env).cancel(job.ticket).catch(() => {});
         await this.state.storage.put(key, job);
         continue;
       }

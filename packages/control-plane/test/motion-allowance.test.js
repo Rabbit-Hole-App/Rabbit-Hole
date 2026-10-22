@@ -629,3 +629,64 @@ test('paused: a job already running still polls, settles and plays; another can 
   await settle(other, async () => motionAttempts(sqlite)[1][1] !== 'reserved');
   assert.deepEqual(motionAttempts(sqlite)[1], [2_000_000, 'settled', 700_000, 'failed'], 'the stopped job settles while paused');
 });
+
+// MOT review FIX-FIRST item 1 (2026-10-21): the Durable Object accepts a Stop while its alarm awaits a fetch. The alarm's older copy
+// of the job must never overwrite that Stop.
+const stopScript = [{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }, { stage: 'storyboarding', max_tokens: 16000, out: 5000 }, { stage: 'authoring', max_tokens: 64000, out: 30000 }, { render: true }];
+// Holds the alarm's request to the path `matches` picks until release(), and says when the alarm reached it.
+function gateFetch(matches) {
+  const through = globalThis.fetch, gate = {};
+  const opened = new Promise(r => { gate.release = r; });
+  globalThis.fetch = async (url, init) => { if (!gate.reached && matches(new URL(url).pathname, init)) { gate.reached = true; await opened; } return through(url, init); };
+  gate.restore = () => { globalThis.fetch = through; };
+  return gate;
+}
+
+test('MOT-09 review: a Stop accepted while the alarm awaits close() is never overwritten; the job its key started is cancelled and settles once as cancelled', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(stopScript);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  const through = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { const r = await through(url, init); if (new URL(url).pathname === '/jobs') throw new Error('socket hang up'); return r; };
+  const { placementId } = await (await actor.fetch(ask())).json();
+  globalThis.fetch = through;
+  await until(() => w.model.held, 'the first call in flight');
+  // The alarm's close() is answered only after the learner's Stop has been accepted and saved (no ticket yet, so no cancel).
+  const gate = gateFetch(path => path.endsWith('/close'));
+  const polling = actor.alarm();
+  await until(() => gate.reached, 'the alarm awaiting close()');
+  const v = (await (await actor.fetch(stopping(placementId))).json()).videos[0];
+  assert.deepEqual([v.status, v.error], ['failed', 'Stopped.']);
+  gate.release(); await polling; gate.restore();
+  const recovered = [...w.orchestrator.o.jobs.values()][0];
+  assert.ok(recovered.controller.signal.aborted, 'the job its key started is cancelled');
+  const after = await video(actor);
+  assert.deepEqual([after.status, after.error], ['failed', 'Stopped.'], 'the alarm did not overwrite the Stop');
+  w.model.held();
+  await settle(actor, async () => motionAttempts(sqlite)[0][1] !== 'reserved');
+  assert.deepEqual([w.orchestrator.posts, w.model.calls.length, w.renders.length], [1, 1, 0], 'no later paid stage or render');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']], 'only the call in flight, settled once');
+  assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]], 'labelled cancelled, not failed');
+});
+
+test('MOT-09 review: a Stop accepted while the alarm awaits the job poll is never overwritten, and the job settles once as cancelled', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(stopScript);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  const { placementId } = await (await actor.fetch(ask())).json();
+  await until(() => w.model.held, 'the first call in flight');
+  const gate = gateFetch((path, init) => /^\/jobs\/[0-9a-f]{32}$/.test(path) && (init?.method || 'GET') === 'GET');
+  const polling = actor.alarm();
+  await until(() => gate.reached, 'the alarm awaiting the job poll');
+  const v = (await (await actor.fetch(stopping(placementId))).json()).videos[0];
+  assert.deepEqual([v.status, v.error], ['failed', 'Stopped.']);
+  gate.release(); await polling; gate.restore();
+  const after = await video(actor);
+  assert.deepEqual([after.status, after.error], ['failed', 'Stopped.'], 'the alarm did not overwrite the Stop');
+  w.model.held();
+  await settle(actor, async () => motionAttempts(sqlite)[0][1] !== 'reserved');
+  assert.deepEqual([w.model.calls.length, w.renders.length], [1, 0], 'no later paid stage or render');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']]);
+  assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]], 'labelled cancelled, not failed');
+  assert.equal((await video(actor)).error, 'Stopped.');
+});

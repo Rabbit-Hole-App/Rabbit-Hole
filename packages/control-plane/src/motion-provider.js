@@ -129,16 +129,17 @@ export class MotionRequestProvider {
     if (new URL(this.url).protocol !== 'https:') return 'The Motion orchestrator requires HTTPS';
     return null;
   }
-  async request(path, { method = 'GET', body } = {}) {
+  // timeoutMs: boot() and submit() run inside Generate's blockConcurrencyWhile (30 s), so each gets 12 s (MOT review, item 2a).
+  async request(path, { method = 'GET', body, timeoutMs = 20000 } = {}) {
     const refused = this.unavailable();
     if (refused) throw definite(refused);
     const transport = this.transport;
-    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
+    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
   }
   // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
   // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
   async submit(input, spend, repository = null) {
-    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+    const response = await this.request('/jobs', { method: 'POST', timeoutMs: 12000, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);
@@ -148,7 +149,7 @@ export class MotionRequestProvider {
   // Nothing has been sent yet, so any failure is a definite no-start.
   async boot() {
     let body = null;
-    try { const response = await this.request('/health'); body = response.ok ? await response.json() : null; } catch (error) { if (error.definite) throw error; }
+    try { const response = await this.request('/health', { timeoutMs: 12000 }); body = response.ok ? await response.json() : null; } catch (error) { if (error.definite) throw error; }
     if (!BOOT.test(body?.boot || '')) throw definite('The Motion service did not answer. Nothing was started.', 'unavailable');
     return body.boot;
   }
