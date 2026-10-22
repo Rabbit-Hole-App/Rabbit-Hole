@@ -86,6 +86,9 @@ and a copy of the open notebook, not the workspace:
   re-seeds the workspace if the notebook origin's storage is empty (a card
   made before workspaces, a copied card, cleared browser data). Outputs over
   100 KB are replaced by a short note in the copy.
+- Opening a notebook never rewrites its copy: a reported document that differs
+  from the copy only in key order or in the kernel's `language_info` and
+  `kernelspec` is not copied, so opening a canvas saves nothing to the server.
 - A copied or duplicated card gets a new `notebook_id`: a new workspace seeded
   from the copy of its notebook, never a second view of the first one.
 - Deleting a card leaves its database in place (undo brings the files back);

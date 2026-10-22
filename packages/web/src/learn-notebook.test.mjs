@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyNotebook, newNotebookBlock, trimOutputs, describeNotebook, activePath, ipynbPath, notebookUrl, notebookFromCode } from './learn-notebook.js';
+import { emptyNotebook, newNotebookBlock, trimOutputs, describeNotebook, activePath, ipynbPath, notebookUrl, notebookFromCode, notebookWriteBack } from './learn-notebook.js';
+import { boardText } from './canvas-persist.js';
 
 test('a new notebook block is a workspace holding one plain nbformat 4 Python notebook', () => {
   const block = newNotebookBlock();
@@ -91,4 +92,42 @@ test('Open in Notebook is Python only, and only for a code card', () => {
   assert.deepEqual(notebookFromCode({ type: 'snippet', language: 'javascript', code: 'let a = 1' }), { disabled: 'Notebooks run Python only' });
   assert.equal(notebookFromCode({ kind: 'text', text: 'x = 1' }), null);
   assert.equal(notebookFromCode({ type: 'explanation', body: 'x = 1' }), null);
+});
+
+// Cross-device 409 (cross-device-report.md, gate 39735737303): a notebook frame reports its document while it starts, as
+// JupyterLab's toJSON (@jupyter/ydoc YNotebook/YCodeCell key order) with the kernel's language_info. LearnPage saveBoard
+// sends a PUT exactly when boardText differs from the text the server holds.
+const CARD_IPYNB = { cells: [{ cell_type: 'code', id: 'c1', metadata: {}, outputs: [], execution_count: null, source: 'from helper import triple\ntriple(3)' }], metadata: { kernelspec: { name: 'python', display_name: 'Python (Pyodide)', language: 'python' } }, nbformat: 4, nbformat_minor: 5 };
+const LANGUAGE_INFO = { codemirror_mode: { name: 'python', version: 3 }, file_extension: '.py', mimetype: 'text/x-python', name: 'python', nbconvert_exporter: 'python', pygments_lexer: 'ipython3', version: '3.12.1' };
+const frameJSON = (ipynb, edit = {}) => ({
+  metadata: { kernelspec: { display_name: 'Python (Pyodide)', language: 'python', name: 'python' }, language_info: LANGUAGE_INFO },
+  nbformat_minor: ipynb.nbformat_minor,
+  nbformat: ipynb.nbformat,
+  cells: ipynb.cells.map(cell => ({ id: cell.id, cell_type: cell.cell_type, source: cell.source, metadata: cell.metadata, outputs: cell.outputs, execution_count: cell.execution_count, ...edit })),
+});
+const notebookBoard = () => ({ strokes: [], blocks: [{ id: 'nb1', type: 'notebook', notebook_id: 'n1', active_path: 'experiment.ipynb', ipynb_path: 'experiment.ipynb', files: ['experiment.ipynb', 'helper.py'], ipynb: structuredClone(CARD_IPYNB) }] });
+const writeBack = (state, rule, ipynb) => ({ ...state, blocks: state.blocks.map(block => { const patch = rule(block, 'experiment.ipynb', ipynb); return patch ? { ...block, ...patch } : block; }) });
+
+test('opening a canvas with a notebook and doing nothing sends no board PUT', () => {
+  const state = notebookBoard(), synced = boardText(state);
+  const started = frameJSON(CARD_IPYNB);
+  // The defect: the old copy (any open-notebook report) rewrote the card with the same notebook, so the board text changed.
+  const old = (block, path, ipynb) => (path === activePath(block) ? { ipynb_path: path, ipynb } : null);
+  assert.notEqual(boardText(writeBack(state, old, started)), synced, 'the old start-up write-back changed the board text');
+  assert.equal(notebookWriteBack(state.blocks[0], 'experiment.ipynb', started), null);
+  assert.equal(boardText(writeBack(state, notebookWriteBack, started)), synced, 'no change, so saveBoard sends no PUT');
+});
+
+test('an edit made in the notebook is still copied onto the card', () => {
+  const block = notebookBoard().blocks[0];
+  for (const edit of [{ source: 'triple(4)' }, { execution_count: 1, outputs: [{ output_type: 'execute_result', data: { 'text/plain': '9' }, metadata: {}, execution_count: 1 }] }, { metadata: { tags: ['x'] } }]) {
+    const ipynb = frameJSON(CARD_IPYNB, edit);
+    assert.deepEqual(notebookWriteBack(block, 'experiment.ipynb', ipynb), { ipynb_path: 'experiment.ipynb', ipynb });
+  }
+  const added = frameJSON(CARD_IPYNB);
+  added.cells.push({ id: 'c2', cell_type: 'markdown', source: '', metadata: {} });
+  assert.ok(notebookWriteBack(block, 'experiment.ipynb', added));
+  // Another file's notebook is never copied; the same notebook under a newly opened path is (the card follows the open file).
+  assert.equal(notebookWriteBack(block, 'other.ipynb', frameJSON(CARD_IPYNB)), null);
+  assert.ok(notebookWriteBack({ ...block, active_path: 'copy.ipynb' }, 'copy.ipynb', frameJSON(CARD_IPYNB)));
 });

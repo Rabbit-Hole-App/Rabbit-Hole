@@ -100,6 +100,21 @@ export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown'
 // doc: the canvas's one document (docs/features/blocknote-canvas.md), an object; a board without one reads as [] like any key.
 const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources', 'doc'];
 export const boardText = state => JSON.stringify(BOARD_KEYS.map(key => state?.[key] ?? []));
+// The board a boardText holds (a missing document, read as [], is none).
+export function boardFromText(text) {
+  const values = JSON.parse(text);
+  return Object.fromEntries(BOARD_KEYS.map((key, i) => [key, values[i]]).filter(([key, value]) => key !== 'doc' || !Array.isArray(value)));
+}
+// A 409 (owner 2026-10-22: a conflicting save never loses either device's edits): the board text the server held when this
+// browser last saved or loaded, kept in this browser beside its copy, so the edits made since go onto the server's newer
+// copy (pendingWork from it, then withPendingWork) - after a reload or a switch to another canvas and back too.
+export const conflictBaseKey = storageKey => `${storageKey}:conflict-base`;
+// The document after a 409: this browser's when only it changed since the base (it goes up); null when the server's changed
+// too, or this one did not (the server's stays; a changed one of this browser's is offered back, docOnServerCopy).
+export function conflictDoc({ base, server, mine }) {
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  return mine && !same(mine, base?.doc) && same(server?.doc, base?.doc) ? mine : null;
+}
 // Any stroke, shape, item, link, card, group, area or chat card, or a document with words in it. Not the sources list: a
 // repository's canvas registers its repository there on open, and the list is kept apart from the board (LearnPage :sources).
 export const boardHasContent = state => BOARD_KEYS.some(key => key !== 'sources' && (key === 'doc' ? !docIsEmpty(state?.doc) : (state?.[key] ?? []).length > 0));
