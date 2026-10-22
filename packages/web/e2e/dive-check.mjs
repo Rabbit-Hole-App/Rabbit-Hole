@@ -58,7 +58,8 @@ const waitPersisted = async () => { await page.waitForFunction(() => /^\/apps\/c
 // inset lets it reach at most 8 px past the gutter onto the surface's edge - never further into the canvas.
 // It stays clear of the toolbar, and the toolbar keeps its usable height.
 // UI-17 (owner, 2026-10-21): the map sits at the top of the tools gutter at every width, never in a 92 px column of its own.
-const MAP_OVERHANG = 8;
+// Owner decision 2026-10-22: the surface fills the workspace and the tools column floats over it, so the map is on the
+// surface by design; it must stay inside the tools column and below the floating page header instead.
 const gutterProblems = g => {
   const problems = [];
   const apart = (a, b) => a.right <= b.x || b.right <= a.x || a.bottom <= b.y || b.bottom <= a.y;
@@ -66,13 +67,12 @@ const gutterProblems = g => {
   if (g.column) problems.push('the map has a column of its own ([data-dive-gutter])');
   if (g.nav.x < g.gutter.x - 1 || g.nav.right > g.gutter.right + 1) problems.push(`navigator ${g.nav.x}-${g.nav.right} outside the tools gutter (${g.gutter.x}-${g.gutter.right})`);
   if (Math.abs(g.nav.y - g.slot) > 1) problems.push(`navigator top ${g.nav.y} not at the top of the gutter's slot (${g.slot})`);
-  const into = Math.min(g.nav.right, g.surface.right) - Math.max(g.nav.x, g.surface.x);
-  if (into > MAP_OVERHANG + 1) problems.push(`navigator reaches ${into} px into the canvas (at most ${MAP_OVERHANG})`);
+  if (g.header != null && g.nav.y < g.header - 0.5) problems.push(`navigator top ${g.nav.y} above the header's bottom (${g.header})`);
   if (!apart(g.nav, g.toolbar)) problems.push('navigator overlaps the toolbar');
   if (g.toolbar.bottom - g.toolbar.y <= 120) problems.push('toolbar lost its usable height');
   return problems;
 };
-const geometry = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), slot: (() => { const el = document.querySelector('[data-dive-navigator]')?.closest('[data-gutter-top]'); return el ? el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop) : null; })(), column: !!document.querySelector('[data-dive-gutter]'), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
+const geometry = () => page.evaluate(() => { const box = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; }; return { nav: box('[data-dive-navigator]'), gutter: (() => { const r = document.querySelector('[data-dive-navigator]')?.closest('[data-dive-gutter],[data-tool-gutter]')?.getBoundingClientRect(); return r && { x: r.x, y: r.y, right: r.right, bottom: r.bottom }; })(), slot: (() => { const el = document.querySelector('[data-dive-navigator]')?.closest('[data-gutter-top]'); return el ? el.getBoundingClientRect().top + parseFloat(getComputedStyle(el).paddingTop) : null; })(), column: !!document.querySelector('[data-dive-gutter]'), header: (() => { const rects = [...(document.querySelector('[data-canvas-header]')?.children || [])].map(el => el.getBoundingClientRect()).filter(r => r.width && r.height); return rects.length ? Math.max(...rects.map(r => r.bottom)) : null; })(), surface: box('[data-canvas-surface]'), toolbar: box('[role="toolbar"][aria-label="Canvas tools"]') }; });
 const inGutter = async label => {
   const problems = gutterProblems(await geometry());
   assert.deepEqual(problems, [], `${label}: Rabbit Holes Map placement`);

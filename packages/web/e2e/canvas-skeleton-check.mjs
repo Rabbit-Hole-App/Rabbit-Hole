@@ -91,10 +91,21 @@ const surface = () => page.locator('[data-canvas-surface]').boundingBox();
 const visible = async locator => { const [box, frame] = [await locator.boundingBox(), await surface()]; return !!box && box.y >= frame.y - 1 && box.y < frame.y + frame.height - 120 && box.x >= frame.x - 1 && box.x + box.width <= frame.x + frame.width + 1; };
 const zoom = async () => Number((await camera()).match(/scale\(([\d.]+)\)/)[1]);
 // What the learner can see of the canvas: the surface less the open chat sheet above the composer, 24 px in.
+// Owner decision 2026-10-22: the surface fills the workspace and the toolbar, the navigator above it and the page header's
+// controls float over it, so their measured rectangles are cut too, the way canvas-slots freeArea cuts any overlay (the
+// largest remaining rectangle per overlay); a card is never revealed or centred under them.
 const freeArea = () => page.evaluate(() => {
   const frame = document.querySelector('[data-canvas-surface]').getBoundingClientRect(), sheet = document.querySelector('[data-chat-sheet]')?.getBoundingClientRect();
-  const bottom = sheet && sheet.height && sheet.top < frame.bottom ? Math.min(frame.bottom, sheet.top) : frame.bottom;
-  return { left: frame.left + 24, top: frame.top + 24, right: frame.right - 24, bottom: bottom - 24, sheet: sheet && sheet.height ? { top: sheet.top, left: sheet.left, right: sheet.right, bottom: sheet.bottom } : null };
+  const overlays = [sheet, ...[...document.querySelectorAll('[data-tool-gutter] [role="toolbar"], [data-gutter-top] > *'), ...(document.querySelector('[data-canvas-header]')?.children || [])].map(node => node.getBoundingClientRect())]
+    .filter(rect => rect && rect.width && rect.height);
+  let area = { left: frame.left, top: frame.top, right: frame.right, bottom: frame.bottom };
+  const room = r => Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top);
+  for (const over of overlays) {
+    if (over.right <= area.left || over.left >= area.right || over.bottom <= area.top || over.top >= area.bottom) continue;
+    area = [{ ...area, bottom: Math.min(area.bottom, over.top) }, { ...area, top: Math.max(area.top, over.bottom) }, { ...area, right: Math.min(area.right, over.left) }, { ...area, left: Math.max(area.left, over.right) }]
+      .reduce((best, cut) => (room(cut) > room(best) ? cut : best));
+  }
+  return { left: area.left + 24, top: area.top + 24, right: area.right - 24, bottom: area.bottom - 24, sheet: sheet && sheet.height ? { top: sheet.top, left: sheet.left, right: sheet.right, bottom: sheet.bottom } : null };
 });
 const inFree = async locator => { const [box, area] = [await locator.boundingBox(), await freeArea()]; return box.x >= area.left - 2 && box.y >= area.top - 2 && box.x + box.width <= area.right + 2 && box.y + box.height <= area.bottom + 2; };
 // Centred where the camera had to move (here, up or down); an axis already in view is left alone.

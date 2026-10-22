@@ -1931,7 +1931,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // leave (controlArea), never under them.
     const area = controlArea(), w = area.right - area.left;
     const fit = h => Math.max(0.2, Math.min(maxZoom, (w - pad * 2) / Math.max(1, right - left), (h - pad * 2) / Math.max(1, bottom - top)));
-    const across = z => area.left + (w - (right - left) * z) / 2 - left * z;
+    // Wider than the room even at the zoom floor: from its left edge, beside the toolbar (as a tall span is framed from its top).
+    const across = z => area.left + Math.max(0, (w - (right - left) * z) / 2) - left * z;
     // The floating bottom chrome over the framed span is a bottom inset: nothing is framed under the composer, the
     // minimap and zoom, or the hooks. A refit only narrows the span, so the first span's inset still holds.
     let z = fit(area.bottom - area.top);
