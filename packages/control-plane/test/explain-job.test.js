@@ -302,6 +302,13 @@ test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', asyn
   const env = { ...s.env, EXPLAIN_JOBS: namespace };
   assert.equal((await post(env, payload, { origin: 'https://evil.test' })).status, 403);
   assert.equal((await post(env, { ...payload, boardId: 'someone-elses' })).status, 404);
-  assert.equal((await post(env, payload)).status, 202);
+  const created = await post(env, payload);
+  assert.equal(created.status, 202);
   assert.equal(s.model.calls.length, 0);
+  // Diagnostics (spec, findings, calls) only with ?detail=1 on a worker that sets EXPLAIN_DIAGNOSTICS; never by default.
+  const { job } = await created.json();
+  const get = (env, query) => explainRoute(`/api/learn/explain/jobs/${job.id}`, new Request(`https://dev.test/api/learn/explain/jobs/${job.id}?board=${BOARD.id}${query}`), env, { identity }).then(r => r.json());
+  assert.equal('diagnostics' in await get(env, '&detail=1'), false);
+  assert.equal('diagnostics' in await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, ''), false);
+  assert.deepEqual(Object.keys((await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, '&detail=1')).diagnostics).sort(), ['calls', 'candidates', 'captures', 'counts', 'findings', 'settings', 'spec', 'timing']);
 });

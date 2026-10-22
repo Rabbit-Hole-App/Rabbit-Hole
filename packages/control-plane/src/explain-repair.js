@@ -17,12 +17,14 @@ import { sha256Hex } from './learn-grade-jev.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// The operations the last failure permits.
+// The operations the last failure permits. A wrong claim (a source finding, or a semantic verdict on the spec's content,
+// which no layout hint can fix) permits an explicit spec correction; a visual spec finding only the hints it names.
 export function allowedRepairs(failure) {
   if (failure?.problems?.length) return ['spec'];
   const serious = (failure?.findings || []).filter(f => f.severity !== 'minor');
-  if (!serious.length || serious.some(f => !f.specRepairable || !['spec', 'source'].includes(f.category))) return [];
-  return serious.some(f => f.category === 'source') ? ['hints', 'spec'] : ['hints'];
+  const claim = f => f.category === 'source' || f.category === 'spec' && f.verdict === 'semantic';
+  if (!serious.length || serious.some(f => !['spec', 'source'].includes(f.category) || !f.specRepairable && !claim(f))) return [];
+  return serious.some(claim) ? ['hints', 'spec'] : ['hints'];
 }
 
 // Per instance, the hints a repair may change and their declared limits (from the registry, never from the spec).

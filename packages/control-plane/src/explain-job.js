@@ -29,7 +29,7 @@ import { authorStage, selectExamples, specFacts, validateStage } from './explain
 import { reviewCaptures } from './explain-review.js';
 import * as explainRender from './explain-render.js';
 import { learnMedia } from './learn-storage.js';
-import { defectKeys, presentationFix, repairStage } from './explain-repair.js';
+import { allowedRepairs, defectKeys, presentationFix, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -84,7 +84,7 @@ export async function reviewStage(job, ctx) {
   try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts(job.spec), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
-  return { accepted: out.accepted, findings, repairable: serious.length > 0 && serious.every(f => f.specRepairable && ['spec', 'source'].includes(f.category)), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
+  return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }
 export const explainPipeline = Object.freeze({ prepare: prepareStage, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage });
 
@@ -101,6 +101,10 @@ export function publicExplainJob(job) {
     timing: timingSummary(job.timing), createdAt: job.createdAt, updatedAt: job.updatedAt,
   };
 }
+// The private record of a run (spec, findings, candidates, calls, capture keys), for the owner's own verification runs only.
+const explainDiagnostics = job => ({ spec: job.spec, findings: job.findings, candidates: job.candidates || [], settings: job.settings,
+  calls: job.calls, captures: (job.captures || []).map(({ data: _bytes, ...capture }) => capture), counts: job.counts, timing: job.timing });
+
 // Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
 // new_attempt: a paid retry within this job's remaining ceiling. edit_request: always, a new request.
 export function recoveryOf(job) {
@@ -163,7 +167,9 @@ export async function explainRoute(path, req, env, deps = {}) {
   }
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin }) });
+    body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
+      // Owner-only diagnostics for live verification runs on a dev clone (EXPLAIN_DIAGNOSTICS, never set in a committed config).
+      detail: req.method === 'GET' && url.searchParams.get('detail') === '1' && env.EXPLAIN_DIAGNOSTICS === 'true' }) });
 }
 
 export class ExplainJobs {
@@ -188,7 +194,7 @@ export class ExplainJobs {
     }
   }
 
-  async action({ action, id, payload = {}, board, user, origin }) {
+  async action({ action, id, payload = {}, board, user, origin, detail = false }) {
     if (action === 'list') {
       const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(j => j.owner.email === user.email);
       return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
@@ -196,7 +202,7 @@ export class ExplainJobs {
     if (action === 'create') return this.create(payload, board, user, origin);
     const job = id && await this.get(id);
     if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
-    if (action === 'get') return json({ job: publicExplainJob(job), ...(job.stage === 'ready' ? { block: await this.block(job) } : {}) });
+    if (action === 'get') return json({ job: publicExplainJob(job), ...(job.stage === 'ready' ? { block: await this.block(job) } : {}), ...(detail ? { diagnostics: explainDiagnostics(job) } : {}) });
     if (action === 'cancel') return this.stop(job);
     if (action === 'retry') return this.retry(job, payload);
     if (action === 'approve') return this.approve(job, payload);
@@ -504,8 +510,9 @@ export class ExplainJobs {
       await this.recordRenders(job, out.renders || []);
       next('reviewing');
     } else if (stage === 'reviewing') {
+      // The reviewer's findings are kept for an accepted result too (minor ones do not block it).
+      job.findings.push({ round: job.round, stage, accepted: out.accepted === true, findings: out.findings || [] });
       if (out.accepted === true) return this.accept(job, out);
-      job.findings.push({ round: job.round, stage, findings: out.findings || [] });
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {
       // Every candidate is recorded (round, operation, hash); a refused or empty repair stops the job rather than spend again.
