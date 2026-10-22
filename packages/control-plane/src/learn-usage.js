@@ -18,18 +18,20 @@ const KIND = Symbol('usage attempt kind');
 // One string per entry point (the design's list). Keep it here, the only list.
 export const FEATURES = ['ask', 'auto', 'tutor', 'tutor_evaluate', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'journey', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
-  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render'];
+  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
+  'webpage_capture'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
 
 // PROVISIONAL until Phase 2 (owner D2.5, D2.7): practice grading is free to the user, its provider cost still recorded.
 // 'render' is a job on our own renderers (scene worker, Manim): the platform pays for its compute (owner 5A decision C,
 // 2026-10-21), so it is recorded apart from the learner's allowance, cost unknown, never 0. Authoring its source is not this.
-const FREE_FEATURES = new Set(['assess', 'grade', 'tutor_evaluate', 'render']);
+// 'webpage_capture' is the webpage card's screening (owner brief 2026-10-22: platform-paid, no credits, no cost shown).
+const FREE_FEATURES = new Set(['assess', 'grade', 'tutor_evaluate', 'render', 'webpage_capture']);
 // Entry points a signed-out visitor may reach on a public link (owner D2.4): platform-funded, never the canvas owner.
 // Not shared Next Steps: no AI generation for signed-out viewers (owner R3 decision, 2026-10-16; the route answers 401).
 const PUBLIC_FEATURES = new Set(['shared_ask']);
 // An attempt's kind when the caller names none.
-const DEFAULT_KIND = { inline_route: 'routing', inline_decide: 'evaluation', assess: 'evaluation', grade: 'evaluation', tutor_evaluate: 'evaluation' };
+const DEFAULT_KIND = { inline_route: 'routing', inline_decide: 'evaluation', assess: 'evaluation', grade: 'evaluation', tutor_evaluate: 'evaluation', webpage_capture: 'evaluation' };
 
 // The /api/learn/* routes that make provider calls, and the feature each one is (dev-worker.js boundary).
 const ROUTES = [
@@ -60,6 +62,8 @@ const ROUTES = [
   [/^\/api\/learn\/video$/, 'video'],
   [/^\/api\/learn\/scene$/, 'scene'],
   [/^\/api\/learn\/search$/, 'search'],
+  // Capture and Retry of screening (C:/s/spec/day-1021/webcard-interface.md section 2); the status poll is a GET, so none.
+  [/^\/api\/learn\/webpages(\/fs_[A-Za-z0-9_-]+\/screen)?$/, 'webpage_capture'],
   // Ask on a repository canvas when called by its own path (the UI sends /api/learn/ask, which forwards here).
   [/^\/api\/repositories\/repo-[a-z0-9-]+\/ask$/, 'ask'],
   // The Agent panel's Ask, answered on the control plane (index.js); any other control-plane POST is 'legacy' there.

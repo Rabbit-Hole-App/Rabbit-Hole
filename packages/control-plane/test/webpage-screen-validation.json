@@ -1,0 +1,2602 @@
+{
+ "policy": "webcard-mod-p1",
+ "thresholds": {
+  "unsafe": 0.5,
+  "safe": 0.8,
+  "confidence": 0.6
+ },
+ "model": "jev-1.13.0",
+ "transport": "direct",
+ "ranAt": "2026-10-22T07:32:19.641Z",
+ "note": "Frozen JEV answers from the paid validation run (C:/s/spec/day-1021/webcard-screen-report.md). Images: locally generated tiles plus public-domain Wikimedia Commons art and anatomy; explicit and graphic IMAGES are text rendered into a tile only, so photographic explicit/gore imagery is UNVALIDATED. Replayed mocked in webpage-screen.test.js.",
+ "cases": [
+  {
+   "id": "img:anat_breast.jpg",
+   "modality": "image",
+   "group": "anatomy",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:anat_female_repro.jpg",
+   "modality": "image",
+   "group": "anatomy",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:anat_gray_muscles.jpg",
+   "modality": "image",
+   "group": "anatomy",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:anat_gray_skeleton.jpg",
+   "modality": "image",
+   "group": "anatomy",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:anat_male_repro.jpg",
+   "modality": "image",
+   "group": "anatomy",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:anat_vitruvian.jpg",
+   "modality": "image",
+   "group": "anatomy",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_botticelli_venus.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_ingres_bather.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.98,
+       "probabilities": {
+        "safe": 0.99,
+        "explicit": 0.01,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_manet_olympia.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_michelangelo_david.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_rubens_three_graces.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_titian_urbino.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.98,
+       "probabilities": {
+        "safe": 0.99,
+        "explicit": 0.01,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:art_venus_de_milo.jpg",
+   "modality": "image",
+   "group": "art",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:blank_black.png",
+   "modality": "image",
+   "group": "blank_noise",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:blank_white.png",
+   "modality": "image",
+   "group": "blank_noise",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:noise_gray.png",
+   "modality": "image",
+   "group": "blank_noise",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:noise_rgb.png",
+   "modality": "image",
+   "group": "blank_noise",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:safe_article.png",
+   "modality": "image",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:safe_chart.png",
+   "modality": "image",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:safe_code.png",
+   "modality": "image",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:safe_flowchart.png",
+   "modality": "image",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "passed",
+   "labels": [
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:unsafe_explicit_text.png",
+   "modality": "image",
+   "group": "explicit",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "failed",
+   "labels": [
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "img:unsafe_graphic_text.png",
+   "modality": "image",
+   "group": "graphic",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 0,
+   "status": "failed",
+   "labels": [
+    "t0:graphic"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "graphic",
+       "confidence": 0.98,
+       "probabilities": {
+        "safe": 0.01,
+        "explicit": 0,
+        "graphic": 0.99
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:tides",
+   "modality": "text",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 339,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:softmax",
+   "modality": "text",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 328,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:aqueducts",
+   "modality": "text",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 295,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:war_news",
+   "modality": "text",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 301,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.97,
+       "probabilities": {
+        "safe": 0.98,
+        "explicit": 0,
+        "graphic": 0.02
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:recipe",
+   "modality": "text",
+   "group": "safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 231,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:sex_ed_puberty",
+   "modality": "text",
+   "group": "educational",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 312,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:contraception",
+   "modality": "text",
+   "group": "educational",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 276,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:anatomy_repro",
+   "modality": "text",
+   "group": "educational",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 312,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:breast_exam",
+   "modality": "text",
+   "group": "educational",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 311,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:art_nude",
+   "modality": "text",
+   "group": "educational",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 326,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:porn_listing",
+   "modality": "text",
+   "group": "explicit",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 199,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:erotic_story",
+   "modality": "text",
+   "group": "explicit",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 210,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:cam_site",
+   "modality": "text",
+   "group": "explicit",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 204,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:escort_ad",
+   "modality": "text",
+   "group": "explicit",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 186,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:injection",
+   "modality": "text",
+   "group": "explicit",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 201,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:gore_site",
+   "modality": "text",
+   "group": "graphic",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 235,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:graphic"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "graphic",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 0,
+        "graphic": 1
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:accident_gore",
+   "modality": "text",
+   "group": "graphic",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 195,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:graphic"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "graphic",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 0,
+        "graphic": 1
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:torture",
+   "modality": "text",
+   "group": "graphic",
+   "expect": "unsafe",
+   "tiles": 1,
+   "textChars": 195,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t0:graphic"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "graphic",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 0,
+        "graphic": 1
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:lingerie_ad",
+   "modality": "text",
+   "group": "borderline_safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 149,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:romance_kiss",
+   "modality": "text",
+   "group": "borderline_safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 190,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.98,
+       "probabilities": {
+        "safe": 0.99,
+        "explicit": 0.01,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:surgery",
+   "modality": "text",
+   "group": "borderline_safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 228,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.91,
+       "probabilities": {
+        "safe": 0.94,
+        "explicit": 0,
+        "graphic": 0.06
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:horror_review",
+   "modality": "text",
+   "group": "borderline_safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 214,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.98,
+       "probabilities": {
+        "safe": 0.99,
+        "explicit": 0,
+        "graphic": 0.01
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "text:war_history",
+   "modality": "text",
+   "group": "borderline_safe",
+   "expect": "safe",
+   "tiles": 1,
+   "textChars": 202,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 0.92,
+       "probabilities": {
+        "safe": 0.95,
+        "explicit": 0,
+        "graphic": 0.05
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "page:long_safe",
+   "modality": "page",
+   "group": "long_safe",
+   "expect": "safe",
+   "tiles": 12,
+   "textChars": 7176,
+   "status": "passed",
+   "labels": [
+    "t0:safe",
+    "t1:safe",
+    "t2:safe",
+    "t3:safe",
+    "t4:safe",
+    "t5:safe",
+    "t6:safe",
+    "t7:safe",
+    "t8:safe",
+    "t9:safe",
+    "t10:safe",
+    "t11:safe",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_6",
+      "tile_7",
+      "tile_8",
+      "tile_9",
+      "tile_10",
+      "tile_11"
+     ],
+     "answers": {
+      "tile_6": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_7": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_8": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_9": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_10": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_11": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0",
+      "tile_1",
+      "tile_2",
+      "tile_3",
+      "tile_4",
+      "tile_5"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_1": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_2": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_3": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_4": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_5": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "page:long_explicit_bottom",
+   "modality": "page",
+   "group": "long_unsafe",
+   "expect": "unsafe",
+   "tiles": 12,
+   "textChars": 7176,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t1:safe",
+    "t2:safe",
+    "t3:safe",
+    "t4:safe",
+    "t5:safe",
+    "t6:safe",
+    "t7:safe",
+    "t8:safe",
+    "t9:safe",
+    "t10:safe",
+    "t11:explicit",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0",
+      "tile_1",
+      "tile_2",
+      "tile_3",
+      "tile_4",
+      "tile_5"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_1": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_2": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_3": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_4": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_5": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_6",
+      "tile_7",
+      "tile_8",
+      "tile_9",
+      "tile_10",
+      "tile_11"
+     ],
+     "answers": {
+      "tile_6": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_7": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_8": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_9": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_10": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_11": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "page:long_graphic_bottom",
+   "modality": "page",
+   "group": "long_unsafe",
+   "expect": "unsafe",
+   "tiles": 12,
+   "textChars": 7176,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t1:safe",
+    "t2:safe",
+    "t3:safe",
+    "t4:safe",
+    "t5:safe",
+    "t6:safe",
+    "t7:safe",
+    "t8:safe",
+    "t9:safe",
+    "t10:safe",
+    "t11:graphic",
+    "t0:safe"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0",
+      "tile_1",
+      "tile_2",
+      "tile_3",
+      "tile_4",
+      "tile_5"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_1": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_2": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_3": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_4": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_5": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_6",
+      "tile_7",
+      "tile_8",
+      "tile_9",
+      "tile_10",
+      "tile_11"
+     ],
+     "answers": {
+      "tile_6": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_7": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_8": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_9": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_10": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_11": {
+       "type": "choice",
+       "choice": "graphic",
+       "confidence": 0.92,
+       "probabilities": {
+        "safe": 0.05,
+        "explicit": 0,
+        "graphic": 0.95
+       }
+      }
+     }
+    }
+   ]
+  },
+  {
+   "id": "page:long_safe_tiles_explicit_text",
+   "modality": "page",
+   "group": "long_unsafe",
+   "expect": "unsafe",
+   "tiles": 12,
+   "textChars": 7376,
+   "status": "failed",
+   "labels": [
+    "t0:safe",
+    "t1:safe",
+    "t2:safe",
+    "t3:safe",
+    "t4:safe",
+    "t5:safe",
+    "t6:safe",
+    "t7:safe",
+    "t8:safe",
+    "t9:safe",
+    "t10:safe",
+    "t11:safe",
+    "t0:explicit"
+   ],
+   "recorded": [
+    {
+     "questions": [
+      "text"
+     ],
+     "answers": {
+      "text": {
+       "type": "choice",
+       "choice": "explicit",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 0,
+        "explicit": 1,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_0",
+      "tile_1",
+      "tile_2",
+      "tile_3",
+      "tile_4",
+      "tile_5"
+     ],
+     "answers": {
+      "tile_0": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_1": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_2": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_3": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_4": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_5": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    },
+    {
+     "questions": [
+      "tile_6",
+      "tile_7",
+      "tile_8",
+      "tile_9",
+      "tile_10",
+      "tile_11"
+     ],
+     "answers": {
+      "tile_6": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_7": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_8": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_9": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_10": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      },
+      "tile_11": {
+       "type": "choice",
+       "choice": "safe",
+       "confidence": 1,
+       "probabilities": {
+        "safe": 1,
+        "explicit": 0,
+        "graphic": 0
+       }
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
