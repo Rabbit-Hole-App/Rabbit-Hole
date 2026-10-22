@@ -1,0 +1,114 @@
+{
+  "captures": [
+    {
+      "captureId": "light-r0",
+      "semantic": "fail",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "light-r0",
+            "object": "Transformer blocks with long skips"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The request asks specifically about the long skip connections, but the card only names them in a box label. It never shows or explains them: shallow-block outputs are joined to deep-block inputs (in U-ViT, by concatenating and then applying a linear projection). Add skip arcs between the shallow and deep halves of the blocks, plus a short note on how the two are merged."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "light-r0",
+            "object": "Embed each as tokens"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The card never shows how the noisy image becomes patch tokens. Patchifying is only implied by 'Patch tokens to pixels'. Showing time, condition and patch tokens as separate tokens in the sequence would answer the 'treats them as tokens' part of the request."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "minor",
+          "target": {
+            "capture": "light-r0"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "About two-thirds of the canvas below the content is empty. This is not a readability problem, but the space could hold the missing skip-connection detail."
+        }
+      ]
+    },
+    {
+      "captureId": "dark-r0",
+      "semantic": "fail",
+      "visual": "pass",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf4",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "dark-r0",
+            "object": "Transformer blocks with long skips"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The request asks specifically about the long skip connections, but the card only names them in a box label. It never shows or explains how shallow-block outputs are joined to deep blocks (concatenation plus a linear projection)."
+        },
+        {
+          "version": 1,
+          "id": "rf5",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "dark-r0",
+            "object": "Embed each as tokens"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The card never shows the noisy image being split into patch tokens, or time, condition and patch tokens as separate tokens in the sequence."
+        }
+      ]
+    }
+  ],
+  "accepted": false,
+  "calls": [
+    {
+      "identity": {
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "matches": true
+      },
+      "usage": {
+        "input_tokens": 9723,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 1030,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 943,
+        "output_tokens_details": {
+          "thinking_tokens": 258
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "imageBlocks": 2
+    }
+  ]
+}

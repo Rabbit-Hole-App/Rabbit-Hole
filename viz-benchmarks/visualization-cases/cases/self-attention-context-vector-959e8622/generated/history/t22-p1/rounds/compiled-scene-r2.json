@@ -1,0 +1,672 @@
+{
+  "id": "self-attention-z2",
+  "title": "How self-attention builds the context vector z for position 2",
+  "width": 1059,
+  "height": 688,
+  "duration": 1,
+  "objects": [
+    {
+      "id": "attn.head-proj",
+      "type": "text",
+      "initialState": {
+        "text": "Projections and the softmax normaliser",
+        "x": 32,
+        "y": 52,
+        "typography": "caption"
+      },
+      "semanticId": "attn.head-proj",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.proj0",
+      "type": "box",
+      "initialState": {
+        "label": "q_2 = x_2 W^Q",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "q_{2} = x_{2} W^{Q}"
+          }
+        ],
+        "x": 32,
+        "y": 64,
+        "w": 149,
+        "h": 48,
+        "role": "input"
+      },
+      "semanticId": "attn.proj0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.proj1",
+      "type": "box",
+      "initialState": {
+        "label": "k_j = x_j W^K",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "k_j = x_j W^{K}"
+          }
+        ],
+        "x": 197,
+        "y": 64,
+        "w": 149,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.proj1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.proj2",
+      "type": "box",
+      "initialState": {
+        "label": "v_j = x_j W^V",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "v_j = x_j W^{V}"
+          }
+        ],
+        "x": 362,
+        "y": 64,
+        "w": 149,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.proj2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.proj3",
+      "type": "box",
+      "initialState": {
+        "label": "Z_2 = Σ_t=1^T e^s_2,t",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "Z_{2} = \\sum_{t=1}^{T} e^{s_{2,t}}"
+          }
+        ],
+        "x": 527,
+        "y": 64,
+        "w": 221,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.proj3",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.head0",
+      "type": "text",
+      "initialState": {
+        "text": "Scores",
+        "x": 32,
+        "y": 172,
+        "typography": "caption"
+      },
+      "semanticId": "attn.head0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c0r0",
+      "type": "box",
+      "initialState": {
+        "label": "s_2,1 = (q_2 · k_1)/(√(d_k))",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "s_{2,1} = \\frac{q_{2} \\cdot k_{1}}{\\sqrt{d_k}}"
+          }
+        ],
+        "x": 32,
+        "y": 184,
+        "w": 284,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c0r0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c0r1",
+      "type": "box",
+      "initialState": {
+        "label": "s_2,2 = (q_2 · k_2)/(√(d_k))",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "s_{2,2} = \\frac{q_{2} \\cdot k_{2}}{\\sqrt{d_k}}"
+          }
+        ],
+        "x": 32,
+        "y": 248,
+        "w": 284,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c0r1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c0r2",
+      "type": "box",
+      "initialState": {
+        "label": "s_2,T = (q_2 · k_T)/(√(d_k))",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "s_{2,T} = \\frac{q_{2} \\cdot k_{T}}{\\sqrt{d_k}}"
+          }
+        ],
+        "x": 32,
+        "y": 360,
+        "w": 284,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c0r2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.gap0",
+      "type": "text",
+      "initialState": {
+        "text": "⋮",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\vdots"
+          }
+        ],
+        "x": 170,
+        "y": 336,
+        "typography": "body"
+      },
+      "semanticId": "attn.gap0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.head1",
+      "type": "text",
+      "initialState": {
+        "text": "Softmax weights",
+        "x": 356,
+        "y": 172,
+        "typography": "caption"
+      },
+      "semanticId": "attn.head1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c1r0",
+      "type": "box",
+      "initialState": {
+        "label": "α_2,1 = (e^s_2,1)/(Z_2)",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2,1} = \\frac{e^{s_{2,1}}}{Z_{2}}"
+          }
+        ],
+        "x": 356,
+        "y": 184,
+        "w": 239,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c1r0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c1r1",
+      "type": "box",
+      "initialState": {
+        "label": "α_2,2 = (e^s_2,2)/(Z_2)",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2,2} = \\frac{e^{s_{2,2}}}{Z_{2}}"
+          }
+        ],
+        "x": 356,
+        "y": 248,
+        "w": 239,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c1r1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c1r2",
+      "type": "box",
+      "initialState": {
+        "label": "α_2,T = (e^s_2,T)/(Z_2)",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2,T} = \\frac{e^{s_{2,T}}}{Z_{2}}"
+          }
+        ],
+        "x": 356,
+        "y": 360,
+        "w": 239,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c1r2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.gap1",
+      "type": "text",
+      "initialState": {
+        "text": "⋮",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\vdots"
+          }
+        ],
+        "x": 472,
+        "y": 336,
+        "typography": "body"
+      },
+      "semanticId": "attn.gap1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.head2",
+      "type": "text",
+      "initialState": {
+        "text": "Weighted values",
+        "x": 635,
+        "y": 172,
+        "typography": "caption"
+      },
+      "semanticId": "attn.head2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c2r0",
+      "type": "box",
+      "initialState": {
+        "label": "α_2,1 v_1",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2,1}\\, v_{1}"
+          }
+        ],
+        "x": 635,
+        "y": 184,
+        "w": 113,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c2r0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c2r1",
+      "type": "box",
+      "initialState": {
+        "label": "α_2,2 v_2",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2,2}\\, v_{2}"
+          }
+        ],
+        "x": 635,
+        "y": 248,
+        "w": 113,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c2r1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.c2r2",
+      "type": "box",
+      "initialState": {
+        "label": "α_2,T v_T",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2,T}\\, v_{T}"
+          }
+        ],
+        "x": 635,
+        "y": 360,
+        "w": 113,
+        "h": 48,
+        "role": "neutral"
+      },
+      "semanticId": "attn.c2r2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.gap2",
+      "type": "text",
+      "initialState": {
+        "text": "⋮",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\vdots"
+          }
+        ],
+        "x": 688,
+        "y": 336,
+        "typography": "body"
+      },
+      "semanticId": "attn.gap2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.flow0-0",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 316,
+          "y": 208
+        },
+        "to": {
+          "x": 356,
+          "y": 208
+        }
+      },
+      "semanticId": "attn.flow0-0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.flow0-1",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 316,
+          "y": 272
+        },
+        "to": {
+          "x": 356,
+          "y": 272
+        }
+      },
+      "semanticId": "attn.flow0-1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.flow0-2",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 316,
+          "y": 384
+        },
+        "to": {
+          "x": 356,
+          "y": 384
+        }
+      },
+      "semanticId": "attn.flow0-2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.flow1-0",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 595,
+          "y": 208
+        },
+        "to": {
+          "x": 635,
+          "y": 208
+        }
+      },
+      "semanticId": "attn.flow1-0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.flow1-1",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 595,
+          "y": 272
+        },
+        "to": {
+          "x": 635,
+          "y": 272
+        }
+      },
+      "semanticId": "attn.flow1-1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.flow1-2",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 595,
+          "y": 384
+        },
+        "to": {
+          "x": 635,
+          "y": 384
+        }
+      },
+      "semanticId": "attn.flow1-2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.output",
+      "type": "box",
+      "initialState": {
+        "label": "o_2 = Σ_j=1^T α_2,j v_j",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "o_{2} = \\sum_{j=1}^{T} \\alpha_{2,j}\\, v_j"
+          }
+        ],
+        "x": 788,
+        "y": 272,
+        "w": 239,
+        "h": 48,
+        "role": "output"
+      },
+      "semanticId": "attn.output",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.sum0",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 748,
+          "y": 208
+        },
+        "to": {
+          "x": 788,
+          "y": 284
+        }
+      },
+      "semanticId": "attn.sum0",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.sum1",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 748,
+          "y": 272
+        },
+        "to": {
+          "x": 788,
+          "y": 296
+        }
+      },
+      "semanticId": "attn.sum1",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.sum2",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 748,
+          "y": 384
+        },
+        "to": {
+          "x": 788,
+          "y": 308
+        }
+      },
+      "semanticId": "attn.sum2",
+      "conceptId": "attn"
+    },
+    {
+      "id": "attn.note",
+      "type": "text",
+      "initialState": {
+        "text": "Symbolic rows: each line is the formula for one key position, not a computed number.",
+        "x": 32,
+        "y": 440,
+        "typography": "annotation"
+      },
+      "semanticId": "attn.note",
+      "conceptId": "attn"
+    },
+    {
+      "id": "z-note.box",
+      "type": "box",
+      "initialState": {
+        "x": 290,
+        "y": 480,
+        "w": 480,
+        "h": 176,
+        "role": "output"
+      },
+      "semanticId": "z-note.box",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "z-note.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "The output for position 2 is z:",
+        "x": 306,
+        "y": 512,
+        "typography": "body"
+      },
+      "semanticId": "z-note.box-line0",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "z-note.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "z_2 = Σ_j α_2j v_j, where",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "z_2 = \\sum_j \\alpha_{2j} v_j"
+          },
+          {
+            "kind": "text",
+            "text": ", where"
+          }
+        ],
+        "x": 306,
+        "y": 542,
+        "typography": "body"
+      },
+      "semanticId": "z-note.box-line1",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "z-note.box-line2",
+      "type": "text",
+      "initialState": {
+        "text": "α_2j = softmax_j(q_2 · k_j / √(d_k)). The weights",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\alpha_{2j} = \\mathrm{softmax}_j\\left(q_2 \\cdot k_j / \\sqrt{d_k}\\right)"
+          },
+          {
+            "kind": "text",
+            "text": ". The weights"
+          }
+        ],
+        "x": 306,
+        "y": 572,
+        "typography": "body"
+      },
+      "semanticId": "z-note.box-line2",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "z-note.box-line3",
+      "type": "text",
+      "initialState": {
+        "text": "sum to 1, so z_2 is a weighted average of all",
+        "x": 306,
+        "y": 593,
+        "typography": "body"
+      },
+      "semanticId": "z-note.box-line3",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "z-note.box-line4",
+      "type": "text",
+      "initialState": {
+        "text": "value vectors: positions whose keys match q_2",
+        "x": 306,
+        "y": 614,
+        "typography": "body"
+      },
+      "semanticId": "z-note.box-line4",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "z-note.box-line5",
+      "type": "text",
+      "initialState": {
+        "text": "best contribute most.",
+        "x": 306,
+        "y": 635,
+        "typography": "body"
+      },
+      "semanticId": "z-note.box-line5",
+      "conceptId": "z-note"
+    },
+    {
+      "id": "link0",
+      "type": "line",
+      "semanticId": "link0",
+      "initialState": {
+        "from": {
+          "x": 529.5,
+          "y": 448
+        },
+        "to": {
+          "x": 529.5,
+          "y": 480
+        },
+        "role": "neutral"
+      }
+    }
+  ],
+  "timeline": [],
+  "presentation": {
+    "mode": "static"
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "id": "self-attention-z2",
+  "title": "How self-attention builds the context vector z for position 2",
+  "components": [
+    {
+      "id": "layout",
+      "component": "stack",
+      "version": 1,
+      "hints": {
+        "direction": "column",
+        "gap": 32,
+        "align": "center"
+      }
+    },
+    {
+      "id": "attn",
+      "component": "attention-steps",
+      "version": 1,
+      "parent": "layout",
+      "params": {
+        "query": 2,
+        "rows": 3,
+        "symbolicLast": true
+      }
+    },
+    {
+      "id": "z-note",
+      "component": "callout",
+      "version": 1,
+      "parent": "layout",
+      "params": {
+        "tone": "key",
+        "text": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "The output for position 2 is z: "
+            },
+            {
+              "kind": "math",
+              "tex": "z_2 = \\sum_j \\alpha_{2j} v_j"
+            },
+            {
+              "kind": "text",
+              "text": ", where "
+            },
+            {
+              "kind": "math",
+              "tex": "\\alpha_{2j} = \\mathrm{softmax}_j\\left(q_2 \\cdot k_j / \\sqrt{d_k}\\right)"
+            },
+            {
+              "kind": "text",
+              "text": ". The weights sum to 1, so z_2 is a weighted average of all value vectors: positions whose keys match q_2 best contribute most."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "attn.output",
+      "to": "z-note.top",
+      "kind": "relation",
+      "label": "this is z_2"
+    }
+  ],
+  "presentation": {
+    "mode": "static"
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "schema": 1,
+  "task": "EXP-T22",
+  "frozenAt": "2026-10-22T16:27:23.758Z",
+  "frozenBy": "r2 lane L4, before the pilot t22-p1 and before any qualification run",
+  "systemSha": "ebd0ea74110ff2a945c7880227d3bbe354b6a41c",
+  "model": {
+    "all": "claude-opus-5-5",
+    "roles": [
+      "brief",
+      "author",
+      "review",
+      "repair"
+    ],
+    "policyVersion": 1,
+    "correctionRounds": 3
+  },
+  "library": {
+    "section": 1,
+    "module": 1,
+    "stack": 1,
+    "flow": 1,
+    "callout": 1,
+    "legend": 1,
+    "pattern-stack": 1,
+    "attention-fanout": 1,
+    "attention-steps": 1,
+    "router-experts": 1,
+    "state-space-block": 1
+  },
+  "files": {
+    "packages/control-plane/src/explain-author.js": "6ca4364c2b77907f",
+    "packages/control-plane/src/explain-repair.js": "48ff02b492b52f3b",
+    "packages/control-plane/src/explain-review.js": "9d957c15d4d81e00",
+    "packages/control-plane/src/explain-policy.js": "4c60755a1d124e28",
+    "packages/control-plane/src/explain-render.js": "98a563bc363b1676",
+    "packages/control-plane/src/learn-scene-gates.js": "82d7be66c827c5a9",
+    "packages/web/src/visual-components/compile.js": "387a9b08ca297636",
+    "packages/web/src/visual-components/registry.js": "c8b1d19fc3762e49",
+    "packages/web/src/explain-contract.js": "b5fe04391b25052b",
+    "packages/web/src/AnimatedScene.jsx": "a9534f7386b62ec2",
+    "viz-benchmarks/visualization-cases/explain-flow.mjs": "f166812a7023c035",
+    "viz-benchmarks/visualization-cases/corpus-run.mjs": "2af78d8a048bd977"
+  },
+  "exampleContext": "no bank examples selected (job.examples = []); the author input carries the registry COMPOSITION guide as composition only",
+  "render": "packages/web/dist-render built from systemSha, local headless Chromium via e2e/viz-benchmark-capture.mjs (owner-approved), light theme for the comparison, light + dark for the review",
+  "cases": [
+    {
+      "id": "arcee-trinity-large-architecture-b9673a24",
+      "family": "llm-architecture",
+      "lineage": "decoder-moe-swiglu",
+      "split": "example",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "backprop-hidden-weight-gradient-df8f15a2",
+      "family": "gradient-math",
+      "lineage": "backprop-chain-rule",
+      "split": "example",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "btl3-27b-hybrid-attention-6d5de116",
+      "family": "llm-architecture",
+      "lineage": "decoder-gated-deltanet-hybrid",
+      "split": "example",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "deepseek-v3-mla-vs-mha-eea4928a",
+      "family": "llm-architecture",
+      "lineage": "deepseek-mla",
+      "split": "heldout",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "diffusion-transformer-long-skip-a4e6231f",
+      "family": "diffusion-backbone",
+      "lineage": "uvit-long-skip",
+      "split": "example",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "kimi-k3-architecture-3a80c547",
+      "family": "llm-architecture",
+      "lineage": "kimi-k3",
+      "split": "heldout",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "minimax-m3-architecture-fe212e84",
+      "family": "llm-architecture",
+      "lineage": "decoder-moe-swiglu",
+      "split": "example",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "qwen3-coder-next-hybrid-attention-daa941f2",
+      "family": "llm-architecture",
+      "lineage": "decoder-gated-deltanet-hybrid",
+      "split": "example",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "qwen3-next-80b-hybrid-attention-a5798b99",
+      "family": "llm-architecture",
+      "lineage": "qwen3-next",
+      "split": "heldout",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "self-attention-context-vector-959e8622",
+      "family": "attention-math",
+      "lineage": "self-attention-context",
+      "split": "heldout",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    },
+    {
+      "id": "zaya1-8b-architecture-8ed07e5a",
+      "family": "llm-architecture",
+      "lineage": "zaya1",
+      "split": "heldout",
+      "exposure": "seen",
+      "inputModes": {
+        "prompt-only": "declared, run",
+        "reference-guided": "declared, not run: corpus-run does not pass the layout reference to the v2 author (T15 reads it from job storage); recorded as unrun"
+      }
+    }
+  ],
+  "splitNote": "Every case has exposure seen (lane A viewed all 11 originals at 02:50 PT for corpus coverage), so no case supports an unseen-generalization claim; held-out cases are reported apart from development (example) cases.",
+  "targets": "frozen separately in t22-targets.json from the pilot numbers, before qualification",
+  "harnessAmendments": [
+    {
+      "at": "2026-10-22T16:35:47.380Z",
+      "after": "t22-p1",
+      "files": {
+        "viz-benchmarks/visualization-cases/explain-flow.mjs": "22ef3e6c87bb7137",
+        "viz-benchmarks/visualization-cases/corpus-run.mjs": "389bf7f09fc36a83"
+      },
+      "why": "capture parity with the product job (explain-job.js renderStage): every part of a paged card, dpr 1. t22-p1 reviewed only part 1 of the 3-part diffusion-transformer card, so that review is void; receipts now also carry flowResult. No product file, model, library version, split, mode or target changed."
+    }
+  ]
+}

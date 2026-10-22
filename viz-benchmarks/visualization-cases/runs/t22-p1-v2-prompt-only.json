@@ -1,0 +1,105 @@
+{
+  "rows": [
+    {
+      "caseId": "arcee-trinity-large-architecture-b9673a24",
+      "split": "example",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.024722,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Trinity Large's design is specific to that model: its layer count, how it mixes a"
+    },
+    {
+      "caseId": "backprop-hidden-weight-gradient-df8f15a2",
+      "split": "example",
+      "outcome": "failed",
+      "result": "invalid",
+      "accepted": false,
+      "costUsd": 0.356915,
+      "error": "invalid"
+    },
+    {
+      "caseId": "btl3-27b-hybrid-attention-6d5de116",
+      "split": "example",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.02377,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"BTL-3 (27B) is a specific model, so its decoder block, layer count and the order "
+    },
+    {
+      "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.030026,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Multi-head latent attention, and the exact sizes DeepSeek V3 uses for it, come fr"
+    },
+    {
+      "caseId": "diffusion-transformer-long-skip-a4e6231f",
+      "split": "example",
+      "outcome": "ok",
+      "result": "repair_stopped",
+      "accepted": false,
+      "costUsd": 0.204034,
+      "error": null
+    },
+    {
+      "caseId": "kimi-k3-architecture-3a80c547",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.024982,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"The Kimi K3 architecture is a specific, versioned model, and no source describing"
+    },
+    {
+      "caseId": "minimax-m3-architecture-fe212e84",
+      "split": "example",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.02435,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"The MiniMax-M3 (428B) architecture is specific to one model, and no source for it"
+    },
+    {
+      "caseId": "qwen3-coder-next-hybrid-attention-daa941f2",
+      "split": "example",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.033818,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"To draw Qwen3-Coder-N"
+    },
+    {
+      "caseId": "qwen3-next-80b-hybrid-attention-a5798b99",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.027634,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Qwen3-Next-80B-A3B's "
+    },
+    {
+      "caseId": "self-attention-context-vector-959e8622",
+      "split": "heldout",
+      "outcome": "ok",
+      "result": "repair_stopped",
+      "accepted": false,
+      "costUsd": 0.172172,
+      "error": null
+    },
+    {
+      "caseId": "zaya1-8b-architecture-8ed07e5a",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "gap",
+      "accepted": false,
+      "costUsd": 0.026254,
+      "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"ZAYA1 (8B) is one spe"
+    }
+  ],
+  "spentUsd": 0.948678,
+  "paused": null
+}

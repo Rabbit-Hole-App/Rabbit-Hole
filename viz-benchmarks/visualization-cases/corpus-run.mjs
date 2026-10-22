@@ -20,9 +20,13 @@ export async function runCorpus({ runId, system, cases, inputMode = 'prompt-only
   const rows = [];
   let spent = 0;
   const shared = recordingModel(transport, { capUsd, prices });
+  let paused = null;
   for (const record of cases) {
+    // Provider-cap resilience (r2 kickoff): after a spend-cap, usage-limit or overload refusal, no further paid case runs.
+    if (paused) { rows.push({ caseId: record.id, split: record.split, outcome: 'not_run', result: 'provider_unavailable', accepted: null, costUsd: 0, error: paused }); continue; }
     const scratch = mkdtempSync(join(tmpdir(), 'vc-run-'));
     let prompt, outcome = 'failed', error = null, scene = null, spec = null, critic = null, extra = {};
+    const rounds = []; // every round's spec, problems and review (explain-flow save), kept beside the final output
     const before = shared.ledger.calls.length;
     const started = Date.now();
     try {
@@ -30,7 +34,7 @@ export async function runCorpus({ runId, system, cases, inputMode = 'prompt-only
         if (inputMode !== 'prompt-only') throw new Error('transport_unavailable: the v2 author takes no reference pixels until T15');
         const env = { SMALL_ENV: 'test' };
         const ctx = { env, call: (role, request) => callExplainRole(env, role, request, { callModel: shared.callModel }) };
-        const flow = await runFlow(record.prompt, { ctx, ledger: shared.ledger });
+        const flow = await runFlow(record.prompt, { ctx, ledger: shared.ledger, save: (name, value) => rounds.push([name, value]) });
         spec = flow.spec; scene = flow.compiled?.scene || null; critic = flow.review || null;
         extra = { result: flow.result, accepted: flow.accepted, rounds: flow.rounds, stages: flow.stages, gap: flow.gap, stop: flow.stop };
         if (!scene) error = `${flow.result}${flow.gap ? `: ${JSON.stringify(flow.gap).slice(0, 300)}` : flow.stop ? `: ${flow.stop.reason || flow.stop.rejected}` : ''}`;
@@ -54,12 +58,16 @@ export async function runCorpus({ runId, system, cases, inputMode = 'prompt-only
     const costUsd = calls.reduce((s, c) => s + (c.costUsd || 0), 0);
     const { runDir, receipt } = recordRun(record.id, { casesRoot, runId, mode: 'generate', inputMode, prompt, outcome, error,
       generatedPng: outcome === 'ok' ? join(scratch, 'generated.png') : undefined, sceneSpec: spec || undefined, compiledScene: scene || undefined, critic: critic || undefined,
-      receipt: { system, costUsd: +costUsd.toFixed(6), calls: calls.length, servedModels: [...new Set(calls.map(c => c.servedModel).filter(Boolean))], elapsedMs: Date.now() - started, humanVerdict: 'pending owner', ...extra }, now });
+      receipt: { system, costUsd: +costUsd.toFixed(6), calls: calls.length, servedModels: [...new Set(calls.map(c => c.servedModel).filter(Boolean))], elapsedMs: Date.now() - started, humanVerdict: 'pending owner', ...extra, flowResult: extra.result ?? null }, now });
+    for (const [name, value] of rounds) { mkdirSync(join(runDir, 'rounds'), { recursive: true }); writeFileSync(join(runDir, 'rounds', name), typeof value === 'string' ? value : `${JSON.stringify(value, null, 2)}
+`); }
     if (outcome === 'ok') await compose(join(casesRoot, 'cases', record.id, record.reference.file), join(runDir, 'generated.png'), join(runDir, 'comparison.png'), { resultLabel: `${system} ${runId}` });
+    const refused = calls.find(c => c.status === 429 || c.status === 529 || (c.status === 400 && /usage limit/i.test(c.error || '')));
+    if (refused) paused = `provider_unavailable: HTTP ${refused.status} ${refused.error || ''}`.trim();
     rows.push({ caseId: record.id, split: record.split, outcome: receipt.outcome, result: extra.result ?? null, accepted: extra.accepted ?? null, costUsd: receipt.costUsd, error: receipt.error });
   }
   buildIndex(casesRoot);
-  return { rows, spentUsd: +spent.toFixed(6) };
+  return { rows, spentUsd: +spent.toFixed(6), paused };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

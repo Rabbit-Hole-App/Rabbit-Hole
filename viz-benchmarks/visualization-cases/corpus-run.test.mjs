@@ -22,8 +22,9 @@ function corpus() {
 }
 
 const scene = { id: 's', width: 100, height: 50, duration: 1, objects: [], timeline: [] };
-const fakeFlow = (byPrompt) => async (prompt, { ctx, ledger }) => {
+const fakeFlow = (byPrompt) => async (prompt, { ctx, ledger, save }) => {
   await ctx.call('author', { system: 's', tool: { name: 'author_tool', input_schema: {} }, content: [{ type: 'text', text: prompt }] });
+  save('spec-r0.json', { v: 1, prompt });
   return byPrompt[prompt];
 };
 const transport = async (body, model) => Response.json({ model, usage: { input_tokens: 100, output_tokens: 10 }, content: [] });
@@ -47,7 +48,14 @@ test('v2 runs record history, a comparison for rendered results, a missing-resul
   assert.ok(receipt.costUsd > 0);
   assert.equal(JSON.parse(readFileSync(join(runA, 'prompt.json'), 'utf8')).stageCalls.length, 1);
   assert.equal(existsSync(join(casesRoot, 'cases', cases[0].id, 'review.json')), false, 'no verdict is invented');
+  assert.deepEqual(JSON.parse(readFileSync(join(runA, 'rounds', 'spec-r0.json'), 'utf8')), { v: 1, prompt: 'Explain A.' }, 'every round is kept with the run');
   assert.equal(existsSync(join(casesRoot, 'cases', cases[1].id, 'generated', 'history', 'v2-pilot', 'generated.png')), false);
+  assert.equal(receipt.flowResult, 'accepted');
+  const html = readFileSync(join(casesRoot, 'index.html'), 'utf8');
+  assert.match(html, /verdict pending owner/);
+  assert.match(html, /flow accepted · model review accepted · 1 calls/);
+  assert.match(html, /flow repair_stopped/);
+  assert.match(html, /<img src="cases\/[^"]+\/v2-pilot\/comparison.png"/);
 });
 
 test('v2 reference-guided is recorded as transport_unavailable, with no call made', async () => {
@@ -72,4 +80,25 @@ test('bank review (EXP-T11) reviews only records that lack nothing but the seman
     review: async input => { reviewed.push(input.request); const fail = input.request.startsWith('bad'); return { captures: input.captures.map(c => ({ captureId: c.id, semantic: fail ? 'fail' : 'pass', visual: 'pass', findings: [] })) }; } });
   assert.deepEqual(reviewed, ['ok (i)', 'bad (i)'], 'a held-out derivative is never sent for review');
   assert.deepEqual(rows.map(r => [r.id, r.reviewed, r.semantic ?? null]), [['ok', true, 'pass'], ['held', false, null], ['bad', true, 'fail']]);
+});
+
+test('a provider usage-limit refusal pauses the remaining paid cases instead of running them', async () => {
+  const { casesRoot, cases } = corpus();
+  let calls = 0;
+  const limited = async (body, model) => { calls++; return Response.json({ type: 'error', error: { message: 'You have reached your specified API usage limits.' } }, { status: 400 }); };
+  const out = await runCorpus({ runId: 'v2-cap', system: 'v2', cases, transport: limited, capUsd: 1, prices: { 'claude-opus-5-5': [4, 20, 0.2] },
+    runFlow: async (prompt, { ctx }) => { await ctx.call('author', { system: 's', tool: { name: 't', input_schema: {} }, content: prompt }); return { result: 'unknown', stages: [] }; },
+    callExplainRole, render: async () => png(1, 1, 1), compose: async () => {}, casesRoot });
+  assert.equal(calls, 1, 'the second case makes no call');
+  assert.equal(out.rows[1].outcome, 'not_run');
+  assert.match(out.paused, /provider_unavailable: HTTP 400 .*usage limits/);
+  assert.equal(out.spentUsd, 0, 'a refused call is not billed');
+});
+
+test('the flow reviews what the product job reviews: every part of a paged card, both themes while they fit one review', async () => {
+  const { captureEntries } = await import('./explain-flow.mjs');
+  assert.deepEqual(captureEntries({}, 0).map(e => e.id), ['light-r0', 'dark-r0']);
+  const three = captureEntries({ exampleData: { partTitles: ['a', 'b', 'c'] } }, 1);
+  assert.deepEqual(three.map(e => [e.id, e.inputs.part]), [['p0-light-r1', 0], ['p0-dark-r1', 0], ['p1-light-r1', 1], ['p1-dark-r1', 1], ['p2-light-r1', 2], ['p2-dark-r1', 2]]);
+  assert.deepEqual(captureEntries({ exampleData: { partTitles: ['a', 'b', 'c', 'd'] } }, 0).map(e => e.theme), ['light', 'light', 'light', 'light'], 'four parts in both themes would not fit one review');
 });

@@ -1,0 +1,1184 @@
+{
+  "id": "diffusion-transformer-tokens-skips",
+  "title": "How a token-based diffusion transformer predicts noise, using long skip connections",
+  "width": 1124,
+  "height": 858,
+  "duration": 1,
+  "objects": [
+    {
+      "id": "path.step0",
+      "type": "box",
+      "initialState": {
+        "x": 32,
+        "y": 32,
+        "w": 150,
+        "h": 95,
+        "role": "input"
+      },
+      "semanticId": "path.step0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step0-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Noisy image,",
+        "x": 48,
+        "y": 64,
+        "typography": "body"
+      },
+      "semanticId": "path.step0-line0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step0-line1",
+      "type": "text",
+      "initialState": {
+        "text": "time step,",
+        "x": 48,
+        "y": 85,
+        "typography": "body"
+      },
+      "semanticId": "path.step0-line1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step0-line2",
+      "type": "text",
+      "initialState": {
+        "text": "condition",
+        "x": 48,
+        "y": 106,
+        "typography": "body"
+      },
+      "semanticId": "path.step0-line2",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step1",
+      "type": "box",
+      "initialState": {
+        "x": 214,
+        "y": 32,
+        "w": 150,
+        "h": 95,
+        "role": "neutral"
+      },
+      "semanticId": "path.step1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step1-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Embed each as",
+        "x": 230,
+        "y": 74,
+        "typography": "body"
+      },
+      "semanticId": "path.step1-line0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step1-line1",
+      "type": "text",
+      "initialState": {
+        "text": "tokens",
+        "x": 230,
+        "y": 95,
+        "typography": "body"
+      },
+      "semanticId": "path.step1-line1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step2",
+      "type": "box",
+      "initialState": {
+        "x": 396,
+        "y": 32,
+        "w": 150,
+        "h": 95,
+        "role": "neutral"
+      },
+      "semanticId": "path.step2",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step2-line0",
+      "type": "text",
+      "initialState": {
+        "text": "One token",
+        "x": 412,
+        "y": 74,
+        "typography": "body"
+      },
+      "semanticId": "path.step2-line0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step2-line1",
+      "type": "text",
+      "initialState": {
+        "text": "sequence",
+        "x": 412,
+        "y": 95,
+        "typography": "body"
+      },
+      "semanticId": "path.step2-line1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step3",
+      "type": "box",
+      "initialState": {
+        "x": 578,
+        "y": 32,
+        "w": 150,
+        "h": 95,
+        "role": "neutral"
+      },
+      "semanticId": "path.step3",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step3-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Transformer",
+        "x": 594,
+        "y": 64,
+        "typography": "body"
+      },
+      "semanticId": "path.step3-line0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step3-line1",
+      "type": "text",
+      "initialState": {
+        "text": "blocks with",
+        "x": 594,
+        "y": 85,
+        "typography": "body"
+      },
+      "semanticId": "path.step3-line1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step3-line2",
+      "type": "text",
+      "initialState": {
+        "text": "long skips",
+        "x": 594,
+        "y": 106,
+        "typography": "body"
+      },
+      "semanticId": "path.step3-line2",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step4",
+      "type": "box",
+      "initialState": {
+        "x": 760,
+        "y": 32,
+        "w": 150,
+        "h": 95,
+        "role": "neutral"
+      },
+      "semanticId": "path.step4",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step4-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Patch tokens",
+        "x": 776,
+        "y": 74,
+        "typography": "body"
+      },
+      "semanticId": "path.step4-line0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step4-line1",
+      "type": "text",
+      "initialState": {
+        "text": "to pixels",
+        "x": 776,
+        "y": 95,
+        "typography": "body"
+      },
+      "semanticId": "path.step4-line1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step5",
+      "type": "box",
+      "initialState": {
+        "x": 942,
+        "y": 32,
+        "w": 150,
+        "h": 95,
+        "role": "prediction"
+      },
+      "semanticId": "path.step5",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step5-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Predicted",
+        "x": 958,
+        "y": 74,
+        "typography": "body"
+      },
+      "semanticId": "path.step5-line0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.step5-line1",
+      "type": "text",
+      "initialState": {
+        "text": "noise",
+        "x": 958,
+        "y": 95,
+        "typography": "body"
+      },
+      "semanticId": "path.step5-line1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.edge0",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 182,
+          "y": 80
+        },
+        "to": {
+          "x": 214,
+          "y": 80
+        }
+      },
+      "semanticId": "path.edge0",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.edge1",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 364,
+          "y": 80
+        },
+        "to": {
+          "x": 396,
+          "y": 80
+        }
+      },
+      "semanticId": "path.edge1",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.edge2",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 546,
+          "y": 80
+        },
+        "to": {
+          "x": 578,
+          "y": 80
+        }
+      },
+      "semanticId": "path.edge2",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.edge3",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 728,
+          "y": 80
+        },
+        "to": {
+          "x": 760,
+          "y": 80
+        }
+      },
+      "semanticId": "path.edge3",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "path.edge4",
+      "type": "arrow",
+      "initialState": {
+        "from": {
+          "x": 910,
+          "y": 80
+        },
+        "to": {
+          "x": 942,
+          "y": 80
+        }
+      },
+      "semanticId": "path.edge4",
+      "conceptId": "path",
+      "part": 0
+    },
+    {
+      "id": "loss-note.box",
+      "type": "box",
+      "initialState": {
+        "x": 32,
+        "y": 159,
+        "w": 480,
+        "h": 104,
+        "role": "output"
+      },
+      "semanticId": "loss-note.box",
+      "conceptId": "loss-note",
+      "part": 0
+    },
+    {
+      "id": "loss-note.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Training goal: make the predicted noise match the",
+        "x": 48,
+        "y": 191,
+        "typography": "body"
+      },
+      "semanticId": "loss-note.box-line0",
+      "conceptId": "loss-note",
+      "part": 0
+    },
+    {
+      "id": "loss-note.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "noise that was added.",
+        "x": 48,
+        "y": 212,
+        "typography": "body"
+      },
+      "semanticId": "loss-note.box-line1",
+      "conceptId": "loss-note",
+      "part": 0
+    },
+    {
+      "id": "loss-note.box-line2",
+      "type": "text",
+      "initialState": {
+        "text": "mathcalL = lVert ε - ε_θ(x_t, t, c) rVert^2",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "\\mathcal{L} = \\lVert \\epsilon - \\epsilon_\\theta(x_t, t, c) \\rVert^2"
+          }
+        ],
+        "x": 48,
+        "y": 242,
+        "typography": "body"
+      },
+      "semanticId": "loss-note.box-line2",
+      "conceptId": "loss-note",
+      "part": 0
+    },
+    {
+      "id": "tok-sec.frame",
+      "type": "box",
+      "initialState": {
+        "x": 32,
+        "y": 32,
+        "w": 973,
+        "h": 451,
+        "role": "neutral"
+      },
+      "semanticId": "tok-sec.frame",
+      "conceptId": "tok-sec",
+      "part": 1
+    },
+    {
+      "id": "tok-sec.title0",
+      "type": "text",
+      "initialState": {
+        "text": "Three kinds of input, one sequence",
+        "x": 56,
+        "y": 77,
+        "typography": "heading"
+      },
+      "semanticId": "tok-sec.title0",
+      "conceptId": "tok-sec",
+      "part": 1
+    },
+    {
+      "id": "t-tok.box",
+      "type": "box",
+      "initialState": {
+        "label": "Time step t → time token",
+        "runs": [
+          {
+            "kind": "text",
+            "text": "Time step "
+          },
+          {
+            "kind": "math",
+            "tex": "t"
+          },
+          {
+            "kind": "text",
+            "text": " → time token"
+          }
+        ],
+        "x": 56,
+        "y": 108,
+        "w": 248,
+        "h": 56,
+        "role": "input"
+      },
+      "semanticId": "t-tok.box",
+      "conceptId": "t-tok",
+      "part": 1
+    },
+    {
+      "id": "c-tok.box",
+      "type": "box",
+      "initialState": {
+        "x": 336,
+        "y": 108,
+        "w": 293,
+        "h": 83,
+        "role": "input"
+      },
+      "semanticId": "c-tok.box",
+      "conceptId": "c-tok",
+      "part": 1
+    },
+    {
+      "id": "c-tok.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Condition c (class or text) →",
+        "runs": [
+          {
+            "kind": "text",
+            "text": "Condition "
+          },
+          {
+            "kind": "math",
+            "tex": "c"
+          },
+          {
+            "kind": "text",
+            "text": " (class or text) →"
+          }
+        ],
+        "x": 352,
+        "y": 149,
+        "typography": "body"
+      },
+      "semanticId": "c-tok.box-line0",
+      "conceptId": "c-tok",
+      "part": 1
+    },
+    {
+      "id": "c-tok.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "condition token(s)",
+        "x": 352,
+        "y": 170,
+        "typography": "body"
+      },
+      "semanticId": "c-tok.box-line1",
+      "conceptId": "c-tok",
+      "part": 1
+    },
+    {
+      "id": "p-tok.box",
+      "type": "box",
+      "initialState": {
+        "x": 661,
+        "y": 108,
+        "w": 320,
+        "h": 83,
+        "role": "input"
+      },
+      "semanticId": "p-tok.box",
+      "conceptId": "p-tok",
+      "part": 1
+    },
+    {
+      "id": "p-tok.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Noisy image x_t cut into patches",
+        "runs": [
+          {
+            "kind": "text",
+            "text": "Noisy image "
+          },
+          {
+            "kind": "math",
+            "tex": "x_t"
+          },
+          {
+            "kind": "text",
+            "text": " cut into patches"
+          }
+        ],
+        "x": 677,
+        "y": 149,
+        "typography": "body"
+      },
+      "semanticId": "p-tok.box-line0",
+      "conceptId": "p-tok",
+      "part": 1
+    },
+    {
+      "id": "p-tok.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "→ patch tokens",
+        "x": 677,
+        "y": 170,
+        "typography": "body"
+      },
+      "semanticId": "p-tok.box-line1",
+      "conceptId": "p-tok",
+      "part": 1
+    },
+    {
+      "id": "seq.box",
+      "type": "box",
+      "initialState": {
+        "x": 56,
+        "y": 215,
+        "w": 360,
+        "h": 104,
+        "role": "neutral"
+      },
+      "semanticId": "seq.box",
+      "conceptId": "seq",
+      "part": 1
+    },
+    {
+      "id": "seq.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "One sequence:",
+        "x": 72,
+        "y": 247,
+        "typography": "body"
+      },
+      "semanticId": "seq.box-line0",
+      "conceptId": "seq",
+      "part": 1
+    },
+    {
+      "id": "seq.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "[t,\\ c,\\ p_1, dots, p_N] plus",
+        "runs": [
+          {
+            "kind": "math",
+            "tex": "[\\,t,\\ c,\\ p_1, \\dots, p_N\\,]"
+          },
+          {
+            "kind": "text",
+            "text": " plus"
+          }
+        ],
+        "x": 72,
+        "y": 277,
+        "typography": "body"
+      },
+      "semanticId": "seq.box-line1",
+      "conceptId": "seq",
+      "part": 1
+    },
+    {
+      "id": "seq.box-line2",
+      "type": "text",
+      "initialState": {
+        "text": "position embeddings",
+        "x": 72,
+        "y": 298,
+        "typography": "body"
+      },
+      "semanticId": "seq.box-line2",
+      "conceptId": "seq",
+      "part": 1
+    },
+    {
+      "id": "tok-note.box",
+      "type": "box",
+      "initialState": {
+        "x": 56,
+        "y": 343,
+        "w": 480,
+        "h": 116,
+        "role": "output"
+      },
+      "semanticId": "tok-note.box",
+      "conceptId": "tok-note",
+      "part": 1
+    },
+    {
+      "id": "tok-note.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Every block attends over all tokens, so the time",
+        "x": 72,
+        "y": 375,
+        "typography": "body"
+      },
+      "semanticId": "tok-note.box-line0",
+      "conceptId": "tok-note",
+      "part": 1
+    },
+    {
+      "id": "tok-note.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "and condition steer each patch through ordinary",
+        "x": 72,
+        "y": 396,
+        "typography": "body"
+      },
+      "semanticId": "tok-note.box-line1",
+      "conceptId": "tok-note",
+      "part": 1
+    },
+    {
+      "id": "tok-note.box-line2",
+      "type": "text",
+      "initialState": {
+        "text": "attention. No separate conditioning path is",
+        "x": 72,
+        "y": 417,
+        "typography": "body"
+      },
+      "semanticId": "tok-note.box-line2",
+      "conceptId": "tok-note",
+      "part": 1
+    },
+    {
+      "id": "tok-note.box-line3",
+      "type": "text",
+      "initialState": {
+        "text": "needed.",
+        "x": 72,
+        "y": 438,
+        "typography": "body"
+      },
+      "semanticId": "tok-note.box-line3",
+      "conceptId": "tok-note",
+      "part": 1
+    },
+    {
+      "id": "skip-sec.frame",
+      "type": "box",
+      "initialState": {
+        "x": 32,
+        "y": 32,
+        "w": 528,
+        "h": 583,
+        "role": "neutral"
+      },
+      "semanticId": "skip-sec.frame",
+      "conceptId": "skip-sec",
+      "part": 2
+    },
+    {
+      "id": "skip-sec.title0",
+      "type": "text",
+      "initialState": {
+        "text": "Shallow blocks feed matching deep blocks",
+        "x": 56,
+        "y": 77,
+        "typography": "heading"
+      },
+      "semanticId": "skip-sec.title0",
+      "conceptId": "skip-sec",
+      "part": 2
+    },
+    {
+      "id": "in-1.box",
+      "type": "box",
+      "initialState": {
+        "label": "Shallow block 1",
+        "x": 56,
+        "y": 108,
+        "w": 176,
+        "h": 56,
+        "role": "neutral"
+      },
+      "semanticId": "in-1.box",
+      "conceptId": "in-1",
+      "part": 2
+    },
+    {
+      "id": "in-2.box",
+      "type": "box",
+      "initialState": {
+        "label": "Shallow block 2",
+        "x": 56,
+        "y": 188,
+        "w": 176,
+        "h": 56,
+        "role": "neutral"
+      },
+      "semanticId": "in-2.box",
+      "conceptId": "in-2",
+      "part": 2
+    },
+    {
+      "id": "mid.box",
+      "type": "box",
+      "initialState": {
+        "label": "Middle block",
+        "x": 56,
+        "y": 268,
+        "w": 176,
+        "h": 56,
+        "role": "neutral"
+      },
+      "semanticId": "mid.box",
+      "conceptId": "mid",
+      "part": 2
+    },
+    {
+      "id": "out-2.box",
+      "type": "box",
+      "initialState": {
+        "label": "Deep block 2",
+        "x": 56,
+        "y": 348,
+        "w": 176,
+        "h": 56,
+        "role": "neutral"
+      },
+      "semanticId": "out-2.box",
+      "conceptId": "out-2",
+      "part": 2
+    },
+    {
+      "id": "out-1.box",
+      "type": "box",
+      "initialState": {
+        "label": "Deep block 1",
+        "x": 56,
+        "y": 428,
+        "w": 176,
+        "h": 56,
+        "role": "neutral"
+      },
+      "semanticId": "out-1.box",
+      "conceptId": "out-1",
+      "part": 2
+    },
+    {
+      "id": "readout.box",
+      "type": "box",
+      "initialState": {
+        "x": 56,
+        "y": 508,
+        "w": 284,
+        "h": 83,
+        "role": "prediction"
+      },
+      "semanticId": "readout.box",
+      "conceptId": "readout",
+      "part": 2
+    },
+    {
+      "id": "readout.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "Keep patch tokens → linear →",
+        "x": 72,
+        "y": 540,
+        "typography": "body"
+      },
+      "semanticId": "readout.box-line0",
+      "conceptId": "readout",
+      "part": 2
+    },
+    {
+      "id": "readout.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "unpatchify → hatε",
+        "runs": [
+          {
+            "kind": "text",
+            "text": "unpatchify → "
+          },
+          {
+            "kind": "math",
+            "tex": "\\hat{\\epsilon}"
+          }
+        ],
+        "x": 72,
+        "y": 570,
+        "typography": "body"
+      },
+      "semanticId": "readout.box-line1",
+      "conceptId": "readout",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box",
+      "type": "box",
+      "initialState": {
+        "x": 32,
+        "y": 647,
+        "w": 480,
+        "h": 179,
+        "role": "neutral"
+      },
+      "semanticId": "skip-note.box",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line0",
+      "type": "text",
+      "initialState": {
+        "text": "A long skip carries a shallow block's tokens",
+        "x": 48,
+        "y": 679,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line0",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line1",
+      "type": "text",
+      "initialState": {
+        "text": "straight to its mirror deep block, where they are",
+        "x": 48,
+        "y": 700,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line1",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line2",
+      "type": "text",
+      "initialState": {
+        "text": "combined with the deep tokens (for example by",
+        "x": 48,
+        "y": 721,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line2",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line3",
+      "type": "text",
+      "initialState": {
+        "text": "concatenating, then a linear layer). Fine,",
+        "x": 48,
+        "y": 742,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line3",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line4",
+      "type": "text",
+      "initialState": {
+        "text": "low-level detail reaches the output directly,",
+        "x": 48,
+        "y": 763,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line4",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line5",
+      "type": "text",
+      "initialState": {
+        "text": "which helps pixel-level noise prediction and",
+        "x": 48,
+        "y": 784,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line5",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "skip-note.box-line6",
+      "type": "text",
+      "initialState": {
+        "text": "makes training easier.",
+        "x": 48,
+        "y": 805,
+        "typography": "body"
+      },
+      "semanticId": "skip-note.box-line6",
+      "conceptId": "skip-note",
+      "part": 2
+    },
+    {
+      "id": "link0",
+      "type": "arrow",
+      "semanticId": "link0",
+      "part": 1,
+      "initialState": {
+        "from": {
+          "x": 180,
+          "y": 164
+        },
+        "to": {
+          "x": 236,
+          "y": 215
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link1",
+      "type": "arrow",
+      "semanticId": "link1",
+      "part": 1,
+      "initialState": {
+        "from": {
+          "x": 482.5,
+          "y": 191
+        },
+        "to": {
+          "x": 236,
+          "y": 215
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link2",
+      "type": "arrow",
+      "semanticId": "link2",
+      "part": 1,
+      "initialState": {
+        "from": {
+          "x": 821,
+          "y": 191
+        },
+        "to": {
+          "x": 236,
+          "y": 215
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link3",
+      "type": "arrow",
+      "semanticId": "link3",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 144,
+          "y": 164
+        },
+        "to": {
+          "x": 144,
+          "y": 188
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link4",
+      "type": "arrow",
+      "semanticId": "link4",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 144,
+          "y": 244
+        },
+        "to": {
+          "x": 144,
+          "y": 268
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link5",
+      "type": "arrow",
+      "semanticId": "link5",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 144,
+          "y": 324
+        },
+        "to": {
+          "x": 144,
+          "y": 348
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link6",
+      "type": "arrow",
+      "semanticId": "link6",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 144,
+          "y": 404
+        },
+        "to": {
+          "x": 144,
+          "y": 428
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link7",
+      "type": "arrow",
+      "semanticId": "link7",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 144,
+          "y": 484
+        },
+        "to": {
+          "x": 198,
+          "y": 508
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link8",
+      "type": "line",
+      "semanticId": "link8",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 232,
+          "y": 216
+        },
+        "to": {
+          "x": 232,
+          "y": 376
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link8-label",
+      "type": "text",
+      "semanticId": "link8-label",
+      "part": 2,
+      "initialState": {
+        "text": "long skip",
+        "x": 240,
+        "y": 301,
+        "typography": "annotation"
+      }
+    },
+    {
+      "id": "link9",
+      "type": "line",
+      "semanticId": "link9",
+      "part": 2,
+      "initialState": {
+        "from": {
+          "x": 56,
+          "y": 136
+        },
+        "to": {
+          "x": 56,
+          "y": 456
+        },
+        "role": "neutral"
+      }
+    },
+    {
+      "id": "link9-label",
+      "type": "text",
+      "semanticId": "link9-label",
+      "part": 2,
+      "initialState": {
+        "text": "long skip",
+        "x": 64,
+        "y": 301,
+        "typography": "annotation"
+      }
+    }
+  ],
+  "timeline": [],
+  "presentation": {
+    "mode": "static"
+  },
+  "inputs": [
+    {
+      "name": "part",
+      "type": "index",
+      "label": "Part",
+      "of": "partTitles",
+      "default": 0,
+      "presentation": "pager"
+    }
+  ],
+  "exampleData": {
+    "partTitles": [
+      "The whole path",
+      "Everything becomes a token",
+      "Long skips and the noise readout"
+    ]
+  }
+}
