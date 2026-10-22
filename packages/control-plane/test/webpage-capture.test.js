@@ -101,10 +101,11 @@ function fakeBrowser(site, log = { aborted: [], continued: [], headers: [] }) {
     evaluate: async (fn, ...args) => {
       if (fn.name === 'pageFacts') return { height: current.height ?? 1000, password: !!current.password, textLength: current.textLength ?? 5000 };
       if (fn.name === 'scrollThrough') return undefined;
+      if (fn.name === 'scrollToY') { log.scrolls = [...(log.scrolls || []), args[0]]; return undefined; }
       if (fn.name === 'textRuns') { log.textArgs = args; return { runs: current.runs || [], truncated: !!current.textTruncated }; }
       throw new Error(`unexpected evaluate ${fn.name}`);
     },
-    screenshot: async ({ type, clip }) => { log.shots = [...(log.shots || []), { type, ...clip }]; return new Uint8Array(current.tileBytes ?? 1000).fill(clip.y % 251); },
+    screenshot: async ({ type, clip, captureBeyondViewport }) => { assert.equal(captureBeyondViewport, false, 'shot from the viewport'); log.shots = [...(log.shots || []), { type, ...clip }]; return new Uint8Array(current.tileBytes ?? 1000).fill(clip.y % 251); },
   };
   return { createBrowserContext: async () => ({ newPage: async () => page, close: async () => { log.contextClosed = true; } }), disconnect: async () => { log.disconnected = true; }, log };
 }
@@ -128,6 +129,7 @@ test('capturePage: every redirect hop and every subresource is checked; private 
   for (const h of log.headers) assert.deepEqual(Object.keys(h).filter(k => /cookie|authorization/i.test(k)), [], 'no cookie or Authorization header');
   assert.deepEqual(page.tiles.map(t => [t.y, t.h]), [[0, 1400], [1400, 1400], [2720, 280]]);
   assert.deepEqual(log.shots.map(s => [s.type, s.x, s.y, s.width, s.height]), [['jpeg', 0, 0, 1280, 1400], ['jpeg', 0, 1400, 1280, 1400], ['jpeg', 0, 2720, 1280, 280]]);
+  assert.deepEqual(log.scrolls, [0, 1400, 2720], 'each tile scrolled into view before its shot');
   assert.deepEqual(page.runs.map(r => [r.text, r.tile]), [['Top', 0], ['Mid', 1], ['Low', 2]]);
   assert.deepEqual(page.truncated, { height: false, bytes: false, text: false });
   assert.deepEqual(log.textArgs, [200_000, 3000]);
