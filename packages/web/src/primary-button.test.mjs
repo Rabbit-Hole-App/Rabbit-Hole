@@ -8,7 +8,7 @@ const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8')
 const css = read('index.css');
 const darkStart = css.indexOf('.dark {');
 const dark = css.slice(darkStart, css.indexOf('}', darkStart));
-const light = css.slice(css.indexOf('@theme {'), css.indexOf('}', css.indexOf('@theme {')));
+const light = css.slice(0, darkStart);
 const declared = (block, name) => block.match(new RegExp(`^\\s*${name}\\s*:\\s*([^;]+);`, 'm'))?.[1].trim();
 const token = (theme, name) => (theme === 'dark' && declared(dark, name)) || declared(light, name);
 const lum = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
@@ -16,7 +16,7 @@ const lum = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
   .reduce((sum, n, i) => sum + n * [0.2126, 0.7152, 0.0722][i], 0);
 const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
-test('the primary fill is #1b6fc2 with a darker hover, and white text on both clears 4.5:1 in both themes', () => {
+test('the primary fill is #1b6fc2 with a darker hover; white text on it, and on the action Button, clears 4.5:1 in both themes', () => {
   for (const theme of ['light', 'dark']) {
     const fill = token(theme, '--color-primary-fill'), hover = token(theme, '--color-primary-fill-hover');
     assert.equal(fill, '#1b6fc2', theme);
@@ -25,6 +25,16 @@ test('the primary fill is #1b6fc2 with a darker hover, and white text on both cl
       const r = ratio('#ffffff', bg);
       console.log(`primary button ${theme} ${name}: white on ${bg} ${r.toFixed(2)}:1`);
       assert.ok(r >= 4.5, `${theme} ${name}: ${r.toFixed(2)}:1`);
+    }
+  }
+  // The companion's action Button (Upload): --action-blue at rest, the primary's darker fill on hover.
+  const action = read('ui.jsx').match(/variant === 'action' && '([^']+)'/)[1].split(' ');
+  for (const cls of ['bg-(--action-blue)', 'text-white', 'hover:bg-primary-fill-hover']) assert.ok(action.includes(cls), cls);
+  for (const theme of ['light', 'dark']) {
+    for (const [name, bg] of [['rest', token(theme, '--action-blue')], ['hover', token(theme, '--color-primary-fill-hover')]]) {
+      const r = ratio('#ffffff', bg);
+      console.log(`action button ${theme} ${name}: white on ${bg} ${r.toFixed(2)}:1`);
+      assert.ok(r >= 4.5, `action ${theme} ${name}: ${r.toFixed(2)}:1`);
     }
   }
   // Dark mode turns --color-white into the page surface; a class naming the fill re-pins it so text-white stays white.

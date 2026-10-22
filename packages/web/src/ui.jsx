@@ -30,8 +30,9 @@ export function Button({ className, variant = 'ghost', size, ...props }) {
         'inline-flex items-center gap-1.5 rounded-lg border-0 text-sm font-medium whitespace-nowrap transition-colors duration-100 select-none focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:opacity-50',
         size === 'sm' ? 'h-7 px-2 text-[13px]' : 'h-8 px-3',
         variant === 'primary' && 'bg-primary-fill text-white hover:bg-primary-fill-hover',
-        // The companion's filled actions (Upload, Add to canvas; owner brief 2026-10-16 item 4): --action-blue, white text.
-        variant === 'action' && 'bg-(--action-blue) font-medium text-white hover:brightness-110',
+        // The companion's filled actions (Upload, Add to canvas; owner brief 2026-10-16 item 4): --action-blue, white text; the
+        // hover is the primary's darker fill, never a lighter one (white on a lighter blue fell under 4.5:1; owner 2026-10-22).
+        variant === 'action' && 'bg-(--action-blue) font-medium text-white hover:bg-primary-fill-hover',
         // "New token" template: visible as a button at rest - white, border, faint shadow
         // bg-surface, not bg-white: inside a blue or red fill .dark re-pins --color-white to pure white (index.css), which drew a
         // white Cancel under light text on the dark slash notice.

@@ -210,7 +210,7 @@ html {
 :root {
   /* The right panel's selected navigation icon and the companion's filled actions (owner brief 2026-10-16 items 3-4; the
      approved toc-upload-context and companion-panel mockups): a soft purple tile with a purple icon, a blue with white text
-     (5.0:1). Flipped in .dark. */
+     (5.2:1). Flipped in .dark, where it is the primary fill: white on the old #2485e8 was 3.8:1 (owner 2026-10-22). */
   --nav-selected-bg: #eee5fc;
   --nav-selected-fg: #6431a0;
   --action-blue: #176cce;
@@ -339,7 +339,7 @@ html {
   --pill-canvas-fg: #d4d4d4;
   --nav-selected-bg: #453060;
   --nav-selected-fg: #e1cff9;
-  --action-blue: #2485e8;
+  --action-blue: #1b6fc2;
   --cmd-motion-bg: #2f1233;
   --cmd-motion-fg: #f5d0fe;
   --cmd-motion-line: #86198f;
