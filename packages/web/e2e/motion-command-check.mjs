@@ -6,9 +6,12 @@
 //      scene card, nothing regenerated;
 //   1. discovery: the Chat picker lists /motion under Create, "Create an animated explainer video", and no /animate;
 //   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
-//   3. typed /motion: the confirmation shows the exact line; Cancel starts nothing and adds no card;
-//   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
-//      motion_request; the card shows its progress, then the ready video with the job's title (no meta line, owner message 31);
+//   3. typed /motion (MOT-20/UI-15, owner messages 39 and 40) is a chat turn: the chat answer (MOCKED /api/learn/ask, a proposal
+//      in answer_meta) draws the generation proposal card: title, Duration, Audio Off with On disabled, the server's credits line
+//      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); nothing reaches the video route;
+//   4. MOCKED generation (/api/learn/video stubbed here): the card's Generate adds one video card and starts exactly one confirmed
+//      motion_request carrying the approved proposal; the card shows its progress, then the ready video with the job's title
+//      (no meta line, owner message 31);
 //   5. MOCKED failure: the stubbed job fails; the card says why and offers Generate again; nothing else starts;
 //   5e. MOCKED identical prompt twice (owner message 37): two Generate presses send two starts with different request ids;
 //   5d. MOCKED Stop asks first (owner message 35): Cancel and Escape send nothing, keep it generating and return focus to Stop;
@@ -90,6 +93,32 @@ for (const theme of ['light', 'dark']) {
   const seen = [], model = [];
   context.on('request', request => { const url = new URL(request.url()); if (url.pathname.startsWith('/api/learn/') || url.pathname === CLIP) seen.push({ method: request.method(), path: url.pathname, query: url.search, body: request.postData() || '' }); });
   await context.route(/\/api\/learn\/(artifact|tutor\/plan|ask|selection|inline\/[\w-]+|image|scene|search|voice\/[\w-]+)(\?|$)/, route => { model.push(new URL(route.request().url()).pathname); return route.abort(); });
+  // MOCKED chat answer (MOT-20): every /motion turn's proposal, its input the turn's own request, concept and selected card, so
+  // Generate sends what the real worker accepts. Its signature is not real: with no orchestrator here the worker never checks it.
+  const asks = [], proposals = new Map();
+  const sse = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  await context.route(/\/api\/learn\/ask(\?|$)/, route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    asks.push(body);
+    const n = asks.length, words = String(body.message || ''), id = String(900000 + n);
+    const seconds = Math.min(30, Math.max(5, Number(/(\d+)s\b/.exec(words)?.[1] || 10)));
+    const proposal = { proposal_id: `gp-${(run + n.toString(16).padStart(6, '0')).replace(/[^0-9a-f]/g, '0').padStart(16, '0').slice(-16)}`, version: 1, command: 'motion',
+      title: `Motion: ${words}`.slice(0, 120), description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.',
+      settings: { duration_seconds: seconds, audio: false }, source_refs: [],
+      input: { request: `/motion ${words}`.slice(0, 500), concept: body.generation?.motion?.concept ?? null, ...(body.generation?.motion?.context ? { context: body.generation.motion.context } : {}) },
+      expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64), usage: { estimate_credits: 100, reserve_credits: 896 } };
+    proposals.set(id, proposal);
+    return route.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse('chunk', { text: 'Here is a video proposal.' })
+      + sse('answer_meta', { messageId: id, actions: [], followUps: [], alternatives: [id], kind: 'answer', syllabus: null, proposal })
+      + sse('done', { ok: true, threadId: body.thread_id ?? `canvaschat-mock-${run}-${n}`, userMessageId: String(800000 + n), messageId: id }) });
+  });
+  // MOCKED duration change on the card: the next version of the same proposal, saved over its message.
+  await context.route(/\/api\/learn\/chat\/messages\/\d+\/proposal$/, route => {
+    const id = /messages\/(\d+)\//.exec(route.request().url())[1], previous = proposals.get(id);
+    const proposal = { ...previous, version: previous.version + 1, settings: JSON.parse(route.request().postData()).settings };
+    proposals.set(id, proposal);
+    return route.fulfill({ json: { proposal } });
+  });
   await context.route('**/main/thumbnail', route => (route.request().method() === 'PUT' ? route.fulfill({ status: 204 }) : route.continue()));
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
@@ -106,6 +135,17 @@ for (const theme of ['light', 'dark']) {
   const pill = dock.locator('[data-command-pill]');
   const notice = dock.locator('[data-slash-result]');
   const videoPosts = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && !r.body.includes('"action"'));
+  // MOT-20: a /motion line is a chat turn whose answer draws a proposal card; its Generate is enabled once the answer is saved.
+  const proposalCards = dock.locator('[data-generation-proposal]');
+  const propose = async line => {
+    const before = await proposalCards.count();
+    await composer().fill(line); await composer().press('Enter');
+    await until(async () => (await proposalCards.count()) > before, `the proposal card for ${line}`);
+    const card = proposalCards.last();
+    await card.locator('[data-proposal-generate]:not([disabled])').waitFor();
+    return card;
+  };
+  const generate = async line => (await propose(line)).locator('[data-proposal-generate]').click();
   const dismiss = async () => { await dock.getByRole('button', { name: 'Dismiss' }).click({ timeout: 1500 }).catch(() => {}); await composer().fill(''); };
   const pickerRows = async () => {
     await composer().click(); await composer().fill('/');
@@ -133,7 +173,8 @@ for (const theme of ['light', 'dark']) {
       const before = seen.length;
       await composer().fill(LINE); await composer().press('Enter');
       await notice.getByText('Motion (animated explainer videos) is not available here.', { exact: true }).waitFor({ timeout: 8000 });
-      assert.equal(await dock.locator('[data-paid-generate]').count(), 0, 'no confirmation');
+      assert.equal(await dock.locator('[data-paid-generate], [data-generation-proposal]').count(), 0, 'no confirmation and no proposal');
+      assert.equal(asks.length, 0, 'no chat turn');
       assert.equal(seen.slice(before).filter(r => r.path === '/api/learn/video').length, 0, 'no video request');
       assert.equal(await page.getByText(`Motion: ${LINE.slice(8)}`).count(), 0, 'no card');
       await shot('02-typed-motion-off');
@@ -212,25 +253,31 @@ for (const theme of ['light', 'dark']) {
     await composer().fill('');
   });
 
-  await step(`${theme}: typed /motion asks first, showing the exact line; Cancel starts nothing and adds no card`, async () => {
-    const before = seen.length, cards = await page.locator('[data-block-id]').count();
-    await composer().fill(LINE); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').waitFor();
-    assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
-    // Owner message 30 (replacing message 25's wording): the plain paid-generation line, no amount or reservation sentence.
-    assert.match(await notice.innerText(), /This uses paid generation\./);
-    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered|credit/i); // no orchestrator here: no estimate
-    // The confirmation still reads the video list (a GET) before Generate, for the pause (owner message 28); nothing else
-    // may reach the video route (a saved card's clip may load meanwhile, a GET of its asset).
-    const reads = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method === 'GET' && !r.query.includes('asset='));
-    const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET');
-    assert.ok(reads().length >= 1, 'the confirmation read the video list from the server');
-    assert.equal(asked().length, 0, 'nothing asked of the video route before Generate');
-    await notice.screenshot({ path: `${OUT}/${theme}-03-confirm.png` });
-    await dock.locator('[data-paid-cancel]').click();
-    await page.waitForTimeout(800);
-    assert.equal(asked().length, 0, 'Cancel starts nothing');
-    assert.equal(await page.locator('[data-block-id]').count(), cards, 'Cancel adds no card');
+  // MOT-20/UI-15 (owner messages 39 and 40) replaces the confirmation window: the proposal card comes from the chat answer.
+  await step(`${theme}: typed /motion is a chat turn: the proposal card shows title, Duration, Audio Off, the credits line and one Generate; nothing starts`, async () => {
+    const before = seen.length, cards = await page.locator('[data-block-id]').count(), turns = asks.length;
+    const card = await propose(LINE);
+    const turn = asks[turns];
+    assert.deepEqual([turn.command, turn.message, turn.generation?.motion?.concept !== undefined], ['motion', LINE.replace(/^\/motion /, ''), true], JSON.stringify(turn).slice(0, 200));
+    assert.equal(asks.length - turns, 1, 'one chat turn');
+    assert.equal(await card.getAttribute('data-generation-proposal'), 'motion');
+    assert.equal(await card.getAttribute('data-proposal-active'), 'true');
+    assert.equal((await card.locator('h3').innerText()).trim(), `Motion: ${LINE.replace(/^\/motion /, '')}`);
+    assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '15');
+    assert.deepEqual([await card.locator('[data-proposal-audio="off"]').getAttribute('aria-pressed'), await card.locator('[data-proposal-audio="on"]').isDisabled()], ['true', true]);
+    assert.match(await card.locator('[data-proposal-usage]').innerText(), /^About 100 credits/);
+    assert.doesNotMatch(await card.innerText(), /\$\d|Will show|Cancel/);
+    assert.deepEqual([await card.locator('[data-proposal-generate]').count(), (await card.locator('[data-proposal-generate]').innerText()).trim()], [1, 'Generate']);
+    assert.equal(await card.getByRole('button', { name: 'Cancel' }).count(), 0, 'no Cancel');
+    // A duration change saves the next version over the message (MOCKED PUT), with no chat turn.
+    await card.locator('[data-proposal-duration]').selectOption('20');
+    await until(async () => (await card.getAttribute('data-proposal-version')) === '2', 'version 2 after the duration change');
+    assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '20');
+    assert.equal(asks.length - turns, 1, 'a settings change is no chat turn');
+    await card.screenshot({ path: `${OUT}/${theme}-03-proposal.png` });
+    // Nothing reaches the video route before Generate (a saved card's clip may load meanwhile, a GET of its asset), and no card lands.
+    assert.equal(seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET').length, 0, 'nothing asked of the video route before Generate');
+    assert.equal(await page.locator('[data-block-id]').count(), cards, 'no card before Generate');
     await dismiss();
   });
 
@@ -256,15 +303,12 @@ for (const theme of ['light', 'dark']) {
     return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
-  await step(`${theme}: MOCKED generation: Generate adds one card and starts one confirmed motion_request; the ready video plays in it`, async () => {
+  await step(`${theme}: MOCKED generation: the proposal's Generate adds one card and starts one confirmed motion_request with the approved proposal; the ready video plays in it`, async () => {
     stub = { id: `p-ready-${theme}`, polls: 0, end: 'ready', held: true };
     const posts = videoPosts().length;
-    await composer().fill(LINE); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').waitFor();
-    // Owner messages 30 and 32: the server's estimate in credits (MOCKED 100); its reservation (MOCKED 8.96) is never shown.
-    assert.match(await notice.innerText(), /This uses paid generation · about 100 credits/);
-    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered/i);
-    await dock.locator('[data-paid-generate]').click();
+    const proposal = await propose(LINE);
+    // A double click is one press: one card, one start (the card's guard and its request id).
+    await proposal.locator('[data-proposal-generate]').dblclick();
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
@@ -288,6 +332,9 @@ for (const theme of ['light', 'dark']) {
     assert.equal(started.length, 1, 'exactly one start');
     const body = JSON.parse(started[0].body);
     assert.deepEqual([body.confirmed, body.operation.op, body.operation.request], [true, 'motion_request', LINE]);
+    assert.deepEqual([body.operation.proposal?.command, body.operation.proposal?.version, body.operation.proposal?.settings], ['motion', 1, { duration_seconds: 15, audio: false }], 'the exact approved proposal');
+    assert.equal(await proposal.getAttribute('data-proposal-active'), 'false', 'a generated proposal is inactive');
+    assert.match(await proposal.innerText(), /Added to the canvas/);
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-05-ready-card.png` });
     await dismiss();
@@ -296,8 +343,7 @@ for (const theme of ['light', 'dark']) {
   await step(`${theme}: MOCKED failure: the card says why and offers Generate again; nothing else starts`, async () => {
     stub = { id: `p-fail-${theme}`, polls: 0, end: 'failed' };
     const posts = videoPosts().length;
-    await composer().fill('/motion 10s explain the causal mask'); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').click();
+    await generate('/motion 10s explain the causal mask');
     const mine = page.locator('[data-block-id]', { hasText: 'still blocking after the repair round: blank_frame' });
     await mine.waitFor({ timeout: 20000 });
     assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
@@ -310,14 +356,12 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
-  await step(`${theme}: MOCKED paused: the confirmation says Motion generation is paused; Generate is refused with the same text`, async () => {
+  // Paused before any proposal, the chat turn itself is refused before a model call (control-plane chat-modes.test); this is a
+  // proposal made before the pause.
+  await step(`${theme}: MOCKED paused: a proposal's Generate is refused by the server with the paused text`, async () => {
     stub = { id: `p-paused-${theme}`, polls: 0, paused: true };
     const posts = videoPosts().length;
-    await composer().fill(`/motion 11s explain dropout ${theme}`); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').waitFor();
-    assert.equal((await notice.innerText()).includes(PAUSED), true, 'the confirmation says generation is paused');
-    assert.doesNotMatch(await notice.innerText(), /\$\d/, 'no reservation is offered');
-    await dock.locator('[data-paid-generate]').click();
+    await generate(`/motion 11s explain dropout ${theme}`);
     const mine = page.locator('[data-block-id]', { hasText: PAUSED });
     await mine.waitFor({ timeout: 20000 });
     assert.equal(videoPosts().length - posts, 1, 'one start, refused by the server');
@@ -329,8 +373,7 @@ for (const theme of ['light', 'dark']) {
   await step(`${theme}: MOCKED reload mid-job: the saved card follows the same job again, with no second start, and plays it`, async () => {
     stub = { id: `p-reload-${theme}`, polls: 0, end: 'ready', held: true };
     const posts = videoPosts().length;
-    await composer().fill(`/motion 15s explain attention heads ${theme}`); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').click();
+    await generate(`/motion 15s explain attention heads ${theme}`);
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
@@ -355,8 +398,7 @@ for (const theme of ['light', 'dark']) {
     stub = { id: `p-twice-${theme}`, polls: 0, end: 'ready', held: true };
     const posts = videoPosts().length;
     for (let i = 0; i < 2; i++) {
-      await composer().fill(`/motion 9s explain residual streams ${theme}`); await composer().press('Enter');
-      await dock.locator('[data-paid-generate]').click();
+      await generate(`/motion 9s explain residual streams ${theme}`);
       await until(() => videoPosts().length - posts === i + 1, `press ${i + 1} sent its start`);
     }
     const ids = videoPosts().slice(posts).map(r => JSON.parse(r.body).operation.request_id);
@@ -369,8 +411,7 @@ for (const theme of ['light', 'dark']) {
 
   await step(`${theme}: MOCKED Stop asks first: Cancel and Escape send nothing and keep it generating; Stop sends one stop request`, async () => {
     stub = { id: `p-stop-${theme}`, polls: 0, end: 'ready', held: true, settled: true };
-    await composer().fill(`/motion 12s explain stopping ${theme}`); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').click();
+    await generate(`/motion 12s explain stopping ${theme}`);
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const mine = page.locator(`[data-block-id="${await card.getAttribute('data-block-id')}"]`);
@@ -410,8 +451,7 @@ for (const theme of ['light', 'dark']) {
       ['interrupted', 'The Motion service restarted while this video was being made. Generate it again; the interrupted attempt\'s cost stays counted.']];
     for (const [kind, error] of ended) {
       stub = { id: `p-ended-${kind}-${theme}`, polls: 0, end: 'failed', error };
-      await composer().fill(`/motion 10s explain ${kind} jobs ${theme}`); await composer().press('Enter');
-      await dock.locator('[data-paid-generate]').click();
+      await generate(`/motion 10s explain ${kind} jobs ${theme}`);
       const card = page.locator('[data-block-id]', { hasText: error });
       await card.waitFor({ timeout: 20000 });
       const id = await card.getAttribute('data-block-id');
@@ -445,8 +485,7 @@ for (const theme of ['light', 'dark']) {
   await step(`${theme}: REAL refusal: with no orchestrator the worker refuses Generate; the card says Motion is not available here`, async () => {
     stub = null;
     const posts = videoPosts().length;
-    await composer().fill(`/motion 12s explain layer norm ${theme}`); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').click();
+    await generate(`/motion 12s explain layer norm ${theme}`);
     const mine = page.locator('[data-block-id]', { hasText: REFUSED });
     await mine.waitFor({ timeout: 20000 });
     assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
@@ -521,8 +560,7 @@ for (const theme of ['light', 'dark']) {
     await page.locator('[data-selected-card="k-photo"]').waitFor({ timeout: 8000 });
     stub = { id: `p-sel-${theme}`, polls: 0, end: 'ready' };
     const posts = videoPosts().length;
-    await composer().fill('/motion explain this'); await composer().press('Enter');
-    await dock.locator('[data-paid-generate]').click();
+    await generate('/motion explain this');
     await until(async () => videoPosts().length > posts, 'the confirmed start');
     const { operation } = JSON.parse(videoPosts().at(-1).body);
     assert.equal(operation.request, '/motion explain this');
