@@ -185,25 +185,8 @@ await check('2 edit on B, then reopen A: B\'s edit is there', async () => {
   assert.equal((await local(A.page, keysOf(C1.name).ink)).strokes.length, 2);
 });
 
-// A notebook card's kernel downloads Pyodide packages while it starts; going offline mid-start leaves that kernel dead for
-// the page load (docs/features/notebook-kernel-startup.md, a product issue tracked on its own). So the offline step waits
-// until every notebook frame on the page has a ready (idle) kernel, or was torn down while being read. Nothing is removed.
-const NOTEBOOK_FRAME = /\/lab\/\?mode=single-document&workspace=(?!warmup)/;
-const kernelsSettled = async (page) => {
-  const frames = page.frames().filter(frame => NOTEBOOK_FRAME.test(frame.url()));
-  if (!frames.length) return null; // not mounted yet: a notebook that mounts later would start offline
-  const states = await Promise.all(frames.map(frame => frame.isDetached() ? 'torn down'
-    : frame.evaluate(() => document.querySelector('.jp-Notebook-ExecutionIndicator')?.getAttribute('data-status') || 'starting').catch(() => (frame.isDetached() ? 'torn down' : 'unreadable'))));
-  return states.every(state => state === 'idle' || state === 'torn down') ? states : null;
-};
 await check('3 concurrent edits on A and B: the second gets the 409 message, overwrites nothing and stops pushing', async () => {
-  // A page whose notebook is still starting can save the board again later (the notebook frame reports its document back
-  // onto the card, AdaptiveCanvas NotebookCard copyNotebook): A, reloaded in check 2, saved after its stroke and moved the
-  // version B's 409 is measured against (gate 39735737303 shard 5, fast-e2e 39733724666: a second PUT main 200 beside a
-  // notebook asset PUT, still 3 strokes). Both pages' kernels are up before anything is drawn.
-  await until('the notebook kernels on A ready or torn down', () => kernelsSettled(A.page), 120000);
   await open(B.page, C1.name, '[data-block-id="e1"]');
-  await until('the notebook kernels on B ready or torn down', () => kernelsSettled(B.page), 120000);
   // Both on the same version only once the board stops changing: a save B (or A's notebook) makes after B loads bumps the
   // version, and A's stroke is then a stale save (409) that never reaches the server (fast-e2e 39726853274: PUT 200 then
   // PUT 409 before B drew, A's stroke never stored). The same settle as check 2.
@@ -232,6 +215,17 @@ await check('3 concurrent edits on A and B: the second gets the 409 message, ove
   assert.equal((await local(B.page, keysOf(C1.name).ink)).strokes.length, 3, 'reload loads the server copy');
 });
 
+// A notebook card's kernel downloads Pyodide packages while it starts; going offline mid-start leaves that kernel dead for
+// the page load (docs/features/notebook-kernel-startup.md, a product issue tracked on its own). So the offline step waits
+// until every notebook frame on the page has a ready (idle) kernel, or was torn down while being read. Nothing is removed.
+const NOTEBOOK_FRAME = /\/lab\/\?mode=single-document&workspace=(?!warmup)/;
+const kernelsSettled = async (page) => {
+  const frames = page.frames().filter(frame => NOTEBOOK_FRAME.test(frame.url()));
+  if (!frames.length) return null; // not mounted yet: a notebook that mounts later would start offline
+  const states = await Promise.all(frames.map(frame => frame.isDetached() ? 'torn down'
+    : frame.evaluate(() => document.querySelector('.jp-Notebook-ExecutionIndicator')?.getAttribute('data-status') || 'starting').catch(() => (frame.isDetached() ? 'torn down' : 'unreadable'))));
+  return states.every(state => state === 'idle' || state === 'torn down') ? states : null;
+};
 const stamp = what => console.log(`${what} ${new Date().toISOString()}`);
 
 await check('4 an edit on A while offline lands on reconnect', async () => {
