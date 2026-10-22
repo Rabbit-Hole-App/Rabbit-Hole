@@ -391,7 +391,9 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => dive.enter(portal.name)}
         className={`pointer-events-auto absolute -top-3 left-4 z-20 flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] shadow-sm ${portal.pending ? 'border-dashed border-hole-pending text-hole hover:bg-hole/10' : 'border-hole/40 text-hole hover:bg-hole/10'}`}>
         <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
-      {['top', 'bottom'].map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
+      {/* A card's comment pin sits at its top centre (owner, 2026-10-21), over the top port: that port steps aside while it
+          shows, and links still reach the top by dropping on the card's top half or near its top centre (snapPort). */}
+      {['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side} data-owner={id} aria-label={`Connect ${side}`} title="Drag to connect blocks"
         data-node-tool
         className={`absolute left-1/2 z-20 h-4 w-4 -translate-x-1/2 cursor-crosshair rounded-full border-2 border-accent bg-white focus:opacity-100 ${connected?.[side] ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} ${side === 'top' ? '-top-2' : '-bottom-2'}`}
         onPointerDown={event => onConnect(event, id, side)} />)}
@@ -1342,7 +1344,7 @@ const MIN_SHAPE = 16;
 // room than the shape has, so it grows downward instead of clipping them.
 function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = null, labelEditing = false, showPorts = false, onSelect, onMoveStart, onResize, onGesture, onGestureCancel = null, onDelete, onEdit, onText, onConnect, onLabel, onLabelDone, onGrow = null, onEditorApi = null }) {
   const { kind, x1, y1, x2, y2, color, width, dash, fill, opacity, round } = shape;
-  const locked = useContext(CanvasEdit).locked.has(shape.id);
+  const canvasEdit = useContext(CanvasEdit), locked = canvasEdit.locked.has(shape.id);
   // Unfilled shapes paint a transparent fill so the pointer can grab the
   // interior, not just the hairline outline. Transparent paint still hit-tests
   // under visiblePainted; opacity 0 keeps it invisible.
@@ -1441,7 +1443,7 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
       ))}
       {/* Connection ports on the four sides: drag to another shape or card, or
           click here and then click the target. */}
-      {textBox && tool === 'select' && onConnect && SIDES.map(side => {
+      {textBox && tool === 'select' && onConnect && SIDES.filter(side => side !== 'top' || !canvasEdit.hasPin?.(shape.id)).map(side => { // the top one steps aside for a comment pin, as on a card
         const at = sidePoint({ x, y, w, h }, side);
         return (
           <circle key={side} data-port={side} data-owner={shape.id} cx={at.x} cy={at.y} r={6 / zoom} fill="white" strokeWidth={1.5 / zoom}
@@ -5134,6 +5136,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const barAnchor = tool === 'select' && selection.some(id => !emptyText(id)) ? anchorOf(barBoxes, view) : null;
   // The room it may use ends where the bottom chrome (zoom, composer) begins, under the bar's width.
   const barBox = { w: surface.current?.clientWidth || 1200, h: surface.current && barAnchor ? chromeTop(barAnchor.right - 300, barAnchor.right) : 800 };
+  // hasPin(id): the object shows a comment pin at its top centre (CommentPins, owner 2026-10-21), so it takes the floating bar
+  // and its top connect port steps aside for the pin.
+  const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
     // and the dock composer takes focus on mount - so without this, selecting a
@@ -5142,8 +5147,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.

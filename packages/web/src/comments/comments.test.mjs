@@ -283,4 +283,13 @@ test('an object pin stays at the card top centre at every zoom (owner, 2026-10-2
     assert.equal(at.top + SIZE / 2, card.y * view.z + view.y, `centre y at z=${view.z}`);
   }
   assert.equal(pinTopCentre({ left: 0, top: 0, right: 100, bottom: 50 }, 1, SIZE, GAP).left, 50 - SIZE / 2 + SIZE + GAP, 'a second pin lines up to the right');
+  // A 160 px note at 25% is 40 px wide: its second pin still touches it (comments-check 26 at 25%, gate 39739753118).
+  const note = { left: 0, top: 0, right: 40, bottom: 40 };
+  for (const index of [0, 1, 2]) assert.ok(note.right - pinTopCentre(note, index, SIZE, GAP).left >= CONTACT, `pin ${index} overlaps the narrow note`);
+  assert.equal(pinTopCentre(note, 0, SIZE, GAP).left, 5, 'the first pin stays centred');
+  // The pin covers the card's top port, so that port steps aside while the card has a pin (selected-pill-check, gate 39739753118).
+  const canvas = read('../AdaptiveCanvas.jsx');
+  assert.ok(canvas.includes(`['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side}`), 'a card hides its top port under a pin');
+  assert.ok(canvas.includes(`SIDES.filter(side => side !== 'top' || !canvasEdit.hasPin?.(shape.id)).map(`), 'a shape hides its top port under a pin');
+  assert.ok(canvas.includes('<CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin,'), 'the canvas shares which objects have pins');
 });

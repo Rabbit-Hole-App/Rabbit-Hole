@@ -66,5 +66,5 @@ test('a pinned card shows the floating bar, which never meets its pin at zoom 0.
     const apart = at.top + bar.h <= pin.top || pin.top + SIZE <= at.top || at.left + bar.w <= pin.left || pin.left + SIZE <= at.left;
     assert.ok(apart, `z=${z}: ${JSON.stringify({ at, pin })}`);
   }
-  assert.match(readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), /pinned=\{commentPins && presenting === null \? id => commentPins\.some\(pin => pin\.anchor\?\.kind === 'object' && pin\.anchor\.object_id === id\)/, 'the canvas tells the bar which objects have pins');
+  assert.match(readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), /const hasPin = commentPins && presenting === null \? id => commentPins\.some\(pin => pin\.anchor\?\.kind === 'object' && pin\.anchor\.object_id === id\)[\s\S]*pinned=\{hasPin\}/, 'the canvas tells the bar which objects have pins');
 });
