@@ -232,7 +232,11 @@ for (const { kind } of ASKS) {
     assert.equal(await askBar().count(), 1, 'one bar');
     const [pillBox, box] = [await askBar().boundingBox(), await node(page, kind).boundingBox()];
     assert.ok(pillBox.y + pillBox.height <= box.y + 2, `above it: ${JSON.stringify([pillBox, box])}`);
-    assert.ok(Math.abs(pillBox.x + pillBox.width - (box.x + box.width)) < 12, `at its right edge: ${JSON.stringify([pillBox, box])}`);
+    // A pinned object takes the floating bar (integrator ruling, 2026-10-21), which placeBar keeps 8 px inside the canvas: with the
+    // Chat pane open the dropped image runs under the pane, so its right edge is the canvas's visible right edge.
+    const surface = await page.locator('[data-canvas-surface]').first().boundingBox();
+    const edge = Math.min(box.x + box.width, surface.x + surface.width - 8);
+    assert.ok(Math.abs(pillBox.x + pillBox.width - edge) < 12, `at its right edge: ${JSON.stringify([pillBox, box, surface])}`);
     if (THREADS[kind.id]) {
       const pin = await page.locator(`[data-comment-pin="${THREADS[kind.id]}"]`).boundingBox();
       assert.ok(pin, 'its pin');
