@@ -8,8 +8,13 @@
 //   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
 //   3. typed /motion: the confirmation shows the exact line; Cancel starts nothing and adds no card;
 //   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
-//      motion_request; the card shows its progress, then the ready video with the job's title and 15s · Motion explainer;
-//   5. MOCKED failure: the stubbed job fails; the card says why and offers Retry render; nothing else starts;
+//      motion_request; the card shows its progress, then the ready video with the job's title (no meta line, owner message 31);
+//   5. MOCKED failure: the stubbed job fails; the card says why and offers Generate again; nothing else starts;
+//   5e. MOCKED identical prompt twice (owner message 37): two Generate presses send two starts with different request ids;
+//   5d. MOCKED Stop asks first (owner message 35): Cancel and Escape send nothing, keep it generating and return focus to Stop;
+//      the confirmation's Stop sends exactly one stop request and the card shows Stopped.;
+//   5c. MOCKED reload of an ended job (MOT-11): failed, stopped and interrupted cards whose hold is still pending keep their error
+//      after a reload and keep reading the list (GET only, no start) until the server settles the hold, then stop;
 //   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
 //      follows the same job (polls only, no second start) and shows the video once ready;
 //   6. REAL refusal (no stub): the stack's worker has no orchestrator, so Generate's one request is refused and the card
@@ -68,7 +73,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 22; // per theme: 11 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 28; // per theme: 14 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -212,15 +217,14 @@ for (const theme of ['light', 'dark']) {
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
     assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
-    // Owner message 25: the reservation is the server's amount. This stack's worker has no orchestrator, so it returns none, and
-    // the confirmation names no amount of its own (the MOCKED steps below return one).
-    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves part of your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
-    assert.doesNotMatch(await notice.innerText(), /\$\d/);
-    // Owner message 25: the confirmation reads the server's reservation (a GET of the video list) before Generate; nothing else
+    // Owner message 30 (replacing message 25's wording): the plain paid-generation line, no amount or reservation sentence.
+    assert.match(await notice.innerText(), /This uses paid generation\./);
+    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered|credit/i); // no orchestrator here: no estimate
+    // The confirmation still reads the video list (a GET) before Generate, for the pause (owner message 28); nothing else
     // may reach the video route (a saved card's clip may load meanwhile, a GET of its asset).
     const reads = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method === 'GET' && !r.query.includes('asset='));
     const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET');
-    assert.ok(reads().length >= 1, 'the confirmation read the reservation from the server');
+    assert.ok(reads().length >= 1, 'the confirmation read the video list from the server');
     assert.equal(asked().length, 0, 'nothing asked of the video route before Generate');
     await notice.screenshot({ path: `${OUT}/${theme}-03-confirm.png` });
     await dock.locator('[data-paid-cancel]').click();
@@ -239,14 +243,17 @@ for (const theme of ['light', 'dark']) {
     if (url.searchParams.get('asset')) return route.fulfill({ body: CLIP_BYTES, headers: { 'content-type': 'video/mp4', 'accept-ranges': 'bytes' } });
     // New generation paused on the server (MOCKED, owner message 28): the list says so and the start is refused.
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
-    // The server's reservation (MOCKED): the amount for a new job, and this job's hold as it runs, waits on its cost, or is released.
-    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' ? 'pending' : 'released' });
+    // The server's reservation (MOCKED): still in the API (internal only, owner message 30); the card must never show it.
+    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
-      ...(status === 'failed' ? { error: 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
+      ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, videos: [video('generating')], placementId: stub.id } });
+    // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
+    if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
+    if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { motionHoldUsd: 8.96, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: Generate adds one card and starts one confirmed motion_request; the ready video plays in it`, async () => {
@@ -254,15 +261,18 @@ for (const theme of ['light', 'dark']) {
     const posts = videoPosts().length;
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
-    // Before confirmation: the amount the server returned (MOCKED 8.96), never one of the browser's own.
-    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves \$8\.96 from your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
+    // Owner messages 30 and 32: the server's estimate in credits (MOCKED 100); its reservation (MOCKED 8.96) is never shown.
+    assert.match(await notice.innerText(), /This uses paid generation · about 100 credits/);
+    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered/i);
     await dock.locator('[data-paid-generate]').click();
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
-    // While it runs: the reserved amount stays visible on the card.
-    await card.locator('[data-video-hold="reserved"]').waitFor({ timeout: 10000 });
-    assert.equal(await card.locator('[data-video-hold="reserved"]').innerText(), '$8.96 of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.');
+    // While it runs (after a poll that carried the MOCKED hold): no amount or reservation line on the card (owner message 30).
+    for (let i = 0; i < 100 && stub.polls < 1; i++) await page.waitForTimeout(100);
+    assert.ok(stub.polls >= 1, 'the card polled its job');
+    assert.equal(await card.locator('[data-video-hold]').count(), 0, 'no hold line');
+    assert.doesNotMatch(await card.innerText(), /\$\d|reserv/i);
     stub.held = false;
     await page.waitForTimeout(600);
     await shot('04-generating');
@@ -271,7 +281,9 @@ for (const theme of ['light', 'dark']) {
     await video.waitFor({ timeout: 20000 });
     const duration = await video.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 10000); }));
     assert.equal(Math.round(duration), 15, `duration ${duration}`);
-    assert.match(await mine.innerText(), new RegExp(`${TITLE}[\\s\\S]*15s · Motion explainer · Remotion`));
+    // Owner message 31: the title shows; the meta line (15s · Motion explainer · Remotion · grounding) does not.
+    assert.match(await mine.innerText(), new RegExp(TITLE));
+    assert.doesNotMatch(await mine.innerText(), /Motion explainer|Not grounded/);
     const started = videoPosts().slice(posts);
     assert.equal(started.length, 1, 'exactly one start');
     const body = JSON.parse(started[0].body);
@@ -281,16 +293,17 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
-  await step(`${theme}: MOCKED failure: the card says why and offers Retry render; nothing else starts`, async () => {
+  await step(`${theme}: MOCKED failure: the card says why and offers Generate again; nothing else starts`, async () => {
     stub = { id: `p-fail-${theme}`, polls: 0, end: 'failed' };
     const posts = videoPosts().length;
     await composer().fill('/motion 10s explain the causal mask'); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').click();
     const mine = page.locator('[data-block-id]', { hasText: 'still blocking after the repair round: blank_frame' });
     await mine.waitFor({ timeout: 20000 });
-    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
-    // Its final cost is not confirmed yet (MOCKED pending): the card says reconciliation is pending.
-    assert.equal(await mine.locator('[data-video-hold="pending"]').innerText(), 'Reconciliation pending: the $8.96 reservation stays until the final cost is confirmed.');
+    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
+    // Its final cost is not confirmed yet (MOCKED pending), and the card still shows no amount or reservation (owner message 30).
+    assert.equal(await mine.locator('[data-video-hold]').count(), 0, 'no hold line');
+    assert.doesNotMatch(await mine.innerText(), /\$\d|reserv|Reconciliation/i);
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });
@@ -338,6 +351,97 @@ for (const theme of ['light', 'dark']) {
     await dismiss();
   });
 
+  await step(`${theme}: MOCKED identical prompt twice: two Generate presses send two starts with different request ids`, async () => {
+    stub = { id: `p-twice-${theme}`, polls: 0, end: 'ready', held: true };
+    const posts = videoPosts().length;
+    for (let i = 0; i < 2; i++) {
+      await composer().fill(`/motion 9s explain residual streams ${theme}`); await composer().press('Enter');
+      await dock.locator('[data-paid-generate]').click();
+      await until(() => videoPosts().length - posts === i + 1, `press ${i + 1} sent its start`);
+    }
+    const ids = videoPosts().slice(posts).map(r => JSON.parse(r.body).operation.request_id);
+    assert.equal(ids.length, 2, 'two starts');
+    assert.ok(ids.every(id => /^[A-Za-z0-9_-]{8,64}$/.test(id || '')), `request ids ${ids.join(', ')}`);
+    assert.notEqual(ids[0], ids[1], 'each press has its own request id');
+    stub.held = false;
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED Stop asks first: Cancel and Escape send nothing and keep it generating; Stop sends one stop request`, async () => {
+    stub = { id: `p-stop-${theme}`, polls: 0, end: 'ready', held: true, settled: true };
+    await composer().fill(`/motion 12s explain stopping ${theme}`); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').click();
+    const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
+    await card.waitFor({ timeout: 10000 });
+    const mine = page.locator(`[data-block-id="${await card.getAttribute('data-block-id')}"]`);
+    const stopButton = mine.locator('[data-stop-video]'), confirm = mine.locator('[data-stop-confirm]');
+    await stopButton.waitFor({ timeout: 10000 });
+    const stops = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && r.body.includes('"action":"cancel"')).length;
+    const before = stops();
+    const focused = locator => locator.evaluate(node => node === document.activeElement);
+    // Stop, then Cancel.
+    await stopButton.click();
+    await confirm.waitFor();
+    assert.equal((await confirm.innerText()).includes("Stop this video? Credits already used won't be refunded."), true);
+    assert.equal(await focused(mine.locator('[data-stop-cancel]')), true, 'Cancel takes focus');
+    await shot('06d-stop-confirm');
+    await mine.locator('[data-stop-cancel]').click();
+    await confirm.waitFor({ state: 'detached' });
+    assert.equal(await focused(stopButton), true, 'focus returns to Stop after Cancel');
+    // From the keyboard: Enter opens it, Escape cancels.
+    await stopButton.press('Enter');
+    await confirm.waitFor();
+    await page.keyboard.press('Escape');
+    await confirm.waitFor({ state: 'detached' });
+    assert.equal(await focused(stopButton), true, 'focus returns to Stop after Escape');
+    assert.equal(stops() - before, 0, 'Cancel and Escape send no stop request');
+    assert.equal(await mine.getByText('Planning, reviewing and rendering').count(), 1, 'still generating');
+    // Stop, then Stop: one stop request, and the card says Stopped.
+    await stopButton.click();
+    await mine.locator('[data-stop-confirmed]').click();
+    await mine.getByText('Stopped.', { exact: true }).waitFor({ timeout: 10000 });
+    assert.equal(stops() - before, 1, 'exactly one stop request');
+    assert.equal(await mine.locator('[data-generate-video]').count(), 1, 'stopped: it can be generated again');
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED reload of failed, stopped and interrupted cards with a pending hold: the error stays, reads continue until settled, then stop; no start`, async () => {
+    const ended = [['failed', 'The Motion job failed: still blocking after the repair round: blank_frame'], ['stopped', 'Stopped.'],
+      ['interrupted', 'The Motion service restarted while this video was being made. Generate it again; the interrupted attempt\'s cost stays counted.']];
+    for (const [kind, error] of ended) {
+      stub = { id: `p-ended-${kind}-${theme}`, polls: 0, end: 'failed', error };
+      await composer().fill(`/motion 10s explain ${kind} jobs ${theme}`); await composer().press('Enter');
+      await dock.locator('[data-paid-generate]').click();
+      const card = page.locator('[data-block-id]', { hasText: error });
+      await card.waitFor({ timeout: 20000 });
+      const id = await card.getAttribute('data-block-id');
+      await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id) && r.body.includes('"failed"')), `the board saved with the ${kind} card`);
+      const posts = videoPosts().length;
+      await page.reload();
+      await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
+      const mine = page.locator(`[data-block-id="${id}"]`);
+      await mine.waitFor({ timeout: 30000 });
+      // After the reload: the card reads its job again and shows its error (owner review MOT-11), still pending.
+      const polled = stub.polls;
+      await until(() => stub.polls > polled, `the reloaded ${kind} card reads its job`);
+      await mine.getByText(error, { exact: false }).waitFor({ timeout: 10000 });
+      assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
+      const again = stub.polls;
+      await until(() => stub.polls > again, `the ${kind} card keeps reading while its hold is pending`);
+      // The server settles the hold: one more read sees it released, then reading stops.
+      stub.settled = true;
+      const settledAt = stub.polls;
+      await until(() => stub.polls > settledAt, `the ${kind} card reads the settled hold`);
+      const last = stub.polls;
+      await page.waitForTimeout(6500); // one 5 s read interval and a margin: proves no further read
+      assert.equal(stub.polls, last, `the ${kind} card stops reading once its hold is settled`);
+      assert.equal(videoPosts().length - posts, 0, `no start after reloading the ${kind} card`);
+      await mine.scrollIntoViewIfNeeded();
+      await mine.screenshot({ path: `${OUT}/${theme}-06c-reloaded-${kind}-card.png` });
+      await dismiss();
+    }
+  });
+
   await step(`${theme}: REAL refusal: with no orchestrator the worker refuses Generate; the card says Motion is not available here`, async () => {
     stub = null;
     const posts = videoPosts().length;
@@ -345,7 +449,7 @@ for (const theme of ['light', 'dark']) {
     await dock.locator('[data-paid-generate]').click();
     const mine = page.locator('[data-block-id]', { hasText: REFUSED });
     await mine.waitFor({ timeout: 20000 });
-    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
     assert.equal(videoPosts().length - posts, 1, 'one request, answered by the real worker');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-07-refused-card.png` });
@@ -374,7 +478,9 @@ for (const theme of ['light', 'dark']) {
     assert.match(await sheet.locator('[data-slash-about]').innerText(), /^Creates an animated explainer video card/);
     assert.match(await sheet.innerText(), new RegExp(`e\\.g\\. ${LINE}`));
     assert.match(await sheet.locator('[data-slash-sample]').innerText(), /^A real Motion video, made from this example\./);
-    assert.match(await card.innerText(), new RegExp(`${TITLE}[\\s\\S]*15s · Motion explainer · Remotion[\\s\\S]*Sources: model\\.py:44–45, model\\.py:48–50, model\\.py:62–64, model\\.py:65–71`));
+    // Owner message 31: no meta line; the title and sources stay.
+    assert.match(await card.innerText(), new RegExp(`${TITLE}[\\s\\S]*Sources: model\\.py:44–45, model\\.py:48–50, model\\.py:62–64, model\\.py:65–71`));
+    assert.doesNotMatch(await card.innerText(), /Motion explainer|Not grounded/);
     assert.equal(await card.locator('[data-generate-video]').count(), 0, 'no Generate in the window');
     const duration = await video.evaluate(node => new Promise(done => { if (node.readyState >= 1) return done(node.duration); node.addEventListener('loadedmetadata', () => done(node.duration), { once: true }); setTimeout(() => done(0), 10000); }));
     assert.equal(Math.round(duration), 15, `duration ${duration}`);

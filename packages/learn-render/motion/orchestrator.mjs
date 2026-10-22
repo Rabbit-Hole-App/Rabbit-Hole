@@ -8,7 +8,8 @@
 //   GET  /jobs/<id>                                                   -> status, stage, provenance, spend
 //   GET  /jobs/<id>/final.mp4                                         -> the validated final render, once ready
 //   POST /jobs/<id>/cancel                                            -> 202; Stop at the next stage boundary
-//   GET  /health                                                      -> {ok, active} (no auth, no job data)
+//   POST /keys/<key>/close                                            -> {job_id, status, boot} | {job_id: null, closed, boot} | 409 admitting
+//   GET  /health                                                      -> {ok, active, boot} (no auth, no job data)
 //
 // Money (owner 2026-10-21, items 1 and 6): the worker admits the job's hold against the learner's allowance
 // (learn-spend-ledger.js admitSpend) and sends it here as a grant signed with the shared token. Every paid
@@ -18,9 +19,12 @@
 // (null when any call's cost is unknown) for the worker to settle; this process keeps no ledger.
 //
 // Durable state lives in the worker (the Durable Object job and the D1 reservation), not here: a restart
-// loses running jobs (a poll answers 404, the worker keeps the hold as unknown cost), and a grant issued
-// before this process started is refused, so a resent submission can never start a second job on one hold.
-// Within one process, the idempotency key returns the job it already started.
+// loses running jobs (a poll answers 404, the worker keeps the hold as unknown cost). Each process has a random boot id,
+// which /health reports and every grant is signed with (MOT-08): an idle process booted by the worker's /health read starts
+// that grant's job, and a grant replayed to a later process is refused, so one hold never starts a second job. Within one
+// process the idempotency key is the job (MOT-06): a resend, even one overlapping its own admission, answers the same job.
+// The worker never resends a submission whose answer it lost; it closes the key (MOT-07), which answers the job the key
+// started or makes sure none ever starts in this process (and no other process accepts that grant).
 //
 // One job at a time, and none unless the render service reports the Linux sandbox and is idle: there is no
 // in-process renderer. Bearer token on every job route. Nothing in a URL becomes a path but a 32-hex id.
@@ -95,10 +99,11 @@ export function rendererCodeHashes(pkg = join(dirname(fileURLToPath(import.meta.
   return [hash(lf), hash(f => (EOL_LF.has(f) ? lf(f) : lf(f).replace(/\n/g, '\r\n')))];
 }
 
-// The grant: the hold the worker admitted for this idempotency key, in integer micro-USD, signed with the
-// shared orchestrator token. The worker signs the same string with WebCrypto (motion-provider.js motionGrant).
-export const grantMessage = (key, micros, issuedAt) => `motion-grant|${key}|${micros}|${issuedAt}`;
-export const signGrant = (token, key, micros, issuedAt) => createHmac('sha256', token).update(grantMessage(key, micros, issuedAt)).digest('hex');
+// The grant: the hold the worker admitted for this idempotency key, in integer micro-USD, for the orchestrator process whose
+// boot id it read, signed with the shared orchestrator token. The worker signs the same string with WebCrypto
+// (motion-provider.js motionGrant).
+export const grantMessage = (key, micros, issuedAt, boot) => `motion-grant|${key}|${micros}|${issuedAt}|${boot}`;
+export const signGrant = (token, key, micros, issuedAt, boot) => createHmac('sha256', token).update(grantMessage(key, micros, issuedAt, boot)).digest('hex');
 // The largest hold one job may carry, whatever a grant says ($25; the enforced-limit worst case is about $20.21).
 export const MAX_GRANT_MICROS = 25_000_000;
 // A resent submission comes within the worker's poll window; anything older is refused.
@@ -120,7 +125,7 @@ export function validateJobRequest(body) {
   if (l !== undefined && (!l || typeof l !== 'object' || Array.isArray(l) || Object.keys(l).some(k => k !== 'concept') || (l.concept !== undefined && l.concept !== null && (typeof l.concept !== 'string' || l.concept.length > 100)))) e.push('location: {concept?: string of at most 100 characters}');
   if (typeof body.idempotency_key !== 'string' || !KEY.test(body.idempotency_key)) e.push('idempotency_key: 8 to 128 characters [A-Za-z0-9_-]');
   const g = body.grant;
-  if (!g || typeof g !== 'object' || Array.isArray(g) || !Number.isSafeInteger(g.micros) || !Number.isSafeInteger(g.issued_at) || typeof g.sig !== 'string' || Object.keys(g).some(k => !['micros', 'issued_at', 'sig'].includes(k))) e.push('grant: {micros, issued_at, sig}');
+  if (!g || typeof g !== 'object' || Array.isArray(g) || !Number.isSafeInteger(g.micros) || !Number.isSafeInteger(g.issued_at) || !ID.test(g.boot || '') || typeof g.sig !== 'string' || Object.keys(g).some(k => !['micros', 'issued_at', 'boot', 'sig'].includes(k))) e.push('grant: {micros, issued_at, boot, sig}');
   return e;
 }
 
@@ -178,8 +183,9 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   if (!service || typeof service.health !== 'function') throw new Error('motionOrchestrator: a render service client is required (there is no in-process renderer)');
-  const bootedAt = Math.floor(now() / 1000);
-  const jobs = new Map(), keys = new Map();
+  const boot = randomBytes(16).toString('hex');
+  // admitting: key -> the answer its admission will give (MOT-06); closed: key -> when the worker closed it (MOT-07).
+  const jobs = new Map(), keys = new Map(), admitting = new Map(), closed = new Map();
   let active = null;
   const authorized = req => {
     const got = Buffer.from(String(req.headers.authorization || '')), want = Buffer.from(`Bearer ${token}`);
@@ -187,13 +193,13 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   };
   const signedGrant = body => {
     const { micros, issued_at: at, sig } = body.grant;
-    const want = Buffer.from(signGrant(token, body.idempotency_key, micros, at)), got = Buffer.from(sig);
+    const want = Buffer.from(signGrant(token, body.idempotency_key, micros, at, body.grant.boot)), got = Buffer.from(sig);
     return got.length === want.length && timingSafeEqual(got, want);
   };
   const grantError = body => {
     const { micros, issued_at: at } = body.grant;
     if (micros <= 0 || micros > MAX_GRANT_MICROS) return `the grant must be above $0 and at most $${usd(MAX_GRANT_MICROS)}; nothing was started`;
-    if (at < bootedAt) return 'the grant was issued before the Motion service restarted; nothing was started';
+    if (body.grant.boot !== boot) return 'the grant was issued before the Motion service restarted; nothing was started';
     if (at < Math.floor(now() / 1000) - GRANT_MAX_AGE_S) return 'the grant has expired; nothing was started';
     return null;
   };
@@ -212,6 +218,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       if (age > resultTtlMs) rmSync(finalFile(job.id), { force: true });
       if (age > recordTtlMs) { jobs.delete(job.id); keys.delete(job.key); }
     }
+    for (const [key, at] of closed) if (t - at > 2 * GRANT_MAX_AGE_S * 1000) closed.delete(key); // its grant has long expired
   }
   // What a previous process left behind (it lost its jobs): its job directories and unfetched results, nothing else.
   mkdirSync(outDir, { recursive: true });
@@ -300,10 +307,22 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     return job;
   }
 
+  // The renderer checks, after the slot is taken: -> [status, answer].
+  async function admit(body) {
+    const health = await service.health().catch(() => null);
+    if (!health) return [503, { error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' }];
+    if (health.sandbox !== 'linux' || health.ok === false) return [503, { error: 'renderer_unavailable', detail: `the Motion renderer is not the sandboxed Linux service (sandbox ${health.sandbox ?? 'unknown'}${health.ok === false ? ', degraded' : ''}); nothing was started` }];
+    const reported = /^motion-renderer-1-([0-9a-f]{12})\//.exec(health.version || '')?.[1] ?? 'unknown';
+    if (rendererHashes && !rendererHashes.includes(reported)) return [503, { error: 'renderer_unavailable', detail: `the Motion renderer runs other contract code (renderer ${reported}, this service ${rendererHashes[0]}); nothing was started` }];
+    if (health.busy) return [429, { error: 'busy', detail: 'the render service is still finishing a render' }];
+    const job = start(body, `renderer ${reported} sandbox ${health.sandbox}, ${rendererHashes ? 'contract version matches' : 'contract version not checked'}`);
+    return [202, { job_id: job.id, status: job.status }];
+  }
+
   async function handle(req, res) {
     try {
       const path = req.url.split('?')[0];
-      if (path === '/health' && req.method === 'GET') return send(res, 200, { ok: true, active: !!active, ...(missing.length ? { ready: false, missing } : {}) });
+      if (path === '/health' && req.method === 'GET') return send(res, 200, { ok: true, active: !!active, boot, ...(missing.length ? { ready: false, missing } : {}) });
       if (!authorized(req)) return send(res, 401, { error: 'unauthorized' });
       if (path === '/jobs') {
         if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
@@ -314,19 +333,28 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         // A forged grant is refused first; then the same key is the same job (a resent submission never starts a second
         // one or spends twice); only then do the amount, restart and age checks refuse a new job.
         if (!signedGrant(body)) return send(res, 403, { error: 'grant_refused', detail: 'the grant signature does not match; nothing was started' });
-        const known = jobs.get(keys.get(body.idempotency_key));
+        const key = body.idempotency_key, known = jobs.get(keys.get(key));
         if (known) return send(res, 202, { job_id: known.id, status: known.status, duplicate: true });
+        // The same key while it is being admitted answers what that admission answers: one key, one job (MOT-06).
+        if (admitting.has(key)) { const [status, answer] = await admitting.get(key); return send(res, status, status === 202 ? { ...answer, duplicate: true } : answer); }
+        if (closed.has(key)) return send(res, 403, { error: 'grant_refused', detail: 'the worker closed this submission; nothing was started' });
         const refused = grantError(body);
         if (refused) return send(res, 403, { error: 'grant_refused', detail: refused });
-        if (active) return send(res, 429, { error: 'busy', detail: 'one Motion job at a time', job_id: active.id });
-        const health = await service.health().catch(() => null);
-        if (!health) return send(res, 503, { error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' });
-        if (health.sandbox !== 'linux' || health.ok === false) return send(res, 503, { error: 'renderer_unavailable', detail: `the Motion renderer is not the sandboxed Linux service (sandbox ${health.sandbox ?? 'unknown'}${health.ok === false ? ', degraded' : ''}); nothing was started` });
-        const reported = /^motion-renderer-1-([0-9a-f]{12})\//.exec(health.version || '')?.[1] ?? 'unknown';
-        if (rendererHashes && !rendererHashes.includes(reported)) return send(res, 503, { error: 'renderer_unavailable', detail: `the Motion renderer runs other contract code (renderer ${reported}, this service ${rendererHashes[0]}); nothing was started` });
-        if (health.busy) return send(res, 429, { error: 'busy', detail: 'the render service is still finishing a render' });
-        const job = start(body, `renderer ${reported} sandbox ${health.sandbox}, ${rendererHashes ? 'contract version matches' : 'contract version not checked'}`);
-        return send(res, 202, { job_id: job.id, status: job.status });
+        // One slot, taken before the first await: an admission in progress holds it as a running job does.
+        if (active || admitting.size) return send(res, 429, { error: 'busy', detail: 'one Motion job at a time', job_id: active?.id ?? null });
+        const admission = admit(body);
+        admitting.set(key, admission);
+        try { const [status, answer] = await admission; return send(res, status, answer); } finally { admitting.delete(key); }
+      }
+      const k = path.match(/^\/keys\/([A-Za-z0-9_-]{8,128})\/close$/);
+      if (k) {
+        if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
+        // Read-only for spending: answers the job the key started, or closes it so this process never starts one (MOT-07).
+        if (admitting.has(k[1])) return send(res, 409, { error: 'admitting', detail: 'this submission is still being admitted; ask again' });
+        const known = jobs.get(keys.get(k[1]));
+        if (known) return send(res, 200, { job_id: known.id, status: known.status, boot });
+        closed.set(k[1], now());
+        return send(res, 200, { job_id: null, closed: true, boot });
       }
       const m = path.match(/^\/jobs\/([0-9a-f]{32})(\/final\.mp4|\/cancel)?$/);
       if (!m || !ID.test(m[1])) return send(res, 404, { error: 'not_found' });
@@ -347,5 +375,5 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       return send(res, error.status || 500, { error: error.status ? 'invalid_request' : 'orchestrator_failure', detail: error.message });
     }
   }
-  return { handle, jobs, sweep, close: () => clearInterval(sweeper), get active() { return active; } };
+  return { handle, jobs, sweep, boot, close: () => clearInterval(sweeper), get active() { return active; } };
 }

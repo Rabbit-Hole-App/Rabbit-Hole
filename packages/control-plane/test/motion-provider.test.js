@@ -142,8 +142,9 @@ test('the per-job hold is configured, never unlimited, and the grant the worker 
   assert.deepEqual(['2', '2.5', ' 0.75 ', '25'].map(v => motionReservationMicros({ MOTION_JOB_RESERVATION_USD: v })), [2e6, 2.5e6, 750000, 25e6]);
   for (const bad of [undefined, '', '0', '-1', '25.01', 'Infinity', '1e3', '2 USD']) assert.equal(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: bad }), null, String(bad));
   const token = 't'.repeat(40);
-  const grant = await motionGrant(token, spend.opId, 2000000, 1761000000);
-  assert.deepEqual(grant, { micros: 2000000, issued_at: 1761000000, sig: signGrant(token, spend.opId, 2000000, 1761000000) });
+  const boot = 'b'.repeat(32);
+  const grant = await motionGrant(token, spend.opId, 2000000, 1761000000, boot);
+  assert.deepEqual(grant, { micros: 2000000, issued_at: 1761000000, boot, sig: signGrant(token, spend.opId, 2000000, 1761000000, boot) });
 });
 
 test('the orchestrator provider: one authorized POST to start, GETs to poll, the final MP4 and its provenance once ready', async () => {
@@ -177,12 +178,15 @@ test('the orchestrator provider: refusals are definite (nothing started), outcom
   await assert.rejects(poll(json(ready), json({ sneaky: true })), e => !e.final);
 });
 
-function orchestratorStub({ submit = () => json({ job_id: job, status: 'running' }, 202), states = ['running', 'ready'] } = {}) {
+const BOOT = 'b'.repeat(32);
+function orchestratorStub({ submit = () => json({ job_id: job, status: 'running' }, 202), states = ['running', 'ready'], close = () => json({ job_id: job, status: 'running', boot: BOOT }) } = {}) {
   const calls = [];
   const original = globalThis.fetch;
   globalThis.fetch = async (url, init = {}) => {
     const path = new URL(url).pathname;
     calls.push(`${init.method} ${path}`);
+    if (path === '/health') return json({ ok: true, active: false, boot: BOOT });
+    if (path.startsWith('/keys/')) return close();
     if (path === '/jobs') return submit();
     if (path.endsWith('/cancel')) return json({ status: 'stopping' }, 202);
     if (path.endsWith('/final.mp4')) return video(new Uint8Array([0, 0, 0, 24]));
@@ -210,7 +214,7 @@ test('LearnVideos runs a /motion request once: the paid gate, one submit for dup
     assert.deepEqual(o.calls, []);
     const [a, b] = await Promise.all([f.actor.fetch(motionRequest()), f.actor.fetch(motionRequest())]).then(rs => Promise.all(rs.map(r => r.json())));
     assert.equal(a.placementId, b.placementId);
-    assert.deepEqual(o.calls, ['POST /jobs'], 'one orchestrator job for two Generates');
+    assert.deepEqual(o.calls, ['GET /health', 'POST /jobs'], 'one orchestrator job for two Generates, its grant bound to the run that answered /health');
     const key = await motionRequestCacheKey(validateMotionRequest(motionOp));
     assert.equal((await f.data.get(`job:${key}`)).provider, 'motion_request');
     await f.actor.alarm();
@@ -237,7 +241,7 @@ test('Stop: the orchestrator is told, the job fails as Stopped and stays retryab
     await f.actor.alarm();
     assert.equal(f.assets.size, 0, 'a stopped job stores nothing');
     // Owner 2026-10-21 10:35 (settle actual usage): a stopped job is polled, never fetched, until its cost can be settled.
-    assert.deepEqual(o.calls.filter(c => c.startsWith('GET')), [`GET /jobs/${job}`], 'polled for its cost, its video never fetched');
+    assert.deepEqual(o.calls.filter(c => c.startsWith('GET /jobs')), [`GET /jobs/${job}`], 'polled for its cost, its video never fetched');
     assert.equal((await f.actor.fetch(stopRequest(placementId))).status, 409, 'nothing left to stop');
     assert.equal((await f.actor.fetch(otherRequest())).status, 202, 'the slot is free');
     assert.equal((await f.actor.fetch(stopRequest('nope'))).status, 404);
@@ -261,22 +265,19 @@ test('a /motion failure: the reason on the card, nothing stored, retryable; a re
     assert.deepEqual([v.status, v.retryable], ['failed', true]);
     assert.match(v.error, /one Motion job at a time/);
   } finally { busy.restore(); }
-  // Owner item 2 (2026-10-21): an unconfirmed start is resent under the same idempotency key and grant, which the
-  // orchestrator answers with the job that key already started; it never becomes a second job.
-  const bodies = [];
-  let attempts = 0;
-  const lost = orchestratorStub({ submit: () => { if (++attempts === 1) throw new Error('socket hang up'); return json({ job_id: job, status: 'running', duplicate: true }, 202); } });
-  const original = globalThis.fetch;
-  globalThis.fetch = async (url, init = {}) => { if (new URL(url).pathname === '/jobs') bodies.push(JSON.parse(init.body)); return original(url, init); };
+  // Owner review MOT-07 (message 27, 2026-10-21) replaces the resend of owner item 2: an unconfirmed start is never resent; the
+  // alarm closes its key, which answers the job that key already started, so it never becomes a second job.
+  const lost = orchestratorStub({ submit: () => { throw new Error('socket hang up'); } });
   try {
     const f = requestFixture();
     const v = (await (await f.actor.fetch(motionRequest())).json()).videos[0];
-    assert.equal(v.status, 'generating', 'the job may have started: it is resent, not failed or restarted');
+    assert.equal(v.status, 'generating', 'the job may have started: it is reconciled, not failed or restarted');
     await f.actor.alarm();
-    assert.equal(bodies.length, 2);
-    assert.deepEqual(bodies[1], bodies[0], 'the same key and grant');
+    const key = (await f.data.get(`job:${await motionRequestCacheKey(validateMotionRequest(motionOp))}`)).spend.opId;
+    assert.deepEqual(lost.calls.slice(0, 4), ['GET /health', 'POST /jobs', `POST /keys/${key}/close`, `GET /jobs/${job}`], 'one POST, then the key closed and the job it started followed');
+    assert.equal(lost.calls.filter(c => c === 'POST /jobs').length, 1);
     assert.equal((await f.actor.list()).videos[0].status, 'generating');
-  } finally { globalThis.fetch = original; lost.restore(); }
+  } finally { lost.restore(); }
 });
 
 test('with no orchestrator (a dev clone, preview, production), Generate starts nothing: the card says Motion is not available here, retryable', async () => {
@@ -314,8 +315,10 @@ test('only the production app config points at the Motion orchestrator, with a c
       assert.match(text, /"MOTION_ORCHESTRATOR_URL": "https:\/\/rabbit-hole-motion-orchestrator\.fly\.dev"/);
       assert.ok(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: text.match(/"MOTION_JOB_RESERVATION_USD": "([^"]+)"/)?.[1] }) > 0, 'a valid hold');
       // Owner message 28: new generation paused in production until MOT-06/07 are fixed; dev, preview and local stay unpaused.
-      assert.match(text, /"MOTION_GENERATION_PAUSED": "1"/);
-    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED/, name);
+      assert.match(text, /"MOTION_GENERATION_PAUSED": "0"/);
+      // Owner message 32: the confirmation's estimate, a typical job's actual cost (about 100 credits).
+      assert.match(text, /"MOTION_ESTIMATE_USD": "1\.00"/);
+    } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED|MOTION_ESTIMATE/, name);
   }
 });
 
@@ -374,4 +377,30 @@ test('the canvas repository: from the server records only; a browser-sent header
     await requestFixture().actor.fetch(withCanvasRepository(motionRequest(), { repo: 'karpathy/nanoGPT', commit: sha }));
     assert.deepEqual(bodies[0].repository, { repo: 'karpathy/nanoGPT', commit: sha });
   } finally { globalThis.fetch = original; o.restore(); }
+});
+
+test('MOT-07 only a verified refusal is a no-start: a 500, a 502, a malformed success or a lost answer may have started the job', async () => {
+  const input = validateMotionRequest(motionOp);
+  const submit = response => new MotionRequestProvider(orch, transport([response])).submit(input, spend);
+  for (const [status, error] of [[400, 'invalid_request'], [401, 'unauthorized'], [403, 'grant_refused'], [429, 'busy'], [503, 'renderer_unavailable'], [503, 'not_configured']]) {
+    await assert.rejects(submit(json({ error, detail: 'nothing was started' }, status)), e => e.definite === true && e.code === error, `${status} ${error}`);
+  }
+  for (const response of [json({ error: 'orchestrator_failure' }, 500), new Response('<html>502 Bad Gateway</html>', { status: 502 }), json({ status: 'running' }, 202),
+    new Response('{"job_id": "', { status: 202 }), json({ error: 'busy' }, 502), json({}, 503), json({ error: 'not_found' }, 404)]) {
+    await assert.rejects(submit(response), e => !e.definite, `HTTP ${response.status}`);
+  }
+});
+
+// Owner message 37: the same /motion prompt pressed again is a new video. The request id made once per Generate press is part of the
+// key; a request without one (saved before) keeps exactly its old key; a malformed one is refused.
+test('motion_request keys: a request id per Generate press makes a new job; none keeps the old key', async () => {
+  const plain = validateMotionRequest(motionOp);
+  const old = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${line}|Attention`)))].map(b => b.toString(16).padStart(2, '0')).join('');
+  assert.equal(await motionRequestCacheKey(plain), old, 'an old placement keeps its key');
+  const first = validateMotionRequest({ ...motionOp, request_id: 'press-0001-aaaa' }), second = validateMotionRequest({ ...motionOp, request_id: 'press-0002-bbbb' });
+  assert.equal(first.request_id, 'press-0001-aaaa');
+  assert.notEqual(await motionRequestCacheKey(first), old);
+  assert.notEqual(await motionRequestCacheKey(first), await motionRequestCacheKey(second), 'two presses, two jobs');
+  assert.equal(await motionRequestCacheKey(first), await motionRequestCacheKey(validateMotionRequest({ ...motionOp, request_id: 'press-0001-aaaa' })), 'one press resent, one job');
+  for (const bad of ['short', 'x'.repeat(65), 'has space id', 12345678]) assert.throws(() => validateMotionRequest({ ...motionOp, request_id: bad }), /request_id/, String(bad));
 });

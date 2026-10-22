@@ -44,7 +44,7 @@ export function serviceClient({ url, token, fetchImpl = fetch }) {
   const call = (path, init = {}) => fetchImpl(url + path, { ...init, headers: { authorization: `Bearer ${token}`, ...init.headers } });
   return {
     url,
-    health: () => fetchImpl(`${url}/health`).then(r => r.json()),
+    health: () => fetchImpl(`${url}/health`, { signal: AbortSignal.timeout(10000) }).then(r => r.json()), // admission awaits it: bounded
     submit: request => call('/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request) }),
     status: id => call(`/render/${id}`).then(r => r.json()),
     artifact: (id, name) => call(`/render/${id}/artifacts/${name}`),

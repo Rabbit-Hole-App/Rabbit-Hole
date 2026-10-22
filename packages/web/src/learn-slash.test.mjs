@@ -247,12 +247,12 @@ test('/motion: development and review builds only; the proposal makes no request
   const did = [];
   const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive') };
   const post = async () => { did.push('POST'); return {}; };
-  const run = text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'Attention' }, motionDev: true, motionHold: async () => 8.96 });
+  const run = text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'Attention' }, motionDev: true, motionHold: async () => 100 });
   const out = await run('/motion 15s explain me softmax func');
-  // Owner message 25: the confirmation names the reservation the server returned, before Generate.
-  assert.equal(out.proposal.message, 'This uses paid generation. Temporarily reserves $8.96 from your available AI allowance. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.');
+  // Owner messages 30 and 32: the server's estimate in credits, never the reservation.
+  assert.equal(out.proposal.message, 'This uses paid generation · about 100 credits');
   const unread = await runLearnCommand('/motion 10s explain layer norm', { app: 'demo', canvas, post, openSearch: () => {}, motionDev: true, motionHold: async () => { throw new Error('offline'); } });
-  assert.match(unread.proposal.message, /Temporarily reserves part of your available AI allowance\./, 'without the server amount, none is invented');
+  assert.equal(unread.proposal.message, 'This uses paid generation.', 'the same line when the server could not be read');
   // Owner message 28: while the server pauses new generation, the confirmation says so (the server refuses the start itself).
   const paused = await runLearnCommand('/motion 10s explain layer norm', { app: 'demo', canvas, post, openSearch: () => {}, motionDev: true, motionHold: async () => 'paused' });
   assert.equal(paused.proposal.message, 'Motion generation is temporarily unavailable while we fix a reliability issue.');

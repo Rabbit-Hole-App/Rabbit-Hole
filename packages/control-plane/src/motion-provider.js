@@ -71,11 +71,24 @@ export class MotionProvider {
 const MOTION_LINE = /^\/motion\s+\S/;
 // A refusal the orchestrator answered: nothing started, so the job stays retryable.
 const definite = (message, code = null) => Object.assign(new Error(message), { definite: true, code });
+// The only answers that are the orchestrator's own refusals before anything started (orchestrator.mjs POST /jobs). Anything else,
+// a 500, a proxy's 502, a malformed success or no answer at all, may follow a job it accepted (MOT-07): never a no-start.
+const NO_START = { 400: ['invalid_request'], 401: ['unauthorized'], 403: ['grant_refused'], 429: ['busy'], 503: ['renderer_unavailable', 'not_configured'] };
+const BOOT = /^[0-9a-f]{32}$/;
+// A request timeout on setTimeout rather than AbortSignal.timeout, so tests can run admission on a mocked clock (no real waits).
+const timeoutSignal = ms => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(new DOMException('The operation timed out.', 'TimeoutError')), Math.max(0, ms));
+  id?.unref?.();
+  return controller.signal;
+};
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
-  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context'].includes(key));
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context', 'request_id'].includes(key));
   if (extra) throw new Error(`motion_request: unknown field ${extra}`);
+  // request_id (owner message 37): made once per Generate press, so the same prompt pressed again is a new video.
+  if (value.request_id !== undefined && (typeof value.request_id !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(value.request_id))) throw new Error('motion_request: request_id must be 8 to 64 characters [A-Za-z0-9_-]');
   if (value.op !== 'motion_request') throw new Error('motion_request: op must be motion_request');
   if (typeof value.request !== 'string' || !MOTION_LINE.test(value.request.trim()) || value.request.length > 500) throw new Error('motion_request: request must be a /motion line of at most 500 characters');
   const location = value.location ?? {};
@@ -83,12 +96,13 @@ export function validateMotionRequest(value) {
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
   const context = validateMotionContext(value.context);
-  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}) };
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}), ...(value.request_id ? { request_id: value.request_id } : {}) };
 }
 
-// A different selected card is a different video; a request with no context keeps the key it always had.
+// A different selected card is a different video; a request with no context keeps the key it always had. A request id (one per
+// Generate press, owner message 37) makes each press its own job; a request without one (saved before it) keeps its old key.
 export async function motionRequestCacheKey(input) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}`));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}${input.request_id ? `|press:${input.request_id}` : ''}`));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -103,12 +117,12 @@ export function motionReservationMicros(env) {
   return micros > 0 && micros <= 25e6 ? micros : null;
 }
 
-// The grant the orchestrator verifies (orchestrator.mjs signGrant): the hold for one idempotency key, HMAC-SHA256 with the
-// shared orchestrator token.
-export async function motionGrant(token, key, micros, issuedAt) {
+// The grant the orchestrator verifies (orchestrator.mjs signGrant): the hold for one idempotency key, for the orchestrator
+// process whose boot id the worker read (MOT-08), HMAC-SHA256 with the shared orchestrator token.
+export async function motionGrant(token, key, micros, issuedAt, boot) {
   const hmac = await crypto.subtle.importKey('raw', new TextEncoder().encode(token), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode(`motion-grant|${key}|${micros}|${issuedAt}`)));
-  return { micros, issued_at: issuedAt, sig: [...sig].map(byte => byte.toString(16).padStart(2, '0')).join('') };
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', hmac, new TextEncoder().encode(`motion-grant|${key}|${micros}|${issuedAt}|${boot}`)));
+  return { micros, issued_at: issuedAt, boot, sig: [...sig].map(byte => byte.toString(16).padStart(2, '0')).join('') };
 }
 
 export class MotionRequestProvider {
@@ -125,19 +139,38 @@ export class MotionRequestProvider {
     if (new URL(this.url).protocol !== 'https:') return 'The Motion orchestrator requires HTTPS';
     return null;
   }
-  async request(path, { method = 'GET', body } = {}) {
+  // timeoutMs: boot() and submit() get what is left of the admission deadline (learn-video.js startMotion); polls get 20 s.
+  async request(path, { method = 'GET', body, timeoutMs = 20000 } = {}) {
     const refused = this.unavailable();
     if (refused) throw definite(refused);
     const transport = this.transport;
-    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: AbortSignal.timeout(20000) });
+    return transport(new URL(path, new URL(this.url)), { method, headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: 'manual', signal: timeoutSignal(timeoutMs) });
   }
   // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
   // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
-  async submit(input, spend, repository = null) {
-    const response = await this.request('/jobs', { method: 'POST', body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+  async submit(input, spend, repository = null, timeoutMs = 20000) {
+    const response = await this.request('/jobs', { method: 'POST', timeoutMs, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
-    throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : body.error ? ` (${body.error})` : ` (HTTP ${response.status})`}`, body.error || `http_${response.status}`);
+    if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);
+    throw new Error(`The Motion harness did not confirm the start (HTTP ${response.status})`);
+  }
+  // The orchestrator process that answers now, read before a grant is signed for it (MOT-08). An idle one boots for this read.
+  // Nothing has been sent yet, so any failure is a definite no-start.
+  async boot(timeoutMs = 20000) {
+    let body = null;
+    try { const response = await this.request('/health', { timeoutMs }); body = response.ok ? await response.json() : null; } catch (error) { if (error.definite) throw error; }
+    if (!BOOT.test(body?.boot || '')) throw definite('The Motion service did not answer. Nothing was started.', 'unavailable');
+    return body.boot;
+  }
+  // Reconciles a submission whose answer was lost (MOT-07, MOT-09), never resending it: the job its key started, or the key closed
+  // so no job can start under it ({job_id: null, closed, boot}); null while it is still being admitted.
+  async close(key) {
+    const response = await this.request(`/keys/${encodeURIComponent(key)}/close`, { method: 'POST' });
+    if (response.status === 409) return null;
+    const body = response.ok ? await response.json().catch(() => null) : null;
+    if (!BOOT.test(body?.boot || '') || !(body.closed === true || /^[0-9a-f]{32}$/.test(body.job_id || ''))) throw new Error(`Motion orchestrator HTTP ${response.status}`);
+    return body;
   }
   // The job as the orchestrator reports it (status, spend, renders), or null when it no longer knows it.
   async job(ticket) {

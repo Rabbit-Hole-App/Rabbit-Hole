@@ -278,3 +278,9 @@ test('real compile and runtime failures through the service: compile_failed, run
   assert.deepEqual([atFrame.r.result.status, atFrame.r.result.failure.category], ['render_failed', 'runtime_error']);
   assert.match(atFrame.r.result.failure.detail, /missing|undefined/);
 });
+
+test('the render service health read is bounded: admission awaits it with the job slot taken (MOT review, item 2b)', async () => {
+  let seen;
+  await serviceClient({ url: 'http://renderer.test', token: 't', fetchImpl: async (u, init) => { seen = init; return Response.json({ ok: true }); } }).health();
+  assert.ok(seen?.signal instanceof AbortSignal, 'a timeout signal');
+});
