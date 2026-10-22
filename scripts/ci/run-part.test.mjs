@@ -13,7 +13,9 @@ import { fileURLToPath } from 'node:url';
 const slash = p => p.replaceAll('\\', '/');
 const script = slash(fileURLToPath(new URL('./run-part.sh', import.meta.url)));
 const tools = spawnSync('bash', ['-c', 'command -v curl timeout']).status === 0;
-const busy = port => new Promise(res => { const s = net.createServer().once('error', () => res(true)).listen(port, () => s.close(() => res(false))); });
+const bindBusy = port => new Promise(res => { const s = net.createServer().once('error', () => res(true)).listen(port, () => s.close(() => res(false))); });
+// Windows lets that bind succeed while another process holds [::1]:port, so a server already answering on localhost is busy too.
+const busy = async port => await bindBusy(port) || await fetch(`http://localhost:${port}/`).then(() => true, () => false);
 const skip = !tools || (await Promise.all([5189, 5186, 5391].map(busy))).some(Boolean);
 
 // A scratch repo: check-map.json, a stack.sh that only records its calls, a vite.js that records its args and listens, and one stand-in per check.

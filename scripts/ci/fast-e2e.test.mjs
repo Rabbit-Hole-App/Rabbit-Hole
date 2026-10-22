@@ -158,7 +158,7 @@ test('every harness check has a server rule that matches the port its source har
   for (const [c, port] of Object.entries(rules)) {
     const src = read(`../../packages/web/e2e/${c}`);
     if (port === 0) assert.match(src, /createServer\(/, `${c} is marked as starting its own server`);
-    else assert.match(src, new RegExp(`(localhost|127\\.0\\.0\\.1):${port}/`), `${c} must name port ${port}`);
+    else assert.match(src, new RegExp(`(localhost|127\\.0\\.0\\.1):${port}(?!\\d)`), `${c} must name port ${port}`);
   }
 });
 
