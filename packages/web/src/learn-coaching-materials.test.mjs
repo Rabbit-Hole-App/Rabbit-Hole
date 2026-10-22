@@ -200,6 +200,12 @@ test('assessmentText: honest copy for every processing state; an unassessable an
   assert.match(assessmentText({ status: 'completed', observations: [{ fit: 'met', reasoning: 'missing' }] }), /Explain why/);
   assert.match(assessmentText({ status: 'completed', observations: [{ fit: 'unclear', conflict: true }] }), /needs a review/);
   assert.match(assessmentText({ status: 'completed', observations: [{ fit: 'not_met' }] }), /Not yet/);
+  // An uncertain result has its own words, never the wrong-answer line; mixed with not_met it is still Not yet.
+  const unsure = assessmentText({ status: 'completed', observations: [{ fit: 'unclear' }, { fit: 'unclear' }] });
+  assert.match(unsure, /^Not sure yet: the check could not confirm/);
+  assert.doesNotMatch(unsure, /Not yet/);
+  assert.match(assessmentText({ status: 'completed', observations: [{ fit: 'unclear' }, { fit: 'not_met' }] }), /^Not yet/);
+  assert.match(assessmentText({ status: 'completed', observations: [{ fit: 'unclear' }, { fit: 'partial' }] }), /^Partly there/);
   assert.match(assessmentText({ status: 'unavailable', reason: 'source_unavailable' }), /code it is about is not available.*not checked.*unchanged/);
   for (const reason of ['no_criteria', 'rubric_not_supported', 'visual_not_supported', 'allowance_refused', 'activity_changed', 'source_unavailable', 'evaluator_unconfigured']) {
     const text = assessmentText({ status: 'unavailable', reason });

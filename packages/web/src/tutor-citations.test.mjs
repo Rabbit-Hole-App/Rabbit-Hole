@@ -32,6 +32,10 @@ test('learner-readable labels: file and symbol or kind for a source, file and li
   assert.equal(sourceLabel(refs[0]), 'model.py · CausalSelfAttention');
   assert.equal(sourceLabel(refs[1]), 'trainer.py');
   assert.equal(sourceLabel(refs[2]), 'test_model.py · tests');
+  // An index label that is a docstring (production minGPT bpe.py, trainer.py) is not a name: the file alone.
+  assert.equal(sourceLabel(ref('mingpt/bpe.py', 94, 123, 'source', 'this function uses self.bpe_ranks to iteratively merge all the possible bpe…')), 'bpe.py');
+  assert.equal(sourceLabel(ref('mingpt/trainer.py', 1, 30, 'source', 'Simple training loop; Boilerplate that could apply to any arbitrary neural…')), 'trainer.py');
+  assert.equal(sourceLabel(ref('mingpt/trainer.py', 1, 30, 'source', 'Trainer.run()')), 'trainer.py · Trainer.run()');
   assert.equal(citationLabel({ ...refs[0], locator: { ...refs[0].locator, start: 42, end: 47 } }), 'model.py · lines 42–47');
   assert.equal(citationLabel({ ...refs[0], locator: { ...refs[0].locator, start: 42, end: 42 } }), 'model.py · line 42');
   assert.equal(startSource(refs, 'understand_feature'), refs[0]);
