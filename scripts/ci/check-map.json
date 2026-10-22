@@ -295,6 +295,7 @@
     "packages/web/src/file-chat-ref.js": ["add-to-chat-check.mjs", "file-doc-cards-check.mjs", "inline-ai-check.mjs"],
     "packages/web/src/card-layout.js": ["card-scroll-check.mjs", "card-edit-check.mjs", "canvas-editing-check.mjs", "card-context-menu-check.mjs", "canvas-forking-check.mjs"],
     "packages/web/src/card-layout.css": ["card-scroll-check.mjs", "card-edit-check.mjs", "card-context-menu-check.mjs"],
+    "packages/web/src/card-rename.js": ["card-context-menu-check.mjs"],
     "packages/web/src/EquationGenerator.jsx": ["equation-inline-check.mjs", "equation-check.mjs"],
     "packages/web/src/inline-equation-result.js": ["equation-inline-check.mjs"],
     "packages/web/src/inline-equation-apply.js": ["equation-inline-check.mjs"],
