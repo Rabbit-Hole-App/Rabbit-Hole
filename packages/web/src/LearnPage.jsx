@@ -78,7 +78,7 @@ import { ChartColumnIncreasing, MessageCircle, ArrowUpToLine, RotateCw, Link2, M
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
-import { useCanvasComments } from './comments/useCanvasComments.js';
+import { badgeText, useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase } from './comments/comments-api.js';
 import CommentSettings from './comments/CommentSettings.jsx';
 import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
@@ -1101,6 +1101,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // Comments (docs/features/canvas-comments.md): keyed by the main board's id, which the owner's board reads return.
   const [commentBoard, setCommentBoard] = useState(null);
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
+  const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
@@ -2228,9 +2229,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
                 comments={comments.active ? <><PeopleWithAccess base={memberBase(commentBoard)} /><CommentSettings base={memberBase(commentBoard)} published={!!sharing?.published} /></> : null} />}
               {choosingHandle && <div className="fixed inset-0 z-[70] overflow-y-auto bg-white"><ChooseHandle onDone={() => { setChoosingHandle(false); changePublication(true); }} /></div>}
             </span>
-            {/* Comments (docs/features/canvas-comments.md): opens the Comments view; a dot when a thread has news for you. */}
-            {comments.active && <button type="button" data-comments-header title="Comments" aria-label={comments.unread ? `Comments, ${comments.unread} unread` : 'Comments'} onClick={openComments}
-              className="relative flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><MessageCircle size={15} strokeWidth={1.8} />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}</button>}
+            {/* Comments (docs/features/canvas-comments.md): toggles the right panel on its Comments tab, as Progress toggles its pane; the badge
+                counts the open threads the tab lists (owner, 2026-10-21), hidden at 0; a dot when a thread has news for you. */}
+            {comments.active && <button type="button" data-comments-header title="Comments" aria-label={['Comments', comments.open && `${badgeText(comments.open)} open`, comments.unread && `${comments.unread} unread`].filter(Boolean).join(', ')} aria-pressed={commentsShown} onClick={commentsShown ? () => setPanelOpen(false) : openComments}
+              className={`relative flex h-8 w-8 items-center justify-center rounded-lg ${commentsShown ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><MessageCircle size={15} strokeWidth={1.8} aria-hidden />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 left-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}{comments.open > 0 && <span data-comments-count aria-hidden className="absolute -top-0.5 -right-0.5 min-w-[16px] rounded-full bg-ink px-1 text-center text-[10px] font-medium leading-4 text-white">{badgeText(comments.open)}</span>}</button>}
             {/* Progress (Tutor Task 09; owner 2026-10-21: in the toolbar beside Comments): opens the companion column left of Chat,
                 revealing a hidden right side; in Auto, Ask and Tutor alike, changing no control. Closing Progress refocuses it. */}
             <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed={panels.progress.open} onClick={panels.progress.toggle}
