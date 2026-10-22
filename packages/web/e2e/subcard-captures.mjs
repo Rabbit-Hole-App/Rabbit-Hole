@@ -78,7 +78,7 @@ async function drive(card, d, value, current) {
 }
 // Scrub the card's own animation slider (a controlled range input: set the
 // native value, then let React see the input event).
-const scrub = (card, time) => card.locator('input[aria-label="Animation time"]').evaluate((element, t) => {
+const scrub = (card, time) => card.locator('input[aria-label="Explanation time"]').evaluate((element, t) => {
   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, String(t));
   element.dispatchEvent(new Event('input', { bubbles: true }));
 }, time);
@@ -110,7 +110,7 @@ for (const block of cards) {
     await reveal(page, canvas, card);
     const declared = (scene.inputs || []).filter(d => !d.hidden && d.presentation !== 'pager');
     if (inputs) {
-      await card.locator('[data-scene-controls] [data-scene-reset]').click();
+      if (await card.locator('[data-scene-controls] [data-scene-reset]').count()) await card.locator('[data-scene-controls] [data-scene-reset]').click();
       await page.waitForTimeout(300);
       for (const d of declared) if (d.name in inputs) await drive(card, d, inputs[d.name], d.default);
     }
@@ -139,7 +139,7 @@ for (const block of cards) {
     console.log(file);
     if (time !== undefined) { await scrub(card, scene.duration); await page.waitForTimeout(200); }
     if (practice) { await card.locator('[data-practice-leave]').click(); await page.waitForTimeout(300); }
-    if (inputs && declared.length) { await card.locator('[data-scene-controls] [data-scene-reset]').click(); await page.waitForTimeout(300); }
+    if (inputs && declared.length) { if (await card.locator('[data-scene-controls] [data-scene-reset]').count()) await card.locator('[data-scene-controls] [data-scene-reset]').click(); await page.waitForTimeout(300); }
   }
 }
 writeFileSync(`${OUT}/captures.json`, JSON.stringify({ base, board, bundle, shots }, null, 2));

@@ -618,7 +618,7 @@ await check('explain back is judged, not revealed', async () => {
 // the animation engine: deterministic playback, scrub, pause and ask
 await check('animation plays and scrubs', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Animation', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Visual explanation', exact: true }).click();
   const node = canvas.locator('[data-block-id]').last();
   await node.getByText('One token, all the way through').waitFor({ timeout: 5000 });
   const drawnAtStart = await node.locator('[data-animation-object]').count();
@@ -627,7 +627,7 @@ await check('animation plays and scrubs', async () => {
   await node.locator('[data-animation-play]').click(); // pause
   const drawnLater = await node.locator('[data-animation-object]').count();
   if (drawnLater <= drawnAtStart) throw new Error(`objects did not appear over time (${drawnAtStart} -> ${drawnLater})`);
-  await node.locator('input[aria-label="Animation time"]').fill('0');
+  await node.locator('input[aria-label="Explanation time"]').fill('0');
   await page.waitForTimeout(400);
   const afterScrub = await node.locator('[data-animation-object]').count();
   if (afterScrub !== drawnAtStart) throw new Error(`scrubbing back is not deterministic (${drawnAtStart} vs ${afterScrub})`);
@@ -635,41 +635,86 @@ await check('animation plays and scrubs', async () => {
 
 await check('replay restarts a finished animation', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  const slider = node.locator('input[aria-label="Animation time"]');
+  const slider = node.locator('input[aria-label="Explanation time"]');
   await slider.fill('13');
-  await node.locator('[data-animation-replay]').click();
+  // One transport (EXP-T26): Play becomes Replay at the end; no second replay button.
+  if (await node.locator('[data-animation-replay]').count()) throw new Error('a second replay button is back');
+  await node.locator('[data-animation-play]').getByText('Replay', { exact: true }).waitFor({ timeout: 3000 });
+  await node.locator('[data-animation-play]').click();
   await page.waitForTimeout(700);
   const now = Number(await slider.inputValue());
   if (!(now > 0.1 && now < 12)) throw new Error(`replay did not restart a finished scene (time ${now}s)`);
   await node.locator('[data-animation-play]').click(); // pause again for the next check
 });
 
-await check('pausing and marking a region asks about that moment', async () => {
+// EXP-T28: the canvas toolbar's Ask about selection is the one region path; the card has no region button of its own.
+await check('the toolbar crop over a paused card opens Chat focused with one named pill, the draft kept', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('input[aria-label="Animation time"]').fill('6');
-  await node.locator('[data-animation-select]').click();
+  if (await node.locator('[data-animation-select]').count()) throw new Error('the card still has its own region button');
+  await node.locator('input[aria-label="Explanation time"]').fill('6');
+  await dock.fill('keep this draft');
+  await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
   const frame = await node.locator('[data-animation-frame]').boundingBox();
   await page.mouse.move(frame.x + frame.width * 0.2, frame.y + frame.height * 0.05);
   await page.mouse.down();
   await page.mouse.move(frame.x + frame.width * 0.8, frame.y + frame.height * 0.3, { steps: 10 });
   await page.mouse.up();
-  await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
-  await node.locator('[data-animation-selection]').getByText('6.0s', { exact: false }).waitFor({ timeout: 3000 }); // the scene stays where it was paused
-  await node.locator('[data-animation-clear]').click();
-  if (await node.locator('[data-animation-selection]').count()) throw new Error('the marked region did not clear');
+  const pill = page.locator('[data-canvas-target]');
+  await pill.first().waitFor({ timeout: 20000 });
+  if (await pill.count() !== 1) throw new Error(`${await pill.count()} pills, expected one`);
+  const named = await pill.getAttribute('title');
+  if (!/^Canvas selection: Selected area · /.test(named || '') || /…|\.\.\./.test(named)) throw new Error(`pill title ${named}`);
+  for (let i = 0; i < 20 && !(await page.evaluate(() => !!document.activeElement?.closest?.('[data-chat-composer]'))); i++) await page.waitForTimeout(100);
+  if (!(await page.evaluate(() => !!document.activeElement?.closest?.('[data-chat-composer]')))) throw new Error('the Chat composer did not take the focus');
+  if (await dock.inputValue() !== 'keep this draft') throw new Error('the crop replaced the draft');
+  // An outside click takes the outline away and keeps the pill; its x removes the outgoing context.
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + 260, box.y + box.height - 30);
+  await page.waitForTimeout(300);
+  if (await pill.count() !== 1) throw new Error('an outside click removed the pill');
+  await pill.getByRole('button', { name: 'Clear block selection' }).click();
+  if (await pill.count()) throw new Error('the x did not remove the crop');
+  await dock.fill('');
 });
 
 await check('a scrubbed moment is what a question refers to', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('input[aria-label="Animation time"]').fill('9');   // commit one moment
+  await node.locator('input[aria-label="Explanation time"]').fill('9');   // commit one moment
   await node.locator('[data-animation-object="tokens"]').click();       // selection line now visible
   await node.locator('[data-animation-selection]').getByText('9.0s', { exact: false }).waitFor({ timeout: 3000 });
-  await node.locator('input[aria-label="Animation time"]').fill('3');   // scrub again, still paused
+  await node.locator('input[aria-label="Explanation time"]').fill('3');   // scrub again, still paused
   await node.locator('[data-animation-selection]').getByText('3.0s', { exact: false }).waitFor({ timeout: 3000 });
   // the quiet commit is synchronous - no debounce left to wait out
-  await node.locator('input[aria-label="Animation time"]').fill('5');
+  await node.locator('input[aria-label="Explanation time"]').fill('5');
   await node.locator('[data-animation-selection]').getByText('5.0s', { exact: false }).waitFor({ timeout: 1500 });
   await node.locator('[data-animation-clear]').click();
+});
+
+// EXP-T27: Esc typed in the composer is the composer's and keeps the picked object; Esc that nothing else claims, a
+// blank click in the diagram, a blank click on the canvas and selecting another card each let it go.
+await check('Esc in the composer keeps a picked object; Esc, blank clicks and another card clear it', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  const line = node.locator('[data-animation-selection]');
+  const pick = async () => { await node.locator('[data-animation-object="tokens"]').click(); await line.waitFor({ timeout: 3000 }); };
+  const cleared = async how => { for (let i = 0; i < 15 && await line.count(); i++) await page.waitForTimeout(100); if (await line.count()) throw new Error(`${how} did not clear the picked object`); };
+  await pick();
+  await dock.focus();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  if (!(await line.count())) throw new Error('Esc in the composer cleared the picked object');
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Escape');
+  await cleared('Esc');
+  await pick();
+  await node.locator('[data-animation-frame] svg').first().click({ position: { x: 3, y: 3 } });
+  await cleared('a blank click in the diagram');
+  await pick();
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + 260, box.y + box.height - 30);
+  await cleared('a blank click on the canvas');
+  await pick();
+  await canvas.locator('[data-chat-block]').first().locator('[data-drag-handle]').click();
+  await cleared('selecting another card');
 });
 
 // the abstraction test: a second subject through the same engine, built from
@@ -677,7 +722,7 @@ await check('a scrubbed moment is what a question refers to', async () => {
 await check('the numbers change and a winner emerges', async () => {
   const node = canvas.locator('[data-block-id]').last();
   const at = async seconds => {
-    await node.locator('input[aria-label="Animation time"]').fill(String(seconds));
+    await node.locator('input[aria-label="Explanation time"]').fill(String(seconds));
     await page.waitForTimeout(400);
   };
   await at(1.0);
@@ -719,19 +764,10 @@ await check('the sigmoid board asks, draws and saves', async () => {
   await page.waitForTimeout(1200);
   const drawn = await node.locator('.tl-shape').count();
   if (drawn < 8) throw new Error(`the sigmoid was not drawn on the board (${drawn} shapes)`);
-  // the node floats, so it never satisfies the stability check; the pill
-  // appearing is the proof that the click selected it
+  // EXP-T28: a selected board has no Ask selection of its own; the canvas toolbar's Ask about selection is the one path.
   await node.locator('[data-drag-zone]').first().click({ force: true });
-  await page.getByRole('button', { name: 'Ask selection' }).click({ timeout: 10000 });
-  const frame = await node.locator('.tl-canvas').boundingBox();
-  await page.mouse.move(frame.x + frame.width * 0.3, frame.y + frame.height * 0.3);
-  await page.mouse.down();
-  await page.mouse.move(frame.x + frame.width * 0.75, frame.y + frame.height * 0.7, { steps: 12 });
-  await page.mouse.up();
-  await page.getByText('Whiteboard selection').waitFor({ timeout: 10000 });
-  await node.locator('[data-board-marker]').waitFor({ timeout: 8000 });
-  await page.getByRole('button', { name: 'Clear selection' }).click();
-  if (await node.locator('[data-board-marker]').count()) throw new Error('the marked rectangle did not clear');
+  await page.waitForTimeout(300);
+  if (await page.getByRole('button', { name: 'Ask selection', exact: true }).count()) throw new Error('the board still has its own Ask selection');
   const board = await node.locator('.tl-canvas').boundingBox();
   await page.mouse.move(board.x + 120, board.y + 100);
   await page.keyboard.press('d'); // draw tool
@@ -748,26 +784,21 @@ await check('the sigmoid board asks, draws and saves', async () => {
   if (await reloaded.locator('.tl-shape').count() <= drawn) throw new Error('the drawing did not survive a reload');
 });
 
-// the board marker lives in page coordinates, the toolbar folds away, and the
-// answer to a board question can be drawn back onto that same board
-await check('the marked rectangle stays on what it was drawn over', async () => {
+// EXP-T28: the toolbar crop over the board arms one pill naming the board; the drawing tools fold away without
+// losing it, and the answer to that question can be drawn back onto that same board
+await check('the toolbar crop over the board arms one pill naming it', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('[data-drag-zone]').first().click({ force: true });
-  await page.getByRole('button', { name: 'Ask selection' }).click({ timeout: 10000 });
+  await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
   const area = await node.locator('.tl-canvas').boundingBox();
   await page.mouse.move(area.x + area.width * 0.3, area.y + area.height * 0.3);
   await page.mouse.down();
   await page.mouse.move(area.x + area.width * 0.7, area.y + area.height * 0.65, { steps: 10 });
   await page.mouse.up();
-  const marker = node.locator('[data-board-marker]');
-  await marker.waitFor({ timeout: 8000 });
-  const before = await marker.boundingBox();
-  const frame = await node.locator('.tl-canvas').boundingBox();
-  await page.mouse.move(frame.x + frame.width / 2, frame.y + frame.height / 2);
-  await page.mouse.wheel(0, 220); // pan the board
-  await page.waitForTimeout(600);
-  const after = await marker.boundingBox();
-  if (Math.abs(after.y - before.y) < 60) throw new Error(`the marker did not travel with the board (${Math.round(before.y)} -> ${Math.round(after.y)})`);
+  const pill = page.locator('[data-canvas-target]');
+  await pill.first().waitFor({ timeout: 20000 });
+  if (await pill.count() !== 1) throw new Error(`${await pill.count()} pills, expected one`);
+  if (!/Selected area · /.test(await pill.getAttribute('title') || '')) throw new Error('the pill does not name the crop');
+  await canvas.locator('[data-area-mark] rect').first().waitFor({ timeout: 5000 });
 });
 
 await check('the drawing tools fold away', async () => {

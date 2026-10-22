@@ -610,9 +610,15 @@
     "packages/web/e2e/repo-suggestions-real.mjs",
     "packages/web/src/inline-ai-test-transport.mjs",
     "packages/web/e2e/inline-decide-eval.mjs",
-    "packages/web/e2e/inline-composer-shots.mjs"
+    "packages/web/e2e/inline-composer-shots.mjs",
+    "packages/web/src/explain-contract.js",
+    "packages/web/src/visual-components/**",
+    "packages/web/render/**"
   ],
-  "noneReasons": {"packages/control-plane/chat-route-corpus/**": "CR-1 real-JEV chat routing corpus: data and a runner run by hand from Node (no bundle or gate stage)", 
+  "noneReasons": {
+    "packages/web/src/explain-contract.js": "pure module, unit-tested (/explain shared contracts; no UI imports it yet)",
+    "packages/web/src/visual-components/**": "pure module, unit-tested (/explain component compiler; no UI imports it yet)",
+    "packages/web/render/**": "/explain render entry built by verify.yml; only explain-render.js (unit-tested) and viz-benchmark-capture.mjs load it, no browser check does","packages/control-plane/chat-route-corpus/**": "CR-1 real-JEV chat routing corpus: data and a runner run by hand from Node (no bundle or gate stage)", 
     "packages/**/test/**": "unit tests run by verify.yml",
     "packages/**/*.test.mjs": "unit tests run by verify.yml",
     "packages/**/*.test.js": "unit tests run by verify.yml",

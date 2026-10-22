@@ -842,6 +842,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     setAskTarget({ ...target, ...(shot ? { preview: shot } : {}) });
     previewRequest.current++;
     setPreview(null);
+    // EXP-T28: the crop lands in Chat, opened and focused, beside the draft and attachments already there; nothing is sent.
+    chatWorkspace.current?.panels?.openChat?.();
+    chatWorkspace.current?.composer?.focus?.();
     if (!blob) return;
     try {
       const body = new FormData();

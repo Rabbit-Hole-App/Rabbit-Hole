@@ -130,10 +130,17 @@ await page.waitForTimeout(300);
 const chosen = await page.evaluate(() => window.getSelection().toString());
 ok('highlighter off, a drag selects the words for copying', chosen.startsWith('Softmax') && (await stored()).length === 1, JSON.stringify(chosen));
 
-// Region select still sits over the words.
-await card.getByRole('button', { name: 'Ask selection' }).click();
-await page.waitForTimeout(300);
-ok('the red region picker is above the text layer', await card.getByLabel('Select paper region').evaluate(svg => { const box = svg.getBoundingClientRect(); return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2) === svg || svg.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)); }));
+// Region select still wins over the words (EXP-T28: the canvas toolbar's Ask about selection, the card has no pill).
+ok('the paper card has no Ask selection of its own', (await page.getByRole('button', { name: 'Ask selection', exact: true }).count()) === 0);
+await page.evaluate(() => window.getSelection().removeAllRanges());
+await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
+const over = await wordBox('Softmax');
+await page.mouse.move(over.x - 20, over.y - 20);
+await page.mouse.down();
+await page.mouse.move(over.x + over.width + 40, over.y + over.height + 40, { steps: 8 });
+await page.mouse.up();
+const marked = await page.locator('[data-area-mark] rect').first().waitFor({ timeout: 20000 }).then(() => true, () => false);
+ok('the toolbar region drawn over the text layer marks an area and selects no words', marked && (await page.evaluate(() => window.getSelection().toString())) === '');
 
 console.log(failed ? `${failed} failed` : 'all green');
 await browser.close();

@@ -57,6 +57,8 @@ import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
+import { areaTarget, cropBinding } from './area-crop.js';
 import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
@@ -843,7 +845,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   );
 }
 
-function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onAskRegion, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
+function LessonBlockCard({ block, zoom, selected, viewSelected = selected, connected, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap, onFile, appName, onGrade, onWiki, onWatch, onNotebook = null, onRemove = null }) {
   const cadPermissions = useContext(CanvasEdit);
   const cadOpen = mode => window.dispatchEvent(new CustomEvent('learn:cad-inline', { detail: { appName, id: block.id, mode } }));
   // A CAD card's Interact, Fit view and Show dimensions sit in this row, outside the card (cad-controls placement requirement).
@@ -891,31 +893,13 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && (
         <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
-          {block.type === 'whiteboard' && (
-            <button type="button" title={block.marked ? 'Clear the marked region (or press Esc)' : 'Drag a rectangle over the part you want to ask about'}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => (block.marked ? boardAsk(block.id)?.clear() : boardAsk(block.id)?.arm())}
-              className={`flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap shadow-md hover:bg-hover ${block.marked ? 'border-red-600 text-red-600' : 'border-line text-ink'}`}>
-              {block.marked ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
-            </button>
-          )}
-          {block.type === 'paper' && (
-            <button type="button" title={block.paper?.selection ? 'Clear the marked region (or press Esc)' : 'Select a region of the page to ask about'}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => (block.paper?.selection
-                ? onChange({ ...block, paper: { ...block.paper, selection: undefined } })
-                : onChange({ ...block, selectRequest: (block.selectRequest || 0) + 1 }))}
-              className={`flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap shadow-md hover:bg-hover ${block.paper?.selection ? 'border-red-600 text-red-600' : 'border-line text-ink'}`}>
-              {block.paper?.selection ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
-            </button>
-          )}
           {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
           <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-          <SelectionActionsHost id={block.id} divider={cadTools || ['whiteboard', 'paper', 'code', 'snippet'].includes(block.type)} />
+          <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onAskRegion={onAskRegion} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.promptUsed && <CardPrompt text={block.promptUsed} onHeight={setPromptHeight} />}
@@ -1689,7 +1673,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A view-only board keeps a selection (the card a Rabbit Hole starts from) but no card chrome for it: no pills,
   // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
   const isSelected = id => !readOnly && selection.includes(id);
-  const setSelected = value => setSelection(value == null ? [] : [value]);
+  // Selection moving anywhere (a blank click, another object, Esc) releases every scene highlight it leaves behind
+  // (EXP-T27): one owner, through the quiet path, so deselecting takes no undo step. An area's outline goes with it too
+  // (EXP-T28): its pill stays until its x or Send, and an area an answer is linked from stays as that link's anchor.
+  const releaseHighlights = keep => {
+    setBlocks(previous => releaseSceneHighlights(previous, keep));
+    setAreas(previous => { const next = previous.filter(area => keep.includes(area.id) || exchanges.some(exchange => exchange.linkFrom === area.id)); return next.length === previous.length ? previous : next; });
+  };
+  const setSelected = value => { setSelection(value == null ? [] : [value]); releaseHighlights(value == null ? [] : [value]); };
   const pickTool = value => { setTool(value); if (DRAWING_TOOLS.has(value)) setSelection([]); };
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
@@ -1713,6 +1704,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Read at once by a drag that starts on this same press (groupTargets), before the re-render.
     selectedRef.current = next;
     setSelection(next);
+    releaseHighlights(next);
   };
   const selectRef = useRef(select);
   selectRef.current = select;
@@ -1737,6 +1729,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // board, until the learner clicks its outline to remove it.
   const [areas, setAreas] = useState(stored.current.areas || []);
   const areaById = id => areas.find(area => area.id === id);
+  // The board an answer was asked about: the whiteboard itself, or the board a toolbar area was drawn on (EXP-T28).
+  const boardOf = id => { const host = areaById(id)?.blockId || id; return blocks.find(block => block.id === host && block.type === 'whiteboard')?.id; };
   // The canvas's one document (docs/features/blocknote-canvas.md): { v, x, y, w, blocks } in world units, saved with the
   // board. Never part of the canvas's undo history (BlockNote keeps its own). docLive holds the editor's latest blocks at
   // once, so a chat turn reads unsaved words; the board copy (doc) follows after a pause, so typing never re-renders the canvas.
@@ -3833,53 +3827,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       text: 'The lesson card this question was attached to was deleted from the canvas before the question was sent.',
     });
   }, [blocks, exchanges, items, askTargetId]);
-  // A red region drawn on a paper page arms the composer with its thumbnail
-  // and the page context, so the answer node links back to that paper block.
-  const askRegion = (block, selection) => {
-    armedId.current = null;
-    if (block.type === 'whiteboard') {
-      onAskTargetRef.current?.({
-        id: block.id,
-        kind: 'Whiteboard selection',
-        title: block.title,
-        preview: selection.preview || undefined,
-        text: [
-          `Learner whiteboard: ${block.title}`,
-          `Selected shapes: ${selection.shapes.map(shape => `${shape.type}${shape.text ? ` "${shape.text}"` : ''} (${shape.author})`).join(', ')}`,
-        ].join(String.fromCharCode(10)),
-      });
-      return;
-    }
-    // An animation marks a moment, not a page: the question points at a time
-    // and the objects under the rectangle, and the scene stays where it was.
-    if (block.type === 'animation') {
-      onAskTargetRef.current?.({
-        id: block.id,
-        kind: 'Animation moment',
-        title: `${block.title} · ${selection.time}s`,
-        text: [
-          `Animation: ${block.title}`,
-          `Paused at ${selection.time}s of ${block.scene.duration}s`,
-          selection.targets?.length ? `Objects inside the marked region: ${selection.targets.join(', ')}` : 'The marked region contains no authored object.',
-          `Marked region (normalized x, y, w, h): ${JSON.stringify(selection.region)}`,
-        ].join(String.fromCharCode(10)),
-      });
-      return;
-    }
-    const described = describeBlock(block);
-    onAskTargetRef.current?.({
-      id: block.id,
-      kind: 'Paper selection',
-      title: `${block.title} · page ${block.paper.page}`,
-      text: `${described?.text || ''}\nThe learner marked this region of the page (normalized x, y, w, h): ${JSON.stringify(selection.region)}.`,
-      preview: selection.preview,
-      // The server validates selection.region and reads selection.preview for the
-      // crop it shows the model (paperSelectionImage). The sibling `preview`
-      // above is the composer's thumbnail, a different field - without this one
-      // asking about a marked region failed before it reached the model.
-      paper: { id: block.paper.id, page: block.paper.page, selection: { region: selection.region, preview: selection.preview } },
-    });
-  };
   // A question asked about a block auto-links that block to its answer node. A card's answer goes beside its card in
   // free space (placeAnswers, the inline editor's placer): clear of every card, note, shape, connector and answer, the
   // ones placed in the same pass included, and nothing else moves. Placement repeats once the answer is complete, when
@@ -4247,12 +4194,24 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   });
   // Ask about selection: a rectangle in page coordinates becomes a PNG of that part of the screen, the
   // cards it touches, and an ask target (LearnPage uploads the image so the tutor sees it).
+  const areaShot = useRef(0);
   const askArea = async rect => {
     const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2), w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
     if (w * view.z < 8 || h * view.z < 8) return;
     const node = surface.current, box = node.getBoundingClientRect();
     const crop = { x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z };
     const inside = Object.entries(boundsRef.current).filter(([, b]) => b.x + b.w > x && b.x < x + w && b.y + b.h > y && b.y < y + h).map(([id]) => blocks.find(block => block.id === id)).filter(Boolean);
+    // EXP-T28: bind the crop to each card as it is now (id, revision, bounds, moment), measured before the slow capture.
+    const screen = { left: box.left + crop.x, top: box.top + crop.y, width: crop.w, height: crop.h };
+    const bindings = inside.map(block => {
+      const card = node.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`);
+      if (!card) return null;
+      const objects = [...card.querySelectorAll('[data-animation-object]')].map(el => ({ id: el.getAttribute('data-animation-object'), rect: el.getBoundingClientRect() }));
+      const shapes = block.type === 'whiteboard' ? boardAsk(block.id)?.shapesIn(screen) : undefined;
+      return cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects, shapes });
+    }).filter(Boolean);
+    // A later crop supersedes this one, and a canvas switched or closed meanwhile takes nothing from it.
+    const shot = ++areaShot.current, key = storageKeyRef.current;
     let preview = null, blob = null;
     try {
       const { toCanvas } = await import('html-to-image');
@@ -4266,23 +4225,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       preview = out.toDataURL('image/png');
       blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
     } catch { /* the text of the cards inside still asks */ }
-    const titles = inside.map(block => block.title || block.type).filter(Boolean);
+    if (shot !== areaShot.current || key !== storageKeyRef.current || !node.isConnected) return;
     const id = `area:${Date.now().toString(36)}`;
     // The area rides on the card or slide under its centre, so it stays put when the column above it grows.
     const cx = x + w / 2, cy = y + h / 2;
     const host = Object.entries(boundsRef.current).find(([hostId, b]) => blocks.some(block => block.id === hostId) && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h);
     setAreas(previous => [...previous, { id, x, y, w, h, ...(host ? { blockId: host[0], dx: x - host[1].x, dy: y - host[1].y } : {}) }]);
-    onAreaShotRef.current?.({
-      target: {
-        id, kind: 'Canvas selection',
-        title: titles.length ? `Selected area · ${titles.slice(0, 2).join(', ')}${titles.length > 2 ? '…' : ''}` : 'Selected area',
-        text: [
-          'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
-          titles.length ? `Cards inside or touching it: ${titles.join('; ')}` : 'No card is inside it, only the canvas itself.',
-        ].join(String.fromCharCode(10)),
-      },
-      preview, blob,
-    });
+    onAreaShotRef.current?.({ target: areaTarget({ id, bindings, preview }), preview, blob });
   };
   // With Ask about selection picked, a press anywhere - over cards too - starts the rectangle
   // (capture phase, before a card takes the press); the tool goes back to Select once it is drawn.
@@ -4591,16 +4540,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const box = measureNow()[id]; if (!box) return;
     snapshot(); setBlocks(previous => previous.map(value => value.id === id ? switchCardLayout(value, mode, box) : value));
   };
+  // A card that takes a scene highlight takes it from every other card (EXP-T27: one owner).
+  const putBlock = (previous, updated) => {
+    const next = previous.map(block => block.id === updated.id ? updated : block);
+    return holdsSceneHighlight(updated) ? releaseSceneHighlights(next, [updated.id]) : next;
+  };
   const changeBlock = updated => {
     snapshot();
-    setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+    setBlocks(previous => putBlock(previous, updated));
     // A paper card's page is what the tutor is told, the way a wiki card's
     // section is.
     if (updated.type === 'paper' && updated.paper?.id) onPaperRef.current?.({ id: updated.id, paperId: updated.paper.id, page: updated.paper.page || 1, title: updated.title });
   };
   // A continuous gesture must not snapshot: one scrub drag would evict the whole
   // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
-  const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+  const changeBlockQuietly = updated => setBlocks(previous => putBlock(previous, updated));
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.
@@ -5366,10 +5320,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <div ref={column} style={{ width: COLUMN }} className={`absolute top-0 left-0 flex flex-col gap-5 ${drawing || tool === 'eraser' || tool === 'hand' ? 'pointer-events-none' : ''}`}>
           {/* An answer to a red box, or to a card asked about (float, LearnPage), lives beside it: out of the column flow (no height, no gap), so asking never pushes the slides, the cards or the box down. */}
           {exchanges.map(exchange => (String(exchange.linkFrom).startsWith('area:') || (exchange.linkFrom && exchange.float)
-            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
-            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={blocks.find(block => block.id === exchange.linkFrom && block.type === 'whiteboard')?.id} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
+            ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
+            : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onAskRegion={askRegion} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -5378,7 +5332,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         {cardGhost && (
           <div data-inline-card-ghost data-thumbnail-hide aria-hidden="true" className="pointer-events-none absolute left-0 flex flex-col"
             style={{ top: (column.current?.offsetHeight || 0) + (column.current?.children.length ? 20 : 0), width: COLUMN, opacity: cardGhost.hidden ? 0 : 0.5 }}>
-            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onFile={noop} appName={appName} onAskRegion={noop} onGrade={noop} onWiki={noop} onWatch={noop} />
+            <LessonBlockCard block={cardGhost.block} zoom={view.z} selected={false} connected={null} onSelect={noop} onMove={noop} onChange={noop} onChangeQuiet={noop} onLayout={noop} onConnect={noop} onSnap={noop} onFile={noop} appName={appName} onGrade={noop} onWiki={noop} onWatch={noop} />
           </div>
         )}
         {readOnly && selected && bounds[selected] && (

@@ -487,6 +487,16 @@
           "referenceType": "none"
         }
       ]
+    },
+    {
+      "id": "explain-visualization-cases",
+      "status": "intake",
+      "source": "owner corpus C:/Users/cyudhist/Desktop/workspace/small-deploy/test_visualizations (originals local only, owner decision 6, 2026-10-22)",
+      "generatedFolderRequired": true,
+      "humanReviewRequired": true,
+      "casesTool": "visualization-cases/cases.mjs",
+      "intakeManifest": "visualization-cases/intake-manifest.json",
+      "cases": []
     }
   ],
   "hierarchy": "project -> case -> mode -> iteration",

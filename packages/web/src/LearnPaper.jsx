@@ -1,6 +1,6 @@
 import { usePerf } from './learn-perf.js';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, GripVertical, Highlighter, MessageSquarePlus, Minus, Plus, RotateCw, Scan, SquareDashed, SquarePlus, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, GripVertical, Highlighter, MessageSquarePlus, Minus, Plus, RotateCw, SquareDashed, SquarePlus, Trash2, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
 import { Button } from './ui.jsx';
 import { paperBytesUrl } from './pdf-source.js';
@@ -22,8 +22,8 @@ const arrows = event => { // Up/Down move between a menu's items
   items[(at + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length]?.focus();
 };
 
-// `selectButton` off: a card owns its Ask selection pill above the card, so
-// the reader's own button would be a second copy of the same control.
+// Asking about a region of the page goes through the canvas toolbar's Ask about selection (EXP-T28); a saved region
+// (paper.selection) is still drawn. The companion reader's Select region is the excerpt tool, unrelated.
 // Card-only, optional: `highlights` + `onHighlights` are the learner's yellow
 // marks, quotes of the page's text stored with their page number, and
 // `highlighting` is highlighter mode - the same model as the Wikipedia card.
@@ -33,16 +33,13 @@ const arrows = event => { // Up/Down move between a menu's items
 // are stored on; `anchor` an excerpt to return to; `plainChat(text)` attaches a passage as a quote when there is no excerpt
 // identity, returning an error message or null. With it come the selection toolbar, Select region, the author's saved
 // highlights, Rotate page and page labels; without it (the canvas paper card) the reader is unchanged.
-export default function LearnPaper({ app, paper, onClose, onPage, onSelect, selectRequest = 0, selectButton = true,
+export default function LearnPaper({ app, paper, onClose, onPage,
   highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, src = null, companion = null }) {
   const report = usePerf();
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(1);
-  const [selecting, setSelecting] = useState(false);
-  const [rectangle, setRectangle] = useState(null);
   const [textDrawn, setTextDrawn] = useState(0);
-  const drag = useRef(null);
   const canvas = useRef(null);
   const text = useRef(null);
   // Companion reader state: the drawn page and viewport, the server identity and the author's highlights, the selection
@@ -66,24 +63,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
   const pressing = useRef(false), handle = useRef(null), emphasized = useRef(false);
   // An upload has no public identity: no arXiv number and no public URL.
   const uploaded = String(paper.id).startsWith('upload:') || !!src;
-  useEffect(() => { setSelecting(false); setRectangle(null); drag.current = null; }, [paper.id, paper.page]);
-  // An outside control (the canvas Select-region pill) can arm the picker.
-  useEffect(() => { if (selectRequest) { setSelecting(true); setRectangle(null); } }, [selectRequest]);
-  const point = event => { const bounds = event.currentTarget.getBoundingClientRect(); return { x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)), y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) }; };
   const region = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
-  const capture = area => {
-    const page = canvas.current;
-    const pad = 0.025;
-    const x = Math.max(0, area.x - pad), y = Math.max(0, area.y - pad);
-    const w = Math.min(1, area.x + area.w + pad) - x, h = Math.min(1, area.y + area.h + pad) - y;
-    const scale = Math.min(1, 1000 / (w * page.width), 1000 / (h * page.height));
-    const thumb = window.document.createElement('canvas'); thumb.width = Math.max(1, Math.round(w * page.width * scale)); thumb.height = Math.max(1, Math.round(h * page.height * scale));
-    const ctx = thumb.getContext('2d');
-    ctx.drawImage(page, x * page.width, y * page.height, w * page.width, h * page.height, 0, 0, thumb.width, thumb.height);
-    ctx.strokeStyle = '#dc2626'; ctx.lineWidth = 4;
-    ctx.strokeRect((area.x - x) / w * thumb.width, (area.y - y) / h * thumb.height, area.w / w * thumb.width, area.h / h * thumb.height);
-    onSelect?.({ region: area, preview: thumb.toDataURL('image/png') });
-  };
   useEffect(() => {
     const controller = new AbortController();
     let task;
@@ -404,10 +384,6 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         {regionTool && <button type="button" aria-label="Select region" aria-pressed={!!area} disabled={!ready} title={area ? 'Stop selecting a region (Esc)' : 'Select a region of the page'}
           onClick={event => (area ? setArea(null) : startArea(event.detail === 0))}
           className={`rounded border p-1 disabled:opacity-40 ${area ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-line hover:bg-hover'}`}><SquareDashed size={14} /></button>}
-        {selectButton && <button type="button" data-paper-select aria-label={paper.selection ? 'Clear paper selection' : 'Ask about paper selection'}
-          title={paper.selection ? 'Clear the marked region (or press Esc)' : 'Select a region to ask about'} aria-pressed={selecting}
-          onClick={() => (paper.selection ? (onSelect?.(null), setSelecting(false), setRectangle(null)) : (setSelecting(value => !value), setRectangle(null)))}
-          className={`rounded border p-1 ${selecting || paper.selection ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}>{paper.selection ? <X size={14} /> : <Scan size={14} />}</button>}
       </>}
       {document && onHighlighting && <button type="button" aria-label="Highlighter" aria-pressed={highlighting}
         title={highlighting ? 'Highlighter on - select text to highlight it, click a highlight to remove it' : 'Highlight text'}
@@ -477,12 +453,8 @@ export default function LearnPaper({ app, paper, onClose, onPage, onSelect, sele
         <MenuItem icon={MessageSquarePlus} onClick={() => highlightAction('chat', menu.h)}>Add to chat</MenuItem>
         <MenuItem icon={Trash2} onClick={() => highlightAction('delete', menu.h)}>Delete highlight</MenuItem>
       </div>}
-      {(selecting || paper.selection) && <svg aria-label="Select paper region" viewBox="0 0 1 1" preserveAspectRatio="none" className={`absolute inset-0 h-full w-full ${selecting ? 'touch-none' : 'pointer-events-none'}`} style={{ cursor: selecting ? 'crosshair' : undefined }}
-        onPointerDown={event => { if (!selecting || event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = point(event); setRectangle(null); }}
-        onPointerMove={event => { if (drag.current) setRectangle(region(drag.current, point(event))); }}
-        onPointerUp={event => { if (!drag.current) return; const area = region(drag.current, point(event)); drag.current = null; if (area.w < 0.01 || area.h < 0.01) { setRectangle(null); return; } capture(area); setSelecting(false); setRectangle(null); }}
-        onPointerCancel={() => { drag.current = null; setRectangle(null); }}>
-        {(rectangle || paper.selection?.region) && <rect {...(rectangle || paper.selection.region)} width={(rectangle || paper.selection.region).w} height={(rectangle || paper.selection.region).h} fill="none" stroke="#dc2626" strokeWidth="3" vectorEffect="non-scaling-stroke" />}
+      {paper.selection?.region && <svg aria-label="Selected paper region" viewBox="0 0 1 1" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
+        <rect {...paper.selection.region} width={paper.selection.region.w} height={paper.selection.region.h} fill="none" stroke="#dc2626" strokeWidth="3" vectorEffect="non-scaling-stroke" />
       </svg>}
     </div></div>
     {limit && <div ref={limitEl} data-pdf-excerpt-limit role="dialog" aria-label="Selection too long" onMouseDown={event => { if (event.target.tagName !== 'BUTTON') event.preventDefault(); }}

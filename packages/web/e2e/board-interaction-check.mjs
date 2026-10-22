@@ -132,11 +132,16 @@ for (const block of all) {
   if (visible.length && BOARD_REVIEW_STATES[board]?.[scene.id] && !changedAny) fail(`${name}: no review state changes what the card says`);
   if (visible.some(d => d.presentation !== 'pager')) {
     await reveal(page, canvas, card.locator('[data-scene-controls]'));
-    await card.locator('[data-scene-controls] [data-scene-reset]').click();
+    // Reset is offered only while a value differs from its default (EXP-T26).
+    const changed = visible.some(d => d.presentation !== 'pager' && JSON.stringify(current[d.name]) !== JSON.stringify(defaultsOf(scene)[d.name]));
+    const resets = await card.locator('[data-scene-controls] [data-scene-reset]').count();
+    if (resets !== (changed ? 1 : 0)) fail(`${name}: ${resets} Reset button(s) with values ${changed ? 'changed' : 'at their defaults'}`);
+    if (changed && resets) await card.locator('[data-scene-controls] [data-scene-reset]').click();
     // Reset restores the experiment; the sub-card being read stays.
     const kept = Object.fromEntries(visible.filter(d => d.presentation === 'pager').map(d => [d.name, current[d.name]]));
     const got = await rendered(card), missing = expectedTexts(scene, { ...defaultsOf(scene), ...kept }).filter(text => !got.includes(text));
     if (missing.length) fail(`${name}: Reset did not restore the defaults (${JSON.stringify(missing.slice(0, 2))})`);
+    if (await card.locator('[data-scene-controls] [data-scene-reset]').count()) fail(`${name}: Reset still offered after restoring the defaults`);
   }
   console.log(`${name}: ${row.states.length} state(s) verified${row.reachedFromToc ? ', reached from the table of contents' : ''}`);
 }

@@ -158,12 +158,14 @@ ok('and not the side panel', (await page.locator('aside [aria-label="Paper reade
 await paperCard.locator('[aria-label="Next paper page"]').waitFor({ timeout: 15000 });
 await paperCard.click({ position: { x: 40, y: 12 } });
 await page.waitForTimeout(250);
-ok('a selected paper card has exactly one Ask selection - the pill above it', (await canvas.getByRole('button', { name: 'Ask selection' }).count()) === 1 && (await paperCard.locator('[data-paper-select]').count()) === 0);
+// EXP-T28 (plan 1.3): the canvas toolbar's Ask about selection is the one region path; no card or reader keeps its own.
+ok('a selected paper card has no Ask selection of its own - the toolbar asks about a region', (await canvas.getByRole('button', { name: 'Ask selection', exact: true }).count()) === 0 && (await paperCard.locator('[data-paper-select]').count()) === 0
+  && (await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).count()) === 1);
 await paperCard.click({ button: 'right', position: { x: 40, y: 12 } });
 await page.waitForTimeout(250);
 await page.getByRole('menu', { name: 'Canvas actions' }).getByRole('menuitem', { name: 'Open in reader' }).click();
 await page.locator('aside [aria-label="Paper reader"] [aria-label="Next paper page"]').waitFor({ timeout: 15000 });
-ok('the side-panel reader keeps its own region button', (await page.locator('aside [aria-label="Paper reader"] [data-paper-select]').count()) === 1);
+ok('the side-panel reader has no second Ask selection button', (await page.locator('aside [aria-label="Paper reader"] [data-paper-select]').count()) === 0);
 await page.locator('aside [aria-label="Close paper"]').click();
 
 // --- nothing found: one click to try elsewhere, same words ---

@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "arcee-trinity-large-architecture-b9673a24",
+  "title": "Arcee AI Trinity Large (400B) architecture",
+  "prompt": "Explain the Arcee AI Trinity Large (400B) architecture: the decoder block, its attention mix and the MoE layer.",
+  "figureKind": "llm-architecture-overview",
+  "nonGoals": [
+    "exact colours",
+    "author watermark"
+  ],
+  "family": "llm-architecture",
+  "lineage": "decoder-moe-swiglu",
+  "split": "example",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/arcee-trinity-large-architecture.jpeg",
+    "sha256": "b9673a243060107e1f38c022e225c586036464a17d4f7b8ed06747c51895eef0",
+    "bytes": 82125,
+    "format": "jpeg",
+    "width": 800,
+    "height": 754,
+    "originalName": "1769702574367.jpeg",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}

@@ -81,6 +81,26 @@ export function evaluateScene(raw, time, rawInputs) {
   return { inputs, derived, state: getSceneState(scene, time), scene, declarations };
 }
 
+// What Reset puts back: the declared defaults, except the inputs an active
+// practice task fixed (reset may not drift off the graded state) and the
+// sub-card being read (navigation, not part of the experiment).
+export function resetInputs(block) {
+  const kept = block.practiceActive && block.activity?.fixedInputs ? { ...block.activity.fixedInputs } : {};
+  const pager = (block.scene?.inputs || []).find(declaration => declaration.presentation === 'pager');
+  if (pager && block.inputs?.[pager.name] !== undefined) kept[pager.name] = block.inputs[pager.name];
+  return kept;
+}
+
+// Reset is offered only while it would change a value (plan v2.1 section 1.2).
+export function experimentChanged(block) {
+  let declarations;
+  try {
+    declarations = validateInputDeclarations(block.scene?.inputs || [], block.scene?.exampleData, Object.keys(block.scene?.derived || {}));
+  } catch { return false; }
+  const data = block.scene?.exampleData;
+  return JSON.stringify(coerceInputs(declarations, block.inputs, data)) !== JSON.stringify(coerceInputs(declarations, resetInputs(block), data));
+}
+
 // The one write path for a learning input on a canvas block. Returns the same
 // block object when the EFFECTIVE snapshot would not change - no revision is
 // spent on a no-op - and otherwise stores the canonical coerced value with a

@@ -29,15 +29,12 @@ const shapeText = shape => shape.props?.text
   || shape.props?.richText?.content?.map(part => part.content?.map(run => run.text || '').join('') || '').join(' ')
   || shape.meta?.label || '';
 
-export default function WhiteboardBlock({ block, appName, onChange, onAskSelection }) {
+export default function WhiteboardBlock({ block, appName, onChange }) {
   const report = usePerf();
   const editor = useRef(null);
   const saving = useRef(null);
   const host = useRef(null);
   const wrapper = useRef(null);
-  const drag = useRef(null);
-  const [selecting, setSelecting] = useState(false);
-  const [rectangle, setRectangle] = useState(null);
   const [speaking, setSpeaking] = useState(false);
   const [voice, setVoice] = useState(null);
   const [voiceError, setVoiceError] = useState('');
@@ -52,17 +49,6 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
   useEffect(() => () => { clearTimeout(saving.current); if (voice) URL.revokeObjectURL(voice.url); }, [voice]);
   const narration = (block.narration || '').trim();
 
-  // Marking a region is a question about a still moment, so anything playing
-  // in this block stops first.
-  const pauseMedia = () => wrapper.current?.querySelectorAll('audio, video').forEach(player => player.pause());
-  const clearRegion = () => { setSelecting(false); setRectangle(null); drag.current = null; onChange({ ...latest.current, marked: null }); };
-  const arm = () => { pauseMedia(); setRectangle(null); setSelecting(true); };
-  useEffect(() => {
-    const key = event => { if (event.key === 'Escape' && (selecting || block.marked)) clearRegion(); };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, [selecting, block.marked]);
-
   const narrate = async (text, existing) => {
     const words = (text || '').trim();
     if (!words) return;
@@ -76,38 +62,20 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
     finally { setSpeaking(false); }
   };
 
-  const point = event => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    return { x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)), y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)) };
-  };
-  const region = (a, b) => ({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x), h: Math.abs(a.y - b.y) });
-  // The rectangle is stored in the board's own page coordinates, so it stays
-  // over what it was drawn on when the board is panned or zoomed.
-  const toPage = area => {
-    const instance = editor.current, frame = host.current?.getBoundingClientRect();
-    if (!instance || !frame) return null;
-    const topLeft = instance.screenToPage({ x: frame.left + area.x * frame.width, y: frame.top + area.y * frame.height });
-    const bottomRight = instance.screenToPage({ x: frame.left + (area.x + area.w) * frame.width, y: frame.top + (area.y + area.h) * frame.height });
-    return { x: topLeft.x, y: topLeft.y, w: bottomRight.x - topLeft.x, h: bottomRight.y - topLeft.y };
-  };
-  const ask = async marked => {
+  // The canvas toolbar's Ask about selection (EXP-T28) names the shapes under its crop: a client rectangle becomes this
+  // board's page rectangle, and the shapes wholly inside it (else the ones it touches) are the ones asked about.
+  const shapesIn = screen => {
     const instance = editor.current;
-    if (!instance || !marked) return;
-    const bounds = new Box(marked.x, marked.y, marked.w, marked.h);
+    if (!instance) return [];
+    const topLeft = instance.screenToPage({ x: screen.left, y: screen.top });
+    const bottomRight = instance.screenToPage({ x: screen.left + screen.width, y: screen.top + screen.height });
+    const bounds = new Box(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
     const whole = instance.getCurrentPageShapes();
     const inside = whole.filter(shape => { const at = instance.getShapePageBounds(shape.id); return at && bounds.includes(at); });
     const shapes = inside.length ? inside : whole.filter(shape => { const at = instance.getShapePageBounds(shape.id); return at && bounds.collides(at); });
-    let preview = '';
-    try {
-      const image = await instance.toImage(shapes.map(shape => shape.id), { format: 'png', background: true, padding: 12, scale: 1, bounds });
-      preview = await new Promise(resolve => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.readAsDataURL(image.blob); });
-    } catch { /* the question still works without a picture */ }
-    onAskSelection?.({ ...latest.current, marked }, {
-      preview,
-      region: marked,
-      shapes: shapes.map(shape => ({ type: shape.type, text: shapeText(shape), author: shape.meta?.author || 'learner' })),
-    });
+    return shapes.map(shape => ({ id: shape.id, type: shape.type, text: shapeText(shape), author: shape.meta?.author || 'learner' }));
   };
+
 
   // The tutor draws its answer onto this same board. Shapes it creates carry
   // author 'assistant' already, so the learner's own ink stays distinguishable.
@@ -134,7 +102,7 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
     const spoken = plan.blocks.map(item => item.text).filter(Boolean).join(' ').slice(0, 3800);
     setOffer(spoken || null);
   };
-  useEffect(() => registerBoardAsk(block.id, { arm, clear: clearRegion, explain }), [block.id, block.marked, block.title]);
+  useEffect(() => registerBoardAsk(block.id, { shapesIn, explain }), [block.id, block.title]);
 
   const mount = instance => {
     editor.current = instance;
@@ -183,28 +151,7 @@ export default function WhiteboardBlock({ block, appName, onChange, onAskSelecti
           className="absolute top-1.5 right-1.5 z-[350] flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-white text-ink-2 shadow-sm hover:bg-hover hover:text-ink">
           {block.toolsHidden ? <PanelTopOpen size={14} /> : <PanelTopClose size={14} />}
         </button>
-        {selecting && (
-          <svg data-board-region aria-label="Select board region" viewBox="0 0 1 1" preserveAspectRatio="none"
-            className="absolute inset-0 z-[300] h-full w-full touch-none" style={{ cursor: 'crosshair' }}
-            onPointerDown={event => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); drag.current = point(event); setRectangle(null); }}
-            onPointerMove={event => { if (drag.current) setRectangle(region(drag.current, point(event))); }}
-            onPointerUp={event => {
-              if (!drag.current) return;
-              const area = region(drag.current, point(event));
-              drag.current = null; setRectangle(null);
-              if (area.w < 0.02 || area.h < 0.02) return;
-              setSelecting(false);
-              const page = toPage(area);
-              if (!page) return;
-              onChange({ ...latest.current, marked: page });
-              ask(page);
-            }}
-            onPointerCancel={() => { drag.current = null; setRectangle(null); }}>
-            {rectangle && <rect {...rectangle} width={rectangle.w} height={rectangle.h} fill="none" stroke="#dc2626" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />}
-          </svg>
-        )}
       </div>
-      {selecting && <p data-board-hint className="shrink-0 text-xs text-ink-2">Drag a rectangle around the part you want to ask about, or press Esc.</p>}
       {!!tutorShapes && (
         <div className="flex shrink-0 items-center gap-2">
           <button type="button" data-board-clear-explanation

@@ -466,7 +466,8 @@ export const BLOCK_TYPES = {
     }),
   },
   animation: {
-    label: 'Animation',
+    // Learner-facing name (plan v2.1 section 1.2); the storage type stays 'animation'.
+    label: 'Explanation',
     typicalRows: 180,
     width: 560,
     height: 460,
@@ -1075,27 +1076,18 @@ function QuizBody({ block, onChange, onFile }) {
   );
 }
 
-// The lesson paper reader, embedded as a canvas block: page navigation and
-// the red region-select both come from the existing LearnPaper component.
-// The first press on an unselected card selects it - so its Ask selection
-// pill appears - and only then do presses belong to the paper. Highlights are
+// The lesson paper reader, embedded as a canvas block: page navigation comes from the existing LearnPaper component;
+// a region of the page is asked about with the canvas toolbar's Ask about selection (EXP-T28).
+// The first press on an unselected card selects it, and only then do presses belong to the paper. Highlights are
 // saved on the block with their page; highlighter mode is a moment, not saved.
-function PaperBody({ block, appName, onChange, onAskRegion, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
+function PaperBody({ block, appName, onChange, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
   const [highlighting, setHighlighting] = useState(false);
   return (
     <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
-      <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0} selectButton={false}
+      <LearnPaper app={appName} paper={block.paper}
         paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
         highlighting={highlighting} onHighlighting={setHighlighting}
-        onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })}
-        onSelect={selection => {
-          // The marked region stays drawn on the page after asking, until it
-          // is cleared from the toolbar, the header pill or with Esc.
-          if (!selection) { onChange({ ...block, paper: { ...block.paper, selection: undefined } }); return; }
-          const next = { ...block, paper: { ...block.paper, selection: { region: selection.region } } };
-          onChange(next);
-          onAskRegion?.(next, selection);
-        }} />
+        onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })} />
     </div>
   );
 }
@@ -1163,14 +1155,14 @@ function SceneActivityBody({ block, onChange, onAskScene }) {
 
 // A tldraw board in a block: the learner draws with tldraw's own tools and a
 // selection can be sent to the tutor with a picture of what was selected.
-function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
+function WhiteboardBody({ block, appName, onChange }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       <Kicker author="learner">Whiteboard</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board</p>}>
-          <WhiteboardBlock block={block} appName={appName} onChange={onChange} onAskSelection={onAskSelection} />
+          <WhiteboardBlock block={block} appName={appName} onChange={onChange} />
         </Suspense>
       </div>
     </div>
@@ -1184,7 +1176,7 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       {/* A card that is one step of a sequence says so, quietly, where the
           block kind would be: "Self-attention · 2 of 3". A label, not navigation. */}
-      <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Animation'}</Kicker>
+      <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />
@@ -1940,7 +1932,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'model3d') return <ThreeDBody block={block} onChange={onChange} />;
   if (block.type === 'audio') return <AudioBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'scene' && block.spec?.type === 'interactive_scene') return <SceneActivityBody block={block} onChange={onChange} onAskScene={onAskScene} />;
-  if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} onAskSelection={onAskRegion} />;
+  if (block.type === 'whiteboard') return <WhiteboardBody block={block} appName={appName} onChange={onChange} />;
   if (block.type === 'animation') return <AnimationBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskAnimation={onAskRegion} onPracticeHeight={onPracticeHeight} onControlsHeight={onControlsHeight} />;
   if (block.type === 'flow') return <FlowBody block={block} />;
   if (block.type === 'mermaid') return <MermaidBody block={block} onChange={onChange} />;
@@ -1948,7 +1940,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} viewKey={viewKey} />;
   if (block.type === 'image') return <ImageBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
   if (block.type === 'video') return <VideoBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
-  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} selected={selected} />;
+  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} selected={selected} />;
   if (block.type === 'graph') return <GraphBody block={block} appName={appName} onChange={onChange} />;
   return null;
 }

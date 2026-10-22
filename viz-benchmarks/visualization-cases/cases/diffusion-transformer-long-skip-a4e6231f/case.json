@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "diffusion-transformer-long-skip-a4e6231f",
+  "title": "Diffusion transformer backbone with long skip connections",
+  "prompt": "Explain how a diffusion transformer that treats time, condition and image patches as tokens predicts noise, including its long skip connections.",
+  "figureKind": "architecture-dataflow",
+  "nonGoals": [
+    "photo patches",
+    "New! callouts"
+  ],
+  "family": "diffusion-backbone",
+  "lineage": "uvit-long-skip",
+  "split": "example",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/diffusion-transformer-long-skip.jpg",
+    "sha256": "a4e6231fde834ca081b8e8ad0c46970080aaf9becad7cbf9b0831ba2731f9f95",
+    "bytes": 112720,
+    "format": "jpeg",
+    "width": 1074,
+    "height": 1108,
+    "originalName": "5d5b1297-2ff2-4b01-b953-7a466da5c1ca_1074x1108.jpg",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}

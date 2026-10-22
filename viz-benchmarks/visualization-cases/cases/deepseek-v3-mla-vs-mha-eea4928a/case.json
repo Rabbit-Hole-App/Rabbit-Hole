@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "deepseek-v3-mla-vs-mha-eea4928a",
+  "title": "DeepSeek V3/R1 multi-head latent attention versus multi-head attention",
+  "prompt": "Explain how multi-head latent attention in DeepSeek V3 reduces KV-cache memory compared with regular multi-head attention.",
+  "figureKind": "comparison-dataflow",
+  "nonGoals": [
+    "figure caption",
+    "author watermark"
+  ],
+  "family": "llm-architecture",
+  "lineage": "deepseek-mla",
+  "split": "heldout",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/deepseek-v3-mla-vs-mha.jpeg",
+    "sha256": "eea4928ad8aa2d5bc546469cff0ee945b9812c2c448ac89b034ac4568d02ca35",
+    "bytes": 31752,
+    "format": "jpeg",
+    "width": 655,
+    "height": 468,
+    "originalName": "images.jpeg",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}
