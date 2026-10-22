@@ -170,8 +170,11 @@ const selectBlock = async id => {
   await target.scrollIntoViewIfNeeded().catch(() => {});
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await page.waitForTimeout(350);
-    const b = await target.boundingBox();
-    await page.mouse.click(b.x + 60, b.y + 30);
+    // The middle of the block's part inside the canvas view: a corner can sit under the canvas's top menu or off screen.
+    const b = await target.evaluate(el => { const r = el.getBoundingClientRect(), v = document.querySelector('[aria-label="Lesson canvas"]').getBoundingClientRect();
+      const left = Math.max(r.left, v.left), right = Math.min(r.right, v.right), top = Math.max(r.top, v.top + 60), bottom = Math.min(r.bottom, v.bottom - 60);
+      return { x: (left + right) / 2, y: (top + bottom) / 2 }; });
+    await page.mouse.click(b.x, b.y);
     if (await pane().locator(`[data-selected-card="${id}"]`).waitFor({ timeout: 2500 }).then(() => true, () => false)) return;
   }
   throw Error(`selecting block ${id} showed no [data-selected-card] pill`);
@@ -263,8 +266,8 @@ await check('File options closes on a press outside and on Escape, which hands t
   assert.deepEqual(await focused(), { action: 'more', source: KEY, tag: 'BUTTON' }, 'the focus is back on its File options');
 });
 
-await check('a short window: File options still fits inside it', async () => {
-  await page.setViewportSize({ width: 1800, height: 360 });
+await check('a short window: File options moves to stay inside it', async () => {
+  await page.setViewportSize({ width: 1800, height: 300 });
   await page.waitForTimeout(400);
   await options(KEY).scrollIntoViewIfNeeded();
   await options(KEY).click();
@@ -272,7 +275,8 @@ await check('a short window: File options still fits inside it', async () => {
   await page.waitForTimeout(200);
   const p = await popBox(), v = await viewport();
   facts.short = p;
-  assert.ok(p.top >= 0 && p.bottom <= v.h && p.left >= 0 && p.right <= v.w, `inside the 360 px window (${JSON.stringify(p)})`);
+  assert.ok(p.top >= 0 && p.bottom <= v.h && p.left >= 0 && p.right <= v.w, `inside the 300 px window (${JSON.stringify(p)})`);
+  assert.ok(p.top < facts.popover.popover.top, `moved up from where a tall window puts it (${p.top} vs ${facts.popover.popover.top})`);
   await shot('03-short-window');
   await page.keyboard.press('Escape');
   await page.setViewportSize({ width: 1800, height: 1000 });
