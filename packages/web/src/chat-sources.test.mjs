@@ -84,6 +84,19 @@ test('a citation open (an excerpt\'s Open source) forgets the place but keeps th
   assert.equal(store.get('paper:1'), undefined, 'a source never zoomed keeps no entry');
 });
 
+test('a citation open keeps the Rotate page turn too, with or without a zoom (R4 audit: Rotate page reset on Open source)', () => {
+  const store = positionStore();
+  store.set('doc:ctx:0123456789ab', { page: 5, scrollTop: 300, zoom: 1.5, rotation: 90 });
+  store.opened({ sourceId: 'doc:ctx:0123456789ab', range: { page: 3, excerpt: { id: 'pdfx_1' } } });
+  assert.deepEqual(store.get('doc:ctx:0123456789ab'), { zoom: 1.5, rotation: 90 });
+  store.set('paper:upload:0123456789ab', { page: 2, rotation: 270 });
+  store.opened({ sourceId: 'paper:upload:0123456789ab', range: { page: 1 } });
+  assert.deepEqual(store.get('paper:upload:0123456789ab'), { rotation: 270 }, 'a turn without a zoom stays');
+  store.set('paper:upload:0123456789ab', { rotation: 0 });
+  store.opened({ sourceId: 'paper:upload:0123456789ab', range: { page: 1 } });
+  assert.equal(store.get('paper:upload:0123456789ab'), undefined, 'turned back level: nothing to keep');
+});
+
 test('on the Learn Chat a reader never replaces the transcript and sending never closes it; elsewhere nothing changes (13.1, 13.2)', () => {
   const ask = read('./ask.jsx'), page = read('./LearnPage.jsx');
   assert.match(ask, /if \(chat\) contentPanel = null;\n\s*else if \(repository && filePeek\) contentPanel = <RepositorySource/);

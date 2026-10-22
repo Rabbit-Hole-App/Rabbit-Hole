@@ -55,7 +55,7 @@ function TextView({ text, quote, position, save }) {
 
 // A canvas context document (doc:<id>), read once through GET /api/learn/context/<id> (A4a's route): a PDF opens in the paper
 // view at its page from those same bytes, a .txt or .md as text. Anything else, or a failed read, says it can't preview here.
-function DocReader({ app, sourceRef, position, save, startPage, startZoom, plainChat }) {
+function DocReader({ app, sourceRef, position, save, startPage, startZoom, startRotation, plainChat }) {
   const [doc, setDoc] = useState(null);
   const id = sourceRef.sourceId.slice('doc:'.length);
   useEffect(() => {
@@ -73,7 +73,7 @@ function DocReader({ app, sourceRef, position, save, startPage, startZoom, plain
   }, [app, id]);
   const range = sourceRef.range || {};
   if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}</p>;
-  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} startZoom={startZoom} quote={range.quote} quotePage={range.page || 1} save={save}
+  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} startZoom={startZoom} startRotation={startRotation} quote={range.quote} quotePage={range.page || 1} save={save}
     companion={{ key: pdfKeyOfRef(sourceRef), home: null, anchor: range.excerpt || null, plainChat }} />;
   return doc.text == null ? <Unavailable sourceRef={sourceRef} refused={!!doc.refused} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
 }
@@ -115,11 +115,11 @@ function Reader({ sourceRef, position, onPosition, chat }) {
     if (reader === 'paper') {
       const id = sourceRef.sourceId.slice('paper:'.length);
       const key = pdfKeyOfRef(sourceRef);
-      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} startPage={here.current.page} startZoom={here.current.zoom} quote={range.quote} quotePage={range.page || 1} save={save}
+      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} quote={range.quote} quotePage={range.page || 1} save={save}
         companion={{ key, home: key ? sourceRef.home || app : null, anchor: range.excerpt || null, plainChat }} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
-    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} startZoom={here.current.zoom} plainChat={plainChat} />;
+    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
       const code = codeSource(sourceRef), owned = /^[\w.-]+\/[\w.-]+$/.test(code.repo);
@@ -142,12 +142,12 @@ function Reader({ sourceRef, position, onPosition, chat }) {
 }
 
 // A paper turns its own pages; the page is the reading position. The cited quote is painted on its page.
-function PaperReader({ app, id, home = null, src = null, title, startPage, startZoom, quote, quotePage, save, companion }) {
+function PaperReader({ app, id, home = null, src = null, title, startPage, startZoom, startRotation, quote, quotePage, save, companion }) {
   const [page, setPage] = useState(startPage);
   const paper = useMemo(() => ({ id, title, pdfUrl: src || id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page, ...(home ? { home } : {}) }), [id, home, src, title, page]);
   const highlights = useMemo(() => (quote ? [{ page: quotePage, exact: quote, prefix: '', suffix: '' }] : null), [quote, quotePage]);
   return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null} companion={companion}
-    zoomStart={startZoom} onZoom={zoom => save({ zoom })} onPage={next => { setPage(next); save({ page: next }); }} />;
+    zoomStart={startZoom} onZoom={zoom => save({ zoom })} rotationStart={startRotation} onRotation={rotation => save({ rotation })} onPage={next => { setPage(next); save({ page: next }); }} />;
 }
 
 // One reader per ref: another source, or another range of the same one (a new citation), starts a fresh reader.

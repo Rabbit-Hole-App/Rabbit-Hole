@@ -536,6 +536,68 @@ const inlineExplain = async id => {
   return { request, modes };
 };
 
+// ---------------------------------------------------------------- Rotate page and rotated pages (R4 audit gaps 2, 3; C:/s/spec/pdfx-audit/report.md)
+// The reader's displayed turn: the page canvas landscape for a quarter turn, and the text layer redrawn at that turn (pdf.js sets
+// data-main-rotation, then the reader appends .endOfContent once the words are drawn, in the same task as its viewport state).
+const viewTurn = () => page.evaluate(() => {
+  const s = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"]'), c = s?.querySelector('[aria-label="Paper PDF page"]'), l = s?.querySelector('[aria-label="Paper page text"]');
+  return c && l ? { landscape: c.width > c.height, rotation: Number(l.dataset.mainRotation ?? -1), drawn: !!l.querySelector('.endOfContent') && !!l.textContent.trim() } : null;
+});
+const turnedTo = async (rotation, what) => {
+  await waitFor(async () => { const t = await viewTurn(); return t && t.rotation === rotation && t.landscape === (rotation % 180 !== 0) && t.drawn; }, 15000, `${what}: the view is not drawn at ${rotation} degrees (${JSON.stringify(await viewTurn())})`);
+  await frames();
+};
+// Press Rotate page until the displayed turn is `rotation`, each quarter turn drawn before the next press (a level page here).
+const rotateTo = async (rotation, what) => {
+  for (let i = 0; i < 4 && (await viewTurn())?.rotation !== rotation; i += 1) {
+    const now = (await viewTurn())?.rotation ?? 0;
+    await reader().getByRole('button', { name: 'Rotate page', exact: true }).click();
+    await turnedTo((now + 90) % 360, what);
+  }
+  assert.equal((await viewTurn())?.rotation, rotation, `${what}: the view is at ${rotation} degrees`);
+};
+// A US Letter PDF point on screen at a displayed turn of 0 or 90 degrees (pdf.js viewport: a quarter turn puts PDF y across, PDF x down).
+const pointAt = (px, py, rotation) => page.evaluate(([px, py, rotation]) => {
+  const r = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper PDF page"]').getBoundingClientRect();
+  return rotation === 90 ? { x: r.left + py / 792 * r.width, y: r.top + px / 612 * r.height } : { x: r.left + px / 612 * r.width, y: r.top + (792 - py) / 792 * r.height };
+}, [px, py, rotation]);
+// Select region, then one drag from corner to corner of a PDF rect on the displayed page, its middle scrolled into view.
+const drawRegionAt = async (rect, rotation) => {
+  await reader().getByRole('button', { name: 'Select region', exact: true }).click();
+  await page.locator('[data-sources-pane] [data-pdf-region-mode]').first().waitFor({ timeout: 5000 }).catch(() => { throw Error('Select region showed no [data-pdf-region-mode]'); });
+  const mid = await pointAt((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2, rotation);
+  await page.evaluate(y => { const box = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper PDF page"]').closest('.overflow-auto'), b = box.getBoundingClientRect(); box.scrollTop += y - (b.top + b.height / 2); }, mid.y);
+  await frames();
+  const a = await pointAt(rect[0], rect[3], rotation), b = await pointAt(rect[2], rect[1], rotation);
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 5 }); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
+  await page.locator('[data-pdf-region-toolbar]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error('the drawn region shows no [data-pdf-region-toolbar]'); });
+};
+// How much of a figure's on-screen box the emphasis covers, at a displayed turn of 0 or 90 degrees (figureCovered, any turn).
+const figureCoveredAt = async (fig, rotation) => {
+  const a = await pointAt(fig[0], fig[3], rotation), b = await pointAt(fig[2], fig[1], rotation);
+  const t = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), r: Math.max(a.x, b.x), b: Math.max(a.y, b.y) };
+  return page.evaluate(t => {
+    const marks = [...document.querySelectorAll('[data-sources-pane] [data-pdf-emphasis]')].map(e => e.getBoundingClientRect()).filter(m => m.width > 0);
+    if (!marks.length) return null;
+    const m = { x: Math.min(...marks.map(k => k.left)), y: Math.min(...marks.map(k => k.top)), r: Math.max(...marks.map(k => k.right)), b: Math.max(...marks.map(k => k.bottom)) };
+    const ix = Math.max(0, Math.min(m.r, t.r) - Math.max(m.x, t.x)), iy = Math.max(0, Math.min(m.b, t.b) - Math.max(m.y, t.y)), area = (t.r - t.x) * (t.b - t.y);
+    return { covered: ix * iy / area, size: (m.r - m.x) * (m.b - m.y) / area, inView: true };
+  }, t);
+};
+// A region card's crop as stored and drawn: served to its owner as a PNG, loaded, readable, the figure (green), no outline (red).
+const assertFigureCrop = async (card, aspect, what) => {
+  const x = card.data.excerpt;
+  const served = await waitFor(async () => { const reply = await fetch(`${BASE}/api/learn/files/${encodeURIComponent(x.crop.source.id)}?${query({ app: canvas.name, board: 'main' })}`, { headers: { cookie } }); return reply.status === 200 && reply; }, 30000, `${what}: the server does not serve the crop to its owner`);
+  assert.match(String(served.headers.get('content-type')), /image\/png/, `${what}: the stored crop is a PNG`);
+  const crop = await waitFor(async () => { const c = await cropOf(card.id); return c.loaded && c; }, 30000, `${what}: the crop <img data-excerpt-crop> did not load`);
+  assert.equal(crop.tainted, undefined, `${what}: the crop pixels are readable (${crop.tainted})`);
+  assert.ok(Math.max(crop.w, crop.h) <= 4096 && Math.min(crop.w, crop.h) >= 150, `${what}: readable, ${crop.w}x${crop.h}`);
+  assert.ok(Math.abs(crop.w / crop.h - aspect) < 0.03, `${what}: the crop ${crop.w}x${crop.h} (${(crop.w / crop.h).toFixed(3)}) is the region as the page shows it (${aspect.toFixed(3)})`);
+  assert.ok(crop.green > 0.6, `${what}: the crop is the figure, ${Math.round(crop.green * 100)}% figure green`);
+  assert.equal(crop.red, 0, `${what}: no red outline, handle or overlay in the crop`);
+  return crop;
+};
+
 // ================================================================ the run
 const A = await profile('A');
 page = A.page;
@@ -696,6 +758,14 @@ await check('anchors after zoom: at reader zoom 200% the saved highlight box sti
   // Back to 100% for the steps below, which draw regions at page points.
   for (let i = 0; i < 8 && (await reader().locator('[aria-label="Paper zoom"]').innerText()).trim() !== '100%'; i += 1) await reader().getByRole('button', { name: 'Zoom out paper' }).click();
   assert.equal((await reader().locator('[aria-label="Paper zoom"]').innerText()).trim(), '100%');
+  // The same for Rotate page: a quarter turn stays turned across Open source (chat-sources.js positionStore keeps it).
+  await rotateTo(90, 'Rotate page before Open source');
+  await openSourceOf(cards.passage.id);
+  await emphasisOn(3, 'Rivers carry', 'and the tides.', 'the emphasis on the turned view');
+  await turnedTo(90, 'Open source keeps the Rotate page turn');
+  facts.rotation_at_emphasis = (await viewTurn())?.rotation;
+  // Back level for the steps below, which point at the page unturned.
+  await rotateTo(0, 'Rotate page back level');
 });
 
 await check('anchors after a panel resize: the viewer 150+ px narrower or wider, the highlight box and Open source still cover the passage', [3], async () => {
@@ -1215,59 +1285,6 @@ await check('another person\'s fork of the shared canvas: the crop shows, Open s
   } finally { page = mine; await O.context.close(); await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) }); }
 });
 
-// ---------------------------------------------------------------- R4 audit gaps 2, 3 and 5 (C:/s/spec/pdfx-audit/report.md)
-// The reader's displayed turn: the page canvas landscape for a quarter turn, and the text layer redrawn at that turn (pdf.js sets
-// data-main-rotation, then the reader appends .endOfContent once the words are drawn, in the same task as its viewport state).
-const viewTurn = () => page.evaluate(() => {
-  const s = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"]'), c = s?.querySelector('[aria-label="Paper PDF page"]'), l = s?.querySelector('[aria-label="Paper page text"]');
-  return c && l ? { landscape: c.width > c.height, rotation: Number(l.dataset.mainRotation ?? -1), drawn: !!l.querySelector('.endOfContent') && !!l.textContent.trim() } : null;
-});
-const turnedTo = async (rotation, what) => {
-  await waitFor(async () => { const t = await viewTurn(); return t && t.rotation === rotation && t.landscape === (rotation % 180 !== 0) && t.drawn; }, 15000, `${what}: the view is not drawn at ${rotation} degrees (${JSON.stringify(await viewTurn())})`);
-  await frames();
-};
-// A US Letter PDF point on screen at a displayed turn of 0 or 90 degrees (pdf.js viewport: a quarter turn puts PDF y across, PDF x down).
-const pointAt = (px, py, rotation) => page.evaluate(([px, py, rotation]) => {
-  const r = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper PDF page"]').getBoundingClientRect();
-  return rotation === 90 ? { x: r.left + py / 792 * r.width, y: r.top + px / 612 * r.height } : { x: r.left + px / 612 * r.width, y: r.top + (792 - py) / 792 * r.height };
-}, [px, py, rotation]);
-// Select region, then one drag from corner to corner of a PDF rect on the displayed page, its middle scrolled into view.
-const drawRegionAt = async (rect, rotation) => {
-  await reader().getByRole('button', { name: 'Select region', exact: true }).click();
-  await page.locator('[data-sources-pane] [data-pdf-region-mode]').first().waitFor({ timeout: 5000 }).catch(() => { throw Error('Select region showed no [data-pdf-region-mode]'); });
-  const mid = await pointAt((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2, rotation);
-  await page.evaluate(y => { const box = document.querySelector('[data-sources-pane] section[aria-label="Paper reader"] [aria-label="Paper PDF page"]').closest('.overflow-auto'), b = box.getBoundingClientRect(); box.scrollTop += y - (b.top + b.height / 2); }, mid.y);
-  await frames();
-  const a = await pointAt(rect[0], rect[3], rotation), b = await pointAt(rect[2], rect[1], rotation);
-  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move((a.x + b.x) / 2, (a.y + b.y) / 2, { steps: 5 }); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
-  await page.locator('[data-pdf-region-toolbar]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error('the drawn region shows no [data-pdf-region-toolbar]'); });
-};
-// How much of a figure's on-screen box the emphasis covers, at a displayed turn of 0 or 90 degrees (figureCovered, any turn).
-const figureCoveredAt = async (fig, rotation) => {
-  const a = await pointAt(fig[0], fig[3], rotation), b = await pointAt(fig[2], fig[1], rotation);
-  const t = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), r: Math.max(a.x, b.x), b: Math.max(a.y, b.y) };
-  return page.evaluate(t => {
-    const marks = [...document.querySelectorAll('[data-sources-pane] [data-pdf-emphasis]')].map(e => e.getBoundingClientRect()).filter(m => m.width > 0);
-    if (!marks.length) return null;
-    const m = { x: Math.min(...marks.map(k => k.left)), y: Math.min(...marks.map(k => k.top)), r: Math.max(...marks.map(k => k.right)), b: Math.max(...marks.map(k => k.bottom)) };
-    const ix = Math.max(0, Math.min(m.r, t.r) - Math.max(m.x, t.x)), iy = Math.max(0, Math.min(m.b, t.b) - Math.max(m.y, t.y)), area = (t.r - t.x) * (t.b - t.y);
-    return { covered: ix * iy / area, size: (m.r - m.x) * (m.b - m.y) / area, inView: true };
-  }, t);
-};
-// A region card's crop as stored and drawn: served to its owner as a PNG, loaded, readable, the figure (green), no outline (red).
-const assertFigureCrop = async (card, aspect, what) => {
-  const x = card.data.excerpt;
-  const served = await waitFor(async () => { const reply = await fetch(`${BASE}/api/learn/files/${encodeURIComponent(x.crop.source.id)}?${query({ app: canvas.name, board: 'main' })}`, { headers: { cookie } }); return reply.status === 200 && reply; }, 30000, `${what}: the server does not serve the crop to its owner`);
-  assert.match(String(served.headers.get('content-type')), /image\/png/, `${what}: the stored crop is a PNG`);
-  const crop = await waitFor(async () => { const c = await cropOf(card.id); return c.loaded && c; }, 30000, `${what}: the crop <img data-excerpt-crop> did not load`);
-  assert.equal(crop.tainted, undefined, `${what}: the crop pixels are readable (${crop.tainted})`);
-  assert.ok(Math.max(crop.w, crop.h) <= 4096 && Math.min(crop.w, crop.h) >= 150, `${what}: readable, ${crop.w}x${crop.h}`);
-  assert.ok(Math.abs(crop.w / crop.h - aspect) < 0.03, `${what}: the crop ${crop.w}x${crop.h} (${(crop.w / crop.h).toFixed(3)}) is the region as the page shows it (${aspect.toFixed(3)})`);
-  assert.ok(crop.green > 0.6, `${what}: the crop is the figure, ${Math.round(crop.green * 100)}% figure green`);
-  assert.equal(crop.red, 0, `${what}: no red outline, handle or overlay in the crop`);
-  return crop;
-};
-
 await check('Rotate page (R4 audit gap 2): with the reader turned a quarter, the passage selected and added to the canvas stores the same PDF-space anchor as on the level page (rotate 0, the same rects), its highlight box covers it on the turned view, and Open source emphasizes it', ['gap 2', 3, 4], async () => {
   await openReader(DOC_KEY, { index: 3 });
   await turnedTo(0, 'before Rotate page');
@@ -1289,6 +1306,8 @@ await check('Rotate page (R4 audit gap 2): with the reader turned a quarter, the
   assertCovers(await waitFor(() => coverage(highlightBoxes(x.highlightId), 'Rivers carry', 'and the tides.'), 10000, 'no highlight box on the turned view'), 'the highlight box on the turned view');
   await openSourceOf(card.id);
   await emphasisOn(3, 'Rivers carry', 'and the tides.', 'the emphasis of the excerpt taken on the turned view');
+  assert.equal((await viewTurn())?.rotation, 90, 'Open source keeps the reader turned');
+  await rotateTo(0, 'Rotate page back level');
 });
 
 await check('Rotate page and a figure (R4 audit gaps 2 and 3): a region drawn around the figure on the turned view stores the figure\'s PDF rect (rotate 0); its crop is the figure the page\'s own way up (the rect\'s aspect), green, no outline; Open source emphasizes the figure', ['gap 2', 'gap 3', 2, 4], async () => {
@@ -1309,8 +1328,10 @@ await check('Rotate page and a figure (R4 audit gaps 2 and 3): a region drawn ar
   await reveal(cardLocator(card.id));
   await shot('18-rotate-page-region-card');
   await openSourceOf(card.id);
-  const c = await waitFor(async () => (await where())?.index === 4 && figureCovered(), 8000, 'no [data-pdf-emphasis] on page 4 for the region taken on the turned view');
-  assertCovers(c, 'the region emphasis');
+  await turnedTo(90, 'Open source keeps the Rotate page turn');
+  const c = await waitFor(async () => (await where())?.index === 4 && figureCoveredAt(FIGURE, 90), 8000, 'no [data-pdf-emphasis] on page 4 for the region taken on the turned view');
+  assertCovers(c, 'the region emphasis on the turned view');
+  await rotateTo(0, 'Rotate page back level');
 });
 
 await check('a figure on the /Rotate 90 page (R4 audit gap 3): a region around it stores its unrotated PDF rect with rotate 90; its crop is the figure as the page shows it (width and height swapped against the PDF rect), green, no outline; Open source emphasizes it on that page', ['gap 3', 2, 4], async () => {

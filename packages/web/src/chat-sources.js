@@ -13,13 +13,18 @@ export const pushSource = (stack, ref) => (stack.at(-1)?.sourceId === ref.source
 
 // Reading positions per sourceId ({ page, section, scrollTop }), merged, so a page turn keeps the scroll and the reverse.
 // An open that names a range (a citation) is an instruction to land there, so that source's saved position is forgotten,
-// except its zoom: the learner's chosen size is not a place (an excerpt's Open source kept resetting it to 100%).
+// except its zoom and Rotate page turn: the learner's view is not a place (an excerpt's Open source kept resetting both).
 export function positionStore() {
   const saved = new Map();
   return {
     get: sourceId => saved.get(sourceId),
     set: (sourceId, position) => saved.set(sourceId, { ...saved.get(sourceId), ...position }),
-    opened: ref => { if (!ref.range) return; const zoom = saved.get(ref.sourceId)?.zoom; saved.delete(ref.sourceId); if (zoom) saved.set(ref.sourceId, { zoom }); },
+    opened: ref => {
+      if (!ref.range) return;
+      const { zoom, rotation } = saved.get(ref.sourceId) || {}, view = { ...(zoom ? { zoom } : {}), ...(rotation ? { rotation } : {}) };
+      saved.delete(ref.sourceId);
+      if (zoom || rotation) saved.set(ref.sourceId, view);
+    },
   };
 }
 
