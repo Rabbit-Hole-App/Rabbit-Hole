@@ -81,9 +81,8 @@ export async function uploadedPaperAsDocument(env, identity, id, { page = null, 
   if (!object) throw new Error('That PDF is no longer stored');
   const title = uploadedPaperTitle(object.customMetadata?.title), paper = { id, title, pdfUrl: null };
   const meta = await readPageMeta(learnMedia(env), key);
-  // A long one's bytes are never read here: its page count alone says it cannot ride whole.
-  const bytes = wholeOk(0, meta?.total) ? new Uint8Array(await object.arrayBuffer()) : null;
-  if (bytes && wholeOk(bytes.length, meta?.total)) return { ...paper, document: { type: 'document', title, source: { type: 'base64', media_type: 'application/pdf', data: base64(bytes) } } };
+  // The stored size and page count decide; the bytes are read only when they ride whole.
+  if (wholeOk(object.size, meta?.total)) return { ...paper, document: { type: 'document', title, source: { type: 'base64', media_type: 'application/pdf', data: base64(new Uint8Array(await object.arrayBuffer())) } } };
   const texts = await readPages(learnMedia(env), key);
   if (!texts) return { ...paper, document: { type: 'text', text: `${title} is a PDF too long to send whole, and its pages have not been read, so you have not seen it. Ask the learner to upload it again.` } };
   return { ...paper, document: pagesDocument(title, texts, { page, query }) };

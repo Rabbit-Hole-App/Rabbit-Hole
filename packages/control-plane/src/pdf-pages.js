@@ -25,7 +25,7 @@ export function readPageTexts(value) {
   if (!Array.isArray(pages) || !pages.length || pages.some(p => typeof p !== 'string')) return { error: 'The page text must be a list of strings, one per page' };
   if (pages.length > PDF_PAGE_MAX) return { error: `That PDF has ${pages.length} pages. A PDF can have at most ${PDF_PAGE_MAX.toLocaleString('en-US')} pages.` };
   if (pages.some(p => p.length > PAGE_TEXT_CHARS + CUT_MARK.length + 2)) return { error: `A page's text is longer than ${PAGE_TEXT_CHARS.toLocaleString('en-US')} characters` };
-  if (pages.reduce((n, p) => n + p.length, 0) > INDEX_TEXT_CHARS) return { error: `That PDF has more than ${mb(INDEX_TEXT_CHARS)} of text` };
+  if (pages.reduce((n, p) => n + p.length, 0) > INDEX_TEXT_CHARS) return { error: `That PDF has more than ${mb(INDEX_TEXT_CHARS)} of text. A PDF can have at most ${mb(INDEX_TEXT_CHARS)} of text.` };
   return { pages };
 }
 

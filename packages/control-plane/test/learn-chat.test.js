@@ -490,7 +490,7 @@ test('an uploaded PDF reaches the model as bytes, with the page the learner is o
   const env = fixture(t);
   const pdf = new TextEncoder().encode('%PDF-1.4 uploaded');
   env.RUNS = {
-    async get() { return { arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'lecture-notes.pdf' } }; },
+    async get() { return { size: pdf.length, arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'lecture-notes.pdf' } }; },
   };
   const body = { scope: { app: 'counter' }, message: 'Explain this page', paper_context: { id: 'upload:0123456789ab', page: 7 } };
   const response = await handlers.apiAsk(request(body), env, {}, owner, 'learn');
@@ -514,7 +514,7 @@ test('a chat turn names the uploaded PDF it read and calls every other uploaded 
   const env = fixture(t);
   const pdf = new TextEncoder().encode('%PDF-1.4 uploaded');
   let readable = true;
-  env.RUNS = { async get() { return readable ? { arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'pages.pdf' } } : null; } };
+  env.RUNS = { async get() { return readable ? { size: pdf.length, arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'pages.pdf' } } : null; } };
   const page = (hex, n) => ({ sourceId: `paper:upload:${hex}`, kind: 'web', name: `Paper ${hex}`, version: '', range: { page: n } });
   const body = { scope: { app: 'counter' }, message: 'Compare these pages', mode: 'ask', paper_context: { id: 'upload:0123456789ab', page: 12 },
     context_refs: [page('0123456789ab', 12), page('aaaaaaaaaaaa', 3)] };
@@ -536,7 +536,7 @@ test('a copied page reads its upload from its home canvas, as the session user o
   const env = fixture(t);
   const pdf = new TextEncoder().encode('%PDF-1.4 uploaded');
   const keys = [];
-  env.RUNS = { async get(key) { keys.push(key); return { arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'pages.pdf' } }; } };
+  env.RUNS = { async get(key) { keys.push(key); return { size: pdf.length, arrayBuffer: async () => pdf.buffer, customMetadata: { title: 'pages.pdf' } }; } };
   const body = { scope: { app: 'counter' }, message: 'Explain this page', paper_context: { id: 'upload:0123456789ab', page: 12 } };
   assert.equal((await handlers.apiAsk(request(body), env, {}, owner, 'learn')).status, 200);
   assert.equal((await handlers.apiAsk(request({ ...body, paper_context: { ...body.paper_context, home: 'canvas-0a1b2c3d' } }), env, {}, owner, 'learn')).status, 200);

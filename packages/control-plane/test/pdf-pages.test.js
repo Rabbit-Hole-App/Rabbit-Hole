@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { contextDocsFetch, contextDocumentBlocks } from '../src/learn-context-docs.js';
 import { putUploadedPaper, paperIdentity } from '../src/learn-paper.js';
-import { readLearnSource } from '../src/learn-ask-context.js';
+import { readLearnSource, validateLearnContext } from '../src/learn-ask-context.js';
 import { validPageContext } from '../src/learn-tutor-routes.js';
 import { SEND_CHARS, selectPages, namedPages, readPageTexts as serverPages } from '../src/pdf-pages.js';
 import { readPageTexts } from '../../web/src/context-doc-pages.js';
@@ -108,6 +108,8 @@ test('a long PDF without its page text is listed failed with a reason, says so t
   assert.match((await call('PUT', `/api/learn/context/${id}/pages`, { body: { app: canvas.name, pages: Array(2001).fill('') } })).body.error, /at most 2,000 pages/);
   assert.equal((await call('PUT', `/api/learn/context/${id}/pages`, { body: { app: 'canvas-ffffffff', pages } })).status, 404, 'only the owner');
   assert.equal((await call('PATCH', `/api/learn/context/${id}/pages`, { body: { app: canvas.name, attached: true } })).status, 405);
+  const nul = await contextDocsFetch(new Request(`https://dev.test/api/learn/context/${id}/pages?app=${canvas.name}`, { method: 'PUT', body: 'null' }), env, { authorize: async () => canvas });
+  assert.equal(nul.status, 400, 'a null body is refused, not a 500');
   const retried = await call('PUT', `/api/learn/context/${id}/pages`, { body: { app: canvas.name, pages } });
   assert.equal(retried.status, 200);
   assert.deepEqual([retried.body.document.status, retried.body.document.pages, retried.body.document.error], ['ready', 312, null]);
@@ -163,12 +165,20 @@ test('uploaded paper (PDF to canvas): a 312-page paper is stored with its pages;
   // A long PDF over 5 MB cannot be stored without its pages (an older page): refused with the fix.
   const big = new Uint8Array(6 * 1024 * 1024).fill(32); big.set(bytes.subarray(0, 5));
   await assert.rejects(putUploadedPaper(env, paperIdentity(app), new File([big], 'Big.pdf')), /Reload the page and upload this PDF again/);
+  // A short PDF over 5 MB reads by page, decided by its stored size: never base64'd whole.
+  const heavy = new Uint8Array(6 * 1024 * 1024).fill(32); heavy.set((await pdfOf(99)).bytes);
+  const stout = await putUploadedPaper(env, paperIdentity(app), new File([heavy], 'Heavy.pdf'), JSON.stringify((await pdfOf(99)).pages));
+  const got = await read.uploadedPaperAsDocument(env, paperIdentity(app), stout.id, { page: 50 });
+  assert.equal(got.document.source.media_type, 'text/plain', 'over 5 MB it reads by page');
 });
 
 test('page numbers past 100 are valid wherever a page is named; past 2,000 they are not', () => {
   assert.deepEqual(validPageContext({ paper: { id: 'upload:0123456789ab', page: 312 } }), { kind: 'paper', id: 'upload:0123456789ab', page: 312 });
   assert.throws(() => validPageContext({ paper: { id: 'upload:0123456789ab', page: 2001 } }));
   assert.deepEqual(namedPages('see pages 101-103 and p. 7, page 900', 312), [101, 102, 103, 7]);
+  // An arXiv paper is still read whole by the model, so its pages stay within the model's 100.
+  assert.throws(() => validateLearnContext({ message: 'q', paper_context: { id: '1506.02640v5', page: 101 } }, 'learn'), /Invalid Learn paper context/);
+  assert.doesNotThrow(() => validateLearnContext({ message: 'q', paper_context: { id: 'upload:0123456789ab', page: 312 } }, 'learn'));
 });
 
 test('selectPages: the learner\'s page first, then named pages, then word matches, within the budget, in page order', () => {
