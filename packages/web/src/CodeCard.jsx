@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronsDownUp, ChevronsUpDown, Copy, ExternalLink, FileCode, Loader2, MessageSquarePlus } from 'lucide-react';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { highlightCode } from './code-lang.js';
-import { codeCardRef, previewOf, provenanceOf } from './code-card.js';
+import { codeCardRef, previewOf, provenanceOf, publishCodeCard } from './code-card.js';
 import { useSearchContent } from './canvas-search-content.jsx';
 import { searchSourceRecord } from './canvas-search-content.js';
 import { useCardSource } from './use-card-source.js';
@@ -59,6 +59,8 @@ export default function CodeCard({ block, onChange }) {
     window.open(URL.createObjectURL(typeof value === 'string' ? new Blob([value], { type: 'text/plain' }) : value), '_blank', 'noopener');
   };
   const addToChat = () => { const ref = codeCardRef(block, code); if (ref) chat?.addToChat(ref); };
+  // The canvas menu's Copy code and Open source (UI-25) are this card's own.
+  useEffect(() => (code ? publishCodeCard(block.id, { code, openSource }) : undefined), [block.id, code]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div data-code-card data-code-colors="" data-source-kind={source.kind} data-status={status} className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex min-w-0 shrink-0 items-center gap-2 px-3 pt-1 pb-2">
