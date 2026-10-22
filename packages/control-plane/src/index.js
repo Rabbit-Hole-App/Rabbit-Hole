@@ -1225,6 +1225,10 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // Tutor plans a syllabus and nothing else (B6): no reader opens and no card lands. With a table of contents its one tool
     // is the outline proposal, made against the headings this turn sent (R4 owner decision 4A).
     if (resolved.mode === 'tutor') Object.assign(research, body.outline?.length ? { tools: [OUTLINE_TOOL], system: `${OUTLINE_SYSTEM}\n${TUTOR_OUTLINE_SYSTEM}`, arxiv: false } : { tools: [], system: null, arxiv: false });
+    // A /motion turn proposes the video and nothing else: the learner's words arrive without the slash, so the model is told
+    // what the turn is, and its one tool is the proposal (no research). Real-model run 2026-10-21: offered among the research
+    // tools, the Opus answer read Wikipedia and wrote an essay instead.
+    if (generation && chat.command === 'motion') Object.assign(research, { tools: [PROPOSAL_TOOL], system: `${PROPOSAL_SYSTEM}\nThis turn is a /motion request for a video of what the learner wrote: call ${PROPOSAL_TOOL.name} once now with command motion, then reply in one short sentence.`, arxiv: false });
     memory = await threadMemory(db, threadId, history.userMessageId);
     // On a project canvas its code refs are read from the repository snapshot (canvases.js projectRepository), once each:
     // they are not listed again as named attachments.

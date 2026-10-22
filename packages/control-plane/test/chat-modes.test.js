@@ -794,7 +794,8 @@ test('a /motion chat turn proposes on the chat path: one model turn, the signed 
   f.replies.push(proposeCall('tu1'), 'Here is a 10-second video proposal.\n<answer_meta>{}</answer_meta>');
   const { res, events } = await f.ask({ message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: { concept: 'Weather' } } });
   assert.equal(res.status, 200);
-  assert.ok(f.calls[0].tools.some(tool => tool.name === 'propose_generation'), 'the proposal tool rides this chat turn');
+  assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_generation'], 'a /motion turn: the proposal tool alone, no research');
+  assert.ok(f.calls[0].system.includes('This turn is a /motion request'), 'the model is told what the turn is');
   assert.match(f.calls[0].system, /Generation proposals:/);
   const meta = events.find(e => e.event === 'answer_meta').data;
   const p = meta.proposal;
