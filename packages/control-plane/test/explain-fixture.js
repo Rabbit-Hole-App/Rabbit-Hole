@@ -20,7 +20,7 @@ export function d1(t) {
   // The canvas the jobs run on, and a second canvas the same learner owns.
   for (const b of [BOARD, BOARD_B]) sqlite.prepare('INSERT INTO learn_boards (id, app, board, org, owner_email) VALUES (?, ?, ?, ?, ?)').run(b.id, b.app, b.board, OWNER.org, OWNER.email);
   // The chat tables the proposal state lives on (repository-schema.sql threads and chat_message_meta, the columns it reads).
-  sqlite.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL); CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, alternative_of INTEGER, meta_json TEXT NOT NULL)");
+  sqlite.exec("CREATE TABLE threads (id TEXT PRIMARY KEY, org TEXT NOT NULL, user TEXT NOT NULL, scope_ref TEXT NOT NULL, commit_sha TEXT NOT NULL DEFAULT '', title TEXT); CREATE TABLE chat_thread_state (thread_id TEXT PRIMARY KEY, context_json TEXT, last_activity_at TEXT, updated_at TEXT NOT NULL); CREATE TABLE messages (id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, content TEXT NOT NULL); CREATE TABLE chat_message_meta (message_id INTEGER PRIMARY KEY, thread_id TEXT NOT NULL, role TEXT NOT NULL, alternative_of INTEGER, meta_json TEXT NOT NULL)");
   const LEARN_DB = {
     prepare(text) {
       let args = [];

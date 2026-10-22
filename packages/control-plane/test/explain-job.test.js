@@ -181,8 +181,8 @@ test('three correction rounds shared by all gates, then a stop; calls never exce
 // chat's answer row with its one state (MOT-22). Motion is unconfigured here: no MOTION_ORCHESTRATOR_TOKEN.
 async function proposeBrief(s, job, { app = BOARD.app, briefHash = job.briefHash, messageId = 1 } = {}) {
   const p = await signProposal(s.env, { command: 'explain', title: 'Pendulum', description: 'One. Two. Three.', settings: {}, source_refs: [], input: { org: OWNER.org, app, job: job.id, brief_hash: briefHash } }, OWNER.email);
-  s.sqlite.prepare("INSERT OR IGNORE INTO threads VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, app);
-  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, 'th1', 'assistant', ?)").run(messageId, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
+  s.sqlite.prepare("INSERT OR IGNORE INTO threads (id, org, user, scope_ref) VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, app);
+  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, 'th1', 'assistant', ?)").run(messageId + 100, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
   return p;
 }
 const stateOf = async (s, p) => (await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, p.proposal_id)).state;

@@ -348,6 +348,21 @@ export class ExplainJobs {
     if (previous && !(record?.root && await publishRevision(db, record, p))) return;
     job.pendingProposal = { id: p.proposal_id, version: p.version, messageId: String(row.id) };
   }
+  // The canvas's open Chat thread for the owner (canvases.js activeChat's key), or a new canvas thread made the open one.
+  async briefThread(job) {
+    const db = this.env.LEARN_DB, { org, email } = job.owner, key = `active:${job.app}:${org}:${email}`;
+    const open = await db.prepare('SELECT context_json FROM chat_thread_state WHERE thread_id = ?').bind(key).first().catch(() => null);
+    let id = null;
+    try { id = JSON.parse(open?.context_json || 'null')?.threadId ?? null; } catch { /* unreadable: none */ }
+    if (id && await db.prepare('SELECT id FROM threads WHERE id = ? AND org = ? AND user = ? AND scope_ref = ?').bind(id, org, email, job.app).first()) return id;
+    id = `canvaschat-${crypto.randomUUID()}`;
+    const at = new Date().toISOString();
+    await db.batch([
+      db.prepare("INSERT INTO threads (id, org, user, scope_ref, commit_sha, title) VALUES (?, ?, ?, ?, '', ?)").bind(id, org, email, job.app, (job.brief?.title || 'Explanation plan').slice(0, 120)),
+      db.prepare('INSERT INTO chat_thread_state (thread_id, context_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET context_json = excluded.context_json, updated_at = excluded.updated_at').bind(key, JSON.stringify({ threadId: id }), at),
+    ]);
+    return id;
+  }
   // A refinement through the composer: the brief is prepared again with the learner's words (an admitted brief call); the
   // previous approval no longer counts. Only while awaiting approval, within the refinement limit.
   async refine(job, payload) {
@@ -514,7 +529,10 @@ export class ExplainJobs {
         markTiming(job.timing, 'generate'); next('authoring');
       } else {
         endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
-        if (job.threadId) await this.postBrief(job);
+        // A brief always reaches the learner: with no thread from the request (Tutor, Ctrl+K on a canvas without a chat), it
+        // goes on the canvas's open Chat thread, a new one when there is none (owner default, 2026-10-22). Review is never skipped.
+        job.threadId ??= await this.briefThread(job);
+        await this.postBrief(job);
       }
     } else if (stage === 'authoring') { job.spec = out.spec; next('validating'); }
     else if (stage === 'validating') {
