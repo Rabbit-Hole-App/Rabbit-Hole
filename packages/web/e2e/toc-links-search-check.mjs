@@ -95,9 +95,9 @@ const openLinks = async () => {
 };
 
 await open(A, 'a1');
-await check('1 no Links tab: four tray tabs, nothing named Links in the header', async () => {
+await check('1 no Links tab: five tray tabs (Progress last, owner 2026-10-22), nothing named Links in the header', async () => {
   const tabs = await page.locator('[data-panel-header] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.dataset.panelTab));
-  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments']);
+  assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments', 'progress']);
   assert.equal(await page.locator('[data-panel-header]').getByRole('button', { name: 'Links' }).count(), 0);
   assert.equal(await page.locator('[data-panel-tab="links"], [data-links-panel]').count(), 0);
 });

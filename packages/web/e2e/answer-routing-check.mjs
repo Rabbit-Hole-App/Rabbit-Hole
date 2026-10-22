@@ -116,7 +116,7 @@ try {
   // transcript like any answer; the selection only scopes the question.
   await answer('Selected-card answer.').waitFor();
   check('selected-card discussion answers in the Chat transcript: no new card, no card conversation', await cards() === 1 && await conversationUi() === 0);
-  check('the right panel has no Card conversation tab, only its own tabs, Chat among them', await page.getByRole('tab', { name: 'Card conversation' }).count() === 0 && (await panelTabs()).includes('chat') && (await panelTabs()).every(id => ['chat', 'find', 'toc', 'comments', 'context', 'links', 'files'].includes(id)));
+  check('the right panel has no Card conversation tab, only its own tabs (Progress is one since the 2026-10-22 owner decision), Chat among them', await page.getByRole('tab', { name: 'Card conversation' }).count() === 0 && (await panelTabs()).includes('chat') && (await panelTabs()).every(id => ['chat', 'find', 'toc', 'comments', 'progress', 'context', 'links', 'files'].includes(id)));
   check('the question is still scoped to the selected card', JSON.stringify(calls.filter(c => CHAT.includes(c.path)).at(-1)?.body?.canvas_target ?? calls.filter(c => CHAT.includes(c.path)).at(-1)?.body?.context?.target ?? null).includes('Card 0 explains a different idea.'));
   check('selected-card answer has one visible copy', await page.getByText('Selected-card answer.', { exact: true }).count() === 1);
   check('the answer leaves the right panel as it was', await resizer.count() === panelWas);
