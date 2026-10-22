@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChartColumnIncreasing, History, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
+import { History, Loader2, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { AskPanel } from './ask.jsx';
 import { ConfirmDialog, Menu, MenuItem } from './ui.jsx';
 import ChatHistory from './ChatHistory.jsx';
@@ -16,7 +16,7 @@ import { chatTitle } from './chat-threads.js';
 const ICON = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink';
 
 export default function ChatPane({ hidden = false, docked = false, unavailable = null, chatAskProps = {}, ...askProps }) {
-  const { thread, panels } = useChatWorkspace();
+  const { thread } = useChatWorkspace();
   const title = chatTitle(thread); // never New chat while this canvas's conversation is loading or failed to load
   const [menu, setMenu] = useState(false), [renaming, setRenaming] = useState(false), [deleting, setDeleting] = useState(false);
   // Rename and Delete come from the thread hook (A2) once it has them; until then the menu is not drawn.
@@ -31,9 +31,6 @@ export default function ChatPane({ hidden = false, docked = false, unavailable =
             onBlur={event => { const next = event.currentTarget.value.trim(); if (!event.currentTarget.dataset.cancel && next && next !== thread.title) thread.rename(next); setRenaming(false); }}
             className="mr-1 h-8 min-w-0 flex-1 rounded-lg border border-line px-2 text-sm font-semibold text-ink outline-none focus:border-ink-3" />
           : <h2 data-chat-title title={title} className="mr-auto min-w-0 flex-1 truncate text-sm font-semibold text-ink">{title}</h2>}
-        {/* Progress (Tutor Task 09): opens the companion column left of Chat; in Auto, Ask and Tutor alike, changing no control. */}
-        {panels?.progress && <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed={panels.progress.open} onClick={panels.progress.toggle}
-          className={`${ICON} ${panels.progress.open ? 'bg-hover text-ink' : ''}`}><ChartColumnIncreasing size={16} strokeWidth={1.8} aria-hidden /></button>}
         <button type="button" data-chat-history aria-label="History" title="History" aria-pressed={thread.historyOpen} onClick={() => thread.setHistoryOpen(!thread.historyOpen)}
           className={`${ICON} ${thread.historyOpen ? 'bg-hover text-ink' : ''}`}><History size={16} strokeWidth={1.8} aria-hidden /></button>
         {/* Icon only in a pane under 360 px; the accessible name stays "New chat". */}

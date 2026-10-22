@@ -345,6 +345,36 @@ await check('13 Close shuts the panel and changes no canvas content', async () =
 });
 await shot('05-closed');
 
+// Owner 2026-10-21: Progress left Chat's header for the canvas toolbar, right after Comments. With the right side hidden (13),
+// it opens the Progress column and reveals the right side; by keyboard: Enter opens, Escape closes and refocuses it, Space toggles.
+await check('13b Progress sits in the canvas toolbar right after Comments, not in Chat\'s header, and toggles its pane by keyboard', async () => {
+  const progress = page.locator('[data-canvas-header]').getByRole('button', { name: 'Progress', exact: true });
+  const companion = async () => (await page.locator('[data-companion]').boundingBox())?.width ?? 0;
+  assert.equal(await progress.count(), 1, 'one Progress button in the toolbar');
+  assert.equal(await progress.evaluate(node => node.previousElementSibling?.hasAttribute('data-comments-header')), true, 'right after Comments');
+  assert.equal(await page.locator('[data-chat-header] [data-chat-progress]').count(), 0, 'no longer in Chat\'s header');
+  assert.equal(await progress.getAttribute('title'), 'Progress');
+  assert.equal(await progress.getAttribute('aria-pressed'), 'false');
+  await progress.focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
+  assert.equal(await progress.getAttribute('aria-pressed'), 'true');
+  assert.equal(await isOpen(), true, 'the hidden right side is revealed');
+  await expect(page.locator('#progress-title')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(progress).toHaveAttribute('aria-pressed', 'false');
+  await expect(progress).toBeFocused();
+  for (let i = 0; i < 20 && (await companion()) >= 2; i++) await page.waitForTimeout(100);
+  assert.ok((await companion()) < 2, 'the Progress column is retracted');
+  await page.keyboard.press('Space');
+  await expect(progress).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-progress-pane]').waitFor({ state: 'visible', timeout: 10000 });
+  await shot('05b-progress-toolbar');
+  await progress.focus();
+  await page.keyboard.press('Space');
+  await expect(progress).toHaveAttribute('aria-pressed', 'false');
+});
+
 // L: a canvas with a long contents list, in its own browser context (its own routes; the hook counts above stay this page's).
 // /api/learn/ask is answered here with a canned stream; every other model route fails the run; every request to a chat, ask or
 // Tutor route is recorded, so opening the tab is shown to request nothing.
@@ -548,5 +578,5 @@ await check('the canvas asked for no hooks on open, and nothing the panel did as
 });
 
 await browser.close();
-console.log(`${results.length}/25 checks passed`);
-process.exit(results.length === 25 ? 0 : 1);
+console.log(`${results.length}/26 checks passed`);
+process.exit(results.length === 26 ? 0 : 1);

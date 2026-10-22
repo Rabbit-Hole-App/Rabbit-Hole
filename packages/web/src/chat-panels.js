@@ -8,8 +8,8 @@ import { useMemo, useState } from 'react';
 // it on that view; close() shuts the column and leaves Chat open; toggle() is the header control's press (owner brief
 // 2026-10-16 item 4): it opens the column on its last view, or closes it. Its labelled tabs move between the views (no Back).
 // Derived, for the rest of the workspace: chatOpen, sourcesOpen; openChat(), closeChat(), openSources(), closeSources().
-// progress (Tutor Task 09, draft "Progress UI and access"): Progress is one more view of this column, opened from the Chat
-// header's icon (progress.toggle). It takes the column's slot and leaves the viewer it covered as it was: the header control
+// progress (Tutor Task 09, draft "Progress UI and access"): Progress is one more view of this column, opened from the canvas
+// toolbar's icon beside Comments (progress.toggle). It takes the column's slot and leaves the viewer it covered as it was: the header control
 // (toggle) reopens the last viewer, never Progress.
 const wide = () => globalThis.matchMedia?.('(min-width: 64rem)').matches ?? true;
 export function useChatPanels() {

@@ -66,12 +66,12 @@ const shot = async (name, target = page) => { await target.waitForTimeout(400); 
 const settle = (ms = 400) => page.waitForTimeout(ms);
 const chatPane = (p = page) => p.locator('[data-chat-pane]');
 const field = (p = page) => chatPane(p).locator('[data-chat-composer] textarea').first();
-const icon = (p = page) => chatPane(p).getByRole('button', { name: 'Progress', exact: true });
+const icon = (p = page) => p.locator('[data-canvas-header]').getByRole('button', { name: 'Progress', exact: true }); // the canvas toolbar, beside Comments (owner 2026-10-21)
 const progress = (p = page) => p.locator('[data-progress-pane]');
 const box = async locator => (await locator.boundingBox()) || { x: -1, y: -1, width: 0, height: 0 };
 const open = async (p = page) => { await p.goto(`${BASE}/apps/${canvas.name}`); await chatPane(p).waitFor({ state: 'visible', timeout: 60000 }); await field(p).waitFor({ timeout: 30000 }); await p.waitForTimeout(1500); };
 
-await check('the Progress icon in the Chat header opens Progress left of Chat; the draft, mode and Chat stay', async () => {
+await check('the Progress icon in the canvas toolbar opens Progress left of Chat; the draft, mode and Chat stay', async () => {
   await open();
   await field().fill('my own words, unsent');
   assert.equal(await icon().getAttribute('title'), 'Progress');
