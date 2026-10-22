@@ -93,6 +93,7 @@ test('M3: submit -> author -> compile -> render -> review -> repair -> settle ->
   assert.deepEqual(s.rendered.map(r => r.theme), ['light', 'dark', 'light', 'dark']);
   const review = s.calls.filter(c => c.name === 'report_review')[1].body.messages[0].content;
   assert.equal(review.filter(block => block.type === 'image').length, 2, 'the reviewer saw the actual pixels');
+  assert.equal(review[0].text.includes(SPEC.title), false, 'the undrawn spec title is not a fact the review expects to see');
   const { block, job } = view.body;
   assert.deepEqual([block.type, block.id, block.explain.resultId, job.result.cardId], ['animation', 'card-rain-01', job.result.resultId, 'card-rain-01']);
   assert.equal(block.scene.objects.find(o => o.id === 'sea.box').initialState.w >= 240, true, 'the repaired layout is what was saved');

@@ -164,8 +164,13 @@ export async function callExplainRole(env, role, { system, tool, content }, { ca
 // ---- Stage timing (section 3.6) ----
 export const REQUEST_CLASSES = Object.freeze(['simple', 'researched', 'edit']);
 export const EXPLAIN_STAGES = Object.freeze(['queued', 'preparing', 'awaiting_approval', 'authoring', 'validating', 'rendering', 'reviewing', 'repairing']);
-// Targets come from T02 baseline and early M3 runs, recorded with their rationale; none are measured yet, so none are set.
-export const EXPLAIN_TARGETS = Object.freeze(Object.fromEntries(REQUEST_CLASSES.map(c => [c, Object.freeze({ firstFeedbackMs: null, proposalMs: null, resultMs: null, basis: 'unmeasured' })])));
+// Targets frozen by L4 from observed runs only, before qualification (viz-benchmarks/visualization-cases/runs/t22-targets.json,
+// 2026-10-22 10:05 PT, with its rationale): never relaxed after seeing results. Classes with no observation stay null.
+const UNMEASURED = Object.freeze({ firstFeedbackMs: null, proposalMs: null, resultMs: null, basis: 'unmeasured' });
+export const EXPLAIN_TARGETS = Object.freeze({
+  simple: Object.freeze({ firstFeedbackMs: 1000, proposalMs: null, resultMs: 75000, capabilityGapAnswerMs: 15000, reloadModelCalls: 0, basis: 'observed (t22-targets.json)' }),
+  researched: UNMEASURED, edit: UNMEASURED,
+});
 
 // A timing record, stored on the job. Marks: submitted, firstFeedback, proposalReady, generate, result (accepted result or,
 // for Edit, an Apply-ready candidate). Stages: one entry per entered stage with its counters.

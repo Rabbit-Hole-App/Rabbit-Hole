@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "cache-paths",
+  "title": "A cache hit skips the database",
+  "components": [
+    { "id": "req", "component": "flow", "version": 1, "params": {
+      "steps": ["Request arrives", "Look up the cache", "Read the database", "Store the answer in the cache", { "label": "Send the answer", "role": "output" }],
+      "cases": [
+        { "id": "hit", "label": "Cache hit: the answer comes straight from the cache", "steps": [0, 1, 4] },
+        { "id": "miss", "label": "Cache miss: read the database, then keep a copy", "steps": [0, 1, 2, 3, 4] }
+      ],
+      "case": "hit" }, "hints": { "nodeWidth": 150, "gap": 40 } }
+  ],
+  "presentation": {
+    "mode": "static",
+    "experiments": [
+      { "id": "path", "purpose": "Which steps does a cache hit skip?", "input": "req.case", "domain": { "values": ["hit", "miss"] },
+        "affects": ["req.case", "req.step2", "req.step3", "req.skip0across"],
+        "contrasts": ["hit: the route goes under the database steps, which are greyed out", "miss: every step runs"] }
+    ]
+  }
+}

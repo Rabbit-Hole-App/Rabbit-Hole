@@ -181,8 +181,8 @@ test('three correction rounds shared by all gates, then a stop; calls never exce
 // chat's answer row with its one state (MOT-22). Motion is unconfigured here: no MOTION_ORCHESTRATOR_TOKEN.
 async function proposeBrief(s, job, { app = BOARD.app, briefHash = job.briefHash, messageId = 1 } = {}) {
   const p = await signProposal(s.env, { command: 'explain', title: 'Pendulum', description: 'One. Two. Three.', settings: {}, source_refs: [], input: { org: OWNER.org, app, job: job.id, brief_hash: briefHash } }, OWNER.email);
-  s.sqlite.prepare("INSERT OR IGNORE INTO threads VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, app);
-  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, 'th1', 'assistant', ?)").run(messageId, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
+  s.sqlite.prepare("INSERT OR IGNORE INTO threads (id, org, user, scope_ref) VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, app);
+  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (?, 'th1', 'assistant', ?)").run(messageId + 100, JSON.stringify({ proposal: p, proposalState: proposalState(p) }));
   return p;
 }
 const stateOf = async (s, p) => (await proposalRecord(s.env.LEARN_DB, OWNER.email, BOARD.app, p.proposal_id)).state;
@@ -276,19 +276,16 @@ test('the production pipeline authors and compiles a real spec; with no browser 
   assert.equal(done.compiled.counts.authored, 1);
   assert.deepEqual((await s.job(body.job.id)).job.recovery, ['retry_render', 'edit_request']);
 });
-// Steps compile since the integration (component step); an experiment is still a capability gap.
-test('the production pipeline: a request needing an experiment ends as a structured capability gap, with no repair and no card', async t => {
+// Experiments compile since L3's controls: one on a plain component (no control) is refused by the trusted check and never
+// drawn; the repair round that cannot fix it stops the job with no card.
+test('the production pipeline: an experiment whose input is not a control is refused before rendering, with no card', async t => {
   const s = setup(t, { pipeline: explainPipeline });
   const experiment = { ...SPEC, presentation: { mode: 'static', experiments: [{ id: 'e', purpose: 'Compare lengths.', input: 'length', domain: { values: [1, 4] }, affects: [SPEC.components[0].id], contrasts: ['Longer is slower.'] }] } };
-  authorReplies(t, [{ kind: 'spec', spec: experiment }]);
+  authorReplies(t, [{ kind: 'spec', spec: experiment }, { operation: 'none', reason: 'Needs a controllable component.' }]);
   const { body } = await s.create({ prompt: 'Show how the string length changes the period.' });
   const done = await s.run(body.job.id);
-  assert.deepEqual([done.stage, done.stopReason, done.failure.category, done.failure.gap.needs, done.failure.gap.source], ['failed', 'capability_gap', 'capability', ['experiment'], 'compiler']);
-  assert.equal(done.compiled, null);
-  const view = (await s.job(body.job.id)).job;
-  assert.deepEqual(view.recovery, ['edit_request']);
-  assert.equal(view.result, null);
-  assert.match(view.failure.message, /an interactive experiment/);
+  assert.deepEqual([done.stage, done.stopReason, done.compiled, done.result], ['failed', 'no_progress', null, null]);
+  assert.match(done.findings[0].problems.join(' '), /must name a component's control/);
 });
 
 test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', async t => {

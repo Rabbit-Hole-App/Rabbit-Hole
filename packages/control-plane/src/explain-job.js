@@ -53,7 +53,7 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
 // Preparation: the sourced brief (T16, explain-brief.js).
 
-// Render: the compiled scene's finished state per part, light and dark where the round's captures allow, as one manifest
+// Render: every part, admitted control state and named step, light and dark where the round's captures allow, as one manifest
 // reserved before rendering. PNGs go to LEARN_MEDIA under the job (renderStates); the job keeps keys and hashes, not bytes.
 // deps.render defaults to Lane D's explain-render.js: renderStates drives Browser Rendering (env.BROWSER, @cloudflare/puppeteer,
 // keep_alive 10 s) on the render entry served from this Worker's own assets (env.ASSETS, render/scene.html in every build),
@@ -61,23 +61,24 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // A deployment without BROWSER says rendering is unavailable and keeps the compiled result for Retry rendering.
 export const renderStage = ({ render = explainRender, ...deps } = {}) => async (job, ctx) => {
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
-  const { compiledHash, renderStates, reserveCaptures } = render;
-  const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
-  // Every admitted state is reviewed: each named step of a steps presentation (validateStage keeps parts x steps within one
-  // review), else the finished state.
-  const states = scene.presentation?.mode === 'steps' && scene.presentation.steps?.length ? scene.presentation.steps.map(step => ({ step: step.id, time: step.at })) : [{ time: scene.duration }];
-  const themes = parts * states.length * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
-  const entries = [];
-  for (let part = 0; part < parts; part++) for (const state of states) for (const theme of themes) {
-    entries.push({ id: [parts > 1 && `p${part}`, state.step && `s-${state.step}`, theme].filter(Boolean).join('-'), part, ...(state.step ? { step: state.step } : {}), time: state.time, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
+  const { captureManifest, renderStates, reserveRound } = render;
+  const { scene } = job.compiled;
+  // Every part, admitted control state and named step (EXP-T18 per-step review, r2-contract.md section 4), within the
+  // round's reservation; a card with more distinct frames than one review covers is refused, never trimmed.
+  let manifest;
+  try { manifest = await captureManifest(scene, { reserved: reserveRound({ cap: EXPLAIN_LIMITS.render.capturesPerRound }) }); }
+  catch (error) {
+    if (error.code !== 'over_budget') throw error;
+    throw Object.assign(fail('This explanation has more steps or settings than one check can cover. Edit the request to use fewer.', 422, 'over_budget'), { category: 'budget', stopReason: 'unsupported_repair' });
   }
-  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, states: states.length, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
   let out;
   try { out = await renderStates(ctx.env, job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) { throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' }); }
   return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })) };
 };
 const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+// The spec's title is not drawn (the card's header shows the learner's request), so it is not a fact the pixels must show:
+// live runs r2b/r3/r4 had the reviewer fail cards for a missing title.
 // Review: every capture's actual pixels (read back from LEARN_MEDIA), the request, evidence and the spec's facts, through the
 // job's admitted explain_review call. -> what apply and repair read: accepted, findings, whether the spec can fix them.
 export async function reviewStage(job, ctx) {
@@ -87,7 +88,7 @@ export async function reviewStage(job, ctx) {
     return object ? { ...capture, data: base64(new Uint8Array(await object.arrayBuffer())) } : capture;
   }));
   let out;
-  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts(job.spec), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
+  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts({ ...job.spec, title: null }), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
@@ -347,6 +348,21 @@ export class ExplainJobs {
     if (previous && !(record?.root && await publishRevision(db, record, p))) return;
     job.pendingProposal = { id: p.proposal_id, version: p.version, messageId: String(row.id) };
   }
+  // The canvas's open Chat thread for the owner (canvases.js activeChat's key), or a new canvas thread made the open one.
+  async briefThread(job) {
+    const db = this.env.LEARN_DB, { org, email } = job.owner, key = `active:${job.app}:${org}:${email}`;
+    const open = await db.prepare('SELECT context_json FROM chat_thread_state WHERE thread_id = ?').bind(key).first().catch(() => null);
+    let id = null;
+    try { id = JSON.parse(open?.context_json || 'null')?.threadId ?? null; } catch { /* unreadable: none */ }
+    if (id && await db.prepare('SELECT id FROM threads WHERE id = ? AND org = ? AND user = ? AND scope_ref = ?').bind(id, org, email, job.app).first()) return id;
+    id = `canvaschat-${crypto.randomUUID()}`;
+    const at = new Date().toISOString();
+    await db.batch([
+      db.prepare("INSERT INTO threads (id, org, user, scope_ref, commit_sha, title) VALUES (?, ?, ?, ?, '', ?)").bind(id, org, email, job.app, (job.brief?.title || 'Explanation plan').slice(0, 120)),
+      db.prepare('INSERT INTO chat_thread_state (thread_id, context_json, updated_at) VALUES (?, ?, ?) ON CONFLICT(thread_id) DO UPDATE SET context_json = excluded.context_json, updated_at = excluded.updated_at').bind(key, JSON.stringify({ threadId: id }), at),
+    ]);
+    return id;
+  }
   // A refinement through the composer: the brief is prepared again with the learner's words (an admitted brief call); the
   // previous approval no longer counts. Only while awaiting approval, within the refinement limit.
   async refine(job, payload) {
@@ -513,7 +529,10 @@ export class ExplainJobs {
         markTiming(job.timing, 'generate'); next('authoring');
       } else {
         endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
-        if (job.threadId) await this.postBrief(job);
+        // A brief always reaches the learner: with no thread from the request (Tutor, Ctrl+K on a canvas without a chat), it
+        // goes on the canvas's open Chat thread, a new one when there is none (owner default, 2026-10-22). Review is never skipped.
+        job.threadId ??= await this.briefThread(job);
+        await this.postBrief(job);
       }
     } else if (stage === 'authoring') { job.spec = out.spec; next('validating'); }
     else if (stage === 'validating') {

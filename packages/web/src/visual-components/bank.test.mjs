@@ -15,12 +15,17 @@ test('every bundled example has an immutable bank record whose spec hash still m
   for (const { record, reasons } of loaded) assert.ok(!reasons.includes('spec changed since it was accepted'), `${record.id}: edit the example under a new record instead`);
 });
 
-test('nothing is eligible until an independent semantic review passes: compilation alone is not acceptance', () => {
+test('only records whose independent semantic review passed are eligible: compilation alone is not acceptance', () => {
+  // The recorded review: L4's run t11-r1 (viz-benchmarks/visualization-cases/runs/t11-r1-bank-review.json, .eligibility).
+  const eligible = ['gqa-32-to-8', 'mamba2-main-path', 'moe-8-top2', 'pendulum-law', 'request-path-parts', 'rinse-cycles'];
   for (const { record, reasons } of entries()) {
-    assert.ok(reasons.includes('semantic check unrun'), record.id);
     assert.equal(record.checks.compile, 'pass');
     assert.equal(record.checks.render, 'pass');
+    if (eligible.includes(record.id)) assert.deepEqual([record.checks.semantic, reasons], ['pass', []], record.id);
+    else assert.ok(reasons.includes(`semantic check ${record.checks.semantic === 'fail' ? 'fail' : 'unrun'}`), record.id);
   }
+  assert.deepEqual(entries().filter(entry => entry.record.checks.semantic === 'fail').map(entry => entry.record.id), ['decoder-stack', 'hybrid-attention', 'pipeline']);
+  assert.deepEqual(entries().filter(entry => entry.record.checks.semantic === 'unrun').map(entry => entry.record.id), ['attention-steps-q2', 'pendulum-experiment', 'cache-paths']);
   const { record, spec } = base();
   assert.deepEqual(ineligibility({ ...record, checks: passing }, { spec }), [], 'with every check passing it may teach composition');
   assert.ok(ineligibility({ ...record, checks: { ...passing, semantic: 'fail' } }, { spec }).includes('semantic check fail'), 'a compile-valid semantic regression is refused');
@@ -57,7 +62,7 @@ test('a component change quarantines exactly the records that use it', () => {
 test('coverage for the benchmark reports counts records per component, eligible apart', () => {
   const coverage = bankCoverage(entries());
   assert.equal(coverage['state-space-block'].records, 1);
-  assert.equal(coverage.callout.eligible, 0);
+  assert.equal(coverage.callout.eligible, 4); // gqa-32-to-8, moe-8-top2, pendulum-law, request-path-parts (t11-r1)
   for (const value of Object.values(coverage)) assert.ok(value.eligible <= value.records);
   assert.throws(() => loadBank({ ...bank, records: [...bank.records, bank.records[0]] }, EXAMPLES), /duplicate bank record/);
 });

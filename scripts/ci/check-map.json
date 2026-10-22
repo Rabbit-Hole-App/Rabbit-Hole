@@ -5,6 +5,7 @@
   ],
   "broad": [
     "packages/cad-execute/**",
+    "packages/web/src/fonts/*.woff2",
     "package.json",
     "package-lock.json",
     "uv.lock",
@@ -622,9 +623,11 @@
     "packages/web/src/inline-ai-test-transport.mjs",
     "packages/web/e2e/inline-decide-eval.mjs",
     "packages/web/e2e/inline-composer-shots.mjs",
-    "packages/web/render/**"
+    "packages/web/render/**",
+    "packages/web/src/fonts/*.txt"
   ],
   "noneReasons": {
+    "packages/web/src/fonts/*.txt": "font licence text (SIL OFL) shipped beside the bundled face; never loaded by the app",
     "packages/web/render/**": "/explain render entry built by verify.yml; only explain-render.js (unit-tested) and viz-benchmark-capture.mjs load it, no browser check does","packages/control-plane/chat-route-corpus/**": "CR-1 real-JEV chat routing corpus: data and a runner run by hand from Node (no bundle or gate stage)", 
     "packages/**/test/**": "unit tests run by verify.yml",
     "packages/**/*.test.mjs": "unit tests run by verify.yml",
