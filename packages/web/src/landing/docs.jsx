@@ -41,7 +41,7 @@ function SearchDialog({ open, close }) {
   }, [open]);
   return <dialog ref={dialog} className="docs-search-dialog" aria-labelledby="docs-search-title" onCancel={close} onClick={event => { if (event.target === dialog.current) close(); }}>
     <div className="docs-search-top"><h2 id="docs-search-title">Search the docs</h2><button aria-label="Close search" onClick={close}><X size={19} /></button></div>
-    <label className="docs-search-input"><Search size={20} aria-hidden="true" /><input ref={input} value={query} onChange={e => setQuery(e.target.value)} placeholder="Try “workspace”, “API”, or “AWS”…" aria-label="Search documentation" onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); dialog.current.querySelector('.docs-search-results a')?.focus(); } }} /></label>
+    <label className="docs-search-input"><Search size={20} aria-hidden="true" /><input ref={input} value={query} onChange={e => setQuery(e.target.value)} placeholder="Try “workspace”, “API”, or “AWS”" aria-label="Search documentation" onKeyDown={e => { if (e.key === 'ArrowDown') { e.preventDefault(); dialog.current.querySelector('.docs-search-results a')?.focus(); } }} /></label>
     <p className="docs-search-count" role="status">{results.length ? `${results.length} ${results.length === 1 ? 'page' : 'pages'}` : 'No matching pages. Try another word.'}</p>
     <div className="docs-search-results">{results.map(([slug, doc]) => <DocsLink key={slug} slug={slug} onClick={close}><span>{doc.group}</span><strong>{doc.nav}</strong><p>{doc.description}</p></DocsLink>)}</div>
   </dialog>;
@@ -114,7 +114,7 @@ function DocsApp() {
     catch { toast('Copy unavailable. Select the text to copy it.', { tone: 'error' }); }
   };
   return <>
-    <div className="docs-toolbar" id="docs-toolbar"><a className="docs-guide-label" href="/docs"><BookOpen size={17} aria-hidden="true" />Documentation</a><button ref={browse} className="docs-browse" onClick={() => setMenuOpen(true)}><Menu size={17} />Browse docs</button><button className="docs-search-trigger" onClick={() => setSearchOpen(true)}><Search size={17} aria-hidden="true" /><span>Search the docs…</span><kbd>Ctrl K</kbd></button><a className="docs-workspace-link" href="/apps">Open workspace ↗</a></div>
+    <div className="docs-toolbar" id="docs-toolbar"><a className="docs-guide-label" href="/docs"><BookOpen size={17} aria-hidden="true" />Documentation</a><button ref={browse} className="docs-browse" onClick={() => setMenuOpen(true)}><Menu size={17} />Browse docs</button><button className="docs-search-trigger" onClick={() => setSearchOpen(true)}><Search size={17} aria-hidden="true" /><span>Search the docs</span><kbd>Ctrl K</kbd></button><a className="docs-workspace-link" href="/apps">Open workspace ↗</a></div>
     <div className="docs-layout">
       <ResizableSidePanel className="docs-index-panel" defaultWidth={228} minWidth={200} maxWidth={310} resizeEdge="right" resizeLabel="Resize documentation navigation"><Index slug={slug} /></ResizableSidePanel>
       <main className="docs-article" id="docs-main" ref={main} tabIndex={-1}><header className="docs-article-header"><div className="docs-breadcrumb"><span>{doc.group}</span><span aria-hidden="true">/</span><span>{doc.nav}</span><button onClick={copyPage} aria-label="Copy this page"><Copy size={14} /><span>Copy page</span></button></div><p className="docs-eyebrow">RABBIT HOLE / DEVELOPER DOCS</p><h1 tabIndex={-1}>{doc.title}</h1><p className="docs-description">{doc.description}</p></header>

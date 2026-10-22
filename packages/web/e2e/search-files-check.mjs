@@ -56,7 +56,7 @@ const ok = (name, condition, extra = '') => { if (!condition) failed += 1; conso
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const menubar = page.getByRole('menubar', { name: 'Canvas menu' });
 const bar = page.getByRole('dialog', { name: 'Search' });
-const openSearch = async (label = 'Search YouTube…') => { await menubar.getByRole('menuitem', { name: /^Insert/ }).click(); await page.waitForTimeout(200); await page.getByRole('menuitem', { name: label, exact: true }).click(); await page.waitForTimeout(250); };
+const openSearch = async (label = 'Search YouTube') => { await menubar.getByRole('menuitem', { name: /^Insert/ }).click(); await page.waitForTimeout(200); await page.getByRole('menuitem', { name: label, exact: true }).click(); await page.waitForTimeout(250); };
 
 await page.goto('http://localhost:5189/apps/nanogpt?tab=learn&board=search-files-1');
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
@@ -141,7 +141,7 @@ await page.waitForTimeout(800);
 ok('Add to canvas adds the highlighted result and closes the bar', (await bar.count()) === 0 && (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
 
 // --- Insert > Search arXiv; exact match; preview, then Add to canvas ---
-await openSearch('Search arXiv…');
+await openSearch('Search arXiv');
 ok('Insert > Search arXiv opens the bar on arXiv', (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'arxiv');
 await bar.getByRole('textbox').fill('1706.03762');
 await page.keyboard.press('Enter');

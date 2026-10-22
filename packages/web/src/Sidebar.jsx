@@ -195,11 +195,11 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
                     <Button variant="secondary" size="sm" type="submit" disabled={!(wsRename ?? '').trim() || wsRename === activeWs.name}>Save</Button>
                   </form>
                 ) : (
-                  <span className="text-sm text-ink-2">{activeWs ? workspaceLabel(activeWs.name, activeWs.slug) : '…'}</span>
+                  <span className="text-sm text-ink-2">{activeWs ? workspaceLabel(activeWs.name, activeWs.slug) : ''}</span>
                 )}
               </SettingsRow>
               <SettingsRow title="Slug" desc="Its id in app URLs">
-                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isInternalPrincipal(wsInfo?.active) ? 'personal' : wsInfo?.active || '…'}</code>
+                <code className="rounded-sm bg-code px-1.5 py-0.5 text-xs">{isInternalPrincipal(wsInfo?.active) ? 'personal' : wsInfo?.active || ''}</code>
               </SettingsRow>
               <SettingsRow title="Type" desc="Domain workspaces include everyone with your email domain; custom ones are invite only">
                 <span className="text-sm text-ink-2">{activeWs?.kind === 'custom' ? 'custom' : 'email domain'}</span>
@@ -232,7 +232,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <div className="text-2xl font-semibold">People</div>
               <div className="pt-2 text-base text-ink-2">Everyone in this workspace</div>
               <Heading>Members</Heading>
-              {people === null && <div className="pt-3 text-sm text-ink-2">Loading…</div>}
+              {people === null && <div className="pt-3 text-sm text-ink-2">Loading</div>}
               {(people || []).slice(0, 10).map((m) => {
                 const em = String(m.email || m);
                 return <div key={em} className="flex h-9 items-center gap-2 text-sm"><Avatar email={em} />{em}</div>;
@@ -294,7 +294,7 @@ function SettingsDialog({ email, org, apps, onReload, onMarkRead, onClose, initi
               <div className="text-2xl font-semibold">Teamspaces</div>
               <div className="pt-2 text-base text-ink-2">Groups you can share apps with, like #finance</div>
               <Heading>Teams</Heading>
-              {teams === null && <div className="pt-3 text-sm text-ink-2">Loading…</div>}
+              {teams === null && <div className="pt-3 text-sm text-ink-2">Loading</div>}
               {(teams || []).map((t) => (
                 <div key={t.name} className="flex h-9 items-center gap-2 text-sm">
                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-hover text-xs text-ink-2">#</span>
@@ -351,7 +351,7 @@ function AiModelSettings() {
   const [ai, setAi] = useState(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { api('/api/org/ai').then(setAi).catch(() => setAi({ provider: 'anthropic' })); }, []);
-  if (!ai) return <div className="pt-2 text-sm text-ink-2">loading…</div>;
+  if (!ai) return <div className="pt-2 text-sm text-ink-2">loading</div>;
   const set = (k, v) => setAi((s) => ({ ...s, [k]: v }));
   const save = async () => {
     setBusy(true);
@@ -404,7 +404,7 @@ function AiModelSettings() {
             </SettingsRow>
           )}
           <SettingsRow title="API key" desc={preset.base ? `Your ${preset.label} API key` : "Only if the endpoint wants one - most local runtimes don't"}>
-            <Input value={ai.openai_api_key || ''} onChange={(e) => set('openai_api_key', e.target.value)} placeholder={preset.base ? 'sk-…' : 'optional'} className="w-72 font-mono text-xs" />
+            <Input value={ai.openai_api_key || ''} onChange={(e) => set('openai_api_key', e.target.value)} placeholder={preset.base ? 'sk-' : 'optional'} className="w-72 font-mono text-xs" />
           </SettingsRow>
           <SettingsRow title="Model" desc="The model name the endpoint serves">
             <Input value={ai.model || ''} onChange={(e) => set('model', e.target.value)} placeholder={preset.modelPh || 'model name'} className="w-72 font-mono text-xs" />
@@ -429,7 +429,7 @@ function AiModelSettings() {
         </SettingsRow>
       )}
       <div>
-        <Button variant="primary" size="sm" disabled={busy} onClick={save}>{busy ? 'Verifying…' : 'Save'}</Button>
+        <Button variant="primary" size="sm" disabled={busy} onClick={save}>{busy ? 'Verifying' : 'Save'}</Button>
         {bedrock && <span className="pl-3 text-xs text-ink-2">Save assumes the role once to verify the trust policy.</span>}
         {local && <span className="pl-3 text-xs text-ink-2">Save sends one tiny completion to verify the endpoint.</span>}
       </div>
@@ -590,7 +590,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   // One location state: a resource page is marked by its own row (Pinned), not by Library as well.
   const current = here;
   // Before the catalog arrives the workspace is unknown: a named one must not flash Personal first.
-  const wsLabel = learnPreview && !email ? '…' : workspaceLabel(orgName, org);
+  const wsLabel = learnPreview && !email ? '' : workspaceLabel(orgName, org);
   // Pinned (T02 §2): device-local and flat. togglePin announces every change, whoever made
   // it (this menu or the Agent Bar's pin command), so re-read on that event.
   const [, setPinTick] = useState(0);
@@ -1389,7 +1389,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
                 people={pool.people}
                 teams={pool.teams}
                 exclude={(sharedFolderObj.shares || []).map((s) => (s.team ? `#${s.team}` : s.email))}
-                placeholder="Add people by email, teams by #…"
+                placeholder="Add people by email, teams by #"
               />
             </form>
             <div className="pb-2">
@@ -1474,7 +1474,7 @@ function TrashDialog({ trash, onRestore, onClose }) {
           <IconBtn aria-label="Close" onClick={onClose}><X size={14} /></IconBtn>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-3">
-          {trash === null && <div className="px-2 py-2 text-sm text-ink-2">loading…</div>}
+          {trash === null && <div className="px-2 py-2 text-sm text-ink-2">loading</div>}
           {trash?.trash.length === 0 && <div className="px-2 py-2 text-sm text-ink-2">Nothing in the trash.</div>}
           {(trash?.trash || []).map((t) => (
             <div key={t.name} className="group/tr flex h-9 items-center gap-2 rounded-sm px-2 text-sm hover:bg-hover">

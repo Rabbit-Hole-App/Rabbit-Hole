@@ -118,7 +118,7 @@ test('every drop and every upload of a .ipynb or .py opens the one Add to canvas
   // A dropped folder's files are read first (model-drop.js droppedFiles, file-imports Lane 4); the drop point is taken at the drop.
   assert.match(canvas, /const at = local\(event\); droppedFiles\(event\.dataTransfer\)\.then\(files => onDropFiles\(files, at\)/, 'the drop point rides with the files');
   assert.match(canvas, /insertImported: \(block, at = null\) => \{/);
-  assert.match(dialog, /<ConfirmDialog title="Add to canvas" confirmLabel=\{busy \? 'Adding…' : 'Add to canvas'\} confirmVariant="primary" onCancel=\{onCancel\}/);
+  assert.match(dialog, /<ConfirmDialog title="Add to canvas" confirmLabel=\{busy \? 'Adding' : 'Add to canvas'\} confirmVariant="primary" onCancel=\{onCancel\}/);
   assert.match(dialog, /<span data-import-file[^>]*>\{file\.name\}<\/span>/);
 });
 

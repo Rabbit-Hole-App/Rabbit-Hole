@@ -287,7 +287,7 @@ export async function settledAttempt(read, view, { wait = ms => new Promise(reso
 
 export function assessmentText(assessment) {
   const status = assessment?.status, reason = assessment?.reason;
-  if (status === 'pending') return 'Your answer is saved. Checking it…';
+  if (status === 'pending') return 'Your answer is saved. Checking it';
   if (status === 'completed') {
     const fits = (assessment.observations || []).map(o => o.fit);
     if (!fits.length) return 'Your answer is saved. Nothing in it could be checked against this goal.';

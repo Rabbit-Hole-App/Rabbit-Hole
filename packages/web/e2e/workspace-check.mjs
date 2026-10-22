@@ -296,7 +296,7 @@ await check('dock §14: indexing shows as a status in the canvas header - Readin
   await openCanvas();
   const status = page.locator('[data-repo-status="indexing"]');
   await status.waitFor({ timeout: 10000 });
-  assert.match((await status.innerText()).trim(), /Reading the repository…/);
+  assert.match((await status.innerText()).trim(), /Reading the repository/);
   await field().fill('Still typing');
   assert.equal(await field().inputValue(), 'Still typing');
   await shot('dock-G-indexing-status');

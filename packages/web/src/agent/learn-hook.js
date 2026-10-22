@@ -5,7 +5,7 @@ import { learnHandoff } from '../flags.js';
 // cc0cbf8: it reads small.learn.request once on mount, listens for small:learn-request while open,
 // answers each id once with small:learn-result (also kept at small.learn.result:<id>), and only
 // replays a repeated id.
-export const ADDING = 'Adding to canvas…';
+export const ADDING = 'Adding to canvas';
 const WAIT_MS = { teach: 12000, research: 30000 };
 const FALLBACK = {
   teach: "Opened Learn. Your prompt wasn't transferred; it's kept here.",

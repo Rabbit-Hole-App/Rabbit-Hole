@@ -132,7 +132,7 @@ export function useCardMenu({ org, email, apps = [], onArchive = null, onChanged
         <span className="min-w-0 flex-1 truncate">{f.name}</span>
       </button>
     ))}
-    {foldersOpen && <MenuItem icon={FolderPlus} data-menu-folder-new className="pl-8" onClick={() => pick((a) => folders.newFolder(a.name))}>New folder…</MenuItem>}
+    {foldersOpen && <MenuItem icon={FolderPlus} data-menu-folder-new className="pl-8" onClick={() => pick((a) => folders.newFolder(a.name))}>New folder</MenuItem>}
     {inFolder && <MenuItem icon={FolderMinus} data-menu-folder-remove onClick={() => pick((a) => folders.unfile(a.name))}>Remove from folder</MenuItem>}
   </>;
   const run = {

@@ -51,7 +51,7 @@ function CourseProgress({ pending }) {
   const curriculum = pending.action === 'draft';
   return <div ref={container} className="mb-5 rounded-lg border border-line bg-hover/40 p-4" aria-busy="true">
     <div className="flex items-center justify-between gap-3 text-sm">
-      <span className="flex items-center gap-2" role="status"><Loader2 size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />{curriculum ? 'Drafting and reviewing curriculum…' : 'Generating the first lesson…'}</span>
+      <span className="flex items-center gap-2" role="status"><Loader2 size={15} aria-hidden="true" className="animate-spin motion-reduce:animate-none" />{curriculum ? 'Drafting and reviewing curriculum' : 'Generating the first lesson'}</span>
       <span className="shrink-0 text-xs tabular-nums text-ink-2" data-course-elapsed>{Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, '0')} elapsed</span>
     </div>
     <div role="progressbar" aria-label={curriculum ? 'Curriculum generation in progress' : 'Lesson generation in progress'} className="mt-3 h-1.5 overflow-hidden rounded-full bg-line"><span className="block h-full w-1/3 animate-pulse rounded-full bg-accent motion-reduce:animate-none" /></div>
@@ -111,7 +111,7 @@ export function CourseInterview({ state, app, sectionEditor }) {
       {sectionError && <p role="alert" className="mb-2 text-xs text-red-700">{sectionError}</p>}
       {sectionEditor?.target && <div className="mb-2 rounded-lg border border-accent bg-accent/5 p-3 text-sm"><div className="flex items-start justify-between gap-2"><span className="text-xs font-medium">Editing {sectionEditor.target.page} / {sectionEditor.target.title}</span><button type="button" aria-label="Clear section edit" onClick={sectionEditor.clear}><X size={14} /></button></div><p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-ink-2">{sectionEditor.target.text}</p></div>}
       {state.error && <p role="alert" className="mb-2 text-xs text-red-700">{state.error}</p>}
-      <ChatComposer inputRef={composer} value={answer} onChange={setAnswer} onSubmit={submit} placeholder={sectionEditor?.target ? 'How should this section change?' : current ? 'Your answer...' : 'Ask for a curriculum revision...'} maxLength={sectionEditor?.target ? 2000 : current ? 600 : 2000} busy={busy} disabled={state.dirty}
+      <ChatComposer inputRef={composer} value={answer} onChange={setAnswer} onSubmit={submit} placeholder={sectionEditor?.target ? 'How should this section change?' : current ? 'Your answer' : 'Ask for a curriculum revision'} maxLength={sectionEditor?.target ? 2000 : current ? 600 : 2000} busy={busy} disabled={state.dirty}
         leading={<button type="button" disabled title="Curriculum uses the course brief and repository source" aria-label="Add" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-line text-ink-2 disabled:opacity-40"><Plus size={14} strokeWidth={1.5} /></button>}
         trailing={<span title="Curriculum Agent uses the configured default model" className="shrink-0 px-1.5 text-xs text-ink-2">Auto</span>} />
     </div>
@@ -140,7 +140,7 @@ export function CoursePanel({ state, app, onPreview, onDeleted, planningOnly = f
   return <div aria-label="Course curriculum" className="min-h-0 flex-1 overflow-y-auto pr-2">
     {['draft', 'generate'].includes(state.pending?.action) && <CourseProgress pending={state.pending} />}
     {error && <div role="alert" className="mb-4 rounded border border-red-200 p-3 text-sm text-red-700">{error} <button className="underline" disabled={busy} onClick={reload}>Reload course</button></div>}
-    {!loaded ? <p className="text-sm text-ink-2">Loading course…</p> : <>
+    {!loaded ? <p className="text-sm text-ink-2">Loading course</p> : <>
       <div className="mb-5 flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{draft?.title || 'Create a course'}</h2><p className="mt-1 text-xs text-ink-2">{course?.approved && !dirty ? 'Curriculum approved' : 'Draft · review before generating lessons'}</p></div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           {canAuthor && dirty && <button className={button} disabled={busy} onClick={save}>Save curriculum</button>}
@@ -152,7 +152,7 @@ export function CoursePanel({ state, app, onPreview, onDeleted, planningOnly = f
       }} />}
       {!canAuthor && !course && <p className="text-sm text-ink-2">The app owner hasn’t approved a course yet. You can still explore the demo and ask questions.</p>}
       {draft && canAuthor && <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-line p-3">
-        <button className={button} disabled={busy || dirty} onClick={() => act('draft')}>{busy ? 'Planning and reviewing…' : currentPlan ? 'Review with Curriculum Agent' : 'Rebuild with Curriculum Agent'}</button>
+        <button className={button} disabled={busy || dirty} onClick={() => act('draft')}>{busy ? 'Planning and reviewing' : currentPlan ? 'Review with Curriculum Agent' : 'Rebuild with Curriculum Agent'}</button>
         <p className="text-xs text-ink-2">{currentPlan ? 'Review scope, sequence, alignment, and time before approving.' : 'This is the previous page-based outline. Rebuild it using your saved brief to plan topics and principles.'}</p>
       </div>}
       {(canAuthor || course) && <>
@@ -192,7 +192,7 @@ export function CoursePanel({ state, app, onPreview, onDeleted, planningOnly = f
             {canAuthor && <button className={button} disabled={busy || dirty || planningOnly && course.approved} onClick={async () => {
               if (!course.approved) await act('approve');
               else if (!planningOnly) { const result = await act('generate'); if (result?.lesson) onPreview(result.lesson); }
-            }}>{busy ? 'Working…' : course.approved ? planningOnly ? 'Curriculum approved' : course.lesson ? 'Regenerate first lesson' : 'Generate first lesson' : 'Approve curriculum'}</button>}
+            }}>{busy ? 'Working' : course.approved ? planningOnly ? 'Curriculum approved' : course.lesson ? 'Regenerate first lesson' : 'Generate first lesson' : 'Approve curriculum'}</button>}
             {course?.lesson && !dirty && <button className={button} disabled={busy} onClick={() => onPreview(course.lesson)}>Preview first lesson</button>}
             {dirty && <p className="text-xs text-ink-2">Save your edits, then approve the updated curriculum.</p>}
           </div>

@@ -284,7 +284,7 @@ function SharePopover({ app, onChanged }) {
                   people={pool}
                   teams={orgTeams}
                   exclude={exclude}
-                  placeholder="Add people by email, teams by #…"
+                  placeholder="Add people by email, teams by #"
                   className="min-w-0 flex-1"
                 />
                 <select value={role} onChange={(e) => setRole(e.target.value)} className="h-7 rounded-sm text-xs text-ink-2 outline-none">
@@ -699,7 +699,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               />
             </div>
             {runChat && <div className="fixed inset-y-0 right-0 z-10 flex w-[400px] flex-col border-l border-line bg-white px-5 pt-4 pb-4 max-lg:hidden">
-              <AskPanel key={app.run_chat ? `${app.name}:${runId}` : undefined} scope={{ run: runId }} appName={app.name} chatConfig={app.run_chat} placeholder="Ask about this run…" />
+              <AskPanel key={app.run_chat ? `${app.name}:${runId}` : undefined} scope={{ run: runId }} appName={app.name} chatConfig={app.run_chat} placeholder="Ask about this run" />
             </div>}
           </>
         )}
@@ -800,7 +800,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                   onClick={() => app.canEdit && setEditDesc(app.description || '')}
                   className={cn('mt-2 max-w-[720px] text-sm leading-relaxed text-ink-2', app.canEdit && 'cursor-text rounded-sm px-1 -mx-1 hover:bg-hover/60', !app.description && 'text-ink-3 italic')}
                 >
-                  {app.description || 'Add a description…'}
+                  {app.description || 'Add a description'}
                 </p>
               )}
 
@@ -814,7 +814,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
               )}
 
               <TabsContent value="runbook" className="min-h-[200px] pt-4">
-                {isAws ? <p className="text-sm text-ink-2">Runbooks are not connected for AWS jobs yet.</p> : <Suspense fallback={<div className="text-ink-2">loading…</div>}>
+                {isAws ? <p className="text-sm text-ink-2">Runbooks are not connected for AWS jobs yet.</p> : <Suspense fallback={<div className="text-ink-2">loading</div>}>
                   <Runbook app={app} canEdit={!!app.canEdit} onSaved={(name, text) => setApp((a) => ({ ...a, runbook: text }))} />
                 </Suspense>}
               </TabsContent>
@@ -849,7 +849,7 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
                     chatConfig={app.app_chat}
                     email={app.email}
                     headerTitle="Graph Agent"
-                    placeholder={`Ask about ${app.name}…`}
+                    placeholder={`Ask about ${app.name}`}
                     autoFocus
                     headerExtra={
                       <button

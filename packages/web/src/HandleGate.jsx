@@ -46,7 +46,7 @@ export function ChooseHandle({ onDone }) {
         <p data-handle-hint role={error ? 'alert' : undefined} className={`mt-2 min-h-5 text-xs ${error || checked?.error ? 'text-red-700' : 'text-ink-3'}`}>
           {error || checked?.error || (checked?.handle ? `You will be @${checked.handle}` : '3-30 letters, numbers or _.')}
         </p>
-        <Button type="submit" variant="primary" disabled={!checked?.handle || busy} className="mt-3 w-full justify-center">{busy ? 'Saving…' : 'Continue'}</Button>
+        <Button type="submit" variant="primary" disabled={!checked?.handle || busy} className="mt-3 w-full justify-center">{busy ? 'Saving' : 'Continue'}</Button>
       </form>
     </main>
   );

@@ -26,7 +26,7 @@ function RolePeek({ appName, onSrc, onClose }) {
   return (
     <SlidePanel title="AWS role" onClose={onClose} z={40}>
       {err && <div className="p-4 text-sm text-ink-2">{err}</div>}
-      {!err && !info && <div className="p-4 text-sm text-ink-2">loading…</div>}
+      {!err && !info && <div className="p-4 text-sm text-ink-2">loading</div>}
       {info && (
         <div className="space-y-4 p-4 text-sm">
           <div className="rounded-md bg-hover px-3 py-2 font-mono text-xs break-all">{info.arn}</div>
@@ -208,7 +208,7 @@ function ExcalidrawEmbed({ block, editor }) {
           {locked ? 'Edit' : 'Done'}
         </button>
       )}
-      <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading canvas…</div>}>
+      <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading canvas</div>}>
         <Excalidraw
           initialData={initial}
           onChange={onChange}
@@ -275,7 +275,7 @@ export default function Runbook({ app, canEdit, onSaved }) {
   const save = async () => {
     timer.current = undefined;
     const text = JSON.stringify(editor.document);
-    setStatus('saving…');
+    setStatus('saving');
     try {
       // PUT: POST /api/runbook is the CLI's generate-from-bundle route (merged from main)
       await api('/api/runbook', { method: 'PUT', body: JSON.stringify({ app: app.name, runbook: text }) });
@@ -349,15 +349,15 @@ export default function Runbook({ app, canEdit, onSaved }) {
   };
   const generate = async () => {
     setGenBusy(true);
-    setStatus('generating…');
+    setStatus('generating');
     try {
       const d = await api(`/api/apps/${app.name}/generate-runbook`, { method: 'POST' });
-      setStatus('writing page…');
+      setStatus('writing page');
       const blocks = await editor.tryParseMarkdownToBlocks(d.markdown);
       if (Array.isArray(blocks) && blocks.length) editor.replaceBlocks(editor.document, blocks);
-      setStatus('drawing…');
+      setStatus('drawing');
       await insertFlowDiagram(editor, app.name, d.runbook); // deterministic, from data_flow
-      setStatus('chart…');
+      setStatus('chart');
       if (app.kind === 'job' && editor.document.length) {
         editor.insertBlocks([{ type: 'chart', props: { app: app.name } }], editor.document[editor.document.length - 1], 'after');
       }

@@ -44,7 +44,7 @@ try {
   passed++;
   await generate.click();
   assert.equal(
-    await page.getByRole("button", { name: "Generating…" }).isDisabled(),
+    await page.getByRole("button", { name: "Generating" }).isDisabled(),
     true,
   );
   await page.getByRole("button", { name: "Cancel", exact: true }).click();

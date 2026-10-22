@@ -40,7 +40,7 @@ await page.getByRole('menuitem', { name: 'Notebook' }).click();
 const card = page.locator('[data-block]:has([data-notebook-frame])');
 await card.waitFor({ timeout: 30000 });
 check('Insert → Notebook creates a notebook card', await card.count() === 1);
-await card.getByText('Starting Python…').waitFor({ state: 'detached', timeout: 120000 });
+await card.getByText('Starting Python').waitFor({ state: 'detached', timeout: 120000 });
 const nb = page.frameLocator('[data-notebook-frame]');
 
 // 2-4. two code cells sharing one kernel
@@ -107,7 +107,7 @@ await page.reload();
 const reloaded = page.frameLocator('[data-notebook-frame]');
 const reloadedCard = page.locator('[data-block]:has([data-notebook-frame])');
 await reloadedCard.waitFor({ timeout: 60000 });
-await reloadedCard.getByText('Starting Python…').waitFor({ state: 'detached', timeout: 120000 });
+await reloadedCard.getByText('Starting Python').waitFor({ state: 'detached', timeout: 120000 });
 await reloaded.locator('.jp-Cell .cm-content').filter({ hasText: 'x = 10' }).waitFor({ timeout: 30000 }).catch(() => {});
 const sources = await reloaded.locator('.jp-Cell .cm-content').allInnerTexts();
 check('reload restores cells', sources.some(text => text.includes('x = 10')) && sources.some(text => text.includes('x * 2')), JSON.stringify(sources));

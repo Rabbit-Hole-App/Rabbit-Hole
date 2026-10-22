@@ -12,7 +12,7 @@ export async function requestBoardExplanation(body, onProgress) {
       return result;
     }
     if (!result.previewPlan || !result.continuation || attempt === 2) throw new Error('Invalid figure review continuation');
-    onProgress('Rendering figure preview for review...');
+    onProgress('Rendering figure preview for review');
     const { preparePaperFigures } = await import('./learn-paper-figures.js');
     renderedPlan = await preparePaperFigures(result.previewPlan, body.app);
     const previews = renderedPlan.blocks.flatMap((block, blockIndex) => block.kind === 'paper_figure' ? [{ blockIndex, src: block.figure.src }] : []);

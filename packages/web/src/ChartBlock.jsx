@@ -72,7 +72,7 @@ function ChartEmbed({ block, editor }) {
 
   const [rows, setRows] = useState([]);
   const [files, setFiles] = useState([]);
-  const [note, setNote] = useState('loading data…');
+  const [note, setNote] = useState('loading data');
   const [more, setMore] = useState(false);
 
   const setCfg = (patch) => editor.updateBlock(block, { props: { config: JSON.stringify({ ...cfg, ...patch }) } });
@@ -129,11 +129,11 @@ function ChartEmbed({ block, editor }) {
       {editable && (
         <div className="flex flex-wrap items-center gap-1.5 border-b border-line p-1.5 text-sm">
           <div className="w-28"><Select value={cfg.source} options={['runs', 'output file']} onChange={(v) => setCfg({ source: v === 'runs' ? 'runs' : 'output', file: '', x: '', y: '' })} /></div>
-          {cfg.source === 'output' && <div className="w-40"><Select value={cfg.file} options={files} placeholder="file…" onChange={(v) => setCfg({ file: v, x: '', y: '' })} /></div>}
+          {cfg.source === 'output' && <div className="w-40"><Select value={cfg.file} options={files} placeholder="file" onChange={(v) => setCfg({ file: v, x: '', y: '' })} /></div>}
           <div className="w-24"><Select value={cfg.type} options={TYPES} onChange={(v) => setCfg({ type: v })} /></div>
-          <div className="w-32"><Select value={cfg.x} options={cfg.type === 'scatter' ? cols.numeric : cols.all} placeholder="x…" onChange={(v) => setCfg({ x: v })} /></div>
-          <div className="w-32"><Select value={cfg.y} options={cols.numeric} placeholder={cfg.type === 'line' ? 'y…' : 'y (count)…'} onChange={(v) => setCfg({ y: v })} /></div>
-          <IconBtn aria-label="Chart options" title="Colors, decimals…" className="ml-auto" onClick={() => setMore(!more)}><Settings2 size={16} strokeWidth={1.5} /></IconBtn>
+          <div className="w-32"><Select value={cfg.x} options={cfg.type === 'scatter' ? cols.numeric : cols.all} placeholder="x" onChange={(v) => setCfg({ x: v })} /></div>
+          <div className="w-32"><Select value={cfg.y} options={cols.numeric} placeholder={cfg.type === 'line' ? 'y' : 'y (count)'} onChange={(v) => setCfg({ y: v })} /></div>
+          <IconBtn aria-label="Chart options" title="Colors, decimals" className="ml-auto" onClick={() => setMore(!more)}><Settings2 size={16} strokeWidth={1.5} /></IconBtn>
         </div>
       )}
       {editable && more && (
@@ -152,7 +152,7 @@ function ChartEmbed({ block, editor }) {
       )}
       <div className="h-[280px] w-full">
         {data ? (
-          <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading chart…</div>}>
+          <Suspense fallback={<div className="p-3 text-xs text-ink-2">loading chart</div>}>
             <Chart type={cfg.type} data={data} x={cfg.x} y={cfg.y} cfg={cfg} />
           </Suspense>
         ) : (

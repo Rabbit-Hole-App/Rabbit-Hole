@@ -72,7 +72,7 @@ export default function FlowDiagram({ spec }) {
     return () => { live = false; };
   }, [source]);
   if (error) return <div className="grid h-full place-content-center p-4 text-center text-xs text-ink-2">{error}</div>;
-  if (!layout) return <div className="grid h-full place-content-center p-4 text-center text-xs text-ink-2">Laying out the diagram…</div>;
+  if (!layout) return <div className="grid h-full place-content-center p-4 text-center text-xs text-ink-2">Laying out the diagram</div>;
   return (
     <ReactFlow nodes={layout.nodes} edges={layout.edges} nodeTypes={nodeTypes} fitView proOptions={{ hideAttribution: true }}
       nodesDraggable nodesConnectable={false} elementsSelectable={false} minZoom={0.3} maxZoom={2}>

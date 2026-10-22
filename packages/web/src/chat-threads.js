@@ -59,7 +59,7 @@ export const restoredMessages = (messages = []) => messages.map(m => (['interrup
 // The mode a restored thread shows: a held mode (holdMode) over the thread's saved one, which wins once the hold is released.
 export const restoredMode = (held, saved) => held || saved || 'auto';
 // The Chat header's title (owner brief section 6): never "New chat" while the conversation is loading or failed to load.
-export const chatTitle = ({ status, title }) => (status === 'loading' ? 'Loading chat…' : status === 'error' ? 'Chat not loaded' : title || 'New chat');
+export const chatTitle = ({ status, title }) => (status === 'loading' ? 'Loading chat' : status === 'error' ? 'Chat not loaded' : title || 'New chat');
 
 // slot 'toc' (owner brief 2026-10-16 item 7): the Table of contents' own conversation. It restores only its own open thread;
 // Chat, with none of its own, falls back to the canvas's latest thread that is not the TOC's (History leaves it out too).

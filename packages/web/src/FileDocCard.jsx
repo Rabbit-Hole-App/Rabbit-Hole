@@ -164,7 +164,7 @@ export default function FileDocCard({ block, onChange }) {
         <button type="button" data-file-doc-chat className={BUTTON} disabled={!chat?.addToChat} title="Keep this file with the chat" onClick={addToChat}><MessageSquarePlus size={13} aria-hidden />Add to chat</button>
       </div>
       {block.fileRef && !block.fileRef.source?.id && <SaveState state={upload.state} onRetry={upload.retry} />}
-      {original.status === 'loading' && <Status>Opening the file…</Status>}
+      {original.status === 'loading' && <Status>Opening the file</Status>}
       {original.status === 'failed' && <div data-file-doc-read-error role="alert" className="flex items-center gap-2 px-3 py-2 text-xs text-danger" onPointerDown={stop}>The file could not be read.<button type="button" onClick={original.retry} className={BUTTON}>Retry</button></div>}
       {original.status === 'missing' && <p data-file-doc-missing className="px-3 py-2 text-xs text-ink-2">{block.fileRef && !block.fileRef.source?.id ? 'This file was never saved to the account and is not in this browser. Drop it on the canvas again.' : 'This file is not in this browser or saved with the board yet.'}</p>}
       {original.blob && <Body key={`${searchKey}:${original.attempt}`} block={block} blob={original.blob} onChange={change} update={update} setMeta={setMeta} onStatus={setParseStatus} onUnits={body => setUnits({ key: JSON.stringify(extractionOptions(latest.current)), sourceKey: searchKey, blob: original.blob, body })} />}
@@ -179,8 +179,8 @@ function SaveState({ state, onRetry }) {
     {state.retryable && <button type="button" data-file-doc-retry className={BUTTON} onClick={onRetry}><RotateCw size={13} aria-hidden />Retry</button>}
   </div>;
   const percent = state?.total ? Math.floor((100 * (state.sent || 0)) / state.total) : 0;
-  const line = !state ? (canWrite() ? 'Saving to your account…' : 'Not saved yet: the upload from the browser that added this file has not finished.')
-    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save…' : 'Saving to your account…';
+  const line = !state ? (canWrite() ? 'Saving to your account' : 'Not saved yet: the upload from the browser that added this file has not finished.')
+    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save' : 'Saving to your account';
   return <p role="status" data-file-doc-save={state?.stage || 'waiting'} className="flex shrink-0 items-center gap-1.5 border-b border-line px-3 py-1 text-[11px] text-ink-2"><CloudUpload size={13} aria-hidden />{line}</p>;
 }
 
@@ -220,7 +220,7 @@ function TextBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   useExcerpt(block, decoded.status === 'ready' ? { ...textExcerpt(decoded.text), where: `${decoded.encoding.toUpperCase()}, ${count(decoded.text.length)} characters` } : null);
   useEffect(() => { if (decoded.status === 'ready') onUnits?.(lineUnits(decoded.text)); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (decoded.status === 'ready') setMeta(`${decoded.encoding.toUpperCase()}${decoded.newline !== 'none' && decoded.newline !== 'lf' ? ` · ${decoded.newline.toUpperCase()} line ends` : ''}`); }, [decoded]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (decoded.status === 'loading') return <Status>Reading the text…</Status>;
+  if (decoded.status === 'loading') return <Status>Reading the text</Status>;
   if (decoded.status === 'failed') return <div onPointerDown={stop}><Failed>{decoded.error}</Failed>{decoded.code === 'encoding' && <EncodingChoice value={block.encoding} onPick={encoding => onChange?.({ ...block, encoding })} />}</div>;
   const chunks = view.chunks.slice(0, shown), drawn = chunks.reduce((n, chunk) => n + chunk.length, 0);
   const more = shown < view.chunks.length;
@@ -317,7 +317,7 @@ function TableBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   useEffect(() => { if (t) onUnits?.(tableUnits(t)); }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, t ? { ...tableExcerpt(t), where: `${count(t.totalRows)} rows × ${count(t.totalCols)} columns, ${DELIMITER_NAMES[t.delimiter] || 'custom'}-delimited` } : null);
   useEffect(() => { if (t) setMeta(`${count(Math.max(0, t.totalRows - 1))} rows × ${count(t.totalCols)} columns`); }, [t]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (parsed.status === 'loading') return <Status>Reading the table…</Status>;
+  if (parsed.status === 'loading') return <Status>Reading the table</Status>;
   if (parsed.status === 'failed') return <div onPointerDown={stop}><Failed>{parsed.error}</Failed>{parsed.code === 'encoding' && <EncodingChoice value={block.encoding} onPick={encoding => onChange?.({ ...block, encoding })} />}</div>;
   const [header = [], ...body] = t.rows;
   return <>
@@ -345,7 +345,7 @@ function WorkbookBody({ block, blob, onChange, setMeta, onUnits, onStatus }) {
   useEffect(() => { if (book) onUnits?.(workbookUnits(book)); }, [book]); // eslint-disable-line react-hooks/exhaustive-deps
   useExcerpt(block, sheet ? { ...tableExcerpt({ rows: sheet.rows.map(row => row.map(cellText)), totalRows: sheet.totalRows, totalCols: sheet.totalCols }, { sheet: sheet.name }), where: `sheet ${sheet.name}, ${count(sheet.totalRows)} rows × ${count(sheet.totalCols)} columns; formula cells show the value cached in the file` } : null);
   useEffect(() => { if (book) setMeta(`${sheets.length} of ${book.sheets.length} sheet${book.sheets.length === 1 ? '' : 's'}`); }, [book, sheets.length]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (parsed.status === 'loading') return <Status>Reading the workbook…</Status>;
+  if (parsed.status === 'loading') return <Status>Reading the workbook</Status>;
   if (parsed.status === 'failed') return <Failed>{parsed.error}</Failed>;
   const detail = picked && sheet ? describeCell(sheet.rows[picked[0]]?.[picked[1]], picked[0], picked[1]) : null;
   return <>
@@ -386,7 +386,7 @@ function DocumentBody({ block, blob, setMeta, onUnits, onStatus }) {
   // ponytail: awaiting converter. A .doc (Word 97-2003) needs the office-pdf conversion job (file-job.js); until a card holds
   // its job, it is never imported as a document card (the import dialog offers File attachment only).
   if (legacy) return <p data-file-doc-awaiting className="px-3 py-2 text-xs text-ink-2">A Word 97-2003 (.doc) preview needs the document converter, which is not connected yet. The original is kept: Download it.</p>;
-  if (parsed.status === 'loading') return <Status>Reading the document…</Status>;
+  if (parsed.status === 'loading') return <Status>Reading the document</Status>;
   if (parsed.status === 'failed') return <Failed>{parsed.error}</Failed>;
   const shown = doc.nodes.slice(0, pages * BLOCKS_PER_PAGE);
   return <>
@@ -423,7 +423,7 @@ function PresentationBody({ block, onChange, update, blob, setMeta, onUnits, onS
   const images = useSlideImages(block, update, deck);
   useExcerpt(block, deck && slides.length ? { ...slidesExcerpt(block.slides ? slides : [current, ...slides.filter(s => s !== current)]), where: block.slides ? `slides ${from}-${to} of ${deck.count}` : `${deck.count} slides; text only, slide images not read` } : null);
   useEffect(() => { if (deck) setMeta(block.slides ? `slide${from === to ? '' : 's'} ${from}${from === to ? '' : `-${to}`} of ${deck.count}` : `${deck.count} slides`); }, [deck, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (parsed.status === 'loading') return <Status>Reading the presentation…</Status>;
+  if (parsed.status === 'loading') return <Status>Reading the presentation</Status>;
   if (parsed.status === 'failed') return <Failed>{parsed.error}</Failed>;
   if (!current) return <p className="px-3 py-2 text-xs text-ink-2">This presentation has no slides.</p>;
   const index = slides.indexOf(current);
@@ -479,7 +479,7 @@ function useSlideImages(block, update, deck) {
     const watch = watchFileJobs({ blocks: [block], fetchImpl: (url, init) => globalThis.fetch(url, init), share: at?.share || null, onJob: async (_, job) => {
       if (!live) return;
       const failed = job.state === 'failed' || job.state === 'cancelled';
-      setState(previous => ({ ...previous, job, line: failed ? `Slide text only. Slide images: ${stageLabel(job)}${job.error ? ` (${job.error})` : ''}` : isTerminal(job) ? previous.line : `Slide images: ${stageLabel(job)}…` }));
+      setState(previous => ({ ...previous, job, line: failed ? `Slide text only. Slide images: ${stageLabel(job)}${job.error ? ` (${job.error})` : ''}` : isTerminal(job) ? previous.line : `Slide images: ${stageLabel(job)}` }));
       if (job.state !== 'ready' && job.state !== 'ready_with_limitations') return;
       await read();
     } });

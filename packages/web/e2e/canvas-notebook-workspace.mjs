@@ -28,7 +28,7 @@ const board = () => page.evaluate(key => JSON.parse(localStorage.getItem(key) ||
 const notebooks = async () => ((await board()).blocks || []).filter(block => block.type === 'notebook');
 const cardOf = id => page.locator(`[data-block-id="${id}"]`);
 const frameOf = notebookId => page.frames().find(frame => frame.url().includes(`workspace=${notebookId}`));
-const started = async card => { await card.waitFor({ timeout: 60000 }); await card.getByText('Starting Python…').waitFor({ state: 'detached', timeout: 120000 }); };
+const started = async card => { await card.waitFor({ timeout: 60000 }); await card.getByText('Starting Python').waitFor({ state: 'detached', timeout: 120000 }); };
 
 await page.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });

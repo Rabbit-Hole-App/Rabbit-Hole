@@ -43,7 +43,7 @@ export default function LearnSlash({ apiRef, composerRef = null, input, setInput
   const exec = async raw => {
     const name = parseSlash(raw)?.name || '';
     setInput(''); setProposal(null); setBusy(true);
-    setNotice({ tone: 'busy', text: `Working on /${name}…` });
+    setNotice({ tone: 'busy', text: `Working on /${name}` });
     const turn = onRun?.(raw) || null;
     let out;
     try { out = await run(raw, target, turn); }

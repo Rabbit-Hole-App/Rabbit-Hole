@@ -63,7 +63,7 @@ function RunDetail({ runId, onBack, onSettled }) {
         </span>
       </div>
       <div ref={box} className="min-h-0 flex-1 overflow-y-auto rounded-sm bg-side p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
-        {log.lines.length ? log.lines.join('\n') : 'waiting for output…'}
+        {log.lines.length ? log.lines.join('\n') : 'waiting for output'}
       </div>
       <div className="flex items-center gap-1.5 text-sm text-ink-2">
         {log.status === 'running' && (<><Loader2 size={13} className="animate-spin" /> running</>)}
@@ -123,7 +123,7 @@ function RunsTab({ app, liveRunId, onSettled, onRunAgain }) {
 function RunFormTab({ app, onStarted }) {
   const [detail, setDetail] = useState(null);
   useEffect(() => { loadApp(app.name, app).then(setDetail).catch(() => setDetail({ error: true })); }, [app.name]);
-  if (!detail) return <div className="pt-2 text-ink-2">loading…</div>;
+  if (!detail) return <div className="pt-2 text-ink-2">loading</div>;
   if (detail.error) return <div className="pt-2 text-ink-2">✗ could not load the form.</div>;
   return <RunForm app={detail} onStarted={onStarted} />;
 }
@@ -134,7 +134,7 @@ function RunbookTab({ app, onSaved }) {
   if (app.hosting === 'aws') return <div className="pt-2 text-ink-2">Runbooks are not connected for AWS jobs yet.</div>;
   if (!app.canEdit && !app.runbook) return <div className="pt-2 text-ink-2">No runbook yet.</div>;
   return (
-    <Suspense fallback={<div className="pt-2 text-ink-2">loading…</div>}>
+    <Suspense fallback={<div className="pt-2 text-ink-2">loading</div>}>
       <Runbook app={app} canEdit={!!app.canEdit} onSaved={onSaved} />
     </Suspense>
   );

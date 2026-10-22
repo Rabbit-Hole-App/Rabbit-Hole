@@ -171,7 +171,7 @@ test('the Table of contents has its own conversation: a separate thread, always 
   assert.match(conversation, /if \(thread\?\.restore\.messages\?\.length > 0 && shownIn !== thread\.restore\.key\) setShownIn\(thread\.restore\.key\);\n\s+const has = !!thread && shownIn === thread\.restore\.key;/);
   assert.match(conversation, /if \(!has && !composing && !drafted\) return \(\n\s+<div data-toc-start/, 'the compact entry starts one');
   assert.match(page, /<TocWorkspace key=\{app\.name\}><TocConversation /);
-  assert.match(page, /placeholder="Describe your goal or refine the outline…"/);
+  assert.match(page, /placeholder="Describe your goal or refine the outline"/);
   const toc = page.indexOf('<div role="tabpanel" aria-label="Table of contents"'), conv = page.indexOf('<TocWorkspace'), chatPane = page.indexOf('<ChatPane key={app.name}');
   assert.ok(toc > 0 && conv > toc && chatPane > conv, 'the conversation inside the contents tab, Chat after it');
   assert.equal(page.match(/<ChatPane\b/g).length, 1);

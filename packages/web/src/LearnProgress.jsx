@@ -102,7 +102,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
             </div>
             : <p className="mt-2 text-xs text-ink-2">{model.active ? 'Your current goal' : 'Not your current goal'}</p>}
         </>}
-        {!managing && model.state === 'loading' && <p role="status" data-progress-loading className="mt-4 text-sm text-ink-2">Loading your progress…</p>}
+        {!managing && model.state === 'loading' && <p role="status" data-progress-loading className="mt-4 text-sm text-ink-2">Loading your progress</p>}
         {!managing && model.state === 'error' && <p role="alert" data-progress-error className="mt-4 flex flex-wrap items-center gap-2 text-sm text-fail">Your progress could not be loaded. Nothing has been lost.
           <button type="button" onClick={read} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
         {!managing && model.state === 'ready' && <>

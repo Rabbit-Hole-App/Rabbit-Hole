@@ -15,7 +15,7 @@ const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
 // Flip when a provider can supply sources and canSubmit (start.js) accepts it.
 const connectionSources = false;
 const LOCAL = 'Only you can see this canvas. Its content stays in this browser.';
-const MORE = 'More branches…'; // the Branch select's last option while GitHub has more than this page
+const MORE = 'More branches'; // the Branch select's last option while GitHub has more than this page
 
 // T02 §5: one portaled dialog with four paths, hosted once by StartHost (main.jsx) on
 // 'small:start'. Radix mounts only the active tab, so Enter submits the one form on screen.

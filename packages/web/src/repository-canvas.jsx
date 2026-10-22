@@ -62,7 +62,7 @@ export function useRepositoryCanvas(project, { codeCards = false } = {}) {
           onFile={p => attach(fileObject(snapshot.graph, p))} onSymbol={n => attach(objectOf(snapshot.graph, n))}
           onRange={(kind, range) => { attach(range); if (kind === 'learn') learnThis(range); else { askAbout(range); if (codeCards) codeCard(range); } }} />
       : <RepositoryState repository={repository} what="files" />;
-    const graphView = <Suspense fallback={<p role="status" className="p-4 text-sm text-ink-2">Loading the graph…</p>}><GraphPanel repository={repository} onOpenSource={showFile} answerView={repository.answerView} /></Suspense>;
+    const graphView = <Suspense fallback={<p role="status" className="p-4 text-sm text-ink-2">Loading the graph</p>}><GraphPanel repository={repository} onOpenSource={showFile} answerView={repository.answerView} /></Suspense>;
     return {
       repository, codeRefs,
       canvasProps: {
@@ -84,9 +84,9 @@ export function RepositoryState({ repository, what = 'files' }) {
   const failed = status === 'failed' || (status === 'ready' && !!error);
   const line = status === 'unavailable' ? 'Repository content unavailable.'
     : failed ? `The repository could not be read${error ? `: ${error}` : '.'}`
-    : status === 'queued' ? 'Waiting for the indexer…'
-    : status === 'indexing' ? `Reading the repository and building its ${what === 'graph' ? 'code graph' : 'file list'}…`
-    : 'Loading the repository…';
+    : status === 'queued' ? 'Waiting for the indexer'
+    : status === 'indexing' ? `Reading the repository and building its ${what === 'graph' ? 'code graph' : 'file list'}`
+    : 'Loading the repository';
   return <div role="status" data-repository-state={failed && status === 'ready' ? 'failed' : status} className="flex flex-col items-start gap-2 p-4 text-sm text-ink-2">
     {['queued', 'indexing', 'loading'].includes(status) && <div className="h-1 w-40 overflow-hidden rounded bg-hover"><div className="h-full w-1/2 animate-pulse bg-accent" /></div>}
     <p>{line}</p>
@@ -104,7 +104,7 @@ export function RepositoryBadge({ repository }) {
   const busy = ['loading', 'queued', 'indexing'].includes(status);
   if (!busy && status !== 'failed') return null;
   return <span data-repo-badge-row className="relative flex shrink-0 items-center">
-    {busy && <span data-repo-status={status} role="status" className="flex h-8 items-center gap-1.5 px-1.5 text-xs text-ink-2"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />{status === 'queued' ? 'Waiting to read the repository…' : status === 'indexing' ? 'Reading the repository…' : 'Loading…'}</span>}
+    {busy && <span data-repo-status={status} role="status" className="flex h-8 items-center gap-1.5 px-1.5 text-xs text-ink-2"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />{status === 'queued' ? 'Waiting to read the repository' : status === 'indexing' ? 'Reading the repository' : 'Loading'}</span>}
     {status === 'failed' && <button type="button" data-repo-status="failed" title={error || 'The repository could not be read'} onClick={() => Promise.resolve(canEdit ? refresh() : retry()).catch(fail)}
       className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-xs text-red-700 hover:bg-hover"><RefreshCw size={12} aria-hidden />{canEdit ? 'Import failed · Retry' : 'Unavailable · Retry'}</button>}
   </span>;

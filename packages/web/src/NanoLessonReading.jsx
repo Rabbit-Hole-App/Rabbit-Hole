@@ -80,7 +80,7 @@ function TraceVisual() {
   return <Fig label="Two generation steps" caption="Invented continuation, not a checkpoint result. Each selected character is appended before the next prediction; the learned parameters do not change.">
     <div className="flex flex-wrap items-center gap-2 font-mono text-base" aria-live="polite">
       <span>Hell{steps.slice(0, taken).map((value, i) => <strong key={i} className="text-orange-700">{value}</strong>)}</span>
-      {taken < steps.length && <span className="text-xs text-ink-3">next prediction pending…</span>}
+      {taken < steps.length && <span className="text-xs text-ink-3">next prediction pending</span>}
     </div>
     <div className="mt-3 flex items-center gap-2">
       <button type="button" disabled={taken >= steps.length} onClick={() => setTaken(taken + 1)} className="rounded border border-line px-3 py-1 text-xs hover:bg-hover disabled:opacity-40">{taken >= steps.length ? 'Done' : `Select “${steps[taken]}” and append`}</button>
@@ -131,7 +131,7 @@ const READING_VISUALS = {
   // Page 5: data / code / checkpoint roles.
   artifacts: () => <Fig label="Data, code and checkpoint" caption="Token files, Python source, and a saved checkpoint play different roles in one pipeline.">
     <div className="grid gap-3 text-sm sm:grid-cols-3">
-      {[['Data', 'train.bin / val.bin', 'encoded examples', 'blue'], ['Code', 'model.py, train.py…', 'how computation works', 'purple'], ['Checkpoint', 'ckpt.pt', 'saved learned state', 'orange']].map(([role, file, description, tone]) => <div key={role} className={`rounded-lg border p-3 ${tone === 'blue' ? 'border-blue-300' : tone === 'purple' ? 'border-purple-300' : 'border-orange-400'}`}>
+      {[['Data', 'train.bin / val.bin', 'encoded examples', 'blue'], ['Code', 'model.py, train.py', 'how computation works', 'purple'], ['Checkpoint', 'ckpt.pt', 'saved learned state', 'orange']].map(([role, file, description, tone]) => <div key={role} className={`rounded-lg border p-3 ${tone === 'blue' ? 'border-blue-300' : tone === 'purple' ? 'border-purple-300' : 'border-orange-400'}`}>
         <p className={`font-semibold ${tone === 'blue' ? 'text-blue-700' : tone === 'purple' ? 'text-purple-700' : 'text-orange-700'}`}>{role}</p>
         <p className="mt-1 font-mono text-xs">{file}</p>
         <p className="mt-1 text-xs text-ink-2">{description}</p>

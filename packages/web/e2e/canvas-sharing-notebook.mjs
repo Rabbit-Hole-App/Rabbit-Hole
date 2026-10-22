@@ -38,7 +38,7 @@ const contextFor = async session => {
 const started = async page => {
   const card = page.locator('[data-block-id="nb1"]');
   await card.waitFor({ timeout: 60000 });
-  await card.getByText('Starting Python…').waitFor({ state: 'detached', timeout: 120000 });
+  await card.getByText('Starting Python').waitFor({ state: 'detached', timeout: 120000 });
 };
 const workspaceFrame = (page, id) => page.frames().find(frame => frame.url().includes(`workspace=${id}`));
 const listing = frame => frame.evaluate(async () => {

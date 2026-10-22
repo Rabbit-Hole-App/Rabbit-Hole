@@ -132,7 +132,7 @@ test('Curriculum Agent rebuilds a legacy outline as topics and principles while 
   await expect(working).toBeVisible();
   await expect(working).not.toHaveAttribute('aria-valuenow');
   await expect(page.locator('[data-course-elapsed]')).not.toHaveText('0:00 elapsed', { timeout: 3000 });
-  await expect(page.getByRole('button', { name: 'Planning and reviewing…', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Planning and reviewing', exact: true })).toBeDisabled();
   await page.screenshot({ path: testInfo.outputPath('curriculum-progress.png') });
   releaseDraft();
   await expect(working).toHaveCount(0);
@@ -218,7 +218,7 @@ test('Learn course interviews, reviews, approves, generates, reloads, and invali
   const block = await page.locator('.tl-shape').filter({ hasText: 'What does your colleague see' }).boundingBox();
   await page.mouse.click(block.x + block.width / 2, block.y + block.height / 2);
   await expect(setup.getByRole('button', { name: 'Ask about selection', exact: true })).toHaveCount(0);
-  const question = setup.getByPlaceholder('Ask about shared-counter…');
+  const question = setup.getByPlaceholder('Ask about shared-counter');
   await question.fill('What is the answer?'); await question.press('Enter');
   await expect(setup.getByText('Your colleague sees the same shared count after refreshing.', { exact: true })).toBeVisible();
   expect(snapshot.lessonId).toBe(course.lesson.id);
@@ -292,7 +292,7 @@ test('Learn opens enlarged with separate chat history, breadcrumbs, and working 
   await expect(learn.locator('.tl-shape')).toHaveCount(1);
   await page.keyboard.press('Control+z');
   await expect(learn.locator('.tl-shape')).toHaveCount(0);
-  const input = chat.getByPlaceholder('Ask about shared-counter…');
+  const input = chat.getByPlaceholder('Ask about shared-counter');
   await input.fill('What does this app do?');
   await input.press('Enter');
   await expect(chat.getByText('This app shares a counter with your team.')).toBeVisible();
@@ -469,7 +469,7 @@ test('Learn selection pins the midpoint, sends its equation and moved bounds, an
     await new Promise(resolve => { release = resolve; });
     await route.fulfill({ contentType: 'text/event-stream', body: 'event: chunk\ndata: {"text":"At x = 0, exp(-0) = 1, so sigmoid is 1/(1+1) = 0.5."}\n\nevent: done\ndata: {}\n\n' });
   });
-  const input = chat.getByPlaceholder('Ask about shared-counter…');
+  const input = chat.getByPlaceholder('Ask about shared-counter');
   await input.fill('Why is this at 0.5?'); await input.press('Enter');
   await expect.poll(() => !!payload).toBe(true);
   expect(payload.lesson_snapshot.target.objectId).toBe('midpoint');
@@ -527,8 +527,8 @@ test('Learn circles a midpoint, confirms its target, and reuses selection chat w
     expect(snapshot.relatedObjects.find(o => o.kind === 'equation').originalText).toContain('exp(-x)');
     await route.fulfill({ contentType: 'text/event-stream', body: 'event: chunk\ndata: {"text":"At zero, sigmoid is 1/(1+1) = 0.5."}\n\nevent: done\ndata: {}\n\n' });
   });
-  await chat.getByPlaceholder('Ask about shared-counter…').fill('Why is this at 0.5?');
-  await chat.getByPlaceholder('Ask about shared-counter…').press('Enter');
+  await chat.getByPlaceholder('Ask about shared-counter').fill('Why is this at 0.5?');
+  await chat.getByPlaceholder('Ask about shared-counter').press('Enter');
   await expect(chat.getByText('At zero, sigmoid is 1/(1+1) = 0.5.', { exact: true })).toBeVisible();
   const thumbnail = chat.getByRole('img', { name: 'Canvas with the question’s target marked' });
   await expect(thumbnail).toBeVisible();

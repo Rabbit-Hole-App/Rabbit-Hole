@@ -50,7 +50,7 @@ export default function ChatPane({ hidden = false, docked = false, unavailable =
       {deleting && <ConfirmDialog title="Delete this chat?" body={`"${title.slice(0, 80)}" and its messages are removed for good. Uploaded materials stay on the canvas.`}
         onConfirm={() => { setDeleting(false); thread.remove(); }} onCancel={() => setDeleting(false)} />}
       {/* Restoring this canvas's conversation (chat-threads.js status): loading, or failed with a retry that keeps what is shown. */}
-      {!docked && !thread.historyOpen && thread.status === 'loading' && <p role="status" className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-ink-3"><Loader2 size={14} aria-hidden="true" className="animate-spin" />Loading this canvas's chat…</p>}
+      {!docked && !thread.historyOpen && thread.status === 'loading' && <p role="status" className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-ink-3"><Loader2 size={14} aria-hidden="true" className="animate-spin" />Loading this canvas's chat</p>}
       {!docked && !thread.historyOpen && thread.status === 'error' && <p role="alert" data-chat-restore-error className="flex shrink-0 items-center gap-2 px-1 py-2 text-sm text-fail">Could not load this canvas's chat.
         <button type="button" onClick={thread.retry} className="font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
       {thread.historyOpen && <div className={docked ? 'hidden' : 'contents'}><ChatHistory /></div>}

@@ -969,7 +969,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
   // stripped from what the learner reads.
   const grade = parseVerdict(block.verdict);
   const verdictText = stripVerdict(block.verdict);
-  const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer…' : 'Grading was interrupted. Answer again to retry.') : null;
+  const waiting = block.grading && !verdictText ? (gradingAttempts.has(block.attemptId) ? 'Reading your answer' : 'Grading was interrupted. Answer again to retry.') : null;
   const tint = grade === 'good' ? 'border-green-700/30 bg-green-700/10 text-green-800' : grade === 'partial' ? 'border-amber-600/40 bg-amber-500/10 text-amber-800' : 'border-line bg-hover text-ink';
   // A drawing tool leaves every card inert on the canvas; while this card has a sketch in play (open, or hidden with
   // marks) its own controls stay live, so the learner can type, Submit or Hide sketch straight after drawing.
@@ -989,7 +989,7 @@ function ChallengeBody({ block, onChange, onFile, onGrade, appName }) {
             <div className="mt-2 flex flex-wrap gap-2">
               <SpeakAnswer appName={appName} onText={text => setDraft(current => (current ? `${current} ${text}` : text))} />
               <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') commit(); }}
-                placeholder={block.mode === 'explain_back' ? 'Explain it in your own words…' : 'Your guess in one sentence…'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
+                placeholder={block.mode === 'explain_back' ? 'Explain it in your own words' : 'Your guess in one sentence'} className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
               {!sketchShown && submit}
             </div>
             {sketchable && !sketchShown && (
@@ -1139,7 +1139,7 @@ function AudioBody({ block, appName, onChange }) {
             {busy ? <Loader2 size={14} className="animate-spin" /> : <Volume2 size={14} />}{stale ? 'Read the new text' : 'Read it aloud'}
           </button>
         )}
-        {busy && <span className="text-xs text-ink-2">Making the audio…</span>}
+        {busy && <span className="text-xs text-ink-2">Making the audio</span>}
         {error && <span className="text-xs text-red-700">{error}</span>}
       </div>
       {src && <audio data-narration src={src} controls autoPlay onPointerDown={event => event.stopPropagation()} className="mt-2 w-full" />}
@@ -1169,7 +1169,7 @@ function WhiteboardBody({ block, appName, onChange, onAskSelection }) {
       <Kicker author="learner">Whiteboard</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
-        <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board…</p>}>
+        <Suspense fallback={<p className="p-4 text-xs text-ink-2">Loading the board</p>}>
           <WhiteboardBlock block={block} appName={appName} onChange={onChange} onAskSelection={onAskSelection} />
         </Suspense>
       </div>
@@ -1369,7 +1369,7 @@ function ThreeDBody({ block, onChange, viewKey = null }) {
       <div ref={frame} data-three-d-viewer data-viewer-live={live || undefined} data-viewer-active={interacting || undefined} onPointerDown={event => event.stopPropagation()} onWheel={event => event.stopPropagation()}
         className={`relative mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border bg-[#f4f5f7] ${interacting ? 'border-ink' : 'border-line'}`}>
         <div ref={host} className="h-full w-full" />
-        {!ready && !error && <p role="status" data-three-d-loading className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Loading the 3D model…</p>}
+        {!ready && !error && <p role="status" data-three-d-loading className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Loading the 3D model</p>}
         {interacting && <p className="pointer-events-none absolute bottom-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish</p>}
         {error && <div role="alert" data-three-d-error className="absolute inset-0 grid place-content-center bg-white p-4 text-center text-xs text-ink-2">{error}
           <button type="button" onClick={() => setAttempt(value => value + 1)} className="mt-2 rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-hover">Retry model</button></div>}
@@ -1452,7 +1452,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {resolved
         ? <img src={resolved} alt={current?.alt || block.alt || block.title} className="mt-2 w-full rounded-lg border border-line bg-white object-contain" />
-        : <div className="mt-2 grid min-h-28 place-content-center rounded-lg border border-dashed border-line bg-hover p-4 text-center text-xs text-ink-2">{busy ? 'Working...' : current ? 'This picture is no longer cached - generate it again.' : 'Search for a photo or describe one to generate.'}</div>}
+        : <div className="mt-2 grid min-h-28 place-content-center rounded-lg border border-dashed border-line bg-hover p-4 text-center text-xs text-ink-2">{busy ? 'Working' : current ? 'This picture is no longer cached - generate it again.' : 'Search for a photo or describe one to generate.'}</div>}
       {variants.length > 1 && (
         <div className="mt-1.5 flex items-center justify-between" onPointerDown={event => event.stopPropagation()}>
           <button type="button" aria-label="Previous picture" onClick={() => step(-1)} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronLeft size={15} /></button>
@@ -1468,7 +1468,7 @@ function ImageBody({ block, appName, onChange, onFile }) {
         : <p data-media-provenance="ai" className="mt-1 text-[11px] text-ink-2">AI-generated illustration — not a photograph or measurement.</p>)}
       <div className="mt-2 flex gap-2" onPointerDown={event => event.stopPropagation()}>
         <input value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') search(); }}
-          placeholder="Search or describe an image…" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
+          placeholder="Search or describe an image" className="h-8 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm outline-none focus:border-ink-3" />
         <button type="button" data-photo-search disabled={busy || !query.trim()} onClick={search}
           className="flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover disabled:opacity-40">
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}Find
@@ -1832,7 +1832,7 @@ function CodeBody({ block, onChange, onFile }) {
       <div className="mt-2 flex items-center gap-2" onPointerDown={e => e.stopPropagation()}>
         <button type="button" data-run-code disabled={busy} onClick={execute}
           className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white disabled:opacity-50">
-          {busy ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}{run === 'starting' ? 'Starting Python…' : 'Run checks'}
+          {busy ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}{run === 'starting' ? 'Starting Python' : 'Run checks'}
         </button>
         {run && run !== 'starting' && (run.ok
           ? <span className="text-sm font-medium text-green-700">✓ All checks passed</span>

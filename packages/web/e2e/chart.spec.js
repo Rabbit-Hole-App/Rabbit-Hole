@@ -63,9 +63,9 @@ test('runbook /chart: insert, configure from run data, render, restore', async (
     console.log('PLACEHOLDER-IN-BLOCK:', await block.getByText(/for commands/i).count());
 
     // Configure: x = run, y = duration_s → nivo line svg appears.
-    await block.getByRole('button', { name: 'x…' }).click();
+    await block.getByRole('button', { name: 'x' }).click();
     await page.getByRole('button', { name: 'run', exact: true }).click();
-    await block.getByRole('button', { name: 'y…' }).click();
+    await block.getByRole('button', { name: 'y' }).click();
     await page.getByRole('button', { name: 'duration_s', exact: true }).click();
     await expect(block.locator('svg path')).not.toHaveCount(0, { timeout: 20_000 });
 

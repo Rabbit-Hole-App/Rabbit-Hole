@@ -151,7 +151,7 @@ ok('teach-1 did not run again on reload', (await resultsFor('teach-1')) === 0 &&
 const answered = await page.evaluate(() => window.__results.length);
 // Insert > Search Wikipedia (Release B removed the top-bar Search control).
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
-await page.getByRole('menuitem', { name: 'Search Wikipedia…', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Search Wikipedia', exact: true }).click();
 const bar = page.getByRole('dialog', { name: 'Search' });
 await bar.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');
 await bar.getByRole('textbox').fill('Cross entropy');

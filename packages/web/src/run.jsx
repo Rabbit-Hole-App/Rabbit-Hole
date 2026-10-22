@@ -635,7 +635,7 @@ export function RunView({ runId, app, onRunAgain }) {
       )}
 
       <Card title="Output">
-        {!settled && <div className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" /> Waiting…</div>}
+        {!settled && <div className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" /> Waiting</div>}
         {settled && outputs && !outputs.length && <div className="text-sm text-ink-2">No outputs.</div>}
         {settled && sorted.map((o) => <Output key={o.name} runId={runId} name={o.name} size={o.size} url={o.url} label={byPath(o.name)?.[1]?.label} />)}
       </Card>
@@ -649,7 +649,7 @@ export function RunView({ runId, app, onRunAgain }) {
               <input
                 value={logQ}
                 onChange={(e) => setLogQ(e.target.value)}
-                placeholder="Filter…"
+                placeholder="Filter"
                 aria-label="Filter log lines"
                 className="h-6 w-32 rounded-sm bg-code px-2 text-xs outline-none placeholder:text-ink-3 focus:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]"
               />
@@ -672,7 +672,7 @@ export function RunView({ runId, app, onRunAgain }) {
         }
       >
         {lines.length === 0 ? (
-          <div className="p-3 text-sm text-ink-2">{meta.status === 'running' ? 'Waiting for output…' : 'No log.'}</div>
+          <div className="p-3 text-sm text-ink-2">{meta.status === 'running' ? 'Waiting for output' : 'No log.'}</div>
         ) : (
           <div ref={logRef} className="no-scrollbar max-h-[360px] overflow-y-auto p-3 font-mono text-[13px] leading-normal whitespace-pre-wrap">
             {rows.length === 0 && <div className="text-ink-2">No lines match "{logQ}"</div>}
@@ -770,7 +770,7 @@ export function RunPeek({ runId, app, onClose, onRunAgain }) {
           appName={app?.name}
           chatConfig={app.run_chat}
           compact={tab !== 'chat'}
-          placeholder="Ask about this run…"
+          placeholder="Ask about this run"
           onHasChat={() => setChatted(true)}
           onSent={() => { setChatted(true); setTab('chat'); }}
         />
@@ -941,7 +941,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
               autoFocus
               value={menuQ}
               onChange={(e) => setMenuQ(e.target.value)}
-              placeholder="Search values…"
+              placeholder="Search values"
               onMouseDown={(e) => e.stopPropagation()}
               className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
             />
@@ -986,7 +986,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
               autoFocus
               value={menuQ}
               onChange={(e) => setMenuQ(e.target.value)}
-              placeholder="Search…"
+              placeholder="Search"
               onMouseDown={(e) => e.stopPropagation()}
               className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
             />
@@ -1016,7 +1016,7 @@ export function RunsDb({ app, onOpen, onNewRun, onRunAgain, openId = null }) {
       )}
 
       <div className="overflow-x-auto">
-          {aiRuns === 'loading' && <div className="px-2 py-1 text-xs text-ink-3"><span className="shimmer">Thinking…</span></div>}
+          {aiRuns === 'loading' && <div className="px-2 py-1 text-xs text-ink-3"><span className="shimmer">Thinking</span></div>}
           {aiRuns?.ids?.length === 0 && <div className="px-2 py-1 text-sm text-ink-2">{aiRuns.note || 'No runs match that.'}</div>}
           {/* fixed layout + explicit total width: columns keep their exact px (resize persists);
               the wrapper scrolls horizontally when the columns outgrow the page */}

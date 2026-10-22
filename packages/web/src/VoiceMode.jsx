@@ -35,7 +35,7 @@ export function VoiceField({ voice }) {
     <VoiceToggle voice={voice} />
     <span role="status" aria-live="polite" className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-[15px] text-ink-2 max-md:text-sm">
       <span className="max-md:sr-only">Voice on ·</span>{' '}
-      {voice.state === 'thinking' ? <span className="shimmer">Thinking…</span>
+      {voice.state === 'thinking' ? <span className="shimmer">Thinking</span>
         : voice.state === 'speaking' ? <><AudioLines size={15} strokeWidth={1.6} className="shrink-0 text-[#b42318]" />Tutor speaking</>
         : 'Listening'}
     </span>
@@ -69,7 +69,7 @@ export function TutorCaption({ caption, state, extras }) {
     {toggle}
     <span className="flex h-8 shrink-0 items-center pl-3 text-xs font-medium text-ink-2">Tutor</span>
     <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
-      {thinking ? <p className="text-sm leading-5"><span className="shimmer">Thinking…</span></p>
+      {thinking ? <p className="text-sm leading-5"><span className="shimmer">Thinking</span></p>
         : caption.current && !caption.error && <p className="text-sm leading-5 text-ink">{caption.current}</p>}
       {caption.error && <p className="text-xs text-fail">{caption.error}</p>}
     </div>

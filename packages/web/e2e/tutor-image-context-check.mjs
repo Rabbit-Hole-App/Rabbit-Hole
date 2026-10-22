@@ -265,8 +265,8 @@ await guest.page.waitForTimeout(1200);
 { const box = await guest.page.locator('[data-block-id="img1"]').first().boundingBox(); await guest.page.mouse.click(box.x + box.width / 2, box.y + 16); }
 await guest.page.waitForTimeout(400);
 const pill = await guest.page.locator('[data-canvas-target][data-selected-card="img1"]').count() > 0;
-await guest.page.getByPlaceholder('Ask about this canvas…').fill('What is in this diagram?');
-await guest.page.getByPlaceholder('Ask about this canvas…').press('Enter');
+await guest.page.getByPlaceholder('Ask about this canvas').fill('What is in this diagram?');
+await guest.page.getByPlaceholder('Ask about this canvas').press('Enter');
 await until(async () => guest.seen.shared.length > 0, 15000);
 check('V a shared viewer\'s question carries the selected image card by its id', pill && guest.seen.shared.at(-1)?.selected === 'img1', JSON.stringify(guest.seen.shared.at(-1) ?? null));
 const sharedNotice = await until(async () => (await guest.page.locator('[data-shared-notice]').filter({ hasText: NOTICE }).count()) > 0, 5000);

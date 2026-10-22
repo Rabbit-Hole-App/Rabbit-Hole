@@ -66,7 +66,7 @@ function InteractiveGraph({ shape, editor }) {
     <div aria-label={`${shape.props.spec.renderer} interactive graph`} onPointerDownCapture={editor.markEventAsHandled} onPointerMoveCapture={editor.markEventAsHandled} onPointerUpCapture={editor.markEventAsHandled} onDoubleClick={stop} onWheel={stop} onKeyDown={stop} onKeyUp={stop} style={{ width: '100%', height: 'calc(100% - 32px)', position: 'relative' }}>
       <div ref={host} style={{ width: '100%', height: '100%' }} />
       {(!loaded || error) && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeContent: 'center', padding: 20, background: 'white', fontSize: 13 }}>
-        {describedError?.message || 'Loading interactive graph…'}
+        {describedError?.message || 'Loading interactive graph'}
         {describedError?.kind === 'retryable' && <button onClick={() => setAttempt(v => v + 1)} style={{ marginTop: 10, border: '1px solid #a3a3a3', padding: 6, borderRadius: 4 }}>Retry graph</button>}
       </div>}
     </div>

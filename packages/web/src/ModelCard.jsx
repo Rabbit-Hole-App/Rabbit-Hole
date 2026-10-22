@@ -192,7 +192,7 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
         </div>}
         {cadState && !viewable && <div className="absolute inset-0 grid place-content-center gap-2 bg-white p-4 text-center text-xs text-ink-2"><p data-model-cad={cadState.state}>{cadState.label}</p>{cadState.retry && <button type="button" data-model-cad-retry disabled={cadState.retrying} onPointerDown={stop} onClick={cadState.onRetry} className="mx-auto rounded-md border border-line px-3 py-1 text-ink hover:bg-hover">{cadState.retrying ? 'Retrying?' : 'Retry'}</button>}</div>}
         {(limitation || entry?.error) && <div className="absolute inset-0 grid place-content-center gap-2 bg-white p-4 text-center text-xs text-ink-2"><TriangleAlert size={16} className="mx-auto" /><p data-model-limited>Preview limited: {entry?.error || limitation}. The original is kept; Download gives it back.</p></div>}
-        {viewable && !ready && !status && !(!live && poster) && <p role="status" className="absolute inset-0 grid place-content-center text-xs text-ink-2">{live ? `Opening the ${kind.toLowerCase()}…` : 'Paused off-screen'}</p>}
+        {viewable && !ready && !status && !(!live && poster) && <p role="status" className="absolute inset-0 grid place-content-center text-xs text-ink-2">{live ? `Opening the ${kind.toLowerCase()}` : 'Paused off-screen'}</p>}
         {!live && viewable && visible && !problem && <button type="button" data-model-show onPointerDown={stop} onClick={() => setAttempt(a => a + 1)} className="absolute right-2 bottom-2 rounded-md border border-line bg-white px-2 py-1 text-xs hover:bg-hover">Show 3D</button>}
         {status && <div className="absolute inset-0 grid place-content-center gap-2 bg-white/95 p-4 text-center text-xs text-ink-2" onPointerDown={stop}><p data-model-error>{status}</p>{(lost || problem) && blob && <button type="button" onClick={() => setAttempt(a => a + 1)} className="mx-auto rounded-md border border-line px-3 py-1 text-ink hover:bg-hover">Reload viewer</button>}</div>}
       </div>
@@ -211,7 +211,7 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
         <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden /><span className="min-w-0 flex-1">Not saved: {uploads.failed[0].name}: {uploads.failed[0].error}</span>
         {uploads.failed.some(f => f.retryable !== false) && <button type="button" onClick={uploads.retry} className="shrink-0 rounded-md border border-red-300 bg-white px-2 py-0.5 text-red-800 hover:bg-red-100">Retry</button>}
       </div>}
-      {uploads.pending > 0 && !uploads.failed.length && <p data-model-saving role="status" className="px-1 pt-1 text-[11px] text-ink-3">Saving {uploads.pending === 1 ? 'the file' : `${uploads.pending} files`} to your account…</p>}
+      {uploads.pending > 0 && !uploads.failed.length && <p data-model-saving role="status" className="px-1 pt-1 text-[11px] text-ink-3">Saving {uploads.pending === 1 ? 'the file' : `${uploads.pending} files`} to your account</p>}
       {(missing.length > 0 || blocked.length > 0) && <div data-model-missing className="mt-2 rounded-lg border border-line bg-hover px-3 py-2 text-xs text-ink-2" onPointerDown={stop}>
         {missing.length > 0 && <p>Missing from what was dropped: <span className="font-mono text-ink">{missing.join(', ')}</span></p>}
         {blocked.length > 0 && <p>Not loaded (outside the dropped files): <span className="font-mono break-all">{blocked.slice(0, 3).join(', ')}</span></p>}

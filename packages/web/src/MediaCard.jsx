@@ -159,7 +159,7 @@ function PlaybackCopy({ block, onChange }) {
     <Notice state="working" action={writable && fileRef?.job ? <button type="button" aria-label="Cancel the playable copy" onPointerDown={event => event.stopPropagation()}
       onClick={() => cancelPlayback({ jobId: fileRef.job })}
       className="flex shrink-0 items-center rounded-md p-1 text-ink-2 hover:bg-hover hover:text-ink"><X size={12} /></button> : null}>
-      This browser cannot play {what}; {shown.state === 'checking' ? 'looking for a playable copy' : `making a playable copy (${shown.stage || 'Queued'})`}…
+      This browser cannot play {what}; {shown.state === 'checking' ? 'looking for a playable copy' : `making a playable copy (${shown.stage || 'Queued'})`}
     </Notice>
   );
 }
@@ -184,7 +184,7 @@ function AudioBody({ block, original, onChange }) {
         // No autoplay, ever: playback starts only from the user's press on these controls.
         ? <audio controls preload="metadata" src={url} onError={() => setFailed(true)} aria-label={`Play ${block.label || 'audio'}`} className="w-full" />
         : plan === 'derivative' ? <PlaybackCopy block={block} onChange={onChange} />
-          : <Notice state="checking">Checking this browser can play it…</Notice>}
+          : <Notice state="checking">Checking this browser can play it</Notice>}
       <p data-media-facts className="pt-1 text-[11px] text-ink-3">{[clock(duration), codecName(meta.codec), meta.container === 'wav' ? 'WAV' : null].filter(Boolean).join(' · ')}</p>
     </>
   );
@@ -265,8 +265,8 @@ function SaveState({ state, onRetry }) {
     </div>
   );
   const percent = state?.total ? Math.floor((100 * (state.sent || 0)) / state.total) : 0;
-  const line = !state ? (canWrite() ? 'Saving to your account…' : 'Not saved yet: the upload from the browser that added this file has not finished.')
-    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save…' : 'Saving to your account…';
+  const line = !state ? (canWrite() ? 'Saving to your account' : 'Not saved yet: the upload from the browser that added this file has not finished.')
+    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save' : 'Saving to your account';
   return <p role="status" data-media-save={state?.stage || 'waiting'} className="mb-1 text-[11px] text-ink-3">{line}</p>;
 }
 

@@ -58,7 +58,7 @@ test('lesson controls, source above composer, quiz and flashcards preserve chat'
   await page.mouse.wheel(0, 400);
   await expect.poll(() => canvas.evaluate(el => el.parentElement.parentElement.scrollTop)).toBeGreaterThan(0);
   const chatBefore = await chat.boundingBox();
-  const input = chat.getByPlaceholder('Ask about shared-counter…');
+  const input = chat.getByPlaceholder('Ask about shared-counter');
   await input.fill('Question draft survives source viewing');
   await page.getByRole('button', { name: 'lesson_geometry.py:4–9' }).click();
   const source = chat.getByRole('region', { name: 'Lesson source' });
@@ -94,7 +94,7 @@ test('lesson controls, source above composer, quiz and flashcards preserve chat'
   await expect(page.getByText('1 remembered · 1 to review')).toBeVisible();
   await page.getByRole('button', { name: 'Previous flashcard' }).click();
   await expect(page.getByText('Your answer: Not yet')).toBeVisible();
-  await expect(chat.getByPlaceholder('Ask about shared-counter…')).toBeVisible();
+  await expect(chat.getByPlaceholder('Ask about shared-counter')).toBeVisible();
   await page.screenshot({ path: '../../.small/learn-practice.png', fullPage: true });
 });
 

@@ -647,7 +647,7 @@ export function Slider({ min = 0, max = 1, step, value, onChange, inputProps }) 
 // Select - input-styled trigger, chevron, shadow-pop option list; a search field
 // tops the menu past ~6 options. Trigger toggles on mousedown so closing doesn't
 // race Menu's outside-mousedown close into a reopen.
-export function Select({ value, options = [], placeholder = 'Select…', onChange, ...props }) {
+export function Select({ value, options = [], placeholder = 'Select', onChange, ...props }) {
   const [open, setOpen] = useState(false);
   const [rect, setRect] = useState(null); // trigger position at open time (menu portals to body)
   const [q, setQ] = useState('');
@@ -671,7 +671,7 @@ export function Select({ value, options = [], placeholder = 'Select…', onChang
         style={rect ? { top: rect.bottom + 4, left: rect.left, minWidth: rect.width } : undefined}
       >
         {options.length > 6 && (
-          <div className="p-1 pb-1.5"><Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="h-7" /></div>
+          <div className="p-1 pb-1.5"><Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" className="h-7" /></div>
         )}
         <div className="max-h-56 overflow-y-auto">
           {shown.map((o) => (
@@ -934,7 +934,7 @@ export function ValuePicker({ values, label = (v) => String(v), onPick }) {
           autoFocus
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search values…"
+          placeholder="Search values"
           onMouseDown={(e) => e.stopPropagation()}
           className="mb-1 h-7 w-full rounded-sm bg-code px-2 text-sm outline-none"
         />

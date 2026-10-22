@@ -148,7 +148,7 @@ function CardPreview({ type, command, appName, sample: chosen = null }) {
         // A sample with a finished clip (/motion's) or model (/3d's) of its own shows it; otherwise the picture.
         : picture
           ? <Illustration block={block} {...picture} />
-          : clip === null ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video…</p>
+          : clip === null ? <p data-slash-clip-loading className="px-4 py-3 text-xs text-ink-2">Loading the example video</p>
           : <LearningBlockBody block={clip && clip !== block.src ? { ...block, src: clip, variants: [{ src: clip }], variant: 0 } : block} onChange={setBlock} onChangeQuiet={setBlock} appName={appName} selected viewKey={viewKey} />}
       {block.sources && <SourcesDisclosure sources={block.sources} />}
     </div>

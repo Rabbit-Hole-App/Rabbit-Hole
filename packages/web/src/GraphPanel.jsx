@@ -83,7 +83,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
         {status === 'unavailable' ? <span>Repository content unavailable</span> : <>
           <span className="min-w-0 truncate font-medium text-ink" title={app?.repo}>{app?.repo || 'Repository'}</span>
           {snapshot && <span className="shrink-0 font-mono" title={`Indexed commit ${snapshot.commit}`}>{short(snapshot.commit)}</span>}
-          {['queued', 'indexing'].includes(status) && <span className="flex shrink-0 items-center gap-1"><Loader2 size={12} className="animate-spin" aria-hidden />{snapshot ? 'Indexing a newer commit…' : status === 'queued' ? 'Waiting for the indexer…' : 'Indexing…'}</span>}
+          {['queued', 'indexing'].includes(status) && <span className="flex shrink-0 items-center gap-1"><Loader2 size={12} className="animate-spin" aria-hidden />{snapshot ? 'Indexing a newer commit' : status === 'queued' ? 'Waiting for the indexer' : 'Indexing'}</span>}
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
@@ -98,7 +98,7 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
     {snapshot && <>
       <label className="relative shrink-0">
         <Search size={14} aria-hidden className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-ink-3" />
-        <Input aria-label="Search repository" placeholder="Search files or symbols…" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
+        <Input aria-label="Search repository" placeholder="Search files or symbols" value={query} onChange={event => setQuery(event.target.value)} className="w-full pl-7" />
       </label>
       {layersOpen && memory && <aside id="graph-layers" aria-label="Layers" className="shrink-0 rounded-lg border border-line p-2"><LayersRow memory={memory} layers={layers} onToggle={key => setLayers(previous => { const next = new Set(previous); if (next.has(key)) next.delete(key); else next.add(key); return next; })} /></aside>}
       {shown.nodes.length ? <div className="flex min-h-64 flex-1 flex-col">
@@ -130,13 +130,13 @@ function Body({ repository }) {
   const { status, snapshot, error, app, canEdit } = repository;
   if (snapshot) return error ? <p role="alert" className="shrink-0 text-xs text-danger">{error}</p> : null;
   if (status === 'unavailable') return <p data-graph-unavailable className="text-sm text-ink-2">Repository content unavailable.</p>;
-  if (status === 'queued' || status === 'indexing') return <div role="status" className="rounded-lg border border-line p-3 text-sm"><div className="mb-2 h-1 overflow-hidden rounded bg-hover"><div className="h-full w-1/2 animate-pulse bg-accent" /></div>{status === 'queued' ? 'Waiting for the indexer…' : 'Downloading source and building the code graph…'}</div>;
+  if (status === 'queued' || status === 'indexing') return <div role="status" className="rounded-lg border border-line p-3 text-sm"><div className="mb-2 h-1 overflow-hidden rounded bg-hover"><div className="h-full w-1/2 animate-pulse bg-accent" /></div>{status === 'queued' ? 'Waiting for the indexer' : 'Downloading source and building the code graph'}</div>;
   if (status === 'failed' || error) {
     const reimport = status === 'failed' && canEdit && app?.status === 'failed';
     return <div role="alert" className="flex flex-col items-start gap-2 text-sm"><p className="text-danger">{error || 'The repository could not be read.'}</p>
       <Button size="sm" variant="secondary" data-graph-retry onClick={() => Promise.resolve(reimport ? repository.refresh() : repository.retry()).catch(() => {})}>{reimport ? 'Retry import' : 'Retry'}</Button></div>;
   }
-  return <p role="status" className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" aria-hidden />Loading the code graph…</p>;
+  return <p role="status" className="flex items-center gap-1.5 text-sm text-ink-2"><Loader2 size={14} className="animate-spin" aria-hidden />Loading the code graph</p>;
 }
 
 // One selected node: what it is, where it lives, its indexed relationships, and the old inspector's actions. Ask actions

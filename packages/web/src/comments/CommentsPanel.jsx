@@ -57,7 +57,7 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
   };
 
   const body = failed ? <p className="text-sm text-ink-2">{failed}</p>
-    : !about || !list ? <p className="text-sm text-ink-2">Loading comments…</p>
+    : !about || !list ? <p className="text-sm text-ink-2">Loading comments</p>
     : draftAnchor ? <NewThread client={client} about={about} anchor={draftAnchor} live={objectLive(draftAnchor)} onCancel={() => onDraftDone?.(null)}
         onPosted={thread => { onDraftDone?.(thread.id); refresh(); }} />
     : selected ? <ThreadView key={selected} client={client} about={about} id={selected} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} threadLink={threadLink} />
@@ -172,7 +172,7 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
   const copy = () => navigator.clipboard?.writeText(threadLink(id)).then(() => setCopied(true), () => {});
   const [copied, setCopied] = useState(false);
   if (failed && !data) return <div><BackButton onBack={onBack} /><p className="text-sm text-ink-2">{failed}</p></div>;
-  if (!data) return <p className="text-sm text-ink-2">Loading…</p>;
+  if (!data) return <p className="text-sm text-ink-2">Loading</p>;
   const { thread, messages } = data;
   const live = objectLive(thread.anchor);
   return (

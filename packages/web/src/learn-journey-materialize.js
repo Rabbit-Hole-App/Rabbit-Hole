@@ -42,7 +42,7 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
   let heading = existing.find(b => b.type === 'heading' && b.journey_section_id === id && b.journey_id === jid)?.id ?? null, slot = null, failed_step = null;
   try {
     if (!heading) {
-      slot = canvas.reserve({ label: `Preparing section ${at + 1}…` });
+      slot = canvas.reserve({ label: `Preparing section ${at + 1}` });
       await paint();
       heading = canvas.insertBlock({ type: 'heading', level: 1, text: section.title, done: false, journey_section_id: id, ...own }, { into: slot });
     }

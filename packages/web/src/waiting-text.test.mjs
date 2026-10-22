@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { waitingText } from './waiting-text.js';
 
-test('a waiting label ends in one ellipsis character, never the stage\'s dots plus another', () => {
-  assert.equal(waitingText(null), 'Thinking…');
-  assert.equal(waitingText('Thinking...'), 'Thinking…');
-  assert.equal(waitingText('Preparing answer...'), 'Preparing answer…');
-  assert.equal(waitingText('Opening Attention Is All You Need...'), 'Opening Attention Is All You Need…');
-  assert.equal(waitingText('Opening the paper…'), 'Opening the paper…');
-  assert.equal(waitingText('read source'), 'read source…');
+test('a waiting label drops any trailing dots or ellipsis (owner 2026-10-21: no ellipsis in the UI)', () => {
+  assert.equal(waitingText(null), 'Thinking');
+  assert.equal(waitingText('Thinking...'), 'Thinking');
+  assert.equal(waitingText('Preparing answer...'), 'Preparing answer');
+  assert.equal(waitingText('Opening Attention Is All You Need...'), 'Opening Attention Is All You Need');
+  assert.equal(waitingText('Opening the paper…'), 'Opening the paper');
+  assert.equal(waitingText('read source'), 'read source');
 });
 
 test('the canvas chat card and the chat sheet use it', async () => {

@@ -13,7 +13,7 @@ export default function FileImportDialog({ file, kind, files, error, busy, onCan
   const [choice, setChoice] = useState(choices[0][0]);
   return createPortal(
     <div data-file-import-dialog>
-      <ConfirmDialog title="Add to canvas" confirmLabel={busy ? 'Adding…' : 'Add to canvas'} confirmVariant="primary" onCancel={onCancel}
+      <ConfirmDialog title="Add to canvas" confirmLabel={busy ? 'Adding' : 'Add to canvas'} confirmVariant="primary" onCancel={onCancel}
         onConfirm={() => { if (!busy) onConfirm(choice); }}
         body={<span className="block">
           <span data-import-file className="block truncate pb-3 font-mono text-[13px] text-ink" title={file.name}>{file.name}</span>
@@ -35,7 +35,7 @@ function BatchImport({ files, error, busy, onCancel, onConfirm }) {
   const [choices, setChoices] = useState(() => files.map(({ kind }) => IMPORT_CHOICES[kind][0][0]));
   return createPortal(
     <div data-file-import-dialog>
-      <ConfirmDialog title="Add to canvas" confirmLabel={busy ? 'Adding…' : 'Add to canvas'} confirmVariant="primary" onCancel={onCancel}
+      <ConfirmDialog title="Add to canvas" confirmLabel={busy ? 'Adding' : 'Add to canvas'} confirmVariant="primary" onCancel={onCancel}
         onConfirm={() => { if (!busy) onConfirm(choices); }}
         body={<span className="block">
           <span className="block pb-1.5 text-xs">{files.length} files. How should each be added?</span>

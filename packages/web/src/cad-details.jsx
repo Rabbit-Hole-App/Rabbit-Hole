@@ -90,7 +90,7 @@ function Code({ shown }) {
   }, [source?.url]);
   return <>
     <p className="text-[11px] text-ink-3">The saved Python that builds this revision. Only you can see it.</p>
-    {!source ? <p>No source is saved for this revision.</p> : problem ? <p role="alert" className="text-fail">{problem}</p> : text == null ? <p>Loading the saved source…</p>
+    {!source ? <p>No source is saved for this revision.</p> : problem ? <p role="alert" className="text-fail">{problem}</p> : text == null ? <p>Loading the saved source</p>
       : <pre data-cad-source className="max-h-60 overflow-auto rounded-md border border-line bg-code p-2 font-mono text-[11px] leading-4 text-ink">{text}</pre>}
   </>;
 }

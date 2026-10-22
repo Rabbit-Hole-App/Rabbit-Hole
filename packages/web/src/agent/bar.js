@@ -110,10 +110,10 @@ export function widen(surface, removed) {
 // (RepositoryPage publishes resource.status on every poll), else the catalog row
 // Shell loaded (repository_apps.status, merged into /api/apps by dev-worker.js:23-28).
 export function placeholderFor(scope, { resource = null, catalog = [] } = {}) {
-  if (scope.kind === 'workspace') return 'Start, open, ask, or paste a link…';
+  if (scope.kind === 'workspace') return 'Start, open, ask, or paste a link';
   const status = resource?.slug === scope.slug && resource.status ? resource.status : (catalog || []).find((a) => a.name === scope.slug)?.status;
   if (scope.kind === 'project' && status !== 'ready') return 'Code answers are available once the map is ready';
-  return `Ask about ${scope.selected?.label || scope.title || scope.slug}…`;
+  return `Ask about ${scope.selected?.label || scope.title || scope.slug}`;
 }
 
 // §6.6 catalog lookup: none -> [Ask instead], up to 5 -> pills, more -> a list.

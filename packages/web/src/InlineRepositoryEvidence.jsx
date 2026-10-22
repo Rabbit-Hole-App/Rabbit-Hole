@@ -45,7 +45,7 @@ export default function InlineRepositoryEvidence({ scope, headers = {}, onOpenSo
         onChange={event => { cancel(); setQuery(event.target.value); setState({ loading: false, result: null, error: null }); }}
         onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); event.stopPropagation(); void search(); } }} />
     </label>
-    <div className="flex items-center gap-2"><button type="button" disabled={!available || !query.trim() || state.loading} onClick={() => void search()} className="rounded border border-line px-2 py-1 text-xs disabled:opacity-50">{state.loading ? 'Searching…' : state.error ? 'Retry search' : 'Search'}</button>
+    <div className="flex items-center gap-2"><button type="button" disabled={!available || !query.trim() || state.loading} onClick={() => void search()} className="rounded border border-line px-2 py-1 text-xs disabled:opacity-50">{state.loading ? 'Searching' : state.error ? 'Retry search' : 'Search'}</button>
       {state.loading && <button type="button" onClick={() => { cancel(); setState({ loading: false, result: null, error: null }); }} className="text-xs text-ink-2">Cancel</button>}
       <span className="text-xs text-ink-3">No AI calls</span></div>
     {state.error && <p role="alert" className="text-xs text-ink-2">{state.error}</p>}

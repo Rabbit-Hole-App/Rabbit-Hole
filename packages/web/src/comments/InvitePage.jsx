@@ -104,7 +104,7 @@ export default function InvitePage() {
     window.location.href = '/';
   };
 
-  if (screen === 'loading') return <Frame><p className="text-sm text-ink-2">Opening the invitation…</p></Frame>;
+  if (screen === 'loading') return <Frame><p className="text-sm text-ink-2">Opening the invitation</p></Frame>;
   if (screen === 'missing') return <Frame><h1 className="mb-2 text-lg font-semibold text-ink">Open the invitation link from your email again.</h1><Home /></Frame>;
   const inviter = displayName(invite?.inviter);
   if (screen === 'invalid') return <Frame><h1 className="mb-2 text-lg font-semibold text-ink">This invitation is no longer valid.</h1><p className="mb-4 text-sm text-ink-2">The owner cancelled it, it expired, or a newer one was sent. Ask {invite ? inviter : 'the owner'} for a new invitation.</p><Home /></Frame>;

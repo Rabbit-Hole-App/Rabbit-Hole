@@ -67,7 +67,7 @@ test('r36: with listening paused, the mic says so, is disabled and cannot start 
 });
 
 test('VOICE-03: in every on state the mic is the red breathing one, with the state in a live label', () => {
-  for (const [state, label] of [['listening', 'Listening'], ['thinking', 'Thinking…'], ['speaking', 'Tutor speaking']]) {
+  for (const [state, label] of [['listening', 'Listening'], ['thinking', 'Thinking'], ['speaking', 'Tutor speaking']]) {
     const html = render(VoiceField, { voice: voiceIn(state) });
     const [mic, ...rest] = buttons(html);
     assert.match(mic, /aria-label="Voice mode on - turn off"/, state);
@@ -124,7 +124,7 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.ok(!failed.includes('Old reply.'));
   // Thinking replaces the last reply, the suggestion stays; nothing to say renders nothing.
   const thinking = render(TutorCaption, { caption: { current: 'Old reply.', previous: null, error: null }, state: 'thinking', extras: null });
-  assert.ok(thinking.includes('<span class="shimmer">Thinking…</span>'));
+  assert.ok(thinking.includes('<span class="shimmer">Thinking</span>'));
   assert.ok(!thinking.includes('Old reply.'));
   assert.ok(render(TutorCaption, { caption: { current: '', previous: null, error: null }, state: 'thinking', extras }).includes('Go down'));
   assert.equal(render(TutorCaption, { caption: { current: '', previous: null, error: null }, state: 'listening', extras: null }), '');

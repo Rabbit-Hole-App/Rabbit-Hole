@@ -125,9 +125,9 @@ await blank();
 await menubar.getByRole('menuitem', { name: /^Insert/ }).click();
 const rows = await page.locator('[role="menubar"] [class*="top-9"] button[role="menuitem"]').allInnerTexts();
 const at = label => rows.findIndex(text => text.trim() === label);
-ok('Insert lists Search YouTube, Search arXiv and Search Wikipedia, in that order', at('Search YouTube…') >= 0 && at('Search YouTube…') < at('Search arXiv…') && at('Search arXiv…') < at('Search Wikipedia…'), rows.map(text => text.trim()).join(' | '));
+ok('Insert lists Search YouTube, Search arXiv and Search Wikipedia, in that order', at('Search YouTube') >= 0 && at('Search YouTube') < at('Search arXiv') && at('Search arXiv') < at('Search Wikipedia'), rows.map(text => text.trim()).join(' | '));
 await page.screenshot({ path: `${OUT}/04-insert-menu.png` });
-await page.getByRole('menuitem', { name: 'Search Wikipedia…', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Search Wikipedia', exact: true }).click();
 await finder.waitFor({ timeout: 10000 });
 const quiet = searches.length;
 ok('Insert > Search Wikipedia opens the finder on Wikipedia, empty, searching nothing', await finder.getByLabel('Search in').inputValue() === 'wikipedia' && await finder.getByRole('textbox').inputValue() === '' && searches.length === quiet);
@@ -140,7 +140,7 @@ await addButton.click();
 await finder.waitFor({ state: 'detached' });
 await page.locator('[aria-label="Lesson canvas"]').getByText('Backpropagation computes gradients.').first().waitFor({ timeout: 10000 }).catch(() => {});
 ok('Add to canvas puts the article card on the canvas', await page.locator('[aria-label="Lesson canvas"]').getByText('Backpropagation computes gradients.').count() >= 1);
-for (const [label, source] of [['Search YouTube…', 'youtube'], ['Search arXiv…', 'arxiv']]) {
+for (const [label, source] of [['Search YouTube', 'youtube'], ['Search arXiv', 'arxiv']]) {
   await menubar.getByRole('menuitem', { name: /^Insert/ }).click();
   await page.getByRole('menuitem', { name: label, exact: true }).click();
   await finder.waitFor({ timeout: 10000 });
