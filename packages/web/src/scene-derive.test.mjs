@@ -191,3 +191,19 @@ test('a defined: false derivation is refused with its reason, not silently NaN',
     objects: [], timeline: [],
   }), /equal-length vectors/);
 });
+
+test('a whole number picked from a list of decimals prints at the list precision (owner follow-up: "Period T = 1 s")', () => {
+  const texts = (len, lists) => resolveDerived({
+    exampleData: { len, ...lists },
+    derived: { T: { op: 'pick', args: ['periods', 'len'] } },
+    objects: [{ id: 't', initialState: { text: 'T = {{T}} s, first {{periods.0}}' } }],
+    timeline: [],
+  }).objects[0].initialState.text;
+  assert.equal(texts(0, { periods: [1, 1.42, 2.01, 2.84, 4.01] }), 'T = 1.00 s, first 1.00');
+  assert.equal(texts(1, { periods: [1, 1.42, 2.01, 2.84, 4.01] }), 'T = 1.42 s, first 1.00');
+  // Unchanged: an all-integer list, a halving series, a list where whole numbers are the majority, a decimal itself.
+  assert.equal(texts(0, { periods: [60, 42, 30] }), 'T = 60 s, first 60');
+  assert.equal(texts(0, { periods: [80, 40, 20, 10, 5, 2.5, 1.25, 0.625] }), 'T = 80 s, first 80');
+  assert.equal(texts(0, { periods: [1, 2, 3, 0.5] }), 'T = 1 s, first 1');
+  assert.equal(texts(1, { periods: [1, 1.5, 2.5] }), 'T = 1.5 s, first 1.0');
+});
