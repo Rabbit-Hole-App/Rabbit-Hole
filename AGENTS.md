@@ -107,6 +107,11 @@ package (`small-deploy` + `small-skill`) are shared by every worktree and
 every agent session. Never deploy the control plane from one branch's view
 alone.
 
+Delete each worktree once its branch is merged to main (owner, 2026-10-21): confirm its head is an
+ancestor of `rabbit-hole/main`, keep any uncommitted work that matters, stop only the processes your
+task started, check that no other worktree's `node_modules` points into it, then `git worktree
+remove` it and delete its local stack data and dev clone.
+
 `small-cp-dev` uses the existing live control plane for app actions and real shared
 data. Its AWS preview has a separate connection-metadata database and scoped AWS
 installer credentials; job data stays in customer AWS. Sessions, Sources,
