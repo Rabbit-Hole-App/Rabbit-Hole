@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, BOARD } from './shared-canvas-fixture.js';
 import { sharedState } from '../src/shared-privacy.js';
+import { canvasCommentsRoute } from '../src/canvas-comments.js';
 
 const SECRET = 'CREATOR-PRIVATE';
 // The board as ana's browser saved it: the canvas's content plus her own learning state on the cards and beside them.
@@ -73,6 +74,13 @@ test('a share link and a publication answer only placed content, for every visit
       assert.deepEqual(body.access, { role: !as ? 'guest' : as === 'ben' && link === token ? 'commenter' : 'viewer', shareable: { context: false, files: false } }, `${who} on ${link === token ? 'the share' : 'the publication'}`);
     }
   }
+  // A member's own page (/c/<board id>) reads the same placed content only; the owner reading it there keeps everything.
+  const boardId = f.sqlite.prepare("SELECT id FROM learn_boards WHERE app = ? AND board = 'main'").get(canvas.name).id;
+  const memberRead = async who => (await canvasCommentsRoute(`/api/learn/c/${boardId}/board`, new Request(`https://app.test/api/learn/c/${boardId}/board`, { headers: { cookie: `small_session=${who}` } }), f.env)).text();
+  const asMember = await memberRead('ben');
+  assert.doesNotMatch(asMember, new RegExp(SECRET), 'a member');
+  for (const placed of PLACED) assert.ok(asMember.includes(placed), `member: placed content "${placed}" stays`);
+  assert.match(await memberRead('ana'), new RegExp(`${SECRET}-attempt`), 'the owner on the member route');
   // The owner's own page still has all of it: nothing was removed from storage, only from what a link answers.
   assert.match((await f.call('GET', `/api/learn/boards/${canvas.name}/main`, { as: 'ana' })).text, new RegExp(`${SECRET}-attempt`));
   assert.equal((await f.call('GET', `/api/learn/boards/${secretCanvas.name}/main`, { as: 'cara' })).status === 200, false, 'a private canvas stays closed');
