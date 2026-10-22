@@ -75,6 +75,27 @@ await check('1 a content card: Start Rabbit Hole and Copy text of the card itsel
   assert.match(await clipboard(), /The moon pulls the near ocean/);
 });
 
+await check('1b selected text in a card: Copy selected text copies the selection, not the card', async () => {
+  const body = page.locator('[data-block-id="t-exp"]').getByText('near ocean', { exact: false }).first();
+  // Select the words, then right-click on them (the selection's own rectangle), as a learner does.
+  const box = await body.evaluate(node => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let text = walker.nextNode();
+    while (text && !text.textContent.includes('near ocean')) text = walker.nextNode();
+    const at = text.textContent.indexOf('near ocean');
+    const range = document.createRange(); range.setStart(text, at); range.setEnd(text, at + 'near ocean'.length);
+    const picked = getSelection(); picked.removeAllRanges(); picked.addRange(range);
+    const rect = range.getBoundingClientRect();
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+  });
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
+  await menu().waitFor({ timeout: 8000 }).catch(async problem => { await shot('1b-no-menu'); throw problem; });
+  const rows = await rowsText();
+  assert.ok(rows.includes('Copy selected text') && rows.includes('Add selection to chat'), rows.join(', '));
+  await menu().locator('[data-menu-copy-selection]').click();
+  assert.equal(await clipboard(), 'near ocean');
+});
+
 await check('2 code: Copy code and Open in notebook for Python; JavaScript keeps the row disabled with its reason', async () => {
   await rightClickCard('t-py');
   assert.ok((await rowsText()).includes('Copy code'));
@@ -145,28 +166,6 @@ await check('7 the empty canvas: Add text, Add sticky note and Fit canvas; a not
   await menu().locator('[data-menu-add-sticky]').click();
   await page.waitForFunction(count => document.querySelectorAll('[data-item-id]').length === count + 1, before, { timeout: 5000 });
   await page.keyboard.press('Escape');
-  await page.mouse.click(5, 5);
-});
-
-await check('8 selected text in a card: Copy selected text copies the selection, not the card', async () => {
-  const body = page.locator('[data-block-id="t-exp"]').getByText('near ocean', { exact: false }).first();
-  // Select the words, then right-click on them (the selection's own rectangle), as a learner does.
-  const box = await body.evaluate(node => {
-    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
-    let text = walker.nextNode();
-    while (text && !text.textContent.includes('near ocean')) text = walker.nextNode();
-    const at = text.textContent.indexOf('near ocean');
-    const range = document.createRange(); range.setStart(text, at); range.setEnd(text, at + 'near ocean'.length);
-    const picked = getSelection(); picked.removeAllRanges(); picked.addRange(range);
-    const rect = range.getBoundingClientRect();
-    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-  });
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2, { button: 'right' });
-  await menu().waitFor();
-  const rows = await rowsText();
-  assert.ok(rows.includes('Copy selected text') && rows.includes('Add selection to chat'), rows.join(', '));
-  await menu().locator('[data-menu-copy-selection]').click();
-  assert.equal(await clipboard(), 'near ocean');
 });
 
 await check('no page errors; opening and dismissing menus made no model, job or execution call', async () => {
