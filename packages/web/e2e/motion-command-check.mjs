@@ -10,6 +10,8 @@
 //   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
 //      motion_request; the card shows its progress, then the ready video with the job's title (no meta line, owner message 31);
 //   5. MOCKED failure: the stubbed job fails; the card says why and offers Retry render; nothing else starts;
+//   5d. MOCKED Stop asks first (owner message 35): Cancel and Escape send nothing, keep it generating and return focus to Stop;
+//      the confirmation's Stop sends exactly one stop request and the card shows Stopped.;
 //   5c. MOCKED reload of an ended job (MOT-11): failed, stopped and interrupted cards whose hold is still pending keep their error
 //      after a reload and keep reading the list (GET only, no start) until the server settles the hold, then stop;
 //   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
@@ -70,7 +72,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 24; // per theme: 12 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 26; // per theme: 13 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -245,6 +247,9 @@ for (const theme of ['light', 'dark']) {
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
+    // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
+    if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
+    if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
     if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
     return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
@@ -342,6 +347,44 @@ for (const theme of ['light', 'dark']) {
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06b-reloaded-ready-card.png` });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED Stop asks first: Cancel and Escape send nothing and keep it generating; Stop sends one stop request`, async () => {
+    stub = { id: `p-stop-${theme}`, polls: 0, end: 'ready', held: true, settled: true };
+    await composer().fill(`/motion 12s explain stopping ${theme}`); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').click();
+    const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
+    await card.waitFor({ timeout: 10000 });
+    const mine = page.locator(`[data-block-id="${await card.getAttribute('data-block-id')}"]`);
+    const stopButton = mine.locator('[data-stop-video]'), confirm = mine.locator('[data-stop-confirm]');
+    await stopButton.waitFor({ timeout: 10000 });
+    const stops = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && r.body.includes('"action":"cancel"')).length;
+    const before = stops();
+    const focused = locator => locator.evaluate(node => node === document.activeElement);
+    // Stop, then Cancel.
+    await stopButton.click();
+    await confirm.waitFor();
+    assert.equal((await confirm.innerText()).includes("Stop this video? Credits already used won't be refunded."), true);
+    assert.equal(await focused(mine.locator('[data-stop-cancel]')), true, 'Cancel takes focus');
+    await shot('06d-stop-confirm');
+    await mine.locator('[data-stop-cancel]').click();
+    await confirm.waitFor({ state: 'detached' });
+    assert.equal(await focused(stopButton), true, 'focus returns to Stop after Cancel');
+    // From the keyboard: Enter opens it, Escape cancels.
+    await stopButton.press('Enter');
+    await confirm.waitFor();
+    await page.keyboard.press('Escape');
+    await confirm.waitFor({ state: 'detached' });
+    assert.equal(await focused(stopButton), true, 'focus returns to Stop after Escape');
+    assert.equal(stops() - before, 0, 'Cancel and Escape send no stop request');
+    assert.equal(await mine.getByText('Planning, reviewing and rendering').count(), 1, 'still generating');
+    // Stop, then Stop: one stop request, and the card says Stopped.
+    await stopButton.click();
+    await mine.locator('[data-stop-confirmed]').click();
+    await mine.getByText('Stopped.', { exact: true }).waitFor({ timeout: 10000 });
+    assert.equal(stops() - before, 1, 'exactly one stop request');
+    assert.equal(await mine.locator('[data-generate-video]').count(), 1, 'stopped: it can be generated again');
     await dismiss();
   });
 

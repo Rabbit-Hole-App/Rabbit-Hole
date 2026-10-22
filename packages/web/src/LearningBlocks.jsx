@@ -8,7 +8,7 @@ import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { loadAsset } from './learn-board-assets.js';
 import { colorLine } from './code.jsx';
-import { CodeBlock } from './ui.jsx';
+import { Button, CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
 import { describeGraphError, graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
@@ -1536,6 +1536,11 @@ function VideoBody({ block, appName, onChange, onFile }) {
       polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
   };
+  // Stop asks first (owner message 35): an inline confirmation, Cancel focused; Cancel or Escape sends nothing and returns focus
+  // to Stop; its Stop sends the stop request once.
+  const [askStop, setAskStop] = useState(false);
+  const stopButton = useRef(null);
+  const keepGoing = () => { setAskStop(false); stopButton.current?.focus(); };
   // Stop: only an operation whose provider can stop (label.stoppable, a /motion request).
   const stop = async () => {
     clearTimeout(polling.current);
@@ -1596,7 +1601,15 @@ function VideoBody({ block, appName, onChange, onFile }) {
             {pending
               ? <>
                   <Progress seconds={elapsed} expected={label.expected} label={label.progress} />
-                  {label.stoppable && placement && <button type="button" data-stop-video onClick={stop} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
+                  {label.stoppable && placement && <button ref={stopButton} type="button" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
+                  {label.stoppable && placement && askStop && (
+                    <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"
+                      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keepGoing(); } }}>
+                      <span>Stop this video? Credits already used won't be refunded.</span>
+                      <Button type="button" variant="secondary" size="sm" data-stop-cancel autoFocus onClick={keepGoing}>Cancel</Button>
+                      <Button type="button" variant="inverse" size="sm" data-stop-confirmed onClick={() => { setAskStop(false); stop(); }}>Stop</Button>
+                    </div>
+                  )}
                 </>
               : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(offer) : undefined} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
               : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
