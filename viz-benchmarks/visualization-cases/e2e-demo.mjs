@@ -49,7 +49,9 @@ if (compiled) {
   const states = [];
   for (const input of scene.inputs || []) {
     const values = input.type === 'bool' ? [true, false] : input.type === 'index' ? [...Array((scene.exampleData?.[input.of] || []).length).keys()] : input.values || [input.min, input.max].filter(v => v !== undefined);
-    for (const value of values.slice(0, 6)) states.push({ id: `input-${input.name}-${value}`, inputs: { [input.name]: value }, theme: 'light' });
+    // A pager (multi-part card) is rendered part by part in both themes; other inputs in light.
+    const themes = input.presentation === 'pager' ? ['light', 'dark'] : ['light'];
+    for (const value of values.slice(0, 6)) for (const theme of themes) states.push({ id: `input-${input.name}-${value}-${theme}`, inputs: { [input.name]: value }, theme });
   }
   for (const time of [0, scene.duration / 2]) if (scene.duration) states.push({ id: `time-${time}`, time, theme: 'light' });
   if (states.length) {
