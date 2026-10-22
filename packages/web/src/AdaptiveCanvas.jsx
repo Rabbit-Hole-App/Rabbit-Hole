@@ -56,6 +56,7 @@ import { canvasObjects } from './dive.js';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
+import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { looksLikeCode, pasteKind } from './canvas-paste.js';
@@ -1685,7 +1686,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A view-only board keeps a selection (the card a Rabbit Hole starts from) but no card chrome for it: no pills,
   // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
   const isSelected = id => !readOnly && selection.includes(id);
-  const setSelected = value => setSelection(value == null ? [] : [value]);
+  // Selection moving anywhere (a blank click, another object, Esc) releases every scene highlight it leaves behind
+  // (EXP-T27): one owner, through the quiet path, so deselecting takes no undo step.
+  const releaseHighlights = keep => setBlocks(previous => releaseSceneHighlights(previous, keep));
+  const setSelected = value => { setSelection(value == null ? [] : [value]); releaseHighlights(value == null ? [] : [value]); };
   const pickTool = value => { setTool(value); if (DRAWING_TOOLS.has(value)) setSelection([]); };
   // Selecting on the canvas takes the keyboard away from the composer so
   // Delete acts on the selection; editable notes keep their own focus.
@@ -1709,6 +1713,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // Read at once by a drag that starts on this same press (groupTargets), before the re-render.
     selectedRef.current = next;
     setSelection(next);
+    releaseHighlights(next);
   };
   const selectRef = useRef(select);
   selectRef.current = select;
@@ -4547,16 +4552,21 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const box = measureNow()[id]; if (!box) return;
     snapshot(); setBlocks(previous => previous.map(value => value.id === id ? switchCardLayout(value, mode, box) : value));
   };
+  // A card that takes a scene highlight takes it from every other card (EXP-T27: one owner).
+  const putBlock = (previous, updated) => {
+    const next = previous.map(block => block.id === updated.id ? updated : block);
+    return holdsSceneHighlight(updated) ? releaseSceneHighlights(next, [updated.id]) : next;
+  };
   const changeBlock = updated => {
     snapshot();
-    setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+    setBlocks(previous => putBlock(previous, updated));
     // A paper card's page is what the tutor is told, the way a wiki card's
     // section is.
     if (updated.type === 'paper' && updated.paper?.id) onPaperRef.current?.({ id: updated.id, paperId: updated.paper.id, page: updated.paper.page || 1, title: updated.title });
   };
   // A continuous gesture must not snapshot: one scrub drag would evict the whole
   // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
-  const changeBlockQuietly = updated => setBlocks(previous => previous.map(block => block.id === updated.id ? updated : block));
+  const changeBlockQuietly = updated => setBlocks(previous => putBlock(previous, updated));
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.

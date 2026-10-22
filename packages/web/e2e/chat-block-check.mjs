@@ -672,6 +672,30 @@ await check('a scrubbed moment is what a question refers to', async () => {
   await node.locator('[data-animation-clear]').click();
 });
 
+// EXP-T27: Esc typed in the composer is the composer's and keeps the picked object; Esc that nothing else claims, a
+// blank click in the diagram and a blank click on the canvas each let it go.
+await check('Esc in the composer keeps a picked object; Esc and blank clicks clear it', async () => {
+  const node = canvas.locator('[data-block-id]').last();
+  const line = node.locator('[data-animation-selection]');
+  const pick = async () => { await node.locator('[data-animation-object="tokens"]').click(); await line.waitFor({ timeout: 3000 }); };
+  const cleared = async how => { for (let i = 0; i < 15 && await line.count(); i++) await page.waitForTimeout(100); if (await line.count()) throw new Error(`${how} did not clear the picked object`); };
+  await pick();
+  await dock.focus();
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  if (!(await line.count())) throw new Error('Esc in the composer cleared the picked object');
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Escape');
+  await cleared('Esc');
+  await pick();
+  await node.locator('[data-animation-frame] svg').first().click({ position: { x: 3, y: 3 } });
+  await cleared('a blank click in the diagram');
+  await pick();
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + 260, box.y + box.height - 30);
+  await cleared('a blank click on the canvas');
+});
+
 // the abstraction test: a second subject through the same engine, built from
 // JSON in the page rather than a menu entry
 await check('the numbers change and a winner emerges', async () => {

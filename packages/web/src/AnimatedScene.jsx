@@ -23,6 +23,7 @@ import { COALESCE_WINDOW, coalesce, crossed, play as playSound } from './scene-s
 import { COLUMN_LABEL_GAP, ROW_LABEL_GAP, centreOf, estimateTextBox, labelAt, requiredLeftMargin, sceneContentBounds, sceneViewBox } from './scene-layout.js';
 import { GEOMETRY } from './scene-vocab.js';
 import { cellInk, heatStyle, identityVar, inkOver, roleVar, selectionStyle, shapeStyle, textObjectInk, textStyle } from './scene-style.js';
+import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 
 // Live playback of an animation spec. The evaluator owns what the frame looks
 // like at time t; this only draws it and owns the transport. Learner ink is a
@@ -476,7 +477,8 @@ function Frame({ scene, state, selecting, marked, onRegion, onPick, picked, pop,
         if (area.w < 0.02 || area.h < 0.02) return;
         onRegion(area, find(area));
       }}>
-      <svg viewBox={view} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}>
+      <svg viewBox={view} className="h-full w-full" style={{ background: 'var(--viz-surface)' }}
+        onClick={event => { if (event.target === event.currentTarget && !selecting && (picked || marked)) onPick(null); }}>
         {state.connections.map(connection => {
           const from = state.objects.find(object => object.id === connection.from);
           const to = state.objects.find(object => object.id === connection.to);
@@ -640,9 +642,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const pending = useRef([]); // sound events crossed but not yet resolved to a winner - see the flush below
   const latest = useRef(block);
   latest.current = block;
-  const clearMark = () => { setSelecting(false); onChange({ ...block, marked: null, selectedObject: null }); };
+  // Deselecting is a view change (EXP-T27): the quiet path, no undo step, and the latest block so a stale closure
+  // never rolls back time or inputs. Esc that a focused field, editor, the composer or a dialog claims is theirs.
+  const clearMark = () => { setSelecting(false); (onChangeQuiet || onChange)(withoutSceneHighlight(latest.current)); };
   useEffect(() => {
-    const key = event => { if (event.key === 'Escape' && (block.marked || block.selectedObject || selecting)) clearMark(); };
+    const key = event => { if (event.key === 'Escape' && (block.marked || block.selectedObject || selecting) && !escapeYields(event)) clearMark(); };
     window.addEventListener('keydown', key);
     return () => window.removeEventListener('keydown', key);
   }, [block.marked, block.selectedObject, selecting]);
@@ -767,7 +771,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
       <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-line bg-white">
         <Frame scene={scene} state={state} selecting={selecting} marked={block.marked} picked={block.selectedObject} pop={pop}
           onInputPick={interactive ? setInput : null} lockedInputs={lockedInputs}
-          onPick={semanticId => onChange({ ...block, selectedObject: semanticId })}
+          onPick={semanticId => (semanticId ? (onChangeQuiet || onChange)({ ...latest.current, selectedObject: semanticId }) : clearMark())}
           onRegion={(area, targets) => {
             setSelecting(false);
             const next = { ...block, marked: area, time: Number(time.toFixed(2)), selectedObject: targets[0] || block.selectedObject || null };
