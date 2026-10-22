@@ -1,15 +1,13 @@
-// /explain v2 authoring, deterministic validation and independent review (EXP-T17). Stages of the ExplainJobs pipeline
-// (explain-job.js): author (explain_author writes a VisualSpec from Lane A's registry), validate (trusted compile plus the
-// existing scene gates, evidence and example checks, and capability gaps), review (explain_review on the request, evidence,
-// spec, compiled card and the rendered capture images). Every model call goes through ctx.call: the job's admitted, fenced,
+// /explain v2 authoring and deterministic validation (EXP-T17). Stages of the ExplainJobs pipeline (explain-job.js): author
+// (explain_author writes a VisualSpec from Lane A's registry) and validate (trusted compile plus the existing scene gates,
+// evidence and example checks, and capability gaps). The independent image review is Lane D's explain-review.js. Every model call goes through ctx.call: the job's admitted, fenced,
 // counted role call.
 import { catalogue } from '../../web/src/visual-components/registry.js';
 import { compileVisual } from '../../web/src/visual-components/compile.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
-import { validateReviewFinding } from '../../web/src/explain-contract.js';
-import { cardAtSettings, sceneProblem } from './learn-scene-gates.js';
-import { authorTool, EXPLAIN_AUTHOR_SYSTEM, EXPLAIN_REVIEW_SYSTEM, GAP_NEEDS, REVIEW_TOOL } from './agents/explain-author.js';
-import { EXPLAIN_ROLES, ExplainPolicyError, callExplainRole } from './explain-policy.js';
+import { sceneProblem } from './learn-scene-gates.js';
+import { authorTool, EXPLAIN_AUTHOR_SYSTEM, GAP_NEEDS } from './agents/explain-author.js';
+import { ExplainPolicyError, callExplainRole } from './explain-policy.js';
 
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
@@ -134,31 +132,5 @@ export function validateStage(job) {
   return problems.length ? { problems, category: 'spec', repairable: true } : { compiled };
 }
 
-const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
-async function captureImage(env, capture) {
-  if (typeof capture.data === 'string') return capture.data;
-  const object = capture.key && await env.LEARN_MEDIA?.get(capture.key);
-  if (!object) throw Object.assign(new Error('A rendered image of the explanation is missing, so it cannot be reviewed.'), { status: 503, category: 'renderer' });
-  return base64(new Uint8Array(await object.arrayBuffer()));
-}
-
-// The independent review: one request with the actual rendered images (a text-only call is not an image review) and a
-// verdict for every capture shown. Accepted only with no blocker or major finding and every capture passing.
-export async function reviewStage(job, ctx) {
-  const captures = job.captures || [];
-  if (!captures.length) throw Object.assign(new Error('The explanation has no rendered image to review.'), { status: 503, category: 'renderer' });
-  if (captures.length > EXPLAIN_ROLES.review.maxImages) throw Object.assign(new Error('The explanation has more states than one review can check.'), { status: 413, category: 'budget' });
-  const images = await Promise.all(captures.map(capture => captureImage(ctx.env, capture)));
-  const content = [{ type: 'text', text: JSON.stringify({ request: job.prompt, brief: job.brief ?? null, evidence: (job.evidence || []).map(({ id, location, excerpt }) => ({ id, location, excerpt })),
-    spec: job.spec, card: cardAtSettings(job.compiled.scene), captures: captures.map(capture => ({ id: capture.id, state: capture.state ?? null })) }) }];
-  captures.forEach((capture, i) => content.push({ type: 'text', text: `capture ${capture.id}` }, { type: 'image', source: { type: 'base64', media_type: capture.mediaType || 'image/png', data: images[i] } }));
-  const { input } = await ctx.call('review', { system: EXPLAIN_REVIEW_SYSTEM, tool: REVIEW_TOOL, content });
-  const verdicts = new Map((input.captures || []).map(entry => [entry?.id, entry?.ok]));
-  if (!['accept', 'revise'].includes(input.verdict) || !Array.isArray(input.findings) || captures.some(capture => typeof verdicts.get(capture.id) !== 'boolean')) throw new ExplainPolicyError('invalid_turn', 'The review did not give a verdict for every rendered image.');
-  const findings = input.findings.map((f, i) => validateReviewFinding({ version: 1, id: `f${job.round}-${i}`, category: f.category, severity: f.severity,
-    target: { ...(f.component ? { component: f.component } : {}), ...(f.capture ? { state: f.capture } : {}) }, specRepairable: f.specRepairable === true, message: String(f.message || '').slice(0, 600) || 'No detail.' }));
-  const serious = findings.filter(f => f.severity !== 'minor');
-  const accepted = input.verdict === 'accept' && !serious.length && captures.every(capture => verdicts.get(capture.id) === true);
-  // Only spec and source findings can be repaired by changing the spec; a component or renderer defect never can.
-  return { accepted, findings, repairable: serious.every(f => f.specRepairable && ['spec', 'source'].includes(f.category)), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
-}
+// The facts a spec states, as the reviewer reads them beside the images: every text value it carries.
+export const specFacts = spec => [...new Set(strings({ title: spec?.title, components: (spec?.components || []).map(item => ({ params: item.params, label: item.label })), connections: (spec?.connections || []).map(link => link.label) }).map(text => text.trim()).filter(Boolean))];

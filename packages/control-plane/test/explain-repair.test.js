@@ -15,9 +15,13 @@ const SPEC = { version: 1, id: 'rain', title: 'Where rain comes from', component
   { id: 'cloud', component: 'module', version: 1, parent: 'row', params: { label: 'Vapour cools into clouds' } },
 ], connections: [{ from: 'sea.right', to: 'cloud.left' }], presentation: { mode: 'static' } };
 const [ROW, SEA, CLOUD] = SPEC.components;
-const accept = { verdict: 'accept', findings: [], captures: [{ id: 'light', ok: true }] };
-const revise = (finding, ok = false) => ({ verdict: 'revise', captures: [{ id: 'light', ok }], findings: [{ severity: 'major', specRepairable: true, capture: 'light', component: 'sea', ...finding }] });
+// Lane D's review tool (explain-review.js report_review): a semantic and a visual verdict per capture, with findings.
+const accept = { captures: [{ id: 'light', semantic: 'pass', visual: 'pass', findings: [] }] };
+const revise = ({ specRepairable = true, ...finding }) => ({ captures: [{ id: 'light', semantic: finding.category === 'source' ? 'fail' : 'pass', visual: finding.category === 'source' ? 'pass' : 'fail',
+  findings: [{ verdict: finding.category === 'source' ? 'semantic' : 'visual', severity: 'major', object: 'sea.box', repairable: specRepairable, ...finding }] }] });
 const overlap = revise({ category: 'spec', message: 'The two boxes touch.' });
+// The same findings as the job stores them (parseReview's ReviewFinding shape).
+const stored = reply => reply.captures[0].findings.map(f => ({ category: f.category, severity: f.severity, specRepairable: f.repairable, target: { capture: 'light', object: f.object } }));
 
 function scripted(t, queues) {
   const calls = [], original = globalThis.fetch;
@@ -40,10 +44,10 @@ async function runJob(t, queues, extra = {}) {
 
 test('which repairs a failure allows: trusted-check failures a spec, wrong claims a spec or hints, rendered layout hints only', () => {
   assert.deepEqual(allowedRepairs({ problems: ['unknown parameter'] }), ['spec']);
-  assert.deepEqual(allowedRepairs({ findings: overlap.findings }), ['hints']);
-  assert.deepEqual(allowedRepairs({ findings: revise({ category: 'source', message: 'Wrong.' }).findings }), ['hints', 'spec']);
-  for (const category of ['component', 'renderer', 'budget']) assert.deepEqual(allowedRepairs({ findings: revise({ category, message: 'x' }).findings }), []);
-  assert.deepEqual(allowedRepairs({ findings: revise({ category: 'spec', message: 'x', specRepairable: false }).findings }), []);
+  assert.deepEqual(allowedRepairs({ findings: stored(overlap) }), ['hints']);
+  assert.deepEqual(allowedRepairs({ findings: stored(revise({ category: 'source', message: 'Wrong.' })) }), ['hints', 'spec']);
+  for (const category of ['component', 'renderer', 'budget']) assert.deepEqual(allowedRepairs({ findings: stored(revise({ category, message: 'x' })) }), []);
+  assert.deepEqual(allowedRepairs({ findings: stored(revise({ category: 'spec', message: 'x', specRepairable: false })) }), []);
   assert.deepEqual(Object.keys(repairableHints(SPEC)), ['row', 'sea', 'cloud'].filter(id => repairableHints(SPEC)[id]));
   assert.ok(repairableHints(SPEC).sea);
   assert.deepEqual(repairableHints(SPEC).sea.hints.width, { type: 'number', unit: 'px', min: 120, max: 480, default: 176 });
@@ -52,7 +56,7 @@ test('which repairs a failure allows: trusted-check failures a spec, wrong claim
 test('an allowed collision fix: a repairable hint within range, rechecked and reviewed again, then accepted', async t => {
   const { done, model } = await runJob(t, {
     author_explanation: [{ kind: 'spec', spec: SPEC }],
-    review_explanation: [overlap, accept],
+    report_review: [overlap, accept],
     repair_explanation: [{ operation: 'hints', patches: [{ component: 'sea', hint: 'width', value: 240 }], reason: 'Wider box.' }],
   });
   assert.deepEqual([done.stage, done.round], ['ready', 1]);
@@ -63,18 +67,18 @@ test('an allowed collision fix: a repairable hint within range, rechecked and re
   const repair = model.calls.find(c => c.name === 'repair_explanation').body.messages[0].content;
   assert.equal(repair.filter(block => block.type === 'image').length, 1);
   assert.deepEqual(JSON.parse(repair[0].text).allowed, ['hints']);
-  assert.deepEqual([model.count('author_explanation'), model.count('review_explanation'), model.count('repair_explanation')], [1, 2, 1]);
+  assert.deepEqual([model.count('author_explanation'), model.count('report_review'), model.count('repair_explanation')], [1, 2, 1]);
 });
 
 test('a hint patch that changes meaning, names a non-repairable field or goes out of range is refused, and the job stops', async t => {
   for (const patch of [{ component: 'sea', hint: 'label', value: 'Rain' }, { component: 'sea', hint: 'width', value: 9000 }, { component: 'ghost', hint: 'width', value: 200 }]) {
-    const { done, model } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], review_explanation: [overlap], repair_explanation: [{ operation: 'hints', patches: [patch] }] });
+    const { done, model } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [overlap], repair_explanation: [{ operation: 'hints', patches: [patch] }] });
     assert.deepEqual([done.stage, done.stopReason], ['failed', 'unsupported_repair'], JSON.stringify(patch));
     assert.match(done.candidates[0].rejected, /refused/);
-    assert.equal(model.count('review_explanation'), 1, 'no second review is paid for');
+    assert.equal(model.count('report_review'), 1, 'no second review is paid for');
   }
   // A whole new spec for a layout finding is not allowed either.
-  const { done } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], review_explanation: [overlap], repair_explanation: [{ operation: 'spec', spec: { ...SPEC, title: 'Other' } }] });
+  const { done } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [overlap], repair_explanation: [{ operation: 'spec', spec: { ...SPEC, title: 'Other' } }] });
   assert.deepEqual([done.stopReason, done.candidates[0].rejected], ['unsupported_repair', 'A spec repair is not allowed for this failure.']);
 });
 
@@ -82,37 +86,37 @@ test('a wrong claim is corrected by an explicit spec change that goes back throu
   const fixed = { ...SPEC, components: [ROW, SEA, { ...CLOUD, params: { label: 'Vapour rises and cools into clouds' } }] };
   const { done } = await runJob(t, {
     author_explanation: [{ kind: 'spec', spec: SPEC }],
-    review_explanation: [revise({ category: 'source', component: 'cloud', message: 'Vapour must rise before it cools.' }), accept],
+    report_review: [revise({ category: 'source', object: 'cloud.box', message: 'Vapour must rise before it cools.' }), accept],
     repair_explanation: [{ operation: 'spec', spec: fixed }],
   });
   assert.deepEqual([done.stage, done.spec.components[2].params.label], ['ready', 'Vapour rises and cools into clouds']);
   // A spec that fails trusted checks (an unknown parameter) is repaired the same way, before any render or review.
   const broken = { ...SPEC, components: [ROW, { ...SEA, params: { label: 'Sun warms the sea', colour: 'red' } }, CLOUD] };
-  const again = await runJob(t, { author_explanation: [{ kind: 'spec', spec: broken }], review_explanation: [accept], repair_explanation: [{ operation: 'spec', spec: SPEC }] });
-  assert.deepEqual([again.done.stage, again.done.round, again.model.count('review_explanation')], ['ready', 1, 1]);
+  const again = await runJob(t, { author_explanation: [{ kind: 'spec', spec: broken }], report_review: [accept], repair_explanation: [{ operation: 'spec', spec: SPEC }] });
+  assert.deepEqual([again.done.stage, again.done.round, again.model.count('report_review')], ['ready', 1, 1]);
   assert.match(again.done.findings[0].problems[0], /unknown parameter "colour"/);
 });
 
 test('no change is no progress: the job stops instead of paying for the same candidate again', async t => {
-  const { done, model } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], review_explanation: [overlap], repair_explanation: [{ operation: 'hints', patches: [{ component: 'sea', hint: 'width', value: 176 }] }] });
-  assert.deepEqual([done.stopReason, model.count('review_explanation')], ['no_progress', 1]);
+  const { done, model } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [overlap], repair_explanation: [{ operation: 'hints', patches: [{ component: 'sea', hint: 'width', value: 176 }] }] });
+  assert.deepEqual([done.stopReason, model.count('report_review')], ['no_progress', 1]);
 });
 
 test('three failed corrections stop the job; calls never exceed the shared ceiling and Retry does not reset it', async t => {
   const { s, id, done, model } = await runJob(t, {
     author_explanation: [{ kind: 'spec', spec: SPEC }],
-    review_explanation: [overlap, overlap, overlap, overlap],
+    report_review: [overlap, overlap, overlap, overlap],
     repair_explanation: [200, 240, 280].map(value => ({ operation: 'hints', patches: [{ component: 'sea', hint: 'width', value }] })),
   });
   assert.deepEqual([done.stage, done.stopReason, done.round], ['failed', 'rounds', 3]);
-  assert.deepEqual([model.count('author_explanation'), model.count('review_explanation'), model.count('repair_explanation')], [1, 4, 3]);
+  assert.deepEqual([model.count('author_explanation'), model.count('report_review'), model.count('repair_explanation')], [1, 4, 3]);
   assert.deepEqual((await s.job(id)).job.recovery, ['edit_request']);
   assert.equal((await s.send('retry', { expectedAttempt: 1 }, id)).status, 409);
 });
 
 test('a component defect is not repaired: the job stops and the defect is recorded once per key, without the card text', async t => {
-  const defect = revise({ category: 'component', component: 'sea', message: 'The module box draws its border outside its label.', specRepairable: false });
-  const first = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], review_explanation: [defect] });
+  const defect = revise({ category: 'component', message: 'The module box draws its border outside its label.', specRepairable: false });
+  const first = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [defect] });
   assert.deepEqual([first.done.stopReason, first.model.count('repair_explanation')], ['unsupported_repair', 0]);
   const entries = [...first.s.state.data].filter(([key]) => key.startsWith('defect:'));
   assert.equal(entries.length, 1);
@@ -121,7 +125,7 @@ test('a component defect is not repaired: the job stops and the defect is record
   assert.equal(JSON.stringify(entry).includes('border'), false);
   // The same defect on the next job of this canvas counts, not duplicates.
   first.model.calls.length = 0;
-  scripted(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], review_explanation: [defect] });
+  scripted(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [defect] });
   const next = (await first.s.create({ requestId: 'req-00000002', cardId: 'card-0002', prompt: 'Explain where rain comes from.' })).body.job;
   await first.s.run(next.id);
   const counted = [...first.s.state.data].filter(([key]) => key.startsWith('defect:'));

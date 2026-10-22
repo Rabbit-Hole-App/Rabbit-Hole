@@ -246,8 +246,8 @@ test('a Generate refused for allowance consumes nothing and keeps the proposal c
   assert.deepEqual(s.model.calls.map(c => c.role), ['brief']);
 });
 
-// The production pipeline: T17's author and validate stages are real; rendering (T18) is not wired, so the job stops there
-// with its compiled result kept (Retry re-renders it). The provider answers the author with a valid spec, then with a gap.
+// The production pipeline: T17's author and validate stages are real; rendering (T18) needs a browser this test worker
+// does not have, so the job stops there with its compiled result kept (Retry re-renders it). The provider answers the author with a valid spec, then with a gap.
 const SPEC = { version: 1, id: 'water', title: 'Where rain comes from', components: [
   { id: 'cycle', component: 'flow', version: 1, params: { steps: ['Sun warms the sea', 'Vapour rises and cools', 'Droplets form clouds', 'Rain falls'] } },
 ], presentation: { mode: 'static' } };
@@ -261,12 +261,14 @@ function authorReplies(t, replies) {
   };
   return calls;
 }
-test('the production pipeline authors and compiles a real spec, then stops at the unwired renderer keeping it', async t => {
+test('the production pipeline authors and compiles a real spec; with no browser bound it stops at rendering and keeps it', async t => {
   const s = setup(t, { pipeline: explainPipeline });
   const calls = authorReplies(t, [{ kind: 'spec', spec: SPEC }]);
   const { body } = await s.create({ prompt: 'Explain where rain comes from.' });
   const done = await s.run(body.job.id);
-  assert.deepEqual([done.stage, done.failure.stage, done.failure.message], ['failed', 'rendering', 'Explanation generation is not available yet.']);
+  // No ASSETS or BROWSER on this test worker: Lane D's renderStates refuses before any browser, and the job says so.
+  assert.deepEqual([done.stage, done.failure.stage, done.failure.category], ['failed', 'rendering', 'renderer']);
+  assert.match(done.failure.message, /could not be rendered \(render_unavailable\)/);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].model, 'claude-opus-5-5');
   assert.equal(done.compiled.counts.authored, 1);

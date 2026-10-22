@@ -1,7 +1,6 @@
-// /explain v2 author and reviewer prompts and tools (EXP-T17; plan v2.1 sections 3.2, 3.3 and 3.5). The author writes a
-// VisualSpec from the registered components only, or says what is missing as a structured capability gap. The reviewer is a
-// separate call with its own context: it never sees the author's reasoning, only the request, the evidence, the spec, the
-// compiled card and the rendered images.
+// /explain v2 author prompt and tool (EXP-T17; plan v2.1 sections 3.2, 3.3). The author writes a VisualSpec from the
+// registered components only, or says what is missing as a structured capability gap. The independent image review is Lane
+// D's (explain-review.js), a separate call that never sees the author's reasoning.
 
 export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'component', 'evidence', 'other']);
 
@@ -74,37 +73,3 @@ Rules:
 - If the request needs something supported marks false (typeset math, named steps, experiments), a component the catalogue lacks, or a specific source that was not provided (only for a source-dependent, current or versioned claim), call the tool with kind capability_gap and say what is needed. Never draw a simpler substitute that hides the missing part.
 - Stay within limits.
 Call author_explanation exactly once.`;
-
-export const REVIEW_TOOL = Object.freeze({
-  name: 'review_explanation',
-  description: 'The verdict on one explanation card: accept, or revise with findings.',
-  input_schema: {
-    type: 'object', additionalProperties: false, required: ['verdict', 'findings', 'captures'],
-    properties: {
-      verdict: { type: 'string', enum: ['accept', 'revise'] },
-      captures: { type: 'array', description: 'One verdict per capture id you were shown.', items: { type: 'object', additionalProperties: false, required: ['id', 'ok'], properties: { id: { type: 'string' }, ok: { type: 'boolean' } } } },
-      findings: {
-        type: 'array', maxItems: 12,
-        items: {
-          type: 'object', additionalProperties: false, required: ['category', 'severity', 'message', 'specRepairable'],
-          properties: {
-            category: { type: 'string', enum: ['source', 'spec', 'component', 'renderer', 'budget'] },
-            severity: { type: 'string', enum: ['blocker', 'major', 'minor'] },
-            component: { type: 'string', description: 'The component id it concerns, when one.' },
-            capture: { type: 'string', description: 'The capture id it was seen in, when one.' },
-            message: { type: 'string' },
-            specRepairable: { type: 'boolean', description: 'true when changing the spec (its layout hints or wording) can fix it; false for a source, component or renderer defect.' },
-          },
-        },
-      },
-    },
-  },
-});
-
-export const EXPLAIN_REVIEW_SYSTEM = `You independently review one explanation card before a learner sees it. You did not write it.
-
-Input: request (the learner's words), brief, evidence (records with excerpts), spec (the authored component JSON), card (the compiled card's text at each setting), and images: the rendered card, one per capture id.
-
-Check: the card answers the request; every factual statement is correct, and one that depends on a specific source, current or versioned fact is supported by the brief, context or evidence; nothing is invented; labels and formulas read correctly in the images; nothing overlaps, is cut off or is too small to read; the card shows one idea clearly.
-Give each capture you were shown a verdict. Accept only when there is no blocker or major finding. Categories: source (a claim the evidence does not support), spec (content or layout the spec can fix), component (a component draws wrongly), renderer (the image is wrong though the spec is right), budget (too much for one card).
-Call ${REVIEW_TOOL.name} exactly once.`;

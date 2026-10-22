@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { anthropic } from '../src/ask.js';
 import { catalogue } from '../../web/src/visual-components/registry.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
-import { SPEC_LIMITS, authorExplanation, capabilityGaps, compilerSupport, reviewStage, selectExamples, validateStage } from '../src/explain-author.js';
+import { SPEC_LIMITS, authorExplanation, capabilityGaps, compilerSupport, selectExamples, specFacts, validateStage } from '../src/explain-author.js';
 
 const env = { SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'test-key' };
 const SPEC = { version: 1, id: 'water', title: 'Where rain comes from', components: [
@@ -114,23 +114,6 @@ test('evidence bindings come only from the records provided; examples add no fac
   assert.equal((await author(`Explain this: ${law}`, { examples: ['pendulum-law'] })).kind, 'spec');
 });
 
-test('the independent review sees the rendered images and must judge every one', async t => {
-  const checked = validateStage({ spec: SPEC, prompt: 'Explain rain.' });
-  const job = { round: 0, prompt: 'Explain rain.', spec: SPEC, compiled: checked.compiled, captures: [{ id: 'light', data: 'iVBORw0KGgo=' }, { id: 'dark', data: 'iVBORw0KGgo=' }] };
-  const ctx = { env, call: (role, request) => import('../src/explain-policy.js').then(m => m.callExplainRole(env, role, request, { callModel: anthropic })) };
-  const calls = provider(t, [{ verdict: 'accept', findings: [], captures: [{ id: 'light', ok: true }, { id: 'dark', ok: true }] }]);
-  const accepted = await reviewStage(job, ctx);
-  assert.deepEqual([accepted.accepted, accepted.imagesReviewed], [true, 2]);
-  const content = calls[0].messages[0].content;
-  assert.deepEqual(content.filter(block => block.type === 'image').length, 2);
-  assert.equal(calls[0].tools[0].name, 'review_explanation');
-  // A major finding the spec cannot fix: not accepted, not repairable.
-  provider(t, [{ verdict: 'revise', captures: [{ id: 'light', ok: false }, { id: 'dark', ok: true }], findings: [{ category: 'source', severity: 'major', message: 'The excerpt does not say this.', specRepairable: false }] }]);
-  const rejected = await reviewStage(job, ctx);
-  assert.deepEqual([rejected.accepted, rejected.repairable, rejected.category, rejected.findings[0].category], [false, false, 'source', 'source']);
-  // A verdict missing for one image is an invalid review, not an acceptance.
-  provider(t, [{ verdict: 'accept', findings: [], captures: [{ id: 'light', ok: true }] }]);
-  await assert.rejects(reviewStage(job, ctx), { code: 'invalid_turn' });
-  // No rendered image: no review at all (a text-only call is not an image review).
-  await assert.rejects(reviewStage({ ...job, captures: [] }, ctx), /no rendered image/);
+test('the facts the reviewer reads are the text the spec carries', () => {
+  assert.deepEqual(specFacts(SPEC), ['Where rain comes from', 'Sun warms the sea', 'Vapour rises and cools', 'Droplets form clouds', 'Rain falls']);
 });

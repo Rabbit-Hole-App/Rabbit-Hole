@@ -40,7 +40,7 @@ export async function repairStage(job, ctx) {
   const allowed = allowedRepairs(failure);
   if (!allowed.length) return { progress: false, rejected: 'This failure cannot be repaired by changing the spec.' };
   // Image-reference repairs: the captures the findings name, at most the role's image limit.
-  const named = new Set((failure.findings || []).map(f => f.target?.state).filter(Boolean));
+  const named = new Set((failure.findings || []).map(f => f.target?.capture ?? f.target?.state).filter(Boolean));
   const images = (job.captures || []).filter(capture => named.has(capture.id) && typeof capture.data === 'string').slice(0, EXPLAIN_ROLES.repair.maxImages);
   const content = [{ type: 'text', text: JSON.stringify({ request: job.prompt, spec: job.spec, problems: failure.problems || [], findings: (failure.findings || []).map(({ category, severity, target, message }) => ({ category, severity, target, message })),
     repairable: repairableHints(job.spec), allowed, roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round }) },
@@ -71,7 +71,7 @@ export async function defectKeys(spec, findings) {
   const keys = [];
   for (const f of findings || []) {
     if (!['component', 'renderer'].includes(f.category)) continue;
-    const component = versions[f.target?.component] || 'unknown';
+    const component = versions[f.target?.component] || versions[String(f.target?.object || '').split('.')[0]] || 'unknown';
     keys.push({ key: `${f.category}:${component}:${(await sha256Hex(`${f.category}|${component}|${f.message}`)).slice(0, 16)}`, category: f.category, component });
   }
   return keys;

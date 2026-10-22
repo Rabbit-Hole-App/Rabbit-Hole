@@ -22,7 +22,10 @@ import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, fin
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, verifyProposal } from './generation-proposal.js';
-import { authorStage, reviewStage, selectExamples, validateStage } from './explain-author.js';
+import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
+import { compiledHash, renderStates, reserveCaptures } from './explain-render.js';
+import { reviewCaptures } from './explain-review.js';
+import { learnMedia } from './learn-storage.js';
 import { defectKeys, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
@@ -39,10 +42,41 @@ const hex = () => crypto.randomUUID().replaceAll('-', '');
 export const explainEnabled = env => env.EXPLAIN_V2_ENABLED === 'true';
 export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 
-// The capability's stages: author, validate and review (T17, explain-author.js), repair (T19, explain-repair.js). Preparation
-// (T16) and rendering (T18) are not wired yet: the job stops there and says so, keeping what it has.
+// The capability's stages: author and validate (T17, explain-author.js), render and review (T18, Lane D's explain-render.js
+// renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
+// Preparation (T16) is not wired yet: a prepared request stops there and says so.
 const notReady = async () => { throw fail('Explanation generation is not available yet.', 503, 'explain_not_ready'); };
-export const explainPipeline = Object.freeze({ prepare: notReady, author: authorStage, validate: validateStage, render: notReady, review: reviewStage, repair: repairStage });
+
+// Render: the compiled scene's finished state per part, light and dark where the round's captures allow, as one manifest
+// reserved before rendering. PNGs go to LEARN_MEDIA under the job (renderStates); the job keeps keys and hashes, not bytes.
+// deps: renderStates' own (launch, store, browser), injected by tests and the M3 harness; production uses BROWSER.
+export const renderStage = (deps = {}) => async (job, ctx) => {
+  const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
+  const themes = parts * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
+  const entries = [];
+  for (let part = 0; part < parts; part++) for (const theme of themes) entries.push({ id: `${parts > 1 ? `p${part}-` : ''}${theme}`, part, time: scene.duration, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
+  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
+  let out;
+  try { out = await renderStates(ctx.env, job.compiled, manifest, { jobId: job.id, ...deps }); }
+  catch (error) { throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' }); }
+  return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })) };
+};
+const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+// Review: every capture's actual pixels (read back from LEARN_MEDIA), the request, evidence and the spec's facts, through the
+// job's admitted explain_review call. -> what apply and repair read: accepted, findings, whether the spec can fix them.
+export async function reviewStage(job, ctx) {
+  const captures = await Promise.all((job.captures || []).map(async capture => {
+    if (typeof capture.data === 'string') return capture;
+    const object = capture.key && await learnMedia(ctx.env)?.get(capture.key);
+    return object ? { ...capture, data: base64(new Uint8Array(await object.arrayBuffer())) } : capture;
+  }));
+  let out;
+  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts(job.spec), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
+  catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
+  const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
+  return { accepted: out.accepted, findings, repairable: serious.length > 0 && serious.every(f => f.specRepairable && ['spec', 'source'].includes(f.category)), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
+}
+export const explainPipeline = Object.freeze({ prepare: notReady, author: authorStage, validate: validateStage, render: renderStage(), review: reviewStage, repair: repairStage });
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
