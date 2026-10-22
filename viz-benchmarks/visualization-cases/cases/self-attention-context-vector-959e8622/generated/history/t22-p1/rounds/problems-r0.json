@@ -1,0 +1,3 @@
+[
+  "\"attn.sum2\" runs from (748, 384) to (788, 308), passing through the label \"this is z_2\" owned by \"link0-label\" (estimated box x:[676,762] y:[380,395]) - route the edge clear of the label, not only its endpoint"
+]

@@ -1,0 +1,57 @@
+{
+  "system": "v2",
+  "costUsd": 0.204034,
+  "calls": 3,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 75300,
+  "humanVerdict": "pending owner",
+  "result": "generated",
+  "accepted": false,
+  "rounds": 1,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 28889,
+      "calls": 8
+    },
+    {
+      "stage": "validate-r0",
+      "ms": 1096,
+      "calls": 8
+    },
+    {
+      "stage": "render-r0",
+      "ms": 20449,
+      "calls": 8
+    },
+    {
+      "stage": "review-r0",
+      "ms": 15894,
+      "calls": 9
+    },
+    {
+      "stage": "repair-r1",
+      "ms": 6567,
+      "calls": 10
+    }
+  ],
+  "gap": null,
+  "stop": {
+    "progress": false,
+    "reason": "The card already shows the separate tokens and the long-skip arcs with a merge note, but the captures show only the first part, so the renderer or capture needs fixing, not the layout."
+  },
+  "caseId": "diffusion-transformer-long-skip-a4e6231f",
+  "runId": "t22-p1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "example",
+  "family": "diffusion-backbone",
+  "examples": [],
+  "outcome": "ok",
+  "error": null,
+  "outputSha256": "81a70862d25982951574b803b0b6b29b570f8bb02372f353b4ba33f11651e05c",
+  "promptSha256": "d876622dc88a2351eae34505949b10a2cf06b64084256fb6be868f3896eb2e0d",
+  "recordedAt": "2026-10-22T16:30:55.393Z"
+}

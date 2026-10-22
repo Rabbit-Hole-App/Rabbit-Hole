@@ -1,0 +1,24 @@
+{
+  "system": "baseline",
+  "costUsd": 0.16281,
+  "calls": 2,
+  "servedModels": [
+    "claude-opus-5"
+  ],
+  "elapsedMs": 37231,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "primitive": "animation",
+  "caseId": "self-attention-context-vector-959e8622",
+  "runId": "t02-b1r",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "heldout",
+  "family": "attention-math",
+  "examples": [],
+  "outcome": "failed",
+  "error": "validation_error",
+  "outputSha256": null,
+  "promptSha256": "ad3d15580f7a1a2b81a67102af85ced8d5b5265f8b0a8de9cddba44e0308683f",
+  "recordedAt": "2026-10-22T16:14:12.497Z"
+}

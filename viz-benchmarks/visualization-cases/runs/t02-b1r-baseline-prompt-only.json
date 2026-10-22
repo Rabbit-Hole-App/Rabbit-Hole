@@ -1,0 +1,34 @@
+{
+  "rows": [
+    {
+      "caseId": "self-attention-context-vector-959e8622",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "validation_error",
+      "accepted": null,
+      "costUsd": 0.16281,
+      "error": "validation_error"
+    },
+    {
+      "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "artifact",
+      "accepted": null,
+      "costUsd": 0.07437,
+      "error": "not rendered: /explain returned the explanation primitive, which is not a scene"
+    }
+  ],
+  "spentUsd": 0.23718,
+  "notes": {
+    "at": "2026-10-22T09:18:00-07:00",
+    "by": "r2 lane L4",
+    "tree": "frozen system at explain/d-t18 844f5cc0 (assertFrozen pass against baseline.json, systemSha 6f0b7a3e) with the case metadata of rabbit-hole/main ebd0ea74",
+    "provider": "claude-opus-5 is still served for the requested id (all 3 calls requested = served claude-opus-5, HTTP 200). Historical providers are not replayed: this is today's claude-opus-5, not the model as served when 6f0b7a3e shipped. Access check before the run: spend.md rows 15-16 (max_tokens 1 generation, HTTP 200). The workspace spend-cap headroom is not observable with this key.",
+    "rows": {
+      "self-attention-context-vector-959e8622": "author and the one repair were both refused by the artifact gates (derived.scores matmul argument list; a sentence count disagreeing with the drawn entries), so the path returned validation_error and no scene. The artifact path does not return invalid attempts, so neither scene is saved; the first attempt survives inside the repair request in prompt.json stageCalls, the second only as token usage.",
+      "deepseek-v3-mla-vs-mha-eea4928a": "one author call returned the explanation primitive (markdown with math), not a scene; saved as scene-spec.json; nothing rendered."
+    },
+    "stillUnrun": "reference-guided baseline (spend.md row 12) and render-existing mode."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "system": "baseline",
+  "costUsd": 0.215965,
+  "calls": 2,
+  "servedModels": [
+    "claude-opus-5"
+  ],
+  "elapsedMs": 53400,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "primitive": "animation",
+  "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+  "runId": "t02-b2r",
+  "mode": "generate",
+  "inputMode": "reference-guided",
+  "split": "heldout",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "validation_error",
+  "outputSha256": null,
+  "promptSha256": "a50d2ceb300483086e457b793df4b1a64aea939c14ebbd979d2b357d69b2c4b2",
+  "recordedAt": "2026-10-22T16:52:32.901Z"
+}

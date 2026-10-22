@@ -256,16 +256,21 @@ export function buildIndex(casesRoot = HERE) {
     const latest = readJson(join(caseDir, 'generated', 'latest', 'run.json'), null);
     const runs = runsOf(caseDir).map(r => {
       const base = `cases/${c.id}/generated/history/${r.runId}`;
-      const verdicts = review.verdicts.filter(v => v.runId === r.runId).map(v => `${esc(v.verdict)} by ${esc(v.reviewer)}`).join('; ') || 'no human verdict';
+      const verdicts = review.verdicts.filter(v => v.runId === r.runId).map(v => `${esc(v.verdict)} by ${esc(v.reviewer)}`).join('; ') || '<span class="pending">verdict pending owner</span>';
       const result = r.outcome === 'ok'
         ? `<a href="${base}/comparison.png">comparison</a> · <a href="${base}/generated.png">result</a>`
         : `<span class="missing">missing result: ${esc(r.error)}</span>`;
-      return `<li><b>${esc(r.runId)}</b>${latest?.runId === r.runId ? ' (latest)' : ''} · ${esc(r.mode)} / ${esc(r.inputMode)} · <a href="${base}/prompt.json">prompt</a> · ${result} · ${verdicts}</li>`;
+      // Run facts from the receipt (corpus-run.mjs): system, flow result, model review, calls, cost, latency.
+      const facts = [r.system, r.flowResult ? `flow ${r.flowResult}` : null, r.accepted != null ? `model review ${r.accepted ? 'accepted' : 'not accepted'}` : null,
+        r.calls != null ? `${r.calls} calls` : null, r.costUsd != null ? `$${r.costUsd}` : null, r.elapsedMs != null ? `${(r.elapsedMs / 1000).toFixed(1)} s` : null].filter(Boolean).map(esc).join(' · ');
+      const thumb = r.outcome === 'ok' ? `<br><a href="${base}/comparison.png"><img src="${base}/comparison.png" alt="original left, result right" loading="lazy"></a>` : '';
+      return `<li><b>${esc(r.runId)}</b>${latest?.runId === r.runId ? ' (latest)' : ''} · ${esc(r.mode)} / ${esc(r.inputMode)} · <a href="${base}/prompt.json">prompt</a> · <a href="${base}/">files</a> · ${result} · ${verdicts}${facts ? `<br><small>${facts}</small>` : ''}${thumb}</li>`;
     }).join('') || '<li>no runs</li>';
     return `<section><h2>${esc(c.title)}</h2><p>${esc(c.id)} · family ${esc(c.family)} · split ${esc(c.split)} · exposure ${esc(c.exposure)}${c.generationReady ? '' : ' · <span class="missing">needs family/split</span>'}</p>`
       + `<p>Prompt: ${esc(c.prompt || 'none')}</p><p><a href="cases/${esc(c.id)}/${esc(c.reference.file)}">reference</a> ${c.reference.width}x${c.reference.height} ${esc(c.reference.format)}</p><ul>${runs}</ul></section>`;
   }).join('\n');
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Visualization cases</title><style>body{font:14px system-ui;margin:24px;max-width:960px}section{border-top:1px solid #ccc;padding:8px 0}.missing{color:#a33}</style></head><body><h1>Visualization cases</h1>\n${rows}\n</body></html>\n`;
+  const how = '<p>Each run links its exact prompt record, files and, when it rendered, the comparison (original left, result right). A model review is not a human verdict. Record yours against the run and its output hash with <code>recordVerdict(caseId, { runId, verdict, reviewer, note })</code> from cases.mjs (approved, rejected or needs-work), then rebuild with <code>node cases.mjs index</code>.</p>';
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Visualization cases</title><style>body{font:14px system-ui;margin:24px;max-width:960px}section{border-top:1px solid #ccc;padding:8px 0}.missing{color:#a33}.pending{color:#865a00}li{margin:6px 0}img{max-width:100%;border:1px solid #ddd;margin-top:4px}</style></head><body><h1>Visualization cases</h1>\n${how}\n${rows}\n</body></html>\n`;
   writeFileSync(join(casesRoot, 'index.html'), html);
   return join(casesRoot, 'index.html');
 }

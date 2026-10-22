@@ -1,0 +1,3 @@
+[
+  "\"link6\" lands its arrowhead at (266, 554), inside the label \"× σ'(z_j)\" owned by \"link6-label\" (estimated box x:[274,344] y:[531,546]). Fix: end the arrow at least 12px clear of that label, or move the label"
+]

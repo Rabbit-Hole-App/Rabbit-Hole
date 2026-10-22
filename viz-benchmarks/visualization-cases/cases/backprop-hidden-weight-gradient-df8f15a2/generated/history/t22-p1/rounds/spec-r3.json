@@ -1,0 +1,398 @@
+{
+  "version": 1,
+  "id": "backprop-first-layer-weight",
+  "title": "How backpropagation finds the gradient for a first-layer weight",
+  "components": [
+    {
+      "id": "root",
+      "component": "stack",
+      "version": 1,
+      "hints": {
+        "direction": "column",
+        "gap": 32,
+        "align": "start"
+      }
+    },
+    {
+      "id": "forward",
+      "component": "section",
+      "version": 1,
+      "parent": "root",
+      "params": {
+        "title": "Forward pass: compute and keep every intermediate value"
+      }
+    },
+    {
+      "id": "fwd-row",
+      "component": "stack",
+      "version": 1,
+      "parent": "forward",
+      "hints": {
+        "direction": "row",
+        "gap": 32,
+        "align": "center"
+      }
+    },
+    {
+      "id": "f-x",
+      "component": "module",
+      "version": 1,
+      "parent": "fwd-row",
+      "hints": {
+        "width": 150
+      },
+      "params": {
+        "role": "input",
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Input "
+            },
+            {
+              "kind": "math",
+              "tex": "x_k"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f-z",
+      "component": "module",
+      "version": 1,
+      "parent": "fwd-row",
+      "hints": {
+        "width": 180
+      },
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Hidden sum "
+            },
+            {
+              "kind": "math",
+              "tex": "z_j = \\sum_k w^{(1)}_{jk} x_k"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f-h",
+      "component": "module",
+      "version": 1,
+      "parent": "fwd-row",
+      "hints": {
+        "width": 150
+      },
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Activation "
+            },
+            {
+              "kind": "math",
+              "tex": "h_j = \\sigma(z_j)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f-y",
+      "component": "module",
+      "version": 1,
+      "parent": "fwd-row",
+      "hints": {
+        "width": 180
+      },
+      "params": {
+        "role": "prediction",
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Output "
+            },
+            {
+              "kind": "math",
+              "tex": "\\hat{y} = \\sum_j w^{(2)}_j h_j"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "f-L",
+      "component": "module",
+      "version": 1,
+      "parent": "fwd-row",
+      "hints": {
+        "width": 170
+      },
+      "params": {
+        "role": "output",
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Loss "
+            },
+            {
+              "kind": "math",
+              "tex": "L = \\tfrac{1}{2}(\\hat{y} - y)^2"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "backward",
+      "component": "section",
+      "version": 1,
+      "parent": "root",
+      "step": "s-error",
+      "params": {
+        "title": "Backward pass: chain rule, one factor per layer, from the loss back"
+      }
+    },
+    {
+      "id": "bwd-col",
+      "component": "stack",
+      "version": 1,
+      "parent": "backward",
+      "hints": {
+        "direction": "column",
+        "gap": 72,
+        "align": "start"
+      }
+    },
+    {
+      "id": "b1",
+      "component": "module",
+      "version": 1,
+      "parent": "bwd-col",
+      "hints": {
+        "width": 420,
+        "maxWidth": 480
+      },
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "1. Output error: "
+            },
+            {
+              "kind": "math",
+              "tex": "\\delta = \\frac{\\partial L}{\\partial \\hat{y}} = \\hat{y} - y"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b2",
+      "component": "module",
+      "version": 1,
+      "parent": "bwd-col",
+      "step": "s-hidden",
+      "hints": {
+        "width": 420,
+        "maxWidth": 480
+      },
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "2. Back through the output weight: "
+            },
+            {
+              "kind": "math",
+              "tex": "\\frac{\\partial L}{\\partial h_j} = \\delta \\, w^{(2)}_j"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b3",
+      "component": "module",
+      "version": 1,
+      "parent": "bwd-col",
+      "step": "s-sigma",
+      "hints": {
+        "width": 420,
+        "maxWidth": 480
+      },
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "3. Back through the activation: "
+            },
+            {
+              "kind": "math",
+              "tex": "\\frac{\\partial L}{\\partial z_j} = \\delta \\, w^{(2)}_j \\, \\sigma'(z_j)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "b4",
+      "component": "module",
+      "version": 1,
+      "parent": "bwd-col",
+      "step": "s-weight",
+      "hints": {
+        "width": 420,
+        "maxWidth": 480
+      },
+      "params": {
+        "role": "output",
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "4. Onto the weight, since "
+            },
+            {
+              "kind": "math",
+              "tex": "\\partial z_j / \\partial w^{(1)}_{jk} = x_k"
+            },
+            {
+              "kind": "text",
+              "text": ": "
+            },
+            {
+              "kind": "math",
+              "tex": "\\frac{\\partial L}{\\partial w^{(1)}_{jk}} = \\delta \\, w^{(2)}_j \\, \\sigma'(z_j) \\, x_k"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "takeaway",
+      "component": "callout",
+      "version": 1,
+      "parent": "root",
+      "step": "s-weight",
+      "params": {
+        "tone": "key",
+        "text": "The gradient is a product of local derivatives along the path from the loss back to the weight. Backprop computes the shared part, δ·w2_j·σ'(z_j), once per hidden unit and reuses it for every input weight into that unit. Each weight's gradient then just multiplies it by its own input x_k, a value saved during the forward pass."
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "f-x.right",
+      "to": "f-z.left",
+      "kind": "flow"
+    },
+    {
+      "from": "f-z.right",
+      "to": "f-h.left",
+      "kind": "flow"
+    },
+    {
+      "from": "f-h.right",
+      "to": "f-y.left",
+      "kind": "flow"
+    },
+    {
+      "from": "f-y.right",
+      "to": "f-L.left",
+      "kind": "flow"
+    },
+    {
+      "from": "f-L.bottom",
+      "to": "b1.right",
+      "kind": "reference"
+    },
+    {
+      "from": "b1.bottom",
+      "to": "b2.top",
+      "kind": "flow",
+      "label": {
+        "runs": [
+          {
+            "kind": "text",
+            "text": "× "
+          },
+          {
+            "kind": "math",
+            "tex": "w^{(2)}_j"
+          }
+        ]
+      }
+    },
+    {
+      "from": "b2.bottom",
+      "to": "b3.top",
+      "kind": "flow",
+      "label": {
+        "runs": [
+          {
+            "kind": "text",
+            "text": "× "
+          },
+          {
+            "kind": "math",
+            "tex": "\\sigma'(z_j)"
+          }
+        ]
+      }
+    },
+    {
+      "from": "b3.bottom",
+      "to": "b4.top",
+      "kind": "flow",
+      "label": {
+        "runs": [
+          {
+            "kind": "text",
+            "text": "× "
+          },
+          {
+            "kind": "math",
+            "tex": "x_k"
+          }
+        ]
+      }
+    }
+  ],
+  "presentation": {
+    "mode": "steps",
+    "steps": [
+      {
+        "id": "s-forward",
+        "title": "Forward pass: compute z, h, the prediction and the loss, and keep them"
+      },
+      {
+        "id": "s-error",
+        "title": "Start at the loss: the error at the output"
+      },
+      {
+        "id": "s-hidden",
+        "title": "Pass the error back through the output weight to hidden unit j"
+      },
+      {
+        "id": "s-sigma",
+        "title": "Multiply by the activation's slope at z_j"
+      },
+      {
+        "id": "s-weight",
+        "title": "Multiply by the input x_k to get the first-layer weight's gradient"
+      }
+    ]
+  }
+}
