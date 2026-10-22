@@ -304,12 +304,44 @@ test('a Generate refused for allowance consumes nothing and keeps the proposal c
   assert.deepEqual(s.model.calls.map(c => c.role), ['brief']);
 });
 
-test('the production pipeline is not wired yet: a job fails plainly with no model call', async t => {
+// The production pipeline: T17's author and validate stages are real; rendering (T18) is not wired, so the job stops there
+// with its compiled result kept (Retry re-renders it). The provider answers the author with a valid spec, then with a gap.
+const SPEC = { version: 1, id: 'water', title: 'Where rain comes from', components: [
+  { id: 'cycle', component: 'flow', version: 1, params: { steps: ['Sun warms the sea', 'Vapour rises and cools', 'Droplets form clouds', 'Rain falls'] } },
+], presentation: { mode: 'static' } };
+function authorReplies(t, replies) {
+  const calls = [], original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (url, options = {}) => {
+    const body = JSON.parse(options.body);
+    calls.push(body);
+    return Response.json({ model: body.model, content: [{ type: 'tool_use', id: 't', name: body.tools[0].name, input: replies.shift() }], stop_reason: 'tool_use', usage: { input_tokens: 3000, output_tokens: 800 } });
+  };
+  return calls;
+}
+test('the production pipeline authors and compiles a real spec, then stops at the unwired renderer keeping it', async t => {
   const s = setup(t, { pipeline: explainPipeline });
-  const { body } = await s.create();
+  const calls = authorReplies(t, [{ kind: 'spec', spec: SPEC }]);
+  const { body } = await s.create({ prompt: 'Explain where rain comes from.' });
   const done = await s.run(body.job.id);
-  assert.deepEqual([done.stage, done.failure.message], ['failed', 'Explanation generation is not available yet.']);
-  assert.equal(s.model.calls.length, 0);
+  assert.deepEqual([done.stage, done.failure.stage, done.failure.message], ['failed', 'rendering', 'Explanation generation is not available yet.']);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].model, 'claude-opus-5-5');
+  assert.equal(done.compiled.counts.authored, 1);
+  assert.deepEqual((await s.job(body.job.id)).job.recovery, ['retry_render', 'edit_request']);
+});
+test('the production pipeline: a request needing math ends as a structured capability gap, with no repair and no card', async t => {
+  const s = setup(t, { pipeline: explainPipeline });
+  const math = { ...SPEC, components: [{ id: 'law', component: 'module', version: 1, params: { label: { runs: [{ kind: 'math', tex: 'T = 2\pi\sqrt{L/g}' }] } } }] };
+  authorReplies(t, [{ kind: 'spec', spec: math }]);
+  const { body } = await s.create({ prompt: 'Show the pendulum period formula.' });
+  const done = await s.run(body.job.id);
+  assert.deepEqual([done.stage, done.stopReason, done.failure.category, done.failure.gap.needs, done.failure.gap.source], ['failed', 'capability_gap', 'capability', ['math'], 'compiler']);
+  assert.equal(done.compiled, null);
+  const view = (await s.job(body.job.id)).job;
+  assert.deepEqual(view.recovery, ['edit_request']);
+  assert.equal(view.result, null);
+  assert.match(view.failure.message, /typeset math/);
 });
 
 test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', async t => {

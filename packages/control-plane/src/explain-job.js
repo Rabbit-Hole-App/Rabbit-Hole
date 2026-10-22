@@ -22,6 +22,7 @@ import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, fin
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, verifyProposal } from './generation-proposal.js';
+import { authorStage, reviewStage, selectExamples, validateStage } from './explain-author.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -37,9 +38,10 @@ const hex = () => crypto.randomUUID().replaceAll('-', '');
 export const explainEnabled = env => env.EXPLAIN_V2_ENABLED === 'true';
 export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 
-// The capability's stages until T16-T19 land: nothing runs, the job says so. Never a model call.
+// The capability's stages: author, validate and review (T17, explain-author.js). Preparation (T16), rendering (T18) and repair
+// (T19) are not wired yet: the job stops there and says so, keeping what it has.
 const notReady = async () => { throw fail('Explanation generation is not available yet.', 503, 'explain_not_ready'); };
-export const explainPipeline = Object.freeze({ prepare: notReady, author: notReady, validate: notReady, render: notReady, review: notReady, repair: notReady });
+export const explainPipeline = Object.freeze({ prepare: notReady, author: authorStage, validate: validateStage, render: notReady, review: reviewStage, repair: notReady });
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
@@ -71,6 +73,7 @@ function validateCreate(p) {
   if (!REQUEST_CLASSES.includes(p.requestClass)) throw fail('Unknown request class.');
   if (p.context != null && JSON.stringify(p.context).length > 60000) throw fail('The attached context is too large.', 413);
   if (p.baseRevision != null && !KEY.test(p.baseRevision)) throw fail('Invalid base revision.');
+  try { selectExamples(p.examples ?? []); } catch (error) { throw fail(error.message); }
 }
 
 // The route: owner-only, same origin, behind EXPLAIN_V2_ENABLED. Off, it answers 404 as if absent.
@@ -136,7 +139,7 @@ export class ExplainJobs {
 
   async create(payload, board, user, origin) {
     validateCreate(payload);
-    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null]));
+    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null, payload.examples ?? []]));
     const fence = await this.state.storage.get(`request:${payload.requestId}`);
     if (fence) {
       if (fence.fingerprint !== fingerprint) throw fail('This request id belongs to a different explanation.', 409);
@@ -148,7 +151,7 @@ export class ExplainJobs {
     const job = {
       id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
       owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
-      prompt: payload.prompt.trim(), context: payload.context ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
+      prompt: payload.prompt.trim(), context: payload.context ?? null, examples: payload.examples ?? [], evidence: [], requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
       // Preparation (a brief) is the server's decision (T16 owns the rule); until then a researched request prepares one.
       prepare: payload.requestClass === 'researched',
       stage: 'queued', attempt: 1, round: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
@@ -353,6 +356,9 @@ export class ExplainJobs {
   }
   async apply(job, stage, out) {
     const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
+    // A capability gap (the request needs math, steps, an experiment or a component that cannot be drawn yet) ends the job
+    // with what is missing: no repair, no simpler substitute card.
+    if (out.gap) { await this.stopWith(job, 'capability_gap', 'capability', out.gap.message); job.failure.gap = out.gap; return this.save(job); }
     if (stage === 'preparing') {
       job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null;
       endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
