@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { chatRouteAnswer } from './dev-cp.mjs';
 import { tileJpegs, makeCapture, readyResult, heldResult, webpageBlock, sourceId, COLORS, TILE_W, TILE_H } from './webpage-card-fixtures.mjs';
 
-const total = 30; // the number of check() steps below; keep it equal
+const total = 31; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('webpage-card-check runs against the local stack only');
@@ -51,7 +51,7 @@ const SEL = {
   lock: 'button[data-webcard-lock]',             // the one scroll-lock toggle, aria-pressed, named "Lock scrolling" / "Unlock scrolling"
   refresh: 'button[data-webcard-refresh]',       // named "Refresh"
   body: '[data-webcard-frame]',                  // the window onto the page (present only while an approved capture is shown)
-  column: '[data-webcard-column]',               // the tile column, scrolled by translateY(-scrollTop * card scale)
+  column: '[data-webcard-column]',               // the tile column, scrolled by translateX(-left * s) translateY(-scrollTop * s), s = card scale x content zoom
   tile: '[data-webcard-tile]',                   // value = tile index; holds an <img> only while near the viewport
   text: '[data-webcard] .textLayer',             // the transparent text layer of positioned runs
   highlight: '[data-webcard-highlight]',
@@ -322,8 +322,21 @@ await check('"Add webpage card": one capture request (URL, no lineage), Capturin
   ID = await waitFor(webBlockId, 10000, 'no webpage card appeared');
   assert.equal(captures.length, 1, 'one capture request');
   assert.equal(captures[0].body.url, URL_A); assert.equal(captures[0].body.app, A); assert.ok(!captures[0].body.lineage, 'a first capture names no lineage');
+  // Loading (owner, 2026-10-22): a spinner beside "Checking the page" and a skeleton where the page will show; no ellipsis; a
+  // still spinner under reduced motion; both gone once the page shows.
+  const loading = el => { const line = el.querySelector('[data-webcard-status]'), spin = line?.querySelector('[data-webcard-spinner]');
+    return { status: line?.dataset.webcardStatus || null, text: line?.innerText || '', spinner: !!spin, motion: spin ? getComputedStyle(spin).animationName : null, skeleton: !!el.querySelector('[data-webcard-skeleton]') }; };
+  const seen = await waitFor(async () => { const l = await part(ID, SEL.card).evaluate(loading); return l.status === 'screening' ? l : null; }, 10000, 'the card never said Checking the page');
+  assert.ok(seen.spinner && seen.skeleton && seen.motion !== 'none', `spinner and skeleton while checking (${JSON.stringify(seen)})`);
+  assert.match(seen.text, /^Checking the page$/, 'the state line has no ellipsis');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const still = await part(ID, SEL.card).evaluate(loading);
+  await page.emulateMedia({ reducedMotion: null });
+  assert.ok(still.status !== 'screening' || (still.spinner && still.motion === 'none'), `reduced motion: a still indicator (${JSON.stringify(still)})`);
   await waitFor(async () => await stateOf(ID) === 'ready', 60000, `the card never became ready (state ${await stateOf(ID)}, ${polls.length} polls)`);
   assert.ok(polls.some(p => p.id === V1.manifestId), 'the card polled the capture status');
+  const done = await part(ID, SEL.card).evaluate(loading);
+  assert.ok(!done.spinner && !done.skeleton, `the indicator stops once the page shows (${JSON.stringify(done)})`);
   assert.equal(norm(await part(ID, SEL.title).innerText()), TITLE_A);
   const link = part(ID, SEL.link);
   assert.equal(await link.getAttribute('href'), URL_A); assert.equal(await link.getAttribute('target'), '_blank');
@@ -500,6 +513,83 @@ await check('reload restores the capture and its highlight', async () => {
   await waitFor(async () => (await card(ID).locator(SEL.highlight).count()) >= 1, 15000, 'the highlight is gone after reload');
 });
 
+// Zoom belongs to the content under the cursor (owner, 2026-10-22; content-gestures.js). Only the page's view changes: never
+// the canvas camera, the browser zoom, the card's box, and no request is made.
+const wordsBox = (id, words) => page.evaluate(([id, words]) => {
+  const layer = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"] [data-webcard] .textLayer`);
+  const walker = layer && document.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
+  for (let n; walker && (n = walker.nextNode());) {
+    const at = n.data.indexOf(words); if (at < 0) continue;
+    const range = document.createRange(); range.setStart(n, at); range.setEnd(n, at + words.length);
+    const r = range.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height };
+  }
+  return null;
+}, [id, words]);
+await check('zoom belongs to the content: over the page Ctrl+wheel, a pinch and Safari gestures zoom the page only, at its limits too, selected or not; text and highlight stay on their words; locked, a zoom is held; blank canvas still zooms; zero AI requests', async () => {
+  await noAi('content zoom', async () => {
+    const width = () => part(ID, SEL.column).evaluate(c => c.offsetWidth);
+    const browserZoom = () => page.evaluate(() => [visualViewport.scale, devicePixelRatio, innerWidth]);
+    const boxOf = async () => { const b = await card(ID).boundingBox(); return [b.x, b.y, b.width, b.height].map(Math.round); };
+    const wheelAt = async (p, dy, ctrl = true) => { await page.mouse.move(p.x, p.y); if (ctrl) await page.keyboard.down('Control'); await page.mouse.wheel(0, dy); if (ctrl) await page.keyboard.up('Control'); await frames(); };
+    // A trackpad pinch as Chrome sends it (Ctrl+wheel, small deltas) and as Safari sends it (gesture events), synthesised.
+    const pinch = (p, steps) => page.evaluate(({ p, steps }) => { const el = document.elementFromPoint(p.x, p.y); return steps.map(deltaY => { const e = new WheelEvent('wheel', { deltaY, ctrlKey: true, clientX: p.x, clientY: p.y, bubbles: true, cancelable: true }); el.dispatchEvent(e); return e.defaultPrevented; }); }, { p, steps });
+    const gesture = (p, scales) => page.evaluate(({ p, scales }) => { const el = document.elementFromPoint(p.x, p.y); const fire = (type, scale) => { const e = new Event(type, { bubbles: true, cancelable: true }); Object.assign(e, { scale, clientX: p.x, clientY: p.y }); el.dispatchEvent(e); return e.defaultPrevented; }; return [fire('gesturestart', 1), ...scales.map(scale => fire('gesturechange', scale)), fire('gestureend', scales.at(-1))]; }, { p, scales });
+    const bare = await barePoint(); assert.ok(bare, 'a bare point of the canvas');
+    await page.mouse.click(bare.x, bare.y); // unselected first
+    const cam = await camera(), bz = await browserZoom(), box = await boxOf(), w0 = await width();
+    const onWords = async () => { const w = await wordsBox(ID, RUN_2); assert.ok(w, 'the highlighted words are in the text layer'); return { x: w.x + w.w / 2, y: w.y + w.h / 2 }; };
+    // Unselected: Ctrl+wheel over the words zooms the page at the cursor.
+    await wheelAt(await onWords(), -200);
+    const w1 = await width();
+    assert.ok(w1 > w0 * 1.2, `Ctrl+wheel zoomed the page (${w0} -> ${w1})`);
+    assert.equal(await camera(), cam, 'Ctrl+wheel over the page: the canvas camera is unchanged');
+    // Chrome's pinch: every step prevented (no browser zoom), the page zooms further.
+    const prevented = await pinch(await onWords(), Array(10).fill(-6));
+    assert.deepEqual(prevented, Array(10).fill(true), 'each pinch step is held from the browser');
+    const w2 = await width(); assert.ok(w2 > w1, `the pinch zoomed in (${w1} -> ${w2})`);
+    // Safari's pinch: gesture events, held, zooming out a little.
+    assert.deepEqual(await gesture(await onWords(), [0.9, 0.8]), [true, true, true, true], 'gesture events are held from the browser');
+    const w3 = await width(); assert.ok(w3 < w2, `the Safari pinch zoomed out (${w2} -> ${w3})`);
+    // Text and highlight transform with the tiles: the run sits at its capture box over tile 1, the box covers the words.
+    const geo = await page.evaluate(([id, words]) => {
+      const root = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`);
+      const t = root.querySelector('[data-webcard-tile="1"]').getBoundingClientRect();
+      const span = [...root.querySelectorAll('[data-webcard] .textLayer span')].find(e => e.childElementCount === 0 && e.textContent.includes(words)), s = span.getBoundingClientRect();
+      return { scale: t.width / 1280, dx: s.x - t.x, dy: s.y - t.y };
+    }, [ID, RUN_2]);
+    assert.ok(Math.abs(geo.dx - 80 * geo.scale) <= 4 && Math.abs(geo.dy - 200 * geo.scale) <= 4, `zoomed, the run sits on its place in the tile (${JSON.stringify(geo)})`);
+    const marks = await boxes(`[aria-label="Lesson canvas"] [data-block-id="${ID}"] ${SEL.highlight}`), words = await wordsBox(ID, RUN_2);
+    assert.ok(marks.length && Math.max(...marks.map(m => overlap(m, words))) > 0.5, 'zoomed, the highlight still covers its words');
+    // Selected: at the 4x limit, more zoom stays in the page.
+    const at = await cardPoint(ID); await page.mouse.click(at.x, at.y);
+    await wheelAt(at, -4000); await wheelAt(at, -400);
+    assert.ok(Math.abs(await width() - w0 * 4) <= 2, `held at 4x (${await width()} vs ${w0 * 4})`);
+    assert.equal(await camera(), cam, 'at the zoom limit the canvas still does not zoom');
+    assert.deepEqual(await boxOf(), box, 'the card keeps its place and size');
+    assert.deepEqual(await browserZoom(), bz, 'the browser zoom is unchanged');
+    // Locked: a zoom gesture is held (neither the page nor the canvas zooms).
+    await part(ID, SEL.lock).click();
+    await waitFor(async () => await part(ID, SEL.lock).getAttribute('aria-pressed') === 'true', 3000, 'the lock is pressed');
+    const wl = await width();
+    await wheelAt(await cardPoint(ID), 300);
+    assert.deepEqual(await pinch(await cardPoint(ID), [8, 8]), [true, true], 'locked: a pinch is held from the browser');
+    assert.equal(await width(), wl, 'locked: the page does not zoom');
+    assert.equal(await camera(), cam, 'locked: a zoom over the card does not reach the canvas');
+    await part(ID, SEL.lock).click();
+    await waitFor(async () => await part(ID, SEL.lock).getAttribute('aria-pressed') === 'false', 3000, 'the lock is released');
+    // Back to the card's width; off the page, blank canvas zooms as before.
+    await wheelAt(await cardPoint(ID), 4000);
+    assert.ok(Math.abs(await width() - w0) <= 1, 'held at the card width');
+    assert.equal(await camera(), cam);
+    const z0 = await zoom();
+    await wheelAt(bare, -200);
+    assert.ok(Math.abs(await zoom() - z0) > 0.02, 'Ctrl+wheel on blank canvas zooms the canvas');
+    await wheelAt(bare, 200);
+    assert.deepEqual(await browserZoom(), bz, 'the browser zoom is unchanged');
+    await shot('05b-content-zoom');
+  });
+});
+
 await check('a failed Refresh (Unavailable, screening failed, inconclusive) keeps the approved capture and its highlight shown', async () => {
   const failures = [['unavailable', 'The page did not load.'], ['blocked', 'Hidden: explicit content.'], ['inconclusive', 'Screening was not sure.']];
   for (const [kind, reason] of failures) {
@@ -519,9 +609,14 @@ await check('a failed Refresh (Unavailable, screening failed, inconclusive) keep
   await shot('05-failed-refresh');
 });
 
-await check('Refresh makes a new version: the new tiles show, and the old highlight is not attached to the new text', async () => {
-  nextCapture = () => readyResult(V2);
+await check('Refresh makes a new version: the old page stays with a small indicator while it is checked, then the new tiles show, and the old highlight is not attached to the new text', async () => {
+  nextCapture = () => heldResult('screening', { lineage: V1.lineage, manifestId: V2.manifestId, url: URL_A });
+  pollReplies.set(V2.manifestId, readyResult(V2));
   await part(ID, SEL.refresh).click();
+  await waitFor(async () => (await part(ID, SEL.card).evaluate(el => el.querySelector('[data-webcard-status]')?.dataset.webcardStatus)) === 'screening', 10000, 'Refresh did not show Checking the page');
+  assert.equal(await card(ID).locator('[data-webcard-status] [data-webcard-spinner]').count(), 1, 'a small indicator beside the state line');
+  assert.equal(await card(ID).locator('[data-webcard-skeleton]').count(), 0, 'no skeleton: the old page stays');
+  assert.ok(shows(await tilesShown(ID), V1), 'the old page stays on show while the Refresh is checked');
   await waitFor(async () => shows(await tilesShown(ID), V2), 20000, 'the new version did not show');
   await waitFor(async () => (await savedBlock(A, b => b.id === ID))?.capture?.manifestId === V2.manifestId, 15000, 'the board did not save the new version');
   assert.equal((await savedBlock(A, b => b.id === ID)).capture.lineage, V1.lineage, 'the lineage stays');

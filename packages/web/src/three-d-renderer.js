@@ -98,6 +98,9 @@ export function createThreeDRenderer(host, initial, onChange, onReady, onError, 
   })().catch(error => { if (!disposed) { if (loaded?.kind !== 'splat') disposeModel(gltf); loaded?.dispose?.(); onError(error.message || 'Could not load the 3D model'); } });
   return {
     interact(value) { controls.enabled = value; },
+    // Hover zoom (content-gestures.js): the dolly a wheel makes, without Interact; factor > 1 moves closer. The distance limits
+    // hold it at the model's near and far ends.
+    zoom(factor) { if (gltf && !lost && factor > 0) controls.dollyIn(1 / factor); },
     background(value) { paint(value); schedule(); },
     // Back to the framing the model opened with.
     fit() { if (!fitView) return; changing = true; fitView(); controls.update(); changing = false; settle(); schedule(); },
