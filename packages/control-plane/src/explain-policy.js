@@ -3,7 +3,7 @@
 // limits, worst-case prices from MODEL_PRICES, the request/reply checks every role call passes, and the stage-timing record.
 // No route reaches this module yet: callExplainRole needs an injected callModel (the job supplies an admitted one, slice 2).
 import { LEARN_TASKS, MODEL_PRICES, loggedModel } from './learn-models.js';
-import { requestSpendBound } from './learn-spend.js';
+import { providerUnavailable, requestSpendBound } from './learn-spend.js';
 import { modelFailure } from './learn-research.js';
 import { normalizeToolInput } from './tool-input.js';
 
@@ -34,6 +34,9 @@ export const EXPLAIN_LIMITS = Object.freeze({
   render: Object.freeze({ browsersPerJob: 1, capturesPerRound: EXPLAIN_ROLES.review.maxImages, rounds: 1 + ROUNDS }),
   deadlines: Object.freeze({ callMs: 120000, preparationMs: 180000, jobMs: 600000 }),
 });
+
+// What the learner reads while the provider is unavailable (no ellipsis, no dollars).
+export const PROVIDER_UNAVAILABLE = 'Explanations are temporarily unavailable. Your request is saved. Try again in a few minutes.';
 
 export class ExplainPolicyError extends Error {
   constructor(code, message, extra = {}) { super(message); this.name = 'ExplainPolicyError'; this.code = code; Object.assign(this, extra); }
@@ -135,6 +138,9 @@ async function roleFailure(role, response) {
     const body = await response.clone().json().catch(() => null);
     if (['allowance_limited', 'spend_limited'].includes(body?.code)) return new ExplainPolicyError('spend_refused', body.error || 'AI is not available right now.', { status: response.status, reason: body.reason ?? null });
   }
+  // The provider's spend cap, usage limit, rate limit or overload: temporary, nothing ran or was billed. The job pauses with
+  // its completed stages and the learner retries once access returns (explain-job.js); never another model.
+  if (await providerUnavailable(response)) return new ExplainPolicyError('provider_unavailable', PROVIDER_UNAVAILABLE, { providerStatus: response.status });
   if (response.status === 404) {
     const body = await response.clone().json().catch(() => null);
     if (body?.error?.type === 'not_found_error') return new ExplainPolicyError('model_unavailable', `${explainModel(role)} is not available for /explain right now. Nothing else was used.`);

@@ -13,7 +13,8 @@ import { learnMedia } from './learn-storage.js';
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
 // animation-scene.js: 240 objects, 60 on screen per part).
-export const SPEC_LIMITS = Object.freeze({ components: 40, connections: 80, parts: 4, objectsTotal: 240, objectsPerPart: 60 });
+// reviewedStates: parts x steps, each state rendered and reviewed as one image in a single review (explain-review.js maxImages).
+export const SPEC_LIMITS = Object.freeze({ components: 40, connections: 80, parts: 4, objectsTotal: 240, objectsPerPart: 60, reviewedStates: 6 });
 const MAX_EXAMPLES = 2;
 // Lane A's composition guidance (registry.js COMPOSITION: card size, parts as a pager, overview and detail, containers) and
 // its worked parts example, shown to every author call beside the catalogue. Composition only: its wording is held to the
@@ -154,8 +155,14 @@ export function validateStage(job) {
   if (copied) problems.push(copied);
   let compiled = null;
   try { compiled = compileVisual(job.spec); } catch (error) { problems.push(String(error.message).slice(0, 400)); }
-  if (compiled) { const problem = sceneProblem(compiled.scene); if (problem) problems.push(problem); }
+  if (compiled) { const problem = sceneProblem(compiled.scene) || reviewedStatesProblem(compiled.scene); if (problem) problems.push(problem); }
   return problems.length ? { problems, category: 'spec', repairable: true } : { compiled };
+}
+
+// Every step of every part is reviewed as its own image, so a card can have at most SPEC_LIMITS.reviewedStates of them.
+function reviewedStatesProblem(scene) {
+  const parts = scene.exampleData?.partTitles?.length || 1, steps = scene.presentation?.mode === 'steps' ? scene.presentation.steps?.length || 1 : 1;
+  return parts * steps > SPEC_LIMITS.reviewedStates ? `${parts} part(s) x ${steps} steps is ${parts * steps} states to check, over ${SPEC_LIMITS.reviewedStates}: use fewer steps or parts` : null;
 }
 
 // The facts a spec states, as the reviewer reads them beside the images: every text value it carries.

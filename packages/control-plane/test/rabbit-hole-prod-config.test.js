@@ -71,7 +71,8 @@ test('the app Worker owns digrabbithole.com and binds its own control plane, wit
   const devOnly = { bindings: [...dev.durable_objects.bindings.filter(b => !['FileJobs','CadJobs','ExplainJobs'].includes(b.class_name)), {name:'CAD_JOBS',class_name:'CadJobs'}, {name:'EXPLAIN_JOBS',class_name:'ExplainJobs'}] };
   assert.deepEqual(app.durable_objects, devOnly);
   assert.deepEqual(app.migrations, [...dev.migrations.filter(m => !['file-jobs-1','cad-jobs-1','explain-jobs-1'].includes(m.tag)), {tag:'cad-jobs-1',new_sqlite_classes:['CadJobs']}, {tag:'explain-jobs-1',new_sqlite_classes:['ExplainJobs']}]);
-  assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'false');
+  assert.equal(app.vars.EXPLAIN_V2_ENABLED, 'true'); // R1 switch-on (owner production GO, 2026-10-22)
+  assert.deepEqual(JSON.parse(app.vars.EXPLAIN_BRIEF_THRESHOLDS), { components: 12, credits: 400 });
   // dev-worker.js bundles its HTML from ./dist-dev, so the directory keeps that name.
   assert.equal(app.assets.directory, './dist-dev');
   // The one public origin (auth.js on feature/rabbit-hole-production-auth sends sign-in there).

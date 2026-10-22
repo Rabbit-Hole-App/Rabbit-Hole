@@ -39,7 +39,8 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone, withSavedReply } from './chat-threads.js';
-import { currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { approvesJob, currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import { EXPLAIN_BRIEF_EVENT } from './explain-client.js';
 import RouteDecision from './RouteDecision.jsx';
 import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
@@ -466,8 +467,19 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     setMsgs(m => [...m, { role: 'user', content, command: parseSlash(content)?.name || null, messageId: `local-q-${turnId}`, status: 'done', outputsKey: turnId, outputs: [] }]);
     const saved = savedId(turnId, saver.user(content, { command: parseSlash(content)?.name || null }));
     saved.catch(error => console.info('[chat] command not saved:', error.message));
-    return { onCard: outputOps ? outputSink({ messageId: saved.catch(() => null), ops: outputOps, onOutput: keepOutput(turnId) }) : null };
+    // thread and refs (EXP-T20 slice 3): an /explain job posts a reviewed brief in the thread this line is saved in, and gets this
+    // chat's pinned and temporary refs (resolved by the server, as for a question).
+    return { onCard: outputOps ? outputSink({ messageId: saved.catch(() => null), ops: outputOps, onOutput: keepOutput(turnId) }) : null,
+      thread: saved.then(() => saver.threadId, () => null), refs: refsForSend(codeTurnRefs.refs) };
   };
+  // A reviewed /explain brief was posted on the thread this pane shows (ExplainPending): show it, with its Generate, unless a
+  // turn is streaming (the thread is read again with the next one).
+  useEffect(() => {
+    if (!chatThread) return undefined;
+    const show = event => { if (event.detail?.threadId && event.detail.threadId === chatThread.id && !answerFlight.current) chatThread.open(event.detail.threadId); };
+    window.addEventListener(EXPLAIN_BRIEF_EVENT, show);
+    return () => window.removeEventListener(EXPLAIN_BRIEF_EVENT, show);
+  }, [chatThread]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Learn / commands (LearnSlash.jsx): a line starting with / runs as a
   // command, never as a chat message. held: a /command Enter while busy (learn-slash.js holdsLine), sent when busy clears.
@@ -544,6 +556,17 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
     if (!message || busy) { tutor?.slash?.(null); return false; }
     setRouteShown(null);
+    // EXP-T20 slice 3: while an /explain brief waits for Generate (its card says so), a plain Chat turn refines it (the job's refine route), as a
+    // chat turn revises a live Motion proposal. The words are saved as the learner's message; the next version of the brief
+    // appears in this thread when it is ready. A refusal keeps the words in the composer and says why.
+    const brief = chat && !tocView && !regenerate && !prompted && !commandName && !file && workspace?.canvasOps?.refineExplain ? currentProposal(msgs, outputOps?.proposalMade) : null;
+    if (approvesJob(brief) && workspace.canvasOps.explainWaiting?.(brief.input.job)) {
+      setInput(''); setMentions([]);
+      recordCommand(message);
+      try { await workspace.canvasOps.refineExplain(brief, message); }
+      catch (error) { setInput(current => current || raw); setRouteShown({ kind: 'unsupported', message: error.message, raw }); }
+      return;
+    }
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.

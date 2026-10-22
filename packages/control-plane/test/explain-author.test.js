@@ -106,6 +106,11 @@ test('invented components, invalid parameters and complexity over the limits are
   // Too many objects for one card: the scene validators refuse it (60 on screen at once).
   const crowded = { ...SPEC, components: Array.from({ length: 31 }, (_, i) => module(`m${i}`, `Unit ${i}`)), connections: Array.from({ length: 30 }, (_, i) => ({ from: `m${i}.bottom`, to: `m${i + 1}.top` })) };
   assert.match(validateStage({ spec: crowded, prompt: 'x' }).problems.join(' '), /60|objects|too/);
+  // Every step is reviewed as its own image: more steps than one review checks is refused before rendering (repairable).
+  const stepped = n => ({ version: 1, id: 'heap', title: 'Heap insert', presentation: { mode: 'steps', steps: Array.from({ length: n }, (_, i) => ({ id: `s${i}`, title: `Step ${i}` })) },
+    components: [{ id: 'main', component: 'stack', version: 1, hints: { direction: 'column', gap: 24 } }, ...Array.from({ length: n }, (_, i) => ({ ...module(`m${i}`, `State ${i}`), parent: 'main', ...(i ? { step: `s${i}` } : {}) }))] });
+  assert.ok(validateStage({ spec: stepped(SPEC_LIMITS.reviewedStates), prompt: 'x' }).compiled);
+  assert.match(validateStage({ spec: stepped(SPEC_LIMITS.reviewedStates + 1), prompt: 'x' }).problems.join(' '), /7 states to check, over 6: use fewer steps or parts/);
 });
 
 test('evidence bindings come only from the records provided; examples add no facts, wording or source ids', async t => {

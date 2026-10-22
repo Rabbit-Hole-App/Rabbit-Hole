@@ -48,6 +48,10 @@ test('which repairs a failure allows: trusted-check failures a spec, wrong claim
   assert.deepEqual(allowedRepairs({ findings: stored(revise({ category: 'source', message: 'Wrong.' })) }), ['hints', 'spec']);
   for (const category of ['component', 'renderer', 'budget']) assert.deepEqual(allowedRepairs({ findings: stored(revise({ category, message: 'x' })) }), []);
   assert.deepEqual(allowedRepairs({ findings: stored(revise({ category: 'spec', message: 'x', specRepairable: false })) }), []);
+  // r2-live run r2 (2026-10-22): the real reviewer filed wrong claims as semantic / spec / not hint-repairable; that is a
+  // wrong claim the spec must correct, not a dead end.
+  assert.deepEqual(allowedRepairs({ findings: [{ verdict: 'semantic', category: 'spec', severity: 'major', specRepairable: false }] }), ['hints', 'spec']);
+  assert.deepEqual(allowedRepairs({ findings: [{ verdict: 'semantic', category: 'component', severity: 'major', specRepairable: false }] }), []);
   assert.deepEqual(Object.keys(repairableHints(SPEC)), ['row', 'sea', 'cloud'].filter(id => repairableHints(SPEC)[id]));
   assert.ok(repairableHints(SPEC).sea);
   assert.deepEqual(repairableHints(SPEC).sea.hints.width, { type: 'number', unit: 'px', min: 120, max: 480, default: 176 });
@@ -90,6 +94,11 @@ test('a wrong claim is corrected by an explicit spec change that goes back throu
     repair_explanation: [{ operation: 'spec', spec: fixed }],
   });
   assert.deepEqual([done.stage, done.spec.components[2].params.label], ['ready', 'Vapour rises and cools into clouds']);
+  // The live reviewer's form of a wrong claim (semantic verdict, category spec, not hint-repairable) reaches the same correction.
+  const live = { captures: [{ id: 'light', semantic: 'fail', visual: 'pass', findings: [{ verdict: 'semantic', category: 'spec', severity: 'major', object: 'cloud.box', repairable: false, message: 'Vapour must rise before it cools.' }] }] };
+  const claimed = await runJob(t, { author_explanation: [{ kind: 'spec', spec: SPEC }], report_review: [live, accept], repair_explanation: [{ operation: 'spec', spec: fixed }] });
+  assert.deepEqual([claimed.done.stage, claimed.done.round], ['ready', 1]);
+  assert.deepEqual(JSON.parse(claimed.model.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text).allowed, ['hints', 'spec']);
   // A spec that fails trusted checks (an unknown parameter) is repaired the same way, before any render or review.
   const broken = { ...SPEC, components: [ROW, { ...SEA, params: { label: 'Sun warms the sea', colour: 'red' } }, CLOUD] };
   const again = await runJob(t, { author_explanation: [{ kind: 'spec', spec: broken }], report_review: [accept], repair_explanation: [{ operation: 'spec', spec: SPEC }] });
