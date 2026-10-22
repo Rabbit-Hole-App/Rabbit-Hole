@@ -110,6 +110,8 @@ const componentInstance = z.object({
   label: labelContentSchema.optional(),
   evidence: z.array(id).max(32).default([]),
   part: z.number().int().min(0).max(3).optional(),
+  // Hierarchy: the container instance this one sits inside, in spec order.
+  parent: id.optional(),
 }).strict();
 export const visualSpecSchema = z.object({
   version,
@@ -128,6 +130,7 @@ export const visualSpecSchema = z.object({
   }
   for (const binding of spec.evidence) if (!known(binding.target)) ctx.addIssue({ code: 'custom', message: `evidence binding names unknown target "${binding.target}"` });
   for (const item of spec.components) {
+    if (item.parent !== undefined && (!ids.has(item.parent) || item.parent === item.id)) ctx.addIssue({ code: 'custom', message: `component "${item.id}" names unknown parent "${item.parent}"` });
     if (item.part !== undefined && item.part >= spec.parts.length) ctx.addIssue({ code: 'custom', message: `component "${item.id}" names part ${item.part}, but the spec declares ${spec.parts.length} parts` });
   }
 });
@@ -161,6 +164,8 @@ export const componentDefinitionSchema = z.object({
   repairWritable: z.array(id).max(32),
   anchors: z.array(id).min(1).max(64).superRefine(uniqueBy(name => name, 'anchor')),
   fixtures: z.array(id).max(16).default([]),
+  // A container lays out the instances that name it as parent.
+  container: z.boolean().default(false),
   compile: z.custom(value => typeof value === 'function', 'compile must be a function'),
 }).strict().superRefine((definition, ctx) => {
   for (const path of definition.repairWritable) if (!(path in definition.hints)) ctx.addIssue({ code: 'custom', message: `repairWritable "${path}" is not a declared hint` });

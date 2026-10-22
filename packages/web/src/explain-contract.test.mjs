@@ -110,6 +110,8 @@ test('VisualSpec connections and bindings name real instances through namespaced
   rejects('VisualSpec', raw => { raw.evidence = [{ claim: 'c', target: 'ghost', evidence: ['ev1'] }]; }, /unknown target/);
   rejects('VisualSpec', raw => { raw.components[0].id = 'law.box'; }, /stable id/);
   rejects('VisualSpec', raw => { raw.components[0].part = 0; }, /declares 0 parts/);
+  rejects('VisualSpec', raw => { raw.components[0].parent = 'ghost'; }, /unknown parent "ghost"/);
+  rejects('VisualSpec', raw => { raw.components[0].parent = 'law'; }, /unknown parent "law"/);
   rejects('VisualSpec', raw => { raw.components = []; }, /too_small|>=1|at least/i);
 });
 
