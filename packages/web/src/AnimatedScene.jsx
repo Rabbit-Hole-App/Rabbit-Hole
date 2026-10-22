@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Pause, Play, RotateCcw, Scan, Volume2, VolumeX, X } from 'lucide-react';
+import { Pause, Play, Scan, Volume2, VolumeX, X } from 'lucide-react';
 import katex from 'katex';
 // Equation objects render through katex.renderToString below, and without
 // its own stylesheet the output is unstyled markup. In the shipped app this
@@ -12,8 +12,8 @@ import katex from 'katex';
 // no such CSS and rendered every equation as flat, unstyled text. Importing
 // it here directly makes AnimatedScene correct on its own.
 import 'katex/dist/katex.min.css';
-import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, validateScene } from './animation-scene.js';
-import { applyInputToBlock, evaluateScene } from './scene-evaluate.js';
+import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, isStaticScene, validateScene } from './animation-scene.js';
+import { applyInputToBlock, evaluateScene, experimentChanged, resetInputs } from './scene-evaluate.js';
 import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
 import SceneControls, { CardPager } from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
@@ -631,7 +631,6 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const [scene, setScene] = useState(null);
   const [time, setTime] = useState(block.time || 0);
   const [playing, setPlaying] = useState(false);
-  const [run, setRun] = useState(0);
   const [selecting, setSelecting] = useState(false);
   const [muted, setMutedState] = useState(isMuted());
   useEffect(() => onMuted(setMutedState), []);
@@ -691,10 +690,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const resetExperiment = () => {
     setPlaying(false);
     setSelecting(false);
-    const kept = latest.current.practiceActive && latest.current.activity?.fixedInputs ? { ...latest.current.activity.fixedInputs } : {};
-    // The sub-card being read is navigation, not part of the experiment.
-    if (pager && latest.current.inputs?.[pager.name] !== undefined) kept[pager.name] = latest.current.inputs[pager.name];
-    onChange({ ...latest.current, inputs: kept, inputRevision: (latest.current.inputRevision || 0) + 1, marked: null, selectedObject: null });
+    onChange({ ...latest.current, inputs: resetInputs(latest.current), inputRevision: (latest.current.inputRevision || 0) + 1, marked: null, selectedObject: null });
   };
   useEffect(() => {
     if (!playing || !scene) return;
@@ -734,7 +730,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     };
     frame.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame.current);
-  }, [playing, scene, run]);
+  }, [playing, scene]);
   // The paused moment is what a question refers to, so it is committed on
   // every scrub. It goes through the quiet path because scrubbing is a view
   // change and must not be able to destroy the learner's undo history.
@@ -742,13 +738,19 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     if (playing || !scene) return;
     (onChangeQuiet || onChange)({ ...latest.current, time: Number(time.toFixed(2)) });
   }, [playing, time]);
+  // A static scene is always its finished frame. Its moment is committed too,
+  // so the composer context (scene-describe.js reads block.time) describes
+  // the picture the learner sees, not an empty first frame.
+  const staticScene = !!scene && isStaticScene(scene);
+  useEffect(() => { if (staticScene && time !== scene.duration) setTime(scene.duration); }, [staticScene, scene?.duration]);
   // The evaluator is time-in, state-out, so honouring reduced motion costs a
   // constant and a branch: states settle where they already were going.
   const still = useReducedMotion();
   const pop = still ? { duration: 0 } : POP;
   if (error) return <div className="grid min-h-24 place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
   if (!scene) return null;
-  const state = getSceneState(scene, time);
+  const shown = staticScene ? scene.duration : time;
+  const state = getSceneState(scene, shown);
   const pauseAnd = run => { setPlaying(false); run(); };
   const atEnd = time >= scene.duration - 0.001;
   const play = () => {
@@ -756,11 +758,6 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
     if (atEnd && !playing) setTime(0);
     setPlaying(value => !value);
   };
-  // Replay while already playing leaves `playing` true, so the loop effect
-  // below would not re-run and its clock would keep counting from the old
-  // start - the time jumped to 0 and was overwritten on the very next frame.
-  // The run counter is what actually restarts it.
-  const replay = () => { setTime(0); setRun(count => count + 1); if (!still) setPlaying(true); };
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2" onPointerDown={event => event.stopPropagation()}>
       {pager && <CardPager declaration={pager} value={evaluated.inputs[pager.name]} data={block.scene.exampleData} onInput={setInput} />}
@@ -770,25 +767,27 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           onPick={semanticId => onChange({ ...block, selectedObject: semanticId })}
           onRegion={(area, targets) => {
             setSelecting(false);
-            const next = { ...block, marked: area, time: Number(time.toFixed(2)), selectedObject: targets[0] || block.selectedObject || null };
+            const next = { ...block, marked: area, time: Number(shown.toFixed(2)), selectedObject: targets[0] || block.selectedObject || null };
             onChange(next);
             // Ambiguous marks name every candidate rather than guessing one.
-            onAskRegion?.(next, { region: area, time: Number(time.toFixed(2)), targets });
+            onAskRegion?.(next, { region: area, time: Number(shown.toFixed(2)), targets });
           }} />
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
+        {/* One transport for one state: Play/Pause, becoming Replay at the
+            end (plan v2.1 section 1.2). A static scene has none. */}
+        {!staticScene && (
         <button type="button" data-animation-play onClick={play}
           className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
           {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
         </button>
-        <button type="button" data-animation-replay title="Replay from the start" onClick={replay}
-          className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover"><RotateCcw size={13} /></button>
+        )}
         {/* Item 6 (app-review): a mute control for a scene with no sound
             events at all is a control that lies about what it does. Hidden,
             not merely disabled - scene.timeline is the same source of truth
             the playback effect above already filters on (soundEvents), so
             "has sound" here can never disagree with what actually plays. */}
-        {scene.timeline.some(event => event.sound) && (
+        {!staticScene && scene.timeline.some(event => event.sound) && (
           <button type="button" data-animation-mute title={muted ? 'Unmute' : 'Mute'} aria-pressed={muted}
             onClick={() => setMuted(!muted)}
             className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover">
@@ -801,9 +800,11 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           className={`flex h-8 items-center rounded-lg border px-2.5 ${selecting ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}>
           {block.marked ? <X size={13} /> : <Scan size={13} />}
         </button>
-        <input type="range" aria-label="Animation time" min={0} max={scene.duration} step={0.05} value={time}
+        {!staticScene && (<>
+        <input type="range" aria-label="Explanation time" min={0} max={scene.duration} step={0.05} value={time}
           onChange={event => pauseAnd(() => setTime(Number(event.target.value)))} className="h-8 min-w-0 flex-1 accent-accent" />
         <span className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
+        </>)}
       </div>
       {/* INTERACT zone: the controls that change the concept, below the
           visualization and its transport, never scattered inside the diagram
@@ -811,7 +812,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           on-scene manipulation stays as a synchronized shortcut. */}
       {interactive && evaluated && (
         <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={resetExperiment} locked={lockedInputs} onHeight={onControlsHeight} />
+          data={block.scene.exampleData} onInput={setInput} onReset={experimentChanged(block) ? resetExperiment : null} locked={lockedInputs} onHeight={onControlsHeight} />
       )}
       {(block.selectedObject || block.marked) && (
         <p data-animation-selection className="flex shrink-0 items-center gap-2 text-[11px] text-ink-2">

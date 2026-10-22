@@ -623,6 +623,15 @@ export function getSceneState(scene, time) {
   };
 }
 
+// A timeline that only builds the finished picture up - objects appear, get
+// highlighted or emphasised, and nothing later moves, changes, leaves or
+// sounds - teaches nothing by playing: its last frame already holds every
+// state it passed through. Such a scene is shown complete, with no transport
+// (plan v2.1 section 1.2, Static). Conservative on purpose: any other action
+// keeps the timeline, because there time may be the lesson.
+const BUILD_ONLY = new Set(['appear', 'highlight', 'emphasize', 'pause']);
+export const isStaticScene = scene => scene.timeline.every(event => BUILD_ONLY.has(event.action) && !event.sound);
+
 // Templates place objects so the agent supplies A -> B -> C, never pixels.
 // GAP and PAD are spacing between and around nodes, so they sit on SPACE; a
 // node's own width and height are GEOMETRY - the same values sizeOf gives a

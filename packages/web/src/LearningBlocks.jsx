@@ -466,7 +466,8 @@ export const BLOCK_TYPES = {
     }),
   },
   animation: {
-    label: 'Animation',
+    // Learner-facing name (plan v2.1 section 1.2); the storage type stays 'animation'.
+    label: 'Explanation',
     typicalRows: 180,
     width: 560,
     height: 460,
@@ -1184,7 +1185,7 @@ function AnimationBody({ block, onChange, onChangeQuiet, onAskAnimation, onPract
     <div className="flex min-h-0 flex-1 flex-col px-4 pb-3">
       {/* A card that is one step of a sequence says so, quietly, where the
           block kind would be: "Self-attention · 2 of 3". A label, not navigation. */}
-      <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Animation'}</Kicker>
+      <Kicker>{block.sequence ? <span data-card-sequence>{block.sequence.name} · {block.sequence.position} of {block.sequence.of}</span> : 'Explanation'}</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       <div className="mt-2 flex min-h-0 flex-1 flex-col">
         <AnimatedScene block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onAskRegion={onAskAnimation} onControlsHeight={onControlsHeight} />
