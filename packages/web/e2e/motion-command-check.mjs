@@ -50,6 +50,7 @@ const LINE = '/motion 15s explain me softmax func';
 const CLIP = '/lesson-assets/motion-softmax-8a2015a4.mp4';
 const CLIP_BYTES = readFileSync(new URL(`../public${CLIP}`, import.meta.url));
 const TITLE = 'Softmax: Turning Attention Scores into Weights';
+const PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
 const REFUSED = 'Motion is not available in this environment yet. Nothing was started.';
 // Saved before this change: a maths animation made by /animate (its clip a committed file here, as a stored clip would be) and
 // an animation scene card. Neither may regenerate or break.
@@ -67,7 +68,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 20; // per theme: 10 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 22; // per theme: 11 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -236,6 +237,8 @@ for (const theme of ['light', 'dark']) {
     if (!stub) return route.fallback();
     const request = route.request(), url = new URL(request.url());
     if (url.searchParams.get('asset')) return route.fulfill({ body: CLIP_BYTES, headers: { 'content-type': 'video/mp4', 'accept-ranges': 'bytes' } });
+    // New generation paused on the server (MOCKED, owner message 28): the list says so and the start is refused.
+    if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
     // The server's reservation (MOCKED): the amount for a new job, and this job's hold as it runs, waits on its cost, or is released.
     const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
@@ -291,6 +294,22 @@ for (const theme of ['light', 'dark']) {
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED paused: the confirmation says Motion generation is paused; Generate is refused with the same text`, async () => {
+    stub = { id: `p-paused-${theme}`, polls: 0, paused: true };
+    const posts = videoPosts().length;
+    await composer().fill(`/motion 11s explain dropout ${theme}`); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').waitFor();
+    assert.equal((await notice.innerText()).includes(PAUSED), true, 'the confirmation says generation is paused');
+    assert.doesNotMatch(await notice.innerText(), /\$\d/, 'no reservation is offered');
+    await dock.locator('[data-paid-generate]').click();
+    const mine = page.locator('[data-block-id]', { hasText: PAUSED });
+    await mine.waitFor({ timeout: 20000 });
+    assert.equal(videoPosts().length - posts, 1, 'one start, refused by the server');
+    await mine.scrollIntoViewIfNeeded();
+    await mine.screenshot({ path: `${OUT}/${theme}-06a-paused-card.png` });
     await dismiss();
   });
 

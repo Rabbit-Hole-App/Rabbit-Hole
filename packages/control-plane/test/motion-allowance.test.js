@@ -10,7 +10,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LearnVideos, withCanvasRepository } from '../src/learn-video.js';
+import { LearnVideos, MOTION_PAUSED, withCanvasRepository } from '../src/learn-video.js';
 import { forwardUsagePayer, periodOf, usageTotals } from '../src/learn-usage.js';
 import { motionOrchestrator } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
@@ -552,4 +552,80 @@ test('MOT-09 Stop before the start was confirmed, then a worker restart: never r
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']], 'settled once');
   assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]]);
   assert.equal(env.LEARN_MEDIA.objects.size, 0);
+});
+
+// Owner message 28: new Motion generation paused on the server (MOTION_GENERATION_PAUSED "1") until MOT-06/07 are fixed.
+test('paused: Generate, Retry and every other start are refused before admission: no hold, no orchestrator call', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, fail: 'storyboard_invalid' }]);
+  const env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a'), env);
+  await actor.fetch(ask());
+  await settle(actor, async () => (await video(actor)).status === 'failed');
+  const before = [w.orchestrator.posts, motionAttempts(sqlite).length, w.model.calls.length];
+  env.MOTION_GENERATION_PAUSED = '1';
+  // A new Generate (composer, inline Motion and Ctrl+K post the same start) and the failed card's Retry.
+  for (const request of [ask({}, { ...motionOp, request: '/motion 10s explain layer norm' }), ask({ retry: true })]) {
+    const response = await actor.fetch(request);
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'Motion generation is temporarily unavailable while we fix a reliability issue.', code: 'motion_paused' });
+  }
+  assert.equal(MOTION_PAUSED, 'Motion generation is temporarily unavailable while we fix a reliability issue.');
+  assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length, w.model.calls.length], before, 'no admission, hold or orchestrator call');
+  const list = await actor.list();
+  assert.equal(list.motionPaused, true, 'the confirmation can say so');
+  assert.equal(list.motionHoldUsd, undefined, 'no reservation is offered while paused');
+  // Unpaused ("0" or unset) behaves as before.
+  env.MOTION_GENERATION_PAUSED = '0';
+  assert.equal((await actor.fetch(ask({}, { ...motionOp, request: '/motion 10s explain layer norm' }))).status, 202);
+});
+
+// MOT-07 (owner message 27) replaces the resend this test asserted: a lost submission is never resent, paused or not. Reconciling its
+// key starts nothing, so it runs while paused (message 28 keeps reconciliation), and a confirmed no-start releases its hold.
+test('paused: an unconfirmed start is never resent; reconciling its key starts nothing, and a confirmed no-start releases its hold', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }, { render: true }]);
+  const env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a'), env);
+  // The first submission never reaches the orchestrator (no answer).
+  const through = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { if (new URL(url).pathname === '/jobs') throw new Error('socket hang up'); return through(url, init); };
+  await actor.fetch(ask());
+  globalThis.fetch = through;
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'reserved', null, 'running']], 'held until reconciled');
+  env.MOTION_GENERATION_PAUSED = '1';
+  for (let i = 0; i < 5; i++) await actor.alarm();
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, w.model.calls.length], [0, 0, 0], 'nothing resent or started while paused');
+  const v = await video(actor);
+  assert.deepEqual([v.status, v.retryable, v.hold.state], ['failed', true, 'released']);
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'cancelled']], 'closed by the run its grant was for: a confirmed no-start, released');
+  delete env.MOTION_GENERATION_PAUSED;
+  await actor.alarm();
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size], [0, 0], 'never resent once generation resumes');
+});
+
+test('paused: a job already running still polls, settles and plays; another can still be stopped and settle', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a'), env);
+  await actor.fetch(ask());
+  env.MOTION_GENERATION_PAUSED = '1';
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']], 'settled at its real cost');
+  assert.ok(env.LEARN_MEDIA.objects.size > 0, 'the finished video is stored to play');
+
+  const stopEnv = env0(LEARN_DB);
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000 }, { stage: 'authoring', max_tokens: 64000, out: 30000, hold: true }, { render: true }]);
+  const other = new LearnVideos(durable('video-b'), stopEnv);
+  const { placementId } = await (await other.fetch(ask())).json();
+  for (let i = 0; i < 100 && !w.model.held; i++) await sleep(5);
+  stopEnv.MOTION_GENERATION_PAUSED = '1';
+  const v = (await (await other.fetch(stopping(placementId))).json()).videos[0];
+  assert.deepEqual([v.status, v.error], ['failed', 'Stopped.']);
+  w.model.held();
+  await settle(other, async () => motionAttempts(sqlite)[1][1] !== 'reserved');
+  assert.deepEqual(motionAttempts(sqlite)[1], [2_000_000, 'settled', 700_000, 'failed'], 'the stopped job settles while paused');
 });

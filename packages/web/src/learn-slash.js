@@ -138,14 +138,14 @@ const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a cha
 // selection: the card the request is about ({ id, kind, title, text }: the composer's selected card or the inline editor's
 // selection), sent as motion_request context.selection (control-plane motion-context.js) so the resolver grounds on its
 // text (owner brief 2026-10-21 message 7 item 4). With none, the line is resolved from its words alone.
-// holdUsd: the reservation the server returned (learn-scene-client.js motionHoldUsd); the message names it, or no amount.
-export function motionProposal(args, location = null, selection = null, holdUsd = null) {
+// hold: what the server returned (learn-scene-client.js motionHold); the message names the reservation, or says generation is paused.
+export function motionProposal(args, location = null, selection = null, hold = null) {
   const context = motionContext(selection);
   const block = {
     type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
     operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null }, ...(context ? { context } : {}) },
   };
-  return { block, message: motionConfirm(holdUsd) };
+  return { block, message: motionConfirm(hold) };
 }
 
 // The frozen motion_request.context: the card's id, kind, title and at most 4000 characters of its plain text. A card with
@@ -186,7 +186,7 @@ export const MOTION_OFF = 'Motion (animated explainer videos) is not available h
 // internal: the Tutor's own create_material (runMaterials) may run its material tools; a typed line never can, and a removed
 // command says it is unavailable and runs nothing (owner, 2026-10-20).
 // motionHold: the server's per-job reservation for /motion (a read, never a start); loaded only when /motion runs.
-export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false, motionHold = async () => (await import('./learn-scene-client.js')).motionHoldUsd(app) }) {
+export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false, motionHold = async () => (await import('./learn-scene-client.js')).motionHold(app) }) {
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
   if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;

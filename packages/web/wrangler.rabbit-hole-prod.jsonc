@@ -69,7 +69,10 @@
     // /motion (owner activation GO, 2026-10-21): the production orchestrator (its bearer MOTION_ORCHESTRATOR_TOKEN is a secret)
     // and the per-job hold admitted against the learner's allowance before anything starts (motion-deploy-plan.md 2B).
     "MOTION_ORCHESTRATOR_URL": "https://rabbit-hole-motion-orchestrator.fly.dev",
-    "MOTION_JOB_RESERVATION_USD": "8.96"
+    "MOTION_JOB_RESERVATION_USD": "8.96",
+    // Owner message 28 (2026-10-21): new Motion generation paused until MOT-06/07 are fixed. Jobs already started still poll,
+    // stop, settle and play. Restore generation by removing this line with the verified fix.
+    "MOTION_GENERATION_PAUSED": "1"
   }
   // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), TYPESAFE_API_KEY,
   // FISH_AUDIO_API_KEY, ELEVENLABS_API_KEY, SCENE_WORKER_TOKEN. Optional: OPENAI_API_KEY and the paid-provider keys.

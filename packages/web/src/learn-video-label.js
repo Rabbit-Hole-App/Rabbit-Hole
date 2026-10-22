@@ -19,7 +19,11 @@ const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source
 const money = usd => `$${usd.toFixed(2)}`;
 const known = usd => Number.isFinite(usd) && usd > 0;
 export const motionHoldNote = usd => `Temporarily reserves ${known(usd) ? `${money(usd)} from your available AI allowance` : 'part of your available AI allowance'}. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.`;
-export const motionConfirm = usd => `This uses paid generation. ${motionHoldNote(usd)}`;
+// Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
+// server refuses the start itself with the same text.
+export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
+// hold: what the server said (learn-scene-client.js motionHold): the reservation amount, 'paused', or null.
+export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED : `This uses paid generation. ${motionHoldNote(hold)}`);
 // The card's reservation line from the job's hold ({usd, state} in the LearnVideos list): reserved while it runs, pending while
 // its final cost is not confirmed, nothing once released.
 export function motionHoldStatus(hold) {
