@@ -141,6 +141,14 @@ for (const n of SIZES) {
     ok(`${n} cards: mounted tiles stay within the viewport bound, and only those were requested`, first.mounted <= first.bound && tileRequests.size <= first.bound, `${first.mounted} mounted, ${tileRequests.size} requested, bound ${first.bound} of ${n * TILES_PER_CARD}`);
     const m0 = await metrics(cdp); row.heapMiB = +(m0.JSHeapUsedSize / MiB).toFixed(1); row.nodes = m0.Nodes;
 
+    // A board with no thumbnail yet draws one 4 s after it opens (LearnPage.jsx, card-thumbnail.js: html-to-image in an
+    // offscreen frame), once. In fast-e2e 39749160898 that render was the 10-card pan's 514 ms Long Animation Frame (an
+    // import().then in card-thumbnail's capture) and the 20-card stall. Scroll and pan are measured after it has been sent,
+    // so they time the card, not that one-time job; its upload time is recorded. Budgets unchanged.
+    const thumbWait = Date.now();
+    while (!thumbs.length && Date.now() - thumbWait < 20000) await page.waitForTimeout(100);
+    row.thumbMs = thumbs.length ? thumbs[0] - thumbWait : 'none in 20 s';
+
     // Card scroll: wheel over the first card's body, down then up.
     const body = await page.locator('[aria-label="Lesson canvas"] [data-block-id="w0"] [data-webcard-frame]').boundingBox();
     await page.mouse.click(body.x + body.width / 2, body.y + 20);
