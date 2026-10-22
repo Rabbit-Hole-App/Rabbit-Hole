@@ -14,7 +14,7 @@ import { execFileSync, execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, relative } from 'node:path';
+import { join, posix, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ensureNatives } from './ensure-natives.mjs';
 
@@ -177,7 +177,63 @@ export function servedSha(deployments, versions) {
 // 2026-10-09 (owner: reuse a gate for script-only changes): the release scripts and workflows too; the byte-identical
 // build and bundle check still catches any of them that would change what ships.
 const REUSABLE = [/^docs\//, /^[^/]+\.md$/, /^scripts\/(dev-deploy|dev-deploy-gate|prod-release|ensure-natives|schema-check|lock-natives|verify-evidence)(\.test)?\.mjs$/, /^scripts\/fixtures\//, /^\.github\/workflows\/[^/]+\.ya?ml$/];
-export const notReusable = changed => changed.filter(p => !REUSABLE.some(r => r.test(p)));
+// Owner 2026-10-21 ("drop for UI only"): the page's own source, its browser checks and static files reuse too, except
+// any file a Worker bundles (worker: workerGraph's set) and the production bundle check. Without the set, none reuse.
+// A UI change legitimately changes the page build and the Worker bundle (it carries dist-dev/index.html), so no
+// byte-identity check applies to it; the build recipe must still be the gated one.
+export const UI_ONLY = [/^packages\/web\/src\//, /^packages\/web\/test\//, /^packages\/web\/e2e\/(?!production-bundle-check\.mjs$)/, /^packages\/web\/public\//];
+// Money and sign-in keep the gate even in page code (owner, 2026-10-21): any UI path naming them, tests included.
+export const MONEY_OR_SIGN_IN = /credit|allowance|usage|motion|video|sign-?in|auth|login|oauth|billing|payment/i;
+export const notReusable = (changed, worker = null) => changed.filter(p => !REUSABLE.some(r => r.test(p)) && !(worker && !worker.has(p) && !MONEY_OR_SIGN_IN.test(p) && UI_ONLY.some(r => r.test(p))));
+export const uiChanged = changed => changed.some(p => !REUSABLE.some(r => r.test(p)));
+
+// Every Worker's entry: the dev and Access dev workers, rabbit-hole-app (app-worker.js) and the control plane.
+export const WORKER_ENTRIES = ['packages/web/dev-worker.js', 'packages/web/dev-access-worker.js', 'packages/web/app-worker.js', 'packages/control-plane/src/index.js'];
+const SPEC = /\b(?:import|export)\s[^'"`;]*?\bfrom\s*['"]([^'"]+)['"]|\bimport\s*['"]([^'"]+)['"]|\bimport\s*\(\s*(?:['"]([^'"]+)['"])?/g;
+// The repository files the Workers bundle: entries plus every relative static or dynamic import, transitively
+// (packages come from the lockfile, which is never reusable). read(path) -> text, or null when absent. A dynamic
+// import whose specifier is not a string literal could reach any file, so it throws: the commit needs a gate.
+export function workerGraph(read, entries = WORKER_ENTRIES) {
+  const seen = new Set(), todo = [...entries];
+  while (todo.length) {
+    const file = todo.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    if (!/\.(m?js|jsx)$/.test(file)) continue; // html, py, json: bundled as data
+    const text = read(file);
+    if (text == null) continue;
+    for (const m of text.matchAll(SPEC)) {
+      const spec = m[1] ?? m[2] ?? m[3];
+      if (spec === undefined) throw new Error(`${file}: a dynamic import without a literal specifier; the Worker graph is unknown`);
+      if (!spec.startsWith('.')) continue;
+      const base = posix.normalize(posix.join(posix.dirname(file), spec));
+      todo.push([base, `${base}.js`, `${base}.mjs`, `${base}.jsx`, `${base}/index.js`].find(p => read(p) != null) ?? base);
+    }
+  }
+  return seen;
+}
+// workerGraph over a commit's tree: every script blob read in one git cat-file (one git show per file took 275 s on
+// Windows). Other files only need to exist.
+export const workerGraphAt = (rev, cwd) => {
+  const tree = execFileSync('git', ['ls-tree', '-r', rev], { cwd, encoding: 'utf8', maxBuffer: 1 << 28 }).split('\n').filter(Boolean)
+    .map(l => { const [meta, path] = l.split('\t'); return { oid: meta.split(' ')[2], path }; });
+  const scripts = tree.filter(f => /\.(m?js|jsx)$/.test(f.path) && f.path.startsWith('packages/'));
+  const out = execFileSync('git', ['cat-file', '--batch'], { cwd, input: `${scripts.map(f => f.oid).join('\n')}\n`, maxBuffer: 1 << 30 });
+  const text = new Map();
+  let at = 0;
+  for (const f of scripts) { // "<oid> blob <size>\n<content>\n" per blob
+    const nl = out.indexOf(10, at), size = Number(out.subarray(at, nl).toString().split(' ')[2]);
+    text.set(f.path, out.subarray(nl + 1, nl + 1 + size).toString('utf8'));
+    at = nl + 1 + size + 1;
+  }
+  const exists = new Set(tree.map(f => f.path));
+  return workerGraph(p => text.get(p) ?? (exists.has(p) ? '' : null));
+};
+// The diff a..b against the Worker graphs of both ends (a file the Worker bundled at a and b deletes counts too).
+export const notReusableBetween = (a, b, cwd) => {
+  const changed = execFileSync('git', ['diff', '--name-only', a, b], { cwd, encoding: 'utf8' }).split('\n').filter(Boolean);
+  return { changed, outside: notReusable(changed, new Set([...workerGraphAt(a, cwd), ...workerGraphAt(b, cwd)])) };
+};
 // Test-only paths: never in the page build or the Worker bundle. Allowed before a --rerun that checks them again.
 export const TEST_ONLY = [/^packages\/web\/e2e\//, /^tests\//, /^packages\/[^/]+\/test\//, /\.test\.m?js$/];
 export const UNIT_TEST = /^packages\/[^/]+\/test\/|\.test\.m?js$|^tests\//;
@@ -357,13 +413,15 @@ async function main() {
     if (reuse === sha) stop('--reuse names the candidate itself; deploy it without --reuse');
     if (!isAncestor(reuse, sha)) stop(`the gated ${reuse.slice(0, 8)} is not an ancestor of ${sha.slice(0, 8)}`);
     const diff = (a, b) => git('diff', '--name-only', a, b).split('\n').filter(Boolean);
+    let worker;
+    try { worker = new Set([...workerGraphAt(reuse, root), ...workerGraphAt(sha, root)]); } catch (e) { stop(`policy A: ${e.message}; a full gate is needed`); }
     let changed;
     if (rerun) {
       if (!isAncestor(reuse, rerun.sha) || !isAncestor(rerun.sha, sha)) stop(`the rerun ${rerun.sha.slice(0, 8)} must lie between the gated ${reuse.slice(0, 8)} and ${sha.slice(0, 8)}`);
       const tested = diff(reuse, rerun.sha), after = diff(rerun.sha, sha);
-      const notTest = tested.filter(p => notReusable([p]).length && !TEST_ONLY.some(r => r.test(p)));
+      const notTest = tested.filter(p => notReusable([p], worker).length && !TEST_ONLY.some(r => r.test(p)));
       if (notTest.length) stop(`policy A: ${notTest.join(', ')} changed between the gated ${reuse.slice(0, 8)} and the rerun; only tests may, so a full gate is needed`);
-      const outsideAfter = notReusable(after);
+      const outsideAfter = notReusable(after, worker);
       if (outsideAfter.length) stop(`policy A: ${outsideAfter.join(', ')} changed after the rerun ${rerun.sha.slice(0, 8)}; this commit needs its own gate`);
       const verdict = rerunVerdict(gateText, tree, readFileSync(rerun.file, 'utf8'), git('rev-parse', `${rerun.sha}^{tree}`), { unitChanged: tested.some(p => UNIT_TEST.test(p)), inTree });
       if (verdict) stop(`${verdict} - the last passing deployment stays`);
@@ -371,20 +429,22 @@ async function main() {
       changed = [...new Set([...tested, ...after])];
     } else {
       changed = diff(reuse, sha);
-      const outside = notReusable(changed);
+      const outside = notReusable(changed, worker);
       if (outside.length) stop(`policy A: ${outside.join(', ')} changed since the gated ${reuse.slice(0, 8)}; this commit needs its own full gate`);
     }
+    const ui = uiChanged(changed);
     // The focused checks, on this exact tree: failed-gate rejection, exact sha, stale runs, environment targeting.
     try { execFileSync(process.execPath, ['--test', 'scripts/dev-deploy.test.mjs', 'scripts/prod-release.test.mjs'], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'] }); }
     catch { stop('policy A: the focused deploy and release tests failed'); }
     // The page build, and the Worker bundle where the gated deploy recorded one, must be byte-identical to the gated
     // ones: proof that no build input changed.
-    gatedId = await recordedIdentity(reuse, record);
+    // A UI change builds differently by design: it is never compared to the gated build, only its recipe is.
+    gatedId = ui ? null : await recordedIdentity(reuse, record);
     // A gated commit that was never deployed has no recorded build: then the build recipe itself must be unchanged
     // (no app input changed, by the path rules above), so the build is the gated one by construction.
     if (!gatedId && buildRecipe(git('show', `${reuse}:scripts/dev-deploy.mjs`)) !== buildRecipe(readFileSync(fileURLToPath(import.meta.url), 'utf8')))
-      stop(`policy A: the gated ${reuse.slice(0, 8)} has no recorded dev build and the build recipe changed since; a full gate is needed`);
-    say(`✓ policy A: reusing the app gate of ${reuse.slice(0, 8)}; changed since: ${changed.join(', ')}; focused tests passed`);
+      stop(`policy A: ${ui ? 'a UI change reuses a gate only with the gated build recipe, and it' : `the gated ${reuse.slice(0, 8)} has no recorded dev build and the build recipe`} changed since; a full gate is needed`);
+    say(`✓ policy A${ui ? ' (UI only)' : ''}: reusing the app gate of ${reuse.slice(0, 8)}; changed since: ${changed.join(', ')}; focused tests passed`);
   }
 
   const lock = join(tmpdir(), `${WORKER}.deploy.lock`);

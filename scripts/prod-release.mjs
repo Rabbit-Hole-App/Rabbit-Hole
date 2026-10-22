@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SOURCES, MASTER_SQL, expectedSchema, schemaDiff, schemaOf, mainMigrationDiff } from './schema-check.mjs';
+import { notReusableBetween } from './dev-deploy.mjs';
 
 // Production hold (owner, 2026-10-07; lifted by the owner in Home's session 2026-10-09). While true, `release` exits
 // here before any remote call. Setting it again is a reviewed change to this line, never an environment variable or a flag.
@@ -60,26 +61,28 @@ export function parseArgs(argv) {
 // A green dev deployment: a line in the dev-deploy record with this exact sha, gates and smoke both passed. Or (owner,
 // 2026-10-09, option a) a reused gate: this sha's smoke passed, and its base G (app_gate_sha) has its own full-gate,
 // smoke-passed line with the same page build and Worker bundle, and G is an ancestor of this sha. The byte-identical
-// build is what makes G's gate cover what ships.
+// build is what makes G's gate cover what ships. Or (owner, 2026-10-21, "drop for UI only") the build differs and
+// uiOnly(G, sha) finds every change since G UI-only (dev-deploy.mjs notReusable with the Worker graph), checked here
+// again on the release tree rather than taken from the record.
 // Provenance (r34 audit): every line used must name the commit's own tree, its page build and Worker bundle, the gate
 // record it passed on (gate_digest), the run that deployed it and the dev version it became.
 const proven = (r, treeOf) => SHA.test(r.tree || '') && r.tree === treeOf(r.sha) && /^[0-9a-f]{16}$/.test(r.gate_digest || '')
   && r.build && r.bundle && r.version && r.run;
-export function greenDevDeploy(sha, recordText, { isAncestor = () => false, treeOf = () => null } = {}) {
+export function greenDevDeploy(sha, recordText, { isAncestor = () => false, treeOf = () => null, uiOnly = () => false } = {}) {
   const rows = recordText.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
   const full = s => rows.findLast(r => r.sha === s && r.gates === 'pass' && r.smoke === 'pass' && proven(r, treeOf)) || null;
   if (full(sha)) return full(sha);
   const reused = rows.findLast(r => r.sha === sha && r.gates === 'reused' && r.smoke === 'pass' && SHA.test(r.app_gate_sha || '') && proven(r, treeOf));
   const g = reused && full(reused.app_gate_sha);
-  return g && reused.build === g.build && reused.bundle === g.bundle && isAncestor(g.sha, sha) ? reused : null;
+  return g && isAncestor(g.sha, sha) && ((reused.build === g.build && reused.bundle === g.bundle) || uiOnly(g.sha, sha)) ? reused : null;
 }
 
 const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n${changes}` : ''}`;
 
-export function checkPrepare({ sha, onMain, devRecord, head, clean, changes, isAncestor, treeOf }) {
+export function checkPrepare({ sha, onMain, devRecord, head, clean, changes, isAncestor, treeOf, uiOnly }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
-  if (!greenDevDeploy(sha, devRecord, { isAncestor, treeOf })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
+  if (!greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
   if (head !== sha) return `refused: HEAD is ${head}, check out ${sha} first`;
   if (!clean) return dirty(changes);
   return null;
@@ -192,6 +195,8 @@ const git = (...a) => run('git', a);
 const tryGit = (...a) => { try { git(...a); return true; } catch { return false; } };
 const isAncestor = (a, b) => tryGit('merge-base', '--is-ancestor', a, b);
 const treeOf = s => { try { return git('rev-parse', `${s}^{tree}`); } catch { return null; } };
+// An unreadable Worker graph (a non-literal dynamic import) is not UI-only.
+const uiOnly = (g, s) => { try { return notReusableBetween(g, s, ROOT).outside.length === 0; } catch { return false; } };
 // Shared by every worktree of this clone, never tracked or pushed.
 const COMMON = () => resolve(ROOT, git('rev-parse', '--git-common-dir'));
 const devRecordPath = opts => opts['dev-record'] || join(COMMON(), 'rabbit-hole-dev-deploys.jsonl');
@@ -212,7 +217,7 @@ function bundleHash(sha) {
 function prepare(opts) {
   const { sha } = opts;
   const record = existsSync(devRecordPath(opts)) ? readFileSync(devRecordPath(opts), 'utf8') : '';
-  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, isAncestor, treeOf, ...tree() });
+  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, isAncestor, treeOf, uiOnly, ...tree() });
   if (err) return fail(err);
   const tldraw = process.env.VITE_TLDRAW_LICENSE_KEY
     || (existsSync(join(ROOT, '.env')) && readFileSync(join(ROOT, '.env'), 'utf8').match(/^VITE_TLDRAW_LICENSE_KEY=(.*)$/m)?.[1]?.trim());

@@ -301,6 +301,15 @@ that matters, stop only the stack processes your task recorded, and check that n
 `node_modules` is a junction into it. Then `git worktree remove <path>`, and delete its local stack
 data and its dev clone.
 
+No gate for UI and copy changes (owner, 2026-10-21). A candidate that changes only web UI or copy
+reuses the last passing gate: its gates note is `reuse <gated main sha>`. Reusable paths are
+`packages/web/src/**`, `packages/web/test/**`, `packages/web/e2e/**` (not `production-bundle-check.mjs`),
+`packages/web/public/**`, `docs/**` and root `*.md`, minus every file a Worker bundles (the
+`workerGraph` of `scripts/dev-deploy.mjs`). A path naming credit, allowance, usage, motion, video, sign-in,
+auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA. Server
+code, money, sign-in, schema or migrations, config, dependencies and workflows keep the gate. A mixed
+batch needs the gate. Check a diff with `notReusableBetween` in `scripts/dev-deploy.mjs`.
+
 ## Trigger word: `learn-cleanup`
 
 When the user types just `learn-cleanup`, resume the deferred Learn cleanup on
