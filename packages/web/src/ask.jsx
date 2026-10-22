@@ -29,6 +29,7 @@ import { NO_REFS, canvasTargetField, tocAskProps } from './learn-ask-target.js';
 import { MAX_OUTLINE_HEADINGS, outlineRevision } from './learn-outline-model.js';
 import { destinationOf } from './answer-destination.js';
 import CommandPill from './CommandPill.jsx';
+import { NO_STEPS, historyKey, recordStep, removesToken, travel } from './command-token.js';
 import { TutorPromptTray, journeyStartsHere } from './LearnJourney.jsx';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey, sendKeyLabel } from './ui-prefs.js';
@@ -308,9 +309,19 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   const [localCommand, setLocalCommand] = useState(null);
   const command = chat ? chat.composer.command : localCommand, setCommand = chat ? chat.composer.setCommand : setLocalCommand;
   const stash = useRef(null);
+  // The inline command token (UI-16; command-token.js): picking, switching, x and Backspace are each one undo step that keeps
+  // the text, so Undo/Redo bring back the pill and the command together. Send clears the steps.
+  const commandSteps = useRef(NO_STEPS), commandScope = chat?.thread?.id ?? null;
+  const changeCommand = (next, text = input) => { commandSteps.current = recordStep(commandSteps.current, { scope: commandScope, text, from: command, to: next || null }); setCommand(next || null); };
+  const removeCommand = () => { changeCommand(null); inputRef.current?.focus(); };
+  const commandHistory = event => {
+    const direction = historyKey(event), next = direction && travel(commandSteps.current, direction, { scope: commandScope, text: input, command });
+    if (!next) return false;
+    event.preventDefault(); commandSteps.current = next.steps; setCommand(next.command); return true;
+  };
   const setComposerInput = (value) => {
     const chosen = slash && value.match(/^\/([\w-]+) $/);
-    if (chosen && slash.isCommand?.(chosen[1])) { setCommand(chosen[1]); setInput(stash.current ?? ''); stash.current = null; return; }
+    if (chosen && slash.isCommand?.(chosen[1])) { changeCommand(chosen[1], stash.current ?? ''); setInput(stash.current ?? ''); stash.current = null; return; }
     if (value === '' && stash.current !== null) { setInput(stash.current); stash.current = null; return; }
     setInput(value);
   };
@@ -487,7 +498,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
     const line = !regenerate && slash ? commandLine(raw, { command, prompted }) : null;
-    if (line) { promptCommand.current = parseSlash(line)?.name || null; sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
+    if (line) { promptCommand.current = parseSlash(line)?.name || null; sentDraft.current = { command: raw.trim().startsWith('/') ? null : command, text: raw }; commandSteps.current = NO_STEPS; setCommand(null); setInput(line); if (slashRef.current?.intercept(line)) return; }
     // TOC refinements and explicit Ask never go to the journey resolver or start a journey: a course or journey
     // on this canvas must not turn an Ask turn into syllabus work.
     if (tocView || chat?.thread.mode === 'ask') skipJourney = true;
@@ -622,7 +633,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
       // A regenerated answer streams in its old answer's place; the server keeps the old one as an alternative (B5).
       const reply = { role: 'assistant', content: '', id: replyId, demo: !!isDemo, ...card, ...(chatThread ? { messageId: `local-${replyId}`, status: 'streaming' } : {}) };
       if (regenerate) { setMsgs(m => m.map(item => (item.messageId === regenerate.messageId ? reply : item))); return; }
-      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(sentRefs.length ? { refs: sentRefs } : {}), ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done', outputsKey: replyId } : {}) }, reply]);
+      setMsgs((m) => [...m, { role: 'user', content: attached ? `${message} 📎 ${attached.name}` : message, ...card, ...(sentRefs.length ? { refs: sentRefs } : {}), ...(canvasImage ? { canvasImage } : {}), ...(sourceRange ? { passage: `${sourceRange.path}:${sourceRange.start}-${sourceRange.end}` } : codePassage ? { passage: `${codePassage.path} · ${codePassage.lines}` } : {}), ...(chatThread ? { messageId: `local-q-${replyId}`, status: 'done', outputsKey: replyId, command: commandName || null } : {}) }, reply]);
       if (!isDemo) exchange?.({ id: replyId, question: message, ...(target ? { linkFrom: target.id } : {}) });
     };
     // Which path answers (chat-route.js): the active Tutor in Auto (and off the Chat pane), else /api/learn/ask with the mode.
@@ -918,18 +929,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
             </Menu>
           </div>
   );
-  // Learn's command slot (owner brief 2026-10-13 section 5): "/" opens the same palette typing / does; a chosen command
-  // sits here as a pill (/name) - the name reopens the palette to swap it, × returns the slot to "/" and keeps the text.
+  // Learn's command slot (owner brief 2026-10-13 section 5): "/" opens the same palette typing / does. A chosen command is
+  // the inline token at the start of the text (UI-16, owner 2026-10-21), never a pill in this toolbar.
   // The slot is never the mode: Auto / Ask / Tutor is the separate ModeSelector, and removing a command never changes it.
-  const slashControl = slash && (command
-    // The shared pill (CommandPill.jsx, also Ctrl+K's): a command with a family wears its tint (CommandTone.jsx); the rest
-    // stay neutral. Never the whole composer. Removing it keeps the text, attachments and context.
-    ? <CommandPill name={command} onOpen={openPalette} onRemove={() => { setCommand(null); inputRef.current?.focus(); }} disabled={voiceOn}
-        className={cn(chat ? 'h-8 rounded-lg pl-2 text-sm' : dock ? 'h-9 rounded-lg pl-2.5 text-sm max-md:pl-1.5' : 'h-6 rounded-full pl-2 text-xs', voiceOn && 'opacity-45')}
-        removeClassName={chat ? 'mx-0.5 h-6 w-6' : dock ? 'mx-1 h-7 w-7' : 'mx-0.5 h-5 w-5'} />
-    : <button type="button" data-command-slot aria-label="Commands" title="Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
+  const slashControl = slash && <button type="button" data-command-slot aria-label="Commands" title="Choose a command" aria-expanded={input.startsWith('/')} disabled={voiceOn}
         onMouseDown={event => event.preventDefault()} onClick={() => { if (!input.startsWith('/')) return openPalette(); setComposerInput(''); inputRef.current?.focus(); }}
-        className={cn(chat ? cn(COMPOSER_TOOL, 'font-mono text-[15px]') : dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>/</button>);
+        className={cn(chat ? cn(COMPOSER_TOOL, 'font-mono text-[15px]') : dock ? COMPOSER_PILL : 'h-6 cursor-pointer rounded-full px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink', input.startsWith('/') && 'bg-active text-ink', voiceOn && 'cursor-default opacity-45')}>/</button>;
+  // The shared pill (CommandPill.jsx, also Ctrl+K's) in the command's tint (CommandTone.jsx): its name reopens the palette to
+  // swap it, x removes only the command and keeps the text, attachments and context.
+  const commandToken = slash && command ? <CommandPill name={command} onOpen={openPalette} onRemove={removeCommand} disabled={voiceOn}
+        className={cn('h-6 rounded-md pl-1.5 text-sm', voiceOn && 'opacity-45')} removeClassName="mx-0.5 h-5 w-5" /> : null;
   const chatControl = learnChat ? slashControl : modelControl;
   // The Learn Chat never shows a reader in place of its transcript, and sending never closes one (brief 13.1, 13.2): readers
   // live in the Sources pane beside it, so here there is no content panel to hide the transcript or for send() to close.
@@ -1172,8 +1181,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
-        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command}
-          onKeyDown={slash ? event => { if (command && event.key === 'Backspace' && !input) { event.preventDefault(); setCommand(null); return; } slashRef.current?.onKeyDown(event);
+        <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
+          onKeyDown={slash ? event => { if (removesToken(event, { command, selectionStart: event.target.selectionStart, selectionEnd: event.target.selectionEnd })) { event.preventDefault(); removeCommand(); return; } if (commandHistory(event)) return; slashRef.current?.onKeyDown(event);
             if (busy && !event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send' && holdsLine(input)) { event.preventDefault(); held.current = input; } } : undefined} inputRef={inputRef} autoFocus={autoFocus} placeholder={command ? `Add details, or press ${sendKeyLabel()}` : tray?.tray?.free_text ? 'Type your answer, or ask anything' : placeholder} busy={busy}
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}

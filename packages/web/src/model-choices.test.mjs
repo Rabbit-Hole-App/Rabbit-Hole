@@ -28,8 +28,12 @@ test('the Settings default model says the pick applies to chat answers only; Lea
   // The slot is "/" (not a model and not the mode: it opens the command palette; owner brief 2026-10-13 section 5) or the
   // chosen command as a pill whose × keeps the text, and a pill sends exactly "/command text".
   assert.match(ask, /data-command-slot aria-label="Commands" title="Choose a command"/);
-  // The pill is the shared CommandPill (Release B): its x is "Remove <label>" and only drops the command.
-  assert.match(ask, /<CommandPill name=\{command\} onOpen=\{openPalette\} onRemove=\{\(\) => \{ setCommand\(null\); inputRef\.current\?\.focus\(\); \}\}/);
+  // The pill is the shared CommandPill (Release B): its x is "Remove <label>" and only drops the command. Since UI-16 (owner,
+  // 2026-10-21) it is the composer's inline token, never in the toolbar slot.
+  assert.match(ask, /const commandToken = slash && command \? <CommandPill name=\{command\} onOpen=\{openPalette\} onRemove=\{removeCommand\}/);
+  assert.match(ask, /const removeCommand = \(\) => \{ changeCommand\(null\); inputRef\.current\?\.focus\(\); \};/);
+  assert.match(ask, /onSubmit=\{send\} ready=\{!!command\} token=\{commandToken\}/);
+  assert.doesNotMatch(ask.slice(ask.indexOf('const slashControl'), ask.indexOf('const commandToken')), /<CommandPill/);
   const pill = readFileSync(new URL('./CommandPill.jsx', import.meta.url), 'utf8');
   assert.match(pill, /data-command-pill=\{name\}/);
   assert.match(pill, /aria-label=\{`Remove \$\{label\}`\} title=\{`Remove \$\{label\}`\} onMouseDown=\{event => event\.preventDefault\(\)\} onClick=\{onRemove\}/);

@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowUp, ChevronDown, Loader2, Square } from 'lucide-react';
 import { composerKey } from './composer-keys.js';
 import { chatSendKey } from './ui-prefs.js';
@@ -37,18 +37,42 @@ export const DOCK_PAD = 'px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))
 // stacked (the Learn Chat pane, owner brief 2026-10-13 section 4): a 12px-rounded box with the multiline field on top
 // (about two lines, growing to a bound, then scrolling), the `chips` slot under it, then ONE toolbar row - leading,
 // a spacer, trailing, and Send (Stop while busy) at the far right. Its toolbar controls take COMPOSER_TOOL.
+// token (UI-16, the Learn composers): the chosen command's pill as one inline token before the text. It sits over the
+// field's first line and the text is indented by its width, so the words start right after it and wrap under it.
 export const COMPOSER_TOOL = 'inline-flex h-8 min-w-8 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-lg px-1.5 text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-45 disabled:hover:bg-transparent';
-export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null, tocView = false }) {
+export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inputRef, autoFocus, placeholder, busy, disabled, maxLength, leading, trailing, multiline, dock, flat = false, onStop, ready = false, voice = null, stacked = false, chips = null, tocView = false, token = null }) {
   // The Table of contents' own composer (TocWorkspace: its AskPanel passes tocView) is data-toc-composer, so [data-chat-composer]
   // stays the one Chat composer. A prop, so this file never imports chat-workspace.jsx's graph (voice-ui.test.mjs bundles it).
   const submit = () => { if (!busy && !disabled && (ready || value.trim())) onSubmit(value); };
   const keys = event => { onKeyDown?.(event); if (!event.defaultPrevented && composerKey(event.nativeEvent, chatSendKey()) === 'send') { event.preventDefault(); submit(); } };
+  const tokenBox = useRef(null), [indent, setIndent] = useState(0);
+  useLayoutEffect(() => {
+    const box = tokenBox.current;
+    if (!box) return setIndent(0);
+    const measure = () => setIndent(box.offsetWidth + 6);
+    measure();
+    const watch = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    watch?.observe(box);
+    return () => watch?.disconnect();
+  }, [!!token, !!voice]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A field that scrolls takes the token with its first line.
+  const scrolled = event => { if (tokenBox.current) tokenBox.current.style.transform = `translateY(${-event.target.scrollTop}px)`; };
+  const tokenStyle = token ? { textIndent: indent } : undefined;
   // ponytail: [field-sizing:content] grows the textarea in Chromium; other engines keep one row and scroll. Add a JS auto-grow if reviewers on Safari or Firefox need it.
   const field = stacked
-    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={2} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className="max-h-48 min-h-12 w-full resize-none bg-transparent px-1 text-[15px] leading-6 outline-none [field-sizing:content] placeholder:text-ink-3 max-md:text-sm" />
+    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={2} style={tokenStyle} onScroll={token ? scrolled : undefined} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className="max-h-48 min-h-12 w-full resize-none bg-transparent px-1 text-[15px] leading-6 outline-none [field-sizing:content] placeholder:text-ink-3 max-md:text-sm" />
     : multiline
-    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-33 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
-    : <input ref={inputRef} autoFocus={autoFocus} value={value} onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3 ${dock ? 'h-9 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'h-7 text-sm'}`} />;
+    ? <textarea ref={inputRef} autoFocus={autoFocus} rows={1} style={tokenStyle} onScroll={token ? scrolled : undefined} value={value} onChange={event => onChange(event.target.value)} onKeyDown={keys} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`max-h-33 min-w-0 flex-1 resize-none bg-transparent outline-none [field-sizing:content] placeholder:text-ink-3 ${dock ? 'min-h-9 py-1.5 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'min-h-7 py-1 text-sm leading-5'}`} />
+    : <input ref={inputRef} autoFocus={autoFocus} style={tokenStyle} value={value} onChange={event => onChange(event.target.value)} onKeyDown={onKeyDown} placeholder={placeholder} maxLength={maxLength} disabled={disabled} className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-ink-3 ${dock ? 'h-9 text-[15px] leading-6 max-md:text-sm max-md:placeholder:truncate' : 'h-7 text-sm'}`} />;
+  // shortcut: a single-line input that scrolls sideways leaves the token in place; upgrade if a long dock line needs it.
+  const where = stacked ? 'left-1 top-0' : multiline ? (dock ? 'left-0 top-1.5' : 'left-0 top-1') : 'left-0 top-1/2 -translate-y-1/2';
+  // While voice stands in for the field, the token stays visible beside it, so no command is ever hidden.
+  const body = voice ? (token ? <div data-command-token className="flex min-w-0 flex-1 items-center gap-1.5">{token}{voice}</div> : voice)
+    : token ? <div data-command-token className={stacked ? 'relative overflow-hidden' : 'relative flex min-w-0 flex-1 items-center overflow-hidden'}>
+        <span ref={tokenBox} className={`absolute z-[1] flex ${where}`}>{token}</span>
+        {field}
+      </div>
+    : field;
   const size = stacked ? 'h-8 w-8' : dock ? 'h-9 w-9' : 'h-6 w-6';
   const send = voice ? null : busy && onStop ? (
     <button type="button" aria-label="Stop" title="Stop the answer" onClick={onStop} className={`inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-ink text-white ${size}`}>
@@ -60,7 +84,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     </button>
   );
   if (stacked) return <form {...{ [tocView ? 'data-toc-composer' : 'data-chat-composer']: true }} data-composer-stacked className="flex flex-col gap-1.5 rounded-xl border border-line bg-white p-2.5 focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]" onSubmit={event => { event.preventDefault(); submit(); }}>
-    {voice || field}
+    {body}
     {chips}
     <div data-composer-toolbar className="flex min-w-0 items-center gap-0.5">
       {leading}
@@ -74,7 +98,7 @@ export default function ChatComposer({ value, onChange, onSubmit, onKeyDown, inp
     : 'gap-2 rounded-lg border border-line px-2.5 py-1.5';
   return <form data-chat-composer className={`flex ${multiline ? 'items-end' : 'items-center'} ${frame} focus-within:border-line-strong focus-within:shadow-[0_0_0_2px_rgba(35,131,226,0.2)]`} onSubmit={event => { event.preventDefault(); submit(); }}>
     {leading}
-    {voice || field}
+    {body}
     {trailing}
     {dock && <ComposerHideButton />}
     {send}
