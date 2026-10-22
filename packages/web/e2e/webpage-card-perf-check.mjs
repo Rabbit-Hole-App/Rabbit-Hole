@@ -67,12 +67,14 @@ const router = route => {
 
 // Cards on screen, mounted and decoded tiles, and the most tiles the viewport (plus MARGIN px around it) can justify: per card
 // near the viewport, the tiles its visible body spans plus one above and one below, never more than the card has.
+// WebpageCard.jsx: [data-webcard] is the card, [data-webcard-frame] its window onto the page, and each [data-webcard-tile]
+// placeholder holds an <img> (a blob URL) only while the tile is near the viewport, so a mounted tile is an <img>.
 const tileState = page => page.evaluate(([tileH, margin, perCard]) => {
   const vw = innerWidth, vh = innerHeight;
-  const cards = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')].filter(e => e.querySelector('[data-webpage-card]'));
+  const cards = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')].filter(e => e.querySelector('[data-webcard]'));
   let bound = 0, visible = 0;
   for (const c of cards) {
-    const body = c.querySelector('[data-webpage-body]'); if (!body) continue;
+    const body = c.querySelector('[data-webcard-frame]'); if (!body) continue;
     const r = body.getBoundingClientRect();
     if (r.right > 0 && r.left < vw && r.bottom > 0 && r.top < vh) visible += 1;
     if (r.right > -margin && r.left < vw + margin && r.bottom > -margin && r.top < vh + margin) {
@@ -80,14 +82,14 @@ const tileState = page => page.evaluate(([tileH, margin, perCard]) => {
       bound += Math.min(perCard, Math.ceil(Math.min(r.height, vh + 2 * margin) / onScreen) + 2);
     }
   }
-  const imgs = [...document.querySelectorAll('[aria-label="Lesson canvas"] img[data-webpage-tile]')];
+  const imgs = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-webcard-tile] img')];
   return { cards: cards.length, visible, bound, mounted: imgs.length, decoded: imgs.filter(i => i.complete && i.naturalWidth > 0).length };
 }, [TILE_H, BUDGET.margin, TILES_PER_CARD]);
 // performance.now() (ms since navigation) at the first frame where every card on screen shows a decoded tile.
 const renderedAt = page => page.waitForFunction(() => {
-  const cards = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')].filter(e => e.querySelector('[data-webpage-card]'));
+  const cards = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')].filter(e => e.querySelector('[data-webcard]'));
   const onScreen = cards.filter(c => { const r = c.getBoundingClientRect(); return r.right > 0 && r.left < innerWidth && r.bottom > 0 && r.top < innerHeight; });
-  return onScreen.length > 0 && onScreen.every(c => [...c.querySelectorAll('img[data-webpage-tile]')].some(i => i.complete && i.naturalWidth > 0)) && performance.now();
+  return onScreen.length > 0 && onScreen.every(c => [...c.querySelectorAll('[data-webcard-tile] img')].some(i => i.complete && i.naturalWidth > 0)) && performance.now();
 }, null, { polling: 'raf', timeout: 60000 }).then(h => h.jsonValue());
 // rAF frame intervals over `ms` while `act` runs repeatedly: frames per second (from the mean interval), p95 and worst frame.
 const fpsDuring = async (page, ms, act) => {
@@ -131,7 +133,7 @@ for (const n of SIZES) {
     const m0 = await metrics(cdp); row.heapMiB = +(m0.JSHeapUsedSize / MiB).toFixed(1); row.nodes = m0.Nodes;
 
     // Card scroll: wheel over the first card's body, down then up.
-    const body = await page.locator('[aria-label="Lesson canvas"] [data-block-id="w0"] [data-webpage-body]').boundingBox();
+    const body = await page.locator('[aria-label="Lesson canvas"] [data-block-id="w0"] [data-webcard-frame]').boundingBox();
     await page.mouse.click(body.x + body.width / 2, body.y + 20);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
     const scroll = await fpsDuring(page, 1500, i => page.mouse.wheel(0, i < 40 ? 80 : -80));

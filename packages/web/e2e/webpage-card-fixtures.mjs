@@ -1,5 +1,5 @@
 // Fixture captures for the webpage card checks (webpage-card-check.mjs, webpage-card-perf-check.mjs), in the shapes of
-// C:/s/spec/day-1021/webcard-interface.md v1: a manifest, 1280 px wide JPEG tiles 1400 px tall placed by y, and text runs
+// C:/s/spec/day-1021/webcard-interface.md v2 and control-plane/src/webpage-capture.js: a manifest, 1280 px wide JPEG tiles 1400 px tall placed by y, and text runs
 // in CSS px of the page. Each tile is one flat colour with a darker band, so a region picture says which part of the page it
 // shows. No network, no model: the JPEGs are drawn by the check's own Chromium.
 import { createHash, randomBytes } from 'node:crypto';
@@ -26,22 +26,24 @@ export async function tileJpegs(browser, names = Object.keys(COLORS)) {
 }
 
 // One capture version. tiles: colour names, top to bottom (each TILE_H tall); runs: [{ text, x, y, w, h }] in page px.
-// -> { lineage, manifestId, sha256, files: [{ id, role, type, bytes, sha256 }], capture, fileRef, manifest }
+// -> { lineage, manifestId, sha256, files: [{ id, role, declared, type, bytes, sha256 }], capture, fileRef, manifest, colors }
 export function makeCapture({ jpegs, tiles, runs = [], url = 'https://example.com/a', title = 'Example Domain', lineage = lineageId(), truncated = {} }) {
   const height = tiles.length * TILE_H, files = [];
-  const add = (role, type, bytes, index) => { const f = { id: sourceId(), role, type, bytes, sha256: sha256(bytes), index }; files.push(f); return f; };
+  // declared: the file_sources.declared_type the server writes (webpage-manifest, webpage-tile, webpage-text).
+  const add = (role, type, bytes, index) => { const f = { id: sourceId(), role, declared: `webpage-${role}`, type, bytes, sha256: sha256(bytes), index }; files.push(f); return f; };
   const tileFiles = tiles.map((name, index) => add('tile', 'image/jpeg', jpegs[name], index));
   const textRuns = runs.map(run => ({ ...run, tile: Math.floor(run.y / TILE_H) }));
   const textFile = add('text', 'application/json', Buffer.from(JSON.stringify({ runs: textRuns })));
   const flags = { height: false, bytes: false, text: false, ...truncated };
   const manifest = { v: 1, lineage, url, finalUrl: url, title, fetchedAt: new Date().toISOString(), width: TILE_W, height, pageHeight: flags.height ? 20000 + TILE_H : height,
-    tiles: tileFiles.map(f => ({ index: f.index, y: f.index * TILE_H, h: TILE_H, key: f.id, type: 'image/jpeg' })),
-    text: { key: textFile.id, chars: textRuns.reduce((n, r) => n + r.text.length, 0) }, truncated: flags, screening: { status: 'pending', reason: null } };
+    tiles: tileFiles.map(f => ({ index: f.index, y: f.index * TILE_H, h: TILE_H, key: f.id, sha256: f.sha256, type: 'image/jpeg' })),
+    text: { key: textFile.id, sha256: textFile.sha256, chars: textRuns.reduce((n, r) => n + r.text.length, 0) }, truncated: flags, screening: { status: 'pending', reason: null } };
   const manifestFile = add('manifest', 'application/json', Buffer.from(JSON.stringify(manifest)));
-  const pub = f => ({ id: f.id, rev: f.sha256, family: 'webpage', name: `${f.role}${f.index ?? ''}`, type: f.type, size: f.bytes.length, status: 'stored' });
-  const fileRef = { source: pub(manifestFile), bundle: [...tileFiles.map(f => ({ role: 'tile', index: f.index, source: { id: f.id, rev: f.sha256 } })), { role: 'text', source: { id: textFile.id, rev: textFile.sha256 } }] };
+  // The server's Result fileRef (webpage-capture.js result()): v 1, the manifest as source, family and meta, tiles then text in bundle.
+  const fileRef = { v: 1, source: { id: manifestFile.id, rev: manifestFile.sha256 }, family: 'webpage',
+    meta: { name: `${title} (webpage capture).json`, type: 'application/json', size: manifestFile.bytes.length, title }, bundle: [...tileFiles.map(f => ({ role: 'tile', index: f.index, source: { id: f.id, rev: f.sha256 } })), { role: 'text', source: { id: textFile.id, rev: textFile.sha256 } }] };
   const capture = { lineage, manifestId: manifestFile.id, sha256: manifestFile.sha256, capturedAt: Date.now(), finalUrl: url, width: TILE_W, height, truncated: flags };
-  return { lineage, manifestId: manifestFile.id, sha256: manifestFile.sha256, files, capture, fileRef, manifest, url, title, tileIds: tileFiles.map(f => f.id), textId: textFile.id };
+  return { lineage, manifestId: manifestFile.id, sha256: manifestFile.sha256, files, capture, fileRef, manifest, url, title, tileIds: tileFiles.map(f => f.id), textId: textFile.id, colors: tiles };
 }
 
 // The interface's Result for a capture that passed screening.

@@ -1,13 +1,14 @@
 // Webpage card (C:/s/spec/day-1021/webcard-brief.md with the owner clarifications of 00:3x PT; interface
-// C:/s/spec/day-1021/webcard-interface.md v1), against the LOCAL stack only: local D1 and R2, fresh browser profiles.
+// C:/s/spec/day-1021/webcard-interface.md v2), against the LOCAL stack only: local D1 and R2, fresh browser profiles.
 // Nothing is captured and nothing is screened: POST /api/learn/webpages, its /screen Retry and its status GET are answered
 // here with fixture Results (webpage-card-fixtures.mjs). The capture FILES are real: manifest, JPEG tiles and text runs are
 // written to the local R2 and file_sources (approved versions 'stored', an unscreened one 'uploading'), so tiles, highlights,
 // sharing and forks go through the real server. No model is ever called: Chat turns are answered here with canned text and
 // counted; every other model-capable route is aborted and counted. Zero AI requests are asserted for scroll, lock, select,
 // Copy, Highlight, opening Ask, region selection and pan.
-// The card's DOM contract below (SEL) is lane D's proposal to lane C (feature/webcard-ui); it follows LearnWiki's lock and
-// LearnPaper's selection toolbar. Prints `ok <label>` per step, ids and counts only (no cookies); `N/total passed`; exit 1 on
+// The card's DOM below (SEL) is WebpageCard.jsx's: its data-webcard-* attributes, the paste dialog [data-paste-url] and the
+// PDF reader's .textLayer. The card scrolls by a CSS translateY on its column and its tiles are blob URLs, so the scroll
+// position is read from the transform and the version on show from the tile pixels (each fixture tile is one colour). Prints `ok <label>` per step, ids and counts only (no cookies); `N/total passed`; exit 1 on
 // any failure. Evidence: OUT/results.json and *.png.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 PERSIST=<stack>/local D1_CONFIG=<stack>/integ-local-cp.jsonc
 //   [VARS=<cp .dev.vars>] [WRANGLER_BIN=<wrangler.js>] [OUT=<dir>] node e2e/webpage-card-check.mjs
@@ -17,7 +18,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { chatRouteAnswer } from './dev-cp.mjs';
-import { tileJpegs, makeCapture, readyResult, heldResult, webpageBlock, sourceId, TILE_H } from './webpage-card-fixtures.mjs';
+import { tileJpegs, makeCapture, readyResult, heldResult, webpageBlock, sourceId, COLORS, TILE_W, TILE_H } from './webpage-card-fixtures.mjs';
 
 const total = 30; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -41,23 +42,23 @@ const call = async (path, { who = OWNER, method = 'GET', body } = {}) => {
 };
 const status = async (path, who = OWNER) => (await fetch(`${BASE}${path}`, { headers: { cookie: who } })).status;
 
-// ---------------------------------------------------------------- the card's DOM contract (proposed to lane C)
+// ---------------------------------------------------------------- the card's DOM (WebpageCard.jsx, AdaptiveCanvas.jsx paste dialog)
 const SEL = {
-  chooser: '[data-paste-url-choice]',            // the paste choice; buttons "Paste as text" and "Add webpage card"
-  card: '[data-webpage-card]',                   // data-webpage-state: ready | capturing | login_required | unavailable | blocked | failed | retry
-  title: '[data-webpage-title]',
-  link: 'a[data-webpage-link]',                  // href = the URL, target=_blank, rel noopener
-  lock: 'button[data-webpage-lock]',             // the one scroll-lock toggle, aria-pressed, named "Lock scrolling" / "Unlock scrolling"
-  refresh: 'button[data-webpage-refresh]',       // named "Refresh"
-  retry: 'button[data-webpage-retry]',           // named "Retry"
-  body: '[data-webpage-body]',                   // data-scroll-top = the capture px at the top of the view
-  tile: 'img[data-webpage-tile]',                // data-tile-index; mounted only near the viewport
-  text: '[data-webpage-text]',                   // the transparent text layer of positioned runs
-  highlight: '[data-webpage-highlight]',
-  oldHighlights: '[data-webpage-old-highlights]', // "N highlights on the previous capture"
-  truncated: '[data-webpage-truncated]',
-  message: '[data-webpage-message]',             // the hidden state's one line
-  toolbar: '[data-webpage-selection-toolbar]',   // buttons Highlight, Copy, Ask about selection
+  chooser: '[data-paste-url]',                   // the paste dialog "Paste a link": buttons "Paste as text" and "Add webpage card"
+  card: '[data-webcard]',                        // the card; its state is stateOf() below
+  title: '[data-webcard] h3',
+  link: 'a[data-webcard-source]',                // href = the URL, target=_blank, rel noopener
+  lock: 'button[data-webcard-lock]',             // the one scroll-lock toggle, aria-pressed, named "Lock scrolling" / "Unlock scrolling"
+  refresh: 'button[data-webcard-refresh]',       // named "Refresh"
+  body: '[data-webcard-frame]',                  // the window onto the page (present only while an approved capture is shown)
+  column: '[data-webcard-column]',               // the tile column, scrolled by translateY(-scrollTop * card scale)
+  tile: '[data-webcard-tile]',                   // value = tile index; holds an <img> only while near the viewport
+  text: '[data-webcard] .textLayer',             // the transparent text layer of positioned runs
+  highlight: '[data-webcard-highlight]',
+  oldHighlights: '[data-webcard-earlier]',       // "From an earlier version: N highlights, not shown on this capture."
+  truncated: '[data-webcard-truncated]',
+  message: '[data-webcard-status]',              // the state line; capturing | screening | inconclusive | error | stopped | capture_error | blocked | login_required | unavailable | failed
+  toolbar: '[data-webcard-selection-toolbar]',   // buttons Highlight, Copy, Ask about selection
 };
 
 // ---------------------------------------------------------------- fixtures: three versions, written to local D1 and R2
@@ -68,7 +69,7 @@ const RUN_1 = 'Rivers carry sediment from the hills toward the sea.', RUN_2 = 'D
 const RUN_NEW = 'Refreshed text now sits where the first paragraph was.';
 const V1 = makeCapture({ jpegs, tiles: ['red', 'green', 'blue'], url: URL_A, title: TITLE_A, runs: [{ text: RUN_1, x: 80, y: 200, w: 900, h: 28 }, { text: RUN_2, x: 80, y: TILE_H + 200, w: 860, h: 28 }, { text: RUN_3, x: 80, y: 2 * TILE_H + 200, w: 860, h: 28 }] });
 // Refresh: the same lineage, new bytes, and different words in the same place as RUN_1 (an old highlight must not land on them).
-const V2 = makeCapture({ jpegs, tiles: ['amber', 'green', 'blue'], url: URL_A, title: TITLE_A, lineage: V1.lineage, runs: [{ text: RUN_NEW, x: 80, y: 200, w: 900, h: 28 }, { text: RUN_2, x: 80, y: TILE_H + 200, w: 860, h: 28 }] });
+const V2 = makeCapture({ jpegs, tiles: ['amber', 'green', 'grey'], url: URL_A, title: TITLE_A, lineage: V1.lineage, runs: [{ text: RUN_NEW, x: 80, y: 200, w: 900, h: 28 }, { text: RUN_2, x: 80, y: TILE_H + 200, w: 860, h: 28 }] });
 const V3 = makeCapture({ jpegs, tiles: ['grey'], url: 'https://example.org/unscreened', title: 'Unscreened', runs: [{ text: 'Unscreened words.', x: 40, y: 100, w: 400, h: 24 }] });
 const wrangler = args => (process.env.WRANGLER_BIN
   ? execFileSync(process.execPath, [process.env.WRANGLER_BIN, ...args, '--local', '--persist-to', PERSIST, '--config', D1_CONFIG], { cwd: root, stdio: ['ignore', 'ignore', 'inherit'], windowsHide: true })
@@ -84,7 +85,7 @@ const A = await canvasOf(`Webpage card ${run}`), B = await canvasOf(`Webpage sta
     writeFileSync(file, f.bytes);
     wrangler(['r2', 'object', 'put', `rabbit-hole-dev-learn-media/${key}`, '--file', file, '--content-type', f.type]);
     rows.push(`INSERT INTO file_sources (id, org, owner_email, app, board_id, family, name, media_type, declared_type, bytes, sha256, r2_key, status, created_at, stored_at)
-      VALUES ('${f.id}', '${catalog.org}', '${catalog.email}', '${A}', NULL, 'webpage', '${f.role}${f.index ?? ''}', '${f.type}', '${f.type}', ${f.bytes.length}, '${f.sha256}', '${key}', '${state}', ${now}, ${state === 'stored' ? now : 'NULL'})`);
+      VALUES ('${f.id}', '${catalog.org}', '${catalog.email}', '${A}', NULL, 'webpage', '${f.role}${f.index ?? ''}', '${f.type}', '${f.declared}', ${f.bytes.length}, '${f.sha256}', '${key}', '${state}', ${now}, ${state === 'stored' ? now : 'NULL'})`);
   }
   sql(rows);
 }
@@ -172,15 +173,30 @@ const noAi = async (label, fn) => { const before = { ai: ai.length, paid: paid.l
   assert.deepEqual(ai.slice(before.ai).map(a => a.path), [], `${label}: AI requests`); assert.deepEqual(paid.slice(before.paid).map(a => a.path), [], `${label}: capture or screening requests`); };
 const saved = async name => (await call(boardPath(name))).body?.state || {};
 const savedBlock = async (name, test) => ((await saved(name)).blocks || []).find(test);
-const webBlockId = () => page.evaluate(() => [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')].find(e => e.querySelector('[data-webpage-card]'))?.dataset.blockId || null);
+const webBlockId = () => page.evaluate(() => [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-block-id]')].find(e => e.querySelector('[data-webcard]'))?.dataset.blockId || null);
 const card = id => page.locator(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`).first();
 const part = (id, sel) => card(id).locator(sel).first();
-const stateOf = id => part(id, SEL.card).getAttribute('data-webpage-state');
-const scrollTop = async id => Number(await part(id, SEL.body).getAttribute('data-scroll-top'));
+// 'ready' when the approved capture shows with no state line; otherwise the state line's value; 'none' with neither.
+const stateOf = id => part(id, SEL.card).evaluate(el => { const line = el.querySelector('[data-webcard-status]'); return line ? line.dataset.webcardStatus : el.querySelector('[data-webcard-frame]') ? 'ready' : 'none'; });
+// Capture px at the top of the view: the column's translateY over the card scale (column width / capture width).
+const scrollTop = id => part(id, SEL.column).evaluate((c, width) => { const m = /translateY\((-?[\d.e+-]+)px\)/.exec(c.style.transform); return m ? -Number(m[1]) / (c.offsetWidth / width) : 0; }, TILE_W);
+const retryOf = id => part(id, SEL.message).getByRole('button', { name: 'Retry', exact: true });
 const camera = () => page.evaluate(() => { const s = document.querySelector('[data-canvas-surface]'); const w = s && [...s.children].find(e => /scale\(/.test(e.style.transform)); return w ? w.style.transform : null; });
 const zoom = () => page.evaluate(() => { const s = document.querySelector('[data-canvas-surface]'); const w = [...s.children].find(e => /scale\(/.test(e.style.transform)); return new DOMMatrix(getComputedStyle(w).transform).a; });
-const tileSrcs = id => card(id).locator(SEL.tile).evaluateAll(list => list.filter(i => i.complete && i.naturalWidth > 0).map(i => i.currentSrc || i.src));
-const shows = (srcs, cap) => srcs.some(s => cap.tileIds.some(t => s.includes(t)));
+// The decoded tile pictures of a card: { index, rgb } from each picture's top quarter (clear of the darker middle band). Tiles
+// are blob URLs, so which version is on show is read from the pixels (one colour per fixture tile) and the files requested.
+const tilesShown = id => card(id).locator(`${SEL.tile} img`).evaluateAll(list => list.filter(i => i.complete && i.naturalWidth > 0).map(i => {
+  const c = Object.assign(document.createElement('canvas'), { width: 8, height: 8 }), x = c.getContext('2d');
+  x.drawImage(i, 0, 0, i.naturalWidth, i.naturalHeight / 4, 0, 0, 8, 8);
+  const d = x.getImageData(0, 0, 8, 8).data, s = [0, 0, 0];
+  for (let k = 0; k < d.length; k += 4) { s[0] += d[k]; s[1] += d[k + 1]; s[2] += d[k + 2]; }
+  return { index: Number(i.closest('[data-webcard-tile]').dataset.webcardTile), rgb: s.map(v => v / 64) };
+}));
+const tinted = (rgb, name) => rgb.every((v, k) => Math.abs(v - COLORS[name][k]) <= 30);
+// `cap` is on show: some tile decoded, every decoded tile has that version's colour at its place, and its tiles came from the server.
+const shows = (seen, cap) => seen.length > 0 && seen.every(t => tinted(t.rgb, cap.colors[t.index])) && fileGets.some(f => cap.tileIds.includes(f.id));
+// Tile `index` of `cap` is decoded on the card.
+const showsTile = (seen, cap, index) => seen.some(t => t.index === index && tinted(t.rgb, cap.colors[index])) && fileGets.some(f => f.id === cap.tileIds[index]);
 const pane = () => page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
 const barePoint = () => page.evaluate(() => {
@@ -200,7 +216,7 @@ const itemTexts = async () => ((await saved(A)).items || []).map(i => i.text);
 // card listens to the pointer instead. Returns the selected text and its on-screen box.
 const selectRun = async (id, words) => {
   const picked = await page.evaluate(([id, words]) => {
-    const layer = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"] [data-webpage-text]`);
+    const layer = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"] [data-webcard] .textLayer`);
     if (!layer) return { error: 'no text layer' };
     const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT);
     for (let n; (n = walker.nextNode());) {
@@ -282,7 +298,7 @@ await check('"Add webpage card": one capture request (URL, no lineage), Capturin
   assert.equal(await link.getAttribute('href'), URL_A); assert.equal(await link.getAttribute('target'), '_blank');
   assert.match(String(await link.getAttribute('rel')), /noopener/);
   assert.equal(await part(ID, SEL.lock).getAttribute('aria-pressed'), 'false');
-  await waitFor(async () => shows(await tileSrcs(ID), V1), 20000, 'no tile of the capture loaded');
+  await waitFor(async () => shows(await tilesShown(ID), V1), 20000, 'no tile of the capture loaded');
   assert.ok(fileGets.some(f => f.id === V1.tileIds[0]), 'the first tile came through /api/learn/files');
   assert.equal(await card(ID).locator('iframe, script').count(), 0, 'no iframe or script in the card');
   await waitFor(async () => (await savedBlock(A, b => b.id === ID))?.capture?.manifestId === V1.manifestId, 15000, 'the board did not save the approved capture');
@@ -310,8 +326,8 @@ await check('normal paste in a text editor is unchanged: the URL lands in the te
 await check('aligned text: each run sits over its place in the capture (CSS px of the page, scaled with the card)', async () => {
   const geo = await page.evaluate(([id, words]) => {
     const root = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"]`);
-    const tile = root.querySelector('img[data-webpage-tile][data-tile-index="0"]'), t = tile.getBoundingClientRect();
-    const span = [...root.querySelectorAll('[data-webpage-text] *')].find(e => e.childElementCount === 0 && e.textContent.includes(words)), s = span.getBoundingClientRect();
+    const tile = root.querySelector('[data-webcard-tile="0"]'), t = tile.getBoundingClientRect();
+    const span = [...root.querySelectorAll('[data-webcard] .textLayer span')].find(e => e.childElementCount === 0 && e.textContent.includes(words)), s = span.getBoundingClientRect();
     return { scale: t.width / 1280, dx: s.x - t.x, dy: s.y - t.y };
   }, [ID, RUN_1]);
   assert.ok(Math.abs(geo.dx - 80 * geo.scale) <= 4, `run x ${geo.dx} vs ${80 * geo.scale}`);
@@ -326,7 +342,7 @@ await check('scrolling the card moves the capture, not the canvas; zero AI reque
     for (let i = 0; i < 8; i += 1) { await page.mouse.wheel(0, 250); await frames(); }
     await waitFor(async () => await scrollTop(ID) >= top + 1000, 4000, `the capture did not scroll (scroll-top ${await scrollTop(ID)})`);
     assert.equal(await camera(), cam, 'the canvas did not move');
-    await waitFor(async () => shows(await tileSrcs(ID), { tileIds: [V1.tileIds[1]] }), 10000, 'the second tile did not load after the scroll');
+    await waitFor(async () => showsTile(await tilesShown(ID), V1, 1), 10000, 'the second tile did not load after the scroll');
   });
 });
 
@@ -365,7 +381,7 @@ await check('the scroll position survives reload', async () => {
   await reload();
   await part(ID, SEL.body).waitFor({ timeout: 30000 });
   await waitFor(async () => Math.abs(await scrollTop(ID) - top) <= 2, 15000, `reload restored scroll-top ${await scrollTop(ID)}, not ${top}`);
-  await waitFor(async () => shows(await tileSrcs(ID), { tileIds: [V1.tileIds[1]] }), 15000, 'the scrolled-to tile did not load after reload');
+  await waitFor(async () => showsTile(await tilesShown(ID), V1, 1), 15000, 'the scrolled-to tile did not load after reload');
 });
 
 let selected = null;
@@ -425,7 +441,7 @@ await check('a deliberate Send carries the selected text, page title, URL and ca
 await check('reload restores the capture and its highlight', async () => {
   await reload();
   await waitFor(async () => await stateOf(ID) === 'ready', 30000, 'the card is not ready after reload');
-  await waitFor(async () => shows(await tileSrcs(ID), V1), 15000, 'no tile after reload');
+  await waitFor(async () => shows(await tilesShown(ID), V1), 15000, 'no tile after reload');
   await waitFor(async () => (await card(ID).locator(SEL.highlight).count()) >= 1, 15000, 'the highlight is gone after reload');
 });
 
@@ -438,7 +454,7 @@ await check('a failed Refresh (Unavailable, screening failed, inconclusive) keep
     await waitFor(() => captures.length > n, 5000, `${kind}: Refresh sent no capture request`);
     assert.equal(captures[n].body.lineage, V1.lineage, `${kind}: Refresh names the lineage`);
     await page.waitForTimeout(1500);
-    assert.ok(shows(await tileSrcs(ID), V1), `${kind}: the approved tiles are still shown`);
+    assert.ok(shows(await tilesShown(ID), V1), `${kind}: the approved tiles are still shown`);
     assert.ok(await card(ID).locator(SEL.highlight).count() >= 1, `${kind}: the highlight is still shown`);
     const block = await savedBlock(A, b => b.id === ID);
     assert.equal(block?.capture?.manifestId, V1.manifestId, `${kind}: the saved card keeps the approved version`);
@@ -451,7 +467,7 @@ await check('a failed Refresh (Unavailable, screening failed, inconclusive) keep
 await check('Refresh makes a new version: the new tiles show, and the old highlight is not attached to the new text', async () => {
   nextCapture = () => readyResult(V2);
   await part(ID, SEL.refresh).click();
-  await waitFor(async () => shows(await tileSrcs(ID), V2), 20000, 'the new version did not show');
+  await waitFor(async () => shows(await tilesShown(ID), V2), 20000, 'the new version did not show');
   await waitFor(async () => (await savedBlock(A, b => b.id === ID))?.capture?.manifestId === V2.manifestId, 15000, 'the board did not save the new version');
   assert.equal((await savedBlock(A, b => b.id === ID)).capture.lineage, V1.lineage, 'the lineage stays');
   assert.equal(await card(ID).locator(SEL.highlight).count(), 0, 'no highlight drawn on the new version');
@@ -464,7 +480,7 @@ await check('Refresh makes a new version: the new tiles show, and the old highli
 
 await check('the refreshed version survives reload and the old highlight stays off it', async () => {
   await reload();
-  await waitFor(async () => shows(await tileSrcs(ID), V2), 20000, 'the new version is gone after reload');
+  await waitFor(async () => shows(await tilesShown(ID), V2), 20000, 'the new version is gone after reload');
   assert.equal(await card(ID).locator(SEL.highlight).count(), 0);
   await part(ID, SEL.oldHighlights).waitFor({ timeout: 10000 });
 });
@@ -526,18 +542,19 @@ await check('hidden states: Login required, Unavailable, Hidden with its reason,
 });
 
 await check('inconclusive and error are hidden with Retry; Retry re-screens (no new capture) and then shows the card', async () => {
-  for (const id of ['k-inc', 'k-err']) {
-    assert.equal(await stateOf(id), 'retry', `${id} state`);
+  for (const [id, state] of [['k-inc', 'inconclusive'], ['k-err', 'error']]) {
+    assert.equal(await stateOf(id), state, `${id} state`);
+    assert.match(norm(await part(id, SEL.message).innerText()), /hidden/i, `${id} says it is hidden`);
     assert.equal(await card(id).locator(SEL.tile).count(), 0, `${id} shows no tile`);
-    assert.equal(await part(id, SEL.retry).count(), 1, `${id} offers Retry`);
+    assert.equal(await retryOf(id).count(), 1, `${id} offers Retry`);
   }
   const n = captures.length, s = screens.length;
   nextScreen = () => readyResult(V1);
-  await part('k-inc', SEL.retry).click();
+  await retryOf('k-inc').click();
   await waitFor(() => screens.length > s, 5000, 'Retry sent no screening request');
   assert.equal(screens[s].id, V3.manifestId, 'Retry re-screens the held version');
   assert.equal(captures.length, n, 'Retry captured nothing new');
-  await waitFor(async () => await stateOf('k-inc') === 'ready' && shows(await tileSrcs('k-inc'), V1), 20000, 'the card did not show after a passing Retry');
+  await waitFor(async () => await stateOf('k-inc') === 'ready' && shows(await tilesShown('k-inc'), V1), 20000, 'the card did not show after a passing Retry');
 });
 
 await check('a truncated capture is labelled', async () => {
