@@ -150,12 +150,12 @@ await frames();
 const stableWidth = async () => { let last = await surfaceWidth(), since = Date.now(); return waitFor(async () => { const now = await surfaceWidth(); if (Math.abs(now - last) > 0.5) { last = now; since = Date.now(); } return Date.now() - since > 600 && last; }, 15000, 'the canvas width kept changing'); };
 let openWidth = await stableWidth();
 
-// Owner UI brief 2026-10-20 section 7: Links moved into Search's Links filter, so Comments is the last tab.
-await check('one navigation row: Chat, Find, Contents, Comments, each named and titled; no Links tab; no Chat | Sources switch', async () => {
+// Owner UI brief 2026-10-20 section 7: Links moved into Search's Links filter. Owner 2026-10-22: Progress is the last tab.
+await check('one navigation row: Chat, Find, Contents, Comments, Progress, each named and titled; no Links tab; no Chat | Sources switch', async () => {
   const tabs = await page.locator('[data-panel-header] [data-panel-tab]').evaluateAll(list => list.map(b => ({ id: b.dataset.panelTab, label: b.getAttribute('aria-label'), title: b.getAttribute('title') })));
-  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments'], 'the tab order');
+  assert.deepEqual(tabs.map(t => t.id), ['chat', 'find', 'toc', 'comments', 'progress'], 'the tab order');
   assert.ok(tabs.every(t => t.label && t.title), 'every tab has a tooltip and an accessible name');
-  assert.equal(tabs.at(-1).label, 'Comments');
+  assert.equal(tabs.at(-1).label, 'Progress');
   assert.equal(await page.locator('[data-panel-header]').count(), 1, 'one navigation row');
   assert.equal(await page.locator('[data-pane-switch]').count(), 0, 'no Chat | Sources switch');
 });
