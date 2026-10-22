@@ -3,6 +3,7 @@ import ExplainPending from './ExplainPending.jsx';
 import ExplainEditBar from './ExplainEditBar.jsx';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
+import { holdViewerGestures } from './content-gestures.js';
 import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -1360,6 +1361,12 @@ function ThreeDBody({ block, onChange, viewKey = null }) {
     window.addEventListener('keydown', escape, true); document.addEventListener('pointerdown', outside, true);
     return () => { window.removeEventListener('keydown', escape, true); document.removeEventListener('pointerdown', outside, true); };
   }, [interacting]);
+  // On the canvas the wheel and pinch over the live model zoom it and never the canvas (owner, 2026-10-22). The React onWheel
+  // below cannot hold the canvas: React listens at its root, after the canvas's native wheel listener has moved the camera.
+  useEffect(() => {
+    if (viewKey || !live || !frame.current) return undefined;
+    return holdViewerGestures(frame.current, () => engine.current);
+  }, [viewKey, live]);
   // Play/pause, clip choice and auto-rotate live in block state: push every
   // change into the renderer, the way the tldraw viewer does.
   useEffect(() => {

@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { applyResult, askText, captureViewport, cardScale, cardState, clampScroll, highlightBody, highlightSource, highlightView, keyScroll, runStyle, runsByTile, startPending, wheelScroll } from './webcard.js';
+import { applyResult, askText, captureViewport, cardScale, cardState, clampScroll, highlightBody, highlightSource, highlightView, keyScroll, magnifyAt, runStyle, runsByTile, startPending, wheelScroll, CONTENT_ZOOM } from './webcard.js';
 import { textAnchor, toViewport } from './pdf-anchor.js';
 import { selectionRef } from './selection-ref.js';
 import { highlightAnchor } from '../../control-plane/src/pdf-excerpts.js';
@@ -67,13 +67,14 @@ test('runs belong to the tile the capture names, else the one their middle falls
   assert.deepEqual(runsByTile(runs, tiles).map(list => list.map(run => run.text)), [['a', 'b'], [], ['c']]);
 });
 
-test('scroll lock: locked, or with Ctrl held, the wheel is the canvas\'s; unlocked it scrolls the page inside its bounds', () => {
-  const at = { top: 100, deltaY: 120, zoom: 2, scale: 0.5, pageHeight: 3000, viewHeight: 1200 };
-  assert.equal(wheelScroll({ ...at, locked: true }), null);
-  assert.equal(wheelScroll({ ...at, locked: false, ctrl: true }), null);
-  assert.equal(wheelScroll({ ...at, locked: false }), 100 + 120 / 2 / 0.5);
-  assert.equal(wheelScroll({ ...at, locked: false, deltaY: -9999 }), 0);
-  assert.equal(wheelScroll({ ...at, locked: false, deltaY: 99999 }), 1800);
+test('the wheel scrolls the page inside its bounds, sideways only once the content is zoomed in', () => {
+  const at = { top: 100, deltaY: 120, zoom: 2, scale: 0.5, pageWidth: 1280, pageHeight: 3000, viewHeight: 1200 };
+  assert.deepEqual(wheelScroll(at), { top: 100 + 120 / 2 / 0.5, left: 0 });
+  assert.equal(wheelScroll({ ...at, deltaY: -9999 }).top, 0, 'held at the top');
+  assert.equal(wheelScroll({ ...at, deltaY: 99999 }).top, 1800, 'held at the bottom');
+  assert.equal(wheelScroll({ ...at, deltaX: 500 }).left, 0, 'the whole width shows: no sideways scroll');
+  assert.deepEqual(wheelScroll({ ...at, deltaX: 100, viewWidth: 640 }), { top: 220, left: 100 }, 'zoomed in: the wheel also scrolls sideways');
+  assert.equal(wheelScroll({ ...at, deltaX: 99999, viewWidth: 640 }).left, 640, 'held at the right edge');
   assert.equal(clampScroll(NaN, 3000, 1200), 0);
   assert.equal(clampScroll(50, 400, 1200), 0, 'a page shorter than the card does not scroll');
   assert.equal(keyScroll('End', 0, 1200, 3000), 1800);
@@ -159,7 +160,8 @@ test('zero AI calls: scroll, lock, select, highlight, Copy and Ask reach only th
   try {
     const { listHighlights, putHighlight, newId } = await import('./pdf-highlights.js');
     // Scroll and lock are pure (no request); a highlight is one PUT; reload lists them; Ask and Copy make no request.
-    wheelScroll({ locked: false, top: 0, deltaY: 100, pageHeight: 3000, viewHeight: 600 }); wheelScroll({ locked: true, top: 0, deltaY: 100, pageHeight: 3000, viewHeight: 600 });
+    wheelScroll({ top: 0, deltaY: 100, pageHeight: 3000, viewHeight: 600 });
+    magnifyAt({ magnify: 1, factor: 2, at: [10, 10], top: 0, left: 0, scale: 0.5, page: { width: 1280, height: 3000 }, view: [640, 400] });
     keyScroll('PageDown', 0, 600, 3000);
     const source = highlightSource('demo', capture);
     await putHighlight(newId('pdfh'), highlightBody(source, capture, { rects: [[0, 0, 10, 10]], quote: { exact: 'x', prefix: '', suffix: '' } }));
@@ -172,7 +174,7 @@ test('zero AI calls: scroll, lock, select, highlight, Copy and Ask reach only th
   const card = read('WebpageCard.jsx');
   assert.doesNotMatch(card, /fetch\(|\/api\//);
   const imports = [...card.matchAll(/from '\.\/([^']+)'/g)].map(match => match[1]).sort();
-  assert.deepEqual(imports, ['chat-workspace.jsx', 'file-source-client.js', 'pdf-anchor.js', 'pdf-highlights.js', 'selection-ref.js', 'selection-toolbar.jsx', 'ui.jsx', 'webcard-api.js', 'webcard.js']);
+  assert.deepEqual(imports, ['chat-workspace.jsx', 'content-gestures.js', 'file-source-client.js', 'pdf-anchor.js', 'pdf-highlights.js', 'selection-ref.js', 'selection-toolbar.jsx', 'ui.jsx', 'webcard-api.js', 'webcard.js']);
   const routes = [...read('webcard-api.js').matchAll(/`(\/api\/[^`$?]+)/g)].map(match => match[1]);
   assert.deepEqual(routes, ['/api/learn/webpages/', '/api/learn/webpages/', '/api/learn/files/']);
   assert.match(read('webcard-api.js'), /result\('\/api\/learn\/webpages', \{ method: 'POST'/);
@@ -207,7 +209,7 @@ test('rendered: title, a source link that opens a new tab without opener or refe
   assert.match(html, /data-webcard-frame="true" data-scroll=""/);
   assert.doesNotMatch(render(card({ scrollLocked: true })), /data-webcard-frame="true" data-scroll/);
   // The page scrolls by a transform of the tile column, never an inner scroller (html-to-image keeps transforms).
-  assert.match(html, /data-webcard-column="true" class="relative w-full" style="height:[^"]*;transform:translateY\(/);
+  assert.match(html, /data-webcard-column="true" class="relative" style="width:[^"]*;height:[^"]*;transform:translateX\([^)]*\) translateY\(/);
   assert.match(html, /aria-label="Refresh"/);
   // While a Refresh is checked, Refresh keeps its name, greyed, with no explanation.
   const busy = render(card({ pending: { manifestId: 'fs_2', lineage: capture.lineage, status: 'screening', reason: null, startedAt: 1 } }));
@@ -243,4 +245,34 @@ test('a capture file that 404s right after a version passed is retried (a stale 
   const refused = async status => { let n = 0; await assert.rejects(captureFile('fs_2', { fetchImpl: async () => { n += 1; return { ok: false, status }; }, wait: 0 }), /not available/); return n; };
   assert.equal(await refused(403), 1, 'a 403 is not retried');
   assert.equal(await refused(404), 5, 'a 404 is tried 5 times, then the card says so');
+});
+
+test('rendered loading: a spinner beside Capturing and Checking, a skeleton while no page shows; still under reduced motion; gone once it ends', () => {
+  B.setFileScope({ app: 'demo', board: 'main' });
+  const none = { capture: undefined, fileRef: undefined };
+  const spinner = /<svg[^>]*class="[^"]*animate-spin[^"]*motion-reduce:animate-none"[^>]*data-webcard-spinner="true"/;
+  // A first capture after a reload says it stopped (Retry), with no spinner; one this page asked for is capturing.
+  const first = render(card({ ...none, pending: { manifestId: 'fs_1', status: 'screening', reason: null, startedAt: 1 } }));
+  assert.match(first, spinner); assert.match(first, /Checking the page/);
+  assert.match(first, /data-webcard-skeleton="true"/); assert.match(first, /motion-safe:animate-pulse/);
+  assert.doesNotMatch(first, /…|\.\.\./, 'no ellipsis');
+  // A Refresh keeps the page on show, with the small indicator above it.
+  const refresh = render(card({ pending: { manifestId: null, status: 'capturing', reason: null, startedAt: 1 } }));
+  const refreshing = render(card({ pending: { manifestId: 'fs_2', status: 'screening', reason: null, startedAt: 1 } }));
+  for (const html of [refresh, refreshing]) { assert.match(html, /data-webcard-frame/); assert.doesNotMatch(html, /data-webcard-skeleton/); }
+  assert.match(refreshing, spinner);
+  // Stopped (the request was lost), failed, hidden, and the page itself: no spinner, no skeleton.
+  for (const html of [refresh, render(card({ ...none, pending: { manifestId: null, status: 'capturing', reason: null, startedAt: 1 } })), render(card({ ...none, failure: { status: 'unavailable', reason: null } })), render(card({ ...none, pending: { manifestId: 'fs_1', status: 'inconclusive', reason: null, startedAt: 1 } })), render(card())]) {
+    assert.doesNotMatch(html, /data-webcard-spinner|data-webcard-skeleton/);
+  }
+  B.setFileScope(null);
+});
+
+test('content zoom keeps the point under the cursor and holds at its limits', () => {
+  const base = { at: [320, 200], top: 200, left: 0, scale: 0.5, page: { width: 1280, height: 3000 }, view: [640, 400] };
+  const z = magnifyAt({ ...base, magnify: 1, factor: 2 });
+  assert.equal(z.magnify, 2);
+  assert.deepEqual([z.left + 320 / (0.5 * 2), z.top + 200 / (0.5 * 2)], [640, 600], 'the cursor still points at capture (640, 600)');
+  assert.equal(magnifyAt({ ...base, magnify: 3, factor: 10 }).magnify, CONTENT_ZOOM.max);
+  assert.deepEqual(magnifyAt({ ...base, magnify: 1, factor: 0.5 }), { magnify: 1, top: 200, left: 0 }, 'below the card width nothing changes');
 });

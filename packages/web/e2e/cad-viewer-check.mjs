@@ -4,7 +4,8 @@
 // and counted, so no model or executor is ever called. A synthetic triangle proves UI wiring, not CAD quality.
 //   1. a completed model renders live 3D without selecting it; no control sits in the viewer; Edit and Explain are gone;
 //      a pending job shows its spinner (data-gen-active true), a failed one none;
-//   2. the wheel over the unentered viewer reaches the canvas; one click enters the model (Interact pressed, Done shown);
+//   2. the wheel over the live, unentered viewer zooms the model and never moves the canvas (owner, 2026-10-22: hover is
+//      enough); one click enters the model (Interact pressed, Done shown);
 //      orbit stays in the viewer; Escape returns control and leaves the card selected; deselecting ends interaction;
 //   3. the selected card's toolbar holds Interact, Fit view and Show dimensions; keyboard Enter enters, tooltips and a
 //      focus ring show on focus, every icon target is at least 32 px; Fit view leaves the canvas where it was;
@@ -136,15 +137,17 @@ await step('a completed model renders live 3D without being selected; no control
   await shot(page, 'after-1-default-live-light');
 });
 
-await step('the wheel reaches the canvas until a click enters the model; Escape and deselection give control back', async () => {
+await step('the wheel over the unentered viewer zooms the model, never the canvas; a click enters the model; Escape and deselection give control back', async () => {
   const viewer = viewerOf(page);
   let box = await viewer.boundingBox();
-  const before = await cardOf(page).boundingBox();
+  const before = await cardOf(page).boundingBox(), unzoomed = await settled(viewer);
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.wheel(0, 120);
-  await until(async () => Math.abs((await cardOf(page).boundingBox()).y - before.y) > 5, 'the wheel over an unentered viewer did not pan the canvas');
-  await page.mouse.wheel(0, -120); // back, so the toolbar above the card stays in view
-  await until(async () => Math.abs((await cardOf(page).boundingBox()).y - before.y) < 2, 'the canvas did not pan back');
+  await page.mouse.wheel(0, -240);
+  const zoomed = await settled(viewer), moved = await cardOf(page).boundingBox();
+  for (const key of ['x', 'y', 'width', 'height']) assert.ok(Math.abs(before[key] - moved[key]) < 2, `the wheel over an unentered viewer moved the canvas (${key})`);
+  assert.notEqual(zoomed, unzoomed, 'the wheel over an unentered viewer did not zoom the model');
+  assert.equal(await interactOf(page).getAttribute('aria-pressed'), 'false', 'hovering zoomed without entering');
+  await page.mouse.wheel(0, 240); // back to the opening view
   box = await viewer.boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await until(async () => (await interactOf(page).getAttribute('aria-pressed')) === 'true', 'a click did not enter the model');

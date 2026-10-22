@@ -1,9 +1,10 @@
 // An imported 3D model, point cloud, Gaussian splat or CAD model on the canvas (file-imports Lane 4). Lazily imported by
 // AdaptiveCanvas for `file` blocks of kind `model`; renders through the shared viewer (three-d-renderer.js).
 //
-// Interaction is explicit: the viewer is inactive until Interact (or a double-click on it). Inactive, the viewer area
-// only selects the card - the wheel pans and zooms the canvas, keys are the canvas's, and a press never drags the card
-// (the header strip does). Active, orbit / pan / zoom stay inside the viewer and Esc ends the interaction first. At most
+// Interaction is explicit: the viewer is inactive until Interact (or a double-click on it). Inactive, a press on the viewer
+// area only selects the card, keys are the canvas's, and a press never drags the card (the header strip does). The wheel and
+// pinch over a live viewer zoom the model, hover is enough (owner, 2026-10-22; content-gestures.js), and never the canvas.
+// Active, orbit / pan / zoom stay inside the viewer and Esc ends the interaction first. At most
 // MAX_LIVE viewers hold a renderer (viewer-slots.js); off-screen or displaced ones show a poster. A lost graphics context
 // pauses the viewer and never writes the card.
 import { useEffect, useRef, useState } from 'react';
@@ -14,6 +15,7 @@ import { addModelFiles, chooseModel, modelFromPlan, openModelFiles, useModelUplo
 import { MODEL_ACCEPT } from './model-drop.js';
 import { headerCounts, overBudget, sizeLabel } from './model-formats.js';
 import { activateViewer, claimViewer, deactivateViewer, releaseViewer } from './viewer-slots.js';
+import { holdViewerGestures } from './content-gestures.js';
 import { cadFacts, fetchCadDerivatives, useCadPreview } from './model-cad.js';
 
 const OFFSCREEN_RELEASE_MS = 2000;
@@ -140,14 +142,19 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
     document.addEventListener('pointerdown', outside, true);
     return () => document.removeEventListener('pointerdown', outside, true);
   }, [active]);
-  // The canvas pans on the wheel and drags on a press at its own elements; an active viewer keeps both for itself
-  // (native listeners, so they hold whether the canvas listens through React or directly).
+  // The canvas drags on a press at its own elements; an active viewer keeps it for itself (a native listener, so it holds
+  // whether the canvas listens through React or directly).
   useEffect(() => {
     const element = host.current?.parentElement; if (!element || !active) return;
     const keep = event => event.stopPropagation();
-    element.addEventListener('wheel', keep, { passive: true }); element.addEventListener('pointerdown', keep);
-    return () => { element.removeEventListener('wheel', keep); element.removeEventListener('pointerdown', keep); };
+    element.addEventListener('pointerdown', keep);
+    return () => element.removeEventListener('pointerdown', keep);
   }, [active, live]);
+  // The wheel and pinch over a live viewer zoom the model only, Interact or not (content-gestures.js).
+  useEffect(() => {
+    const element = host.current?.parentElement; if (!element || !ready) return undefined;
+    return holdViewerGestures(element, () => engine.current);
+  }, [ready]);
 
   const download = () => { if (!blob) return; const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = model.download || block.label || 'model'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   const addFiles = async list => {
@@ -183,7 +190,7 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
         className={`relative min-h-0 flex-1 overflow-hidden rounded-lg border bg-[#f4f5f7] outline-none ${active ? 'border-ink' : 'border-line'}`}>
         <div ref={host} className="h-full w-full" style={{ pointerEvents: active ? 'auto' : 'none' }} />
         {!live && poster && <img src={poster} alt="" className="pointer-events-none absolute inset-0 h-full w-full object-contain" />}
-        {/* Inactive: a plain surface over the viewer, so a press selects the card and the wheel reaches the canvas. */}
+        {/* Inactive: a plain surface over the viewer, so a press selects the card (the wheel zooms the model, above). */}
         {!active && <div className="absolute inset-0" />}
         {active && <p className="pointer-events-none absolute top-2 left-2 rounded bg-white/85 px-1.5 py-0.5 text-[11px] text-ink-2">Drag to orbit · Scroll to zoom · Right-drag to pan · Esc to finish</p>}
         {choices && <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white p-4 text-center" onPointerDown={stop}>

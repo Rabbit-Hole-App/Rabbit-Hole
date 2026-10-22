@@ -1,6 +1,7 @@
 // Model cards in a real browser (file-imports Lane 4): every 3D, PLY and splat fixture goes through the real importer
 // into the real ModelCard on a stand-in canvas (e2e/model-viewer.html), renders visible pixels, and the explicit
-// interaction state holds: an inactive viewer passes the wheel and presses to the canvas, an active one keeps them, Esc
+// interaction state holds: an inactive viewer passes presses to the canvas and zooms the model on the wheel (hover is enough,
+// owner 2026-10-22), an active one keeps both, Esc
 // ends it first; at most MAX_LIVE renderers; a lost context never writes the card; missing and external dependencies
 // are named and never fetched. Self-contained: starts its own Vite dev server, serves fixtures from memory.
 //   node e2e/model-viewer-check.mjs            (KHRONOS=<dir> adds the downloaded Khronos samples; MEASURE=1 prints timings)
@@ -136,9 +137,12 @@ try {
   const box = await viewer.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   let before = await page.evaluate(() => window.__log.wheel);
-  await page.mouse.wheel(0, 120);
-  const inactiveWheel = (await page.evaluate(() => window.__log.wheel)) - before;
-  ok(inactiveWheel > 0 && (await card(one.id).locator('[data-model-card]').getAttribute('data-model-state')) === 'ready', 'inactive: the wheel over the viewer reaches the canvas');
+  await card(one.id).locator('[data-model-fit]').click(); await page.waitForTimeout(300);
+  const unzoomed = await viewer.screenshot();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -240); await page.waitForTimeout(300);
+  const inactiveWheel = (await page.evaluate(() => window.__log.wheel)) - before, zoomedInk = inkShare(await viewer.screenshot());
+  ok(inactiveWheel === 0 && zoomedInk > inkShare(unzoomed) && (await card(one.id).locator('[data-model-card]').getAttribute('data-model-state')) === 'ready', 'inactive: the wheel over the viewer zooms the model (no Interact) and never reaches the canvas', JSON.stringify({ inactiveWheel, before: inkShare(unzoomed), after: zoomedInk }));
   await card(one.id).locator('[data-model-interact]').click();
   const activeState = await card(one.id).locator('[data-model-card]').getAttribute('data-model-state');
   before = await page.evaluate(() => ({ wheel: window.__log.wheel, pointer: window.__log.pointer, changes: window.__log.changes.length }));
