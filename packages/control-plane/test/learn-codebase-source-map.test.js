@@ -8,8 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { learnDb } from './learn-grade-fixture.js';
 import { COMMITS, INJECTED, SECRET_VALUE, ledger, taskboard } from './learn-codebase-fixtures.js';
-import { buildLearningSourceMap, codebaseActivity, codebaseRoute, learningSourceMap, sourceDrift } from '../src/learn-codebase-source-map.js';
-import { CODEBASE_GOALS, EVIDENCE_LABEL, NOT_RUN_NOTE, QUESTION_LABEL, goalOf, repositoryRelevance, showCodebaseMenu, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
+import { buildLearningSourceMap, codebaseActivity, codebaseRoute, learningSourceMap, sourceDrift, symbolEnd } from '../src/learn-codebase-source-map.js';
+import { CODEBASE_GOALS, EVIDENCE_LABEL, NOT_RUN_NOTE, QUESTION_LABEL, citationRef, goalOf, repositoryRelevance, showCodebaseMenu, snapshotIndex } from '../../web/src/learn-codebase-goals.js';
 import { HANDOFF_CAPABILITIES } from '../src/learn-tutor-handoff.js';
 import { repositoryTool } from '../src/repository-context.js';
 import { acceptAttempt } from '../src/learn-attempt-store.js';
@@ -321,4 +321,69 @@ test('route: only the learner\'s own project canvas; a goal that needs a focus a
   // Trash: a project in Trash is not read.
   f.sqlite.exec("INSERT INTO library_trash(org, name, trashed_at) VALUES ('ws', 'repo-0a1b2c3d-proj', '2026-10-21T00:00:00Z')");
   assert.equal((await (await f.route('GET', { app: CANVAS })).json()).repository, null);
+});
+
+// Integrator ruling 2026-10-21 (production check, defect 1): minGPT's CausalSelfAttention was cited as lines 27-56, a fixed 30
+// lines from the class start, which left out forward's masked_fill / softmax / att @ v, so a correct cited answer could not be
+// confirmed. A symbol is now cited whole (capped at the 120-line read), and a citation is still refused beyond it.
+const MINGPT_MODEL = [
+  '"""', 'Full definition of a GPT Language Model, all of it in this single file.', '"""', '', 'import math', '', 'import torch',
+  'import torch.nn as nn', 'from torch.nn import functional as F', '', 'from mingpt.utils import CfgNode as CN', '',
+  '# -----------------------------------------------------------------------------', '', 'class NewGELU(nn.Module):', '    """',
+  '    Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT).', '    """',
+  '    def forward(self, x):', '        return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))', '',
+  'class CausalSelfAttention(nn.Module):', '    """', '    A vanilla multi-head masked self-attention layer with a projection at the end.', '    """', '',
+  '    def __init__(self, config):', '        super().__init__()', '        assert config.n_embd % config.n_head == 0',
+  '        # key, query, value projections for all heads, but in a batch', '        self.c_attn = nn.Linear(config.n_embd, 3 * config.n_embd)',
+  '        # output projection', '        self.c_proj = nn.Linear(config.n_embd, config.n_embd)', '        # regularization',
+  '        self.attn_dropout = nn.Dropout(config.attn_pdrop)', '        self.resid_dropout = nn.Dropout(config.resid_pdrop)',
+  '        # causal mask to ensure that attention is only applied to the left in the input sequence',
+  '        self.register_buffer("bias", torch.tril(torch.ones(config.block_size, config.block_size))',
+  '                                     .view(1, 1, config.block_size, config.block_size))',
+  '        self.n_head = config.n_head', '        self.n_embd = config.n_embd', '', '    def forward(self, x):',
+  '        B, T, C = x.size() # batch size, sequence length, embedding dimensionality (n_embd)', '',
+  '        # calculate query, key, values for all heads in batch and move head forward to be the batch dim',
+  '        q, k ,v  = self.c_attn(x).split(self.n_embd, dim=2)',
+  '        k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)',
+  '        q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)',
+  '        v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2) # (B, nh, T, hs)', '',
+  '        # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)',
+  '        att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))',
+  "        att = att.masked_fill(self.bias[:,:,:T,:T] == 0, float('-inf'))", '        att = F.softmax(att, dim=-1)',
+  '        att = self.attn_dropout(att)', '        y = att @ v # (B, nh, T, T) x (B, nh, T, hs) -> (B, nh, T, hs)',
+  '        y = y.transpose(1, 2).contiguous().view(B, T, C) # re-assemble all head outputs side by side', '',
+  '        # output projection', '        y = self.resid_dropout(self.c_proj(y))', '        return y', '',
+  'class Block(nn.Module):', '    """ an unassuming Transformer block """', '', '    def __init__(self, config):', '        super().__init__()', '',
+].join('\n');
+const lineOf = text => MINGPT_MODEL.split('\n').findIndex(line => line.includes(text)) + 1;
+const mingpt = () => ({
+  repo: 'karpathy/minGPT', commit: '37baab71b9abea1b76ab957409a1cc2fbfba8a26', files: { 'mingpt/model.py': MINGPT_MODEL },
+  graph: { nodes: [{ id: 'mingpt_model_py', label: 'model.py', path: 'mingpt/model.py', line: 1, kind: 'code' },
+    { id: 'mingpt_model_causalselfattention', label: 'CausalSelfAttention', path: 'mingpt/model.py', line: lineOf('class CausalSelfAttention'), kind: 'code' }], edges: [] },
+});
+
+test('a symbol is cited whole: minGPT CausalSelfAttention covers the masked_fill and softmax lines of forward; a range beyond the symbol is refused', async () => {
+  const map = await learningSourceMap(mingpt(), { goal: 'understand_feature', question: 'how CausalSelfAttention applies the causal mask' });
+  const ref = map.nodes.find(n => n.path === 'mingpt/model.py').sourceRef;
+  const [cls, mask, softmax, ret, block] = ['class CausalSelfAttention', 'att.masked_fill', 'F.softmax(att', '        return y', 'class Block'].map(lineOf);
+  assert.equal(ref.locator.symbol, 'CausalSelfAttention');
+  assert.deepEqual([ref.locator.start, ref.locator.end], [cls - 2, ret], 'from just above the class to its last line, not a fixed 30 lines');
+  assert.ok(ref.locator.end - ref.locator.start + 1 > 30, 'wider than the old window');
+  assert.ok(ref.locator.end < block, 'the next class is not cited');
+  assert.ok(map.citations.find(c => c.path === 'mingpt/model.py').text.includes('att.masked_fill'), 'the placed code card holds the mask lines, so they can be selected there');
+  // The learner may now cite the lines that apply the mask; the stored ref is still built from the activity's own ref.
+  const claim = (start, end, extra = {}) => ({ kind: ref.kind, id: ref.id, version: ref.version, hash: ref.hash, locator: { path: ref.locator.path, start, end }, ...extra });
+  assert.deepEqual(citationRef([ref], claim(mask, softmax)).locator, { path: 'mingpt/model.py', start: mask, end: softmax, role: 'source', citation: true });
+  // Beyond the symbol (into class Block), before it, or with another hash: still refused.
+  assert.equal(citationRef([ref], claim(ret, block)), null);
+  assert.equal(citationRef([ref], claim(ref.locator.start - 1, mask)), null);
+  assert.equal(citationRef([ref], claim(mask, softmax, { hash: '0'.repeat(64) })), null);
+  // The cap: a symbol longer than the 120-line read is cut at 120 lines.
+  const long = ['def long():', ...Array.from({ length: 200 }, (_, i) => `    x${i} = ${i}`), ''].join('\n');
+  assert.equal(symbolEnd(long.split('\n'), 1), 201);
+  const capped = await learningSourceMap({ repo: 'a/b', commit: 'c'.repeat(40), files: { 'long.py': long }, graph: { nodes: [{ id: 'long', label: 'long', path: 'long.py', line: 1, kind: 'code' }], edges: [] } }, { goal: 'understand_feature', question: 'long' });
+  assert.deepEqual([capped.nodes[0].sourceRef.locator.start, capped.nodes[0].sourceRef.locator.end], [1, 120]);
+  // Brace languages: the closing brace at the symbol's indent is part of it; a one-line symbol keeps the old window.
+  assert.equal(symbolEnd(['export function f(a) {', '  return a;', '}', 'const g = 1;'], 1), 3);
+  assert.equal(symbolEnd(['const g = 1;', 'const h = 2;'], 1), 1);
 });
