@@ -1,6 +1,6 @@
 // Rename a card from its right-click menu (owner, 2026-10-21): only cards whose model already has a string title.
 // A wiki card's title is the article it loads (reader, Open on Wikipedia), not a name, so it is not renamable.
-export const renamable = block => !!block && typeof block.title === 'string' && block.type !== 'wiki';
+export const renamable = block => !!block && typeof block.title === 'string' && block.type !== 'wiki' && block.type !== 'webpage'; // a webpage's title is its capture's
 
 // Trimmed; an empty or unchanged title keeps the old one and returns the same array (nothing to save or undo).
 export function renameBlock(blocks, id, text) {
