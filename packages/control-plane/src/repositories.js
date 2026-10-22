@@ -422,13 +422,17 @@ async function repositoryAsk(req,env,user,app){
   let source;
   try{source=await readLearnSource(env,body,app,{extraBlocks,papers,foundVideos:videos.found,videoContext,wikiTool:false},{readArxivPaper,uploadedPaperAsDocument,uploadedMediaAsImage,readWikipedia});}
   catch(error){return json({error:error.message},502);}
+  // Mentioned canvases, as on /api/learn/ask (canvas-refs.js canvasMentions): read under this asker's access, else refused
+  // before anything is stored or sent, naming no title. Loaded here: canvas-refs.js imports this module.
+  const canvasRefs=chat?.contextRefs?.some(ref=>ref.kind==='canvas')?await import('./canvas-refs.js').then(m=>m.canvasMentions(env,user,chat.contextRefs).then(found=>({...found,error:m.CANVAS_UNAVAILABLE}))):null;
+  if(canvasRefs?.refused.length)return json({error:canvasRefs.error,code:'canvas_unavailable',refused:canvasRefs.refused},403);
   const id=thread?.id||`repochat-${crypto.randomUUID()}`;
   if(!thread)await db.prepare('INSERT INTO threads(id,org,user,scope_ref,commit_sha,title) VALUES(?,?,?,?,?,?)').bind(id,user.org,user.email,scopeRef,commit,body.message.slice(0,120)).run();
   const turn=await repositoryRegenerate(db,id,chat);
   const history=await threadTurns(db,id,seed,question,turn?.userMessageId);
   const chatTurn=await repositoryChatTurn(db,{chat,turn,threadId:id,history,message:body.message,readPaper:source?.paper?body.paper_context?.id:null});
   // Whole-canvas context (canvas-context.js): the same block and rules as /api/learn/ask, on every ask that sends it.
-  const board=(canvas?`\n\n${canvasContextText(canvas)}`:'')+chatTurn.context,rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
+  const board=(canvas?`\n\n${canvasContextText(canvas)}`:'')+(canvasRefs?.text?`\n\n${canvasRefs.text}`:'')+chatTurn.context,rules=canvas?`\n${CANVAS_CONTEXT_RULES}`:'';
   const saveGraph=async messageId=>{if(graphView)await db.prepare('INSERT INTO repository_message_graphs(message_id,graph_json) VALUES(?,?)').bind(messageId,JSON.stringify(graphView)).run();};
   return askStream(env,appendCanvasTarget(appendOutline(JSON.stringify({repo:app.repo,commit,selected,selectedCode,...(selectedFile?{selectedFile}:{}),...(selectedEntities?{selectedEntities,selectedNote:SELECTED_NOTE}:{}),lesson:body.lesson_snapshot||null,paper:null,...source,...(mentioned.length?{mentionedRepositories:mentioned}:{})})+notRead.map(line=>`\n\n${line}`).join(''),body.outline,body.outlineOmitted),canvasTarget)+board,history,question,
     chatTurn.onDone(saveGraph)||(async answer=>{const message=await db.prepare('INSERT INTO messages(thread_id,role,content) VALUES(?,?,?) RETURNING id').bind(id,'assistant',answer).first();await saveGraph(message.id);}),{threadId:id,commit},extraBlocks,null,askModel(body.model),null,

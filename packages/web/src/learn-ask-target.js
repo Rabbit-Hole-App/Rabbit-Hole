@@ -38,6 +38,7 @@ export const TOC_VIEW = {
     'data-context-path': "the repository's Asking about box",
     'data-context-excerpt': "the repository's Asking about box",
     'data-upload-context': 'the + menu',
+    'data-mention-canvas': 'the + menu',
     'data-context-button': 'Context documents (never on the Learn Chat either)',
     'data-command-slot': 'the / command control (slash is null)',
     'data-voice-error': 'voice (voice is null)',

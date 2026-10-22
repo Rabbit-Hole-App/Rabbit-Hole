@@ -51,6 +51,10 @@ import { fileReviews } from './learn-progress-question.js';
 import { cn, ConfirmDialog, KindIcon, Menu, MenuItem, SlidePanel, Toggle } from './ui.jsx';
 import { handleAiRefusal } from './ai-refusal.js';
 import { cardIdFor } from './AnswerFooter.jsx';
+import { createPortal } from 'react-dom';
+import CanvasRefPicker from './CanvasRefPicker.jsx';
+import { CANVAS_MENTIONS, canvasBoardId, canvasMentionRef } from './canvas-mention-ref.js';
+import { recheckMentions, rememberCanvas } from './CanvasMention.jsx';
 
 // What the agent may read, per scope - the ⚙ picker mirrors Notion's "My sources".
 // Mentioned apps a chat reads at most (MENTION_LIMIT in control-plane learn-models.js).
@@ -351,6 +355,10 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
+  // "Mention a canvas" (the canvas Chat's + menu, in place of Mention an app): its picker; a pick attaches a canvas ref only
+  // (canvas-mention-ref.js) - no navigation, no send, no model call.
+  const [mentionPick, setMentionPick] = useState(false);
+  const canvasMentioned = attachedRefs.filter(ref => ref.kind === 'canvas');
   // Canvas context documents (canvas-context-docs.md): the composer's Context button and list.
   const contextDocs = useContextDocs(scope?.app);
   const [ctxOpen, setCtxOpen] = useState(false);
@@ -391,7 +399,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
 
   // "@yol" at the end of the input → app-name suggestions
   // The server reads at most three mentions, so the composer offers no fourth chip.
-  const atMatch = privateChat || mentions.length >= MENTION_CHIPS ? null : input.match(/@([a-z0-9-]*)$/);
+  // The canvas Chat mentions canvases through its picker, never apps by a typed @.
+  const atMatch = privateChat || chat || mentions.length >= MENTION_CHIPS ? null : input.match(/@([a-z0-9-]*)$/);
   useEffect(() => {
     if (atMatch && appNames === null) api('/api/apps').then((d) => setAppNames(d.apps.map((a) => ({ name: a.name, kind: a.kind, schedule: a.schedule })))).catch(() => setAppNames([]));
   }, [!!atMatch]);
@@ -672,8 +681,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
     const pdfPage = tutorPage(target, attachedRefs);
     // A PDF excerpt (pdf-excerpt.js) rides as client text the Tutor's plan does not read: like a file, it goes to /api/learn/ask.
     // So does a progress question (Tutor Task 10): only that route reads the learner's evidence for it, read-only, and the
-    // Tutor's path could take the message for an answer to assess.
-    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress');
+    // Tutor's path could take the message for an answer to assess. A mentioned canvas too: only /api/learn/ask reads it.
+    const fileTurn = [...attachedRefs, target?.ref].some(ref => ref?.kind === 'file' || ref?.kind === 'excerpt' || ref?.kind === 'progress' || ref?.kind === 'canvas');
     const viaTutor = tutorTurn({ tutor, codeTurn, pageTurn: turnHasPage(target, attachedRefs) && !pdfPage, fileTurn, chat, mode: chat?.thread.mode, toc: tocView });
     if (!viaTutor || isDemo) begin();
     const append = (t) => setMsgs((m) => {
@@ -825,6 +834,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
         } else {
           mirror(`✗ ${d.error || `HTTP ${r.status}`}`);
           keepRefused(d);
+          // A mentioned canvas this learner can no longer read: its pill reads it again (now unavailable) and the words come back.
+          if (d.code === 'canvas_unavailable') { recheckMentions(); setInput(current => current || raw); }
         }
         return;
       }
@@ -1265,10 +1276,16 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything', 
               {chat ? <MenuItem icon={Upload} data-upload-context onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>Upload Context</MenuItem> : <MenuItem icon={Paperclip} disabled={privateChat || canvasChat} title={privateChat ? 'Attachments are not connected for private chat yet.' : canvasChat ? 'Attachments are not available on canvases yet. Upload a PDF from the canvas menu.' : undefined} onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}>
                 Add images, PDFs, or CSVs
               </MenuItem>}
-              <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
+              {chat ? <MenuItem icon={AtSign} data-mention-canvas disabled={privateChat || canvasMentioned.length >= CANVAS_MENTIONS} onClick={() => { setPlusOpen(false); setMentionPick(true); }}>
+                Mention a canvas
+              </MenuItem> : <MenuItem icon={AtSign} disabled={privateChat || mentions.length >= MENTION_CHIPS} title={privateChat ? `This chat uses only the selected ${scope.run ? 'run' : 'app'}.` : mentions.length >= MENTION_CHIPS ? 'A question reads at most three mentioned apps.' : undefined} onClick={() => { setPlusOpen(false); setInput((v) => `${v}@`); inputRef.current?.focus(); }}>
                 Mention an app
-              </MenuItem>
+              </MenuItem>}
             </Menu>
+            {/* On document.body: inside the composer's form, the picker's buttons would submit (send) the chat. */}
+            {mentionPick && chat && createPortal(<CanvasRefPicker mention exclude={null} linked={canvasMentioned.map(ref => canvasBoardId(ref.sourceId))} returnFocus={() => inputRef.current}
+              onPick={canvas => { const ref = canvasMentionRef(canvas.id); if (chat.context.isAttached(ref)) return { ok: false, reason: 'exists' }; rememberCanvas(canvas); chat.context.attach(ref); return { ok: true }; }}
+              onClose={() => setMentionPick(false)} />, document.body)}
             <input
               ref={fileRef}
               type="file"

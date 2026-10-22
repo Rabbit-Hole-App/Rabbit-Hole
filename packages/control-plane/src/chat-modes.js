@@ -6,6 +6,7 @@ import { JOURNEY_LIMITS, validatePath } from '../../web/src/learn-journey.js';
 import { HISTORY_TURNS } from './learn-models.js';
 import { FILE_SOURCE, fileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
+import { CANVAS_MENTIONS, CANVAS_REF_NAME, CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
 
 const isObj = v => v != null && typeof v === 'object' && !Array.isArray(v);
 const str = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
@@ -25,7 +26,9 @@ const SUBTOPICS = 6, DESCRIPTION_MAX = 240;
 // (C:/s/spec/pdf-excerpts/contract.md "Chat"); a region excerpt rides as its crop's file ref instead.
 // progress: a Progress question's scope (progress:<goal id>, range a ProgressQuestionScope, learn-progress-question.js); the
 // server reads the learner's own records for it (learn-progress-context.js), so it never carries evidence from the browser.
-const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph', 'file', 'excerpt', 'progress'];
+// canvas: a mentioned canvas (canvas:<main board id>, canvas-mention-ref.js); the server reads its title and saved content under the
+// asker's access (canvas-refs.js canvasMentions), so a ref never carries a title: its name is always "Canvas".
+const KINDS = ['doc', 'card', 'group', 'code', 'image', 'media', 'web', 'graph', 'file', 'excerpt', 'progress', 'canvas'];
 // Content the client resolved at Send for kinds the server cannot read itself (Home, 12:30 AM PT).
 const TEXT_KINDS = new Set(['card', 'group', 'image', 'media', 'excerpt']);
 const REFS = 20, REF_BYTES = 2048, REF_TEXT = 8000, REFS_TEXT = 32000;
@@ -55,7 +58,7 @@ function refRange(kind, range) {
 // ContextRef[] (A2): at most 20, each at most 2 KB as JSON not counting its text, known kinds and range shapes.
 export function contextRefs(value) {
   if (!Array.isArray(value) || value.length > REFS) throw Error(`context_refs must be a list of at most ${REFS} refs`);
-  let total = 0, excerpts = 0;
+  let total = 0, excerpts = 0, canvases = 0;
   return value.map((ref, i) => {
     const at = `context_refs[${i}]`;
     if (!isObj(ref) || !KINDS.includes(ref.kind)) throw Error(`${at}: unknown kind`);
@@ -65,12 +68,14 @@ export function contextRefs(value) {
     const prefix = ref.kind === 'web' ? /^(paper|wiki):./ : new RegExp(`^${ref.kind}:.`);
     if (ref.kind === 'file' && !FILE_SOURCE.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be file:<source id>@<sha256>`);
     if (ref.kind === 'excerpt' && !EXCERPT_ID.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be excerpt:pdfx_<24 hex>`);
+    if (ref.kind === 'canvas' && !CANVAS_SOURCE.test(String(ref.sourceId))) throw Error(`${at}: sourceId must be canvas:<board id>`);
+    if (ref.kind === 'canvas' && ++canvases > CANVAS_MENTIONS) throw Error(`context_refs: a question reads at most ${CANVAS_MENTIONS} mentioned canvases`);
     if (!str(ref.sourceId, 600) || !prefix.test(ref.sourceId)) throw Error(`${at}: sourceId must start with ${ref.kind === 'web' ? 'paper: or wiki:' : `${ref.kind}:`}`);
     if (!str(ref.name, 120)) throw Error(`${at}: name must be 1-120 characters`);
     if (typeof ref.version !== 'string' || ref.version.length > 200) throw Error(`${at}: version must be a string`);
     let range;
     try { range = refRange(ref.kind, ref.range); } catch (error) { throw Error(`${at}: ${error.message}`); }
-    const out = { sourceId: ref.sourceId, kind: ref.kind, name: ref.name, version: ref.version, range, ...(open !== undefined ? { open } : {}) };
+    const out = { sourceId: ref.sourceId, kind: ref.kind, name: ref.kind === 'canvas' ? CANVAS_REF_NAME : ref.name, version: ref.version, range, ...(open !== undefined ? { open } : {}) };
     if (text !== undefined && ref.kind === 'excerpt') {
       if (typeof text !== 'string') throw Error(`${at}: text must be a string`);
       const kept = text.slice(0, Math.max(0, Math.min(EXCERPT_TEXT, EXCERPTS_TEXT - excerpts)));
@@ -201,6 +206,7 @@ export function chatContext(context, refs, summary, cap, readPaper = null, files
   if (refs?.length) {
     const coverage = r => (r.kind === 'excerpt' ? (typeof r.text !== 'string' ? ' - named only: its text was not sent with this turn, so you have not seen it; say so if the question needs it' : r.cut ? ` - partially included: only the first ${r.cut.kept} of its ${r.cut.of} characters are included below; say so if the question needs the rest`
         : ' - excerpt: only this excerpt of the document is included below, not the rest of the document; say so if the question needs more of it')
+      : r.kind === 'canvas' ? ' - a mentioned canvas: its title and saved content are included below'
       : r.kind === 'file' ? FILE_COVERAGE_TEXT[files?.coverage?.get(`${r.sourceId}|${JSON.stringify(r.range ?? null)}`)] || FILE_COVERAGE_TEXT.listed
       : r.kind !== 'web' || !/^paper:upload:/.test(r.sourceId) ? ''
       : readPaper && r.sourceId === `paper:${readPaper}` ? ' - its PDF is included in this turn'
