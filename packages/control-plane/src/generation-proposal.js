@@ -147,12 +147,54 @@ export async function verifyProposal(env, p, user, now = Math.floor(Date.now() /
 }
 
 // A settings change on the card: the next version of the same proposal, signed again, with no model call.
-export async function reviseSettings(env, p, settings, user) {
+// bind {org, app}: the canvas the server found the proposal on (MOT-22), signed into its input; an old unbound proposal is bound here.
+export async function reviseSettings(env, p, settings, user, bind = null) {
   const refused = await verifyProposal(env, p, user);
   if (refused) return { error: refused };
   const checked = SETTINGS[p.command]?.(settings);
   if (!checked || checked.error) return { error: checked?.error || 'These settings cannot be changed here.' };
-  return { proposal: await signProposal(env, { ...p, settings: checked.value }, user, { id: p.proposal_id, version: p.version + 1 }) };
+  return { proposal: await signProposal(env, { ...p, settings: checked.value, input: { ...p.input, ...bind } }, user, { id: p.proposal_id, version: p.version + 1 }) };
+}
+
+// MOT-22: the server's record of a proposal is the learner's chat on the proposal's canvas (LEARN_DB chat_message_meta): each
+// revision is an answer's meta.proposal (a settings change rewrites its row, a chat refinement adds a row), and the one revision
+// that made a video carries meta.proposalUsed {version, key}. Only the single highest version may change or start; every write
+// is a compare-and-swap on the row's exact text, so a revision and a Generate cannot both win.
+// shortcut: threads has no (user, scope_ref) index, so this scans the learner's threads; add one with the next threads migration.
+const RECORD = "SELECT mm.message_id, mm.meta_json FROM chat_message_meta mm JOIN threads t ON t.id = mm.thread_id WHERE t.user = ? AND t.scope_ref = ? AND mm.role = 'assistant' AND json_extract(mm.meta_json, '$.proposal.proposal_id') = ?";
+export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the latest card in the chat.';
+export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
+export async function proposalRecord(db, user, app, id) {
+  const { results } = await db.prepare(RECORD).bind(user, app, id).all();
+  const rows = results.map(r => ({ messageId: Number(r.message_id), raw: r.meta_json, meta: JSON.parse(r.meta_json) }));
+  const top = Math.max(0, ...rows.map(r => r.meta.proposal.version));
+  const latest = rows.filter(r => r.meta.proposal.version === top);
+  // Two rows at the top version (a chat refinement and a settings change raced): neither is current until the next revision.
+  return { rows, latest: latest.length === 1 ? latest[0] : null, used: rows.find(r => r.meta.proposalUsed)?.meta.proposalUsed ?? null };
+}
+// Generate: -> null once p, the current revision on this canvas, is consumed by the press key (or already was, by this key),
+// else {error, code}. Called before any hold or orchestrator call. dest {org, app}: the authorized canvas the request is for,
+// from the server (learn-video.js forwardedLessonApp), compared with the canvas signed into the proposal. An old proposal
+// without one is refused until its next revision (a settings change or a chat refinement) binds it.
+export async function consumeProposal(db, p, user, dest, key) {
+  if (!dest?.app || !dest.org || p.input?.app !== dest.app || p.input?.org !== dest.org) return { error: p.input?.app ? 'This proposal was made on another canvas. Ask for it again in chat here.' : 'This proposal needs refreshing: change a setting on its card or ask for it again in chat.', code: 'proposal_canvas' };
+  const app = dest.app;
+  const record = await proposalRecord(db, user, app, p.proposal_id);
+  if (record.used) return record.used.key === key ? null : { error: PROPOSAL_USED, code: 'proposal_used' };
+  if (!record.latest || record.latest.meta.proposal.sig !== p.sig) return { error: record.rows.length ? PROPOSAL_STALE : 'This proposal is not in your chat on this canvas. Ask for it again in chat.', code: 'proposal_stale' };
+  const { meta } = await db.prepare('UPDATE chat_message_meta SET meta_json = ? WHERE message_id = ? AND meta_json = ?')
+    .bind(JSON.stringify({ ...record.latest.meta, proposalUsed: { version: p.version, key } }), record.latest.messageId, record.latest.raw).run();
+  return meta?.changes === 1 ? null : { error: PROPOSAL_STALE, code: 'proposal_stale' };
+}
+// A chat refinement revises the server's current revision, never the browser's copy: null when the browser's is from another
+// canvas, there is no single current revision, or it already made its video (the turn then proposes anew). An old unbound
+// proposal is found on this canvas's chat and bound by the refinement (index.js signs the turn's canvas into its input).
+export async function currentRevision(db, user, app, p) {
+  if (!p || (p.input?.app != null && p.input.app !== app)) return null;
+  try {
+    const record = await proposalRecord(db, user, app, p.proposal_id);
+    return record.used || !record.latest ? null : record.latest.meta.proposal;
+  } catch { return null; } // no chat tables on this database: nothing to revise
 }
 
 // What the orchestrator's Director takes as binding input (orchestrator.mjs approved_proposal).

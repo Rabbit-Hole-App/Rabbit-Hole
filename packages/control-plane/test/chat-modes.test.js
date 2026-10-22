@@ -799,7 +799,7 @@ test('a /motion chat turn proposes on the chat path: one model turn, the signed 
   assert.match(f.calls[0].system, /Generation proposals:/);
   const meta = events.find(e => e.event === 'answer_meta').data;
   const p = meta.proposal;
-  assert.deepEqual([p.command, p.version, p.title, p.description, p.settings, p.input, p.usage], ['motion', 1, 'Water cycle: evaporation to rain', WATER, { duration_seconds: 10, audio: false }, { request: '/motion explain the water cycle', concept: 'Weather' }, { estimate_credits: 100, reserve_credits: 896 }]);
+  assert.deepEqual([p.command, p.version, p.title, p.description, p.settings, p.input, p.usage], ['motion', 1, 'Water cycle: evaporation to rain', WATER, { duration_seconds: 10, audio: false }, { request: '/motion explain the water cycle', concept: 'Weather', org: 'workspace-a', app: 'canvas-0a1b2c3d' }, { estimate_credits: 100, reserve_credits: 896 }], 'signed for the canvas and workspace it was asked on (MOT-22)');
   assert.equal(await verifyProposal(f.env, p, 'owner@example.test'), null, 'signed for the asker');
   const stored = JSON.parse(f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant'")[0].meta_json);
   assert.deepEqual(stored.proposal, p, 'kept with the answer, so a reload draws the card again');
@@ -841,7 +841,7 @@ test('CR-1 hand-off: a signed chat route to Motion makes the ordinary turn its p
   assert.equal(res.status, 200);
   assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_generation'], 'the proposal tool alone, as a typed /motion');
   const p = events.find(e => e.event === 'answer_meta').data.proposal;
-  assert.deepEqual([p.command, p.version, p.input], ['motion', 1, { request: `/motion ${words}`, concept: 'Weather' }]);
+  assert.deepEqual([p.command, p.version, p.input], ['motion', 1, { request: `/motion ${words}`, concept: 'Weather', org: 'workspace-a', app: 'canvas-0a1b2c3d' }]);
   assert.equal(f.calls.length, 2, 'the proposal and the reply: no Director, author or render call');
 });
 
