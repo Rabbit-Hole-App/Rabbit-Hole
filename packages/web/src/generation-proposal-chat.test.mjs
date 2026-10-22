@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { currentProposal, generationField, madeFrom, proposalActive, proposalBlock } from './generation-proposal-chat.js';
+import { currentProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal } from './generation-proposal-chat.js';
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
 const p = (id, version, over = {}) => ({ proposal_id: id, version, command: 'motion', title: `T ${id} ${version}`, settings: { duration_seconds: 10, audio: false }, input: { request: '/motion explain rain', concept: 'Weather' }, expires_at: soon, ...over });
@@ -105,4 +105,18 @@ test('the e2e route fixture (e2e/dev-cp.mjs) passes the client: routeChat keeps 
   await handler({ request: () => ({ postData: () => JSON.stringify({ text: ' hi ' }) }), fulfill: async reply => { fulfilled = reply; } });
   assert.deepEqual(fulfilled, { json: chatRouteAnswer({ text: ' hi ' }) });
   assert.equal(fulfilled.json.args, 'hi');
+});
+
+// MOT-22: a Generate the server refused for its proposal leaves a failed card on the canvas; it must not make the current version
+// read Added to the canvas, and the refusal is said in words.
+test('a card whose Generate was refused for its proposal is not the card it made; the latest version stays live', () => {
+  const v = p('gp-a', 2), msgs = [answer(p('gp-a', 1)), answer(v)];
+  const refused = { ...proposalBlock(v), status: 'failed', proposalRefused: 'proposal_stale' };
+  assert.equal(madeFrom('gp-a')(refused), false);
+  assert.equal(proposalActive(v, msgs, id => [refused].some(madeFrom(id))), true, 'still live, with Generate');
+  assert.equal(proposalActive(v, msgs, id => [{ ...refused, proposalRefused: undefined, status: 'ready' }].some(madeFrom(id))), false, 'a card it made still counts');
+  const problem = code => Object.assign(new Error('server words'), { status: 409, data: { code } });
+  assert.deepEqual(['proposal_stale', 'proposal_canvas', 'proposal_refused', 'proposal_used'].map(code => proposalRefusal(problem(code))),
+    ['This proposal changed; use the latest version.', 'Refresh this proposal.', 'Refresh this proposal.', 'This proposal already made a video.']);
+  assert.equal(proposalRefusal(Object.assign(new Error('paused'), { status: 503, data: { code: 'motion_paused' } })), null, 'other failures keep their own message');
 });

@@ -34,8 +34,14 @@ const ADAPTERS = {
 };
 // -> the card to add, or null for a capability this build has no adapter for (its card cannot Generate).
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
+// MOT-22: a Generate the server refused for its proposal (a newer version exists, it was made on another canvas or needs a
+// refresh, or it already made its video) marks its card proposalRefused: never the card this proposal made, so the latest
+// version stays live with Generate. The card and the proposal say why; ProposalSlot hears it by PROPOSAL_REFUSED_EVENT.
+const REFUSED = { proposal_stale: 'This proposal changed; use the latest version.', proposal_canvas: 'Refresh this proposal.', proposal_refused: 'Refresh this proposal.', proposal_used: 'This proposal already made a video.' };
+export const proposalRefusal = problem => REFUSED[problem?.data?.code] ?? null;
+export const PROPOSAL_REFUSED_EVENT = 'rh-proposal-refused';
 // The card a proposal already made, so a second press (or a reload) finds it instead of adding another.
-export const madeFrom = proposalId => block => block?.operation?.proposal?.proposal_id === proposalId;
+export const madeFrom = proposalId => block => block?.operation?.proposal?.proposal_id === proposalId && !block.proposalRefused;
 
 // ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
 // The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the

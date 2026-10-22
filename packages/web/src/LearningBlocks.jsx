@@ -28,6 +28,7 @@ import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import SceneActivity from './SceneActivity.jsx';
 import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
+import { PROPOSAL_REFUSED_EVENT, proposalRefusal } from './generation-proposal-chat.js';
 import { motionHold, recoverVideo, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, readsAgain, recoveryButtons, resumesJob, videoLabel } from './learn-video-label.js';
@@ -1572,7 +1573,13 @@ function VideoBody({ block, appName, onChange, onFile }) {
     current = { ...current, operation };
     onChange({ ...current, status: 'generating' });
     try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
-    catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
+    catch (problem) {
+      // MOT-22: refused for its proposal: the card says why and stops counting as the card the proposal made.
+      const refused = proposalRefusal(problem);
+      setError(refused || problem.message);
+      onChange({ ...current, status: 'failed', ...(refused ? { proposalRefused: problem.data.code } : {}) });
+      if (refused) window.dispatchEvent(new CustomEvent(PROPOSAL_REFUSED_EVENT, { detail: { proposalId: operation.proposal?.proposal_id, message: refused } }));
+    }
   };
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
