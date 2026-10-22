@@ -471,7 +471,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     canEdit: () => canEditRef.current,
     // Tutor Task 07 (learn-coaching-materials.js applyTutorAction): the live canvas, and the one seam that makes Tutor material -
     // its own material tools on the existing Learn command path (internal; /api/learn/artifact), never a second generator.
-    tutorCanvas: () => canvasApi.current,
+    tutorCanvas: () => canvasApi.current && { ...canvasApi.current, startExplain: tutorExplain },
     makeTutorMaterial: explainMaterial(runLearnCommand, { app: app.name, openSearch: () => {}, post: (path, body, options) => api(path, { ...options, method: 'POST', body: JSON.stringify({ ...body, ...(askScope.pending ? { pending: askScope.pending } : {}) }) }) }),
     canvasContext, selection: () => canvasApi.current?.selection?.() || [],
     // A card from the companion (repo graph R2, C:/s/spec/repo-graph-r2-plan.md): an equivalent card already here (`same`) is
@@ -923,6 +923,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A pending Rabbit Hole's asks carry its parent and title: it has no canvas row until its first object (Dive.jsx).
   const askScope = hole ? { app: app.name, pending: { parent: hole.parent, title: app.title } } : { app: app.name };
   const canvasApi = useRef(null);
+  const startExplainRef = useRef(null), tutorExplain = useRef((prompt, options) => startExplainRef.current?.(prompt, options) ?? null).current;
   // Whole-canvas context (chat-canvas-context.js): the canvas_context every chat turn on this canvas carries, built from the live
   // canvas when it is sent - Ask and Tutor modes (canvasOps, ask.jsx) and Auto's Tutor (useTutor) alike. The title is a weak hint
   // (titleNow, set below); the summary is the "This canvas" chip's line. Refs and stable setters only, so any render's copy works.
@@ -980,15 +981,19 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // /explain v2 (EXP-T20 slice 1): one job per press, its card placed at once under the job's card id. null where v2 is off
   // here (the server's 404), which keeps today's /explain; remembered so later presses do not ask again.
   const explainRequests = useRef(new Map()), explainOff = useRef(false);
-  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit' } = {}) => {
+  // stamp: fields the pending card carries from its maker (a Tutor activity's tutor_action and coaching, learn-coaching-materials.js).
+  const startExplain = async (prompt, { context = null, image = null, promptUsed = prompt, source = 'explicit', stamp = null } = {}) => {
     if (explainOff.current || !commentBoard || !prompt.trim()) return null;
     const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}), ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) };
     let result;
     try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
     catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
-    const blockId = canvasApi.current?.placeExplain(withPrompt(explainPendingBlock({ job: result.job, prompt }), promptUsed));
+    const blockId = canvasApi.current?.placeExplain({ ...withPrompt(explainPendingBlock({ job: result.job, prompt }), promptUsed), ...(stamp || {}) });
     return { blockId: blockId || result.job.cardId };
   };
+  // EXP-T21: the Tutor (a turn's create_material, a coaching activity's material) opens the same job and card, read through a ref
+  // so its long-lived callbacks see this render's canvas.
+  startExplainRef.current = startExplain;
   // Ctrl+K Edit on an Explanation (EXP-T20 slice 2): an edit job bound to the card and the revision the learner saw; the card
   // shows its stage, then Current / Proposed with Apply changes and Discard (ExplainEditBar).
   const startExplainEdit = async (block, instruction) => {
@@ -1116,7 +1121,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const coachNow = useRef(null);
   coachNow.current = kind => !!chat?.coaching && mayRun(kind, effectiveControls(chat.coaching, chat.thread), { chatOpen: true, ready: ['ready', 'local'].includes(chat.coaching.status) });
   const coaching = useCallback(kind => coachNow.current(kind), []);
-  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, coaching });
+  const tutor = useTutor({ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository(app), describe: describeBlock, canvasContext, coaching, startExplain: tutorExplain });
   // Professor Next Steps (docs/features/professor-next-steps.md §1.7): the hooks mount only with Rabbit Hole on and a Chat
   // composer, never on a review board; a click opens Chat and goes through its AskPanel (nextStepRef, chatAskProps).
   const nextStepsHere = learnPreview && (app.hosting !== 'aws' || !!app.app_chat) && !(reviewTools && board);

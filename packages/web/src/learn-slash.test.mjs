@@ -350,6 +350,27 @@ test('create_material(command: explain) still makes the interactive scene: the T
   assert.equal(result.notice.text, 'Added an interactive explanation.');
 });
 
+// EXP-T21: where /explain v2 is on, the Tutor's chosen explanation tool is the shared job and its card: no /api/learn/artifact
+// call (no second intent or generation path), recorded as source 'tutor'; a nonvisual answer or another material is unchanged.
+test('create_material(command: explain) opens the shared /explain job directly; other materials keep their path', async () => {
+  const started = [], posts = [];
+  const canvas = { insertBlock: () => 'b1', reserve: () => 'slot', release: () => {}, startExplain: async (prompt, options) => { started.push([prompt, options.source, options.promptUsed]); return { blockId: 'card-1' }; } };
+  const post = async (path, body) => { posts.push([path, body.command]); return { result: 'artifact', primitive: 'quiz', block: { type: 'quiz', title: 'Q' } }; };
+  const actions = [{ type: 'respond_text', text: 'A heap keeps the parent above its children.' }, { type: 'create_material', command: 'explain', request: 'how a heap keeps its order' }, { type: 'create_material', command: 'quiz', request: 'heaps' }];
+  const [explained, quizzed] = await runMaterials(actions, { app: 'demo', canvas, post, openSearch: () => {}, offer: async () => {}, promptUsed: 'show me heaps' });
+  assert.deepEqual(started, [['how a heap keeps its order', 'tutor', 'show me heaps']]);
+  assert.deepEqual([explained.notice.tone, explained.notice.blockId], ['done', 'card-1']);
+  assert.deepEqual(posts, [['/api/learn/artifact', 'quiz']], 'only the quiz uses the artifact route');
+  assert.equal(quizzed.notice.tone, 'done');
+  // A typed /explain is the same job with no Tutor source; off here (null) the Tutor's explain runs today's path.
+  started.length = 0;
+  await runLearnCommand('/explain how a heap keeps its order', { app: 'demo', canvas, post, openSearch: () => {} });
+  assert.equal(started[0][1], undefined);
+  posts.length = 0;
+  await runMaterials([actions[1]], { app: 'demo', canvas: { ...canvas, startExplain: async () => null }, post, openSearch: () => {}, offer: async () => {} });
+  assert.deepEqual(posts, [['/api/learn/artifact', 'explain']]);
+});
+
 const ticks = async (done, n = 50) => { for (let i = 0; i < n && !done(); i++) await new Promise(resolve => setImmediate(resolve)); };
 test('runMaterials: several create_material actions run in order through runLearnCommand; paid proposals are offered one at a time', async () => {
   const posts = [], inserted = [], offered = [];

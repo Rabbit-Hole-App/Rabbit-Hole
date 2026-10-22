@@ -110,7 +110,7 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
 });
 
 test('LearnPage: canvasVersion, graded, no /ask or /teach, the repository detach and the block follow-up Tutor (contract §1.7)', () => {
-  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching \}\);/);
+  assert.match(page, /const tutor = useTutor\(\{ app, board: boardName, access: askScope, canvasApi, canvasState, dive, courseCanvas: learnPreview && !board, journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching, startExplain: tutorExplain }\);/);
   // The board revision is mirrored for render at every place the page learns it.
   assert.equal((page.match(/boardVersion\.current = [^;]+; setCanvasVersion\(/g) || []).length, (page.match(/boardVersion\.current = /g) || []).length);
   assert.match(page, /verdict = parseVerdict\(text\);\n\s+setGraded\(count => count \+ 1\);/);
@@ -191,7 +191,7 @@ test('Tutor-made material: with describe (describeBlock) the selected card trave
   const fallback = await materialTarget(null);
   assert.equal(fallback.selection.id, 'q1');
   assert.notEqual(fallback.context, described.text, 'cardContext, the pre-wiring text');
-  assert.match(page, /journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching \}\);/);
+  assert.match(page, /journey, canvasVersion, repository: repoAttached && canvasRepository\(app\), describe: describeBlock, canvasContext, coaching, startExplain: tutorExplain }\);/);
 });
 
 // ---- Owner decision 3: review boards stay apart from real learner boards; ?board=main is not the learner's main ----
