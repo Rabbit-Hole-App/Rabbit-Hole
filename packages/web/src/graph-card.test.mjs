@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CARD_NODE_CAP, EDGE_CAP, limitEdges, cardRefs, dropCardRef, graphCardBlock, graphScopeRef, sameGraphCard, setCardScope, setCardSelection, subgraph } from './graph-card.js';
-import { nodeRef, turnRefs } from './repo-context.js';
+import { CARD_NODE_CAP, EDGE_CAP, limitEdges, cardRefs, dropCardRef, graphCardBlock, graphScopeRef, releaseCodeRef, sameGraphCard, setCardScope, setCardSelection, subgraph } from './graph-card.js';
+import { contextRef, nodeRef, rangeRef, selectionRefs, turnRefs } from './repo-context.js';
 import { sameRef } from './chat-context.js';
 
 // The interactive graph card (C:/s/spec/repo-graph-r2-plan.md, lane GRAPH): its block, its subgraph, its chat context.
@@ -62,6 +62,32 @@ test('nodes selected in a card are the companion graph refs; the same file in bo
   dropCardRef(fromCompanion);
   setCardSelection(block.id, [], block);
   assert.ok(sameRef(fromCompanion, nodeRef({ app: { repo: block.repository.repo }, snapshot: { commit: block.repository.commit } }, graph.nodes[0])), 'card refs use the same identity');
+});
+
+// Owner review UI-10 (2026-10-21): the Sources pane's Use in this chat only detached the pinned ref, so a code source still
+// selected (a Files file or range, a graph node, a graph card's node) came straight back in the next turn's refs.
+test('switching a pinned and selected code ref off lets go of its selection: the next turn does not send it; on again sends it once', () => {
+  const state = { selected: [], context: null };
+  const viewer = { ...repository, graph: { get selected() { return state.selected; }, setSelected: v => { state.selected = v; } }, get context() { return state.context; }, setContext: v => { state.context = v; } };
+  const block = { id: 'card-off', ...graphCardBlock(repository) };
+  const outgoing = attached => turnRefs(attached, [...selectionRefs(viewer), ...cardRefs()]).refs;
+  const cases = [
+    ['a Files file', () => { state.context = { kind: 'file', path: 'train.py' }; return contextRef(viewer, state.context); }],
+    ['a Files range', () => { state.context = { kind: 'range', path: 'model.py', start: 3, end: 9 }; return rangeRef(viewer, state.context); }],
+    ['a graph node', () => { state.selected = ['forward']; return nodeRef(viewer, graph.nodes[1]); }],
+    ['a graph card node', () => { setCardSelection(block.id, [graph.nodes[0]], block); return nodeRef(repository, graph.nodes[0]); }],
+  ];
+  for (const [what, select] of cases) {
+    const ref = select(), pinned = [ref], sent = refs => refs.filter(other => sameRef(other, ref)).length;
+    assert.equal(sent(outgoing(pinned)), 1, `${what}: pinned and selected rides once`);
+    const off = pinned.filter(other => !sameRef(other, ref));
+    assert.equal(sent(outgoing(off)), 1, `${what}: unpinning alone, the selection sends it back (the UI-10 bug)`);
+    releaseCodeRef(viewer, ref);
+    assert.equal(sent(outgoing(off)), 0, `${what}: switched off, it is not in the outgoing refs`);
+    assert.equal(sent(outgoing([ref])), 1, `${what}: switched on again, it rides once`);
+  }
+  assert.deepEqual([state.selected, state.context, cardRefs()], [[], null, []], 'every selection let go');
+  releaseCodeRef(null, nodeRef(repository, graph.nodes[2])); // a canvas without a repository: cards only, no throw
 });
 
 test('the canvas wires the card: lazy renderer, its own keys, and a reveal-or-insert path for the companion', () => {

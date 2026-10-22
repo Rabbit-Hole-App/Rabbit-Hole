@@ -41,7 +41,8 @@ export const docMeta = doc => {
   return [KINDS[doc.kind] || (doc.kind ? String(doc.kind).toUpperCase() : ''), Number.isFinite(doc.size) && doc.size > 0 ? bytes(doc.size) : '', day && !Number.isNaN(day.getTime()) ? day.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''].filter(Boolean).join(' · ');
 };
 
-export default function SourcesPane() {
+// onSwitchOff(ref): Use in this chat switched off lets go of any selection holding the same ref (LearnPage), as a chip's x does.
+export default function SourcesPane({ onSwitchOff = null }) {
   const chat = useChatWorkspace();
   const active = chat?.sources.active ?? null;
   // The active source folded away (All sources, or its own header); a newly opened source unfolds again.
@@ -137,7 +138,7 @@ export default function SourcesPane() {
                     {/* Use in this chat (owner review UI-10, 2026-10-21): the one toggle, this conversation's attachment - the same state
                         as its composer chip and the refs the next message sends. */}
                     {ready && <button type="button" data-material-action="chat" aria-pressed={!!item.attached}
-                      onClick={act(() => (item.attached ? context.detach(item.ref) : context.attach(item.ref)))}
+                      onClick={act(() => { if (!item.attached) return context.attach(item.ref); context.detach(item.ref); onSwitchOff?.(item.ref); })}
                       aria-label={`Use ${name} in this chat`} title={`Use ${name} in this chat`}
                       className={`${USE_TOGGLE} ${item.attached ? USE_ON : USE_OFF}`}>{item.attached ? <Check size={13} aria-hidden /> : <MessageSquarePlus size={13} aria-hidden />}Use in this chat</button>}
                     {canAdd && <Button variant="inverse" size="sm" data-material-action="canvas" onClick={act(() => addToCanvas(ref))}
