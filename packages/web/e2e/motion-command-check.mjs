@@ -13,6 +13,9 @@
 //   5e. MOCKED identical prompt twice (owner message 37): two Generate presses send two starts with different request ids;
 //   5d. MOCKED Stop asks first (owner message 35): Cancel and Escape send nothing, keep it generating and return focus to Stop;
 //      the confirmation's Stop sends exactly one stop request and the card shows Stopped.;
+//   5d. MOCKED recovery (owner message 38): a content failure shows the server's explanation, Continue fixing (asks first,
+//       then one confirmed recover fix), Edit request (fills the composer, sends nothing), Generate again, and the usage in
+//       credits; a renderer failure offers Retry rendering, which sends one recover render with no confirmation; both play.
 //   5c. MOCKED reload of an ended job (MOT-11): failed, stopped and interrupted cards whose hold is still pending keep their error
 //      after a reload and keep reading the list (GET only, no start) until the server settles the hold, then stop;
 //   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
@@ -73,7 +76,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 28; // per theme: 14 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 30; // per theme: 15 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -247,10 +250,13 @@ for (const theme of ['light', 'dark']) {
     const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
+      ...(status === 'failed' && stub.recovery ? { recovery: stub.recovery, usage: { usedMicros: 770000, unknown: false } } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
     // A stop request (MOCKED): the job ends as the server ends it, failed with Stopped.
     if (request.method() === 'POST' && (request.postData() || '').includes('"action":"cancel"')) { stub.stopped = true; stub.error = 'Stopped.'; return route.fulfill({ json: { videos: [video('failed')] } }); }
     if (stub.stopped) return route.fulfill({ json: { videos: [video('failed')] } });
+    // A recovery (MOCKED): the same card's job runs again from its saved work, then plays.
+    if (request.method() === 'POST' && (request.postData() || '').includes('"action":"recover"')) { stub.recover = JSON.parse(request.postData()); stub.recovery = null; stub.polls = 0; stub.end = 'ready'; return route.fulfill({ status: 202, json: { videos: [video('generating')], placementId: stub.id } }); }
     if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
     return route.fulfill({ json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
@@ -307,6 +313,49 @@ for (const theme of ['light', 'dark']) {
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED recovery: the cause's explanation and only its actions; Continue fixing asks first, Retry rendering is free; usage in credits`, async () => {
+    const recovers = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && r.body.includes('"action":"recover"'));
+    const FINDING = 'Review found a problem: Friction is shown acting on the block without slowing it.';
+    stub = { id: `p-rec-${theme}`, polls: 0, end: 'failed', settled: true, error: 'The Motion job failed: still blocking after the Author repair', recovery: { cause: 'content', actions: ['fix', 'edit'], explanation: FINDING, regenerate: true } };
+    const posts = videoPosts().length, sent = recovers().length;
+    const line = '/motion 10s explain how friction slows a sliding block';
+    await composer().fill(line); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').click();
+    const mine = page.locator('[data-block-id]', { hasText: FINDING });
+    await mine.waitFor({ timeout: 20000 });
+    assert.deepEqual(await mine.locator('[data-recovery-action]').allInnerTexts(), ['Continue fixing', 'Edit request', 'Generate again']);
+    assert.equal((await mine.locator('[data-motion-usage]').innerText()).trim(), 'Used 77 credits · reservation released');
+    assert.doesNotMatch(await mine.innerText(), /\$\d|8\.96|Retry render\b/);
+    await mine.scrollIntoViewIfNeeded();
+    await mine.screenshot({ path: `${OUT}/${theme}-06c-recovery-content.png` });
+    await composer().fill('');
+    await mine.locator('[data-recovery-action="edit"]').click();
+    await until(async () => (await composer().inputValue()) === line, 'Edit request puts the original request in the composer');
+    await composer().fill('');
+    await mine.locator('[data-recovery-action="fix"]').click();
+    assert.equal(recovers().length, sent, 'Continue fixing asks first: nothing sent yet');
+    await mine.locator('[data-paid-generate]').click();
+    await until(() => recovers().length === sent + 1, 'one recover request');
+    assert.deepEqual([stub.recover.mode, stub.recover.confirmed, stub.recover.id], ['fix', true, stub.id]);
+    await mine.locator('video[data-lesson-video]').waitFor({ timeout: 20000 });
+    // A renderer failure: Retry rendering, free, no confirmation.
+    stub = { id: `p-rec2-${theme}`, polls: 0, end: 'failed', settled: true, error: 'The Motion job failed: final: render_failed', recovery: { cause: 'renderer', actions: ['render'], explanation: 'Rendering failed after review. The reviewed animation is saved; rendering it again uses no credits.', regenerate: true } };
+    await composer().fill('/motion 10s explain why ice is slippery'); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').click();
+    const second = page.locator('[data-block-id]', { hasText: 'rendering it again uses no credits' });
+    await second.waitFor({ timeout: 20000 });
+    assert.deepEqual(await second.locator('[data-recovery-action]').allInnerTexts(), ['Retry rendering', 'Generate again']);
+    await second.scrollIntoViewIfNeeded();
+    await second.screenshot({ path: `${OUT}/${theme}-06d-recovery-renderer.png` });
+    await second.locator('[data-recovery-action="render"]').click();
+    await until(() => recovers().length === sent + 2, 'one recover render request');
+    assert.deepEqual([stub.recover.mode, stub.recover.confirmed], ['render', undefined], 'free: no confirmation');
+    await second.locator('video[data-lesson-video]').waitFor({ timeout: 20000 });
+    assert.equal(videoPosts().length - posts, 2, 'only the two Generate starts; recovery is never a new start');
+    stub = null;
     await dismiss();
   });
 
