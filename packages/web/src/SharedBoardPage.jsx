@@ -191,9 +191,11 @@ export default function SharedBoardPage({ token }) {
     ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true) })
       .filter(menu => editable || menu.title === 'View'),
   ];
+  // Below lg the panel stacks under the canvas and the page scrolls, as the owner's canvas does (LearnPage): the canvas keeps a real
+  // working height (75dvh), so the tools column and the minimap fit inside it instead of spilling over the header.
   return (
-    <main className="flex h-screen bg-white max-lg:flex-col">
-      <section aria-label="Shared canvas" className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <main className="flex h-screen bg-white max-lg:flex-col max-lg:overflow-y-auto">
+      <section aria-label="Shared canvas" className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
       <header data-canvas-header className="flex shrink-0 flex-wrap items-center gap-2 gap-y-2 px-4 py-2">
         {/* The product, top left (owner, 2026-10-04): the aperture mark and the name, to the site home. */}
         <a href="/" data-shared-brand className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
@@ -224,7 +226,7 @@ export default function SharedBoardPage({ token }) {
             Last, at the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
         <ProvenanceRow provenance={provenance} />
       </header>
-      <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
+      <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
         <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
           <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={startFromCard}
             {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}

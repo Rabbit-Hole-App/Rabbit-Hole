@@ -97,7 +97,7 @@ export default function MemberBoardPage({ boardId }) {
   const permissions = { role: 'commenter', shared: true, comments: about ? { read: true, post: !!about.can?.post } : null };
   const menus = canvasEditMenus({ canvas: () => canvasApi.current, canvasState, comments, docView: state.doc && !docIsEmpty(state.doc) ? docView : 'canvas', setDocView, onShortcuts: () => setShortcutsOpen(true) }).filter(menu => menu.title === 'View');
   return (
-    <main data-member-board className="flex h-screen flex-col bg-white">
+    <main data-member-board className="flex h-screen flex-col bg-white max-lg:overflow-y-auto">
       <header data-canvas-header className="flex shrink-0 flex-wrap items-center gap-2 gap-y-2 px-4 py-2">
         <a href="/" className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
           <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" /><span className="text-sm font-semibold text-ink">{PRODUCT}</span>
@@ -115,8 +115,8 @@ export default function MemberBoardPage({ boardId }) {
             the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
         <ProvenanceRow provenance={provenance} />
       </header>
-      <div className="relative flex min-h-0 flex-1 max-lg:flex-col">
-        <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
+      <div className="relative flex min-h-0 flex-1 max-lg:flex-none max-lg:flex-col">
+        <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
           <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}>
             <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} refLinks={refLinks} exchanges={exchanges} onMove={() => {}} boardState={state} docView={state.doc && !docIsEmpty(state.doc) ? docView : 'canvas'} onState={setCanvasState} readOnly />
           </SearchContentProvider></Suspense>
