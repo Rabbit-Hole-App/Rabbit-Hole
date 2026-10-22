@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation } from './canvas-search-panel.js';
+import { searchWindow, searchKeyIndex, searchEmptyMessage, searchLocation, searchRowHeight, markRuns, lineRuns, ROW } from './canvas-search-panel.js';
 import { createRequire } from 'node:module';
 import { mkdtempSync, unlinkSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -14,28 +14,27 @@ const B = createRequire(import.meta.url)(outfile);
 unlinkSync(outfile); rmdirSync(dir);
 const render = props => B.renderToStaticMarkup(B.createElement(B.Panel, { canvasKey: 'canvas-a', ...props }));
 
-test('large grid renders only viewport and overscan, preserving full scroll extent', () => {
-  const view = searchWindow({ count: 10000, width: 420, height: 600, scrollTop: 10000, rows: false });
-  assert.equal(view.columns, 2);
+// UI-12 (owner brief 2026-10-21 message 21 item 1): compact one-column rows, each as tall as its own layout.
+test('a large list renders only viewport and overscan, preserving full scroll extent', () => {
+  const heights = Array.from({ length: 10000 }, (_, i) => (i % 3 ? ROW.base : ROW.base + ROW.actions));
+  const view = searchWindow({ heights, height: 600, scrollTop: 10000 });
   assert.ok(view.end - view.start < 20);
   assert.ok(view.start > 0);
-  assert.equal(view.totalHeight, Math.ceil(10000 / 2) * view.rowHeight);
-  assert.ok(view.start * view.rowHeight / 2 <= 10000);
+  assert.equal(view.totalHeight, heights.reduce((sum, h) => sum + h, 0));
+  assert.ok(view.offsets[view.start] <= 10000 && view.offsets[view.end - 1] + heights[view.end - 1] >= 10600);
 });
-test('narrow panels and text lists remain one column; stale scroll clamps after filtering', () => {
-  assert.equal(searchWindow({ count: 20, width: 280, height: 400 }).columns, 1);
-  assert.equal(searchWindow({ count: 20, width: 700, height: 400, rows: true }).columns, 1);
-  const view = searchWindow({ count: 1, width: 420, height: 600, scrollTop: 10000 });
+test('stale scroll clamps after filtering', () => {
+  const view = searchWindow({ heights: [ROW.base], height: 600, scrollTop: 10000 });
   assert.equal(view.start, 0); assert.equal(view.end, 1); assert.equal(view.scrollTop, 0);
 });
-test('keyboard traverses visual grid and clamps without skipping final odd result', () => {
-  assert.equal(searchKeyIndex('ArrowDown', 0, 5, 2), 2);
-  assert.equal(searchKeyIndex('ArrowDown', 3, 5, 2), 4);
-  assert.equal(searchKeyIndex('ArrowLeft', 0, 5, 2), 0);
-  assert.equal(searchKeyIndex('End', 0, 5, 2), 4);
-  assert.equal(searchKeyIndex('Home', 4, 5, 2), 0);
-  assert.equal(searchKeyIndex('ArrowDown', 0, 0, 2), -1);
-  assert.equal(searchKeyIndex('Enter', 0, 5, 2), null);
+test('keyboard steps through the list and clamps at both ends', () => {
+  assert.equal(searchKeyIndex('ArrowDown', 0, 5), 1);
+  assert.equal(searchKeyIndex('ArrowDown', 4, 5), 4);
+  assert.equal(searchKeyIndex('ArrowUp', 0, 5), 0);
+  assert.equal(searchKeyIndex('End', 0, 5), 4);
+  assert.equal(searchKeyIndex('Home', 4, 5), 0);
+  assert.equal(searchKeyIndex('ArrowDown', 0, 0), -1);
+  assert.equal(searchKeyIndex('Enter', 0, 5), null);
 });
 test('empty states never mislabel loading or failed retrieval as no results', () => {
   assert.match(searchEmptyMessage('loading', 'term', 'cards'), /Loading/);
@@ -88,15 +87,57 @@ test('loading has no false empty result claim; errors expose retry and zero arro
   assert.match(loading, />0 results</);
 });
 
-// The integrated screenshot exposed vertically centered, over-tall tiles. Reserve enough
-// for two snippet lines, title, badges, availability and a secondary action, without a blank lead-in.
-test('compact grid reserves 120px beyond its square and stays bounded at both widths', () => {
-  for (const width of [240, 320, 420, 800]) {
-    const view = searchWindow({ count: 100, width, height: 600 });
-    assert.equal(view.rowHeight, Math.min(160, Math.floor((width - (view.columns - 1) * 8) / view.columns)) + 120);
-    assert.ok(view.end - view.start < 20);
-  }
-  const html = render({ results: [{ id: 'object:a', objectId: 'a', title: 'Title', kind: 'card', snippet: { hit: 'match' } }] });
-  assert.match(html, /flex-col items-stretch justify-start text-left/);
-  assert.match(html, /aspect-square w-full max-w-40 self-center shrink-0/);
+// UI-12: no large empty tile. A row is as tall as what it shows - a picture or text row, a code row by its excerpt lines, the
+// availability line and the action row only when present - and the rendered layout fits that height.
+test('row heights follow the compact layout', () => {
+  assert.equal(searchRowHeight({ id: 'a', kind: 'card' }), ROW.base);
+  assert.equal(searchRowHeight({ id: 'a', preview: { kind: 'picture' } }), ROW.base);
+  assert.equal(searchRowHeight({ id: 'a', preview: { kind: 'code', lines: [{ n: 1, text: 'x' }, { n: 2, text: 'y' }, { n: 3, text: 'z' }] } }), ROW.base - ROW.snippet + ROW.code + 3 * ROW.line);
+  assert.equal(searchRowHeight({ id: 'a', preview: { kind: 'code', lines: [] } }), ROW.base, 'code with no loaded text falls back to the text row');
+  assert.equal(searchRowHeight({ id: 'a', references: [{ id: 'r' }], availability: { status: 'partial', message: 'Only the file name' } }), ROW.base + ROW.notice + ROW.actions);
+  assert.equal(searchRowHeight({ id: 'l', kind: 'link', link: { cards: [] } }), ROW.base + ROW.actions);
+});
+test('code marks keep their colour runs and mark every occurrence', () => {
+  const runs = [{ t: 'opt', color: '#111', dark: '#eee' }, { t: 'imizer.step()' }];
+  const pieces = markRuns(runs, 'MIZER');
+  assert.equal(pieces.map(piece => piece.t).join(''), 'optimizer.step()');
+  assert.deepEqual(pieces.filter(piece => piece.hit).map(piece => piece.t), ['mizer']);
+  assert.equal(pieces[0].color, '#111');
+  assert.deepEqual(markRuns([{ t: 'a.b a.b' }], 'a.b').filter(piece => piece.hit).length, 2);
+  assert.deepEqual(markRuns([{ t: 'plain' }], ''), [{ t: 'plain', hit: false }]);
+  assert.deepEqual(lineRuns([{ t: 'a' }, { t: '\n' }, { t: 'b' }]), [[{ t: 'a' }], [{ t: 'b' }]]);
+});
+test('rows render compact previews: a picture slot with an informative fallback, a numbered code excerpt, a plain text row', () => {
+  const html = render({ results: [
+    { id: 'object:img', objectId: 'img', title: 'Diagram', kind: 'card', preview: { kind: 'picture', label: 'Image' }, snippet: { hit: 'Diagram' } },
+    { id: 'object:code', objectId: 'code', title: 'train.py', kind: 'card', categories: ['cards', 'code'], preview: { kind: 'code', language: 'python', path: 'src/train.py', lines: [{ n: 41, text: 'loss.backward()' }, { n: 42, text: 'optimizer.step()' }] }, snippet: { before: 'loss.backward()\n', hit: 'optimizer', after: '.step()' } },
+    { id: 'object:text', objectId: 'text', title: 'Notes', kind: 'card', preview: { kind: 'text' }, snippet: { before: 'a ', hit: 'needle', after: ' b' } }] });
+  assert.match(html, /data-search-result="object:img" data-search-layout="picture"/);
+  assert.match(html, /data-search-preview="fallback"[^>]*>.*Image/);
+  assert.match(html, /data-search-result="object:code" data-search-layout="code"/);
+  assert.match(html, /<pre data-search-code="true" data-code-colors="true"/);
+  assert.match(html, /data-search-code-line="41"/);
+  assert.match(html, /src\/train\.py · Lines 41–42/);
+  assert.match(html, /<mark class="rounded-sm bg-\[#ddd6fe\] text-\[#37352f\]">optimizer<\/mark>/);
+  assert.match(html, /data-search-result="object:text" data-search-layout="text"/);
+  assert.equal((html.match(/data-search-preview=/g) || []).length, 1, 'only the picture row has a thumbnail slot');
+  assert.doesNotMatch(html, /aspect-square|<img|<iframe|<video|<canvas/);
+});
+// UI-13 (owner brief 2026-10-21 message 21 item 2): cards and available linked canvases drag onto the canvas; a linked canvas
+// also has the standard Add to canvas (inverse) button where this viewer may insert, the keyboard and touch way.
+test('placeable results are draggable and a linked canvas offers Add to canvas only where insertion is allowed', () => {
+  const results = [
+    { id: 'object:a', objectId: 'a', title: 'Card', kind: 'card' },
+    { id: 'comment:c', objectId: 'a', title: 'Comment', kind: 'comment' },
+    { id: 'link:from:t', kind: 'link', title: 'Graphs', target: { kind: 'link', id: 't' }, link: { direction: 'from', href: '/apps/g', cards: [] } },
+    { id: 'link:from:x', kind: 'link', title: 'Unavailable canvas', target: { kind: 'link', id: 'x' }, link: { direction: 'from', unavailable: true, href: null, cards: [] } }];
+  const html = render({ showLinks: true, results, onAddToCanvas() {} });
+  assert.match(html, /data-find-match="a" data-search-index="0" draggable="true" data-search-drag="object"/);
+  assert.match(html, /data-search-index="1" draggable="false"/);
+  assert.match(html, /data-search-index="2" draggable="true" data-search-drag="link"/);
+  assert.match(html, /data-search-index="3" draggable="false"/);
+  assert.equal((html.match(/data-search-add/g) || []).length, 1, 'only the available link');
+  assert.match(html, /class="[^"]*bg-ink text-surface[^"]*"[^>]*data-search-add|data-search-add[^>]*class="[^"]*bg-ink text-surface/);
+  assert.match(html, />Add to canvas<\/button>/);
+  assert.doesNotMatch(render({ showLinks: true, results }), /data-search-add/, 'a view-only page has no Add to canvas');
 });

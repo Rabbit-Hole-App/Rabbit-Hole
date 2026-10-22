@@ -186,7 +186,9 @@ export const SOURCE_EVIDENCE_CRITERIA = new Set(['trace_path', 'supported_hypoth
 const ROLE_TEXT = { test: 'tests', config: 'configuration', docs: 'documentation' };
 const fileName = path => String(path).split('/').pop();
 export const linesText = (start, end) => (end > start ? `lines ${start}–${end}` : `line ${start}`);
-export const sourceLabel = ref => [fileName(ref.locator.path), ref.locator.symbol || ROLE_TEXT[ref.locator.role]].filter(Boolean).join(' · ');
+// A symbol shows only when it reads as a code name (an index label can be a docstring: integrator ruling 2026-10-21, defect 2).
+const CODE_NAME = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*)*(\(\))?$/;
+export const sourceLabel = ref => [fileName(ref.locator.path), (CODE_NAME.test(ref.locator.symbol || '') && ref.locator.symbol) || ROLE_TEXT[ref.locator.role]].filter(Boolean).join(' · ');
 export const citationLabel = ref => `${fileName(ref.locator.path)} · ${linesText(ref.locator.start, ref.locator.end)}`;
 export function startSource(refs, goalId) {
   const role = goalOf(goalId)?.roles[0];

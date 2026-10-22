@@ -293,6 +293,8 @@ export function assessmentText(assessment) {
     if (!fits.length) return 'Your answer is saved. Nothing in it could be checked against this goal.';
     if (assessment.observations.some(o => o.conflict)) return 'Your answer is saved. Parts of it point different ways, so it needs a review before it counts.';
     if (fits.every(f => f === 'met')) return assessment.observations.some(o => o.reasoning === 'missing') ? 'Correct. Explain why in your own words to show the reasoning too.' : 'That meets this skill.';
+    // Every judgement uncertain: not a wrong answer, so not "Not yet" (integrator ruling 2026-10-21, defect 4).
+    if (fits.every(f => f === 'unclear')) return 'Not sure yet: the check could not confirm your answer from what it could see. Add or adjust a citation, or explain more, and check again.';
     return fits.some(f => f === 'met' || f === 'partial') ? 'Partly there. Have another look at the parts still missing.' : 'Not yet. Have another look and try again.';
   }
   if (status === 'unavailable') return UNAVAILABLE_TEXT[reason] || 'Your answer is saved, but it could not be checked, so your progress is unchanged.';

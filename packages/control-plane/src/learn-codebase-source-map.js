@@ -32,11 +32,28 @@ import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { CoachingConflict, applyCoachingAction, readCoachingState } from './learn-coaching-store.js';
 import { NOT_TRASHED } from './library-trash.js';
 
-const MAX_FILES = 8, CITE_LINES = 30, DOC_LINES = 40, EXCERPT = 2400, MAX_EDGES = 12, MAX_OMISSIONS = 20, MAX_NOT_SHOWN = 6;
+const MAX_FILES = 8, CITE_LINES = 30, DOC_LINES = 40, EXCERPT = 12000, MAX_EDGES = 12, MAX_OMISSIONS = 20, MAX_NOT_SHOWN = 6;
 const SUPPORTED = new Set(['EXTRACTED', 'RECORDED']); // read from the code by the indexer (REPOSITORY_SYSTEM); the rest is inferred
 const ROLE_ORDER = ['source', 'test', 'config', 'docs'];
 const clip = (text, max) => { const t = String(text || '').replace(/\s+/g, ' ').trim(); return t.length > max ? `${t.slice(0, max - 1)}…` : t; };
 const depth = path => path.split('/').length;
+
+// A symbol's whole body (integrator ruling 2026-10-21, defect 1: a fixed 30 lines from a class's start left out the forward pass
+// a question was about): from its line, every following line indented deeper than it or blank, and a closing bracket at its own
+// indent. Layout-based, so it serves Python and brace languages alike; the caller caps it at the 120-line read.
+export function symbolEnd(lines, line) {
+  const indent = text => text.match(/^\s*/)[0].length, head = lines[line - 1];
+  if (head == null || !head.trim()) return line;
+  let end = line;
+  for (let i = line; i < lines.length; i += 1) {
+    const text = lines[i];
+    if (!text.trim()) continue;
+    if (indent(text) > indent(head)) { end = i + 1; continue; }
+    if (indent(text) === indent(head) && /^\s*[)\]}]/.test(text)) end = i + 1;
+    break;
+  }
+  return end;
+}
 
 // expand: false re-cites exactly the selected files (a refreshed activity keeps its sources; nothing new is pulled in).
 export async function learningSourceMap(snapshot, { goal, question = '', selectedRefs = [], expand = true }, { tool = repositoryTool } = {}) {
@@ -112,12 +129,16 @@ export async function learningSourceMap(snapshot, { goal, question = '', selecte
     const id = `${repo}:${path}`;
     if (id.length > 200) { omit(path, 'path_too_long'); continue; }
     const total = files[path].split('\n').length, start = at.line ? Math.max(1, Math.min(at.line - 2, total)) : 1;
-    const end = at.end ? Math.min(at.end, start + 119, total) : Math.min(start + (at.role === 'docs' || at.role === 'config' ? DOC_LINES : CITE_LINES) - 1, total);
+    // A symbol is cited whole (never fewer than the CITE_LINES window it had), up to the 120-line read; a file or doc keeps its window.
+    const window = start + (at.role === 'docs' || at.role === 'config' ? DOC_LINES : CITE_LINES) - 1;
+    const end = at.end ? Math.min(at.end, start + 119, total)
+      : at.line ? Math.min(Math.max(symbolEnd(files[path].split('\n'), at.line), window), start + 119, total) : Math.min(window, total);
     const code = read('read_source', { path, start, end });
     if (!code) { omit(path, 'not_read'); continue; }
     const locator = { path, start: code.start, end: code.end, role: at.role, ...(at.symbol && !/\.\w+$/.test(at.symbol) ? { symbol: clip(at.symbol, 120) } : {}) };
     const sourceRef = { kind: REPOSITORY_SOURCE, id, version: commit, hash: await sha256Hex(files[path]), locator };
     nodes.push({ id: path, path, role: at.role, label: locator.symbol || path.split('/').pop(), origin: at.origin, sourceRef });
+    // The code card shows the whole cited range (up to 120 lines), so every citable line can be selected on it.
     citations.push({ path, start: code.start, end: code.end, commit, totalLines: code.totalLines, text: code.content.split('\n').map(line => line.replace(/^\d+: /, '')).join('\n').slice(0, EXCERPT) });
   }
 

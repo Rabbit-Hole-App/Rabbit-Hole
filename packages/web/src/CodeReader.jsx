@@ -71,7 +71,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
         : branch(tree, 0)}
     </nav>
     <div className="flex min-h-0 min-w-0 flex-1 flex-col px-3 pt-2" onPointerDown={(e) => { if (!e.target.closest('[data-range-actions]')) setPending(null); }}>
-      {open && cards && <div className="flex shrink-0 justify-end pb-1"><Button size="sm" variant="secondary" data-file-add-card title="Put this file on the canvas as a code card" onClick={() => addCard(open)}><SquareCode size={13} />Add code card</Button></div>}
+      {open && cards && <div className="flex shrink-0 justify-end pb-1"><Button size="sm" variant="inverse" data-file-add-card title="Put this file on the canvas as a code card" onClick={() => addCard(open)}><SquareCode size={13} />Add to canvas</Button></div>}
       {open
         ? <SourceSelectionContext.Provider value={{ value: pending, set: setPending }}>
           <RepositorySource appName={app.name} path={open} commit={snapshot.commit} repo={app.repo} title={crumb} pick={pick?.path === open ? pick : null}
@@ -82,7 +82,7 @@ export default function CodeReader({ app, snapshot, open, context, query, onFile
               {panel ? <>
                 <CiteActions range={{ repo: app.repo, commit: r.commit, path: r.path, start: r.start, end: r.end }} text={r.text} />
                 <Button size="sm" data-range-ask onClick={() => act('ask', r)}><MessageSquare size={13} />Ask in chat</Button>
-                {cards && <Button size="sm" data-range-card onClick={() => { setPending(null); addCard(r.path, { start: r.start, end: r.end }); }}><SquareCode size={13} />Add code card</Button>}
+                {cards && <Button size="sm" variant="inverse" data-range-card onClick={() => { setPending(null); addCard(r.path, { start: r.start, end: r.end }); }}><SquareCode size={13} />Add to canvas</Button>}
                 <Button size="sm" data-range-copy onClick={() => copy(r)}>{copied === `${r.path}:${r.start}-${r.end}` ? <><Check size={13} />Copied</> : <><Copy size={13} />Copy</>}</Button>
               </> : <>
                 <Button size="sm" onClick={() => act('ask', r)}>Ask</Button>

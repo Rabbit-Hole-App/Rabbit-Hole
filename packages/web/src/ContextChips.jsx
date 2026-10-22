@@ -23,17 +23,18 @@ const CHIP_ICON_BUTTON = 'flex h-5 w-5 shrink-0 items-center justify-center roun
 // readPaper: the uploaded paper id this turn reads (paper_context), or null; every other uploaded-PDF page chip is marked
 // as a label only, the way the server names it to the model (chat-modes.js chatContext).
 const LABEL_ONLY = 'Only one uploaded PDF is read per question; this page is sent as a label only.';
-// selection: the selected canvas object as chat context, { ref, id, kind, title, pinned, onClear } (pdf-materials-refinement.md
-// section 6), or null. One document and page is one entry here: a pinned selection marks the chip of its attached ref (its x
-// detaches it and clears the selection, so it does not come straight back as a selection); an unpinned one (a PDF card or page)
-// is a dashed chip of its own whose x clears the selection, the way the pill's did. The selection pill above the composer carries
-// the same data-canvas-target and data-selected-card markers.
+// selection: the selected canvas target as chat context, { ref, id, kind, title, card, preview, paper, docPage, image, pinned,
+// onClear } (pdf-materials-refinement.md section 6), or null. One source is one entry here: a pinned selection marks the chip of
+// its attached ref (its x detaches it and clears the selection, so it does not come straight back as a selection); any other
+// selection - a card, a page, a region, a group (UI-09: every pending pill is in the composer, none above it) - is a dashed chip
+// of its own whose x clears the selection. It carries the data-canvas-target and data-selected-card markers.
+// extra: the board's own image and paper attachments (ask.jsx), shown under the chips.
 // code: a repository canvas's viewer selection (ask.jsx, repo-context.js): { temporary: refs not pinned that go with the next
 // question, left: selected refs past the 20-ref limit (not sent), selected: every selected ref, onRemove(ref) }. A pinned ref
 // that is also selected is one chip marked selected (its x unpins it and lets go of the selection); the rest are dashed chips,
 // three shown and the others behind +N.
 const SHOWN = 3;
-export default function ContextChips({ readPaper = null, selection = null, code = null }) {
+export default function ContextChips({ readPaper = null, selection = null, code = null, extra = null }) {
   const chat = useChatWorkspace();
   const [more, setMore] = useState(false);
   if (!chat) return null;
@@ -59,19 +60,27 @@ export default function ContextChips({ readPaper = null, selection = null, code 
           <Shapes size={14} strokeWidth={1.75} aria-hidden className="shrink-0 text-ink-3" /> This canvas
         </li>
         {selection && !selection.pinned && (() => {
-          const { ref } = selection, label = rangeLabel(ref.kind === 'excerpt' ? null : ref.range), labelOnly = labelOnlyChip(ref, readPaper);
+          // The label is the source object's (UI-09): a document, file or code ref's own name, else the title the canvas resolved.
+          const { ref } = selection, name = ref?.name || String(selection.title ?? '').replace(/\$([^$]*)\$/g, '$1'), label = ref ? rangeLabel(ref.kind === 'excerpt' ? null : ref.range) : '', labelOnly = !!ref && labelOnlyChip(ref, readPaper);
+          const kind = !selection.card && !['Group', 'Selection'].includes(selection.kind) && !name.toLowerCase().startsWith(String(selection.kind).toLowerCase()) ? selection.kind : null;
+          const textOnly = selection.preview && !selection.paper && !selection.docPage && !selection.image && !String(selection.id).startsWith('area:');
+          const body = <>
+            {selection.preview ? <img src={selection.preview} alt="Selected region" className="h-4 w-6 shrink-0 rounded-sm border border-line bg-white object-contain" /> : <RefIcon kind={ref?.kind || (selection.card ? 'card' : 'group')} />}
+            {kind && <span className="shrink-0 font-medium">{kind}</span>}
+            <span className="max-w-40 truncate">{name}</span>
+            {label && <span className="shrink-0 text-ink-3">{label}</span>}
+            {labelOnly && <span className="shrink-0 text-ink-3">· label only</span>}
+            {textOnly && <span data-text-only title="The tutor gets the shapes' text, not this picture" className="shrink-0 text-ink-3">· text only</span>}
+            <span className="shrink-0 text-ink-3">· selected</span>
+          </>;
           return (
-            <li data-canvas-target data-selected-card={selection.id} data-context-selection data-ref-key={refKey(ref)} data-label-only={labelOnly || undefined}
+            <li data-canvas-target data-selected-card={selection.id} data-context-selection data-ref-key={ref ? refKey(ref) : undefined} data-label-only={labelOnly || undefined}
               title={`${selection.kind}: ${String(selection.title ?? '')}`} className={`${CHIP} border-dashed border-line-strong pr-0.5`}>
-              <button type="button" onClick={() => chat.openSource(ref)} title={labelOnly ? `Open ${ref.name}. Selected on the canvas: it goes with the next question. ${LABEL_ONLY}` : `Open ${ref.name}. Selected on the canvas: it goes with the next question; Add to chat keeps it.`}
-                className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover">
-                <RefIcon kind={ref.kind} />
-                <span className="max-w-40 truncate">{ref.name}</span>
-                {label && <span className="shrink-0 text-ink-3">{label}</span>}
-                {labelOnly && <span className="shrink-0 text-ink-3">· label only</span>}
-                <span className="shrink-0 text-ink-3">· selected</span>
-              </button>
-              <button type="button" onClick={selection.onClear} aria-label="Remove selected card context" title="Clear the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
+              {/* A named source (a PDF, page, file or code ref) opens beside Chat; a card or region selection is its name only. */}
+              {ref?.name ? <button type="button" onClick={() => chat.openSource(ref)} title={labelOnly ? `Open ${ref.name}. Selected on the canvas: it goes with the next question. ${LABEL_ONLY}` : `Open ${ref.name}. Selected on the canvas: it goes with the next question; Add to chat keeps it.`}
+                className="flex h-full min-w-0 items-center gap-1 rounded-l-md pl-1.5 hover:bg-hover">{body}</button>
+                : <span className="flex h-full min-w-0 items-center gap-1 pl-1.5">{body}</span>}
+              <button type="button" onClick={selection.onClear} aria-label={selection.card ? 'Remove selected card context' : 'Clear block selection'} title="Clear the selection" className={CHIP_ICON_BUTTON}><X size={12} aria-hidden /></button>
             </li>
           );
         })()}
@@ -109,6 +118,7 @@ export default function ContextChips({ readPaper = null, selection = null, code 
         })}
       </ul>
       {code?.left.length > 0 && <p data-code-left className="mt-1 text-xs text-ink-3">{code.left.length} more selected not sent: a chat holds up to 20 attachments.</p>}
+      {extra}
       {failed.map(item => <p key={item.id} role="alert" className="mt-1 truncate text-xs text-red-700" title={item.error}>{item.ref.name}: {item.error}</p>)}
     </div>
   );

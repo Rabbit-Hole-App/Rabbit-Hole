@@ -66,7 +66,8 @@ test('every data- attribute AskPanel renders is listed as shown or hidden in the
   assert.deepEqual(rendered, listed, 'a new data- attribute in AskPanel needs its row in TOC_VIEW');
   assert.equal(Object.keys(TOC_VIEW.shown).filter(k => k.startsWith('data-')).length, 0, 'the TOC view shows no AskPanel-owned marker');
   // The gates: the selection chip (canvasTarget null), the pills, the + menu, the attachments, the repository box, the @ list.
-  assert.match(panel, /\{canvasTarget && !chipTarget && <div data-canvas-target/);
+  // Owner brief UI-09 (2026-10-21): in Chat every pending pill is a composer chip, so the pill above the composer is outside Chat only.
+  assert.match(panel, /\{canvasTarget && !chat && <div data-canvas-target/);
   assert.match(panel, /chips=\{chat && !tocView \? <ContextChips/);
   assert.match(panel, /leading=\{<>\n\s+\{!tocView && <div className="relative shrink-0">\n\s+<button\n\s+type="button"\n\s+aria-label="Add"/);
   assert.match(panel, /\{!tocView && boardContext\?\.paper && <div/);

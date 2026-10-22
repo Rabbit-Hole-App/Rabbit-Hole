@@ -81,6 +81,57 @@ test('hooks gate: open and restore ask nothing; a rename, moved or Tutor-made ca
   assert.equal(hooksTrigger({ canvasState: { attempts: 1, cards: [['k1']], title: 'Renamed' } }), hooksTrigger({ canvasState: { attempts: 1, cards: [['k1'], ['k2']] } }), 'cards and titles are not triggers');
 });
 
+// Owner brief 2026-10-21 message 25 item 2 (View > Curious): hidden asks nothing, learner turns included; shown again, the saved
+// set is back with no request; with none saved, an empty state whose explicit request asks once; Off and paused still win.
+test('curious hidden: no request on learner turns; shown again: the saved set, no request; none saved: empty until asked once', async () => {
+  const timers = [], posts = [];
+  const SET = { set_id: 's1', generated_at: 't', options: ['a', 'b', 'c'].map(id => ({ id, hook: `hook ${id}`, selected_next_step: { learning_goal: id } })) };
+  const ctl = nextStepsController({ post: async input => { posts.push(input); return structuredClone(SET); }, setTimer: (fn, ms) => timers.push({ fn, ms }), clearTimer: () => {} });
+  const run = async () => { while (timers.length) await timers.shift().fn(); await tick(); };
+  const memory = {};
+  const step = async (basis, turn, { shown = true, allowed = true, ask = false } = {}) => {
+    if (ask) memory.ask = true;
+    const gated = gateHooks(memory, { basis, stop: null }, { allowed, visible: true, shown, trigger: hooksTrigger({ lastTurn: turn ? { turn_id: turn } : null }) });
+    ctl.update({ ...gated, input: () => ({ input: { basis } }) });
+    await run();
+    return gated;
+  };
+  await step('nb_open', null);
+  await step('nb_t1', 't1');
+  assert.deepEqual([posts.length, ctl.view().status], [1, 'ready'], 'a learner turn with Curious shown asks once');
+  assert.deepEqual(await step('nb_t1', 't1', { shown: false }), { basis: 'nb_t1', stop: 'curious_hidden' });
+  await step('nb_t2', 't2', { shown: false });
+  await step('nb_t3', 't3', { shown: false });
+  assert.equal(posts.length, 1, 'hidden: two more learner turns ask nothing');
+  assert.deepEqual(await step('nb_t3', 't3'), { basis: 'nb_t1', stop: null }, 'shown again: the saved basis');
+  assert.deepEqual([posts.length, ctl.view().status, ctl.view().options.map(o => o.hook)], [1, 'ready', ['hook a', 'hook b', 'hook c']], 'the saved set, no request');
+  await step('nb_t4', 't4');
+  assert.equal(posts.length, 2, 'the next learner turn after that follows the usual rules');
+  assert.deepEqual(await step('nb_t4', 't4', { allowed: false }), { basis: null, stop: 'off' }, 'Tutor Off or paused');
+  assert.deepEqual(await step('nb_t4', 't4', { allowed: false, shown: false }), { basis: null, stop: 'off' });
+  assert.deepEqual(await step('nb_t4', 't4', { allowed: false }), { basis: null, stop: 'off' }, 'shown never bypasses Off or paused');
+
+  // None saved: hidden from the start (a fresh mount), learner turns while hidden, then shown: the empty state; only its ask asks.
+  const fresh = {}, freshPosts = [], freshTimers = [];
+  const ctl2 = nextStepsController({ post: async input => { freshPosts.push(input); return structuredClone(SET); }, setTimer: (fn, ms) => freshTimers.push({ fn, ms }), clearTimer: () => {} });
+  const step2 = async (basis, turn, shown, ask = false) => {
+    if (ask) fresh.ask = true;
+    const gated = gateHooks(fresh, { basis, stop: null }, { allowed: true, visible: true, shown, trigger: hooksTrigger({ lastTurn: turn ? { turn_id: turn } : null }) });
+    ctl2.update({ ...gated, input: () => ({ input: { basis } }) });
+    while (freshTimers.length) await freshTimers.shift().fn();
+    await tick();
+    return gated;
+  };
+  await step2('nb_open', null, false);
+  await step2('nb_t1', 't1', false);
+  assert.deepEqual(await step2('nb_t1', 't1', true), { basis: null, stop: 'curious_empty' }, 'shown with nothing saved: the empty state');
+  assert.deepEqual([freshPosts.length, ctl2.view().status, ctl2.view().reason], [0, 'unavailable', 'curious_empty']);
+  assert.deepEqual(await step2('nb_t1', 't1', true, true), { basis: 'nb_t1', stop: null }, 'its explicit request');
+  assert.deepEqual([freshPosts.length, ctl2.view().status], [1, 'ready'], 'one request, only on that click');
+  await step2('nb_t1', 't1', true);
+  assert.equal(freshPosts.length, 1, 'never a second for the same basis');
+});
+
 test('ask_restores_saved_tutor_preference: Auto and Ask suspend coaching and keep On/Off and the pause; Tutor restores them', async () => {
   const server = fakeServer({ mode: 'tutor', tutorEnabled: false, suggestionsPaused: true });
   const sync = await open(server);

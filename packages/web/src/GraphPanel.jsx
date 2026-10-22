@@ -87,8 +87,9 @@ export default function GraphPanel({ repository, onOpenSource, answerView = null
           {snapshot && repository.commit && repository.commit !== snapshot.commit && <span className="shrink-0 text-ink-3">· loading {short(repository.commit)}</span>}
         </>}
       </span>
-      {/* The blue "Add to canvas" (owner brief 2026-10-16 item 4): a labelled filled button in the graph's header; what it adds is addGraph's. */}
-      {snapshot && <Button size="sm" variant="action" data-graph-add-to-canvas disabled={!ops || !snapshot.graph.nodes.length} className="shrink-0"
+      {/* "Add to canvas" (owner brief 2026-10-16 item 4; owner review UI-10: the shared inverse Button, as in Context and Files): a labelled
+          filled button in the graph's header; what it adds is addGraph's. */}
+      {snapshot && <Button size="sm" variant="inverse" data-graph-add-to-canvas disabled={!ops || !snapshot.graph.nodes.length} className="shrink-0"
         title={['queued', 'indexing'].includes(status) ? `Add the graph of commit ${short(snapshot.commit)} to the canvas (a newer commit is still indexing)` : 'Add graph to canvas'}
         onClick={() => addGraph()}>Add to canvas</Button>}
       {memory && snapshot && <Button size="sm" data-map-layers-open aria-controls="graph-layers" aria-expanded={layersOpen} onClick={() => setLayersOpen(value => !value)}><Layers size={14} />Layers<ChevronDown size={12} className="text-ink-3" /></Button>}

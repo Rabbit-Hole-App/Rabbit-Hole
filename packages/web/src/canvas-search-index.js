@@ -4,6 +4,8 @@ import { cardText } from './canvas-semantics.js';
 import { docText } from './doc-text.js';
 import { pdfRef } from './pdf-source.js';
 import { validSources } from './card-sources.js';
+import { cadArtifact } from './cad-client.js';
+import { codeLang } from './code-lang.js';
 
 export const SEARCH_FILTERS = ['all', 'cards', 'text', 'comments', 'references', 'links', 'code', 'rabbit-holes'];
 const string = value => typeof value === 'string' ? value : '';
@@ -33,6 +35,43 @@ function notebookFields(object) {
     const outputs = array(cell.outputs).map(output => output.output_type === 'stream' ? [].concat(output.text || '').join('') : output.output_type === 'error' ? `${output.ename || ''}: ${output.evalue || ''}` : [].concat(output.data?.['text/plain'] || '').join('')).filter(Boolean);
     return [...fields(`cell:${position}`, source, 'card', location), ...outputs.flatMap((text, i) => fields(`cell:${position}:output:${i}`, text, 'card', location))];
   })];
+}
+// A result's compact preview (UI-12, owner brief 2026-10-21 message 21 item 1): only what the board already holds - the
+// picture its card itself shows, a cached poster, a stored thumbnail path, the code text - never source bytes, a renderer or
+// a model. kind 'picture' reserves a thumbnail slot (an icon when none loads), 'code' an excerpt, 'text' neither.
+const canvasName = href => /^\/apps\/([^/?#]+)/.exec(string(href))?.[1] || null;
+export function searchPreviewOf(object, kind, references = []) {
+  if (kind === 'item' && object.mode === 'code') return { kind: 'code', language: codeLang(object), text: string(object.text) };
+  if (kind !== 'card') return { kind: 'text' };
+  if (object.type === 'canvas-ref') { const ref = references.find(value => value.kind === 'canvas' && !value.unavailable); return { kind: 'picture', label: 'Canvas', canvas: canvasName(ref?.href), relation: 'Link card on this canvas' }; }
+  if (CODE.has(object.type) || object.mode === 'code') return { kind: 'code', language: string(object.language) || 'text', path: string(object.source?.path || object.source?.name || object.ipynb_path), text: string(object.code ?? object.draft ?? object.starter) };
+  if (object.type === 'video') return { kind: 'picture', label: 'Video', ...(/^[\w-]{11}$/.test(string(object.videoId)) ? { src: `https://i.ytimg.com/vi/${object.videoId}/mqdefault.jpg` } : {}) };
+  if (object.type === 'image') {
+    const variants = array(object.variants).length ? object.variants : [{ src: object.src, cacheKey: object.cacheKey }];
+    const shown = variants[Math.max(0, Math.min(object.variant ?? variants.length - 1, variants.length - 1))] || {};
+    return { kind: 'picture', label: 'Image', ...(string(shown.src) ? { src: shown.src } : string(shown.cacheKey) ? { asset: shown.cacheKey } : {}) };
+  }
+  if (object.type === 'cad') { const path = string(object.thumbnailUrl) || string(cadArtifact(object.manifest, 'thumbnail')?.url); return { kind: 'picture', label: '3D model', ...(path ? { path } : {}) }; }
+  if (object.type === 'file' && object.kind === 'model') return { kind: 'picture', label: '3D model', poster: object.id };
+  if (object.type === 'file' && object.kind === 'image' && !object.fileRef && string(object.assetKey)) return { kind: 'picture', label: 'Image', asset: object.assetKey };
+  // ponytail: PDF, paper and slide pages are drawn only by pdf.js (a live renderer), so they keep the compact fallback.
+  if (object.type === 'file' || object.type === 'paper' || object.type === 'pdf' || (object.type === 'slide' && object.pdf)) return { kind: 'picture', label: object.type === 'paper' ? 'Paper' : object.kind === 'pdf' || object.type === 'pdf' || object.pdf ? 'PDF' : 'File' };
+  return { kind: 'text' };
+}
+// Up to CODE_LINES lines of a code result's text from its match (or its first lines when browsing), numbered as stored.
+export const CODE_LINES = 3;
+function codeExcerpt(preview, entry, first, matcher) {
+  const units = entry.fields.filter(field => field.kind === 'source' && Number.isInteger(field.location?.start));
+  if (units.length) {
+    const at = Math.max(0, units.indexOf(first?.field));
+    return units.slice(at, at + CODE_LINES).map(unit => ({ n: unit.location.start, text: unit.text.split('\n')[0] }));
+  }
+  // A notebook's excerpt is its matched (or first) cell.
+  const cell = [first?.field, ...entry.fields].find(field => field?.kind === 'card' && field.location?.cell != null);
+  const lines = (cell?.text ?? preview.text).split('\n');
+  const hit = matcher ? Math.max(0, lines.findIndex(line => { matcher.lastIndex = 0; return matcher.test(line); })) : 0;
+  const excerpt = lines.slice(hit, hit + CODE_LINES).map((text, i) => ({ n: hit + i + 1, text }));
+  return excerpt.some(line => line.text.trim()) ? excerpt : [];
 }
 function availabilityFor(object, loaded) {
   if (loaded) return { status: loaded.status || (loaded.complete === false ? 'partial' : 'ready'), ...(loaded.limited ? { limited: loaded.limited, message: loaded.limited } : loaded.message ? { message: loaded.message } : {}) };
@@ -67,7 +106,7 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
   const referenceFields = references.filter(ref => !ref.unavailable).flatMap((ref, i) => fields(`reference:${i}`, [object.type === 'canvas-ref' && ref.title === title ? '' : ref.title, ref.name, ref.path, ref.symbol, ref.page ? `page ${ref.page}` : '', ref.lines ? `lines ${ref.lines.join('-')}` : ''].filter(Boolean).join('\n'), 'reference'));
   const sourceName = object.type === 'repo-code' && object.source?.kind === 'upload' && object.source.name !== title ? fields('name:source', string(object.source.name), 'metadata', { path: object.source.name }) : [];
   const sourceFields = loaded && ['ready', 'partial'].includes(loaded.status) ? array(loaded.units).flatMap((unit, i) => fields(`source:${i}`, unit.text, 'source', unit.loc)) : [];
-  return { id: `object:${object.id}`, objectId: object.id, kind, ...(kind === 'card' ? { previewKey: object.id } : {}), title: title || (object.type === 'notebook' ? 'Notebook' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
+  return { id: `object:${object.id}`, objectId: object.id, kind, preview: searchPreviewOf(object, kind, references), title: title || (object.type === 'notebook' ? 'Notebook' : object.kind === 'equation' ? 'Equation' : kind === 'card' ? 'Card' : 'Text'), categories, references, rabbitHoles, availability: availabilityFor(object, loaded), sourceKey: loaded?.sourceKey,
     target: { kind: 'object', id: object.id }, fields: [...fields('title', title), ...sourceName, ...content, ...referenceFields, ...rabbitHoles.flatMap((child, i) => fields(`child:${i}`, child.title, 'reference')), ...sourceFields] };
 }
 // Links (the former Links tab, brief section 7): one result per destination canvas, as the server grouped them (GET
@@ -76,7 +115,7 @@ function objectEntry(object, kind, suppliedRefs, children, loaded) {
 function linkEntry(direction, key, group) {
   const unavailable = !!group.unavailable, title = unavailable ? 'Unavailable canvas' : string(group.title).trim() || 'Untitled canvas';
   const cards = array(group.refs).map(ref => ({ id: ref.id, object: ref.object, title: string(ref.objectTitle).trim() || 'Untitled card', href: ref.href }));
-  return { id: `link:${direction}:${key}`, objectId: null, kind: 'link', title, categories: ['links'], references: [], rabbitHoles: [], availability: { status: 'ready' },
+  return { id: `link:${direction}:${key}`, objectId: null, kind: 'link', preview: { kind: 'picture', label: 'Canvas', canvas: unavailable ? null : canvasName(group.href) }, title, categories: ['links'], references: [], rabbitHoles: [], availability: { status: 'ready' },
     link: { direction, unavailable, href: unavailable ? null : group.href, cards }, location: direction === 'from' ? 'Linked from this canvas' : 'Links here (backlink)',
     target: { kind: 'link', id: key }, fields: [...(unavailable ? [] : fields('title', title)), ...cards.flatMap((card, i) => fields(`card:${i}`, card.title, 'reference'))] };
 }
@@ -146,7 +185,8 @@ export function querySearchIndex(index, { query = '', filter = 'all', includeRes
     const location = field?.location || entry.location;
     const quote = first ? { exact: snippet.hit, prefix: snippet.before, suffix: snippet.after, offset: start, field: field.key } : undefined;
     const { fields: _fields, ...result } = entry;
-    const value = { ...result, occurrenceCount, snippet, location, match: first ? { field: field.key, kind: field.kind, location } : undefined, target: { ...entry.target, quote, location } };
+    const preview = entry.preview?.kind === 'code' ? { ...entry.preview, text: undefined, lines: codeExcerpt(entry.preview, entry, first, matcher) } : entry.preview;
+    const value = { ...result, preview, occurrenceCount, snippet, location, match: first ? { field: field.key, kind: field.kind, location } : undefined, target: { ...entry.target, quote, location } };
     counts.all++; for (const category of entry.categories) counts[category]++;
     if (filter === 'all' || entry.categories.includes(filter)) matches.push({ value, rank });
   }

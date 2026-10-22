@@ -2,7 +2,7 @@
 // group refs, stable ids for de-duplication, the limits, and text read at Send.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { objectKind, REF_LIMITS, selectionRef } from './selection-ref.js';
+import { objectKind, objectName, REF_LIMITS, selectionName, selectionRef } from './selection-ref.js';
 import { sameRef } from './chat-context.js';
 
 test('one card is card:<id>, the whole card, with a content fingerprint as its version', () => {
@@ -53,4 +53,29 @@ test('objectKind: uploaded images, video and audio objects, else a card', () => 
   assert.equal(objectKind({ type: 'file', kind: 'pdf' }), 'card');
   assert.equal(objectKind({ kind: 'sticky' }), 'card');
   assert.equal(objectKind(null), 'card');
+});
+
+// Owner brief UI-09 (2026-10-21): a single selection is named from its source object, never "1 item"; a group by its name, several
+// objects by their names with an ellipsis for the rest (the chip shows the count beside it).
+test('objectName: the described title, else the object own words, else what it is; never a count', () => {
+  assert.equal(objectName({ type: 'snippet', title: 'model.py' }, { kind: 'Code sample', title: 'model.py' }), 'model.py');
+  assert.equal(objectName({ type: 'repo-code', title: 'bpe.py', source: { kind: 'repository', path: 'mingpt/bpe.py' } }, null), 'bpe.py', 'a code card with no description is its file name');
+  assert.equal(objectName({ type: 'explanation', title: '', body: 'Softmax turns scores into weights\nand more' }, { kind: 'Explanation', title: '' }), 'Softmax turns scores into weights', 'untitled: the first line');
+  assert.equal(objectName({ id: 's-1', kind: 'rect', x1: 0, y1: 0, x2: 1, y2: 1, text: 'Gate' }, null), 'Gate', 'a shape by its text');
+  assert.equal(objectName({ id: 's-3', kind: 'rect', x1: 0, y1: 0, x2: 1, y2: 1 }, null), 'Shape', 'a blank shape by its type');
+  assert.equal(objectName({ type: 'whiteboard', title: '' }, { kind: 'Whiteboard', title: '' }), 'Whiteboard', 'untitled with no words: the described kind');
+  assert.equal(objectName({ type: 'repo-graph' }, null), 'Graph');
+  assert.equal(objectName({ type: 'cad' }, null), 'Cad');
+  assert.equal(objectName(null, null), 'Card');
+  for (const object of [{ type: 'explanation' }, { kind: 'rect', x1: 0 }, { type: 'repo-code' }]) assert.doesNotMatch(objectName(object), /item/);
+});
+
+test('selectionName: a group is its name (or Group), several objects their first two names and an ellipsis', () => {
+  assert.equal(selectionName(['Card A', 'Card B'], { id: 'g1', label: 'Pair' }), 'Pair');
+  assert.equal(selectionName(['Card A', 'Card B'], { id: 'g1' }), 'Group');
+  assert.equal(selectionName(['Gate', 'Latch']), 'Gate, Latch');
+  assert.equal(selectionName(['Gate', 'Latch', 'Valve', 'Pipe']), 'Gate, Latch, …');
+  assert.equal(selectionName(['Gate']), 'Gate', 'one object (a shape) is its own name');
+  const ref = selectionRef({ ids: ['a', 'b', 'c'], name: selectionName(['A long title '.repeat(20), 'B']) });
+  assert.equal(ref.name.length, REF_LIMITS.name, 'the chip name stays capped');
 });

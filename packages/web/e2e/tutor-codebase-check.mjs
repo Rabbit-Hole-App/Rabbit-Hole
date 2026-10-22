@@ -320,6 +320,25 @@ await check('selecting lines in the code reader or a code card shows lines a–b
   await shot('codebase-04c-citations');
 });
 
+// UI-09 (owner brief 2026-10-21) beside the citation pills: the activity's "Use in answer" pills stay on the activity card, and
+// every pending composer pill (the lines Ask about this attached) stays inside the composer - two kinds, never mixed.
+await check('the activity citation pills and the composer context pills coexist: citations on the activity card, pending context inside the composer', async () => {
+  const where = await page.evaluate(() => {
+    const composer = document.querySelector('[data-chat-pane] [data-chat-composer]'), activity = document.querySelector('[data-tutor-activity-card]');
+    const pending = [...document.querySelectorAll('[data-chat-pane] [data-context-chip], [data-chat-pane] [data-canvas-target], [data-chat-pane] [data-code-selection], [data-chat-pane] [data-context-selection]')];
+    const cited = [...document.querySelectorAll('[data-tutor-citation]')];
+    return { pending: pending.length, pendingInside: pending.filter(el => composer?.contains(el)).length, cited: cited.length,
+      citedOnCard: cited.filter(el => activity?.contains(el)).length, citedInComposer: cited.filter(el => composer?.contains(el)).length,
+      cardAbove: !!activity && !!composer && activity.getBoundingClientRect().bottom <= composer.getBoundingClientRect().top + 1 };
+  });
+  assert.ok(where.pending >= 1 && where.cited >= 1, `both kinds are shown: ${JSON.stringify(where)}`);
+  assert.equal(where.pendingInside, where.pending, `every pending pill is inside the composer: ${JSON.stringify(where)}`);
+  assert.equal(where.citedOnCard, where.cited, 'every citation pill is on the activity card');
+  assert.equal(where.citedInComposer, 0, 'no citation pill in the composer');
+  assert.ok(where.cardAbove, 'the activity card sits above the composer');
+  assert.deepEqual(model, []);
+});
+
 await check('drift: after a submission the repository moves on; only the changed file is stale; the saved revision can be kept; Update keeps the unsent answer and the earlier activity', async () => {
   const answerText = 'It divides 1 by 3, rounds that to 0, then multiplies by 100.';
   await card().locator('textarea').fill(answerText);
@@ -494,7 +513,7 @@ await check('Tutor Off shows no codebase menu; Not now keeps it away across a re
 assert.deepEqual(model, [], `no model request: ${model.join()}`);
 assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
 console.log(`codebase posts: ${codebasePosts.join(',')}; attempts: ${attempts.length}; scripted Tutor turns: ${plans.length}; hook refreshes: ${hooks.length}; scripted asks: ${asks.length}`);
-const total = 12;
+const total = 13;
 console.log(`PASS ${results.length}/${total} checks`);
 assert.equal(results.length, total);
 await browser.close();
