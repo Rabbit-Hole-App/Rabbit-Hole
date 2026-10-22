@@ -4,7 +4,7 @@
 // pattern and the count, never from what the thing is called.
 import { validateLabelContent } from '../../explain-contract.js';
 import { chainSequential, stackSilhouettes } from '../../scene-repeat.js';
-import { labelWidth, labelledBox, lineFields, wrapLabel } from '../label.js';
+import { labelWidth, labelledBox, lineFields, stackLines, wrapLabel } from '../label.js';
 import { BOX_ROLES, lineHeight, sides } from '../text.js';
 
 const PAD = 16, TITLE_GAP = 12, CAPTION_GAP = 16, GHOST_STEP = 8;
@@ -54,7 +54,6 @@ export default {
 
     // The unit: its title, then each pattern entry chained top to bottom.
     const title = validateLabelContent(params.title);
-    const titleH = lineHeight('heading');
     const boxes = params.pattern.map((entry, index) => {
       const label = entry && typeof entry === 'object' && 'label' in entry ? entry.label : entry;
       const role = (entry && typeof entry === 'object' && entry.role) || 'neutral';
@@ -62,12 +61,17 @@ export default {
       if (!label) throw new Error(`pattern.${index} needs a label`);
       return labelledBox({ id: `entry${index}`, label: validateLabelContent(label), role, minWidth: hints.nodeWidth, maxWidth: hints.nodeWidth });
     });
-    const inner = Math.max(hints.nodeWidth, ...boxes.map(box => box.w), labelWidth(title, 'heading'));
+    // The title wraps to the unit's width rather than widening the frame
+    // (render review 2026-10-22: a long title left the frame mostly empty).
+    const contentW = Math.max(hints.nodeWidth, ...boxes.map(box => box.w));
+    const titleLines = wrapLabel(title, Math.max(contentW, 320), 'heading');
+    const titleStack = stackLines(titleLines, 'heading');
+    const inner = Math.max(contentW, ...titleLines.map(line => labelWidth(line.plain, 'heading')));
     const frameW = inner + 2 * PAD;
     const ghostRoom = Math.min(hints.ghosts, periods === null ? hints.ghosts : periods - 1) * GHOST_STEP;
     const top = ghostRoom; // condensed copies peek out above and to the right
     const objects = [], anchors = {}, ports = [];
-    let y = top + PAD + titleH + TITLE_GAP;
+    let y = top + PAD + titleStack.total + TITLE_GAP;
     boxes.forEach((box, index) => {
       const x = PAD + (inner - box.w) / 2;
       for (const object of box.objects) objects.push({ ...object, initialState: { ...object.initialState, x: object.initialState.x + x, y: object.initialState.y + y } });
@@ -77,10 +81,16 @@ export default {
     });
     const frameH = y - hints.gap + PAD - top;
     const frame = { id: 'frame', type: 'box', initialState: { x: 0, y: top, w: frameW, h: frameH, role: 'neutral' } };
-    // Ghosts first so the full unit draws over them.
+    // Condensed copies at stackSilhouettes' offsets, drawn as their top and
+    // right edges only: box fills are translucent, so whole ghost boxes
+    // showed through the unit (render review 2026-10-22).
     const ghostCount = periods === null ? hints.ghosts + 1 : Math.min(periods, hints.ghosts + 1);
-    const ghosts = stackSilhouettes({ unitBox: { x: 0, y: top, w: frameW, h: frameH }, count: ghostCount, idPrefix: 'ghost' }).objects.filter(object => object.type === 'box');
-    const titleText = { id: 'title', type: 'text', initialState: { ...lineFields(wrapLabel(title, Infinity, 'heading')[0], 'text'), x: PAD, y: top + PAD + Math.round(titleH * 0.75), typography: 'heading' } };
+    const ghosts = stackSilhouettes({ unitBox: { x: 0, y: top, w: frameW, h: frameH }, count: ghostCount, idPrefix: 'ghost' }).objects
+      .filter(object => object.type === 'box').flatMap(({ id, initialState: g }) => [
+        { id: `${id}-top`, type: 'line', initialState: { from: { x: g.x, y: g.y }, to: { x: g.x + g.w, y: g.y }, role: 'neutral', opacity: 0.55 } },
+        { id: `${id}-side`, type: 'line', initialState: { from: { x: g.x + g.w, y: g.y }, to: { x: g.x + g.w, y: g.y + g.h }, role: 'neutral', opacity: 0.55 } },
+      ]);
+    const titleText = titleLines.map((line, index) => ({ id: `title${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), x: PAD, y: Math.round(top + PAD + titleStack.baselines[index]), typography: 'heading' } }));
 
     // The caption says how many and on what evidence; a conflict is a warning.
     const repeat = periods === null ? `repeats ${count.conflict} times: the sources disagree`
@@ -94,7 +104,7 @@ export default {
     const w = right + captionW, h = top + frameH;
     return {
       w, h,
-      objects: [...ghosts, frame, titleText, ...objects, ...chainSequential(ports, { idPrefix: 'step' }), ...captions],
+      objects: [...ghosts, frame, ...titleText, ...objects, ...chainSequential(ports, { idPrefix: 'step' }), ...captions],
       anchors: { ...sides(w, h), ...anchors, in: ports[0].in, out: ports[ports.length - 1].out },
       diagnostics: periods === null ? [{ code: 'source-conflict', message: `count ${count.conflict}` }] : [],
     };

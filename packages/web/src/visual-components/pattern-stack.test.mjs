@@ -9,7 +9,7 @@ const stack = (params, extra = {}) => ({
   components: [{ id: 's', component: 'pattern-stack', version: 1, params: { title: 'Unit', pattern: ['A', 'B'], ...params }, ...extra }],
 });
 const objects = compiled => compiled.scene.objects;
-const ofKind = (compiled, prefix) => objects(compiled).filter(object => object.id.startsWith(`s.${prefix}`));
+const ofKind = (compiled, prefix) => objects(compiled).filter(object => object.id.startsWith(`s.${prefix}`) && !object.id.endsWith('-side'));
 const text = (compiled, id) => objects(compiled).find(object => object.id === `s.${id}`)?.initialState.text;
 
 test('three materially different patterns, one of them not neural, compile to valid scenes with no diagnostics', () => {
@@ -36,6 +36,15 @@ test('changing parameters changes the structure: entries, arrows and condensed c
   assert.equal(text(many, 'count'), '× 96');
   assert.equal(ofKind(compileVisual(stack({ count: 96 }, { hints: { ghosts: 1 } })), 'ghost').length, 1);
   assert.equal(ofKind(compileVisual(stack({ count: 1 })), 'ghost').length, 0);
+});
+
+test('condensed copies stay outside the unit, and a long title wraps instead of widening it', () => {
+  const compiled = compileVisual(stack({ title: 'A deliberately long unit title for wrapping checks that goes on', count: 6 }));
+  const frame = objects(compiled).find(object => object.id === 's.frame').initialState;
+  for (const ghost of ofKind(compiled, 'ghost')) assert.ok(ghost.initialState.from.y < frame.y, ghost.id);
+  for (const side of objects(compiled).filter(object => object.id.endsWith('-side'))) assert.ok(side.initialState.from.x > frame.x + frame.w, side.id);
+  assert.ok(ofKind(compiled, 'title').length > 1);
+  assert.ok(frame.w <= 400, `frame ${frame.w} wide`);
 });
 
 test('no name branches: renaming the subject with same-length words moves nothing', () => {

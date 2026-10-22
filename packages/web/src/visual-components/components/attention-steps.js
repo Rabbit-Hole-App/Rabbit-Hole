@@ -46,7 +46,7 @@ export default {
 
     // Projections across the top, then a header and one row per key position.
     let px = 0;
-    objects.push({ id: 'head-proj', type: 'text', initialState: { text: 'Projections', x: 0, y: 20, typography: 'caption' } });
+    objects.push({ id: 'head-proj', type: 'text', initialState: { text: 'Projections and the softmax normaliser', x: 0, y: 20, typography: 'caption' } });
     projections.forEach((value, n) => { const at = boxOf(`proj${n}`, value, px, HEAD_H, labelWidth(tex(value)) + 32, n === 0 ? 'input' : 'neutral'); px += at.w + ROW_GAP; });
     const top = HEAD_H + ROW_H + PROJ_GAP;
     const ellipsisRow = params.symbolicLast ? keys.length - 1 : -1;
