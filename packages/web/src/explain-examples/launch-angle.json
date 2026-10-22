@@ -82,20 +82,41 @@
      20.4
     ],
     "partsOn": "Range = horizontal speed x time in the air. A steeper angle buys time but costs horizontal speed.",
-    "partsOff": "Turn the parts back on to see the trade-off behind the range."
+    "partsOff": "Turn the parts back on to see the trade-off behind the range.",
+    "vxLabels": [
+     "19.3",
+     "17.3",
+     "14.1",
+     "10.0",
+     "5.2"
+    ],
+    "vyLabels": [
+     "5.2",
+     "10.0",
+     "14.1",
+     "17.3",
+     "19.3"
+    ],
+    "heightLabels": [
+     "1.4",
+     "5.1",
+     "10.2",
+     "15.3",
+     "19.0"
+    ]
    },
    "derived": {
     "vxNow": {
      "op": "pick",
      "args": [
-      "vx",
+      "vxLabels",
       "ang"
      ]
     },
     "vyNow": {
      "op": "pick",
      "args": [
-      "vy",
+      "vyLabels",
       "ang"
      ]
     },
@@ -116,7 +137,7 @@
     "peakNow": {
      "op": "pick",
      "args": [
-      "height",
+      "heightLabels",
       "ang"
      ]
     },

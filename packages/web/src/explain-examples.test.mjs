@@ -24,3 +24,10 @@ test('the window opens /explain on its Interactive visual, then text and table',
   assert.deepEqual(sheetCards('explain').map(entry => entry.card), ['animation', 'explanation', 'table']);
   assert.equal(TAB_LABELS.animation, 'Interactive visual');
 });
+
+test('the pendulum example states its period to two decimals at every length (owner follow-up: "Period T = 1 s")', async () => {
+  const { evaluateScene } = await import('./scene-evaluate.js');
+  const pendulum = EXPLAIN_EXAMPLES.find(example => example.id === 'pendulum');
+  const shown = [0, 1, 2, 3, 4].map(len => evaluateScene(pendulum.block.scene, 0, { len }).scene.objects.find(object => object.id === 'result').initialState.text);
+  assert.deepEqual(shown, ['1.00', '1.42', '2.01', '2.84', '4.01'].map(t => `T = ${t} s per full back-and-forth swing`));
+});

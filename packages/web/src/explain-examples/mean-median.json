@@ -143,7 +143,14 @@
      "Mean 22.2 describes no one; median 6 still sits mid-pack."
     ],
     "medianOn": "Median = middle of the sorted list, so only its position matters.",
-    "medianOff": "Turn the median back on to compare it with the mean."
+    "medianOff": "Turn the median back on to compare it with the mean.",
+    "meanLabels": [
+     "6.0",
+     "6.6",
+     "8.2",
+     "13.2",
+     "22.2"
+    ]
    },
    "derived": {
     "data": {
@@ -156,7 +163,7 @@
     "meanVal": {
      "op": "pick",
      "args": [
-      "means",
+      "meanLabels",
       "big"
      ]
     },
