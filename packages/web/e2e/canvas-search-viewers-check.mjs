@@ -43,6 +43,7 @@ const privateTitle = `private-harbor-${run}`;
 const privateCanvas = await create(privateTitle), privateBoard = await seed(privateCanvas.name, empty);
 const canvas = await create(`Viewer Search ${run}`);
 const state = { ...empty, shapes: [{ id: 'viewer-shape', kind: 'rect', x1: 80, y1: 140, x2: 320, y2: 240, color: '#37352f', width: 2, dash: 'solid', fill: null, opacity: 1, round: false, text: 'Shared shape' }], blocks: [
+  { id: 'viewer-heading', type: 'heading', level: 1, text: 'Garnet section', done: true, dx: 0, dy: 0 },
   { id: 'viewer-card', type: 'explanation', title: 'Quartz browser card', body: 'Readable quartz crystal content.', dx: 0, dy: 0,
     refs: [{ id: crypto.randomUUID(), target: privateBoard.board_id }] },
   { id: 'deleted-anchor', type: 'explanation', title: 'Removed card', body: 'This card will be removed after its threads exist.', dx: 0, dy: 0 },
@@ -118,7 +119,7 @@ try {
     const search = async (query, category = 'all') => { await input.fill(query); await filter(category); };
     const row = id => panel.locator(`[data-search-result="${id}"]`);
     await check(`${audience}: cards browse and focus without edit rights; panel resizes`, async () => {
-      await page.locator('[data-search-button]').click();
+      await page.locator('[data-panel-tab="find"]').click();
       await expect(panel).toBeVisible();
       await expect(panel.getByText('This canvas', { exact: true })).toBeVisible();
       await filter('explanation'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
@@ -140,16 +141,34 @@ try {
       await expect(resize).toHaveAttribute('aria-valuenow', String(before + 24));
       await page.screenshot({ path: `${OUT}/${audience}-cards.png` });
     });
+    // SHARE-01 brief section 6: the shared Table of contents is the outline only, and a title navigates with no model call and
+    // no learning-record write; a published canvas never shows the creator's own section ticks (shared-privacy.js).
+    await check(`${audience}: Table of contents is the outline only; a title navigates with no ask or learning write`, async () => {
+      const writes = [], listen = request => { if (request.method() !== 'GET' && /\/api\/(ask|learn\/(ask|tutor|progress|journeys?|goals?|attempts?|coaching|assess|grade|boards))/.test(new URL(request.url()).pathname)) writes.push(new URL(request.url()).pathname); };
+      page.on('request', listen);
+      await page.locator('[data-panel-tab="toc"]').click();
+      const toc = page.locator('[data-shared-toc]'), title = toc.getByRole('button', { name: 'Garnet section' });
+      await expect(title).toBeVisible();
+      assert.equal(await page.locator('[data-toc-start], [data-toc-conversation], [data-toc-ask], [data-toc-resume], [data-chat-progress], [data-panel-companion]').count(), 0, 'no Tutor, plan or Progress');
+      if (audience === 'public') assert.equal(await toc.getByRole('checkbox', { name: 'Garnet section done' }).isChecked(), false, "the creator's tick is not shared");
+      await title.click(); await page.waitForTimeout(800);
+      page.off('request', listen);
+      assert.deepEqual(writes, []);
+      await page.locator('[data-panel-tab="find"]').click(); await expect(panel).toBeVisible();
+    });
     await check(`${audience}: hidden document is searchable and revealed read-only`, async () => {
-      await expect(page.locator('[data-doc-toggle]')).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.locator('[data-canvas-doc]')).toHaveCount(0); // View > Mode is Canvas
       await search('obsidian', 'text'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
       await expect(panel.getByText('Document', { exact: true })).toBeVisible();
       await panel.locator('[data-search-index]').click();
-      await expect(page.locator('[data-doc-toggle]')).toHaveAttribute('aria-pressed', 'true');
       await expect(page.locator('[data-doc-state="ready"]')).toBeVisible();
       await expect(page.locator('[data-canvas-doc-editor]')).toContainText('Hidden document obsidian passage.');
       assert.equal(await page.locator('[data-canvas-doc-editor] [contenteditable="true"]').count(), 0);
-      await expect(panel).toBeVisible(); await page.locator('[data-doc-toggle]').click();
+      await expect(panel).toBeVisible();
+      // Back to Canvas through the normal canvas's View menu (SHARE-01: no separate Show document button).
+      await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^View/ }).click();
+      await page.locator('[role="menu"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) }).selectOption({ label: 'Canvas' });
+      await expect(page.locator('[data-canvas-doc]')).toHaveCount(0);
     });
     await check(`${audience}: open, resolved and orphan threads retain Search state and never resolve on opening`, async () => {
       const ids = threads[audience], base = audience === 'member' ? memberBase : publicBase;
@@ -175,8 +194,8 @@ try {
       await expect(panel.getByRole('button', { name: 'Unavailable', exact: true })).toBeDisabled();
       assert.equal((await panel.innerText()).includes(privateTitle), false);
       await input.fill(privateTitle); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');
-      await page.getByRole('button', { name: 'Close Search', exact: true }).click();
-      await page.locator('[data-search-button]').click();
+      await page.locator('[data-panel-close]').click(); await expect(panel).toBeHidden();
+      await page.locator('[data-panel-toggle]').click(); await expect(panel).toBeVisible();
       await expect(input).toHaveValue(privateTitle); assert.equal(await picked('references'), 'true');
       if (audience === 'public') {
         await search('member open celadon', 'comments'); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');

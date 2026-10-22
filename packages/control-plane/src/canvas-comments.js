@@ -8,6 +8,7 @@
 // {name, handle?, avatar_url?}, read by reference so a renamed handle shows at once.
 import { repositoryIdentity } from './repositories.js';
 import { HANDLE_OF, NAME_OF } from './canvases.js';
+import { sharedState } from './shared-privacy.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { boardAsset } from './learn-boards.js';
@@ -566,7 +567,9 @@ async function readBoard(env, ctx) {
   const row = await env.LEARN_DB.prepare('SELECT state_json, version, updated_at FROM learn_boards WHERE id = ?').bind(ctx.board.id).first();
   const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), { org: ctx.actor.org, email: ctx.actor.email });
   // The owner is sent to their own page; only they learn its name here.
-  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at, state });
+  return json({ title: ctx.board.title, owner: person(ctx.board, 'owner_'), role: ctx.actor.owner ? 'owner' : 'member', ...(ctx.actor.owner ? { canvas: ctx.board.canvas } : {}), version: row.version, updated_at: row.updated_at,
+    // A member sees what was placed on the canvas, never the owner's own answers, attempts, ticks or highlights (SHARE-01).
+    state: ctx.actor.owner ? state : sharedState(state) });
 }
 
 // Library → Shared with you (section 5): canvases where I am an active member, with their owner, last change and how many

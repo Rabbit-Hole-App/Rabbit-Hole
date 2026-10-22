@@ -95,6 +95,11 @@ const RULES = {
 
 export const CAPABILITIES = Object.freeze(Object.keys(RULES));
 
+// The right panel's tabs on a shared canvas, in the normal order: Chat (where the page has one), Find, Table of contents,
+// Comments (unless hidden). Progress is never among them (panel.progress is hidden on a shared canvas).
+export const sharedPanelTabs = (ctx, { chat = false } = {}) => [['chat', 'panel.chat'], ['find', 'panel.find'], ['toc', 'toc.navigate'], ['comments', 'comment.read']]
+  .filter(([id, capability]) => (id !== 'chat' || chat) && !can(capability, ctx).hidden && (id === 'comments' || can(capability, ctx).allowed)).map(([id]) => id);
+
 // can('generate.motion', { role: 'viewer', shared: true }) -> { allowed: false, reason: 'Fork to generate in your own copy' }.
 // An unknown capability or role is refused, never allowed by accident.
 export function can(capability, ctx = {}) {

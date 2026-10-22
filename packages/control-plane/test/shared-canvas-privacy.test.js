@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setup, BOARD } from './shared-canvas-fixture.js';
 import { sharedState } from '../src/shared-privacy.js';
+import { canvasCommentsRoute } from '../src/canvas-comments.js';
 
 const SECRET = 'CREATOR-PRIVATE';
 // The board as ana's browser saved it: the canvas's content plus her own learning state on the cards and beside them.
@@ -12,6 +13,7 @@ const SAVED = {
   ...BOARD,
   blocks: [
     ...BOARD.blocks,
+    { id: 'h2', type: 'heading', level: 2, text: 'Masking', done: true },
     { id: 'c1', type: 'challenge', prompt: 'Explain masking', answer: `${SECRET}-answer`, attemptId: 'a1', verdict: `${SECRET}-verdict`, sketchSubmitted: true, sketch: { strokes: [{ id: `${SECRET}-sketch` }] } },
     { id: 'z1', type: 'quiz', question: 'Which normalizes?', options: [{ key: 'a', text: 'softmax', correct: true }], choice: `${SECRET}-choice` },
     { id: 'k1', type: 'code', title: 'Mask it', starter: 'pass', draft: `${SECRET}-draft` },
@@ -72,6 +74,13 @@ test('a share link and a publication answer only placed content, for every visit
       assert.deepEqual(body.access, { role: !as ? 'guest' : as === 'ben' && link === token ? 'commenter' : 'viewer', shareable: { context: false, files: false } }, `${who} on ${link === token ? 'the share' : 'the publication'}`);
     }
   }
+  // A member's own page (/c/<board id>) reads the same placed content only; the owner reading it there keeps everything.
+  const boardId = f.sqlite.prepare("SELECT id FROM learn_boards WHERE app = ? AND board = 'main'").get(canvas.name).id;
+  const memberRead = async who => (await canvasCommentsRoute(`/api/learn/c/${boardId}/board`, new Request(`https://app.test/api/learn/c/${boardId}/board`, { headers: { cookie: `small_session=${who}` } }), f.env)).text();
+  const asMember = await memberRead('ben');
+  assert.doesNotMatch(asMember, new RegExp(SECRET), 'a member');
+  for (const placed of PLACED) assert.ok(asMember.includes(placed), `member: placed content "${placed}" stays`);
+  assert.match(await memberRead('ana'), new RegExp(`${SECRET}-attempt`), 'the owner on the member route');
   // The owner's own page still has all of it: nothing was removed from storage, only from what a link answers.
   assert.match((await f.call('GET', `/api/learn/boards/${canvas.name}/main`, { as: 'ana' })).text, new RegExp(`${SECRET}-attempt`));
   assert.equal((await f.call('GET', `/api/learn/boards/${secretCanvas.name}/main`, { as: 'cara' })).status === 200, false, 'a private canvas stays closed');
@@ -89,6 +98,7 @@ test('a fork through a link copies the placed content, never the creator\'s answ
 
 test('sharedState: the cards keep their content; only learner fields go; a board without them comes back as it was', () => {
   const state = sharedState(SAVED);
+  assert.deepEqual(state.blocks.find(block => block.id === 'h2'), { id: 'h2', type: 'heading', level: 2, text: 'Masking' }, "the creator's section tick stays theirs");
   const scene = state.blocks.find(block => block.id === 's1');
   assert.deepEqual(scene, { id: 's1', type: 'scene', title: 'Softmax scene', activity: { prompt: 'Pick the max' } });
   assert.equal(state.blocks.find(block => block.id === 'b1'), BOARD.blocks.find(block => block.id === 'b1'), 'an untouched card is the same object');

@@ -38,7 +38,7 @@ test('the conversation is kept per link and per viewer, and only answered pairs 
 test('Chat sits in the shared page\'s right panel (not over the canvas), with read-only context pills and the selected card', () => {
   assert.doesNotMatch(page, /composer=\{<Shared/, 'no floating answer window over the canvas composer slot');
   assert.match(page, /onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\} \/>/);
-  assert.match(page, /<SharedChat token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askBack\?\.draft \?\? null\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>/);
+  assert.match(page, /chat=\{<SharedChat token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askBack\?\.draft \?\? null\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\}( onAllowance=\{setGuestRemaining\})? \/>/);
   // The normal Chat's transcript and composer components, not a second Chat design.
   assert.match(composer, /import ChatComposer from '\.\/ChatComposer\.jsx';\nimport \{ ChatMessages \} from '\.\/ChatMessages\.jsx';/);
   assert.match(composer, /<ChatMessages msgs=\{msgs\} busy=\{busy\} learnChat /);
