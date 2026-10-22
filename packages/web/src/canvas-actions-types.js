@@ -27,7 +27,7 @@ export function contentText(t) {
   if (!o) return '';
   if (t.family === 'chat') return [o.question, o.answer].filter(Boolean).join(NEWLINE + NEWLINE);
   if (t.family !== 'block') return '';
-  if (o.type === 'explanation') return o.excerpt?.quote || [o.title, o.body, ...(o.more || []).map(section => section.text)].filter(Boolean).join(NEWLINE + NEWLINE);
+  if (o.type === 'explanation') return o.excerpt?.quote?.exact || [o.title, o.body, ...(o.more || []).map(section => section.text)].filter(Boolean).join(NEWLINE + NEWLINE);
   if (o.type === 'table') return [o.title, (o.columns || []).join('\t'), ...(o.rows || []).map(row => row.join('\t'))].filter(Boolean).join(NEWLINE);
   if (o.type === 'quiz') return [o.question, ...(o.options || []).map(option => `${option.key}. ${option.text}`)].join(NEWLINE);
   if (o.type === 'flashcards') return (o.cards || []).map(card => `${card.front} - ${card.back}`).join(NEWLINE);
@@ -88,7 +88,7 @@ export const TYPE_ACTIONS = [
   },
   // Open: the card's reader at its own page (wiki, arXiv paper, PDF card or page) or a YouTube moment at its time (card-open.js).
   {
-    id: 'card.open', label: (t, ctx) => reader(t, ctx).label, icon: 'BookOpen', group: 'type', order: 10,
+    id: 'card.open', label: (t, ctx) => reader(t, ctx)?.label || 'Open', icon: 'BookOpen', group: 'type', order: 10,
     targets: ['card'], requires: 'card.open', data: 'data-menu-open',
     applies: (t, ctx) => ['reader', 'external'].includes(reader(t, ctx)?.kind),
     run: (t, ctx) => { const open = reader(t, ctx); return open.kind === 'reader' ? ctx.canvas.cardAction(open.action, open.payload) : ctx.canvas.openUrl(open.url); },
@@ -117,7 +117,7 @@ export const TYPE_ACTIONS = [
   },
   {
     id: 'card.attach-tutor', icon: 'Paperclip', group: 'type', order: 30, targets: ['card'], requires: 'chat.ask',
-    label: (t, ctx) => { const source = tutorSource(t.object); return ctx.canvas.attached(source.id) ? `Detach ${source.noun} from tutor` : `Attach ${source.noun} to tutor`; },
+    label: (t, ctx) => { const source = tutorSource(t.object) || { id: '', noun: 'card' }; return ctx.canvas.attached?.(source.id) ? `Detach ${source.noun} from tutor` : `Attach ${source.noun} to tutor`; },
     applies: (t, ctx) => t.family === 'block' && !!ctx.canvas.cardAction && !!tutorSource(t.object),
     run: (t, ctx) => ctx.canvas.cardAction('attach-toggle', { sourceId: tutorSource(t.object).id }),
   },
@@ -136,7 +136,7 @@ export const TYPE_ACTIONS = [
   },
   {
     id: 'selection.add-to-chat', icon: 'MessageSquarePlus', group: 'chat', order: 20,
-    label: t => (t.part.kind === 'code-lines' ? 'Add selected lines to chat' : 'Add selection to chat'),
+    label: t => (t.part?.kind === 'code-lines' ? 'Add selected lines to chat' : 'Add selection to chat'),
     targets: ['card', 'object'], part: ['text', 'code-lines', 'pdf-selection'], requires: 'chat.ask', data: 'data-menu-add-selection',
     applies: t => !!t.part?.text, run: (t, ctx) => ctx.canvas.addToChat({ quote: t.part.text }),
   },
@@ -182,7 +182,7 @@ export const TYPE_ACTIONS = [
     state: t => notebookState(t), run: t => notebookActions(t.id).restart(),
   },
   {
-    id: 'notebook.download', label: t => `Download ${ipynbPath(t.object).split('/').pop()}`, icon: 'Download', group: 'type', order: 60,
+    id: 'notebook.download', label: t => `Download ${ipynbPath(t.object || {}).split('/').pop()}`, icon: 'Download', group: 'type', order: 60,
     targets: ['card'], types: ['notebook'], requires: 'content.copy', data: 'data-menu-download',
     applies: t => !!t.object.ipynb,
     run: (t, ctx) => ctx.canvas.downloadText(ipynbPath(t.object).split('/').pop(), JSON.stringify(t.object.ipynb, null, 1), 'application/x-ipynb+json'),
@@ -256,7 +256,7 @@ export const TYPE_ACTIONS = [
 
   // Headings: progress and presenting, as before.
   {
-    id: 'heading.done', label: t => (t.object.done ? 'Mark not done' : 'Mark done'), icon: 'CircleCheck', group: 'type', order: 20,
+    id: 'heading.done', label: t => (t.object?.done ? 'Mark not done' : 'Mark done'), icon: 'CircleCheck', group: 'type', order: 20,
     targets: ['card'], types: ['heading'], requires: 'canvas.local-edit', mutates: true,
     run: (t, ctx) => ctx.canvas.updateBlock(t.id, { done: !t.object.done }),
   },

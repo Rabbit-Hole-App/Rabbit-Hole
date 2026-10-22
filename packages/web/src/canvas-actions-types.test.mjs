@@ -311,3 +311,10 @@ test('mixed selections show only rows valid for every member', () => {
   assert.deepEqual(labels(multi([targets[20], targets[0]]), ctx), [], 'a card in the mix: no per-type row');
   assert.deepEqual(labels(multi([targets[10], targets[11]]), ctx), [], 'no single-object row on two code cards');
 });
+
+test('a text excerpt copies its verbatim quotation; labels never throw before applies is asked', () => {
+  assert.equal(contentText(card({ id: 'x', type: 'explanation', title: 'Excerpt', excerpt: { kind: 'text', quote: { exact: 'verbatim words' } } })), 'verbatim words');
+  const ctx = context();
+  const blank = { kind: 'canvas', family: null, type: null, id: null, object: null, ids: [], part: null, point: { x: 0, y: 0 } };
+  for (const entry of TYPE_ACTIONS) if (typeof entry.label === 'function') assert.equal(typeof entry.label(blank, ctx), 'string', entry.id);
+});
