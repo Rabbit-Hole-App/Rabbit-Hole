@@ -1,0 +1,52 @@
+{
+  "rows": [
+    {
+      "caseId": "arcee-trinity-large-architecture-b9673a24",
+      "split": "example",
+      "outcome": "failed",
+      "result": "artifact",
+      "accepted": null,
+      "costUsd": 0.06376,
+      "error": "artifact"
+    },
+    {
+      "caseId": "backprop-hidden-weight-gradient-df8f15a2",
+      "split": "example",
+      "outcome": "failed",
+      "result": "artifact",
+      "accepted": null,
+      "costUsd": 0.07225,
+      "error": "artifact"
+    },
+    {
+      "caseId": "self-attention-context-vector-959e8622",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "error: The interactive explanation could not be checked (model HTTP 400), so nothing was added. Try again.",
+      "accepted": null,
+      "costUsd": 0.231335,
+      "error": "error: The interactive explanation could not be checked (model HTTP 400), so nothing was added. Try again."
+    },
+    {
+      "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "error: Artifact generation unavailable (model HTTP 400). Try again.",
+      "accepted": null,
+      "costUsd": 0,
+      "error": "error: Artifact generation unavailable (model HTTP 400). Try again."
+    }
+  ],
+  "spentUsd": 0.85226,
+  "correction": {
+    "at": "2026-10-22T09:39:54.950Z",
+    "actualSpentUsd": 0.367345,
+    "why": "spentUsd above counted worst-case estimates for HTTP 400 replies, which are not billed (runner fixed in the same commit)",
+    "rows": {
+      "arcee-trinity-large-architecture-b9673a24": "error \"artifact\" means /explain returned a non-scene primitive (one author call, 1299 output tokens); the block was not saved by this first runner version, so its content is lost",
+      "backprop-hidden-weight-gradient-df8f15a2": "same: non-scene primitive, 1639 output tokens, block not saved",
+      "self-attention-context-vector-959e8622": "author, verify, repair succeeded; the second verify was refused with HTTP 400 because the account reached its API usage limit",
+      "deepseek-v3-mla-vs-mha-eea4928a": "author refused with HTTP 400: API usage limit reached (verified with count_tokens: You have reached your specified API usage limits. You will regain access on 2026-11-01 at 00:00 UTC.)"
+    }
+  }
+}

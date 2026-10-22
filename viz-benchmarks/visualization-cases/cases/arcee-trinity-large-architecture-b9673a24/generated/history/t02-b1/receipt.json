@@ -1,0 +1,23 @@
+{
+  "system": "baseline",
+  "costUsd": 0.06376,
+  "calls": 1,
+  "servedModels": [
+    "claude-opus-5"
+  ],
+  "elapsedMs": 23926,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "caseId": "arcee-trinity-large-architecture-b9673a24",
+  "runId": "t02-b1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "example",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "artifact",
+  "outputSha256": null,
+  "promptSha256": "9ededa3f72728e60797b4d164787d2f9efa80a2cf3c097773a6f0cdb7fd02c51",
+  "recordedAt": "2026-10-22T09:37:09.886Z"
+}

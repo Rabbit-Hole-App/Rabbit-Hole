@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "frozenAt": "2026-10-22T08:53:34.108Z",
+  "frozenAt": "2026-10-22T09:36:23.678Z",
   "systemSha": "6f0b7a3e47e53d62e0f2f8429dc87b36605024b4",
   "modelPolicy": {
     "role": "artifact",
@@ -28,9 +28,7 @@
     "packages/web/src/animation-scene.js": "a599d07403a415806e0ab8fad823ab16ae04f87bfc8659c9a8d165f19cedf57f",
     "packages/web/src/AnimatedScene.jsx": "fd8cd757d8c2c0ea6dfbbef3eb52f20b6874a5f06758f94e1c820f3179ab35d7",
     "packages/web/src/scene-layout.js": "c4d54e8d7e9ce960f82a07431168500a7a901f54f1c46dd1dc2436c31def563c",
-    "packages/web/src/scene-style.js": "cf8a973157ebb9e9cddee49bd17924b539b785af0537ff8988197027985ab90f",
-    "packages/web/render/render-scene.jsx": "01de346ae3a2c6b47a848d25d837dc2cc4e92c756df181d31f58f05f28343bcc",
-    "packages/control-plane/src/explain-render.js": "98a563bc363b1676be2e003f6da0bc471d38f152dca1da7d87b3ece68e9b0f16"
+    "packages/web/src/scene-style.js": "cf8a973157ebb9e9cddee49bd17924b539b785af0537ff8988197027985ab90f"
   },
   "disclosure": "Historical providers are not replayed: this is the system at systemSha with whatever model the provider serves for the requested id today; served ids are recorded per call."
 }

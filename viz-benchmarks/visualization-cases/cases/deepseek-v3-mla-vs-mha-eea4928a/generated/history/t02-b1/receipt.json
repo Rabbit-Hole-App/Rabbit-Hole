@@ -1,0 +1,21 @@
+{
+  "system": "baseline",
+  "costUsd": 0,
+  "calls": 1,
+  "servedModels": [],
+  "elapsedMs": 216,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+  "runId": "t02-b1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "heldout",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "error: Artifact generation unavailable (model HTTP 400). Try again.",
+  "outputSha256": null,
+  "promptSha256": "179604036a0ecea0c0e01ef6e062310f2d2e8cae78152b5e8c59e3ff4541248e",
+  "recordedAt": "2026-10-22T09:38:29.283Z"
+}

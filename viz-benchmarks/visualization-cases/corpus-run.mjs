@@ -37,8 +37,9 @@ export async function runCorpus({ runId, system, cases, inputMode = 'prompt-only
       } else {
         const out = await generateCase(record, inputMode, { transport, capUsd: capUsd - spent, prices, casesRoot, frozen: assertFrozen(join(casesRoot, 'baseline.json')) });
         spent += out.ledger.spentUsd;
-        prompt = out.prompt; scene = out.scene; extra = { result: out.outcome };
-        if (!scene) error = out.outcome;
+        prompt = out.prompt; scene = out.scene; extra = { result: out.outcome, primitive: out.result?.primitive ?? null };
+        if (!scene && out.result?.block) { spec = out.result.block; error = `not rendered: /explain returned the ${out.result.primitive} primitive, which is not a scene`; }
+        else if (!scene) error = out.outcome;
       }
       if (scene) {
         const png = await render(scene);
