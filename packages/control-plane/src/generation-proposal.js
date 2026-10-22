@@ -156,21 +156,44 @@ export async function reviseSettings(env, p, settings, user, bind = null) {
   return { proposal: await signProposal(env, { ...p, settings: checked.value, input: { ...p.input, ...bind } }, user, { id: p.proposal_id, version: p.version + 1 }) };
 }
 
-// MOT-22: the server's record of a proposal is the learner's chat on the proposal's canvas (LEARN_DB chat_message_meta): each
-// revision is an answer's meta.proposal (a settings change rewrites its row, a chat refinement adds a row), and the one revision
-// that made a video carries meta.proposalUsed {version, key}. Only the single highest version may change or start; every write
-// is a compare-and-swap on the row's exact text, so a revision and a Generate cannot both win.
+// MOT-22: ONE authoritative state per proposal, {version, sig, used}, kept as meta.proposalState on its root answer row (the
+// first version's, in LEARN_DB chat_message_meta: no migration). Every revision is published, and the one Generate is consumed,
+// by a compare-and-swap on that root row's exact text: a chat refinement (whichever row its answer lands on), a settings save
+// (whichever card it edits) and a Generate can never both win, and only the published current revision starts, once.
+// A proposal saved before this state existed takes its single highest version as its state; its first write moves it here.
 // shortcut: threads has no (user, scope_ref) index, so this scans the learner's threads; add one with the next threads migration.
 const RECORD = "SELECT mm.message_id, mm.meta_json FROM chat_message_meta mm JOIN threads t ON t.id = mm.thread_id WHERE t.user = ? AND t.scope_ref = ? AND mm.role = 'assistant' AND json_extract(mm.meta_json, '$.proposal.proposal_id') = ?";
 export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the latest card in the chat.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
+export const proposalState = p => ({ version: p.version, sig: p.sig, used: null });
+// -> {rows, root, state, current}: current is the published revision's proposal (null while its answer is being written).
 export async function proposalRecord(db, user, app, id) {
   const { results } = await db.prepare(RECORD).bind(user, app, id).all();
   const rows = results.map(r => ({ messageId: Number(r.message_id), raw: r.meta_json, meta: JSON.parse(r.meta_json) }));
-  const top = Math.max(0, ...rows.map(r => r.meta.proposal.version));
-  const latest = rows.filter(r => r.meta.proposal.version === top);
-  // Two rows at the top version (a chat refinement and a settings change raced): neither is current until the next revision.
-  return { rows, latest: latest.length === 1 ? latest[0] : null, used: rows.find(r => r.meta.proposalUsed)?.meta.proposalUsed ?? null };
+  let root = rows.find(r => r.meta.proposalState);
+  if (!root) {
+    const top = Math.max(0, ...rows.map(r => r.meta.proposal.version)), latest = rows.filter(r => r.meta.proposal.version === top);
+    root = latest.length === 1 ? latest[0] : null;
+  }
+  const state = root ? root.meta.proposalState ?? { ...proposalState(root.meta.proposal), used: root.meta.proposalUsed ?? null } : null;
+  const holder = state ? rows.find(r => r.meta.proposal.sig === state.sig) : null;
+  return { rows, root, state, current: holder?.meta.proposal ?? null, currentMessageId: holder ? String(holder.messageId) : null };
+}
+// The compare-and-swap every change goes through: the root row exactly as it was read. -> a statement; run() changes 1 when it landed.
+const swapRoot = (db, root, state, meta = root.meta) => db.prepare('UPDATE chat_message_meta SET meta_json = ? WHERE message_id = ? AND meta_json = ?').bind(JSON.stringify({ ...meta, proposalState: state }), root.messageId, root.raw);
+const landed = result => result?.meta?.changes === 1;
+// A chat refinement publishes its new revision against the state its turn read. -> true when it became current.
+export async function publishRevision(db, record, proposal) {
+  return landed(await swapRoot(db, record.root, proposalState(proposal)).run());
+}
+// A settings save of the card at messageId (row: its meta and exact text), made from expectedVersion. -> {proposal} or {conflict}.
+export async function saveRevision(db, record, { messageId, raw, meta }, proposal) {
+  const state = proposalState(proposal);
+  if (record.root.messageId === messageId) return landed(await swapRoot(db, record.root, state, { ...meta, proposal }).run()) ? { proposal } : { conflict: true };
+  const [published] = await db.batch([swapRoot(db, record.root, state),
+    db.prepare("UPDATE chat_message_meta SET meta_json = ? WHERE message_id = ? AND meta_json = ? AND EXISTS (SELECT 1 FROM chat_message_meta r WHERE r.message_id = ? AND json_extract(r.meta_json, '$.proposalState.sig') = ?)")
+      .bind(JSON.stringify({ ...meta, proposal }), messageId, raw, record.root.messageId, proposal.sig)]);
+  return landed(published) ? { proposal } : { conflict: true };
 }
 // Generate: -> null once p, the current revision on this canvas, is consumed by the press key (or already was, by this key),
 // else {error, code}. Called before any hold or orchestrator call. dest {org, app}: the authorized canvas the request is for,
@@ -178,22 +201,20 @@ export async function proposalRecord(db, user, app, id) {
 // without one is refused until its next revision (a settings change or a chat refinement) binds it.
 export async function consumeProposal(db, p, user, dest, key) {
   if (!dest?.app || !dest.org || p.input?.app !== dest.app || p.input?.org !== dest.org) return { error: p.input?.app ? 'This proposal was made on another canvas. Ask for it again in chat here.' : 'This proposal needs refreshing: change a setting on its card or ask for it again in chat.', code: 'proposal_canvas' };
-  const app = dest.app;
-  const record = await proposalRecord(db, user, app, p.proposal_id);
-  if (record.used) return record.used.key === key ? null : { error: PROPOSAL_USED, code: 'proposal_used' };
-  if (!record.latest || record.latest.meta.proposal.sig !== p.sig) return { error: record.rows.length ? PROPOSAL_STALE : 'This proposal is not in your chat on this canvas. Ask for it again in chat.', code: 'proposal_stale' };
-  const { meta } = await db.prepare('UPDATE chat_message_meta SET meta_json = ? WHERE message_id = ? AND meta_json = ?')
-    .bind(JSON.stringify({ ...record.latest.meta, proposalUsed: { version: p.version, key } }), record.latest.messageId, record.latest.raw).run();
-  return meta?.changes === 1 ? null : { error: PROPOSAL_STALE, code: 'proposal_stale' };
+  const record = await proposalRecord(db, user, dest.app, p.proposal_id);
+  if (!record.state) return { error: 'This proposal is not in your chat on this canvas. Ask for it again in chat.', code: 'proposal_stale' };
+  if (record.state.used) return record.state.used.key === key ? null : { error: PROPOSAL_USED, code: 'proposal_used' };
+  if (record.state.sig !== p.sig) return { error: PROPOSAL_STALE, code: 'proposal_stale' };
+  return landed(await swapRoot(db, record.root, { ...record.state, used: { version: p.version, key } }).run()) ? null : { error: PROPOSAL_STALE, code: 'proposal_stale' };
 }
-// A chat refinement revises the server's current revision, never the browser's copy: null when the browser's is from another
-// canvas, there is no single current revision, or it already made its video (the turn then proposes anew). An old unbound
-// proposal is found on this canvas's chat and bound by the refinement (index.js signs the turn's canvas into its input).
+// A chat refinement revises the server's current revision, never the browser's copy. -> {proposal, record}, or null when the
+// browser's is from another canvas, it already made its video, or none is current (the turn then proposes anew). An old
+// unbound proposal is found on this canvas's chat and bound by the refinement (index.js signs the turn's canvas into its input).
 export async function currentRevision(db, user, app, p) {
   if (!p || (p.input?.app != null && p.input.app !== app)) return null;
   try {
     const record = await proposalRecord(db, user, app, p.proposal_id);
-    return record.used || !record.latest ? null : record.latest.meta.proposal;
+    return record.state && !record.state.used && record.current ? { proposal: record.current, record } : null;
   } catch { return null; } // no chat tables on this database: nothing to revise
 }
 

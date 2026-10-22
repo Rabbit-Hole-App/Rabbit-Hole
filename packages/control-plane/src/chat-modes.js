@@ -330,7 +330,7 @@ const turnAnswers = async (db, first) => (await quiet(() => db.prepare('SELECT m
 // summary; then what answer_meta and done carry. A stopped partial is stored as { status: 'stopped' } and sends nothing.
 // proposal (UI-15, MOT-20): the signed generation proposal this answer made (generation-proposal.js), kept with it so it is drawn
 // again on reload; its card edits save over it (chat-proposal-route.js).
-export async function recordAnswer(db, { threadId, userMessageId, content, raw, stopped, chat, resolved, turn, prior, long, validate, proposal = null }) {
+export async function recordAnswer(db, { threadId, userMessageId, content, raw, stopped, chat, resolved, turn, prior, long, validate, proposal = null, proposalMeta = null }) {
   const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(threadId, 'assistant', content).first();
   const messageId = row.id, refs = bareRefs(chat.contextRefs), trailer = isObj(parse(raw)) ? parse(raw) : {};
   const alternativeOf = turn ? turn.first : null;
@@ -340,7 +340,7 @@ export async function recordAnswer(db, { threadId, userMessageId, content, raw, 
     const { actions, followUps } = validate(raw, { messageId: String(messageId), contextRefs: refs });
     const syllabus = resolved.mode === 'tutor' ? modelSyllabus(trailer.syllabus, refs) : null;
     const kind = resolved.mode === 'tutor' ? (syllabus ? 'syllabus' : 'clarify') : 'answer';
-    meta = { version: 1, mode: resolved.mode, kind, contextRefs: refs, actions, followUps, syllabus, ...(proposal ? { proposal } : {}) };
+    meta = { version: 1, mode: resolved.mode, kind, contextRefs: refs, actions, followUps, syllabus, ...(proposal ? { proposal } : {}), ...proposalMeta };
   }
   await quiet(() => db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) VALUES (?, ?, 'assistant', ?, ?)").bind(messageId, threadId, alternativeOf, JSON.stringify(meta)).run());
   const s = trailer.summary;
@@ -353,7 +353,7 @@ export async function recordAnswer(db, { threadId, userMessageId, content, raw, 
   const alternatives = turn ? [...new Set([String(turn.first), ...await turnAnswers(db, turn.first), String(messageId)])] : [String(messageId)];
   // kind and syllabus ride too, so a live Tutor answer renders its syllabus before any reload.
   return {
-    answerMeta: { messageId: String(messageId), actions: meta.actions, followUps: meta.followUps, alternatives, kind: meta.kind, syllabus: meta.syllabus, ...(meta.proposal ? { proposal: meta.proposal } : {}) },
+    answerMeta: { messageId: String(messageId), actions: meta.actions, followUps: meta.followUps, alternatives, kind: meta.kind, syllabus: meta.syllabus, ...(meta.proposal ? { proposal: meta.proposal } : {}), ...(meta.proposalConflict ? { proposalConflict: meta.proposalConflict } : {}) },
     done: { userMessageId: String(userMessageId), messageId: String(messageId) },
   };
 }

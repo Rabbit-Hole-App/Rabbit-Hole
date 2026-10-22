@@ -13,7 +13,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, generateProposal, proposalActive, proposalBlock } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict } from './generation-proposal-chat.js';
 import { withPrompt } from './card-prompt.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -25,13 +25,20 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
   const active = !made && !!ops?.insertCard && !!proposalBlock(p) && proposalActive(p, msgs);
-  const onSettingsChange = async settings => {
+  // MOT-22: a save names the revision it was made from. Refused because the proposal changed (another tab, a chat refinement or a
+  // Generate), it keeps the learner's choice beside the latest (settingsConflict), and the card shows the latest when it is this one.
+  const [conflict, setConflict] = useState(null);
+  const onSettingsChange = async (settings, base = p) => {
     if (!saved) return;
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setConflict(null);
     try {
-      const { proposal } = await api(`/api/learn/chat/messages/${m.messageId}/proposal`, { method: 'PUT', body: JSON.stringify({ settings }) });
+      const { proposal } = await api(`/api/learn/chat/messages/${m.messageId}/proposal`, { method: 'PUT', body: JSON.stringify({ settings, expected_version: base.version }) });
       setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal } } : x)));
-    } catch (failure) { setError(failure.message); } finally { setBusy(false); }
+    } catch (failure) {
+      const next = settingsConflict(failure, settings, m.messageId);
+      if (next?.here) setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: next.current } } : x)));
+      if (next) setConflict(next); else setError(failure.message);
+    } finally { setBusy(false); }
   };
   // MOT-22: the server refused this proposal's Generate (its card is marked, not counted as made): live again, with the reason.
   useEffect(() => {
@@ -49,6 +56,13 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     <div className="mt-2">
       <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} onGenerate={onGenerate} onSettingsChange={onSettingsChange} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
+      {conflict && (
+        <div role="alert" data-proposal-settings-conflict className="mt-1 flex flex-wrap items-center gap-2 text-xs text-danger">
+          <span>{conflict.message}</span>
+          {conflict.here && conflict.retryable && <button type="button" data-proposal-keep-mine onClick={() => onSettingsChange(conflict.draft, conflict.current)} className="rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Use mine</button>}
+        </div>
+      )}
+      {m.meta?.proposalConflict && <p data-proposal-conflict className="mt-1 text-xs text-ink-2">{refinementConflictText(m.meta.proposalConflict)}</p>}
     </div>
   );
 }

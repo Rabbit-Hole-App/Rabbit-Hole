@@ -34,6 +34,18 @@ const ADAPTERS = {
 };
 // -> the card to add, or null for a capability this build has no adapter for (its card cannot Generate).
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
+// MOT-22: a settings save the server refused because the proposal changed: the learner's choice (draft) beside the latest
+// (current). here: the latest is this answer's card, so it shows it and Use mine saves the draft from it; retryable: not generated.
+// -> null for any other failure.
+export function settingsConflict(problem, draft, messageId) {
+  const current = problem?.status === 409 ? problem.data?.current : null;
+  if (!current) return null;
+  const used = problem.data.code === 'proposal_used', seconds = s => `${s?.duration_seconds} seconds`;
+  return { draft, current, here: String(problem.data.current_message_id) === String(messageId), retryable: !used,
+    message: used ? `Not saved: this proposal already made a video. Your choice was ${seconds(draft)}.` : `Not saved: this proposal changed meanwhile. Latest: ${seconds(current.settings)} (version ${current.version}). Yours: ${seconds(draft)}.` };
+}
+// A chat refinement that lost to another revision: its text, kept with the answer, beside the current one.
+export const refinementConflictText = c => `Not applied: the proposal changed meanwhile. Your version: ${c.draft.title}. ${c.draft.description}`;
 // MOT-22: a Generate the server refused for its proposal (a newer version exists, it was made on another canvas or needs a
 // refresh, or it already made its video) marks its card proposalRefused: never the card this proposal made, so the latest
 // version stays live with Generate. The card and the proposal say why; ProposalSlot hears it by PROPOSAL_REFUSED_EVENT.
