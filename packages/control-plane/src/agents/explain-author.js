@@ -8,7 +8,7 @@ export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'componen
 // The author's tool, built from the catalogue it is offered: the VisualSpec's exact shape (explain-contract.js
 // visualSpecSchema), with component names limited to the registered ones. A real run with a bare object schema (2026-10-22,
 // spend.md row 2) wrote "type" for "component" and invented hints; the schema states the shape instead of leaving it to prose.
-const LABEL = { description: 'A label: plain text, or {"runs": [{"kind": "text", "text": "..."}, {"kind": "math", "tex": "..."}]} where math is supported.' };
+const LABEL = { description: 'A label: plain text, or {"runs": [{"kind": "text", "text": "<words>"}, {"kind": "math", "tex": "<LaTeX>"}]} where math is supported.' };
 export function authorTool(catalogue) {
   const names = catalogue.map(entry => entry.name);
   const spec = {
