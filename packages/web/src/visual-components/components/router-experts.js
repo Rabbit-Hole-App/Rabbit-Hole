@@ -8,7 +8,7 @@ import { validateLabelContent } from '../../explain-contract.js';
 import { labelledBox } from '../label.js';
 import { sides, textWidth } from '../text.js';
 
-const EW = 56, EH = 40, GAP = 8, ROW = 64, SKIP_W = 40;
+const EW = 56, EH = 40, GAP = 8, ROW = 64, SKIP_W = 32, SW = 88;
 
 export default {
   name: 'router-experts', version: 1,
@@ -50,7 +50,7 @@ export default {
     if (n - previous > 0) { cells.push({ skip: n - previous, x }); x += SKIP_W + GAP; }
     const routedW = x - GAP;
     const shared = Array.from({ length: params.sharedExperts }, (_, i) => i);
-    const sharedW = shared.length ? shared.length * (EW + GAP) - GAP : 0;
+    const sharedW = shared.length ? shared.length * (SW + GAP) - GAP : 0;
     const groupGap = shared.length ? 48 : 0;
     const rowW = sharedW + groupGap + routedW;
     const routedX = sharedW + groupGap;
@@ -86,21 +86,19 @@ export default {
       }
     }
     shared.forEach(i => {
-      const cx = offset + i * (EW + GAP);
-      objects.push({ id: `shared${i}`, type: 'box', initialState: { label: `S${i + 1}`, x: cx, y: expertY, w: EW, h: EH, role: 'input' } });
+      const cx = offset + i * (SW + GAP);
+      // Named on the box itself: a caption above sat where the bypass lands.
+      objects.push({ id: `shared${i}`, type: 'box', initialState: { label: shared.length === 1 ? 'Shared' : `Shared ${i + 1}`, x: cx, y: expertY, w: SW, h: EH, role: 'input' } });
       // Shared experts take every token directly; the router does not choose them.
-      objects.push({ id: `bypass${i}`, type: 'arrow', initialState: { from: { x: input.x, y: input.y + input.h / 2 }, to: { x: cx + EW / 2, y: expertY } } });
-      combine[`s${i}`] = { x: cx + EW / 2, y: expertY + EH };
+      objects.push({ id: `bypass${i}`, type: 'arrow', initialState: { from: { x: input.x, y: input.y + input.h / 2 }, to: { x: cx + SW / 2, y: expertY } } });
+      combine[`s${i}`] = { x: cx + SW / 2, y: expertY + EH };
     });
     const output = place(labelledBox({ id: 'output', label: validateLabelContent(params.output), role: 'output', minWidth: 200, maxWidth: 360 }), center, combineY);
     for (const [key, from] of Object.entries(combine)) {
       if (key === 'y') continue;
       objects.push({ id: `into${key}`, type: 'arrow', initialState: { from, to: { x: output.x + output.w / 2, y: output.y } } });
     }
-    if (shared.length) {
-      objects.push({ id: 'shared-caption', type: 'text', initialState: { text: shared.length === 1 ? 'shared, every token' : `${shared.length} shared, every token`, x: offset, y: expertY - 12, typography: 'annotation' } });
-    }
-    const caption = params.routing === 'switch' ? `each token goes to 1 of ${n} experts` : `each token goes to ${k} of ${n} experts${shared.length ? ` plus ${shared.length} shared` : ''}`;
+    const caption = params.routing === 'switch' ? `each token goes to 1 of ${n} experts` : `each token goes to ${k} of ${n} experts${shared.length ? ` plus ${shared.length} shared that every token uses` : ''}`;
     const captionY = output.y + output.h + 32;
     objects.push({ id: 'caption', type: 'text', initialState: { text: caption, x: 0, y: captionY, typography: 'caption' } });
     const w = Math.max(rowW, input.x + input.w, output.x + output.w, router.x + router.w, textWidth(caption, 'caption')), h = captionY + 8;
