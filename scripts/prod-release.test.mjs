@@ -15,7 +15,11 @@ const treeOf = s => TREES[s] ?? null;
 // A dev-deploy line with full provenance (r34 audit): tree, gate digest, build, bundle, run, version.
 const row = o => ({ tree: treeOf(o.sha), gate_digest: '0123456789abcdef', build: 'b1', bundle: 'w1', run: '37971669845.1', version: 'c9c9cf3d', ...o });
 const GREEN = `${JSON.stringify(row({ sha: SHA, gates: 'pass', smoke: 'pass', worker: 'rabbit-hole-web-dev-small-parallel' }))}\n`;
-const ok = { sha: SHA, onMain: true, devRecord: GREEN, head: SHA, clean: true, treeOf };
+// verify-evidence.mjs runs output: the newest fast-e2e and verify runs of SHA, both completed successes (OPS-04).
+const FAST = '.github/workflows/fast-e2e.yml', VERIFY = '.github/workflows/verify.yml';
+const ciRun = (path, o = {}) => ({ id: 39719683140, run_attempt: 1, path, head_sha: SHA, event: 'push', status: 'completed', conclusion: 'success', html_url: 'https://github.com/x', run_started_at: '2026-10-22T03:57:33Z', ...o });
+const RUNS = { sha: SHA, runs: { [FAST]: [ciRun(FAST)], [VERIFY]: [ciRun(VERIFY)] } };
+const ok = { sha: SHA, onMain: true, devRecord: GREEN, runs: RUNS, head: SHA, clean: true, treeOf };
 const released = { hold: false, sha: SHA, build: 'abc123', approve: `RELEASE ${SHA} abc123`, prepared: { sha: SHA, build: 'abc123' }, head: SHA, clean: true };
 
 test('the production hold is lifted (owner, 2026-10-09), and the hold is a reviewed code line, never a flag', () => {
@@ -91,6 +95,35 @@ test('UI only (owner, 2026-10-21): a reused deploy with another build releases o
   assert.equal(greenDevDeploy(SHA, record, { isAncestor: () => false, treeOf, uiOnly: yes }), null, 'G must still be an ancestor');
   assert.notEqual(record.replace('"app_gate_sha":"' + G + '","smoke":"pass"', 'x'), record);
   assert.equal(greenDevDeploy(SHA, record.replace('"app_gate_sha":"' + G + '","smoke":"pass"', '"app_gate_sha":"' + G + '","smoke":"fail"'), { isAncestor: yes, treeOf, uiOnly: yes }), null, 'its own smoke must pass');
+});
+
+test('OPS-04: a green dev deploy, fully gated or on a green ancestor gate (UI only), never releases without a successful fast-e2e and verify run of the exact sha', () => {
+  // UI-17 14310051 (2026-10-21) released on batch F's gate while its own fast-e2e run 39719683140 had failed.
+  const G = 'c'.repeat(40), line = o => `${JSON.stringify(row(o))}\n`, yes = () => true;
+  const reusedRecord = line({ sha: G, gates: 'pass', smoke: 'pass', build: 'b1', bundle: 'w1' }) + line({ sha: SHA, gates: 'reused', app_gate_sha: G, smoke: 'pass', build: 'b2', bundle: 'w2' });
+  const records = [['full gate', { devRecord: GREEN }], ['UI-only reuse of a green ancestor gate', { devRecord: reusedRecord, isAncestor: yes, uiOnly: yes }]];
+  const bad = [
+    ['failed', { [FAST]: [ciRun(FAST, { conclusion: 'failure' })] }, /fast-e2e run 39719683140\.1 of 42f5a4f0 is completed\/failure/],
+    ['in progress', { [FAST]: [ciRun(FAST, { status: 'in_progress', conclusion: null })] }, /fast-e2e run .* is in_progress\/null/],
+    ['queued', { [FAST]: [ciRun(FAST, { status: 'queued', conclusion: null })] }, /is queued\/null/],
+    ['cancelled', { [FAST]: [ciRun(FAST, { conclusion: 'cancelled' })] }, /is completed\/cancelled/],
+    ['missing', { [FAST]: [] }, /no fast-e2e run of 42f5a4f0/],
+    ['wrong sha', { [FAST]: [ciRun(FAST, { head_sha: G })] }, /no fast-e2e run of 42f5a4f0 \(the runs read are of cccccccc\)/],
+    ['a newer attempt failed', { [FAST]: [ciRun(FAST), ciRun(FAST, { id: 2, run_attempt: 2, conclusion: 'failure', run_started_at: '2026-10-22T05:00:00Z' })] }, /run 2\.2 .* completed\/failure/],
+    ['verify failed', { [VERIFY]: [ciRun(VERIFY, { conclusion: 'failure' })] }, /verify run .* completed\/failure/],
+    ['verify missing', { [VERIFY]: [] }, /no verify run of 42f5a4f0/],
+  ];
+  for (const [kind, record] of records) {
+    assert.equal(checkPrepare({ ...ok, ...record }), null, `${kind} with good runs releases`);
+    assert.match(checkPrepare({ ...ok, ...record, runs: null }), /no CI run evidence/, `${kind}, runs never read`);
+    for (const [state, runs, why] of bad) {
+      const err = checkPrepare({ ...ok, ...record, runs: { sha: SHA, runs: { ...RUNS.runs, ...runs } } });
+      assert.match(err, /^refused: 42f5a4f0\S+ needs a successful fast-e2e and verify run of this exact commit; a gate, its own or reused, never stands in for them:\n- /, `${kind} + ${state}`);
+      assert.match(err, why, `${kind} + ${state}`);
+    }
+  }
+  const after = { [FAST]: [ciRun(FAST, { conclusion: 'failure' }), ciRun(FAST, { id: 2, run_attempt: 2, run_started_at: '2026-10-22T05:00:00Z' })] };
+  assert.equal(checkPrepare({ ...ok, runs: { sha: SHA, runs: { ...RUNS.runs, ...after } } }), null, 'a newer passing attempt of the same sha clears a failed one');
 });
 
 test('prepare refuses another checkout or a dirty tree, and passes the exact green commit', () => {
@@ -222,7 +255,7 @@ test('the production workflow: a push to main only, the production environment, 
   assert.match(wf, /on:\n  push:\n    branches: \[main\]\n/, 'push to main is the only trigger');
   assert.doesNotMatch(wf, /pull_request|workflow_run|workflow_dispatch|issue_comment/, 'nothing else starts a release');
   assert.match(wf, /environment: production\n/);
-  assert.match(wf, /permissions:\n  contents: read\n/);
+  assert.match(wf, /permissions:\n  contents: read\n  actions: read # /, 'read-only: contents, and the Actions runs of this commit (OPS-04)');
   assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
   assert.match(wf, /notes --ref=dev-deploys show "\$GITHUB_SHA"[^\n]*\n[^\n]*\|\| \{[^}]*exit 1; \}/, 'never deployed on dev, never released');
   const prepare = wf.indexOf('prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record'), release = wf.indexOf('prod-release.mjs release --sha "$GITHUB_SHA" --build "$build" --approve "RELEASE $GITHUB_SHA $build"');
@@ -248,7 +281,7 @@ test('r34 audit: the build step never holds the deploy token, the deploy step ne
 
 test('a dirty-tree refusal names the changed paths, and the CLI bin is committed executable so npm ci on Linux leaves the tree clean', () => {
   // Run 37956890240 (2026-10-09): npm ci set packages/cli/bin/small.js to 755 on the runner and prepare refused with no path.
-  assert.equal(checkPrepare({ sha: SHA, onMain: true, devRecord: GREEN, treeOf, head: SHA, clean: false, changes: ' M packages/cli/bin/small.js' }), 'refused: the tracked tree has changes:\n M packages/cli/bin/small.js');
+  assert.equal(checkPrepare({ sha: SHA, onMain: true, devRecord: GREEN, runs: RUNS, treeOf, head: SHA, clean: false, changes: ' M packages/cli/bin/small.js' }), 'refused: the tracked tree has changes:\n M packages/cli/bin/small.js');
   assert.match(checkRelease({ ...released, clean: false, changes: ' M a.js' }), /changes:\n M a\.js$/);
   const mode = execFileSync('git', ['ls-tree', 'HEAD', 'packages/cli/bin/small.js'], { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' });
   assert.match(mode, /^100755 /);

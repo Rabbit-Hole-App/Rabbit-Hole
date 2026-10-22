@@ -295,7 +295,7 @@ test('the dev workflow: a push to dev only, its gate note required, secrets only
   assert.match(wf, /if: github\.repository == 'Rabbit-Hole-App\/Rabbit-Hole'/);
   assert.match(wf, /notes --ref=gates show "\$GITHUB_SHA"/);
   assert.match(wf, /test -s "\$RUNNER_TEMP\/gate\.log" \|\| \{[^}]*exit 1; \}/, 'no gate note, no deploy');
-  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys --verify "\$RUNNER_TEMP\/verify\.json"\n/, 'the gates note decides full or reuse, never the workflow; the verify note is required');
+  assert.match(wf, /dev-deploy-gate\.mjs --sha "\$GITHUB_SHA" --gate "\$RUNNER_TEMP\/gate\.log" --dev-deploys dev-deploys --verify "\$RUNNER_TEMP\/verify\.json" --runs "\$RUNNER_TEMP\/ci-runs\.json"\n/, 'the gates note decides full or reuse, never the workflow; the verify note and the fast-e2e and verify runs are required');
   assert.match(wf, /test -s "\$RUNNER_TEMP\/verify\.json" \|\| \{[^}]*exit 1; \}/, 'no verify evidence, no deploy (r34 audit)');
   assert.match(wf, /seq 1 60\)[\s\S]*notes --ref=verify show "\$GITHUB_SHA"/, 'it waits for the verify run started by the same push');
   assert.doesNotMatch(wf, /--reuse|prod-release|wrangler deploy/, 'dev only, through dev-deploy');

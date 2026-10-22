@@ -134,6 +134,10 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
   - A stage that fails and then passes on an unchanged rerun is a flake.
     Record it in the release receipt and fix it in the next release.
 - Reuse evidence only where the current validator permits it.
+- Every deploy, dev or production, full gate or reused, needs the newest fast-e2e and verify
+  runs of the exact candidate SHA to be completed successes (OPS-04, owner 2026-10-21).
+  A green ancestor gate never stands in for them. Push the candidate to its integration branch
+  and let fast-e2e finish before `dev` and `main`.
 - Keep production, migration and paid-call approvals unchanged.
 - Report implemented, locally verified, release-verified and production-activated separately
   ([Production GO means a usable feature](#production-go-means-a-usable-feature)).
@@ -306,7 +310,8 @@ reuses the last passing gate: its gates note is `reuse <gated main sha>`. Reusab
 `packages/web/src/**`, `packages/web/test/**`, `packages/web/e2e/**` (not `production-bundle-check.mjs`),
 `packages/web/public/**`, `docs/**` and root `*.md`, minus every file a Worker bundles (the
 `workerGraph` of `scripts/dev-deploy.mjs`). A path naming credit, allowance, usage, motion, video, sign-in,
-auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA. Server
+auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA, and every deploy
+still needs the newest fast-e2e and verify runs of that exact SHA to have passed (OPS-04). Server
 code, money, sign-in, schema or migrations, config, dependencies and workflows keep the gate. A mixed
 batch needs the gate. Check a diff with `notReusableBetween` in `scripts/dev-deploy.mjs`.
 

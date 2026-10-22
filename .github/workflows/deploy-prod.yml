@@ -1,6 +1,7 @@
 # A push to main releases production (owner 2026-10-08, B1), only when scripts/prod-release.mjs allows it:
 # the exact commit has a green dev deployment (fresh full gate and smoke pass, from refs/notes/dev-deploys),
 # the production preflight finds no missing or forbidden secret and no pending migration, and HOLD is lifted.
+# OPS-04 (owner 2026-10-21): and the newest fast-e2e and verify runs of the exact commit completed successfully, gate reused or not.
 # It never applies a migration. While HOLD is true the release step stops before any remote call.
 name: release production
 on:
@@ -8,6 +9,7 @@ on:
     branches: [main]
 permissions:
   contents: read
+  actions: read # scripts/verify-evidence.mjs runs reads this commit's fast-e2e and verify runs
 concurrency:
   group: production
   cancel-in-progress: false
@@ -32,6 +34,11 @@ jobs:
           # A reused-gate deploy names its base G; prod-release checks G's own record too.
           g="$(grep -o '"app_gate_sha":"[0-9a-f]\{40\}"' "$RUNNER_TEMP/dev-deploys.jsonl" | head -n 1 | cut -d'"' -f4)"
           if [ -n "$g" ]; then git notes --ref=dev-deploys show "$g" >> "$RUNNER_TEMP/dev-deploys.jsonl" 2>/dev/null || { echo "its base $g has no dev deploy record: not released"; exit 1; }; fi
+      # Before any install: the Actions API read (GET only), so no npm script ever holds the token. prepare decides on it.
+      - name: Fast-e2e and verify runs of this commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/verify-evidence.mjs runs --sha "$GITHUB_SHA" --out "$RUNNER_TEMP/ci-runs.json"
       - run: node scripts/lock-natives.mjs --check
       - run: npm ci --no-audit --no-fund
       - run: node scripts/ensure-natives.mjs
@@ -39,7 +46,7 @@ jobs:
       - name: Prepare (build, no deploy credential)
         env:
           VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
-        run: node scripts/prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record "$RUNNER_TEMP/dev-deploys.jsonl"
+        run: node scripts/prod-release.mjs prepare --sha "$GITHUB_SHA" --dev-record "$RUNNER_TEMP/dev-deploys.jsonl" --runs "$RUNNER_TEMP/ci-runs.json"
       # Release rebuilds nothing: it re-hashes the prepared bundles, checks production, deploys, smokes and recovers.
       - name: Release
         env:

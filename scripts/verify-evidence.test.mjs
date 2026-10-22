@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkEvidence, lockDigest, LOCKS } from './verify-evidence.mjs';
+import { checkEvidence, lockDigest, LOCKS, runBlockers, latestRun } from './verify-evidence.mjs';
 
 const SHA = 'a'.repeat(40), TREE = 'b'.repeat(40);
 const locks = { 'package-lock.json': '0123456789abcdef', 'uv.lock': 'fedcba9876543210' };
@@ -43,4 +43,61 @@ test('the verify workflow is unprivileged and keyless: read-only, no secrets, ma
   assert.doesNotMatch(verify, /contents: write/, 'the verify job holds no write');
   assert.match(record, /permissions:\n      contents: write[\s\S]*notes --ref=verify add -f/, 'only the record job writes, only the note');
   for (const uses of wf.match(/uses: \S+/g)) assert.match(uses, /@[0-9a-f]{40}$/, `${uses} is pinned`);
+});
+
+// OPS-04 (owner, 2026-10-21): UI-17 14310051 shipped with its own fast-e2e run 39719683140 failed. Every deploy needs
+// the newest fast-e2e and verify runs of exactly the candidate sha completed successfully.
+const FAST = '.github/workflows/fast-e2e.yml', VERIFY = '.github/workflows/verify.yml';
+const run = (path, o = {}) => ({ id: 39719683140, run_attempt: 1, path, head_sha: SHA, head_branch: 'fix/x', event: 'push', status: 'completed', conclusion: 'success',
+  html_url: 'https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39719683140', created_at: '2026-10-22T03:57:33Z', run_started_at: '2026-10-22T03:57:33Z', ...o });
+const ev = (fast, verify = [run(VERIFY, { id: 39719683146 })]) => ({ sha: SHA, runs: { [FAST]: fast, [VERIFY]: verify } });
+
+test('runBlockers: a completed success of fast-e2e and verify at exactly this sha passes', () => {
+  assert.deepEqual(runBlockers(ev([run(FAST)]), SHA), []);
+});
+
+test('runBlockers: a failed, running, queued, cancelled, missing or other-sha fast-e2e run blocks, each with its reason', () => {
+  const cases = [
+    [[run(FAST, { conclusion: 'failure' })], /^fast-e2e run 39719683140\.1 of aaaaaaaa is completed\/failure, not a completed success: https:/],
+    [[run(FAST, { status: 'in_progress', conclusion: null })], /is in_progress\/null, not a completed success/],
+    [[run(FAST, { status: 'queued', conclusion: null })], /is queued\/null/],
+    [[run(FAST, { conclusion: 'cancelled' })], /is completed\/cancelled/],
+    [[run(FAST, { conclusion: 'skipped' })], /is completed\/skipped/],
+    [[], /^no fast-e2e run of aaaaaaaa; push the commit to a branch other than main or dev/],
+    [[run(FAST, { head_sha: 'c'.repeat(40) })], /^no fast-e2e run of aaaaaaaa \(the runs read are of cccccccc\)/],
+    [[run(VERIFY)], /^no fast-e2e run of aaaaaaaa/], // another workflow's run never counts
+  ];
+  for (const [fast, why] of cases) { const b = runBlockers(ev(fast), SHA); assert.equal(b.length, 1, String(why)); assert.match(b[0], why); }
+});
+
+test('runBlockers: verify is required the same way, and missing or foreign evidence blocks', () => {
+  assert.match(runBlockers(ev([run(FAST)], [run(VERIFY, { conclusion: 'failure' })]), SHA)[0], /^verify run .* completed\/failure/);
+  assert.match(runBlockers(ev([run(FAST)], []), SHA)[0], /^no verify run of aaaaaaaa/);
+  assert.match(runBlockers(ev([run(FAST)], [run(VERIFY, { event: 'pull_request' })]), SHA)[0], /^no verify run/, 'a pull_request run tests a merge tree');
+  assert.deepEqual(runBlockers(ev([run(FAST, { conclusion: 'failure' })], []), SHA).length, 2, 'every gap is named');
+  assert.match(runBlockers(null, SHA)[0], /no CI run evidence/);
+  assert.match(runBlockers({ sha: SHA }, SHA)[0], /no CI run evidence/);
+  assert.match(runBlockers({ ...ev([run(FAST)]), sha: 'c'.repeat(40) }, SHA)[0], /evidence is for cccccccc, not aaaaaaaa/);
+});
+
+test('runBlockers: the newest attempt wins, a rerun included', () => {
+  const failed = run(FAST, { id: 1, conclusion: 'failure', run_started_at: '2026-10-22T03:00:00Z' });
+  const rerunPassed = run(FAST, { id: 1, run_attempt: 2, run_started_at: '2026-10-22T05:00:00Z' }); // the API lists a run at its newest attempt
+  const otherBranchPassed = run(FAST, { id: 2, run_started_at: '2026-10-22T04:00:00Z' });
+  assert.deepEqual(runBlockers(ev([failed, otherBranchPassed]), SHA), [], 'a later passing run of the same sha');
+  assert.deepEqual(runBlockers(ev([rerunPassed, otherBranchPassed]), SHA), [], 'a rerun attempt that passed');
+  assert.match(runBlockers(ev([otherBranchPassed, run(FAST, { id: 1, run_attempt: 2, conclusion: 'failure', run_started_at: '2026-10-22T05:00:00Z' })]), SHA)[0], /run 1\.2 .* completed\/failure/, 'an earlier success never outvotes a newer failure');
+  assert.match(runBlockers(ev([otherBranchPassed, run(FAST, { id: 3, status: 'in_progress', conclusion: null, run_started_at: '2026-10-22T06:00:00Z' })]), SHA)[0], /run 3\.1 .* in_progress/, 'nor a newer run still going');
+  assert.equal(latestRun([run(FAST, { id: 5 }), run(FAST, { id: 6 })], { sha: SHA, path: FAST }).id, 6, 'same start: the higher run id');
+});
+
+test('the deploy workflows read the runs with actions: read before any install, and pass them to the deciding script', () => {
+  for (const [f, decide] of [['deploy-prod.yml', /prod-release\.mjs prepare [^\n]*--runs "\$RUNNER_TEMP\/ci-runs\.json"/], ['deploy-dev.yml', /dev-deploy-gate\.mjs [^\n]*--runs "\$RUNNER_TEMP\/ci-runs\.json"/]]) {
+    const wf = readFileSync(new URL(`../.github/workflows/${f}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+    assert.match(wf, /^permissions:\n(  .*\n)*  actions: read/m, f);
+    assert.match(wf, decide, f);
+    const read = wf.indexOf('verify-evidence.mjs runs --sha "$GITHUB_SHA" --out "$RUNNER_TEMP/ci-runs.json"');
+    assert.ok(read > 0 && (wf.indexOf('npm ci') < 0 || read < wf.indexOf('npm ci')), `${f}: the token is used before any npm script runs`);
+    assert.ok(read < wf.search(decide), `${f}: read before the decision`);
+  }
 });

@@ -1,5 +1,5 @@
 // Rabbit Hole production release job (docs/features/prod-release.md). Approved by hand, one exact commit at a time.
-//   node scripts/prod-release.mjs prepare --sha <40-hex sha>
+//   node scripts/prod-release.mjs prepare --sha <40-hex sha> --runs <file from verify-evidence.mjs runs>
 //   node scripts/prod-release.mjs release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>"
 // prepare builds locally and makes no network call. release deploys rabbit-hole-cp, then rabbit-hole-app.
 // It never applies a migration: a pending one is a blocker.
@@ -10,6 +10,7 @@ import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SOURCES, MASTER_SQL, expectedSchema, schemaDiff, schemaOf, mainMigrationDiff } from './schema-check.mjs';
 import { notReusableBetween } from './dev-deploy.mjs';
+import { runBlockers } from './verify-evidence.mjs';
 
 // Production hold (owner, 2026-10-07; lifted by the owner in Home's session 2026-10-09). While true, `release` exits
 // here before any remote call. Setting it again is a reviewed change to this line, never an environment variable or a flag.
@@ -79,10 +80,13 @@ export function greenDevDeploy(sha, recordText, { isAncestor = () => false, tree
 
 const dirty = changes => `refused: the tracked tree has changes${changes ? `:\n${changes}` : ''}`;
 
-export function checkPrepare({ sha, onMain, devRecord, head, clean, changes, isAncestor, treeOf, uiOnly }) {
+// runs: verify-evidence.mjs runs output for this sha. OPS-04: a green dev deploy, gated or reused, is not enough on its own.
+export function checkPrepare({ sha, onMain, devRecord, runs, head, clean, changes, isAncestor, treeOf, uiOnly }) {
   if (!SHA.test(sha || '')) return 'refused: --sha must be a full 40-character commit sha';
   if (!onMain) return `refused: ${sha} is not on origin/main (git fetch origin main first)`;
   if (!greenDevDeploy(sha, devRecord, { isAncestor, treeOf, uiOnly })) return `refused: no green dev deployment with provenance (tree, build, bundle, gate digest, run, version) is recorded for ${sha}`;
+  const ci = runBlockers(runs, sha);
+  if (ci.length) return `refused: ${sha} needs a successful fast-e2e and verify run of this exact commit; a gate, its own or reused, never stands in for them:\n- ${ci.join('\n- ')}`;
   if (head !== sha) return `refused: HEAD is ${head}, check out ${sha} first`;
   if (!clean) return dirty(changes);
   return null;
@@ -217,7 +221,8 @@ function bundleHash(sha) {
 function prepare(opts) {
   const { sha } = opts;
   const record = existsSync(devRecordPath(opts)) ? readFileSync(devRecordPath(opts), 'utf8') : '';
-  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, isAncestor, treeOf, uiOnly, ...tree() });
+  const runs = (() => { try { return JSON.parse(readFileSync(opts.runs, 'utf8')); } catch { return null; } })();
+  const err = checkPrepare({ sha, onMain: SHA.test(sha || '') && tryGit('merge-base', '--is-ancestor', sha, 'origin/main'), devRecord: record, runs, isAncestor, treeOf, uiOnly, ...tree() });
   if (err) return fail(err);
   const tldraw = process.env.VITE_TLDRAW_LICENSE_KEY
     || (existsSync(join(ROOT, '.env')) && readFileSync(join(ROOT, '.env'), 'utf8').match(/^VITE_TLDRAW_LICENSE_KEY=(.*)$/m)?.[1]?.trim());
@@ -331,5 +336,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try { opts = parseArgs(process.argv.slice(2)); } catch (e) { fail(e.message); }
   if (opts?.command === 'prepare') prepare(opts);
   else if (opts?.command === 'release') await release(opts);
-  else if (opts) fail('usage: prod-release.mjs prepare --sha <sha> | release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>" [--receipt <file>]');
+  else if (opts) fail('usage: prod-release.mjs prepare --sha <sha> --runs <file> | release --sha <sha> --build <hash> --approve "RELEASE <sha> <hash>" [--receipt <file>]');
 }
