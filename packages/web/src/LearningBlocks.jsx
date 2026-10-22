@@ -1075,27 +1075,18 @@ function QuizBody({ block, onChange, onFile }) {
   );
 }
 
-// The lesson paper reader, embedded as a canvas block: page navigation and
-// the red region-select both come from the existing LearnPaper component.
-// The first press on an unselected card selects it - so its Ask selection
-// pill appears - and only then do presses belong to the paper. Highlights are
+// The lesson paper reader, embedded as a canvas block: page navigation comes from the existing LearnPaper component;
+// a region of the page is asked about with the canvas toolbar's Ask about selection (EXP-T28).
+// The first press on an unselected card selects it, and only then do presses belong to the paper. Highlights are
 // saved on the block with their page; highlighter mode is a moment, not saved.
-function PaperBody({ block, appName, onChange, onAskRegion, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
+function PaperBody({ block, appName, onChange, selected = true, readOnly = false, onCadEdit, onCadExplain }) {
   const [highlighting, setHighlighting] = useState(false);
   return (
     <div className="flex min-h-0 flex-1 flex-col px-2 pb-2" onPointerDown={event => { if (selected || highlighting) event.stopPropagation(); }}>
-      <LearnPaper app={appName} paper={block.paper} selectRequest={block.selectRequest || 0} selectButton={false}
+      <LearnPaper app={appName} paper={block.paper}
         paintKey={block.id} highlights={block.highlights || []} onHighlights={next => onChange({ ...block, highlights: next })}
         highlighting={highlighting} onHighlighting={setHighlighting}
-        onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })}
-        onSelect={selection => {
-          // The marked region stays drawn on the page after asking, until it
-          // is cleared from the toolbar, the header pill or with Esc.
-          if (!selection) { onChange({ ...block, paper: { ...block.paper, selection: undefined } }); return; }
-          const next = { ...block, paper: { ...block.paper, selection: { region: selection.region } } };
-          onChange(next);
-          onAskRegion?.(next, selection);
-        }} />
+        onPage={page => onChange({ ...block, paper: { ...block.paper, page, selection: undefined } })} />
     </div>
   );
 }
@@ -1948,7 +1939,7 @@ export function LearningBlockBody({ block, onChange, onChangeQuiet, onFile, appN
   if (block.type === 'scene') return <SceneBody block={block} appName={appName} onChange={onChange} viewKey={viewKey} />;
   if (block.type === 'image') return <ImageBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
   if (block.type === 'video') return <VideoBody block={block} appName={appName} onChange={onChange} onFile={onFile} />;
-  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} onAskRegion={onAskRegion} selected={selected} />;
+  if (block.type === 'paper') return <PaperBody block={block} appName={appName} onChange={onChange} selected={selected} />;
   if (block.type === 'graph') return <GraphBody block={block} appName={appName} onChange={onChange} />;
   return null;
 }

@@ -644,19 +644,34 @@ await check('replay restarts a finished animation', async () => {
   await node.locator('[data-animation-play]').click(); // pause again for the next check
 });
 
-await check('pausing and marking a region asks about that moment', async () => {
+// EXP-T28: the canvas toolbar's Ask about selection is the one region path; the card has no region button of its own.
+await check('the toolbar crop over a paused card opens Chat focused with one named pill, the draft kept', async () => {
   const node = canvas.locator('[data-block-id]').last();
+  if (await node.locator('[data-animation-select]').count()) throw new Error('the card still has its own region button');
   await node.locator('input[aria-label="Animation time"]').fill('6');
-  await node.locator('[data-animation-select]').click();
+  await dock.fill('keep this draft');
+  await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
   const frame = await node.locator('[data-animation-frame]').boundingBox();
   await page.mouse.move(frame.x + frame.width * 0.2, frame.y + frame.height * 0.05);
   await page.mouse.down();
   await page.mouse.move(frame.x + frame.width * 0.8, frame.y + frame.height * 0.3, { steps: 10 });
   await page.mouse.up();
-  await page.locator('[data-canvas-target]').waitFor({ timeout: 5000 });
-  await node.locator('[data-animation-selection]').getByText('6.0s', { exact: false }).waitFor({ timeout: 3000 }); // the scene stays where it was paused
-  await node.locator('[data-animation-clear]').click();
-  if (await node.locator('[data-animation-selection]').count()) throw new Error('the marked region did not clear');
+  const pill = page.locator('[data-canvas-target]');
+  await pill.first().waitFor({ timeout: 20000 });
+  if (await pill.count() !== 1) throw new Error(`${await pill.count()} pills, expected one`);
+  const named = await pill.getAttribute('title');
+  if (!/^Canvas selection: Selected area · /.test(named || '') || /…|\.\.\./.test(named)) throw new Error(`pill title ${named}`);
+  for (let i = 0; i < 20 && !(await page.evaluate(() => !!document.activeElement?.closest?.('[data-chat-composer]'))); i++) await page.waitForTimeout(100);
+  if (!(await page.evaluate(() => !!document.activeElement?.closest?.('[data-chat-composer]')))) throw new Error('the Chat composer did not take the focus');
+  if (await dock.inputValue() !== 'keep this draft') throw new Error('the crop replaced the draft');
+  // An outside click takes the outline away and keeps the pill; its x removes the outgoing context.
+  const box = await canvas.boundingBox();
+  await page.mouse.click(box.x + 260, box.y + box.height - 30);
+  await page.waitForTimeout(300);
+  if (await pill.count() !== 1) throw new Error('an outside click removed the pill');
+  await pill.getByRole('button', { name: 'Clear block selection' }).click();
+  if (await pill.count()) throw new Error('the x did not remove the crop');
+  await dock.fill('');
 });
 
 await check('a scrubbed moment is what a question refers to', async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Pause, Play, RotateCcw, Scan, Volume2, VolumeX, X } from 'lucide-react';
+import { Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import katex from 'katex';
 // Equation objects render through katex.renderToString below, and without
 // its own stylesheet the output is unstyled markup. In the shipped app this
@@ -799,12 +799,6 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
             {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
           </button>
         )}
-        <button type="button" data-animation-select
-          title={block.marked ? 'Clear the marked region' : 'Mark a region to ask about'} aria-pressed={selecting}
-          onClick={() => (block.marked ? clearMark() : pauseAnd(() => setSelecting(value => !value)))}
-          className={`flex h-8 items-center rounded-lg border px-2.5 ${selecting ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'}`}>
-          {block.marked ? <X size={13} /> : <Scan size={13} />}
-        </button>
         <input type="range" aria-label="Animation time" min={0} max={scene.duration} step={0.05} value={time}
           onChange={event => pauseAnd(() => setTime(Number(event.target.value)))} className="h-8 min-w-0 flex-1 accent-accent" />
         <span className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>

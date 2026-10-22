@@ -57,6 +57,7 @@ import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
+import { areaTarget, cropBinding } from './area-crop.js';
 import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { looksLikeCode, pasteKind } from './canvas-paste.js';
@@ -896,19 +897,9 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
               {block.marked ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
             </button>
           )}
-          {block.type === 'paper' && (
-            <button type="button" title={block.paper?.selection ? 'Clear the marked region (or press Esc)' : 'Select a region of the page to ask about'}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={() => (block.paper?.selection
-                ? onChange({ ...block, paper: { ...block.paper, selection: undefined } })
-                : onChange({ ...block, selectRequest: (block.selectRequest || 0) + 1 }))}
-              className={`flex items-center gap-1.5 rounded-full border bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap shadow-md hover:bg-hover ${block.paper?.selection ? 'border-red-600 text-red-600' : 'border-line text-ink'}`}>
-              {block.paper?.selection ? <><X size={13} />Clear selection</> : <><Scan size={13} />Ask selection</>}
-            </button>
-          )}
           {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
           <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-          <SelectionActionsHost id={block.id} divider={cadTools || ['whiteboard', 'paper', 'code', 'snippet'].includes(block.type)} />
+          <SelectionActionsHost id={block.id} divider={cadTools || ['whiteboard', 'code', 'snippet'].includes(block.type)} />
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
@@ -1687,8 +1678,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // handles or ports; one plain ring is drawn over the selected card instead (data-view-selection).
   const isSelected = id => !readOnly && selection.includes(id);
   // Selection moving anywhere (a blank click, another object, Esc) releases every scene highlight it leaves behind
-  // (EXP-T27): one owner, through the quiet path, so deselecting takes no undo step.
-  const releaseHighlights = keep => setBlocks(previous => releaseSceneHighlights(previous, keep));
+  // (EXP-T27): one owner, through the quiet path, so deselecting takes no undo step. An area's outline goes with it too
+  // (EXP-T28): its pill stays until its x or Send, and an area an answer is linked from stays as that link's anchor.
+  const releaseHighlights = keep => {
+    setBlocks(previous => releaseSceneHighlights(previous, keep));
+    setAreas(previous => { const next = previous.filter(area => keep.includes(area.id) || exchanges.some(exchange => exchange.linkFrom === area.id)); return next.length === previous.length ? previous : next; });
+  };
   const setSelected = value => { setSelection(value == null ? [] : [value]); releaseHighlights(value == null ? [] : [value]); };
   const pickTool = value => { setTool(value); if (DRAWING_TOOLS.has(value)) setSelection([]); };
   // Selecting on the canvas takes the keyboard away from the composer so
@@ -3794,51 +3789,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       text: 'The lesson card this question was attached to was deleted from the canvas before the question was sent.',
     });
   }, [blocks, exchanges, items, askTargetId]);
-  // A red region drawn on a paper page arms the composer with its thumbnail
-  // and the page context, so the answer node links back to that paper block.
+  // A whiteboard's shape selection arms the composer (its own Ask selection pill). Every other region goes through the
+  // toolbar's Ask about selection (askArea, EXP-T28), which carries the animation moment and the paper page region.
   const askRegion = (block, selection) => {
+    if (block.type !== 'whiteboard') return;
     armedId.current = null;
-    if (block.type === 'whiteboard') {
-      onAskTargetRef.current?.({
-        id: block.id,
-        kind: 'Whiteboard selection',
-        title: block.title,
-        preview: selection.preview || undefined,
-        text: [
-          `Learner whiteboard: ${block.title}`,
-          `Selected shapes: ${selection.shapes.map(shape => `${shape.type}${shape.text ? ` "${shape.text}"` : ''} (${shape.author})`).join(', ')}`,
-        ].join(String.fromCharCode(10)),
-      });
-      return;
-    }
-    // An animation marks a moment, not a page: the question points at a time
-    // and the objects under the rectangle, and the scene stays where it was.
-    if (block.type === 'animation') {
-      onAskTargetRef.current?.({
-        id: block.id,
-        kind: 'Animation moment',
-        title: `${block.title} · ${selection.time}s`,
-        text: [
-          `Animation: ${block.title}`,
-          `Paused at ${selection.time}s of ${block.scene.duration}s`,
-          selection.targets?.length ? `Objects inside the marked region: ${selection.targets.join(', ')}` : 'The marked region contains no authored object.',
-          `Marked region (normalized x, y, w, h): ${JSON.stringify(selection.region)}`,
-        ].join(String.fromCharCode(10)),
-      });
-      return;
-    }
-    const described = describeBlock(block);
     onAskTargetRef.current?.({
       id: block.id,
-      kind: 'Paper selection',
-      title: `${block.title} · page ${block.paper.page}`,
-      text: `${described?.text || ''}\nThe learner marked this region of the page (normalized x, y, w, h): ${JSON.stringify(selection.region)}.`,
-      preview: selection.preview,
-      // The server validates selection.region and reads selection.preview for the
-      // crop it shows the model (paperSelectionImage). The sibling `preview`
-      // above is the composer's thumbnail, a different field - without this one
-      // asking about a marked region failed before it reached the model.
-      paper: { id: block.paper.id, page: block.paper.page, selection: { region: selection.region, preview: selection.preview } },
+      kind: 'Whiteboard selection',
+      title: block.title,
+      preview: selection.preview || undefined,
+      text: [
+        `Learner whiteboard: ${block.title}`,
+        `Selected shapes: ${selection.shapes.map(shape => `${shape.type}${shape.text ? ` "${shape.text}"` : ''} (${shape.author})`).join(', ')}`,
+      ].join(String.fromCharCode(10)),
     });
   };
   // A question asked about a block auto-links that block to its answer node. A card's answer goes beside its card in
@@ -4208,12 +4172,23 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   });
   // Ask about selection: a rectangle in page coordinates becomes a PNG of that part of the screen, the
   // cards it touches, and an ask target (LearnPage uploads the image so the tutor sees it).
+  const areaShot = useRef(0);
   const askArea = async rect => {
     const x = Math.min(rect.x1, rect.x2), y = Math.min(rect.y1, rect.y2), w = Math.abs(rect.x2 - rect.x1), h = Math.abs(rect.y2 - rect.y1);
     if (w * view.z < 8 || h * view.z < 8) return;
     const node = surface.current, box = node.getBoundingClientRect();
     const crop = { x: view.x + x * view.z, y: view.y + y * view.z, w: w * view.z, h: h * view.z };
     const inside = Object.entries(boundsRef.current).filter(([, b]) => b.x + b.w > x && b.x < x + w && b.y + b.h > y && b.y < y + h).map(([id]) => blocks.find(block => block.id === id)).filter(Boolean);
+    // EXP-T28: bind the crop to each card as it is now (id, revision, bounds, moment), measured before the slow capture.
+    const screen = { left: box.left + crop.x, top: box.top + crop.y, width: crop.w, height: crop.h };
+    const bindings = inside.map(block => {
+      const card = node.querySelector(`[data-block-id="${CSS.escape(block.id)}"]`);
+      if (!card) return null;
+      const objects = [...card.querySelectorAll('[data-animation-object]')].map(el => ({ id: el.getAttribute('data-animation-object'), rect: el.getBoundingClientRect() }));
+      return cropBinding(block, screen, { card: card.getBoundingClientRect(), page: card.querySelector('canvas[aria-label="Paper PDF page"]')?.getBoundingClientRect(), objects });
+    }).filter(Boolean);
+    // A later crop supersedes this one, and a canvas switched or closed meanwhile takes nothing from it.
+    const shot = ++areaShot.current, key = storageKeyRef.current;
     let preview = null, blob = null;
     try {
       const { toCanvas } = await import('html-to-image');
@@ -4227,23 +4202,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       preview = out.toDataURL('image/png');
       blob = await new Promise(resolve => out.toBlob(resolve, 'image/png'));
     } catch { /* the text of the cards inside still asks */ }
-    const titles = inside.map(block => block.title || block.type).filter(Boolean);
+    if (shot !== areaShot.current || key !== storageKeyRef.current || !node.isConnected) return;
     const id = `area:${Date.now().toString(36)}`;
     // The area rides on the card or slide under its centre, so it stays put when the column above it grows.
     const cx = x + w / 2, cy = y + h / 2;
     const host = Object.entries(boundsRef.current).find(([hostId, b]) => blocks.some(block => block.id === hostId) && cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h);
     setAreas(previous => [...previous, { id, x, y, w, h, ...(host ? { blockId: host[0], dx: x - host[1].x, dy: y - host[1].y } : {}) }]);
-    onAreaShotRef.current?.({
-      target: {
-        id, kind: 'Canvas selection',
-        title: titles.length ? `Selected area · ${titles.slice(0, 2).join(', ')}${titles.length > 2 ? '…' : ''}` : 'Selected area',
-        text: [
-          'The learner drew a rectangle on the canvas and asks about what is inside it; the attached image shows that area.',
-          titles.length ? `Cards inside or touching it: ${titles.join('; ')}` : 'No card is inside it, only the canvas itself.',
-        ].join(String.fromCharCode(10)),
-      },
-      preview, blob,
-    });
+    onAreaShotRef.current?.({ target: areaTarget({ id, bindings, preview }), preview, blob });
   };
   // With Ask about selection picked, a press anywhere - over cards too - starts the rectangle
   // (capture phase, before a card takes the press); the tool goes back to Select once it is drawn.

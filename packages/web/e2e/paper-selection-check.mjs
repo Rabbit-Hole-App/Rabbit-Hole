@@ -1,6 +1,7 @@
 // Verifies the paper region flow on the dev canvas: insert the paper block,
-// arm "Ask selection", drag a red box over a figure, ask, and confirm the
-// answer node appears, links to the paper, and the region stays marked.
+// draw the canvas toolbar's Ask about selection over a figure (EXP-T28: the
+// card has no Ask selection of its own), ask, and confirm the answer node
+// appears, links to the marked area, and the area stays marked.
 // Run: node e2e/paper-selection-check.mjs
 import { chromium } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -46,20 +47,17 @@ await check('one control row only', async () => {
   await paper.getByRole('button', { name: 'Next paper page' }).waitFor({ timeout: 3000 });
 });
 
-await check('Ask selection pill arms the picker', async () => {
+await check('the card has no Ask selection; the toolbar crop marks a red area over the page', async () => {
   await paper.locator('[data-drag-handle]').click();
-  await page.getByRole('button', { name: 'Ask selection' }).click();
-  await paper.locator('[aria-label="Select paper region"]').waitFor({ timeout: 5000 });
-});
-
-await check('dragging marks a red region', async () => {
-  const box = await paper.locator('[aria-label="Select paper region"]').boundingBox();
+  if (await page.getByRole('button', { name: 'Ask selection', exact: true }).count()) throw new Error('the paper card still has its own Ask selection');
+  await page.getByRole('button', { name: 'Ask about selection — drag over any part of the canvas' }).click();
+  const box = await paper.locator('canvas[aria-label="Paper PDF page"]').boundingBox();
   await page.mouse.move(box.x + box.width * 0.3, box.y + box.height * 0.12);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.42, { steps: 14 });
   await page.mouse.up();
-  await page.waitForTimeout(600);
-  const stroke = await paper.locator('[aria-label="Select paper region"] rect').getAttribute('stroke');
+  await canvas.locator('[data-area-mark] rect').first().waitFor({ timeout: 20000 });
+  const stroke = await canvas.locator('[data-area-mark] rect').first().getAttribute('stroke');
   if (stroke !== '#dc2626') throw new Error(`region not marked (${stroke})`);
 });
 
@@ -83,11 +81,11 @@ await check('answer arrives without a bounds error', async () => {
 });
 
 await check('red region survives the ask', async () => {
-  const stroke = await paper.locator('[aria-label="Select paper region"] rect').getAttribute('stroke');
+  const stroke = await canvas.locator('[data-area-mark] rect').first().getAttribute('stroke');
   if (stroke !== '#dc2626') throw new Error('region cleared after asking');
 });
 
-await check('answer node links to the paper block', async () => {
+await check('answer node links to the marked area', async () => {
   if (!(await canvas.locator('[data-connection]').count())) throw new Error('no connector drawn');
 });
 

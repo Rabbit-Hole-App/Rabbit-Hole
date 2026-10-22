@@ -47,6 +47,13 @@ test('the kept owner holds on, and with nothing to release the same array return
   assert.equal(releaseSceneHighlights(quiet), quiet);
 });
 
+test('a region left drawn on a paper page is released too; the page and the paper stay', () => {
+  const paper = { id: 'p', type: 'paper', paper: { id: '1706.03762', page: 3, selection: { region: { x: 0.1, y: 0.1, w: 0.2, h: 0.2 } } } };
+  const [next] = releaseSceneHighlights([paper]);
+  assert.deepEqual(next.paper, { id: '1706.03762', page: 3, selection: undefined });
+  assert.equal(holdsSceneHighlight(next), false);
+});
+
 test('a second card taking a highlight leaves exactly one holder', () => {
   const blocks = [scene('a', { selectedObject: 'tokens' }), scene('b', { marked: { x: 0, y: 0, w: 1, h: 1 } })];
   const next = releaseSceneHighlights(blocks, ['b']);
