@@ -121,8 +121,8 @@ test('a validated show reports its card on progress; a refused one never does', 
       tool('show_wikipedia', { title: 'X' }), tool('show_video', { videoId: 'v' }), tool('show_video', { videoId: 'w' }), text('Done.'),
     ][calls++],
   });
-  assert.deepEqual(stages.filter(entry => entry[1]), [['Opening YOLO...', 'paper'], ['show wikipedia...', 'wiki'], ['show video...', 'video']]);
-  assert.ok(stages.some(([stage]) => stage === 'search wikipedia...'), 'other tools still report before they run');
+  assert.deepEqual(stages.filter(entry => entry[1]), [['Opening YOLO', 'paper'], ['show wikipedia', 'wiki'], ['show video', 'video']]);
+  assert.ok(stages.some(([stage]) => stage === 'search wikipedia'), 'other tools still report before they run');
   assert.ok(stages.some(([stage, card]) => /^Retrieval failed: One video/.test(stage) && !card), 'the refused second video has no card');
 });
 test('the ask stream forwards a progress card and leaves other progress events as they were', () => {

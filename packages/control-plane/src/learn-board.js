@@ -216,44 +216,44 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     continuation.papers.forEach(p => papers.set(p.id, p));
   } else {
   for (const id of input.paperIds || []) {
-    onProgress('Reading paper from chat...');
+    onProgress('Reading paper from chat');
     const paper = await readPaper(id);
     papers.set(paper.id, paper);
     messages[0].content = typeof messages[0].content === 'string' ? [{ type: 'text', text: messages[0].content }] : messages[0].content;
     messages[0].content.push({ type: 'text', text: `Paper already retrieved for this chat: ${JSON.stringify(paper)}` }, paperDocument(paper));
   }
-  onProgress('Planning explanation...');
+  onProgress('Planning explanation');
   let planning = await invoke(drawingSystem, [PLAN_TOOL], forced(PLAN_TOOL), messages, LEARN_TASKS.board.maxTokens.plan);
   if (planning.call.name !== PLAN_TOOL.name) throw new Error('No teaching plan returned');
   planning = await validateOrRepair(planning, PLAN_TOOL, validateTeachingPlan, messages, LEARN_TASKS.board.maxTokens.plan);
   teachingPlan = planning.plan;
-  onProgress(`Preparing ${teachingPlan.depth.replace('_', ' ')} explanation...`);
+  onProgress(`Preparing ${teachingPlan.depth.replace('_', ' ')} explanation`);
   reply(planning.result, planning.call, 'Teaching plan recorded. Gather required assets, inspect them, and draft the explanation.');
   // Optional tools only: allow discovery/reading when useful, then force a final draft.
   for (let attempt = 0; attempt < BOARD_DRAFT_TURNS; attempt++) {
     const search = attempt < BOARD_DRAFT_TURNS - 1;
-    onProgress('Preparing explanation and assets...');
+    onProgress('Preparing explanation and assets');
     const { result, call } = await invoke(drawingSystem, [BOARD_TOOL, ...(search ? [SEARCH_ARXIV_TOOL, READ_ARXIV_TOOL, ...(env.PEXELS_API_KEY ? [PEXELS_TOOL, INSPECT_IMAGE_TOOL] : [])] : [])], search ? { type: 'any', disable_parallel_tool_use: true } : forced(BOARD_TOOL), messages, undefined, attempt > 0 ? 'tool' : null);
     if (call.name === BOARD_TOOL.name) { draft = await validateOrRepair({ result, call }, BOARD_TOOL, validateDraft, messages); break; }
     if (!search || ![PEXELS_TOOL.name, INSPECT_IMAGE_TOOL.name, SEARCH_ARXIV_TOOL.name, READ_ARXIV_TOOL.name].includes(call.name)) throw new Error('No canvas explanation returned');
     let content, is_error = false;
     try {
       if (call.name === SEARCH_ARXIV_TOOL.name) {
-        onProgress('Finding relevant papers...');
+        onProgress('Finding relevant papers');
         content = [{ type: 'text', text: JSON.stringify(await findPapers(call.input.query)) }];
       } else if (call.name === READ_ARXIV_TOOL.name) {
-        onProgress('Reading paper...');
+        onProgress('Reading paper');
         if (papers.size >= PAPERS_PER_ANSWER && !papers.has(call.input.id)) throw new Error('Use the two papers already read');
         const paper = await readPaper(call.input.id);
         papers.set(paper.id, paper);
         content = [{ type: 'text', text: JSON.stringify(paper) }, paperDocument(paper)];
       } else if (call.name === PEXELS_TOOL.name) {
-        onProgress('Finding photos...');
+        onProgress('Finding photos');
         const found = await searchPhotos(env, call.input.query);
         found.forEach(p => photos.set(p.id, p));
         content = [{ type: 'text', text: JSON.stringify(found) }];
       } else {
-        onProgress('Inspecting photo...');
+        onProgress('Inspecting photo');
         content = inspectImage(photos, call.input.photoId);
         inspected.add(call.input.photoId);
       }
@@ -269,7 +269,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     if (renderPreviews && plan.blocks.some(b => b.kind === 'paper_figure') && !previews) {
       return { previewPlan: plan, state: { input, teachingPlan, plan: draft.plan, previousReview, pass, formatRepairUsed, photos: [...photos.values()], inspected: [...inspected], papers: [...papers.values()] } };
     }
-    onProgress(`Reviewing explanation (${pass}/${BOARD_REVIEW_PASSES})...`);
+    onProgress(`Reviewing explanation (${pass}/${BOARD_REVIEW_PASSES})`);
     const content = [{ type: 'text', text: JSON.stringify({ question, answer, snapshot, history, repositoryEvidence, teachingPlan, plan, previousReview }) }];
     for (const photoId of new Set(plan.blocks.filter(b => b.kind === 'image').map(b => b.photoId))) content.push(...inspectImage(photos, photoId));
     for (const paper of papers.values()) content.push(paperDocument(paper));
@@ -281,7 +281,7 @@ export async function generateBoardPlan(env, input, { onProgress = () => {}, cal
     if (review.verdict === 'ready') return { ...plan, teachingPlan, review: { passes: pass, checks: review.checks } };
     if (pass === BOARD_REVIEW_PASSES) throw new Error(`The explanation did not pass review after one revision: ${review.findings[0].problem}`);
     previousReview = review;
-    onProgress('Revising explanation...');
+    onProgress('Revising explanation');
     const revisionContent = [{ type: 'text', text: JSON.stringify({ question, snapshot, history, repositoryEvidence, teachingPlan, rejectedPlan: draft.plan, review, availablePhotos: [...photos.values()], availablePapers: [...papers.values()], instruction: 'Return a complete corrected explanation. Check every requiredChange against the supplied original assets and change every affected block, including captions and diagram labels. The rejected draft is not evidence. If source wording differs between a figure, caption, and body, explicitly distinguish them rather than equating their claims. Remove unsupported claims; if the teaching objective cannot be supported, request clarification. Do not repeat the earlier chat answer as authority.' }) }];
     for (const photoId of inspected) revisionContent.push(...inspectImage(photos, photoId));
     for (const paper of papers.values()) revisionContent.push(paperDocument(paper));

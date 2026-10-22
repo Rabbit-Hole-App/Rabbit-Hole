@@ -162,7 +162,7 @@ test('review accepts the first candidate without a revision', async () => {
   } });
   assert.deepEqual(calls, ['plan_explanation', 'explain_on_canvas', 'review_explanation']);
   assert.equal(result.review.passes, 1);
-  assert.ok(stages.includes('Reviewing explanation (1/2)...'));
+  assert.ok(stages.includes('Reviewing explanation (1/2)'));
 });
 
 test('review provides feedback to exactly one revision and verifies it', async () => {
