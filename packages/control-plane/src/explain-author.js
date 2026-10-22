@@ -3,7 +3,9 @@
 // evidence and example checks, and capability gaps). The independent image review is Lane D's explain-review.js. Every model call goes through ctx.call: the job's admitted, fenced,
 // counted role call.
 import { COMPOSITION, catalogue } from '../../web/src/visual-components/registry.js';
-import { compileVisual } from '../../web/src/visual-components/compile.js';
+import { compileVisual, stateInputs } from '../../web/src/visual-components/compile.js';
+import { evaluateScene } from '../../web/src/scene-evaluate.js';
+import { captureMoments, canonicalJson } from './explain-render.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { sceneProblem } from './learn-scene-gates.js';
 import { authorTool, EXPLAIN_AUTHOR_SYSTEM, GAP_NEEDS } from './agents/explain-author.js';
@@ -13,7 +15,7 @@ import { learnMedia } from './learn-storage.js';
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // The spec and scene limits the author is told and the compiler enforces (explain-contract.js visualSpecSchema;
 // animation-scene.js: 240 objects, 60 on screen per part).
-// reviewedStates: parts x steps, each state rendered and reviewed as one image in a single review (explain-review.js maxImages).
+// reviewedStates: distinct frames (control states incl. parts x steps), each reviewed as one image in a single review (maxImages).
 export const SPEC_LIMITS = Object.freeze({ components: 40, connections: 80, parts: 4, objectsTotal: 240, objectsPerPart: 60, reviewedStates: 6 });
 const MAX_EXAMPLES = 2;
 // Lane A's composition guidance (registry.js COMPOSITION: card size, parts as a pager, overview and detail, containers) and
@@ -50,12 +52,13 @@ export function capabilityGaps(spec) {
   if (!can.experiment && spec?.presentation?.experiments?.length) needs.push('experiment');
   return needs;
 }
-const NEEDS_WORDS = { math: 'typeset math', steps: 'named steps', experiment: 'an interactive experiment', component: 'a kind of diagram that is not available yet', evidence: 'a source that is not available' };
+const NEEDS_WORDS = { math: 'typeset math', steps: 'named steps', experiment: 'an interactive experiment', component: 'a kind of diagram', evidence: 'a source' };
 export function capabilityGap(needs, reason, source) {
   const known = [...new Set(needs.filter(need => GAP_NEEDS.includes(need)))];
   if (!known.length) known.push('other');
   const words = known.filter(need => NEEDS_WORDS[need]).map(need => NEEDS_WORDS[need]);
-  const message = words.length ? `This explanation needs ${words.join(' and ')}, which is not supported yet. Ask for a simpler explanation or edit the request.` : 'This explanation needs something that is not supported yet. Edit the request.';
+  // One sentence, availability said once (L4 finding 2: 'a source that is not available and a kind of diagram that is not available yet, which is not supported yet').
+  const message = words.length ? `This explanation needs ${words.join(' and ')} that ${words.length > 1 ? 'are' : 'is'} not available yet, so ask for a simpler one or edit the request.` : 'This explanation needs something that is not available yet, so edit the request.';
   return { capability: 'explain', needs: known, source, message, reason: typeof reason === 'string' ? reason.trim().slice(0, 400) : null };
 }
 
@@ -160,10 +163,13 @@ export function validateStage(job) {
   return problems.length ? { problems, category: 'spec', repairable: true } : { compiled };
 }
 
-// Every step of every part is reviewed as its own image, so a card can have at most SPEC_LIMITS.reviewedStates of them.
+// Every distinct frame (control states, pager parts included, x steps or time checkpoints) is reviewed as its own image in one
+// review (explain-render.js captureManifest), so a card may draw at most SPEC_LIMITS.reviewedStates of them. Checked here, a
+// repairable spec problem, before the render stage would refuse it outright.
 function reviewedStatesProblem(scene) {
-  const parts = scene.exampleData?.partTitles?.length || 1, steps = scene.presentation?.mode === 'steps' ? scene.presentation.steps?.length || 1 : 1;
-  return parts * steps > SPEC_LIMITS.reviewedStates ? `${parts} part(s) x ${steps} steps is ${parts * steps} states to check, over ${SPEC_LIMITS.reviewedStates}: use fewer steps or parts` : null;
+  const frames = new Set();
+  for (const inputs of stateInputs(scene)) for (const moment of captureMoments(scene)) frames.add(canonicalJson(evaluateScene(structuredClone(scene), moment.time, inputs).state.objects));
+  return frames.size > SPEC_LIMITS.reviewedStates ? `this card draws ${frames.size} distinct frames (control values x steps), over ${SPEC_LIMITS.reviewedStates} one review checks: use fewer steps or control values` : null;
 }
 
 // The facts a spec states, as the reviewer reads them beside the images: every text value it carries.
