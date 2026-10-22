@@ -43,7 +43,7 @@ export function SharedPanel({ panel, permissions, chat = null, search, onOpenAct
     <ResizableSidePanel collapsed={!panel.open} storageKey="rh.viewer.panel.width" defaultWidth={400} aria-label={label} className="px-5 pt-3 pb-4">
       <PanelHeader tab={panel.tab} tabs={tabs} commentsOn={comments.active} commentsUnread={comments.unread} onClose={() => panel.setOpen(false)}
         onTab={(id, clicked) => { panel.show(id); if (clicked) panel.setReturnToSearch(false); }} />
-      {chat && <div role="tabpanel" aria-label="Chat" data-shared-chat-panel className={`${panel.tab === 'chat' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col justify-end`}>{chat}</div>}
+      {chat && <div role="tabpanel" aria-label="Chat" data-shared-chat-panel className={`${panel.tab === 'chat' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>{chat}</div>}
       <CanvasSearchPanel {...search.panel} hidden={panel.tab !== 'find'} inputRef={panel.findInput} onOpenAction={onOpenAction} />
       {/* The outline only (brief section 6): titles navigate on the canvas; no Tutor composer, plan, assessments or Progress. */}
       <div role="tabpanel" aria-label="Table of contents" data-shared-toc className={`${panel.tab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>

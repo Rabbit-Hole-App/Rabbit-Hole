@@ -5,6 +5,8 @@
 // across a refresh, a private repository shows no pill to anyone but its original importer - no link opens it, not even one
 // the removed per-link switch once opened (owner decision A2, 2026-10-16) - a rate limit shows in the viewer's window with
 // the draft kept, and a / message is a plain question. Signed out, a shared page asks for no Next Steps (owner R3 decision).
+// Guest Chat (SHARE-03): signed out, Chat in the right panel answers within the 10-message trial (scripted here as the server
+// counts it), shows what is left, refuses message 11 with the draft kept, and Sign in to continue keeps draft and conversation.
 //   build:         VITE_RABBIT_HOLE=true VITE_NOTEBOOK_ORIGIN=… VITE_LESSON_NOTEBOOK_ORIGIN=… VITE_TLDRAW_LICENSE_KEY=… npx vite build --outDir dist-dev
 //   app:           npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8848 --env-file <a copy of packages/control-plane/.dev.vars>
 //   control plane: npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8849
@@ -57,10 +59,13 @@ const ownerBoard = async () => api(owner, `/api/learn/boards/${canvas.name}/main
 const ownerThreads = async () => (await api(owner, `/api/ask/threads?scope=learn&ref=${canvas.name}`)).threads || [];
 const before = await ownerBoard(), threadsBefore = await ownerThreads();
 
-// ---- the real route, before any model: signed out 401 even on this public link, a dead link 404, a bad body 400 ----
+// ---- the real route, before any model: guest Chat (SHARE-03) needs a request id, a dead link 404, a bad body 400 ----
 const ask = (who, t, body) => call(who, `/api/learn/boards/shared/${t}/ask`, { method: 'POST', body: JSON.stringify(body) });
 const out = await ask(null, token, { message: 'hi' });
-check('the ask route refuses a signed-out caller on a public link with signIn', out.status === 401 && (await out.json()).signIn === true);
+check('signed out on a public link, a Send without a request id is refused before any model', out.status === 400 && (await out.json()).code === 'request_id_required');
+const trial = await call(null, `/api/learn/boards/shared/${token}/ask`);
+check('signed out, the ask route reads this browser\'s guest trial and sets its HttpOnly cookie', JSON.stringify((await trial.json()).guest) === JSON.stringify({ limit: 10, used: 0, remaining: 10 }) && /^rh_guest=[A-Za-z0-9_-]{32};[^]*HttpOnly/.test(trial.headers.get('set-cookie') || ''));
+check('signed in, there is no guest trial', (await api(viewer, `/api/learn/boards/shared/${token}/ask`)).guest === null);
 check('the ask route answers a dead link 404', (await ask(viewer, 'Z'.repeat(32), { message: 'hi' })).status === 404);
 check('the ask route refuses an empty question before any model', (await ask(viewer, token, { message: '' })).status === 400);
 
@@ -70,6 +75,9 @@ const errors = [], aborted = [], asked = [], hookRequests = [], hookRepeats = []
 const ANSWER = 'The 1/sqrt(d) scale keeps the dot products from growing with the head size, so softmax stays out of saturation.\nSources: model.py:62-64';
 const WRITES = [/^\/api\/learn\/boards\/fork$/, /^\/api\/canvases$/, /\/share\/repository$/];
 let limitNext = false; // the next ask answers 429, as the server's rate limit does
+let guestUsed = 0; // the scripted guest trial's admitted messages
+const keys = []; // each Send's X-RH-Action-Key
+const DRAFT = 'Why does attention scale by sqrt(d)?';
 const contextFor = async (who = null) => {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
@@ -91,11 +99,19 @@ const contextFor = async (who = null) => {
   });
   // Production sends /login to /sign-in, keeping next; the local worker refuses /login, so that redirect is scripted.
   await context.route(url => url.pathname === '/login', route => route.fulfill({ status: 302, headers: { location: route.request().url().replace('/login?', '/sign-in?') } }));
-  await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname), route => {
-    asked.push(JSON.parse(route.request().postData() || '{}'));
+  // The guest trial is scripted here as the server counts it (shared-guest-chat.test.js proves the real count); a signed-out
+  // Send must carry its request id (X-RH-Action-Key).
+  await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname), async route => {
+    const request = route.request(), guest = !/small_session=/.test((await request.allHeaders()).cookie || '');
+    const allowance = () => ({ limit: 10, used: guestUsed, remaining: 10 - guestUsed });
+    if (request.method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ guest: guest ? allowance() : null }) });
+    asked.push(JSON.parse(request.postData() || '{}'));
+    keys.push(request.headers()['x-rh-action-key'] || null);
     if (limitNext) { limitNext = false; return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'You have asked 20 questions about shared canvases in the last hour, the limit for now. Try again later.', limited: true }) }); }
+    if (guest && guestUsed >= 10) return route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'You have used your 10 free messages. Sign in to continue.', code: 'guest_limit', signIn: true, guest: allowance() }) });
+    if (guest) guestUsed++;
     const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('progress', { stage: 'read source...' }) + frame('chunk', { text: asked.length === 1 ? ANSWER : 'Yes: the same scale applies to every head.' }) + frame('done', { ok: true }) });
+    return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('progress', { stage: 'read source' }) + frame('chunk', { text: asked.at(-1).message === DRAFT ? ANSWER : 'Yes: the same scale applies to every head.' }) + frame('done', { ok: true, ...(guest ? { guest: allowance() } : {}) }) });
   });
   const page = await context.newPage();
   page.on('domcontentloaded', () => { load++; }); // full document loads only, never an in-app route change
@@ -104,50 +120,64 @@ const contextFor = async (who = null) => {
 };
 const shot = async (page, name) => { if (!SHOTS) return; await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); };
 
-// ---- signed out: the composer and its context are there; Send keeps the draft and goes through sign-in ----
+// ---- signed out: guest Chat in the right panel (SHARE-03); Send answers in the Chat thread, counting the trial ----
 const page = await contextFor();
 await page.goto(`${BASE}/b/${token}`);
 const composer = page.locator('[data-shared-ask] [data-chat-composer]');
 await composer.waitFor({ timeout: 60000 });
-const field = composer.locator('input');
-check('a signed-out visitor sees the composer, saying sending needs sign-in', await composer.count() === 1 && /sign in to send/.test(await field.getAttribute('placeholder')));
+const field = composer.locator('textarea');
+const answers = page.locator('[data-shared-chat] [data-answer]');
+const remaining = page.locator('[data-guest-remaining]');
+check('a signed-out visitor sees the Chat composer in the right panel', await composer.count() === 1 && await page.locator('aside [data-shared-ask]').count() === 1 && await field.getAttribute('placeholder') === 'Ask about this canvas');
+await remaining.waitFor({ timeout: 20000 });
+check('the guest trial shows unobtrusively under the composer', (await remaining.innerText()).trim() === '10 of 10 free messages left');
 check('the header keeps the product top left and Fork top right', await page.locator('[data-shared-brand]').count() === 1 && await page.locator('[data-fork-button]').count() === 1);
 const pills = async () => page.locator('[data-context-pill]').evaluateAll(nodes => nodes.map(node => [node.dataset.contextPill, node.textContent.trim()]));
 check('the context pills show the repository and commit, then the sources', JSON.stringify(await pills()) === JSON.stringify([['repository', 'karpathy/nanoGPT · 3adf61e'], ['video', "Let's build GPT: from scratch, in code"], ['wiki', 'Softmax function'], ['paper', 'Attention Is All You Need']]), JSON.stringify(await pills()));
-const DRAFT = 'Why does attention scale by sqrt(d)?';
 await field.fill(DRAFT);
+check('typing a draft asks nothing', asked.length === 0);
 await shot(page, '01-signed-out-composer');
 await field.press('Enter');
+await answers.first().waitFor({ timeout: 20000 });
+check('the guest question went to the shared ask route with no history and a request id', asked.length === 1 && asked[0].message === DRAFT && Array.isArray(asked[0].history) && asked[0].history.length === 0 && /^[A-Za-z0-9_-]{8,128}$/.test(keys[0] || ''), JSON.stringify(asked[0]));
+check('the answer shows in the Chat thread, private to this viewer', (await answers.first().innerText()).includes('softmax stays out of saturation') && /Only you see this chat/.test(await page.locator('[data-shared-ask]').innerText()));
+check('a cited file is a plain pill: no Sources dropdown in a shared view', await page.locator('[data-shared-chat] [data-cited-sources]').count() === 0);
+check('the count drops after an admitted message', (await remaining.innerText()).trim() === '9 of 10 free messages left');
+await shot(page, '02-guest-answer');
+
+// ---- the trial is used up (as the server counts it): the next Send is refused with the draft kept, Sign in to continue ----
+guestUsed = 10;
+const LATER = 'Does that hold for every head?';
+await field.fill(LATER);
+await field.press('Enter');
+await page.locator('[data-guest-sign-in]').waitFor({ timeout: 20000 });
+check('message 11 is refused, its draft back in the composer and no answer added', await field.inputValue() === LATER && await answers.count() === 1 && asked.length === 2);
+check('Sign in to continue is offered', (await page.locator('[data-guest-sign-in]').innerText()).trim() === 'Sign in to continue');
+await shot(page, '03-guest-spent');
+await page.locator('[data-guest-sign-in]').click();
 await page.waitForURL(/\/sign-in\?next=/, { timeout: 20000 });
 const next = new URL(page.url()).searchParams.get('next');
-check('Send signed out goes through sign-in with next=/b/<token>?ask=1', next === `/b/${token}?ask=1`, next);
-check('the draft is kept for this link', await page.evaluate(key => sessionStorage.getItem(key), `small.shared-ask-draft:${token}`) === DRAFT);
-check('nothing was asked while signed out', asked.length === 0);
-await shot(page, '02-sign-in-redirect');
+check('Sign in to continue goes through sign-in with next=/b/<token>?ask=1', next === `/b/${token}?ask=1`, next);
+check('the draft is kept for this link', await page.evaluate(key => sessionStorage.getItem(key), `small.shared-ask-draft:${token}`) === LATER);
 
-// ---- back signed in (?ask=1): the draft returns focused, unsent, and the flag leaves the address ----
+// ---- back signed in (?ask=1): the draft and the conversation return, unsent, and the flag leaves the address ----
 await page.context().addCookies([{ name: 'small_session', value: viewer.session, url: BASE }]);
 await page.goto(`${BASE}/b/${token}?ask=1`);
 await composer.waitFor({ timeout: 60000 });
 await page.waitForTimeout(1500);
-check('the draft is back in the composer and focused', await field.inputValue() === DRAFT && await field.evaluate(node => node === document.activeElement));
+check('the draft is back in the composer and focused', await field.inputValue() === LATER && await field.evaluate(node => node === document.activeElement));
 check('?ask=1 is dropped from the address', new URL(page.url()).search === '');
-check('coming back sent nothing by itself', asked.length === 0 && await page.locator('[data-shared-chat]').count() === 0);
+check('coming back sent nothing by itself, and the guest conversation is still there', asked.length === 2 && await answers.count() === 1);
+check('signed in, no guest count shows', await remaining.count() === 0 && await page.locator('[data-guest-sign-in]').count() === 0);
 
-// ---- signed in: Send answers in the viewer's own window ----
+// ---- signed in: Send answers in the viewer's own Chat, carrying the conversation from before sign-in ----
 await field.press('Enter');
-await page.locator('[data-shared-answer]').first().waitFor({ timeout: 20000 });
-check('the question went to the shared ask route with no history', asked.length === 1 && asked[0].message === DRAFT && Array.isArray(asked[0].history) && asked[0].history.length === 0, JSON.stringify(asked[0]));
-check('the answer shows in the viewer\'s window above the composer', (await page.locator('[data-shared-answer]').innerText()).includes('softmax stays out of saturation') && /Only you see this chat/.test(await page.locator('[data-shared-chat]').innerText()));
-check('a cited file is a plain pill: no Sources dropdown in a shared view', await page.locator('[data-shared-chat] [data-cited-sources]').count() === 0);
-await shot(page, '03-signed-in-answer');
-await field.fill('Does that hold for every head?');
-await field.press('Enter');
-await page.locator('[data-shared-answer]').nth(1).waitFor({ timeout: 20000 });
-check('a follow-up carries the earlier turn as history', JSON.stringify(asked[1]?.history) === JSON.stringify([{ role: 'user', content: DRAFT }, { role: 'assistant', content: ANSWER }]));
+await answers.nth(1).waitFor({ timeout: 20000 });
+check('a follow-up carries the earlier turn as history', JSON.stringify(asked[2]?.history) === JSON.stringify([{ role: 'user', content: DRAFT }, { role: 'assistant', content: ANSWER }]));
+await shot(page, '04-signed-in-answer');
 await page.reload();
-await page.locator('[data-shared-answer]').nth(1).waitFor({ timeout: 30000 });
-check('the conversation stays in this viewer\'s tab across a reload', await page.locator('[data-shared-answer]').count() === 2);
+await answers.nth(1).waitFor({ timeout: 30000 });
+check('the conversation stays in this viewer\'s tab across a reload', await answers.count() === 2);
 
 // ---- B: the owner refreshes the repository to a new commit; the share keeps its pinned commit ----
 d1(`UPDATE repository_apps SET commit_sha = '${'b'.repeat(40)}' WHERE name = '${REPO}'`);
@@ -162,7 +192,7 @@ await page.waitForTimeout(400);
 check('typing / opens no command picker in the shared composer', await page.locator('[data-slash-picker], [role="listbox"][aria-label="Commands"], [data-command-pill]').count() === 0);
 await field.fill('/dive attention');
 await field.press('Enter');
-await page.locator('[data-shared-answer]').nth(2).waitFor({ timeout: 20000 });
+await answers.nth(2).waitFor({ timeout: 20000 });
 check('/dive attention is sent as a plain question and answered in the window', asked.at(-1)?.message === '/dive attention' && Object.keys(asked.at(-1)).sort().join() === 'history,message', JSON.stringify(asked.at(-1)));
 
 // ---- D: a rate-limited ask shows in the viewer's window and the question goes back into the composer ----
@@ -170,8 +200,8 @@ limitNext = true;
 const LIMITED = 'One more question about the mask?';
 await field.fill(LIMITED);
 await field.press('Enter');
-await page.locator('[data-shared-limited]').waitFor({ timeout: 20000 });
-check('the limit message shows in the viewer\'s window', /questions about shared canvases in the last hour/.test(await page.locator('[data-shared-limited]').innerText()));
+await page.locator('[data-shared-chat] [role="alert"]').waitFor({ timeout: 20000 });
+check('the limit message shows in the viewer\'s window', /questions about shared canvases in the last hour/.test(await page.locator('[data-shared-chat] [role="alert"]').innerText()));
 check('the draft is back in the composer, not lost', await field.inputValue() === LIMITED);
 await shot(page, '04-rate-limited');
 
