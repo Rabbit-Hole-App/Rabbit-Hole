@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { anthropic } from '../src/ask.js';
-import { catalogue } from '../../web/src/visual-components/registry.js';
+import { COMPOSITION, catalogue } from '../../web/src/visual-components/registry.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { SPEC_LIMITS, authorExplanation, capabilityGaps, compilerSupport, selectExamples, specFacts, validateStage } from '../src/explain-author.js';
 
@@ -35,10 +35,13 @@ test('the author receives the actual catalogue (every capability and parameter l
   const sent = JSON.parse(body.messages[0].content[0].text);
   assert.deepEqual(sent.catalogue, JSON.parse(JSON.stringify(catalogue())), 'the registry entries themselves, not a summary');
   for (const entry of sent.catalogue) for (const field of ['name', 'version', 'description', 'params', 'hints', 'repairWritable', 'anchors']) assert.ok(field in entry, `${entry.name}.${field}`);
-  assert.deepEqual(sent.supported, { static: true, time: true, math: false, steps: false, experiment: false });
+  // What the compiler draws now, probed (Lane A's T04-M2 math labels landed on explain/a-parts; steps and experiments not yet).
+  assert.deepEqual(sent.supported, { static: true, time: true, math: true, steps: false, experiment: false });
   assert.deepEqual(sent.limits, SPEC_LIMITS);
   assert.equal(sent.request, 'Explain where rain comes from.');
   assert.deepEqual(sent.examples, [], 'no examples unless explicitly selected');
+  // Lane A's composition guidance and its worked parts example go with every author call, beside the catalogue.
+  assert.deepEqual(sent.composition, { ...COMPOSITION, example: { id: 'request-path-parts', use: 'composition only, never facts', spec: EXAMPLES['request-path-parts'] } });
   assert.deepEqual([body.model, body.tool_choice, body.tools.map(x => x.name)], ['claude-opus-5-5', { type: 'auto' }, ['author_explanation']]);
   // The tool states the instance shape and the registered names (a real run with a bare object wrote "type", spend.md row 2).
   const instance = body.tools[0].input_schema.properties.spec.properties.components.items;
@@ -46,7 +49,7 @@ test('the author receives the actual catalogue (every capability and parameter l
   assert.deepEqual(instance.properties.component.enum, catalogue().map(entry => entry.name));
   // Owner requirement: Lane B2's presentation contract (static first, named steps, purposeful experiments) and math runs.
   const system = body.system[0].text;
-  for (const rule of ['presentation contract', 'static (prefer it)', 'a highlight alone is not a step', 'purpose (the question moving it answers', 'math runs in TeX', 'never calculator text', 'about 27 characters per line', 'spec.parts [{id, title}] (at most 4) makes a pager', 'below the legibility floor'])
+  for (const rule of ['presentation contract', 'static (prefer it)', 'a highlight alone is not a step', 'purpose (the question moving it answers', 'math runs in TeX', 'never calculator text', 'about 27 characters per line', 'Follow composition', 'A child inherits its parent\'s part'])
     assert.ok(system.includes(rule), rule);
   // The compiled result is the trusted compiler's.
   assert.equal(out.compiled.counts.authored, 1);
@@ -63,14 +66,19 @@ test('a request needing unsupported math, steps or an experiment is a structured
   const math = { ...SPEC, components: [module('law', { runs: [{ kind: 'text', text: 'Period ' }, { kind: 'math', tex: 'T = 2\\pi\\sqrt{L/g}' }] })] };
   const steps = { ...SPEC, presentation: { mode: 'steps', steps: [{ id: 'a', title: 'Heat' }, { id: 'b', title: 'Rise' }] } };
   const experiment = { ...SPEC, presentation: { mode: 'static', experiments: [{ id: 'e', purpose: 'Compare lengths.', input: 'length', domain: { values: [1, 4] }, affects: ['cycle'], contrasts: ['Longer is slower.'] }] } };
-  for (const [spec, need] of [[math, 'math'], [steps, 'steps'], [experiment, 'experiment']]) {
+  for (const [spec, need] of [[steps, 'steps'], [experiment, 'experiment']]) {
     provider(t, [{ kind: 'spec', spec }]);
     const out = await author('x');
     assert.deepEqual([out.kind, out.gap.needs, out.gap.source], ['gap', [need], 'compiler'], need);
     assert.equal(out.compiled, undefined);
   }
   assert.deepEqual(capabilityGaps(SPEC), []);
-  assert.deepEqual(compilerSupport(), { static: true, time: true, math: false, steps: false, experiment: false });
+  assert.deepEqual(compilerSupport(), { static: true, time: true, math: true, steps: false, experiment: false });
+  // Math is supported now, so a formula label is drawn, not refused: the probe moved by itself when the compiler learned it.
+  provider(t, [{ kind: 'spec', spec: math }]);
+  const typeset = await author('Show the pendulum period law.');
+  assert.equal(typeset.kind, 'spec', JSON.stringify(typeset.problems));
+  assert.deepEqual(capabilityGaps(math), []);
 });
 
 test('invented components, invalid parameters and complexity over the limits are refused, never compiled', async t => {

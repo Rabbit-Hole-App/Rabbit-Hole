@@ -7,7 +7,7 @@
 //   other change and any value out of range.
 // Component and renderer defects are never sent to repair (explain-job.js stops the job) and go to a deduplicated backlog.
 import { applyHintRepair } from '../../web/src/visual-components/compile.js';
-import { catalogue, componentFor } from '../../web/src/visual-components/registry.js';
+import { COMPOSITION, catalogue, componentFor } from '../../web/src/visual-components/registry.js';
 import { SPEC_LIMITS } from './explain-author.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
 import { EXPLAIN_REPAIR_SYSTEM, REPAIR_TOOL } from './agents/explain-repair.js';
@@ -46,7 +46,7 @@ export async function repairStage(job, ctx) {
   const content = [{ type: 'text', text: JSON.stringify({ request: job.prompt, spec: job.spec, problems: failure.problems || [], findings: (failure.findings || []).map(({ category, severity, target, message }) => ({ category, severity, target, message })),
     repairable: repairableHints(job.spec), allowed, roundsLeft: EXPLAIN_LIMITS.correctionRounds - job.round,
     // A spec correction needs the components' params, limits and anchors (a real round 2 without them named a non-anchor).
-    ...(allowed.includes('spec') ? { catalogue: catalogue(), limits: SPEC_LIMITS } : {}) }) },
+    ...(allowed.includes('spec') ? { catalogue: catalogue(), composition: COMPOSITION, limits: SPEC_LIMITS } : {}) }) },
   ...images.flatMap(capture => [{ type: 'text', text: `capture ${capture.id}` }, { type: 'image', source: { type: 'base64', media_type: capture.mediaType || 'image/png', data: capture.data } }])];
   const { input } = await ctx.call('repair', { system: EXPLAIN_REPAIR_SYSTEM, tool: REPAIR_TOOL, content });
   const reason = typeof input.reason === 'string' ? input.reason.slice(0, 300) : null;

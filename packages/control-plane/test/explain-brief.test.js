@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { explainPipeline } from '../src/explain-job.js';
 import { briefDecision, briefThresholds, needsPreparation } from '../src/explain-brief.js';
 import { proposalRecord, signProposal } from '../src/generation-proposal.js';
+import { catalogue } from '../../web/src/visual-components/registry.js';
 import { BOARD, OWNER, explainStack, rows, spent } from './explain-fixture.js';
 
 const STUB_RENDER = async () => ({ captures: [{ id: 'light', data: 'iVBORw0KGgo=', mediaType: 'image/png' }], renders: [{ ok: true }] });
@@ -70,7 +71,7 @@ test('a reviewed brief: one brief call, original wording kept, posted as the sig
   assert.equal(waiting.brief.request, 'explain   where RAIN comes from', 'verbatim');
   const sent = model.calls[0].body;
   assert.deepEqual([sent.model, sent.tools[0].name, sent.tool_choice.type], ['claude-opus-5-5', 'explain_brief', 'auto']);
-  assert.deepEqual(sent.tools[0].input_schema.properties.components.items.enum, ['section', 'module', 'stack', 'flow', 'callout', 'legend']);
+  assert.deepEqual(sent.tools[0].input_schema.properties.components.items.enum, catalogue().map(entry => entry.name));
   const [meta] = posted(s);
   assert.deepEqual([meta.proposal.command, meta.proposal.version, meta.proposal.title], ['explain', 1, 'Where rain comes from']);
   assert.match(meta.proposal.sig, /^v2\./, 'signed without a Motion secret');

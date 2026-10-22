@@ -2,7 +2,7 @@
 // (explain_author writes a VisualSpec from Lane A's registry) and validate (trusted compile plus the existing scene gates,
 // evidence and example checks, and capability gaps). The independent image review is Lane D's explain-review.js. Every model call goes through ctx.call: the job's admitted, fenced,
 // counted role call.
-import { catalogue } from '../../web/src/visual-components/registry.js';
+import { COMPOSITION, catalogue } from '../../web/src/visual-components/registry.js';
 import { compileVisual } from '../../web/src/visual-components/compile.js';
 import { EXAMPLES } from '../../web/src/visual-components/examples/index.js';
 import { sceneProblem } from './learn-scene-gates.js';
@@ -14,6 +14,11 @@ const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // animation-scene.js: 240 objects, 60 on screen per part).
 export const SPEC_LIMITS = Object.freeze({ components: 40, connections: 80, parts: 4, objectsTotal: 240, objectsPerPart: 60 });
 const MAX_EXAMPLES = 2;
+// Lane A's composition guidance (registry.js COMPOSITION: card size, parts as a pager, overview and detail, containers) and
+// its worked parts example, shown to every author call beside the catalogue. Composition only: its wording is held to the
+// same provenance check as a selected example.
+export const COMPOSITION_EXAMPLE = 'request-path-parts';
+export const authorComposition = () => ({ ...COMPOSITION, example: { id: COMPOSITION_EXAMPLE, use: 'composition only, never facts', spec: EXAMPLES[COMPOSITION_EXAMPLE] } });
 
 // What the compiler can draw now, found by compiling the smallest spec that uses each feature: the author prompt and the gap
 // check read the same answer, and it changes by itself when Lane A's compiler learns a feature (T04-M2, T26-M2).
@@ -83,7 +88,7 @@ async function authorCall(input, ctx, { cat = catalogue(), limits = SPEC_LIMITS 
   const content = JSON.stringify({
     request: input.prompt, brief: input.brief ?? null, context: input.context ?? null, ...(input.edit ? { edit: input.edit } : {}),
     evidence: (input.evidence || []).map(({ id, kind, location, excerpt, page, lines, limitations }) => ({ id, kind, location, excerpt, page, lines, limitations })),
-    catalogue: cat, supported: compilerSupport(), limits,
+    catalogue: cat, composition: authorComposition(), supported: compilerSupport(), limits,
     examples: examples.map(({ id, spec }) => ({ id, use: 'composition only, never facts', spec })),
   });
   const out = await ctx.call('author', { system: EXPLAIN_AUTHOR_SYSTEM, tool: authorTool(cat), content });
@@ -126,7 +131,8 @@ export function validateStage(job) {
   const problems = [];
   const evidence = evidenceProblem(job.spec, job.evidence);
   if (evidence) problems.push(evidence);
-  const copied = exampleContamination(job.spec, selectExamples(job.examples || []), [job.prompt, job.brief, job.context, (job.evidence || []).map(record => record.excerpt)]);
+  const shown = [...selectExamples(job.examples || []), { id: COMPOSITION_EXAMPLE, spec: EXAMPLES[COMPOSITION_EXAMPLE] }];
+  const copied = exampleContamination(job.spec, shown, [job.prompt, job.brief, job.context, (job.evidence || []).map(record => record.excerpt)]);
   if (copied) problems.push(copied);
   let compiled = null;
   try { compiled = compileVisual(job.spec); } catch (error) { problems.push(String(error.message).slice(0, 400)); }

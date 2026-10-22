@@ -276,18 +276,18 @@ test('the production pipeline authors and compiles a real spec; with no browser 
   assert.equal(done.compiled.counts.authored, 1);
   assert.deepEqual((await s.job(body.job.id)).job.recovery, ['retry_render', 'edit_request']);
 });
-test('the production pipeline: a request needing math ends as a structured capability gap, with no repair and no card', async t => {
+test('the production pipeline: a request needing named steps ends as a structured capability gap, with no repair and no card', async t => {
   const s = setup(t, { pipeline: explainPipeline });
-  const math = { ...SPEC, components: [{ id: 'law', component: 'module', version: 1, params: { label: { runs: [{ kind: 'math', tex: 'T = 2\pi\sqrt{L/g}' }] } } }] };
-  authorReplies(t, [{ kind: 'spec', spec: math }]);
-  const { body } = await s.create({ prompt: 'Show the pendulum period formula.' });
+  const steps = { ...SPEC, presentation: { mode: 'steps', steps: [{ id: 'heat', title: 'Heat' }, { id: 'rise', title: 'Rise' }] } };
+  authorReplies(t, [{ kind: 'spec', spec: steps }]);
+  const { body } = await s.create({ prompt: 'Show the water cycle step by step.' });
   const done = await s.run(body.job.id);
-  assert.deepEqual([done.stage, done.stopReason, done.failure.category, done.failure.gap.needs, done.failure.gap.source], ['failed', 'capability_gap', 'capability', ['math'], 'compiler']);
+  assert.deepEqual([done.stage, done.stopReason, done.failure.category, done.failure.gap.needs, done.failure.gap.source], ['failed', 'capability_gap', 'capability', ['steps'], 'compiler']);
   assert.equal(done.compiled, null);
   const view = (await s.job(body.job.id)).job;
   assert.deepEqual(view.recovery, ['edit_request']);
   assert.equal(view.result, null);
-  assert.match(view.failure.message, /typeset math/);
+  assert.match(view.failure.message, /named steps/);
 });
 
 test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', async t => {
