@@ -35,7 +35,7 @@ test('the page mounts the companion LEFT of Chat, every view mounted while hidde
   // null, so Back to graph never appeared after Open source or a citation.
   assert.match(page, /companionNow\.current = companion;/);
   assert.match(page, /const showFiles = \(\) => companionNow\.current\.show\('files'\), showGraph = \(\) => companionNow\.current\.show\('graph'\);/);
-  assert.match(page, /<div role="tabpanel" aria-label="Context" data-context-panel className=\{`\$\{companionView === 'context' \? 'flex' : 'hidden'\}[^`]*`\}><SourcesPane \/><\/div>/);
+  assert.match(page, /<div role="tabpanel" aria-label="Context" data-context-panel className=\{`\$\{companionView === 'context' \? 'flex' : 'hidden'\}[^`]*`\}><SourcesPane onSwitchOff=\{ref => \{ releaseCodeRef\(repository, ref\); if \(askTarget\?\.ref && sameRef\(askTarget\.ref, ref\)\) clearAskTarget\(\); \}\} \/><\/div>/);
   assert.match(page, /\{files && shown\.current\.has\('files'\) && <div role="tabpanel" aria-label="Repository files" data-learn-files className=\{`\$\{companionView === 'files' \? 'flex' : 'hidden'\}/, 'mounted on first show, then kept');
   assert.match(page, /\{graph && shown\.current\.has\('graph'\) && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className=\{`\$\{companionView === 'graph' \? 'flex' : 'hidden'\}[^`]*`\}>\{graph\}<\/div>\}/);
   assert.match(page, /useEffect\(\(\) => \{ if \(openViewer\) companion\.show\(openViewer\); \}, \[\]\);/, 'an old ?tab= link opens its view once');

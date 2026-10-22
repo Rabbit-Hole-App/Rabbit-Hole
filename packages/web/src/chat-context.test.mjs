@@ -188,7 +188,7 @@ test('Materials rows: Use in this chat, Add to canvas, More (canvas default), th
   assert.match(source, /<Button variant="inverse" size="sm" data-material-action="canvas" onClick=\{act\(\(\) => addToCanvas\(ref\)\)\}\s+aria-label=\{`Add \$\{name\} to canvas`\}[^]{0,200}?>Add to canvas<\/Button>/);
   assert.match(source, /const addToCanvas = ref => window\.dispatchEvent\(new CustomEvent\('small:pdf-to-canvas', \{ detail: \{ sourceId: ref\.sourceId, kind: ref\.kind, name: ref\.name \} \}\)\);/);
   // Use in this chat: the conversation's attachment (the composer chip and the sent refs), pressed state exposed.
-  assert.match(source, /data-material-action="chat" aria-pressed=\{!!item\.attached\}\s+onClick=\{act\(\(\) => \(item\.attached \? context\.detach\(item\.ref\) : context\.attach\(item\.ref\)\)\)\}\s+aria-label=\{`Use \$\{name\} in this chat`\}[^]{0,400}?\/>\}Use in this chat<\/button>/);
+  assert.match(source, /data-material-action="chat" aria-pressed=\{!!item\.attached\}\s+onClick=\{act\(\(\) => \{ if \(!item\.attached\) return context\.attach\(item\.ref\); context\.detach\(item\.ref\); onSwitchOff\?\.\(item\.ref\); \}\)\}\s+aria-label=\{`Use \$\{name\} in this chat`\}[^]{0,400}?\/>\}Use in this chat<\/button>/);
   // A source open in the reader but not used in this chat says so.
   assert.match(source, /\{open && !item\.attached && <span data-not-attached [^>]*>Not attached<\/span>\}/);
   // Remove from Materials: set apart, asks first, scoped, a failure kept on the row.
