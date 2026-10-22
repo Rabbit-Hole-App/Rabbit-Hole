@@ -170,6 +170,27 @@ check('keyboard Add to canvas adds a link card once and shows the existing one a
   await new Promise(done => setTimeout(done, 2500));
   assert.equal((await refCards(targets.c.board)).length, 1, 'Add to canvas twice adds one card');
 });
+// Production defect 2026-10-21 (9f178ce5): a link card made from a backlink result - a canvas this one has no saved link to yet -
+// read "Unavailable" until the save completed (links.resolve knew only saved links; Link to canvas... remembered its canvas first).
+check('a link card dropped or added from Search shows its canvas title at once, never Unavailable', async () => {
+  await search('', 'links');
+  const targetsOf = [targets.d.board, targets.e.board];
+  await page.evaluate(watched => {
+    window.__sawUnavailable = [];
+    const look = () => { for (const card of document.querySelectorAll('[data-canvas-ref-card]')) if (watched.includes(card.dataset.target) && /Unavailable/.test(card.textContent)) window.__sawUnavailable.push(card.dataset.target); };
+    window.__unavailableWatch = new MutationObserver(look); window.__unavailableWatch.observe(document.body, { subtree: true, childList: true, characterData: true });
+  }, targetsOf);
+  const card = board => page.locator(`[data-canvas-ref-card][data-target="${board}"]`);
+  const titled = (board, title, how) => until(async () => (await card(board).count()) === 1 && (await card(board).innerText()).includes(title), `${how}: the link card did not show "${title}" at once`, 1500);
+  await drag(`link:to:${targets.d.board}`, await freePoint(0.35, 0.5));
+  await titled(targets.d.board, 'Search backlink D', 'drop');
+  const add = row(`link:to:${targets.e.board}`).locator('[data-search-add]');
+  await add.focus(); await page.keyboard.press('Enter');
+  await titled(targets.e.board, 'Search backlink E', 'Add to canvas');
+  const saw = await page.evaluate(() => { window.__unavailableWatch.disconnect(); return window.__sawUnavailable; });
+  assert.deepEqual([...new Set(saw)], [], 'a new link card showed Unavailable');
+  await shot('backlink-cards-titled');
+});
 check('a locked card refuses the drop with its reason and stays put', async () => {
   await search('Locked card');
   const before = await worldBox('locked');
@@ -221,7 +242,7 @@ check('a view-only shared canvas refuses a drag with a visible reason', async ()
     await shot('view-only-refused');
   } finally { page = previous; await viewer.close(); }
 });
-const total = 14;
+const total = 15;
 assert.equal(tests.length, total, 'step count matches const total');
 
 async function guard(target) {
@@ -256,6 +277,12 @@ try {
     card('mover', 'mover card', 'Drag me around the canvas.'),
   ]);
   saved = await request(`/api/learn/boards/${canvas.name}/main`, 'PUT', { state });
+  // Two canvases that link here (backlinks): this canvas has no saved link to them until a card is added.
+  for (const key of ['d', 'e']) {
+    const made = await request('/api/canvases', 'POST', { title: `Search backlink ${key.toUpperCase()}` });
+    const put = await request(`/api/learn/boards/${made.name}/main`, 'PUT', { state: empty([card(`t-${key}`, `Backlink ${key}`, 'links back', { refs: [{ id: randomUUID(), target: saved.board_id }] })]) });
+    targets[key] = { name: made.name, board: put.board_id };
+  }
   facts.canvases = { main: canvas.name, ...Object.fromEntries(Object.entries(targets).map(([key, value]) => [key, value.name])) };
   browser = await chromium.launch(); context = await browser.newContext({ viewport: { width: 1500, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
