@@ -5,8 +5,8 @@ import { DEV_CP } from './dev-cp.mjs';
 
 // The Learn composer on the parallel clone (project Learn, karpathy/nanoGPT):
 // the / picker's "More learning tools" section, View > Slash commands, and the
-// composer's + menu - an attached image and an @-mentioned repository both
-// reach the tutor. Two real model calls; no paid generation.
+// composer's + menu - an attached image and a mentioned canvas (Mention a
+// canvas) both reach the tutor. Two real model calls; no paid generation.
 // usage: node e2e/composer-plus-check.mjs [screenshot dir]
 const BASE = 'https://small-cp-dev-small-parallel.tryrabbithole.workers.dev';
 const APP = 'repo-06745f10-nanogpt';
@@ -87,22 +87,30 @@ const first = asks[0] || {};
 ok('the attachment travels as multipart to this dev clone (not live) and succeeds', first.status === 200 && first.type.includes('multipart/form-data') && first.host === new URL(BASE).host, `status ${first.status}, ${first.host}`);
 ok('the tutor sees the image (it names red)', saw, ((await page.locator('[aria-label="Lesson canvas"]').innerText()).split(q1)[1] || '').replace(/\s+/g, ' ').slice(0, 60));
 
-// 4. + > Mention an app: another repository reaches the tutor.
+// 4. + > Mention a canvas (owner 2026-10-22, r2 lane L8: replaces Mention an app): another canvas of this person, saved with
+// one distinctive word, reaches the tutor by its id; the server reads its title and content.
 await page.waitForTimeout(2000);
+const word = `zephyrine${Date.now().toString(36)}`;
+const cpApi = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json', 'User-Agent': 'composer-plus' } })).json();
+const target = await cpApi('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Mention target ${word}` }) });
+await cpApi(`/api/learn/boards/${target.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], sources: [], blocks: [{ id: 'w1', type: 'explanation', dx: 0, dy: 0, title: 'The word', body: `The secret word is ${word}.` }] }, version: 0 }) });
 await composer.getByRole('button', { name: 'Add' }).dispatchEvent('mousedown');
-await page.getByRole('button', { name: 'Mention an app' }).click();
-const suggestion = page.locator('button', { hasText: /^repo-/ }).first();
+ok('the + menu has no Mention an app', await page.getByRole('button', { name: 'Mention an app' }).count() === 0);
+await page.getByRole('button', { name: 'Mention a canvas' }).click();
+await page.getByRole('combobox', { name: 'Search canvases' }).fill(`Mention target ${word}`);
+const suggestion = page.locator('[data-mention-picker] [data-picker-option]').first();
 await suggestion.waitFor({ timeout: 20000 });
-const names = await page.locator('button', { hasText: /^(repo-|[a-z])/ }).filter({ has: page.locator('svg') }).allInnerTexts();
-const mentioned = (await suggestion.innerText()).trim();
-ok('mentions offer other repositories only (never this chat itself)', !!mentioned && mentioned !== APP, mentioned);
-await suggestion.dispatchEvent('mousedown');
-await input.fill('Which files are in the repository I mentioned? One short line.');
+await suggestion.click();
+await page.locator('[data-mention-picker]').getByRole('button', { name: 'Mention', exact: true }).click();
+const pill = composer.locator('[data-canvas-mention]');
+await pill.waitFor({ timeout: 10000 });
+ok('the mentioned canvas is a named pill in the composer', (await pill.innerText()).trim() === `Mention target ${word}`, await pill.innerText());
+await input.fill('What is the secret word on the canvas I mentioned? Reply with just the word.');
 await input.press('Enter');
 // Read the answer from its chat card: the card holds exactly what the learner sees.
-const answered = await page.waitForFunction(() => /README/i.test(document.querySelector('[aria-label="Lesson canvas"]')?.innerText.split('Which files are in the repository I mentioned?')[1] || ''), null, { timeout: 90000 }).then(() => true).catch(() => false);
-const reply = (await page.locator('[aria-label="Lesson canvas"]').innerText()).split('Which files are in the repository I mentioned?')[1]?.replace(/\s+/g, ' ').slice(0, 140) || '';
-ok('the mentioned repository reaches the tutor (it names a file from it)', answered, `${mentioned}: ${reply}`);
+const answered = await page.waitForFunction(w => new RegExp(w, 'i').test(document.querySelector('[aria-label="Lesson canvas"]')?.innerText.split('What is the secret word on the canvas I mentioned?')[1] || ''), word, { timeout: 90000 }).then(() => true).catch(() => false);
+const reply = (await page.locator('[aria-label="Lesson canvas"]').innerText()).split('What is the secret word on the canvas I mentioned?')[1]?.replace(/\s+/g, ' ').slice(0, 140) || '';
+ok('the mentioned canvas reaches the tutor (it names the word saved on it)', answered, reply);
 await page.screenshot({ path: `${SHOTS}/composer-plus.png` });
 await browser.close();
 process.exit(failed ? 1 : 0);

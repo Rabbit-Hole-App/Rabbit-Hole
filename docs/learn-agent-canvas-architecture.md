@@ -574,7 +574,7 @@ when the learner clicks **Explain in canvas** on that chat card.
 | Control | What it does | Code |
 |---|---|---|
 | **+** → Add images, PDFs, or CSVs | attaches one file (`.png .jpg .jpeg .gif .webp .pdf .csv .txt`, 4 MB). It is sent as multipart and becomes an image, PDF or text block for the model; a copy is kept in R2 | `ask.jsx` + menu; `ask.js` `attachmentBlocks` |
-| **+** → Mention an app | inserts `@` and opens autocomplete (`/api/apps`). Up to 3 apps' context ride with the question | `ask.jsx` |
+| **+** → Mention a canvas | opens the canvas picker (`/api/learn/canvas-picker?holes=1`: readable canvases and own Rabbit Holes, parent shown for equal titles). A pick adds a removable pill holding the board id only (`canvas:<board id>` ContextRef); the server reads each canvas's title and saved content under the asker's access at Send and refuses an unreadable one (403 `canvas_unavailable`, no title). Up to 3 per question. Other composers keep Mention an app | `ask.jsx`, `CanvasMention.jsx`, `canvas-refs.js` |
 | Sources (sliders icon) | toggles which parts of `appContext` are read: runs, requests, runbook, review, agent (non-repo apps) | `ask.jsx` `srcOpts` |
 | Model pill | Auto / Opus 5 / Sonnet 5 / Haiku 4.5. The default comes from Settings (`small.askModel`); a pick is not persisted | `ask.jsx` `MODELS` |
 | Stop | aborts the browser request; not reported as an error | `ask.jsx` `answerFlight` |

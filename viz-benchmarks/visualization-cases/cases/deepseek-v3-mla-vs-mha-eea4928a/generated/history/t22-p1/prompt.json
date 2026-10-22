@@ -1,0 +1,322 @@
+{
+  "schema": 1,
+  "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+  "family": "llm-architecture",
+  "split": "heldout",
+  "system": "v2",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "learnerPrompt": "Explain how multi-head latent attention in DeepSeek V3 reduces KV-cache memory compared with regular multi-head attention.",
+  "examples": [],
+  "stageCalls": [
+    {
+      "stage": "author_explanation",
+      "requestedModel": "claude-opus-5-5",
+      "servedModel": "claude-opus-5-5",
+      "requestId": "req_011CgHbL1k3gNZap7vprsUXj",
+      "status": 200,
+      "usage": {
+        "input_tokens": 4539,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 3051,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 563,
+        "output_tokens_details": {
+          "thinking_tokens": 331
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "error": null,
+      "images": 0,
+      "costUsd": 0.0300262,
+      "ms": 6660,
+      "request": {
+        "max_tokens": 10000,
+        "system": [
+          {
+            "type": "text",
+            "text": "You author one explanation card as component JSON (a VisualSpec). Trusted code compiles, checks and renders it; you never write coordinates, styles, code or URLs.\n\nInput fields: request (the learner's words, verbatim), brief (approved meaning and assumptions, when there was a review), context (attached material), evidence (records with ids and excerpts), catalogue (every component you may use, with its parameters, limits, layout hints and anchors), composition (how components combine into one card or a pager of sub-cards, with one worked example), supported (which features the compiler can draw now), limits (counts the card must stay within), examples (optional).\n\nRules:\n- Use only components named in catalogue, at their listed version, with only their listed parameters and hints, inside each parameter's type, min, max, maxLength and values. Never invent a component, parameter or anchor.\n- Connections join anchors the catalogue lists (\"<component id>.<anchor>\").\n- With edit (an Edit of an existing card): request is the change asked for and edit.spec is the card's accepted spec. Return the whole revised spec: change what the request asks (content, labels, layout, relationships, steps, interactions), keep every other component, id, text and connection exactly as it was.\n- One idea per card.\n- Presentation (Lane B2's presentation contract, EXP-T26 M2, d77d668a, for component specs): choose the simplest that teaches. static (prefer it): the complete picture, no playback; a reveal or a highlight alone is static. steps: 2 to 12 named moments {id, title (at most 120 characters)}, each changing what is drawn (a highlight alone is not a step), earlier context staying visible: set step on the top component that first appears on each later step (components without step are drawn from the first; a connection appears with its later end); no step captions, put those words in a component on that step. time {duration}: only when timing itself is the lesson. experiments: one per control {id, purpose (the question moving it answers, at most 300 characters), input, domain, affects (ids of components every setting visibly changes), contrasts (1 to 8 short phrases naming what to compare), dependsOn?}; a control that changes nothing visible, or only moves a highlight, is refused. Use steps, time or experiments only where supported says true; otherwise report a capability_gap if the idea truly needs them.\n- Formulas are math runs in TeX ({\"runs\": [{\"kind\": \"text\", \"text\": \"Period: \"}, {\"kind\": \"math\", \"tex\": \"T = 2pisqrt{L/g}\"}]}), never calculator text like 2*pi*sqrt(L/g); code stays code. Where supported.math is false, a request whose idea needs a formula is a capability_gap.\n- Well-established textbook knowledge needs no evidence: explain it directly and correctly. Facts that depend on a specific source (a paper, a repository, a supplied document, a current or versioned product) come from the request, brief, context and evidence. Bind a claim to evidence ids from evidence only; never invent an id or a citation.\n- examples show composition only. Never copy their wording, facts, numbers or titles.\n- If the request needs something supported marks false (typeset math, named steps, experiments), a component the catalogue lacks, or a specific source that was not provided (only for a source-dependent, current or versioned claim), call the tool with kind capability_gap and say what is needed. Never draw a simpler substitute that hides the missing part.\n- Stay within limits. Every drawn text line is one object, and a part shows at most limits.objectsPerPart: a box is one object plus one per wrapped line of its label (about 27 characters per line at default width), a flow step adds its box, its lines and an arrow. Measured: a module with an 80-character label draws 4 objects, a 6-step flow of short steps 11. Keep labels short. Follow composition (card size, parts as a pager, overview and detail, containers): it is Lane A's, with the measured limits. A child inherits its parent's part, so set part on the top component of each sub-card, not on its children.\nCall author_explanation exactly once.",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "tools": [
+          {
+            "name": "author_explanation",
+            "description": "Return the explanation as one VisualSpec built only from the catalogue, or a capability gap when the request needs something the catalogue or the supported features cannot draw truthfully.",
+            "input_schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "spec",
+                    "capability_gap"
+                  ]
+                },
+                "spec": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "version",
+                    "id",
+                    "title",
+                    "components",
+                    "presentation"
+                  ],
+                  "description": "Required when kind is spec.",
+                  "properties": {
+                    "version": {
+                      "type": "integer",
+                      "enum": [
+                        1
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "description": "A short slug, letters, digits and dashes."
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "components": {
+                      "type": "array",
+                      "minItems": 1,
+                      "maxItems": 40,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "component",
+                          "version"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "The id of this instance, unique in the spec; anchors are \"<id>.<anchor>\"."
+                          },
+                          "component": {
+                            "type": "string",
+                            "enum": [
+                              "section",
+                              "module",
+                              "stack",
+                              "flow",
+                              "callout",
+                              "legend",
+                              "pattern-stack",
+                              "attention-fanout",
+                              "attention-steps",
+                              "router-experts",
+                              "state-space-block"
+                            ],
+                            "description": "A catalogue component name."
+                          },
+                          "version": {
+                            "type": "integer",
+                            "description": "The catalogue version of that component."
+                          },
+                          "params": {
+                            "type": "object",
+                            "description": "Only the listed params of that component, within their limits."
+                          },
+                          "hints": {
+                            "type": "object",
+                            "description": "Only the listed hints of that component, within their limits; omit to use defaults."
+                          },
+                          "label": {
+                            "description": "A label: plain text, or {\"runs\": [{\"kind\": \"text\", \"text\": \"<words>\"}, {\"kind\": \"math\", \"tex\": \"<LaTeX>\"}]} where math is supported."
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "description": "Evidence record ids from the input only."
+                          },
+                          "part": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                          },
+                          "parent": {
+                            "type": "string",
+                            "description": "The id of a container component (catalogue container: true) this one sits inside."
+                          },
+                          "step": {
+                            "type": "string",
+                            "description": "Steps presentation only: the id of the step this component first appears on; omit for the first step. A child appears with its parent."
+                          }
+                        }
+                      }
+                    },
+                    "connections": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "from",
+                          "to"
+                        ],
+                        "properties": {
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          },
+                          "label": {
+                            "description": "A label: plain text, or {\"runs\": [{\"kind\": \"text\", \"text\": \"<words>\"}, {\"kind\": \"math\", \"tex\": \"<LaTeX>\"}]} where math is supported."
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "flow",
+                              "relation",
+                              "reference"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "evidence": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "claim",
+                          "target",
+                          "evidence"
+                        ],
+                        "properties": {
+                          "claim": {
+                            "type": "string"
+                          },
+                          "target": {
+                            "type": "string"
+                          },
+                          "evidence": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "presentation": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "mode"
+                      ],
+                      "properties": {
+                        "mode": {
+                          "type": "string",
+                          "enum": [
+                            "static",
+                            "steps",
+                            "time"
+                          ]
+                        },
+                        "duration": {
+                          "type": "number"
+                        },
+                        "steps": {
+                          "type": "array"
+                        },
+                        "experiments": {
+                          "type": "array"
+                        }
+                      }
+                    },
+                    "parts": {
+                      "type": "array",
+                      "maxItems": 4,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "id",
+                          "title"
+                        ],
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "gap": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "needs",
+                    "reason"
+                  ],
+                  "description": "Required when kind is capability_gap.",
+                  "properties": {
+                    "needs": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "math",
+                          "steps",
+                          "experiment",
+                          "component",
+                          "evidence",
+                          "other"
+                        ]
+                      },
+                      "minItems": 1
+                    },
+                    "reason": {
+                      "type": "string",
+                      "description": "One or two plain sentences for the learner: what the explanation needs that is not available."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "tool_choice": {
+          "type": "auto"
+        },
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"request\":\"Explain how multi-head latent attention in DeepSeek V3 reduces KV-cache memory compared with regular multi-head attention.\",\"brief\":null,\"context\":null,\"evidence\":[],\"catalogue\":[{\"name\":\"section\",\"version\":1,\"description\":\"A titled frame grouping its children (components naming it as parent) in a column. Anchors: top, bottom, left, right.\",\"params\":{\"title\":{\"type\":\"label\",\"maxLength\":120,\"required\":true}},\"hints\":{\"padding\":{\"type\":\"number\",\"unit\":\"px\",\"min\":16,\"max\":48,\"default\":24},\"gap\":{\"type\":\"number\",\"unit\":\"px\",\"min\":16,\"max\":96,\"default\":24}},\"repairWritable\":[\"padding\",\"gap\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\"],\"fixtures\":[\"pipeline\"],\"container\":true},{\"name\":\"module\",\"version\":1,\"description\":\"One named unit drawn as a box; long names wrap inside it. Anchors: top, bottom, left, right.\",\"params\":{\"label\":{\"type\":\"label\",\"maxLength\":200,\"required\":true},\"role\":{\"type\":\"enum\",\"values\":[\"neutral\",\"input\",\"output\",\"prediction\",\"learner\",\"tutor\",\"code\",\"warning\"],\"required\":false,\"default\":\"neutral\"}},\"hints\":{\"width\":{\"type\":\"number\",\"unit\":\"px\",\"min\":120,\"max\":480,\"default\":176},\"maxWidth\":{\"type\":\"number\",\"unit\":\"px\",\"min\":160,\"max\":640,\"default\":320}},\"repairWritable\":[\"width\",\"maxWidth\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\"],\"fixtures\":[\"pipeline\"],\"container\":false},{\"name\":\"stack\",\"version\":1,\"description\":\"Places its children (components naming it as parent) in a column or a row. Anchors: top, bottom, left, right.\",\"params\":{},\"hints\":{\"direction\":{\"type\":\"enum\",\"values\":[\"column\",\"row\"],\"default\":\"column\"},\"gap\":{\"type\":\"number\",\"unit\":\"px\",\"min\":16,\"max\":128,\"default\":32},\"align\":{\"type\":\"enum\",\"values\":[\"start\",\"center\"],\"default\":\"start\"}},\"repairWritable\":[\"direction\",\"gap\",\"align\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\"],\"fixtures\":[\"pipeline\"],\"container\":true},{\"name\":\"flow\",\"version\":1,\"description\":\"An ordered sequence of 2 to 8 steps joined by arrows: steps [label or {label, role}]. Anchors: top, bottom, left, right, first, last, step-0 to step-7.\",\"params\":{\"steps\":{\"type\":\"list\",\"min\":2,\"max\":8,\"required\":true}},\"hints\":{\"direction\":{\"type\":\"enum\",\"values\":[\"horizontal\",\"vertical\"],\"default\":\"horizontal\"},\"gap\":{\"type\":\"number\",\"unit\":\"px\",\"min\":32,\"max\":128,\"default\":56},\"nodeWidth\":{\"type\":\"number\",\"unit\":\"px\",\"min\":120,\"max\":320,\"default\":176}},\"repairWritable\":[\"direction\",\"gap\",\"nodeWidth\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\",\"first\",\"last\"],\"fixtures\":[\"pipeline\"],\"container\":false},{\"name\":\"callout\",\"version\":1,\"description\":\"A takeaway (key), a side note (note) or a caution, as wrapped text in a tinted box. Anchors: top, bottom, left, right.\",\"params\":{\"text\":{\"type\":\"label\",\"maxLength\":600,\"required\":true},\"tone\":{\"type\":\"enum\",\"values\":[\"note\",\"key\",\"caution\"],\"required\":false,\"default\":\"key\"}},\"hints\":{\"width\":{\"type\":\"number\",\"unit\":\"px\",\"min\":200,\"max\":720,\"default\":480}},\"repairWritable\":[\"width\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\"],\"fixtures\":[\"pipeline\",\"pendulum-law\"],\"container\":false},{\"name\":\"legend\",\"version\":1,\"description\":\"Names what each role colour means: entries [{label, role}], 1 to 8. Anchors: top, bottom, left, right.\",\"params\":{\"entries\":{\"type\":\"list\",\"min\":1,\"max\":8,\"required\":true}},\"hints\":{\"direction\":{\"type\":\"enum\",\"values\":[\"row\",\"column\"],\"default\":\"row\"},\"spacing\":{\"type\":\"number\",\"unit\":\"px\",\"min\":16,\"max\":64,\"default\":24}},\"repairWritable\":[\"direction\",\"spacing\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\"],\"fixtures\":[\"pipeline\"],\"container\":false},{\"name\":\"pattern-stack\",\"version\":1,\"description\":\"One period of a repeating group (pattern: 1 to 6 entries) drawn in full with condensed copies behind it. count, or countSources [{value, evidence}], gives periods, or entries when countOf is \\\"entries\\\" (a multiple of the pattern). Disagreeing sources show as a conflict. Anchors: sides, in, out, entry-0 to entry-5.\",\"params\":{\"title\":{\"type\":\"label\",\"maxLength\":120,\"required\":true},\"pattern\":{\"type\":\"list\",\"min\":1,\"max\":6,\"required\":true},\"count\":{\"type\":\"int\",\"min\":1,\"max\":1024,\"required\":false},\"countSources\":{\"type\":\"list\",\"min\":1,\"max\":4,\"required\":false},\"countOf\":{\"type\":\"enum\",\"values\":[\"periods\",\"entries\"],\"required\":false,\"default\":\"periods\"}},\"hints\":{\"nodeWidth\":{\"type\":\"number\",\"unit\":\"px\",\"min\":120,\"max\":320,\"default\":200},\"gap\":{\"type\":\"number\",\"unit\":\"px\",\"min\":24,\"max\":96,\"default\":32},\"ghosts\":{\"type\":\"number\",\"unit\":\"count\",\"min\":1,\"max\":4,\"default\":3}},\"repairWritable\":[\"nodeWidth\",\"gap\",\"ghosts\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\",\"in\",\"out\"],\"fixtures\":[\"decoder-stack\",\"hybrid-attention\",\"rinse-cycles\"],\"container\":false},{\"name\":\"attention-fanout\",\"version\":1,\"description\":\"Which query heads share which key/value heads. variant multi-head (kv = q), multi-query (kv = 1) or grouped-query (q divisible by kv, 1 < kv < q); counts up to 128. Large counts compact into group boxes. Anchors: sides, kv-0.., group-0.. for drawn groups.\",\"params\":{\"variant\":{\"type\":\"enum\",\"values\":[\"multi-head\",\"multi-query\",\"grouped-query\"],\"required\":true},\"queryHeads\":{\"type\":\"int\",\"min\":1,\"max\":128,\"required\":true},\"kvHeads\":{\"type\":\"int\",\"min\":1,\"max\":128,\"required\":true}},\"hints\":{\"maxDrawn\":{\"type\":\"number\",\"unit\":\"count\",\"min\":4,\"max\":16,\"default\":8}},\"repairWritable\":[\"maxDrawn\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\"],\"fixtures\":[\"gqa-32-to-8\",\"mqa\",\"mha\"],\"container\":false},{\"name\":\"attention-steps\",\"version\":1,\"description\":\"Symbolic scaled dot-product attention for one query: projections, scores q_i.k_j/sqrt(d_k), softmax weights and the weighted sum o_i. query is the position i; rows (2 to 4) key positions are shown; symbolicLast ends the rows at T after a vertical ellipsis. Static, symbolic, no numbers.\",\"params\":{\"query\":{\"type\":\"int\",\"min\":1,\"max\":999,\"required\":true},\"rows\":{\"type\":\"int\",\"min\":2,\"max\":4,\"required\":false,\"default\":3},\"symbolicLast\":{\"type\":\"boolean\",\"required\":false,\"default\":true}},\"hints\":{\"columnGap\":{\"type\":\"number\",\"unit\":\"px\",\"min\":32,\"max\":120,\"default\":40}},\"repairWritable\":[\"columnGap\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\",\"output\"],\"fixtures\":[\"attention-steps-q2\"],\"container\":false},{\"name\":\"router-experts\",\"version\":1,\"description\":\"Mixture of experts: a router sends each token to topK of experts routed experts (routing top-k, or switch with topK 1), plus sharedExperts always-on experts, then a weighted sum. selected names the chosen expert numbers for the example token. Anchors: sides, input, router, output, expert-N for drawn experts.\",\"params\":{\"experts\":{\"type\":\"int\",\"min\":2,\"max\":256,\"required\":true},\"topK\":{\"type\":\"int\",\"min\":1,\"max\":8,\"required\":true},\"routing\":{\"type\":\"enum\",\"values\":[\"top-k\",\"switch\"],\"required\":false,\"default\":\"top-k\"},\"sharedExperts\":{\"type\":\"int\",\"min\":0,\"max\":4,\"required\":false,\"default\":0},\"selected\":{\"type\":\"list\",\"min\":1,\"max\":8,\"required\":false},\"input\":{\"type\":\"label\",\"maxLength\":120,\"required\":false,\"default\":\"Token\"},\"output\":{\"type\":\"label\",\"maxLength\":120,\"required\":false,\"default\":\"Weighted sum of the expert outputs\"}},\"hints\":{\"maxDrawn\":{\"type\":\"number\",\"unit\":\"count\",\"min\":4,\"max\":16,\"default\":8}},\"repairWritable\":[\"maxDrawn\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\",\"input\",\"router\",\"output\"],\"fixtures\":[\"moe-8-top2\"],\"container\":false},{\"name\":\"state-space-block\",\"version\":1,\"description\":\"Mamba-2 mixer (mamba2.py at e9594ce): in_proj to z, x, B, C, dt; causal Conv1D + SiLU on x, B, C; selective scan; gated RMSNorm; out_proj. normBeforeGate must be the target model's setting. scope main-path omits dt/A/D internals and says so; detailed shows them.\",\"params\":{\"normBeforeGate\":{\"type\":\"boolean\",\"required\":true},\"rmsnorm\":{\"type\":\"boolean\",\"required\":false,\"default\":true},\"scope\":{\"type\":\"enum\",\"values\":[\"main-path\",\"detailed\"],\"required\":false,\"default\":\"main-path\"},\"variant\":{\"type\":\"enum\",\"values\":[\"mamba2\"],\"required\":false,\"default\":\"mamba2\"}},\"hints\":{\"width\":{\"type\":\"number\",\"unit\":\"px\",\"min\":240,\"max\":400,\"default\":300}},\"repairWritable\":[\"width\"],\"anchors\":[\"top\",\"bottom\",\"left\",\"right\",\"input\",\"output\"],\"fixtures\":[\"mamba2-main-path\"],\"container\":false}],\"composition\":{\"card\":\"One card is at most 1120 by 860 pixels; a wider or taller layout is scaled down until its text is unreadable, so prefer columns and short rows.\",\"parts\":\"Overview and detail: spec.parts [{id, title}] (at most 4) becomes a pager of sub-cards. Put a component on one sub-card with part (its index); its children follow it. A component without part shows on every sub-card, so keep shared components few. Each sub-card shows at most 60 objects. Connections join components of one part.\",\"overviewDetail\":\"When one picture does not fit, make part 0 a compact overview of the whole idea and give each later part one stretch of it in detail, with its notes beside it.\",\"hierarchy\":\"Containers (container: true) lay out the components that name them as parent; nest them for groups inside groups.\",\"example\":{\"id\":\"request-path-parts\",\"use\":\"composition only, never facts\",\"spec\":{\"version\":1,\"id\":\"request-path-parts\",\"title\":\"How a request reaches a web server, and where caching helps\",\"parts\":[{\"id\":\"overview\",\"title\":\"The whole path\"},{\"id\":\"before\",\"title\":\"Before the server\"},{\"id\":\"at\",\"title\":\"At the server\"}],\"components\":[{\"id\":\"path\",\"component\":\"flow\",\"version\":1,\"part\":0,\"hints\":{\"nodeWidth\":128,\"gap\":32},\"params\":{\"steps\":[{\"label\":\"Browser\",\"role\":\"input\"},\"DNS lookup\",\"CDN edge\",\"Load balancer\",\"App server\",{\"label\":\"Database\",\"role\":\"output\"}]}},{\"id\":\"overview-note\",\"component\":\"callout\",\"version\":1,\"part\":0,\"params\":{\"text\":\"Caching can cut this path short at four points; the next two pages show where.\",\"tone\":\"key\"}},{\"id\":\"before\",\"component\":\"section\",\"version\":1,\"part\":1,\"params\":{\"title\":\"Browser to the network edge\"}},{\"id\":\"before-path\",\"component\":\"flow\",\"version\":1,\"parent\":\"before\",\"params\":{\"steps\":[{\"label\":\"Browser\",\"role\":\"input\"},\"DNS lookup\",\"CDN edge\"]}},{\"id\":\"browser-cache\",\"component\":\"callout\",\"version\":1,\"parent\":\"before\",\"params\":{\"text\":\"Browser cache: a repeat visit reuses saved files and sends no request at all.\",\"tone\":\"note\"}},{\"id\":\"dns-cache\",\"component\":\"callout\",\"version\":1,\"parent\":\"before\",\"params\":{\"text\":\"DNS cache: the resolver remembers the server address, so the lookup is skipped.\",\"tone\":\"note\"}},{\"id\":\"cdn-cache\",\"component\":\"callout\",\"version\":1,\"parent\":\"before\",\"params\":{\"text\":\"CDN cache: an edge server near the user answers without reaching the origin.\",\"tone\":\"note\"}},{\"id\":\"at\",\"component\":\"section\",\"version\":1,\"part\":2,\"params\":{\"title\":\"Inside the origin\"}},{\"id\":\"at-path\",\"component\":\"flow\",\"version\":1,\"parent\":\"at\",\"params\":{\"steps\":[\"Load balancer\",\"App server\",{\"label\":\"Database\",\"role\":\"output\"}]}},{\"id\":\"db-cache\",\"component\":\"callout\",\"version\":1,\"parent\":\"at\",\"params\":{\"text\":\"Query cache: the app keeps recent results in memory and skips the database.\",\"tone\":\"note\"}}],\"presentation\":{\"mode\":\"static\"}}}},\"supported\":{\"static\":true,\"time\":true,\"math\":true,\"steps\":true,\"experiment\":false},\"limits\":{\"components\":40,\"connections\":80,\"parts\":4,\"objectsTotal\":240,\"objectsPerPart\":60},\"examples\":[]}"
+              }
+            ]
+          }
+        ]
+      },
+      "stopReason": "tool_use"
+    }
+  ],
+  "redactions": "image bytes replaced by sha256 + byte count",
+  "elapsedMs": 6745
+}

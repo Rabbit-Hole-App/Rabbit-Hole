@@ -153,6 +153,10 @@ test('the Rabbit Hole navigator sits at the top of the tools gutter on either si
   assert.doesNotMatch(canvas, /data-dive-gutter className/, 'no map column of its own');
   assert.doesNotMatch(canvas, /mapBeside/);
   // View > Rabbit Hole Map off (owner brief 2026-10-21 item 3): hidden, never unmounted.
+  // Owner decision 2026-10-22: the slot's own padding (pt-3, pt-12 in dev) is no band: only the map inside it takes the pointer.
+  // Important (!): the tools column's own `[&>*]:pointer-events-auto` also matches this slot, at the same specificity and emitted later
+  // than a plain pointer-events-none, so without it the slot's padding stayed a band (gate 39830037683 and 39834718527, 4 of 39 probes).
+  assert.match(canvas, /<div data-gutter-top className=\{`pointer-events-none! mb-auto [^\n]*\[&>\*\]:pointer-events-auto /);
   assert.match(canvas, /<div data-gutter-top [^\n]*>\n(?:[^\n]*\n){2}\s+\{gutterTop && <div className=\{holeMap \? undefined : 'hidden'\}>\{gutterTop\}<\/div>\}/);
   assert.match(page, /gutterTop=\{dive\.tree \? <DiveNavigator \{\.\.\.dive\.navigator\} \/> : null\}/);
 });

@@ -1,0 +1,19 @@
+{
+  "type": "explanation",
+  "title": "Backprop to a hidden weight: sum over every path to the loss",
+  "body": "The figure shows a 2-input → 3-hidden → 2-output network. We want\n$$\\frac{\\partial L}{\\partial w^{(h)}_{1,1}}$$\nthe weight feeding $x_1$ into hidden unit $a^{(h)}_1$.\n\n**1. Trace the forward path.** Changing $w^{(h)}_{1,1}$ changes $a^{(h)}_1$, which feeds **both** outputs $a^{(out)}_1$ and $a^{(out)}_2$, each of which changes $L$. So $w^{(h)}_{1,1}$ influences $L$ through two routes.\n\n**2. Chain rule along one route.** For output 1:\n$$\\frac{\\partial L}{\\partial a^{(out)}_1}\\cdot\\frac{\\partial a^{(out)}_1}{\\partial a^{(h)}_1}\\cdot\\frac{\\partial a^{(h)}_1}{\\partial w^{(h)}_{1,1}}$$\nEach factor is local: the loss derivative at the output, the weight-times-activation-derivative across layer 2, and the input-times-activation-derivative at the hidden unit.\n\n**3. Multivariable chain rule: add the routes.**\n$$\\frac{\\partial L}{\\partial w^{(h)}_{1,1}}=\\sum_{j=1}^{2}\\frac{\\partial L}{\\partial a^{(out)}_j}\\cdot\\frac{\\partial a^{(out)}_j}{\\partial a^{(h)}_1}\\cdot\\frac{\\partial a^{(h)}_1}{\\partial w^{(h)}_{1,1}}$$\nThat is exactly the two-line formula on the right of the figure. Whenever a quantity fans out to several downstream nodes, its gradient is the **sum** of the contributions coming back along each edge.\n\n**4. Why it's efficient.** Backprop computes the shared part once. Define the hidden-unit error signal\n$$\\delta^{(h)}_1=\\sum_j \\frac{\\partial L}{\\partial a^{(out)}_j}\\frac{\\partial a^{(out)}_j}{\\partial a^{(h)}_1}$$\nThen every weight into unit 1 is just $\\delta^{(h)}_1\\cdot\\frac{\\partial a^{(h)}_1}{\\partial w^{(h)}_{1,k}}$. The bold arrows in the figure are this reverse flow: output errors stream backwards, merge at the hidden unit, then get multiplied by the local input.",
+  "more": [
+    {
+      "label": "Worked example (illustrative numbers)",
+      "text": "Let net input z = w·x + b, activation a = σ(z), with σ'(z) = a(1−a).\n\nSuppose at the hidden unit: x₁ = 2.0, a₁⁽ʰ⁾ = 0.6, so ∂a₁⁽ʰ⁾/∂w₁,₁⁽ʰ⁾ = σ'(z)·x₁ = 0.6(0.4)(2.0) = 0.48.\n\nSuppose the two backward signals arriving are:\n route 1: (∂L/∂a₁⁽ᵒᵘᵗ⁾)(∂a₁⁽ᵒᵘᵗ⁾/∂a₁⁽ʰ⁾) = 0.30\n route 2: (∂L/∂a₂⁽ᵒᵘᵗ⁾)(∂a₂⁽ᵒᵘᵗ⁾/∂a₁⁽ʰ⁾) = −0.10\n\nThen δ₁⁽ʰ⁾ = 0.30 − 0.10 = 0.20, and\n∂L/∂w₁,₁⁽ʰ⁾ = 0.20 × 0.48 = 0.096.\n\nGradient descent update with η = 0.1: w₁,₁⁽ʰ⁾ ← w₁,₁⁽ʰ⁾ − 0.0096. (Numbers invented to illustrate the arithmetic.)"
+    },
+    {
+      "label": "Common misconception",
+      "text": "\"Just follow the strongest path.\" No — you must sum over all paths. Dropping the second output's term gives a systematically wrong gradient, and note the terms can have opposite signs and partly cancel (0.30 and −0.10 above). Likewise, each route is a product (multiply along a path) and the routes are added — never add along a path or multiply across paths."
+    },
+    {
+      "label": "Forward mode vs reverse mode",
+      "text": "The same sum could be computed forward: push ∂/∂w₁,₁⁽ʰ⁾ through the network. But that costs one full pass per weight. Reverse mode (backprop) pushes ∂L/∂(·) backwards once, giving every weight's gradient in a single pass — the reason it scales to millions of parameters. The cost is memory: the forward activations must be cached for the backward pass."
+    }
+  ]
+}

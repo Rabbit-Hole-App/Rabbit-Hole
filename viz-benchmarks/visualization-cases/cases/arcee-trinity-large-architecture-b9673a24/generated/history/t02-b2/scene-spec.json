@@ -1,0 +1,19 @@
+{
+  "type": "explanation",
+  "title": "Trinity Large (400B): inside one decoder block",
+  "body": "**The spine.** Tokenized text → token embedding (dimension **3,072**) → **60 identical decoder blocks** → final RMSNorm → linear output layer over a **200k** vocabulary. Context length is **256k** tokens.\n\n**One block = two pre-norm sublayers.** Each sublayer follows the pattern\n`x → Pre-RMSNorm → sublayer → Post-RMSNorm → + x`.\nSublayer 1 is attention; sublayer 2 is the feed-forward/MoE. Having a norm *before* the sublayer keeps activations well-scaled going in; the *extra* post-norm (a \"sandwich\" norm) tames the magnitude of what gets added back, which matters at 400B scale where residual streams otherwise drift.\n\n**The attention mix.** Attention is **Grouped-Query Attention with 48 heads**: queries are split into many heads but keys/values are shared across groups, shrinking the KV cache — the thing that actually limits a 256k context. Layers alternate **Sliding-Window Attention to full attention in a 3:1 ratio**: three cheap local-window layers for every one global layer, so cost grows roughly linearly in sequence length while information still travels globally every fourth layer. Positional handling matches this: **RoPE + NoPE** (some layers get no positional encoding at all, which helps length extrapolation), plus **QK-Norm** and **gated attention** for stability.\n\n**The MoE layer.** Instead of one big SwiGLU FFN, most blocks hold **256 expert FFNs** plus a **router**. The router scores the token and sends it to **1 shared + 4 routed experts**; their outputs are summed. So the model *stores* **400B** parameters but *uses* about **13B** per token — capacity without the matching compute bill.\n\n**The exception.** The **first 6 blocks are dense**, using an ordinary SwiGLU FFN with hidden size **12,288**. Early layers do generic, universal feature work, where routing buys little and can destabilise training.",
+  "more": [
+    {
+      "label": "What SwiGLU actually computes",
+      "text": "The FeedForward module splits into two linear branches from the same input: one passes through SiLU, the other stays linear, and the two are multiplied elementwise (the gate). A third linear layer projects back to the model dimension. In the dense blocks the intermediate width is 12,288 (4x the 3,072 embedding dim); each MoE expert uses a narrower intermediate of 3,072, which is why 256 of them remain affordable."
+    },
+    {
+      "label": "Why 1 shared + 4 routed experts",
+      "text": "The shared expert runs for every token, so common patterns (syntax, formatting) don't have to be duplicated inside all 256 specialists. The router then picks 4 specialists for the token-specific work. This split reduces redundancy across experts and makes routing less brittle: even if the router chooses badly, every token still gets the shared pathway."
+    },
+    {
+      "label": "Common misconception",
+      "text": "\"400B parameters means 400B multiply-adds per token.\" No — with MoE, parameter count is storage, not compute. Only ~13B parameters are active per inference step. But the full 400B must still fit in memory across your GPUs, so MoE saves FLOPs and latency, not VRAM."
+    }
+  ]
+}

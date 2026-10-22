@@ -67,7 +67,7 @@ export const lineFields = (line, field = 'label') => ({ [field]: line.plain, ...
 const PAD = 16;
 // A centred box whose label fits on one line keeps it as the box's own label
 // (drawn centred by the renderer); a longer one, or any start-aligned box,
-// carries left-aligned text lines. Width grows with the label between
+// carries text lines, centred in a centred box and left-aligned in a start-aligned one. Width grows with the label between
 // minWidth and maxWidth and shrinks to the longest wrapped line (render
 // review 2026-10-22: wrapped boxes were left half empty).
 export function labelledBox({ id, label, role = 'neutral', minWidth, maxWidth, minHeight = 56, typography = 'body', align = 'center' }) {
@@ -86,7 +86,8 @@ export function labelledBox({ id, label, role = 'neutral', minWidth, maxWidth, m
     w, h,
     objects: [
       { id, type: 'box', initialState: { x: 0, y: 0, w, h, role } },
-      ...lines.map((line, index) => ({ id: `${id}-line${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), x: PAD, y: Math.round(top + baselines[index]), typography } })),
+      // A centred box keeps its wrapped lines centred too (L1 render finding 2026-10-22: they drew left-aligned).
+      ...lines.map((line, index) => ({ id: `${id}-line${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), ...(align === 'center' ? { x: w / 2, align: 'middle' } : { x: PAD }), y: Math.round(top + baselines[index]), typography } })),
     ],
   };
 }

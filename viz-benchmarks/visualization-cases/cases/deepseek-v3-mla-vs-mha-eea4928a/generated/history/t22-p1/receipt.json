@@ -1,0 +1,42 @@
+{
+  "system": "v2",
+  "costUsd": 0.030026,
+  "calls": 1,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 6746,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "accepted": false,
+  "rounds": 0,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 6688,
+      "calls": 7
+    }
+  ],
+  "gap": {
+    "capability": "explain",
+    "needs": [
+      "evidence"
+    ],
+    "source": "author",
+    "message": "This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.",
+    "reason": "Multi-head latent attention, and the exact sizes DeepSeek V3 uses for it, come from the DeepSeek papers. None of that source material was provided, so I can't show those details or compare memory use with confidence. If you attach the DeepSeek-V3 (or V2) technical report, or excerpts on how MLA compresses keys and values and what dimensions it caches, I can draw it side by side with regular multi-"
+  },
+  "stop": null,
+  "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+  "runId": "t22-p1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "heldout",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Multi-head latent attention, and the exact sizes DeepSeek V3 uses for it, come fr",
+  "outputSha256": null,
+  "promptSha256": "dc57188639fbf6c195a76ccb4d8b5848d464cd6c823abb8ccaba588967f743a9",
+  "recordedAt": "2026-10-22T16:29:39.907Z"
+}

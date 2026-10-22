@@ -1,0 +1,42 @@
+{
+  "system": "v2",
+  "costUsd": 0.02435,
+  "calls": 1,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 3820,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "accepted": false,
+  "rounds": 0,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 3819,
+      "calls": 12
+    }
+  ],
+  "gap": {
+    "capability": "explain",
+    "needs": [
+      "evidence"
+    ],
+    "source": "author",
+    "message": "This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.",
+    "reason": "The MiniMax-M3 (428B) architecture is specific to one model, and no source for it was provided. Drawing its decoder block, sparse attention and MoE layer would mean guessing numbers like layer count, attention pattern, expert count and top-k. Please attach the model's paper, model card or config so each part can be drawn from what it actually says."
+  },
+  "stop": null,
+  "caseId": "minimax-m3-architecture-fe212e84",
+  "runId": "t22-p1",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "example",
+  "family": "llm-architecture",
+  "examples": [],
+  "outcome": "failed",
+  "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"The MiniMax-M3 (428B) architecture is specific to one model, and no source for it",
+  "outputSha256": null,
+  "promptSha256": "f31e92821c063ba956a4e73a4ed434ebfe2c27330f412b1e00ccb24fc4ec6498",
+  "recordedAt": "2026-10-22T16:31:03.859Z"
+}

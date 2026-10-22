@@ -1,0 +1,35 @@
+{
+  "rows": [
+    {
+      "caseId": "self-attention-context-vector-959e8622",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "error: The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again.",
+      "accepted": null,
+      "costUsd": 0.255905,
+      "error": "error: The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again."
+    },
+    {
+      "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+      "split": "heldout",
+      "outcome": "failed",
+      "result": "validation_error",
+      "accepted": null,
+      "costUsd": 0.215965,
+      "error": "validation_error"
+    }
+  ],
+  "spentUsd": 0.47187,
+  "notes": {
+    "at": "2026-10-22T10:25:00-07:00",
+    "by": "r2 lane L4",
+    "tree": "frozen system at explain/d-t18 844f5cc0 (assertFrozen pass, systemSha 6f0b7a3e) with the case metadata of main ebd0ea74",
+    "mode": "reference-guided as t02-b2",
+    "provider": "claude-opus-5 served on all 5 calls (HTTP 200)",
+    "rows": {
+      "self-attention-context-vector-959e8622": "author scene refused (matmul shape), repair passed the gates, then the verifier stopped at max_tokens with no verdict, so the artifact path added nothing (baseline defect: verifier output budget)",
+      "deepseek-v3-mla-vs-mha-eea4928a": "author and repair both refused by the gates (pick arguments; a matrix cell over 80): validation_error"
+    },
+    "baselineSummary": "Frozen baseline over 4 cases x 2 input modes: 0 scenes. Prompt-only: 3 non-scene primitives (arcee, backprop, deepseek), self-attention validation_error. Reference-guided: 2 non-scene primitives (arcee, backprop), self-attention no verifier verdict, deepseek validation_error. Render-existing mode unrun."
+  }
+}

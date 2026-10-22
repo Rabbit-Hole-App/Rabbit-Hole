@@ -264,3 +264,53 @@ test('0021 is additive, re-runnable and exactly what repository-schema.sql appli
   assert.ok(schema.replace(/\r/g, '').includes(`-- learn-migrations/0021-canvas-refs.sql\n${migration.replace(/\r/g, '').trim()}`));
   assert.doesNotMatch(migration, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
 });
+
+// "Mention a canvas" (canvas-mention-ref.js): the picker with holes=1, the pill's title by id, and the ask's resolver, all
+// on the same rule as references - the asker reads the canvas now, else it is unavailable with no title.
+test('mention: the picker lists holes under their parent, a pill reads its title by id, and an unreadable canvas leaks no title', async t => {
+  const f = setup(t);
+  const { canvasMentions, CANVAS_UNAVAILABLE } = await import('../src/canvas-refs.js');
+  const { canvasMentionRef } = await import('../../web/src/canvas-mention-ref.js');
+  const tides = await f.canvas('ana', 'Tides'), physics = await f.canvas('ana', 'Physics'), notes = await f.canvas('ana', 'Notes');
+  const shared = await f.canvas('ben', 'Ben secret plan');
+  f.member('ben', shared, 'ana');
+  const made = await f.call('POST', '/api/canvases/dives', { as: 'ana', body: { name: 'canvas-0000c1c1', title: 'Notes', parent: { app: physics.name, board: 'main' }, origin_block_id: 'c1', dive: {} } });
+  const hole = { name: made.body.name };
+  assert.equal((await f.save('ana', hole, board(card('h1', [], 'Hole card')), 0)).status, 200);
+  const holeId = f.sqlite.prepare("SELECT id FROM learn_boards WHERE app = ? AND board = 'main'").get(hole.name).id;
+  const pick = async query => (await f.call('GET', `/api/learn/canvas-picker?${query}`, { as: 'ana' })).body;
+  // Without holes=1 the picker is exactly as before; with it the hole is listed and its path is its parent canvas.
+  assert.equal((await pick('q=notes')).canvases.some(c => c.id === holeId), false);
+  const both = (await pick('q=notes&holes=1')).canvases;
+  assert.deepEqual(both.map(c => [c.title, c.path]).sort(), [['Notes', null], ['Notes', 'Physics']], 'two Notes told apart by the hole\'s parent');
+  assert.deepEqual(both.find(c => c.id === holeId), { id: holeId, title: 'Notes', path: 'Physics', href: `/apps/${hole.name}` });
+  assert.equal(both.find(c => c.id === notes.id).path, null);
+  // A pill reads its canvas by id: the title for a readable one, 404 and no title otherwise.
+  const ref = async id => f.call('GET', `/api/learn/canvas-ref/${id}`, { as: 'ana' });
+  assert.deepEqual((await ref(holeId)).body, { id: holeId, title: 'Notes', path: 'Physics' });
+  assert.deepEqual((await ref(shared.id)).body, { id: shared.id, title: 'Ben secret plan', path: null });
+  assert.equal((await f.call('GET', `/api/learn/canvas-ref/${tides.id}`, { as: 'ben' })).status, 404);
+  assert.equal((await ref('not-a-board')).status, 404);
+  assert.equal((await f.call('GET', `/api/learn/canvas-ref/${tides.id}`, {})).status, 401);
+  // Two different canvases: each by its own title, with its saved content.
+  await f.save('ana', tides, board(card('t1', [], 'Spring tides'), { id: 't2', type: 'explanation', dx: 0, dy: 0, title: 'Neap tides', body: 'Sun and moon at right angles.' }), 0);
+  const two = await canvasMentions(f.env, { ...PEOPLE.ana, userId: PEOPLE.ana.user_id }, [canvasMentionRef(tides.id), canvasMentionRef(holeId)]);
+  assert.deepEqual(two.refused, []);
+  assert.match(two.text, /Mentioned canvas "Tides" \(canvas:[0-9a-f-]{36}\), as last saved/);
+  assert.match(two.text, /Sun and moon at right angles\./);
+  assert.match(two.text, /Mentioned canvas "Notes" \(canvas:[0-9a-f-]{36}\) in "Physics"/);
+  assert.match(two.text, /Hole card/);
+  // Revoked: the membership ends. The pill reads 404 with no title, and the ask's resolver refuses it with no title.
+  assert.match((await canvasMentions(f.env, { ...PEOPLE.ana, userId: PEOPLE.ana.user_id }, [canvasMentionRef(shared.id)])).text, /Ben secret plan/);
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE canvas = ?").run(shared.name);
+  const gone = await ref(shared.id);
+  assert.equal(gone.status, 404);
+  assert.doesNotMatch(JSON.stringify(gone.body), /Ben secret plan/);
+  const refused = await canvasMentions(f.env, { ...PEOPLE.ana, userId: PEOPLE.ana.user_id }, [canvasMentionRef(tides.id), canvasMentionRef(shared.id)]);
+  assert.deepEqual(refused.refused, [`canvas:${shared.id}`]);
+  assert.doesNotMatch(JSON.stringify(refused) + CANVAS_UNAVAILABLE, /Ben secret plan/);
+  // Trash is revoked access too, for the owner's own canvas.
+  await f.call('POST', `/api/apps/${tides.name}/trash`, { as: 'ana', body: {} });
+  assert.equal((await ref(tides.id)).status, 404);
+  assert.deepEqual((await canvasMentions(f.env, { ...PEOPLE.ana, userId: PEOPLE.ana.user_id }, [canvasMentionRef(tides.id)])).refused, [`canvas:${tides.id}`]);
+});

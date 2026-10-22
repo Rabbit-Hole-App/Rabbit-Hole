@@ -1,0 +1,192 @@
+{
+  "rows": [
+    {
+      "caseId": "diffusion-transformer-long-skip-a4e6231f",
+      "split": "example",
+      "outcome": "ok",
+      "result": "repair_stopped",
+      "accepted": false,
+      "costUsd": 0.132484,
+      "error": null
+    }
+  ],
+  "spentUsd": 0.132484,
+  "paused": null,
+  "report": {
+    "runId": "t22-p1b",
+    "casesDeclared": 1,
+    "casesRun": 1,
+    "paused": null,
+    "outcomes": {
+      "repair_stopped": [
+        "diffusion-transformer-long-skip-a4e6231f"
+      ]
+    },
+    "rendered": [
+      "diffusion-transformer-long-skip-a4e6231f"
+    ],
+    "acceptedByModelReview": [],
+    "refusalRate": {
+      "definition": "cases that ended without a rendered, model-accepted card, over cases run",
+      "refused": 1,
+      "of": 1,
+      "rate": 1,
+      "capabilityGaps": 0,
+      "invalidAfterRepairs": 1,
+      "notAcceptedByReview": 1,
+      "providerRefusals": 0
+    },
+    "costUsd": {
+      "all": {
+        "n": 1,
+        "min": 0.132,
+        "median": 0.132,
+        "max": 0.132,
+        "sum": 0.132484
+      },
+      "accepted": {
+        "n": 0,
+        "min": null,
+        "median": null,
+        "max": null,
+        "sum": 0
+      },
+      "gap": {
+        "n": 0,
+        "min": null,
+        "median": null,
+        "max": null,
+        "sum": 0
+      },
+      "invalid": {
+        "n": 1,
+        "min": 0.132,
+        "median": 0.132,
+        "max": 0.132,
+        "sum": 0.132484
+      }
+    },
+    "latencySeconds": {
+      "note": "harness wall time: submission (author call start) to final outcome, sequential, local headless render, cold browser per render; no queue, no brief, no evidence stage; small samples, no percentiles claimed",
+      "all": {
+        "n": 1,
+        "min": 60.864,
+        "median": 60.864,
+        "max": 60.864,
+        "sum": 60.864
+      },
+      "accepted": {
+        "n": 0,
+        "min": null,
+        "median": null,
+        "max": null,
+        "sum": 0
+      },
+      "gap": {
+        "n": 0,
+        "min": null,
+        "median": null,
+        "max": null,
+        "sum": 0
+      }
+    },
+    "perCall": {
+      "author": {
+        "n": 1,
+        "min": 28.465,
+        "median": 28.465,
+        "max": 28.465,
+        "sum": 28.465
+      }
+    },
+    "coverage": {
+      "splits": {
+        "example": {
+          "run": 1,
+          "rendered": 1,
+          "accepted": 0
+        },
+        "heldout": {
+          "run": 0,
+          "rendered": 0,
+          "accepted": 0
+        }
+      }
+    },
+    "cases": [
+      {
+        "caseId": "diffusion-transformer-long-skip-a4e6231f",
+        "split": "example",
+        "ran": true,
+        "flowResult": "repair_stopped",
+        "accepted": false,
+        "rendered": true,
+        "costUsd": 0.132484,
+        "elapsedMs": 60864,
+        "rounds": 1,
+        "calls": 2,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 11863,
+        "outputTokens": 5027,
+        "callMs": [
+          [
+            "author_explanation",
+            28465
+          ],
+          [
+            "report_review",
+            17778
+          ]
+        ],
+        "stageMs": {
+          "author": 28509,
+          "validate-r0": 108,
+          "render-r0": 3744,
+          "review-r0": 17789,
+          "repair-r1": 1
+        },
+        "gap": null,
+        "gapReason": null,
+        "stop": null,
+        "error": null,
+        "review": [
+          {
+            "capture": "p0-light-r0",
+            "semantic": "pass",
+            "visual": "fail",
+            "findings": [
+              "visual/minor/spec: The first box shows raw markup 'x_t' instead of a rendered x with subscript t, while the note below renders x_t correctly. It looks inconsistent and like leaked syntax."
+            ]
+          },
+          {
+            "capture": "p1-light-r0",
+            "semantic": "pass",
+            "visual": "fail",
+            "findings": [
+              "visual/major/renderer: All three arrows converge on one point near the left of the sequence box. The condition and patch arrows nearly merge near the arrowhead, and the long patch arrow runs almost flat along the top border of the 'One token sequence' box, so it's hard to follow."
+            ]
+          },
+          {
+            "capture": "p2-light-r0",
+            "semantic": "pass",
+            "visual": "fail",
+            "findings": [
+              "visual/major/renderer: The lower 'long skip' label sits on the bottom edge of the Middle block box, and its connector passes just under the box, so the label and the box border collide."
+            ]
+          },
+          {
+            "capture": "p3-light-r0",
+            "semantic": "pass",
+            "visual": "pass",
+            "findings": [
+              "semantic/minor/spec: 'Subtract the predicted noise step by step' simplifies real samplers (DDPM/DDIM rescale and may add noise back). Acceptable for a learner, but it is a simplification."
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

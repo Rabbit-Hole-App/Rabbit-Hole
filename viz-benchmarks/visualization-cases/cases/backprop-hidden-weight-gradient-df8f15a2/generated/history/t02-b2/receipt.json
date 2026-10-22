@@ -1,0 +1,24 @@
+{
+  "system": "baseline",
+  "costUsd": 0.075995,
+  "calls": 1,
+  "servedModels": [
+    "claude-opus-5"
+  ],
+  "elapsedMs": 21292,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "primitive": "explanation",
+  "caseId": "backprop-hidden-weight-gradient-df8f15a2",
+  "runId": "t02-b2",
+  "mode": "generate",
+  "inputMode": "reference-guided",
+  "split": "example",
+  "family": "gradient-math",
+  "examples": [],
+  "outcome": "failed",
+  "error": "not rendered: /explain returned the explanation primitive, which is not a scene",
+  "outputSha256": null,
+  "promptSha256": "139910fde17857539717d04fee3b77c9e8c571d1435813d2903bcd90dfb874f2",
+  "recordedAt": "2026-10-22T16:47:03.264Z"
+}

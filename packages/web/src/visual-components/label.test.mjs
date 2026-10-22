@@ -75,3 +75,17 @@ test('a wrapped line holding math gets extra height so a radical clears the line
   const [a, b] = plain.scene.objects.filter(object => object.type === 'text').map(object => object.initialState.y);
   assert.ok(second - first > b - a, `${second - first} > ${b - a}`);
 });
+
+test('a centred box keeps its wrapped lines centred; a start-aligned one keeps them at the left pad', async () => {
+  const { labelledBox } = await import('./label.js');
+  const { estimateTextBox } = await import('../scene-layout.js');
+  const centred = labelledBox({ id: 'b', label: 'Fetch from slower memory when the cache misses', minWidth: 176, maxWidth: 176 });
+  const lines = centred.objects.filter(object => object.type === 'text');
+  assert.ok(lines.length > 1);
+  for (const line of lines) assert.deepEqual([line.initialState.x, line.initialState.align], [centred.w / 2, 'middle']);
+  // The layout estimate measures a middle-anchored line around its x, inside the box.
+  const box = estimateTextBox({ text: lines[0].initialState.text, x: centred.w / 2, y: 30, fontSize: 16, anchor: 'middle', baseline: 'auto' });
+  assert.ok(box.xMin >= 0 && box.xMax <= centred.w);
+  const start = labelledBox({ id: 'c', label: 'Fetch from slower memory when the cache misses', minWidth: 176, maxWidth: 176, align: 'start' });
+  for (const line of start.objects.filter(object => object.type === 'text')) assert.deepEqual([line.initialState.x, line.initialState.align], [16, undefined]);
+});

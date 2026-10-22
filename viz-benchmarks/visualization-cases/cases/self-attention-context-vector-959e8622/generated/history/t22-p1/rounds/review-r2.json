@@ -1,0 +1,185 @@
+{
+  "captures": [
+    {
+      "captureId": "light-r2",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf1",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "light-r2",
+            "object": "output node o_2"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The final node is labelled o_2 = Σ α_{2,j} v_j, but the request and the callout call the output z_2. The learner sees two names for the same vector and cannot tell they are the same."
+        },
+        {
+          "version": 1,
+          "id": "rf2",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "light-r2",
+            "object": "normaliser Z_2"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The softmax normaliser is called Z_2, which nearly collides with the output z_2 (capital vs lowercase). That invites confusion about which one is the context vector."
+        },
+        {
+          "version": 1,
+          "id": "rf3",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "light-r2",
+            "object": "callout text"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The callout prose shows raw plain-text 'z_2' and 'q_2' with literal underscores instead of rendered subscripts. This is inconsistent with the typeset math right next to it."
+        },
+        {
+          "version": 1,
+          "id": "rf4",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "major",
+          "target": {
+            "capture": "light-r2",
+            "object": "callout connector"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The callout's connector runs up to the 'Symbolic rows…' caption line rather than to the output node it describes, so it points at nothing meaningful."
+        },
+        {
+          "version": 1,
+          "id": "rf5",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "minor",
+          "target": {
+            "capture": "light-r2",
+            "object": "callout"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The callout text wraps at about half the box width, leaving a large empty area on the right and making the box taller than it needs to be."
+        }
+      ]
+    },
+    {
+      "captureId": "dark-r2",
+      "semantic": "fail",
+      "visual": "fail",
+      "findings": [
+        {
+          "version": 1,
+          "id": "rf6",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "major",
+          "target": {
+            "capture": "dark-r2",
+            "object": "output node o_2"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The final node is labelled o_2 while the callout and the request use z_2, so the output vector has two inconsistent names."
+        },
+        {
+          "version": 1,
+          "id": "rf7",
+          "verdict": "semantic",
+          "category": "spec",
+          "severity": "minor",
+          "target": {
+            "capture": "dark-r2",
+            "object": "normaliser Z_2"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "The normaliser Z_2 nearly collides with the output z_2, which is confusing."
+        },
+        {
+          "version": 1,
+          "id": "rf8",
+          "verdict": "visual",
+          "category": "renderer",
+          "severity": "major",
+          "target": {
+            "capture": "dark-r2",
+            "object": "callout text"
+          },
+          "evidence": [],
+          "specRepairable": false,
+          "message": "Raw 'z_2' and 'q_2' with literal underscores appear in the prose instead of rendered math."
+        },
+        {
+          "version": 1,
+          "id": "rf9",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "major",
+          "target": {
+            "capture": "dark-r2",
+            "object": "callout connector"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The connector attaches to the caption line instead of the output node it explains."
+        },
+        {
+          "version": 1,
+          "id": "rf10",
+          "verdict": "visual",
+          "category": "component",
+          "severity": "minor",
+          "target": {
+            "capture": "dark-r2",
+            "object": "callout"
+          },
+          "evidence": [],
+          "specRepairable": true,
+          "message": "The callout text wraps early, leaving a large empty region on the right of the box."
+        }
+      ]
+    }
+  ],
+  "accepted": false,
+  "calls": [
+    {
+      "identity": {
+        "requested": "claude-opus-5-5",
+        "served": "claude-opus-5-5",
+        "matches": true
+      },
+      "usage": {
+        "input_tokens": 7844,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 1030,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 0
+        },
+        "output_tokens": 1311,
+        "output_tokens_details": {
+          "thinking_tokens": 379
+        },
+        "service_tier": "standard",
+        "inference_geo": "global",
+        "speed": "standard"
+      },
+      "imageBlocks": 2
+    }
+  ]
+}

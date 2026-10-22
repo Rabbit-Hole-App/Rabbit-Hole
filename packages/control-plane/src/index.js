@@ -5,6 +5,7 @@ import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './l
 import { validateLearnContext, validateCanvasTarget, appendCanvasTarget, appendOutline, readLearnSource } from './learn-ask-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
 import { fileContext } from './file-context.js';
+import { CANVAS_UNAVAILABLE, canvasMentions } from './canvas-refs.js';
 import { chatContext, chatFields, chatSystem, docIds, pageDocIds, recordAnswer, recordUserTurn, regenerateTurn, resolveMode, threadMemory, TUTOR_OUTLINE_SYSTEM } from './chat-modes.js';
 import { progressQuestionContext } from './learn-progress-context.js';
 import { answerMetaSystem, splitAnswerMeta, validateAnswerMeta } from './chat-answer-meta.js';
@@ -1210,6 +1211,10 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     message = turn.message;
     chat = { ...chat, mode: turn.mode, command: turn.command, contextRefs: turn.contextRefs };
   }
+  // Mentioned canvases ("Mention a canvas"): read by id under this asker's access now; one they cannot read refuses the turn
+  // before anything is stored or sent to a model, naming no title (canvas-refs.js canvasMentions).
+  const mentionedCanvases = chat?.contextRefs?.some(ref => ref.kind === 'canvas') ? await canvasMentions(env, user, chat.contextRefs) : null;
+  if (mentionedCanvases?.refused.length) return json({ error: CANVAS_UNAVAILABLE, code: 'canvas_unavailable', refused: mentionedCanvases.refused }, 403);
   // Canvas context documents (docs/features/canvas-context-docs.md): the switched-on ones ride every
   // Learn ask on their canvas, after any single source above. A Chat turn's doc refs name exactly the ones that ride.
   if (scopedApp && conversation === 'learn') {
@@ -1256,6 +1261,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     if (code.length) context = `${context}\n\n${JSON.stringify(await readCode(code))}`;
     // Imported files (canvas-file-imports.md section 6): bounded excerpts of their ready text derivatives, each ref labelled with
     // what was read. member_board: the member board a canvas member asks on (canvas-comments.js memberContext).
+    if (mentionedCanvases?.text) context = `${context}\n\n${mentionedCanvases.text}`;
     const fileRefs = (chat.contextRefs || []).filter(ref => ref.kind === 'file');
     const files = fileRefs.length && env.LEARN_DB ? await fileContext(req, env, fileRefs, { user, app: scopedApp?.name ?? scope.app ?? null, member: body.member_board ?? null }).catch(() => null) : null;
     // A Progress question (Task 10): the learner's own saved evidence for each attached progress scope, read-only, rechecked
