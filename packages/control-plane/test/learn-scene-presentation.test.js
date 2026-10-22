@@ -71,12 +71,16 @@ test('an experiment that only moves a highlight is decorative and refused', () =
   assert.match(presentationProblem(scene), /says "which" changes "list", but it draws the same at which = 0 and 1 \(a moved highlight does not count\)/);
 });
 
-test('pendulum: length changes the period readout at every setting, but the drawing stops changing past 2 m, so a claim that it changes the bob is refused', () => {
+test('pendulum: length changes the drawn string and bob, the period readout and the rate at every setting; a cropped drawing is refused', () => {
   const experiment = affects => ({ id: 'length', input: 'len', purpose: 'Make the pendulum 4x longer: does it swing 4x slower?', affects, contrasts: ['0.25 m: 1.00 s', '1.00 m: 2.01 s', '4.00 m: 4.01 s'] });
   const reference = { id: 'reference', input: 'compare', purpose: 'Compare with the 1.00 m bob', affects: ['refBob'], contrasts: ['reference shown', 'reference hidden'] };
-  assert.equal(presentationProblem(withPresentation(pendulum(), { mode: 'static', experiments: [experiment(['result', 'rate']), reference] })), null);
-  assert.match(presentationProblem(withPresentation(pendulum(), { mode: 'static', experiments: [experiment(['result', 'bob']), reference] })),
-    /changes "bob", but it draws the same at len = 3 and 4/);
+  const both = [experiment(['string', 'bob', 'result', 'rate']), reference];
+  assert.equal(presentationProblem(withPresentation(pendulum(), { mode: 'static', experiments: both })), null);
+  assert.equal(sceneProblem(withPresentation(pendulum(), { mode: 'static', experiments: both })), null, 'and every other gate');
+  // The fixture before 2026-10-22 2:15 AM: 2 m and 4 m drew the same bob ("drawing cropped at 4 m").
+  const cropped = pendulum();
+  cropped.exampleData.bobY = [...cropped.exampleData.bobY.slice(0, 4), cropped.exampleData.bobY[3]];
+  assert.match(presentationProblem(withPresentation(cropped, { mode: 'static', experiments: both })), /changes "string", but it draws the same at len = 3 and 4/);
 });
 
 test('an experiment that depends on another control may show its change under that control\'s settings', () => {

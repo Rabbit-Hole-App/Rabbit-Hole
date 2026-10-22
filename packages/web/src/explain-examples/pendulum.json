@@ -60,18 +60,18 @@
      150
     ],
     "bobY": [
-     210,
-     270,
-     330,
-     450,
-     450
+     170,
+     190,
+     230,
+     310,
+     470
     ],
     "stringLen": [
-     60,
-     120,
-     180,
-     300,
-     300
+     20,
+     40,
+     80,
+     160,
+     320
     ],
     "swingsPerMinute": [
      60,
@@ -92,8 +92,8 @@
      "",
      "",
      "",
-     "drawing cropped at 4 m",
-     "drawing cropped at 4 m"
+     "",
+     ""
     ],
     "refOn": "Grey bob = 1.00 m reference, period 2.01 s.",
     "refOff": "Reference bob hidden.",
@@ -223,7 +223,7 @@
       },
       "to": {
        "x": 200,
-       "y": 330
+       "y": 230
       },
       "role": "neutral",
       "opacity": {
@@ -236,7 +236,7 @@
      "type": "circle",
      "initialState": {
       "x": 200,
-      "y": 330,
+      "y": 230,
       "w": 26,
       "role": "neutral",
       "opacity": {
@@ -427,5 +427,5 @@
   "marked": null,
   "calculation": "precomputed"
  },
- "adapted": "data-object sizes filled after the run by the server adapter (withDataSizes), as it now does for every scene"
+ "adapted": "data-object sizes filled after the run by the server adapter (withDataSizes), as it now does for every scene. The drawn string and bob were rescaled to 80 px per metre (2026-10-22, EXP-T26) so 2 m and 4 m no longer draw the same; the stored periods, notes and labels are as generated, and the old \"drawing cropped at 4 m\" note is empty."
 }

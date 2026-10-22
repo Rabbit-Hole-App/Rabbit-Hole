@@ -119,3 +119,31 @@ test('an experiment names objects that exist and a control the learner can move'
   assert.throws(() => evaluateScene(raw({ input: 'nope' }), 1, {}), /names no visible control/);
   assert.throws(() => evaluateScene(raw({ input: 'part' }), 1, {}), /names no visible control/);
 });
+
+// EXP-T26 acceptance (integrator ruling 2026-10-22 2:15 AM PT): the pendulum's length changes geometry, period and plot
+// consistently in every admitted state - the drawn string is proportional to L, a quarter length halves the period, and the
+// plot's highlighted bar is the period the readout states.
+test('pendulum: drawn length is proportional to L, quarter length halves the period, plot and readout agree, in all 10 states', () => {
+  const pendulum = EXPLAIN_EXAMPLES.find(example => example.id === 'pendulum').block.scene;
+  const lengths = pendulum.exampleData.lengths;
+  for (const compare of [true, false]) {
+    const states = lengths.map((length, len) => ({ length, ...evaluateScene(pendulum, pendulum.duration, { len, compare }) }));
+    const pxPerMetre = states.map(({ length, state }) => {
+      const string = state.objects.find(object => object.id === 'string');
+      const bob = state.objects.find(object => object.id === 'bob');
+      assert.equal(bob.y, string.to.y, 'the bob hangs at the end of the string');
+      return (string.to.y - string.from.y) / length;
+    });
+    for (const scale of pxPerMetre) assert.ok(Math.abs(scale - pxPerMetre[0]) < 1, `string length per metre ${pxPerMetre.join(', ')}`);
+    for (const { length, derived } of states) {
+      const quarter = states.find(entry => entry.length === length / 4);
+      if (quarter) assert.ok(Math.abs(quarter.derived.T / derived.T - 0.5) < 0.01, `${length / 4} m vs ${length} m`);
+    }
+    for (const { state, derived } of states) {
+      const chart = state.objects.find(object => object.id === 'chart');
+      assert.equal(chart.values[chart.cellHighlight], derived.T, 'the highlighted bar is the period the readout states');
+    }
+    const ref = states[0].state.objects.find(object => object.id === 'refBob');
+    assert.equal(ref.y, states[lengths.indexOf(1)].state.objects.find(object => object.id === 'bob').y, 'the 1.00 m reference bob sits where a 1.00 m bob does');
+  }
+});
