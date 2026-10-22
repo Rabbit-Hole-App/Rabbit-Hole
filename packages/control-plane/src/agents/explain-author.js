@@ -8,6 +8,39 @@ export const GAP_NEEDS = Object.freeze(['math', 'steps', 'experiment', 'componen
 // visualSpecSchema), with component names limited to the registered ones. A real run with a bare object schema (2026-10-22,
 // spend.md row 2) wrote "type" for "component" and invented hints; the schema states the shape instead of leaving it to prose.
 const LABEL = { description: 'A label: plain text, or {"runs": [{"kind": "text", "text": "<words>"}, {"kind": "math", "tex": "<LaTeX>"}]} where math is supported.' };
+// explain-contract.js explanationPresentationSchema, typed down to each experiment's domain: an untyped experiments array let a
+// live author write domain as a bare list [0.25, 1] (EXP-12 run v1-a, 2026-10-22), refused every round. Steps take no caption
+// here: the compiler refuses captions (compile.js), so the author is never offered one.
+const PRESENTATION = {
+  type: 'object', additionalProperties: false, required: ['mode'],
+  properties: {
+    mode: { type: 'string', enum: ['static', 'steps', 'time'] },
+    duration: { type: 'number', exclusiveMinimum: 0, maximum: 120, description: 'time mode only: seconds.' },
+    steps: { type: 'array', maxItems: 12, description: 'steps mode only: 2 to 12 named moments.', items: { type: 'object', additionalProperties: false, required: ['id', 'title'], properties: { id: { type: 'string' }, title: { type: 'string', maxLength: 120 } } } },
+    experiments: {
+      type: 'array', maxItems: 4,
+      items: {
+        type: 'object', additionalProperties: false, required: ['id', 'purpose', 'input', 'domain', 'affects', 'contrasts'],
+        properties: {
+          id: { type: 'string' },
+          purpose: { type: 'string', maxLength: 300, description: 'The question moving the control answers.' },
+          input: { type: 'string', description: '"<instance id>.<control>", a control listed under the controls of that component in the catalogue.' },
+          domain: {
+            description: 'The admitted values: an explicit list, or a range of at most 256 steps. Values stay inside the parameter range of the control and include the own value of the instance.',
+            oneOf: [
+              { type: 'object', additionalProperties: false, required: ['values'], properties: { values: { type: 'array', minItems: 2, maxItems: 64, items: { type: ['number', 'string'] } } } },
+              { type: 'object', additionalProperties: false, required: ['min', 'max', 'step'], properties: { min: { type: 'number' }, max: { type: 'number' }, step: { type: 'number', exclusiveMinimum: 0 } } },
+            ],
+          },
+          affects: { type: 'array', minItems: 1, maxItems: 32, items: { type: 'string' }, description: 'Component ids or "<instance id>.<object>" ids every setting visibly changes (with invariant: the ones that stay the same).' },
+          contrasts: { type: 'array', minItems: 1, maxItems: 8, items: { type: 'string', maxLength: 200 } },
+          dependsOn: { type: 'array', maxItems: 8, items: { type: 'string' }, description: 'The inputs of other experiments this one is compared across.' },
+          invariant: { type: 'boolean' },
+        },
+      },
+    },
+  },
+};
 export function authorTool(catalogue) {
   const names = catalogue.map(entry => entry.name);
   const spec = {
@@ -37,7 +70,7 @@ export function authorTool(catalogue) {
       },
       connections: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['from', 'to'], properties: { from: { type: 'string' }, to: { type: 'string' }, label: LABEL, kind: { type: 'string', enum: ['flow', 'relation', 'reference'] } } } },
       evidence: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['claim', 'target', 'evidence'], properties: { claim: { type: 'string' }, target: { type: 'string' }, evidence: { type: 'array', items: { type: 'string' } } } } },
-      presentation: { type: 'object', additionalProperties: false, required: ['mode'], properties: { mode: { type: 'string', enum: ['static', 'steps', 'time'] }, duration: { type: 'number' }, steps: { type: 'array' }, experiments: { type: 'array' } } },
+      presentation: PRESENTATION,
       parts: { type: 'array', maxItems: 4, items: { type: 'object', additionalProperties: false, required: ['id', 'title'], properties: { id: { type: 'string' }, title: { type: 'string' } } } },
     },
   };

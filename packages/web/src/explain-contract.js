@@ -82,11 +82,14 @@ const uniqueBy = (key, what) => (list, ctx) => {
   if (problem) ctx.addIssue({ code: 'custom', message: problem });
 };
 
+// Neither shape at all (a bare list, a string, other keys): name both shapes, so a repair can write one (EXP-12 live run
+// v1-a: the author wrote [0.25, 1] and three repairs kept it against a bare "Invalid input").
+const got = value => (Array.isArray(value) ? 'an array' : value && typeof value === 'object' ? `an object with ${Object.keys(value).map(key => JSON.stringify(key)).join(', ') || 'no keys'}` : value === null ? 'null' : `a ${typeof value}`);
 const domain = z.union([
   z.object({ values: z.array(z.union([z.number().finite(), z.string().max(60)])).min(2).max(64) }).strict(),
   z.object({ min: z.number().finite(), max: z.number().finite(), step: z.number().positive() }).strict()
     .refine(range => range.max > range.min && (range.max - range.min) / range.step <= 256, 'a range needs min < max and at most 256 steps'),
-]);
+], { error: issue => `domain must be {values:[...]} or {min,max,step}; got ${got(issue.input)}` });
 // A component's learner control is instance.control, a compiled object instance.local (r2-contract.md); a bare id
 // stays valid for saved-scene shaped payloads.
 const idOrRef = z.union([id, anchorRef]);
