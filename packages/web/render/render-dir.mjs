@@ -3,10 +3,12 @@
 // sizes and states are used; otherwise each *.json is one scene rendered at its own size and end time.
 //   node render/render-dir.mjs <dir> --out <dir> [--theme light|dark|both] [--url https://...] [--batch 6]
 //   node render/render-dir.mjs <dir> --out <dir> --local [--dist dist-render]   (same entry and renderStates, local headless Chromium)
+//   --meta '{"rendererSha":"...","fixtureCommit":"..."}' writes <out>/manifest.json tying every PNG to those SHAs
 // The bearer token is read from C:/s/toc-explain-d/render-token (never printed). Browser time is appended to
 // C:/s/toc-explain-d/browser-ms.log for the spend ledger.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 export const DEFAULT_URL = 'https://rabbit-hole-web-dev-explain-d.tryrabbithole.workers.dev';
@@ -67,7 +69,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const args = process.argv.slice(2);
   const flag = (name, fallback) => { const i = args.indexOf(name); return i >= 0 ? args.splice(i, 2)[1] : fallback; };
   const local = args.includes('--local') && args.splice(args.indexOf('--local'), 1);
-  const dist = flag('--dist');
+  const dist = flag('--dist'), meta = JSON.parse(flag('--meta', '{}'));
   const out = flag('--out'), theme = flag('--theme', 'both'), url = flag('--url', DEFAULT_URL), batch = Number(flag('--batch', 6));
   const [dir] = args;
   if (!dir || !out) { console.error('usage: node render/render-dir.mjs <dir> --out <dir> [--theme light|dark|both] [--url ...]'); process.exit(1); }
@@ -75,11 +77,17 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   mkdirSync(out, { recursive: true });
   const { results, browserMs } = local ? await renderLocal(planItems(dir, themes), dist) : await renderItems(planItems(dir, themes), { url, batch });
   let failed = 0;
+  const files = [];
   for (const item of results) {
     if (!item.ok) { failed++; console.log(`FAIL ${item.name}: ${item.code || ''} ${item.error}`); continue; }
-    for (const c of item.captures) for (const id of [c.id, ...(c.aliases || [])]) writeFileSync(join(out, `${id}.png`), Buffer.from(c.png, 'base64'));
+    for (const c of item.captures) for (const id of [c.id, ...(c.aliases || [])]) {
+      writeFileSync(join(out, `${id}.png`), Buffer.from(c.png, 'base64'));
+      files.push({ file: `${id}.png`, fixture: item.name, theme: id.endsWith('-dark') ? 'dark' : 'light', sha256: createHash('sha256').update(Buffer.from(c.png, 'base64')).digest('hex') });
+    }
     console.log(`ok ${item.name}: ${item.captures.map(c => c.id).join(', ')}${item.blocked?.length ? ` (blocked ${item.blocked.length} requests)` : ''}`);
   }
+  writeFileSync(join(out, 'manifest.json'), `${JSON.stringify({ renderedAt: new Date().toISOString(), source: dir, path: local ? 'local headless Chromium, production render entry' : url, ...meta, files }, null, 2)}
+`);
   if (!local) appendFileSync('C:/s/toc-explain-d/browser-ms.log', `${new Date().toISOString()} ${dir} items=${results.length} browserMs=${browserMs}\n`);
   console.log(`${results.length - failed}/${results.length} rendered, browser ${(browserMs / 1000).toFixed(1)} s`);
   if (failed) process.exit(1);
