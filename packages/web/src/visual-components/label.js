@@ -79,15 +79,27 @@ export function labelledBox({ id, label, role = 'neutral', minWidth, maxWidth, m
   }
   const lines = wrapLabel(label, maxWidth - 2 * PAD, typography);
   const w = Math.max(minWidth, Math.min(maxWidth, Math.max(...lines.map(line => textWidth(line.plain, typography))) + 2 * PAD));
-  const step = lineHeight(typography);
-  const h = Math.max(minHeight, lines.length * step + 2 * PAD);
-  const top = (h - lines.length * step) / 2;
+  const { heights, baselines, total } = stackLines(lines, typography);
+  const h = Math.max(minHeight, total + 2 * PAD);
+  const top = (h - total) / 2;
   return {
     w, h,
     objects: [
       { id, type: 'box', initialState: { x: 0, y: 0, w, h, role } },
-      // A text object draws from its baseline; 0.75 of a line sits above it.
-      ...lines.map((line, index) => ({ id: `${id}-line${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), x: PAD, y: Math.round(top + index * step + step * 0.75), typography } })),
+      ...lines.map((line, index) => ({ id: `${id}-line${index}`, type: 'text', initialState: { ...lineFields(line, 'text'), x: PAD, y: Math.round(top + baselines[index]), typography } })),
     ],
   };
+}
+
+// Line heights and baselines for wrapped lines. A line holding math gets 40%
+// more room above it: radicals and fractions rise past the text cap height
+// (render review 2026-10-22: a radical touched the line above). A text
+// object draws from its baseline, a quarter line above the line's bottom.
+export function stackLines(lines, typography = 'body') {
+  const step = lineHeight(typography);
+  const heights = lines.map(line => (line.runs?.some(run => run.kind === 'math') ? Math.ceil(step * 1.4) : step));
+  const baselines = [];
+  let cursor = 0;
+  for (const height of heights) { cursor += height; baselines.push(cursor - step * 0.25); }
+  return { heights, baselines, total: cursor };
 }

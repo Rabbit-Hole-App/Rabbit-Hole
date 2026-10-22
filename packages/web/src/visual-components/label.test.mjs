@@ -66,3 +66,12 @@ test('a math line in a wrapped box carries its runs; plain lines carry none', ()
   assert.equal(lines.filter(line => line.initialState.runs).length, 1);
   assert.deepEqual(compiled.diagnostics, []);
 });
+
+test('a wrapped line holding math gets extra height so a radical clears the line above', () => {
+  const label = { runs: [text('Period depends on the square root of length: '), math('T = 2\pi\sqrt{L/g}')] };
+  const compiled = compileVisual(spec([{ id: 'law', component: 'callout', version: 1, params: { text: label } }]));
+  const [first, second] = compiled.scene.objects.filter(object => object.type === 'text').map(object => object.initialState.y);
+  const plain = compileVisual(spec([{ id: 'law', component: 'callout', version: 1, params: { text: 'Period depends on the square root of length: and a second line of text' } }]));
+  const [a, b] = plain.scene.objects.filter(object => object.type === 'text').map(object => object.initialState.y);
+  assert.ok(second - first > b - a, `${second - first} > ${b - a}`);
+});
