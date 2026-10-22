@@ -3,7 +3,8 @@
 // anchor: the selection's box and box: the view's size, both in the same pixels (the canvas surface's). size: the bar's.
 // Pure, so it is tested without a browser (selection-bar-place.test.mjs).
 // below: prefer under the selection (a narrow view, where an object's own row of controls takes the space above it).
-export function placeBar(anchor, size, box, { gap = 8, margin = 8, top: inset = 8, below = false } = {}) {
+// gap 20: above the selection the bar clears a comment pin centred on its top edge (30 px, pinTopCentre; owner, 2026-10-21).
+export function placeBar(anchor, size, box, { gap = 20, margin = 8, top: inset = 8, below = false } = {}) {
   const roomAbove = anchor.top - gap - size.h >= inset;
   const roomBelow = anchor.bottom + gap + size.h <= box.h - margin;
   const side = below ? (roomBelow ? 'below' : roomAbove ? 'above' : 'inside') : roomAbove ? 'above' : roomBelow ? 'below' : 'inside';
