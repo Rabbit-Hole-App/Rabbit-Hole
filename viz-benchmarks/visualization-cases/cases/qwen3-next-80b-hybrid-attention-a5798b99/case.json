@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "qwen3-next-80b-hybrid-attention-a5798b99",
+  "title": "Qwen3 Next 80B-A3B hybrid attention architecture",
+  "prompt": "Explain the Qwen3 Next 80B-A3B architecture: how its layers mix gated attention and Gated DeltaNet with mixture of experts.",
+  "figureKind": "llm-architecture-overview",
+  "nonGoals": [
+    "source URL footer",
+    "author watermark"
+  ],
+  "family": "llm-architecture",
+  "lineage": "qwen3-next",
+  "split": "heldout",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/qwen3-next-80b-hybrid-attention.jpg",
+    "sha256": "a5798b99f33c25e73a357160f8d476c126c2776237a570690579a3a542822529",
+    "bytes": 301568,
+    "format": "jpeg",
+    "width": 1456,
+    "height": 983,
+    "originalName": "cbd1f80f-9ace-4b4c-b79a-2397a6f75dc8_3845x2597.jpg",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}

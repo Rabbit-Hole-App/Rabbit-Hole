@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "id": "kimi-k3-architecture-3a80c547",
+  "title": "Kimi K3 (2.8T) architecture",
+  "prompt": "Explain the Kimi K3 architecture: its block structure with attention residuals, Kimi Delta Attention and gated multi-head latent attention.",
+  "figureKind": "llm-architecture-overview",
+  "nonGoals": [
+    "exact colours",
+    "author watermark",
+    "gallery link"
+  ],
+  "family": "llm-architecture",
+  "lineage": "kimi-k3",
+  "split": "heldout",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/kimi-k3-architecture.webp",
+    "sha256": "3a80c547acf392bbce6cf35ff3317cc9583292c83d0c82208e132deee00193cf",
+    "bytes": 117774,
+    "format": "webp",
+    "width": 1538,
+    "height": 1278,
+    "originalName": "kimi-k3-architecture-e1787228884299.webp",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}

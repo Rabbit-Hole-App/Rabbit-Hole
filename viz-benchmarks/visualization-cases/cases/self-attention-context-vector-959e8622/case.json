@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "self-attention-context-vector-959e8622",
+  "title": "Self-attention: context vector for one sequence element",
+  "prompt": "Explain how self-attention computes the context-aware vector z for the second element of a sequence from queries, keys, values and softmax weights.",
+  "figureKind": "dataflow-with-formula",
+  "nonGoals": [
+    "book figure caption"
+  ],
+  "family": "attention-math",
+  "lineage": "self-attention-context",
+  "split": "heldout",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/self-attention-context-vector.webp",
+    "sha256": "959e862227d8bc527570a76c7c0eda4a05ca021e024ee93b5990d3c6096b73d8",
+    "bytes": 21004,
+    "format": "webp",
+    "width": 681,
+    "height": 417,
+    "originalName": "self-attention.webp",
+    "multiPanel": false
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}
