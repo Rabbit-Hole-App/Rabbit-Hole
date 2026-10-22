@@ -30,4 +30,8 @@ export const startVideo = (app, operation, { confirmed = false, retry = false } 
 export const stopVideo = (app, placementId) =>
   api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId }) });
 
+// Recovery of a failed /motion card (owner message 38): mode render (free) or fix (paid: confirmed after PaidConfirm).
+export const recoverVideo = (app, placementId, mode, { confirmed = false } = {}) =>
+  api(videoEndpoint(app), { method: 'POST', body: JSON.stringify({ action: 'recover', id: placementId, mode, ...(confirmed ? { confirmed: true } : {}) }) });
+
 export const videoAssetUrl = (app, key) => new URL(`${videoEndpoint(app)}&asset=${key}`, window.location.origin).href;

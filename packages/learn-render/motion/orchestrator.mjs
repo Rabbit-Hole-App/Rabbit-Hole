@@ -10,6 +10,8 @@
 //   POST /jobs/<id>/cancel                                            -> 202; Stop at the next stage boundary
 //   POST /keys/<key>/close                                            -> {job_id, status, boot} | {job_id: null, closed, boot} | 409 admitting
 //   GET  /health                                                      -> {ok, active, boot} (no auth, no job data)
+//   GET  /jobs/<id>/artifacts                                         -> the job's recovery checkpoint (sealed), cause, actions, findings, keyframes
+//   POST /recover {idempotency_key, grant, mode, checkpoint, seal}    -> 202 {job_id} | as POST /jobs: a recovery attempt from a checkpoint
 //
 // Money (owner 2026-10-21, items 1 and 6): the worker admits the job's hold against the learner's allowance
 // (learn-spend-ledger.js admitSpend) and sends it here as a grant signed with the shared token. Every paid
@@ -41,6 +43,7 @@ import { PRICES } from './director.js';
 import { fixtureSource } from './fixture-source.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
+import { classifyFindings } from './contracts.js';
 
 const ID = /^[0-9a-f]{32}$/;
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
@@ -49,9 +52,9 @@ const send = (res, status, body, type = 'application/json') => {
   res.writeHead(status, { 'content-type': type, 'content-length': data.length, 'cache-control': 'no-store' });
   res.end(data);
 };
-const readJson = req => new Promise((done, fail) => {
+const readJson = (req, max = 32768) => new Promise((done, fail) => {
   let size = 0; const chunks = [];
-  req.on('data', c => { size += c.length; if (size > 32768) { fail(Object.assign(new Error('too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
+  req.on('data', c => { size += c.length; if (size > max) { fail(Object.assign(new Error('too large'), { status: 413 })); req.destroy(); } else chunks.push(c); });
   req.on('end', () => { try { done(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch { fail(Object.assign(new Error('the body is not JSON'), { status: 400 })); } });
 });
 const usd = m => +(m / 1e6).toFixed(6);
@@ -83,6 +86,39 @@ export function requestSize(body) {
 export function policyHoldMicros(policy = PRODUCTION_POLICY, model = 'claude-opus-5-5') {
   const [input, output] = MODEL_PRICES[model];
   return Object.values(policy).reduce((sum, r) => sum + r.calls * Math.ceil((r.bytes + 1000 + r.images * 4784) * input * 1.25 + r.max_tokens * output), 0);
+}
+
+// A recovery attempt's policy (owner message 38): 'render' renders an accepted composition again and may call no model;
+// 'fix' continues from a checkpoint without a Director call: at most one storyboard revision, the Author and its one repair,
+// and two review passes. Its worst case is the hold the worker admits for it (artifacts hold_usd), never more than is left.
+export const RECOVERY_POLICY = Object.freeze({
+  render: Object.freeze({}),
+  fix: Object.freeze({ motion_storyboard: Object.freeze({ ...PRODUCTION_POLICY.motion_storyboard, calls: 1 }), motion_composition: PRODUCTION_POLICY.motion_composition, motion_review: PRODUCTION_POLICY.motion_review }),
+});
+// The checkpoint the worker stores and sends back is sealed with the shared token, so a recovery renders or repairs only
+// what this service produced: never learner-supplied composition source (spec section 34).
+export const sealCheckpoint = (token, checkpoint) => createHmac('sha256', token).update(`motion-checkpoint|${JSON.stringify(checkpoint)}`).digest('hex');
+// What a failed job can recover with, by its cause and checkpoint (the card offers only these): render (free) an accepted
+// composition; fix (paid) from a saved storyboard: a repair with the findings, the review of an unreviewed composition, or the
+// Author; edit the request after findings or a clarification; add a source when the request needs one. A job that hit its
+// call or spend limit offers nothing more. The worker applies the same rule to a job lost in a restart (learn-video.js).
+export function recoveryActions(cause, cp) {
+  if (cause === 'missing_context') return ['edit']; // ponytail: no Add source: /motion grounds only on a selected card or the pinned repository, and no source picker reaches either
+  if (cause === 'limit' || !cp?.brief || !cp.storyboard) return cause === 'content' ? ['edit'] : [];
+  if (cp.composition?.state === 'accepted' && cause !== 'content') return ['render'];
+  return cause === 'content' ? ['fix', 'edit'] : ['fix'];
+}
+export function validateRecoverRequest(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
+  const e = [];
+  for (const k of Object.keys(body)) if (!['idempotency_key', 'grant', 'mode', 'checkpoint', 'seal'].includes(k)) e.push(`${k}: not a field`);
+  if (!['render', 'fix'].includes(body.mode)) e.push('mode: render | fix');
+  if (!body.checkpoint || typeof body.checkpoint !== 'object' || Array.isArray(body.checkpoint) || typeof body.checkpoint.request !== 'string') e.push('checkpoint: the object GET /jobs/<id>/artifacts returned');
+  if (!/^[0-9a-f]{64}$/.test(body.seal || '')) e.push('seal: 64 hex');
+  if (typeof body.idempotency_key !== 'string' || !KEY.test(body.idempotency_key)) e.push('idempotency_key: 8 to 128 characters [A-Za-z0-9_-]');
+  const g = body.grant;
+  if (!g || typeof g !== 'object' || Array.isArray(g) || !Number.isSafeInteger(g.micros) || !Number.isSafeInteger(g.issued_at) || !ID.test(g.boot || '') || typeof g.sig !== 'string' || Object.keys(g).some(k => !['micros', 'issued_at', 'boot', 'sig'].includes(k))) e.push('grant: {micros, issued_at, boot, sig}');
+  return e;
 }
 
 // The renderer code this orchestrator's contracts belong to, as the render service hashes it (service/server.mjs
@@ -166,8 +202,9 @@ export const jobView = j => ({
   // Each render as the renderer last reported it: ready, failed (failed or invalid), or unknown (never reported finished).
   renders: j.renders.length,
   render_states: j.renders.map(r => (r.status === 'ready' ? 'ready' : ['failed', 'invalid'].includes(r.status) ? 'failed' : 'unknown')),
+  artifacts_rev: j.rev,
   ...(j.result ? {
-    failure_reason: j.result.failure_reason ?? null, clarification: j.result.clarification ?? null,
+    failure_reason: j.result.failure_reason ?? null, clarification: j.result.clarification ?? null, cause: j.result.cause ?? null,
     title: j.result.brief?.title ?? null, motion: j.result.block?.motion ?? null, render_id: j.result.render?.render_id ?? null,
     repair_count: j.result.job?.repair_count ?? null, repairs: j.result.repairs ?? null, transport_retries: j.result.transport_retries ?? [], model_latency_s: j.result.model_latency_s ?? null, timings: j.result.timings ?? null,
   } : {}),
@@ -225,10 +262,28 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
   for (const name of readdirSync(outDir)) if (ID.test(name.replace(/\.mp4$/, ''))) rmSync(join(outDir, name), { recursive: true, force: true });
   const sweeper = setInterval(sweep, Math.min(resultTtlMs, 10 * 60 * 1000)); sweeper.unref?.();
 
+  // Up to three keyframes of the checkpoint's latest preview (first, middle, last), read before the job directory goes.
+  function keyframes(job) {
+    const files = job.checkpoint?.frames ?? [], picked = [...new Set([files[0], files[Math.floor(files.length / 2)], files.at(-1)])].filter(Boolean);
+    return picked.flatMap(file => { try { return [{ file, png: readFileSync(join(outDir, job.id, file)).toString('base64') }]; } catch { return []; } });
+  }
+  // Everything recovery needs, kept with the job record (it outlives the job directory) and stored by the worker in LEARN_MEDIA.
+  function artifacts(job) {
+    const cp = job.checkpoint ?? null, cause = job.status === 'running' ? null : (job.result?.cause ?? null);
+    return {
+      job_id: job.id, rev: job.rev, status: job.status, cause, failure_reason: job.result?.failure_reason ?? null, clarification: job.result?.clarification ?? null,
+      findings: job.result?.job?.findings ?? cp?.findings ?? [], blocking: classifyFindings(cp?.findings ?? []).blocking.map(({ category, beat_id, description }) => ({ category, beat_id, description })), checkpoint: cp, seal: cp ? sealCheckpoint(token, cp) : null,
+      actions: ['running', 'ready'].includes(job.status) ? [] : recoveryActions(cause, cp), hold_usd: { fix: usd(policyHoldMicros(RECOVERY_POLICY.fix)), render: 0 },
+      frames: job.frames ?? keyframes(job),
+    };
+  }
+
   function start(body, preflight = '') {
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
-    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set() };
+    const recover = body.mode ? { mode: body.mode, checkpoint: body.checkpoint } : null;
+    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set(), rev: 0, checkpoint: null,
+      policy: recover && policy ? RECOVERY_POLICY[recover.mode] : policy };
     jobs.set(id, job); keys.set(job.key, id);
     active = job;
     const timer = setTimeout(() => { job.timedOut = true; controller.abort(); }, jobTimeoutMs); timer.unref?.();
@@ -238,8 +293,8 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       // Refused before sending: the stage sees a failed call and the job stops with this reason.
       const refuse = reason => { job.refusal ||= reason; job.calls.push({ state: 'refused' }); return Promise.resolve(new Response(`refused before sending: ${reason}`, { status: 429 })); };
       if (sent(job).length >= maxCalls) return refuse(`the ${maxCalls}-call limit for this job is spent`);
-      const kind = request.tools?.[0]?.name || 'untooled', rule = policy?.[kind], digest = createHash('sha256').update(JSON.stringify(request)).digest('hex');
-      if (policy) {
+      const kind = request.tools?.[0]?.name || 'untooled', rule = job.policy?.[kind], digest = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+      if (job.policy) {
         const { bytes, images } = requestSize(request);
         if (!rule) return refuse(`a ${kind} call is outside the production policy`);
         if ((request.messages?.length || 0) > 1) return refuse(`a schema re-ask (${kind}) is outside the production policy`);
@@ -290,14 +345,19 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const readable = body.repository && body.repository.repo === pinned.repository && body.repository.commit === pinned.commit;
     const unreadable = body.repository && !readable && !body.context?.selection;
     const runner = unreadable ? async () => ({ status: 'failed', failure_reason: `Motion cannot read this canvas's repository (${body.repository.repo} at ${body.repository.commit.slice(0, 7)}) yet, so it would not be grounded in its code. Nothing was spent. Select a card to explain instead` }) : run;
-    runner({ message: body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage: stage => { job.stage = stage; }, ...(renderer ? { renderer } : {}), ...(plans[body.request] ? { plan: plans[body.request] } : {}) })
+    // Each new checkpoint the pipeline saves bumps rev, so the worker copies it while the job still runs (a restart loses only
+    // the work in flight).
+    const onStage = (stage, out) => { job.stage = stage; if (out?.checkpoint && out.checkpoint !== job.checkpoint) { job.checkpoint = out.checkpoint; job.rev++; } };
+    runner({ message: recover ? recover.checkpoint.request : body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage, ...(renderer ? { renderer } : {}), ...(!recover && plans[body.request] ? { plan: plans[body.request] } : {}), ...(recover ? { recover, renderer: recover.checkpoint.renderer ?? renderer } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
       .finally(() => {
         clearTimeout(timer);
-        if (job.timedOut) { job.status = 'failed'; job.result = { ...job.result, failure_reason: `the job ran past ${Math.round(jobTimeoutMs / 60000)} minutes and was stopped` }; }
-        else if (job.refusal && job.status !== 'ready') { job.status = 'failed'; job.result = { ...job.result, failure_reason: `stopped before spending more: ${job.refusal}` }; }
+        if (job.timedOut) { job.status = 'failed'; job.result = { ...job.result, failure_reason: `the job ran past ${Math.round(jobTimeoutMs / 60000)} minutes and was stopped`, cause: 'limit' }; }
+        else if (job.refusal && job.status !== 'ready') { job.status = 'failed'; job.result = { ...job.result, failure_reason: `stopped before spending more: ${job.refusal}`, cause: 'limit' }; }
+        if (job.result?.checkpoint && job.result.checkpoint !== job.checkpoint) { job.checkpoint = job.result.checkpoint; job.rev++; }
         job.finished_at = new Date(now()).toISOString();
+        job.frames = keyframes(job); // before the job directory is deleted
         if (active === job) active = null;
         cleanup(job);
         sweep();
@@ -324,12 +384,17 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       const path = req.url.split('?')[0];
       if (path === '/health' && req.method === 'GET') return send(res, 200, { ok: true, active: !!active, boot, ...(missing.length ? { ready: false, missing } : {}) });
       if (!authorized(req)) return send(res, 401, { error: 'unauthorized' });
-      if (path === '/jobs') {
+      if (path === '/jobs' || path === '/recover') {
         if (req.method !== 'POST') return send(res, 405, { error: 'method_not_allowed' });
-        const body = await readJson(req);
-        const errors = validateJobRequest(body);
+        // A recovery carries its checkpoint (composition source up to 64 KiB, brief, storyboard, findings).
+        const body = await readJson(req, path === '/recover' ? 1024 * 1024 : 32768);
+        const errors = path === '/recover' ? validateRecoverRequest(body) : validateJobRequest(body);
         if (errors.length) return send(res, 400, { error: 'invalid_request', errors });
         if (missing.length) return send(res, 503, { error: 'not_configured', detail: `the Motion service is not configured yet (${missing.join(', ')}); nothing was started` });
+        if (path === '/recover') {
+          const want = Buffer.from(sealCheckpoint(token, body.checkpoint)), got = Buffer.from(body.seal);
+          if (got.length !== want.length || !timingSafeEqual(got, want)) return send(res, 400, { error: 'invalid_request', errors: ['seal: this checkpoint was not produced by the Motion service'] });
+        }
         // A forged grant is refused first; then the same key is the same job (a resent submission never starts a second
         // one or spends twice); only then do the amount, restart and age checks refuse a new job.
         if (!signedGrant(body)) return send(res, 403, { error: 'grant_refused', detail: 'the grant signature does not match; nothing was started' });
@@ -356,7 +421,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         closed.set(k[1], now());
         return send(res, 200, { job_id: null, closed: true, boot });
       }
-      const m = path.match(/^\/jobs\/([0-9a-f]{32})(\/final\.mp4|\/cancel)?$/);
+      const m = path.match(/^\/jobs\/([0-9a-f]{32})(\/final\.mp4|\/cancel|\/artifacts)?$/);
       if (!m || !ID.test(m[1])) return send(res, 404, { error: 'not_found' });
       const job = jobs.get(m[1]);
       if (!job) return send(res, 404, { error: 'not_found', detail: 'unknown job' });
@@ -367,6 +432,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       }
       if (req.method !== 'GET') return send(res, 405, { error: 'method_not_allowed' });
       if (!m[2]) return send(res, 200, jobView(job));
+      if (m[2] === '/artifacts') return send(res, 200, artifacts(job));
       const file = finalFile(job.id);
       if (job.status !== 'ready' || !existsSync(file)) return send(res, 409, { error: 'not_ready', status: job.status });
       if (statSync(file).size > 25 * 1024 * 1024) return send(res, 409, { error: 'too_large' });

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { videoLabel, motionConfirm, MOTION_PAUSED, resumesJob, readsAgain, SETTLE_READS } from './learn-video-label.js';
+import { videoLabel, motionConfirm, MOTION_PAUSED, resumesJob, readsAgain, SETTLE_READS, RECOVERY_BUTTONS, recoveryButtons, motionUsageLine } from './learn-video-label.js';
 import { motionVideoBlock } from '../../learn-render/motion/video-block.js';
 
 // The two samples' operations as BLOCK_TYPES.mathAnimation / videoGenerate build them (LearningBlocks.jsx).
@@ -77,4 +77,19 @@ test('a reloaded failed or stopped card resumes its job, and reads again only wh
   assert.equal(readsAgain(pending, SETTLE_READS), false, 'bounded');
   for (const done of [{ status: 'failed', hold: { usd: 8.96, state: 'released' } }, { status: 'failed' }, { status: 'ready', hold: { state: 'pending' } }, undefined]) assert.equal(readsAgain(done, 0), false, JSON.stringify(done));
   assert.ok(SETTLE_READS > 0 && SETTLE_READS <= 120);
+});
+
+test('a failed /motion card offers only its recovery actions, named as the ruling says; usage in credits, never dollars or the hold', () => {
+  assert.deepEqual(RECOVERY_BUTTONS, { fix: 'Continue fixing', render: 'Retry rendering', edit: 'Edit request', regenerate: 'Generate again' });
+  assert.deepEqual(recoveryButtons({ actions: ['render'], regenerate: true }), ['render', 'regenerate']);
+  assert.deepEqual(recoveryButtons({ actions: ['edit', 'fix'], regenerate: false }, { composer: true }), ['fix', 'edit']);
+  assert.deepEqual(recoveryButtons({ actions: ['edit'], regenerate: false }), [], 'Edit request needs the Chat composer');
+  assert.deepEqual(recoveryButtons({ actions: ['source', 'other'] }), [], 'an action the card cannot run is never offered');
+  assert.equal(recoveryButtons(null), null);
+  assert.ok(!Object.values(RECOVERY_BUTTONS).includes('Retry render'), 'paid regeneration is never Retry render');
+  assert.equal(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'released' }), 'Used 77 credits · reservation released');
+  assert.equal(motionUsageLine({ usedMicros: 4_000 }, null), 'Used less than 1 credit · reservation released');
+  assert.equal(motionUsageLine({ usedMicros: 10_000, unknown: true }, { usd: 8.96, state: 'pending' }), 'Used 1 credit so far · reservation pending');
+  assert.doesNotMatch(motionUsageLine({ usedMicros: 770_000 }, { usd: 8.96, state: 'reserved' }), /\$|8\.96/);
+  assert.equal(motionUsageLine(null, null), null);
 });

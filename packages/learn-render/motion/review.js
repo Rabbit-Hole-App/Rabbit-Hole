@@ -29,7 +29,9 @@ const MEANING = {
   minor_spacing: 'advisory. A small spacing issue that does not affect readability.',
   alternate_color: 'advisory. A different but equally valid colour choice.',
   unsupported_claim: 'BLOCKING. The video states or implies something the claims and evidence do not support.',
-  must_not_claim_violation: 'BLOCKING. The video states or implies an item of must_not_claim, even softened or negated.',
+  // Owner message 38: "even ... negated" rejected correct refutations (mrec eval: 3 of 6 refutations flagged). A refutation
+  // that says plainly the misconception is false teaches correctly; a hedge that leaves it partly true still blocks.
+  must_not_claim_violation: 'BLOCKING. The video states or implies that an item of must_not_claim is true, including a softened, hedged or partial form of it. Saying plainly that the item is false (a correct refutation) is not a violation.',
   required_claim_contradicted: 'BLOCKING. The video contradicts a required claim.',
   wrong_source_branch: 'BLOCKING. The video shows a code path or branch the claims and conditions do not describe, or drops a condition the claim depends on.',
   missing_must_show: 'BLOCKING. An item of must_show never visibly appears.',
@@ -42,7 +44,7 @@ const ROLE = {
 };
 const CHECKS = {
   visual: `Check every frame for: clipping, blank frames, unreadable text, overlapping labels, bad contrast, awkward typography, broken geometry, unintended disappearance between neighbouring frames, incorrect layering, excessive visual busyness, and decorative motion that obscures the concept. The frames are the preview, scaled to 45% of the 1920x1080 video: judge text size as it will read at full size, not in these pixels.`,
-  pedagogical: `Check: every major beat maps to a supported claim; the correct source or code branch is shown with its condition; the conceptual order is coherent; no prerequisite is skipped in a way that misleads; the visuals imply the correct causal relationship; labels match the source semantics; analogies map explicitly to the real concepts; the final frames' takeaway matches the objective; no must_not_claim item is stated or implied; every must_show item visibly appears. For teaching_mode intuition_first also ask: with the notation hidden, could a learner explain the mechanism in plain language, and after the formalism appears, can they map the intuition onto the real mechanism?`,
+  pedagogical: `Check: every major beat maps to a supported claim; the correct source or code branch is shown with its condition; the conceptual order is coherent; no prerequisite is skipped in a way that misleads; the visuals imply the correct causal relationship; labels match the source semantics; analogies map explicitly to the real concepts; the final frames' takeaway matches the objective; no must_not_claim item is stated or implied to be true (a plain refutation of one is correct teaching); every must_show item visibly appears. For teaching_mode intuition_first also ask: with the notation hidden, could a learner explain the mechanism in plain language, and after the formalism appears, can they map the intuition onto the real mechanism?`,
 };
 
 export const reviewTool = reviewer => ({
