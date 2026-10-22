@@ -526,3 +526,24 @@ test('/explain carries the attached image as a layout reference; an image alone 
   await plain.run('/quiz heaps', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
   for (const [, , sent] of plain.did.filter(entry => entry[0] === 'post')) assert.equal(sent.image_context, undefined);
 });
+
+// EXP-T15: the composer's attached image and a region crop reach /explain the same server-resolved way; a crop still uploading waits.
+test('/explain takes the composer image when the target has none, and waits for a crop that is still uploading', async () => {
+  const card = { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'Heap' } };
+  const did = [];
+  const run = (text, target, attachedImage) => runLearnCommand(text, { app: 'demo', target, attachedImage, canvas: { insertBlock: () => did.push('block') },
+    post: async (path, body) => { did.push(['post', body]); return card; }, openSearch: () => {} });
+  await run('/explain how this sorts', null, 'media:aaaaaaaaaaaa');
+  assert.deepEqual(did.find(entry => entry[0] === 'post')[1].image_context, { id: 'media:aaaaaaaaaaaa' });
+  did.length = 0;
+  // A crop's own uploaded pixels win over the composer image; its text (the cards inside) rides as context.
+  await run('/explain this part', { id: 'area:1', title: 'Selected area', text: 'Cards inside: Heap', preview: 'data:image/png;base64,AA', image: 'media:bbbbbbbbbbbb' }, 'media:aaaaaaaaaaaa');
+  const sent = did.find(entry => entry[0] === 'post')[1];
+  assert.deepEqual([sent.image_context, sent.image_role, sent.context], [{ id: 'media:bbbbbbbbbbbb' }, 'layout_reference', 'Cards inside: Heap']);
+  assert.ok(!JSON.stringify(sent).includes('data:image'), 'the browser preview never rides');
+  did.length = 0;
+  const waiting = await run('/explain this part', { id: 'area:2', title: 'Selected area', preview: 'data:image/png;base64,AA' }, null);
+  assert.equal(waiting.notice.tone, 'info');
+  assert.equal(waiting.keep, '/explain this part ');
+  assert.deepEqual(did, [], 'nothing sent until the crop is attached');
+});

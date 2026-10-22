@@ -188,6 +188,7 @@ test('/explain resolves an attached image on the server, with its layout-referen
   assert.deepEqual(asked[0], ['demo', { image_context: { id: 'media:0123456789ab' }, board: 'main' }]);
   const documents = seen[0].documents;
   assert.match(documents.at(-3).text, /layout reference/);
+  assert.match(documents.at(-3).text, /Do not take facts, numbers, labels or claims from it as true/, 'a layout image is never factual evidence (plan 3.3)');
   assert.deepEqual(documents.slice(-2), pixels.blocks, 'the actual pixels reach the author');
   // Unreadable: refused with the reader's own reason, nothing generated.
   const unreadable = await artifactFetch(post(body), env, generate, { images: images({ blocks: [{ type: 'text', text: 'The referenced image is unavailable.' }], notice: 'The image could not be read.' }) });
