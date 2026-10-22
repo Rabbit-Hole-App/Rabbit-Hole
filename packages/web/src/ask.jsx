@@ -1,8 +1,8 @@
 import ChatComposer, { COMPOSER_ADD, COMPOSER_PILL, COMPOSER_TOOL } from './ChatComposer.jsx';
 import ModeSelector from './ModeSelector.jsx';
 import ContextChips from './ContextChips.jsx';
-import { dropRef, selectionRefs, turnRefs } from './repo-context.js';
-import { dropCardRef, useCardRefs } from './graph-card.js';
+import { selectionRefs, turnRefs } from './repo-context.js';
+import { releaseCodeRef, useCardRefs } from './graph-card.js';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { refsForSend } from './chat-draft.js';
 import { MAX_REFS, sameRef } from './chat-context.js';
@@ -1178,7 +1178,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
           dock={dock} onStop={dock || chat ? () => answerFlight.current?.abort() : undefined}
           stacked={!!chat} tocView={tocView} chips={chat && !tocView ? <ContextChips readPaper={(canvasTarget?.paper || boardContext?.paper || turnPaper(null, attachedRefs))?.id ?? null}
             selection={canvasTarget ? { ref: canvasTarget.ref, id: canvasTarget.id, kind: canvasTarget.kind, title: canvasTarget.title, card: canvasTarget.card, preview: canvasTarget.preview, paper: canvasTarget.paper, docPage: canvasTarget.docPage, image: canvasTarget.image, pinned: pinnedTarget, onClear: onClearCanvasTarget } : null} extra={boardPending}
-            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => { if (codebase) dropRef(codebase, ref); dropCardRef(ref); } } : null} /> : null}
+            code={codebase || cardRefs.length ? { temporary: codeTurnRefs.temporary, left: codeTurnRefs.left, selected: temporaryCode, onRemove: ref => releaseCodeRef(codebase, ref) } : null} /> : null}
           leading={<>
           {!tocView && <div className="relative shrink-0">
             <button

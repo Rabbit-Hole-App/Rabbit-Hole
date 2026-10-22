@@ -57,6 +57,8 @@ import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
 import { RepositoryBadge } from './repository-canvas.jsx';
 import { clearSelection } from './repo-context.js';
+import { releaseCodeRef } from './graph-card.js';
+import { sameRef } from './chat-context.js';
 import PanelHeader, { CanvasSearchPanel, COMPANION_VIEWS, CompanionHeader } from './PanelHeader.jsx';
 import ChatPane from './ChatPane.jsx';
 import { useCanvasSearch } from './use-canvas-search.jsx';
@@ -2281,7 +2283,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {/* Progress keeps its viewed goal and open skill while closed (mounted once shown, as Files and Graph are). */}
       {shown.current.has('progress') && <div className={`${companionView === 'progress' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
         <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} chat={chat} journey={journey} onClose={() => { companion.close(); requestAnimationFrame(() => document.querySelector('[data-chat-progress]')?.focus()); }} /></div>}
-      <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane /></div>
+      <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane onSwitchOff={ref => { releaseCodeRef(repository, ref); if (askTarget?.ref && sameRef(askTarget.ref, ref)) clearAskTarget(); }} /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}

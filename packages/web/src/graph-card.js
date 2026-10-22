@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { nodeRef } from './repo-context.js';
+import { dropRef, nodeRef } from './repo-context.js';
 import { sameRef } from './chat-context.js';
 
 // The interactive graph card (repo-canvas-graph.md clarification sections 1, 4-6 and 8; C:/s/spec/repo-graph-r2-plan.md).
@@ -77,6 +77,12 @@ export function dropCardRef(ref) {
     else cards.delete(id);
   }
   if (changed) emit();
+}
+// Switching a pinned code ref off - its chip's x or the Sources pane's Use in this chat (owner review UI-10) - lets go of every
+// selection holding it too, the viewers' and the graph cards', so the next turn does not send it straight back.
+export function releaseCodeRef(repository, ref) {
+  if (repository) dropRef(repository, ref);
+  dropCardRef(ref);
 }
 
 // The ref a selected graph card adds: which repository, commit and scope (whole, or the subgraph's node ids).
