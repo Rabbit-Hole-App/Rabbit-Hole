@@ -51,3 +51,26 @@ test('a reader who scrolled up is never pulled down by late growth', () => {
   grow(300);
   assert.equal(box.scrollTop, 200);
 });
+
+// Owner 2026-10-22: switching to another panel tab (Progress, Find, TOC) and back to Chat keeps the reader's place. A hidden box
+// (display none) has no height and its offset resets to 0; neither may move the reader or turn following back on.
+test('a reader who scrolled up gets their place back after the box is hidden and shown again', () => {
+  const { box, scroll, observer } = mount();
+  box.scrollTop = 200;
+  scroll();
+  Object.assign(box, { clientHeight: 0, scrollTop: 0 });
+  scroll(); // a scroll event while hidden is not the reader's
+  observer.fn([]);
+  Object.assign(box, { clientHeight: 400 });
+  observer.fn([]);
+  assert.equal(box.scrollTop, 200);
+});
+
+test('a following reader is back at the bottom after the box is hidden and shown again', () => {
+  const { box, observer } = mount();
+  Object.assign(box, { clientHeight: 0, scrollTop: 0 });
+  observer.fn([]);
+  Object.assign(box, { clientHeight: 400 });
+  observer.fn([]);
+  assert.equal(box.scrollTop, 1000);
+});

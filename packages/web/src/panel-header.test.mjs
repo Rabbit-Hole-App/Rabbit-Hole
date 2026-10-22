@@ -9,8 +9,8 @@ import { cardWords, findMatches, readPanelPin, savePanelPin } from './canvas-fin
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const header = read('./PanelHeader.jsx'), page = read('./LearnPage.jsx');
 
-test('the tabs are Chat, Find, Table of contents, Comments in that order, then Pin and Close on the right', () => {
-  const order = ["label: 'Chat'", "label: 'Find text on canvas'", "label: 'Table of contents'", "label: 'Comments'", 'aria-label="Keep sidebar open"', 'aria-label="Close sidebar"'].map(text => header.indexOf(text));
+test('the tabs are Chat, Find, Table of contents, Comments, Progress in that order, then Pin and Close on the right', () => {
+  const order = ["label: 'Chat'", "label: 'Find text on canvas'", "label: 'Table of contents'", "label: 'Comments'", "label: 'Progress'",'aria-label="Keep sidebar open"', 'aria-label="Close sidebar"'].map(text => header.indexOf(text));
   assert.ok(order.every(at => at > 0), 'every label is there');
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'in the owner\'s order');
   assert.match(header, /export const PANEL_TABS = \[\n\s+\{ id: 'chat', label: 'Chat', Icon: MessageSquareText \},/, 'Chat first, a non-brand icon');
@@ -64,9 +64,9 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
 });
 
 // Canvas references (owner, 2026-10-14 Q3) were a fifth Links tab; owner UI brief 2026-10-20 section 7 moved them into Search's
-// Links filter (canvas-search-index.test.mjs), so Comments is last. A narrow panel scrolls the tab row.
-test('no Links tab: Comments is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
-  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n\s+\/\/[^\n]*\n\];/);
+// Links filter (canvas-search-index.test.mjs); Progress (owner 2026-10-22) is last. A narrow panel scrolls the tab row.
+test('no Links tab: Progress is the last tab, and a narrow panel scrolls the tab row, never squeezing it', () => {
+  assert.match(header, /\{ id: 'progress', label: 'Progress', Icon: ChartColumnIncreasing \},\n\s+\/\/[^\n]*\n\];/);
   assert.doesNotMatch(header, /id: 'links'|Link2/);
   assert.match(header, /role="tablist" aria-label="Panel views" onKeyDown=\{arrow\} className="flex min-w-0 items-center gap-0\.5 overflow-x-auto/);
   assert.match(header, /className=\{`relative flex h-8 w-\[30px\] shrink-0 items-center/, 'every tab keeps its size (30 x 32)');
@@ -84,26 +84,29 @@ test('Chat\'s tabs hold no viewer: no Context or Files tab', () => {
   assert.match(header, /data-panel-companion aria-label=\{name\} title=\{name\} aria-pressed=\{companion\.open\} onClick=\{companion\.onToggle\}/);
   assert.doesNotMatch(header, /data-panel-viewer|Repository files/);
   assert.match(header, /export const companionLabel = views => \(views\.length > 1 \? `\$\{views\.slice\(0, -1\)\.map\(view => view\.label\)\.join\(', '\)\} and \$\{views\.at\(-1\)\.label\}` : views\[0\]\?\.label \|\| 'Context'\);/, 'its name lists the views it opens: Context, Files and Graph');
-  // Tutor Task 09: Progress takes the same column from its own icon; the viewers' control is not pressed for it.
-  assert.match(page, /companion=\{\{ views: companionViews, open: panelOpen && companion\.open && companionView !== 'progress', onToggle: companion\.toggle \}\}/);
+  assert.match(page, /companion=\{\{ views: companionViews, open: panelOpen && companion\.open, onToggle: companion\.toggle \}\}/);
 });
 
-// Tutor Task 09 (draft "Progress UI and access"): a labelled Progress icon opens the companion column on Progress, left of
-// Chat; it is not a Chat tab and not one of the viewers' tabs. Owner 2026-10-21: it sits in the right panel's header next to
-// Comments, not in Chat's own header and not in the canvas toolbar.
-test('Progress: an icon in the panel header right after Comments, the companion column\'s own view, never a Chat tab or a viewer tab', () => {
+// Tutor Task 09 (draft "Progress UI and access"). Owner 2026-10-22: Progress is a normal tab of this panel after Comments, with the
+// same selected purple, arrow keys and aria-selected as the others (the shared tab code above); no column opens beside Chat for
+// it, and it is not in Chat's own header or the canvas toolbar. Mounted on its first show and kept, so its viewed goal and goal
+// drafts survive a switch.
+test('Progress: the last tab of the panel, its tabpanel inside Chat\'s panel, never a column beside Chat', () => {
   const pane = readFileSync(new URL('./ChatPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.doesNotMatch(pane, /data-chat-progress|ChartColumnIncreasing/, 'not in the Chat header');
-  assert.doesNotMatch(page, /data-chat-progress aria-label|ChartColumnIncreasing/, 'not in the canvas toolbar');
-  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n[^\n]*\n\];/, 'Comments is the last tab');
-  assert.match(header, /\); \}\)\}\n      <\/div>\n      \{progress && <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed=\{progress\.open\} onClick=\{progress\.onToggle\}/, 'right after the tablist, so after Comments, whether Comments is live or not');
-  assert.match(header, /<ChartColumnIncreasing size=\{16\} strokeWidth=\{1\.8\} aria-hidden \/><\/button>\}/, 'a descriptive icon, never a brand mark, at the header\'s size');
-  assert.match(page, /progress=\{\{ open: panels\.progress\.open, onToggle: panels\.progress\.toggle \}\}/, 'the same toggle');
-  assert.match(page, /document\.querySelector\('\[data-chat-progress\]'\)\?\.focus\(\)/, 'closing Progress returns focus to the icon');
-  assert.doesNotMatch(header, /'progress'/, 'neither a Chat tab nor a viewer');
-  assert.match(page, /const companionView = companion\.view === 'progress' \? 'progress' :/);
-  assert.match(page, /\{companionView !== 'progress' && <CompanionHeader /);
-  assert.match(page, /shown\.current\.has\('progress'\) && <div className=\{`\$\{companionView === 'progress' \? 'flex' : 'hidden'\} min-h-0 flex-1 flex-col`\}>/, 'kept mounted, so the viewed goal survives a close');
+  assert.doesNotMatch(page + header, /data-chat-progress|ChartColumnIncreasing size/, 'no separate Progress toggle anywhere');
+  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n[^\n]*\n\s+\{ id: 'progress', label: 'Progress', Icon: ChartColumnIncreasing \},/, 'right after Comments, a descriptive icon');
+  assert.doesNotMatch(header, /progress = null|progress\.onToggle/, 'no Progress toggle prop');
+  assert.doesNotMatch(page, /companionView === 'progress'|companion\.show\('progress'\)|panels\.progress/, 'the companion column never shows Progress');
+  assert.match(page, /if \(panelOpen && panelTab === 'progress'\) shown\.current\.add\('progress'\);/);
+  assert.match(page, /\{shown\.current\.has\('progress'\) && <div role="tabpanel" aria-label="Progress" data-progress-tab className=\{`\$\{panelTab === 'progress' \? 'flex' : 'hidden'\} min-h-0 flex-1 flex-col`\}>/, 'kept mounted, hidden under another tab');
+  const chat = page.indexOf('<ResizableSidePanel aria-label="Learn agent chat"'), tab = page.indexOf('data-progress-tab');
+  assert.ok(chat > 0 && tab > chat, 'inside Chat\'s panel');
+  assert.match(page, /onClose=\{\(\) => \{ setPanelTab\('chat'\); requestAnimationFrame\(\(\) => document\.querySelector\('\[data-panel-tab="chat"\]'\)\?\.focus\(\)\); \}\}/, 'Close goes back to Chat, focus on its tab');
+  assert.match(page, /onProgress=\{panels\.openProgress\}/, 'the Table of contents opens the same tab');
+  assert.match(read('./ContextChips.jsx'), /chat\.panels\.openProgress\(\)/, 'a progress chip opens the same tab');
+  // The tab keeps the focus on open (arrow keys walk the tabs): the pane never takes it on mount.
+  assert.doesNotMatch(read('./LearnProgress.jsx'), /useEffect\(\(\) => \{ heading\.current\?\.focus\(\); \}, \[\]\);/);
 });
 
 test('pinned by default, and the choice lasts in this browser; storage that throws keeps the default', () => {

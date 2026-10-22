@@ -7,12 +7,16 @@ export const atEnd = box => box.scrollHeight - box.scrollTop - box.clientHeight 
 
 export function useFollowLatest(scrollRef, deps) {
   const [atBottom, setAtBottom] = useState(true);
-  const follow = useRef(true), bound = useRef(null);
-  const [onScroll] = useState(() => () => { follow.current = atEnd(bound.current); setAtBottom(follow.current); });
+  const follow = useRef(true), bound = useRef(null), top = useRef(0);
+  // A hidden box (another panel tab: display none) has no height and loses its offset; that reset is not the reader's scroll.
+  const [onScroll] = useState(() => () => { if (!bound.current?.clientHeight) return; top.current = bound.current.scrollTop; follow.current = atEnd(bound.current); setAtBottom(follow.current); });
   // Content that grows with no new message (answer_meta's actions and Explore next settling, math fonts loading) is followed
   // too: a following reader is kept at the true bottom, and this hook's own scroll then reads as at the end.
+  // Shown again after another tab, a reader who had scrolled up gets their place back.
   const [sized] = useState(() => typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
-    if (follow.current && bound.current) bound.current.scrollTop = bound.current.scrollHeight;
+    if (!bound.current?.clientHeight) return;
+    if (follow.current) bound.current.scrollTop = bound.current.scrollHeight;
+    else if (bound.current.scrollTop !== top.current) bound.current.scrollTop = top.current;
   }));
   // The box can mount after the panel does (views switch), so bind whichever element the ref holds after each render.
   useEffect(() => {
