@@ -68,6 +68,11 @@ function pageFacts() {
   return { height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight || 0),
     password: [...document.querySelectorAll('input[type=password]')].some(visible), textLength: (document.body?.innerText || '').trim().length };
 }
+// Scrolls one tile into the viewport and lets lazy content paint (two frames).
+async function scrollToY(y) {
+  window.scrollTo(0, y);
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
 async function scrollThrough(maxY) {
   for (let y = 0; y < maxY; y += 1000) { window.scrollTo(0, y); await new Promise(r => setTimeout(r, 60)); }
   window.scrollTo(0, 0);
@@ -85,10 +90,13 @@ export async function capturePage(browser, url, { fetcher = fetch } = {}) {
 }
 
 async function captureIn(context, url, fetcher) {
-  const cache = new Map();
+  const cache = new Map(), t0 = Date.now(), times = {};
+  const mark = name => { times[name] = Date.now() - t0; };
   let blockedNavigation = null, blockedRequests = 0;
   const page = await context.newPage();
-  await page.setViewport({ width: L.width, height: 900, deviceScaleFactor: 1 });
+  // One tile tall, so each tile is shot from the viewport: a clip beyond the viewport re-renders the whole page per shot
+  // (about 15 s a tile on a long article, measured on Browser Run). shortcut: fixed and sticky bars repeat on every tile.
+  await page.setViewport({ width: L.width, height: L.tile, deviceScaleFactor: 1 });
   await page.setRequestInterception(true);
   page.on('request', async request => {
     try {
@@ -112,6 +120,8 @@ async function captureIn(context, url, fetcher) {
     if (blockedNavigation) return failure(blockedNavigation.kind, blockedNavigation.reason);
     const message = String(error?.message || error);
     console.error('webpage capture: navigation failed', message.slice(0, 300));
+    // Browser Run's own egress policy refuses some private addresses before our guard sees them.
+    if (/ERR_BLOCKED_BY_ADMINISTRATOR|ERR_BLOCKED_BY_CLIENT/.test(message)) return failure('blocked', 'This address cannot be captured.');
     if (/ERR_NAME_NOT_RESOLVED|ERR_NAME_RESOLUTION/.test(message)) return failure('unavailable', 'This site could not be found.');
     if (/timeout/i.test(error?.name || '') || /timeout/i.test(message)) return failure('unavailable', 'This page took too long to load.');
     return failure('unavailable', 'This page could not be loaded.');
@@ -120,26 +130,33 @@ async function captureIn(context, url, fetcher) {
   const code = response?.status?.() ?? 200;
   if ([401, 403, 407].includes(code)) return failure('login_required', 'This page needs a sign-in, so it cannot be captured.');
   if (code >= 400) return failure('unavailable', `This page answered with an error (${code}).`);
+  mark('load');
   await page.waitForNetworkIdle?.({ idleTime: 500, timeout: L.idleMs }).catch(() => {});
+  mark('idle');
   const finalUrl = page.url();
   const facts = await page.evaluate(pageFacts);
   if ((facts.password && facts.textLength < 1500) || (LOGIN_PATH.test(new URL(finalUrl).pathname) && facts.textLength < 2000)) {
     return failure('login_required', 'This page needs a sign-in, so it cannot be captured.');
   }
   await page.evaluate(scrollThrough, Math.min(facts.height, L.height)).catch(() => {});
+  mark('scroll');
   const pageHeight = Math.max(1, Math.ceil((await page.evaluate(pageFacts)).height || facts.height));
   const truncated = { height: pageHeight > L.height, bytes: false, text: false };
   const tiles = [];
   let total = 0;
   for (const tile of tilePlan(Math.min(pageHeight, L.height))) {
-    const bytes = new Uint8Array(await page.screenshot({ type: 'jpeg', quality: 72, clip: { x: 0, y: tile.y, width: L.width, height: tile.h }, captureBeyondViewport: true }));
+    await page.evaluate(scrollToY, tile.y);
+    const bytes = new Uint8Array(await page.screenshot({ type: 'jpeg', quality: 72, clip: { x: 0, y: tile.y, width: L.width, height: tile.h }, captureBeyondViewport: false }));
     if (total + bytes.length > L.bytes) { truncated.bytes = true; break; }
     total += bytes.length;
     tiles.push({ ...tile, width: L.width, type: 'image/jpeg', bytes });
   }
   if (!tiles.length) return failure('unavailable', 'This page could not be captured.');
   const height = tiles.at(-1).y + tiles.at(-1).h;
+  mark('tiles');
   const found = await page.evaluate(textRuns, L.chars, height);
+  mark('text');
+  console.log('webpage capture: ms', JSON.stringify(times), 'tiles', tiles.length, 'bytes', total, 'runs', found.runs.length, 'blocked', blockedRequests);
   truncated.text = !!found.truncated;
   const tileOf = y => tiles.reduce((at, t) => (t.y <= y ? t.index : at), 0);
   const runs = found.runs.filter(r => r.y < height).map(r => ({ ...r, tile: tileOf(r.y) }));
@@ -261,11 +278,21 @@ export async function sweepWebpageSources(env, owner, now = Date.now()) {
 // minute for the next capture. The route disconnects, never closes, so the session stays reusable.
 async function launchBrowser(env) {
   const { default: puppeteer } = await import('@cloudflare/puppeteer');
-  const idle = await puppeteer.sessions(env.BROWSER).then(list => list.filter(s => !s.connectionId), () => []);
+  const open = await puppeteer.sessions(env.BROWSER).catch(error => { console.error('webpage capture: sessions failed', String(error?.message || error).slice(0, 200)); return []; });
+  const idle = open.filter(s => !s.connectionId);
+  console.log('webpage capture: sessions', open.length, 'idle', idle.length);
   for (const { sessionId } of idle) {
     try { return await puppeteer.connect(env.BROWSER, sessionId); } catch { /* taken by another request: try the next */ }
   }
-  return puppeteer.launch(env.BROWSER, { keep_alive: 60_000 });
+  try { return await puppeteer.launch(env.BROWSER, { keep_alive: 60_000 }); } catch (error) {
+    // New sessions are rate limited per account: wait for the next allowed one once, if it is near.
+    const limits = /429/.test(String(error?.message)) && await puppeteer.limits(env.BROWSER).catch(() => null);
+    console.log('webpage capture: limits', JSON.stringify(limits));
+    const wait = limits?.timeUntilNextAllowedBrowserAcquisition;
+    if (!(Number.isFinite(wait) && wait <= 15_000)) throw error;
+    await new Promise(r => setTimeout(r, wait + 250));
+    return puppeteer.launch(env.BROWSER, { keep_alive: 60_000 });
+  }
 }
 
 async function ownerBoard(req, env, app, board, deps) {
