@@ -90,6 +90,9 @@ export default function CanvasMenu({ rows, at, surface, onPick, onClose }) {
     <div ref={box} role="menu" aria-label="Canvas actions" data-canvas-menu tabIndex={-1} onKeyDown={keyDown}
       style={{ left: pos?.x ?? at.x, top: pos?.y ?? at.y, maxHeight: pos?.maxH, visibility: pos ? undefined : 'hidden' }}
       className="absolute z-40 w-60 max-w-[calc(100vw-16px)] overflow-y-auto rounded-md border border-line bg-white p-1 shadow-pop"
+      // mousedown is prevented so a press on a row keeps the text selected in a card (brief section 1: Copy selected text,
+      // Add selection to chat read it at the click).
+      onMouseDown={event => event.preventDefault()}
       onPointerDown={event => event.stopPropagation()} onContextMenu={event => { event.preventDefault(); event.stopPropagation(); }}>
       {rows.map(row => (row.separator
         ? <div key={row.key} role="separator" className="my-1 h-px bg-line" />

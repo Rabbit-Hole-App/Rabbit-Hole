@@ -5212,7 +5212,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       quickEdit: inlineAi ? () => openInline(performance.now(), false, 'edit') : null,
       copyText: text => navigator.clipboard?.writeText(text),
       copyable: ids => ids.some(id => ['block', 'chat', 'item', 'shape'].includes(menuObject(id)?.family)),
-      styleable: ids => ids.some(id => { const found = menuObject(id); return !!found && (found.family === 'link' || found.family === 'shape' || (found.family === 'item' && found.object.kind !== 'section')); }),
+      // Every member, so a mixed selection never restyles some objects and silently skips the cards (brief section 3).
+      styleable: ids => ids.length > 0 && ids.every(id => { const found = menuObject(id); return !!found && (found.family === 'link' || found.family === 'shape' || (found.family === 'item' && found.object.kind !== 'section')); }),
       canPaste, canPasteStyle,
       zoomToSelection,
       supportsCardLayout: object => !!object && supportsCardLayout(object),

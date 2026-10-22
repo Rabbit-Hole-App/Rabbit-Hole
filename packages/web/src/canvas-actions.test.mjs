@@ -50,7 +50,7 @@ function fakeCtx({ readOnly = false, comment = true, rabbitHole = true, locked =
     setCardLayout: work('setCardLayout'), cardAction: work('cardAction'), openUrl: work('openUrl'), openInNotebook: work('openInNotebook'), downloadCad: work('downloadCad'),
     toggleDone: work('toggleDone'), presentFrom: work('presentFrom'), toast: work('toast'),
     canStartRabbitHole: id => board.blocks.some(block => block.id === id), renamable: object => !!object?.title, describable: t => t.ids.length > 0,
-    copyable: ids => ids.some(id => objectOf(id)?.family !== 'link'), styleable: ids => ids.some(id => ['shape', 'item', 'link'].includes(objectOf(id)?.family)),
+    copyable: ids => ids.some(id => objectOf(id)?.family !== 'link'), styleable: ids => ids.length > 0 && ids.every(id => ['shape', 'item', 'link'].includes(objectOf(id)?.family)),
     canPaste: paste, canPasteStyle: false, supportsCardLayout: object => object?.type === 'lesson', fullContent: () => false, attached: () => false,
     reader: () => null, notebookFrom: object => (object?.type === 'code' ? { disabled: null } : null), cadArtifact: () => null,
   };
@@ -148,6 +148,8 @@ test('mixed selections show only valid batch actions; single-object rows never a
   // Start Rabbit Hole stays: it starts from the card right-clicked, never from the first selected one (owner, 2026-10-07).
   assert.equal(multi.find(row => row.id === 'card.start-rabbit-hole')?.attrs['data-origin'], 'c1');
   assert.ok(names.includes('Group') && names.includes('Delete') && names.includes('Duplicate'));
+  assert.ok(!names.includes('Copy style') && !names.includes('Paste style'), 'a card in the mix: no style rows that would skip it');
+  assert.ok(labels(actionsFor(resolveTarget(el('div', { 'data-group-chip': 'g1' }), model([])), ctx)).includes('Copy style'), 'a group of shapes and notes keeps them');
   // a per-type row with `types` shows on several objects only when EVERY member has that type
   const off = registerActions([{ id: 'test.batch', label: 'Lesson only', icon: 'Copy', group: 'type', targets: ['multi'], types: ['lesson'], run: () => {} }]);
   assert.ok(!labels(actionsFor(selectionTarget(model(['c1', 'eq'])), ctx)).includes('Lesson only'));
