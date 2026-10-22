@@ -74,7 +74,7 @@ import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-wo
 import { effectiveControls } from './learn-coaching-client.js';
 import { canCoach, mayRun } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe, Network, Lightbulb } from 'lucide-react';
+import { ChartColumnIncreasing, MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe, Network, Lightbulb } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -2209,6 +2209,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             {/* Comments (docs/features/canvas-comments.md): opens the Comments view; a dot when a thread has news for you. */}
             {comments.active && <button type="button" data-comments-header title="Comments" aria-label={comments.unread ? `Comments, ${comments.unread} unread` : 'Comments'} onClick={openComments}
               className="relative flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><MessageCircle size={15} strokeWidth={1.8} />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}</button>}
+            {/* Progress (Tutor Task 09; owner 2026-10-21: in the toolbar beside Comments): opens the companion column left of Chat,
+                revealing a hidden right side; in Auto, Ask and Tutor alike, changing no control. Closing Progress refocuses it. */}
+            <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed={panels.progress.open} onClick={panels.progress.toggle}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${panels.progress.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><ChartColumnIncreasing size={15} strokeWidth={1.8} aria-hidden /></button>
             {/* The signed-in person's own monthly AI allowance (owner D4 section 2), never this canvas's owner's. */}
             {learnPreview && <UsageGauge />}
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
