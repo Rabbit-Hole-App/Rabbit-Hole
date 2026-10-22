@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "hybrid-attention",
+  "title": "Local and global attention layers alternate",
+  "components": [
+    { "id": "layers", "component": "pattern-stack", "version": 1, "evidence": ["cfg", "paper"], "params": {
+      "title": "One repeating group",
+      "pattern": ["Local attention", "Local attention", "Local attention", { "label": "Global attention", "role": "output" }],
+      "countOf": "entries",
+      "countSources": [{ "value": 48, "evidence": "cfg" }, { "value": 48, "evidence": "paper" }]
+    } }
+  ],
+  "presentation": { "mode": "static" }
+}

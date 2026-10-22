@@ -6,6 +6,7 @@ import callout from './components/callout.js';
 import flow from './components/flow.js';
 import legend from './components/legend.js';
 import module from './components/module.js';
+import patternStack from './components/pattern-stack.js';
 import section from './components/section.js';
 import stack from './components/stack.js';
 
@@ -19,7 +20,7 @@ export function register(definition) {
   return checked;
 }
 
-for (const definition of [section, module, stack, flow, callout, legend]) register(definition);
+for (const definition of [section, module, stack, flow, callout, legend, patternStack]) register(definition);
 
 export function componentFor(name, version) {
   const found = REGISTRY.get(`${name}@${version}`);

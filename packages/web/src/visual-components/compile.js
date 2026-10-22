@@ -55,6 +55,7 @@ export function compileVisual(raw) {
       seen.add(at);
     }
   }
+  const componentNotes = [];
   const childrenOf = id => spec.components.filter(item => item.parent === id).map(item => item.id);
 
   // One block per instance, in its own coordinates; containers place their
@@ -63,7 +64,8 @@ export function compileVisual(raw) {
     const { item, definition, params, hints, where } = resolved.get(id);
     const children = childrenOf(id).map(block);
     let out;
-    try { out = definition.compile({ params, hints, label: item.label, children }); } catch (error) { where(error.message); }
+    try { out = definition.compile({ params, hints, label: item.label, evidence: item.evidence, children }); } catch (error) { where(error.message); }
+    for (const note of out.diagnostics || []) componentNotes.push({ code: note.code, message: note.message.slice(0, 300), component: id });
     const objects = out.objects.map(object => {
       const full = `${id}.${object.id}`;
       if (full.length > 64) where(`object id "${full}" is over 64 characters: use a shorter component id`);
@@ -151,7 +153,7 @@ export function compileVisual(raw) {
     throw new Error(`Over budget (${fatal.map(issue => `${issue.code} ${issue.value} > ${issue.limit}`).join(', ')})${advice}`);
   }
   const partIndexes = spec.parts.length ? spec.parts.map((_, index) => index) : [undefined];
-  const perPart = [], diagnostics = [];
+  const perPart = [], diagnostics = [...componentNotes];
   for (const part of partIndexes) {
     const result = evaluateScene(structuredClone(scene), scene.duration, part === undefined ? {} : { part });
     const onScreen = { ...result.scene, objects: result.scene.objects.filter(object => object.part === undefined || object.part === part) };

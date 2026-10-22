@@ -12,7 +12,8 @@ const mod = (id, label, extra = {}) => ({ id, component: 'module', version: 1, p
 const textOf = compiled => compiled.scene.objects.map(object => object.initialState.label ?? object.initialState.text).filter(Boolean);
 
 test('the catalogue registers the six core components, each a valid definition', () => {
-  assert.deepEqual(catalogue().map(item => item.name).sort(), ['callout', 'flow', 'legend', 'module', 'section', 'stack']);
+  const names = catalogue().map(item => item.name);
+  for (const core of ['callout', 'flow', 'legend', 'module', 'section', 'stack']) assert.ok(names.includes(core), core);
   for (const item of catalogue()) assert.equal(item.compile, undefined, `${item.name}: the catalogue is declarative only`);
 });
 
