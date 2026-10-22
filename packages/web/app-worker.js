@@ -5,7 +5,7 @@
 import worker from './dev-worker.js';
 import { ownControlPlane } from '../control-plane/src/dev-forwarding.js';
 import { cadJobDiagnostic } from '../control-plane/src/cad-job-diagnostic.js';
-export { RepositoryImports, LearnScenes, LearnVideos, CadJobs } from './dev-worker.js';
+export { RepositoryImports, LearnScenes, LearnVideos, CadJobs, ExplainJobs } from './dev-worker.js';
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),

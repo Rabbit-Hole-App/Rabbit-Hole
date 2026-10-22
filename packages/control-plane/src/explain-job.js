@@ -1,0 +1,412 @@
+// /explain v2 durable job (EXP-T12 slice 2; plan v2.1 sections 3.4 and 4). One Durable Object per canvas (ExplainJobs,
+// idFromName(boardId)), following CadJobs (request fence, short locked mutations, alarm-driven stages, call ledger, Stop)
+// and LearnVideos (durable Stop, unknown acceptance never resent, platform-paid renders recorded apart).
+//
+// Stages: queued -> [preparing -> awaiting_approval] -> authoring -> validating -> rendering -> reviewing -> ready, with
+// repairing -> validating for at most EXPLAIN_LIMITS.correctionRounds rounds across all gates; failed and cancelled are terminal.
+// The stage work (brief, author, compile, render, review, repair) is a pipeline injected at construction: T16-T19 supply it.
+// Until then explainPipeline refuses, and the whole route is off unless EXPLAIN_V2_ENABLED is 'true'.
+//
+// Money: every model call is admitted on its own by spendTransport (the existing ledger), under one stable usage action per
+// job phase (preparation, generation) so the learner sees one action; review calls are kind evaluation. Before generation
+// starts (and before each Retry), the full generation worst case (explain-policy.js) must fit the learner's available
+// allowance, else nothing starts. shortcut: that is a check, not a hold (a hold plus per-call admission would count twice in
+// HELD_SUM), so concurrent spending elsewhere can still refuse a later call; the job then stops with an allowance reason and
+// keeps its spec. Upgrade when the ledger can admit calls against a parent hold.
+import { repositoryIdentity } from './repositories.js';
+import { anthropic } from './ask.js';
+import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
+import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
+import { refusalBody } from './learn-spend-ledger.js';
+import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
+import { monthlyAllowanceMicros } from './learn-usage-config.js';
+import { sha256Hex } from './learn-grade-jev.js';
+import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
+  explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
+
+const PREFIX = '/api/learn/explain/jobs';
+const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
+const fail = (message, status = 400, code = null) => Object.assign(new Error(message), { status, ...(code ? { code } : {}) });
+const KEY = /^[A-Za-z0-9_-]{8,128}$/;
+const TERMINAL = new Set(['ready', 'failed', 'cancelled']);
+const KIND = { brief: 'generation', author: 'generation', review: 'evaluation', repair: 'repair' };
+const JOBS_KEPT = 50; // per canvas; older terminal jobs are pruned (their card already holds its saved result)
+const jobKey = id => `job:${id}`;
+const hex = () => crypto.randomUUID().replaceAll('-', '');
+export const explainEnabled = env => env.EXPLAIN_V2_ENABLED === 'true';
+export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
+
+// The capability's stages until T16-T19 land: nothing runs, the job says so. Never a model call.
+const notReady = async () => { throw fail('Explanation generation is not available yet.', 503, 'explain_not_ready'); };
+export const explainPipeline = Object.freeze({ prepare: notReady, author: notReady, validate: notReady, render: notReady, review: notReady, repair: notReady });
+
+// Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
+const credits = micros => Math.ceil((micros || 0) / 10000);
+export function publicExplainJob(job) {
+  const settled = job.calls.reduce((t, c) => t + (c.costMicros || 0), 0);
+  return {
+    id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage,
+    terminal: TERMINAL.has(job.stage), round: job.round, stopReason: job.stopReason, failure: job.failure,
+    recovery: recoveryOf(job), usage: { credits: credits(settled), unknown: job.calls.some(c => c.status === 'unknown') },
+    result: job.result, ...(job.brief ? { brief: job.brief, briefHash: job.briefHash } : {}), createdAt: job.createdAt, updatedAt: job.updatedAt,
+  };
+}
+// Only the actions that can run now (plan section 1.4). retry_render: a retained valid spec, render again (no reauthoring).
+// new_attempt: a paid retry within this job's remaining ceiling. edit_request: always, a new request.
+export function recoveryOf(job) {
+  if (job.stage !== 'failed') return [];
+  if (job.inFlight) return ['reconcile'];
+  const actions = [];
+  if (job.failure?.stage === 'rendering' && job.compiled) actions.push('retry_render');
+  else if (job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
+  return [...actions, 'edit_request'];
+}
+const withinCeiling = job => job.counts.author < EXPLAIN_LIMITS.calls.author || (job.spec && job.round < EXPLAIN_LIMITS.correctionRounds);
+
+function validateCreate(p) {
+  if (!KEY.test(p.requestId || '')) throw fail('requestId is required.');
+  if (typeof p.cardId !== 'string' || !KEY.test(p.cardId)) throw fail('cardId is required.');
+  if (typeof p.prompt !== 'string' || !p.prompt.trim() || p.prompt.length > MESSAGE_LIMIT) throw fail('Describe what to explain.');
+  if (!REQUEST_CLASSES.includes(p.requestClass)) throw fail('Unknown request class.');
+  if (p.context != null && JSON.stringify(p.context).length > 60000) throw fail('The attached context is too large.', 413);
+  if (p.baseRevision != null && !KEY.test(p.baseRevision)) throw fail('Invalid base revision.');
+}
+
+// The route: owner-only, same origin, behind EXPLAIN_V2_ENABLED. Off, it answers 404 as if absent.
+export async function explainRoute(path, req, env, deps = {}) {
+  if (path !== PREFIX && !path.startsWith(`${PREFIX}/`)) return null;
+  if (!explainEnabled(env)) return json({ error: EXPLAIN_DISABLED, code: 'explain_disabled' }, 404);
+  if (!env.EXPLAIN_JOBS || !env.LEARN_DB) return json({ error: 'Explanations are not configured on this preview.' }, 503);
+  const url = new URL(req.url);
+  if (req.method !== 'GET' && req.headers.has('origin') && req.headers.get('origin') !== url.origin) return json({ error: 'Invalid origin' }, 403);
+  if (!['GET', 'POST'].includes(req.method)) return json({ error: 'Method not allowed' }, 405);
+  const user = await (deps.identity || repositoryIdentity)(req, env);
+  if (user instanceof Response) return user;
+  let body = {};
+  if (req.method === 'POST') { try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); } }
+  const boardId = req.method === 'GET' ? url.searchParams.get('board') : body.boardId;
+  if (typeof boardId !== 'string' || !boardId) return json({ error: 'board is required' }, 400);
+  const board = await env.LEARN_DB.prepare('SELECT id, app, board FROM learn_boards WHERE id = ? AND org = ? AND owner_email = ?').bind(boardId, user.org, user.email).first();
+  if (!board) return json({ error: 'Not available' }, 404);
+  const rest = path.slice(PREFIX.length).split('/').filter(Boolean).map(decodeURIComponent);
+  const action = req.method === 'GET' ? (rest[0] ? 'get' : 'list') : (rest[0] ? rest[1] : 'create');
+  if (!['get', 'list', 'create', 'cancel', 'retry', 'approve'].includes(action) || rest.length > 2) return json({ error: 'Not found' }, 404);
+  const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
+  return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin }) });
+}
+
+export class ExplainJobs {
+  constructor(state, env, pipeline = explainPipeline) { this.state = state; this.env = env; this.pipeline = pipeline; this.active = new Set(); }
+  async locked(fn) {
+    // An exception escaping blockConcurrencyWhile resets the object; expected refusals leave the gate first.
+    const out = await this.state.blockConcurrencyWhile(async () => { try { return { value: await fn() }; } catch (error) { return { error }; } });
+    if (out.error) throw out.error;
+    return out.value;
+  }
+  get(id) { return this.state.storage.get(jobKey(id)); }
+  async save(job) { job.updatedAt = Date.now(); await this.state.storage.put(jobKey(job.id), job); }
+  async wake(delay = 50) { const at = Date.now() + delay, current = await this.state.storage.getAlarm?.(); if (!current || current > at) await this.state.storage.setAlarm(at); }
+
+  async fetch(req) {
+    try {
+      const input = await req.json();
+      return await this.locked(() => this.action(input));
+    } catch (error) {
+      if (error.refusal) return json(refusalBody(error.refusal), error.status || 429);
+      return json({ error: error.status ? error.message : 'The explanation could not be updated.', ...(error.code ? { code: error.code } : {}) }, error.status || 503);
+    }
+  }
+
+  async action({ action, id, payload = {}, board, user, origin }) {
+    if (action === 'list') {
+      const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()].filter(j => j.owner.email === user.email);
+      return json({ jobs: jobs.sort((a, b) => a.createdAt - b.createdAt).map(publicExplainJob) });
+    }
+    if (action === 'create') return this.create(payload, board, user, origin);
+    const job = id && await this.get(id);
+    if (!job || job.owner.email !== user.email || job.boardId !== board.id) throw fail('Not available', 404);
+    if (action === 'get') return json({ job: publicExplainJob(job), ...(job.stage === 'ready' ? { block: await this.block(job) } : {}) });
+    if (action === 'cancel') return this.stop(job);
+    if (action === 'retry') return this.retry(job, payload);
+    if (action === 'approve') return this.approve(job, payload);
+    throw fail('Not found', 404);
+  }
+
+  async create(payload, board, user, origin) {
+    validateCreate(payload);
+    const fingerprint = await sha256Hex(JSON.stringify([payload.cardId, payload.prompt, payload.context ?? null, payload.requestClass, payload.baseRevision ?? null]));
+    const fence = await this.state.storage.get(`request:${payload.requestId}`);
+    if (fence) {
+      if (fence.fingerprint !== fingerprint) throw fail('This request id belongs to a different explanation.', 409);
+      return json({ job: publicExplainJob(await this.get(fence.id)) });
+    }
+    const jobs = [...(await this.state.storage.list({ prefix: 'job:' })).values()];
+    if (jobs.some(j => j.cardId === payload.cardId && !TERMINAL.has(j.stage))) throw fail('This card already has an explanation in progress.', 409);
+    const now = Date.now(), reserve = explainReservation();
+    const job = {
+      id: `ej_${hex()}`, version: 1, policyVersion: EXPLAIN_POLICY_VERSION, boardId: board.id, app: board.app, board: board.board,
+      owner: { org: user.org, email: user.email, userId: user.userId || null }, origin, cardId: payload.cardId, requestId: payload.requestId,
+      prompt: payload.prompt.trim(), context: payload.context ?? null, requestClass: payload.requestClass, baseRevision: payload.baseRevision ?? null,
+      // Preparation (a brief) is the server's decision (T16 owns the rule); until then a researched request prepares one.
+      prepare: payload.requestClass === 'researched',
+      stage: 'queued', attempt: 1, round: 0, stopped: false, stopReason: null, failure: null, inFlight: null,
+      counts: { brief: 0, author: 0, review: 0, repair: 0 }, reservedMicros: 0, calls: [], renders: 0,
+      prepKey: `xp${hex()}`, actionKey: `xg${hex()}`, resultId: `er_${hex()}`, revision: `xr_${hex()}`,
+      brief: null, briefHash: null, approval: null, spec: null, compiled: null, findings: [], result: null,
+      timing: newTiming(payload.requestClass, now), createdAt: now, updatedAt: now, deadline: now + EXPLAIN_LIMITS.deadlines.jobMs,
+      reservation: reserve,
+    };
+    // Generation is admitted up front on the direct path; a prepared request is admitted at approve. Refused: nothing is
+    // stored, no fence, no call, so the learner's request and draft stay theirs to retry.
+    if (!job.prepare) await this.admitGeneration(job);
+    await this.prune(jobs);
+    await this.wake();
+    await this.state.storage.put({ [jobKey(job.id)]: job, [`request:${payload.requestId}`]: { id: job.id, fingerprint } });
+    return json({ job: publicExplainJob(job) }, 202);
+  }
+  async prune(jobs) {
+    const old = jobs.filter(j => TERMINAL.has(j.stage)).sort((a, b) => b.updatedAt - a.updatedAt).slice(JOBS_KEPT - 1);
+    for (const j of old) { await this.state.storage.delete?.(jobKey(j.id)); await this.state.storage.delete?.(`request:${j.requestId}`); await this.state.storage.delete?.(`result:${j.resultId}`); }
+  }
+
+  // The learner's available allowance must cover generation's full worst case before any of it starts.
+  async admitGeneration(job) {
+    if (!spendEnforced(this.env)) return;
+    if (!platformCaps(this.env).usd) throw Object.assign(fail('AI is paused.', 429), { refusal: { reason: 'cap_unset' } });
+    const payer = await usagePayer(this.usageEnv(job, job.actionKey));
+    if (payer?.chargeClass !== 'would_charge') return; // platform-funded work: the per-call platform guard still applies
+    const allowance = monthlyAllowanceMicros(this.env);
+    let reason = null;
+    try {
+      const { used, reserved } = await usageTotals(this.env.LEARN_DB, payer.userId, payer.period);
+      const left = (allowance ?? 0) - used;
+      if (allowance == null) reason = 'allowance_unavailable';
+      else if (left <= 0) reason = 'allowance_exhausted';
+      else if (left - reserved < job.reservation.generationMicros) reason = reserved > 0 && left >= job.reservation.generationMicros ? 'allowance_reserved' : 'allowance_insufficient';
+    } catch { reason = 'allowance_unavailable'; }
+    if (reason) throw Object.assign(fail('Not enough AI allowance.', reason === 'allowance_unavailable' ? 503 : 429), { refusal: { reason, period: payer.period } });
+  }
+
+  // Stop: durable at once. A call already sent finishes and settles (spendTransport); its result is dropped. No paid step
+  // starts after this (paidCall rechecks under the lock).
+  async stop(job) {
+    if (TERMINAL.has(job.stage)) return json({ job: publicExplainJob(job) });
+    endStage(job.timing, 'stopped');
+    Object.assign(job, { stopped: true, stage: 'cancelled', stopReason: 'stopped', approval: null });
+    await this.save(job);
+    await this.finishUsage(job, 'cancelled');
+    return json({ job: publicExplainJob(job) });
+  }
+
+  // Retry of the same job and card. Duplicate Retries (two clicks, a resent request) carry the attempt they saw; only the
+  // first changes anything. Render failure with a retained compiled result re-renders without reauthoring. Otherwise a paid
+  // retry continues within the job's remaining ceiling, never a reset one, after the allowance check.
+  async retry(job, payload) {
+    if (payload.expectedAttempt !== job.attempt) return json({ job: publicExplainJob(job) });
+    const actions = recoveryOf(job);
+    if (actions.includes('retry_render')) {
+      Object.assign(job, { stage: 'rendering', failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
+    } else if (actions.includes('new_attempt')) {
+      await this.admitGeneration(job);
+      const stage = job.spec ? 'validating' : 'authoring';
+      Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
+    } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
+    beginStage(job.timing, job.stage);
+    await this.save(job); await this.wake();
+    return json({ job: publicExplainJob(job) }, 202);
+  }
+
+  // Generate on a prepared brief: only the current brief (its hash) and only while awaiting approval.
+  async approve(job, payload) {
+    if (job.stage !== 'awaiting_approval' || typeof payload.briefHash !== 'string' || payload.briefHash !== job.briefHash) throw fail('This brief changed. Review it again before generating.', 409, 'brief_stale');
+    await this.admitGeneration(job);
+    markTiming(job.timing, 'generate');
+    Object.assign(job, { approval: { briefHash: job.briefHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
+    beginStage(job.timing, 'authoring');
+    await this.save(job); await this.wake();
+    return json({ job: publicExplainJob(job) }, 202);
+  }
+
+  // The saved result the browser places: the compiled scene and its identity. Saved content renders without a model call.
+  async block(job) {
+    const saved = await this.state.storage.get(`result:${job.resultId}`);
+    return saved && { type: 'animation', id: job.cardId, scene: saved.compiled?.scene ?? saved.compiled, explain: job.result };
+  }
+
+  usageEnv(job, key) {
+    const scoped = withUsage(this.env, { feature: 'artifact', req: new Request('https://explain/job', { headers: { 'x-rh-action-key': key } }) });
+    noteUsageIdentity(scoped, job.owner);
+    return scoped;
+  }
+  // Each call's own admission (spendTransport) under the job phase's one usage action; the nested anthropic() reuses it.
+  transport(job, role) {
+    return (env, body, model) => spendTransport(this.usageEnv(job, role === 'brief' ? job.prepKey : job.actionKey), body, model, null,
+      admitted => anthropic(admitted, body, model, null), { userId: job.owner.userId || job.owner.email, category: 'explain', provider: 'anthropic', kind: KIND[role] });
+  }
+  // Closes a phase's usage action once the job ends (usage_actions.status), so its record is terminal.
+  async finishUsage(job, status) {
+    const db = this.env.LEARN_DB, user = job.owner.userId || job.owner.email;
+    if (!db) return;
+    for (const key of [job.prepKey, job.actionKey]) {
+      try { await db.prepare("UPDATE usage_actions SET status = ?, result = ?, ended_at = ? WHERE user_id = ? AND client_key = ? AND status = 'running'")
+        .bind(status, status === 'completed' ? 'full' : 'none', Math.floor(Date.now() / 1000), user, key).run(); } catch { /* best effort, as finishAction */ }
+    }
+  }
+
+  // One paid role call. Under the lock: the job is still this stage and attempt, not stopped, nothing else in flight, the
+  // role's call count and the deadline allow it; the intent (key, bound) is stored before anything is sent.
+  async paidCall(job, role, spec) {
+    const body = explainRequest(this.env, role, spec), { boundMicros, images } = checkExplainRequest(this.env, role, body);
+    const key = await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage || current.inFlight) return null;
+      const limit = role === 'brief' ? EXPLAIN_LIMITS.calls.brief * (1 + EXPLAIN_LIMITS.refinements) : EXPLAIN_LIMITS.calls[role];
+      if (current.counts[role] + 1 > limit) throw Object.assign(fail(`This explanation reached its ${role} limit.`, 429), { stopReason: 'budget' });
+      if (Date.now() >= current.deadline) throw Object.assign(fail('This explanation reached its time limit.', 409), { stopReason: 'deadline' });
+      current.counts[role]++; current.reservedMicros += boundMicros;
+      const callKey = `${current.id}-${role}-${current.counts[role]}`;
+      current.inFlight = { key: callKey, role, at: Date.now() };
+      current.calls.push({ key: callKey, role, attempt: current.attempt, requested: null, served: null, status: 'running', boundMicros, images, costMicros: null, inputTokens: null, outputTokens: null, startedAt: Date.now(), endedAt: null });
+      await this.save(current);
+      return callKey;
+    });
+    if (!key) throw Object.assign(fail('This explanation changed while it was working.', 409), { abandoned: true });
+    this.active.add(job.id);
+    let out, error;
+    try { out = await callExplainRole(this.env, role, spec, { callModel: this.transport(job, role) }); } catch (e) { error = e; } finally { this.active.delete(job.id); }
+    await this.locked(async () => {
+      const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
+      const usage = out?.usage, cost = usage ? costUsd({ model: out.identity.served || out.identity.requested, ...usage }) : null;
+      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: error ? 'failed' : 'settled',
+        costMicros: toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
+      if (current.inFlight?.key === key) current.inFlight = null;
+      countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
+      await this.save(current);
+    });
+    if (error) throw error;
+    return out;
+  }
+
+  async alarm() {
+    await this.state.storage.setAlarm(Date.now() + 30000); // re-armed first: a terminated isolate still gets a recovery turn
+    let active = false;
+    for (const [, snapshot] of await this.state.storage.list({ prefix: 'job:' })) {
+      const job = await this.get(snapshot.id);
+      if (!job || TERMINAL.has(job.stage) && !job.inFlight || job.stage === 'awaiting_approval') continue;
+      active = true;
+      try { await this.advance(job); } catch (error) { await this.failed(job, error); }
+    }
+    if (active) await this.wake(1000); else await this.state.storage.deleteAlarm?.();
+  }
+
+  // An in-flight call this object is not running was interrupted (restart, eviction): whether the provider accepted it is
+  // unknown. It is never resent; its admission keeps its reservation (spendTransport never settled it), it counts against
+  // the ceiling, and the job fails retryably once reconciled.
+  async reconcile(job) {
+    const call = job.calls.find(c => c.key === job.inFlight.key);
+    if (call) Object.assign(call, { status: 'unknown', endedAt: Date.now() });
+    job.inFlight = null;
+    if (!TERMINAL.has(job.stage)) {
+      endStage(job.timing, 'interrupted');
+      Object.assign(job, { stage: 'failed', stopReason: 'error', failure: { stage: call?.role === 'review' ? 'reviewing' : job.stage, category: 'transport', message: 'An AI step was interrupted. Its cost stays held until it is confirmed.', retryable: true } });
+      await this.finishUsage(job, 'interrupted');
+    }
+    await this.save(job);
+  }
+
+  async advance(job) {
+    if (job.inFlight) { if (!this.active.has(job.id)) await this.locked(async () => { const current = await this.get(job.id); if (current.inFlight && !this.active.has(job.id)) await this.reconcile(current); }); return; }
+    if (Date.now() > job.deadline) throw Object.assign(fail('This explanation reached its time limit.', 409), { stopReason: 'deadline' });
+    if (job.stage === 'queued') return this.move(job, job.prepare && !job.approval ? 'preparing' : 'authoring');
+    const ctx = { env: this.env, call: (role, spec) => this.paidCall(job, role, spec), limits: EXPLAIN_LIMITS };
+    const stage = job.stage, attempt = job.attempt;
+    const run = { preparing: 'prepare', authoring: 'author', validating: 'validate', rendering: 'render', reviewing: 'review', repairing: 'repair' }[stage];
+    const out = await this.pipeline[run](structuredClone(job), ctx);
+    // A late result (after Stop, Retry or another stage) never overwrites what happened meanwhile.
+    await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current || current.stopped || current.attempt !== attempt || current.stage !== stage) return;
+      await this.apply(current, stage, out || {});
+    });
+  }
+  async move(job, stage) {
+    await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current || current.stopped || current.attempt !== job.attempt || current.stage !== job.stage) return;
+      current.stage = stage; beginStage(current.timing, stage); markTiming(current.timing, 'firstFeedback');
+      if (stage === 'authoring') markTiming(current.timing, 'generate');
+      await this.save(current);
+    });
+  }
+  async apply(job, stage, out) {
+    const next = to => { endStage(job.timing, 'done'); job.stage = to; beginStage(job.timing, to); };
+    if (stage === 'preparing') {
+      job.brief = out.brief; job.briefHash = await sha256Hex(JSON.stringify(out.brief)); job.approval = null;
+      endStage(job.timing, 'done'); job.stage = 'awaiting_approval'; beginStage(job.timing, 'awaiting_approval'); markTiming(job.timing, 'proposalReady');
+      await this.finishUsage({ ...job, actionKey: null }, 'completed');
+    } else if (stage === 'authoring') { job.spec = out.spec; next('validating'); }
+    else if (stage === 'validating') {
+      if (out.problems?.length) { job.findings.push({ round: job.round, stage, problems: out.problems }); return this.repairOrStop(job, out); }
+      job.compiled = out.compiled; next('rendering');
+    } else if (stage === 'rendering') {
+      job.captures = out.captures || []; job.renders += out.renders?.length || 0; countStage(job.timing, { captures: job.captures.length });
+      await this.recordRenders(job, out.renders || []);
+      next('reviewing');
+    } else if (stage === 'reviewing') {
+      if (out.accepted === true) return this.accept(job, out);
+      job.findings.push({ round: job.round, stage, findings: out.findings || [] });
+      return this.repairOrStop(job, out);
+    } else if (stage === 'repairing') {
+      if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
+      job.spec = out.spec; job.compiled = null; next('validating');
+    }
+    await this.save(job);
+  }
+  async repairOrStop(job, out) {
+    if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This explanation needs a change the repair step cannot make. Edit the request.');
+    if (job.round >= EXPLAIN_LIMITS.correctionRounds) return this.stopWith(job, 'rounds', out.category || 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
+    job.round++; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
+    await this.save(job);
+  }
+  async stopWith(job, stopReason, category, message, retryable = false) {
+    endStage(job.timing, stopReason);
+    Object.assign(job, { stage: 'failed', stopReason, failure: { stage: job.stage, category, message, retryable } });
+    await this.save(job); await this.finishUsage(job, 'failed');
+  }
+  async accept(job, out) {
+    const spec = JSON.stringify(job.spec), compiled = JSON.stringify(job.compiled);
+    job.result = { jobId: job.id, resultId: job.resultId, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: (await sha256Hex(job.prompt)).slice(0, 16),
+      revision: job.revision, baseRevision: job.baseRevision, specHash: (await sha256Hex(spec)).slice(0, 16), compiledHash: (await sha256Hex(compiled)).slice(0, 16),
+      componentVersions: out.componentVersions || job.compiled?.componentVersions || {}, policyVersion: job.policyVersion };
+    await this.state.storage.put(`result:${job.resultId}`, { spec: job.spec, compiled: job.compiled, identity: job.result });
+    endStage(job.timing, 'accepted'); markTiming(job.timing, 'result');
+    Object.assign(job, { stage: 'ready', stopReason: 'accepted' });
+    await this.save(job); await this.finishUsage(job, 'completed');
+  }
+  // Renders are platform compute (feature render, free to the learner, cost unknown), recorded once per capture batch.
+  async recordRenders(job, renders) {
+    for (const render of renders) {
+      const scoped = withUsage(this.env, { feature: 'render' });
+      noteUsageIdentity(scoped, job.owner);
+      await recordMedia(scoped, { provider: 'explain_renderer', ok: render.ok !== false });
+      await finishAction(scoped, render.ok !== false ? { status: 'completed', result: 'full' } : { status: 'failed', result: 'none' });
+    }
+  }
+  async failed(job, error) {
+    await this.locked(async () => {
+      const current = await this.get(job.id);
+      if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
+      const refused = error.code === 'spend_limited' || error.status === 429;
+      const policy = error instanceof ExplainPolicyError;
+      endStage(current.timing, 'failed');
+      Object.assign(current, { stage: 'failed', stopReason: error.stopReason || (refused ? 'budget' : 'error'),
+        failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'renderer', message: error.status || policy ? error.message : 'The explanation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' } });
+      // Private, structured: what failed, never the learner's words or the provider's raw text in a log.
+      current.findings.push({ round: current.round, stage: current.failure.stage, error: error.code || error.name || 'error' });
+      await this.save(current); await this.finishUsage(current, 'failed');
+    });
+  }
+}
+
+export { timingSummary as explainTimingSummary };

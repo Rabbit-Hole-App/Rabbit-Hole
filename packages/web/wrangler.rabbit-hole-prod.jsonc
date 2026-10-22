@@ -19,14 +19,17 @@
       { "name": "LEARN_VIDEOS", "class_name": "LearnVideos" },
       { "name": "LEARN_SCENES", "class_name": "LearnScenes" },
       { "name": "REPOSITORY_IMPORTS", "class_name": "RepositoryImports" },
-      { "name": "CAD_JOBS", "class_name": "CadJobs" }
+      { "name": "CAD_JOBS", "class_name": "CadJobs" },
+      // /explain v2 jobs (control-plane/src/explain-job.js, EXP-T12); routes off unless EXPLAIN_V2_ENABLED.
+      { "name": "EXPLAIN_JOBS", "class_name": "ExplainJobs" }
     ]
   },
   "migrations": [
     { "tag": "learn-videos-1", "new_sqlite_classes": ["LearnVideos"] },
     { "tag": "learn-scenes-1", "new_sqlite_classes": ["LearnScenes"] },
     { "tag": "repository-imports-1", "new_sqlite_classes": ["RepositoryImports"] },
-    { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] }
+    { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] },
+    { "tag": "explain-jobs-1", "new_sqlite_classes": ["ExplainJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -44,6 +47,8 @@
   "services": [{ "binding": "CONTROL_PLANE", "service": "rabbit-hole-cp" }],
   // The one public origin; the control plane sets the same value.
   "vars": {
+    // /explain v2 (EXP-T12): off until the M5 activation (EXP-T23); off, its routes answer 404 and /explain keeps today's path.
+    "EXPLAIN_V2_ENABLED": "false",
     "PUBLIC_ORIGIN": "https://digrabbithole.com",
     "CAD_PRODUCTION_REQUIRED": "true",
     "CAD_MODEL_REQUIRE_DEDICATED": "true",
