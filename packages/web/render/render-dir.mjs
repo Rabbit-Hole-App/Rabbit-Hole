@@ -84,7 +84,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       writeFileSync(join(out, `${id}.png`), Buffer.from(c.png, 'base64'));
       files.push({ file: `${id}.png`, fixture: item.name, theme: id.endsWith('-dark') ? 'dark' : 'light', sha256: createHash('sha256').update(Buffer.from(c.png, 'base64')).digest('hex') });
     }
-    console.log(`ok ${item.name}: ${item.captures.map(c => c.id).join(', ')}${item.blocked?.length ? ` (blocked ${item.blocked.length} requests)` : ''}`);
+    console.log(`ok ${item.name}: ${item.captures.map(c => c.id).join(', ')}${item.blocked?.length ? ` (blocked: ${item.blocked.join(", ")})` : ''}`);
   }
   writeFileSync(join(out, 'manifest.json'), `${JSON.stringify({ renderedAt: new Date().toISOString(), source: dir, path: local ? 'local headless Chromium, production render entry' : url, ...meta, files }, null, 2)}
 `);
