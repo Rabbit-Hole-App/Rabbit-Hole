@@ -4,7 +4,7 @@
 // and its pin, and none of it touches the board's version. Against the LOCAL stack only: local D1 and a fresh browser
 // profile. No model is called: model routes are answered or refused here. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8862 SMALL_CP=http://127.0.0.1:8863 node e2e/comments-check.mjs [shotsDir] (app on app-worker.js, SMALL_ENV=test)
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -338,7 +338,9 @@ await check('11 /e signed in as anyone: Add comment on a card posts a Public thr
   const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
   const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
-  assert.deepEqual(items, ['Start Rabbit Hole', 'Add comment']);
+  // SHARE-02 (owner brief 2026-10-22): a visitor's menu also edits their temporary copy (Duplicate, Delete) after these two.
+  assert.deepEqual(items.slice(0, 2), ['Start Rabbit Hole', 'Add comment']);
+  for (const local of ['Duplicate', 'Delete']) assert.ok(items.includes(local), `${local} in ${items.join(', ')}`);
   await tab.locator('[data-menu-add-comment]').click();
   const side = tab.locator('[data-shared-comments]');
   await side.locator('[data-comment-draft]').waitFor();
@@ -352,19 +354,35 @@ await check('11 /e signed in as anyone: Add comment on a card posts a Public thr
   await tab.close();
 });
 
-await check('12 /e signed out: the public thread reads, and posting is a sign-in link; no Add comment in the menu', async () => {
+// SHARE-02 (owner brief 2026-10-22 section 8): signed out, a visitor reads, drafts a comment, and posts through sign-in; the
+// draft and its anchor come back after sign-in, never sent by themselves.
+await check('12 /e signed out: the public thread reads; Add comment drafts, and posting goes through sign-in with the draft kept', async () => {
   const tab = await visit(null);
   await tab.locator('[data-comments-button]').click();
   const side = tab.locator('[data-shared-comments]');
   await side.locator('[data-comment-thread]').first().click();
-  await side.locator('[data-comment-sign-in]').waitFor();
+  await expect(side.locator('[data-comment-sign-in]')).toHaveText('Sign in to post');
   assert.match(await side.innerText(), /Does pepper do the same thing\?/);
   const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
   const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
-  assert.deepEqual(items, ['Start Rabbit Hole']);
-  await tab.keyboard.press('Escape');
+  assert.deepEqual(items.slice(0, 2), ['Start Rabbit Hole', 'Add comment']);
+  const publicThreads = async () => (await api(`/api/learn/boards/shared/${token}/comments/threads`)).body.threads.length;
+  const posted = await publicThreads();
+  await tab.locator('[data-menu-add-comment]').click();
+  await side.locator('[data-comment-draft]').waitFor();
+  await side.locator('[data-comment-composer] textarea').fill('Is salt a catalyst here?');
+  const signIn = await side.locator('[data-comment-draft] [data-comment-sign-in]').getAttribute('href');
+  const next = decodeURIComponent(new URL(signIn, BASE).searchParams.get('next'));
+  assert.ok(next.startsWith(`/e/${token}?comment=`), `sign-in comes back to this page with the anchor: ${next}`);
   await tab.screenshot({ path: `${SHOTS}/12-public-signed-out.png` }); console.log('shot 12-public-signed-out');
+  // Back from sign-in (the session set as the sign-in page would): the same draft on the same card, unsent.
+  await other.addCookies([{ name: 'small_session', value: visitor.session, url: BASE }]);
+  await tab.goto(`${BASE}${next}`);
+  await side.locator('[data-comment-draft]').waitFor({ timeout: 60000 });
+  await expect(side.locator('[data-comment-composer] textarea')).toHaveValue('Is salt a catalyst here?');
+  assert.doesNotMatch(new URL(tab.url()).search, /comment=/, 'the anchor leaves the address');
+  assert.equal(await publicThreads(), posted, 'nothing posted by itself');
   await tab.close();
 });
 

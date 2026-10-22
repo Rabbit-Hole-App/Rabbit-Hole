@@ -276,7 +276,8 @@ await check('15 on a shared view-only canvas a click selects a card and shows it
   const box = await card('k-exp').boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + Math.min(40, box.height / 2));
   await page.waitForTimeout(300);
-  assert.equal(await page.locator('[data-view-selection="k-exp"]').count(), 1, 'the view selection ring');
+  // SHARE-02: a visitor selects on their temporary copy as on any canvas.
+  assert.equal(await page.locator('[data-block-id="k-exp"][aria-current="true"]').count(), 1, 'the selected card');
   assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'k-exp', 'Start Rabbit Hole begins at the selected card');
   // Owner, 2026-10-08: the selected card's pill above the composer on a shared canvas too (selected-pill-check.mjs).
   assert.equal(await page.locator('[data-shared-ask] [data-selected-card]').getAttribute('data-selected-card'), 'k-exp', 'the card strip above the shared composer');

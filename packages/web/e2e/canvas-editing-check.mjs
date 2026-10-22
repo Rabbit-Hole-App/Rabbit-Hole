@@ -19,7 +19,7 @@ const browser = await chromium.launch();
 const errors = [];
 
 // One fresh page per scenario, seeded with a board.
-async function open(name, board, { readonly = false, viewport = { width: 1500, height: 950 } } = {}) {
+async function open(name, board, { readonly = false, localcopy = false, viewport = { width: 1500, height: 950 } } = {}) {
   const context = await browser.newContext({ viewport });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
@@ -27,7 +27,7 @@ async function open(name, board, { readonly = false, viewport = { width: 1500, h
   const key = `harness:${name}`;
   await page.goto(`${BASE}?board=${name}`);
   await page.evaluate(([key, board]) => localStorage.setItem(key, JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], ...board })), [key, board]);
-  await page.goto(`${BASE}?board=${name}${readonly ? '&readonly=1' : ''}`);
+  await page.goto(`${BASE}?board=${name}${readonly ? '&readonly=1' : ''}${localcopy ? '&localcopy=1' : ''}`);
   await page.locator('[data-canvas-surface]').waitFor();
   await page.waitForTimeout(300);
   const saved = async () => { await page.waitForTimeout(550); return page.evaluate(key => JSON.parse(localStorage.getItem(key) || '{}'), key); };
@@ -908,6 +908,58 @@ await run('legacy and read-only', async () => {
   await view.context.close();
 });
 
+
+// SHARE-02 (C:/s/spec/share/contract-guest-draft.md): a visitor edits a temporary copy. Every edit, delete and undo lands in the
+// guest draft (sessionStorage) and nowhere else: the source board is byte-for-byte unchanged and no write request leaves.
+await run('local copy never writes the source', async () => {
+  const source = {
+    items: [textItem('t1', 700, 100)],
+    shapes: [{ id: 's1', kind: 'rect', x1: 700, y1: 300, x2: 900, y2: 420, ...style, fill: '#fde68a' }],
+    blocks: [{ id: 'c1', type: 'explanation', dx: 0, dy: 0, title: 'Tides', body: 'The moon pulls the near ocean more than the Earth.' }],
+  };
+  const { page, context, screen, reload, shot } = await open('local-copy', source, { localcopy: true });
+  const writes = [];
+  page.on('request', request => { if (request.method() !== 'GET' && request.method() !== 'HEAD') writes.push(`${request.method()} ${request.url()}`); });
+  const key = 'harness:local-copy';
+  const sourceNow = () => page.evaluate(key => localStorage.getItem(key), key);
+  const before = await sourceNow();
+  const draft = async () => { await page.waitForTimeout(550); return page.evaluate(key => JSON.parse(sessionStorage.getItem(`rh.guest-draft:${key}`) || 'null')?.state || null, key); };
+  check('a visitor gets the canvas tools on their copy', await page.getByRole('toolbar', { name: 'Canvas tools' }).isVisible());
+  // Add a rectangle.
+  await page.keyboard.press('r');
+  const a = await screen(700, 520), b = await screen(820, 600);
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 5 }); await page.mouse.up();
+  await page.keyboard.press('Escape');
+  check('drawing a shape lands in the draft', (await draft())?.shapes.length === 2);
+  // Move a source text box.
+  const t1 = await page.locator('[data-item-id="t1"]').boundingBox();
+  await page.mouse.click(t1.x + 10, t1.y + t1.height / 2);
+  await page.mouse.move(t1.x + 10, t1.y + t1.height / 2); await page.mouse.down(); await page.mouse.move(t1.x + 90, t1.y + 60, { steps: 6 }); await page.mouse.up();
+  const moved = (await draft())?.items.find(item => item.id === 't1');
+  check('moving a source object changes only the draft', !!moved && moved.x !== 700);
+  // Duplicate the card: the copy names its source card for Fork.
+  const card = await page.locator('[data-block-id="c1"]').boundingBox();
+  await page.mouse.click(card.x + 30, card.y + 12);
+  await page.keyboard.press('Control+d');
+  const copies = (await draft())?.blocks.filter(block => block.copyOf === 'c1') || [];
+  check('a duplicated card is marked as a copy of its source card', copies.length === 1 && copies[0].id !== 'c1');
+  // Delete the source shape, then undo it.
+  await page.keyboard.press('Escape');
+  const s1 = await screen(800, 360);
+  await page.mouse.click(s1.x, s1.y);
+  await page.keyboard.press('Delete');
+  check('deleting a source object removes it from the draft only', !(await draft())?.shapes.some(shape => shape.id === 's1'));
+  await page.keyboard.press('Control+z');
+  check('undo brings it back in the draft', !!(await draft())?.shapes.some(shape => shape.id === 's1'));
+  await shot('local-copy');
+  check('the source board is unchanged after edits, delete and undo', (await sourceNow()) === before);
+  // A reload in the same tab keeps the copy; the source is still untouched.
+  await reload();
+  check('a reload mounts the visitor\'s copy again', (await page.locator('[data-block-id]').count()) === 2 && (await page.locator('[data-shape-id]').count()) === 2);
+  check('no write request left the page', writes.length === 0, writes.join(', '));
+  check('the source is still unchanged after a reload', (await sourceNow()) === before);
+  await context.close();
+});
 
 await run('composer and suggestions', async () => {
   const name = 'composer-hooks';
