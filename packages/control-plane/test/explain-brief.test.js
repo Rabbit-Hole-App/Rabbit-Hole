@@ -110,8 +110,9 @@ test('a refinement re-prepares the brief as the next version; the old version is
   assert.equal((await s.send('refine', { message: 'More.' }, body.job.id)).status, 409, 'a generated brief cannot be refined');
 });
 
+// Steps compile since the integration (component step), so an experiment is the unsupported presentation left.
 test('preflight: a brief that plans an unsupported presentation or an unknown component is a capability gap, with no card and no proposal', async t => {
-  for (const [reply, need] of [[brief({ presentation: 'experiment' }), 'experiment'], [brief({ presentation: 'steps' }), 'steps'], [brief({ components: ['galaxy'] }), 'component']]) {
+  for (const [reply, need] of [[brief({ presentation: 'experiment' }), 'experiment'], [brief({ components: ['galaxy'] }), 'component']]) {
     const s = stack(t);
     const model = scripted(t, { explain_brief: [reply] });
     const done = await s.run((await s.create({ requestClass: 'researched', threadId: 'th1' })).body.job.id);
