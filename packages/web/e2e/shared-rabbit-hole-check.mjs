@@ -158,7 +158,8 @@ await check('10 back: the map leads to the shared source, view only', async () =
   await page.locator('[data-dive-navigator] [aria-label="Up to the parent hole"]').click();
   await page.waitForURL(new RegExp(`/b/${kitchen.token}$`), { timeout: 20000 });
   await page.locator('[data-start-rabbit-hole]').waitFor();
-  assert.ok(await page.getByText('View only').isVisible(), 'still the view-only shared page');
+  assert.equal(await page.getByText('View only').count(), 0, 'a visitor edits a temporary copy, so no view-only pill');
+  assert.ok(await page.locator('[data-shared-title]').isVisible(), 'still the shared page');
   // SHARE-02 (owner brief 2026-10-22): the visitor's tools edit their temporary copy, never the source.
   assert.equal(await page.locator('[role="toolbar"][aria-label="Canvas tools"]').count(), 1, 'tools for the visitor copy');
 });

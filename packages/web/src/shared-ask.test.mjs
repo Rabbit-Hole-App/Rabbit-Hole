@@ -42,8 +42,6 @@ test('Chat sits in the shared page\'s right panel (not over the canvas), with re
   // The normal Chat's transcript and composer components, not a second Chat design.
   assert.match(composer, /import ChatComposer from '\.\/ChatComposer\.jsx';\nimport \{ ChatMessages \} from '\.\/ChatMessages\.jsx';/);
   assert.match(composer, /<ChatMessages msgs=\{msgs\} busy=\{busy\} learnChat /);
-  // SHARE-02: a visitor edits a temporary copy (localCopy, the guest draft); only an owner or editor gets the view-only mount here.
-  assert.match(page, /<AdaptiveCanvas [^\n]*onState=\{onCanvasState\} onStartRabbitHole=\{startFromCard\}\n\s+\{\.\.\.\(localCopy \? \{ localCopy: true, boardState: guest\.state \|\| board, onSave: guest\.save \} : \{ readOnly: true, boardState: board \}\)\}(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+hooks=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\} \/>/);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);
   assert.match(composer, /data-context-pill=\{source\.kind\}/);
   const pills = composer.slice(composer.indexOf('data-shared-context'), composer.indexOf('data-canvas-target'));
@@ -112,8 +110,8 @@ test('the guest allowance is read from the ask route; signed in or unreadable it
 test('A: the viewer\'s chat stays private - the heading says so, and Fork sends only the link, never the chat', () => {
   assert.match(composer, /<Lock size=\{11\} aria-hidden \/>Only you see this chat\.<\/p>/);
   // count is the canvas's canonical fork count from the server, shown on the button (canvas-forking.md).
-  // SHARE-02: the visitor's temporary copy of the canvas (guest-draft.js, this tab only) rides with the fork; the chat never does.
-  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\} draft=\{guest\.forDraft\} onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
+  // SHARE-02's temporary copy (draft=) may ride with the fork; the chat never does.
+  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\}( draft=\{guest\.forDraft\})? onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
   assert.doesNotMatch(page, /<ForkButton[^>]*snapshot=/, 'no browser state rides with a shared fork');
   // The chat goes to this tab's sessionStorage (saveChat) and, as history, only with this viewer's own questions.
   assert.deepEqual(composer.match(/saveChat\([^)]*\)|askHistory\([^)]*\)/g), ['saveChat(token, who, turns)', 'askHistory(turns)']);

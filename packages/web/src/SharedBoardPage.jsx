@@ -116,11 +116,10 @@ export default function SharedBoardPage({ token }) {
     comments: commentsInfo ? { read: true, post: !!commentsInfo.can?.post } : null, guestChat: guestRemaining === null ? null : { remaining: guestRemaining } }),
   [shared?.access, shared?.viewer, commentsInfo, guestRemaining]);
   // The visitor's temporary copy (SHARE-02, C:/s/spec/share/contract-guest-draft.md): anyone who may not write the source edits
-  // a copy kept in this tab; Fork carries it into their own canvas. An owner or editor here stays view-only (their own page edits).
-  const localCopy = !!shared && !can('source.write', permissions).allowed;
-  const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
-  // The menubar's Insert, Edit and Arrange act on that copy.
+  // a copy kept in this tab; Fork carries it into their own canvas. An owner or editor gets the view-only canvas here.
+  const localCopy = !!shared && !can('source.write', permissions).allowed && can('canvas.local-edit', permissions).allowed;
   const editable = localCopy;
+  const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
   // Comments name only what is on the canvas itself, never an object of the visitor's copy (the server refuses it too).
   const sourceIds = useMemo(() => new Set(['blocks', 'exchanges', 'items', 'shapes', 'groups'].flatMap(key => (shared?.state?.[key] || []).map(entry => entry?.id))), [shared]);
   const addComment = comments.canvasProps.onAddComment;
@@ -204,7 +203,8 @@ export default function SharedBoardPage({ token }) {
         {/* One line, the full title on hover; with holes, the chevron opens their tree, each level its own link (owner r35). */}
         <span data-shared-title title={shared.title || (shared.board === 'main' ? shared.app : shared.board)} className="min-w-16 truncate text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
         {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
+        {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
+        {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>}
         <CanvasMenubar menus={menus} />
         {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
         {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. The @handle
