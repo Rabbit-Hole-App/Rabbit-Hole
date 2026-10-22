@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "btl3-27b-hybrid-attention-6d5de116",
+  "title": "BTL-3 (27B) hybrid attention architecture",
+  "prompt": "Explain the BTL-3 (27B) architecture: its decoder block and how gated attention and Gated DeltaNet layers alternate.",
+  "figureKind": "llm-architecture-overview",
+  "nonGoals": [
+    "exact colours",
+    "author watermark"
+  ],
+  "family": "llm-architecture",
+  "lineage": "decoder-gated-deltanet-hybrid",
+  "split": "example",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/btl3-27b-hybrid-attention.webp",
+    "sha256": "6d5de11685b563bce35a8b317df6fb9696a77d3bb318162d586037b85cc43945",
+    "bytes": 61254,
+    "format": "webp",
+    "width": 960,
+    "height": 904,
+    "originalName": "btl-3-27b.webp",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}

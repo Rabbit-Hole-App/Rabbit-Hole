@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "id": "zaya1-8b-architecture-8ed07e5a",
+  "title": "Zaya1 (8B) architecture",
+  "prompt": "Explain the Zaya1 (8B) architecture: its decoder block, compressed convolutional attention and the MoE layer.",
+  "figureKind": "llm-architecture-overview",
+  "nonGoals": [
+    "exact colours",
+    "author watermark"
+  ],
+  "family": "llm-architecture",
+  "lineage": "zaya1",
+  "split": "heldout",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/zaya1-8b-architecture.png",
+    "sha256": "8ed07e5ae1352a80609b6028a9baeb18fffc65f38ab6e70f9d203e3fc0fbfccb",
+    "bytes": 429351,
+    "format": "png",
+    "width": 2048,
+    "height": 2037,
+    "originalName": "f5e38f80-cb78-463f-90d9-85590acc0830_2048x2037.png",
+    "multiPanel": true
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}

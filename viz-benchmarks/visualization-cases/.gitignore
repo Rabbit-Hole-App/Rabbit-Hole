@@ -1,0 +1,6 @@
+# Corpus originals stay local (owner decision 6): reference copies, staging, comparisons
+# (they contain the original) and the generated index are never committed.
+cases/*/reference/
+cases/*/.staging/
+cases/*/generated/history/*/comparison.png
+index.html
