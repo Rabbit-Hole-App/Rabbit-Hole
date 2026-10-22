@@ -275,6 +275,34 @@ await check('6e the Library ⋮ menu still opens from the keyboard (Enter) with 
   await open(ROOT);
 });
 
+await check('2b Rename (owner, 2026-10-21): right-click, Rename, type, Enter saves in place and survives a reload; Escape cancels', async () => {
+  const rename = () => menu().locator('[data-menu-rename]');
+  const field = page.locator('[data-card-rename]');
+  const card = page.locator('[data-block-id="m-c"]');
+  await rightClick('m-c');
+  assert.equal((await rename().innerText()).trim(), 'Rename');
+  await rename().click();
+  await field.waitFor();
+  assert.equal(await field.inputValue(), 'Card C: springs');
+  await field.fill('  Spring tides  ');
+  await field.press('Enter');
+  await field.waitFor({ state: 'detached' });
+  await card.getByText('Spring tides', { exact: true }).waitFor({ timeout: 5000 });
+  // Focus moves back on the next frame, so wait for it rather than read it once.
+  await page.waitForFunction(() => document.activeElement?.dataset?.blockId === 'm-c', null, { timeout: 3000 }).catch(async () => assert.fail(`focus returns to the card, not ${await page.evaluate(() => document.activeElement?.outerHTML?.slice(0, 120))}`));
+  await page.waitForTimeout(1500);
+  await page.reload(); await page.waitForSelector('[data-block-id="m-c"]', { timeout: 60000 }); await page.waitForTimeout(1200);
+  await card.getByText('Spring tides', { exact: true }).waitFor({ timeout: 10000 });
+  await rightClick('m-c');
+  await rename().click();
+  await field.fill('Not kept');
+  await field.press('Escape');
+  await field.waitFor({ state: 'detached' });
+  await card.getByText('Spring tides', { exact: true }).waitFor({ timeout: 5000 });
+  assert.equal(await card.getByText('Not kept').count(), 0, 'Escape cancels');
+});
+await shot('01b-card-renamed');
+
 // ---- a view-only board: the viewer's own private Rabbit Hole, from the right-clicked card ----
 const shared = (await api(owner, `/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: STATE }) })).body;
 const token = shared.sharing.view;
@@ -293,6 +321,7 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
   // View-only edits nothing: Start Rabbit Hole is the only item (no Duplicate, Group, Select all or Delete).
   assert.deepEqual((await menu().locator('[role="menuitem"]').allInnerTexts()).map(text => text.trim()), ['Start Rabbit Hole']);
+  assert.equal(await menu().locator('[data-menu-rename]').count(), 0, 'a viewer never sees Rename');
   await iconsOnEveryItem('a view-only board');
   await shot('04-shared-view-only-menu');
   await startItem().click();
@@ -310,5 +339,6 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
 
 await check('no page errors, no model call', async () => { assert.deepEqual(errors, []); assert.deepEqual(asks, []); });
 await browser.close();
-console.log(`${results.length}/12 checks passed`);
-process.exit(results.length === 12 ? 0 : 1);
+const total = 13;
+console.log(`${results.length}/${total} checks passed`);
+process.exit(results.length === total ? 0 : 1);
