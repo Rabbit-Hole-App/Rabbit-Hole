@@ -31,7 +31,8 @@ function edge(t) {
 const world = (t, vars = {}) => ({ ...setup(t, { vars: { SMALL_ENV: 'test', JOURNEY_MODEL_STUB: 'fixtures', ...vars } }), store: edge(t) });
 // Owner R3 decision (2026-10-16, rel-a.md A2 item 4): no AI generation for signed-out viewers, so the content-only set is
 // a signed-in viewer's without evidence (cara here); a signed-out request is asked to sign in.
-const hooks = (f, token, as, body = { origin: null }) => f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body });
+// generate: the viewer's explicit ask; a view alone never generates (owner priority 1, 2026-10-21; learn-usage.test.js).
+const hooks = (f, token, as, body = { origin: null }) => f.call('POST', `/api/learn/boards/shared/${token}/next-steps`, { as, body: { generate: true, ...body } });
 const start = (f, token, as, origin, step) => f.call('POST', `/api/learn/boards/shared/${token}/rabbit-hole`, { as, body: { origin, ...(step ? { selected_next_step: step } : {}) } });
 const anaBoards = f => JSON.stringify(f.sqlite.prepare("SELECT * FROM learn_boards WHERE owner_email = 'ana@test' ORDER BY id").all());
 const usage = f => f.sqlite.prepare('SELECT category, viewer_email FROM shared_ask_events ORDER BY id').all().map(r => ({ ...r }));

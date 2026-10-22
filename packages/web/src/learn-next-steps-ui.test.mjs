@@ -507,7 +507,7 @@ test('useSharedNextSteps: off without a token; posts the origin; viewer_states o
   let steps = null;
   const Page = () => { steps = B.useSharedNextSteps({ token: null, card: null, version: 1, signedIn: false }); return null; };
   B.renderToStaticMarkup(B.createElement(Page));
-  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'refresh', 'select', 'set_id', 'status']);
+  assert.deepEqual(Object.keys(steps).sort(), ['generated_at', 'options', 'reason', 'refresh', 'request', 'select', 'set_id', 'status']);
   assert.deepEqual([steps.status, steps.reason], ['unavailable', 'off']);
   const source = read('LearnNextSteps.jsx');
   assert.match(source, /\/api\/learn\/boards\/shared\/\$\{encodeURIComponent\(\w+\)\}\/next-steps/);
@@ -565,6 +565,23 @@ test('sharedSteps survives dispose; a 429 is limited', async () => {
   assert.deepEqual([r.shared.view().status, r.shared.view().reason, told > 0], ['unavailable', 'limited', true]);
 });
 
+// Owner priority 1 (2026-10-21, "/b Next steps charging credits automatically"): a trigger only reads the saved set; with none
+// the card offers Suggest (curious_empty), and only request() posts generate: true, for the trigger on screen.
+test('sharedSteps: a view never asks to generate; idle is the Suggest state; request() alone posts generate, for that card', async () => {
+  const idle = () => Object.assign(new Error('No saved suggestions'), { reason: 'curious_empty' });
+  const r = sharedRig({ replies: [idle(), sharedSet(2), idle()] });
+  r.step(); await r.c.fire();
+  assert.deepEqual(r.bodies, [{ origin: { block_id: 'k1' } }]);
+  assert.deepEqual([r.shared.view().status, r.shared.view().reason], ['unavailable', 'curious_empty']);
+  r.step(); await r.c.fire();
+  assert.equal(r.bodies.length, 1, 'a re-render asks nothing more');
+  r.shared.request(); await r.c.fire();
+  assert.deepEqual(r.bodies.at(-1), { origin: { block_id: 'k1' }, generate: true });
+  assert.deepEqual([r.shared.view().status, r.shared.view().set_id], ['ready', 'ns_00000002']);
+  r.live.card = 'k2'; r.step(); await r.c.fire();
+  assert.deepEqual([r.bodies.at(-1), r.bodies.length, r.shared.view().reason], [{ origin: { block_id: 'k2' } }, 3, 'curious_empty'], 'another card is a view again');
+});
+
 test('sharedSteps telemetry: next_steps_computed and next_steps_shown with scope and mode shared, the set source and the server summary; nothing of the sharer', async () => {
   const events = [];
   const remove = B.addSink(e => events.push(e));
@@ -595,7 +612,7 @@ function wire(t, { me = [] } = {}) {
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url, body: init.body ? JSON.parse(init.body) : null });
     if (url === '/api/me') { const who = me.shift(); return who ? Response.json(who) : new Response('no', { status: 503 }); }
-    return Response.json(w.status === 200 ? sharedSet(calls.length) : { error: 'paused', limited: true }, { status: w.status });
+    return Response.json(w.idle ? { idle: true } : w.status === 200 ? sharedSet(calls.length) : { error: 'paused', limited: true }, { status: w.status });
   };
   t.after(() => { globalThis.fetch = had.fetch; if (had.storage) Object.defineProperty(globalThis, 'sessionStorage', had.storage); else delete globalThis.sessionStorage; });
   return Object.assign(w, { store: (who, events) => m.set(`small.tutor:${who.org}:${who.email}`, JSON.stringify(appendEvents(emptyStore(), events).store)) });
@@ -623,6 +640,26 @@ test('sharedPost: signed out sends nothing at all; signed in sends only public r
   const limited = realRig({ signedIn: true });
   limited.step(); await limited.c.fire();
   assert.deepEqual([w.calls.length, limited.shared.view().status, limited.shared.view().reason], [4, 'unavailable', 'limited']);
+});
+
+// Owner priority 1 (2026-10-21): the real request. A view sends no generate; idle is the Suggest state; the explicit ask sends
+// generate, and a reload in the same tab shows that set with no hook request (the edge cache is per data center).
+test('sharedPost: a view never sends generate; the explicit ask does; a reload shows the saved set of this tab without a hook request', async t => {
+  const ben = { org: 'ben-ws', email: 'ben@test' };
+  const w = wire(t, { me: [ben, ben, ben] });
+  w.idle = true;
+  const view = realRig({ signedIn: true, card: 'k1' });
+  view.step(); await view.c.fire();
+  assert.deepEqual([w.calls.at(-1).body, view.shared.view().status, view.shared.view().reason], [{ origin: { block_id: 'k1' } }, 'unavailable', 'curious_empty']);
+  w.idle = false;
+  view.shared.request(); await view.c.fire();
+  assert.deepEqual(w.calls.at(-1).body, { origin: { block_id: 'k1' }, generate: true });
+  const shown = view.shared.view().set_id;
+  assert.equal(view.shared.view().status, 'ready');
+  const reload = realRig({ signedIn: true, card: 'k1' });
+  reload.step(); await reload.c.fire();
+  assert.deepEqual(w.calls.map(call => call.url).slice(4), ['/api/me'], 'the saved set: no hook request');
+  assert.deepEqual([reload.shared.view().status, reload.shared.view().set_id], ['ready', shown]);
 });
 
 test('sharedPost: a failed /api/me is never cached, and each request reads the identity signed in now', async t => {

@@ -236,7 +236,8 @@ async function boards() {
     course: await shareCanvas('Attention notes', [REG_BLOCK]),
   };
 }
-const sharedHooks = (who, board, body) => call(who, 'POST', `/api/learn/boards/shared/${board.token}/next-steps`, body);
+// generate: an explicit ask; a view alone reads the saved set or is idle (owner priority 1, 2026-10-21).
+const sharedHooks = (who, board, body) => call(who, 'POST', `/api/learn/boards/shared/${board.token}/next-steps`, { generate: true, ...body });
 const ownerBoard = async board => (await call(owner, 'GET', `/api/learn/boards/${board.name}/main`)).text;
 
 // ---- N4: anonymous viewers on two unrelated shared canvases ----
