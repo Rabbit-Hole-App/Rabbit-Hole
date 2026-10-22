@@ -159,5 +159,6 @@ export async function reviewStage(job, ctx) {
     target: { ...(f.component ? { component: f.component } : {}), ...(f.capture ? { state: f.capture } : {}) }, specRepairable: f.specRepairable === true, message: String(f.message || '').slice(0, 600) || 'No detail.' }));
   const serious = findings.filter(f => f.severity !== 'minor');
   const accepted = input.verdict === 'accept' && !serious.length && captures.every(capture => verdicts.get(capture.id) === true);
-  return { accepted, findings, repairable: serious.every(f => f.specRepairable), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
+  // Only spec and source findings can be repaired by changing the spec; a component or renderer defect never can.
+  return { accepted, findings, repairable: serious.every(f => f.specRepairable && ['spec', 'source'].includes(f.category)), category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
 }

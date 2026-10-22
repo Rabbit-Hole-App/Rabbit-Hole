@@ -23,6 +23,7 @@ import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { consumeProposal, verifyProposal } from './generation-proposal.js';
 import { authorStage, reviewStage, selectExamples, validateStage } from './explain-author.js';
+import { defectKeys, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -38,10 +39,10 @@ const hex = () => crypto.randomUUID().replaceAll('-', '');
 export const explainEnabled = env => env.EXPLAIN_V2_ENABLED === 'true';
 export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 
-// The capability's stages: author, validate and review (T17, explain-author.js). Preparation (T16), rendering (T18) and repair
-// (T19) are not wired yet: the job stops there and says so, keeping what it has.
+// The capability's stages: author, validate and review (T17, explain-author.js), repair (T19, explain-repair.js). Preparation
+// (T16) and rendering (T18) are not wired yet: the job stops there and says so, keeping what it has.
 const notReady = async () => { throw fail('Explanation generation is not available yet.', 503, 'explain_not_ready'); };
-export const explainPipeline = Object.freeze({ prepare: notReady, author: authorStage, validate: validateStage, render: notReady, review: reviewStage, repair: notReady });
+export const explainPipeline = Object.freeze({ prepare: notReady, author: authorStage, validate: validateStage, render: notReady, review: reviewStage, repair: repairStage });
 
 // Learner-facing view: credits, never dollars; no prompt, findings, spec or private diagnostics.
 const credits = micros => Math.ceil((micros || 0) / 10000);
@@ -376,16 +377,29 @@ export class ExplainJobs {
       job.findings.push({ round: job.round, stage, findings: out.findings || [] });
       return this.repairOrStop(job, out);
     } else if (stage === 'repairing') {
+      // Every candidate is recorded (round, operation, hash); a refused or empty repair stops the job rather than spend again.
+      job.candidates = [...(job.candidates || []), { round: job.round, operation: out.operation || null, progress: out.progress !== false, specHash: out.spec ? (await sha256Hex(JSON.stringify(out.spec))).slice(0, 16) : null, ...(out.rejected ? { rejected: out.rejected } : {}) }];
+      if (out.rejected) return this.stopWith(job, 'unsupported_repair', 'spec', 'This explanation needs a change the repair step cannot make. Edit the request and try again.');
       if (out.progress === false) return this.stopWith(job, 'no_progress', 'spec', 'The explanation could not be repaired. Edit the request and try again.');
       job.spec = out.spec; job.compiled = null; next('validating');
     }
     await this.save(job);
   }
   async repairOrStop(job, out) {
+    await this.recordDefects(job, out.findings);
     if (out.repairable === false) return this.stopWith(job, 'unsupported_repair', out.category || 'spec', out.message || 'This explanation needs a change the repair step cannot make. Edit the request.');
     if (job.round >= EXPLAIN_LIMITS.correctionRounds) return this.stopWith(job, 'rounds', out.category || 'spec', 'The explanation did not pass its checks within three corrections. Edit the request and try again.');
     job.round++; endStage(job.timing, 'rejected'); job.stage = 'repairing'; beginStage(job.timing, 'repairing');
     await this.save(job);
+  }
+  // Component and renderer defects: one durable, deduplicated backlog entry per defect on this canvas, and one sanitized log
+  // line for the development backlog (T11). Runtime code never edits the library.
+  async recordDefects(job, findings) {
+    for (const { key, category, component } of await defectKeys(job.spec, findings)) {
+      const entry = await this.state.storage.get(`defect:${key}`), now = Date.now();
+      await this.state.storage.put(`defect:${key}`, { key, category, component, count: (entry?.count || 0) + 1, firstAt: entry?.firstAt || now, lastAt: now });
+      console.log(JSON.stringify({ event: 'explain_defect', key, category, component, count: (entry?.count || 0) + 1 }));
+    }
   }
   async stopWith(job, stopReason, category, message, retryable = false) {
     endStage(job.timing, stopReason);
