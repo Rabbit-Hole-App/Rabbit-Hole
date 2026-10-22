@@ -1,6 +1,7 @@
 // Next Steps on a blank canvas. Owner decision 3a (2026-10-20, Tutor workflow) reverses the at-rest hooks of 2026-10-08
 // (docs/features/professor-next-steps.md 1.2): opening a canvas, or selecting Tutor on it, makes no model call. A new blank
-// canvas asks for no hooks in Auto (the default) or in Tutor On, and Tutor On shows its static welcome instead. Against the
+// canvas asks for no hooks in Auto (the default) or in Tutor On, and Tutor On shows its static welcome instead (and, owner
+// 2026-10-21, Curious's empty state with Suggest, which asks nothing until pressed). Against the
 // KEYLESS journey stack only (e2e/journey-local-stack.md): no model key is bound, and nothing here presses Send.
 // Usage: TUTOR_BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 TEST_BYPASS_SECRET=... node e2e/blank-canvas-hooks-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -48,7 +49,14 @@ async function blank(label, title) {
   const shown = await welcome.waitFor({ timeout: 15000 }).then(() => true, () => false);
   await page.waitForTimeout(3000);
   check(`${label}: Tutor On shows the static welcome`, shown && /What would you like to learn or work on here\?/.test(await welcome.innerText().catch(() => '')));
-  check(`${label}: Tutor On at rest asks for no hooks and shows none`, hooks.length === before && await page.locator('[data-next-steps]').count() === 0, `${hooks.length - before} request(s)`);
+  // Owner ruling 2026-10-21 (View > Curious on must visibly show): at rest Tutor On shows Curious's empty state, No
+  // suggestions yet with its Suggest button, and still asks for nothing; no hook card until the learner asks.
+  const empty = page.locator('[data-hooks-slot] section[data-next-steps="empty"]');
+  const emptyShown = await empty.waitFor({ timeout: 5000 }).then(() => true, () => false);
+  check(`${label}: Tutor On at rest asks for no hooks, shows no hook card, and shows Curious's empty state with Suggest`, hooks.length === before
+    && await page.locator('[data-next-step]').count() === 0 && await page.locator('[data-next-steps]:not([data-next-steps="empty"])').count() === 0
+    && emptyShown && /No suggestions yet/.test(await empty.innerText().catch(() => '')) && await empty.getByRole('button', { name: 'Suggest next steps' }).isVisible(),
+    `${hooks.length - before} request(s)`);
   await page.screenshot({ path: `${SHOTS}/${label.replace(/\W+/g, '-')}.png` });
 }
 
