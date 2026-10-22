@@ -74,7 +74,7 @@ import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-wo
 import { effectiveControls } from './learn-coaching-client.js';
 import { canCoach, mayRun } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { ChartColumnIncreasing, MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe, Network, Lightbulb } from 'lucide-react';
+import { MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe, Network, Lightbulb } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -2233,10 +2233,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
                 counts the open threads the tab lists (owner, 2026-10-21), hidden at 0; a dot when a thread has news for you. */}
             {comments.active && <button type="button" data-comments-header title="Comments" aria-label={['Comments', comments.open && `${badgeText(comments.open)} open`, comments.unread && `${comments.unread} unread`].filter(Boolean).join(', ')} aria-pressed={commentsShown} onClick={commentsShown ? () => setPanelOpen(false) : openComments}
               className={`relative flex h-8 w-8 items-center justify-center rounded-lg ${commentsShown ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><MessageCircle size={15} strokeWidth={1.8} aria-hidden />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 left-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}{comments.open > 0 && <span data-comments-count aria-hidden className="absolute -top-0.5 -right-0.5 min-w-[16px] rounded-full bg-ink px-1 text-center text-[10px] font-medium leading-4 text-white">{badgeText(comments.open)}</span>}</button>}
-            {/* Progress (Tutor Task 09; owner 2026-10-21: in the toolbar beside Comments): opens the companion column left of Chat,
-                revealing a hidden right side; in Auto, Ask and Tutor alike, changing no control. Closing Progress refocuses it. */}
-            <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed={panels.progress.open} onClick={panels.progress.toggle}
-              className={`flex h-8 w-8 items-center justify-center rounded-lg ${panels.progress.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><ChartColumnIncreasing size={15} strokeWidth={1.8} aria-hidden /></button>
             {/* The signed-in person's own monthly AI allowance (owner D4 section 2), never this canvas's owner's. */}
             {learnPreview && <UsageGauge />}
             <button type="button" title={panelOpen ? 'Hide the right panel' : 'Show the right panel'}
@@ -2322,7 +2318,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open && companionView !== 'progress', onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open && companionView !== 'progress', onToggle: companion.toggle }} progress={{ open: panels.progress.open, onToggle: panels.progress.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />
       {panelTab === 'comments' && searchThread?.scope === searchScope && <button type="button" data-search-return onClick={() => setPanelTab('find')} className="mb-2 self-start rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover">Back to Search</button>}

@@ -84,21 +84,22 @@ test('Chat\'s tabs hold no viewer: no Context or Files tab', () => {
   assert.match(header, /data-panel-companion aria-label=\{name\} title=\{name\} aria-pressed=\{companion\.open\} onClick=\{companion\.onToggle\}/);
   assert.doesNotMatch(header, /data-panel-viewer|Repository files/);
   assert.match(header, /export const companionLabel = views => \(views\.length > 1 \? `\$\{views\.slice\(0, -1\)\.map\(view => view\.label\)\.join\(', '\)\} and \$\{views\.at\(-1\)\.label\}` : views\[0\]\?\.label \|\| 'Context'\);/, 'its name lists the views it opens: Context, Files and Graph');
-  // Tutor Task 09: Progress takes the same column from the Chat header's own icon; the viewers' control is not pressed for it.
+  // Tutor Task 09: Progress takes the same column from its own icon; the viewers' control is not pressed for it.
   assert.match(page, /companion=\{\{ views: companionViews, open: panelOpen && companion\.open && companionView !== 'progress', onToggle: companion\.toggle \}\}/);
 });
 
 // Tutor Task 09 (draft "Progress UI and access"): a labelled Progress icon opens the companion column on Progress, left of
-// Chat; it is not a Chat tab and not one of the viewers' tabs. Owner 2026-10-21: it sits in the canvas toolbar right after
-// Comments, no longer in Chat's own header.
-test('Progress: an icon in the canvas toolbar beside Comments, the companion column\'s own view, never a Chat tab or a viewer tab', () => {
+// Chat; it is not a Chat tab and not one of the viewers' tabs. Owner 2026-10-21: it sits in the right panel's header next to
+// Comments, not in Chat's own header and not in the canvas toolbar.
+test('Progress: an icon in the panel header right after Comments, the companion column\'s own view, never a Chat tab or a viewer tab', () => {
   const pane = readFileSync(new URL('./ChatPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.doesNotMatch(pane, /data-chat-progress|ChartColumnIncreasing/, 'no longer in the Chat header');
-  const toolbar = page.slice(page.indexOf('data-comments-header'), page.indexOf('<UsageGauge />'));
-  assert.ok(toolbar.length > 0, 'Comments comes before the usage gauge in the toolbar');
-  assert.match(toolbar, /^data-comments-header[^\n]*\n[^\n]*<\/button>\}\n\s+\{\/\* Progress [^\n]*\n[^\n]*\*\/\}\n\s+<button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed=\{panels\.progress\.open\} onClick=\{panels\.progress\.toggle\}/, 'right after Comments');
-  assert.match(toolbar, /<ChartColumnIncreasing size=\{15\} strokeWidth=\{1\.8\} aria-hidden \/>/, 'a descriptive icon, never a brand mark, at the toolbar\'s size');
-  assert.match(page, /document\.querySelector\('\[data-chat-progress\]'\)\?\.focus\(\)/, 'closing Progress returns focus to the toolbar icon');
+  assert.doesNotMatch(pane, /data-chat-progress|ChartColumnIncreasing/, 'not in the Chat header');
+  assert.doesNotMatch(page, /data-chat-progress aria-label|ChartColumnIncreasing/, 'not in the canvas toolbar');
+  assert.match(header, /\{ id: 'comments', label: 'Comments', Icon: MessageCircle \},\n[^\n]*\n\];/, 'Comments is the last tab');
+  assert.match(header, /\); \}\)\}\n      <\/div>\n      \{progress && <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed=\{progress\.open\} onClick=\{progress\.onToggle\}/, 'right after the tablist, so after Comments, whether Comments is live or not');
+  assert.match(header, /<ChartColumnIncreasing size=\{16\} strokeWidth=\{1\.8\} aria-hidden \/><\/button>\}/, 'a descriptive icon, never a brand mark, at the header\'s size');
+  assert.match(page, /progress=\{\{ open: panels\.progress\.open, onToggle: panels\.progress\.toggle \}\}/, 'the same toggle');
+  assert.match(page, /document\.querySelector\('\[data-chat-progress\]'\)\?\.focus\(\)/, 'closing Progress returns focus to the icon');
   assert.doesNotMatch(header, /'progress'/, 'neither a Chat tab nor a viewer');
   assert.match(page, /const companionView = companion\.view === 'progress' \? 'progress' :/);
   assert.match(page, /\{companionView !== 'progress' && <CompanionHeader /);

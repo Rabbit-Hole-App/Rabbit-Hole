@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Files, FolderTree, MessageCircle, MessageSquareText, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
+import { ArrowLeft, BookOpen, ChartColumnIncreasing, ChevronDown, ChevronUp, Files, FolderTree, MessageCircle, MessageSquareText, Network, PanelLeft, Pin, Search, X } from 'lucide-react';
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
@@ -30,8 +30,10 @@ const OFF_TITLE = 'Comments are on saved canvases';
 // tocPending: Tutor proposals waiting for Apply or Discard (R4); the Table of contents tab carries a dot and says how many.
 // companion (owner brief 2026-10-16 items 3-4): the ONE control that opens and closes the Context / Files / Graph column
 // beside Chat - { views (the labels it opens), open, onToggle }; a pressed toggle at the utilities' end, never a tab.
+// progress (Tutor Task 09; owner 2026-10-21: in this header next to Comments): { open, onToggle } opens the companion column on
+// Progress; a pressed toggle right after the tablist (so after Comments, shown or not), never a tab.
 export const companionLabel = views => (views.length > 1 ? `${views.slice(0, -1).map(view => view.label).join(', ')} and ${views.at(-1).label}` : views[0]?.label || 'Context');
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null }) {
+export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null, progress = null }) {
   const off = id => id === 'comments' && !commentsOn;
   const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
@@ -45,6 +47,7 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
   return (
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
       {/* Too many tabs for a narrow panel: the row scrolls sideways (no bar; a focused tab scrolls into view), never squeezed. */}
+      <div className="flex min-w-0 items-center gap-0.5">
       <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto p-0.5 [scrollbar-width:none]">
         {PANEL_TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label, pending = id === 'toc' && tocPending > 0; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={pending ? `${label}, ${tocPending} proposal${tocPending === 1 ? '' : 's'} to review` : label} title={title}
@@ -56,6 +59,9 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
             <Icon size={16} strokeWidth={1.8} aria-hidden />
           </button>
         ); })}
+      </div>
+      {progress && <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed={progress.open} onClick={progress.onToggle}
+        className={`flex h-8 w-[30px] shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${progress.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><ChartColumnIncreasing size={16} strokeWidth={1.8} aria-hidden /></button>}
       </div>
       <div className="ml-4 flex shrink-0 items-center gap-0.5">
         {companion && (() => { const name = companionLabel(companion.views); return (

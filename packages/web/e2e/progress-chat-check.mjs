@@ -95,7 +95,7 @@ const check = async (label, fn) => { await fn(); results.push(label); console.lo
 const shot = async name => { await page.waitForTimeout(400); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const chatPane = () => page.locator('[data-chat-pane]');
 const field = () => chatPane().locator('[data-chat-composer] textarea').first();
-const icon = () => page.locator('[data-canvas-header]').getByRole('button', { name: 'Progress', exact: true }); // the canvas toolbar, beside Comments (owner 2026-10-21)
+const icon = () => page.locator('[data-panel-header]').getByRole('button', { name: 'Progress', exact: true }); // the right panel's header, next to Comments (owner 2026-10-21)
 const progress = () => page.locator('[data-progress-pane]');
 const chips = () => chatPane().locator('[data-context-chip][data-ref-key^="progress:"]');
 const box = async locator => (await locator.boundingBox()) || { x: -1, y: -1, width: 0, height: 0 };
