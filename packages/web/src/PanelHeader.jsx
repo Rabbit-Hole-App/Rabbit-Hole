@@ -3,8 +3,8 @@ import { ArrowLeft, BookOpen, ChartColumnIncreasing, ChevronDown, ChevronUp, Fil
 import { findMatches } from './canvas-find.js';
 
 // The canvas's right panel header (owner, 2026-10-07; docs/features/panel-header.md): icon tabs grouped left in one
-// rounded control - Chat (permanent and first, owner brief 2026-10-13 section 3), Find, Table of contents, Comments - then
-// Pin and Close on the right. Icons only:
+// rounded control - Chat (permanent and first, owner brief 2026-10-13 section 3), Find, Table of contents, Comments, Progress
+// - then Pin and Close on the right. Icons only:
 // the label is the tooltip and the accessible name. Comments (docs/features/canvas-comments.md) selects on a saved
 // top-level canvas (commentsOn); anywhere else its slot never selects (aria-disabled, skipped by the arrow keys).
 // Navigation styling (owner brief 2026-10-16 item 3; the approved toc-upload-context mockup): 30 x 32 icon buttons 2px apart,
@@ -15,6 +15,8 @@ export const PANEL_TABS = [
   { id: 'find', label: 'Find text on canvas', Icon: Search },
   { id: 'toc', label: 'Table of contents', Icon: BookOpen },
   { id: 'comments', label: 'Comments', Icon: MessageCircle },
+  // Progress (Tutor Task 09): owner 2026-10-22 made it a tab of this panel, after Comments, in place of a column beside Chat.
+  { id: 'progress', label: 'Progress', Icon: ChartColumnIncreasing },
   // Links (canvas references, owner 2026-10-14 Q3) left the tray for Search's Links filter (owner UI brief 2026-10-20 section 7).
 ];
 // The companion column's viewers (owner decision 1A, 2026-10-15): Context (Materials and the reader) always, the repository's
@@ -30,11 +32,9 @@ const OFF_TITLE = 'Comments are on saved canvases';
 // tocPending: Tutor proposals waiting for Apply or Discard (R4); the Table of contents tab carries a dot and says how many.
 // companion (owner brief 2026-10-16 items 3-4): the ONE control that opens and closes the Context / Files / Graph column
 // beside Chat - { views (the labels it opens), open, onToggle }; a pressed toggle at the utilities' end, never a tab.
-// progress (Tutor Task 09; owner 2026-10-21: in this header next to Comments): { open, onToggle } opens the companion column on
-// Progress; a pressed toggle right after the tablist (so after Comments, shown or not), never a tab.
 export const companionLabel = views => (views.length > 1 ? `${views.slice(0, -1).map(view => view.label).join(', ')} and ${views.at(-1).label}` : views[0]?.label || 'Context');
 // tabs: the tab ids this canvas offers (a shared canvas's Chat only where it has one); onPin null: no Pin (a shared canvas).
-export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null, progress = null, tabs = null }) {
+export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null, tabs = null }) {
   const off = id => id === 'comments' && !commentsOn;
   const shown = tabs ? PANEL_TABS.filter(entry => tabs.includes(entry.id)) : PANEL_TABS;
   const ENABLED = shown.filter(entry => !off(entry.id)).map(entry => entry.id);
@@ -49,7 +49,6 @@ export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose,
   return (
     <div data-panel-header className="-mx-5 mb-3 flex shrink-0 items-center justify-between gap-2 border-b border-line px-5 pb-2.5">
       {/* Too many tabs for a narrow panel: the row scrolls sideways (no bar; a focused tab scrolls into view), never squeezed. */}
-      <div className="flex min-w-0 items-center gap-0.5">
       <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto p-0.5 [scrollbar-width:none]">
         {shown.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label, pending = id === 'toc' && tocPending > 0; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={pending ? `${label}, ${tocPending} proposal${tocPending === 1 ? '' : 's'} to review` : label} title={title}
@@ -61,9 +60,6 @@ export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose,
             <Icon size={16} strokeWidth={1.8} aria-hidden />
           </button>
         ); })}
-      </div>
-      {progress && <button type="button" data-chat-progress aria-label="Progress" title="Progress" aria-pressed={progress.open} onClick={progress.onToggle}
-        className={`flex h-8 w-[30px] shrink-0 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${progress.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><ChartColumnIncreasing size={16} strokeWidth={1.8} aria-hidden /></button>}
       </div>
       <div className="ml-4 flex shrink-0 items-center gap-0.5">
         {companion && (() => { const name = companionLabel(companion.views); return (

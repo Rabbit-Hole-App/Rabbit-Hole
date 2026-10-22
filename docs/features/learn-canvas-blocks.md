@@ -82,8 +82,15 @@ FAL), 3D scene (Blender), audio narration.
 Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanvas.jsx`):
 
 - Canvas utilities — the drawing toolbar, canvas home, the minimap and the Rabbit Hole navigator —
-  never permanently obscure authored canvas content. The toolbar, home and navigator never sit on
-  `[data-canvas-surface]`.
+  never permanently obscure authored canvas content. Owner decision 2026-10-22 (supersedes the
+  reserved tools gutter and header row): `[data-canvas-surface]` fills the canvas workspace to its
+  outer edges, the page top and the right panel, and is the only clip. The tools column
+  (`[data-tool-gutter]`, from below the header to the bottom) and the page header
+  (`[data-canvas-header]`, LearnPage `headerOver`) float over it, transparent, taking the pointer only
+  on their controls, so shapes, cards, connectors, ink and selection outlines are drawn and usable up
+  to the real boundary. Fit, reveal, placement in view and the opening camera keep clear of the
+  controls' measured rectangles (`controlRects` / `controlArea`, never a constant), and the opening
+  camera is compensated (`homeView`, canvas-slots.js) so saved boards open where they did.
 - The bottom strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are cutting
   the canvas too much"). The canvas runs to the bottom of its area; the strip (`[data-canvas-bottom]`:
   the composer, the minimap and zoom, the hooks card) floats over its lower edge, transparent, and
@@ -124,7 +131,7 @@ Approved 2026-09-24 as regression invariants for the canvas shell (`AdaptiveCanv
   toggle, opening on the next row.
 - On phones and tablets (below `lg`) the lesson canvas gets a viewport-relative height (`75dvh`)
   and the page scrolls, so the table of contents stays reachable underneath.
-- Toolbar and overview stay functional at 100% zoom; wheel over empty gutter space pans the canvas,
+- Toolbar and overview stay functional at 100% zoom; wheel over the tools column's empty space pans the canvas (it is the canvas),
   while toolbar controls, menus and the overview keep their own wheel.
 - The zoom controls never cover the composer (NC10, 2026-09-29): below 1024px of canvas width they
   take their own line above the composer instead of sitting beside it. They float over the canvas
