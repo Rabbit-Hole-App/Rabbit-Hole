@@ -292,6 +292,30 @@ await check('8b nothing saved: hidden from the start, a turn, then shown: a comp
   await empty.context().close();
 });
 
+// Owner bug 2026-10-21 (Toggling Curious ON and OFF is not showing it): at rest with nothing saved, Curious on showed nothing
+// (gateHooks 'at_rest'), so the switch changed nothing visible. On now shows the empty state; off hides it; both survive a reload.
+await check('8c at rest, nothing saved: Curious on shows the empty state, off hides it, each survives a reload, nothing asked', async () => {
+  const rest = await fresh();
+  await open(rest);
+  const before = counts();
+  const state = rest.locator('[data-hooks-slot] section[data-next-steps="empty"]');
+  await state.waitFor({ timeout: 30000 });
+  await setSwitch(rest, 'Curious', false);
+  await state.waitFor({ state: 'hidden', timeout: 5000 });
+  await closeView(rest);
+  await rest.reload(); await rest.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
+  assert.equal((await saved(rest)).curious, false);
+  await openView(rest); await checked(rest, 'Curious', false);
+  assert.equal(await state.isVisible(), false, 'off after a reload: no Curious');
+  await setSwitch(rest, 'Curious', true);
+  await state.waitFor({ timeout: 5000 });
+  await closeView(rest);
+  await rest.reload(); await rest.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
+  await state.waitFor({ timeout: 30000 });
+  await quiet(rest, 'at rest toggles', before);
+  await rest.context().close();
+});
+
 await check('9 Tutor Off: the set leaves; Curious off and on again shows nothing and asks nothing', async () => {
   const before = counts();
   await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
@@ -399,6 +423,6 @@ await check('13 no model-capable request was let through, and hook sets came onl
 await browser.close();
 const fatal = errors.filter(e => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
-const total = 15;
+const total = 16;
 console.log(`${results.length}/${total} view menu checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
 if (results.length !== total) process.exitCode = 1;

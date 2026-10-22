@@ -431,7 +431,7 @@ export function gateHooks(memory, state, { allowed, visible = true, shown = true
   if (memory.ask && state.basis != null) { memory.ask = memory.resumed = false; memory.basis = state.basis; memory.trigger = trigger; }
   if (state.basis == null) return state;
   if (memory.baseline == null) memory.baseline = trigger;
-  if (memory.basis == null && trigger === memory.baseline) return { basis: null, stop: memory.resumed ? 'curious_empty' : 'at_rest' };
+  if (memory.basis == null && trigger === memory.baseline) return { basis: null, stop: 'curious_empty' };
   if (trigger !== memory.trigger) { memory.trigger = trigger; memory.basis = state.basis; memory.resumed = false; }
   return { ...state, basis: memory.basis, ...(visible ? {} : { stop: state.stop || 'hidden' }) };
 }

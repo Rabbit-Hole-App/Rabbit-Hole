@@ -43,9 +43,10 @@ async function fixture(type = 'explanation', options = {}) {
   const mode = () => card.getAttribute('data-card-layout');
   const setLayout = async label => {
     await card.locator('[data-drag-handle]').first().click({ button: 'right' });
-    await page.getByRole('menuitem', { name: 'Layout', exact: true }).click();
-    const option = page.getByRole('menuitemradio', { name: label, exact: true });
-    await option.click(); await until(async () => await mode() === (label === 'Full content' ? 'full' : 'scrollable'), `mode ${label}`);
+    // One checkable row (owner, 2026-10-21): checked is Full content, unchecked Scrollable.
+    const row = page.getByRole('menuitemcheckbox', { name: 'Full content', exact: true }), want = label === 'Full content';
+    if ((await row.getAttribute('aria-checked')) === String(want)) await page.keyboard.press('Escape'); else await row.click();
+    await until(async () => await mode() === (label === 'Full content' ? 'full' : 'scrollable'), `mode ${label}`);
   };
   const geometry = () => page.evaluate(() => {
     const surface = document.querySelector('[data-canvas-surface]'), origin = surface.getBoundingClientRect();
@@ -142,6 +143,20 @@ check('mode switch is one Undo operation and reload preserves Full content', asy
     await f.page.keyboard.press('Control+Shift+z'); await until(async () => await f.mode() === 'full', 'Redo restores mode');
     await f.waitSaved('full'); const before = await f.saved(); await f.page.reload(); await f.card.waitFor();
     await until(async () => await f.mode() === 'full', 'reload restores mode'); assert.deepEqual((await f.saved()).blocks, before.blocks);
+  } finally { await f.context.close(); }
+});
+// Owner 2026-10-21: Layout is one checkable row, Full content, its check mark and aria-checked following the card.
+check('Full content row: checked on, unchecked off, and its state survives a reload', async () => {
+  const f = await fixture(); try {
+    const row = async () => { await f.card.locator('[data-drag-handle]').first().click({ button: 'right' }); const r = f.page.getByRole('menuitemcheckbox', { name: 'Full content', exact: true }); await r.waitFor(); return r; };
+    assert.equal(await (await row()).getAttribute('aria-checked'), 'false', 'scrollable: unchecked'); await f.page.keyboard.press('Escape');
+    await f.setLayout('Full content'); await f.waitSaved('full');
+    assert.equal(await (await row()).getAttribute('aria-checked'), 'true', 'full: checked'); await f.page.keyboard.press('Escape');
+    await f.page.reload(); await f.card.waitFor(); await until(async () => await f.mode() === 'full', 'reload keeps full');
+    assert.equal(await (await row()).getAttribute('aria-checked'), 'true', 'full after reload: checked'); await f.page.keyboard.press('Escape');
+    await f.setLayout('Scrollable'); await f.waitSaved('scrollable');
+    await f.page.reload(); await f.card.waitFor(); await until(async () => await f.mode() === 'scrollable', 'reload keeps scrollable');
+    assert.equal(await (await row()).getAttribute('aria-checked'), 'false', 'scrollable after reload: unchecked');
   } finally { await f.context.close(); }
 });
 check('width-only handles reflow at two zooms and preserve camera, top edge, neighbors and preferences', async () => {

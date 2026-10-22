@@ -244,7 +244,7 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(page, /link: commentBoard && `\/c\/\$\{commentBoard\}`/, 'members\' links go to /c');
   assert.match(shared, /link: memberBoard \? `\/c\/\$\{memberBoard\}` : `\/e\/\$\{token\}`/, 'public links go to /e, members\' to /c');
   assert.match(member, /window\.location\.replace\(`\/apps\/\$\{read\.body\.canvas\}\$\{window\.location\.search\}`\)/, 'the owner keeps ?thread= on the way home');
-  assert.match(page, /label: 'Show comments', icon: MessageCircle, checked: comments\.showPins, onSelect: comments\.togglePins/);
+  assert.match(page, /label: 'Comments', icon: MessageCircle, toggle: comments\.showPins, onToggle: comments\.setPins/);
   assert.match(panel, /data-more-threads/);
   assert.match(panel, /data-earlier-replies/);
   assert.match(panel, /data-copy-thread-link/);
