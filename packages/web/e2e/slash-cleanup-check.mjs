@@ -36,7 +36,7 @@ const api = async (path, init = {}) => {
 };
 
 // /animate is removed too (L8, owner 2026-10-20): /motion, offered by this development build, is the animation command.
-const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
+const RETAINED = ['dive', 'practice', 'quiz', 'goal', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
 const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
 const CTRLK = ['explain', 'flashcards', 'code', 'graph', 'diagram', 'motion', 'image', 'video', 'cad', '3d', 'youtube', 'arxiv', 'wikipedia'];
 const removedText = name => `/${name} is no longer available. Type / to see the commands, or ask in your own words.`;

@@ -60,7 +60,7 @@ await page.keyboard.press('Escape');
 ok('Esc clears the search and keeps the sheet open', await search.inputValue() === '' && await sheet.isVisible() && await rows.count() === all, `${all} rows`);
 // Owner, 2026-10-20: every retained command is listed (More learning tools included, no /more); none of the 17 removed is,
 // nor /animate: /motion is the animation command (L8), offered by this development build.
-const RETAINED = ['dive', 'practice', 'quiz', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
+const RETAINED = ['dive', 'practice', 'quiz', 'goal', 'explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook', 'image', 'youtube', 'arxiv', 'wikipedia', 'whiteboard', 'video', 'cad', '3d'];
 const REMOVED = ['walkthrough', 'do', 'find', 'open', 'connect', 'run', 'new', 'research', 'more', 'ask', 'teach', 'deeper', 'simplify', 'example', 'compare', 'source', 'paper', 'animate'];
 const listed = await rows.evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
 ok('every retained command is listed', RETAINED.every(name => listed.includes(name)) && listed.length === RETAINED.length, listed.join(' '));
