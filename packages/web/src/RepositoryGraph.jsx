@@ -19,19 +19,24 @@ const MEMORY=new Set(['decision','question','session']),MEMORY_COLOR={decision:'
 // cap: how many nodes the overview draws (default 24, plus decision memory). A graph card passes its own, larger cap and says when it is hit.
 // onShown(ids): the node ids drawn now (the overview, a focus, a search or an answer view), so Add to canvas adds exactly the
 // graph on screen (owner brief 2026-10-16 item 5), never the whole repository behind a focused view.
+// fit: the drawing takes exactly the height its container gives (the companion's Graph, which may be shorter than 320px with
+// Layers and node details open); without it the drawing keeps a 320px floor, which a short clipping container cut off,
+// hiding the bottom row of nodes under the panel's own rows (rh-local wp6-kg-entity).
 // Geometry: the viewBox has the element's measured shape, one graph unit per CSS pixel down to MIN_W units across, so a card
 // draws 12px labels and the layout spreads over the box it has (owner brief item 5: fit the card, readable labels), while a
 // narrower panel scales the same layout down instead of crowding it. Nothing is laid out before the box is measured.
+// PAD is in CSS pixels (times k in graph units), so no node is clamped under the zoom controls (top right, 42px tall) or the
+// connections note (bottom left) in a narrow panel, where they would take its clicks (rh-local wp6-kg-entity, gate 39765600792).
 const PAD = { x: 40, top: 56, bottom: 36 }, MIN_W = 520;
-export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null, cap = null, onShown = null }) {
+export default function RepositoryGraph({ graph: sourceGraph, selected, selectedIds = null, onSelect, query, answerView, external = true, camera = null, onCamera = null, focusRequest = null, onNodeMenu = null, cap = null, onShown = null, fit = false }) {
   const svg=useRef(null),[box,setBox]=useState(null);
   useLayoutEffect(()=>{
     const el=svg.current;if(!el)return undefined;
-    const measure=()=>{const r=el.getBoundingClientRect();if(r.width>40&&r.height>40){const k=Math.max(1,MIN_W/r.width),w=Math.round(r.width*k),h=Math.round(r.height*k);setBox(previous=>previous&&previous.w===w&&previous.h===h?previous:{w,h});}};
+    const measure=()=>{const r=el.getBoundingClientRect();if(r.width>40&&r.height>40){const k=Math.max(1,MIN_W/r.width),w=Math.round(r.width*k),h=Math.round(r.height*k);setBox(previous=>previous&&previous.w===w&&previous.h===h&&previous.k===k?previous:{w,h,k});}};
     measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
   },[]);
-  const W=box?.w??1000,H=box?.h??700,CX=W/2,CY=H/2;
-  const clampX=x=>Math.max(PAD.x,Math.min(W-PAD.x,x)),clampY=y=>Math.max(PAD.top,Math.min(H-PAD.bottom,y));
+  const W=box?.w??1000,H=box?.h??700,CX=W/2,CY=H/2,k=box?.k??1,pad={x:PAD.x*k,top:PAD.top*k,bottom:PAD.bottom*k};
+  const clampX=x=>Math.max(pad.x,Math.min(W-pad.x,x)),clampY=y=>Math.max(pad.top,Math.min(H-pad.bottom,y));
   const [answer,setAnswer]=useState(null);
   const graph=answer||sourceGraph;
   const chosen=useMemo(()=>new Set(selectedIds??(selected?.id?[selected.id]:[])),[selectedIds,selected?.id]);
@@ -62,13 +67,13 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
   const scene=useMemo(()=>{
     const nodes=[...ranked.nodes,...pinned];
     const total=ranked.total,count=nodes.length;
-    const rx=Math.max(20,Math.min(W/2-PAD.x-10,Math.max(120,count*10))),ry=Math.max(20,Math.min((H-PAD.top-PAD.bottom)/2-10,Math.max(100,count*8)));
+    const rx=Math.max(20,Math.min(W/2-pad.x-10,Math.max(120,count*10))),ry=Math.max(20,Math.min((H-pad.top-pad.bottom)/2-10,Math.max(100,count*8)));
     const positions=new Map(nodes.map((n,i)=>[n.id,{...n,x:CX+Math.cos(i/Math.max(1,count)*Math.PI*2)*rx,y:CY+Math.sin(i/Math.max(1,count)*Math.PI*2)*ry}]));
     if(focus&&positions.has(focus))positions.set(focus,{...positions.get(focus),x:CX,y:CY});
     if(nodes.length===1)positions.set(nodes[0].id,{...positions.get(nodes[0].id),x:CX,y:CY});
     const {edges,eligible}=limitEdges(graph.edges,positions);
     return{nodes:[...positions.values()],edges,eligible,positions,total};
-  },[graph,focus,ranked,pinned,W,H]); // eslint-disable-line react-hooks/exhaustive-deps
+  },[graph,focus,ranked,pinned,W,H,k]); // eslint-disable-line react-hooks/exhaustive-deps
   const shownKey=JSON.stringify(scene.nodes.map(n=>n.id));
   useEffect(()=>{onShown?.(scene.nodes.map(n=>n.id));},[shownKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshotPositions=()=>new Map([...saved.current].map(([id,p])=>[id,{...p}]));
@@ -147,7 +152,7 @@ export default function RepositoryGraph({ graph: sourceGraph, selected, selected
         </div></Menu>
       </span>
     </div>
-    <svg ref={svg} role="img" aria-label="Repository dependency graph" viewBox={`0 0 ${W} ${H}`} style={{backgroundImage:"radial-gradient(var(--graph-dot) 0.65px, transparent 0.65px)",backgroundSize:"22px 22px"}} className="h-full min-h-80 w-full flex-1 touch-none select-none" onWheel={e=>setView(v=>({...v,z:Math.max(.2,Math.min(3,v.z*(e.deltaY<0?1.1:.9)))}))}
+    <svg ref={svg} role="img" aria-label="Repository dependency graph" viewBox={`0 0 ${W} ${H}`} style={{backgroundImage:"radial-gradient(var(--graph-dot) 0.65px, transparent 0.65px)",backgroundSize:"22px 22px"}} className={`h-full ${fit ? 'min-h-0' : 'min-h-80'} w-full flex-1 touch-none select-none`} onWheel={e=>setView(v=>({...v,z:Math.max(.2,Math.min(3,v.z*(e.deltaY<0?1.1:.9)))}))}
       onPointerDown={e=>{
         // A right press must not take the browser's default focus either: focusing scrolls the node into view, and that scroll
         // closes the portaled node menu (ui.jsx Menu closes on any scroll) the contextmenu that follows has just opened.
