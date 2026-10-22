@@ -1,5 +1,5 @@
 // Canvas utilities never cover canvas content (docs/features/learn-canvas-blocks.md), on the restored
-// shell (2026-09-30): the tools in the left gutter, the Rabbit Hole navigator in the right gutter, Home in the top-left
+// shell (2026-09-30): the tools in the left gutter with the Rabbit Hole navigator at its top (UI-17), Home in the top-left
 // corner, and the bottom strip (owner, 2026-10-08): the minimap lower left directly above the zoom row, one group on one
 // left edge, on the canvas, clear of the Chat pane at its right (owner brief 2026-10-13 sections 2 and 4: the composer is the
 // Chat pane's, no canvas dock). The strip floats (owner, 2026-10-08: "in the canvas above the chat composer you are
@@ -147,10 +147,11 @@ async function probeEdge(page, card, title, label, side = 'right') {
   let g = await geometry(page);
   let box = await card.boundingBox();
   if (!(box.x + box.width > g.surface.right + 60)) fail(`desktop: the card was not panned past the right edge (${JSON.stringify(round(box))})`);
-  // The restored shell: tools left of the canvas, navigator right of it, the Chat pane right of both, the minimap below it, above the zoom row, on the canvas.
+  // The restored shell: tools left of the canvas, the navigator at the top of their gutter (UI-17, owner 2026-10-21: no column
+  // of its own), the Chat pane right of the canvas, the minimap below it, above the zoom row, on the canvas.
   if (!(g.toolbar.right <= g.surface.x + 0.5)) fail(`desktop: the tools ${JSON.stringify(round(g.toolbar))} are not in the left gutter`);
   if (!disjoint(g.toolbar, g.surface)) fail(`desktop: toolbar ${JSON.stringify(round(g.toolbar))} overlaps the canvas ${JSON.stringify(round(g.surface))}`);
-  if (g.navigator && !(g.navigator.x >= g.surface.right - 0.5)) fail(`desktop: the navigator ${JSON.stringify(round(g.navigator))} is not in the right gutter`);
+  if (g.navigator && !(g.navigator.x >= g.gutter.x - 0.5 && g.navigator.right <= g.gutter.right + 0.5 && g.navigator.right <= g.surface.x + 0.5 && g.navigator.y < g.surface.y + 120)) fail(`desktop: the navigator ${JSON.stringify(round(g.navigator))} is not at the top of the tools gutter ${JSON.stringify(round(g.gutter))}, beside the canvas`);
   if (!g.pane || g.pane.x < g.surface.right - 0.5 || (g.navigator && g.pane.x < g.navigator.right - 0.5)) fail(`desktop: the Chat pane ${JSON.stringify(round(g.pane))} is not right of the canvas and the navigator`);
   if (!g.minimap) fail('desktop: no minimap in the lower left');
   else {
@@ -225,7 +226,7 @@ async function probeEdge(page, card, title, label, side = 'right') {
     aligned(await geometry(page), 'desktop, zoomed in');
   }
   results.desktop = { card: widest.block.title, cardWidth: Math.round(widest.width), zoom: g.zoom, right, left: opened, penArmed: armed === 'true' };
-  console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past both edges; tools left, navigator right, minimap lower left above the zoom row, all outside the canvas (right ${right.onCard}/${right.probes}, left ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
+  console.log(`desktop: "${widest.block.title}" (${Math.round(widest.width)}px) pushed past both edges; tools left with the navigator above them, minimap lower left above the zoom row, all outside the canvas (right ${right.onCard}/${right.probes}, left ${opened.onCard}/${opened.probes} edge probes on the card); gutter wheel moved ${results.gutterWheel?.moved}px; pen arms; zoom ${g.zoom}`);
   await context.close();
 }
 
@@ -281,7 +282,7 @@ if (local) {
   aligned(g, 'wide');
   if (!disjoint(g.toolbar, g.surface) || (g.navigator && !disjoint(g.navigator, g.surface))) fail('wide: a utility overlaps the canvas');
   results.wide = { surface: round(g.surface), minimap: round(g.minimap), toolbar: round(g.toolbar), navigator: round(g.navigator) };
-  console.log('wide: tools left, navigator right, minimap lower left above the zoom row, all outside the canvas');
+  console.log('wide: tools left with the navigator above them, minimap lower left above the zoom row, all outside the canvas');
   await context.close();
 }
 
