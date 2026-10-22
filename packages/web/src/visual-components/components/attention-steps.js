@@ -71,7 +71,9 @@ export default {
     const lastCells = placed[placed.length - 1];
     const middle = (lastCells[0].y + lastCells[lastCells.length - 1].y + ROW_H) / 2;
     const out = boxOf('output', `o_{${i}} = \\sum_{j=1}^{${last}} \\alpha_{${i},j}\\, v_j`, x, middle - ROW_H / 2, 0, 'output');
-    lastCells.forEach((cell, n) => objects.push({ id: `sum${n}`, type: 'arrow', initialState: { from: { x: cell.x + cell.w, y: cell.y + cell.h / 2 }, to: { x: out.x, y: out.y + out.h / 2 } } }));
+    // Each weighted value lands at its own point down the output's left edge
+    // (the T11 arrow-tips-distinct check found them piled on one point).
+    lastCells.forEach((cell, n) => objects.push({ id: `sum${n}`, type: 'arrow', initialState: { from: { x: cell.x + cell.w, y: cell.y + cell.h / 2 }, to: { x: out.x, y: out.y + out.h * (n + 1) / (lastCells.length + 1) } } }));
     const bottom = rowY(keys.length - 1) + ROW_H;
     const note = 'Symbolic rows: each line is the formula for one key position, not a computed number.';
     objects.push({ id: 'note', type: 'text', initialState: { text: note, x: 0, y: bottom + 32, typography: 'annotation' } });

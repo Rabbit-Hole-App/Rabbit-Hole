@@ -1,0 +1,276 @@
+{
+  "version": 1,
+  "policy": "Accepted specs are immutable: a changed spec is a new record. A record teaches composition only when reuse is eligible, its split is development, its lineage is not held out, its component versions are current, and compile, render and semantic checks all pass. Acceptance is not factual truth or permission to reuse facts.",
+  "heldoutLineages": [
+    "deepseek-mla",
+    "kimi-k3",
+    "qwen3-next",
+    "self-attention-context",
+    "zaya1"
+  ],
+  "heldoutSource": "Lane D case.json splits on explain/d-render e10c4df1",
+  "records": [
+    {
+      "example": "attention-steps-q2",
+      "version": 1,
+      "id": "attention-steps-q2",
+      "family": "attention-math",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-bff6c3ef5ef0ef64",
+      "componentVersions": {
+        "attention-steps": 1
+      },
+      "reuse": "eligible",
+      "intent": "Symbolic attention for one query",
+      "tags": [
+        "math",
+        "attention"
+      ],
+      "lineage": "self-attention-context",
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "decoder-stack",
+      "version": 1,
+      "id": "decoder-stack",
+      "family": "transformer-decoder",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-02903153798bdc09",
+      "componentVersions": {
+        "pattern-stack": 1,
+        "callout": 1
+      },
+      "reuse": "eligible",
+      "intent": "One repeated block with a sourced count",
+      "tags": [
+        "repeat",
+        "evidence"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "gqa-32-to-8",
+      "version": 1,
+      "id": "gqa-32-to-8",
+      "family": "attention-heads",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-7f6337f114904212",
+      "componentVersions": {
+        "attention-fanout": 1,
+        "callout": 1
+      },
+      "reuse": "eligible",
+      "intent": "Head sharing at a larger count, compacted",
+      "tags": [
+        "heads",
+        "grouping"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "hybrid-attention",
+      "version": 1,
+      "id": "hybrid-attention",
+      "family": "attention-schedule",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-21352a78f26954bd",
+      "componentVersions": {
+        "pattern-stack": 1
+      },
+      "reuse": "eligible",
+      "intent": "A repeating group of unlike entries counted in entries",
+      "tags": [
+        "repeat",
+        "schedule"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "mamba2-main-path",
+      "version": 1,
+      "id": "mamba2-main-path",
+      "family": "state-space",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-5a298b9a645657d9",
+      "componentVersions": {
+        "state-space-block": 1
+      },
+      "reuse": "eligible",
+      "intent": "A source-verified block at main-path scope",
+      "tags": [
+        "state-space",
+        "scope"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "moe-8-top2",
+      "version": 1,
+      "id": "moe-8-top2",
+      "family": "mixture-of-experts",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-1ee43a76df503f79",
+      "componentVersions": {
+        "router-experts": 1,
+        "callout": 1
+      },
+      "reuse": "eligible",
+      "intent": "Routing to chosen experts with a shared expert",
+      "tags": [
+        "routing",
+        "experts"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "pendulum-law",
+      "version": 1,
+      "id": "pendulum-law",
+      "family": "physics-pendulum",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-beab00b5a2947f33",
+      "componentVersions": {
+        "stack": 1,
+        "module": 1,
+        "callout": 1
+      },
+      "reuse": "eligible",
+      "intent": "Two quantities joined by a cause arrow, with the takeaway below",
+      "tags": [
+        "cause",
+        "takeaway"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "pipeline",
+      "version": 1,
+      "id": "pipeline",
+      "family": "web-request",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-53a36592f310e6d3",
+      "componentVersions": {
+        "section": 1,
+        "flow": 1,
+        "callout": 1,
+        "legend": 1
+      },
+      "reuse": "eligible",
+      "intent": "A titled section holding a flow and its takeaway, with a colour legend",
+      "tags": [
+        "flow",
+        "section",
+        "legend"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "request-path-parts",
+      "version": 1,
+      "id": "request-path-parts",
+      "family": "web-request",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-d6d17b2ce1bf8187",
+      "componentVersions": {
+        "flow": 1,
+        "callout": 1,
+        "section": 1
+      },
+      "reuse": "eligible",
+      "intent": "Overview and detail across pager parts",
+      "tags": [
+        "parts",
+        "overview-detail"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    },
+    {
+      "example": "rinse-cycles",
+      "version": 1,
+      "id": "rinse-cycles",
+      "family": "washing-machine",
+      "run": "bundled-a-t11",
+      "split": "development",
+      "specHash": "fnv64-cbf3e16c3b504bf8",
+      "componentVersions": {
+        "pattern-stack": 1
+      },
+      "reuse": "eligible",
+      "intent": "A non-neural repeated process",
+      "tags": [
+        "repeat",
+        "process"
+      ],
+      "provenance": "Lane A bundled example, written for /explain from textbook knowledge or the cited source; rendered and inspected in both themes",
+      "limitations": [],
+      "checks": {
+        "compile": "pass",
+        "render": "pass",
+        "semantic": "unrun"
+      }
+    }
+  ]
+}
