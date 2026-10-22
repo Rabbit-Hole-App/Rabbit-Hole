@@ -127,7 +127,11 @@ export async function drawThumbnail(node, region) {
 // board as its waiting save will send it) is drawn now, past `delay` and `gap`, so Home and other devices never keep the
 // old picture (owner follow-up 5, 2026-10-21). A snapshot still uploading does not hold it back: the new one is drawn at
 // once and goes up after it.
-export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000, now = () => Date.now(), timers = globalThis }) {
+// The capture copies the whole canvas (html-to-image) on the page's thread: about 0.5 s with 10 webpage cards and a 1.2 s
+// stall with 20 on CI (fast-e2e 39749160898), felt as a frozen pan. So it waits for a pause: `active()` is when the learner
+// last wheeled, pressed, dragged or typed, and a capture due within `quiet` ms of that is put off until the pause.
+// flush (leaving the canvas) never waits.
+export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000, quiet = 1500, active = () => -Infinity, now = () => Date.now(), timers = globalThis }) {
   let timer = null, pending = null, sent = null, queued = null, last = -Infinity, chain = null, stopped = false;
   const schedule = wait => { timers.clearTimeout(timer); timer = stopped ? null : timers.setTimeout(run, wait); };
   // Draws `text` now - the async wrapper runs capture() up to its first await, so the canvas is copied while it is on
@@ -149,6 +153,8 @@ export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000,
   async function run() {
     timer = null;
     if (chain || pending === sent) return;
+    const busy = active() + quiet - now();
+    if (busy > 0) return schedule(busy);
     const wait = last + gap - now();
     if (wait > 0) return schedule(wait);
     const text = pending;
@@ -170,7 +176,15 @@ export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000,
 // One canvas's picture, as LearnPage wires it: each canvas page has its own, so leaving canvas A for canvas B (a new page,
 // keyed by canvas) flushes A's under A's name, even when A's upload lands after B has opened, and never touches B's.
 export const canvasThumbnail = ({ name, capture, put, ...timing }) =>
-  thumbnailScheduler({ capture, upload: async blob => { await put(blob); bumpThumbnail(name); }, ...timing });
+  thumbnailScheduler({ capture, upload: async blob => { await put(blob); bumpThumbnail(name); }, active: lastInput, ...timing });
+// When the learner last moved the canvas or a card's page (wheel, a press, a drag) or typed, for the scheduler's pause.
+let inputAt = -Infinity;
+if (typeof window !== 'undefined') {
+  for (const type of ['wheel', 'pointerdown', 'pointermove', 'keydown']) {
+    window.addEventListener(type, event => { if (type !== 'pointermove' || event.buttons) inputAt = Date.now(); }, { capture: true, passive: true });
+  }
+}
+export const lastInput = () => inputAt;
 
 // A picture chosen for Change thumbnail: what is wrong with it, in one line, or null.
 export function coverProblem(file) {
