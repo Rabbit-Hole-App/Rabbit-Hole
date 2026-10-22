@@ -49,7 +49,8 @@
       "id": "arrowheads-pile-up", "version": 1, "check": "arrow-tips-distinct",
       "signature": "Every feed into the weighted sum landed on one point, piling the arrowheads.",
       "fixedBy": "30c63e29", "renders": { "before": "renders/t09", "after": "renders/t09-r2" },
-      "affected": ["moe-8-top2", "moe-64-top2-folded", "switch-16", "shared-2", "moe-256-top8", "example-moe-8-top2"],
+      "affected": ["moe-8-top2", "moe-64-top2-folded", "switch-16", "shared-2", "moe-256-top8", "example-moe-8-top2", "steps-q2-symbolic", "steps-q1-two-rows", "steps-q3-four-rows", "steps-q7-symbolic-four"],
+      "sharedFix": "The same check then found the pile-up in attention-steps (sums into o_i); spread landing points fixed it in 3b321582 (renders/t08a-r3).",
       "spec": { "version": 1, "id": "r-feeds", "title": "R", "presentation": { "mode": "static" },
         "components": [{ "id": "m", "component": "router-experts", "version": 1, "params": { "experts": 8, "topK": 2, "sharedExperts": 2 } }] }
     },
