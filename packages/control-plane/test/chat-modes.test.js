@@ -124,7 +124,7 @@ test('chat context: one uploaded PDF rides per turn; every other uploaded-PDF pa
 const source = readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
 const apiAskSource = source.match(/export async function apiAsk\([^]*?\n\}/)[0].replace(/^export /, '');
 const owner = { email: 'owner@example.test', org: 'workspace-a' };
-const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js', '../src/generation-proposal.js'].map(path => import(path)));
+const modules = await Promise.all(['../src/ask.js', '../src/learn-wiki.js', '../src/learn-youtube.js', '../src/learn-outline-tool.js', '../src/learn-context.js', '../src/learn-ask-context.js', '../src/learn-models.js', '../src/learn-paper.js', '../src/learn-media.js', '../src/arxiv.js', '../src/canvas-conversation.js', '../src/learn-context-docs.js', '../src/learn-storage.js', '../src/token.js', '../src/agents/learn-chat.js', '../src/canvas-context.js', '../src/generation-proposal.js', '../src/chat-capability-route.js'].map(path => import(path)));
 const { verifyProposal } = await import('../src/generation-proposal.js');
 const baseDeps = Object.fromEntries(modules.flatMap(m => Object.entries(m)).filter(([name]) => name !== 'default'));
 // A test double of B4's trailer functions (on this base they are stubs): the wiring is what is under test here.
@@ -822,6 +822,27 @@ test('refinement through chat: the learner\'s words change the unanswered propos
   const forged = (await f.ask({ message: 'again', mode: 'auto', generation: { motion: {}, current: { ...second, title: 'Edited' } } })).events.find(e => e.event === 'answer_meta').data.proposal;
   assert.notEqual(forged.proposal_id, first.proposal_id);
   assert.equal(forged.version, 1);
+});
+
+test('CR-1 hand-off: a signed chat route to Motion makes the ordinary turn its proposal turn; a mismatched token calls nothing', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV);
+  const { decideChat } = await import('../src/chat-capability-route.js');
+  const words = 'Create a 15-second animated explanation of photosynthesis';
+  const fields = { app: 'canvas-0a1b2c3d', text: words, mode: 'ask', selection: null, source_refs: null, motion: { concept: 'Weather' } };
+  const routed = await decideChat(f.env, { email: owner.email, app: fields.app, requestId: 'req-00000001', fields, capability: 'motion' }, { ask: () => assert.fail('an explicit id makes no router call') });
+  assert.deepEqual([routed.route, routed.flow], ['capability:motion', 'proposal']);
+  const forged = await f.ask({ message: `${words} now`, mode: 'ask', generation: { motion: { concept: 'Weather' } }, route_token: routed.token });
+  assert.equal(forged.res.status, 400);
+  assert.equal((await forged.res.json()).code, 'route_mismatch');
+  assert.equal(f.calls.length, 0, 'no model call for a token that does not match');
+  f.replies.push(proposeCall('tu1'), 'Here is a proposal.\n<answer_meta>{}</answer_meta>');
+  const { res, events } = await f.ask({ message: words, mode: 'ask', generation: { motion: { concept: 'Weather' } }, route_token: routed.token });
+  assert.equal(res.status, 200);
+  assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_generation'], 'the proposal tool alone, as a typed /motion');
+  const p = events.find(e => e.event === 'answer_meta').data.proposal;
+  assert.deepEqual([p.command, p.version, p.input], ['motion', 1, { request: `/motion ${words}`, concept: 'Weather' }]);
+  assert.equal(f.calls.length, 2, 'the proposal and the reply: no Director, author or render call');
 });
 
 test('paused or with no orchestrator, a /motion chat turn is answered before any model call; without the generation fields no tool rides', async t => {

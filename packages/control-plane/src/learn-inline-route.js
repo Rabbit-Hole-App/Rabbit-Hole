@@ -118,7 +118,7 @@ const within = (promise, ms) => new Promise((resolve, reject) => {
 // ---- The proceed: signed, short-lived, bound to the board, the request id and the exact request ----
 // rabbit-hole-app holds no MASTER_KEY (scripts/prod-release.mjs forbids it there), so the key is derived from a secret the
 // worker must hold to decide at all; INLINE_DECISION_KEY, when set, takes over. No secret: no proceed, no generation.
-const signingKey = env => {
+export const signingKey = env => {
   const secret = env.INLINE_DECISION_KEY || env.TYPESAFE_API_KEY || env.VERCEL_TYPESAFE_API_KEY || env.ANTHROPIC_API_KEY;
   return secret ? hmacHex(secret, 'inline-proceed-v1') : null;
 };

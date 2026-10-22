@@ -12,6 +12,7 @@
 // before Generate.
 import { validateMotionContext } from './motion-context.js';
 import { MotionRequestProvider, motionReservationMicros } from './motion-provider.js';
+import { CHAT_CAPABILITIES } from '../../web/src/inline-ai-route.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
@@ -32,7 +33,8 @@ export const reviewRequired = command => PROPOSAL_RULES[command] === 'always';
 export const WIRED = Object.keys(PROPOSAL_RULES).filter(reviewRequired);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
-export const MOTION_DURATION = Object.freeze({ min: 5, max: 30 });
+// One declaration with the chat router's card fields (web/src/inline-ai-route.js CHAT_CAPABILITIES).
+export const MOTION_DURATION = Object.freeze({ min: CHAT_CAPABILITIES.motion.settings.duration_seconds.min, max: CHAT_CAPABILITIES.motion.settings.duration_seconds.max });
 const SETTINGS = {
   motion(value) {
     if (!plain(value)) return { error: 'settings must be {duration_seconds, audio}' };

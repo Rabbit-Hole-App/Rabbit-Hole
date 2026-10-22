@@ -116,17 +116,67 @@ export function routeRequest({ prompt, selection }, model) {
 }
 
 // The validator for JEV's answer - its own, never the grader's Noul parser or thresholds. Throws on anything malformed.
-export function readRoute(body) {
+export function readRoute(body, routes = ROUTES, meta = META) {
   const answer = body?.answers?.route;
-  const options = [...Object.keys(ROUTES), ...Object.keys(META)];
+  const options = [...Object.keys(routes), ...Object.keys(meta)];
   if (answer?.type !== 'choice' || !options.includes(answer.choice)) throw new Error('JEV returned no usable route');
   const confidence = Number(answer.confidence), probabilities = answer.probabilities;
   if (answer.confidence == null || !(confidence >= 0 && confidence <= 1) || !probabilities || typeof probabilities !== 'object' || Array.isArray(probabilities)) throw new Error('JEV returned no usable route');
   const probability = Number(probabilities[answer.choice]);
   if (probabilities[answer.choice] == null || !(probability >= 0 && probability <= 1)) throw new Error('JEV returned no usable route');
-  const ranked = Object.entries(probabilities).filter(([id, p]) => ROUTES[id] && Number(p) >= 0).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  const ranked = Object.entries(probabilities).filter(([id, p]) => routes[id] && Number(p) >= 0).sort((a, b) => b[1] - a[1]).map(([id]) => id);
   return { choice: answer.choice, confidence, probability, ranked };
 }
+
+// ---- Chat capability routing (CR-1, owner 2026-10-21; C:/s/spec/day-1021/chat-route-interface.md) ----
+// What a plain chat line may ask for, declared over the command registry (agent/slash.js gives label, kind, action, needs):
+//   intent: the JEV Choice criterion (no phrase matching anywhere); flow: 'proposal' (a signed proposal card through the
+//   chat turn, generation-proposal.js PROPOSAL_RULES 'always') or 'direct' (the command's existing handler, with its own
+//   confirmation or finder); settings: the proposal card's capability-specific fields (null: none).
+// Adding a capability is one entry here (plus, for a proposal, its settings validator in generation-proposal.js).
+// Not declared, so explicit only: /explain (not wired, owner), navigation and empty inserts (dive, notebook, whiteboard),
+// practice, compare, animate, walkthrough, cad, and the removed commands.
+export const CHAT_ROUTE_PROTOCOL_VERSION = 'chat-route-c1';
+export const CHAT_ANSWER = Object.freeze({ intent: 'Reply in the chat: a question, an explanation, a definition, advice, or a question about a video, a picture, a feature or a tool (for example "can Motion make audio?" or "why is this video wrong?"), and any request that declines a format (for example "explain this, but don\'t make a video").' });
+export const CHAT_CAPABILITIES = Object.freeze({
+  motion: { flow: 'proposal', intent: 'A new animated explainer video made for the learner, asked for as the output: for example "make this into a video" or "create a short animated explanation of X".',
+    settings: Object.freeze({ duration_seconds: Object.freeze({ type: 'integer', min: 5, max: 30, unit: 's', label: 'Duration' }), audio: Object.freeze({ type: 'boolean', available: false, label: 'Narration audio' }) }) },
+  video: { flow: 'direct', intent: 'A new generated realistic video clip of a real-world scene or footage, not an explainer of an idea.' },
+  'generate-image': { flow: 'direct', intent: 'A new AI-generated picture or illustration (made, not found).' },
+  '3d': { flow: 'direct', intent: 'A new 3D model or 3D scene.' },
+  diagram: { flow: 'direct', intent: 'A new diagram or flowchart card that draws structure or steps.' },
+  graph: { flow: 'direct', intent: 'A new graph or plot card of a function or data.' },
+  code: { flow: 'direct', intent: 'A new code example card: a program or code that shows the idea.' },
+  flashcards: { flow: 'direct', intent: 'A new deck of flashcards to study.' },
+  quiz: { flow: 'direct', intent: 'A quiz question for the learner to answer, to test them.' },
+  youtube: { flow: 'direct', intent: 'Find existing videos to watch (a YouTube search): for example "find me a video about X". Searching, never generating.' },
+  wikipedia: { flow: 'direct', intent: 'Find an encyclopedia article to read (a Wikipedia search).' },
+  arxiv: { flow: 'direct', intent: 'Find research papers (an arXiv search).' },
+  image: { flow: 'direct', intent: 'Find a real photo or picture of something (an image search, never generated).' },
+});
+const CHAT_META = {
+  several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
+  none: 'None of these fits: an action neither a chat reply nor these tools can do, such as sending an email or booking something.',
+};
+// The chat choice options: 'answer', every declared capability, several, none.
+export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...CHAT_CAPABILITIES });
+// One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
+export const chatCapability = id => {
+  const entry = SLASH.find(command => command.name === id), chat = CHAT_CAPABILITIES[id];
+  return chat && entry ? { id, label: entry.label || (typeof entry.desc === 'string' ? entry.desc : id), kind: entry.kind, action: entry.action || null, needs: entry.needs || null, settings: null, ...chat } : null;
+};
+// The JEV request: one Choice question over the chat routes. State is compact text: never the canvas package or an image.
+export function chatRouteRequest({ text, selection = null, sourceRefs = null }, model) {
+  const criteria = { ...Object.fromEntries(Object.entries(CHAT_ROUTES).map(([id, route]) => [id, route.intent])), ...CHAT_META };
+  const selected = selection && typeof selection === 'object' ? `${selection.kind || 'card'} "${String(selection.title || '').slice(0, 100)}" ${String(selection.text || '').slice(0, 400)}`.trim() : '';
+  const attached = Array.isArray(sourceRefs) ? sourceRefs.slice(0, 8).map(ref => `${ref?.kind}${ref?.name ? ` "${String(ref.name).slice(0, 80)}"` : ''}`).join('; ') : '';
+  return {
+    model,
+    state: { request: String(text).slice(0, PROMPT_MAX), selected: selected ? `yes: ${selected}` : 'no', ...(attached ? { attached } : {}) },
+    questions: { route: { type: 'choice', instructions: `Which does the learner's chat message ask for? ${GUARD} Answer is the default for questions. Negations count: "explain it, but don't make a video" does not ask for a video; "why is this video wrong" and "can Motion make audio?" ask about something, not for it; "find a video" searches, it does not make one.`, criteria } },
+  };
+}
+export const readChatRoute = body => readRoute(body, CHAT_ROUTES, CHAT_META);
 
 // JEV's validated answer, or its failure ({ error }), to what happens next.
 export function decideRoute(read, { enabled = ['note'], thresholds = ROUTE_THRESHOLDS } = {}) {

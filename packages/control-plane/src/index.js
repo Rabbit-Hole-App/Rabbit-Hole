@@ -12,6 +12,7 @@ import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from '
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
+import { verifyChatRoute } from './chat-capability-route.js';
 import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
@@ -1012,6 +1013,13 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (canvas && conversation !== 'learn') return json({ error: 'canvas_context is a Learn chat field' }, 400);
   if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
   if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
+  // CR-1 (chat-capability-route.js): a route decision the server signed for this learner and these exact turn fields. A
+  // proposal route makes this turn that command's proposal turn, as if it were typed; nothing else is decided here.
+  if (body.route_token != null) {
+    const routed = conversation === 'learn' && chat ? await verifyChatRoute(env, body, user.email) : null;
+    if (!routed) return json({ error: 'This route decision does not match this message. Send it again.', code: 'route_mismatch' }, 400);
+    if (routed.flow === 'proposal') chat.command = routed.cap;
+  }
   // UI-15/MOT-20 (generation-proposal.js): a Learn chat turn from a build that offers proposals sends generation
   // {motion: {concept, context}, current}: what a Motion proposal would be about, and the unanswered proposal a refinement
   // revises (verified for this learner, else ignored). The proposal tool rides only where a video can start; a /motion turn
