@@ -27,7 +27,17 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
     - both records carry the same page build and Worker bundle;
     - G is an ancestor of the commit.
   - The workflow appends G's record for that check. The byte-identical build means G's full gate tested exactly what ships.
-- **Then** `prepare --dev-record <that note>` builds it, and `release --approve "RELEASE <sha> <build>"` uses the prepared build. Every rule below still applies: HOLD first, the exact prepared build, the read-only preflight of secrets and of main and learn migrations. It never applies a migration.
+- **Fast-e2e and verify of the exact commit (OPS-04, owner 2026-10-21):** UI-17 `14310051` reached production on batch F's reused gate while its own fast-e2e run 39719683140 had failed. Now every release, full gate or reused (script-only or UI-only), also needs the newest `fast-e2e.yml` run and the newest `verify.yml` run whose `head_sha` is exactly the commit to be completed successes.
+  - Before any install, the workflow reads them from the Actions API with its own token (`actions: read`): `node scripts/verify-evidence.mjs runs --sha <sha> --out ci-runs.json`. `prepare --runs ci-runs.json` decides on that file.
+  - Refused: a failed, cancelled or skipped run, a queued or running one, no run at all, or only runs of other commits. A green ancestor gate never stands in for them. Pull-request runs never count (they test a merge tree). The newest attempt wins: a rerun that passed clears a failed attempt, and a newer failure outvotes an older success.
+  - A full gate of the exact commit also runs browser shards. Fast-e2e is required anyway: one rule with no exceptions, and it is cheap.
+  - fast-e2e runs on pushes to branches other than `main` and `dev`, so push the candidate to its integration branch and let fast-e2e finish before `dev` and `main`. A refusal names the run and its link; fix and push again, or rerun a flake, then rerun the release workflow.
+  - A blocked release prints, for example:
+    ```
+    refused: 143100519c34018d1e013171d72850a7a3aefeb5 needs a successful fast-e2e and verify run of this exact commit; a gate, its own or reused, never stands in for them:
+    - fast-e2e run 39719683140.1 of 14310051 is completed/failure, not a completed success: https://github.com/Rabbit-Hole-App/Rabbit-Hole/actions/runs/39719683140
+    ```
+- **Then** `prepare --dev-record <that note> --runs <ci-runs.json>` builds it, and `release --approve "RELEASE <sha> <build>"` uses the prepared build. Every rule below still applies: HOLD first, the exact prepared build, the read-only preflight of secrets and of main and learn migrations. It never applies a migration.
 - **The hold** was lifted on 2026-10-09 with the owner's GO. Putting it back is the one-line change to `HOLD = true`: then the release step exits 2 before any remote call, and a push to `main` releases nothing.
 
 ## Steps
@@ -37,12 +47,14 @@ The owner chose B1 in Home's session: Rabbit-Hole-App/Rabbit-Hole `main` is the 
 ```bash
 git fetch origin main && git checkout --detach <sha>
 npm ci   # at the repo root: the one workspace lockfile pins every package, every platform's native build included
-node scripts/prod-release.mjs prepare --sha <sha>
+GITHUB_TOKEN=<a token with actions: read> node scripts/verify-evidence.mjs runs --sha <sha> --out ci-runs.json
+node scripts/prod-release.mjs prepare --sha <sha> --runs ci-runs.json
 ```
 
 Prepare refuses unless all of these hold:
 - `<sha>` is a full 40-character sha on `origin/main`;
 - the dev-deploy record has a line for it with `gates` and `smoke` both `pass` (or a valid reuse), carrying full provenance: the commit's own `tree`, `gate_digest`, `build`, `bundle`, `run` and `version` (r34 audit);
+- the newest fast-e2e and verify runs of exactly `<sha>` completed successfully (OPS-04, above);
 - `HEAD` is `<sha>` and no tracked file has changes;
 - `VITE_TLDRAW_LICENSE_KEY` is in the environment or the repo-root `.env`. It is read by key name and never printed.
 

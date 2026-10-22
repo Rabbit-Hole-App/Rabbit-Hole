@@ -117,7 +117,8 @@ reuses the last passing gate: its gates note is `reuse <gated main sha>`. Reusab
 `packages/web/src/**`, `packages/web/test/**`, `packages/web/e2e/**` (not `production-bundle-check.mjs`),
 `packages/web/public/**`, `docs/**` and root `*.md`, minus every file a Worker bundles (the
 `workerGraph` of `scripts/dev-deploy.mjs`). A path naming credit, allowance, usage, motion, video, sign-in,
-auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA. Server
+auth, login, oauth, billing or payment keeps the gate. Unit CI and the web build still run on the exact SHA, and every deploy
+still needs the newest fast-e2e and verify runs of that exact SHA to have passed (OPS-04). Server
 code, money, sign-in, schema or migrations, config, dependencies and workflows keep the gate. A mixed
 batch needs the gate. Check a diff with `notReusableBetween` in `scripts/dev-deploy.mjs`.
 

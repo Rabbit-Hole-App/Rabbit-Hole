@@ -1,6 +1,8 @@
 // The dev workflow's gate step (.github/workflows/deploy-dev.yml): turns the pushed commit's gates note into the
 // dev-deploy.mjs arguments and runs it.
-//   node scripts/dev-deploy-gate.mjs --sha <commit> --gate <its gates note> --dev-deploys <refs/notes/dev-deploys ref> [--verify <its refs/notes/verify note>]
+//   node scripts/dev-deploy-gate.mjs --sha <commit> --gate <its gates note> --dev-deploys <refs/notes/dev-deploys ref> [--verify <its refs/notes/verify note>] --runs <verify-evidence.mjs runs output>
+// Always (OPS-04, owner 2026-10-21): the newest fast-e2e and verify runs of this exact commit completed successfully, or
+// nothing deploys, whether the commit has its own full gate or reuses one.
 // With --verify (the dev workflow always passes it): the keyless verify run's evidence must be a passing one for this
 // exact commit, tree and lockfiles (scripts/verify-evidence.mjs), or nothing deploys. Gate reuse is judged after it.
 // The note is either a full gate record of the commit's tree, or (owner 2026-10-09: reuse a gate for script-only
@@ -13,7 +15,7 @@ import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { checkEvidence, lockDigest } from './verify-evidence.mjs';
+import { checkEvidence, lockDigest, runBlockers } from './verify-evidence.mjs';
 
 export function parseGatesNote(text) {
   const m = text.match(/^reuse ([0-9a-f]{40})[ \t]*\r?(\n|$)/);
@@ -49,6 +51,10 @@ function main() {
     if (why) { console.error(`✗ verify: ${why}: nothing deployed`); process.exitCode = 1; return; }
     console.log(`✓ verify: run ${evidence.run} passed unit and build for tree ${evidence.tree.slice(0, 8)}`);
   }
+  let runs = null; try { runs = JSON.parse(readFileSync(arg('runs'), 'utf8')); } catch {}
+  const ci = runBlockers(runs, sha);
+  if (ci.length) { console.error(`✗ ${sha.slice(0, 8)} needs a successful fast-e2e and verify run of this exact commit; a gate, its own or reused, never stands in for them:\n- ${ci.join('\n- ')}\nnothing deployed`); process.exitCode = 1; return; }
+  console.log(`✓ fast-e2e and verify: the newest run of each passed for ${sha.slice(0, 8)}`);
   const plan = gatePlan({ note, gNote, gDev: reuse && git('notes', `--ref=${devRef}`, 'show', reuse) });
   if (plan.refuse) { console.error(`✗ ${plan.refuse}: nothing deployed`); process.exitCode = 1; return; }
   const file = (name, text) => { const p = join(tmpdir(), `dev-deploy-gate-${name}.log`); writeFileSync(p, text); return p; };

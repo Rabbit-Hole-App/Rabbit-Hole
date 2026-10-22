@@ -1,12 +1,14 @@
 # A push to dev deploys the stable preview (docs/features/dev-auto-deploy.md, owner 2026-10-08).
 # Only a commit whose gate record is attached as a git note (refs/notes/gates, pushed before dev) deploys;
 # scripts/dev-deploy.mjs checks it, deploys forward only, smoke-tests and rolls back on failure.
+# OPS-04 (owner 2026-10-21): only after the newest fast-e2e and verify runs of the exact commit completed successfully.
 name: deploy dev preview
 on:
   push:
     branches: [dev]
 permissions:
   contents: write # only to push the deploy record note (refs/notes/dev-deploys)
+  actions: read # scripts/verify-evidence.mjs runs reads this commit's fast-e2e and verify runs
 concurrency:
   group: dev-preview
   cancel-in-progress: false
@@ -39,6 +41,12 @@ jobs:
             sleep 30
           done
           test -s "$RUNNER_TEMP/verify.json" || { echo "no verify evidence for $GITHUB_SHA: nothing deployed"; exit 1; }
+      # verify.yml also starts on this dev push, and fast-e2e may still run on the branch: wait up to 30 minutes for a
+      # running one to finish. dev-deploy-gate.mjs then refuses anything but a completed success of each.
+      - name: Fast-e2e and verify runs of this commit
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/verify-evidence.mjs runs --sha "$GITHUB_SHA" --out "$RUNNER_TEMP/ci-runs.json" --wait 30
       - name: Deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -48,7 +56,7 @@ jobs:
           VITE_TLDRAW_LICENSE_KEY: ${{ secrets.VITE_TLDRAW_LICENSE_KEY }}
         run: |
           git remote add rabbit-hole "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          node scripts/dev-deploy-gate.mjs --sha "$GITHUB_SHA" --gate "$RUNNER_TEMP/gate.log" --dev-deploys dev-deploys --verify "$RUNNER_TEMP/verify.json"
+          node scripts/dev-deploy-gate.mjs --sha "$GITHUB_SHA" --gate "$RUNNER_TEMP/gate.log" --dev-deploys dev-deploys --verify "$RUNNER_TEMP/verify.json" --runs "$RUNNER_TEMP/ci-runs.json"
       - name: Deploy record
         if: always()
         run: |
