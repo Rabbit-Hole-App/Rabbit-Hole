@@ -3,6 +3,7 @@
 // Same asynchronous contract as ManimProvider: submit -> ticket, poll -> null while
 // rendering, a final error on failure, or the bytes.
 import { validateMotionContext } from './motion-context.js';
+import { approvedProposal, proposalShape } from './generation-proposal.js';
 
 const MAX_ASSET = 25 * 1024 * 1024;
 const RENDER_ID = /^[0-9a-f]{32}$/;
@@ -85,7 +86,7 @@ const timeoutSignal = ms => {
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
-  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context'].includes(key));
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context', 'proposal'].includes(key));
   if (extra) throw new Error(`motion_request: unknown field ${extra}`);
   if (value.op !== 'motion_request') throw new Error('motion_request: op must be motion_request');
   if (typeof value.request !== 'string' || !MOTION_LINE.test(value.request.trim()) || value.request.length > 500) throw new Error('motion_request: request must be a /motion line of at most 500 characters');
@@ -94,12 +95,20 @@ export function validateMotionRequest(value) {
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
   const context = validateMotionContext(value.context);
-  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}) };
+  // MOT-20: the approved Motion proposal (generation-proposal.js), whose signature LearnVideos verifies. It is this very request.
+  const proposal = value.proposal;
+  if (proposal !== undefined) {
+    const bad = proposalShape(proposal);
+    if (bad) throw new Error(`motion_request: ${bad}`);
+    if (proposal.command !== 'motion' || proposal.input.request !== value.request.trim() || (proposal.input.concept ?? null) !== (concept?.trim() || null) || JSON.stringify(proposal.input.context ?? null) !== JSON.stringify(context ?? null)) throw new Error('motion_request: the request is not the one the approved proposal is for');
+  }
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}), ...(proposal ? { proposal } : {}) };
 }
 
-// A different selected card is a different video; a request with no context keeps the key it always had.
+// A different selected card is a different video; a request with no context keeps the key it always had. Each approved
+// proposal version is its own video (MOT-20): the same words proposed again make a new one.
 export async function motionRequestCacheKey(input) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}`));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}${input.proposal ? `|proposal ${input.proposal.proposal_id} v${input.proposal.version}` : ''}`));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -146,7 +155,8 @@ export class MotionRequestProvider {
   // spend: the admitted hold ({opId, grant}); opId is the idempotency key, so a resend finds the job it started.
   // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
   async submit(input, spend, repository = null, timeoutMs = 20000) {
-    const response = await this.request('/jobs', { method: 'POST', timeoutMs, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+    // approved_proposal (MOT-20): the Director keeps its title, duration and scope.
+    const response = await this.request('/jobs', { method: 'POST', timeoutMs, body: { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), ...(input.proposal ? { approved_proposal: approvedProposal(input.proposal) } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);

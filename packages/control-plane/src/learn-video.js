@@ -3,6 +3,7 @@ import { validateVideo, videoCacheKey } from './learn-video-schema.js';
 import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
+import { MOTION_PAUSED, motionPaused, verifyProposal } from './generation-proposal.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
@@ -39,8 +40,7 @@ const MOTION_MIN_POST_MS = 2000;
 const SLOW = 'The Motion service was too slow to answer. Nothing was started; generate it again.';
 // Owner message 28: new Motion generation is paused (MOTION_GENERATION_PAUSED "1") until MOT-06/07 are fixed. Nothing new starts or
 // is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
-export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
-const motionPaused = env => env.MOTION_GENERATION_PAUSED === '1';
+export { MOTION_PAUSED };
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
 export async function videoFetch(req, env) {
@@ -175,12 +175,21 @@ export class LearnVideos {
         // compiler renders again instead of serving a stale animation.
         const version = maths ? await provider.workerVersion() : provider.version;
         const key = maths ? await mathCacheKey(input.spec, version) : motion ? await motionCacheKey(input) : motionRequest ? await motionRequestCacheKey(input) : await videoCacheKey(input, version);
+        // MOT-20: an approved proposal is one the worker signed for this learner, unexpired (generation-proposal.js), before any hold.
+        if (input.proposal) {
+          const proposalRefused = await verifyProposal(this.env, input.proposal, usageContext(usageFromForwarded(this.env, req, 'video'))?.identity?.email);
+          if (proposalRefused) return json({ error: proposalRefused, code: 'proposal_refused' }, 409);
+        }
         let job = await this.state.storage.get(`job:${key}`);
         if (!job || (body.retry === true && job.status === 'failed' && !job.uncertain)) {
           const all = await this.state.storage.list({ prefix: 'job:' });
           if ([...all.values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (all.size >= 100 && !job) throw new Error('This preview has reached its saved video limit');
           if (job && needsSettling(job)) return json({ error: 'The stopped video is still finishing. Try again in a moment.' }, 409);
+          // One video per proposal: its first Generate owns it (a retry of that video is the same key); another version is refused.
+          const owner = input.proposal && await this.state.storage.get(`proposal:${input.proposal.proposal_id}`);
+          if (owner && owner !== key) return json({ error: 'This proposal already made a video. Ask for a new version in chat to make another.', code: 'proposal_used' }, 409);
+          if (input.proposal && !owner) await this.state.storage.put(`proposal:${input.proposal.proposal_id}`, key);
           // A retry of the same Motion job spends from the same ceiling: what earlier attempts used (or may have used) carries over.
           job = { key, input, status: 'generating', startedAt: Date.now(), version, provider: maths ? 'manim' : motion ? 'motion' : motionRequest ? 'motion_request' : this.env.LEARN_VIDEO_PROVIDER, ...(motionRequest ? { consumedMicros: job?.consumedMicros || 0 } : {}) };
           // A Manim render is platform-funded rendering (owner 5A decision C, 2026-10-21: 'render', apart from the learner's

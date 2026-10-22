@@ -70,11 +70,12 @@ export const DIRECTOR_SYSTEM = [
   'visual_direction is semantic: what the motion reveals (transformation, sequence, cause) and how the viewer\'s visual focus should move. Do not name renderers, libraries, React, HTML or CSS, and do not plan frames.',
   'narration_policy: none for 5-second videos; none or one_line up to 15 seconds; none, one_line or concise for 20 to 30 seconds.',
   'audience_context describes where the learner is (lesson, concept, what they have seen), never a judgement of the learner.',
+  'Approved proposal: when the context has approved_proposal, the learner approved that title, duration and description before generating. They are binding: use the title exactly, keep the duration, and teach what the description says, in its order, without changing its scope. Add only the internal detail (claims, must_show, must_not_claim, visual direction).',
   'Submit the contract by calling motion_brief exactly once.',
 ].join('\n\n');
 
 // The Director's view of the turn: the interpretation, the fixed duration and the evidence pack.
-export function directorContext(turn, grounding, decision) {
+export function directorContext(turn, grounding, decision, approved = null) {
   const excerpt = new Map(grounding.evidence.map(e => [e.source_ref_id, e.excerpt]));
   return {
     learner_turn: {
@@ -85,6 +86,7 @@ export function directorContext(turn, grounding, decision) {
       current_location: turn.current_location,
     },
     duration: { seconds: decision.duration.seconds, decision: decision.line },
+    ...(approved ? { approved_proposal: approved } : {}),
     resolved_target: grounding.resolved_target,
     evidence_pack: {
       source_refs: grounding.source_refs.map(r => ({ id: r.id, role: r.role, where: r.path ? `${r.repository}@${r.commit.slice(0, 7)} ${r.path}:${r.start_line}-${r.end_line}` : `card ${r.card_id}`, condition_ids: r.condition_ids, excerpt: excerpt.get(r.id) })),
@@ -236,12 +238,14 @@ export function callRecord(role, model, message, latencyMs) {
 
 // The Director stage. call(env, body, model) is ask.js anthropic() (or a test double).
 // -> { status: 'brief' | 'needs_clarification' | 'failed', ... } with every call recorded.
-export async function runDirector({ turn, grounding, call, env = {}, effort = 'high', now = () => new Date(), clock = () => Date.now() }) {
+// approved (MOT-20): the learner's approved proposal. Its duration is the decision and its title the brief's (the harness sets
+// both, never the model); the Director keeps its scope (DIRECTOR_SYSTEM).
+export async function runDirector({ turn, grounding, call, env = {}, effort = 'high', now = () => new Date(), clock = () => Date.now(), approved = null }) {
   if (!['grounded', 'ungrounded'].includes(grounding.status)) return { status: 'needs_clarification', clarification: grounding.clarification, grounding_status: grounding.status, calls: [], format_retries: [] };
   const role = MODEL_ROLES.director;
   const model = resolveRole(role, env);
-  const decision = durationDecision(turn.structured_interpretation.request_text);
-  const body = directorRequest(directorContext(turn, grounding, decision), { effort });
+  const decision = durationDecision(approved ? `${approved.duration_seconds}s` : turn.structured_interpretation.request_text);
+  const body = directorRequest(directorContext(turn, grounding, decision, approved), { effort });
   const job = { round: 0, format_retries: [] }; // the brief stage's one schema-only re-ask (contracts.js afterMalformed)
   const calls = [];
   const fail = (error, detail, extra = {}) => ({ status: 'failed', error, detail, decision_line: decision.line, calls, format_retries: job.format_retries, ...extra });
@@ -259,7 +263,7 @@ export async function runDirector({ turn, grounding, call, env = {}, effort = 'h
     const use = (message.content || []).find(b => b.type === 'tool_use' && b.name === DIRECTOR_TOOL.name);
     const errors = use ? validateDirectorOutput(use.input, { ungrounded: grounding.status === 'ungrounded' }) : [`no ${DIRECTOR_TOOL.name} call (stop_reason ${message.stop_reason})`];
     if (!errors.length) {
-      const brief = assembleBrief({ turn, grounding, output: use.input, decision, now: now() });
+      const brief = assembleBrief({ turn, grounding, output: approved ? { ...use.input, title: approved.title } : use.input, decision, now: now() });
       // Contract or grounding failures are not formatting: no re-ask can fix an unsupported claim.
       const invalid = [...validateBrief(brief), ...groundingErrors(brief, grounding, turn)];
       if (invalid.length) return fail('invalid_brief', `${invalid.length} contract or grounding error(s)`, { errors: invalid, brief });

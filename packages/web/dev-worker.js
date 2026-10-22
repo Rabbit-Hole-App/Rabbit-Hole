@@ -11,6 +11,7 @@ import { canvasesFetch, canvasRoute, ownerCanvases, refuseCanvasAsk, refuseLiveL
 import { libraryTrashFetch, libraryTrashRoute } from '../control-plane/src/library-trash.js';
 import { chatMessageFetch, chatMessageRoute } from '../control-plane/src/chat-message-routes.js';
 import { chatSyllabusFetch } from '../control-plane/src/chat-syllabus-route.js';
+import { chatProposalFetch } from '../control-plane/src/chat-proposal-route.js';
 import { chatOutputsFetch } from '../control-plane/src/chat-outputs-route.js';
 import { libraryFoldersFetch, libraryFoldersRoute } from '../control-plane/src/library-folders.js';
 export { RepositoryImports } from '../control-plane/src/repositories.js';
@@ -136,6 +137,7 @@ const routes = {
     if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);
     if (chatMessageRoute(path)) return chatMessageFetch(req, env); // the answer footer's thumbs and alternatives (chat-message-routes.js)
     { const syllabus = await chatSyllabusFetch(req, env); if (syllabus) return syllabus; } // a Tutor syllabus edit (chat-syllabus-route.js); null for any other path
+    { const proposal = await chatProposalFetch(req, env); if (proposal) return proposal; } // a proposal card's settings (chat-proposal-route.js); null for any other path
     { const outputs = await chatOutputsFetch(req, env); if (outputs) return outputs; } // a Chat prompt's cards (chat-outputs-route.js); null for any other path
     // Settings > Profile: the person's own name and picture (LEARN_DB user_profiles).
     if (profileRoute(new URL(req.url))) return profileFetch(req, env);
