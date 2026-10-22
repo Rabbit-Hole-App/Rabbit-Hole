@@ -36,6 +36,8 @@ export async function runCorpus({ runId, system, cases, inputMode = 'prompt-only
         const ctx = { env, call: (role, request) => callExplainRole(env, role, request, { callModel: shared.callModel }) };
         const flow = await runFlow(record.prompt, { ctx, ledger: shared.ledger, save: (name, value) => rounds.push([name, value]) });
         spec = flow.spec; scene = flow.compiled?.scene || null; critic = flow.review || null;
+        // The reviewed captures (every part of a paged card), so the owner sees more than the default state in generated.png.
+        for (const c of flow.captures || []) rounds.push([`capture-${c.id}.png`, Buffer.from(c.png)]);
         extra = { result: flow.result, accepted: flow.accepted, rounds: flow.rounds, stages: flow.stages, gap: flow.gap, stop: flow.stop };
         if (!scene) error = `${flow.result}${flow.gap ? `: ${JSON.stringify(flow.gap).slice(0, 300)}` : flow.stop ? `: ${flow.stop.reason || flow.stop.rejected}` : ''}`;
       } else {
@@ -59,7 +61,7 @@ export async function runCorpus({ runId, system, cases, inputMode = 'prompt-only
     const { runDir, receipt } = recordRun(record.id, { casesRoot, runId, mode: 'generate', inputMode, prompt, outcome, error,
       generatedPng: outcome === 'ok' ? join(scratch, 'generated.png') : undefined, sceneSpec: spec || undefined, compiledScene: scene || undefined, critic: critic || undefined,
       receipt: { system, costUsd: +costUsd.toFixed(6), calls: calls.length, servedModels: [...new Set(calls.map(c => c.servedModel).filter(Boolean))], elapsedMs: Date.now() - started, humanVerdict: 'pending owner', ...extra, flowResult: extra.result ?? null }, now });
-    for (const [name, value] of rounds) { mkdirSync(join(runDir, 'rounds'), { recursive: true }); writeFileSync(join(runDir, 'rounds', name), typeof value === 'string' ? value : `${JSON.stringify(value, null, 2)}
+    for (const [name, value] of rounds) { mkdirSync(join(runDir, 'rounds'), { recursive: true }); writeFileSync(join(runDir, 'rounds', name), typeof value === 'string' || Buffer.isBuffer(value) ? value : `${JSON.stringify(value, null, 2)}
 `); }
     if (outcome === 'ok') await compose(join(casesRoot, 'cases', record.id, record.reference.file), join(runDir, 'generated.png'), join(runDir, 'comparison.png'), { resultLabel: `${system} ${runId}` });
     const refused = calls.find(c => c.status === 429 || c.status === 529 || (c.status === 400 && /usage limit/i.test(c.error || '')));

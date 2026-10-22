@@ -34,7 +34,7 @@ test('v2 runs record history, a comparison for rendered results, a missing-resul
   const { casesRoot, cases } = corpus();
   const composed = [];
   const out = await runCorpus({ runId: 'v2-pilot', system: 'v2', cases, transport, capUsd: 1, prices: { 'claude-opus-5-5': [4, 20, 0.2] },
-    runFlow: fakeFlow({ 'Explain A.': { result: 'accepted', accepted: true, spec: { v: 1 }, compiled: { scene }, review: { accepted: true }, stages: [], rounds: 0 },
+    runFlow: fakeFlow({ 'Explain A.': { result: 'accepted', accepted: true, spec: { v: 1 }, compiled: { scene }, review: { accepted: true }, stages: [], rounds: 0, captures: [{ id: 'p1-light-r0', png: png(5, 5, 3) }] },
       'Explain B.': { result: 'repair_stopped', accepted: false, spec: { v: 1 }, compiled: null, stop: { reason: 'needs a pager' }, stages: [], rounds: 3 } }),
     callExplainRole, render: async () => png(20, 20, 9), compose: async (ref, gen, outPath) => { composed.push(outPath); writeFileSync(outPath, 'x'); }, casesRoot });
   const [a, b] = out.rows;
@@ -51,6 +51,7 @@ test('v2 runs record history, a comparison for rendered results, a missing-resul
   assert.deepEqual(JSON.parse(readFileSync(join(runA, 'rounds', 'spec-r0.json'), 'utf8')), { v: 1, prompt: 'Explain A.' }, 'every round is kept with the run');
   assert.equal(existsSync(join(casesRoot, 'cases', cases[1].id, 'generated', 'history', 'v2-pilot', 'generated.png')), false);
   assert.equal(receipt.flowResult, 'accepted');
+  assert.deepEqual(readFileSync(join(runA, 'rounds', 'capture-p1-light-r0.png')), png(5, 5, 3), 'every reviewed capture is kept with the run');
   const html = readFileSync(join(casesRoot, 'index.html'), 'utf8');
   assert.match(html, /verdict pending owner/);
   assert.match(html, /flow accepted · model review accepted · 1 calls/);
