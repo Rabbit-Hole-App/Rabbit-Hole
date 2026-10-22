@@ -79,6 +79,24 @@ export function trimOutputs(ipynb) {
   return { ...ipynb, cells };
 }
 
+// The frame reports its notebook as JupyterLab's toJSON, in another key order than the card's copy (@jupyter/ydoc
+// YNotebook.toJSON: metadata, nbformat_minor, nbformat, cells), and the kernel writes language_info and kernelspec when
+// it starts. Neither is an edit, so neither may change the board: copying them on open made a device that only opened
+// the canvas save it, and the other device's next edit a 409 (cross-device-report.md, gate 39735737303).
+// shortcut: an edit to only language_info or kernelspec is not copied onto the card; it goes with the next real edit.
+const sorted = value => (Array.isArray(value) ? value.map(sorted)
+  : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, sorted(value[key])])) : value);
+const canonical = ipynb => { const { language_info, kernelspec, ...metadata } = ipynb?.metadata || {}; return JSON.stringify(sorted({ ...ipynb, metadata })); };
+export const sameNotebook = (a, b) => canonical(a) === canonical(b);
+
+// What a notebook document reported by the frame changes on its card: { ipynb_path, ipynb }, or null for nothing (not
+// the open notebook, or the card already holds this document).
+export function notebookWriteBack(block, path, ipynb) {
+  if (path !== activePath(block)) return null;
+  if (path === ipynbPath(block) && sameNotebook(block.ipynb, ipynb)) return null;
+  return { ipynb_path: path, ipynb };
+}
+
 // What the tutor is told: the workspace's shape, never file contents.
 export function describeNotebook(block) {
   const active = activePath(block);

@@ -45,7 +45,7 @@ import { PROMPT_ROW_H } from './card-prompt.js';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
-import { activePath, newNotebookBlock, notebookFromCode } from './learn-notebook.js';
+import { activePath, newNotebookBlock, notebookFromCode, notebookWriteBack } from './learn-notebook.js';
 import { paletteSections, insertName } from './learn-insert-palette.js';
 import { SIDES, shapeBox, sidePoint, nearestSide, routePath, polylineMid, freeElbow } from './learn-connectors.js';
 import { ComposerHide, DOCK_PAD, DOCK_WIDTH } from './ChatComposer.jsx';
@@ -829,7 +829,7 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
     save({ active_path, files });
   };
   // Only the open notebook's document is copied onto the card.
-  const copyNotebook = (path, ipynb) => { if (path === activePath(latest.current)) save({ ipynb_path: path, ipynb }); };
+  const copyNotebook = (path, ipynb) => { const patch = notebookWriteBack(latest.current, path, ipynb); if (patch) save(patch); };
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={640} height={block.h || 540} autoMax={undefined} saved={{ w: block.w, h: block.h }}
