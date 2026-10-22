@@ -212,15 +212,14 @@ for (const theme of ['light', 'dark']) {
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
     assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
-    // Owner message 25: the reservation is the server's amount. This stack's worker has no orchestrator, so it returns none, and
-    // the confirmation names no amount of its own (the MOCKED steps below return one).
-    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves part of your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
-    assert.doesNotMatch(await notice.innerText(), /\$\d/);
-    // Owner message 25: the confirmation reads the server's reservation (a GET of the video list) before Generate; nothing else
+    // Owner message 30 (replacing message 25's wording): the plain paid-generation line, no amount or reservation sentence.
+    assert.match(await notice.innerText(), /This uses paid generation\./);
+    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered/i);
+    // The confirmation still reads the video list (a GET) before Generate, for the pause (owner message 28); nothing else
     // may reach the video route (a saved card's clip may load meanwhile, a GET of its asset).
     const reads = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method === 'GET' && !r.query.includes('asset='));
     const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET');
-    assert.ok(reads().length >= 1, 'the confirmation read the reservation from the server');
+    assert.ok(reads().length >= 1, 'the confirmation read the video list from the server');
     assert.equal(asked().length, 0, 'nothing asked of the video route before Generate');
     await notice.screenshot({ path: `${OUT}/${theme}-03-confirm.png` });
     await dock.locator('[data-paid-cancel]').click();
@@ -239,7 +238,7 @@ for (const theme of ['light', 'dark']) {
     if (url.searchParams.get('asset')) return route.fulfill({ body: CLIP_BYTES, headers: { 'content-type': 'video/mp4', 'accept-ranges': 'bytes' } });
     // New generation paused on the server (MOCKED, owner message 28): the list says so and the start is refused.
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
-    // The server's reservation (MOCKED): the amount for a new job, and this job's hold as it runs, waits on its cost, or is released.
+    // The server's reservation (MOCKED): still in the API (internal only, owner message 30); the card must never show it.
     const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
@@ -254,15 +253,18 @@ for (const theme of ['light', 'dark']) {
     const posts = videoPosts().length;
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
-    // Before confirmation: the amount the server returned (MOCKED 8.96), never one of the browser's own.
-    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves \$8\.96 from your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
+    // Owner message 30: the server returned an amount (MOCKED 8.96), and the confirmation still shows none of it.
+    assert.match(await notice.innerText(), /This uses paid generation\./);
+    assert.doesNotMatch(await notice.innerText(), /\$\d|reserv|Rendering is covered/i);
     await dock.locator('[data-paid-generate]').click();
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
-    // While it runs: the reserved amount stays visible on the card.
-    await card.locator('[data-video-hold="reserved"]').waitFor({ timeout: 10000 });
-    assert.equal(await card.locator('[data-video-hold="reserved"]').innerText(), '$8.96 of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.');
+    // While it runs (after a poll that carried the MOCKED hold): no amount or reservation line on the card (owner message 30).
+    for (let i = 0; i < 100 && stub.polls < 1; i++) await page.waitForTimeout(100);
+    assert.ok(stub.polls >= 1, 'the card polled its job');
+    assert.equal(await card.locator('[data-video-hold]').count(), 0, 'no hold line');
+    assert.doesNotMatch(await card.innerText(), /\$\d|reserv/i);
     stub.held = false;
     await page.waitForTimeout(600);
     await shot('04-generating');
@@ -289,8 +291,9 @@ for (const theme of ['light', 'dark']) {
     const mine = page.locator('[data-block-id]', { hasText: 'still blocking after the repair round: blank_frame' });
     await mine.waitFor({ timeout: 20000 });
     assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
-    // Its final cost is not confirmed yet (MOCKED pending): the card says reconciliation is pending.
-    assert.equal(await mine.locator('[data-video-hold="pending"]').innerText(), 'Reconciliation pending: the $8.96 reservation stays until the final cost is confirmed.');
+    // Its final cost is not confirmed yet (MOCKED pending), and the card still shows no amount or reservation (owner message 30).
+    assert.equal(await mine.locator('[data-video-hold]').count(), 0, 'no hold line');
+    assert.doesNotMatch(await mine.innerText(), /\$\d|reserv|Reconciliation/i);
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });
