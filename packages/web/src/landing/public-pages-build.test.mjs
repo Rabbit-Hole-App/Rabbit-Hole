@@ -10,7 +10,8 @@ const inputs = async (env, tag) => {
   try { return (await import(`../../vite.config.js?${tag}`)).default.build.rolldownOptions?.input; }
   finally { process.env = saved; }
 };
-const PAGES = ['app', 'landing', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support', 'docs'];
+// render: the /explain review render entry (render/scene.html, EXP-T18), loaded only by explain-render.js.
+const PAGES = ['app', 'landing', 'blog', 'features', 'pricing', 'manifesto', 'auth', 'team', 'support', 'docs', 'render'];
 
 test('a build without VITE_COACHING_DEV still emits Landing, the auth page and the support/docs pages', async () => {
   const input = await inputs({}, 'plain');

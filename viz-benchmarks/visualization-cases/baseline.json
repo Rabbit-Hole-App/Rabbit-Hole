@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "frozenAt": "2026-10-22T08:53:34.108Z",
+  "systemSha": "6f0b7a3e47e53d62e0f2f8429dc87b36605024b4",
+  "modelPolicy": {
+    "role": "artifact",
+    "provider": "plan",
+    "model": "claude-opus-5",
+    "picker": false,
+    "fallback": "none",
+    "thinking": "model default",
+    "toolChoice": "any",
+    "maxTokens": 4000,
+    "repairs": 1,
+    "verifier": "on (LEARN_SCENE_VERIFIER unset)",
+    "command": "/explain"
+  },
+  "renderer": "packages/web/render/scene.html via explain-render.js renderStates (e2e/viz-benchmark-capture.mjs locally)",
+  "files": {
+    "packages/control-plane/src/learn-artifact.js": "c34d5742be5ae61a311cda16a73b6b564c691be103c86ebff63e6ac45c80b1fd",
+    "packages/control-plane/src/agents/learn-artifact.js": "165e60b8ff088a04d30c1d9fdbe9f108b22b260f05d2562781eccfe072ed3c6d",
+    "packages/control-plane/src/agents/learn-scene-author.js": "71059467199b110434f49c9641a8a392f09fb7d654a352e01dbca96ed6d4ecaf",
+    "packages/control-plane/src/agents/learn-scene-verify.js": "cf1e4aa408b8784f67743d4920ee7a15f797e73052237eafc1ee451eacc8f931",
+    "packages/control-plane/src/learn-scene-gates.js": "c0592c6889942d6ac0a4943291c193b155e19b8e7c2de4c48d0d296cd84dcee1",
+    "packages/control-plane/src/learn-primitives.js": "b015cc5a77f35526dba5ffc3364f9de84c5e7662431f3d1ff336eb81a18a6095",
+    "packages/control-plane/src/learn-models.js": "4b4d48f8f5ab697ec3d85aacc416c49177c6832d8d44c91b9ba26a14ed1d7a56",
+    "packages/web/src/agent/slash.js": "2f7335fbe14c9f1923392bdc1c2075ff28a8f9e5cce1d106fbc127f7557dc540",
+    "packages/web/src/animation-scene.js": "a599d07403a415806e0ab8fad823ab16ae04f87bfc8659c9a8d165f19cedf57f",
+    "packages/web/src/AnimatedScene.jsx": "fd8cd757d8c2c0ea6dfbbef3eb52f20b6874a5f06758f94e1c820f3179ab35d7",
+    "packages/web/src/scene-layout.js": "c4d54e8d7e9ce960f82a07431168500a7a901f54f1c46dd1dc2436c31def563c",
+    "packages/web/src/scene-style.js": "cf8a973157ebb9e9cddee49bd17924b539b785af0537ff8988197027985ab90f",
+    "packages/web/render/render-scene.jsx": "01de346ae3a2c6b47a848d25d837dc2cc4e92c756df181d31f58f05f28343bcc",
+    "packages/control-plane/src/explain-render.js": "98a563bc363b1676be2e003f6da0bc471d38f152dca1da7d87b3ece68e9b0f16"
+  },
+  "disclosure": "Historical providers are not replayed: this is the system at systemSha with whatever model the provider serves for the requested id today; served ids are recorded per call."
+}

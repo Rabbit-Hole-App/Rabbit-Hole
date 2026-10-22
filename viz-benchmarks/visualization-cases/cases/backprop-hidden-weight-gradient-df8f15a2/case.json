@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "id": "backprop-hidden-weight-gradient-df8f15a2",
+  "title": "Backpropagation: gradient for a hidden-layer weight",
+  "prompt": "Explain how backpropagation computes the gradient of the loss with respect to a first hidden-layer weight in a small two-layer network.",
+  "figureKind": "network-graph-with-formula",
+  "nonGoals": [
+    "book figure caption"
+  ],
+  "family": "gradient-math",
+  "lineage": "backprop-chain-rule",
+  "split": "example",
+  "exposure": "unseen",
+  "reuseEligible": false,
+  "generationReady": true,
+  "reference": {
+    "file": "reference/backprop-hidden-weight-gradient.webp",
+    "sha256": "df8f15a2939d2c6fa8539f5e122a7607327b9fdd7dc6b07c39a903fcad154fc2",
+    "bytes": 21826,
+    "format": "webp",
+    "width": 632,
+    "height": 259,
+    "originalName": "backprop.webp",
+    "multiPanel": false
+  },
+  "acceptance": [],
+  "runs": "generated/history"
+}
