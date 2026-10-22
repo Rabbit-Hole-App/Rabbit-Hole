@@ -6,7 +6,7 @@ import { flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, Scissors, ClipboardPaste, Pipette, PaintRoller, BringToFront, SendToBack, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, ArrowDownToLine, BookOpen, BoxSelect, CircleCheck, Copy, CopyPlus, ExternalLink, Eye, Group, Link2, MessageSquarePlus, NotebookPen, Play, Trash2, Ungroup, Unlink, ZoomIn, Sigma, Wand, ScrollText, UnfoldVertical, Check, PencilLine } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
-import { renamable, renameBlock } from './card-rename.js';
+import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-rename.js';
 import './card-layout.css';
 import { IconBtn, MenuItem, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
@@ -1474,13 +1474,16 @@ const GROUP_PAD = 12, GROUP_CHIP = 28;
 function GroupChip({ group, onSelect, onLabel, editOn = false }) {
   const [editing, setEditing] = useState(false);
   const body = useRef(null);
+  const chip = useRef(null);
+  const cancelled = useRef(false);
   useEffect(() => {
     if (!editing) return;
-    // Caret at the END of the existing name, so editing means editing - not
-    // typing in front of it. rAF outruns the double-click's own selection.
+    // Caret at the END of the shown name (owner 2026-10-21: after the p in "Group"), so editing means editing - not
+    // typing in front of it. An unnamed group shows the default name as its text. rAF outruns the double-click's own selection.
     requestAnimationFrame(() => {
       const node = body.current;
       if (!node) return;
+      node.textContent = groupEditText(group.label);
       node.focus();
       const range = document.createRange();
       range.selectNodeContents(node);
@@ -1491,13 +1494,23 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
     });
   }, [editing]);
   useEffect(() => { if (editOn) setEditing(true); }, [editOn]);
+  // Enter saves and Escape cancels, then focus goes back to the chip; blur (a click elsewhere) saves.
+  const finish = cancel => { cancelled.current = cancel; body.current?.blur(); chip.current?.focus(); };
   return (
-    <div data-group-chip={group.id}
-      className="flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-ink-2 shadow-sm backdrop-blur-sm hover:text-ink"
+    <div ref={chip} tabIndex={-1} data-group-chip={group.id}
+      className="flex cursor-pointer items-center rounded-md border border-line bg-white/90 px-1.5 py-0.5 text-[11px] whitespace-nowrap text-ink-2 shadow-sm backdrop-blur-sm outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent"
       onPointerDown={event => { event.stopPropagation(); if (!editing) onSelect(); }}
       onDoubleClick={() => setEditing(true)}>
       <div ref={body} contentEditable={editing} suppressContentEditableWarning data-placeholder="Group"
-        onBlur={event => { setEditing(false); onLabel(event.currentTarget.textContent.trim().slice(0, 60)); }}
+        onKeyDown={event => { if (!editing) return; event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); finish(false); } else if (event.key === 'Escape') { event.preventDefault(); finish(true); } }}
+        onBlur={event => {
+          const cancel = cancelled.current;
+          cancelled.current = false;
+          setEditing(false);
+          const label = cancel ? group.label || '' : groupLabelFrom(group.label, event.currentTarget.textContent);
+          event.currentTarget.textContent = label;
+          onLabel(cancel ? null : label);
+        }}
         className="min-w-6 outline-none empty:before:opacity-60 empty:before:content-[attr(data-placeholder)]">{group.label}</div>
     </div>
   );
@@ -5403,7 +5416,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               <div style={{ left: left - pad, top: top - pad - GROUP_CHIP }} className="absolute z-20 flex items-center gap-1">
                 <GroupChip group={group} editOn={chipEdit === group.id}
                   onSelect={() => setSelection(membersOf(group.id))}
-                  onLabel={label => { setChipEdit(null); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
+                  onLabel={label => { setChipEdit(null); if (label === null || label === (group.label || '')) return; snapshot(); setGroups(previous => previous.map(entry => entry.id === group.id ? { ...entry, label } : entry)); }} />
                 {portal && <button type="button" data-dive-portal={portal.name} title={`Enter the Rabbit Hole: ${portal.title}`} onPointerDown={event => event.stopPropagation()} onClick={() => divePortals.enter(portal.name)}
                   className={`pointer-events-auto flex max-w-60 items-center gap-1 rounded-sm border bg-white px-2 py-0.5 text-[11px] text-hole shadow-sm hover:bg-hole/10 ${portal.pending ? 'border-dashed border-hole-pending' : 'border-hole/40'}`}>
                   <svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter" className="shrink-0"><path d="M6 1.5V10M2.5 6.5 6 10l3.5-3.5" /></svg><span className="truncate">{portal.title}</span></button>}
@@ -5548,7 +5561,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               <div className="my-1 h-px bg-line" />
               <MenuRow icon={Group} disabled={selection.length < 2} onClick={act(groupSelection)}>Group</MenuRow>
               <MenuRow icon={Ungroup} disabled={!grouped.length} onClick={act(ungroupSelection)}>Ungroup</MenuRow>
-              <MenuRow icon={Pencil} disabled={!grouped.length} onClick={act(() => setChipEdit(grouped[0]))}>Rename group</MenuRow>
+              {menuAt.group && !block ? <MenuRow icon={PencilLine} data-menu-rename-group onClick={act(() => setChipEdit(menuAt.group))}>Rename</MenuRow>
+                : <MenuRow icon={Pencil} disabled={!grouped.length} onClick={act(() => setChipEdit(grouped[0]))}>Rename group</MenuRow>}
               <div className="my-1 h-px bg-line" />
               <MenuRow icon={BoxSelect} onClick={act(selectAll)}>Select all</MenuRow>
               <MenuRow icon={Trash2} disabled={!selection.length} onClick={act(deleteSelection)}>Delete</MenuRow>

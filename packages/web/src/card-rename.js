@@ -9,3 +9,10 @@ export function renameBlock(blocks, id, text) {
   if (!title || !renamable(target) || target.title === title) return blocks;
   return blocks.map(block => (block.id === id ? { ...block, title } : block));
 }
+
+// A group's name (owner, 2026-10-21): the editor opens on the shown name, the default "Group" when it has none, with the
+// caret at its end (after the p), so typing "s" gives "Groups".
+export const GROUP_NAME = 'Group';
+export const groupEditText = label => label || GROUP_NAME;
+// Trimmed and at most 60 characters; an empty name keeps the old one.
+export const groupLabelFrom = (old, text) => String(text ?? '').trim().slice(0, 60) || old || '';

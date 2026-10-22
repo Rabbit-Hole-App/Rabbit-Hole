@@ -24,3 +24,20 @@ test('the renamed title survives a JSON round trip of the doc', () => {
   const saved = JSON.parse(JSON.stringify({ blocks: renameBlock(blocks, 'a', 'Kept') }));
   assert.equal(saved.blocks[0].title, 'Kept');
 });
+
+test('a group editor opens on the shown name with the caret at its end', async () => {
+  const { groupEditText } = await import('./card-rename.js');
+  const text = groupEditText('');
+  assert.equal(text, 'Group');
+  // The caret is collapsed to the end, so typing appends: "Group" + "s".
+  assert.equal(text.slice(0, text.length) + 's', 'Groups');
+  assert.equal(groupEditText('Tides'), 'Tides');
+});
+
+test('a group name is trimmed, capped, and an empty one keeps the old name', async () => {
+  const { groupLabelFrom } = await import('./card-rename.js');
+  assert.equal(groupLabelFrom('Old', '  New  '), 'New');
+  assert.equal(groupLabelFrom('Old', '   '), 'Old');
+  assert.equal(groupLabelFrom('', ''), '');
+  assert.equal(groupLabelFrom('Old', 'x'.repeat(80)).length, 60);
+});

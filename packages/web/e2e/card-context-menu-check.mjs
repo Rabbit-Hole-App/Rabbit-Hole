@@ -28,8 +28,10 @@ const BLOCKS = [
   { id: 'm-q', type: 'quiz', dx: 0, dy: 0, question: 'How many tidal bulges does Earth have?', options: [{ key: 'A', text: 'Two', correct: true }, { key: 'B', text: 'One' }], why: 'One faces the moon, one is opposite.' },
 ];
 // A sticky note: the editable object the menu must leave alone.
-const ITEMS = [{ id: 'n-1', kind: 'sticky', x: 1060, y: 140, text: 'Tide note', color: 'yellow' }];
-const STATE = { strokes: [], shapes: [], items: ITEMS, links: [], groups: [], areas: [], exchanges: [], blocks: BLOCKS };
+const ITEMS = [{ id: 'n-1', kind: 'sticky', x: 1060, y: 140, text: 'Tide note', color: 'yellow' },
+  // A group of two stickies for Rename on a group (owner, 2026-10-21).
+  { id: 'n-2', kind: 'sticky', x: 1060, y: 460, text: 'Ebb', color: 'blue', groupId: 'g-1' }, { id: 'n-3', kind: 'sticky', x: 1300, y: 460, text: 'Flow', color: 'blue', groupId: 'g-1' }];
+const STATE = { strokes: [], shapes: [], items: ITEMS, links: [], groups: [{ id: 'g-1', label: 'Tide notes' }], areas: [], exchanges: [], blocks: BLOCKS };
 const canvas = (await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Tides ${run}` }) })).body;
 const catalog = (await api(owner, '/api/apps')).body;
 const SEEDS = { [`small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`]: STATE };
@@ -303,6 +305,29 @@ await check('2b Rename (owner, 2026-10-21): right-click, Rename, type, Enter sav
 });
 await shot('01b-card-renamed');
 
+await check('2c Rename a group (owner, 2026-10-21): right-click its chip, Rename, the caret at the end, Enter saves and survives a reload; Escape cancels', async () => {
+  const chip = page.locator('[data-group-chip="g-1"]');
+  const rename = () => menu().locator('[data-menu-rename-group]');
+  await chip.click({ button: 'right' }); await menu().waitFor();
+  assert.equal((await rename().innerText()).trim(), 'Rename');
+  await rename().click();
+  await page.waitForTimeout(250);
+  await page.keyboard.type(' 2');
+  await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.activeElement?.dataset?.groupChip === 'g-1', null, { timeout: 3000 });
+  assert.equal((await chip.textContent()).trim(), 'Tide notes 2', 'typed at the end of the name');
+  await page.waitForTimeout(1500);
+  await page.reload(); await page.waitForSelector('[data-group-chip="g-1"]', { timeout: 60000 }); await page.waitForTimeout(1200);
+  assert.equal((await chip.textContent()).trim(), 'Tide notes 2', 'kept after a reload');
+  await chip.click({ button: 'right' }); await menu().waitFor();
+  await rename().click();
+  await page.waitForTimeout(250);
+  await page.keyboard.type(' not kept');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  assert.equal((await chip.textContent()).trim(), 'Tide notes 2', 'Escape cancels');
+});
+
 // ---- a view-only board: the viewer's own private Rabbit Hole, from the right-clicked card ----
 const shared = (await api(owner, `/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: STATE }) })).body;
 const token = shared.sharing.view;
@@ -321,7 +346,7 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
   // View-only edits nothing: Start Rabbit Hole is the only item (no Duplicate, Group, Select all or Delete).
   assert.deepEqual((await menu().locator('[role="menuitem"]').allInnerTexts()).map(text => text.trim()), ['Start Rabbit Hole']);
-  assert.equal(await menu().locator('[data-menu-rename]').count(), 0, 'a viewer never sees Rename');
+  assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group]').count(), 0, 'a viewer never sees Rename');
   await iconsOnEveryItem('a view-only board');
   await shot('04-shared-view-only-menu');
   await startItem().click();
@@ -339,6 +364,6 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
 
 await check('no page errors, no model call', async () => { assert.deepEqual(errors, []); assert.deepEqual(asks, []); });
 await browser.close();
-const total = 13;
+const total = 14;
 console.log(`${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);
