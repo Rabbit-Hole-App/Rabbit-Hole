@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { CONTACT, INTO, anchorAt, anchorText, objectOrigin, pinCount, pinPoint, pinSpot, pinTopCentre } from './anchors.js';
 import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
 import { badgeText, openCount } from './useCanvasComments.js';
-import { COMMON_ACTIONS } from '../canvas-actions.js';
+import { allActions } from '../canvas-actions.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -160,9 +160,9 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(canvas, /\(item && item\.kind !== 'sticky'\) \|\| \(shape && TEXT_BOX\[shape\.kind\]\) \? w : 0/, 'a text box, an equation and a text shape keep their whole top edge for their controls');
   assert.match(read('./CommentPins.jsx'), /pinTopCentre\(box, index, SIZE, GAP\)/, 'every object pin goes through pinTopCentre');
   // UI-25: the menu's rows are the action registry's; Add comment comes right after Start Rabbit Hole, with its C hint.
-  const start = COMMON_ACTIONS.findIndex(entry => entry.id === 'start-rabbit-hole'), comment = COMMON_ACTIONS.findIndex(entry => entry.id === 'add-comment');
-  assert.equal(comment, start + 1, 'a card: right after Start Rabbit Hole');
-  assert.deepEqual([COMMON_ACTIONS[comment].label, COMMON_ACTIONS[comment].icon, COMMON_ACTIONS[comment].hint, COMMON_ACTIONS[comment].group], ['Add comment', 'MessageCircle', 'C', COMMON_ACTIONS[start].group]);
+  const entries = allActions(), start = entries.find(entry => entry.label === 'Start Rabbit Hole'), comment = entries.find(entry => entry.id === 'add-comment');
+  assert.deepEqual([comment.label, comment.icon, comment.hint, comment.group], ['Add comment', 'MessageCircle', 'C', start.group]);
+  assert.ok(start.order < comment.order && !entries.some(entry => entry.group === start.group && entry.order > start.order && entry.order < comment.order), 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
   assert.match(page, /\{comments\.active && <CommentsPanel hidden=\{panelTab !== 'comments'\} \{\.\.\.comments\.panelProps\} \/>\}/);

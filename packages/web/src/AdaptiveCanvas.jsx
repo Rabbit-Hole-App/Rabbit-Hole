@@ -90,6 +90,9 @@ import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { withPressId } from './learn-video-label.js';
 import CanvasMenu from './CanvasMenu.jsx';
 import { actionsFor, legacyCan, resolveTarget as resolveMenuTarget, runAction, selectionTarget } from './canvas-actions.js';
+// S1's one permission model (canvas-permissions.js, contract-permissions.md). ponytail: a glob so this branch builds before
+// S1's module merges; once both are on main this becomes a plain import of { can }.
+const permissionModel = Object.values(import.meta.glob('./canvas-permissions.js', { eager: true }))[0] || null;
 
 // MathLive arrives with the first equation edited, never with the canvas (docs/features/canvas-equations.md).
 const EquationEditor = lazyFeature(() => import('./EquationEditor.jsx'), 'The equation editor');
@@ -1510,7 +1513,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, can = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -5159,10 +5162,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   });
   const portalOf = id => divePortals?.portals?.[id];
   const rabbitHoleHere = !!(divePortals?.open && !readOnly) || !!(readOnly && onStartRabbitHole);
-  // The handler context every row runs with (contract section 7). The permission model is the page's `can` (S1,
-  // canvas-permissions.js) when given, else today's props (legacyCan).
+  // The handler context every row runs with (contract section 7). The permission model is S1's can() with the page's
+  // `permissions` ctx (SharedBoardPage builds it) when given, else today's props (legacyCan).
   const actionCtx = {
-    can: can || legacyCan({ readOnly, comment: !!onAddComment, rabbitHole: rabbitHoleHere }),
+    can: permissions && permissionModel?.can ? capability => permissionModel.can(capability, permissions) : legacyCan({ readOnly, comment: !!onAddComment, rabbitHole: rabbitHoleHere }),
     readOnly,
     familyOf: id => menuObject(id)?.family || null,
     groupOf, locked: id => lockedRef.current.has(id), lockable,
@@ -5199,6 +5202,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       downloadCad: (object, format) => downloadCadArtifact(cadArtifact(object.manifest, format), cadCanMutate(object, readOnly)).catch(problem => toast(problem.message, { tone: 'error' })),
       toggleDone: id => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === id ? { ...entry, done: !entry.done } : entry)); },
       presentFrom: id => presentFrom(id),
+      // A row S1 answers with signIn: the page's sign-in, keeping the draft and selection (false: none here, the reason shows).
+      signIn: onSignIn ? (capability, target) => { onSignIn(capability, target); return true; } : null,
       toast,
     },
   };

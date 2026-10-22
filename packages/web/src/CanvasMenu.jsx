@@ -66,10 +66,9 @@ export default function CanvasMenu({ rows, at, surface, onPick, onClose }) {
       {rows.map(row => {
         if (row.separator) return <div key={row.key} role="separator" className="my-1 h-px bg-line" />;
         const Icon = typeof row.icon === 'string' ? ICONS[row.icon] : row.icon;
-        const dataAttrs = { ...(row.data ? { [row.data]: '' } : {}), ...(row.attrs || {}) };
         const check = row.checked !== null;
         return (
-          <MenuRow key={row.id} icon={Icon} data-action={row.id} {...dataAttrs} disabled={row.disabled} title={row.reason || undefined}
+          <MenuRow key={row.id} icon={Icon} data-action={row.id} {...row.attrs} disabled={row.disabled} title={row.reason || undefined} data-sign-in={row.signIn || undefined}
             role={check ? 'menuitemcheckbox' : 'menuitem'} aria-checked={check ? row.checked : undefined}
             aria-keyshortcuts={row.keyshortcuts || undefined} hint={row.hint || undefined}
             className={`${row.reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}

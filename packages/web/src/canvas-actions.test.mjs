@@ -146,7 +146,7 @@ test('mixed selections show only valid batch actions; single-object rows never a
   const names = labels(multi);
   for (const single of ['Rename', 'Full content', 'Copy LaTeX', 'Open in notebook', 'Mark done']) assert.ok(!names.includes(single), `${single} on a mixed selection`);
   // Start Rabbit Hole stays: it starts from the card right-clicked, never from the first selected one (owner, 2026-10-07).
-  assert.equal(multi.find(row => row.id === 'start-rabbit-hole')?.attrs['data-origin'], 'c1');
+  assert.equal(multi.find(row => row.id === 'card.start-rabbit-hole')?.attrs['data-origin'], 'c1');
   assert.ok(names.includes('Group') && names.includes('Delete') && names.includes('Duplicate'));
   // a per-type row with `types` shows on several objects only when EVERY member has that type
   const off = registerActions([{ id: 'test.batch', label: 'Lesson only', icon: 'Copy', group: 'type', targets: ['multi'], types: ['lesson'], run: () => {} }]);
@@ -162,12 +162,25 @@ test('read-only: a viewer sees Start Rabbit Hole (and Add comment where comments
   assert.deepEqual(labels(actionsFor(resolveTarget(el('div', { 'data-item-id': 'eq' }), model([])), fakeCtx({ readOnly: true, comment: false }).ctx)), [], 'no Rabbit Hole on a non-card');
 });
 
-test('roles through can(): refused rows hide, or show disabled with the reason when the row asks for it', () => {
-  const guest = capability => (capability === 'quick_edit' ? { allowed: false, reason: 'Sign in to use AI' } : { allowed: true });
-  const off = registerActions([{ id: 'test.denied', label: 'Generate', icon: 'Wand', group: 'chat', targets: ['card'], requires: 'quick_edit', denied: 'disable', run: () => {} }]);
-  const rows = actionsFor(selectionTarget(model(['c1'])), fakeCtx({ can: guest }).ctx);
-  assert.equal(rows.find(row => row.label === 'Quick Edit'), undefined, 'hidden by default');
-  assert.deepEqual(['Generate', true, 'Sign in to use AI'], (r => [r.label, r.disabled, r.reason])(rows.find(row => row.label === 'Generate')));
+test('roles through S1 can(): hidden hides, signIn keeps the row and hands over to sign-in, a refusal disables with its reason', () => {
+  const viewer = capability => ({
+    'generate.paid': { allowed: false, reason: 'Fork to generate in your own copy' },
+    'source.write': { allowed: false, hidden: true, reason: 'Owner only' },
+    'canvas.child': { allowed: false, signIn: true, reason: 'Sign in to start a Rabbit Hole' },
+  }[capability] || { allowed: true });
+  const { ctx, calls } = fakeCtx({ can: viewer });
+  ctx.canvas.linkCanvas = () => {};
+  const rows = actionsFor(selectionTarget(model(['c1'])), ctx);
+  const row = id => rows.find(entry => entry.id === id);
+  assert.deepEqual([row('quick-edit').disabled, row('quick-edit').reason], [true, 'Fork to generate in your own copy']);
+  assert.equal(row('link-canvas'), undefined, 'hidden');
+  assert.deepEqual([row('card.start-rabbit-hole').disabled, row('card.start-rabbit-hole').signIn], [false, true]);
+  assert.deepEqual(runAction('card.start-rabbit-hole', selectionTarget(model(['c1'])), ctx), { ran: false, signIn: true, reason: 'Sign in to start a Rabbit Hole' });
+  ctx.canvas.signIn = (capability) => { calls.push(['signIn', capability]); return true; };
+  assert.deepEqual(runAction('card.start-rabbit-hole', selectionTarget(model(['c1'])), ctx), { ran: false, signIn: true, reason: null });
+  assert.deepEqual(calls, [['signIn', 'canvas.child']], 'nothing started, only sign-in');
+  const off = registerActions([{ id: 'test.denied', label: 'Generate', icon: 'Wand', group: 'chat', targets: ['card'], requires: 'generate.paid', denied: 'hide', run: () => {} }]);
+  assert.equal(actionsFor(selectionTarget(model(['c1'])), ctx).find(entry => entry.label === 'Generate'), undefined, 'an entry may ask to hide when refused');
   off();
 });
 
