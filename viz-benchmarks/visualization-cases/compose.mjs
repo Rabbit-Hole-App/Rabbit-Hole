@@ -29,7 +29,7 @@ export function comparisonLayout(left, right) {
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' };
 const dataUrl = path => `data:${MIME[extname(path).toLowerCase()] || 'image/png'};base64,${readFileSync(path).toString('base64')}`;
 
-export async function composeComparison(referencePath, generatedPath, outPath, { resultLabel = 'Result' } = {}) {
+export async function composeComparison(referencePath, generatedPath, outPath, { resultLabel = 'Result', leftLabel = 'Original' } = {}) {
   if (!generatedPath) throw new Error('no result to compare; a failed run keeps its missing-result state');
   const sizes = [referencePath, generatedPath].map(p => imageInfo(readFileSync(p)));
   if (sizes.some(s => !s)) throw new Error('unreadable image header');
@@ -53,7 +53,7 @@ export async function composeComparison(referencePath, generatedPath, outPath, {
         ctx.fillStyle = '#222'; ctx.font = '600 18px sans-serif'; ctx.fillText(labels[i], p.x, p.y - 12);
       }
       return canvas.toDataURL('image/png').split(',')[1];
-    }, { layout, urls: [dataUrl(referencePath), dataUrl(generatedPath)], labels: ['Original', resultLabel] });
+    }, { layout, urls: [dataUrl(referencePath), dataUrl(generatedPath)], labels: [leftLabel, resultLabel] });
     writeFileSync(outPath, Buffer.from(png, 'base64'));
     return { outPath, ...layout };
   } finally { await browser.close(); }

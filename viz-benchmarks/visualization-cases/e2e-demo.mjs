@@ -22,14 +22,10 @@ if (!runId || !prompt || !(cap > 0)) { console.error('usage: node e2e-demo.mjs <
 const out = join(outRoot, runId);
 if (existsSync(out)) throw new Error(`${out} exists`);
 
-const cp = name => import(`../../packages/control-plane/src/${name}`);
-const { authorStage, validateStage } = await cp('explain-author.js');
-const { repairStage } = await cp('explain-repair.js').catch(() => ({ repairStage: null }));
-const { callExplainRole, EXPLAIN_LIMITS } = await cp('explain-policy.js');
-const { MODEL_PRICES } = await cp('learn-models.js');
-const { reviewCaptures } = await cp('explain-review.js');
-const { compiledHash } = await cp('explain-render.js');
+const { callExplainRole } = await import('../../packages/control-plane/src/explain-policy.js');
+const { MODEL_PRICES } = await import('../../packages/control-plane/src/learn-models.js');
 const { captureScene } = await import('../../packages/web/e2e/viz-benchmark-capture.mjs');
+const { runFlow } = await import('./explain-flow.mjs');
 const dist = join(HERE, '..', '..', 'packages', 'web', 'dist-render');
 
 const keys = readKeys(['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID']);
@@ -38,47 +34,12 @@ const { callModel, ledger } = recordingModel(anthropicTransport(keys), { capUsd:
 const ctx = { env, call: (role, request) => callExplainRole(env, role, request, { callModel }) };
 mkdirSync(out, { recursive: true });
 const save = (name, value) => writeFileSync(join(out, name), typeof value === 'string' ? value : JSON.stringify(value, null, 2));
-const stages = [];
+const flow = await runFlow(prompt, { ctx, save, ledger, dist });
+for (const c of flow.captures) writeFileSync(join(out, `${c.id}.png`), c.png);
+const { result, accepted, spec, compiled, review, stages } = flow;
+const job = { round: flow.rounds, gap: flow.gap, stop: flow.stop };
+const authored = {};
 const timed = async (stage, fn) => { const t = Date.now(); try { return await fn(); } finally { stages.push({ stage, ms: Date.now() - t, calls: ledger.calls.length }); } };
-
-const job = { prompt, round: 0, findings: [], captures: [], examples: [], evidence: [] };
-let result = 'unknown';
-const authored = await timed('author', () => authorStage(job, ctx));
-if (authored.gap) result = 'gap';
-let spec = authored.spec || null;
-let compiled = null, accepted = false, review = null;
-while (spec && result === 'unknown') {
-  save(`spec-r${job.round}.json`, spec);
-  const checked = await timed(`validate-r${job.round}`, async () => validateStage({ ...job, spec }));
-  if (checked.gap) { result = 'gap'; job.gap = checked.gap; break; }
-  if (checked.problems) {
-    job.findings.push({ problems: checked.problems });
-    if (!repairStage || job.round >= EXPLAIN_LIMITS.correctionRounds) { result = 'invalid'; break; }
-    const repaired = await timed(`repair-r${job.round + 1}`, () => repairStage({ ...job, spec }, ctx));
-    job.round++;
-    if (!repaired.progress) { result = 'repair_stopped'; job.stop = repaired; break; }
-    spec = repaired.spec;
-    continue;
-  }
-  compiled = checked.compiled;
-  save(`compiled-scene-r${job.round}.json`, compiled.scene);
-  const hash = await compiledHash(compiled.scene);
-  const rendered = await timed(`render-r${job.round}`, () => captureScene(compiled.scene, [{ id: `light-r${job.round}`, theme: 'light' }, { id: `dark-r${job.round}`, theme: 'dark' }], { dist }));
-  for (const c of rendered.captures) writeFileSync(join(out, `${c.id}.png`), c.png);
-  job.captures = rendered.captures.map(c => ({ id: c.id, compiledHash: hash, theme: c.theme, time: c.time, inputs: c.inputs, png: c.png, data: Buffer.from(c.png).toString('base64'), mediaType: 'image/png' }));
-  review = await timed(`review-r${job.round}`, () => reviewCaptures({ request: prompt, compiledHash: hash, captures: job.captures }, { callRole: ctx.call }).catch(error => ({ error: `${error.code || ''} ${error.message}` })));
-  save(`review-r${job.round}.json`, review);
-  if (review.error) { result = 'review_failed'; break; }
-  if (review.accepted) { accepted = true; result = 'accepted'; break; }
-  // Lane C's repair reads target.state as the capture id.
-  const findings = review.captures.flatMap(c => c.findings.map(f => ({ ...f, target: { ...f.target, state: c.captureId } })));
-  job.findings.push({ findings });
-  if (!repairStage || job.round >= EXPLAIN_LIMITS.correctionRounds) { result = 'not_accepted'; break; }
-  const repaired = await timed(`repair-r${job.round + 1}`, () => repairStage({ ...job, spec }, ctx));
-  job.round++;
-  if (!repaired.progress) { result = 'repair_stopped'; job.stop = repaired; break; }
-  spec = repaired.spec;
-}
 
 // Zero-model-call interaction checks on the final compiled scene: each declared input value and step, and save/reload.
 const local = { states: [], saveReload: null, modelCallsDuring: null };
