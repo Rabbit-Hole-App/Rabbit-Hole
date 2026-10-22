@@ -1,12 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { anchorOf, placeBar } from './selection-bar-place.js';
+import { pinTopCentre } from './comments/anchors.js';
 
 const bar = { w: 260, h: 32 }, view = { w: 1200, h: 800 };
 
 test('the bar sits just above the selection, right-aligned to it, never over it', () => {
   const at = placeBar({ left: 300, top: 200, right: 700, bottom: 400 }, bar, view);
-  assert.deepEqual(at, { left: 440, top: 160, side: 'above' });
+  assert.deepEqual(at, { left: 440, top: 148, side: 'above' }); // gap 20 clears a top-centre comment pin (owner, 2026-10-21)
   assert.ok(at.top + bar.h <= 200, 'its bottom edge is above the selection');
 });
 
@@ -40,4 +41,15 @@ test('a selection that fills the view leaves the bar inside the view at the top'
 test('the anchor is the union of the selected boxes, in view pixels', () => {
   assert.equal(anchorOf([], { x: 0, y: 0, z: 1 }), null);
   assert.deepEqual(anchorOf([{ x: 10, y: 20, w: 100, h: 50 }, { x: 200, y: 0, w: 50, h: 40 }], { x: 5, y: 7, z: 2 }), { left: 25, top: 7, right: 505, bottom: 147 });
+});
+
+test('the floating bar never covers a narrow object top-centre comment pin, at zoom 0.2, 1 and 2 (owner, 2026-10-21)', () => {
+  const object = { x: 300, y: 300, w: 120, h: 80 }, SIZE = 30;
+  for (const z of [0.2, 1, 2]) {
+    const anchor = anchorOf([object], { x: 0, y: 0, z });
+    const at = placeBar(anchor, bar, view);
+    const pin = pinTopCentre(anchor, 0, SIZE, 4);
+    const apart = at.top + bar.h <= pin.top || pin.top + SIZE <= at.top || at.left + bar.w <= pin.left || pin.left + SIZE <= at.left;
+    assert.ok(apart, `z=${z}: ${JSON.stringify({ at, pin })}`);
+  }
 });
