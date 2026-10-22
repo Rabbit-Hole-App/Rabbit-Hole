@@ -181,9 +181,15 @@ for (const n of SIZES) {
     const waitFrom = Date.now();
     while (!thumbs.length && Date.now() - waitFrom < 20000) await page.waitForTimeout(100);
     ok(`${n} cards: the first thumbnail is still drawn, in a pause`, thumbs.length > 0, thumbs.length ? `sent ${thumbs[0] - waitFrom} ms after the wait began` : 'none in 20 s');
-    const onScreen = await page.evaluate(() => { const f = [...document.querySelectorAll('[aria-label="Lesson canvas"] [data-webcard-frame]')].map(e => e.getBoundingClientRect())
-      .find(r => { const x = r.x + r.width / 2, y = r.y + r.height / 2; return x > 100 && x < innerWidth - 440 && y > 100 && y < innerHeight - 100 && document.elementFromPoint(x, y)?.closest('[data-webcard-frame]'); });
-      return f && { x: f.x, y: f.y, width: f.width, height: f.height }; });
+    // A point on some card's page, clear of the chat pane, wherever the cards came back to (fast-e2e 39755588357: requiring a
+    // card's centre on screen found none).
+    const onScreen = await page.evaluate(() => {
+      const limit = Math.min(...[...document.querySelectorAll('[data-chat-pane],[data-sources-pane]')].filter(e => e.offsetWidth).map(e => e.getBoundingClientRect().x), innerWidth) - 30;
+      for (let y = 120; y < innerHeight - 120; y += 30) for (let x = 120; x < limit; x += 30) {
+        if (document.elementFromPoint(x, y)?.closest('[data-webcard-frame]')) return { x: x - 1, y: y - 1, width: 2, height: 2 };
+      }
+      return null;
+    });
     let steadyScroll = { fps: 0, p95: 0, worst: 0 };
     if (onScreen) {
       await page.mouse.move(onScreen.x + onScreen.width / 2, onScreen.y + onScreen.height / 2);

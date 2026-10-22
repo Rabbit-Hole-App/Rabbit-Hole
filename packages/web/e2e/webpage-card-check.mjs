@@ -391,9 +391,10 @@ await check('the lock toggle: locked, the wheel pans the canvas and the capture 
     assert.match(String(await part(ID, SEL.lock).getAttribute('aria-label') || await part(ID, SEL.lock).innerText()), /unlock scrolling/i);
     const body = await part(ID, SEL.body).boundingBox(), cam = await camera(), top = await scrollTop(ID);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
-    // 160 px, so the card stays on screen for the unlock below (fast-e2e 39754224406: 4 x 200 px moved the camera 800 px,
-    // the 640 px card went off screen and the unlock click found it outside the viewport).
-    for (let i = 0; i < 4; i += 1) { await page.mouse.wheel(0, 40); await frames(); }
+    // 160 px upward, so the card moves down and its header stays on screen for the unlock below (fast-e2e 39754224406:
+    // 4 x 200 px down moved the camera 800 px and the card off screen; 39755588357: 160 px down still took the header above
+    // the viewport).
+    for (let i = 0; i < 4; i += 1) { await page.mouse.wheel(0, -40); await frames(); }
     await waitFor(async () => await camera() !== cam, 3000, 'locked: the wheel did not pan the canvas');
     assert.equal(await scrollTop(ID), top, 'locked: the capture did not scroll');
     await part(ID, SEL.lock).click();
