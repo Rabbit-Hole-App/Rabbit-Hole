@@ -173,8 +173,13 @@ for (const module of CARDS) {
   // only input is its pager has no INTERACT row and nothing to reset.
   const kept = Object.fromEntries(visible.filter(d => d.presentation === 'pager').map(d => [d.name, current[d.name]]));
   if (visible.some(d => d.presentation !== 'pager')) {
-    await cardOf(scene).locator('[data-scene-controls] [data-scene-reset]').click();
+    // Reset is offered only while a value differs from its default (EXP-T26).
+    const changed = visible.some(d => d.presentation !== 'pager' && JSON.stringify(current[d.name]) !== JSON.stringify(defaults[d.name]));
+    const resets = await cardOf(scene).locator('[data-scene-controls] [data-scene-reset]').count();
+    if (resets !== (changed ? 1 : 0)) throw new Error(`${scene.id}: ${resets} Reset button(s) with values ${changed ? 'changed' : 'at their defaults'}`);
+    if (changed) await cardOf(scene).locator('[data-scene-controls] [data-scene-reset]').click();
     await assertState(cardOf(scene), scene, { ...defaults, ...kept }, 'reset', 'reset');
+    if (await cardOf(scene).locator('[data-scene-controls] [data-scene-reset]').count()) throw new Error(`${scene.id}: Reset still offered after restoring the defaults`);
   }
 
   Object.assign(record, {

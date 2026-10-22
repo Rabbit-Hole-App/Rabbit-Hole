@@ -618,7 +618,7 @@ await check('explain back is judged, not revealed', async () => {
 // the animation engine: deterministic playback, scrub, pause and ask
 await check('animation plays and scrubs', async () => {
   await page.locator('[aria-label="Insert lesson block"]').click();
-  await page.getByRole('menuitem', { name: 'Animation', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Visual explanation', exact: true }).click();
   const node = canvas.locator('[data-block-id]').last();
   await node.getByText('One token, all the way through').waitFor({ timeout: 5000 });
   const drawnAtStart = await node.locator('[data-animation-object]').count();
@@ -627,7 +627,7 @@ await check('animation plays and scrubs', async () => {
   await node.locator('[data-animation-play]').click(); // pause
   const drawnLater = await node.locator('[data-animation-object]').count();
   if (drawnLater <= drawnAtStart) throw new Error(`objects did not appear over time (${drawnAtStart} -> ${drawnLater})`);
-  await node.locator('input[aria-label="Animation time"]').fill('0');
+  await node.locator('input[aria-label="Explanation time"]').fill('0');
   await page.waitForTimeout(400);
   const afterScrub = await node.locator('[data-animation-object]').count();
   if (afterScrub !== drawnAtStart) throw new Error(`scrubbing back is not deterministic (${drawnAtStart} vs ${afterScrub})`);
@@ -635,9 +635,12 @@ await check('animation plays and scrubs', async () => {
 
 await check('replay restarts a finished animation', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  const slider = node.locator('input[aria-label="Animation time"]');
+  const slider = node.locator('input[aria-label="Explanation time"]');
   await slider.fill('13');
-  await node.locator('[data-animation-replay]').click();
+  // One transport (EXP-T26): Play becomes Replay at the end; no second replay button.
+  if (await node.locator('[data-animation-replay]').count()) throw new Error('a second replay button is back');
+  await node.locator('[data-animation-play]').getByText('Replay', { exact: true }).waitFor({ timeout: 3000 });
+  await node.locator('[data-animation-play]').click();
   await page.waitForTimeout(700);
   const now = Number(await slider.inputValue());
   if (!(now > 0.1 && now < 12)) throw new Error(`replay did not restart a finished scene (time ${now}s)`);
@@ -646,7 +649,7 @@ await check('replay restarts a finished animation', async () => {
 
 await check('pausing and marking a region asks about that moment', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('input[aria-label="Animation time"]').fill('6');
+  await node.locator('input[aria-label="Explanation time"]').fill('6');
   await node.locator('[data-animation-select]').click();
   const frame = await node.locator('[data-animation-frame]').boundingBox();
   await page.mouse.move(frame.x + frame.width * 0.2, frame.y + frame.height * 0.05);
@@ -661,13 +664,13 @@ await check('pausing and marking a region asks about that moment', async () => {
 
 await check('a scrubbed moment is what a question refers to', async () => {
   const node = canvas.locator('[data-block-id]').last();
-  await node.locator('input[aria-label="Animation time"]').fill('9');   // commit one moment
+  await node.locator('input[aria-label="Explanation time"]').fill('9');   // commit one moment
   await node.locator('[data-animation-object="tokens"]').click();       // selection line now visible
   await node.locator('[data-animation-selection]').getByText('9.0s', { exact: false }).waitFor({ timeout: 3000 });
-  await node.locator('input[aria-label="Animation time"]').fill('3');   // scrub again, still paused
+  await node.locator('input[aria-label="Explanation time"]').fill('3');   // scrub again, still paused
   await node.locator('[data-animation-selection]').getByText('3.0s', { exact: false }).waitFor({ timeout: 3000 });
   // the quiet commit is synchronous - no debounce left to wait out
-  await node.locator('input[aria-label="Animation time"]').fill('5');
+  await node.locator('input[aria-label="Explanation time"]').fill('5');
   await node.locator('[data-animation-selection]').getByText('5.0s', { exact: false }).waitFor({ timeout: 1500 });
   await node.locator('[data-animation-clear]').click();
 });
@@ -677,7 +680,7 @@ await check('a scrubbed moment is what a question refers to', async () => {
 await check('the numbers change and a winner emerges', async () => {
   const node = canvas.locator('[data-block-id]').last();
   const at = async seconds => {
-    await node.locator('input[aria-label="Animation time"]').fill(String(seconds));
+    await node.locator('input[aria-label="Explanation time"]').fill(String(seconds));
     await page.waitForTimeout(400);
   };
   await at(1.0);

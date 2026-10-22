@@ -34,7 +34,7 @@ await plus.click();
 const labels = await menu.getByRole('menuitem').allInnerTexts();
 await plus.click();
 const gone = ['Animation: pinned axis', 'Animation: residual', 'Animation: sigmoid', 'Pipeline builder'];
-check('the + menu keeps one Animation and drops the other three and Pipeline builder', labels.includes('Animation') && gone.every(label => !labels.includes(label)), `${labels.length} options`);
+check('the + menu keeps one Visual explanation (the scene card, EXP-T26) and drops the three old animations and Pipeline builder', labels.includes('Visual explanation') && !labels.includes('Animation') && gone.every(label => !labels.includes(label)), `${labels.length} options`);
 
 for (const label of labels) {
   errors = [];

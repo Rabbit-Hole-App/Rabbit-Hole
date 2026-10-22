@@ -3811,7 +3811,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (block.type === 'animation') {
       onAskTargetRef.current?.({
         id: block.id,
-        kind: 'Animation moment',
+        kind: 'Explanation moment',
         title: `${block.title} · ${selection.time}s`,
         text: [
           `Animation: ${block.title}`,
