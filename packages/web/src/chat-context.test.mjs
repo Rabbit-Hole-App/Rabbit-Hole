@@ -186,7 +186,7 @@ test('contextItems marks only the document being removed', () => {
 // Add to canvas, Remove from context with a short confirmation). Add to canvas is a neutral labelled button, never inverse.
 test('Context rows: Use in this chat, then File options with the full name, Include in new chats, Add to canvas and Remove from context', async () => {
   const { readFileSync } = await import('node:fs');
-  const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // a Windows checkout has CRLF
   assert.match(source, /<li key=\{key\} data-material-row data-source-id=\{ref\.sourceId\}/, 'one row per file, named by its own source id');
   assert.match(source, /<span data-material-name title=\{name\} className=\{`min-w-0 truncate/, 'a long name truncates, with the full name as its tooltip');
   assert.match(source, /data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @\[30rem\]:pb-0 @\[30rem\]:pl-0"/, 'narrow rows put the actions on their own line');
