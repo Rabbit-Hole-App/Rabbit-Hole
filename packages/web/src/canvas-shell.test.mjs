@@ -10,9 +10,13 @@ import { readFileSync } from 'node:fs';
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n'); // a CRLF checkout reads as LF
 const canvas = read('AdaptiveCanvas.jsx'), page = read('LearnPage.jsx'), shell = read('Shell.jsx');
 
-test('the tool palette docks left by default and still lives in its own gutter', () => {
+// Owner decision 2026-10-22 (supersedes the reserved tools gutter): the drawing surface fills the canvas workspace and the
+// tools column floats over it, taking no pointer and clipping nothing; only its controls take the pointer.
+test('the tool palette docks left by default, in a column that floats over the canvas (owner, 2026-10-22)', () => {
   assert.match(canvas, /const \[toolSide, setToolSide\] = useState\('left'\);/);
   assert.match(canvas, /<div ref=\{gutter\} data-tool-gutter/);
+  assert.match(canvas, /className=\{`pointer-events-none absolute top-\[var\(--canvas-top,0px\)\] bottom-0 z-20 flex flex-col justify-center gap-2 \[&>\*\]:pointer-events-auto \$\{toolSide === 'left' \? 'left-0 /, 'absolute over the surface, below the header, the pointer through');
+  assert.doesNotMatch(canvas, /data-tool-gutter[^\n]*\n[^\n]*\n[^\n]*shrink-0/, 'no row width of its own');
   assert.match(canvas, /role="toolbar" aria-label="Canvas tools"/);
 });
 
@@ -58,8 +62,8 @@ test('the bottom strip floats: the canvas runs to the bottom, the strip lets the
   // The side columns' heights reach what must clear them: the Voice caption and the tools' gutter on that side.
   assert.match(canvas, /host\.style\.setProperty\('--chrome-left', `\$\{Math\.max\(0, bottom - strip\.firstElementChild\.getBoundingClientRect\(\)\.top\)\}px`\);/);
   assert.match(canvas, /host\.style\.setProperty\('--chrome-right', `\$\{Math\.max\(0, bottom - strip\.lastElementChild\.getBoundingClientRect\(\)\.top\)\}px`\);/);
-  assert.match(canvas, /order-first items-start pl-2 pb-\(--chrome-left\) /);
-  assert.match(canvas, /items-end pr-2 mr-\(--edge\) pb-\(--chrome-right\) /);
+  assert.match(canvas, /'left-0 items-start pl-2 pb-\(--chrome-left\) /);
+  assert.match(canvas, /'right-\(--edge\) items-end pr-2 pb-\(--chrome-right\) /);
   assert.match(canvas, /parseFloat\(getComputedStyle\(bar\.parentElement\)\.paddingBottom \|\| 0\)/, 'the tools\' room leaves the column out');
   // A phone (UI-19, owner 2026-10-21): the tools stay the same left column, padded clear of the floating strip's left column.
   assert.doesNotMatch(canvas, /@max-\[640px\]:(order-first|pb-0|grid|w-full)\b/);
@@ -69,23 +73,39 @@ test('fit, focus and a new card stop above the floating chrome over their span (
   assert.match(canvas, /const chromeTop = \(x0, x1\) => \{[\s\S]*?querySelectorAll\('\[data-canvas-bottom\] > \* > \*'\) \|\| \[\]\)\]\.flatMap\(boxesIn\)[\s\S]*?rect\.left - at\.left < x1 && rect\.right - at\.left > x0[\s\S]*?\.map\(rect => rect\.top - at\.top\)\);\n  \};/);
   // The composer's root is display: contents: it counts by its children.
   assert.match(canvas, /const boxesIn = node => \{ const rect = node\.getBoundingClientRect\(\); return rect\.width \|\| rect\.height \? \[rect\] : \[\.\.\.node\.children\]\.flatMap\(boxesIn\); \};/);
-  // frame (zoom to fit, zoom to selection, presenting, a section): fit to the height above the chrome.
-  assert.match(canvas, /const h = Math\.min\(element\.clientHeight, chromeTop\(across\(z\) \+ left \* z, across\(z\) \+ right \* z\)\);\n\s+z = fit\(h\);/);
-  assert.match(canvas, /y: \(height \+ pad \* 2 < h \? \(h - height\) \/ 2 : pad\) - top \* z,/);
+  // frame (zoom to fit, zoom to selection, presenting, a section): fit to the height above the chrome, inside what the
+  // floating toolbar and header leave (controlArea, owner 2026-10-22).
+  assert.match(canvas, /const h = Math\.min\(area\.bottom, chromeTop\(across\(z\) \+ left \* z, across\(z\) \+ right \* z\)\) - area\.top;\n\s+z = fit\(h\);/);
+  assert.match(canvas, /y: area\.top \+ \(height \+ pad \* 2 < h \? \(h - height\) \/ 2 : pad\) - top \* z,/);
   // showBox (a new or revealed card): the chrome over the card's span is a floor.
   assert.match(canvas, /const floor = chromeTop\(first\.x \+ box\.x \* current\.z, first\.x \+ \(box\.x \+ box\.w\) \* current\.z\) - 24;/);
   // centerOn (an asked card): centred above the chat sheet and the chrome.
-  assert.match(canvas, /const h = Math\.max\(120, Math\.min\(open, chromeTop\(x \+ box\.x \* v\.z, x \+ \(box\.x \+ box\.w\) \* v\.z\)\)\);/);
+  assert.match(canvas, /const h = Math\.max\(120, Math\.min\(open, chromeTop\(x \+ box\.x \* v\.z, x \+ \(box\.x \+ box\.w\) \* v\.z\)\) - area\.top\);/);
   // insertBlock: the new block's top in view above the chrome.
   assert.match(canvas, /y: Math\.min\(v\.y, chromeTop\(v\.x, v\.x \+ COLUMN \* v\.z\) - 280 - /);
 });
 
+// Owner, 2026-10-22: fit, reveal and new-card placement avoid the floating controls' ACTUAL rectangles, measured, never a
+// constant gutter; the opening camera is compensated (canvas-slots homeView) so saved boards do not jump.
+test('fit, reveal, placement and the opening camera keep clear of the measured toolbar, navigator and header', () => {
+  assert.match(canvas, /const controlRects = \(\) => \{[\s\S]*?gutter\.current\?\.querySelectorAll\('\[role="toolbar"\], \[data-gutter-top\] > \*'\)[\s\S]*?pageHeader\(\)\?\.children[\s\S]*?getBoundingClientRect\(\)/);
+  assert.match(canvas, /const controlArea = \(\) => freeArea\(\{ w: surface\.current\.clientWidth, h: surface\.current\.clientHeight \}, controlRects\(\), 0\);/);
+  assert.match(canvas, /const visibleArea = \(\) => \{[\s\S]*?overlays\.push\(\.\.\.controlRects\(\)\);/, 'reveal, search and placement in view (visibleWorld) read visibleArea');
+  assert.match(canvas, /const area = controlArea\(\), w = area\.right - area\.left;/, 'fit');
+  assert.equal(canvas.match(/homeView\(controlArea\(\), COLUMN\)/g).length, 3, 'the opening camera, zoomReset and the Reset zoom button');
+  assert.doesNotMatch(canvas, /Math\.max\(24, \(surface\.current\.clientWidth - COLUMN\) \/ 2\)/, 'no camera centred on the whole surface under the tools');
+  assert.match(page, /data-canvas-header className=\{`\$\{headerOver \? 'pointer-events-none absolute inset-x-0 top-0 z-40 \[&>\*\]:pointer-events-auto' : 'relative shrink-0'\}/, 'the header floats over the canvas');
+  assert.match(page, /expanded-page-frame @container\/frame relative /);
+});
+
 // UI-17 (owner, 2026-10-21): from a 784 px canvas row the map kept a full-height 92 px column right of the drawing surface
 // (overflow hidden), so the surface ended 92 px short of the panel and cut cards there. The row's widths, read from the source
-// (the tools gutter's class, the map column's class and its mapBeside rule), must leave the surface running to the panel edge.
+// (the tools column's class, the map column's class and its mapBeside rule), must leave the surface running to the panel edge.
+// Owner, 2026-10-22: the tools column floats (absolute), so it takes none of the row either.
 const COLUMN = Number(/const COLUMN = (\d+);/.exec(canvas)[1]);
 const rowOf = width => {
-  const tools = Number(/pb-\(--chrome-left\) w-\[(\d+)px\]'/.exec(canvas)[1]);
+  const floating = /data-tool-gutter[\s\S]{0,400}className=\{`pointer-events-none absolute /.test(canvas);
+  const tools = floating ? 0 : Number(/pb-\(--chrome-left\) w-\[(\d+)px\]'/.exec(canvas)[1]);
   const column = /<div data-dive-gutter className=\{`[^`]*\bw-\[(\d+)px\]/.exec(canvas);
   const rule = /const mapBeside = !shellWidth \|\| shellWidth - (\d+) - (\d+) >= COLUMN \+ (\d+);/.exec(canvas);
   const map = column && (!rule || width - Number(rule[1]) - Number(rule[2]) >= COLUMN + Number(rule[3])) ? Number(column[1]) : 0;
@@ -122,10 +142,10 @@ test('UI-19: the minimap is floating chrome for fit, reveal and placement (a gra
   assert.match(canvas, /const placementChrome = \(\) => \{[\s\S]*?strip\.querySelectorAll\(':scope > \* > \*'\)/, 'a card placed in view keeps clear of every strip grandchild');
 });
 
-test('the canvas row: the drawing surface runs to the panel edge at every width, no map column (UI-17)', () => {
+test('the canvas row: the drawing surface runs from the outer edge to the panel edge at every width, no map or tools column (UI-17; owner 2026-10-22)', () => {
   for (const width of [628, 712, 783, 784, 1032, 1180]) {
     const row = rowOf(width);
-    assert.deepEqual(row, { tools: 84, map: 0, surface: width - 84, strip: 0 }, `${width} px row: ${JSON.stringify(row)}`);
+    assert.deepEqual(row, { tools: 0, map: 0, surface: width, strip: 0 }, `${width} px row: ${JSON.stringify(row)}`);
   }
 });
 
