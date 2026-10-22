@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createGoalOps, goalWords, listedGoals, refsToGoal } from './learn-goals.js';
+import { createGoalOps, goalWords, goalsView, listedGoals, refsToGoal } from './learn-goals.js';
 import { createCoachingSync } from './learn-coaching-client.js';
 import { runLearnCommand, pickerSections, isLearnCommand } from './learn-slash.js';
 import { commandLabel, resolveCommand } from './agent/slash.js';
@@ -118,4 +118,20 @@ test('add, edit, switch and delete through the coaching sync call /api/learn/coa
   assert.deepEqual([listedGoals(view).map(g => g.label), view.activeGoalId], [['Matrices'], null], 'Progress reads the saved state at once');
   assert.deepEqual([...new Set(urls)], ['/api/learn/coaching']);
   sync.stop();
+});
+
+// Regression (fast-e2e 39733032629): after a reload /goal opened the list before the saved goals arrived and showed it empty.
+test('while the saved goals load or fail to load the list is never shown as empty', async () => {
+  let answer;
+  const call = url => new Promise(resolve => { answer = () => resolve({ state: { controls: { mode: 'auto', tutorEnabled: true, suggestionsPaused: false, revision: 3 }, goals: [{ goalId: 'g1', label: 'Saved', lifecycle: 'open', revision: 1 }], activeGoalId: 'g1', activities: [], revision: 3 }, capabilities: {} }); });
+  const sync = createCoachingSync({ scope: { app: 'canvas-0a1b2c3d', board: 'main' }, call, newId: ids });
+  const started = sync.start();
+  assert.equal(goalsView(sync.view()), 'loading', 'a reload in progress is not "no goals"');
+  answer();
+  await started;
+  assert.deepEqual([goalsView(sync.view()), listedGoals(sync.view().state).map(g => g.label)], ['list', ['Saved']]);
+  sync.stop();
+  assert.equal(goalsView({ status: 'error', state: null }), 'error');
+  assert.equal(goalsView({ status: 'ready', state: { goals: [] } }), 'empty');
+  assert.match(read('./GoalManager.jsx'), /disabled=\{busy\('add'\) \|\| !ready\}/, 'Add waits for the saved goals');
 });

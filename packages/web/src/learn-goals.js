@@ -12,6 +12,9 @@
 export const LABEL_MAX = 200, OUTCOME_MAX = 1000;
 // The goals the learner manages: every goal not deleted (archived), in the order they were made.
 export const listedGoals = state => (state?.goals || []).filter(goal => goal.lifecycle !== 'archived');
+// What the goal list shows. While the saved goals are still loading (a reload) or failed to load it never says "no goals":
+// an empty list then would read as lost goals (fast-e2e 39733032629 read [] right after a reload).
+export const goalsView = coaching => (coaching?.status === 'loading' ? 'loading' : coaching?.status === 'error' ? 'error' : listedGoals(coaching?.state).length ? 'list' : 'empty');
 
 const MESSAGES = {
   goal_changed: 'This goal was changed in another tab or device. Its saved version is shown; your edit is kept here.',
