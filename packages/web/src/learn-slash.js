@@ -3,7 +3,7 @@
 // smart-home); this file is the Learn side: which commands the picker offers
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
-import { reviewRequired } from '../../control-plane/src/proposal-rules.js';
+import { reviewRequired } from './proposal-capabilities.js';
 import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
@@ -195,7 +195,7 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
-  // A proposed capability (proposal-rules.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
+  // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
   // (generation-proposal-chat.js), the learner refines it in chat, and the card's Generate makes it. Nothing starts here.
   if (reviewRequired(name)) {
     if (!args) return { notice: { tone: 'info', text: `Add what you want after /${name}.` } };

@@ -12,20 +12,21 @@
 // before Generate.
 import { validateMotionContext } from './motion-context.js';
 import { MotionRequestProvider, motionReservationMicros } from './motion-provider.js';
+import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
 const ID = /^gp-[0-9a-f]{16}$/, SIG = /^[0-9a-f]{64}$/;
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
-// Which commands are proposed first, and the card's fields (proposal-rules.js, shared with the web). A proposed command also
-// needs its settings validator below.
-export { PROPOSAL_RULES, reviewRequired } from './proposal-rules.js';
-import { PROPOSAL_SETTINGS, PROPOSED } from './proposal-rules.js';
-export const WIRED = PROPOSED;
+// CR-1: which commands are proposed is the capability declaration's flow (web/src/inline-ai-route.js CHAT_CAPABILITIES). A
+// proposed command also needs its settings validator below.
+export const reviewRequired = command => chatCapability(command)?.flow === 'proposal';
+export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewRequired));
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
-export const MOTION_DURATION = Object.freeze({ min: PROPOSAL_SETTINGS.motion.duration_seconds.min, max: PROPOSAL_SETTINGS.motion.duration_seconds.max }); // the declaration's bounds
+// The bounds are the declaration's Duration field: one definition with the card.
+export const MOTION_DURATION = Object.freeze({ min: CHAT_CAPABILITIES.motion.settings.duration_seconds.min, max: CHAT_CAPABILITIES.motion.settings.duration_seconds.max });
 const SETTINGS = {
   motion(value) {
     if (!plain(value)) return { error: 'settings must be {duration_seconds, audio}' };

@@ -1017,7 +1017,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // internal: Ctrl+K's automatic routing still makes comparisons and walkthroughs from plain words (owner, 2026-10-20), though
     // /compare and /walkthrough are no longer typed commands (its / list is the registry's user commands, inline-ai-command.js).
     enabled: ['note', 'equation', ...commandsFor('learn', { internal: true }).filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
-    // Ctrl+K's proposed capabilities (proposal-rules.js; /motion first, MOT-20b): the Chat's own command turn about Ctrl+K's
+    // Ctrl+K's proposed capabilities (proposal-capabilities.js; /motion first, MOT-20b): the Chat's own command turn about Ctrl+K's
     // selection, so it is proposed on the same shared card as the composer's; nothing starts here. Answers false where this
     // build does not offer the command or the Chat cannot take the turn.
     propose: async (command, args, about = {}) => { const live = chatWorkspace.current; if (!isLearnCommand(command) || !live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ prompt: args, command, about })) !== false; },

@@ -3,10 +3,10 @@
 // heading, the description as plain sentences with no labels, the command's settings, one usage line in credits from the
 // server, and one Generate. No Cancel: an unanswered proposal starts nothing. A superseded version ("Updated below") is inert.
 import { useId, useRef, useState } from 'react';
-import { proposalFields } from '../../control-plane/src/proposal-rules.js';
+import { proposalFields } from './proposal-capabilities.js';
 import { Button, Tip, cn } from './ui.jsx';
 
-// The card's fields come from the capability's declaration (proposal-rules.js proposalFields, MOT-20b): no capability has a
+// The card's fields come from the capability's declaration (CR-1's CHAT_CAPABILITIES settings via proposal-capabilities.js, MOT-20b): no capability has a
 // settings component of its own, and one without a field shows none.
 const MOTION_SECONDS = proposalFields('motion').find(f => f.type === 'integer');
 // A seconds field's choices: min to max in steps, plus the proposal's own value when the model chose another second.

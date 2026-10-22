@@ -11,7 +11,7 @@
 //   (owner 2026-10-13, point 7). A move changes none of these.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
 import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, routeLabel, unavailableText } from './inline-ai-route.js';
-import { reviewRequired } from '../../control-plane/src/proposal-rules.js';
+import { reviewRequired } from './proposal-capabilities.js';
 import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs, inlineRouteTool } from './inline-ai-decide.js';
 
 export const STAGES = Object.freeze({ routing: 'Checking the request…', note: 'Writing the explanation…', edit: 'Preparing the edit…', shapes: 'Drawing the diagram…', artifact: 'Making the {label}…' });
@@ -108,7 +108,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     const input = commandInput(plan, request);
     if (input.clarify) return { kind: 'clarify', question: input.clarify.question };
     if (reviewRequired(route)) {
-      // A proposed capability (proposal-rules.js; /motion first, MOT-20b): handed to the Chat as its command turn, so it is
+      // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20b): handed to the Chat as its command turn, so it is
       // proposed on the same shared card as the composer's, refined there and generated from there; nothing is added or started
       // here. It carries the selection it is about (its first id, and every object's words); its concept is the selection's
       // subject, never the canvas title.

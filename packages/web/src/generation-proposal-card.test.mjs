@@ -114,7 +114,7 @@ test('a duration change sends the whole Motion settings with audio false', () =>
   const Probe = () => { const tree = B.Card({ proposal: proposal(), onGenerate: () => {}, onSettingsChange: s => changes.push(s) }); el = tree; return tree; };
   B.renderToStaticMarkup(B.createElement(Probe));
   const settings = find(el, n => typeof n.type === 'function' && n.props?.settings);
-  // The settings and each declared field are component elements (MOT-20b: fields from proposal-rules.js): render each as a
+  // The settings and each declared field are component elements (MOT-20b: fields from the capability declaration): render each as a
   // probe in turn to reach the duration select.
   let select = null;
   const open = element => { const Inner = () => { const t = element.type(element.props); select ||= find(t, n => n.props?.['data-proposal-duration']); if (!select) { const field = find(t, n => typeof n.type === 'function' && n.props?.f?.type === 'integer'); if (field) open(field); } return t; }; B.renderToStaticMarkup(B.createElement(Inner)); };
@@ -123,7 +123,7 @@ test('a duration change sends the whole Motion settings with audio false', () =>
   assert.deepEqual(changes, [{ duration_seconds: 25, audio: false }]);
 });
 
-// MOT-20b: the fields are the capability's declaration (proposal-rules.js), never a card of its own per capability.
+// MOT-20b: the fields are the capability's declaration (CHAT_CAPABILITIES settings), never a card of its own per capability.
 test('a capability that declares no fields shows no settings: no Duration and no Audio', () => {
   const out = html({ proposal: proposal({ command: 'flashcards', settings: {} }) });
   assert.doesNotMatch(out, /data-proposal-settings|data-proposal-duration|data-proposal-audio|Duration|Audio/);

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { PROPOSAL_RULES, PROPOSAL_TOOL, WIRED, approvedProposal, motionOffered, proposalUsage, reviewRequired, reviseSettings, signProposal, validateProposalInput, verifyProposal } from '../src/generation-proposal.js';
+import { PROPOSAL_TOOL, WIRED, approvedProposal, motionOffered, proposalUsage, reviewRequired, reviseSettings, signProposal, validateProposalInput, verifyProposal } from '../src/generation-proposal.js';
 import { chatProposalFetch } from '../src/chat-proposal-route.js';
 import { validateMotionRequest } from '../src/motion-provider.js';
 
@@ -38,10 +38,10 @@ test('the schema: title, a description of 3 to 10 plain sentences, Motion settin
   assert.deepEqual(PROPOSAL_TOOL.input_schema.properties.command.enum, ['motion']);
 });
 
-test('the review rules registry: Motion always proposes; search, /dive, notebook and whiteboard stay direct; nothing else is listed', () => {
-  assert.deepEqual(PROPOSAL_RULES, { motion: 'always', search: 'direct', dive: 'direct', notebook: 'direct', whiteboard: 'direct' });
+// The registry is CR-1's capability declaration (inline-ai-route.js CHAT_CAPABILITIES flow): Motion alone is proposed.
+test('the review rules: Motion proposes; search, /dive, notebook, whiteboard and everything else keep their direct action', () => {
   assert.deepEqual(WIRED, ['motion']);
-  assert.deepEqual(['motion', 'search', 'dive', 'notebook', 'whiteboard', 'explain', 'cad'].map(reviewRequired), [true, false, false, false, false, false, false]);
+  assert.deepEqual(['motion', 'search', 'dive', 'notebook', 'whiteboard', 'explain', 'cad', 'youtube', 'video'].map(reviewRequired), [true, false, false, false, false, false, false, false, false]);
 });
 
 test('signed for one learner: a forged, edited, other-learner or expired proposal is refused; usage is the server\'s, in credits', async () => {
