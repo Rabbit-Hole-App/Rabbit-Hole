@@ -34,7 +34,8 @@ export class LearnScenes {
     return { scenes: [...placements.values()].map(p => { const job = jobs.get(`job:${p.key}`); return { ...p, status: job?.status || 'queued', error: job?.error, retryable: true, version: job?.version }; }) };
   }
   async fetch(req) {
-    if (req.method === 'GET') {
+    // HEAD (now admitted by privateLessonAssetFetch for clips) reads like GET, never the write path.
+    if (req.method === 'GET' || req.method === 'HEAD') {
       const key = new URL(req.url).searchParams.get('asset');
       if (!key) return json(await this.list());
       if (!/^[a-f0-9]{64}$/.test(key)) return json({ error: 'Invalid scene asset' }, 400);
