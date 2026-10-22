@@ -14,12 +14,13 @@ import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
-import { NO_CAP, admitUsage, askShared, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { NO_CAP, admitUsage, askShared, guestChatAllowance, guestOf, withGuestCookie, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
 import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
 import { retainedFileSources } from '../../web/src/file-context-manifest.js';
+import { linkAccess, sharedState } from './shared-privacy.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
@@ -349,20 +350,24 @@ export async function sharedAccess(req, env, token) {
   return found;
 }
 
-// Asking about a shared canvas (docs/features/shared-canvas-ask.md): whoever may open the link, and signed
-// in even on a public link. Answered by learn-shared-ask.js, which writes nothing.
+// Asking about a shared canvas (docs/features/shared-canvas-ask.md): whoever may open the link. Signed out (a public link or
+// a publication), it is guest Chat: this browser's 10-message trial (learn-shared-ask.js guestOf, SHARE-03). Answered by
+// learn-shared-ask.js, which writes only its usage row. GET reads the guest allowance (C:/s/spec/share/contract-guest-chat.md).
 const MAX_ASK_BODY = 128 * 1024;
 async function askAboutShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
-  const viewer = found.viewer || await repositoryIdentity(req, env);
-  if (viewer instanceof Response) return viewer.status === 401 ? json({ error: 'Sign in to ask about this canvas.', signIn: true }, 401) : viewer;
+  let viewer = found.viewer || await repositoryIdentity(req, env);
+  if (viewer instanceof Response && viewer.status !== 401) return viewer;
+  if (viewer instanceof Response) viewer = null;
+  const guest = viewer ? null : guestOf(req);
+  if (req.method === 'GET') return withGuestCookie(json({ guest: guest ? await guestChatAllowance(env.LEARN_DB, guest) : null }), guest);
   const raw = await req.text();
   if (raw.length > MAX_ASK_BODY) return json({ error: 'This question and its history are too long.' }, 413);
   let body = null;
   try { body = JSON.parse(raw); } catch { /* askShared refuses a missing message */ }
   // A publication asks within its own boundary (no private code) and its own per-link limit.
-  return askShared(env, found.row, viewer, body, found.publication ? { source: await linkSource(env.LEARN_DB, found, viewer), key: await publicationKey(token) } : null);
+  return withGuestCookie(await askShared(env, found.row, viewer, body, found.publication ? { source: await linkSource(env.LEARN_DB, found, viewer), key: await publicationKey(token) } : null, guest), guest);
 }
 
 // Professor Next Steps on a shared canvas (docs/features/professor-next-steps.md §1.5, §2.1): whoever may open the link, and
@@ -455,6 +460,9 @@ export function guestDraftState(source, draft) {
   for (const key of DRAFT_MARKS) { const list = entries(draft[key]); if (list) out[key] = list; }
   return { state: out, dropped };
 }
+// A link visitor's fork starts from what the link shows (sharedState: never the creator's answers, attempts or highlights),
+// plus the Materials file manifests forkState retains (their access is checked per file, file-access.js).
+const forkable = state => ({ ...sharedState(state), ...(Array.isArray(state?.sources) ? { sources: state.sources } : {}) });
 
 // What a fork copies from. A share link: whoever may open it (existing rules).
 // A canvas by name: its owner only - and their browser holds its content, so
@@ -469,7 +477,7 @@ async function forkSource(req, env, user, body) {
     // The fork inherits the share's pinned revision (never the current HEAD); a repository the share may not show
     // stays unnamed in the fork's title and provenance.
     const pinned = await linkSource(env.LEARN_DB, found, user);
-    let state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), user), dropped = 0;
+    let state = forkable(await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), user)), dropped = 0;
     // The visitor's temporary copy (guestDraftState): absent or null is today's fork of the source.
     if (body.draft != null) {
       const draft = body.draft.state;
@@ -818,7 +826,8 @@ async function openShared(req, env, token) {
   const viewer = found.viewer || await repositoryIdentity(req, env);
   const source = await linkSource(env.LEARN_DB, found, viewer instanceof Response ? null : viewer);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
-  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer);
+  // Only what was placed on the canvas, never the creator's own learning state (shared-privacy.js, SHARE-01 section 7).
+  const state = sharedState(await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer));
   // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
   const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
@@ -830,7 +839,7 @@ async function openShared(req, env, token) {
     || (signedIn.userId && await env.LEARN_DB.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(row.org, row.app, signedIn.userId).first()));
   const projectCanvases = row.app.startsWith('repo-') && row.board === 'main' ? await projectCanvasLinks(env.LEARN_DB, row, !!signedIn) : null;
   return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, ...(projectCanvases ? { project_canvases: projectCanvases } : {}), title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
-    ...(member ? { member_board_id: row.id } : {}),
+    ...(member ? { member_board_id: row.id } : {}), access: linkAccess({ found, viewer: signedIn, member }),
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 
@@ -927,7 +936,7 @@ export async function learnBoardsRoute(path, req, env) {
   const holing = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/rabbit-hole$/);
   if (holing) return req.method === 'POST' ? startRabbitHole(req, env, decodeURIComponent(holing[1]), await readBody(req)) : json({ error: 'Method not allowed' }, 405);
   const asking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/ask$/);
-  if (asking) return req.method === 'POST' ? askAboutShared(req, env, decodeURIComponent(asking[1])) : json({ error: 'Method not allowed' }, 405);
+  if (asking) return ['GET', 'POST'].includes(req.method) ? askAboutShared(req, env, decodeURIComponent(asking[1])) : json({ error: 'Method not allowed' }, 405);
   const hooking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/next-steps$/);
   if (hooking) return req.method === 'POST' ? nextStepsAboutShared(req, env, decodeURIComponent(hooking[1])) : json({ error: 'Method not allowed' }, 405);
   // The read-only Rabbit Holes Map of a shared canvas: only holes this viewer could open by their own link.

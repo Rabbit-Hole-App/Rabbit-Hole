@@ -39,15 +39,16 @@ function frames(buffer) {
 // POST and stream, as ask.jsx:494-547 does. A JSON reply is {choose} or {error}; any other
 // failure that is not a stream is an error, never silence. A file rides as multipart; the dev worker
 // answers a multipart /api/learn/ask itself (never live small-cp), and canvases refuse it. Abort rejects with AbortError.
-export async function streamAsk({ path, body, file = null, signal, onEvent }) {
+// headers: extra request headers, e.g. a shared canvas's X-RH-Action-Key (shared-ask.js sendKey).
+export async function streamAsk({ path, body, file = null, signal, onEvent, headers = {} }) {
   let request;
   if (file) {
     const form = new FormData();
     form.append('body', JSON.stringify(body));
     form.append('file', file);
-    request = { headers: wsHeaders(), body: form };
+    request = { headers: { ...wsHeaders(), ...headers }, body: form };
   } else {
-    request = { headers: { 'Content-Type': 'application/json', ...wsHeaders() }, body: JSON.stringify(body) };
+    request = { headers: { 'Content-Type': 'application/json', ...wsHeaders(), ...headers }, body: JSON.stringify(body) };
   }
   const response = await fetch(path, { method: 'POST', signal, ...request });
   if ((response.headers.get('Content-Type') || '').includes('json')) {

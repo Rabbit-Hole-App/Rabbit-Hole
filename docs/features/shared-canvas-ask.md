@@ -5,6 +5,26 @@ Anyone who can open the link sees it; sending needs an account. Answers land in 
 sees, and nothing is written to the owner's board, threads or any owner data. Keeping the work is Fork
 ([canvas-forking.md](canvas-forking.md)), which copies the canvas, never the viewer's chat.
 
+## Guest Chat (SHARE-03, owner brief 2026-10-22 section 5)
+
+Supersedes the signed-out and placement lines below. Contract: C:/s/spec/share/contract-guest-chat.md.
+- Chat is the right panel's Chat (`SharedChat.jsx`: the normal `ChatMessages` and `ChatComposer`), open by default;
+  replies land in that thread, not a floating window over the canvas. Ask in Chat, Explain in Chat and Ask about
+  selection (`small:ask-focus`, the selected card) open it with the context attached and never send.
+- Signed out on a public link or publication: one 10-message trial per browser (`rh_guest` HttpOnly cookie, only its
+  hash stored; it marks a browser, not a person), across canvases and tabs, never reset. Admitted user messages only;
+  drafting, selecting and opening Chat cost nothing. One atomic insert on `shared_ask_events`
+  (`viewer_email = guest:<browser hash>:<turn hash>`) under the trial and the per-link caps, before any model call.
+- Request identity: `X-RH-Action-Key` per Send (required signed out). A retry with the same key and message is
+  answered again without a count, at most 2 replays.
+- Message 11: `429 { code: 'guest_limit', signIn: true, guest }`; the draft stays and "Sign in to continue" keeps the
+  draft, the attached card and the conversation (adopted from the guest key to the viewer's) through sign-in. Never
+  sent by itself.
+- Platform-sponsored (`learn-usage.js` `PUBLIC_FEATURES`: payer platform, `anonymous_public`), never the owner; signed
+  in, the viewer's own caps and monthly allowance. Platform day caps and the bounded research loop still apply.
+- Chat only: a `/explain` or "make a card" message is a plain question; this route offers no generation tool.
+- `GET` the same path: `{ guest: { limit, used, remaining } }` signed out, `{ guest: null }` signed in.
+
 ## Spec (owner, locked)
 
 - The page reuses Learn's composer shell (`ChatComposer` with `dock`), in the canvas's own composer slot
@@ -133,8 +153,8 @@ Credits takes them over when it lands.
 | Part | Contract |
 |---|---|
 | Request | `{ message, history? }`. `message` 1-4000 characters. `history` a list of `{ role: user\|assistant, content }`; the last 10 are used, each cut to 4000 characters, a leading assistant turn dropped. Anything else in the body is ignored. Body over 128 KB: 413. |
-| Who | `sharedAccess` (the link is live; a non-public link needs an account) and a signed-in viewer on every link. |
-| Refusals | 404 dead or revoked link; 401 `{ signIn: true }` signed out (public links too); 400 bad message or history (a multipart body too); 503 no model configured; 403 the dev subscription's owner gate (`subscriptionOwnerRefusal`); 429 `{ error, limited: true }` over a limit. |
+| Who | `sharedAccess` (the link is live; a non-public link needs an account). Signed out on a public link or publication: guest Chat (above). |
+| Refusals | 404 dead or revoked link; 401 `{ signIn: true }` signed out on a restricted link; 400 `request_id_required` a guest Send without `X-RH-Action-Key`; 429 `code: guest_limit` the guest trial used; 400 bad message or history (a multipart body too); 503 no model configured; 403 the dev subscription's owner gate (`subscriptionOwnerRefusal`); 429 `{ error, limited: true }` over a limit. |
 | Reply | `text/event-stream`, the Learn chat events: `progress`, `chunk`, `papers`/`paper` (arXiv), `error`, then `done { ok: true, notice? }`. No thread id, no graph, no video. |
 | Writes | One `shared_ask_events` row per admitted question and, for a link from before pinning, its pin. Nothing of the owner's: `onDone` is null and there are no video tools, so no thread, message or `learn_moments` row. |
 
