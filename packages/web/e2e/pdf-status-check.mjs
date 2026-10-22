@@ -65,6 +65,7 @@ const router = async route => {
     if (failNextPutFor === id) { failNextPutFor = null; return route.fulfill({ status: 500, json: { error: 'Fixture: storing the pages failed.' } }); }
     return route.fallback();
   }
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return route.fallback(); // reads (the Next Steps hook's GET included) are not model calls
   if (MODEL.test(path)) { refused.push(`${method} ${path}`); return route.abort(); }
   return route.fallback();
 };
