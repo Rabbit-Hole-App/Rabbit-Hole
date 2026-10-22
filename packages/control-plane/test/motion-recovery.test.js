@@ -43,9 +43,11 @@ function d1(t) {
 }
 const rows = (sqlite, table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all().map(r => ({ ...r }));
 const attempts = sqlite => rows(sqlite, 'usage_attempts').filter(a => a.attempt_id.startsWith('motion-')).map(a => [a.reserved_micros, a.cost_state, a.cost_micros, a.status]);
-function durable(id, data = new Map()) {
+// clock: the object's one alarm, kept apart from the instance so it survives a restart as Durable Object storage does.
+function durable(id, data = new Map(), clock = { alarm: null }) {
   let lock = Promise.resolve();
-  return { id, data, storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} },
+  return { id, data, clock, storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])),
+    setAlarm: async at => { clock.alarm = at; }, getAlarm: async () => clock.alarm },
     blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
 }
 
@@ -81,7 +83,9 @@ function world(t) {
   };
   let server = null;
   const original = globalThis.fetch;
-  const orchestrator = { posts: [], cancels: 0, lose: 0 };
+  // cancelFault: how the next cancel goes wrong, once: 'lost' (never delivered), '502' (delivered, its answer replaced by a proxy
+  // 502) or 'timeout' (delivered, its answer never read). hang(path): that request is delivered and never answered.
+  const orchestrator = { posts: [], cancels: 0, delivered: 0, lose: 0, cancelFault: null, hang: () => false };
   orchestrator.start = async () => {
     if (server) { server.close(); orchestrator.o.close(); }
     orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir: mkdtempSync(join(tmpdir(), 'motion-rec-')), run });
@@ -93,8 +97,14 @@ function world(t) {
     const u = new URL(url);
     if (u.host !== 'orchestrator.test') return original(url, init);
     if (['/jobs', '/recover'].includes(u.pathname)) orchestrator.posts.push(u.pathname);
-    if (u.pathname.endsWith('/cancel')) orchestrator.cancels++;
+    const fault = u.pathname.endsWith('/cancel') ? orchestrator.cancelFault : null;
+    if (u.pathname.endsWith('/cancel')) { orchestrator.cancels++; orchestrator.cancelFault = null; }
+    if (fault === 'lost') throw new TypeError('fetch failed');
     const response = await original(orchestrator.base + u.pathname, init);
+    if (u.pathname.endsWith('/cancel')) orchestrator.delivered++;
+    if (fault === '502') return new Response('bad gateway', { status: 502 });
+    if (fault === 'timeout') throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    if (orchestrator.hang(u.pathname)) return new Promise(() => {});
     // An accepted submission whose answer is lost on the way back (a proxy 502): MOT-07.
     if (u.pathname === '/recover' && orchestrator.lose > 0) { orchestrator.lose--; return new Response('bad gateway', { status: 502 }); }
     return response;
@@ -110,7 +120,8 @@ const who = req => forwardUsagePayer(req, { userId: 'u-alice', email: 'alice@exa
 const generate = () => who(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'canvas', page: 'canvas', confirmed: true }) }));
 const recover = (id, mode, extra = {}) => who(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'recover', id, mode, ...extra }) }));
 const stopping = id => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id }) });
-async function settle(actor, done) { for (let i = 0; i < 300; i++) { await actor.alarm(); if (await done()) return; await sleep(5); } assert.fail('the job did not reach the expected state'); }
+// A firing alarm is cleared before its handler runs, as in Durable Objects: only what the handler sets again stays pending.
+async function settle(actor, done) { for (let i = 0; i < 300; i++) { actor.state.clock.alarm = null; await actor.alarm(); if (await done()) return; await sleep(5); } assert.fail('the job did not reach the expected state'); }
 const video = async actor => (await actor.list()).videos[0];
 const FIX_HOLD = policyHoldMicros(RECOVERY_POLICY.fix);
 
@@ -210,4 +221,102 @@ test('an unconfirmed recovery submission is reconciled by its key, never resent:
   assert.deepEqual(w.orchestrator.posts, ['/jobs', '/recover'], 'never resent');
   assert.equal(w.runs.length, 2);
   assert.deepEqual(attempts(sqlite).map(a => [a[1], a[3]]), [['settled', 'failed'], ['settled', 'settled']]);
+});
+
+// MOT-21: a free render recovery holds nothing (no admitted hold), yet a Stop of it must be followed until the orchestrator
+// confirms the attempt ended, whatever became of the cancel and across a restart: never started again, no learner hold or debit,
+// no model call, its render recorded once, and no new recovery over it until then.
+const renderRecords = sqlite => rows(sqlite, 'usage_attempts').filter(a => a.provider === 'motion_renderer').length;
+const motionJob = data => [...data.values()].find(v => v.provider === 'motion_request');
+async function freeRecovery(t, { lose = 0 } = {}) {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  // The recovery renders once, then waits; a stopped job ends before its second render.
+  w.script({ first: [{ call: 5000 }, { save: cp('accepted') }, { render: true }, { fail: 'renderer' }], recover: [{ render: true }, { wait: true }, { render: true }] });
+  const data = new Map(), clock = { alarm: null }, env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('mot21', data, clock), env);
+  await actor.fetch(generate());
+  await settle(actor, async () => (await video(actor)).status === 'failed' && (await video(actor)).hold?.state === 'released');
+  const { id } = await video(actor);
+  const before = { attempts: attempts(sqlite), ops: rows(sqlite, 'usage_operations').length, calls: w.model.calls, renders: renderRecords(sqlite) };
+  w.orchestrator.lose = lose;
+  assert.equal((await actor.fetch(recover(id, 'render'))).status, 202);
+  for (let i = 0; i < 200 && !w.gate.waiting; i++) await sleep(5);
+  assert.ok(w.gate.waiting, 'the free render recovery is running on the orchestrator');
+  return { sqlite, w, data, clock, env, actor, id, before };
+}
+async function stopFree(ctx) {
+  ctx.clock.alarm = null; // the pending alarm has just fired: the Stop itself must keep one armed
+  const response = await ctx.actor.fetch(stopping(ctx.id));
+  assert.equal(response.status, 200);
+  assert.ok(ctx.clock.alarm, 'an alarm follows the stopped free attempt');
+  const again = await ctx.actor.fetch(recover(ctx.id, 'render'));
+  assert.equal(again.status, 409, 'no new recovery while the stopped one is not confirmed ended');
+  assert.match((await again.json()).error, /still finishing/);
+}
+async function reconciledOnce(ctx, actor) {
+  const { sqlite, w, before, data } = ctx;
+  await settle(actor, async () => motionJob(data).spend.settled === true);
+  for (let i = 0; i < 3; i++) { actor.state.clock.alarm = null; await actor.alarm(); } // later alarms change nothing
+  assert.equal(actor.state.clock.alarm, null, 'confirmed ended: reconciliation stops');
+  const job = motionJob(data);
+  assert.deepEqual([job.status, job.stopped, job.spend.free, job.spend.settled], ['failed', true, true, true]);
+  assert.deepEqual(w.orchestrator.posts, ['/jobs', '/recover'], 'never started again');
+  assert.deepEqual(w.runs.map(r => r.mode), ['new', 'render']);
+  assert.equal(w.renders.length, 2, 'the stopped recovery ended before its second render');
+  assert.equal(w.model.calls, before.calls, 'no model call');
+  assert.deepEqual(attempts(sqlite), before.attempts, 'no learner hold or debit');
+  assert.equal(rows(sqlite, 'usage_operations').length, before.ops);
+  assert.equal(renderRecords(sqlite) - before.renders, 1, 'its one render recorded once, platform-paid');
+  assert.equal((await video(actor)).hold, undefined, 'a free attempt shows no hold');
+  assert.deepEqual((await video(actor)).recovery.actions, ['render'], 'the saved work stays recoverable');
+}
+
+for (const fault of ['lost', '502', 'timeout']) {
+  test(`MOT-21 Stop of a free render recovery whose cancel is ${fault}: the alarm keeps cancelling until the orchestrator confirms it ended; recorded once`, async t => {
+    const ctx = await freeRecovery(t);
+    ctx.w.orchestrator.cancelFault = fault;
+    await stopFree(ctx);
+    assert.equal(ctx.w.orchestrator.delivered, fault === 'lost' ? 0 : 1);
+    await reconciledOnce(ctx, ctx.actor);
+    assert.ok(ctx.w.orchestrator.delivered >= 1, 'a cancel reached the orchestrator');
+  });
+}
+
+test('MOT-21 Stop of a free render recovery, cancel confirmed: settles once when the orchestrator reports it ended; only then can a new recovery start', async t => {
+  const ctx = await freeRecovery(t);
+  await stopFree(ctx);
+  await reconciledOnce(ctx, ctx.actor);
+  assert.equal(ctx.w.orchestrator.cancels, 1);
+  ctx.w.script({ recover: [{ render: true }] });
+  assert.equal((await ctx.actor.fetch(recover(ctx.id, 'render'))).status, 202, 'serialized: the next recovery starts after the first is confirmed');
+  await settle(ctx.actor, async () => (await video(ctx.actor)).status === 'ready');
+  assert.deepEqual(ctx.w.orchestrator.posts, ['/jobs', '/recover', '/recover']);
+  assert.equal(renderRecords(ctx.sqlite) - ctx.before.renders, 2, 'each attempt\'s render recorded once');
+});
+
+test('MOT-21 Stop of a free render recovery before its ticket arrived: the key is reconciled, the job it started is cancelled, never resent; recorded once', async t => {
+  const ctx = await freeRecovery(t, { lose: 1 });
+  assert.equal(motionJob(ctx.data).ticket, null, 'the start answer was lost: no ticket');
+  await stopFree(ctx);
+  assert.equal(ctx.w.orchestrator.cancels, 0, 'nothing to cancel by ticket yet');
+  await reconciledOnce(ctx, ctx.actor);
+  assert.equal(ctx.w.orchestrator.cancels, 1, 'the job its key started is told to stop');
+});
+
+test('MOT-21 worker restart mid-reconcile of a stopped free render recovery: state and alarm survive; the next read re-arms a lost alarm; recorded once', async t => {
+  const ctx = await freeRecovery(t);
+  ctx.w.orchestrator.cancelFault = 'lost';
+  await stopFree(ctx);
+  let hung = false;
+  ctx.w.orchestrator.hang = p => /^\/jobs\/[0-9a-f]{32}$/.test(p) && (hung = true);
+  void ctx.actor.alarm(); // evicted while it awaits the job poll: its promise never settles
+  for (let i = 0; i < 200 && !hung; i++) await sleep(5);
+  assert.ok(hung, 'the alarm was mid-reconcile');
+  ctx.w.orchestrator.hang = () => false;
+  ctx.clock.alarm = null; // and its alarm was lost (retries exhausted)
+  const actor = new LearnVideos(durable('mot21', ctx.data, ctx.clock), ctx.env);
+  await actor.fetch(new Request('https://dev.test/api/learn/video?app=demo'));
+  assert.ok(ctx.clock.alarm, 'a read of the list re-arms the alarm');
+  await reconciledOnce(ctx, actor);
 });

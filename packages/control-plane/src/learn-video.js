@@ -31,7 +31,9 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
 // stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
 const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
-const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
+// An attempt is reconciled until it settles, held or free (MOT-21): a free render recovery holds nothing, yet a Stop of it is
+// followed until the orchestrator confirms it ended, its renders are recorded once, and nothing new starts over it.
+const needsSettling = job => job.provider === 'motion_request' && (job.spend?.admitted || job.spend?.free) && !job.spend.settled;
 // MOTION_ESTIMATE_USD (a typical job's actual cost) in credits, 1 credit = $0.01, rounded up; null when unset or invalid.
 export const motionEstimateCredits = env => {
   const usd = /^\d+(\.\d{1,6})?$/.test(String(env?.MOTION_ESTIMATE_USD ?? '').trim()) ? Number(env.MOTION_ESTIMATE_USD) : 0;
@@ -155,6 +157,8 @@ export class LearnVideos {
         if (job?.status !== 'ready') return json({ error: 'Video not ready' }, 404);
         return serveClip(this.env, job, req);
       }
+      // A job still reconciling with no alarm pending (stranded by older code, or an alarm whose retries ran out) is re-armed.
+      if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(needsSettling) && await this.state.storage.getAlarm() == null) await this.state.storage.setAlarm(Date.now() + POLL_MS);
       return json(await this.list());
     }
     // Serialize concurrent duplicate submissions, including the external POST.
