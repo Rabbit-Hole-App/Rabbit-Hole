@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { commentsApi, displayName } from './comments-api.js';
+import { commentsApi, displayName, takeResumedAnchor } from './comments-api.js';
 import { saveUiPref, uiPrefs } from '../ui-prefs.js';
 
 // A page's comments state (docs/features/canvas-comments.md section 5), kept out of the pages: the open draft (an anchor
@@ -23,7 +23,8 @@ export const pinsOf = (threads, selected, draft, composing) => [
 // `shown`: the page shows its Comments panel (open, on the Comments tab); a draft left behind a closed panel keeps its words
 // but draws no ghost until the panel shows again.
 export function useCanvasComments({ base, enabled = true, canAdd = true, openPanel, canvasApi, link = null, shown }) {
-  const [draft, setDraft] = useState(null);
+  // Back from sign-in to post a new comment (SHARE-02): its anchor, and with it the kept draft, opens again.
+  const [draft, setDraft] = useState(() => takeResumedAnchor());
   const [selected, setSelected] = useState(() => {
     const asked = new URLSearchParams(window.location.search).get('thread');
     return THREAD.test(asked || '') ? asked : null;
@@ -37,7 +38,7 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
   const [stamp, setStamp] = useState(0);
   const active = !!enabled && !!base;
   const client = useMemo(() => (base ? commentsApi(base) : null), [base]);
-  useEffect(() => { if (active && selected) openPanel(); }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (active && (selected || draft)) openPanel(); }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
   const addComment = useCallback(anchor => { setSelected(null); setDraft(anchor); openPanel(); }, [openPanel]);
   const openPin = useCallback(id => { setDraft(null); setSelected(id); openPanel(); }, [openPanel]);
   // A picked pin's colour and Del (owner, 2026-10-08): the server decides; an answer other than ok comes back as the

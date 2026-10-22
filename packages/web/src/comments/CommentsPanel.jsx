@@ -3,7 +3,7 @@ import { ChevronLeft, Globe, Link2, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
 import { anchorText } from './anchors.js';
-import { BODY_MAX, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
+import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
 
 // The right panel's Comments view (docs/features/canvas-comments.md section 5): the thread list, one thread, or a
 // new-thread draft from Add comment. `base` picks the route family; the panel is the same on both. Every message shows
@@ -152,6 +152,7 @@ function NewThread({ client, about, anchor, live, onCancel, onPosted }) {
         )}
       </div>
       <CommentComposer people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={blockedLine(about, canPost)}
+        resume={`?${COMMENT_RESUME}=${encodeURIComponent(JSON.stringify(anchor))}`}
         onSend={draft => sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(made => onPosted(made.thread))} />
     </div>
   );
@@ -196,7 +197,7 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
         {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act} />)}
       </ol>
       <p className="mb-1 text-[11px] text-ink-3">Replying in {thread.audience === 'public' ? 'Public' : 'Members only'}</p>
-      <CommentComposer people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)}
+      <CommentComposer people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)} resume={`?thread=${id}`}
         onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(() => { load(); onChange(); })} />
     </div>
   );
@@ -305,7 +306,9 @@ function useMentionMenu(people, input, body, setBody) {
 
 // The existing ChatComposer (Enter sends, Shift+Enter is a new line). A failed or offline post stays here as a draft
 // with Discard and Retry; while it has failed, Retry is the one send control (section 5).
-function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false }) {
+// Signed out (SHARE-02), the draft is typed here as usual and kept in this tab; posting goes through sign-in and comes back
+// to this page with `resume` (the thread, or the new comment's anchor), where the same draft waits, never sent by itself.
+function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false, resume = '' }) {
   const [draft, setDraft] = useState(() => loadDraft(storage, storeKey) || freshDraft());
   const [busy, setBusy] = useState(false);
   const key = useRef(storeKey);
@@ -313,9 +316,9 @@ function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoF
   const mention = useMentionMenu(people, input, draft.body, body => setDraft(current => ({ ...current, body })));
   useEffect(() => { if (key.current !== storeKey) { key.current = storeKey; setDraft(loadDraft(storage, storeKey) || freshDraft()); } }, [storeKey]);
   useEffect(() => { saveDraft(storage, storeKey, draft); }, [storeKey, draft]);
-  if (blocked === SIGN_IN) return <a data-comment-sign-in href={`/login?next=${encodeURIComponent(window.location.pathname)}`} className="block rounded-md bg-hover px-2 py-1.5 text-xs text-ink hover:underline">Sign in to comment</a>;
-  if (blocked) return <p data-comment-blocked className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{blocked}</p>;
-  const send = async () => {
+  const signIn = blocked === SIGN_IN && `/login?next=${encodeURIComponent(window.location.pathname + resume)}`;
+  if (blocked && !signIn) return <p data-comment-blocked className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{blocked}</p>;
+  const send = signIn ? () => { window.location.href = signIn; } : async () => {
     setBusy(true);
     try { await onSend(draft); setDraft(freshDraft()); } catch (error) { setDraft(current => ({ ...current, failed: failureText(error, navigator.onLine) })); } finally { setBusy(false); }
   };
@@ -325,6 +328,7 @@ function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoF
       {mention.menu}
       <ChatComposer multiline autoFocus={autoFocus} inputRef={input} value={draft.body} placeholder={placeholder} busy={busy} disabled={!!draft.failed || over}
         onKeyDown={mention.onKeyDown} onChange={body => { setDraft(current => ({ ...current, body })); mention.update(); }} onSubmit={send} />
+      {signIn && <a data-comment-sign-in href={signIn} className="mt-1 block rounded-md bg-hover px-2 py-1.5 text-xs text-ink hover:underline">Sign in to post</a>}
       {draft.body.length >= COUNTER_FROM && <p className={`mt-0.5 text-right text-[11px] tabular-nums ${over ? 'text-red-700' : 'text-ink-3'}`}>{draft.body.length.toLocaleString('en-US')} / {BODY_MAX.toLocaleString('en-US')}</p>}
       {draft.failed && (
         <div role="alert" data-comment-failed className="mt-1 flex items-center gap-2 text-xs text-red-700">

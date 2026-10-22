@@ -9,6 +9,7 @@ import { EQUATION_LEVELS, EQUATION_PALETTE, EQUATION_SIZE, equationLevel, levelS
 import { TEXT_LEVELS } from './learn-style-panel.js';
 import { canvasTargetField, describeCanvasObject } from './learn-ask-target.js';
 import { boardText, persistBoard } from './canvas-persist.js';
+import { COMMON_ACTIONS } from './canvas-actions.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const FRACTION = '\\frac{a}{b}', SUBSCRIPT = 'x_{i}^{2}', MATRIX = '\\begin{pmatrix}1 & 0\\\\ 0 & 1\\end{pmatrix}';
@@ -104,7 +105,12 @@ test('Add to chat: the chip shows the LaTeX and the request carries it', () => {
   assert.equal(describeCanvasObject({ id: 'e2', kind: 'equation', latex: '' }).title, 'Empty equation');
   // Owner 2026-10-13: Add to chat replaces Ask in chat and its prefilled question; the menu row and the bar do the same, and send nothing.
   const canvas = read('./AdaptiveCanvas.jsx');
-  assert.match(canvas, /data-menu-ask-equation hint="Ctrl L" onClick=\{act\(\(\) => addToChat\(\)\)\}>Add to chat<\/MenuRow>/);
+  // UI-25: the menu's Add to chat is the registry's row (canvas-actions.js); on an equation it keeps data-menu-ask-equation.
+  const add = COMMON_ACTIONS.find(entry => entry.id === 'add-to-chat');
+  assert.deepEqual([add.label, add.hint], ['Add to chat', 'Ctrl L']);
+  assert.deepEqual(add.attrs({ type: 'equation' }), { 'data-menu-ask-equation': '' });
+  // The per-type Add selection to chat passes only the quote captured at open (canvas-actions-types.js); nothing sends.
+  assert.match(canvas, /addToChat: options => addToChat\(options\),/);
   assert.doesNotMatch(canvas, /EQUATION_QUESTION/);
 });
 

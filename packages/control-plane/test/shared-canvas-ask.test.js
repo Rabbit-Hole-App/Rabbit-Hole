@@ -7,24 +7,24 @@ import { SHARED_CANVAS_SYSTEM, REPOSITORY_SYSTEM } from '../src/agents/learn-cha
 import { setup, scriptModel, events, lastUserText, SHA, BOARD } from './shared-canvas-fixture.js';
 import { quoteOf, regionExcerptCard, textExcerptCard } from './excerpt-ref-fixture.js';
 
-test('signed out, asking is refused with signIn - on a public link too - and no model is called', async t => {
+// Signed out on a public link is guest Chat (SHARE-03, shared-guest-chat.test.js); a restricted link still needs sign-in.
+test('signed out, asking on a restricted link is refused with signIn and no model is called', async t => {
   const f = setup(t), sent = scriptModel(t);
-  for (const publicView of [true, false]) {
-    const { token } = await f.shareProject({ publicView });
-    const refused = await f.ask(token, null, { message: 'Why scale?' });
-    assert.equal(refused.status, 401, `public_view ${publicView}`);
-    assert.equal(refused.body.signIn, true);
-  }
+  const { token } = await f.shareProject({ publicView: false });
+  const refused = await f.ask(token, null, { message: 'Why scale?' });
+  assert.equal(refused.status, 401);
+  assert.equal(refused.body.signIn, true);
   assert.equal(sent.length, 0);
 });
 
-test('a dead or revoked link is a 404, and a GET is not an ask', async t => {
+test('a dead or revoked link is a 404, and a GET reads the guest allowance, never an ask', async t => {
   const f = setup(t), sent = scriptModel(t);
   assert.equal((await f.ask('A'.repeat(32), 'ben', { message: 'hi' })).status, 404, 'never shared');
   const { canvas, token } = await f.shareProject();
   await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: false } });
   assert.equal((await f.ask(token, 'ben', { message: 'hi' })).status, 404, 'sharing stopped');
-  assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}/ask`, { as: 'ben' })).status, 405);
+  assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}/ask`, { as: 'ben' })).status, 404, 'sharing stopped');
+  assert.equal((await f.call('PUT', `/api/learn/boards/shared/${token}/ask`, { as: 'ben' })).status, 405);
   assert.equal(sent.length, 0);
 });
 
@@ -195,9 +195,10 @@ test('a shared PDF excerpt card sends its visible quote and its labelled note, s
   assert.doesNotMatch(asked, /card text truncated/);
   assert.equal((await f.ask(token, 'ben', { message: 'and this one?' })).status, 200);
   assert.ok(lastUserText(sent[1]).includes(short), 'with nothing selected the quote still rides');
-  // Refused: signed out, a dead link, or sharing stopped. No model call, so nothing of the excerpt goes anywhere.
+  // Refused: signed out without a request id (guest Chat needs one), a dead link, or sharing stopped. No model call, so
+  // nothing of the excerpt goes anywhere.
   sent.length = 0;
-  assert.equal((await f.ask(token, null, { message: 'hi', selected: excerpt.id })).status, 401);
+  assert.equal((await f.ask(token, null, { message: 'hi', selected: excerpt.id })).status, 400);
   assert.equal((await f.ask('A'.repeat(32), 'ben', { message: 'hi', selected: excerpt.id })).status, 404);
   await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: false } });
   assert.equal((await f.ask(token, 'ben', { message: 'hi', selected: excerpt.id })).status, 404);

@@ -132,7 +132,7 @@ test('VOICE-08: a small lower-left window shows only the reply being spoken now,
   assert.ok(html.includes('aria-expanded="true" aria-label="Hide the Tutor caption"'));
   assert.ok(mode.includes('if (!open) return <aside aria-label="Tutor caption" data-tutor-caption className={`${place} rounded-lg border border-line bg-white shadow-pop`}>{toggle}</aside>;'));
   // The anchor is a zero-width slot right before the surface; the floating tools column sits over the surface's left edge.
-  assert.ok(canvas.includes('gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = \'canvas\', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null }) {'));
+  assert.ok(canvas.includes('gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = \'canvas\', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {'));
   // The rail is one stack at that corner; the caption is held in its flow (relative, no corner offsets), at every width
   // (UI-19, owner 2026-10-21: the canvas row no longer stacks on a phone). The Professor Next Steps card left it for the lower right (owner, 2026-10-08), and the
   // stack sits above the floating strip's left column (--chrome-left), the minimap and zoom.

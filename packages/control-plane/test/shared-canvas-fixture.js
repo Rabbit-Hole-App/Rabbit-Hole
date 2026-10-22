@@ -36,7 +36,7 @@ export function setup(t, { visibility = 'public', vars = {} } = {}) {
   const CONTROL_PLANE = {
     fetch: async request => {
       if (request.method !== 'GET') { liveWrites.push(`${request.method} ${new URL(request.url).pathname}`); throw new Error('live small-cp write'); }
-      const who = PEOPLE[(request.headers.get('cookie') || '').replace('small_session=', '')];
+      const who = PEOPLE[(request.headers.get('cookie') || '').match(/(?:^|;\s*)small_session=([^;]+)/)?.[1]];
       if (!who) return new Response('sign in', { status: 401 });
       return new URL(request.url).pathname === '/api/me' ? Response.json({ ...who, orgName: null }) : new Response('no', { status: 404 });
     },

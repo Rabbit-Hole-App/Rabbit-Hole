@@ -17,6 +17,7 @@ import { sha256Hex } from './learn-grade-jev.js';
 import { fileContext } from './file-context.js';
 import { chatContext } from './chat-modes.js';
 import { fileChatRef } from '../../web/src/file-chat-ref.js';
+import { sharedState } from './shared-privacy.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -212,6 +213,70 @@ export async function admitUsage(db, { category, viewer, shareKey, boardId, owne
   return db.prepare('SELECT COUNT(*) AS day, COALESCE(SUM(asked_at > ?2 - 3600), 0) AS hour FROM shared_ask_events WHERE category = ?3 AND viewer_email = ?1 AND asked_at > ?2 - 86400').bind(viewer, now, category).first();
 }
 
+// Guest Chat (SHARE-03, owner brief 2026-10-22 section 5; C:/s/spec/share/contract-guest-chat.md): a signed-out visitor
+// gets one 10-message trial across every shared canvas and tab, never reset. The trial is keyed by an opaque random cookie
+// this server issues: it marks this browser's trial, not a person. Only its hash is stored, as one shared_ask_events row per
+// admitted message (category shared_canvas_ask, so the per-link caps count guests too), viewer_email
+// 'guest:<browser hash>:<turn hash>'. The turn hash is the Send's request identity (X-RH-Action-Key) with its message, so a
+// transport retry finds its own row and is answered again without a second count; a replay is its own 'replay:' row,
+// capped per turn. Platform-sponsored (learn-usage.js PUBLIC_FEATURES: payer platform, never the canvas owner).
+export const GUEST_MESSAGES = 10;
+const GUEST_REPLAYS = 2;
+const GUEST_COOKIE = 'rh_guest';
+const GUEST_ID = /^[A-Za-z0-9_-]{32}$/;
+const ACTION_KEY = /^[A-Za-z0-9_-]{8,128}$/;
+// This browser's trial id from the request's cookie, or a new one to set (`fresh`). Never a person's identity.
+export function guestOf(req) {
+  const key = req.headers.get('x-rh-action-key') || '';
+  const found = (req.headers.get('cookie') || '').split(/;\s*/).map(pair => pair.split('=')).find(([name]) => name === GUEST_COOKIE)?.[1];
+  if (GUEST_ID.test(found || '')) return { id: found, fresh: false, key };
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return { id: btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_'), fresh: true, key };
+}
+// The response, with the trial's cookie when this request made it.
+export function withGuestCookie(response, guest) {
+  if (!guest?.fresh) return response;
+  const headers = new Headers(response.headers);
+  headers.append('Set-Cookie', `${GUEST_COOKIE}=${guest.id}; Path=/api/learn; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`);
+  return new Response(response.body, { status: response.status, headers });
+}
+const browserKey = guest => sha256Hex(`guest-chat:${guest.id}`);
+// The admitted messages of this browser's trial: one index range on viewer_email (';' sorts right after ':').
+async function guestUsed(db, browser) {
+  const row = await db.prepare("SELECT COUNT(*) AS n FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND viewer_email >= ?1 AND viewer_email < ?2")
+    .bind(`guest:${browser}:`, `guest:${browser};`).first();
+  return Number(row?.n || 0);
+}
+const guestAllowance = used => ({ limit: GUEST_MESSAGES, used: Math.min(used, GUEST_MESSAGES), remaining: Math.max(0, GUEST_MESSAGES - used) });
+export async function guestChatAllowance(db, guest) {
+  return guestAllowance(await guestUsed(db, await browserKey(guest)));
+}
+
+// Admits a guest's message before any model call, in one atomic insert each: a new turn under the trial and the link's caps,
+// else a replay of the same turn under its replay cap and the link's caps. { allowance } when admitted, else the refusal.
+async function admitGuest(env, row, guest, message, repository, linkKey) {
+  const db = env.LEARN_DB, limits = sharedAskLimits(env), now = Math.floor(Date.now() / 1000);
+  const browser = await browserKey(guest), turn = `guest:${browser}:${await sha256Hex(`${guest.key}\n${message}`)}`;
+  const insert = where => db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
+    SELECT 'shared_canvas_ask', ?2, ?1, ?3, ?4, ?5, ?6 WHERE ${where}
+      AND (SELECT COUNT(*) FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND share_key = ?3 AND asked_at > ?2 - 3600) < ?7
+      AND (SELECT COUNT(*) FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND share_key = ?3 AND asked_at > ?2 - 86400) < ?8`);
+  const common = [now, linkKey, row.id, row.owner_email, repository ? 1 : 0, limits.SHARED_ASK_SHARE_HOUR, limits.SHARED_ASK_SHARE_DAY];
+  const fresh = await insert(`NOT EXISTS (SELECT 1 FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND viewer_email = ?1)
+      AND (SELECT COUNT(*) FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND viewer_email >= ?9 AND viewer_email < ?10) < ?11`)
+    .bind(turn, ...common, `guest:${browser}:`, `guest:${browser};`, GUEST_MESSAGES).run();
+  if (fresh.meta.changes === 1) return { allowance: guestAllowance(await guestUsed(db, browser)) };
+  if (await db.prepare("SELECT 1 FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND viewer_email = ?").bind(turn).first()) {
+    const again = await insert("(SELECT COUNT(*) FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND viewer_email = ?1) < ?9")
+      .bind(`replay:${turn.slice('guest:'.length)}`, ...common, GUEST_REPLAYS).run();
+    if (again.meta.changes === 1) return { allowance: guestAllowance(await guestUsed(db, browser)) };
+    return json({ error: 'This message was already answered. Ask something new.', limited: true }, 429);
+  }
+  const allowance = guestAllowance(await guestUsed(db, browser));
+  if (allowance.remaining === 0) return json({ error: `You have used your ${GUEST_MESSAGES} free messages. Sign in to continue.`, code: 'guest_limit', signIn: true, guest: allowance }, 429);
+  return json({ error: 'This share link has had as many questions as it can take for now. Try again later, or sign in.', limited: true }, 429);
+}
+
 // key: a publication's own rate-limit key (explore-publish.md); a share link counts against its share key.
 async function admitAsk(env, row, viewer, repository, key = null) {
   const limits = sharedAskLimits(env);
@@ -241,20 +306,26 @@ async function selectedFileText(env, row, state, selected) {
   return chatContext('', [ref], null, 6000, null, files);
 }
 
-export async function askShared(env, row, viewer, body, link = null) {
+// guest: a signed-out visitor's trial (guestOf) when viewer is null; the answer's done event carries the allowance after it.
+export async function askShared(env, row, viewer, body, link = null, guest = null) {
   if (typeof body?.message !== 'string' || !body.message.trim() || body.message.length > MESSAGE_LIMIT) return json({ error: `Ask a question of 1-${MESSAGE_LIMIT} characters.` }, 400);
   const history = viewerHistory(body.history);
   if (!history) return json({ error: 'history must be a list of { role, content } turns' }, 400);
   if (body.selected != null && (typeof body.selected !== 'string' || !body.selected || body.selected.length > 200)) return json({ error: 'selected must be a card id' }, 400);
+  if (!viewer && !guest) throw new TypeError('askShared needs a viewer or a guest trial');
+  // A guest's Send needs its request id first - pure validation, so it answers the same whether or not a model is configured.
+  if (!viewer && !ACTION_KEY.test(guest.key)) return json({ error: 'Send needs a request id (X-RH-Action-Key).', code: 'request_id_required' }, 400);
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const refused = subscriptionOwnerRefusal(env, viewer);
   if (refused) return refused;
-  const db = env.LEARN_DB, state = await redactRepositoryCards(db, JSON.parse(row.state_json), viewer);
+  // Only what was placed on the canvas (shared-privacy.js sharedState, SHARE-01 section 7): never the creator's answers, attempts or highlights.
+  const db = env.LEARN_DB, state = sharedState(await redactRepositoryCards(db, JSON.parse(row.state_json), viewer));
   const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
   const source = link ? link.source : await shareSource(db, row, viewer);
   const repository = source?.allowed ? source : null;
-  const limited = await admitAsk(env, row, viewer, !!repository, link?.key);
-  if (limited) return limited;
+  const admitted = viewer ? await admitAsk(env, row, viewer, !!repository, link?.key)
+    : await admitGuest(env, row, guest, body.message.trim(), !!repository, link?.key ?? await shareKey(row.view_token));
+  if (admitted instanceof Response) return admitted;
   let snapshot = null;
   if (repository) {
     try { snapshot = await repositorySnapshot(env, { id: repository.id }, repository.commit); } catch { /* fail closed: no source, never another commit */ }
@@ -269,6 +340,7 @@ export async function askShared(env, row, viewer, body, link = null) {
   }), target, target?.kind === 'PDF excerpt' ? SELECTED_EXCERPT_CHARS : undefined) + await selectedFileText(env, row, state, body.selected);
   const research = snapshot ? { papers: [], system: REPOSITORY_SYSTEM, tools: REPOSITORY_TOOLS, runTool: async (name, input) => repositoryTool(snapshot, name, input) } : { papers: [] };
   const meta = repository && !snapshot ? { notice: "The repository code at this share's commit could not be read, so this answer uses the canvas only." } : {};
+  if (admitted?.allowance) meta.guest = admitted.allowance;
   const selectedImage = imageCard(state, body.selected);
   const image = selectedImage ? await boardImageContext(env, row, selectedImage) : { blocks: [] };
   if (image.notice) meta.notice = [meta.notice, image.notice].filter(Boolean).join(' ');

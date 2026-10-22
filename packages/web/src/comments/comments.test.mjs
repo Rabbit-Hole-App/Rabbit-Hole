@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { CONTACT, INTO, anchorAt, anchorText, objectOrigin, pinCount, pinPoint, pinSpot, pinTopCentre } from './anchors.js';
 import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
 import { badgeText, openCount } from './useCanvasComments.js';
+import { allActions } from '../canvas-actions.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -51,7 +52,7 @@ test('no comment pin without a text comment (owner, 2026-10-13): a thread with n
   const hook = read('./useCanvasComments.js'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), member = read('./MemberBoardPage.jsx');
   assert.match(hook, /pinsOf\(threads, selected, draft, shown\)/);
   assert.match(page, /shown: panelOpen && panelTab === 'comments' \}\);/, 'open, on the Comments tab');
-  for (const source of [shared, member]) assert.match(source, /shown: commentsOpen \}\);/);
+  for (const source of [shared, member]) assert.match(source, /shown: panel\.open && panel\.tab === 'comments' \}\);/, 'the shared shell: open, on the Comments tab');
 });
 
 test('Esc in the New comment panel is Cancel (owner, 2026-10-13): one Cancel path, a menu in it first, the canvas stands down', () => {
@@ -158,7 +159,10 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(canvas, /return \{ x, y, w, h: [^\n]*, row: pillRow\(id\), lead \};/, "the slot is the object's box, its pill row and what its top left keeps clear");
   assert.match(canvas, /\(item && item\.kind !== 'sticky'\) \|\| \(shape && TEXT_BOX\[shape\.kind\]\) \? w : 0/, 'a text box, an equation and a text shape keep their whole top edge for their controls');
   assert.match(read('./CommentPins.jsx'), /pinTopCentre\(box, index, SIZE, GAP\)/, 'every object pin goes through pinTopCentre');
-  assert.match(canvas, /Start Rabbit Hole<\/MenuRow>\}\r?\n\s+\{addComment && commentOn && <MenuRow icon=\{MessageCircle\} [^\n]*hint="C"[^\n]*>Add comment<\/MenuRow>\}/, 'a card: right after Start Rabbit Hole');
+  // UI-25: the menu's rows are the action registry's; Add comment comes right after Start Rabbit Hole, with its C hint.
+  const entries = allActions(), start = entries.find(entry => entry.label === 'Start Rabbit Hole'), comment = entries.find(entry => entry.id === 'add-comment');
+  assert.deepEqual([comment.label, comment.icon, comment.hint, comment.group], ['Add comment', 'MessageCircle', 'C', start.group]);
+  assert.ok(start.order < comment.order && !entries.some(entry => entry.group === start.group && entry.order > start.order && entry.order < comment.order), 'a card: right after Start Rabbit Hole');
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
   assert.match(page, /\{comments\.active && <CommentsPanel hidden=\{panelTab !== 'comments'\} \{\.\.\.comments\.panelProps\} \/>\}/);
@@ -173,9 +177,15 @@ test('increment 2 seams: Share carries the comment settings; the published page 
   assert.match(page, /comments=\{comments\.active \? <><PeopleWithAccess base=\{memberBase\(commentBoard\)\} \/><CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/><\/> : null\}/);
   assert.match(settings, /<Switch on=\{enabled\} label="Allow comments"/, 'labelled exactly Allow comments');
   assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
-  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
+  // Add comment for those the server lets post, and (SHARE-02) a signed-out visitor where signing in would let them: they draft, and post through sign-in.
+  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post \|\| guestMayDraft,/);
+  assert.match(shared, /const guestMayDraft = !!commentsInfo && !commentsInfo\.signed_in && commentsInfo\.public_mode === 'open' && !!commentsInfo\.comments_enabled;/);
   assert.match(shared, /const commentsBase = memberBoard \? memberBase\(memberBoard\) : shared\?\.published \? publicBase\(token\) : null;/, 'a share link (/b) never asks the public family; owners and members get theirs');
-  assert.match(canvas, /if \(readOnlyRef\.current && !\(onAddComment && \(id \|\| group\)\) && \(!onStartRabbitHole/);
+  // UI-25: a view-only board's menu opens when it has a row for the target (Add comment for commenters; canvas-actions.js).
+  // SHARE-01 one permission model: Add comment asks can('comment.draft'), which follows the comments the canvas has.
+  assert.match(canvas, /const commentCtx = onAddComment \? \{ read: true, post: true \} : null;/);
+  assert.match(canvas, /permit\(capability, permissionCtx\)/);
+  assert.match(canvas, /if \(!rows\.length\) \{ setMenuAt\(null\); return; \}/);
 });
 
 test('/i keeps the token out of the address: fragment to session storage, then the address is plain /i', async () => {
@@ -265,7 +275,7 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(page, /link: commentBoard && `\/c\/\$\{commentBoard\}`/, 'members\' links go to /c');
   assert.match(shared, /link: memberBoard \? `\/c\/\$\{memberBoard\}` : `\/e\/\$\{token\}`/, 'public links go to /e, members\' to /c');
   assert.match(member, /window\.location\.replace\(`\/apps\/\$\{read\.body\.canvas\}\$\{window\.location\.search\}`\)/, 'the owner keeps ?thread= on the way home');
-  assert.match(page, /label: 'Comments', icon: MessageCircle, toggle: comments\.showPins, onToggle: comments\.setPins/);
+  assert.match(read('../canvas-menus.js'), /label: 'Comments', icon: MessageCircle, toggle: comments\.showPins, onToggle: comments\.setPins/);
   assert.match(panel, /data-more-threads/);
   assert.match(panel, /data-earlier-replies/);
   assert.match(panel, /data-copy-thread-link/);
@@ -291,5 +301,5 @@ test('an object pin stays at the card top centre at every zoom (owner, 2026-10-2
   const canvas = read('../AdaptiveCanvas.jsx');
   assert.ok(canvas.includes(`['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side}`), 'a card hides its top port under a pin');
   assert.ok(canvas.includes(`SIDES.filter(side => side !== 'top' || !canvasEdit.hasPin?.(shape.id)).map(`), 'a shape hides its top port under a pin');
-  assert.ok(canvas.includes('<CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin,'), 'the canvas shares which objects have pins');
+  assert.ok(canvas.includes('<CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin,'), 'the canvas shares which objects have pins');
 });

@@ -433,3 +433,24 @@ test('a share link tells only the owner and active members their board id; other
   const published = (await f.call('POST', `/api/apps/${name}/publish`, { as: 'ana' })).body.publication_token;
   assert.equal('member_board_id' in (await f.call('GET', `/api/learn/boards/shared/${published}`, { as: 'ben' })).body, false, 'a publication stays public');
 });
+
+// SHARE-02: a visitor's temporary copy has objects only they see. A comment names only an object on the canvas itself (both
+// families, anyone but the owner), and a point or a source object still posts; the anchor is stored as sent, never moved.
+test('comments may target only objects on the source canvas: a guest-only object is refused, the owner exempt', async t => {
+  const f = setup(t);
+  const { name, boardId, base } = await canvas(f);
+  await f.call('POST', `/api/learn/boards/${name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: true, state: BOARD } });
+  const token = (await f.call('POST', `/api/apps/${name}/publish`, { as: 'ana' })).body.publication_token;
+  await comments(f, 'PUT', `${base}/comment-settings`, { as: 'ana', body: { public_mode: 'open' } });
+  const pub = `/api/learn/boards/shared/${token}/comments`;
+  const local = { ...ON_CARD, object_id: 'guest-only-shape', object_kind: 'shape' };
+  const refused = await comments(f, 'POST', `${pub}/threads`, { as: 'cara', body: { id: crypto.randomUUID(), anchor: local, body: 'on my copy' } });
+  assert.deepEqual([refused.status, refused.body.code], [409, 'object_not_on_canvas']);
+  assert.equal((await start(f, base, 'ben', 'member on a local object', { anchor: local })).body.code, 'object_not_on_canvas');
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_comment_threads').get().n, 0, 'a refusal writes nothing');
+  const onSource = await comments(f, 'POST', `${pub}/threads`, { as: 'cara', body: { id: crypto.randomUUID(), anchor: ON_CARD, body: 'on the card' } });
+  assert.deepEqual([onSource.status, onSource.body.thread.anchor], [201, ON_CARD]);
+  assert.equal((await comments(f, 'POST', `${pub}/threads`, { as: 'cara', body: { id: crypto.randomUUID(), anchor: { kind: 'point', x: 1, y: 2 }, body: 'here' } })).status, 201);
+  assert.equal((await start(f, base, 'ana', 'owner, just drawn', { anchor: local })).status, 201, 'the owner may name an object not yet saved');
+  assert.equal(f.sqlite.prepare('SELECT version FROM learn_boards WHERE id = ?').get(boardId).version, 1, 'comments never write the board');
+});

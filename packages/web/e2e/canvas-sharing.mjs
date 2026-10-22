@@ -56,7 +56,7 @@ const friendContext = await contextFor(friendSession);
 const friend = await friendContext.newPage();
 await friend.goto(viewLink);
 await friend.locator('[data-shape-id="shared-rect"]').waitFor({ timeout: 60000 });
-check('a signed-in person opens the link read-only, with Fork on the top right', await friend.getByText('View only').count() === 1 && await friend.getByRole('toolbar', { name: 'Canvas tools' }).count() === 0 && await friend.getByRole('button', { name: 'Fork' }).count() === 1);
+check('a signed-in person opens the link with Fork on the top right, tools for their temporary copy and no View only pill', await friend.getByText('View only').count() === 0 && await friend.getByRole('toolbar', { name: 'Canvas tools' }).count() === 1 /* SHARE-02: tools for the visitor's temporary copy */ && await friend.getByRole('button', { name: 'Fork' }).count() === 1);
 if (SHOTS) await friend.screenshot({ path: `${SHOTS}/share-view.png` });
 
 // signed out: sign-in first, until the view link is public

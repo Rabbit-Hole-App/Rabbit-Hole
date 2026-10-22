@@ -19,10 +19,11 @@ export async function postFork({ state, ...body }, path = '/api/learn/boards/for
 // instead of a second one. Only a finished fork lets the next press make a new one.
 export function forkAction(send = postFork, newKey = () => crypto.randomUUID()) {
   let key = null, flight = null;
-  return ({ source, state = null, title = null }) => {
+  // draft: a visitor's temporary copy of a shared canvas (guest-draft.js forkDraft), copied into the fork server-side.
+  return ({ source, state = null, title = null, draft = null }) => {
     if (flight) return flight;
     key ||= newKey();
-    flight = send({ source, key, ...(state ? { state } : {}), ...(title ? { title } : {}) })
+    flight = send({ source, key, ...(state ? { state } : {}), ...(title ? { title } : {}), ...(draft ? { draft } : {}) })
       .then(data => { key = null; return data; })
       .finally(() => { flight = null; });
     return flight;

@@ -1,11 +1,13 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CanvasSearchPanel } from './PanelHeader.jsx';
-import ResizableSidePanel from './ResizableSidePanel.jsx';
+import CanvasMenubar from './CanvasMenubar.jsx';
+import ShortcutsSheet from './ShortcutsSheet.jsx';
+import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
+import { can } from './canvas-permissions.js';
+import { CommentsToggle, PanelToggle, SharedPanel, ViewerAccount, useSharedPanel } from './SharedCanvasShell.jsx';
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
-import { slashOpensFind } from './source-finder.js';
 import { docIsEmpty } from './canvas-doc.js';
-import { ArrowDownToLine, BookOpen, ChevronDown, Eye, FileText, FolderGit2, Loader2, Lock, MessageCircle, Minus, Play, Search, Shapes, X } from 'lucide-react';
+import { ArrowDownToLine, ChevronDown, Eye, Loader2, Shapes } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
@@ -22,11 +24,9 @@ import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
 import { learnPreview, PRODUCT } from './flags.js';
 import { creatorLabel } from './home/provenance.js';
-import ChatComposer from './ChatComposer.jsx';
-import { MaterialIcon, Md, NextStepsCard } from './ask.jsx';
-import { streamAsk } from './agent/ask-stream.js';
-import { askHistory, askPath, loadChat, saveChat, signInForAsk, takeDraft } from './shared-ask.js';
-import CommentsPanel from './comments/CommentsPanel.jsx';
+import { NextStepsCard } from './ask.jsx';
+import SharedChat from './SharedChat.jsx';
+import { takeDraft, takeTarget } from './shared-ask.js';
 import { useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase, publicBase } from './comments/comments-api.js';
 import { DiveNavigator, DivePortals } from './Dive.jsx';
@@ -34,6 +34,7 @@ import { sharedTree } from './shared-holes.js';
 import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 import { uiPrefs } from './ui-prefs.js';
+import { useGuestDraft } from './guest-draft.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -45,7 +46,7 @@ const EMPTY_EXCHANGES = Object.freeze([]);
 // viewer gets their own editable copy (docs/features/canvas-forking.md), after
 // its confirm-and-rename dialog; signed out, it goes through sign-in and comes
 // back here, where the dialog opens again (?fork=1).
-// The composer at the bottom asks about this canvas (docs/features/shared-canvas-ask.md).
+// Chat in the right panel asks about this canvas (docs/features/shared-canvas-ask.md; SharedChat.jsx, guest Chat SHARE-03).
 export default function SharedBoardPage({ token }) {
   const [shared, setShared] = useState(null);
   // A share link and a publication alike (C:/s/spec/hdr-provenance.md C2), signed out too.
@@ -57,37 +58,47 @@ export default function SharedBoardPage({ token }) {
     if (asked) window.history.replaceState(null, '', window.location.pathname);
     return asked;
   });
-  // Back from signing in to send (?ask=1): the kept draft returns to the composer, unsent, and the flag leaves the address.
-  const [askDraft] = useState(() => {
+  // Back from signing in to send (?ask=1): the kept draft and its card return to Chat, unsent, and the flag leaves the address.
+  const [askBack] = useState(() => {
     if (new URLSearchParams(window.location.search).get('ask') !== '1') return null;
     window.history.replaceState(null, '', window.location.pathname);
-    return takeDraft(token);
+    return { draft: takeDraft(token), target: takeTarget(token) };
   });
   // Back from signing in to start a Rabbit Hole (?rabbit=<card | root>): it finishes from the same origin, with the hook clicked
   // signed out (&hook=<id>, Professor Next Steps contract §1.4) when one came back: { origin, hook }.
   const [rabbitRequested] = useState(() => takeResume(window.location, window.history, { hook: true }));
-  // The selected card (a click on a view-only board selects it): where Start Rabbit Hole begins.
-  const [card, setCard] = useState(null);
-  const onCanvasState = useCallback(state => setCard(state.card || null), []);
+  // The canvas's state as AdaptiveCanvas reports it: the selected card (where Start Rabbit Hole begins), the outline the
+  // Table of contents shows, and the View menu's switches.
+  const [canvasState, setCanvasState] = useState({ minimap: true, holeMap: true, curious: true, outline: [], selected: 0, units: 0 });
+  const onCanvasState = useCallback(state => setCanvasState(state), []);
+  const card = canvasState.card || null;
   // The selected card's pill above the shared composer (owner, 2026-10-08): the canvas arms it on any selection.
-  const [target, setTarget] = useState(null);
+  const [target, setTarget] = useState(() => askBack?.target ?? null);
   // The card right-click menu starts the same flow from the card it was opened on (owner, 2026-10-07).
   const rabbitStart = useRef(null), rabbitAsk = useRef(null);
   // The card menu asks From this canvas or Blank too (owner, 2026-10-08); a Next Steps hook starts its step directly.
   const startFromCard = useCallback(cardId => rabbitAsk.current?.(cardId), []);
+  // The normal canvas's right panel (SharedCanvasShell.jsx): Chat first, then Find, Table of contents and Comments.
+  const panel = useSharedPanel('chat');
+  const { show } = panel;
   // Comments (docs/features/canvas-comments.md): a published canvas has the public family, while the owner's public
   // setting is Open or Closed (else it answers 404 and the page shows none); signed out reads, posting needs an account.
   // On a share link the owner and members (member_board_id) get the members panel; other link viewers see no comments.
   const [commentsInfo, setCommentsInfo] = useState(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [returnToSearch, setReturnToSearch] = useState(false);
-  const searchInput = useRef(null);
-  const [searchFocus, setSearchFocus] = useState(0);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  // The canvas's document (docs/features/blocknote-canvas.md), read-only here: shown on request, the canvas first.
-  const [docShown, setDocShown] = useState(false);
+  // The canvas's document (docs/features/blocknote-canvas.md), read-only here: View > Mode shows it, the canvas first.
+  const [docView, setDocView] = useState('canvas');
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // The guest Chat allowance SharedChat reports (SHARE-03): ctx.guestChat.remaining in the permission model.
+  const [guestRemaining, setGuestRemaining] = useState(null);
   const canvasApi = useRef(null);
-  const openComments = useCallback(() => { setSearchOpen(false); setCommentsOpen(true); }, []);
+  const canvas = () => canvasApi.current;
+  const openComments = useCallback(() => show('comments'), [show]);
+  // Ask in Chat, Explain in Chat and Ask about selection (agent/scope.js askDraft) open Chat; SharedChat puts the words in.
+  useEffect(() => {
+    const open = () => show('chat');
+    window.addEventListener('small:ask-focus', open);
+    return () => window.removeEventListener('small:ask-focus', open);
+  }, [show]);
   const memberBoard = shared?.member_board_id || null;
   const commentsBase = memberBoard ? memberBase(memberBoard) : shared?.published ? publicBase(token) : null;
   useEffect(() => {
@@ -96,7 +107,23 @@ export default function SharedBoardPage({ token }) {
     fetch(commentsBase, { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
     return () => { live = false; };
   }, [commentsBase]);
-  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}`, shown: commentsOpen });
+  // Signed out, a visitor drafts where a signed-in visitor could post (public setting Open, comments on); posting goes
+  // through sign-in with the draft kept (SHARE-02, CommentsPanel).
+  const guestMayDraft = !!commentsInfo && !commentsInfo.signed_in && commentsInfo.public_mode === 'open' && !!commentsInfo.comments_enabled;
+  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post || guestMayDraft, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}`, shown: panel.open && panel.tab === 'comments' });
+  // The one permission model (canvas-permissions.js; contract-permissions.md): the server's role for this visitor on this link.
+  const permissions = useMemo(() => ({ role: shared?.access?.role || (shared?.viewer ? 'viewer' : 'guest'), shared: true, shareable: shared?.access?.shareable || null,
+    comments: commentsInfo ? { read: true, post: !!commentsInfo.can?.post } : null, guestChat: guestRemaining === null ? null : { remaining: guestRemaining } }),
+  [shared?.access, shared?.viewer, commentsInfo, guestRemaining]);
+  // The visitor's temporary copy (SHARE-02, C:/s/spec/share/contract-guest-draft.md): anyone who may not write the source edits
+  // a copy kept in this tab; Fork carries it into their own canvas. An owner or editor gets the view-only canvas here.
+  const localCopy = !!shared && !can('source.write', permissions).allowed && can('canvas.local-edit', permissions).allowed;
+  const editable = localCopy;
+  const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
+  // Comments name only what is on the canvas itself, never an object of the visitor's copy (the server refuses it too).
+  const sourceIds = useMemo(() => new Set(['blocks', 'exchanges', 'items', 'shapes', 'groups'].flatMap(key => (shared?.state?.[key] || []).map(entry => entry?.id))), [shared]);
+  const addComment = comments.canvasProps.onAddComment;
+  const commentProps = addComment ? { ...comments.canvasProps, onAddComment: anchor => (anchor?.kind === 'object' && !sourceIds.has(anchor.object_id) ? toast("This is only on your copy, so it can't take a comment.") : addComment(anchor)) } : comments.canvasProps;
 
   // The board's files and notebook workspaces come through the same link;
   // notebooks open as the board's latest copy, in a workspace of their own.
@@ -136,26 +163,13 @@ export default function SharedBoardPage({ token }) {
   const goTo = href => window.location.assign(href);
 
   const searchChildren = useMemo(() => Object.entries(holes?.portals || {}).map(([origin_block_id, child]) => ({ ...child, origin_block_id })), [holes]);
-  const search = useCanvasSearch({ scopeKey: `shared:${token}:${shared?.viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: searchOpen,
+  const search = useCanvasSearch({ scopeKey: `shared:${token}:${shared?.viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: panel.open && panel.tab === 'find',
     commentsBase: commentsInfo ? commentsBase : null, children: searchChildren,
-    onComment: result => { setReturnToSearch(true); comments.openPin(result.target.id); }, revealDocument: () => setDocShown(true) });
+    onComment: result => { panel.setReturnToSearch(true); comments.openPin(result.target.id); }, revealDocument: () => setDocView('editor') });
   const openSearchAction = (result, action) => {
     if (action.kind === 'rabbit-hole' && searchChildren.some(child => child.name === action.rabbitHole?.name)) goTo(action.rabbitHole.name);
     else toast('This source cannot be opened from this shared view.');
   };
-  useEffect(() => {
-    if (!searchOpen) return;
-    const frame = requestAnimationFrame(() => searchInput.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [searchOpen, searchFocus]);
-  useEffect(() => {
-    const key = event => {
-      if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented || !slashOpensFind(document.activeElement)) return;
-      event.preventDefault(); setCommentsOpen(false); setSearchOpen(true); setSearchFocus(value => value + 1);
-    };
-    window.addEventListener('keydown', key);
-    return () => window.removeEventListener('keydown', key);
-  }, []);
 
   if (problem) {
     return (
@@ -169,9 +183,20 @@ export default function SharedBoardPage({ token }) {
   }
   if (!shared) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board</main>;
   const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
+  const hasDoc = !!board.doc && !docIsEmpty(board.doc);
+  // The normal canvas's menubar (canvas-menus.js): View always; Insert's local rows, Edit and Arrange once the canvas is
+  // editable here. No Files: a shared canvas's Materials are not shareable (panel.files).
+  const menus = [
+    ...(editable && can('canvas.local-edit', permissions).allowed ? [{ title: 'Insert', items: localInsertItems(canvas) }] : []),
+    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true) })
+      .filter(menu => editable || menu.title === 'View'),
+  ];
+  // Below lg the panel stacks under the canvas and the page scrolls, as the owner's canvas does (LearnPage): the canvas keeps a real
+  // working height (75dvh), so the tools column and the minimap fit inside it instead of spilling over the header.
   return (
-    <main className="flex h-screen flex-col bg-white">
-      <header className="flex shrink-0 flex-wrap items-center gap-3 gap-y-2 border-b border-line px-4 py-2">
+    <main className="flex h-screen bg-white max-lg:flex-col max-lg:overflow-y-auto">
+      <section aria-label="Shared canvas" className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
+      <header data-canvas-header className="flex shrink-0 flex-wrap items-center gap-2 gap-y-2 px-4 py-2">
         {/* The product, top left (owner, 2026-10-04): the aperture mark and the name, to the site home. */}
         <a href="/" data-shared-brand className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
           <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" />
@@ -180,44 +205,41 @@ export default function SharedBoardPage({ token }) {
         {/* One line, the full title on hover; with holes, the chevron opens their tree, each level its own link (owner r35). */}
         <span data-shared-title title={shared.title || (shared.board === 'main' ? shared.app : shared.board)} className="min-w-16 truncate text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
         {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
-        <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>
+        {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
+        {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>}
+        <CanvasMenubar menus={menus} />
         {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
         {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. The @handle
             links to the creator's public profile on a publication and a share link alike (owner, 2026-10-08). */}
         {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
           ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
         <span className="flex-1" />
-        {board.doc && !docIsEmpty(board.doc) && <Button type="button" variant="secondary" data-doc-toggle aria-pressed={docShown} onClick={() => setDocShown(shown => !shown)}><FileText size={13} strokeWidth={1.8} />{docShown ? 'Hide document' : 'Show document'}</Button>}
-        <Button type="button" variant="secondary" data-search-button aria-pressed={searchOpen} onClick={() => { setCommentsOpen(false); setSearchOpen(open => !open); }}><Search size={13} strokeWidth={1.8} />Search</Button>
-        {comments.active && <Button type="button" variant="secondary" data-comments-button aria-pressed={commentsOpen} onClick={() => { setSearchOpen(false); setCommentsOpen(open => !open); }}><MessageCircle size={13} strokeWidth={1.8} />Comments</Button>}
         <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
         {/* The viewer's own monthly AI allowance (owner D4 section 2), never the owner's; signed out, no personal allowance. */}
         {learnPreview && <UsageGauge signedIn={!!shared.viewer} onViewUsage={goToUsageSettings} />}
-        <ForkButton source={{ token }} title={shared.title} auto={forkRequested} onForked={fork => { window.location.href = fork.url; }} count={shared.fork_count} />
+        {guest.edited && <span data-guest-draft-notice role="status" className="shrink-0 text-xs text-ink-2">Changes aren't saved. Fork to keep them.</span>}
+        <CommentsToggle panel={panel} comments={comments} />
+        <PanelToggle panel={panel} />
+        <ViewerAccount viewer={shared.viewer} />
+        <ForkButton source={{ token }} title={shared.title} auto={forkRequested} draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count} />
         {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here.
             Last, at the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
         <ProvenanceRow provenance={provenance} />
       </header>
-      <div className="relative flex min-h-0 flex-1 max-lg:flex-col">
-      <div className="relative min-h-0 min-w-0 flex-1" aria-label="Lesson canvas">
+      <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
         <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
-          <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} boardState={board} docView={docShown ? 'editor' : 'canvas'} readOnly onState={onCanvasState} onStartRabbitHole={startFromCard}
+          <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={startFromCard}
+            {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}
             gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
             hooks={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
-            onAskTarget={setTarget} askTargetId={target?.id ?? null}
-            composer={<SharedAsk token={token} viewer={shared.viewer} context={shared.context} draft={askDraft} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} />} />
+            onAskTarget={setTarget} askTargetId={target?.id ?? null} />
         </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
       </div>
-      <ResizableSidePanel collapsed={!searchOpen && !(comments.active && commentsOpen)} storageKey="rh.viewer.panel.width" defaultWidth={400} aria-label={searchOpen ? 'Search' : 'Comments'} className="px-5 pt-3 pb-4">
-          <div className="-mx-5 mb-3 flex items-center justify-between border-b border-line px-5 pb-2.5">
-            <h2 className="text-sm font-semibold text-ink">{searchOpen ? 'Search' : 'Comments'}</h2>
-            <button type="button" aria-label={searchOpen ? 'Close Search' : 'Close comments'} onClick={() => { setSearchOpen(false); setCommentsOpen(false); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} aria-hidden /></button>
-          </div>
-          {!searchOpen && commentsOpen && returnToSearch && <button type="button" onClick={() => { setCommentsOpen(false); setSearchOpen(true); }} className="mb-2 self-start rounded-md px-1 py-1 text-xs text-ink-2 outline-none hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60">Back to Search</button>}
-          <CanvasSearchPanel {...search.panel} hidden={!searchOpen} inputRef={searchInput} onOpenAction={openSearchAction} />
-          {comments.active && commentsOpen && <div data-shared-comments className="flex min-h-0 flex-1 flex-col"><CommentsPanel {...comments.panelProps} /></div>}
-        </ResizableSidePanel>
-      </div>
+      </section>
+      <SharedPanel panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-shared-comments"
+        outline={canvasState.outline} activeSection={canvasState.activeSection ?? null} canvasApi={canvasApi}
+        chat={<SharedChat token={token} viewer={shared.viewer} context={shared.context} draft={askBack?.draft ?? null} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining} />} />
+      {shortcutsOpen && <ShortcutsSheet onClose={() => setShortcutsOpen(false)} />}
     </main>
   );
 }
@@ -287,110 +309,6 @@ function SharedNextSteps({ token, card, version, signedIn, startRef }) {
   const [curious] = useState(() => uiPrefs().curious);
   const steps = useSharedNextSteps({ token: curious ? token : null, card, version, signedIn });
   return <NextStepsCard steps={steps} onPick={(step, hook) => startRef.current?.(card, step, hook.id)} />;
-}
-
-const SOURCE_ICON = { video: Play, wiki: BookOpen, paper: FileText };
-const SOURCE_PILLS = 4;
-const PILL = 'inline-flex max-w-[260px] shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs';
-
-// The shared canvas's composer: Learn's composer shell (ChatComposer dock) in the canvas's composer slot, the
-// canvas's context as read-only pills above it, and the answers in a window above that only this viewer sees -
-// kept in this tab (shared-ask.js), never on the owner's board and never in a fork (Fork sends only the link). A Q&A
-// surface only: no +, attachments, model picker or / commands (the server ignores them too). Anyone may type;
-// sending needs an account, so signed out, Send keeps the draft and goes through sign-in. `draft` (back from
-// sign-in) is restored, never sent.
-// target: the card the viewer selected (AdaptiveCanvas arms it as on the owner's canvas), shown as the one pill above the
-// composer with its x; Send carries only its id, and the server words it from the shared board (learn-shared-ask.js).
-function SharedAsk({ token, viewer, context, draft, target = null, onClearTarget = null }) {
-  const [input, setInput] = useState(draft || '');
-  const [turns, setTurns] = useState(() => (viewer ? loadChat(token, viewer) : []));
-  const [busy, setBusy] = useState(false);
-  const [open, setOpen] = useState(true);
-  const inputRef = useRef(null), flight = useRef(null), box = useRef(null);
-  useEffect(() => { if (draft !== null) inputRef.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (viewer && !busy) saveChat(token, viewer, turns);
-    if (box.current) box.current.scrollTop = box.current.scrollHeight;
-  }, [turns, busy]); // eslint-disable-line react-hooks/exhaustive-deps
-  const toSignIn = text => { window.location.href = signInForAsk(token, text, undefined, window.location.pathname); };
-  const last = patch => setTurns(all => all.map((turn, i) => (i === all.length - 1 ? { ...turn, ...(typeof patch === 'function' ? patch(turn) : patch) } : turn)));
-  const send = async raw => {
-    const message = raw.trim();
-    if (!message || busy) return;
-    if (!viewer) return toSignIn(raw);
-    const history = askHistory(turns);
-    setInput(''); setOpen(true); setBusy(true);
-    setTurns(all => [...all, { role: 'user', content: message }, { role: 'assistant', content: '', pending: true }]);
-    const controller = new AbortController();
-    flight.current = controller;
-    let signIn = false, limited = false;
-    try {
-      await streamAsk({ path: askPath(token), body: { message, history, ...(target ? { selected: target.id } : {}) }, signal: controller.signal, onEvent: (type, data) => {
-        if (type === 'chunk') last(turn => ({ content: turn.content + data.text }));
-        else if (type === 'progress') last({ status: data.stage });
-        else if (type === 'error' && data.signIn) signIn = true;
-        else if (type === 'error') { limited = !!data.limited; last({ error: data.error, limited }); }
-        // The server could not read the share's repository at its pinned commit: said under the answer.
-        else if (type === 'done' && data.notice) last({ notice: data.notice });
-      } });
-    } catch (error) {
-      last({ error: error.name === 'AbortError' ? 'Stopped.' : error.message });
-    } finally {
-      flight.current = null;
-      last(turn => ({ pending: false, ...(turn.content || turn.error ? {} : { error: 'No answer came back. Try again.' }) }));
-      setBusy(false);
-    }
-    // The session ended since the page opened: the question goes back through sign-in as a draft.
-    if (signIn) { setTurns(all => all.slice(0, -2)); toSignIn(message); }
-    // Over a limit (429): the limit shows in the window and the question goes back into the composer, unless a new one is being typed.
-    if (limited) setInput(current => current || raw);
-  };
-  const sources = context?.sources || [];
-  const repository = context?.repository;
-  return (
-    <div data-shared-ask className="relative flex min-w-0 flex-col">
-      {open && turns.length > 0 && (
-        <div ref={box} data-shared-chat className="no-scrollbar absolute right-0 bottom-full left-0 z-30 mb-2 max-h-[45vh] overflow-y-auto rounded-xl border border-line bg-white px-3 pb-3 shadow-pop">
-          <div className="sticky top-0 z-10 -mx-3 flex items-center gap-1 bg-white px-3 pt-2 pb-1">
-            <span className="mr-auto flex items-center gap-1 text-xs text-ink-2"><Lock size={11} />Only you see this chat. Fork to make your own editable copy.</span>
-            <button type="button" disabled={busy} onClick={() => setTurns([])} className="flex h-6 cursor-pointer items-center rounded-sm px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:cursor-default disabled:opacity-50">Clear</button>
-            <button type="button" aria-label="Collapse chat" title="Collapse" onClick={() => setOpen(false)} className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-sm text-ink-2 hover:bg-hover hover:text-ink"><Minus size={14} /></button>
-          </div>
-          {turns.map((turn, i) => (
-            <div key={i} className={`py-1.5 ${turn.role === 'user' ? 'flex justify-end' : ''}`}>
-              {turn.role === 'user' ? <div className="max-w-[85%] rounded-lg bg-hover px-3 py-1.5 text-sm">{turn.content}</div>
-                : turn.error ? <div role="alert" data-shared-limited={turn.limited || undefined} className="rounded-lg border border-danger/40 bg-danger/5 px-3 py-2 text-sm text-danger">{turn.error}</div>
-                : turn.content ? <div data-shared-answer className="min-w-0 rounded-lg border border-accent/30 p-3">
-                  {/* ponytail: no onFile - a shared view cannot open the owner-only repository file viewer, so cited files show as plain pills and there is no Sources dropdown (owner decision E). A share viewer scoped to this share, its pinned commit and the allowed material could make them open. */}
-                  <Md text={turn.content} />
-                  {turn.notice && <p data-shared-notice className="mt-2 text-xs text-ink-3">{turn.notice}</p>}
-                </div>
-                : <span className="flex items-center gap-2 text-xs text-ink-2"><Loader2 size={14} className="animate-spin text-ink-3" /><span className="shimmer">{turn.status || 'Thinking'}</span></span>}
-            </div>
-          ))}
-        </div>
-      )}
-      {(repository || sources.length > 0) && (
-        <div data-shared-context className="mb-1.5 flex flex-wrap gap-1.5">
-          {repository && <span data-context-pill="repository" title={`${repository.repo} at ${repository.commit}`} className={`${PILL} border-green-600/45 bg-green-50 text-green-800`}>
-            <FolderGit2 size={12} className="shrink-0" /><span className="truncate">{repository.repo} · {repository.commit.slice(0, 7)}</span>
-          </span>}
-          {sources.slice(0, SOURCE_PILLS).map(source => {
-            const Icon = SOURCE_ICON[source.kind] || FileText;
-            return <span key={`${source.kind}:${source.id || source.title}`} data-context-pill={source.kind} title={source.title} className={`${PILL} border-line bg-hover text-ink-2`}><Icon size={12} className="shrink-0" /><span className="truncate">{source.title}</span></span>;
-          })}
-          {sources.length > SOURCE_PILLS && <span data-context-pill="more" title={sources.slice(SOURCE_PILLS).map(source => source.title).join('\n')} className={`${PILL} border-line text-ink-3`}>+{sources.length - SOURCE_PILLS} more</span>}
-        </div>
-      )}
-      {target && <div data-canvas-target data-selected-card={target.id} title={`${target.kind}: ${String(target.title ?? '')}`} className="mb-1.5 inline-flex max-w-full self-start items-center gap-1.5 rounded-full border border-line bg-hover py-1 pr-1.5 pl-2.5 text-xs text-ink-2">
-        <MaterialIcon type={target.context?.material_type} />
-        <span className="max-w-[260px] truncate">{String(target.title ?? '').replace(/\$([^$]*)\$/g, '$1')}</span>
-        <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
-      </div>}
-      <ChatComposer dock value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} onStop={() => flight.current?.abort()} maxLength={4000}
-        placeholder={viewer ? 'Ask about this canvas' : 'Ask about this canvas… (sign in to send)'} />
-    </div>
-  );
 }
 
 // A project's link (visibility-menu.md "Projects", owner 2026-10-09) is its Main canvas's: beside it, the project's canvases
