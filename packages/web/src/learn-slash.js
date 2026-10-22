@@ -232,7 +232,8 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // the image (a region crop, an image card or the composer's attachment) go with the job; the job API reads the image's
   // bytes on the server under this canvas's authorization, as a layout reference only (explain-job.js explainRoute).
   if (name === 'explain' && canvas.startExplain && args.trim()) {
-    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed });
+    // EXP-T21: the Tutor's chosen tool (internal) is the same job, recorded as its source; no intent call is made for it.
+    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, image, promptUsed, ...(internal ? { source: 'tutor' } : {}) });
     if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
   }
   const slot = mayConfirmPaid(name) ? null : hold();

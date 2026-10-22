@@ -142,6 +142,29 @@ test('duplicate_action_inserts_once: a double click, a retry during material ins
   assert.deepEqual([card.options, card.coaching, w.blocks[0].id], [{ after: 'work' }, { goalId: GOAL.goalId, activityId: 'la_new' }, 'work']);
 });
 
+// EXP-T21: a coaching activity's explanation is the shared /explain job; its waiting card carries the action stamp, so a retry or
+// replay is a duplicate (no second job), and the checks hold before the job starts (Off, or another canvas: no job at all).
+test('an explanation material opens one /explain job, stamped; a replay starts none, and a changed context starts none', async () => {
+  const w = world(), jobs = [];
+  const canvas = { ...w.deps.canvas, startExplain: async (prompt, options) => { jobs.push([prompt, options.source, options.stamp]); const id = `job-card-${jobs.length}`; w.blocks.push({ id, type: 'animation', explainJob: { id: 'ej' }, ...options.stamp }); return { blockId: id }; } };
+  const makeMaterial = explainMaterial(async (line, deps) => {
+    const { runLearnCommand } = await import('./learn-slash.js');
+    return runLearnCommand(line, { ...deps, post: async () => { throw new Error('no artifact call'); }, openSearch: () => {} });
+  }, { app: 'canvas-0a1b2c3d' });
+  const explain = { format: 'explanation', command: 'explain', request: 'why the sigmoid saturates' };
+  const a = action({}, { proposal: { ...action().payload.proposal, material: explain } });
+  const first = await applyTutorAction(a, now(), { ...w.deps, canvas, makeMaterial });
+  assert.deepEqual([first.material, first.blockId], ['made', 'job-card-1']);
+  assert.deepEqual(jobs, [['why the sigmoid saturates', 'tutor', { tutor_action: a.actionId, coaching: { goalId: GOAL.goalId, activityId: 'la_new' } }]]);
+  await new Promise(resolve => setTimeout(resolve, 5));
+  assert.equal((await applyTutorAction(a, now(), { ...w.deps, canvas, makeMaterial })).status, 'duplicate');
+  assert.equal(jobs.length, 1, 'a replay finds the stamped waiting card: no second job');
+  let context = now();
+  const b = action({}, { proposal: { ...action().payload.proposal, material: explain } });
+  const moved = await applyTutorAction(b, () => context, { ...w.deps, canvas: { ...canvas, startExplain: async (...args) => { throw new Error(`started ${args[0]}`); } }, makeMaterial: (m, deps) => { context = now({ board: 'other' }); return makeMaterial(m, deps); } });
+  assert.deepEqual([moved.material, moved.reason], ['kept_at_origin', 'context_changed']);
+});
+
 test('viewer_cannot_insert: a read-only canvas gets no activity and no card; neither does another learner, canvas or goal', async () => {
   const w = world();
   assert.deepEqual(await applyTutorAction(action(), now({ canEdit: false }), w.deps), { status: 'refused', reason: 'read_only' });

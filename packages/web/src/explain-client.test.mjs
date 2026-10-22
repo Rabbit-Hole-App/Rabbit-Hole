@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyExplainEdit, discardExplainEdit, explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
+import { EXPLAIN_UNAVAILABLE, applyExplainEdit, discardExplainEdit, explainClient, explainRetry, explainUnavailable, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock, explainResultBlock, explainRunning, explainStage } from './explain-client.js';
 import { submitCadOnce } from './cad-client.js';
 import { runLearnCommand } from './learn-slash.js';
 
@@ -153,4 +153,37 @@ test('an /explain proposal approves its job instead of adding a card; other prop
   assert.equal(proposalBlock(explain), null, 'no second card');
   assert.equal(approvesJob({ ...explain, input: {} }), false, 'no job named: nothing to approve');
   assert.equal(approvesJob({ command: 'motion', input: { request: 'x' }, title: 'Video', settings: {} }), false);
+});
+
+// EXP-T20 slice 3: the waiting card keeps the thread its brief is posted on (the chat shows it when the job waits for Generate).
+test('the waiting card carries the chat thread of its brief only when there is one', () => {
+  assert.deepEqual(explainPendingBlock({ job: job(), prompt: 'heaps', threadId: 'th_1' }).explainJob, { id: 'ej_1', boardId: 'board-A', stage: 'authoring', threadId: 'th_1' });
+  assert.equal('threadId' in explainPendingBlock({ job: job(), prompt: 'heaps' }).explainJob, false);
+});
+
+// Provider-cap resilience (r2-kickoff section 3): a provider spend cap, usage limit or overload pauses the job; the card says it
+// is temporarily unavailable (credits only, no ellipsis), keeps the request, and Retry continues the same job at its attempt.
+test('provider_unavailable reads as a temporary pause with Retry; other failures keep their own words and recovery', () => {
+  // The job view L1 documents (job-api-c.md, Provider unavailable).
+  const said = 'Explanations are temporarily unavailable. Your request is saved. Try again in a few minutes.';
+  const paused = job({ stage: 'failed', terminal: true, attempt: 2, stopReason: 'provider_unavailable', failure: { stage: 'authoring', category: 'provider_unavailable', message: said, retryable: true }, recovery: ['new_attempt', 'edit_request'] });
+  assert.equal(explainUnavailable(paused), true);
+  assert.equal(explainStage(paused), said, 'the words the server sent');
+  assert.equal(explainStage({ ...paused, failure: { ...paused.failure, message: '' } }), EXPLAIN_UNAVAILABLE, 'else ours');
+  assert.doesNotMatch(EXPLAIN_UNAVAILABLE, /\.\.\.|…|\$|dollar/i);
+  assert.match(EXPLAIN_UNAVAILABLE, /temporarily unavailable/);
+  assert.equal(explainRetry(paused), 'new_attempt');
+  assert.equal(explainRetry({ ...paused, recovery: ['reconcile'] }), 'new_attempt', 'paused: Retry is offered; the server reconciles before any call');
+  assert.equal(explainUnavailable(job({ stage: 'authoring', stopReason: 'provider_unavailable' })), true, 'a job the server holds paused');
+  const other = job({ stage: 'failed', terminal: true, failure: { stage: 'rendering', category: 'renderer', message: 'Rendering explanations is not available here yet.' }, recovery: ['retry_render', 'edit_request'] });
+  assert.deepEqual([explainUnavailable(other), explainStage(other), explainRetry(other)], [false, 'Rendering explanations is not available here yet.', 'retry_render']);
+  assert.equal(explainRetry(job({ stage: 'failed', terminal: true, failure: { category: 'spec' }, recovery: ['edit_request'] })), null);
+});
+
+test('Retry sends the attempt it saw; a repeat at that attempt is the same request', async () => {
+  const sent = [];
+  const client = explainClient(async (path, init) => { sent.push([path, JSON.parse(init.body)]); return { job: job() }; }, 'board-A');
+  await client.action('ej_1', 'retry', { expectedAttempt: 2 });
+  await client.action('ej_1', 'retry', { expectedAttempt: 2 });
+  assert.deepEqual(sent, [['/api/learn/explain/jobs/ej_1/retry', { boardId: 'board-A', expectedAttempt: 2 }], ['/api/learn/explain/jobs/ej_1/retry', { boardId: 'board-A', expectedAttempt: 2 }]]);
 });
