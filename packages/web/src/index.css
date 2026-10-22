@@ -5,6 +5,11 @@
    Light theme (file peek citation bug). */
 @custom-variant dark (&:where(.dark, .dark *));
 @import '@fontsource-variable/inter';
+/* Scene monospace (matrix cells, numerals, code text in explanations): a bundled face, so Browser Rendering (Linux), the
+   review captures and every learner's OS draw the same digits (EXP-T18 render parity; system mono stacks differ by OS).
+   JetBrains Mono 2.304 Regular, SIL OFL 1.1 (fonts/JetBrainsMono-OFL.txt; the same file as packages/learn-render). */
+@font-face { font-family: 'JetBrains Mono'; src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
+:root { --font-scene-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 /* BlockNote's shadcn components rely on the host app's Tailwind generating their utilities */
 @source '../../../node_modules/@blocknote/shadcn';
 

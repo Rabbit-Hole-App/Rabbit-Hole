@@ -32,7 +32,7 @@ import { escapeYields, withoutSceneHighlight } from './scene-selection.js';
 // come in when a lesson needs its full toolset inside the animation.
 
 const DATA_TYPES = ['grid', 'strip', 'bars', 'tokens'];
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+const MONO = 'var(--font-scene-mono)'; // the bundled JetBrains Mono (index.css), identical on every OS and in review renders
 // The evaluator owns every position and value, so scrubbing stays exact.
 // Motion only springs the on/off states - what is lit, what just won - which
 // settle wherever the evaluator says they are.

@@ -12,8 +12,8 @@ const host = document.getElementById('root');
 const root = createRoot(host);
 const frames = n => new Promise(resolve => { const step = left => (left ? requestAnimationFrame(() => step(left - 1)) : resolve()); step(n); });
 
-// Inter (UI and scene labels) and the KaTeX faces equations use; each load resolves once the face is usable.
-const FACES = ['400 1em "Inter Variable"', '600 1em "Inter Variable"', '1em KaTeX_Main', 'italic 1em KaTeX_Math', '1em KaTeX_Size1', '1em KaTeX_Size2'];
+// Inter (UI and scene labels), JetBrains Mono (scene numerals and code, index.css) and the KaTeX faces equations use; each load resolves once the face is usable.
+const FACES = ['400 1em "Inter Variable"', '600 1em "Inter Variable"', '400 1em "JetBrains Mono"', '1em KaTeX_Main', 'italic 1em KaTeX_Math', '1em KaTeX_Size1', '1em KaTeX_Size2'];
 
 // request: { scene, time, inputs, theme: 'light'|'dark', width, height }
 // width/height size the diagram frame (default: the scene's own); the transport and any experiment

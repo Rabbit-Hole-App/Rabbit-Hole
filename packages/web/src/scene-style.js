@@ -47,7 +47,7 @@ const TEXT_STYLE = {
   body: { fontSize: 15, fontWeight: 400, fill: 'var(--color-ink)' },
   caption: { fontSize: 14, fontWeight: 500, fill: 'var(--color-ink-2)' },
   annotation: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)' },
-  code: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)', fontFamily: 'var(--font-mono)' },
+  code: { fontSize: 13, fontWeight: 400, fill: 'var(--color-ink-2)', fontFamily: 'var(--font-scene-mono)' },
   equation: { fontSize: 16, fontWeight: 400, fill: 'var(--color-ink)' },
 };
 // Returned by reference below, so a caller mutating one would silently retune
