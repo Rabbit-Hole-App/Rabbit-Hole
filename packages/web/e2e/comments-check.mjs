@@ -71,7 +71,7 @@ const shot = async (name, clip = null) => {
 const card = id => page.locator(`[data-block-id="${id}"]`);
 const panel = () => page.locator('[data-comments-panel]');
 // A row's name without its shortcut hint ("Add comment", hint "C").
-const rowNames = nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint).map(child => child.textContent).join('').trim());
+const rowNames = nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint && !child.dataset?.menuReason).map(child => child.textContent).join('').trim());
 const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
@@ -367,6 +367,11 @@ await check('12 /e signed out: the public thread reads; Add comment drafts, and 
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
   const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
   assert.deepEqual(items.slice(0, 2), ['Start Rabbit Hole', 'Add comment']);
+  // A signed-out guest cannot start one: the row keeps its name and says why beside it (the reason is its description, not its name).
+  const start = tab.locator('[data-canvas-menu] [role="menuitem"]').first();
+  assert.equal(await start.getAttribute('data-sign-in'), 'true', 'Start Rabbit Hole asks the guest to sign in');
+  assert.match(await start.locator('[data-menu-reason]').innerText(), /^Sign in/);
+  assert.match(await start.getAttribute('aria-description'), /^Sign in/);
   const publicThreads = async () => (await api(`/api/learn/boards/shared/${token}/comments/threads`)).body.threads.length;
   const posted = await publicThreads();
   await tab.locator('[data-menu-add-comment]').click();

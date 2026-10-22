@@ -70,6 +70,14 @@ test('a duplicate transport retry reuses its request id: answered again, never c
   assert.deepEqual((await tab.allowance(token)).body.guest, { limit: 10, used: 2, remaining: 8 });
 });
 
+test('a guest Send without a request id is refused 400 request_id_required even where no model is configured', async t => {
+  const f = setup(t, { vars: { ANTHROPIC_API_KEY: undefined } }), sent = scriptModel(t);
+  const { token } = await f.shareProject();
+  const missing = await browser(f).ask(token, { message: 'hi' }, { key: null });
+  assert.deepEqual([missing.status, missing.body.code], [400, 'request_id_required']);
+  assert.equal(sent.length, 0);
+});
+
 test('concurrent sends from many tabs never admit more than 10', async t => {
   const f = setup(t), sent = scriptModel(t);
   const { token } = await f.shareProject();

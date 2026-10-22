@@ -29,11 +29,12 @@ function ActionRow({ row, onPick }) {
   return (
     <MenuRow icon={Icon} data-action={row.id} {...row.attrs} disabled={row.disabled} title={row.reason || undefined} data-sign-in={row.signIn || undefined}
       role={check ? 'menuitemcheckbox' : 'menuitem'} aria-checked={check ? row.checked : undefined}
-      aria-keyshortcuts={row.keyshortcuts || undefined} hint={row.hint || undefined}
+      aria-keyshortcuts={row.keyshortcuts || undefined} aria-description={row.reason || undefined} hint={row.hint || undefined}
       className={`${row.reason ? 'h-auto py-1' : ''} ${row.danger ? 'text-danger' : ''}`}
       onClick={() => onPick(row.id)}>
       {check ? <span className="flex items-center"><span className="min-w-0 flex-1">{row.label}</span><span aria-hidden="true" className="inline-block w-4">{row.checked ? <Check size={14} strokeWidth={2.5} /> : null}</span></span> : row.label}
-      {row.reason && <span className="block text-xs text-ink-3">{row.reason}</span>}
+      {/* The reason is the row's description, never part of its name: the label stays what the row is called. */}
+      {row.reason && <span data-menu-reason aria-hidden="true" className="block text-xs text-ink-3">{row.reason}</span>}
     </MenuRow>
   );
 }

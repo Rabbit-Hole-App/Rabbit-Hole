@@ -255,7 +255,6 @@ export async function guestChatAllowance(db, guest) {
 // Admits a guest's message before any model call, in one atomic insert each: a new turn under the trial and the link's caps,
 // else a replay of the same turn under its replay cap and the link's caps. { allowance } when admitted, else the refusal.
 async function admitGuest(env, row, guest, message, repository, linkKey) {
-  if (!ACTION_KEY.test(guest.key)) return json({ error: 'Send needs a request id (X-RH-Action-Key).', code: 'request_id_required' }, 400);
   const db = env.LEARN_DB, limits = sharedAskLimits(env), now = Math.floor(Date.now() / 1000);
   const browser = await browserKey(guest), turn = `guest:${browser}:${await sha256Hex(`${guest.key}\n${message}`)}`;
   const insert = where => db.prepare(`INSERT INTO shared_ask_events (category, asked_at, viewer_email, share_key, board_id, owner_email, repository)
@@ -314,6 +313,8 @@ export async function askShared(env, row, viewer, body, link = null, guest = nul
   if (!history) return json({ error: 'history must be a list of { role, content } turns' }, 400);
   if (body.selected != null && (typeof body.selected !== 'string' || !body.selected || body.selected.length > 200)) return json({ error: 'selected must be a card id' }, 400);
   if (!viewer && !guest) throw new TypeError('askShared needs a viewer or a guest trial');
+  // A guest's Send needs its request id first - pure validation, so it answers the same whether or not a model is configured.
+  if (!viewer && !ACTION_KEY.test(guest.key)) return json({ error: 'Send needs a request id (X-RH-Action-Key).', code: 'request_id_required' }, 400);
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const refused = subscriptionOwnerRefusal(env, viewer);
   if (refused) return refused;
