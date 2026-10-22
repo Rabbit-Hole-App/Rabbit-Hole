@@ -178,6 +178,7 @@ test('the orchestrator Docker context boots the hostable entry: every file it im
       health = await fetch(`http://127.0.0.1:${port}/health`).then(r => r.json(), () => null);
     }
   } finally { proc.kill(); await exited; }
-  assert.deepEqual(health, { ok: true, active: false, ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] }, `the orchestrator did not boot from the image tree: ${stderr.split('\n').find(l => /Error/.test(l)) || stderr.slice(0, 300)}`);
+  // boot: the random id of this run, which grants are bound to (MOT-08).
+  assert.deepEqual({ ...health, boot: /^[0-9a-f]{32}$/.test(health?.boot) ? 'id' : health?.boot },{ ok: true, active: false, boot: 'id', ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] }, `the orchestrator did not boot from the image tree: ${stderr.split('\n').find(l => /Error/.test(l)) || stderr.slice(0, 300)}`);
   relativeImports(join(cwd, 'motion', 'orchestrator-main.mjs'));
 });

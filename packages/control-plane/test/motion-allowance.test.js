@@ -20,6 +20,8 @@ const NOW = Math.floor(Date.now() / 1000), PERIOD = periodOf(NOW);
 const TOKEN = 'm'.repeat(48);
 const MODEL = 'claude-opus-5-5';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+const until = async (fn, what) => { for (let i = 0; i < 500; i++) { if (await fn()) return; await sleep(5); } assert.fail(`timed out waiting for ${what}`); };
+const LINUX = { ok: true, busy: false, sandbox: 'linux' };
 
 function d1(t) {
   const sqlite = new DatabaseSync(':memory:');
@@ -67,7 +69,7 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
     return Response.json({ model: MODEL, usage: { input_tokens: 0, output_tokens: body.out } });
   };
   const reported = new Map();
-  const service = { health: async () => (health instanceof Error ? Promise.reject(health) : health),
+  const service = { health: async () => (typeof health === 'function' ? health() : health instanceof Error ? Promise.reject(health) : health),
     submit: async () => { renders.push(1); return Response.json({ render_id: `r${renders.length}` }, { status: 202 }); },
     status: async id => ({ render_id: id, status: reported.get(id) || 'ready' }) };
   // The stub pipeline: the stages' calls (each {max_tokens, out}), then renders, then a final.mp4. A refused call (the
@@ -194,7 +196,8 @@ test('duplicate submits and a worker restart mid-job: one reservation, one orche
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']]);
 });
 
-test('an unconfirmed start is resent under the same key: the orchestrator returns the job it started, never a second', async t => {
+// Owner review MOT-07 (message 27) replaces the resend of owner item 2: the lost answer is reconciled by closing the key.
+test('an unconfirmed start is never resent: closing its key answers the job it started, never a second', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
@@ -206,7 +209,7 @@ test('an unconfirmed start is resent under the same key: the orchestrator return
   globalThis.fetch = through;
   assert.equal((await video(actor)).status, 'generating');
   await settle(actor, async () => (await video(actor)).status === 'ready');
-  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite).length, w.model.calls.length], [2, 1, 1, 3]);
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite).length, w.model.calls.length], [1, 1, 1, 3]);
 });
 
 test('Stop: the call in flight is abandoned, its real cost is settled once it lands, the rest is released, nothing is stored', async t => {
@@ -394,4 +397,159 @@ test('render actions follow what the renderer reported: ready completed, failed 
   await actor.fetch(ask());
   await settle(actor, async () => (await video(actor)).status === 'failed');
   assert.deepEqual(actions(sqlite), [['video', 'failed', 'none', true], ['render', 'completed', 'full', true], ['render', 'failed', 'none', true], ['render', 'interrupted', null, true]]);
+});
+
+// The owner's lifecycle review (message 27) and its acceptance list (message 28): MOT-06..09, against the real orchestrator.
+test('MOT-06 a worker timeout while renderer health is awaited, then a worker restart: the alarm finds the same job by its key; one job, one reservation, one settlement', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  let healthy, asked = 0;
+  const ready = new Promise(r => { healthy = r; });
+  const w = world(t, { health: () => { asked++; return ready.then(() => LINUX); } });
+  await w.orchestrator.start(); w.script(FIRST_PASS);
+  const data = new Map(), env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a', data), env);
+  // The worker gives up on its POST (its 20 s timeout) while the orchestrator is still asking the renderer for its health.
+  const through = globalThis.fetch;
+  let gaveUp = false;
+  globalThis.fetch = async (url, init) => {
+    if (gaveUp || new URL(url).pathname !== '/jobs') return through(url, init);
+    gaveUp = true; through(url, init).catch(() => {});
+    await until(() => asked === 1, 'the orchestrator admitting');
+    throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+  };
+  await actor.fetch(ask());
+  globalThis.fetch = through;
+  assert.equal((await video(actor)).status, 'generating', 'unconfirmed: never released');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'reserved', null, 'running']]);
+  // The Durable Object restarts; its alarm reaches the orchestrator while that admission still waits.
+  const restarted = new LearnVideos(durable('video-a', data), env);
+  const polling = restarted.alarm();
+  await Promise.race([polling, until(() => asked >= 2, 'a second admission')]);
+  healthy(); await polling;
+  await settle(restarted, async () => (await video(restarted)).status === 'ready');
+  assert.deepEqual([w.orchestrator.o.jobs.size, w.model.calls.length, w.renders.length], [1, 3, 2], 'one job ran');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']], 'one reservation, settled once at its real cost');
+  assert.equal(w.orchestrator.posts, 1, 'the submission was never resent');
+  await restarted.alarm();
+  assert.deepEqual(actions(sqlite), [['video', 'completed', 'full', true], ['render', 'completed', 'full', true], ['render', 'completed', 'full', true]], 'closed once');
+});
+
+test('MOT-06 two learners at once share the one orchestrator slot: one job starts, the other is a confirmed no-start and its hold is released', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  let healthy, asked = 0;
+  const ready = new Promise(r => { healthy = r; });
+  const w = world(t, { health: () => { asked++; return ready.then(() => LINUX); } });
+  await w.orchestrator.start(); w.script(FIRST_PASS);
+  const env = env0(LEARN_DB);
+  const alice = new LearnVideos(durable('video-a'), env), bob = new LearnVideos(durable('video-b'), env);
+  const first = alice.fetch(ask());
+  await until(() => asked === 1, 'the first admission');
+  const second = bob.fetch(ask());
+  await Promise.race([second, until(() => asked === 2, 'a second admission')]);
+  healthy();
+  await Promise.all([first, second]);
+  const b = await video(bob);
+  assert.deepEqual([b.status, b.retryable], ['failed', true]);
+  assert.match(b.error, /one Motion job at a time/);
+  assert.equal(w.orchestrator.o.jobs.size, 1, 'the global capacity holds while health is awaited');
+  await settle(alice, async () => (await video(alice)).status === 'ready');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled'], [2_000_000, 'settled', 0, 'cancelled']], 'the started job settles at its cost; the refused one is released in full');
+});
+
+test('MOT-07 acceptance followed by a 502, a 500 or a malformed success keeps the reservation and reconciles the original job; settled once at its real cost', async t => {
+  const answers = [() => new Response('<html>502 Bad Gateway</html>', { status: 502 }), () => Response.json({ error: 'orchestrator_failure', detail: 'x' }, { status: 500 }),
+    () => Response.json({ status: 'running' }, { status: 202 }), () => new Response('{"job_id": "', { status: 202 })];
+  for (const answer of answers) {
+    const { sqlite, LEARN_DB } = d1(t);
+    const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+    const through = globalThis.fetch;
+    globalThis.fetch = async (url, init) => { const r = await through(url, init); return new URL(url).pathname === '/jobs' ? answer() : r; };
+    await actor.fetch(ask());
+    globalThis.fetch = through;
+    const v = await video(actor);
+    assert.deepEqual([v.status, v.hold?.state], ['generating', 'reserved'], 'accepted remotely: never released as a no-start');
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'reserved', null, 'running']]);
+    await settle(actor, async () => (await video(actor)).status === 'ready');
+    assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, w.model.calls.length], [1, 1, 3], 'the original job, never a second');
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']]);
+  }
+});
+
+test('MOT-07 a lost submission: a key the live orchestrator run never saw is a confirmed no-start and released; after a restart the hold stays and nothing starts again', async t => {
+  {
+    const { sqlite, LEARN_DB } = d1(t);
+    const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+    const through = globalThis.fetch;
+    globalThis.fetch = async (url, init) => { if (new URL(url).pathname === '/jobs') throw new TypeError('fetch failed'); return through(url, init); };
+    await actor.fetch(ask());
+    globalThis.fetch = through;
+    assert.equal((await video(actor)).status, 'generating', 'not yet known: held');
+    await settle(actor, async () => (await video(actor)).status === 'failed');
+    const v = await video(actor);
+    assert.deepEqual([v.retryable, v.hold?.state], [true, 'released']);
+    assert.match(v.error, /did not start this video\. Nothing was spent/);
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'cancelled']]);
+    assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, w.model.calls.length], [0, 0, 0], 'never resent');
+  }
+  {
+    const { sqlite, LEARN_DB } = d1(t);
+    const w = world(t); await w.orchestrator.start();
+    w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }, ...FIRST_PASS.slice(1)]);
+    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+    const through = globalThis.fetch;
+    globalThis.fetch = async (url, init) => { const r = await through(url, init); if (new URL(url).pathname === '/jobs') throw new Error('socket hang up'); return r; };
+    await actor.fetch(ask());
+    globalThis.fetch = through;
+    await until(() => w.model.held, 'the first call in flight');
+    await w.orchestrator.start({ later: 2000 }); // a deploy or crash before the worker learned the job id
+    await settle(actor, async () => (await video(actor)).status === 'failed');
+    const v = await video(actor);
+    assert.match(v.error, /lost this video before it confirmed the start\. Its spending stays held/);
+    assert.deepEqual([v.retryable, v.hold?.state], [false, 'pending']);
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'unknown', null, 'failed']], 'its cost is unknown: the reservation stays');
+    assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, w.model.calls.length], [1, 0, 1], 'nothing was resent or started again');
+  }
+});
+
+test('MOT-08 cold start: the first Generate after the orchestrator booted from idle starts exactly once', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t);
+  await w.orchestrator.start({ later: 5000 }); // the run booted for this request: its boot second is after the worker's clock
+  w.script(FIRST_PASS);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  await actor.fetch(ask());
+  assert.equal((await video(actor)).status, 'generating', 'started, not refused as a replay');
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size], [1, 1]);
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']]);
+});
+
+test('MOT-09 Stop before the start was confirmed, then a worker restart: never resubmitted; the job recovered by its key is cancelled, no later paid stage runs, the in-flight cost settles once', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }, { stage: 'storyboarding', max_tokens: 16000, out: 5000 }, { stage: 'authoring', max_tokens: 64000, out: 30000 }, { render: true }]);
+  const data = new Map(), env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a', data), env);
+  const through = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { const r = await through(url, init); if (new URL(url).pathname === '/jobs') throw new Error('socket hang up'); return r; };
+  const { placementId } = await (await actor.fetch(ask())).json();
+  globalThis.fetch = through;
+  await until(() => w.model.held, 'the first call in flight');
+  const v = (await (await actor.fetch(stopping(placementId))).json()).videos[0];
+  assert.deepEqual([v.status, v.error, v.retryable], ['failed', 'Stopped.', true]);
+  const restarted = new LearnVideos(durable('video-a', data), env);
+  await restarted.alarm();
+  const recovered = [...w.orchestrator.o.jobs.values()][0];
+  assert.ok(recovered.controller.signal.aborted, 'the job recovered by its key was told to stop');
+  w.model.held(); // the call in flight lands and is priced
+  await settle(restarted, async () => motionAttempts(sqlite)[0][1] !== 'reserved');
+  assert.deepEqual([w.orchestrator.posts, w.model.calls.length, w.renders.length], [1, 1, 0], 'never resubmitted; no later paid stage or render');
+  assert.equal(recovered.status, 'cancelled');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']], 'only the $0.10 call in flight is paid');
+  await restarted.alarm();
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 100_000, 'failed']], 'settled once');
+  assert.deepEqual(actions(sqlite), [['video', 'cancelled', 'none', true]]);
+  assert.equal(env.LEARN_MEDIA.objects.size, 0);
 });

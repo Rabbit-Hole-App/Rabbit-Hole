@@ -15,14 +15,16 @@ const MODEL = 'claude-opus-5-5';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const until = async (fn, what) => { for (let i = 0; i < 500; i++) { if (await fn()) return; await sleep(10); } assert.fail(`timed out waiting for ${what}`); };
 const LINUX = { ok: true, busy: false, sandbox: 'linux' };
-let keys = 0;
-// A job request as the worker sends it: its own idempotency key and a grant for $2 signed with the shared token.
-const job = ({ micros = 2_000_000, key = `op-motion-${++keys}-key`, at = Math.floor(Date.now() / 1000), token = TOKEN, ...rest } = {}) =>
-  ({ request: '/motion 15s explain me softmax func', location: { concept: 'Attention' }, idempotency_key: key, grant: { micros, issued_at: at, sig: signGrant(token, key, micros, at) }, ...rest });
+let keys = 0, lastBoot;
+// A job request as the worker sends it: its own idempotency key and a grant for $2 signed with the shared token, bound to the
+// orchestrator run it read from /health (by default the one the test started last).
+const job = ({ micros = 2_000_000, key = `op-motion-${++keys}-key`, at = Math.floor(Date.now() / 1000), token = TOKEN, boot = lastBoot, ...rest } = {}) =>
+  ({ request: '/motion 15s explain me softmax func', location: { concept: 'Attention' }, idempotency_key: key, grant: { micros, issued_at: at, ...(boot ? { boot } : {}), sig: signGrant(token, key, micros, at, boot) }, ...rest });
 
-async function start(t, { run, health = async () => LINUX, call = async () => new Response('{}'), outDir = mkdtempSync(join(tmpdir(), 'motion-orch-')), logs = [], ...options } = {}) {
+async function start(t, { run, health = async () => LINUX, call = async () => new Response('{}'), outDir = mkdtempSync(join(tmpdir(), 'motion-orch-')), logs = [], wrap = handle => handle, ...options } = {}) {
   const o = motionOrchestrator({ token: TOKEN, service: { health, submit: async () => new Response('{}') }, call, outDir, run, log: line => logs.push(line), ...options });
-  const server = createServer(o.handle);
+  lastBoot = o.boot;
+  const server = createServer(wrap(o.handle));
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   t.after(() => { server.close(); o.close(); });
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -34,6 +36,7 @@ async function start(t, { run, health = async () => LINUX, call = async () => ne
 const reply = outputTokens => new Response(JSON.stringify({ model: MODEL, usage: { input_tokens: 0, output_tokens: outputTokens } }));
 
 test('job requests: a /motion line, an optional concept and card context, the key and grant; never composition source', () => {
+  lastBoot = 'b'.repeat(32);
   assert.deepEqual(validateJobRequest(job()), []);
   assert.deepEqual(validateJobRequest(job({ context: { selection: { cardId: 'c1', kind: 'note', title: 'Photosynthesis', text: 'Light reactions' } } })), []);
   for (const bad of [
@@ -41,7 +44,7 @@ test('job requests: a /motion line, an optional concept and card context, the ke
     { ...job(), model: 'x' }, { ...job(), location: { concept: 'a', path: '/etc' } }, { ...job(), location: { concept: 'x'.repeat(101) } },
     { ...job(), source: 'export const C = () => null;' }, { ...job(), composition: { source: 'x' } }, // learner-supplied Remotion code (spec §34)
     { ...job(), context: { selection: { text: 'x'.repeat(12001) } } }, { ...job(), idempotency_key: 'x' }, { ...job(), grant: undefined },
-    { ...job(), grant: { micros: 1.5, issued_at: 1, sig: 'x' } }, [],
+    { ...job(), grant: { micros: 1.5, issued_at: 1, sig: 'x' } }, job({ boot: null }), job({ boot: 'B'.repeat(32) }), [], // a grant names the run it is for (MOT-08)
   ]) assert.notDeepEqual(validateJobRequest(bad), [], JSON.stringify(bad).slice(0, 80));
 });
 
@@ -59,7 +62,7 @@ test('auth, one job at a time, the render service must be idle, and only final.m
   const { req, view, outDir, o } = await start(t, { run, now: () => clock, resultTtlMs: 1000 });
   assert.equal((await req('/jobs', { method: 'POST', body: job(), token: 'x'.repeat(40) })).status, 401);
   assert.equal((await req('/jobs', { method: 'POST', body: { request: 'softmax' } })).status, 400);
-  assert.deepEqual(await (await req('/health', { token: '' })).json(), { ok: true, active: false });
+  assert.deepEqual(await (await req('/health', { token: '' })).json(), { ok: true, active: false, boot: o.boot });
   const created = await req('/jobs', { method: 'POST', body: job() });
   assert.equal(created.status, 202);
   const { job_id } = await created.json();
@@ -408,9 +411,68 @@ test('preflight: a matching renderer version admits a no-source job; the real re
 test('without its model credentials the orchestrator is not ready: /health says so and every job is refused, nothing started', async t => {
   let runs = 0;
   const { req } = await start(t, { missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'], run: async () => { runs++; return { status: 'ready' }; } });
-  assert.deepEqual(await (await req('/health', { token: '' })).json(), { ok: true, active: false, ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] });
+  assert.deepEqual(await (await req('/health', { token: '' })).json(), { ok: true, active: false, boot: lastBoot, ready: false, missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'] });
   const r = await req('/jobs', { method: 'POST', body: job() });
   assert.equal(r.status, 503);
   assert.deepEqual(await r.json(), { error: 'not_configured', detail: 'the Motion service is not configured yet (ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID); nothing was started' });
   assert.equal(runs, 0);
+});
+
+test('MOT-06 atomic admission: a resend of one key while renderer health is awaited answers the same job; another key is refused busy; one job runs', async t => {
+  let runs = 0, healthy, release, arrived = 0;
+  const gate = new Promise(r => { healthy = r; });
+  const run = async () => { runs++; await new Promise(r => { release = r; }); return { status: 'ready' }; };
+  const { req, o } = await start(t, { run, health: async () => { await gate; return LINUX; }, wrap: handle => (q, s) => { q.on('end', () => arrived++); handle(q, s); } });
+  const one = job(), other = job();
+  const posts = [req('/jobs', { method: 'POST', body: one })];
+  await until(() => arrived === 1, 'the first submission read');
+  posts.push(req('/jobs', { method: 'POST', body: one }), req('/jobs', { method: 'POST', body: other }));
+  await until(() => arrived === 3, 'the resend and the other key read while health is awaited');
+  healthy();
+  const [a, b, c] = await Promise.all(posts.map(p => p.then(async r => [r.status, await r.json()])));
+  assert.deepEqual([a[0], b[0], b[1].job_id], [202, 202, a[1].job_id], 'the overlapping resend answers the job its key started');
+  assert.deepEqual([c[0], c[1].error], [429, 'busy'], 'a distinct key waits for the one global slot');
+  assert.deepEqual([runs, o.jobs.size], [1, 1], 'one job, so one hold and one ceiling');
+  release();
+});
+
+test('MOT-07 reconciliation by key: closing a key answers the job it started and starts nothing; a closed key can never start later', async t => {
+  let runs = 0, release;
+  const run = async () => { runs++; await new Promise(r => { release = r; }); return { status: 'ready' }; };
+  const { req, o } = await start(t, { run });
+  const close = key => req(`/keys/${key}/close`, { method: 'POST' }).then(async r => [r.status, await r.json()]);
+  const started = job();
+  const { job_id } = await (await req('/jobs', { method: 'POST', body: started })).json();
+  assert.deepEqual(await close(started.idempotency_key), [200, { job_id, status: 'running', boot: o.boot }], 'the original job, with the run that holds it');
+  const lost = job();
+  assert.deepEqual(await close(lost.idempotency_key), [200, { job_id: null, closed: true, boot: o.boot }], 'never seen by this run: closed');
+  release();
+  await until(() => !o.active, 'the first job ends');
+  const late = await req('/jobs', { method: 'POST', body: lost });
+  assert.deepEqual([late.status, (await late.json()).error], [403, 'grant_refused'], 'the original submission arriving late starts nothing');
+  assert.equal(runs, 1);
+  assert.equal((await req('/keys/x/close', { method: 'POST' })).status, 404);
+  assert.equal((await req(`/keys/${lost.idempotency_key}/close`, { method: 'POST', token: 'x'.repeat(40) })).status, 401);
+});
+
+test('MOT-08 cold start: a grant bound to the run that just booted starts exactly once; a replay to a later run after a genuine restart is refused', async t => {
+  let runs = 0;
+  const run = async () => { runs++; return { status: 'ready' }; };
+  // An idle service boots for the worker's /health read, so its boot second is after the second the worker signs with.
+  const cold = await start(t, { run, now: () => Date.now() + 5000 });
+  const { boot } = await (await cold.req('/health', { token: '' })).json();
+  assert.match(boot, /^[0-9a-f]{32}$/);
+  const first = job({ boot });
+  const a = await cold.req('/jobs', { method: 'POST', body: first });
+  assert.equal(a.status, 202, 'the first legitimate request after an idle boot starts');
+  const { job_id } = await a.json();
+  assert.deepEqual(await (await cold.req('/jobs', { method: 'POST', body: first })).json(), { job_id, status: 'ready', duplicate: true }, 'and only once');
+  assert.equal((await cold.req('/jobs', { method: 'POST', body: job({ boot }) })).status, 202, 'a warm start is unchanged');
+  assert.equal(runs, 2);
+  // A deploy or crash: a new run with a new boot. The interrupted job's grant, replayed to it, starts nothing.
+  const restarted = await start(t, { run, now: () => Date.now() + 10000 });
+  const replay = await restarted.req('/jobs', { method: 'POST', body: first });
+  assert.equal(replay.status, 403);
+  assert.match((await replay.json()).detail, /issued before the Motion service restarted; nothing was started/);
+  assert.equal(runs, 2);
 });

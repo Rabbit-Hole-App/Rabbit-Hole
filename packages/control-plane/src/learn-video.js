@@ -216,22 +216,26 @@ export class LearnVideos {
       return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}) };
     }) };
   }
-  // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold; an
-  // unconfirmed submission keeps the job generating with its key and grant, and the alarm resends it (the orchestrator
-  // returns the job that key already started, so nothing runs or is reserved twice).
+  // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold. An
+  // unconfirmed submission (MOT-07: no answer, a 500, a 502, a malformed success) keeps the job generating with its hold
+  // reserved; it is never resent: the alarm reconciles its key (pollMotion).
   async startMotion(req, job, provider) {
     const refused = provider.unavailable() || await this.admitMotion(req, job);
     if (refused) { Object.assign(job, { status: 'failed', error: refused, uncertain: false }); return; }
     await this.state.storage.put(`job:${job.key}`, job);
-    try { job.ticket = await provider.submit(job.input, job.spend, job.repository); }
-    catch (error) {
-      if (!error.definite) return; // unconfirmed: the alarm resends under the same key
+    try {
+      // The grant names the orchestrator process that answers now (MOT-08); it is stored before the one POST it may go out in.
+      job.spend.grant = await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, job.spend.opId, job.spend.micros, Math.floor(Date.now() / 1000), await provider.boot());
+      await this.state.storage.put(`job:${job.key}`, job);
+      job.ticket = await provider.submit(job.input, job.spend, job.repository);
+    } catch (error) {
+      if (!error.definite) return; // unconfirmed: the alarm reconciles the key, never resubmits
       await this.settleMotion(job, NOTHING);
       Object.assign(job, { status: 'failed', error: error.message, uncertain: false });
     }
   }
 
-  // -> null when admitted (job.spend holds the reservation and its signed grant), else the person's explanation.
+  // -> null when admitted (job.spend holds the reservation; startMotion signs its grant), else the person's explanation.
   async admitMotion(req, job) {
     const ceiling = motionReservationMicros(this.env);
     if (ceiling == null) return 'Motion is not available here yet: its per-video spending limit is not configured. Nothing was started.';
@@ -246,7 +250,7 @@ export class LearnVideos {
       if (gate.refused) { await finishAction(scoped, { status: 'failed', result: 'none' }); return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`; }
       job.spend = { opId, attemptId: gate.attemptId, micros: left };
     } else job.spend = { opId, attemptId: null, micros: left };
-    Object.assign(job.spend, { admitted: true, settled: false, grant: await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, opId, left, now) });
+    Object.assign(job.spend, { admitted: true, settled: false });
     return null;
   }
 
@@ -278,23 +282,31 @@ export class LearnVideos {
     }
   }
 
-  // One poll of a Motion job: resend an unconfirmed submission, settle once the job ends and nothing is in flight, then
-  // store the ready video or the reason it ended. A stopped job only settles.
+  // One poll of a Motion job: reconcile an unconfirmed submission by its key, settle once the job ends and nothing is in flight,
+  // then store the ready video or the reason it ended. A stopped job only settles.
   async pollMotion(job) {
     const provider = new MotionRequestProvider(this.env);
     const late = Date.now() - job.startedAt > maxWait(job);
     if (!job.ticket) {
-      try { job.ticket = await provider.submit(job.input, job.spend, job.repository); }
-      catch (error) {
-        if (!error.definite && !late) return;
-        // A refused resend of a fresh grant started nothing; a grant refused after a restart, or no answer at all, may have.
-        await this.settleMotion(job, error.definite && error.code !== 'grant_refused' ? NOTHING : null);
-        Object.assign(job, error.definite && error.code !== 'grant_refused' ? { status: 'failed', error: error.message, uncertain: false }
-          : { status: 'failed', error: 'The Motion service lost this video before it confirmed the start. Its spending stays held until it is reconciled.', uncertain: true });
+      // Never resubmitted (MOT-07, and after Stop MOT-09). No grant stored: no POST ever left. Otherwise the orchestrator answers
+      // the job the key started, or closes the key; closed by the process the grant was bound to, no job can ever start under it.
+      let answer = job.spend?.grant ? null : { closed: true, boot: null };
+      if (!answer) try { answer = await provider.close(job.spend.opId); } catch { /* unreachable: ask again */ }
+      if (answer?.job_id) job.ticket = { id: answer.job_id };
+      else if (answer?.closed && answer.boot === (job.spend?.grant?.boot ?? null)) {
+        await this.settleMotion(job, NOTHING);
+        if (job.status === 'generating') Object.assign(job, { status: 'failed', error: 'The Motion service did not start this video. Nothing was spent; generate it again.', uncertain: false });
         return;
-      }
+      } else if (answer?.closed || late) {
+        // The process the grant was for is gone (or never answered): whether it started the job is unknown.
+        await this.settleMotion(job, null);
+        if (job.status === 'generating') Object.assign(job, { status: 'failed', error: 'The Motion service lost this video before it confirmed the start. Its spending stays held until it is reconciled.', uncertain: true });
+        return;
+      } else return; // still being admitted, or unreachable: ask again
     }
     const view = await provider.job(job.ticket);
+    // Stop is durable (MOT-09): a job still running after Stop, recovered by its key or whose stop went unconfirmed, is told again.
+    if (job.stopped && view?.status === 'running') await provider.cancel(job.ticket).catch(() => {});
     if (view?.status === 'running' && !late) return;
     if (view && view.status !== 'running' && view.spend?.in_flight > 0 && !late) return; // a stopped call still lands and is priced
     await this.settleMotion(job, view && view.status !== 'running' ? view : null);
