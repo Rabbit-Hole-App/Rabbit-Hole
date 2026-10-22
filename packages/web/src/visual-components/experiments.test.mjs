@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { evaluateScene } from '../scene-evaluate.js';
 import { Worker } from 'node:worker_threads';
+import { z } from 'zod';
+import { explanationPresentationSchema, validateVisualSpec } from '../explain-contract.js';
 import { compileVisual, contentHash, enumeration } from './compile.js';
 import { period } from './components/pendulum.js';
 import { EXAMPLES } from './examples/index.js';
@@ -177,4 +179,47 @@ test('EXP-14: admitted experiments compile exactly as before the bound (hashes r
     const compiled = compileVisual(spec);
     assert.deepEqual([contentHash(compiled), compiled.coverage.states], [hash, states], name);
   }
+});
+
+// EXP-12 live run v1-a (job ej_f7e39bbf9cb54ff4aff47622e3718742, main 9ec91698): the author wrote an experiment domain as a bare
+// list [0.25, 1]; the untyped tool schema allowed it and "Invalid input" told no repair what to write. Its stored spec:
+const V1A = JSON.parse(String.raw`{"version":1,"id":"pendulum-swing-and-period","title":"How a pendulum swings, and the rule for its period","components":[{"id":"layout","component":"stack","version":1,"hints":{"direction":"row","gap":48,"align":"start"}},{"id":"pend","component":"pendulum","version":1,"parent":"layout","params":{"length":1,"mass":1}},{"id":"notes","component":"stack","version":1,"parent":"layout","hints":{"direction":"column","gap":24}},{"id":"swing-note","component":"callout","version":1,"parent":"notes","params":{"tone":"note","text":"How it swings: gravity pulls the bob back toward the lowest point. It speeds up as it falls, passes the bottom at top speed, then slows and stops on the far side before swinging back. One full trip there and back takes one period, T."},"hints":{"width":360}},{"id":"period-rule","component":"callout","version":1,"parent":"notes","step":"period","params":{"tone":"key","text":{"runs":[{"kind":"text","text":"The period rule (for small swings): "},{"kind":"math","tex":"T = 2\\pi\\sqrt{L/g}"},{"kind":"text","text":". Only the length L and gravity g matter, not the mass. A string 4 times as long gives a period 2 times as long."}]}},"hints":{"width":360}}],"presentation":{"mode":"steps","steps":[{"id":"swing","title":"First: how the pendulum swings back and forth"},{"id":"period","title":"Then: the rule that sets its period"}],"experiments":[{"id":"short-vs-long","purpose":"How does the period change when the string is short instead of long?","input":"pend.length","domain":[0.25,1],"affects":["pend.string","pend.bob","pend.lengthText","pend.periodText","pend.marker"],"contrasts":["0.25 m string vs 1 m string","period about 1.0 s vs about 2.0 s","4 times the length, 2 times the period","where the point sits on the period-length plot"]}]}}`);
+const v1aWith = domain => ({ ...V1A, presentation: { ...V1A.presentation, experiments: [{ ...V1A.presentation.experiments[0], domain }] } });
+
+test('EXP-12 v1-a: a domain in neither shape names both shapes, so a repair can write one', () => {
+  assert.throws(() => validateVisualSpec(V1A), { message: 'Invalid VisualSpec at presentation.experiments.0.domain: domain must be {values:[...]} or {min,max,step}; got an array' });
+  assert.throws(() => validateVisualSpec(v1aWith({ from: 0.25, to: 1 })), { message: 'Invalid VisualSpec at presentation.experiments.0.domain: domain must be {values:[...]} or {min,max,step}; got an object with "from", "to"' });
+  // Near misses keep their own precise message.
+  assert.throws(() => validateVisualSpec(v1aWith({ values: [1] })), /domain.values: Too small/);
+  assert.throws(() => validateVisualSpec(v1aWith({ min: 1, max: 0.25, step: 0.25 })), /a range needs min < max/);
+});
+
+test('EXP-12 v1-a: the author tool types experiments: both domain shapes pass, a bare list is refused, every fixture still fits', async () => {
+  const { authorTool } = await import('../../../control-plane/src/agents/explain-author.js');
+  const schema = authorTool(catalogue()).input_schema;
+  const tool = z.fromJSONSchema(schema);
+  const fits = spec => tool.safeParse({ kind: 'spec', spec }).success;
+  assert.equal(fits(V1A), false, 'the stored bare-list domain');
+  assert.equal(fits(v1aWith({ values: [0.25, 1] })), true);
+  assert.equal(fits(v1aWith({ min: 0.25, max: 1, step: 0.75 })), true);
+  for (const [id, spec] of Object.entries(EXAMPLES)) assert.equal(fits(spec), true, id);
+  // The typed fields are the contract's: same experiment and step fields, same required ones, the same two domain shapes.
+  const contract = z.toJSONSchema(explanationPresentationSchema, { io: 'input', unrepresentable: 'any' }).properties;
+  const offered = schema.properties.spec.properties.presentation.properties;
+  const fields = item => [Object.keys(item.properties).sort(), [...item.required].sort()];
+  assert.deepEqual(fields(offered.experiments.items), fields(contract.experiments.items));
+  assert.deepEqual(offered.experiments.items.properties.domain.oneOf.map(fields), contract.experiments.items.properties.domain.anyOf.map(fields));
+  assert.deepEqual(fields(offered.steps.items), [fields(contract.steps.items)[0].filter(key => key !== 'caption'), fields(contract.steps.items)[1]], 'steps offer no caption: the compiler refuses one');
+});
+
+test('EXP-12 v1-a: with domain {values:[0.25, 1]} the stored spec compiles to the manifest V1 computed', async () => {
+  const { captureManifest, reserveRound } = await import('../../../control-plane/src/explain-render.js');
+  const { EXPLAIN_LIMITS } = await import('../../../control-plane/src/explain-policy.js');
+  const { scene } = compileVisual(v1aWith({ values: [0.25, 1] }));
+  const manifest = await captureManifest(scene, { reserved: reserveRound({ cap: EXPLAIN_LIMITS.render.capturesPerRound }) });
+  const [swing, period] = V1A.presentation.steps.map(step => step.title);
+  assert.deepEqual(manifest.entries.map(entry => [entry.id, entry.step, entry.inputs]), [
+    ['s0-t0-light', swing, { pend_length: 1 }], ['s0-t1-light', period, { pend_length: 1 }],
+    ['s1-t0-light', swing, { pend_length: 0 }], ['s1-t1-light', period, { pend_length: 0 }]]);
+  assert.deepEqual(manifest.coverage, { states: 2, moments: 2, frames: 4, themes: ['light'] }, '4 frames x 2 themes is over the 6 a round reviews: light only');
 });
