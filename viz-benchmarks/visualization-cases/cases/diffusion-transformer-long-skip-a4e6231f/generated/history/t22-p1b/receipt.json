@@ -1,0 +1,58 @@
+{
+  "system": "v2",
+  "costUsd": 0.132484,
+  "calls": 2,
+  "servedModels": [
+    "claude-opus-5-5"
+  ],
+  "elapsedMs": 60864,
+  "humanVerdict": "pending owner",
+  "result": "generated",
+  "accepted": false,
+  "rounds": 1,
+  "stages": [
+    {
+      "stage": "author",
+      "ms": 28509,
+      "calls": 1
+    },
+    {
+      "stage": "validate-r0",
+      "ms": 108,
+      "calls": 1
+    },
+    {
+      "stage": "render-r0",
+      "ms": 3744,
+      "calls": 1
+    },
+    {
+      "stage": "review-r0",
+      "ms": 17789,
+      "calls": 2
+    },
+    {
+      "stage": "repair-r1",
+      "ms": 1,
+      "calls": 2
+    }
+  ],
+  "gap": null,
+  "stop": {
+    "progress": false,
+    "rejected": "This failure cannot be repaired by changing the spec."
+  },
+  "flowResult": "repair_stopped",
+  "caseId": "diffusion-transformer-long-skip-a4e6231f",
+  "runId": "t22-p1b",
+  "mode": "generate",
+  "inputMode": "prompt-only",
+  "split": "example",
+  "family": "diffusion-backbone",
+  "examples": [],
+  "outcome": "ok",
+  "error": null,
+  "outputSha256": "eed089d23abc0326ebca0884cff8a46957b02304aaea42ae46fb812f2d135690",
+  "promptSha256": "e3f8a245d85322c3c34a11c8697c2c5cc8961aeaca12c218f8d4daf18da57aec",
+  "recordedAt": "2026-10-22T16:37:15.083Z"
+}

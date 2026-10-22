@@ -101,5 +101,597 @@
     }
   ],
   "spentUsd": 0.948678,
-  "paused": null
+  "paused": null,
+  "report": {
+    "runId": "t22-p1",
+    "casesDeclared": 11,
+    "casesRun": 11,
+    "paused": null,
+    "outcomes": {
+      "gap": [
+        "arcee-trinity-large-architecture-b9673a24",
+        "btl3-27b-hybrid-attention-6d5de116",
+        "deepseek-v3-mla-vs-mha-eea4928a",
+        "kimi-k3-architecture-3a80c547",
+        "minimax-m3-architecture-fe212e84",
+        "qwen3-coder-next-hybrid-attention-daa941f2",
+        "qwen3-next-80b-hybrid-attention-a5798b99",
+        "zaya1-8b-architecture-8ed07e5a"
+      ],
+      "invalid": [
+        "backprop-hidden-weight-gradient-df8f15a2"
+      ],
+      "repair_stopped": [
+        "diffusion-transformer-long-skip-a4e6231f",
+        "self-attention-context-vector-959e8622"
+      ]
+    },
+    "rendered": [
+      "diffusion-transformer-long-skip-a4e6231f",
+      "self-attention-context-vector-959e8622"
+    ],
+    "acceptedByModelReview": [],
+    "refusalRate": {
+      "definition": "cases that ended without a rendered, model-accepted card, over cases run",
+      "refused": 11,
+      "of": 11,
+      "rate": 1,
+      "capabilityGaps": 8,
+      "invalidAfterRepairs": 3,
+      "notAcceptedByReview": 2,
+      "providerRefusals": 0
+    },
+    "costUsd": {
+      "all": {
+        "n": 11,
+        "min": 0.024,
+        "median": 0.028,
+        "max": 0.357,
+        "sum": 0.948677
+      },
+      "accepted": {
+        "n": 0,
+        "min": null,
+        "median": null,
+        "max": null,
+        "sum": 0
+      },
+      "gap": {
+        "n": 8,
+        "min": 0.024,
+        "median": 0.026,
+        "max": 0.034,
+        "sum": 0.215556
+      },
+      "invalid": {
+        "n": 3,
+        "min": 0.172,
+        "median": 0.204,
+        "max": 0.357,
+        "sum": 0.733121
+      }
+    },
+    "latencySeconds": {
+      "note": "harness wall time: submission (author call start) to final outcome, sequential, local headless render, cold browser per render; no queue, no brief, no evidence stage; small samples, no percentiles claimed",
+      "all": {
+        "n": 11,
+        "min": 3.258,
+        "median": 5.711,
+        "max": 100.719,
+        "sum": 284.121
+      },
+      "accepted": {
+        "n": 0,
+        "min": null,
+        "median": null,
+        "max": null,
+        "sum": 0
+      },
+      "gap": {
+        "n": 8,
+        "min": 3.258,
+        "median": 4.888,
+        "max": 10.257,
+        "sum": 43.498
+      }
+    },
+    "perCall": {
+      "author": {
+        "n": 11,
+        "min": 3.2,
+        "median": 5.706,
+        "max": 31.92,
+        "sum": 111.934
+      }
+    },
+    "coverage": {
+      "splits": {
+        "example": {
+          "run": 6,
+          "rendered": 1,
+          "accepted": 0
+        },
+        "heldout": {
+          "run": 5,
+          "rendered": 1,
+          "accepted": 0
+        }
+      }
+    },
+    "cases": [
+      {
+        "caseId": "arcee-trinity-large-architecture-b9673a24",
+        "split": "example",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.024722,
+        "elapsedMs": 4858,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7589,
+        "outputTokens": 298,
+        "callMs": [
+          [
+            "author_explanation",
+            4566
+          ]
+        ],
+        "stageMs": {
+          "author": 4600
+        },
+        "gap": [
+          "evidence"
+        ],
+        "gapReason": "Trinity Large's design is specific to that model: its layer count, how it mixes attention types, its head counts, and its expert count and top-k routing all come from Arcee AI's own documents. None of those sources were provided. Please attach the model card, technical report or config, and the card can then show its decoder block, attention mix and MoE layer accurately.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Trinity Large's design is specific to that model: its layer count, how it mixes a",
+        "review": null
+      },
+      {
+        "caseId": "backprop-hidden-weight-gradient-df8f15a2",
+        "split": "example",
+        "ran": true,
+        "flowResult": "invalid",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.356915,
+        "elapsedMs": 100719,
+        "rounds": 3,
+        "calls": 4,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 32864,
+        "outputTokens": 12146,
+        "callMs": [
+          [
+            "author_explanation",
+            31920
+          ],
+          [
+            "repair_explanation",
+            19169
+          ],
+          [
+            "repair_explanation",
+            23515
+          ],
+          [
+            "repair_explanation",
+            23854
+          ]
+        ],
+        "stageMs": {
+          "author": 31923,
+          "validate-r0": 199,
+          "repair-r1": 19201,
+          "validate-r1": 90,
+          "repair-r2": 23528,
+          "validate-r2": 341,
+          "repair-r3": 23876,
+          "validate-r3": 1559
+        },
+        "gap": null,
+        "gapReason": null,
+        "stop": null,
+        "error": "invalid",
+        "review": null
+      },
+      {
+        "caseId": "btl3-27b-hybrid-attention-6d5de116",
+        "split": "example",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.02377,
+        "elapsedMs": 3930,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7591,
+        "outputTokens": 250,
+        "callMs": [
+          [
+            "author_explanation",
+            3914
+          ]
+        ],
+        "stageMs": {
+          "author": 3917
+        },
+        "gap": [
+          "evidence"
+        ],
+        "gapReason": "BTL-3 (27B) is a specific model, so its decoder block, layer count and the order of gated attention and Gated DeltaNet layers have to come from its paper, model card or config. None of these was provided. Attach one of them and I can draw the block and the repeating layer pattern from it.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"BTL-3 (27B) is a specific model, so its decoder block, layer count and the order ",
+        "review": null
+      },
+      {
+        "caseId": "deepseek-v3-mla-vs-mha-eea4928a",
+        "split": "heldout",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.030026,
+        "elapsedMs": 6746,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7590,
+        "outputTokens": 563,
+        "callMs": [
+          [
+            "author_explanation",
+            6660
+          ]
+        ],
+        "stageMs": {
+          "author": 6688
+        },
+        "gap": [
+          "evidence"
+        ],
+        "gapReason": "Multi-head latent attention, and the exact sizes DeepSeek V3 uses for it, come from the DeepSeek papers. None of that source material was provided, so I can't show those details or compare memory use with confidence. If you attach the DeepSeek-V3 (or V2) technical report, or excerpts on how MLA compresses keys and values and what dimensions it caches, I can draw it side by side with regular multi-",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Multi-head latent attention, and the exact sizes DeepSeek V3 uses for it, come fr",
+        "review": null
+      },
+      {
+        "caseId": "diffusion-transformer-long-skip-a4e6231f",
+        "split": "example",
+        "ran": true,
+        "flowResult": "repair_stopped",
+        "accepted": false,
+        "rendered": true,
+        "costUsd": 0.204034,
+        "elapsedMs": 75300,
+        "rounds": 1,
+        "calls": 3,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 32875,
+        "outputTokens": 4571,
+        "callMs": [
+          [
+            "author_explanation",
+            28877
+          ],
+          [
+            "report_review",
+            15873
+          ],
+          [
+            "repair_explanation",
+            6549
+          ]
+        ],
+        "stageMs": {
+          "author": 28889,
+          "validate-r0": 1096,
+          "render-r0": 20449,
+          "review-r0": 15894,
+          "repair-r1": 6567
+        },
+        "gap": null,
+        "gapReason": null,
+        "stop": "The card already shows the separate tokens and the long-skip arcs with a merge note, but the captures show only the first part, so the renderer or capture needs fixing, not the layout.",
+        "error": null,
+        "review": [
+          {
+            "capture": "light-r0",
+            "semantic": "fail",
+            "visual": "pass",
+            "findings": [
+              "semantic/major/spec: The request asks specifically about the long skip connections, but the card only names them in a box label. It never shows or explains them: shallow-block outputs are joined to deep-block inputs (in U-ViT, by concatenating and then applying a linear projection). Add skip arcs between the shallow and deep halves of the blocks, plus a short note on how the two are merged.",
+              "semantic/minor/spec: The card never shows how the noisy image becomes patch tokens. Patchifying is only implied by 'Patch tokens to pixels'. Showing time, condition and patch tokens as separate tokens in the sequence would answer the 'treats them as tokens' part of the request.",
+              "visual/minor/renderer: About two-thirds of the canvas below the content is empty. This is not a readability problem, but the space could hold the missing skip-connection detail."
+            ]
+          },
+          {
+            "capture": "dark-r0",
+            "semantic": "fail",
+            "visual": "pass",
+            "findings": [
+              "semantic/major/spec: The request asks specifically about the long skip connections, but the card only names them in a box label. It never shows or explains how shallow-block outputs are joined to deep blocks (concatenation plus a linear projection).",
+              "semantic/minor/spec: The card never shows the noisy image being split into patch tokens, or time, condition and patch tokens as separate tokens in the sequence."
+            ]
+          }
+        ]
+      },
+      {
+        "caseId": "kimi-k3-architecture-3a80c547",
+        "split": "heldout",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.024982,
+        "elapsedMs": 3258,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7594,
+        "outputTokens": 310,
+        "callMs": [
+          [
+            "author_explanation",
+            3200
+          ]
+        ],
+        "stageMs": {
+          "author": 3204
+        },
+        "gap": [
+          "evidence"
+        ],
+        "gapReason": "The Kimi K3 architecture is a specific, versioned model, and no source describing it was provided. To draw its block layout, attention residuals, Kimi Delta Attention and gated latent attention accurately, please attach the K3 technical report or model config.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"The Kimi K3 architecture is a specific, versioned model, and no source describing",
+        "review": null
+      },
+      {
+        "caseId": "minimax-m3-architecture-fe212e84",
+        "split": "example",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.02435,
+        "elapsedMs": 3820,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7586,
+        "outputTokens": 280,
+        "callMs": [
+          [
+            "author_explanation",
+            3815
+          ]
+        ],
+        "stageMs": {
+          "author": 3819
+        },
+        "gap": [
+          "evidence"
+        ],
+        "gapReason": "The MiniMax-M3 (428B) architecture is specific to one model, and no source for it was provided. Drawing its decoder block, sparse attention and MoE layer would mean guessing numbers like layer count, attention pattern, expert count and top-k. Please attach the model's paper, model card or config so each part can be drawn from what it actually says.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"The MiniMax-M3 (428B) architecture is specific to one model, and no source for it",
+        "review": null
+      },
+      {
+        "caseId": "qwen3-coder-next-hybrid-attention-daa941f2",
+        "split": "example",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.033818,
+        "elapsedMs": 10257,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7598,
+        "outputTokens": 751,
+        "callMs": [
+          [
+            "author_explanation",
+            10254
+          ]
+        ],
+        "stageMs": {
+          "author": 10256
+        },
+        "gap": [
+          "evidence",
+          "component"
+        ],
+        "gapReason": "To draw Qwen3-Coder-Next's decoder block correctly, I need its model card or config: the layer count, the expert setup and what is inside each sublayer. None of that was provided. The catalogue also has no Gated DeltaNet component (its state-space block draws Mamba-2 only), so I can't show that mixer faithfully.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"To draw Qwen3-Coder-N",
+        "review": null
+      },
+      {
+        "caseId": "qwen3-next-80b-hybrid-attention-a5798b99",
+        "split": "heldout",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.027634,
+        "elapsedMs": 5711,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7597,
+        "outputTokens": 442,
+        "callMs": [
+          [
+            "author_explanation",
+            5706
+          ]
+        ],
+        "stageMs": {
+          "author": 5710
+        },
+        "gap": [
+          "evidence",
+          "component"
+        ],
+        "gapReason": "Qwen3-Next-80B-A3B's exact layout (how many layers, the ratio of Gated DeltaNet layers to gated attention layers, and how many experts are routed per token) comes from a specific model release, and no source for it was provided. The catalogue also has no Gated DeltaNet block (its state-space block only draws Mamba-2), and its mixture-of-experts diagram tops out at 256 experts.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"Qwen3-Next-80B-A3B's ",
+        "review": null
+      },
+      {
+        "caseId": "self-attention-context-vector-959e8622",
+        "split": "heldout",
+        "ran": true,
+        "flowResult": "repair_stopped",
+        "accepted": false,
+        "rendered": true,
+        "costUsd": 0.172172,
+        "elapsedMs": 64604,
+        "rounds": 3,
+        "calls": 4,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 27269,
+        "outputTokens": 4268,
+        "callMs": [
+          [
+            "author_explanation",
+            8146
+          ],
+          [
+            "repair_explanation",
+            9470
+          ],
+          [
+            "repair_explanation",
+            13141
+          ],
+          [
+            "report_review",
+            14126
+          ]
+        ],
+        "stageMs": {
+          "author": 8149,
+          "validate-r0": 21,
+          "repair-r1": 9471,
+          "validate-r1": 63,
+          "repair-r2": 13143,
+          "validate-r2": 310,
+          "render-r2": 11088,
+          "review-r2": 14219,
+          "repair-r3": 0
+        },
+        "gap": null,
+        "gapReason": null,
+        "stop": null,
+        "error": null,
+        "review": [
+          {
+            "capture": "light-r2",
+            "semantic": "fail",
+            "visual": "fail",
+            "findings": [
+              "semantic/major/spec: The final node is labelled o_2 = Σ α_{2,j} v_j, but the request and the callout call the output z_2. The learner sees two names for the same vector and cannot tell they are the same.",
+              "semantic/minor/spec: The softmax normaliser is called Z_2, which nearly collides with the output z_2 (capital vs lowercase). That invites confusion about which one is the context vector.",
+              "visual/major/renderer: The callout prose shows raw plain-text 'z_2' and 'q_2' with literal underscores instead of rendered subscripts. This is inconsistent with the typeset math right next to it.",
+              "visual/major/component: The callout's connector runs up to the 'Symbolic rows…' caption line rather than to the output node it describes, so it points at nothing meaningful.",
+              "visual/minor/component: The callout text wraps at about half the box width, leaving a large empty area on the right and making the box taller than it needs to be."
+            ]
+          },
+          {
+            "capture": "dark-r2",
+            "semantic": "fail",
+            "visual": "fail",
+            "findings": [
+              "semantic/major/spec: The final node is labelled o_2 while the callout and the request use z_2, so the output vector has two inconsistent names.",
+              "semantic/minor/spec: The normaliser Z_2 nearly collides with the output z_2, which is confusing.",
+              "visual/major/renderer: Raw 'z_2' and 'q_2' with literal underscores appear in the prose instead of rendered math.",
+              "visual/major/component: The connector attaches to the caption line instead of the output node it explains.",
+              "visual/minor/component: The callout text wraps early, leaving a large empty region on the right of the box."
+            ]
+          }
+        ]
+      },
+      {
+        "caseId": "zaya1-8b-architecture-8ed07e5a",
+        "split": "heldout",
+        "ran": true,
+        "flowResult": "gap",
+        "accepted": false,
+        "rendered": false,
+        "costUsd": 0.026254,
+        "elapsedMs": 4918,
+        "rounds": 0,
+        "calls": 1,
+        "refused": 0,
+        "servedModels": [
+          "claude-opus-5-5"
+        ],
+        "inputTokens": 7587,
+        "outputTokens": 375,
+        "callMs": [
+          [
+            "author_explanation",
+            4876
+          ]
+        ],
+        "stageMs": {
+          "author": 4918
+        },
+        "gap": [
+          "evidence",
+          "component"
+        ],
+        "gapReason": "ZAYA1 (8B) is one specific model. Its block layout, attention design and expert counts come from Zyphra's paper or model card, and none of that source was provided, so I can't draw them truthfully. The catalogue also has no component for compressed convolutional attention. Please attach the ZAYA1 paper or model card and I can draw the decoder block and the MoE layer from it.",
+        "stop": null,
+        "error": "gap: {\"capability\":\"explain\",\"needs\":[\"evidence\",\"component\"],\"source\":\"author\",\"message\":\"This explanation needs a source that is not available and a kind of diagram that is not available yet, which is not supported yet. Ask for a simpler explanation or edit the request.\",\"reason\":\"ZAYA1 (8B) is one spe",
+        "review": null
+      }
+    ]
+  },
+  "notes": {
+    "voidReview": {
+      "diffusion-transformer-long-skip-a4e6231f": "the review saw only part 1 of the 3-part card (harness captured themes, not parts); superseded by t22-p1b"
+    },
+    "humanVerdicts": "pending owner for every run"
+  }
 }

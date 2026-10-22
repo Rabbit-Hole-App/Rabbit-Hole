@@ -1,0 +1,438 @@
+{
+  "version": 1,
+  "id": "token-diffusion-transformer",
+  "title": "How a diffusion transformer that turns everything into tokens predicts noise",
+  "parts": [
+    {
+      "id": "overview",
+      "title": "The whole path"
+    },
+    {
+      "id": "tokens",
+      "title": "Everything becomes a token"
+    },
+    {
+      "id": "skips",
+      "title": "Long skip connections"
+    },
+    {
+      "id": "output",
+      "title": "From tokens back to noise"
+    }
+  ],
+  "components": [
+    {
+      "id": "path",
+      "component": "flow",
+      "version": 1,
+      "part": 0,
+      "hints": {
+        "nodeWidth": 136,
+        "gap": 32
+      },
+      "params": {
+        "steps": [
+          {
+            "label": "Noisy image x_t",
+            "role": "input"
+          },
+          "Patches, time, condition → tokens",
+          "Shallow blocks",
+          "Deep blocks + long skips",
+          "Tokens → patches",
+          {
+            "label": "Predicted noise",
+            "role": "prediction"
+          }
+        ]
+      }
+    },
+    {
+      "id": "overview-note",
+      "component": "callout",
+      "version": 1,
+      "part": 0,
+      "params": {
+        "text": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Given a noisy image "
+            },
+            {
+              "kind": "math",
+              "tex": "x_t"
+            },
+            {
+              "kind": "text",
+              "text": ", the step "
+            },
+            {
+              "kind": "math",
+              "tex": "t"
+            },
+            {
+              "kind": "text",
+              "text": " and a condition "
+            },
+            {
+              "kind": "math",
+              "tex": "c"
+            },
+            {
+              "kind": "text",
+              "text": ", the network outputs "
+            },
+            {
+              "kind": "math",
+              "tex": "\\epsilon_\\theta(x_t, t, c)"
+            },
+            {
+              "kind": "text",
+              "text": ", its guess of the noise that was added."
+            }
+          ]
+        },
+        "tone": "key"
+      }
+    },
+    {
+      "id": "tok-sec",
+      "component": "section",
+      "version": 1,
+      "part": 1,
+      "params": {
+        "title": "One sequence, no special pathways"
+      }
+    },
+    {
+      "id": "tok-row",
+      "component": "stack",
+      "version": 1,
+      "parent": "tok-sec",
+      "hints": {
+        "direction": "row",
+        "gap": 24
+      }
+    },
+    {
+      "id": "time-tok",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-row",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Time token: embed "
+            },
+            {
+              "kind": "math",
+              "tex": "t"
+            }
+          ]
+        },
+        "role": "input"
+      }
+    },
+    {
+      "id": "cond-tok",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-row",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Condition token: embed "
+            },
+            {
+              "kind": "math",
+              "tex": "c"
+            },
+            {
+              "kind": "text",
+              "text": " (class or text)"
+            }
+          ]
+        },
+        "role": "input"
+      }
+    },
+    {
+      "id": "patch-tok",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-row",
+      "params": {
+        "label": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Patch tokens: split "
+            },
+            {
+              "kind": "math",
+              "tex": "x_t"
+            },
+            {
+              "kind": "text",
+              "text": " into patches, project each"
+            }
+          ]
+        },
+        "role": "input"
+      }
+    },
+    {
+      "id": "sequence",
+      "component": "module",
+      "version": 1,
+      "parent": "tok-sec",
+      "hints": {
+        "width": 400
+      },
+      "params": {
+        "label": "One token sequence + position embeddings"
+      }
+    },
+    {
+      "id": "tok-note",
+      "component": "callout",
+      "version": 1,
+      "parent": "tok-sec",
+      "params": {
+        "text": "Time and condition are simply extra words in the sentence: self-attention lets every patch read them, instead of injecting them through a separate mechanism.",
+        "tone": "note"
+      }
+    },
+    {
+      "id": "skip-sec",
+      "component": "section",
+      "version": 1,
+      "part": 2,
+      "params": {
+        "title": "A U-shape built from transformer blocks"
+      }
+    },
+    {
+      "id": "skip-row",
+      "component": "stack",
+      "version": 1,
+      "parent": "skip-sec",
+      "hints": {
+        "direction": "row",
+        "gap": 64,
+        "align": "center"
+      }
+    },
+    {
+      "id": "shallow-col",
+      "component": "stack",
+      "version": 1,
+      "parent": "skip-row",
+      "hints": {
+        "gap": 32
+      }
+    },
+    {
+      "id": "s1",
+      "component": "module",
+      "version": 1,
+      "parent": "shallow-col",
+      "params": {
+        "label": "Shallow block 1"
+      }
+    },
+    {
+      "id": "s2",
+      "component": "module",
+      "version": 1,
+      "parent": "shallow-col",
+      "params": {
+        "label": "Shallow block 2"
+      }
+    },
+    {
+      "id": "mid",
+      "component": "module",
+      "version": 1,
+      "parent": "skip-row",
+      "params": {
+        "label": "Middle block"
+      }
+    },
+    {
+      "id": "deep-col",
+      "component": "stack",
+      "version": 1,
+      "parent": "skip-row",
+      "hints": {
+        "gap": 32
+      }
+    },
+    {
+      "id": "d1",
+      "component": "module",
+      "version": 1,
+      "parent": "deep-col",
+      "params": {
+        "label": "Deep block 1"
+      }
+    },
+    {
+      "id": "d2",
+      "component": "module",
+      "version": 1,
+      "parent": "deep-col",
+      "params": {
+        "label": "Deep block 2"
+      }
+    },
+    {
+      "id": "skip-note",
+      "component": "callout",
+      "version": 1,
+      "parent": "skip-sec",
+      "params": {
+        "text": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Before a deep block, its input is joined with the matching shallow output and projected back: "
+            },
+            {
+              "kind": "math",
+              "tex": "h \\leftarrow W\\,[\\,h \\,;\\, h_{\\text{skip}}\\,]"
+            },
+            {
+              "kind": "text",
+              "text": ". Fine, low-level detail reaches the output layers directly and training is easier."
+            }
+          ]
+        },
+        "tone": "key"
+      }
+    },
+    {
+      "id": "out-sec",
+      "component": "section",
+      "version": 1,
+      "part": 3,
+      "params": {
+        "title": "Reading out the noise"
+      }
+    },
+    {
+      "id": "out-flow",
+      "component": "flow",
+      "version": 1,
+      "parent": "out-sec",
+      "hints": {
+        "nodeWidth": 140,
+        "gap": 32
+      },
+      "params": {
+        "steps": [
+          "Final patch tokens",
+          "Linear: token → patch pixels",
+          "Reassemble the image",
+          "Optional 3×3 conv",
+          {
+            "label": "Predicted noise",
+            "role": "prediction"
+          }
+        ]
+      }
+    },
+    {
+      "id": "loss-note",
+      "component": "callout",
+      "version": 1,
+      "parent": "out-sec",
+      "params": {
+        "text": {
+          "runs": [
+            {
+              "kind": "text",
+              "text": "Training: add known noise and minimise "
+            },
+            {
+              "kind": "math",
+              "tex": "\\lVert \\epsilon - \\epsilon_\\theta(x_t, t, c) \\rVert^2"
+            },
+            {
+              "kind": "text",
+              "text": ". Sampling: subtract the predicted noise step by step, from pure noise to an image."
+            }
+          ]
+        },
+        "tone": "key"
+      }
+    },
+    {
+      "id": "drop-note",
+      "component": "callout",
+      "version": 1,
+      "parent": "out-sec",
+      "params": {
+        "text": "Only the patch tokens are turned back into pixels; the time and condition tokens have done their job and are dropped.",
+        "tone": "note"
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "time-tok.bottom",
+      "to": "sequence.top",
+      "kind": "flow"
+    },
+    {
+      "from": "cond-tok.bottom",
+      "to": "sequence.top",
+      "kind": "flow"
+    },
+    {
+      "from": "patch-tok.bottom",
+      "to": "sequence.top",
+      "kind": "flow"
+    },
+    {
+      "from": "s1.bottom",
+      "to": "s2.top",
+      "kind": "flow"
+    },
+    {
+      "from": "s2.right",
+      "to": "mid.left",
+      "kind": "flow"
+    },
+    {
+      "from": "mid.right",
+      "to": "d2.left",
+      "kind": "flow"
+    },
+    {
+      "from": "d2.top",
+      "to": "d1.bottom",
+      "kind": "flow"
+    },
+    {
+      "from": "s1.right",
+      "to": "d1.left",
+      "kind": "relation",
+      "label": "long skip"
+    },
+    {
+      "from": "s2.right",
+      "to": "d2.left",
+      "kind": "relation",
+      "label": "long skip"
+    }
+  ],
+  "presentation": {
+    "mode": "static"
+  }
+}
