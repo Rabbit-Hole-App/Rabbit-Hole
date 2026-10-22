@@ -986,7 +986,7 @@ await run('narrow', async () => {
   const editor = await page.locator('[data-shape-id="r1"] [data-shape-text]').boundingBox();
   const canvas = await page.locator('[data-canvas-surface]').boundingBox();
   const overlaps = panel && editor && !(panel.y + panel.height <= editor.y || editor.y + editor.height <= panel.y || panel.x + panel.width <= editor.x || editor.x + editor.width <= panel.x);
-  check('on a phone the style panel sits in the tools strip, never over the text being edited or the canvas', panel && !overlaps && panel.y + panel.height <= canvas.y + 1 && panel.x >= 0 && panel.x + panel.width <= 391, JSON.stringify({ panel, editor, canvas }));
+  check('on a phone the style panel sits in the tools column left of the canvas (UI-19), never over the text being edited or the canvas', panel && !overlaps && panel.x + panel.width <= canvas.x + 1 && panel.x >= 0 && panel.y >= 0 && panel.y + panel.height <= 845, JSON.stringify({ panel, editor, canvas }));
   check('no horizontal page scroll on a phone', await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await shot('narrow-panel');
   await context.close();
