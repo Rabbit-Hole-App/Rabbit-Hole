@@ -422,6 +422,9 @@
     "packages/web/src/learn-slash.js": ["slash-cleanup-check.mjs","slash-core-check.mjs","slash-sheet-check.mjs","motion-command-check.mjs","explain-scene-check.mjs"],
     "packages/web/src/GenerationProposalCard.jsx": ["motion-command-check.mjs"],
     "packages/web/src/generation-proposal-chat.js": ["motion-command-check.mjs"],
+    "packages/web/src/RouteDecision.jsx": ["motion-command-check.mjs"],
+    "packages/web/src/proposal-capabilities.js": ["motion-command-check.mjs"],
+    "packages/learn-render/motion/duration.js": ["motion-command-check.mjs"],
     "packages/web/src/explain-examples.js": ["explain-scene-check.mjs","slash-sheet-check.mjs"],
     "packages/web/src/explain-examples/*.json": ["explain-scene-check.mjs","slash-sheet-check.mjs"],
     "packages/control-plane/src/learn-scene-gates.js": ["explain-scene-check.mjs","explain-gate-check.mjs"],
@@ -522,7 +525,7 @@
     "packages/**/*.test.mjs",
     "packages/**/*.test.js",
     "tests/**",
-    "scripts/**/*.test.mjs",
+    "scripts/**/*.test.mjs","packages/control-plane/chat-route-corpus/**",
     "packages/cli/**",
     "packages/runtime/**",
     "packages/byoc/**",
@@ -598,7 +601,7 @@
     "packages/web/e2e/inline-decide-eval.mjs",
     "packages/web/e2e/inline-composer-shots.mjs"
   ],
-  "noneReasons": {
+  "noneReasons": {"packages/control-plane/chat-route-corpus/**": "CR-1 real-JEV chat routing corpus: data and a runner run by hand from Node (no bundle or gate stage)", 
     "packages/**/test/**": "unit tests run by verify.yml",
     "packages/**/*.test.mjs": "unit tests run by verify.yml",
     "packages/**/*.test.js": "unit tests run by verify.yml",

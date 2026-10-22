@@ -41,6 +41,7 @@ import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
 import { currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
 import RouteDecision from './RouteDecision.jsx';
+import { reviewRequired } from './proposal-capabilities.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode, tutorTurn } from './chat-route.js';
 import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
@@ -754,17 +755,19 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         setThreads((ts) => [d.thread, ...ts.filter((t) => t.id !== d.threadId)]);
         return;
       }
-      // CR-1 (chat-route-interface.md): a plain Chat turn first asks the server which capability it is; explicit commands, Tutor
-      // turns, regenerations and attachments never do (zero router calls). Only a decided answer or proposal is sent (a proposal
-      // with its route_token); a direct capability runs its own command; anything else gives the words back with the decision.
-      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !prompted && !commandName && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer') {
-        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs }));
+      // CR-1 (chat-route-interface.md): a Chat turn first asks the server which capability it is. A plain turn is routed; a
+      // proposed command's turn (typed, picked, Ctrl+K or a submitted suggestion) names its capability, so the server decides it
+      // with zero router calls and signs its route. Other commands' prompts, Tutor turns, regenerations and attachments are not
+      // routed. Only a decided answer or proposal is sent (a proposal with its route_token); a direct capability runs its own
+      // command; anything else gives the words back with the decision.
+      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer' && ((!prompted && !commandName) || reviewRequired(commandName))) {
+        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs ?? commandName ?? null }));
         if (late()) return;
         if (!outcome.send) {
           setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
           if (outcome.direct && slashRef.current?.intercept(`/${outcome.direct.command} ${outcome.direct.args}`.trim())) return;
-          setInput(current => current || raw);
-          setRouteShown({ ...(outcome.show || { kind: 'unsupported', message: 'That isn\'t available here.' }), raw });
+          if (!keepDraft) setInput(current => current || (commandName ? `/${commandName} ${raw}` : raw));
+          setRouteShown({ ...(outcome.show || { kind: 'unsupported', message: 'That isn\'t available here.' }), raw, command: commandName });
           return;
         }
         if (outcome.token) payload.route_token = outcome.token;
@@ -1205,7 +1208,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
         {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })}
-          onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw)} />}
+          onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw, undefined, routeShown.command ? { command: routeShown.command, prompted: true } : {})} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}
