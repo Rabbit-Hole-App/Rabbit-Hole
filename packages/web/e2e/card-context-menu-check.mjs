@@ -288,7 +288,8 @@ await check('2b Rename (owner, 2026-10-21): right-click, Rename, type, Enter sav
   await field.press('Enter');
   await field.waitFor({ state: 'detached' });
   await card.getByText('Spring tides', { exact: true }).waitFor({ timeout: 5000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.dataset?.blockId), 'm-c', 'focus returns to the card');
+  // Focus moves back on the next frame, so wait for it rather than read it once.
+  await page.waitForFunction(() => document.activeElement?.dataset?.blockId === 'm-c', null, { timeout: 3000 }).catch(async () => assert.fail(`focus returns to the card, not ${await page.evaluate(() => document.activeElement?.outerHTML?.slice(0, 120))}`));
   await page.waitForTimeout(1500);
   await page.reload(); await page.waitForSelector('[data-block-id="m-c"]', { timeout: 60000 }); await page.waitForTimeout(1200);
   await card.getByText('Spring tides', { exact: true }).waitFor({ timeout: 10000 });
