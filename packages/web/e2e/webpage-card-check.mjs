@@ -114,14 +114,26 @@ const ai = [], paid = [], captures = [], screens = [], polls = [], uploads = [],
 let phase = 'setup', nextCapture = null, nextScreen = null;
 const pollReplies = new Map();
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+// A 'ready' reply of the real capture, Retry or status route has already indexed that version to the requesting board
+// (webpage-capture.js finishScreen: file_source_refs, the board's next save keeps it), so the card can read its files through
+// ?app=&board= before its own save. The mocked replies do the same here, at the moment they answer.
+const q1 = v => `'${String(v).replace(/'/g, "''")}'`;
+const indexReady = (reply, { app, board = 'main' } = {}) => {
+  if (reply?.status === 'ready' && reply.fileRef && app) {
+    const ids = [reply.fileRef.source.id, ...reply.fileRef.bundle.map(b => b.source.id)].map(q1).join(', ');
+    sql([`INSERT OR IGNORE INTO file_source_refs (source_id, board_id) SELECT s.id, b.id FROM file_sources s, learn_boards b
+      WHERE s.id IN (${ids}) AND s.status = 'stored' AND b.app = ${q1(app)} AND b.board = ${q1(board)} AND b.owner_email = ${q1(catalog.email)} AND b.org = ${q1(catalog.org)}`]);
+  }
+  return reply;
+};
 const router = async route => {
   const request = route.request(), url = new URL(request.url()), path = url.pathname, method = request.method();
   if (!['data:', 'blob:'].includes(url.protocol) && url.origin !== BASE) { outside.push(url.hostname); return route.abort(); }
   let body = {};
   try { body = JSON.parse(request.postData() || '{}'); } catch { body = {}; }
-  if (path === '/api/learn/webpages' && method === 'POST') { captures.push({ phase, body }); paid.push({ phase, path }); return route.fulfill({ json: nextCapture?.(body) ?? heldResult('unavailable', { reason: 'Fixture: no capture queued.' }) }); }
-  if (/^\/api\/learn\/webpages\/fs_[0-9a-f]{24}\/screen$/.test(path) && method === 'POST') { screens.push({ phase, id: path.split('/')[4], body }); paid.push({ phase, path }); return route.fulfill({ json: nextScreen?.(body) ?? heldResult('error', { reason: 'Fixture: no screening queued.' }) }); }
-  if (/^\/api\/learn\/webpages\/fs_[0-9a-f]{24}$/.test(path) && method === 'GET') { const id = path.split('/').pop(); polls.push({ phase, id }); return route.fulfill({ json: pollReplies.get(id) ?? heldResult('screening', { manifestId: id }) }); }
+  if (path === '/api/learn/webpages' && method === 'POST') { captures.push({ phase, body }); paid.push({ phase, path }); return route.fulfill({ json: indexReady(nextCapture?.(body) ?? heldResult('unavailable', { reason: 'Fixture: no capture queued.' }), body) }); }
+  if (/^\/api\/learn\/webpages\/fs_[0-9a-f]{24}\/screen$/.test(path) && method === 'POST') { screens.push({ phase, id: path.split('/')[4], body }); paid.push({ phase, path }); return route.fulfill({ json: indexReady(nextScreen?.(body) ?? heldResult('error', { reason: 'Fixture: no screening queued.' }), body) }); }
+  if (/^\/api\/learn\/webpages\/fs_[0-9a-f]{24}$/.test(path) && method === 'GET') { const id = path.split('/').pop(); polls.push({ phase, id }); return route.fulfill({ json: indexReady(pollReplies.get(id) ?? heldResult('screening', { manifestId: id }), Object.fromEntries(url.searchParams)) }); }
   if (path.startsWith('/api/learn/files/') && method === 'GET') fileGets.push({ phase, id: path.split('/').pop(), query: url.search });
   if (path === '/api/learn/media' && method === 'POST') uploads.push({ phase, type: request.headers()['content-type'], body: request.postDataBuffer()?.toString('base64') || '' });
   if (path === '/api/learn/chat/route') { ai.push({ phase, path }); return route.fulfill({ json: chatRouteAnswer(body) }); }

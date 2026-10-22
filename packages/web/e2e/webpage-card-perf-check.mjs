@@ -51,11 +51,13 @@ for (const n of SIZES) {
 }
 
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|tutor\/(plan|handoff|evaluate)|artifact|assess|grade|home-ask|image|inline\/|journey|scene|transcribe|tts|voice\/|dive|explore|chat\/route|webpages))/;
-let ai = [], tileRequests = new Map(), errors = [];
+let ai = [], tileRequests = new Map(), errors = [], thumbs = [];
 const isTile = id => files.get(id)?.role === 'tile';
 const router = route => {
   const request = route.request(), url = new URL(request.url()), path = url.pathname;
   if (!['data:', 'blob:'].includes(url.protocol) && url.origin !== BASE) return route.abort();
+  // Diagnosis only (fast-e2e 39745217786: one 1217 ms frame while panning 10 and 20 cards): when the board thumbnail is sent.
+  if (request.method() === 'PUT' && path.endsWith('/thumbnail')) thumbs.push(Date.now());
   const file = path.startsWith('/api/learn/files/') && files.get(path.split('/').pop());
   if (file && request.method() === 'GET') {
     if (isTile(file.id)) tileRequests.set(file.id, (tileRequests.get(file.id) || 0) + 1);
@@ -114,7 +116,7 @@ const MiB = 1048576;
 
 const rows = [];
 for (const n of SIZES) {
-  ai = []; tileRequests = new Map();
+  ai = []; tileRequests = new Map(); thumbs = [];
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.route('**/*', router);
@@ -143,9 +145,12 @@ for (const n of SIZES) {
     // Canvas pan: wheel over bare canvas, back and forth.
     const bare = await barePoint(page);
     await page.mouse.move(bare.x, bare.y);
+    const panFrom = Date.now();
     const pan = await fpsDuring(page, 1500, i => page.mouse.wheel((i % 20) < 10 ? 60 : -60, (i % 20) < 10 ? 30 : -30));
     Object.assign(row, { panFps: pan.fps, panP95: pan.p95 });
-    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms`);
+    // Diagnosis: board thumbnail uploads relative to the pan window's start (ms; the window is 0 to 1500).
+    const thumbAt = thumbs.map(t => t - panFrom).join(' ') || 'none';
+    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}`);
 
     // Offscreen unload: pan every card off screen, wait past the release delay, then come back.
     for (let i = 0; i < 30 && (await tileState(page)).visible > 0; i += 1) { await page.mouse.wheel(0, -800); await page.waitForTimeout(30); }
@@ -157,7 +162,7 @@ for (const n of SIZES) {
     const back = await tileState(page), worstTile = Math.max(0, ...tileRequests.values());
     row.maxReqPerTile = worstTile;
     ok(`${n} cards: tiles unload off screen and come back with at most ${BUDGET.requestsPerTile} requests per tile`, away.visible === 0 && away.mounted <= away.bound && back.decoded > 0 && worstTile <= BUDGET.requestsPerTile,
-      `away ${away.mounted} mounted (bound ${away.bound}), back ${back.decoded} decoded, worst tile ${worstTile} requests`);
+      `away ${away.visible} visible, ${away.mounted} mounted (bound ${away.bound}), back ${back.decoded} decoded, worst tile ${worstTile} requests`);
 
     if (n === SIZES.at(-1)) {
       // Zoom out until every card is on screen: still bounded by what the viewport shows.

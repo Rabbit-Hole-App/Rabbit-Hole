@@ -73,7 +73,8 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
   const frame = useRef(null), column = useRef(null), layer = useRef(null), body = useRef(null), barEl = useRef(null), menuEl = useRef(null);
   const pressing = useRef(false);
   const chat = useChatWorkspace();
-  const locked = !!block.locked;
+  // scrollLocked, not locked: block.locked is the canvas's own card lock (Arrange > Lock), which makes the card read-only.
+  const locked = !!block.scrollLocked;
 
   // ---- capture requests: the one Add webpage card asked for, Refresh, Retry, and the status poll while screening.
   const request = async (run, next) => {
@@ -255,12 +256,12 @@ export default function WebpageCard({ block, appName, selected, zoom = 1, readOn
         <h3 className="truncate text-sm font-medium" title={title}>{title}</h3>
         <p className="flex min-w-0 items-center gap-1.5 text-xs text-ink-2">
           <a data-webcard-source href={block.url} target="_blank" rel="noopener noreferrer" className="truncate underline-offset-2 hover:underline">{host}</a>
-          {truncated && <span data-webcard-truncated className="shrink-0 rounded border border-line px-1 text-[10px] text-ink-3">Truncated</span>}
+          {truncated && <span data-webcard-truncated className="shrink-0 rounded border border-line px-1 text-[10px] text-ink-2">Truncated</span>}
         </p>
       </div>
       <button type="button" data-webcard-lock aria-label={locked ? 'Unlock scrolling' : 'Lock scrolling'} aria-pressed={locked} disabled={readOnly}
         title={locked ? 'Scrolling locked - the wheel moves the canvas. Click to unlock.' : 'Lock scrolling so the wheel moves the canvas'}
-        onClick={() => onChange({ ...latest.current, locked: !locked })}
+        onClick={() => onChange({ ...latest.current, scrollLocked: !locked })}
         className={`rounded border p-1 disabled:opacity-40 ${locked ? 'border-ink bg-ink text-white' : 'border-line hover:bg-hover'}`}>{locked ? <Lock size={14} /> : <LockOpen size={14} />}</button>
       {owner && <button type="button" data-webcard-refresh aria-label="Refresh" title="Refresh" disabled={waiting} onClick={capture}
         className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><RotateCw size={14} /></button>}

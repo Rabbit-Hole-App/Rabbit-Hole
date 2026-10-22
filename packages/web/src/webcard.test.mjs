@@ -18,7 +18,7 @@ import { highlightAnchor } from '../../control-plane/src/pdf-excerpts.js';
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const capture = { lineage: 'wc_0123456789abcdef01234567', manifestId: 'fs_aaaaaaaaaaaaaaaaaaaaaaaa', sha256: 'a'.repeat(64), capturedAt: 1, finalUrl: 'https://example.com/a', width: 1280, height: 3000, truncated: { height: false, bytes: false, text: false } };
 const fileRef = { source: { id: capture.manifestId, rev: capture.sha256 }, bundle: [{ role: 'tile', index: 0, source: { id: 'fs_t0', rev: 'r' } }] };
-const card = (over = {}) => ({ id: 'b1', type: 'webpage', url: 'https://example.com/a', title: 'Example Domain', capture, fileRef, pending: null, failure: null, scrollTop: 0, locked: false, ...over });
+const card = (over = {}) => ({ id: 'b1', type: 'webpage', url: 'https://example.com/a', title: 'Example Domain', capture, fileRef, pending: null, failure: null, scrollTop: 0, scrollLocked: false, ...over });
 
 test('text layer alignment: a run lands at its capture box, stretched to its width, whatever the card scale', () => {
   const run = { text: 'Hello world', x: 40, y: 1500, w: 220, h: 20 };
@@ -199,10 +199,13 @@ test('rendered: title, a source link that opens a new tab without opener or refe
   for (const link of html.match(/<a [^>]*>/g)) { assert.match(link, /href="https:\/\/example\.com\/a"/); assert.match(link, /target="_blank"/); assert.match(link, /rel="noopener noreferrer"/); }
   assert.equal(html.match(/data-webcard-lock/g).length, 1);
   assert.match(html, /aria-label="Lock scrolling" aria-pressed="false"/);
-  assert.match(render(card({ locked: true })), /aria-label="Unlock scrolling" aria-pressed="true"/);
+  assert.match(render(card({ scrollLocked: true })), /aria-label="Unlock scrolling" aria-pressed="true"/);
+  // block.locked is the canvas's card lock (Arrange > Lock, read-only card), a different thing: it never locks scrolling
+  // (fast-e2e 39745217786: sharing the field made the scroll lock disable itself and hide Refresh).
+  assert.match(render(card({ locked: true })), /aria-label="Lock scrolling" aria-pressed="false"/);
   // Unlocked, the frame is a scroll area (the canvas leaves its wheel alone); locked, it is not.
   assert.match(html, /data-webcard-frame="true" data-scroll=""/);
-  assert.doesNotMatch(render(card({ locked: true })), /data-webcard-frame="true" data-scroll/);
+  assert.doesNotMatch(render(card({ scrollLocked: true })), /data-webcard-frame="true" data-scroll/);
   // The page scrolls by a transform of the tile column, never an inner scroller (html-to-image keeps transforms).
   assert.match(html, /data-webcard-column="true" class="relative w-full" style="height:[^"]*;transform:translateY\(/);
   assert.match(html, /aria-label="Refresh"/);

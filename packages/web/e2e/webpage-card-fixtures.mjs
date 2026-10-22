@@ -55,4 +55,4 @@ export const heldResult = (status, { lineage, manifestId = null, reason = null, 
 
 // A webpage block (interface section 1) at a world position.
 export const webpageBlock = (id, cap, { x = 0, y = 0, w = 520, h = 640, ...rest } = {}) => ({ id, type: 'webpage', x, y, w, h, dx: x, dy: y, url: cap?.url ?? rest.url, title: cap?.title ?? rest.title,
-  ...(cap ? { capture: cap.capture, fileRef: cap.fileRef } : {}), pending: null, failure: null, scrollTop: 0, locked: false, ...rest });
+  ...(cap ? { capture: cap.capture, fileRef: cap.fileRef } : {}), pending: null, failure: null, scrollTop: 0, scrollLocked: false, ...rest });
