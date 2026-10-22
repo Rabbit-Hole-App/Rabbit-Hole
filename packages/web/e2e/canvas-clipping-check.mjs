@@ -3,12 +3,16 @@
 // The failure it pins: with Chat and Sources open on a 1536 px laptop, the Rabbit Holes Map kept its own 92 px full-height
 // column, so the canvas surface (overflow hidden) ended 92 px before the panel - a blank strip - and cut the PDF card's right
 // side; Add to chat opening Chat narrowed the canvas and left the selected card cut.
-// Covered: both panels open (no blank strip, the map still shown in the tools gutter, the selected PDF card and its reader
+// UI-17 (owner, 2026-10-21): the same 92 px column stayed at every canvas row of 784 px or more (Chat alone, say), so the
+// strip and the early cut came back there. The map now always sits at the top of the tools gutter.
+// Covered: both panels open (no blank strip, the map shown in the tools gutter, the selected PDF card and its reader
 // whole); Chat dragged wider; Add to chat opening a hidden Chat keeps the selected card in view (a PDF card, then a Notebook
-// card); zoom 64%, 100% and 156% (the canvas still runs to the panel); Sources closed (the map back in its own column, top
-// right); every saved card position and size unchanged by all of it. Then, on a second canvas, a repository code card and
-// graph card (repo-graph Release 2): whole beside both panels, whole after Add to chat opens a hidden Chat, and clipped by
-// the canvas surface alone.
+// card); zoom 64%, 100% and 156% (the canvas still runs to the panel); Context closed, Chat alone (the map still in the tools
+// gutter, no column of its own; a card reaches the panel edge); the window resized so the canvas row crosses 784 px (800,
+// 784, 783, 760); View > Rabbit Hole Map off and on (the canvas width unchanged); every saved card position and size
+// unchanged by all of it. Then, on a second canvas, a repository code card, a graph card and a wide video card: whole beside
+// both panels, whole after Add to chat opens a hidden Chat, clipped by the canvas surface alone, reaching the panel edge with
+// Chat alone, their saved geometry unchanged.
 // Prints `ok <label>` per check; exits 1 on any failure. Evidence (screenshots, results.json) goes to OUT.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-clipping-check.mjs
 import { chromium } from '@playwright/test';
@@ -86,7 +90,7 @@ const settle = () => page.waitForTimeout(700); // the side panels slide their wi
 // Where everything is (viewport px): the surface, the row it sits in, the panels, the map, every card and the PDF card's reader.
 let PDF_CARD = null;
 const geometry = () => page.evaluate(pdfId => {
-  const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width || b.height ? { x: b.left, right: b.right, y: b.top, bottom: b.bottom, w: b.width } : null; };
+  const r = el => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width || b.height ? { x: b.left, right: b.right, y: b.top, bottom: b.bottom, w: b.width, h: b.height } : null; };
   const surface = document.querySelector('[data-canvas-surface]');
   // One right panel since Sources became its Context tab (docs/features/hide-right-panel.md).
   const panels = [...document.querySelectorAll('aside[aria-label="Learn agent chat"], aside[data-companion]')].map(r).filter(box => box && box.w > 1);
@@ -110,8 +114,15 @@ const whole = (g, id, label) => {
   else assert.ok(card.x >= g.surface.x - 0.5 && card.right <= g.surface.right + 0.5, `${label}: card ${Math.round(card.x)}-${Math.round(card.right)} inside the surface ${Math.round(g.surface.x)}-${Math.round(g.surface.right)}`);
   if (id === PDF_CARD && g.frame) assert.ok(g.frame.x >= card.x - 0.5 && g.frame.right <= card.right + 0.5, `${label}: the PDF reader ${Math.round(g.frame.x)}-${Math.round(g.frame.right)} inside its card`);
 };
-const saved = async () => ((await page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, INK))?.blocks || [])
-  .map(b => ({ id: b.id, dx: b.dx ?? 0, dy: b.dy ?? 0, w: b.w ?? null, h: b.h ?? null })).sort((a, b) => a.id.localeCompare(b.id));
+const geometryOf = blocks => (blocks || []).map(b => ({ id: b.id, dx: b.dx ?? 0, dy: b.dy ?? 0, w: b.w ?? null, h: b.h ?? null })).sort((a, b) => a.id.localeCompare(b.id));
+const saved = async () => geometryOf((await page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, INK))?.blocks);
+// The Rabbit Holes Map (UI-17): shown, at the top of the tools gutter, never in a column of its own, never on the canvas.
+const mapInTools = (g, label) => {
+  assert.equal(g.diveGutter, null, `${label}: the map has no column of its own`);
+  assert.ok(g.nav, `${label}: the Rabbit Holes Map is on screen`);
+  assert.ok(g.nav.x >= g.tools.x - 0.5 && g.nav.right <= g.tools.right + 0.5 && g.nav.y < g.tools.y + 120, `${label}: the map ${JSON.stringify(g.nav)} at the top of the tools gutter ${JSON.stringify(g.tools)}`);
+  assert.ok(g.nav.right <= g.surface.x + 0.5 || g.nav.x >= g.surface.right - 0.5, `${label}: the map ${Math.round(g.nav.x)}-${Math.round(g.nav.right)} never sits on the canvas ${Math.round(g.surface.x)}-${Math.round(g.surface.right)}`);
+};
 // A press on the card's drag strip, near its left end (always on screen here), selects it.
 // A point of bare canvas (no card, no chrome) to wheel over: a wheel over a card's own content scrolls that instead.
 const barePoint = () => page.evaluate(() => {
@@ -141,6 +152,32 @@ const select = async id => {
   await page.mouse.click(Math.max(card.x, g.surface.x) + 30, Math.max(card.y, g.surface.y) + 10);
   await page.locator('[role="toolbar"][aria-label="Selection actions"] [data-add-to-chat]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error(`card ${id} was not selected (no selection bar)`); });
   await page.waitForTimeout(200);
+};
+// A card parked with its right edge 12 px short of the panel is drawn there: the point 20 px left of the panel is the card's
+// own, not a blank strip's (the 92 px map column took it from 784 px rows up before UI-17). Sizes on screen never change.
+const reachesPanel = async (id, label) => {
+  await inView(id);
+  let g = await geometry();
+  const before = g.cards[id];
+  if (before.w > g.surface.w - 24) return; // wider than the canvas: whole() covers its start
+  await pan(g.panelLeft - 12 - before.right);
+  g = await geometry();
+  const card = g.cards[id];
+  assert.ok(Math.abs(card.right - (g.panelLeft - 12)) <= 4, `${label}: the card ${Math.round(card.x)}-${Math.round(card.right)} parked 12 px from the panel (${Math.round(g.panelLeft)})`);
+  assert.ok(Math.abs(card.w - before.w) < 1, `${label}: its size on screen is unchanged`);
+  const hit = await page.evaluate(([blockId, x, y]) => !!document.elementFromPoint(x, y)?.closest(`[data-canvas-surface] [data-block-id="${blockId}"]`), [id, g.panelLeft - 20, card.y + Math.min(40, card.h / 2)]);
+  assert.ok(hit, `${label}: 20 px left of the panel (${Math.round(g.panelLeft - 20)}) is the card, not a blank strip`);
+};
+// View > Rabbit Hole Map (view-menu-check.mjs's helpers): the switch row's label takes the click; the menu stays open.
+const menubar = () => page.getByRole('menubar', { name: 'Canvas menu' });
+const mapSwitch = () => menubar().getByRole('switch', { name: 'Rabbit Hole Map', exact: true });
+const setMap = async on => {
+  if (!(await mapSwitch().count())) await menubar().getByRole('menuitem', { name: 'View', exact: true }).click();
+  await mapSwitch().waitFor({ timeout: 5000 });
+  if ((await mapSwitch().getAttribute('aria-checked')) !== String(on)) await menubar().locator('[data-menu-switch]', { hasText: 'Rabbit Hole Map' }).locator('span', { hasText: 'Rabbit Hole Map' }).click();
+  await waitFor(async () => (await mapSwitch().getAttribute('aria-checked')) === String(on), 5000, `the Rabbit Hole Map switch did not turn ${on ? 'on' : 'off'}`);
+  await page.keyboard.press('Escape');
+  await settle();
 };
 const chatOpen = async () => ((await page.locator('aside[aria-label="Learn agent chat"]').boundingBox())?.width || 0) > 1;
 const pan = async dx => {
@@ -174,14 +211,13 @@ const positions = await saved();
 facts.cards = { pdf: PDF_CARD, notebook: NOTE_CARD, saved: positions };
 
 // ================================================================ the run
-await check('the right panel open on Context: the canvas runs to the panel (no blank strip), the map is still shown, beside the canvas', async () => {
+await check('the right panel open on Context: the canvas runs to the panel (no blank strip), the map is still shown, in the tools gutter', async () => {
   const g = await geometry();
   facts.both_open = g;
   assert.equal(g.panels, 2, 'Chat and the companion column are open');
   assert.equal(await page.locator('[data-companion-view="context"]').getAttribute('aria-pressed'), 'true', 'the companion shows Context');
   noBlankStrip(g, 'Context open');
-  assert.ok(g.nav, 'the Rabbit Holes Map is still on screen');
-  assert.ok(g.nav.right <= g.surface.x + 0.5 || g.nav.x >= g.surface.right - 0.5, `the map ${Math.round(g.nav.x)}-${Math.round(g.nav.right)} never sits on the canvas ${Math.round(g.surface.x)}-${Math.round(g.surface.right)}`);
+  mapInTools(g, 'Context open');
   await shot('01-both-panels-open');
 });
 
@@ -254,7 +290,7 @@ for (const zoom of ['Zoom out', 'Zoom in']) {
   });
 }
 
-await check('Context closed (back on Chat) and the panel back to its 420 px default: the map is in its own column, top right, beside the canvas', async () => {
+await check('Context closed (Chat alone, its 420 px default, a canvas row past 784 px): no blank strip, the map in the tools gutter, a card reaches the panel', async () => {
   await page.keyboard.press('Shift+Digit0');
   if (await page.locator('[data-companion-close]').isVisible().catch(() => false)) await page.locator('[data-companion-close]').click();
   await page.getByRole('separator', { name: 'Resize Learn panel' }).dblclick();
@@ -263,8 +299,45 @@ await check('Context closed (back on Chat) and the panel back to its 420 px defa
   facts.sources_closed = { surface: g.surface, nav: g.nav, diveGutter: g.diveGutter, panelLeft: g.panelLeft };
   assert.equal(g.panels, 1, 'the panel is open on Chat');
   assert.equal(await page.locator('[data-panel-tab="chat"]').getAttribute('aria-selected'), 'true', 'Close on Sources went back to Chat');
-  assert.ok(g.diveGutter && g.nav.x >= g.surface.right - 0.5 && g.nav.y < g.surface.y + 120, `the map is top right, beside the canvas: ${JSON.stringify({ nav: g.nav, surface: g.surface })}`);
-  await shot('06-sources-closed-map-top-right');
+  facts.sources_closed.row = g.row;
+  assert.ok(g.row.w >= 784, `Chat alone leaves a canvas row of 784 px or more (the old map column's threshold): ${Math.round(g.row.w)}`);
+  noBlankStrip(g, 'Chat alone');
+  mapInTools(g, 'Chat alone');
+  await reachesPanel(PDF_CARD, 'PDF card, Chat alone');
+  await shot('06-chat-alone-map-in-tools');
+});
+
+await check('the window resized so the canvas row crosses 784 px (800, 784, 783, 760): no blank strip, the map in the tools gutter, the PDF card reaches the panel', async () => {
+  const viewport = page.viewportSize(), seen = [];
+  for (const target of [800, 784, 783, 760]) {
+    for (let i = 0; i < 2; i += 1) { const g = await geometry(); await page.setViewportSize({ width: page.viewportSize().width + target - Math.round(g.row.w), height: viewport.height }); await settle(); }
+    const g = await geometry();
+    seen.push(Math.round(g.row.w));
+    noBlankStrip(g, `row ${Math.round(g.row.w)}`);
+    mapInTools(g, `row ${Math.round(g.row.w)}`);
+    await reachesPanel(PDF_CARD, `PDF card, row ${Math.round(g.row.w)}`);
+    await shot(`06b-row-${target}`);
+  }
+  facts.rows_across_784 = seen;
+  assert.ok(seen.some(w => w >= 784) && seen.some(w => w < 784), `rows on both sides of 784 px: ${seen.join(', ')}`);
+  await page.setViewportSize(viewport);
+  await settle();
+});
+
+await check('View > Rabbit Hole Map off, then on: the map hides and comes back in the tools gutter; the canvas keeps its width and still runs to the panel', async () => {
+  const before = await geometry();
+  await setMap(false);
+  const off = await geometry();
+  facts.map_off = { surface: off.surface, nav: off.nav, panelLeft: off.panelLeft };
+  assert.equal(off.nav, null, 'the map is hidden');
+  assert.ok(Math.abs(off.surface.w - before.surface.w) <= 1, `the canvas width is unchanged: ${Math.round(before.surface.w)} -> ${Math.round(off.surface.w)}`);
+  noBlankStrip(off, 'map off');
+  await shot('06c-map-off');
+  await setMap(true);
+  const on = await geometry();
+  noBlankStrip(on, 'map on');
+  mapInTools(on, 'map on');
+  assert.ok(Math.abs(on.surface.w - before.surface.w) <= 1, `the canvas width is unchanged: ${Math.round(before.surface.w)} -> ${Math.round(on.surface.w)}`);
 });
 
 await check('every saved card position and size is unchanged by opening, closing, resizing and zooming', async () => {
@@ -279,13 +352,18 @@ const repository = { app: 'repo-0badc0de-clip-probe', repo: 'acme/clip-probe', c
 await api(`/api/learn/boards/${repoCanvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [
   { id: 'rc1', type: 'repo-code', dx: 0, dy: 0, title: 'clip_probe.py', language: 'python', source: { kind: 'repository', ...repository, path: 'clip_probe.py' } },
   { id: 'rg1', type: 'repo-graph', dx: 0, dy: 0, title: 'acme/clip-probe graph', repository, scope: 'whole', nodeIds: [], camera: null, w: 560, h: 520 },
+  // A wide video card (its YouTube frame is an outside host, aborted here): the frame is what clipping is about.
+  { id: 'vd1', type: 'video', dx: 0, dy: 0, videoId: 'aaaaaaaaaaa', title: 'Clip probe video', start: 0, end: null, w: 720 },
 ] } }) });
 await page.goto(`${BASE}/apps/${repoCanvas.name}`);
 await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
 await page.locator('[data-chat-pane]').waitFor({ state: 'visible', timeout: 30000 });
-await waitFor(async () => { const g = await geometry(); return g.cards.rc1 && g.cards.rg1; }, 20000, 'the repository cards were not drawn');
+await waitFor(async () => { const g = await geometry(); return g.cards.rc1 && g.cards.rg1 && g.cards.vd1; }, 20000, 'the repository and video cards were not drawn');
 await settle();
-for (const [name, id] of [['code', 'rc1'], ['graph', 'rg1']]) {
+const serverGeometry = async () => geometryOf((await api(`/api/learn/boards/${repoCanvas.name}/main`)).state?.blocks);
+const repoPositions = await serverGeometry();
+facts.repo_cards_saved = repoPositions;
+for (const [name, id] of [['code', 'rc1'], ['graph', 'rg1'], ['video', 'vd1']]) {
   await check(`the repository ${name} card beside Chat and Context: the canvas runs to the panel and the selected card is whole`, async () => {
     if ((await geometry()).panels < 2) { await page.locator('[data-panel-companion]').click({ timeout: 5000 }); await settle(); }
     await select(id);
@@ -325,18 +403,31 @@ for (const [name, id] of [['code', 'rc1'], ['graph', 'rg1']]) {
   });
 }
 
+await check('Chat alone (Context closed): the code, graph and video cards each reach the panel edge; their saved geometry is unchanged', async () => {
+  if (await page.locator('[data-companion-close]').isVisible().catch(() => false)) { await page.locator('[data-companion-close]').click(); await settle(); }
+  if (!(await chatOpen())) throw Error('Chat is not open after Add to chat');
+  const g = await geometry();
+  assert.equal(g.panels, 1, 'Chat alone');
+  noBlankStrip(g, 'cards, Chat alone');
+  mapInTools(g, 'cards, Chat alone');
+  for (const [name, id] of [['code', 'rc1'], ['graph', 'rg1'], ['video', 'vd1']]) await reachesPanel(id, `${name} card, Chat alone`);
+  await shot('09-cards-chat-alone');
+  assert.deepEqual(await serverGeometry(), repoPositions, 'saved card positions and sizes');
+});
+
 // The canvas's own background requests (the next-steps hooks) are aborted here, never sent; the check sends none itself.
 await check('nothing left the local stack, no page error; every model-capable request was aborted before the server', async () => {
   facts.aborted_model_requests = refused;
   assert.ok(refused.every(entry => /\/api\/learn\/tutor\/next-steps$/.test(entry)), `only the canvas's own next-steps requests were aborted: ${refused.join(', ')}`);
-  // The Notebook card's own runtime embed is the only outside host, and it was aborted.
+  // The Notebook card's runtime embed and the video card's YouTube frame are the only outside hosts, and they were aborted.
   facts.outside_hosts = [...new Set(outside)];
-  assert.ok(facts.outside_hosts.every(host => /notebook/.test(host)), `outside hosts: ${facts.outside_hosts.join(', ')}`);
+  assert.ok(facts.outside_hosts.every(host => /notebook|youtube|ytimg|googlevideo/.test(host)), `outside hosts: ${facts.outside_hosts.join(', ')}`);
   assert.deepEqual(errors, [], 'page errors');
 });
 
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ canvas: canvas.name, results, facts }, null, 2));
 await browser.close();
-const failed = results.filter(r => !r.ok).length;
-console.log(failed ? `FAIL ${failed} of ${results.length}` : `PASS ${results.length} checks`);
-process.exit(failed ? 1 : 0);
+const total = 19;
+const passed = results.filter(r => r.ok).length;
+console.log(`${passed}/${total} checks passed`);
+process.exit(passed === total && results.length === total ? 0 : 1);

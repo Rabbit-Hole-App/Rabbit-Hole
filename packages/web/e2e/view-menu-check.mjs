@@ -157,19 +157,21 @@ await check('4 Minimap off alone: the minimap leaves and the zoom stack shrinks 
   await quiet(page, 'Minimap', before);
 });
 
-await check('5 Rabbit Hole Map off alone: its 92 px column leaves and the canvas widens; a moved map comes back where it was', async () => {
+await check('5 Rabbit Hole Map off alone: it leaves the tools gutter top, the canvas keeps its width (no map column, UI-17); a moved map comes back where it was', async () => {
   const before = counts();
   // Move the map one step with its grip's arrow key (Dive.jsx): a learner's own spot, kept while hidden.
   await page.locator('[data-dive-grip]').focus();
   await page.keyboard.press('ArrowLeft');
   await page.waitForFunction(() => document.querySelector('[data-dive-map]')?.hasAttribute('data-moved'), null, { timeout: 5000 });
-  const at = await box(page, '[data-dive-map]'), surfaceBefore = await box(page, '[data-canvas-surface]'), column = await box(page, '[data-dive-gutter]');
-  assert.ok(column && column.w >= 90, `the map's own column: ${JSON.stringify(column)}`);
+  const at = await box(page, '[data-dive-map]'), surfaceBefore = await box(page, '[data-canvas-surface]'), top = await box(page, '[data-gutter-top]');
+  assert.equal(await box(page, '[data-dive-gutter]'), null, 'the map has no column of its own');
+  assert.ok(await box(page, '[data-gutter-top] [data-dive-navigator]'), 'the map sits at the top of the tools gutter');
   await setSwitch(page, 'Rabbit Hole Map', false);
   assert.deepEqual(await states(page), ['true', 'false', 'true']);
   await waitBox(page, MAP, false);
-  await waitBox(page, '[data-dive-gutter]', false);
-  await page.waitForFunction(w => document.querySelector('[data-canvas-surface]').getBoundingClientRect().width >= w + 90, surfaceBefore.w, { timeout: 5000 });
+  const after = await box(page, '[data-gutter-top]');
+  assert.ok(!after || after.h < top.h - 40, `the tools gutter top kept the map's room: ${top.h} -> ${after?.h}`);
+  assert.ok(Math.abs((await box(page, '[data-canvas-surface]')).w - surfaceBefore.w) <= 1, 'the canvas width changed');
   assert.ok(await box(page, MINIMAP) && await box(page, HOOKS), 'the others stay shown');
   await shot(page, 'view-05-map-off');
   await setSwitch(page, 'Rabbit Hole Map', true);

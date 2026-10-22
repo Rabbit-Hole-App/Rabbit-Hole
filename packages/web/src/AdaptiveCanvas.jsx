@@ -5097,11 +5097,6 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   ];
   // The gutter's overview is the phone strip's; from 641px of canvas the minimap sits lower right in the bottom strip.
   const overviewOpen = minimap && shellWidth > 0 && shellWidth < 641 && !!overview;
-  // The Rabbit Holes Map's own column (top right, 92 px of the canvas's full height) only while the canvas keeps room for a
-  // card column (COLUMN and the home view's 24 px each side) beside it and the 84 px tools gutter. Narrower - Chat and
-  // Sources open, or a panel dragged wide - the map moves to the top of the tools' gutter, as when the tools dock right,
-  // and the canvas runs to the panel: no blank strip, no early edge cutting a card (canvas-clipping.md).
-  const mapBeside = !shellWidth || shellWidth - 84 - 92 >= COLUMN + 48;
   const onCanvas = presenting === null ? contentBoxes() : [];
   const gaps = gapsFrom(onCanvas);
   const trackGap = event => {
@@ -5578,17 +5573,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           the page's contents rail (edgeInset). Below 640px of canvas it is one
           row under the canvas instead - the toolbar scrolling in it - with the
           overview on the next row. The style panel opens from it. */}
-      {/* The Rabbit Hole navigator's own gutter, top right, while the tools dock left (Dive.jsx). */}
-      {presenting === null && gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter className={`${holeMap ? 'flex' : 'hidden'} w-[92px] shrink-0 flex-col items-end pt-1 pr-4 @max-[640px]:hidden`}>{gutterTop}</div>}
       {presenting === null && (
         <div ref={gutter} data-tool-gutter
           // Docked right it mirrors the left side (84/192px, 8px in from the edge) and clears the contents rail (edgeInset); the full-bleed Learn shell has no page padding for a hang.
           style={{ '--edge': `${edgeInset || 0}px` }}
           className={`relative flex shrink-0 flex-col justify-center gap-2 ${toolSide === 'left' ? `order-first items-start pl-2 pb-(--chrome-left) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}` : `items-end pr-2 mr-(--edge) pb-(--chrome-right) ${overviewOpen ? 'w-[192px]' : 'w-[84px]'}`} @max-[640px]:order-first @max-[640px]:pb-0 @max-[640px]:mr-0 @max-[640px]:grid @max-[640px]:w-full @max-[640px]:grid-cols-[auto_minmax(0,1fr)_auto] @max-[640px]:items-center @max-[640px]:pt-2 @max-[640px]:pl-0`}>
         {/* The Rabbit Hole navigator (Dive.jsx): top of the gutter, the tools centred in the rest. */}
-        {/* Top of the tools gutter: the Rabbit Hole navigator when the tools dock right. Canvas home is the page's top-left corner (LearnPage). */}
+        {/* Top of the tools gutter: the Rabbit Hole navigator. Canvas home is the page's top-left corner (LearnPage). */}
         <div data-gutter-top className={`mb-auto flex flex-col gap-3 ${import.meta.env.VITE_COACHING_DEV === 'true' ? 'pt-12' : 'pt-3'} @max-[640px]:hidden ${toolSide === 'left' ? 'items-start self-start' : 'items-end self-end'}`}>
-          {(toolSide === 'right' || !mapBeside) && gutterTop && <div className={holeMap ? undefined : 'hidden'}>{gutterTop}</div>}
+          {/* The Rabbit Holes Map always sits here, on either side, never in a column of its own: a full-height 92 px column
+              ended the canvas (overflow hidden) short of the panel, a blank strip cutting cards early (UI-17, canvas-clipping.md). */}
+          {gutterTop && <div className={holeMap ? undefined : 'hidden'}>{gutterTop}</div>}
         </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}

@@ -1,5 +1,5 @@
 // The Learn canvas shell (owner, 2026-09-30): Home top left, the tool palette left, the
-// Rabbit Hole navigator top right, the composer at the bottom, and no app rail. Since 2026-10-08 (owner) the minimap sits
+// Rabbit Hole navigator top right (since UI-17, 2026-10-21: the top of the tools gutter), the composer at the bottom, and no app rail. Since 2026-10-08 (owner) the minimap sits
 // lower left above the zoom row, and the Next Steps hooks lower right beside the composer. Integration merges lost the Parallel toolbar side and the lower-right minimap once
 // (Parallel caca1c2b vs final-integration af572dcc); these pins make a repeat fail loudly.
 // The rendered geometry at root, child and grandchild is e2e/canvas-shell-check.mjs.
@@ -80,12 +80,29 @@ test('fit, focus and a new card stop above the floating chrome over their span (
   assert.match(canvas, /y: Math\.min\(v\.y, chromeTop\(v\.x, v\.x \+ COLUMN \* v\.z\) - 280 - /);
 });
 
-test('the Rabbit Hole navigator coexists: its own right gutter with the tools left, the tools gutter top when they dock right', () => {
-  assert.match(canvas, /gutterTop && toolSide === 'left' && mapBeside && <div data-dive-gutter className=\{`\$\{holeMap \? 'flex' : 'hidden'\} w-\[92px\] /);
-  // View > Rabbit Hole Map off (owner brief 2026-10-21 item 3): hidden, never unmounted, in either place, so its column is free.
-  assert.match(canvas, /\{\(toolSide === 'right' \|\| !mapBeside\) && gutterTop && <div className=\{holeMap \? undefined : 'hidden'\}>\{gutterTop\}<\/div>\}/);
-  // canvas-clipping.md: the map's column only while the canvas keeps a card column beside it; narrower it joins the tools.
-  assert.match(canvas, /const mapBeside = !shellWidth \|\| shellWidth - 84 - 92 >= COLUMN \+ 48;/);
+// UI-17 (owner, 2026-10-21): from a 784 px canvas row the map kept a full-height 92 px column right of the drawing surface
+// (overflow hidden), so the surface ended 92 px short of the panel and cut cards there. The row's widths, read from the source
+// (the tools gutter's class, the map column's class and its mapBeside rule), must leave the surface running to the panel edge.
+const COLUMN = Number(/const COLUMN = (\d+);/.exec(canvas)[1]);
+const rowOf = width => {
+  const tools = Number(/\$\{overviewOpen \? 'w-\[192px\]' : 'w-\[(\d+)px\]'\}/.exec(canvas)[1]);
+  const column = /<div data-dive-gutter className=\{`[^`]*\bw-\[(\d+)px\]/.exec(canvas);
+  const rule = /const mapBeside = !shellWidth \|\| shellWidth - (\d+) - (\d+) >= COLUMN \+ (\d+);/.exec(canvas);
+  const map = column && (!rule || width - Number(rule[1]) - Number(rule[2]) >= COLUMN + Number(rule[3])) ? Number(column[1]) : 0;
+  return { tools, map, surface: width - tools - map, strip: map };
+};
+test('the canvas row: the drawing surface runs to the panel edge at every width, no map column (UI-17)', () => {
+  for (const width of [628, 712, 783, 784, 1032, 1180]) {
+    const row = rowOf(width);
+    assert.deepEqual(row, { tools: 84, map: 0, surface: width - 84, strip: 0 }, `${width} px row: ${JSON.stringify(row)}`);
+  }
+});
+
+test('the Rabbit Hole navigator sits at the top of the tools gutter on either side, hidden (never unmounted) when off', () => {
+  assert.doesNotMatch(canvas, /data-dive-gutter className/, 'no map column of its own');
+  assert.doesNotMatch(canvas, /mapBeside/);
+  // View > Rabbit Hole Map off (owner brief 2026-10-21 item 3): hidden, never unmounted.
+  assert.match(canvas, /<div data-gutter-top [^\n]*>\n(?:[^\n]*\n){2}\s+\{gutterTop && <div className=\{holeMap \? undefined : 'hidden'\}>\{gutterTop\}<\/div>\}/);
   assert.match(page, /gutterTop=\{dive\.tree \? <DiveNavigator \{\.\.\.dive\.navigator\} \/> : null\}/);
 });
 
