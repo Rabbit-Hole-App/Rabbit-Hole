@@ -18,7 +18,7 @@ export const REPAIR_TOOL = Object.freeze({
   },
 });
 
-export const EXPLAIN_REPAIR_SYSTEM = `You correct one explanation card that failed its checks. Input: request, spec (the card's component JSON), problems (trusted checks that refused it) or findings (an independent review of the rendered images, which you may also see), repairable (per component instance: the layout hints you may change and their limits), allowed (the operations you may use), roundsLeft.
+export const EXPLAIN_REPAIR_SYSTEM = `You correct one explanation card that failed its checks. Input: request, spec (the card's component JSON), problems (trusted checks that refused it) or findings (an independent review of the rendered images, which you may also see), repairable (per component instance: the layout hints you may change and their limits), allowed (the operations you may use), roundsLeft, and with a spec correction the catalogue and limits: use only its components, params and anchors ("<instance id>.<anchor>").
 
 - hints: change only listed repairable hints, inside their limits. Use this for overlap, crowding, cut-off or unreadable layout. Never change text, facts, components or connections this way.
 - spec: return the whole corrected spec, changing only what the problems or findings name; keep everything else exactly as it was. Use only when allowed includes spec.

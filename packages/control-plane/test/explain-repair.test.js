@@ -94,6 +94,9 @@ test('a wrong claim is corrected by an explicit spec change that goes back throu
   const broken = { ...SPEC, components: [ROW, { ...SEA, params: { label: 'Sun warms the sea', colour: 'red' } }, CLOUD] };
   const again = await runJob(t, { author_explanation: [{ kind: 'spec', spec: broken }], report_review: [accept], repair_explanation: [{ operation: 'spec', spec: SPEC }] });
   assert.deepEqual([again.done.stage, again.done.round, again.model.count('report_review')], ['ready', 1, 1]);
+  // A spec correction sees the catalogue (params, limits, anchors); a hints-only round does not need it.
+  const sent = JSON.parse(again.model.calls.find(c => c.name === 'repair_explanation').body.messages[0].content[0].text);
+  assert.deepEqual([sent.allowed, sent.catalogue.length > 0, sent.limits.objectsPerPart], [['spec'], true, 60]);
   assert.match(again.done.findings[0].problems[0], /unknown parameter "colour"/);
 });
 
