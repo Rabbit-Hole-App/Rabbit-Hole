@@ -2,6 +2,7 @@
 // ComponentDefinition contract when it is registered, so the compiler and the
 // author prompt (T17) read the same declared parameters, hints and anchors.
 import { validateComponentDefinition, validateLabelContent } from '../explain-contract.js';
+import attentionFanout from './components/attention-fanout.js';
 import callout from './components/callout.js';
 import flow from './components/flow.js';
 import legend from './components/legend.js';
@@ -20,7 +21,7 @@ export function register(definition) {
   return checked;
 }
 
-for (const definition of [section, module, stack, flow, callout, legend, patternStack]) register(definition);
+for (const definition of [section, module, stack, flow, callout, legend, patternStack, attentionFanout]) register(definition);
 
 export function componentFor(name, version) {
   const found = REGISTRY.get(`${name}@${version}`);
