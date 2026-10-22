@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "id": "attention-steps-q2",
+  "title": "How the second token attends to every token",
+  "components": [
+    { "id": "steps", "component": "attention-steps", "version": 1, "params": { "query": 2, "rows": 3, "symbolicLast": true } }
+  ],
+  "presentation": { "mode": "static" }
+}

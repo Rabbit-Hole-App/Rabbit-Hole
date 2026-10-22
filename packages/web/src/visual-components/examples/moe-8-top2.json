@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "id": "moe-8-top2",
+  "title": "A mixture-of-experts layer picks 2 of 8 experts per token",
+  "components": [
+    { "id": "layer", "component": "router-experts", "version": 1, "params": { "experts": 8, "topK": 2, "selected": [3, 6], "sharedExperts": 1 } },
+    { "id": "why", "component": "callout", "version": 1, "params": { "text": "Only the chosen experts run for this token, so the layer holds many parameters but spends little compute on each token." } }
+  ],
+  "presentation": { "mode": "static" }
+}

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "note": "Versioned minimal failing specs from the T03-T10 render reviews (Browser Rendering / local headless, both themes). Each names the failure signature, the shared check that now guards it, the fixtures it affected and the fix. regressions.test.mjs reruns every check on every minimal spec and every bundled example. Accepted renders stay where they were recorded (C:/s/spec/explain/renders/<set>/manifest.json, sha256 per PNG); a new render is a new run, never a replacement.",
+  "records": [
+    {
+      "id": "connector-label-on-frame", "version": 1, "check": "labels-clear-of-boxes",
+      "signature": "A connection's label drew at the stroke's start, on the section frame and the box it left.",
+      "fixedBy": "c4cc3079", "renders": { "before": "renders/t03", "after": "renders/t03-r2" },
+      "affected": ["connector-across-sections"],
+      "spec": { "version": 1, "id": "r-connector", "title": "R", "presentation": { "mode": "static" },
+        "components": [
+          { "id": "row", "component": "stack", "version": 1, "hints": { "direction": "row", "gap": 96 } },
+          { "id": "left", "component": "section", "version": 1, "parent": "row", "params": { "title": "Client" } },
+          { "id": "ask", "component": "module", "version": 1, "parent": "left", "params": { "label": "Send request" } },
+          { "id": "right", "component": "section", "version": 1, "parent": "row", "params": { "title": "Server" } },
+          { "id": "reply", "component": "module", "version": 1, "parent": "right", "params": { "label": "Build answer" } }
+        ],
+        "connections": [{ "from": "ask.right", "to": "reply.left", "label": "HTTP" }] }
+    },
+    {
+      "id": "math-line-crowding", "version": 1, "check": "math-lines-have-room",
+      "signature": "In wrapped text, a line holding a radical or fraction touched the line above it.",
+      "fixedBy": "1dd61d9b", "renders": { "before": "renders/t03-r2", "after": "renders/t03-r3" },
+      "affected": ["math-labels"],
+      "spec": { "version": 1, "id": "r-math", "title": "R", "presentation": { "mode": "static" },
+        "components": [
+          { "id": "law", "component": "callout", "version": 1, "params": { "text": { "runs": [{ "kind": "text", "text": "Period depends on the square root of length: " }, { "kind": "math", "tex": "T = 2\\pi\\sqrt{L/g}" }] } } },
+          { "id": "m", "component": "module", "version": 1, "params": { "label": { "runs": [{ "kind": "text", "text": "A module long enough to wrap before its formula " }, { "kind": "math", "tex": "\\frac{a}{b}" }] } } },
+          { "id": "s", "component": "section", "version": 1, "params": { "title": { "runs": [{ "kind": "text", "text": "A section title long enough to wrap before the formula at its end " }, { "kind": "math", "tex": "\\sqrt{d_k}" }] } } }
+        ] }
+    },
+    {
+      "id": "ghost-show-through", "version": 1, "check": "boxes-nest-or-apart",
+      "signature": "Condensed copies were whole translucent boxes behind the unit, so their outlines showed through it.",
+      "fixedBy": "734fe3cc", "renders": { "before": "renders/t06", "after": "renders/t06-r2" },
+      "affected": ["decoder-stack", "hybrid-attention", "rinse-cycles", "pattern-conflict", "pattern-long-labels"],
+      "spec": { "version": 1, "id": "r-ghost", "title": "R", "presentation": { "mode": "static" },
+        "components": [{ "id": "s", "component": "pattern-stack", "version": 1, "params": { "title": "Block", "pattern": ["Attention", "Feed-forward"], "count": 12 } }] }
+    },
+    {
+      "id": "side-box-overlap", "version": 1, "check": "boxes-nest-or-apart",
+      "signature": "The A-parameter and D-skip side boxes of the detailed state-space block overlapped.",
+      "fixedBy": "64edd2f1", "renders": { "before": "renders/t10", "after": "renders/t10-r2" },
+      "affected": ["mamba2-detailed-gate-after", "mamba2-detailed-no-norm"],
+      "spec": { "version": 1, "id": "r-side", "title": "R", "presentation": { "mode": "static" },
+        "components": [{ "id": "b", "component": "state-space-block", "version": 1, "params": { "normBeforeGate": true, "scope": "detailed" } }] }
+    },
+    {
+      "id": "arrowheads-pile-up", "version": 1, "check": "arrow-tips-distinct",
+      "signature": "Every feed into the weighted sum landed on one point, piling the arrowheads.",
+      "fixedBy": "30c63e29", "renders": { "before": "renders/t09", "after": "renders/t09-r2" },
+      "affected": ["moe-8-top2", "moe-64-top2-folded", "switch-16", "shared-2", "moe-256-top8", "example-moe-8-top2", "steps-q2-symbolic", "steps-q1-two-rows", "steps-q3-four-rows", "steps-q7-symbolic-four"],
+      "sharedFix": "The same check then found the pile-up in attention-steps (sums into o_i); spread landing points fixed it in 3b321582 (renders/t08a-r3).",
+      "spec": { "version": 1, "id": "r-feeds", "title": "R", "presentation": { "mode": "static" },
+        "components": [{ "id": "m", "component": "router-experts", "version": 1, "params": { "experts": 8, "topK": 2, "sharedExperts": 2 } }] }
+    },
+    {
+      "id": "uneven-flow-row", "version": 1, "check": "flow-rows-even",
+      "signature": "One wrapped step in a horizontal flow stood taller than its neighbours.",
+      "fixedBy": "6dc70411", "renders": { "before": "renders/parts", "after": "renders/parts-r2" },
+      "affected": ["request-path-parts"],
+      "spec": { "version": 1, "id": "r-row", "title": "R", "presentation": { "mode": "static" },
+        "components": [{ "id": "f", "component": "flow", "version": 1, "hints": { "nodeWidth": 128 }, "params": { "steps": ["Browser", "Load balancer", "App server"] } }] }
+    }
+  ]
+}

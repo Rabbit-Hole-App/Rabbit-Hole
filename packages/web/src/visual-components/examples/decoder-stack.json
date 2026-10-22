@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "id": "decoder-stack",
+  "title": "A decoder-only transformer repeats one block",
+  "components": [
+    { "id": "block", "component": "pattern-stack", "version": 1, "evidence": ["cfg"], "params": {
+      "title": "Decoder block",
+      "pattern": [{ "label": "Self-attention", "role": "input" }, "Feed-forward"],
+      "countSources": [{ "value": 32, "evidence": "cfg" }]
+    } },
+    { "id": "note", "component": "callout", "version": 1, "params": { "text": "Every block has the same two sublayers; only the learned weights differ from block to block." } }
+  ],
+  "presentation": { "mode": "static" }
+}
