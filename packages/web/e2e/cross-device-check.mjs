@@ -186,7 +186,12 @@ await check('2 edit on B, then reopen A: B\'s edit is there', async () => {
 });
 
 await check('3 concurrent edits on A and B: the second gets the 409 message, overwrites nothing and stops pushing', async () => {
-  await open(B.page, C1.name, '[data-block-id="e1"]'); // both on the same version now
+  await open(B.page, C1.name, '[data-block-id="e1"]');
+  // Both on the same version only once the board stops changing: a save B (or A's notebook) makes after B loads bumps the
+  // version, and A's stroke is then a stale save (409) that never reaches the server (fast-e2e 39726853274: PUT 200 then
+  // PUT 409 before B drew, A's stroke never stored). The same settle as check 2.
+  let last = null;
+  await until('the board settled with B open', async () => { const now = (await boardOf(C1.name)).version; await new Promise(r => setTimeout(r, 1500)); const settled = now === last; last = now; return settled; });
   await draw(A.page, 2);
   const afterA = await until('A\'s stroke on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === 3 && b; });
   const puts = [];
