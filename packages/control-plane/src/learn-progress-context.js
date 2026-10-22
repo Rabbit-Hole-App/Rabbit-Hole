@@ -21,7 +21,8 @@ import { ProgressError, progressStore, readProgress, sourceReader as progressSou
 export const QUESTION_LIMITS = Object.freeze({ observations: 60, text: 9000 });
 
 // Where a goal lives: any canvas of this learner. Another learner's goal is not found.
-const goalHome = (env, asker, goalId) => env.LEARN_DB.prepare('SELECT app, board, label FROM learn_goals WHERE id = ? AND org = ? AND owner_user_id = ?')
+// A deleted goal (archived, /goal) reads as unavailable: a chip attached before the delete never brings it back.
+const goalHome = (env, asker, goalId) => env.LEARN_DB.prepare("SELECT app, board, label FROM learn_goals WHERE id = ? AND org = ? AND owner_user_id = ? AND lifecycle != 'archived'")
   .bind(goalId, asker.org, asker.userId).first();
 const byTime = (a, b) => (a.observedAt < b.observedAt ? -1 : a.observedAt > b.observedAt ? 1 : 0);
 

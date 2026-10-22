@@ -134,3 +134,22 @@ test('POST /api/learn/chat/route: authorized for the canvas, validated, and deci
   }
   assert.equal(ask.calls.length, 1);
 });
+
+// /goal (owner, 2026-10-21): declared direct and explicit only. A typed /goal or the picker id resolves with zero router calls;
+// plain words never offer it to the router, and a router answer naming it is not a usable route (it answers instead).
+test('/goal is explicit only: typed or picked it is a direct route with no router call; plain words never reach it', async t => {
+  const fetches = noFetch(t);
+  const none = counted(jev('motion', 0.99));
+  const typed = await decideWith(none, '/goal read a balance sheet');
+  assert.deepEqual([typed.route, typed.via, typed.flow, typed.args, typed.paid, typed.settings], ['capability:goal', 'command', 'direct', 'read a balance sheet', false, null]);
+  assert.deepEqual([(await decideWith(none, 'read a balance sheet', { capability: 'goal' })).route], ['capability:goal']);
+  assert.equal(none.calls.length, 0);
+  assert.equal(chatCapability('goal').flow, 'direct');
+  const routed = counted(jev('answer', 0.9));
+  await decideWith(routed, 'I want to set a goal to learn accounting');
+  assert.equal(routed.calls.length, 1);
+  assert.equal(routed.calls[0][1].questions.route.criteria.goal, undefined, 'the router is never offered goal changes');
+  const named = await decideWith(counted(jev('goal', 0.99)), 'change my goal to accounting');
+  assert.deepEqual([named.route, named.via, named.capability], ['answer', 'fallback', null], 'a router answer of goal is malformed, never a goal edit');
+  assert.deepEqual(fetches, []);
+});

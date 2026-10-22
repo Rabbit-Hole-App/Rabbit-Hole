@@ -9,7 +9,7 @@ const answer = (choice, confidence, probabilities) => ({ answers: { route: { typ
 
 test('every registered Learn command has exactly one inline status (A6), and navigation is never inline', () => {
   for (const command of commandsFor('learn', { motionDev: true })) assert.notEqual(inlineStatus(command.name), 'unknown', command.name);
-  for (const name of ['dive', 'notebook', 'whiteboard']) {
+  for (const name of ['dive', 'goal', 'notebook', 'whiteboard']) {
     assert.equal(inlineStatus(name), 'n/a', name);
     assert.ok(planRoute({ mode: 'explain', prompt: `/${name} x`, enabled: all }).clarify, `/${name} is refused inline`);
   }

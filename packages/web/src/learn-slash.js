@@ -49,7 +49,7 @@ export const searchSections = query => filterSections(pickerSections('/'), query
 export const EXAMPLES = {
   dive: '/dive how cells produce ATP', practice: '/practice explain it back: why the sky is blue', quiz: '/quiz the causes of the French Revolution',
   explain: '/explain how binary search works', code: '/code a function that reverses a linked list', graph: '/graph y = sin(x) and y = cos(x)',
-  diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel',
+  diagram: '/diagram how a bill becomes law', flashcards: '/flashcards Spanish verbs for travel', goal: '/goal read a balance sheet with confidence',
   notebook: '/notebook', whiteboard: '/whiteboard the water cycle',
   image: '/image Mount Fuji', 'generate-image': '/generate-image a watercolor mountain landscape', video: '/video raindrops falling into a pond',
   cad: '/cad an educational 40 mm by 20 mm by 5 mm rectangular plate', '3d': '/3d perspective projection: a camera frustum with a cube inside it and a ray',
@@ -94,7 +94,7 @@ export const isLearnCommand = name => commandsFor('learn').some(command => comma
 // Whether runLearnCommand answers this line with { prompt }: a chat-only command whose words go on to the chat route, which saves
 // them as the turn's user message. Every other line is saved by the Chat itself when it runs (ask.jsx recordCommand), so a
 // typed command is one user message either way (UI changes brief 1). learn-slash.test.mjs holds this to runLearnCommand.
-const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'dive', 'motion']);
+const RUN_ACTIONS = new Set(['cad', 'open_source', 'insert_notebook', 'insert_whiteboard', 'dive', 'motion', 'goal']);
 export function answersInChat(text, { motionDev } = {}) {
   const resolved = resolveCommand(text, 'learn', { motionDev });
   if (!resolved?.command || resolved.command.name === 'image') return false;
@@ -193,6 +193,9 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   }
   if (request.action === 'insert_notebook') { canvas.insertNotebook(); return { notice: { tone: 'done', text: 'Added a notebook.' } }; }
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
+  // /goal: goal management in Progress, the words after it in a new goal's field, unsaved. The same entry as Progress's Set a
+  // goal (chat-workspace.jsx goals.open). No model, no save.
+  if (request.action === 'goal') return canvas.goal ? (canvas.goal(args), { notice: null }) : { notice: { tone: 'info', text: 'Learning goals are kept on a saved canvas.' } };
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
   // A proposed capability (its declaration's flow, proposal-capabilities.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card

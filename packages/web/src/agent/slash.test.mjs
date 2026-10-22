@@ -7,7 +7,8 @@ const names = (list) => list.map((c) => c.name);
 
 // Owner, 2026-10-20: the slash-command cleanup. These are the commands a learner can still type or pick in a production
 // build; a development or review build adds /motion, which replaced /animate.
-const LEARN = ['dive', 'practice', 'quiz', 'explain', 'flashcards', 'code', 'graph', 'diagram', 'whiteboard', 'image', 'video', 'cad', '3d', 'notebook', 'youtube', 'arxiv', 'wikipedia'];
+// /goal (owner, 2026-10-21): goal management, explicit only.
+const LEARN = ['dive', 'practice', 'goal', 'quiz', 'explain', 'flashcards', 'code', 'graph', 'diagram', 'whiteboard', 'image', 'video', 'cad', '3d', 'notebook', 'youtube', 'arxiv', 'wikipedia'];
 
 test('one command list: Learn keeps its commands, Home, Library and Project offer none', () => {
   assert.deepEqual(names(commandsFor('learn', { motionDev: false })), LEARN);
@@ -133,7 +134,7 @@ test('/practice subtype words narrow the family; plain /practice leaves the whol
 });
 
 test('the Learn picker: LEARN, CREATE and SEARCH; every other command under More learning tools', () => {
-  assert.deepEqual(LEARN_MENU.learn, ['dive', 'practice', 'quiz']);
+  assert.deepEqual(LEARN_MENU.learn, ['dive', 'practice', 'quiz', 'goal']);
   assert.deepEqual(LEARN_MENU.create, ['explain', 'code', 'graph', 'diagram', 'motion', 'flashcards', 'notebook']);
   assert.deepEqual(LEARN_MENU.search, ['image', 'youtube', 'arxiv', 'wikipedia']);
   for (const name of [...LEARN_MENU.learn, ...LEARN_MENU.create, ...LEARN_MENU.search]) assert.ok(names(SLASH).includes(name), name);

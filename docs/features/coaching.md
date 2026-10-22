@@ -3254,3 +3254,26 @@ successful dev deployment and is excluded from the r35 candidate.
 ### Canvas Search (2026-10-16, candidate)
 
 The existing right-panel Search now includes current-canvas browsing, seven filters, literal matching, cached previews, comment navigation and camera Back. It reuses the resizable panel and existing source/document viewers; it does not call models. See [the approved scope and coverage](canvas-search.md). The isolated review target is `rabbit-hole-web-dev-search-int.tryrabbithole.workers.dev`; exact deployed SHA, browser evidence and release status belong to the coordination receipt and CI deployment notes. This feature entry alone is not a deployment claim.
+
+## Learning goals: /goal and goal management (2026-10-21)
+
+Owner task, branch `feature/goal-command`. One management path, no AI: a typed `/goal`, the / picker's Goal pill
+(`[Goal ×]`, removed by × or Backspace) and Progress's **Set a goal** / **Manage goals** all call the Chat workspace's
+`goals.open(draft)` (`packages/web/src/chat-workspace.jsx`), which opens Progress on the goal list (`GoalManager.jsx`).
+`/goal <words>` puts the words in a new goal's field, unsaved. `/goal` is in the command registry (`agent/slash.js`) and
+declared `direct` and `explicit` in `CHAT_CAPABILITIES` (`inline-ai-route.js`): the chat router is never offered it, so plain
+words never start a goal change.
+
+Storage is the existing personal Tutor state (learn 0025, `learn-coaching-store.js`); no migration. New coaching actions:
+- `edit_goal { goalId, revision, label, outcome? }`: the goal's words only. Criteria are never touched; a scope change is
+  still `change_scope`, which adds a new criteria version, so every assessment stays tied to the criterion version it assessed.
+- `delete_goal { goalId, revision }`: sets the goal's lifecycle to `archived` (it leaves every list); attempts, assessments,
+  observations and criteria stay as recorded. A current goal's pointer and activity clear, a journey-backed goal's journey is
+  parked (never archived), and a progress chip naming it no longer resolves (`learn-progress-context.js`); the browser also
+  detaches such chips from the Chat and Table of contents.
+- Both name the goal revision the learner saw: a goal changed elsewhere is 409 `goal_changed` with the current state, which
+  the browser shows beside the learner's kept edit. Only the goal's owner (same org, user, canvas and board) reaches it; any
+  other id is 404 `unknown_goal`. Retries reuse the action id and replay once (`learn-goals.js`).
+
+Checks: `packages/control-plane/test/learn-goal-management.test.js` (store, route, history, a database-file reload),
+`packages/web/src/learn-goals.test.mjs`, and the fork browser check `packages/web/e2e/goal-command-check.mjs` (CI runs it).

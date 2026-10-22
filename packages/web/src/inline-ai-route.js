@@ -35,6 +35,7 @@ export const ROUTES = Object.freeze({
 // unavailable (unavailableCommand); plain words ("explain it more simply") still route.
 export const NOT_INLINE = Object.freeze({
   dive: 'navigation: opens a Rabbit Hole (use /dive or Start Rabbit Hole)',
+  goal: 'goal management: opens your learning goals in Progress, unrelated to the selection',
   notebook: 'adds an empty notebook, unrelated to the selection', whiteboard: 'adds an empty whiteboard, unrelated to the selection',
   practice: 'assessment, not explanation: it waits for the learner\'s answer in the chat',
   // Paid image generation has no inline route yet; it is off everywhere today (agent/slash.js IMAGE_GENERATION).
@@ -159,13 +160,16 @@ export const CHAT_CAPABILITIES = Object.freeze({
   wikipedia: { flow: 'direct', intent: 'Find an encyclopedia article to read (a Wikipedia search).' },
   arxiv: { flow: 'direct', intent: 'Find research papers (an arXiv search).' },
   image: { flow: 'direct', intent: 'Find a real photo or picture of something (an image search, never generated).' },
+  // explicit: reached only by a typed /goal, the picker or Set a goal, never offered to the router (CHAT_ROUTES), so plain
+  // words never start goal changes (owner, 2026-10-21).
+  goal: { flow: 'direct', explicit: true, intent: 'Manage learning goals: add, edit, delete or choose the current goal.' },
 });
 const CHAT_META = {
   several: 'More than one of these outputs is asked for at once (for example a diagram and a video).',
   none: 'None of these fits: an action neither a chat reply nor these tools can do, such as sending an email or booking something.',
 };
-// The chat choice options: 'answer', every declared capability, several, none.
-export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...CHAT_CAPABILITIES });
+// The chat choice options: 'answer', every declared capability the router may choose (not an explicit-only one), several, none.
+export const CHAT_ROUTES = Object.freeze({ answer: CHAT_ANSWER, ...Object.fromEntries(Object.entries(CHAT_CAPABILITIES).filter(([, entry]) => !entry.explicit)) });
 // One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
 export const chatCapability = id => {
   const entry = SLASH.find(command => command.name === id), chat = CHAT_CAPABILITIES[id];
