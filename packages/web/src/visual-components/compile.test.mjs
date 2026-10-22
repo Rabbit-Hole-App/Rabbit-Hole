@@ -213,3 +213,24 @@ test('every bundled example passes the generation gates a real /explain scene mu
   const { sceneProblem } = await import('../../../control-plane/src/learn-scene-gates.js');
   for (const [name, example] of Object.entries(EXAMPLES)) assert.equal(sceneProblem(compileVisual(example).scene), null, name);
 });
+
+test('steps compile to the card\'s named steps: each step draws more, earlier context stays, and the gates accept it', async () => {
+  const { sceneProblem } = await import('../../../control-plane/src/learn-scene-gates.js');
+  const steps = [{ id: 'ask', title: 'The request' }, { id: 'cache', title: 'The cache answers' }, { id: 'server', title: 'A miss goes on' }];
+  const stepped = spec([mod('a', 'Request'), { id: 'box', component: 'section', version: 1, params: { title: 'Edge' }, step: 'cache' }, mod('b', 'Cache', { parent: 'box' }), mod('c', 'Server', { step: 'server' })],
+    { presentation: { mode: 'steps', steps }, connections: [{ from: 'a.bottom', to: 'box.top' }, { from: 'box.bottom', to: 'c.top' }] });
+  const { scene } = compileVisual(stepped);
+  assert.deepEqual(scene.presentation, { mode: 'steps', steps: steps.map((step, at) => ({ ...step, at })) });
+  const shown = at => evaluateScene(structuredClone(scene), at, {}).state.objects.filter(object => object.visible).map(object => object.id.split('.')[0]);
+  assert.deepEqual([...new Set(shown(0))], ['a']);
+  assert.deepEqual([...new Set(shown(1))].sort(), ['a', 'b', 'box', 'link0'].sort(), 'the child appears with its section, the link with its later end');
+  assert.deepEqual([...new Set(shown(2))].sort(), ['a', 'b', 'box', 'c', 'link0', 'link1'].sort());
+  assert.equal(sceneProblem(scene), null);
+  // A step that adds nothing is refused by B2's gate (a highlight alone is not a step).
+  const empty = compileVisual({ ...stepped, presentation: { mode: 'steps', steps: [...steps, { id: 'more', title: 'Nothing new' }] } });
+  assert.match(sceneProblem(empty.scene), /step "Nothing new" draws the same as "A miss goes on"/);
+  assert.throws(() => compileVisual({ ...stepped, components: [...stepped.components, mod('d', 'Lost', { step: 'nowhere' })] }), /names step "nowhere"/);
+  assert.throws(() => compileVisual({ ...stepped, presentation: { mode: 'steps', steps: [{ ...steps[0], caption: 'Words' }, ...steps.slice(1)] } }), /Step captions are not drawn yet/);
+  // Every compiled scene declares its presentation, so the card and the gates read the same mode.
+  assert.deepEqual(compileVisual(spec([mod('a', 'One')])).scene.presentation, { mode: 'static' });
+});

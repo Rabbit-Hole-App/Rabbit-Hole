@@ -6,7 +6,8 @@
 // - a rendered-card spec finding (layout): repairWritable hints only, through Lane A's applyHintRepair, which refuses any
 //   other change and any value out of range.
 // Component and renderer defects are never sent to repair (explain-job.js stops the job) and go to a deduplicated backlog.
-import { applyHintRepair } from '../../web/src/visual-components/compile.js';
+import { applyHintRepair, compileVisual } from '../../web/src/visual-components/compile.js';
+import { presentationRepair } from './learn-scene-gates.js';
 import { COMPOSITION, catalogue, componentFor } from '../../web/src/visual-components/registry.js';
 import { SPEC_LIMITS } from './explain-author.js';
 import { canonicalJson } from '../../web/src/explain-contract.js';
@@ -33,6 +34,19 @@ export function repairableHints(spec) {
     if (definition.repairWritable.length) out[item.id] = { component: item.component, hints: Object.fromEntries(definition.repairWritable.map(name => [name, definition.hints[name]])), current: item.hints || {} };
   }
   return out;
+}
+
+// The deterministic presentation repair (Lane B2's presentationRepair, EXP-T26 M2), tried before any model round: a time
+// presentation whose compiled timeline only reveals becomes what presentationRepair derives. No model call, no round.
+// -> the repaired spec, or null when it does not apply.
+export function presentationFix(spec) {
+  let scene;
+  try { scene = compileVisual(spec).scene; } catch { return null; }
+  // The compiler draws no timeline in time mode, so the repair can only come back static here; steps derived from a reveal
+  // order would have no spec form (a spec marks steps on components), so anything else is left to the model round.
+  if (presentationRepair(scene)?.presentation.mode !== 'static') return null;
+  const { duration, steps, ...presentation } = spec.presentation;
+  return { ...spec, presentation: { ...presentation, mode: 'static' } };
 }
 
 // The repair stage. -> { spec, progress: true, operation } | { progress: false, rejected?, reason }.

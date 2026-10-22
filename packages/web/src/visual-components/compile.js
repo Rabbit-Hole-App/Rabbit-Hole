@@ -136,12 +136,36 @@ export function compileVisual(raw) {
   });
 
   const { presentation } = spec;
-  if (presentation.mode === 'steps') throw new Error('Steps presentation is not supported by this compiler yet');
+  // Experiments stay refused: no catalogue component declares a learner control (a scene input) yet, so an experiment has
+  // no input to name. The author reads this through compilerSupport and reports a capability gap instead.
   if (presentation.experiments.length) throw new Error('Experiments are not supported by this compiler yet');
+  // Steps (Lane B2's saved-scene presentation, EXP-T26 M2): step i is moment i of the timeline; what first appears on it
+  // fades in just before, so earlier context stays drawn. A child appears no earlier than its parent, a connection with
+  // its later end.
+  const steps = presentation.mode === 'steps' ? presentation.steps : [];
+  const timeline = [];
+  if (steps.length) {
+    if (steps.some(step => step.caption !== undefined)) throw new Error('Step captions are not drawn yet: put the words in a component that appears on that step');
+    const index = new Map(steps.map((step, i) => [step.id, i]));
+    const stepOf = item => Math.max(index.get(item.step) ?? 0, item.parent === undefined ? 0 : stepOf(items.get(item.parent)));
+    const componentStep = new Map(spec.components.map(item => [item.id, stepOf(item)]));
+    // Connection objects are link<i> and link<i>-label (above).
+    const linkStep = id => { const link = spec.connections[parseInt(id.slice(4), 10)]; return Math.max(...[link.from, link.to].map(ref => componentStep.get(ref.split('.')[0]))); };
+    objects.forEach((object, i) => {
+      const at = object.conceptId ? componentStep.get(object.conceptId) : linkStep(object.id);
+      if (!at) return;
+      // shortcut: appear fades to full opacity, so a translucent object (pattern-stack copies) cannot appear on a later step; upgrade when appear restores the authored opacity.
+      if ((object.initialState.opacity ?? 1) < 1) throw new Error(`"${object.id}" is translucent and cannot appear on a later step yet: put its component on the first step`);
+      objects[i] = { ...object, initialState: { ...object.initialState, opacity: 0 } };
+      timeline.push({ at: at - 0.5, action: 'appear', target: object.id, duration: 0.4 });
+    });
+  }
   const scene = {
     id: spec.id, title: spec.title, width: round(width), height: round(height),
-    duration: presentation.mode === 'time' ? presentation.duration : STATIC_DURATION,
-    objects, timeline: [],
+    duration: presentation.mode === 'time' ? presentation.duration : steps.length ? steps.length - 1 : STATIC_DURATION,
+    objects, timeline,
+    // The card and the scene gates read the same declaration (animation-scene.js presentationMode, learn-scene-gates.js).
+    presentation: steps.length ? { mode: 'steps', steps: steps.map((step, i) => ({ id: step.id, title: step.title, at: i })) } : { mode: presentation.mode },
   };
   if (spec.parts.length) {
     scene.inputs = [{ name: 'part', type: 'index', label: 'Part', of: 'partTitles', default: 0, presentation: 'pager' }];

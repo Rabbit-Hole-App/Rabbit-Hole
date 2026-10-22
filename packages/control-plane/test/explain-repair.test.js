@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { explainPipeline } from '../src/explain-job.js';
-import { allowedRepairs, repairableHints } from '../src/explain-repair.js';
+import { allowedRepairs, presentationFix, repairableHints } from '../src/explain-repair.js';
 import { explainStack } from './explain-fixture.js';
 
 const PNG = 'iVBORw0KGgo=';
@@ -133,4 +133,15 @@ test('a component defect is not repaired: the job stops and the defect is record
   await first.s.run(next.id);
   const counted = [...first.s.state.data].filter(([key]) => key.startsWith('defect:'));
   assert.deepEqual([counted.length, counted[0][1].count], [1, 2]);
+});
+
+test('a time presentation that only reveals is made static deterministically (B2 presentationRepair): no model repair call, no round', async t => {
+  const timed = { ...SPEC, presentation: { mode: 'time', duration: 4 } };
+  assert.deepEqual(presentationFix(timed).presentation, { mode: 'static' });
+  assert.equal(presentationFix(SPEC), null, 'a static spec needs no presentation repair');
+  const { done, model } = await runJob(t, { author_explanation: [{ kind: 'spec', spec: timed }], report_review: [accept] });
+  assert.deepEqual([done.stage, done.round, done.spec.presentation], ['ready', 0, { mode: 'static' }]);
+  assert.match(done.findings[0].problems.join(' '), /time mode on a timeline that only reveals/);
+  assert.deepEqual(done.candidates.map(c => [c.round, c.operation, c.progress]), [[0, 'presentation', true]]);
+  assert.deepEqual([model.count('author_explanation'), model.count('report_review'), model.count('repair_explanation')], [1, 1, 0]);
 });

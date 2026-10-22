@@ -28,7 +28,7 @@ import { needsPreparation, prepareStage } from './explain-brief.js';
 import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
 import { reviewCaptures } from './explain-review.js';
 import { learnMedia } from './learn-storage.js';
-import { defectKeys, repairStage } from './explain-repair.js';
+import { defectKeys, presentationFix, repairStage } from './explain-repair.js';
 import { EXPLAIN_LIMITS, EXPLAIN_POLICY_VERSION, REQUEST_CLASSES, ExplainPolicyError, callExplainRole, checkExplainRequest, explainReservation,
   explainRequest, newTiming, markTiming, beginStage, countStage, endStage, timingSummary } from './explain-policy.js';
 
@@ -491,8 +491,14 @@ export class ExplainJobs {
       }
     } else if (stage === 'authoring') { job.spec = out.spec; next('validating'); }
     else if (stage === 'validating') {
-      if (out.problems?.length) { job.findings.push({ round: job.round, stage, problems: out.problems }); return this.repairOrStop(job, out); }
-      job.compiled = out.compiled; next('rendering');
+      if (out.problems?.length) {
+        job.findings.push({ round: job.round, stage, problems: out.problems });
+        // A time presentation that only reveals is fixed deterministically first: no model call and no correction round.
+        const fixed = presentationFix(job.spec);
+        if (!fixed) return this.repairOrStop(job, out);
+        job.candidates = [...(job.candidates || []), { round: job.round, operation: 'presentation', progress: true, specHash: (await sha256Hex(JSON.stringify(fixed))).slice(0, 16) }];
+        job.spec = fixed; next('validating');
+      } else { job.compiled = out.compiled; next('rendering'); }
     } else if (stage === 'rendering') {
       job.captures = out.captures || []; job.renders += out.renders?.length || 0; countStage(job.timing, { captures: job.captures.length });
       await this.recordRenders(job, out.renders || []);

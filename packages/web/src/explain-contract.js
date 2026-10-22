@@ -120,6 +120,8 @@ const componentInstance = z.object({
   part: z.number().int().min(0).max(3).optional(),
   // Hierarchy: the container instance this one sits inside, in spec order.
   parent: id.optional(),
+  // Steps presentation: the named step this instance first appears on (earlier context stays drawn); absent = from the first.
+  step: id.optional(),
 }).strict();
 export const visualSpecSchema = z.object({
   version,
@@ -140,6 +142,7 @@ export const visualSpecSchema = z.object({
   for (const item of spec.components) {
     if (item.parent !== undefined && (!ids.has(item.parent) || item.parent === item.id)) ctx.addIssue({ code: 'custom', message: `component "${item.id}" names unknown parent "${item.parent}"` });
     if (item.part !== undefined && item.part >= spec.parts.length) ctx.addIssue({ code: 'custom', message: `component "${item.id}" names part ${item.part}, but the spec declares ${spec.parts.length} parts` });
+    if (item.step !== undefined && !spec.presentation.steps.some(step => step.id === item.step)) ctx.addIssue({ code: 'custom', message: `component "${item.id}" names step "${item.step}", which the presentation does not declare` });
   }
 });
 
