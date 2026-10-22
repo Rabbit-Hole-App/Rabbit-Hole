@@ -110,7 +110,7 @@ import { browserStorage, hasLocalContent, readBoardCopy, readBoardVersion, unsav
 import { editorClosed, editorOpened } from './chunk-reload.js';
 import { chatSaving } from './chat-persist.js';
 import { blockedStorage } from './storage-fallback.js';
-import { bumpThumbnail, thumbnailScheduler } from './card-thumbnail.js';
+import { canvasThumbnail } from './card-thumbnail.js';
 import { boardPending, boardText, serial, sharingOf, withPendingWork } from './canvas-persist.js';
 import { lazyFeature } from './lazy-feature.jsx';
 import { typingIn } from './canvas-equation.js';
@@ -1373,20 +1373,25 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   useEffect(() => {
     if (board || boardName !== 'main') return undefined;
     const name = app.name;
-    const scheduler = thumbs.current = thumbnailScheduler({
+    const scheduler = thumbs.current = canvasThumbnail({
+      name,
       capture: () => canvasApi.current?.thumbnail?.() ?? null,
-      upload: async blob => { await api(`${boardPath}/thumbnail`, { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type } }); bumpThumbnail(name); },
+      put: blob => api(`${boardPath}/thumbnail`, { method: 'PUT', body: blob, headers: { 'Content-Type': blob.type } }),
     });
     fetch(`${boardPath}/thumbnail`, { method: 'HEAD', credentials: 'same-origin' }).then(r => { if (r.status === 204) scheduler.saved('none yet'); }, () => {});
     return () => { scheduler.stop(); if (thumbs.current === scheduler) thumbs.current = null; };
   }, [boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Leaving the canvas (back to Home): its last change is drawn now, in a layout cleanup, which runs while the canvas is
-  // still in the page (a passive one runs after it is gone). A save still waiting its 1.5 s goes up after this; its board
-  // is what the picture shows.
+  // Leaving the canvas (to Home, or to another canvas: callers key this page by canvas, so it unmounts): its last change
+  // is drawn now under this canvas's name, in a layout cleanup, which runs while the canvas is still in the page (a passive
+  // one runs after it is gone). The live board, as boardUnsaved reads it, so an edit still inside the canvas's 400 ms
+  // browser save or this page's 1.5 s server save counts; that save goes up after this.
   const leaveThumb = useRef(null);
   leaveThumb.current = () => {
     let text;
-    try { text = boardText(boardSnapshot()); } catch { /* no readable copy: only a save already made is drawn */ }
+    try {
+      const now = canvas()?.boardNow?.();
+      text = boardText(now ? { ...now, exchanges: exchangesRef.current, ...(board ? {} : { sources: sourcesRef.current }) } : boardSnapshot());
+    } catch { /* no readable copy: only a save already made is drawn */ }
     thumbs.current?.flush(boardLoaded.current && text !== boardSynced.current ? text : undefined);
   };
   useLayoutEffect(() => () => leaveThumb.current(), []);

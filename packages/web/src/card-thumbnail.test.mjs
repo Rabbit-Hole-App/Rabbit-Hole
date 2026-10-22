@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, canvasPictures, redactRepositoryCards, UNSELECTED, bumpThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, subscribeThumbnails, thumbnailBumps, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
+import { CHROME, COVER_LIMIT, REPOSITORY_CARDS, THUMBNAIL, canvasPictures, redactRepositoryCards, UNSELECTED, bumpThumbnail, canvasThumbnail, cardThumbnail, coverProblem, ownThumbnail, publishedThumbnail, subscribeThumbnails, thumbnailBumps, thumbnailRegion, thumbnailScheduler } from './card-thumbnail.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -96,6 +96,39 @@ test('a new picture re-renders the cards already on the page (Home, the Library)
   assert.equal(heard, 1, 'unsubscribed');
   for (const file of ['./Home.jsx', './LibraryViews.jsx']) assert.match(read(file), /useSyncExternalStore\(subscribeThumbnails, thumbnailBumps\)/, file);
   assert.match(read('./LearnPage.jsx'), /useLayoutEffect\(\(\) => \(\) => leaveThumb\.current\(\), \[\]\)/, 'flushed while the canvas is still in the page');
+  const learn = read('./LearnPage.jsx');
+  assert.ok(learn.includes("canvasThumbnail({\n      name,\n      capture: () => canvasApi.current?.thumbnail?.() ?? null,\n      put: blob => api(`${boardPath}/thumbnail`"), 'each canvas page uploads under its own name and board');
+  // A switch from A to B is a new page (so A's layout cleanup flushes A): canvases are keyed by name.
+  assert.match(read('./RepositoryPage.jsx'), /<CanvasLearn key=\{picked\.name\}/);
+  assert.match(read('./SharePage.jsx'), /<CanvasPage key=\{JSON\.stringify\(\[app\.email, app\.org, app\.name\]\)\}/);
+});
+
+test('edit A, switch to B at once, open Home: A shows its latest edit under its own name, B is unchanged (owner follow-up 5)', async () => {
+  const c = clock(), puts = [], heard = [];
+  const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
+  const page = { a: 'A v1' }; // what canvas A's DOM holds; capture copies it at the moment it is called
+  const gates = [];
+  const pageFor = (name, read) => canvasThumbnail({ name, capture: async () => `${name}:${read()}`,
+    put: async blob => { const gate = deferred(); gates.push(gate); await gate.promise; puts.push(blob); }, now: c.now, timers: c.timers });
+  const off = subscribeThumbnails(() => heard.push(ownThumbnail('canvas-a')));
+  const b0 = ownThumbnail('canvas-b');
+  const a = pageFor('canvas-a', () => page.a);
+  const settle = () => new Promise(r => setTimeout(r, 0));
+  a.saved('a1'); const firstRun = c.tick(4000); await settle(); // the delayed snapshot of A v1: drawn, its upload still on its way
+  assert.equal(gates.length, 1);
+  page.a = 'A v2'; // the latest edit, not yet in any snapshot
+  const left = a.flush('a2'); a.stop(); // LearnPage A unmounts: layout cleanup, then the passive stop
+  page.a = 'gone'; // A's canvas is out of the page; B's opens
+  const b = pageFor('canvas-b', () => 'B');
+  assert.equal(c.pending, null, 'A stopped: nothing left on a timer');
+  gates[0].resolve(); await firstRun; await settle(); // A v1's upload lands after the switch
+  assert.equal(gates.length, 2, 'A v2 goes up after A v1, in order');
+  gates[1].resolve(); await left;
+  assert.deepEqual(puts, ['canvas-a:A v1', 'canvas-a:A v2'], 'A\'s own pictures, the last one drawn before A left');
+  assert.match(ownThumbnail('canvas-a'), /\?v=\d+$/, 'Home loads A\'s new picture');
+  assert.ok(heard.length >= 2, 'Home and the Library re-render when it lands');
+  assert.equal(ownThumbnail('canvas-b'), b0, 'B unchanged');
+  b.stop(); off();
 });
 
 test('a chosen picture: PNG, JPEG or WebP, at most 10 MB', () => {
