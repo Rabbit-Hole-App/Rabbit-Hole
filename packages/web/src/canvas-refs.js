@@ -4,8 +4,12 @@
 import { api } from './api.js';
 
 // { canvases: [{ id, title, path, href }], more }: the viewer's own and member canvases matching q, never `exclude`.
-export const pickCanvases = (q, exclude, signal) =>
-  api(`/api/learn/canvas-picker?${new URLSearchParams({ q: q || '', exclude: exclude || '', limit: '20' })}`, { signal });
+// holes: the viewer's own Rabbit Holes too, each with its parent canvas as its path ("Mention a canvas").
+export const pickCanvases = (q, exclude, signal, holes = false) =>
+  api(`/api/learn/canvas-picker?${new URLSearchParams({ q: q || '', exclude: exclude || '', limit: '20', ...(holes ? { holes: '1' } : {}) })}`, { signal });
+
+// A mentioned canvas as this viewer may see it now: { id, title, path }; throws (status 404, no title) when it is not readable.
+export const resolveCanvasRef = (boardId, signal) => api(`/api/learn/canvas-ref/${encodeURIComponent(boardId)}`, { signal });
 
 // { board, from: [{ target, title, path, href, unavailable, refs }], to: [{ source, title, path, href, refs }] }.
 export const loadLinks = (boardId, signal) => api(`/api/learn/links/${encodeURIComponent(boardId)}`, { signal });

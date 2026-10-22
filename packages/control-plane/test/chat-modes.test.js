@@ -924,3 +924,20 @@ test('answer suggestions: a motion action is offered only where Motion can start
   assert.deepEqual(off.events.find(e => e.event === 'answer_meta').data.actions, [], 'no Motion offered on this turn: the action is dropped');
   assert.ok(!f.calls[1].system.includes(realMeta.ANSWER_META_MOTION));
 });
+
+// "Mention a canvas" (canvas-mention-ref.js): a canvas ref is its board id only. Whatever name the browser sends, the server
+// stores and shows the model "Canvas" (the title is read under access at Send); no range, no text, at most three per question.
+test('a canvas ref is a board id only: its name is never the browser\'s, and malformed, ranged or a fourth canvas is refused', () => {
+  const id = n => `canvas:0000000${n}-aaaa-4bbb-8ccc-dddddddddddd`;
+  const ref = (n, extra = {}) => ({ sourceId: id(n), kind: 'canvas', name: 'Canvas', version: '', range: null, ...extra });
+  assert.deepEqual(contextRefs([ref(1, { name: 'A title the browser should not set' })]), [{ sourceId: id(1), kind: 'canvas', name: 'Canvas', version: '', range: null }]);
+  assert.equal(contextRefs([ref(1), ref(2), ref(3)]).length, 3);
+  assert.throws(() => contextRefs([ref(1), ref(2), ref(3), ref(4)]), /at most 3 mentioned canvases/);
+  assert.throws(() => contextRefs([ref(1, { sourceId: 'canvas:canvas-0a1b2c3d' })]), /canvas:<board id>/);
+  assert.throws(() => contextRefs([ref(1, { range: { quote: 'x' } })]), /malformed canvas range/);
+  assert.throws(() => contextRefs([ref(1, { text: 'smuggled content' })]), /text rides only/);
+  assert.equal(validContextRefs([ref(1)]), true, 'a thread keeps its canvas refs');
+  assert.equal(validContextRefs([ref(1, { range: { page: 1 } })]), false);
+  assert.equal(validContextRefs([ref(1, { sourceId: 'canvas:nope' })]), false);
+  assert.match(chatContext('base', contextRefs([ref(1)]), null, 10000), /\[canvas\] "Canvas" sourceId "canvas:00000001-[^"]+" - a mentioned canvas: its title and saved content are included below/);
+});

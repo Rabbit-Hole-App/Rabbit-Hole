@@ -1,6 +1,7 @@
 import { validOpen } from './chat-modes.js';
 import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
+import { CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
 import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
@@ -263,7 +264,7 @@ async function activeChat(req, env, user, url) {
 // A Chat thread's saved state (chat-workspace-CONTRACT.md A3): its mode, attached ContextRefs (A2) and draft, upserted into
 // chat_thread_state by PUT /api/learn/chat/threads/<id>/state. last_activity_at is the turn's (apiAsk), never touched here.
 const CHAT_STATE = /^\/api\/learn\/chat\/threads\/((?:canvaschat|repochat)-[a-f0-9-]+)\/(state)$/;
-const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'], excerpt: ['excerpt'], progress: ['progress'] };
+const REF_PREFIXES = { doc: ['doc'], card: ['card'], group: ['group'], code: ['code'], image: ['image'], media: ['media'], web: ['paper', 'wiki'], file: ['file'], excerpt: ['excerpt'], progress: ['progress'], canvas: ['canvas'] };
 const validProgressRange = range => { try { progressScope(range); return true; } catch { return false; } };
 const short = (value, limit) => typeof value === 'string' && value.length <= limit;
 // null, or exactly one of the A2 range shapes.
@@ -295,6 +296,7 @@ export function validContextRefs(refs) {
     else if (text !== undefined && !(['card', 'group', 'image', 'media'].includes(ref.kind) && short(text, 8000))) return false;
     else texts += text?.length || 0;
     if (ref.kind === 'file' && !(FILE_SOURCE.test(String(ref.sourceId)) && validFileRange(ref.range))) return false;
+    if (ref.kind === 'canvas' && !(CANVAS_SOURCE.test(String(ref.sourceId)) && ref.range == null)) return false; // a mentioned canvas: its id only
     return Object.hasOwn(REF_PREFIXES, ref.kind) && short(ref.sourceId, 1000) && REF_PREFIXES[ref.kind].includes(ref.sourceId.split(':')[0]) && ref.sourceId.indexOf(':') < ref.sourceId.length - 1
       && short(ref.name, 120) && ref.name.length > 0 && short(ref.version, 200) && (ref.kind === 'progress' ? validProgressRange(ref.range) : validRange(ref.range)) && JSON.stringify(rest).length <= 2048;
   });

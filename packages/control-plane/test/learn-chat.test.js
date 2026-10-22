@@ -17,6 +17,9 @@ import { findVideoMoments, videoMomentTools } from '../src/learn-youtube.js';
 import { liveDb, memoryBucket } from './live-storage-spy.js';
 import { learnMedia } from '../src/learn-storage.js';
 import { contextDocumentBlocks } from '../src/learn-context-docs.js';
+import { CANVAS_UNAVAILABLE, canvasMentions } from '../src/canvas-refs.js';
+import { canvasMentionRef } from '../../web/src/canvas-mention-ref.js';
+import { learnDb } from './learn-grade-fixture.js';
 import * as chatModes from '../src/chat-modes.js';
 import * as answerMeta from '../src/chat-answer-meta.js';
 import { randomHex } from '../src/token.js';
@@ -57,6 +60,8 @@ const deps = {
   contextDocumentBlocks,
   ...chatModes,
   ...answerMeta,
+  canvasMentions,
+  CANVAS_UNAVAILABLE,
   randomHex,
   ASK_TOOLS: [],
   LEARN_SYSTEM,
@@ -1135,4 +1140,46 @@ test('an @-mention on a canvas turn reads no live app, with DB bound or unbound,
   for (const answer of env.answers) assert.match(answer.context, /Mentioned app counter: not available to this chat \(live apps are not read on this preview\)\.$/);
   assert.equal(env.answers.length, 2);
   assert.deepEqual(live.calls, []);
+});
+
+// "Mention a canvas": the ask reads each mentioned canvas by id under the asker's access now. Two canvases ride by their own
+// titles and saved content; one the asker can no longer read refuses the turn with 403 before any model call or write, and
+// the refusal names no title.
+test('mentioned canvases ride by title and content; a revoked one is refused before any model call, with no title', async t => {
+  const env = fixture(t);
+  env.DB = { prepare: sql => { throw new Error(`live D1 touched: ${sql}`); }, batch: async () => { throw new Error('live D1 touched: batch'); } };
+  const { LEARN_DB, sqlite } = learnDb(t);
+  env.LEARN_DB = LEARN_DB;
+  const asker = { ...owner, userId: 'u-owner' }, colleague = 'colleague@example.test';
+  const canvas = (name, owner_email, title, body) => {
+    sqlite.prepare('INSERT INTO canvases(org,name,owner_email,title) VALUES(?,?,?,?)').run('workspace-a', name, owner_email, title);
+    const id = crypto.randomUUID();
+    sqlite.prepare("INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, 'workspace-a', ?, ?, 'main', ?, 1, ?, '2026-10-22')")
+      .run(id, owner_email, name, JSON.stringify({ blocks: [{ id: 'b1', type: 'explanation', title: `${title} card`, body }] }), owner_email);
+    return id;
+  };
+  const here = canvas('canvas-0a0a0a0a', owner.email, 'Here', 'This canvas.');
+  const tides = canvas('canvas-0b0b0b0b', owner.email, 'Tides', 'The moon pulls the sea.');
+  const theirs = canvas('canvas-0c0c0c0c', colleague, 'Colleague secret', 'Private plan.');
+  sqlite.prepare("INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES ('m1', 'workspace-a', 'canvas-0c0c0c0c', ?, 'u-owner', ?, 'active', 'sent', ?, 0, 0)").run(owner.email, owner.email, colleague);
+  const seam = canvasAskSeam(env, canvasApp(sqlite.prepare('SELECT * FROM canvases WHERE name=?').get('canvas-0a0a0a0a'), owner));
+  const ask = refs => handlers.apiAsk(request({ scope: { app: 'canvas-0a0a0a0a' }, message: 'Compare the canvases I mentioned', mode: 'ask', context_refs: refs.map(canvasMentionRef) }), env, {}, asker, 'learn', seam);
+  assert.equal((await ask([tides, theirs])).status, 200);
+  const { context } = env.answers.at(-1);
+  assert.match(context, /Mentioned canvas "Tides" \(canvas:[0-9a-f-]{36}\), as last saved[^]*The moon pulls the sea\./);
+  assert.match(context, /Mentioned canvas "Colleague secret"[^]*Private plan\./);
+  assert.ok(here);
+  // The membership ends: the next turn mentioning that canvas is refused, nothing is stored and no model is called.
+  sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE id = 'm1'").run();
+  const answers = env.answers.length, threads = sqlite.prepare('SELECT count(*) AS n FROM threads').get().n;
+  const refused = await ask([tides, theirs]);
+  assert.equal(refused.status, 403);
+  const body = await refused.json();
+  assert.deepEqual(body, { error: CANVAS_UNAVAILABLE, code: 'canvas_unavailable', refused: [`canvas:${theirs}`] });
+  assert.doesNotMatch(JSON.stringify(body), /Colleague secret|Private plan/);
+  assert.equal(env.answers.length, answers, 'no model call');
+  assert.equal(sqlite.prepare('SELECT count(*) AS n FROM threads').get().n, threads, 'nothing stored');
+  // Removing the pill drops the ref: the same turn without it is answered, with no trace of the removed canvas.
+  assert.equal((await ask([tides])).status, 200);
+  assert.doesNotMatch(env.answers.at(-1).context, new RegExp(`Colleague secret|canvas:${theirs}`));
 });

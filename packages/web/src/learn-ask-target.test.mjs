@@ -69,9 +69,10 @@ test('a canvas composer disables + attachments with the server refusal and shows
   assert.match(ask, /const srcOpts = repository \|\| canvasChat \? \[\] :/);
 });
 
-test('@mentions never offer canvases and stop at three chips', () => {
+// The canvas Chat (chat) mentions canvases through its picker only (r2 lane L8, owner 2026-10-22): no typed @ app list there.
+test('@mentions never offer canvases, never run in the canvas Chat, and stop at three chips', () => {
   assert.match(ask, /\(repository \? a\.name\.startsWith\('repo-'\) : !a\.name\.startsWith\('repo-'\) && !a\.name\.startsWith\('canvas-'\)\)/);
-  assert.match(ask, /const atMatch = privateChat \|\| mentions\.length >= MENTION_CHIPS \? null :/);
+  assert.match(ask, /const atMatch = privateChat \|\| chat \|\| mentions\.length >= MENTION_CHIPS \? null :/);
 });
 
 // Owner, 2026-10-08: a canvas Ask writes a ready question into the composer; the learner presses Send.
