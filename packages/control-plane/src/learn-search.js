@@ -134,19 +134,9 @@ export async function directResult(source, query, { readPaper = readArxivPaper, 
   return { key: page.title, title: page.displayTitle, subtitle: 'Wikipedia', why: page.description || 'Exactly the article you pasted.', exact: true, thumbnail: page.thumbnail, item: { title: page.title } };
 }
 
-// Results are cached for an hour per source and query: the same search twice
-// in a session costs one Exa call, not two.
-export async function searchCanvasSource(source, query, env, { fetcher = fetch, direct = directResult } = {}) {
-  if (!SEARCH_SOURCES[source]) throw new Error('Choose YouTube, arXiv, or Wikipedia');
-  if (typeof query !== 'string' || !query.trim() || query.length > 300) throw new Error('Type what you are looking for (up to 300 characters)');
-  const exact = await direct(source, query);
-  if (exact) return { results: [exact], exact: true };
-  if (!env?.EXA_API_KEY) throw new Error('Search is not connected on this deployment.');
-  const cache = globalThis.caches?.default;
-  const cacheKey = `https://search-cache.small.internal/${source}?q=${encodeURIComponent(query.trim().toLowerCase())}`;
-  try { const hit = await cache?.match(cacheKey); if (hit) return await hit.json(); } catch { /* search live */ }
-  // Admitted before the call (learn-paid-transport.js admitTool): a refusal throws, and nothing is sent.
-  const metered = await admitTool(env, { category: 'exa_search', reservedMicros: exaSearchBound(FETCH_LIMIT, 1), provider: 'exa', model: 'search' });
+// One Exa search, admitted before the call (learn-paid-transport.js admitTool): a refusal throws, and nothing is sent.
+async function exaSearch(env, body, fetcher) {
+  const metered = await admitTool(env, { category: 'exa_search', reservedMicros: exaSearchBound(body.numResults, 1), provider: 'exa', model: 'search' });
   let response, data = null, ok = false;
   try {
     try {
@@ -154,12 +144,7 @@ export async function searchCanvasSource(source, query, env, { fetcher = fetch, 
         method: 'POST',
         signal: AbortSignal.timeout(20000),
         headers: { 'Content-Type': 'application/json', 'x-api-key': env.EXA_API_KEY },
-        body: JSON.stringify({
-          query: query.trim(), type: 'auto', numResults: FETCH_LIMIT,
-          includeDomains: [SEARCH_SOURCES[source].domain],
-          // The "why this": a sentence written for THIS query, per result.
-          contents: { summary: { query: `In one sentence: why is this a good pick for someone looking for "${query.trim().slice(0, 200)}"?` } },
-        }),
+        body: JSON.stringify(body),
       });
     } catch (error) { throw new Error(error?.name === 'TimeoutError' ? 'Search did not answer in time. Try again.' : 'Search is unavailable right now. Try again.'); }
     if (response.status === 401 || response.status === 403) throw new Error('The search key was refused.');
@@ -173,6 +158,39 @@ export async function searchCanvasSource(source, query, env, { fetcher = fetch, 
     if (metered) await metered.settle({ ok, costMicros: exaCost(data) });
     else await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data) });
   }
+  return data;
+}
+
+// /explain primary-source discovery (EXP-T13): the same admitted Exa search without a domain scope. Returns candidate
+// pages only; a snippet is never evidence, so each candidate must still be read through explain-fetch.js.
+export const DISCOVERY_LIMIT = 5;
+export async function discoverSources(query, env, { fetcher = fetch, limit = DISCOVERY_LIMIT } = {}) {
+  if (typeof query !== 'string' || !query.trim() || query.length > 300) throw new Error('A discovery query is 1 to 300 characters');
+  if (!env?.EXA_API_KEY) throw new Error('Search is not connected on this deployment.');
+  const n = Math.max(1, Math.min(DISCOVERY_LIMIT, limit));
+  const data = await exaSearch(env, { query: query.trim(), type: 'auto', numResults: n }, fetcher);
+  const seen = new Set();
+  return (data?.results || []).filter(hit => /^https?:\/\//i.test(hit?.url || '') && !seen.has(hit.url) && seen.add(hit.url)).slice(0, n)
+    .map(hit => ({ url: hit.url, title: String(hit.title || '').trim().slice(0, 200) || null, published: hit.publishedDate || null, read: false }));
+}
+
+// Results are cached for an hour per source and query: the same search twice
+// in a session costs one Exa call, not two.
+export async function searchCanvasSource(source, query, env, { fetcher = fetch, direct = directResult } = {}) {
+  if (!SEARCH_SOURCES[source]) throw new Error('Choose YouTube, arXiv, or Wikipedia');
+  if (typeof query !== 'string' || !query.trim() || query.length > 300) throw new Error('Type what you are looking for (up to 300 characters)');
+  const exact = await direct(source, query);
+  if (exact) return { results: [exact], exact: true };
+  if (!env?.EXA_API_KEY) throw new Error('Search is not connected on this deployment.');
+  const cache = globalThis.caches?.default;
+  const cacheKey = `https://search-cache.small.internal/${source}?q=${encodeURIComponent(query.trim().toLowerCase())}`;
+  try { const hit = await cache?.match(cacheKey); if (hit) return await hit.json(); } catch { /* search live */ }
+  const data = await exaSearch(env, {
+    query: query.trim(), type: 'auto', numResults: FETCH_LIMIT,
+    includeDomains: [SEARCH_SOURCES[source].domain],
+    // The "why this": a sentence written for THIS query, per result.
+    contents: { summary: { query: `In one sentence: why is this a good pick for someone looking for "${query.trim().slice(0, 200)}"?` } },
+  }, fetcher);
   let results = resultsFromExa(source, data);
   if (source === 'arxiv') results = await enrichPapers(results, fetcher);
   const body = { results, exact: false };
