@@ -6,11 +6,13 @@ import { EXPLAIN_CONTRACT_VERSION, canonicalJson, validateCompiledVisual, valida
 import { evaluateScene } from '../scene-evaluate.js';
 import { checkLayoutLint } from '../scene-layout-lint.js';
 import { legibilityIssues } from '../scene-layout.js';
+import { budgetIssues, chooseDensity, measureScene } from './budget.js';
 import { labelText } from './text.js';
 import { componentFor, resolveHints, resolveParams } from './registry.js';
 
 const PAD = 32, GAP = 32;
 const STATIC_DURATION = 1;
+const FATAL = new Set(['objects-per-part', 'objects-total', 'parts', 'timeline-events']);
 
 // shortcut: FNV-1a 64-bit, a determinism and identity hash, not a security one; switch ResultIdentity to SHA-256 if a hash ever guards access.
 export function contentHash(value) {
@@ -131,6 +133,16 @@ export function compileVisual(raw) {
 
   // The compiled scene must pass the existing validators for every part, and
   // the layout lint the generation gates run; lint findings are diagnostics.
+  // Over a limit the scene schema enforces: refuse here, naming the measured
+  // count and the density decision, before validateScene's bare error.
+  const measure = measureScene(scene, { authored: spec.components.length });
+  const budget = budgetIssues(measure);
+  const fatal = budget.filter(issue => FATAL.has(issue.code));
+  if (fatal.length) {
+    const density = chooseDensity(measure);
+    const advice = density.layout === 'split' ? `: split it into ${density.parts} detail parts` : ': draw less';
+    throw new Error(`Over budget (${fatal.map(issue => `${issue.code} ${issue.value} > ${issue.limit}`).join(', ')})${advice}`);
+  }
   const partIndexes = spec.parts.length ? spec.parts.map((_, index) => index) : [undefined];
   const perPart = [], diagnostics = [];
   for (const part of partIndexes) {
@@ -142,15 +154,17 @@ export function compileVisual(raw) {
     }
   }
   for (const issue of legibilityIssues(scene)) diagnostics.push({ code: 'legibility', message: `${issue.textClass} text would draw at ${issue.effectivePx}px, below its ${issue.floor}px floor`.slice(0, 300) });
+  for (const issue of budget) diagnostics.push({ code: issue.code, message: `${issue.value} is over the limit of ${issue.limit}${issue.part === undefined ? '' : ` on part ${issue.part + 1}`}` });
 
   return validateCompiledVisual({
     version: EXPLAIN_CONTRACT_VERSION,
     specHash: contentHash(spec),
     scene,
-    counts: { authored: spec.components.length, compiled: objects.length, perPart, renderWork: perPart.reduce((sum, n) => sum + n, 0) },
+    counts: { authored: spec.components.length, compiled: objects.length, perPart, renderWork: measure.renderNodesTotal },
     componentVersions: Object.fromEntries(spec.components.map(item => [item.component, item.version])),
     objectMap,
-    coverage: { states: partIndexes.length, timeCheckpoints: [scene.duration], complete: true },
+    // Stills prove only their own moments: a timeline is never complete coverage.
+    coverage: { states: measure.settings, timeCheckpoints: measure.timeCheckpoints, complete: scene.timeline.length === 0 },
     diagnostics,
   });
 }
