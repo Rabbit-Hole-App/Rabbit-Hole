@@ -78,18 +78,25 @@ const LOGIN_PATH = /\/(login|log-in|signin|sign-in|sign_in|sso|auth|authenticate
 const failure = (status, reason) => ({ status, reason });
 
 // One capture with an open browser. Returns { status: 'ready', ... } or { status: 'blocked'|'login_required'|'unavailable', reason }.
+// A fresh browser context per capture (own cookies and storage, closed after), so a reused session carries nothing over.
 export async function capturePage(browser, url, { fetcher = fetch } = {}) {
+  const context = await browser.createBrowserContext();
+  try { return await captureIn(context, url, fetcher); } finally { await context.close().catch(() => {}); }
+}
+
+async function captureIn(context, url, fetcher) {
   const cache = new Map();
   let blockedNavigation = null, blockedRequests = 0;
-  const page = await browser.newPage();
+  const page = await context.newPage();
   await page.setViewport({ width: L.width, height: 900, deviceScaleFactor: 1 });
   await page.setRequestInterception(true);
   page.on('request', async request => {
     try {
       const verdict = await checkRequest(request.url(), { fetcher, cache });
       if (!verdict.ok) {
-        if (request.isNavigationRequest() && request.frame() === page.mainFrame()) blockedNavigation = verdict;
-        else blockedRequests += 1;
+        // A refused redirect hop of the page itself makes goto fail; report why (an iframe's only matters if goto fails).
+        if (request.isNavigationRequest()) blockedNavigation = verdict;
+        blockedRequests += 1;
         return await request.abort('blockedbyclient');
       }
       // A fresh browser holds no learner cookie; never send one or an Authorization header anyway.
@@ -104,6 +111,7 @@ export async function capturePage(browser, url, { fetcher = fetch } = {}) {
   } catch (error) {
     if (blockedNavigation) return failure(blockedNavigation.kind, blockedNavigation.reason);
     const message = String(error?.message || error);
+    console.error('webpage capture: navigation failed', message.slice(0, 300));
     if (/ERR_NAME_NOT_RESOLVED|ERR_NAME_RESOLUTION/.test(message)) return failure('unavailable', 'This site could not be found.');
     if (/timeout/i.test(error?.name || '') || /timeout/i.test(message)) return failure('unavailable', 'This page took too long to load.');
     return failure('unavailable', 'This page could not be loaded.');
@@ -244,9 +252,15 @@ export async function sweepWebpageSources(env, owner, now = Date.now()) {
   return gone.size;
 }
 
+// An idle Browser Run session if one is open (new sessions are rate limited per account), else a new one kept alive a
+// minute for the next capture. The route disconnects, never closes, so the session stays reusable.
 async function launchBrowser(env) {
   const { default: puppeteer } = await import('@cloudflare/puppeteer');
-  return puppeteer.launch(env.BROWSER);
+  const idle = await puppeteer.sessions(env.BROWSER).then(list => list.filter(s => !s.connectionId), () => []);
+  for (const { sessionId } of idle) {
+    try { return await puppeteer.connect(env.BROWSER, sessionId); } catch { /* taken by another request: try the next */ }
+  }
+  return puppeteer.launch(env.BROWSER, { keep_alive: 60_000 });
 }
 
 async function ownerBoard(req, env, app, board, deps) {
@@ -296,8 +310,9 @@ export async function webpagesFetch(req, env, deps = {}) {
       page = await capturePage(browser, checked.url, { fetcher: deps.fetcher });
     } catch (error) {
       const busy = /429|limit/i.test(String(error?.message || error));
+      console.error('webpage capture: browser failed', String(error?.message || error).slice(0, 300));
       return json(result({ status: 'unavailable', reason: busy ? 'Webpage capture is busy right now. Try again in a minute.' : 'This page could not be captured.', lineage }));
-    } finally { await browser?.close?.().catch(() => {}); }
+    } finally { await browser?.disconnect?.().catch(() => {}); }
     if (page.status !== 'ready') return json(result({ status: page.status, reason: page.reason, lineage }));
     const { manifest, manifestRow } = await store(env, owner, app, row, lineage, checked.url, page, now);
     return json(await screenVersion(env, owner, manifestRow, manifest, deps, page.tiles));

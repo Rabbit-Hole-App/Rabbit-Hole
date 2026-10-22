@@ -106,7 +106,7 @@ function fakeBrowser(site, log = { aborted: [], continued: [], headers: [] }) {
     },
     screenshot: async ({ type, clip }) => { log.shots = [...(log.shots || []), { type, ...clip }]; return new Uint8Array(current.tileBytes ?? 1000).fill(clip.y % 251); },
   };
-  return { newPage: async () => page, close: async () => { log.closed = true; }, log };
+  return { createBrowserContext: async () => ({ newPage: async () => page, close: async () => { log.contextClosed = true; } }), disconnect: async () => { log.disconnected = true; }, log };
 }
 
 test('capturePage: every redirect hop and every subresource is checked; private ones are refused; cookies never sent', async () => {
@@ -123,6 +123,7 @@ test('capturePage: every redirect hop and every subresource is checked; private 
   assert.equal(page.finalUrl, 'https://news.example.org/a');
   assert.deepEqual(log.aborted, ['http://169.254.169.254/latest/meta-data/', 'https://evil.example.com/x.png', 'file:///etc/passwd', 'http://[::1]:80/']);
   assert.equal(page.blockedRequests, 4);
+  assert.equal(log.contextClosed, true, 'each capture closes its own browser context');
   assert.ok(log.continued.includes('https://cdn.example.com/app.js') && log.continued.includes('data:image/png;base64,AA'));
   for (const h of log.headers) assert.deepEqual(Object.keys(h).filter(k => /cookie|authorization/i.test(k)), [], 'no cookie or Authorization header');
   assert.deepEqual(page.tiles.map(t => [t.y, t.h]), [[0, 1400], [1400, 1400], [2720, 280]]);
@@ -138,6 +139,8 @@ test('capturePage: a redirect into a private network, an unknown host, errors, t
   let out = await run({ 'https://example.com/': { redirect: 'https://evil.example.com/' } });
   assert.deepEqual(out, { status: 'blocked', reason: 'Private network addresses cannot be captured.' });
   out = await run({ 'https://example.com/': { redirect: 'http://169.254.169.254/' } });
+  assert.equal(out.status, 'blocked');
+  out = await run({ 'https://example.com/': { redirect: 'ftp://example.com/x' } });
   assert.equal(out.status, 'blocked');
   out = await run({ 'https://example.com/': { redirect: 'https://gone.example.net/' } });
   assert.deepEqual(out, { status: 'unavailable', reason: 'This site could not be found.' }, 'DNS failure on a hop');
