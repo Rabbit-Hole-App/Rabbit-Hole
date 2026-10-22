@@ -2,7 +2,7 @@
 // handler, each block built by the real artifactBlock() so it matches what /api/learn/artifact returns - including its
 // paid proposals, clarification and error answers. These prove the inline adapter's contract, never a provider.
 import { artifactBlock } from '../../control-plane/src/learn-primitives.js';
-import { imageSearchBlock, motionProposal } from '../src/learn-slash.js';
+import { imageSearchBlock } from '../src/learn-slash.js';
 
 const artifact = (primitive, input) => ({ result: 'artifact', primitive, block: artifactBlock(primitive, input), repaired: false });
 const paid = (primitive, input) => ({ result: 'paid_proposal', primitive, block: artifactBlock(primitive, input), message: 'This uses paid generation.', estimatedCost: null, repaired: false });
@@ -21,7 +21,6 @@ export const HANDLERS = {
   // /image inserts a photo-search card with no model (runLearnCommand's own branch): the same block, staged.
   image: args => ({ result: 'artifact', primitive: 'image', block: imageSearchBlock(args) }),
 };
-export const MOTION = (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection);
 export const ERRORS = {
   clarification: { result: 'clarification', question: 'Which part of the tree should the diagram show?' },
   unsupported: { result: 'unsupported', message: 'Code exercises are not available yet.' },

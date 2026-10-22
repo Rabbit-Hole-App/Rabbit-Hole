@@ -13,7 +13,7 @@ import { NextStepsCard } from '../src/ask.jsx';
 import SearchBar from '../src/SearchBar.jsx';
 import { readGeneration } from '../src/inline-ai-transport.js';
 import { checkDecision, checkRequest, fixedRoute, generationPrompt, INLINE_SLASH, settle } from '../src/inline-ai-decide.js';
-import { ERRORS, HANDLERS, MOTION } from './inline-ai-handler-fixtures.js';
+import { ERRORS, HANDLERS } from './inline-ai-handler-fixtures.js';
 import '../src/index.css';
 
 const params = new URLSearchParams(location.search);
@@ -144,7 +144,8 @@ const transport = {
 const enabled = ['note', 'explain', 'flashcards', 'code', 'diagram', 'graph', 'walkthrough', 'compare', 'animate', 'image', 'video', '3d', ...(motionOn ? ['motion'] : [])];
 const config = {
   transport, enabled, mocked: true, flushMs: params.has('flush') ? Number(params.get('flush')) : 50, prepareOnOpen: params.get('prep') !== '0',
-  motion: motionOn ? MOTION : null,
+  // MOT-20b: a proposed capability (/motion) is handed to the Chat (LearnPage chat.ask); recorded here, as the Chat would take it.
+  propose: (command, args, about) => { if (command !== 'motion' || !motionOn) return false; mock.calls.push({ type: 'propose', command, args, about }); return true; },
   extras: () => ({ title: 'Inline AI test board' }),
   sendTelemetry: rows => { mock.telemetry.push(...rows); },
   openSearch: seed => { mock.calls.push({ type: 'openSearch', source: seed.source, query: seed.query }); return new Promise(done => openSearch({ ...seed, done })); },

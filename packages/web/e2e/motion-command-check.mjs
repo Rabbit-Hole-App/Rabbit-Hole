@@ -27,6 +27,15 @@
 //      the plain path could not seek); no /animate row;
 //   8. MOCKED selected card (owner brief 2026-10-21 message 7 item 4): with a card selected, /motion explain this sends the
 //      card's id, title and text as motion_request context.selection; the line stays the learner's words;
+//   9-13. MOT-20b (every entry point reaches the same shared proposal card; CR-1's POST /api/learn/chat/route MOCKED, a named
+//      capability decided with no router call): the picker (pill then words: route names motion, the turn carries its
+//      route_token); natural language ("Create a 15-second animated explanation of photosynthesis", no /motion: the router's
+//      proposal, the same bound fields on route and turn); clarification (one question with its options, the draft kept, no
+//      turn; choosing Motion asks again with it named); router failure (Answer normally and Retry, the draft kept, never a paid
+//      capability); an answer suggestion (a click only prepares the composer; its Send proposes);
+//   14-15. Ctrl+K on the selected card hands /motion to the Chat's proposal card (the editor says Sent to Chat, stages nothing,
+//      the Chat draft stays); a reload restores the saved proposals (MOCKED thread restore): the newest live, the generated one
+//      inactive, nothing sent;
 // MOTION=off (a production-like build: VITE_RABBIT_HOLE=true only). Per theme: no /motion or /animate in the picker or the
 //   window, and a typed /motion says Motion is not available here and runs nothing.
 // Usage: BASE=http://127.0.0.1:9261 SMALL_CP=http://127.0.0.1:9263 VARS=C:/s/toc-uimotion/.dev.vars [MOTION=off] node e2e/motion-command-check.mjs [shotsDir]
@@ -76,7 +85,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 28; // per theme: 14 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 42; // per theme: 21 steps with Motion on (7 for MOT-20b entry points, decisions and reload), 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -95,12 +104,48 @@ for (const theme of ['light', 'dark']) {
   await context.route(/\/api\/learn\/(artifact|tutor\/plan|ask|selection|inline\/[\w-]+|image|scene|search|voice\/[\w-]+)(\?|$)/, route => { model.push(new URL(route.request().url()).pathname); return route.abort(); });
   // MOCKED chat answer (MOT-20): every /motion turn's proposal, its input the turn's own request, concept and selected card, so
   // Generate sends what the real worker accepts. Its signature is not real: with no orchestrator here the worker never checks it.
-  const asks = [], proposals = new Map();
+  const asks = [], proposals = new Map(), routes = [], turns = [];
   const sse = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  // MOCKED route decision (CR-1, chat-route-interface.md): a named capability is decided with no router call, as the server
+  // does; plain words are answered from this script (stand-ins for real JEV answers, which the CR-1 corpus covers).
+  const scripted = new Map([
+    ['Create a 15-second animated explanation of photosynthesis', { route: 'capability:motion', flow: 'proposal', via: 'jev', capability: 'motion', confidence: 0.93, probability: 0.9 }],
+    ['make something about this', { route: 'clarify', via: 'jev', capability: null, clarification: { question: 'Did you want a Motion video or an answer in chat?', options: ['motion', 'answer'] } }],
+    ['the router times out on this', { route: 'answer', via: 'fallback', retryable: true, code: 'timeout', capability: null, token: null, message: 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.' }],
+  ]);
+  await context.route(/\/api\/learn\/chat\/route$/, route => {
+    const body = JSON.parse(route.request().postData() || '{}');
+    routes.push(body);
+    const n = routes.length, named = body.capability && body.capability !== 'answer' ? body.capability : null;
+    const decided = named ? { route: `capability:${named}`, flow: named === 'motion' ? 'proposal' : 'direct', via: 'capability', capability: named, args: body.text }
+      : scripted.get(body.text) || { route: 'answer', via: 'jev', capability: null, confidence: 0.9, probability: 0.9 };
+    return route.fulfill({ json: { args: body.text, clarification: null, message: null, settings: null, paid: false, retryable: false, code: null, token: decided.flow === 'proposal' ? `route-token-${n}` : null, ...decided } });
+  });
+  // MOCKED Ctrl+K decision: the shared free checks and fixed routes the worker runs (inline-ai-decide.js), for an explicit command.
+  const decide = await import('../src/inline-ai-decide.js');
+  await context.route(/\/api\/learn\/inline\/decide$/, route => {
+    const { request, enabled } = JSON.parse(route.request().postData() || '{}');
+    const local = decide.checkRequest(request);
+    if (local) return route.fulfill({ json: local.error ? { error: local.error, code: 'invalid', retryable: false } : local });
+    const out = decide.settle(decide.fixedRoute(request, enabled), { decision: 'proceed', capability: 'note' }, enabled);
+    if (out.decision === 'proceed') out.token = 'inline-token';
+    return route.fulfill({ json: { ...decide.checkDecision(out), meta: { validator: 'jev' } } });
+  });
+  // A proposal only for a proposed turn (an explicit /motion, or a route_token); any other turn is an answer, with the
+  // suggestions a step queues (nextActions).
+  let nextActions = [];
   await context.route(/\/api\/learn\/ask(\?|$)/, route => {
     const body = JSON.parse(route.request().postData() || '{}');
     asks.push(body);
     const n = asks.length, words = String(body.message || ''), id = String(900000 + n);
+    const threadId = body.thread_id ?? `canvaschat-mock-${run}-${n}`;
+    if (body.command !== 'motion' && !body.route_token) {
+      const actions = nextActions.map((a, i) => ({ id: `a${i + 1}`, sourceMessageId: id, contextRefs: [], generationRequired: true, paid: true, ...a })); nextActions = [];
+      turns.push({ threadId, user: { role: 'user', content: words, messageId: String(800000 + n) }, answer: { role: 'assistant', content: 'Photosynthesis turns light into sugar.', messageId: id, kind: 'answer', status: 'done', meta: { actions, followUps: [] } } });
+      return route.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse('chunk', { text: 'Photosynthesis turns light into sugar.' })
+        + sse('answer_meta', { messageId: id, actions, followUps: [], alternatives: [id], kind: 'answer', syllabus: null })
+        + sse('done', { ok: true, threadId, userMessageId: String(800000 + n), messageId: id }) });
+    }
     const seconds = Math.min(30, Math.max(5, Number(/(\d+)s\b/.exec(words)?.[1] || 10)));
     const proposal = { proposal_id: `gp-${(run + n.toString(16).padStart(6, '0')).replace(/[^0-9a-f]/g, '0').padStart(16, '0').slice(-16)}`, version: 1, command: 'motion',
       title: `Motion: ${words}`.slice(0, 120), description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.',
@@ -108,9 +153,20 @@ for (const theme of ['light', 'dark']) {
       input: { request: `/motion ${words}`.slice(0, 500), concept: body.generation?.motion?.concept ?? null, ...(body.generation?.motion?.context ? { context: body.generation.motion.context } : {}) },
       expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64), usage: { estimate_credits: 100, reserve_credits: 896 } };
     proposals.set(id, proposal);
+    turns.push({ threadId, user: { role: 'user', content: words, messageId: String(800000 + n) }, answer: { role: 'assistant', content: 'Here is a video proposal.', messageId: id, kind: 'answer', status: 'done', meta: { actions: [], followUps: [] } } });
     return route.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse('chunk', { text: 'Here is a video proposal.' })
       + sse('answer_meta', { messageId: id, actions: [], followUps: [], alternatives: [id], kind: 'answer', syllabus: null, proposal })
-      + sse('done', { ok: true, threadId: body.thread_id ?? `canvaschat-mock-${run}-${n}`, userMessageId: String(800000 + n), messageId: id }) });
+      + sse('done', { ok: true, threadId, userMessageId: String(800000 + n), messageId: id }) });
+  });
+  // MOCKED restore after a reload (the reload step only): the Chat's active thread and its saved messages, each answer with the
+  // proposal version saved over it (proposals), as the server's answer meta would hold them.
+  let restoring = null;
+  await context.route(/\/api\/learn\/chat\/active(\?|$)/, route => (restoring && route.request().method() === 'GET' ? route.fulfill({ json: { threadId: restoring } }) : route.fallback()));
+  await context.route(/\/api\/ask\/threads\/[^/?]+$/, route => {
+    const id = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop());
+    if (!restoring || id !== restoring || route.request().method() !== 'GET') return route.fallback();
+    const messages = turns.filter(t => t.threadId === id).flatMap(t => [t.user, { ...t.answer, meta: { ...t.answer.meta, ...(proposals.has(t.answer.messageId) ? { proposal: proposals.get(t.answer.messageId) } : {}), alternatives: [t.answer.messageId] } }]);
+    return route.fulfill({ json: { id, title: 'Motion check', mode: 'auto', contextRefs: [], draft: null, messages } });
   });
   // MOCKED duration change on the card: the next version of the same proposal, saved over its message.
   await context.route(/\/api\/learn\/chat\/messages\/\d+\/proposal$/, route => {
@@ -548,6 +604,88 @@ for (const theme of ['light', 'dark']) {
     } finally { await closeWindow(sheet); }
   });
 
+  // ---- MOT-20b: every entry point reaches the same shared proposal card (CR-1's route decision MOCKED above) ----
+  const NL = 'Create a 15-second animated explanation of photosynthesis';
+  await step(`${theme}: the picker: choosing /motion then typing routes the named capability (no router call) and sends its token; the card follows`, async () => {
+    const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
+    await composer().click(); await composer().fill('/');
+    await picker.locator('[data-slash-command="motion"]').click();
+    await pill.waitFor();
+    await composer().pressSequentially('10s explain friction');
+    await composer().press('Enter');
+    await until(async () => (await proposalCards.count()) > before, 'the picked proposal card');
+    assert.deepEqual([routes[r0]?.capability, routes[r0]?.text], ['motion', '10s explain friction']);
+    assert.deepEqual([asks[a0]?.command, asks[a0]?.route_token, asks.length - a0], ['motion', `route-token-${r0 + 1}`, 1]);
+    assert.equal(await proposalCards.last().getAttribute('data-proposal-active'), 'true');
+    await dismiss();
+  });
+
+  await step(`${theme}: natural language: "${NL}" is routed to Motion and proposed on the same card, with no /motion`, async () => {
+    const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
+    await composer().fill(NL); await composer().press('Enter');
+    await until(async () => (await proposalCards.count()) > before, 'the routed proposal card');
+    assert.deepEqual([routes[r0]?.capability, routes[r0]?.text, routes[r0]?.mode], [null, NL, 'auto'], 'a plain line asks the router');
+    const turn = asks[a0];
+    assert.deepEqual([turn?.message, turn?.command ?? null, turn?.route_token], [NL, null, `route-token-${r0 + 1}`], 'the ordinary turn with the signed route');
+    assert.ok(turn.generation?.motion, 'the bound Motion fields ride the turn');
+    assert.deepEqual([routes[r0].motion, routes[r0].selection ?? null, routes[r0].source_refs ?? null], [turn.generation.motion, turn.canvas_target ?? null, turn.context_refs ?? null], 'the route and the turn carry the same bound fields');
+    assert.equal(videoPosts().filter(r => r.body.includes(NL)).length, 0, 'nothing generated before Generate');
+    await dismiss();
+  });
+
+  await step(`${theme}: clarification: one question with its options, the draft kept and no turn; choosing Motion proposes it`, async () => {
+    const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
+    await composer().fill('make something about this'); await composer().press('Enter');
+    const shown = dock.locator('[data-route-decision="clarify"]');
+    await shown.waitFor();
+    assert.equal((await shown.locator('[data-route-message]').innerText()).trim(), 'Did you want a Motion video or an answer in chat?');
+    assert.deepEqual(await shown.locator('[data-route-option]').evaluateAll(nodes => nodes.map(node => node.dataset.routeOption)), ['motion', 'answer']);
+    assert.equal(asks.length, a0, 'no chat turn');
+    assert.equal(await composer().inputValue(), 'make something about this', 'the draft is kept');
+    await shown.screenshot({ path: `${OUT}/${theme}-11-route-clarify.png` });
+    await shown.locator('[data-route-option="motion"]').click();
+    await until(async () => (await proposalCards.count()) > before, 'the chosen proposal card');
+    assert.deepEqual([routes.at(-1).capability, routes.at(-1).text, routes.length - r0], ['motion', 'make something about this', 2], 'the option asks again with the capability named');
+    assert.equal(asks.at(-1).route_token, `route-token-${routes.length}`);
+    assert.equal(await dock.locator('[data-route-decision]').count(), 0, 'the question goes once answered');
+    await dismiss();
+  });
+
+  await step(`${theme}: router failure: the draft is kept with Answer normally and Retry; never a paid capability`, async () => {
+    const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
+    await composer().fill('the router times out on this'); await composer().press('Enter');
+    const shown = dock.locator('[data-route-decision="fallback"]');
+    await shown.waitFor();
+    assert.match(await shown.innerText(), /Answer normally, or try again\./);
+    assert.deepEqual([await shown.locator('[data-route-answer]').count(), await shown.locator('[data-route-retry]').count()], [1, 1]);
+    assert.deepEqual([asks.length, await composer().inputValue()], [a0, 'the router times out on this'], 'no turn, the draft kept');
+    await shown.locator('[data-route-retry]').click();
+    await until(() => routes.length - r0 === 2, 'Retry routes again');
+    await shown.waitFor();
+    await shown.locator('[data-route-answer]').click();
+    await until(() => asks.length > a0, 'Answer normally sends the turn');
+    assert.deepEqual([asks[a0].message, asks[a0].route_token ?? null, asks[a0].command ?? null, routes.length - r0], ['the router times out on this', null, null, 2], 'answered as a chat turn: no token, no command, no third route call');
+    await dock.getByText('Photosynthesis turns light into sugar.').last().waitFor();
+    assert.equal(await proposalCards.count(), before, 'no proposal card');
+    await dismiss();
+  });
+
+  await step(`${theme}: answer suggestion: a click only prepares the composer; its Send proposes Motion on the same card`, async () => {
+    nextActions = [{ capabilityId: 'motion', label: 'Animate photosynthesis', args: { subject: 'photosynthesis in 15s' } }];
+    await composer().fill('what is photosynthesis?'); await composer().press('Enter');
+    const action = dock.locator('[data-answer-action="motion"]').last();
+    await action.waitFor();
+    const a0 = asks.length, r0 = routes.length, before = await proposalCards.count();
+    await action.click();
+    await pill.waitFor();
+    await page.waitForTimeout(600);
+    assert.deepEqual([asks.length - a0, routes.length - r0], [0, 0], 'a click sends nothing');
+    await composer().press('Enter');
+    await until(async () => (await proposalCards.count()) > before, 'the suggestion\'s proposal card');
+    assert.deepEqual([routes[r0]?.capability, asks[a0]?.command, asks[a0]?.message], ['motion', 'motion', 'photosynthesis in 15s']);
+    await dismiss();
+  });
+
   await step(`${theme}: MOCKED selected card: /motion explain this sends the card as context.selection, the line unchanged`, async () => {
     const made = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Motion selection ${theme} ${run}` }) });
     await api(`/api/learn/boards/${made.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [PHOTO] } }) });
@@ -571,6 +709,52 @@ for (const theme of ['light', 'dark']) {
     await shot('10-selected-card-generated');
     stub = null;
     await dismiss();
+  });
+
+  await step(`${theme}: Ctrl+K: /motion about the selected card goes to the Chat's proposal card; the editor says so and the Chat draft stays`, async () => {
+    await composer().fill('my draft stays');
+    const photo = page.locator('[data-block-id="k-photo"]');
+    const handle = await photo.locator('[data-drag-handle]').boundingBox();
+    await page.mouse.click(handle.x + handle.width / 2, handle.y + handle.height / 2);
+    await page.locator('[data-selected-card="k-photo"]').waitFor({ timeout: 8000 });
+    const a0 = asks.length, before = await proposalCards.count(), posts = videoPosts().length;
+    await page.keyboard.press('Control+k');
+    await page.locator('[data-inline-prompt]').waitFor();
+    await page.locator('[data-inline-prompt]').fill('/motion explain this leaf');
+    await page.keyboard.press('Enter');
+    await until(async () => (await proposalCards.count()) > before, 'the Ctrl+K proposal card in the Chat');
+    const turn = asks[a0];
+    assert.deepEqual([turn?.command, turn?.message], ['motion', 'explain this leaf']);
+    assert.match(JSON.stringify(turn.generation?.motion?.context?.selection || {}), /k-photo/, 'the turn is about Ctrl+K\'s selection');
+    assert.equal(routes.at(-1).capability, 'motion', 'named: no router call');
+    await page.locator('[data-inline-notice]').getByText('Sent to Chat: review the proposal there, then Generate.').waitFor();
+    assert.equal(await composer().inputValue(), 'my draft stays', 'the Chat draft is kept');
+    assert.equal(videoPosts().length, posts, 'nothing generated or staged by Ctrl+K');
+    assert.equal(await page.locator('[data-inline-preview], [data-paid-generate]').count(), 0, 'no staged card and no confirmation in the editor');
+    await shot('12-ctrlk-handoff');
+    await page.keyboard.press('Escape');
+    await composer().fill('');
+  });
+
+  await step(`${theme}: reload: the saved proposals come back; the newest is live, the generated one stays inactive; nothing is sent`, async () => {
+    restoring = asks.at(-1)?.thread_id || turns.at(-1)?.threadId;
+    const a0 = asks.length, posts = videoPosts().length, r0 = routes.length;
+    try {
+      await page.reload();
+      await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
+      await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+      const live = proposalCards.filter({ has: page.locator('h3', { hasText: /^Motion: explain this leaf$/ }) });
+      await live.first().waitFor({ timeout: 15000 });
+      assert.equal(await live.last().getAttribute('data-proposal-active'), 'true', 'the newest proposal can Generate');
+      const made = proposalCards.filter({ has: page.locator('h3', { hasText: /^Motion: explain this$/ }) });
+      if (await made.count()) {
+        assert.equal(await made.last().getAttribute('data-proposal-active'), 'false', 'the generated proposal cannot Generate again');
+        assert.match(await made.last().innerText(), /Added to the canvas/);
+      }
+      await page.waitForTimeout(800);
+      assert.deepEqual([asks.length - a0, routes.length - r0, videoPosts().length - posts], [0, 0, 0], 'a reload sends no turn, route or start');
+      await shot('13-reloaded-proposals');
+    } finally { restoring = null; }
   });
 
 

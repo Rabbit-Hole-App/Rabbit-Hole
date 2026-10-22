@@ -415,7 +415,8 @@ await run('malicious words inside the selection are data: no command runs, the c
   await context.close();
 });
 
-await run('Motion: off is said and never substituted; a paid proposal starts nothing until Generate, and Cancel declines', async () => {
+// MOT-20b: Ctrl+K's /motion is the Chat's /motion turn (proposed on the shared card there): nothing is staged or confirmed here.
+await run('Motion: off is said and never substituted; /motion hands off to the Chat with nothing staged, confirmed or started', async () => {
   const off = await open('motion-off', both(), { query: '&motion=0' });
   await clickShape(off.page, 'n23');
   await ctrlK(off.page);
@@ -427,24 +428,13 @@ await run('Motion: off is said and never substituted; a paid proposal starts not
   await clickShape(page, 'n23');
   await ctrlK(page);
   await submitPrompt(page, '/motion explain this tree in 20s');
-  await waitStatus(page, ['proposal']);
-  const copy = await page.locator('[data-inline-paid]').innerText();
-  check('the paid proposal says it may cost money even if rejected or undone, and is not a refund', /paid generation/.test(copy) && /not a refund/.test(copy) && /can't be cancelled from here/.test(copy));
-  check('no model call before Generate', (await calls(page, 'generate')).length === 0 && (await calls(page, 'artifact')).length === 0);
-  await page.locator('[data-ghost-kind="card"]').waitFor({ timeout: 5000 });
-  check('A7: the paid proposal card shows as a ghost, and nothing of its job starts', posts.length === 0 && !(await saved()).blocks.some(block => block.type === 'video'), posts.join(','));
-  await shot('10-motion-paid-proposal');
-  await page.locator('[data-paid-cancel]').click();
-  check('Cancel declines: nothing on the board, no job request', !(await saved()).blocks.some(block => block.type === 'video') && posts.length === 0);
-  await clickShape(page, 'n23');
-  await ctrlK(page);
-  await submitPrompt(page, '/motion explain this tree in 20s');
-  await waitStatus(page, ['proposal']);
-  await page.locator('[data-paid-generate]').dblclick();
-  await page.waitForTimeout(1500);
-  const videos = (await saved()).blocks.filter(block => block.type === 'video');
-  check('Generate adds exactly one Motion card (double-click safe); its job request is the card\'s own', videos.length === 1 && videos[0].operation?.op === 'motion_request');
-  check('the card\'s job request was attempted once (aborted by this check)', posts.filter(url => /video|motion|learn/.test(url)).length <= 1, posts.join(','));
+  await page.locator('[data-inline-notice]').getByText('Sent to Chat: review the proposal there, then Generate.').waitFor({ timeout: 10000 });
+  const handed = await calls(page, 'propose');
+  check('handed to the Chat once: the command, its words and the selection it is about', handed.length === 1 && handed[0].command === 'motion' && handed[0].args === 'explain this tree in 20s' && handed[0].about?.selection?.id === 'n23', JSON.stringify(handed));
+  check('no model call, no ghost card and no confirmation here', (await calls(page, 'generate')).length === 0 && (await calls(page, 'artifact')).length === 0 && await page.locator('[data-ghost-kind="card"], [data-inline-paid], [data-paid-generate]').count() === 0);
+  await page.waitForTimeout(800);
+  check('nothing on the board and no job request', !(await saved()).blocks.some(block => block.type === 'video') && posts.length === 0, posts.join(','));
+  await shot('10-motion-handoff');
   await context.close();
 });
 
@@ -957,13 +947,12 @@ await run('command input: bare /image, /diagram and /motion use the selection; a
   await send('/diagram');
   check('a bare /diagram draws the selection natively: the shapes route, the selection in its context, never "/diagram" as words', (await calls(page, 'generate')).at(-1).route === 'shapes' && (await calls(page, 'generate')).at(-1).prompt === '' && (await calls(page, 'generate')).at(-1).context.target.ids.includes('n23'));
   await page.locator('[data-inline-reject]').click();
-  await send('/motion');
-  await page.locator('[data-paid-generate]').click();
-  await page.waitForFunction(key => JSON.parse(localStorage.getItem(key) || '{}').blocks?.some(block => block.type === 'video'), 'harness:command-input');
-  const video = (await saved()).blocks.find(block => block.type === 'video');
-  // The selection rides as context.selection, no longer on the line (owner brief 2026-10-21 message 7 item 4).
-  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', video?.operation?.request === '/motion explain the selected canvas material' && video.operation.location.concept === '23'
-    && video.operation.context?.selection?.cardId === 'n23' && video.operation.context.selection.text === '23', JSON.stringify(video?.operation));
+  // A bare /motion is handed to the Chat (MOT-20b) about the selection, its concept the selection, never the board title.
+  await clickShape(page, 'n23'); await ctrlK(page); await submitPrompt(page, '/motion'); await page.keyboard.press('Enter');
+  await page.locator('[data-inline-notice]').waitFor({ timeout: 10000 });
+  const handed = (await calls(page, 'propose')).at(-1);
+  check('a bare /motion asks for a video of the selection, its concept the selection, never the board title', handed?.args === 'explain the selected canvas material' && handed.about?.concept === '23'
+    && handed.about?.selection?.id === 'n23' && handed.about.selection.text === '23', JSON.stringify(handed));
   await context.close();
   const blank = await open('command-input-blank', { shapes: [{ id: 'blank1', kind: 'rect', x1: 600, y1: 300, x2: 760, y2: 380, color: '#2383e2', width: 2, dash: 'solid', fill: null, opacity: 1, round: true, text: '' }] });
   for (const [command, asks] of [['/image', /What should the photo show\?/], ['/diagram', /What should the diagram show\?/], ['/motion', /What should the video explain\?/]]) {
