@@ -3,7 +3,7 @@
 import { scripted } from './inline-ai-test-transport.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createInlineSession } from './inline-ai-session.js';
+import { createInlineSession, PROPOSAL_HANDOFF } from './inline-ai-session.js';
 
 let clock = 0;
 const now = () => (clock += 1);
@@ -116,7 +116,7 @@ const recorder = (route = null) => {
     route: async () => route,
     artifact: async input => { seen.artifact.push(input.args); return { result: 'artifact', primitive: input.command, block: { type: 'flow' } }; },
     generate: async input => { seen.generate.push([input.route, input.prompt]); return { result: { kind: 'note', text: 'x' } }; },
-  }, { motion: (args, about) => { const proposal = slashModule.motionProposal(args, { concept: about?.concept || null }, about?.selection); seen.motion.push(proposal.block.operation); return proposal; } });
+  }, { propose: async (command, args, about) => { seen.motion.push({ command, args, ...about }); return true; } });
   return { session, seen };
 };
 const empty = [{ id: 's1', type: 'shape', kind: 'rect', text: '' }];
@@ -125,8 +125,10 @@ const empty = [{ id: 's1', type: 'shape', kind: 'rect', text: '' }];
 // item 4: selected-card context reaches the resolver).
 test('command input: a bare /motion builds its request from the selection, never the token or the canvas title', async () => {
   const { session, seen } = recorder();
-  assert.equal(await session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot() }), 'proposal');
-  assert.deepEqual(seen.motion, [{ op: 'motion_request', request: '/motion explain the selected canvas material', location: { concept: '23' }, context: { selection: { cardId: 'n23', kind: 'shape:ellipse', title: '23', text: '23' } } }]);
+  // MOT-20b: handed to the Chat's /motion turn (LearnPage), so it is proposed on the shared card there; nothing is staged here.
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot() }), 'idle');
+  assert.deepEqual(seen.motion, [{ command: 'motion', args: 'explain the selected canvas material', selection: { id: 'n23', kind: 'shape:ellipse', title: '23', text: '23' }, concept: '23' }]);
+  assert.deepEqual([session.state.notice, session.state.preview, session.state.proposal], [PROPOSAL_HANDOFF, null, null]);
   const none = recorder();
   assert.equal(await none.session.submit({ mode: 'explain', prompt: '/motion', prepare: snapshot('e', empty) }), 'clarify');
   assert.match(none.session.state.clarify.question, /What should the video explain\?/);
@@ -158,7 +160,7 @@ test('command input: a bare /diagram draws the selection natively; with nothing 
 test('command input: a routed sentence goes as written with the selection as Motion\'s concept; a routed photo searches the selection', async () => {
   const video = recorder({ choice: 'motion', confidence: 0.95, probability: 0.95, ranked: ['motion'] });
   await video.session.submit({ mode: 'explain', prompt: 'Explain this in a video', prepare: snapshot() });
-  assert.deepEqual(video.seen.motion, [{ op: 'motion_request', request: '/motion Explain this in a video', location: { concept: '23' }, context: { selection: { cardId: 'n23', kind: 'shape:ellipse', title: '23', text: '23' } } }]);
+  assert.deepEqual(video.seen.motion, [{ command: 'motion', args: 'Explain this in a video', selection: { id: 'n23', kind: 'shape:ellipse', title: '23', text: '23' }, concept: '23' }]);
   const photo = recorder({ choice: 'image', confidence: 0.95, probability: 0.95, ranked: ['image'] });
   await photo.session.submit({ mode: 'explain', prompt: 'Show me a real photo of this', prepare: snapshot() });
   assert.deepEqual(photo.seen.artifact, ['23']);
@@ -167,11 +169,12 @@ test('command input: a routed sentence goes as written with the selection as Mot
   assert.deepEqual(diagram.seen.generate, [['shapes', 'Explain this with a diagram']]);
 });
 
-test('command input: the page gives inline Motion the selection, never the canvas title', async () => {
+test('command input: the page hands inline Motion to the Chat\'s /motion turn with the selection, never the canvas title', async () => {
   const { readFileSync } = await import('node:fs');
   const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
-  // Owner messages 28 and 30: it also passes what the server returns (learn-scene-client.js motionHold), so a paused server says so.
-  assert.match(page, /motion: isLearnCommand\('motion'\) \? async \(args, about = \{\}\) => motionProposal\(args, \{ concept: about\.concept \|\| null \}, about\.selection, await motionHold\(app\.name\)\.catch\(\(\) => null\)\) : null,/);
+  // MOT-20b: no proposal is built here any more; the Chat asks with Ctrl+K's selection and concept (about).
+  assert.ok(page.includes("return (await live.ask({ prompt: args, command, about })) !== false;"));
+  assert.ok(!page.includes('motionProposal('), 'no confirmation bypass');
 });
 
 import * as transportModule from './inline-ai-transport.js';
@@ -333,9 +336,11 @@ test('M6: a question asked while a preview shows can go back to that preview, an
 test('re-review blocker: a paid proposal stays a proposal after a stale Generate and a stopped or failed new request', async () => {
   const wait = held();
   let round = 0;
-  const session = make({ generate: async () => { round += 1; if (round === 1) await wait.gate; throw new Error('The model failed.'); } },
-    { motion: (args, about) => slashModule.motionProposal(args, { concept: about?.concept || null }, about?.selection) });
-  assert.equal(await session.submit({ mode: 'explain', prompt: '/motion 15s explain this tree', prepare: snapshot() }), 'proposal');
+  // A paid card proposal (MOT-20b: Motion no longer stages one here; a real-footage video stands in for any paid card).
+  const session = make({ generate: async () => { round += 1; if (round === 1) await wait.gate; throw new Error('The model failed.'); },
+    artifact: async () => ({ result: 'paid_proposal', block: { type: 'video', mode: 'generate' }, message: 'This uses paid generation.', primitive: 'video' }) },
+    { enabled: ['note', 'diagram', 'image', 'video'] });
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/video 15s footage of a tree', prepare: snapshot() }), 'proposal');
   // 1-2. Generate is refused as stale.
   assert.equal(session.accept(() => ({ stale: { content: true, text: 'The selection changed while this was being made.' } })).stale.content, true);
   assert.equal(session.state.status, 'stale');

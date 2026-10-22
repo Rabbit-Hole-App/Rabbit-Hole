@@ -3,7 +3,7 @@
 import { scripted } from './inline-ai-test-transport.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createInlineSession, stageTimings } from './inline-ai-session.js';
+import { createInlineSession, stageTimings, PROPOSAL_HANDOFF } from './inline-ai-session.js';
 import { readGeneration, readSse } from './inline-ai-transport.js';
 
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
@@ -208,16 +208,20 @@ test('an unsure check asks one question and generates nothing; the learner answe
   assert.deepEqual([artifacts, generations], [0, 0], 'nothing expensive ran on a guess');
 });
 
-test('paid: a proposal waits for Generate; declining starts nothing; Motion off is never substituted', async () => {
-  let started = 0;
-  const motion = args => ({ block: { type: 'video', mode: 'generate', title: `Motion: ${args}` }, message: 'This uses paid generation.' });
-  const { session } = make({}, { motion });
-  await session.submit({ mode: 'explain', prompt: '/motion softmax in 20s', prepare: snapshot() });
-  assert.equal(session.state.status, 'proposal');
-  assert.equal(session.state.proposal.message, 'This uses paid generation.');
-  session.reject();
-  assert.equal(started, 0);
-  const off = make({}, { motion, enabled: ['note'] }).session;
+// MOT-20b: Ctrl+K's /motion is the Chat's /motion turn (LearnPage chat.ask), proposed on the shared card there: here it stages
+// no card and no confirmation, and says where it went.
+test('paid: /motion hands off to the Chat with nothing staged; a paid card proposal waits for Generate; Motion off is never substituted', async () => {
+  const handed = [];
+  const propose = async (command, args, about) => { handed.push([command, args, about.concept]); return true; };
+  const { session } = make({}, { propose });
+  assert.equal(await session.submit({ mode: 'explain', prompt: '/motion softmax in 20s', prepare: snapshot() }), 'idle');
+  assert.deepEqual(handed.map(([command, args]) => [command, args]), [['motion', 'softmax in 20s']]);
+  assert.deepEqual([session.state.preview, session.state.proposal, session.state.notice], [null, null, PROPOSAL_HANDOFF]);
+  // A Chat that cannot take the turn (none open, or busy): said, never a silent nothing.
+  const busy = make({}, { propose: async () => false }).session;
+  await busy.submit({ mode: 'explain', prompt: '/motion softmax', prepare: snapshot() });
+  assert.match(busy.state.error, /not available/);
+  const off = make({}, { propose, enabled: ['note'] }).session;
   assert.equal(await off.submit({ mode: 'explain', prompt: '/motion softmax', prepare: snapshot() }), 'unsupported');
   assert.match(off.state.declined.message, /not available/);
   // A paid artifact proposal (/video's generated clip) is a proposal too, never a started job.

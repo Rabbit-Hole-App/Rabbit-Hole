@@ -10,10 +10,13 @@
 //   prompt, scope): the same request again reuses it instead of generating twice; new words around the selection do not
 //   (owner 2026-10-13, point 7). A move changes none of these.
 // - Metrics are per request id, monotonic (now()), content-free (A3).
-import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, routeLabel } from './inline-ai-route.js';
+import { commandInput, EARLIER_MAX, explicitCommand, PROMPT_MAX, promptTooLong, routeLabel, unavailableText } from './inline-ai-route.js';
+import { reviewRequired } from '../../control-plane/src/proposal-rules.js';
 import { DEFAULT_ENABLED, INLINE_SLASH, checkRequest, commandOf, generationPrompt as generationArgs, inlineRouteTool } from './inline-ai-decide.js';
 
 export const STAGES = Object.freeze({ routing: 'Checking the request…', note: 'Writing the explanation…', edit: 'Preparing the edit…', shapes: 'Drawing the diagram…', artifact: 'Making the {label}…' });
+// A proposed capability is proposed in the Chat (MOT-20b): what the editor says once the Chat has the turn.
+export const PROPOSAL_HANDOFF = 'Sent to Chat: review the proposal there, then Generate.';
 const busyStates = new Set(['routing', 'generating', 'streaming']);
 export const idempotencyKey = ({ boardKey, prints, mode, prompt, selectionOnly }) => JSON.stringify([boardKey, prints.target, prints.relations, prints.context ?? null, mode, String(prompt).trim(), !!selectionOnly]);
 // The A5 route column of one request's metrics. jev: this request asked JEV, or tried to and fell back
@@ -48,7 +51,7 @@ const uuid = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID
 //              card({ requestId, request, token, revise? }, { signal }) -> the card handler's answer (via /generate);
 //              artifact({ command: 'image', args }, { signal }) -> a photo search card, staged with no call }
 // validate(result, plan) -> { ok, preview, errors }: the editor's check against the live board (inline-ai-apply.js).
-export function createInlineSession({ transport, boardKey, enabled = ['note'], validate, motion = null, now = () => performance.now(), flushMs = 50, setTimer = setTimeout, clearTimer = clearTimeout, onChange = () => {}, onMetrics = () => {} }) {
+export function createInlineSession({ transport, boardKey, enabled = ['note'], validate, propose = null, now = () => performance.now(), flushMs = 50, setTimer = setTimeout, clearTimer = clearTimeout, onChange = () => {}, onMetrics = () => {} }) {
   let token = 0, controller = null, closed = false, flushTimer = null, pending = '', pendingRequest = null;
   // What the check may route to: the canvas's enabled capabilities, a diagram meaning the native one (INLINE_SLASH).
   const capabilities = [...new Set([...DEFAULT_ENABLED, ...enabled.map(id => INLINE_SLASH[id] || id)])];
@@ -104,16 +107,21 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
     // The handler's input, resolved first: no subject for a bare command or a photo search asks for one, calls nothing.
     const input = commandInput(plan, request);
     if (input.clarify) return { kind: 'clarify', question: input.clarify.question };
-    if (route === 'motion') {
-      // /motion is a paid proposal with no model call before Generate (learn-slash.js motionProposal). It carries the
-      // selection it is about (its first id, and every object's words); its concept is the selection's subject, never the
-      // canvas title.
+    if (reviewRequired(route)) {
+      // A proposed capability (proposal-rules.js; /motion first, MOT-20b): handed to the Chat as its command turn, so it is
+      // proposed on the same shared card as the composer's, refined there and generated from there; nothing is added or started
+      // here. It carries the selection it is about (its first id, and every object's words); its concept is the selection's
+      // subject, never the canvas title.
       const objects = request.context?.target?.objects || [];
       const selection = { id: request.frozen?.ids?.[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title: input.concept,
         text: objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n') };
-      const proposal = await motion?.(input.args, { selection, concept: input.concept }); // its message names the server's reservation
-      if (!proposal) throw Object.assign(new Error('Video explainers (Motion) are not available on this canvas.'), { code: 'unavailable' });
-      return { kind: 'proposal', route, block: proposal.block, message: proposal.message, primitive: 'motion' };
+      set({ status: 'generating', stage: 'Sending to Chat…', stream: null });
+      const handed = await propose?.(route, input.args, { selection, concept: input.concept });
+      if (!handed) throw Object.assign(new Error(unavailableText(route).text), { code: 'unavailable' });
+      if (!live(mine)) return null;
+      set({ status: 'idle', stage: null, stream: null, notice: PROPOSAL_HANDOFF });
+      finish(id, 'handoff');
+      return null;
     }
     // Generation gets the decided request, exactly, and the server's proceed for it (its own words, mode and context).
     const decided = { requestId: id, request: request.wire, token: request.token, ...(request.revise ? { revise: request.revise } : {}) };

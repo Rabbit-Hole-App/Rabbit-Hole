@@ -32,3 +32,15 @@ test('Generate adds the existing Motion video card, confirmed, with the exact ap
   assert.equal(madeFrom('gp-a')(block), true);
   assert.equal(madeFrom('gp-b')(block), false);
 });
+
+// MOT-20b: one proposal system, Motion its first capability. The card's fields and Generate's card come from the declaration
+// (proposal-rules.js) and an adapter; a capability with neither shows no settings and cannot Generate here.
+test('generic: only declared capabilities are proposed; fields and the Generate card come from the declaration and an adapter', async () => {
+  const { PROPOSED, proposalFields, reviewRequired } = await import('../../control-plane/src/proposal-rules.js');
+  assert.deepEqual(PROPOSED, ['motion']);
+  assert.deepEqual(['motion', 'search', 'dive', 'notebook', 'whiteboard', 'explain', 'video', 'flashcards'].map(reviewRequired), [true, false, false, false, false, false, false, false], 'search, navigation and blank inserts stay direct; nothing else is enabled');
+  assert.deepEqual(proposalFields('motion').map(f => [f.key, f.kind]), [['duration_seconds', 'seconds'], ['audio', 'toggle']]);
+  assert.deepEqual(proposalFields('flashcards'), [], 'no duration or audio where a capability does not declare them');
+  assert.equal(proposalBlock(p('gp-x', 1, { command: 'flashcards' })), null, 'no adapter: no card to add');
+  assert.equal(proposalBlock(p('gp-y', 1)).operation.op, 'motion_request');
+});

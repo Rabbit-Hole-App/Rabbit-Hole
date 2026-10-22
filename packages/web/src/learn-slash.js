@@ -3,11 +3,11 @@
 // smart-home); this file is the Learn side: which commands the picker offers
 // here, and what running one does. Pure apart from the injected post/canvas,
 // so it is tested without a browser.
+import { reviewRequired } from '../../control-plane/src/proposal-rules.js';
 import { LEARN_MENU, commandsFor, descFor, learnRequest, resolveCommand, unavailableCommand } from './agent/slash.js';
 import { PRIMITIVES, isReady } from '../../control-plane/src/learn-primitives.js';
 import { filterSections } from './command-search.js';
 import { withPrompt } from './card-prompt.js';
-import { motionConfirm } from './learn-video-label.js';
 
 // Offered only when something can satisfy it now: no family (chat or a direct
 // action), or a family with a ready or direct primitive. A command typed by
@@ -133,20 +133,7 @@ const ARTIFACT_TIMEOUT_MS = 120000;
 const afterPaint = run => (globalThis.requestAnimationFrame ? requestAnimationFrame(() => requestAnimationFrame(run)) : run());
 const NAMES = { explanation: 'an explanation', quiz: 'a quiz', challenge: 'a challenge', explain_back: 'an explain-back', flashcards: 'flashcards', table: 'a table', code_sample: 'a code sample', flow_diagram: 'a flow diagram', mermaid_diagram: 'a diagram', walkthrough: 'a walkthrough', interactive_graph: 'a graph', data_plot: 'a plot', animation: 'an interactive explanation' };
 
-// The /motion paid proposal's card (M7A): built here with no model call; the card starts the paid job only once it is
-// inserted already confirmed. The inline editor (inline-ai-session.js) stages the same card.
-// selection: the card the request is about ({ id, kind, title, text }: the composer's selected card or the inline editor's
-// selection), sent as motion_request context.selection (control-plane motion-context.js) so the resolver grounds on its
-// text (owner brief 2026-10-21 message 7 item 4). With none, the line is resolved from its words alone.
-// hold: what the server returned (learn-scene-client.js motionHold); the message names the reservation, or says generation is paused.
-export function motionProposal(args, location = null, selection = null, hold = null) {
-  const context = motionContext(selection);
-  const block = {
-    type: 'video', mode: 'generate', title: `Motion: ${args}`.slice(0, 120), src: '', caption: '', status: 'idle',
-    operation: { op: 'motion_request', request: `/motion ${args}`.slice(0, 500), location: { concept: String(location?.concept || '').slice(0, 100) || null }, ...(context ? { context } : {}) },
-  };
-  return { block, message: motionConfirm(hold) };
-}
+// MOT-20b: /motion has no proposal of its own here: every entry point is the Chat's /motion turn (generation-proposal-chat.js).
 
 // The frozen motion_request.context: the card's id, kind, title and at most 4000 characters of its plain text. A card with
 // no text has nothing to ground on and sends none.
@@ -208,10 +195,10 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
-  // /motion (MOT-20, owner message 39): a chat turn. The chat proposes the video as a card (generation-proposal-chat.js), the
-  // learner refines it in chat, and its Generate adds the existing video card with the approved proposal. Nothing starts here.
-  if (request.action === 'motion') {
-    if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
+  // A proposed capability (proposal-rules.js; /motion first, MOT-20/UI-15): a chat turn. The chat proposes it on the shared card
+  // (generation-proposal-chat.js), the learner refines it in chat, and the card's Generate makes it. Nothing starts here.
+  if (reviewRequired(name)) {
+    if (!args) return { notice: { tone: 'info', text: `Add what you want after /${name}.` } };
     return { prompt: args };
   }
   // /image finds a real picture: the card searches and the learner chooses. It never generates (/generate-image does).

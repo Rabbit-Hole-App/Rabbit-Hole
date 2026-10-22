@@ -1248,7 +1248,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     context = chatContext(context, code.length ? chat.contextRefs.filter(ref => ref.kind !== 'code') : chat.contextRefs, memory.long ? memory.summary : null, CAP_CHARS, source?.paper ? body.paper_context.id : null, files);
     // An image file ref (a dropped image, a PDF region crop) rides as the picture itself, beside the documents (file-context.js).
     if (files?.images?.length) extraBlocks.push(...files.images);
-    system = chatSystem(system, answerMetaSystem({ repository: !!repository }), resolved, memory.long);
+    system = chatSystem(system, answerMetaSystem({ repository: !!repository, motion: !!generation }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
     // A refinement revises the learner's unanswered proposal: the model sees what the card says now.
@@ -1272,8 +1272,8 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // A canvas turn hands askStream its LEARN_DB thread store as DB. The moment log does not depend on that:
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
-    // motionDev false: /motion exists only in a dev web build (VITE_MOTION_DEV); the control plane has no motion flag, so it never suggests motion.
-    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
+    // motionDev: motion is suggested only on a turn where a Motion video can start (generation, MOT-20b); its Send proposes it first.
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: !!generation }) });
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);

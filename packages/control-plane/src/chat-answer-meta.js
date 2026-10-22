@@ -23,8 +23,10 @@ A short or conversational answer ends with <answer_meta>{"actions":[],"followUps
 // A Chat connected to a code repository (repo-graph Release 1, brief section 11): its follow-ups investigate this codebase,
 // grounded in the code the answer read and the conversation. Curious, not the chat, proposes the deeper concepts.
 export const ANSWER_META_REPOSITORY = `This chat is connected to a code repository. followUps: questions that investigate its implementation, grounded in the code this answer read and in this conversation - follow a real request or call through the code, find the callers of something discussed, see how a state change is stored, compare two implementations, or read a relevant test or failure path - only where the code read supports it; never invent a file, symbol or behaviour. actions stay artifacts to make, never questions.`;
-export const answerMetaSystem = ({ repository = false } = {}) => (repository ? `${ANSWER_META_SYSTEM}
-${ANSWER_META_REPOSITORY}` : ANSWER_META_SYSTEM);
+// MOT-20b: where a Motion video can start (generation-proposal.js motionOffered), an action may suggest one; its Send is the Chat's
+// /motion turn, so it is proposed on the shared card first. Nowhere else is motion offered.
+export const ANSWER_META_MOTION = 'motion is also a capability here: a short animated explainer video of this topic, only when animation would genuinely teach it better than text.';
+export const answerMetaSystem = ({ repository = false, motion = false } = {}) => [ANSWER_META_SYSTEM, repository ? ANSWER_META_REPOSITORY : null, motion ? ANSWER_META_MOTION : null].filter(Boolean).join('\n');
 
 const OPEN = '<answer_meta>', CLOSE = '</answer_meta>';
 

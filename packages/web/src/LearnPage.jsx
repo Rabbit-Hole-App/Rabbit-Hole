@@ -32,8 +32,7 @@ import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
-import { available, isLearnCommand, motionProposal, runLearnCommand } from './learn-slash.js';
-import { motionHold } from './learn-scene-client.js';
+import { available, isLearnCommand, runLearnCommand } from './learn-slash.js';
 import { generationField, madeFrom } from './generation-proposal-chat.js';
 import { commandsFor, labelOf } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
@@ -446,7 +445,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     insertChat: entry => canvasApi.current?.insertChat(entry),
     // UI-15 / MOT-20 (generation-proposal-chat.js): what a chat turn sends so the server can propose a Motion video (the canvas
     // is the learner's location: its title names the concept), and whether a proposal already made its card here.
-    generation: (target, current) => generationField({ offered: isLearnCommand('motion'), concept: app.title, target, current }),
+    generation: (target, current, concept = app.title) => generationField({ offered: isLearnCommand('motion'), concept, target, current }),
     proposalMade: proposalId => !!canvasApi.current?.blocks?.().some(madeFrom(proposalId)),
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     locate: id => canvasApi.current?.focusBlock(id),
@@ -1018,7 +1017,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // internal: Ctrl+K's automatic routing still makes comparisons and walkthroughs from plain words (owner, 2026-10-20), though
     // /compare and /walkthrough are no longer typed commands (its / list is the registry's user commands, inline-ai-command.js).
     enabled: ['note', 'equation', ...commandsFor('learn', { internal: true }).filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
-    motion: isLearnCommand('motion') ? async (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection, await motionHold(app.name).catch(() => null)) : null,
+    // Ctrl+K's proposed capabilities (proposal-rules.js; /motion first, MOT-20b): the Chat's own command turn about Ctrl+K's
+    // selection, so it is proposed on the same shared card as the composer's; nothing starts here. Answers false where this
+    // build does not offer the command or the Chat cannot take the turn.
+    propose: async (command, args, about = {}) => { const live = chatWorkspace.current; if (!isLearnCommand(command) || !live?.ask) return false; live.panels?.openChat?.(); return (await live.ask({ prompt: args, command, about })) !== false; },
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
     // The existing context builder budgets these separately from the complete editable target. A listed reference
     // is not source-text coverage; TOC has its own conversation and is never inherited here.

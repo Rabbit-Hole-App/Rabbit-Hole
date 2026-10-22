@@ -58,9 +58,11 @@ export function ChatWorkspaceProvider({ canvas, board = 'main', canvasOps: initi
   const sender = useRef(null);
   const registerSender = useCallback(send => { sender.current = send; return () => { if (sender.current === send) sender.current = null; }; }, []);
   const regenerate = useCallback(messageId => sender.current?.({ regenerate: { messageId: String(messageId) } }), []);
+  // ask(turn) (MOT-20b): another surface's command turn through the same loop, e.g. Ctrl+K's /motion: { prompt, command, about }.
+  const ask = useCallback(turn => sender.current?.(turn), []);
   // The "This canvas" chip's line: coverage.summary of the last canvas_context the page built (a sent turn, or the chip's preview).
   const [canvasCoverage, setCanvasCoverage] = useState(null);
-  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, canvasCoverage, toc, tocThread.id, coaching]);
+  const value = useMemo(() => ({ canvas, board, canvasOps, panels, thread, composer: chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, setCanvasOps, canvasCoverage, setCanvasCoverage, toc, tocThreadId: tocThread.id, coaching }), [canvas, board, canvasOps, panels, thread, chatComposer, context, sources, openSource, addToChat, registerSender, regenerate, ask, canvasCoverage, toc, tocThread.id, coaching]);
   return <ChatWorkspace.Provider value={value}>{children}</ChatWorkspace.Provider>;
 }
 
