@@ -290,3 +290,21 @@ test('rows written with the early short names (edit, copy, open, chat) are check
   assert.deepEqual([row.disabled, row.reason], [true, 'Fork to keep your changes']);
   assert.ok(asked.includes('canvas.local-edit') && !asked.includes('edit'));
 });
+
+test("S1's can() for every role: opening any menu calls no handler, guests and viewers get local edits and copy, never source writes", async () => {
+  const { can } = await import('./canvas-permissions.js');
+  const targets = () => [selectionTarget(model([])), selectionTarget(model(['c1'])), selectionTarget(model(['eq'])), selectionTarget(model(['c1', 'eq'])), resolveTarget(el('div', { 'data-group-chip': 'g1' }), model([]))];
+  for (const role of ['owner', 'editor', 'commenter', 'viewer', 'guest']) {
+    const shared = role !== 'owner';
+    const { ctx, calls } = fakeCtx({ can: capability => can(capability, { role, shared, comments: { read: true, post: role !== 'guest' } }) });
+    ctx.canvas.linkCanvas = () => {};
+    for (const target of targets()) actionsFor(target, ctx);
+    assert.deepEqual(calls, [], `${role}: opening menus ran nothing`);
+    const names = labels(actionsFor(selectionTarget(model(['c1'])), ctx));
+    assert.ok(names.includes('Duplicate') && names.includes('Copy card'), `${role}: ${names.join(', ')}`);
+    const link = actionsFor(selectionTarget(model([])), ctx).find(row => row.id === 'link-canvas');
+    assert.equal(link?.disabled ?? null, shared && role !== 'editor' ? true : false, `${role}: Link to canvas writes the source`);
+    const start = actionsFor(selectionTarget(model(['c1'])), ctx).find(row => row.id === 'start-rabbit-hole');
+    assert.equal(start.signIn, role === 'guest', `${role}: a guest's Start Rabbit Hole goes through sign-in`);
+  }
+});

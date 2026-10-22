@@ -89,11 +89,11 @@ import { SEARCH_DRAG, applySearchDrop, paintSearchDrop, searchDrag, searchDropPl
 import { ExcerptNote, ExcerptSource } from './ExcerptCard.jsx';
 import { withPressId } from './learn-video-label.js';
 import CanvasMenu, { CardActions } from './CanvasMenu.jsx';
-import { actionsFor, allActions, legacyCan, resolveTarget as resolveMenuTarget, runAction, selectionTarget } from './canvas-actions.js';
+import { actionsFor, allActions, resolveTarget as resolveMenuTarget, runAction, selectionTarget } from './canvas-actions.js';
+const VIEW_ONLY_HIDDEN = new Set(['canvas.local-edit', 'source.write', 'generate.paid', 'file.upload', 'code.execute', 'webpage.capture']);
 const rowGroup = id => allActions().find(entry => entry.id === id)?.group || null;
-// S1's one permission model (canvas-permissions.js, contract-permissions.md). ponytail: a glob so this branch builds before
-// S1's module merges; once both are on main this becomes a plain import of { can }.
-const permissionModel = Object.values(import.meta.glob('./canvas-permissions.js', { eager: true }))[0] || null;
+// S1's one permission model (canvas-permissions.js, contract-permissions.md): the menu, the card ⋮ and the shortcuts ask it.
+import { can as permit } from './canvas-permissions.js';
 import { rabbitHoleTarget } from './canvas-actions-types.js';
 import { loadMediaOriginal } from './media-storage.js';
 
@@ -675,7 +675,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
         {/* A region excerpt (pdf-excerpt.js): the stored crop of the PDF page, the learner's note, the source footer. */}
         {block.excerpt
           ? <div data-excerpt-card data-excerpt-kind="region"><Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
-            <ExcerptNote block={block} onChange={onChange} readOnly={editing.readOnly || editing.locked.has(block.id)} /><ExcerptSource excerpt={block.excerpt} app={appName} /></div>
+            <ExcerptNote block={block} onChange={onChange} readOnly={editing.readOnly || editing.localCopy || editing.locked.has(block.id)} /><ExcerptSource excerpt={block.excerpt} app={appName} /></div>
           : media
           ? <Suspense fallback={<p className="p-2 text-sm text-ink-2">Opening</p>}><MediaBody block={block} onChange={onChange} /></Suspense>
           : url
@@ -873,7 +873,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   // A webpage card (WebpageCard.jsx): a saved capture of a public page, scrolled and selected inside the card.
   if (block.type === 'webpage') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-    <WebpageCard block={block} appName={appName} selected={selected} zoom={zoom} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onChange={onChange} onChangeQuiet={onChangeQuiet} onRemove={onRemove} /></CanvasNode>;
+    <WebpageCard block={block} appName={appName} selected={selected} zoom={zoom} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onChange={onChange} onChangeQuiet={onChangeQuiet} onRemove={onRemove} /></CanvasNode>;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
   if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
@@ -907,7 +907,7 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
         </div>
       )}
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
-        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
+        <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
       {block.promptUsed && <CardPrompt text={block.promptUsed} onHeight={setPromptHeight} />}
@@ -1518,10 +1518,15 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
+  // Local-copy mode (SHARE-02, C:/s/spec/share/contract-guest-draft.md): a visitor edits a temporary copy of a shared canvas -
+  // shapes, text, moving, resizing, duplicating, arranging, styling, deleting, undo - saved only through onSave (the guest
+  // draft), never to the source. Card bodies and the document stay read-only, and nothing in here starts server work.
+  const localCopyRef = useRef(localCopy);
+  localCopyRef.current = localCopy;
   // The C key's way in to Add comment (set each render where comments are on; null elsewhere).
   const commentKeyRef = useRef(null);
   // A picked comment pin (owner, 2026-10-08): not a board object, so it never joins the selection - picking one clears
@@ -2494,7 +2499,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     }
     const groupFor = entry => wholeGroups.get(entry.groupId)?.id;
     // A copied notebook card gets its own workspace, seeded from the copy of its notebook; a card's references get new ids.
-    const copyNode = node => ({ ...node, id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
+    const copyNode = node => ({ ...node, ...(localCopyRef.current ? { copyOf: node.copyOf || node.id } : {}), id: newId(node.id), groupId: groupFor(node), locked: undefined, dx: node.dx + step, dy: node.dy + step, ...(node.type === 'notebook' ? { notebook_id: crypto.randomUUID() } : {}), ...(node.refs ? { refs: reIdRefs(node.refs) } : {}) });
     const blocksCopy = pickedBlocks.map(copyNode);
     // A card copied mid-answer would never receive its stream: deltas are
     // routed by id and the copy has a new one. Settle it instead.
@@ -2568,7 +2573,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
   const [urlPaste, setUrlPaste] = useState(null);
   const addWebpage = url => {
-    if (readOnlyRef.current || !isWebUrl(url)) return null;
+    if (readOnlyRef.current || localCopyRef.current || !isWebUrl(url)) return null;
     let host = url;
     try { host = new URL(url).hostname; } catch { /* isWebUrl parsed it */ }
     const id = crypto.randomUUID();
@@ -3626,7 +3631,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       const text = data?.getData('text/plain') || '';
       // ponytail: if writing the marker failed, an image copied before the cards still wins.
       const code = !!pasteCodeRef.current && (!!copiedCode(() => sessionStorage, text) || looksLikeCode(text));
-      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current });
+      const kind = pasteKind({ images: dropFilesRef.current ? images.length : 0, text, marker: CARDS_COPIED, copying: markingCopy.current, cards: clipboard.current?.length || 0, code, url: !readOnlyRef.current && !localCopyRef.current });
       // One URL asks first (webcard brief): Paste as text or Add webpage card; nothing is placed or fetched until a choice.
       if (kind === 'url') { event.preventDefault(); setUrlPaste({ text: text.trim(), back: active }); return; }
       if (kind === 'image') { event.preventDefault(); dropFilesRef.current(images); return; }
@@ -3968,7 +3973,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const searchDragEvent = (event, drop = false) => {
     const drag = searchDrag.current();
     if (!drag || ![...(event.dataTransfer?.types || [])].includes(SEARCH_DRAG)) return false;
-    const at = local(event), plan = searchDropPlan(drag.payload, { readOnly: readOnlyRef.current, locked: lockedRef.current, blocks: blocksRef.current, box: id => boxesOf([id])[0] || null });
+    const at = local(event), plan = searchDropPlan(drag.payload, { readOnly: readOnlyRef.current || localCopyRef.current, locked: lockedRef.current, blocks: blocksRef.current, box: id => boxesOf([id])[0] || null });
     event.preventDefault();
     drag.refusal = plan.action === 'refuse' ? plan.reason : null;
     event.dataTransfer.dropEffect = plan.action === 'refuse' ? 'none' : plan.action === 'link' ? 'copy' : 'move';
@@ -4785,7 +4790,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Editor view on a canvas with no document yet: one empty sheet, placed once (its world position is saved), then framed.
   // Only after the page has the board's saved copy (docReady), so an empty sheet is never made over one still loading.
   useEffect(() => {
-    if (docView !== 'editor' || doc || readOnly || !docReady || docError) return;
+    if (docView !== 'editor' || doc || readOnly || localCopy || !docReady || docError) return;
     const fresh = placeDoc();
     if (!fresh) return;
     docLive.current = fresh.blocks;
@@ -5194,13 +5199,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     point: extra.screen ? { x: (extra.screen.x - viewRef.current.x) / viewRef.current.z, y: (extra.screen.y - viewRef.current.y) / viewRef.current.z } : null,
   });
   const portalOf = id => divePortals?.portals?.[id];
-  const rabbitHoleHere = !!(divePortals?.open && !readOnly) || !!(readOnly && onStartRabbitHole);
-  // The handler context every row runs with (contract section 7). The permission model is S1's can() with the page's
-  // `permissions` ctx (SharedBoardPage builds it) when given, else today's props (legacyCan).
+  // A shared canvas (view-only, or the visitor's local copy): Start Rabbit Hole is the visitor's own, through the page.
+  const visiting = readOnly || localCopy;
+  const rabbitHoleHere = !!(divePortals?.open && !visiting) || !!(visiting && onStartRabbitHole);
+  // Who is acting, for S1's can(): the page's ctx (SharedBoardPage builds it from the server's access), else the owner on
+  // their own canvas, or a viewer of a view-only board.
+  const commentCtx = onAddComment ? { read: true, post: true } : null;
+  const permissionCtx = permissions || (visiting ? { role: 'viewer', shared: true, comments: commentCtx } : { role: 'owner', shared: false, comments: commentCtx });
+  // The handler context every row runs with (contract section 7), asking S1's can() (canvas-permissions.js).
   // A blob to the person's disk, as the cards' own Download links save it.
   const saveFile = (blob, name) => { const url = URL.createObjectURL(blob), link = document.createElement('a'); link.href = url; link.download = name; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
   const actionCtx = {
-    can: permissions && permissionModel?.can ? capability => permissionModel.can(capability, permissions) : legacyCan({ readOnly, comment: !!onAddComment, rabbitHole: rabbitHoleHere }),
+    // A board that cannot be edited at all (view-only, no local copy) refuses every edit, whatever the role allows.
+    can: capability => (readOnly && !localCopy && VIEW_ONLY_HIDDEN.has(capability) ? { allowed: false, hidden: true, reason: 'View only' } : permit(capability, permissionCtx)),
     readOnly,
     familyOf: id => menuObject(id)?.family || null,
     groupOf, locked: id => lockedRef.current.has(id), lockable,
@@ -5210,15 +5221,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       canStartRabbitHole: id => rabbitHoleHere && rabbitHoleTarget(blocksRef.current.find(block => block.id === id)),
       // Your canvas: the card's Rabbit Hole, entered when it has one and made first otherwise (Dive.jsx); a view-only
       // board: the viewer's own private Rabbit Hole (shared-canvas-rabbit-hole.md).
-      startRabbitHole: id => (readOnly ? onStartRabbitHole(id) : portalOf(id) ? divePortals.enter(portalOf(id).name) : divePortals.open(id, undefined, 'learner_menu')),
+      startRabbitHole: id => (visiting ? onStartRabbitHole(id) : portalOf(id) ? divePortals.enter(portalOf(id).name) : divePortals.open(id, undefined, 'learner_menu')),
       addComment: onAddComment ? (point, on) => commentAt(point, on) : null,
       linkCanvas: onLinkCanvas ? arg => onLinkCanvas(arg) : null,
-      renamable: object => renamable(object),
+      // A visitor's local copy renames no card (SHARE-02: titles are the source's).
+      renamable: object => !localCopy && renamable(object),
       rename: id => { const block = blocksRef.current.find(entry => entry.id === id); if (block) setRenaming({ id, title: block.title, rect: document.querySelector(`[data-block-id="${CSS.escape(id)}"]`)?.getBoundingClientRect() }); },
       renameGroup: gid => setChipEdit(gid),
       describable: target => target.ids.length > 0 && (!!chatWorkspace || target.objects.some(object => object && describeObject(object))),
       addToChat: options => addToChat(options),
-      quickEdit: inlineAi ? () => openInline(performance.now(), false, 'edit') : null,
+      quickEdit: inlineAi && !visiting ? () => openInline(performance.now(), false, 'edit') : null,
       copyText: text => navigator.clipboard?.writeText(text),
       copyable: ids => ids.some(id => ['block', 'chat', 'item', 'shape'].includes(menuObject(id)?.family)),
       // Every member, so a mixed selection never restyles some objects and silently skips the cards (brief section 3).
@@ -5239,7 +5251,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       toggleDone: id => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === id ? { ...entry, done: !entry.done } : entry)); },
       presentFrom: id => presentFrom(id),
       // A row S1 answers with signIn: the page's sign-in, keeping the draft and selection (false: none here, the reason shows).
-      signIn: onSignIn ? (capability, target) => { onSignIn(capability, target); return true; } : null,
+      // Start Rabbit Hole's own flow (the page's onStartRabbitHole) already asks a guest to sign in and keeps the card.
+      signIn: (capability, target) => {
+        if (capability === 'canvas.child' && visiting && onStartRabbitHole && target.id) { onStartRabbitHole(target.id); return true; }
+        if (onSignIn) { onSignIn(capability, target); return true; }
+        return false;
+      },
       toast,
       // Per-type rows (canvas-actions-types.js, lane U2): the card's own handlers.
       appName,
@@ -5319,9 +5336,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly || localCopy} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
@@ -5429,7 +5446,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
               {unknownDocBlock(doc.blocks)
                 ? <p role="alert" className="px-10 text-sm text-ink-2">This document holds content this version cannot edit, so it opens read-only here. Nothing in it was changed.</p>
                 : <Suspense fallback={<p className="px-10 text-sm text-ink-3">Loading the document</p>}>
-                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
+                  <CanvasDoc key={docEpoch} blocks={doc.blocks} searchApiRef={docSearchApi} editable={!readOnly && !localCopy} onChange={docChanged} onCaret={docCaret} onReady={(ready = true) => setDocMounted(ready)} />
                 </Suspense>}
             </div>
           </div>
@@ -5495,7 +5512,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its
@@ -5512,7 +5529,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             className="pointer-events-none absolute z-20 rounded-[14px] ring-2 ring-select" />
         )}
         {/* The gap near the pointer shows its dotted line and [-] [+] [...] at the far left. */}
-        {presenting === null && !readOnly && !selection.length && gaps.filter(gap => gap.index === hoverGap).map(gap => (
+        {presenting === null && !readOnly && !localCopy && !selection.length && gaps.filter(gap => gap.index === hoverGap).map(gap => (
           <GapRail key={gap.index} gap={gap} zoom={view.z} span={railSpan}
             // Its buttons start at the far left; the toolbar is in its own gutter, never over them.
             edge={-view.x / view.z}
@@ -5612,7 +5629,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           {items.map(item => item.kind === 'equation'
             ? <EquationItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onMove={moveItemNode} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem} onPatch={patchItem} onDone={finishEquation} onDraft={equationSearchDrafts.current.set} generation={equationGeneration(item)} editOn={editTarget} />
             : <CanvasItem key={item.id} item={item} zoom={view.z} tool={tool} selected={isSelected(item.id)} onSelect={select} onCommit={commitItemText} onMove={moveItemNode} onResize={resizeItem} onGesture={snapshot} onDelete={deleteItem} onSnap={snapForItem}
-            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
+            onLevel={(id, value) => applyLevel([id], value)} onMode={setTextMode} onLang={setCodeLang} onNotebook={readOnly || localCopy ? null : openInNotebook} editOn={editTarget} onEditStart={id => { beginEdit(id); setEditTarget(null); }} onEditorApi={onEditorApi}
             cameraKey={`${view.x}:${view.y}:${view.z}`} getTooltipSpace={() => { const area = visibleArea(), frame = surface.current.getBoundingClientRect(); return { left: frame.left + area.left, right: frame.left + area.right, top: frame.top + area.top, bottom: frame.top + area.bottom }; }}
             onInlineAI={readOnly ? null : () => openInline(performance.now(), true)} onDiscardCode={() => endEdit(false, 'items')} />)}
           {equationDraft&&!readOnly&&<EquationItem key={equationDraft.id} item={equationDraft} zoom={view.z} tool="select" selected onSelect={()=>{}} onMove={()=>{}} onGesture={()=>{}} onDelete={()=>setEquationDraft(null)} onPatch={()=>{}} onDone={finishEquation} onDraft={()=>{}} generation={equationGeneration(equationDraft)}/>}
@@ -5680,7 +5697,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         </div>
         {/* Dev-only workbench: drop any lesson block on the canvas to review its
             look before lessons are assembled. */}
-        {!readOnly && import.meta.env.VITE_COACHING_DEV === 'true' && (
+        {!readOnly && !localCopy && import.meta.env.VITE_COACHING_DEV === 'true' && (
           <div className={`absolute top-3 ${toolSide === 'left' ? 'left-2' : '-right-6'} z-20`}>
             <button type="button" aria-label="Insert lesson block" title="Insert a sample lesson block" aria-expanded={insertOpen}
               onClick={() => setInsertOpen(previous => !previous)}

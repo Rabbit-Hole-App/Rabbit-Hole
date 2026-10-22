@@ -108,10 +108,11 @@ check('completion popup stays within usable canvas at two zooms with Search open
   }
   await page.screenshot({path:resolve(OUT,'code-panel-zoom.png')});
 });
-check('signed-out shared viewer can read code but cannot edit or change language',async()=>{
+// SHARE-02 (owner brief 2026-10-22): a signed-out visitor may edit a temporary copy of their own; the source never changes.
+check('signed-out shared viewer reads code, and their edits never reach the source',async()=>{
   const shared=await api(`/api/learn/boards/${canvas.name}/main/share`,'POST',{shared:true,view:true,public_view:true});const token=shared.sharing?.view;assert.ok(token,'Share token missing');sharing=true;
   const context=await browser.newContext({viewport:{width:1500,height:1000}});await intercept(context);const viewer=await context.newPage();viewer.setDefaultTimeout(15000);
-  try{await viewer.goto(`${BASE}/b/${token}`);await box('code-main',viewer).waitFor();const before=await saved('code-main');const target=await box('code-main',viewer).boundingBox();assert.ok(target);await viewer.mouse.dblclick(target.x+Math.min(30,target.width/2),target.y+Math.min(30,target.height/2));assert.equal(await viewer.locator('[data-code-box-editor]').count(),0);assert.equal(await viewer.locator('button[data-text-mode]').count(),0);assert.deepEqual(await saved('code-main'),before);await viewer.screenshot({path:resolve(OUT,'code-readonly.png')});}finally{await context.close();}
+  try{await viewer.goto(`${BASE}/b/${token}`);await box('code-main',viewer).waitFor();const before=await saved('code-main');const target=await box('code-main',viewer).boundingBox();assert.ok(target);await viewer.mouse.dblclick(target.x+Math.min(30,target.width/2),target.y+Math.min(30,target.height/2));await viewer.keyboard.type('x');await viewer.keyboard.press('Escape');await viewer.waitForTimeout(800);assert.deepEqual(await saved('code-main'),before);await viewer.screenshot({path:resolve(OUT,'code-readonly.png')});}finally{await context.close();}
 });
 check('no provider/execution/upload requests or browser exceptions',async()=>{assert.deepEqual(forbidden,[]);assert.deepEqual(errors,[]);});
 try{

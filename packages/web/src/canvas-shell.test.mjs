@@ -161,7 +161,7 @@ test('the Rabbit Hole navigator sits at the top of the tools gutter on either si
 // switch component), each saved on this device (ui-prefs.js) through the canvas's showWidget; the browser run is
 // e2e/view-menu-check.mjs.
 test('View: three identical switch rows for the minimap, the Rabbit Hole Map and Curious, remembered on this device', () => {
-  const rows = [...page.matchAll(/\{ label: '([^']+)', icon: \w+, toggle: canvasState\.(\w+), onToggle: on => canvas\(\)\?\.showWidget\('(\w+)', on\) \}/g)];
+  const rows = [...read('canvas-menus.js').matchAll(/\{ label: '([^']+)', icon: \w+, toggle: canvasState\.(\w+), onToggle: on => canvas\(\)\?\.showWidget\('(\w+)', on\) \}/g)];
   assert.deepEqual(rows.map(row => [row[1], row[2], row[3]]), [['Minimap', 'minimap', 'minimap'], ['Rabbit Hole Map', 'holeMap', 'holeMap'], ['Curious', 'curious', 'curious']]);
   const bar = read('CanvasMenubar.jsx');
   assert.match(bar, /<Toggle on=\{item\.toggle\} onChange=\{item\.onToggle\} aria-label=\{item\.label\} \/>/);

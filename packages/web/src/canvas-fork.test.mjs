@@ -109,7 +109,7 @@ test('Fork opens "Fork this canvas": Cancel or Escape forks nothing, Fork sends 
   assert.match(button, /const ask = \(\) => \{ if \(!busy\.current\) setNaming\(title \|\| ''\); \};/, 'prefilled with the source title');
   assert.match(button, /<ConfirmDialog title="Fork this canvas" confirmLabel="Fork" confirmVariant="primary" onCancel=\{\(\) => setNaming\(null\)\} onConfirm=\{run\}/);
   assert.match(button, /<Input autoFocus aria-label="Name" maxLength=\{120\} value=\{naming\}/);
-  assert.match(button, /await fork\.current\(\{ source, title: name\.trim\(\) \}\)/, 'the typed name; blank is the server\'s fallback');
+  assert.match(button, /await fork\.current\(\{ source, title: name\.trim\(\), draft: draft\?\.\(\) \|\| null \}\)/, 'the typed name (blank is the server\'s fallback) and a visitor\'s temporary copy (SHARE-02)');
   assert.equal(button.match(/fork\.current\(/g).length, 1, 'run, from the dialog, is the only fork');
   assert.match(button, /useEffect\(\(\) => \{ if \(auto\) ask\(\); \}, \[auto\]\)/, 'back from sign-in: the dialog again, never a silent fork');
   assert.match(button, /\$\{resume \|\| window\.location\.pathname\}\?fork=1/);

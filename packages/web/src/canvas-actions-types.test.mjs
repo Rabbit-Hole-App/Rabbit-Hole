@@ -21,7 +21,8 @@ const S1 = {
 };
 // The engine's names until S1's model is wired, and what each means in S1 (contract-permissions.md).
 const ALIAS = { edit: 'canvas.local-edit', copy: 'content.copy', chat: 'chat.ask', open: 'card.open', navigate: 'canvas.view' };
-const RULES = Object.fromEntries(Object.entries(ALIAS).map(([name, s1]) => [name, role => S1[s1](role)]));
+// The engine asks under S1's names (canvas-actions.js CAPABILITY_ALIASES), so the rules answer both spellings.
+const RULES = Object.fromEntries([...Object.entries(ALIAS).map(([name, s1]) => [name, role => S1[s1](role)]), ...Object.entries(S1)]);
 const USED = new Set(Object.keys(ALIAS));
 
 // Every hook a row may call, recorded; opening the menu must call none of the ones that act.

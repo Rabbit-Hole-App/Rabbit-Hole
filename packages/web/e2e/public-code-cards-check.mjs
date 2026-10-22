@@ -275,7 +275,7 @@ await check('a failed source read retries through the real route and publishes i
   });
   await open(`/b/${PUBLIC}`);
   await codeIn('pcc-code').locator('[data-code-card-retry]').waitFor({ timeout: 20000 });
-  await page.locator('[data-search-button]').click();
+  await page.locator('[data-panel-tab="find"]').click();
   const panel = page.locator('[data-canvas-search]:visible');
   await panel.getByRole('textbox', { name: 'Find text on canvas', exact: true }).fill('scaled_dot_product_attention');
   await page.waitForFunction(() => document.querySelector('[data-canvas-search] [data-find-count]')?.textContent === '0 results');
@@ -293,7 +293,7 @@ await check('Search reads loaded source beyond the collapsed preview and exclude
   assert.ok(RANGE.slice(40).some(line => line.includes(query)), 'needle is beyond the collapsed 40-line preview');
   assert.ok(!RANGE.slice(0, 40).some(line => line.includes(query)), 'needle is absent from the collapsed preview');
   assert.equal((await lineNumbers('pcc-code')).length, 40);
-  await page.locator('[data-search-button]').click();
+  await page.locator('[data-panel-tab="find"]').click();
   const panel = page.locator('[data-canvas-search]:visible');
   const input = panel.getByRole('textbox', { name: 'Find text on canvas', exact: true });
   await input.fill(query);
