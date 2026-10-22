@@ -110,7 +110,8 @@ test('the guest allowance is read from the ask route; signed in or unreadable it
 test('A: the viewer\'s chat stays private - the heading says so, and Fork sends only the link, never the chat', () => {
   assert.match(composer, /<Lock size=\{11\} aria-hidden \/>Only you see this chat\.<\/p>/);
   // count is the canvas's canonical fork count from the server, shown on the button (canvas-forking.md).
-  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\} onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
+  // SHARE-02's temporary copy (draft=) may ride with the fork; the chat never does.
+  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\}( draft=\{guest\.forDraft\})? onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count\})? \/>/);
   assert.doesNotMatch(page, /<ForkButton[^>]*snapshot=/, 'no browser state rides with a shared fork');
   // The chat goes to this tab's sessionStorage (saveChat) and, as history, only with this viewer's own questions.
   assert.deepEqual(composer.match(/saveChat\([^)]*\)|askHistory\([^)]*\)/g), ['saveChat(token, who, turns)', 'askHistory(turns)']);
