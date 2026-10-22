@@ -411,9 +411,11 @@ await check('11 keyboard, dark theme and a narrow window: arrows move between ro
   await page.evaluate(() => document.documentElement.classList.add('dark'));
   await page.setViewportSize({ width: 390, height: 760 });
   await page.waitForTimeout(800);
-  await strip('m-b').scrollIntoViewIfNeeded().catch(() => {});
-  const box = await strip('m-b').boundingBox();
-  await page.mouse.click(Math.max(8, Math.min(box.x + 30, 380)), Math.max(box.y + 10, 10), { button: 'right' });
+  // On a phone-width window the card may sit under the panel or off the surface: the bare canvas's menu, or the focused
+  // card's keyboard menu when no bare point shows.
+  const bare = await barePoint();
+  if (bare) await page.mouse.click(bare.x, bare.y, { button: 'right' });
+  else { await page.evaluate(() => document.querySelector('[data-block-id="m-b"]').focus()); await page.keyboard.press('Shift+F10'); }
   await menu().waitFor();
   assert.ok((await inside()).ok, JSON.stringify(await inside()));
   const bg = await menu().evaluate(node => getComputedStyle(node).backgroundColor);

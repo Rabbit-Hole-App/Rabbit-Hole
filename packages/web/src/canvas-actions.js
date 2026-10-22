@@ -118,6 +118,11 @@ const lockable = (target, ctx) => target.ids.some(id => ctx.lockable(id));
 const allLocked = (target, ctx) => target.ids.filter(id => ctx.lockable(id)).every(id => ctx.locked(id));
 
 export const COMMON_ACTIONS = [
+  // Start Rabbit Hole (owner, 2026-10-07): from the right-clicked card, even with others selected, through the flow that owns
+  // it (entering the card's existing Rabbit Hole); only the click starts anything. Which cards qualify: canStartRabbitHole.
+  { id: 'start-rabbit-hole', label: 'Start Rabbit Hole', icon: 'ArrowDownToLine', group: 'primary', order: 10, targets: ['card', 'multi', 'group'],
+    applies: (t, ctx) => t.family === 'block' && !!ctx.canvas.canStartRabbitHole?.(t.id), requires: 'canvas.child',
+    data: t => ({ 'data-menu-start-rabbit-hole': '', 'data-origin': t.id }), run: (t, ctx) => ctx.canvas.startRabbitHole(t.id) },
   // Add comment (canvas-comments.md section 5): the pin goes on the object or group under the pointer.
   { id: 'add-comment', label: 'Add comment', icon: 'MessageCircle', group: 'primary', order: 20, targets: ['card', 'object', 'group', 'multi'],
     applies: (t, ctx) => !!ctx.canvas.addComment && !!(t.id || t.group), requires: 'comment.draft', hint: 'C', keyshortcuts: 'C',
@@ -136,6 +141,11 @@ export const COMMON_ACTIONS = [
   { id: 'quick-edit', label: 'Quick Edit', icon: 'Wand', group: 'chat', order: 20, targets: SELECTION_KINDS, hint: 'Ctrl K',
     applies: (t, ctx) => !!ctx.canvas.quickEdit, requires: 'generate.paid', data: 'data-menu-inline-ai',
     state: t => (t.kind === 'card' && jobOf(t.object) === 'running' ? { disabled: 'Still generating' } : null), run: (t, ctx) => ctx.canvas.quickEdit() },
+
+  // The text or code lines selected inside the card, never the whole card (brief section 3).
+  { id: 'copy-selection', label: t => (t.part?.kind === 'code-lines' ? 'Copy selected lines' : 'Copy selected text'), icon: 'Copy', group: 'content', order: 5,
+    targets: ['card', 'object', 'multi', 'group'], applies: t => !!t.part?.text, requires: 'content.copy', data: 'data-menu-copy-selection',
+    run: (t, ctx) => ctx.canvas.copyText(t.part.text) },
 
   // Duplicate, Copy card, Lock, Arrange, Group, Delete: one order everywhere (brief section 3).
   { id: 'duplicate', label: 'Duplicate', icon: 'CopyPlus', group: 'clipboard', order: 10, targets: SELECTION_KINDS, hint: 'Ctrl D',
@@ -182,6 +192,9 @@ export const COMMON_ACTIONS = [
   { id: 'select-all', label: 'Select all', icon: 'BoxSelect', group: 'canvas', order: 10, targets: ['canvas'], hint: 'Ctrl A', requires: 'canvas.local-edit',
     data: 'data-menu-select-all', run: (t, ctx) => ctx.commands.selectAll() },
 
+  { id: 'fit-canvas', label: 'Fit canvas', icon: 'Scan', group: 'canvas', order: 40, targets: ['canvas'], hint: 'Shift 1', requires: 'canvas.view',
+    data: 'data-menu-fit-canvas', run: (t, ctx) => ctx.commands.zoomFit() },
+
   // A group's Delete removes its members too, so it says so (brief section 3).
   { id: 'delete', label: t => (t.kind === 'group' ? 'Delete group and contents' : 'Delete'), icon: 'Trash2', group: 'delete', order: 10,
     targets: [...SELECTION_KINDS, 'connector'], hint: 'Del', shortcut: { key: 'Delete' }, danger: true, mutates: true, requires: 'canvas.local-edit',
@@ -199,7 +212,9 @@ export function registerActions(entries) {
 export const allActions = (extra = []) => [...COMMON_ACTIONS, ...TYPE_ACTIONS, ...registered, ...extra];
 
 const value = (field, target, ctx) => (typeof field === 'function' ? field(target, ctx) : field);
-const allowed = (ctx, capability) => (capability ? ctx.can(capability) : { allowed: true });
+// The short names rows used before S1 published its model (edit, copy, open, chat): read as S1's names.
+export const CAPABILITY_ALIASES = { edit: 'canvas.local-edit', copy: 'content.copy', open: 'card.open', chat: 'chat.ask', quick_edit: 'generate.paid', comment: 'comment.draft', rabbit_hole: 'canvas.child', link_canvas: 'source.write', navigate: 'canvas.view' };
+const allowed = (ctx, capability) => (capability ? ctx.can(CAPABILITY_ALIASES[capability] || capability) : { allowed: true });
 
 // Whether `entry` belongs on `target` at all (kind, type, part and its own applies); false means hidden.
 function fits(entry, target, ctx) {

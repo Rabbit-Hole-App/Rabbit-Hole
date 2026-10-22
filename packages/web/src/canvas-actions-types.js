@@ -1,6 +1,6 @@
 // UI-25 per-type rows of the canvas action registry (canvas-actions.js; contract C:/s/spec/share/contract-actions.md).
 // Owned by lane U2 (its superset replaces this seed): U1 seeded it with the rows the old right-click menu already had,
-// unchanged in label, order and handler, plus Start Rabbit Hole, Copy selected text and Fit canvas (U2's per board log). Every handler reaches the canvas through ctx.canvas only; nothing here runs on open.
+// unchanged in label, order and handler. Start Rabbit Hole, Copy selected text and Fit canvas are the engine's (COMMON_ACTIONS). Every handler reaches the canvas through ctx.canvas only; nothing here runs on open.
 import { ipynbPath } from './learn-notebook.js';
 
 const CAD_FORMATS = ['step', 'glb', 'stl', '3mf']; // CadCard.jsx CAD_DOWNLOADS: one row per format the card actually saved
@@ -14,17 +14,6 @@ const attachRow = (id, type, sourceOf, noun, order) => ({
 });
 
 export const TYPE_ACTIONS = [
-  // Start Rabbit Hole (owner, 2026-10-07): from the right-clicked card, even with others selected, through the flow that owns
-  // it (entering the card's existing Rabbit Hole); only the click starts anything.
-  { id: 'card.start-rabbit-hole', label: 'Start Rabbit Hole', icon: 'ArrowDownToLine', group: 'primary', order: 10, targets: ['card', 'multi', 'group'],
-    applies: (t, ctx) => t.family === 'block' && !!ctx.canvas.canStartRabbitHole?.(t.id), requires: 'canvas.child',
-    data: t => ({ 'data-menu-start-rabbit-hole': '', 'data-origin': t.id }), run: (t, ctx) => ctx.canvas.startRabbitHole(t.id) },
-  // The text or code lines selected inside the card, never the whole card (brief section 3).
-  { id: 'selection.copy', label: t => (t.part?.kind === 'code-lines' ? 'Copy selected lines' : 'Copy selected text'), icon: 'Copy', group: 'content', order: 10,
-    targets: ['card', 'object', 'multi', 'group'], applies: t => !!t.part?.text, requires: 'content.copy', data: 'data-menu-copy-selection',
-    run: (t, ctx) => ctx.canvas.copyText(t.part.text) },
-  { id: 'canvas.fit', label: 'Fit canvas', icon: 'Scan', group: 'canvas', order: 20, targets: ['canvas'], hint: 'Shift 1', requires: 'canvas.view',
-    data: 'data-menu-fit-canvas', run: (t, ctx) => ctx.commands.zoomFit() },
   // Open in notebook (canvas-notebook.md): a code card or code box; off with its reason when it cannot run here.
   { id: 'code.open-notebook', label: 'Open in notebook', icon: 'NotebookPen', group: 'type', order: 10, targets: ['card', 'object'],
     applies: (t, ctx) => !!ctx.canvas.notebookFrom?.(t.object), state: (t, ctx) => { const made = ctx.canvas.notebookFrom(t.object); return made.disabled ? { disabled: made.disabled } : null; },

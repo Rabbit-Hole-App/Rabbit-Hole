@@ -146,7 +146,7 @@ test('mixed selections show only valid batch actions; single-object rows never a
   const names = labels(multi);
   for (const single of ['Rename', 'Full content', 'Copy LaTeX', 'Open in notebook', 'Mark done']) assert.ok(!names.includes(single), `${single} on a mixed selection`);
   // Start Rabbit Hole stays: it starts from the card right-clicked, never from the first selected one (owner, 2026-10-07).
-  assert.equal(multi.find(row => row.id === 'card.start-rabbit-hole')?.attrs['data-origin'], 'c1');
+  assert.equal(multi.find(row => row.id === 'start-rabbit-hole')?.attrs['data-origin'], 'c1');
   assert.ok(names.includes('Group') && names.includes('Delete') && names.includes('Duplicate'));
   assert.ok(!names.includes('Copy style') && !names.includes('Paste style'), 'a card in the mix: no style rows that would skip it');
   assert.ok(labels(actionsFor(resolveTarget(el('div', { 'data-group-chip': 'g1' }), model([])), ctx)).includes('Copy style'), 'a group of shapes and notes keeps them');
@@ -176,10 +176,10 @@ test('roles through S1 can(): hidden hides, signIn keeps the row and hands over 
   const row = id => rows.find(entry => entry.id === id);
   assert.deepEqual([row('quick-edit').disabled, row('quick-edit').reason], [true, 'Fork to generate in your own copy']);
   assert.equal(row('link-canvas'), undefined, 'hidden');
-  assert.deepEqual([row('card.start-rabbit-hole').disabled, row('card.start-rabbit-hole').signIn], [false, true]);
-  assert.deepEqual(runAction('card.start-rabbit-hole', selectionTarget(model(['c1'])), ctx), { ran: false, signIn: true, reason: 'Sign in to start a Rabbit Hole' });
+  assert.deepEqual([row('start-rabbit-hole').disabled, row('start-rabbit-hole').signIn], [false, true]);
+  assert.deepEqual(runAction('start-rabbit-hole', selectionTarget(model(['c1'])), ctx), { ran: false, signIn: true, reason: 'Sign in to start a Rabbit Hole' });
   ctx.canvas.signIn = (capability) => { calls.push(['signIn', capability]); return true; };
-  assert.deepEqual(runAction('card.start-rabbit-hole', selectionTarget(model(['c1'])), ctx), { ran: false, signIn: true, reason: null });
+  assert.deepEqual(runAction('start-rabbit-hole', selectionTarget(model(['c1'])), ctx), { ran: false, signIn: true, reason: null });
   assert.deepEqual(calls, [['signIn', 'canvas.child']], 'nothing started, only sign-in');
   const off = registerActions([{ id: 'test.denied', label: 'Generate', icon: 'Wand', group: 'chat', targets: ['card'], requires: 'generate.paid', denied: 'hide', run: () => {} }]);
   assert.equal(actionsFor(selectionTarget(model(['c1'])), ctx).find(entry => entry.label === 'Generate'), undefined, 'an entry may ask to hide when refused');
@@ -279,4 +279,14 @@ test("a card's own ⋮ menu draws the same rows and runs them through runAction 
     assert.equal(runAction('notebook.download', target, ctx).ran, true);
     assert.deepEqual(calls.at(-1), ['downloadText', 'lesson.ipynb', 'application/x-ipynb+json']);
   } finally { board.blocks.pop(); }
+});
+
+test('rows written with the early short names (edit, copy, open, chat) are checked under S1 names', () => {
+  const asked = [];
+  const s1 = capability => { asked.push(capability); return capability === 'canvas.local-edit' ? { allowed: false, reason: 'Fork to keep your changes' } : { allowed: true }; };
+  const off = registerActions([{ id: 'test.alias', label: 'Alias edit', icon: 'Pencil', group: 'type', targets: ['card'], requires: 'edit', run: () => {} }]);
+  const row = actionsFor(selectionTarget(model(['c1'])), fakeCtx({ can: s1 }).ctx).find(entry => entry.id === 'test.alias');
+  off();
+  assert.deepEqual([row.disabled, row.reason], [true, 'Fork to keep your changes']);
+  assert.ok(asked.includes('canvas.local-edit') && !asked.includes('edit'));
 });
