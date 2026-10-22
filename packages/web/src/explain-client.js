@@ -9,10 +9,11 @@ const STAGES = {
   validating: 'Checking it', rendering: 'Rendering it', reviewing: 'Reviewing the render', repairing: 'Fixing what the review found',
   ready: 'Ready', cancelled: 'Stopped',
 };
-export const explainStage = job => (explainUnavailable(job) ? EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status');
+export const explainStage = job => (explainUnavailable(job) ? job.failure?.message || EXPLAIN_UNAVAILABLE : job?.stage === 'failed' ? job.failure?.message || 'The explanation could not be made.' : STAGES[job?.stage] || 'Checking status');
 // Provider-cap resilience (owner, 2026-10-22): the AI provider refused for a spend cap, a usage limit or overload. The server
 // pauses the job with its finished stages kept (Lane L1, provider_unavailable); the learner's request stays on the card and
-// Retry continues the same job, never a second one. Credits only, no ellipsis.
+// Retry continues the same job, never a second one. The server's words (job-api-c.md, Provider unavailable), else these. Credits
+// only, no ellipsis.
 export const explainUnavailable = job => job?.failure?.category === 'provider_unavailable' || job?.stopReason === 'provider_unavailable';
 export const EXPLAIN_UNAVAILABLE = 'Explanations are temporarily unavailable. Your request is kept. Try again in a few minutes.';
 // The Retry a job offers now: render again, a new attempt, or (paused by the provider) a new attempt; null for none.

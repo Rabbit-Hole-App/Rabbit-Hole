@@ -164,9 +164,12 @@ test('the waiting card carries the chat thread of its brief only when there is o
 // Provider-cap resilience (r2-kickoff section 3): a provider spend cap, usage limit or overload pauses the job; the card says it
 // is temporarily unavailable (credits only, no ellipsis), keeps the request, and Retry continues the same job at its attempt.
 test('provider_unavailable reads as a temporary pause with Retry; other failures keep their own words and recovery', () => {
-  const paused = job({ stage: 'failed', terminal: true, attempt: 2, failure: { stage: 'authoring', category: 'provider_unavailable', message: 'usage limits', retryable: true }, recovery: ['new_attempt', 'edit_request'] });
+  // The job view L1 documents (job-api-c.md, Provider unavailable).
+  const said = 'Explanations are temporarily unavailable. Your request is saved. Try again in a few minutes.';
+  const paused = job({ stage: 'failed', terminal: true, attempt: 2, stopReason: 'provider_unavailable', failure: { stage: 'authoring', category: 'provider_unavailable', message: said, retryable: true }, recovery: ['new_attempt', 'edit_request'] });
   assert.equal(explainUnavailable(paused), true);
-  assert.equal(explainStage(paused), EXPLAIN_UNAVAILABLE);
+  assert.equal(explainStage(paused), said, 'the words the server sent');
+  assert.equal(explainStage({ ...paused, failure: { ...paused.failure, message: '' } }), EXPLAIN_UNAVAILABLE, 'else ours');
   assert.doesNotMatch(EXPLAIN_UNAVAILABLE, /\.\.\.|…|\$|dollar/i);
   assert.match(EXPLAIN_UNAVAILABLE, /temporarily unavailable/);
   assert.equal(explainRetry(paused), 'new_attempt');

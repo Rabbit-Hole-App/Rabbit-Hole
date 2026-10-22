@@ -46,11 +46,11 @@ const board = name => api(`/api/learn/boards/${name}/main`).then(out => out.stat
 const jobs = new Map(), creates = [], retries = [];
 let routeAnswer = null; // the chat route's next decision (step 5); null answers 404, so a plain turn is sent as today
 const view = job => ({ id: job.id, version: 1, boardId: job.boardId, cardId: job.cardId, requestClass: job.requestClass, stage: job.stage, attempt: job.attempt,
-  terminal: ['ready', 'failed', 'cancelled'].includes(job.stage), round: 0, stopReason: null, failure: job.failure || null, recovery: job.recovery || [],
+  terminal: ['ready', 'failed', 'cancelled'].includes(job.stage), round: 0, stopReason: job.stopReason || null, failure: job.failure || null, recovery: job.recovery || [],
   usage: { credits: 0, unknown: false }, result: job.stage === 'ready' ? job.identity : null, createdAt: 0, updatedAt: 0 });
 const identity = job => ({ jobId: job.id, resultId: `er_${job.id}`, cardId: job.cardId, canvas: { boardId: job.boardId }, promptRef: 'p', revision: `xr_${job.id}`, baseRevision: null,
   specHash: 's', compiledHash: 'c', componentVersions: {}, policyVersion: 'v' });
-const release = (job, extra = {}) => Object.assign(job, { stage: 'ready', identity: { ...identity(job), ...extra }, failure: null, recovery: [] });
+const release = (job, extra = {}) => Object.assign(job, { stage: 'ready', identity: { ...identity(job), ...extra }, failure: null, stopReason: null, recovery: [] });
 const lastCreate = () => creates.at(-1);
 const refused = [], outside = [], errors = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact))/;
@@ -75,7 +75,7 @@ const router = async route => {
     if (one[2] === 'retry') {
       const body = request.postDataJSON();
       retries.push(body);
-      if (body.expectedAttempt === job.attempt && job.stage === 'failed') Object.assign(job, { stage: 'authoring', attempt: job.attempt + 1, failure: null, recovery: [] });
+      if (body.expectedAttempt === job.attempt && job.stage === 'failed') Object.assign(job, { stage: 'authoring', attempt: job.attempt + 1, failure: null, stopReason: null, recovery: [] });
       return route.fulfill({ status: 202, json: { job: view(job) } });
     }
     if (one[2]) return route.fulfill({ json: { job: view(job) } });
@@ -216,7 +216,8 @@ await step('canvas switch: a job finishing while canvas B is open attaches to no
 await step('provider_unavailable: paused with the request kept; Retry twice sends one Retry at the job\'s attempt; then it fills in', async () => {
   await send(page, '/explain how a heap removes its root');
   const job = await newJob(7);
-  Object.assign(job, { stage: 'failed', failure: { stage: 'authoring', category: 'provider_unavailable', message: 'unused', retryable: true }, recovery: ['new_attempt', 'edit_request'] });
+  // The job view L1 documents (job-api-c.md, Provider unavailable).
+  Object.assign(job, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: 'authoring', category: 'provider_unavailable', message: 'Explanations are temporarily unavailable. Your request is saved. Try again in a few minutes.', retryable: true }, recovery: ['new_attempt', 'edit_request'] });
   const card = page.locator(`[data-block-id="${job.cardId}"]`);
   const notice = card.locator('[data-explain-unavailable]');
   await notice.waitFor({ timeout: 20000 });
