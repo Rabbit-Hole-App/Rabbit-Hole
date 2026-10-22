@@ -1,0 +1,24 @@
+{
+  "system": "baseline",
+  "costUsd": 0.255905,
+  "calls": 3,
+  "servedModels": [
+    "claude-opus-5"
+  ],
+  "elapsedMs": 66223,
+  "humanVerdict": "pending owner",
+  "result": "missing-result",
+  "primitive": null,
+  "caseId": "self-attention-context-vector-959e8622",
+  "runId": "t02-b2r",
+  "mode": "generate",
+  "inputMode": "reference-guided",
+  "split": "heldout",
+  "family": "attention-math",
+  "examples": [],
+  "outcome": "failed",
+  "error": "error: The interactive explanation could not be checked (the check gave no verdict), so nothing was added. Try again.",
+  "outputSha256": null,
+  "promptSha256": "ef8c77e291dbbcf20bb363eab40fd6097c4538a550955663095a74aa8d605408",
+  "recordedAt": "2026-10-22T16:51:39.474Z"
+}
