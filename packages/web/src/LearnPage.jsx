@@ -215,10 +215,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // that view once on arrival. Files and Graph mount on their first show and stay mounted (the graph code loads only then).
   const { companion } = panels;
   const companionViews = COMPANION_VIEWS.filter(entry => (entry.id === 'files' ? files : entry.id === 'graph' ? graph : true));
-  // Progress (Tutor Task 09) takes the same column as its own view (chat-panels.js progress); the viewers stay mounted under it.
-  const companionView = companion.view === 'progress' ? 'progress' : companionViews.some(entry => entry.id === companion.view) ? companion.view : 'context';
+  const companionView = companionViews.some(entry => entry.id === companion.view) ? companion.view : 'context';
   const shown = useRef(new Set());
   if (panelOpen && companion.open) shown.current.add(companionView);
+  if (panelOpen && panelTab === 'progress') shown.current.add('progress'); // Progress mounts on its first show, then stays
   useEffect(() => { if (openViewer) companion.show(openViewer); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // An invisible selection never rides a later question (brief section 6): closing the column on a wide layout (not Hide
   // right panel, which hides Chat too and restores both), or leaving this canvas, clears the repository's temporary graph and Files selection; pinned chips stay with
@@ -2391,29 +2391,30 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         Context (Sources: Materials and the reader), Files and Graph, one view at a time; every view and every Chat tab stays
         mounted while hidden, so the draft, the reader's page and the graph survive a switch or a hide. Below lg one column
         shows at a time: the companion in Chat's place, with Back to chat. */}
-    <ResizableSidePanel aria-label={companionView === 'progress' ? 'Progress' : 'Viewer'} data-companion phoneHeight="max-lg:h-[60%] max-lg:min-h-[28rem]" resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
-      {companionView !== 'progress' && <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />}
-      {/* Progress keeps its viewed goal and open skill while closed (mounted once shown, as Files and Graph are). */}
-      {shown.current.has('progress') && <div className={`${companionView === 'progress' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
-        <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} chat={chat} journey={journey} onClose={() => { companion.close(); requestAnimationFrame(() => document.querySelector('[data-chat-progress]')?.focus()); }} /></div>}
+    <ResizableSidePanel aria-label="Viewer" data-companion phoneHeight="max-lg:h-[60%] max-lg:min-h-[28rem]" resizeLabel="Resize viewer" defaultWidth={360} storageKey="rh.companion.width" collapsed={!panelOpen || !companion.open} reserve={panelOpen ? chatWidth : 0} onWidth={setCompanionWidth} onClickCapture={openPaperReference}>
+      <CompanionHeader views={companionViews} view={companionView} onView={view => companion.show(view)} onClose={companion.close} />
       <div role="tabpanel" aria-label="Context" data-context-panel className={`${companionView === 'context' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}><SourcesPane onSwitchOff={ref => { releaseCodeRef(repository, ref); if (askTarget?.ref && sameRef(askTarget.ref, ref)) clearAskTarget(); }} /></div>
       {/* The repository's Files (RepositoryPage's reader): click a file, select lines, Ask - the question waits in the chat. */}
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
     <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
-      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open && companionView !== 'progress', onToggle: companion.toggle }} progress={{ open: panels.progress.open, onToggle: panels.progress.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
+      <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open, onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />
       {panelTab === 'comments' && searchThread?.scope === searchScope && <button type="button" data-search-return onClick={() => setPanelTab('find')} className="mb-2 self-start rounded px-2 py-1 text-xs text-ink-2 hover:bg-hover">Back to Search</button>}
       {comments.active && <CommentsPanel hidden={panelTab !== 'comments'} {...comments.panelProps} />}
+      {/* Progress (owner 2026-10-22: a tab here, no column beside Chat) keeps its viewed goal, open skill and goal drafts while
+          another tab shows. Its Close and Escape go back to Chat. */}
+      {shown.current.has('progress') && <div role="tabpanel" aria-label="Progress" data-progress-tab className={`${panelTab === 'progress' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>
+        <LearnProgress scope={{ app: chat.canvas, board: boardName }} coaching={chat.coaching} composer={chat.composer} chat={chat} journey={journey} onClose={() => { setPanelTab('chat'); requestAnimationFrame(() => document.querySelector('[data-panel-tab="chat"]')?.focus()); }} /></div>}
       {/* The Table of contents tab: the outline, and under it any open reader, as before the header. */}
       <div role="tabpanel" aria-label="Table of contents" className={`${panelTab === 'toc' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}
         ref={tocPanel} onScrollCapture={event => { if (event.target.matches?.('[data-toc]')) tocScroll.current = event.target.scrollTop; }}>
       {/* The table of contents IS the lesson's structure (TableOfContents.jsx). Its scroll container's sizing is the page's. */}
       <TableOfContents subtitle={project?.repo || app.repo || (project ? cardModel(project).title : null)} goal={tocGoal} outline={canvasOutline} canvasApi={canvasApi} proposal={proposal} onProposal={setProposal} activeId={canvasState.activeSection ?? null} readOnly={!canEditCanvas} onShow={id => { setPanelOpen(true); canvasApi.current?.showSection(id); }}
         plan={tocPlan} planRevision={planRevision} evidence={journeyGoal ? { app: chat.canvas, board: boardName, goalId: journeyGoal.goalId, revision: coachingState?.revision } : null}
-        onProgress={() => companion.show('progress')} onResume={tocPlan.learningNow ? resumeFromToc : null}
+        onProgress={panels.openProgress} onResume={tocPlan.learningNow ? resumeFromToc : null}
         className={`mb-3 flex ${setupChat ? 'max-h-[45%] shrink-0' : 'min-h-0'} flex-col overflow-y-auto`} />
       {setupChat && <CourseInterview state={course} app={app} sectionEditor={suppliedCourse ? sectionEditor : null} />}
       <div className={`${setupChat ? 'hidden' : 'flex'} shrink-0 flex-col`}>

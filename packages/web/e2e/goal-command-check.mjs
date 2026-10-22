@@ -40,7 +40,7 @@ await context.route('**/api/**', route => {
 const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message));
 
-const total = 12;
+const total = 13;
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async (name, target = page) => { if (SHOTS) await target.screenshot({ path: `${SHOTS}/${name}.png` }); };
@@ -52,16 +52,39 @@ const pill = (p = page) => chatPane(p).locator('[data-chat-composer] [data-comma
 const manager = (p = page) => p.locator('[data-goal-manager]');
 const item = (label, p = page) => manager(p).locator('[data-goal-item]').filter({ hasText: label });
 const newGoal = (p = page) => manager(p).locator('[data-goal-new]');
+const progressPane = (p = page) => p.locator('[data-progress-pane]');
+const title = (p = page) => p.locator('#progress-title');
 const open = async (p = page) => { await p.goto(`${BASE}/apps/${canvas.name}`); await chatPane(p).waitFor({ state: 'visible', timeout: 60000 }); await field(p).waitFor({ timeout: 30000 }); };
 const send = async (text, p = page) => { await field(p).click(); await field(p).fill(text); await field(p).press('Enter'); };
 // A bare /goal: Enter on the open picker makes the Goal pill, and Enter again runs it.
 const goalCommand = async (p = page) => { await field(p).click(); await field(p).fill('/goal'); await field(p).press('Enter'); await pill(p).waitFor(); await field(p).press('Enter'); };
 
+// Add goal is the house primary Button (ui.jsx variant primary): the accent blue with white text in both themes, a darker hover,
+// a visible keyboard focus ring. Its white-on-blue contrast is measured and printed; the check holds the WCAG 1.4.11 3:1
+// floor for a control (the house primary text is 3.9:1, under the 4.5:1 for small text: reported to the owner, 2026-10-22).
+const primaryLooks = async () => {
+  const add = manager().locator('[data-goal-add-save]');
+  await newGoal().focus();
+  await page.keyboard.press('Tab'); // the outcome field
+  await page.keyboard.press('Tab'); // Add goal, by keyboard: focus-visible
+  assert.equal(await add.evaluate(node => node === document.activeElement), true, 'Add goal is next in the Tab order');
+  const [bg, fg, outline] = await add.evaluate(node => [getComputedStyle(node).backgroundColor, getComputedStyle(node).color, getComputedStyle(node).outlineStyle]);
+  assert.deepEqual([bg, fg], ['rgb(35, 131, 226)', 'rgb(255, 255, 255)'], 'the accent blue with white text');
+  assert.notEqual(outline, 'none', 'a visible focus ring');
+  const ratio = await page.evaluate(([a, b]) => { const lum = c => { const [r, g, bl] = c.match(/\d+/g).slice(0, 3).map(n => { n /= 255; return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * bl; }; const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); }, [fg, bg]);
+  console.log(`primary button contrast ${ratio.toFixed(2)}:1`);
+  assert.ok(ratio >= 3, `contrast ${ratio.toFixed(2)}:1`);
+  await add.hover();
+  await until(async () => (await add.evaluate(node => getComputedStyle(node).backgroundColor)) === 'rgb(27, 111, 194)', 'the hover blue');
+  await page.mouse.move(0, 0);
+};
+
 await check('typed /goal <words> opens goal management with the words in a new goal, not saved; the composer is cleared', async () => {
   await open();
   await send('/goal read a balance sheet with confidence');
   await manager().waitFor({ timeout: 15000 });
-  assert.equal(await newGoal().inputValue(), 'read a balance sheet with confidence');
+  // The words land in a passive effect after the manager mounts (GoalManager.jsx seed), so wait for them, as step 3 does.
+  await until(async () => (await newGoal().inputValue()) === 'read a balance sheet with confidence', 'the words fill the new goal field');
   await until(async () => (await page.evaluate(() => document.activeElement?.id)) === 'goal-new', 'focus in the new goal field');
   assert.equal(listed(await coachingOf()).length, 0, 'not auto-saved');
   assert.equal(await field().inputValue(), '');
@@ -96,7 +119,8 @@ await check('the picked pill with words, sent, opens the same goal management wi
   assert.equal(listed(await coachingOf()).length, 0, 'still nothing saved');
 });
 
-await check('add two goals (button, then Enter); each is saved and the newest is current', async () => {
+await check('add two goals (button, then Enter); each is saved and the newest is current; Add goal is the blue primary button', async () => {
+  await primaryLooks();
   await manager().locator('[data-goal-add-save]').click();
   await item('learn chess openings').waitFor();
   await newGoal().fill('Read a balance sheet');
@@ -144,11 +168,58 @@ await check('switch the current goal; Progress shows it as current at once', asy
   await until(async () => (await item('Chess: the Italian opening').getAttribute('data-goal-current')) === 'true', 'the chess goal is current');
   const state = await coachingOf();
   assert.equal(listed(state).find(goal => goal.goalId === state.activeGoalId).label, 'Chess: the Italian opening');
-  await manager().locator('[data-goal-done]').click();
+  // Owner 2026-10-22: the panel header names the view; Back (in place of Done) returns to the overview.
+  assert.equal(await title().innerText(), 'Progress: Learning Goals');
+  assert.equal(await page.getByText('Your learning goals', { exact: true }).count(), 0, 'no second heading');
+  await manager().locator('[data-goal-back]').click();
   await page.locator('[data-progress-goal]').waitFor();
+  assert.equal(await title().innerText(), 'Progress');
   assert.match(await page.locator('[data-progress-goal] option:checked').innerText(), /Chess: the Italian opening \(current\)/);
+  // One current indicator: the selector's "(current)"; no "Your current goal" line under it.
+  assert.equal(await progressPane().getByText('Your current goal', { exact: true }).count(), 0);
+  // A goal with no skills says so, never "0 of 0" over an empty "Your skills".
+  await progressPane().locator('[data-progress-no-skills]').waitFor({ timeout: 15000 });
+  assert.match(await progressPane().locator('[data-progress-no-skills]').innerText(), /^No skills tracked yet\n/);
+  assert.equal(await progressPane().locator('[data-progress-count]').count(), 0, 'no count');
+  assert.equal(await progressPane().getByText('Your skills', { exact: true }).count(), 0, 'no empty skills section');
   await page.locator('[data-progress-manage]').click();
   await manager().waitFor();
+});
+
+await check('Back returns to the overview and Close leaves Progress; neither saves nor discards the add and edit drafts, which also survive the Chat tab', async () => {
+  const before = listed(await coachingOf()).map(goal => goal.label);
+  await newGoal().fill('Draft goal, unsaved');
+  await manager().locator('[data-goal-new-outcome]').fill('Explain it to a friend');
+  await item('Balance sheets, my words').locator('[data-goal-edit]').click();
+  await manager().locator('[data-goal-edit-label]').fill('Balance sheets, draft edit');
+  const drafts = async () => [await newGoal().inputValue(), await manager().locator('[data-goal-new-outcome]').inputValue(), await manager().locator('[data-goal-edit-label]').inputValue()];
+  const DRAFTS = ['Draft goal, unsaved', 'Explain it to a friend', 'Balance sheets, draft edit'];
+  // Back by keyboard: the first control under the header, after Close in the Tab order; focus returns to the heading.
+  await progressPane().locator('[data-progress-close]').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-goal-back')), true, 'Tab from Close reaches Back');
+  const [backBox, titleBox] = [await manager().locator('[data-goal-back]').boundingBox(), await title().boundingBox()];
+  assert.ok(backBox.y >= titleBox.y + titleBox.height - 1 && Math.abs(backBox.x - titleBox.x) <= 12, `Back sits left-aligned below the header (${JSON.stringify([backBox, titleBox])})`);
+  await page.keyboard.press('Enter');
+  await page.locator('[data-progress-goal]').waitFor();
+  await until(async () => (await page.evaluate(() => document.activeElement?.id)) === 'progress-title', 'focus on the Progress heading after Back');
+  await page.locator('[data-progress-manage]').click();
+  await manager().waitFor();
+  assert.deepEqual(await drafts(), DRAFTS, 'Back kept both drafts');
+  await progressPane().locator('[data-progress-close]').click();
+  await chatPane().waitFor({ state: 'visible' });
+  assert.equal(await page.locator('[data-panel-tab="chat"]').getAttribute('aria-selected'), 'true', 'Close goes back to Chat');
+  await page.locator('[data-panel-tab="progress"]').click();
+  await manager().waitFor();
+  assert.equal(await title().innerText(), 'Progress: Learning Goals', 'reopens where it was');
+  assert.deepEqual(await drafts(), DRAFTS, 'Close kept both drafts');
+  await page.locator('[data-panel-tab="chat"]').click();
+  await page.locator('[data-panel-tab="progress"]').click();
+  assert.deepEqual(await drafts(), DRAFTS, 'a tab switch kept both drafts');
+  assert.deepEqual(listed(await coachingOf()).map(goal => goal.label), before, 'nothing saved or discarded');
+  await manager().locator('[data-goal-edit-label]').press('Escape');
+  await newGoal().fill('');
+  await manager().locator('[data-goal-new-outcome]').fill('');
 });
 
 await check('delete an inactive goal with the inline confirmation (Cancel first); the current goal stays', async () => {
@@ -189,7 +260,7 @@ await check('Set a goal in an empty Progress opens the same goal management, foc
   await item('Balance sheets, my words').locator('[data-goal-delete]').click();
   await item('Balance sheets, my words').locator('[data-goal-confirm-delete]').click();
   await manager().locator('[data-goal-empty]').waitFor();
-  await manager().locator('[data-goal-done]').click();
+  await manager().locator('[data-goal-back]').click();
   await page.locator('[data-progress-empty]').waitFor();
   await page.locator('[data-progress-set-goal]').click();
   await manager().waitFor();
@@ -198,7 +269,7 @@ await check('Set a goal in an empty Progress opens the same goal management, foc
   await shot('goal-02-set-a-goal-light');
 });
 
-await check('dark theme: goal management renders with the dark tokens', async () => {
+await check('dark theme: goal management renders with the dark tokens; Add goal stays blue with white text', async () => {
   await page.evaluate(() => localStorage.setItem('small.theme', 'dark'));
   await open();
   await send('/goal practise mental arithmetic');
@@ -206,13 +277,14 @@ await check('dark theme: goal management renders with the dark tokens', async ()
   assert.equal(await page.evaluate(() => document.documentElement.classList.contains('dark')), true);
   const [fg, bg] = await newGoal().evaluate(node => [getComputedStyle(node).color, getComputedStyle(node).backgroundColor]);
   assert.notEqual(fg, bg, 'readable field');
+  await primaryLooks();
   await manager().locator('[data-goal-add-save]').click();
   await item('practise mental arithmetic').waitFor();
   await shot('goal-03-dark');
   await page.evaluate(() => localStorage.setItem('small.theme', 'light'));
 });
 
-await check('narrow screen: /goal shows goal management at full width with no sideways scroll; Done returns to Progress', async () => {
+await check('narrow screen: /goal shows goal management at full width with no sideways scroll; Back returns to Progress', async () => {
   const phone = await context.newPage();
   phone.on('pageerror', error => errors.push(error.message));
   await phone.setViewportSize({ width: 390, height: 844 });
@@ -224,8 +296,12 @@ await check('narrow screen: /goal shows goal management at full width with no si
   assert.equal(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'no sideways scroll');
   assert.equal(await chatPane(phone).isVisible(), false, 'Progress takes the column');
   await item('practise mental arithmetic', phone).waitFor();
+  for (const control of ['[data-goal-back]', '[data-goal-add-save]', '[data-goal-new-outcome]']) {
+    const box = await manager(phone).locator(control).boundingBox();
+    assert.ok(box && box.x >= 0 && box.x + box.width <= 390 + 1, `${control} inside the screen`);
+  }
   await shot('goal-04-narrow-light', phone);
-  await manager(phone).locator('[data-goal-done]').click();
+  await manager(phone).locator('[data-goal-back]').click();
   await phone.locator('[data-progress-goal]').waitFor();
   await phone.close();
 });

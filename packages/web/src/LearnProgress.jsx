@@ -1,5 +1,5 @@
-// The Progress pane (C:/s/spec/tutor-workflow/draft.md Task 09, "Progress UI and access"): the companion column left of
-// Chat (chat-panels.js view 'progress'), opened from the Chat header's Progress icon. One goal, a plain count, the skill
+// The Progress pane (C:/s/spec/tutor-workflow/draft.md Task 09, "Progress UI and access"): the right panel's Progress tab
+// (owner 2026-10-22; chat-panels.js openProgress). One goal, a plain count, the skill
 // list, one next step, Why this status and More about this skill in place. Read only: viewing another goal never switches
 // the active one (Resume this goal does, as its own action), and nothing here calls a model or assesses anything.
 import { useEffect, useRef, useState } from 'react';
@@ -20,10 +20,10 @@ const day = iso => { const d = new Date(iso); return Number.isNaN(d.getTime()) ?
 const judged = criterion => criterion?.evidence?.filter(e => e.validity === 'valid').at(-1) ?? null;
 
 // scope { app, board }; coaching: the workspace's controls (use-learn-coaching.jsx); composer: the Chat draft (prepare and
-// focus never send); onClose: closes the column (focus goes back to the Progress icon). chat and journey (Task 07): the Chat
+// focus never send); onClose: leaves Progress for Chat (the page moves focus to the Chat tab). chat and journey (Task 07): the Chat
 // workspace and useJourney's view, for the next step when the read model names none (TutorActivity.jsx NextActivity).
-// The viewed goal and open skill outlive the pane, per canvas: below lg a closed column unmounts (ResizableSidePanel), and
-// Close or Ask tutor about this must reopen on the same selection (draft "Progress UI and access"; Task 10 step 2).
+// The viewed goal and open skill outlive the pane, per canvas: the page keeps it mounted while another tab shows, and Close or
+// Ask tutor about this must reopen on the same selection (draft "Progress UI and access"; Task 10 step 2).
 const kept = new Map();
 export default function LearnProgress({ scope, coaching, composer, onClose, chat = null, journey = null }) {
   const keep = `${scope.app}\n${scope.board}`;
@@ -53,7 +53,6 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
   };
   // Read on open, on another viewed goal, and when the saved state moves on (an assessment landed, a goal changed elsewhere).
   useEffect(read, [goalId, state?.revision, scope.app, scope.board]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { heading.current?.focus(); }, []);
   // A review filed at Send (ask.jsx fileReviews) changes what this goal shows: read it again.
   const reread = useRef(read);
   reread.current = read;
@@ -74,18 +73,18 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
   return (
     <section aria-labelledby="progress-title" data-progress-pane={model.state} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); } }}
       className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4">
-        <h2 id="progress-title" ref={heading} tabIndex={-1} className="min-w-0 flex-1 text-sm font-semibold text-ink outline-none">Progress</h2>
+      <div className="flex shrink-0 items-center gap-2 pb-1">
+        <h2 id="progress-title" ref={heading} tabIndex={-1} className="min-w-0 flex-1 text-sm font-semibold text-ink outline-none">{managing ? 'Progress: Learning Goals' : 'Progress'}</h2>
         <button type="button" data-progress-close onClick={onClose} aria-label="Close Progress" title="Close Progress"
           className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-2 hover:bg-hover hover:text-ink"><X size={15} strokeWidth={1.8} aria-hidden /></button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto pt-2 pb-4">
         {!managing && model.state === 'no_goal' && <div data-progress-empty className="flex flex-col items-start gap-3">
           <p className="text-sm text-ink">No learning goal set yet.</p>
           <p className="text-sm text-ink-2">Tell the Tutor what you want to learn, and your progress on it shows here. Ordinary chat works as always.</p>
           <button type="button" data-progress-set-goal onClick={setGoal} className={`${BUTTON} bg-ink text-white`}>Set a goal</button>
         </div>}
-        {managing && <GoalManager scope={scope} coaching={coaching} chat={chat} seed={request} onDone={() => { setManaging(false); requestAnimationFrame(() => heading.current?.focus()); }} />}
+        {managing && <GoalManager scope={scope} coaching={coaching} chat={chat} seed={request} titleRef={heading} onBack={() => { setManaging(false); requestAnimationFrame(() => heading.current?.focus()); }} />}
         {!managing && model.state !== 'no_goal' && <>
           <div className="flex items-center gap-2">
             <label className="block min-w-0 flex-1 text-xs font-medium tracking-wide text-ink-2 uppercase" htmlFor="progress-goal">Learning goal</label>
@@ -100,22 +99,26 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
               <span>You are viewing this goal. Your current goal is {model.active.label}.</span>
               <button type="button" data-progress-resume disabled={resuming} onClick={resume} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline disabled:opacity-50">Resume this goal</button>
             </div>
-            : <p className="mt-2 text-xs text-ink-2">{model.active ? 'Your current goal' : 'Not your current goal'}</p>}
+            : !model.active && <p className="mt-2 text-xs text-ink-2">Not your current goal</p>}
         </>}
         {!managing && model.state === 'loading' && <p role="status" data-progress-loading className="mt-4 text-sm text-ink-2">Loading your progress</p>}
         {!managing && model.state === 'error' && <p role="alert" data-progress-error className="mt-4 flex flex-wrap items-center gap-2 text-sm text-fail">Your progress could not be loaded. Nothing has been lost.
           <button type="button" onClick={read} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
+        {!managing && model.state === 'ready' && model.total === 0 && <div data-progress-no-skills className="mt-4">
+          <p className="text-sm font-semibold text-ink">No skills tracked yet</p>
+          <p className="mt-1 text-sm text-ink-2">Skills for this goal show here once you and the Tutor agree what it covers. Your answers then count toward them.</p>
+        </div>}
         {!managing && model.state === 'ready' && <>
-          <div data-progress-count className="mt-4">
+          {model.total > 0 && <div data-progress-count className="mt-4">
             <p className="text-ink"><span className="text-3xl font-semibold">{model.count}</span> <span className="text-sm text-ink-2">of {model.total}</span></p>
             <p className="text-sm text-ink-2">skills demonstrated independently</p>
-            {model.total > 0 && <div aria-hidden="true" className="mt-2 flex gap-1">{model.rows.map((row, i) => <span key={row.criterionId} className={`h-1.5 flex-1 rounded-full ${i < model.count ? 'bg-pass' : 'bg-active'}`} />)}</div>}
-          </div>
+            <div aria-hidden="true" className="mt-2 flex gap-1">{model.rows.map((row, i) => <span key={row.criterionId} className={`h-1.5 flex-1 rounded-full ${i < model.count ? 'bg-pass' : 'bg-active'}`} />)}</div>
+          </div>}
           {model.failed && <p role="alert" className="mt-2 text-xs text-fail">Could not refresh; this is your last saved progress. <button type="button" onClick={read} className="cursor-pointer font-medium text-ink underline-offset-2 hover:underline">Retry</button></p>}
           {model.pending > 0 && <p role="status" data-progress-pending className="mt-2 text-xs text-ink-2">Feedback pending on {model.pending} answer{model.pending === 1 ? '' : 's'}. These counts are your last confirmed ones.</p>}
           {model.unavailable > 0 && <p role="status" data-progress-unavailable className="mt-2 text-xs text-ink-2">Assessment unavailable for {model.unavailable} answer{model.unavailable === 1 ? '' : 's'}; they are not counted.</p>}
-          <h3 className="mt-5 text-sm font-semibold text-ink">Your skills</h3>
-          <ul className="mt-1 divide-y divide-line border-b border-line">
+          {model.total > 0 && <h3 className="mt-5 text-sm font-semibold text-ink">Your skills</h3>}
+          {model.total > 0 && <ul className="mt-1 divide-y divide-line border-b border-line">
             {model.rows.map(row => { const Icon = ICON[row.status], open = expanded === row.criterionId; return (
               <li key={row.criterionId} data-progress-skill={row.status}>
                 <button type="button" aria-expanded={open} onClick={() => setExpanded(open ? null : row.criterionId)} className="flex w-full cursor-pointer items-start gap-2.5 py-3 text-left">
@@ -146,7 +149,7 @@ export default function LearnProgress({ scope, coaching, composer, onClose, chat
                 </div>}
               </li>
             ); })}
-          </ul>
+          </ul>}
           {!model.nextAction && chat && model.active && !model.viewingOther && <NextActivity chat={chat} board={scope.board} goal={model.viewed} view={load.view} journey={journey} onClose={onClose} />}
           {model.nextAction && <div data-progress-next className="mt-4 rounded-xl bg-hover p-3">
             <p className="text-sm font-semibold text-ink">Next step</p>
