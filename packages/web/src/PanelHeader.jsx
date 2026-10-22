@@ -33,9 +33,11 @@ const OFF_TITLE = 'Comments are on saved canvases';
 // progress (Tutor Task 09; owner 2026-10-21: in this header next to Comments): { open, onToggle } opens the companion column on
 // Progress; a pressed toggle right after the tablist (so after Comments, shown or not), never a tab.
 export const companionLabel = views => (views.length > 1 ? `${views.slice(0, -1).map(view => view.label).join(', ')} and ${views.at(-1).label}` : views[0]?.label || 'Context');
-export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null, progress = null }) {
+// tabs: the tab ids this canvas offers (a shared canvas's Chat only where it has one); onPin null: no Pin (a shared canvas).
+export default function PanelHeader({ tab, onTab, pinned, onPin = null, onClose, commentsOn = false, commentsUnread = 0, tocPending = 0, companion = null, progress = null, tabs = null }) {
   const off = id => id === 'comments' && !commentsOn;
-  const ENABLED = PANEL_TABS.filter(entry => !off(entry.id)).map(entry => entry.id);
+  const shown = tabs ? PANEL_TABS.filter(entry => tabs.includes(entry.id)) : PANEL_TABS;
+  const ENABLED = shown.filter(entry => !off(entry.id)).map(entry => entry.id);
   // Arrow keys move between the enabled tabs and select as they go (the WAI-ARIA tabs pattern).
   const arrow = event => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
@@ -49,7 +51,7 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
       {/* Too many tabs for a narrow panel: the row scrolls sideways (no bar; a focused tab scrolls into view), never squeezed. */}
       <div className="flex min-w-0 items-center gap-0.5">
       <div role="tablist" aria-label="Panel views" onKeyDown={arrow} className="flex min-w-0 items-center gap-0.5 overflow-x-auto p-0.5 [scrollbar-width:none]">
-        {PANEL_TABS.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label, pending = id === 'toc' && tocPending > 0; return (
+        {shown.map(({ id, label, Icon }) => { const disabled = off(id), title = disabled ? OFF_TITLE : label, pending = id === 'toc' && tocPending > 0; return (
           <button key={id} type="button" role="tab" data-panel-tab={id} aria-label={pending ? `${label}, ${tocPending} proposal${tocPending === 1 ? '' : 's'} to review` : label} title={title}
             aria-selected={tab === id} aria-disabled={disabled || undefined} tabIndex={tab === id ? 0 : -1}
             onClick={disabled ? undefined : () => onTab(id, true)}
@@ -68,9 +70,9 @@ export default function PanelHeader({ tab, onTab, pinned, onPin, onClose, commen
           <button type="button" data-panel-companion aria-label={name} title={name} aria-pressed={companion.open} onClick={companion.onToggle}
             className={`flex h-8 w-[30px] items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${companion.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}><PanelLeft size={16} strokeWidth={1.8} aria-hidden /></button>
         ); })()}
-        <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}
+        {onPin && <button type="button" data-panel-pin aria-label="Keep sidebar open" title="Keep sidebar open" aria-pressed={pinned} onClick={() => onPin(!pinned)}
           className={`flex h-8 w-[30px] items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${pinned ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-          <Pin size={16} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>
+          <Pin size={16} strokeWidth={1.8} fill={pinned ? 'currentColor' : 'none'} aria-hidden /></button>}
         <button type="button" data-panel-close aria-label="Close sidebar" title="Close sidebar" onClick={onClose}
           className="flex h-8 w-[30px] items-center justify-center rounded-md text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><X size={16} strokeWidth={1.8} aria-hidden /></button>
       </div>

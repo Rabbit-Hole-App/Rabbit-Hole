@@ -15,6 +15,7 @@ const LEARNER = {
   code: ['draft'],
   flashcards: ['marks'],
   paper: ['highlights'],
+  heading: ['done'], // the creator's own section ticks (the Table of contents' checkboxes)
 };
 const EVERY_CARD = ['attemptLog', 'activityAnswer', 'activityOpen'];
 

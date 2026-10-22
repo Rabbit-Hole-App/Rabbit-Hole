@@ -7,7 +7,7 @@ import { explainClient, explainDisabled, explainEditing, explainEditProblem, exp
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Scissors, Pipette, PaintRoller, LockOpen, BringToFront, SendToBack, ArrowUp, ArrowDown, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical, AlignVerticalSpaceBetween, BoxSelect, Check, ChevronLeft, ChevronRight, ClipboardPaste, House, Copy, CopyPlus, FileText, Group, Keyboard, SquareSlash, Ungroup, Upload, Grid3x3, Heading1, Heading2, Heading3, SeparatorHorizontal, StickyNote, Type, Lock, Map as MapIcon, Maximize2, PanelRightClose, PanelRightOpen, Pause, Play, Redo2, RotateCcw, Share2, Trash2, NotebookPen, Undo2, ZoomIn, ZoomOut, Wand } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, House, Upload, Type, PanelRightClose, PanelRightOpen, Pause, Play, Share2, NotebookPen } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
@@ -28,6 +28,7 @@ import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx
 import LearnOutline from './LearnOutline.jsx';
 import ContentsRail, { canvasEmpty } from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
+import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
 import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
@@ -75,7 +76,7 @@ import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-wo
 import { effectiveControls } from './learn-coaching-client.js';
 import { canCoach, mayRun } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, ArrowUpToLine, RotateCw, Link2, MonitorPlay, ScrollText, Globe, Network, Lightbulb } from 'lucide-react';
+import { MessageCircle, RotateCw, Link2, MonitorPlay, ScrollText, Globe } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -2094,13 +2095,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     {
       title: 'Insert',
       items: [
-        { label: 'Section', icon: Heading1, size: 19, weight: 650, onSelect: () => canvas()?.insertHeading(1) },
-        { label: 'Sub-section', icon: Heading2, size: 16, weight: 600, onSelect: () => canvas()?.insertHeading(2) },
-        { label: 'Sub-sub-section', icon: Heading3, size: 14, weight: 550, onSelect: () => canvas()?.insertHeading(3) },
-        { divider: true },
-        { label: 'Text box', icon: Type, onSelect: () => canvas()?.insertText() },
-        { label: 'Sticky note', icon: StickyNote, onSelect: () => canvas()?.insertSticky() },
-        { label: 'Divider line', icon: SeparatorHorizontal, onSelect: () => canvas()?.insertDivider() },
+        ...localInsertItems(canvas),
         { divider: true },
         { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
         // The one way to add a file besides dropping it on the canvas.
@@ -2113,78 +2108,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         { label: 'Link to canvas', icon: Link2, onSelect: () => setRefPick({}) },
       ],
     },
-    {
-      title: 'Edit',
-      items: [
-        { label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') },
-        { divider: true },
-        { label: 'Undo', icon: Undo2, hint: 'Ctrl Z', onSelect: () => canvas()?.undo() },
-        { label: 'Redo', icon: Redo2, hint: 'Ctrl Y', onSelect: () => canvas()?.redo() },
-        { divider: true },
-        { label: 'Cut', icon: Scissors, hint: 'Ctrl X', disabled: !canvasState.selected, onSelect: () => canvas()?.cut() },
-        { label: 'Copy', icon: Copy, hint: 'Ctrl C', disabled: !canvasState.selected, onSelect: () => canvas()?.copy() },
-        { label: 'Paste', icon: ClipboardPaste, hint: 'Ctrl V', disabled: !canvasState.canPaste, onSelect: () => canvas()?.paste() },
-        { label: 'Duplicate', icon: CopyPlus, hint: 'Ctrl D', disabled: !canvasState.selected, onSelect: () => canvas()?.duplicate() },
-        { label: 'Copy style', icon: Pipette, hint: 'Ctrl Alt C', disabled: !canvasState.selected, onSelect: () => canvas()?.copyStyle() },
-        { label: 'Paste style', icon: PaintRoller, hint: 'Ctrl Alt V', disabled: !canvasState.selected || !canvasState.canPasteStyle, onSelect: () => canvas()?.pasteStyle() },
-        { label: canvasState.selectionLocked ? 'Unlock' : 'Lock', icon: canvasState.selectionLocked ? LockOpen : Lock, hint: 'Ctrl Shift L', disabled: !canvasState.selected, onSelect: () => canvas()?.lockSelection() },
-        { divider: true },
-        { label: 'Group', icon: Group, hint: 'Ctrl G', disabled: canvasState.selected < 2, onSelect: () => canvas()?.group() },
-        { label: 'Ungroup', icon: Ungroup, hint: 'Ctrl Shift G', disabled: !canvasState.grouped, onSelect: () => canvas()?.ungroup() },
-        { divider: true },
-        { label: 'Select all', icon: BoxSelect, hint: 'Ctrl A', onSelect: () => canvas()?.selectAll() },
-        { label: 'Delete selection', icon: Trash2, hint: 'Del', disabled: !canvasState.selected, onSelect: () => canvas()?.deleteSelection() },
-      ],
-    },
-    {
-      // Lines up what is selected; a group counts as one piece.
-      title: 'Arrange',
-      items: [
-        { label: 'Align left', icon: AlignStartVertical, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('left') },
-        { label: 'Align center', icon: AlignCenterVertical, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('center') },
-        { label: 'Align right', icon: AlignEndVertical, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('right') },
-        { divider: true },
-        { label: 'Align top', icon: AlignStartHorizontal, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('top') },
-        { label: 'Align middle', icon: AlignCenterHorizontal, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('middle') },
-        { label: 'Align bottom', icon: AlignEndHorizontal, disabled: canvasState.units < 2, onSelect: () => canvas()?.arrange('bottom') },
-        { divider: true },
-        { label: 'Distribute horizontally', icon: AlignHorizontalSpaceBetween, disabled: canvasState.units < 3, onSelect: () => canvas()?.arrange('spread-x') },
-        { label: 'Distribute vertically', icon: AlignVerticalSpaceBetween, disabled: canvasState.units < 3, onSelect: () => canvas()?.arrange('spread-y') },
-        { divider: true },
-        { label: 'Bring to front', icon: BringToFront, hint: 'Ctrl Shift ]', disabled: !canvasState.selected, onSelect: () => canvas()?.order('front') },
-        { label: 'Bring forward', icon: ArrowUp, hint: 'Ctrl ]', disabled: !canvasState.selected, onSelect: () => canvas()?.order('forward') },
-        { label: 'Send backward', icon: ArrowDown, hint: 'Ctrl [', disabled: !canvasState.selected, onSelect: () => canvas()?.order('backward') },
-        { label: 'Send to back', icon: SendToBack, hint: 'Ctrl Shift [', disabled: !canvasState.selected, onSelect: () => canvas()?.order('back') },
-      ],
-    },
-    {
-      title: 'View',
-      items: [
-        { label: 'Zoom in', icon: ZoomIn, hint: 'Ctrl +', onSelect: () => canvas()?.zoomIn() },
-        { label: 'Zoom out', icon: ZoomOut, hint: 'Ctrl -', onSelect: () => canvas()?.zoomOut() },
-        { label: 'Zoom to 100%', icon: RotateCcw, hint: 'Shift 0', onSelect: () => canvas()?.zoomReset() },
-        { label: 'Zoom to fit', icon: Maximize2, hint: 'Shift 1', onSelect: () => canvas()?.zoomFit() },
-        { divider: true },
-        // Owner brief 2026-10-21 item 3: three identical switch rows, on by default and remembered on this device (ui-prefs.js).
-        // Off hides the widget and frees its room; Curious on still shows only what Tutor allows (it never asks for a set).
-        { label: 'Minimap', icon: MapIcon, toggle: canvasState.minimap, onToggle: on => canvas()?.showWidget('minimap', on) },
-        { label: 'Rabbit Hole Map', icon: Network, toggle: canvasState.holeMap, onToggle: on => canvas()?.showWidget('holeMap', on) },
-        { label: 'Curious', icon: Lightbulb, toggle: canvasState.curious, onToggle: on => canvas()?.showWidget('curious', on) },
-        { divider: true },
-        { label: 'Snap to grid', icon: Grid3x3, checked: canvasState.grid, onSelect: () => canvas()?.toggleGrid() },
-        { label: 'Page guides', icon: FileText, choice: { value: canvasState.pages || 'off', options: [['off', 'Off'], ['portrait', 'A4 portrait'], ['landscape', 'A4 landscape']], onChange: value => canvas()?.setPages(value === 'off' ? false : value) } },
-        ...(comments.active ? [{ label: 'Comments', icon: MessageCircle, toggle: comments.showPins, onToggle: comments.setPins }] : []),
-        { label: 'Keep tool active', icon: Lock, checked: canvasState.lock, onSelect: () => canvas()?.toggleLock() },
-        { divider: true },
-        // The canvas's document (docs/features/blocknote-canvas.md): Editor shows it on the canvas, Canvas hides it (never
-        // clears it); this browser remembers the choice for this canvas. Go to document start shows it and frames its top.
-        { label: 'Mode', icon: NotebookPen, choice: { value: docView, options: [['canvas', 'Canvas'], ['editor', 'Editor']], onChange: setDocView } },
-        { label: 'Go to document start', icon: ArrowUpToLine, onSelect: () => { setDocView('editor'); requestAnimationFrame(() => requestAnimationFrame(() => canvas()?.goToDoc())); } },
-        { divider: true },
-        { label: 'Keyboard shortcuts', icon: Keyboard, hint: '?', onSelect: () => setShortcutsOpen(true) },
-        { label: 'Slash commands', icon: SquareSlash, onSelect: () => setSlashHelpOpen(true) },
-      ],
-    },
+    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true), onSlashHelp: () => setSlashHelpOpen(true) }),
   ];
   const canvasOutline = canvasState.outline || [];
   const outlineDisabled = !editor || answering || !!noteEditing;

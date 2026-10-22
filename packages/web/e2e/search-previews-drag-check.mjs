@@ -240,7 +240,7 @@ check('a view-only shared canvas refuses a drag with a visible reason', async ()
   const previous = page; page = view;
   try {
     await view.goto(`${BASE}/e/${published.publication_token}`); await view.locator('[data-block-id="mover"]').waitFor({ timeout: 60000 });
-    await view.locator('[data-search-button]').click(); await panel().waitFor();
+    await view.locator('[data-panel-tab="find"]').click(); await panel().waitFor();
     await search('mover card');
     assert.equal(await row('object:mover').locator('[data-search-add]').count(), 0);
     const before = await worldBox('mover');

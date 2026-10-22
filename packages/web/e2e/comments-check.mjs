@@ -334,7 +334,7 @@ const visit = async session => {
 
 await check('11 /e signed in as anyone: Add comment on a card posts a Public thread with a pin', async () => {
   const tab = await visit(visitor.session);
-  await tab.locator('[data-comments-button]').waitFor();
+  await tab.locator('[data-comments-header]').waitFor();
   const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
   const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
@@ -354,7 +354,7 @@ await check('11 /e signed in as anyone: Add comment on a card posts a Public thr
 
 await check('12 /e signed out: the public thread reads, and posting is a sign-in link; no Add comment in the menu', async () => {
   const tab = await visit(null);
-  await tab.locator('[data-comments-button]').click();
+  await tab.locator('[data-comments-header]').click();
   const side = tab.locator('[data-shared-comments]');
   await side.locator('[data-comment-thread]').first().click();
   await side.locator('[data-comment-sign-in]').waitFor();
@@ -383,7 +383,7 @@ await check('14 Closed: the published page keeps the thread readable and says co
   const base = `/api/learn/c/${boardId}`;
   assert.equal((await api(`${base}/comment-settings`, { method: 'PUT', body: JSON.stringify({ public_mode: 'closed' }) })).body.public_mode, 'closed');
   const tab = await visit(visitor.session);
-  await tab.locator('[data-comments-button]').click();
+  await tab.locator('[data-comments-header]').click();
   const side = tab.locator('[data-shared-comments]');
   await side.locator('[data-comment-thread]').first().click();
   await side.getByText('Comments are closed. Existing comments stay visible.').waitFor();
@@ -608,7 +608,7 @@ await check('22 a member presses Del on the owner\'s pin: refused, with a line b
   // the click on it opens Comments again.
   await tab.locator('[data-member-comments]').waitFor();
   await pin.waitFor();
-  await tab.locator('[data-comments-button]').click();
+  await tab.locator('[data-comments-header]').click();
   await tab.locator('[data-member-comments]').waitFor({ state: 'detached' });
   await pin.waitFor();
   await pin.click();

@@ -57,7 +57,9 @@ test('Comments selects only on a saved top-level canvas; elsewhere it is aria-di
   assert.match(header, /const off = id => id === 'comments' && !commentsOn;/);
   assert.match(header, /aria-disabled=\{disabled \|\| undefined\}/);
   assert.match(header, /onClick=\{disabled \? undefined : \(\) => onTab\(id, true\)\}/);
-  assert.match(header, /const ENABLED = PANEL_TABS\.filter\(entry => !off\(entry\.id\)\)/);
+  // tabs: the subset a shared canvas offers (SHARE-01); the owner's page passes none, so every tab.
+  assert.match(header, /const shown = tabs \? PANEL_TABS\.filter\(entry => tabs\.includes\(entry\.id\)\) : PANEL_TABS;/);
+  assert.match(header, /const ENABLED = shown\.filter\(entry => !off\(entry\.id\)\)/);
   assert.match(header, /ENABLED\[\(ENABLED\.indexOf\(tab\) \+ \(event\.key === 'ArrowRight' \? 1 : ENABLED\.length - 1\)\) % ENABLED\.length\]/);
   assert.match(page, /<PanelHeader tab=\{panelTab\} commentsOn=\{comments\.active\}/, 'the page decides where Comments is live');
   assert.match(page, /if \(!comments\.active && panelTab === 'comments'\) setPanelTab\('chat'\);/, 'and never leaves it selected where it is not');

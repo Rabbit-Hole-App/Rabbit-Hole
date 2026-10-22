@@ -178,7 +178,8 @@ test('Open in notebook is a compact icon button on every code card, named Open i
 test('the Ctrl+K menu rows read Quick Edit and open in Edit mode', () => {
   const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx');
   assert.match(canvas, /data-menu-inline-ai hint="Ctrl K" disabled=\{!selection\.length\} onClick=\{act\(\(\) => openInline\(performance\.now\(\), false, 'edit'\)\)\}>Quick Edit<\/MenuRow>/);
-  assert.match(page, /\{ label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState\.selected \|\| !inlineAi, onSelect: \(\) => canvas\(\)\?\.inlineAi\?\.\('edit'\) \}/);
+  assert.match(read('./canvas-menus.js'), /\[\{ label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState\.selected \|\| !inlineAi, onSelect: \(\) => canvas\(\)\?\.inlineAi\?\.\('edit'\) \}/);
+  assert.match(page, /canvasEditMenus\(\{ canvas, canvasState, inlineAi, quickEdit: true,/);
   assert.doesNotMatch(canvas + page, /Edit or explain/);
 });
 

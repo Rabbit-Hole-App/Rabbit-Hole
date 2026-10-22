@@ -51,7 +51,7 @@ test('no comment pin without a text comment (owner, 2026-10-13): a thread with n
   const hook = read('./useCanvasComments.js'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), member = read('./MemberBoardPage.jsx');
   assert.match(hook, /pinsOf\(threads, selected, draft, shown\)/);
   assert.match(page, /shown: panelOpen && panelTab === 'comments' \}\);/, 'open, on the Comments tab');
-  for (const source of [shared, member]) assert.match(source, /shown: commentsOpen \}\);/);
+  for (const source of [shared, member]) assert.match(source, /shown: panel\.open && panel\.tab === 'comments' \}\);/, 'the shared shell: open, on the Comments tab');
 });
 
 test('Esc in the New comment panel is Cancel (owner, 2026-10-13): one Cancel path, a menu in it first, the canvas stands down', () => {
@@ -265,7 +265,7 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(page, /link: commentBoard && `\/c\/\$\{commentBoard\}`/, 'members\' links go to /c');
   assert.match(shared, /link: memberBoard \? `\/c\/\$\{memberBoard\}` : `\/e\/\$\{token\}`/, 'public links go to /e, members\' to /c');
   assert.match(member, /window\.location\.replace\(`\/apps\/\$\{read\.body\.canvas\}\$\{window\.location\.search\}`\)/, 'the owner keeps ?thread= on the way home');
-  assert.match(page, /label: 'Comments', icon: MessageCircle, toggle: comments\.showPins, onToggle: comments\.setPins/);
+  assert.match(read('../canvas-menus.js'), /label: 'Comments', icon: MessageCircle, toggle: comments\.showPins, onToggle: comments\.setPins/);
   assert.match(panel, /data-more-threads/);
   assert.match(panel, /data-earlier-replies/);
   assert.match(panel, /data-copy-thread-link/);

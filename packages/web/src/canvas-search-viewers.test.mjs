@@ -7,14 +7,17 @@ test('both read-only viewers expose scoped Search while preserving their comment
   for (const name of ['./SharedBoardPage.jsx', './comments/MemberBoardPage.jsx']) {
     const source = read(name);
     assert.match(source, /<SearchContentProvider key=\{search.scopeKey\} registry=\{search.registry\}>/);
-    assert.match(source, /<CanvasSearchPanel \{\.\.\.search.panel\}/);
-    assert.match(source, /<ResizableSidePanel/);
-    assert.match(source, /<CommentsPanel \{\.\.\.comments.panelProps\}/);
-    assert.match(source, /slashOpensFind\(document.activeElement\)/);
+    // SHARE-01: both mount the one shared shell's right panel (SharedCanvasShell.jsx), which holds Search and Comments.
+    assert.match(source, /<SharedPanel panel=\{panel\} permissions=\{permissions\} search=\{search\}[^\n]*comments=\{comments\}/);
     assert.match(source, /comments.openPin\(result.target.id\)/);
     assert.match(source, /readOnly/);
     assert.doesNotMatch(source, /setSearchOpen.*resolveThread/);
   }
+  const shell = read('./SharedCanvasShell.jsx');
+  assert.match(shell, /<CanvasSearchPanel \{\.\.\.search.panel\}/);
+  assert.match(shell, /<ResizableSidePanel/);
+  assert.match(shell, /<CommentsPanel \{\.\.\.comments.panelProps\}/);
+  assert.match(shell, /slashOpensFind\(document.activeElement\)/);
 });
 test('shared Search reuses the authorized comments family and only existing filtered child portals', () => {
   const source = read('./SharedBoardPage.jsx');

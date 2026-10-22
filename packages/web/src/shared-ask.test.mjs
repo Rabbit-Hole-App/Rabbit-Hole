@@ -34,11 +34,12 @@ test('the conversation is kept per link and per viewer, and only answered pairs 
   assert.ok(!JSON.stringify(history).includes('failed') && !JSON.stringify(history).includes('in flight'));
 });
 
-test('the shared page puts Learn\'s composer shell in the canvas composer slot, with read-only context pills', () => {
-  // readOnly may be followed by onState (the selected card a Rabbit Hole starts from, shared-canvas-rabbit-hole.md) and
-  // onStartRabbitHole (the card right-click menu starts it from the card it was opened on), then the read-only Rabbit
-  // Holes Map (gutterTop, dive-v1.md "Shared map").
-  assert.match(page, /<AdaptiveCanvas [^\n]*readOnly( onState=\{onCanvasState\})?( onStartRabbitHole=\{startFromCard\})?(\n\s+gutterTop=\{holes \? <DiveNavigator [^\n]*\/> : null\})?(\n\s+hooks=\{<SharedNextSteps [^\n]*\/>\})?\n\s+onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\}\n\s+composer=\{<SharedAsk token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\} \/>/);
+test('the shared page puts Learn\'s composer shell in the right panel\'s Chat tab, with read-only context pills', () => {
+  // SHARE-01 (owner brief 2026-10-22 section 1): the normal canvas's right panel. The canvas arms the selected card
+  // (onAskTarget); the composer lives in SharedPanel's Chat tab, not the canvas composer slot.
+  assert.doesNotMatch(page, /composer=\{<SharedAsk/);
+  assert.match(page, /onAskTarget=\{setTarget\} askTargetId=\{target\?\.id \?\? null\} \/>/);
+  assert.match(page, /chat=\{<SharedAsk panel permissions=\{permissions\} token=\{token\} viewer=\{shared\.viewer\} context=\{shared\.context\} draft=\{askDraft\} target=\{target\} onClearTarget=\{\(\) => \{ setTarget\(null\); canvasApi\.current\?\.deselect\(\); \}\} \/>\}/);
   assert.match(page, /import ChatComposer from '\.\/ChatComposer\.jsx';/);
   assert.match(composer, /<ChatComposer dock value=\{input\} onChange=\{setInput\} onSubmit=\{send\}/);
   assert.match(composer, /data-context-pill="repository"[^\n]*\n[^\n]*\{repository\.repo\} · \{repository\.commit\.slice\(0, 7\)\}/);

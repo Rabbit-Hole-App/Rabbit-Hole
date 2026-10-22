@@ -12,6 +12,7 @@ const SAVED = {
   ...BOARD,
   blocks: [
     ...BOARD.blocks,
+    { id: 'h2', type: 'heading', level: 2, text: 'Masking', done: true },
     { id: 'c1', type: 'challenge', prompt: 'Explain masking', answer: `${SECRET}-answer`, attemptId: 'a1', verdict: `${SECRET}-verdict`, sketchSubmitted: true, sketch: { strokes: [{ id: `${SECRET}-sketch` }] } },
     { id: 'z1', type: 'quiz', question: 'Which normalizes?', options: [{ key: 'a', text: 'softmax', correct: true }], choice: `${SECRET}-choice` },
     { id: 'k1', type: 'code', title: 'Mask it', starter: 'pass', draft: `${SECRET}-draft` },
@@ -89,6 +90,7 @@ test('a fork through a link copies the placed content, never the creator\'s answ
 
 test('sharedState: the cards keep their content; only learner fields go; a board without them comes back as it was', () => {
   const state = sharedState(SAVED);
+  assert.deepEqual(state.blocks.find(block => block.id === 'h2'), { id: 'h2', type: 'heading', level: 2, text: 'Masking' }, "the creator's section tick stays theirs");
   const scene = state.blocks.find(block => block.id === 's1');
   assert.deepEqual(scene, { id: 's1', type: 'scene', title: 'Softmax scene', activity: { prompt: 'Pick the max' } });
   assert.equal(state.blocks.find(block => block.id === 'b1'), BOARD.blocks.find(block => block.id === 'b1'), 'an untouched card is the same object');
