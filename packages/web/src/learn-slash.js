@@ -185,8 +185,7 @@ export const MOTION_OFF = 'Motion (animated explainer videos) is not available h
 // a promise of { added } that settles when the finder closes.
 // internal: the Tutor's own create_material (runMaterials) may run its material tools; a typed line never can, and a removed
 // command says it is unavailable and runs nothing (owner, 2026-10-20).
-// motionHold: the server's per-job reservation for /motion (a read, never a start); loaded only when /motion runs.
-export async function runLearnCommand(text, { app, target = null, location = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false, motionHold = async () => (await import('./learn-scene-client.js')).motionHold(app) }) {
+export async function runLearnCommand(text, { app, target = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false }) {
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
   if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
@@ -209,13 +208,11 @@ export async function runLearnCommand(text, { app, target = null, location = nul
   if (request.action === 'insert_whiteboard') { canvas.insertBlock({ type: 'whiteboard', title: args || 'Whiteboard', narration: '', snapshot: null }); return { notice: { tone: 'done', text: 'Added a whiteboard.' } }; }
   // /dive: the page opens the hole from the selected card, or keeps the intent until one is selected.
   if (request.action === 'dive') return canvas.dive ? canvas.dive(args) : { notice: { tone: 'info', text: 'Rabbit Holes are not available here yet.' } };
-  // /motion (development and review builds): the paid proposal comes back without any model call.
-  // Generate inserts the existing video card already confirmed; LearnVideos hands the request to the
-  // development orchestrator (operation motion_request), which plans, reviews and renders it.
+  // /motion (MOT-20, owner message 39): a chat turn. The chat proposes the video as a card (generation-proposal-chat.js), the
+  // learner refines it in chat, and its Generate adds the existing video card with the approved proposal. Nothing starts here.
   if (request.action === 'motion') {
     if (!args) return { notice: { tone: 'info', text: 'Add what to explain after /motion, for example /motion 15s explain softmax.' } };
-    const { block, message } = motionProposal(args, location, target, await motionHold().catch(() => null));
-    return { proposal: { primitive: 'motion', message, generate: () => canvas.insertBlock(withPrompt({ ...block, confirmedStart: true }, promptUsed)) } };
+    return { prompt: args };
   }
   // /image finds a real picture: the card searches and the learner chooses. It never generates (/generate-image does).
   if (name === 'image') {

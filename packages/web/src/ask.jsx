@@ -38,6 +38,7 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
+import { currentProposal } from './generation-proposal-chat.js';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode, tutorTurn } from './chat-route.js';
 import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
@@ -727,6 +728,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         ...(chat ? { mode: askMode(chat.thread.mode, tocView), command: commandName, context_refs: refsForSend(withPage(withPage(codeTurnRefs.refs, target?.docPage), target?.excerptCrop), { target: target?.ref }) } : {}),
         // The live canvas (whole-canvas context): its inventory, relevant excerpts, relations and coverage.
         ...(canvasContext ? { canvas_context: canvasContext } : {}),
+        // UI-15 / MOT-20: what a generation proposal would be about, and the live proposal this turn may refine (LearnPage).
+        ...(chat && canvasOps?.generation ? ((generation) => (generation ? { generation } : {}))(canvasOps.generation(target ? { ...target, text: targetText } : null, currentProposal(msgs, canvasOps.proposalMade))) : {}),
       };
       if (privateChat) {
         const d = await api(askPath, { method: 'POST', body: JSON.stringify({ ...payload,

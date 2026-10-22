@@ -34,6 +34,7 @@ import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, motionProposal, runLearnCommand } from './learn-slash.js';
 import { motionHold } from './learn-scene-client.js';
+import { generationField, madeFrom } from './generation-proposal-chat.js';
 import { commandsFor, labelOf } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -441,6 +442,10 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     },
     fileForContext: ref => sourcesRef.current.find(source => source.kind === 'file' && source.id === ref.sourceId)?.fileRef,
     insertChat: entry => canvasApi.current?.insertChat(entry),
+    // UI-15 / MOT-20 (generation-proposal-chat.js): what a chat turn sends so the server can propose a Motion video (the canvas
+    // is the learner's location: its title names the concept), and whether a proposal already made its card here.
+    generation: (target, current) => generationField({ offered: isLearnCommand('motion'), concept: app.title, target, current }),
+    proposalMade: proposalId => !!canvasApi.current?.blocks?.().some(madeFrom(proposalId)),
     hasBlock: id => !!canvasApi.current?.blocks?.().some(block => block.id === id) || !!canvasApi.current?.exchanges?.().some?.(entry => entry.id === id),
     locate: id => canvasApi.current?.focusBlock(id),
     // The Tutor entry (learn-coaching-entry.js): whether this board has been restored, and how much is on it (cards and native
@@ -863,8 +868,6 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return runLearnCommand(text, {
         app: app.name,
         target: askTarget,
-        // The canvas is the learner's current location: its title names the concept (/motion's resolver).
-        location: { concept: app.title || null },
         canvas: withCardSink({
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
