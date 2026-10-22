@@ -65,10 +65,12 @@ export default function ModelCard({ block, selected, onChange, onSelect = null }
   const missing = [...new Set([...(entry?.missing || []), ...report.missing])], blocked = [...new Set([...(entry?.blocked || []), ...report.blocked])];
   const viewable = model.render === 'cad' ? ['ready', 'limited'].includes(cadState?.state) : !!(entry && !entry.error && !limitation);
 
-  // Visible on screen (with a margin) -> ask for a renderer slot; off-screen for a while -> poster and give it back.
+  // Visible on screen (with a margin) -> ask for a renderer slot; off-screen for a while -> poster and give it back. The newest
+  // entry decides: a fast pan can deliver enter then leave together (as the webpage tiles, r2/l5 4fea3edb).
   useEffect(() => {
     const element = root.current; let timer = 0;
-    const observer = new IntersectionObserver(([seen]) => {
+    const observer = new IntersectionObserver(entries => {
+      const seen = entries.at(-1);
       clearTimeout(timer);
       if (seen.isIntersecting) setVisible(true);
       else timer = setTimeout(() => setVisible(false), OFFSCREEN_RELEASE_MS);
