@@ -14,6 +14,7 @@ import { LearnVideos, MOTION_PAUSED, withCanvasRepository } from '../src/learn-v
 import { forwardUsagePayer, periodOf, usageTotals } from '../src/learn-usage.js';
 import { motionOrchestrator } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
+import { reviseSettings, signProposal } from '../src/generation-proposal.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
 const NOW = Math.floor(Date.now() / 1000), PERIOD = periodOf(NOW);
@@ -840,4 +841,58 @@ test('one Generate press resent concurrently stays one job (MOT-06 with a reques
   assert.equal(x.placementId, y.placementId);
   await settle(actor, async () => (await video(actor)).status === 'ready');
   assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite)], [1, 1, [[2_000_000, 'settled', 800_000, 'settled']]]);
+});
+
+// ---------- UI-15 / MOT-20: Generate with the approved proposal (generation-proposal.js) ----------
+
+const WATER = 'Sunlight warms a body of water, causing evaporation. Moist air rises and cools, forming droplets that gather into clouds. The droplets grow and fall as rain. Water collects again, completing the cycle.';
+const approved = async (env, over = {}, user = 'alice@example.test', at = {}) => signProposal(env, { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings: { duration_seconds: 10, audio: false }, source_refs: [], input: { request: motionOp.request, concept: 'Attention' }, ...over }, user, at);
+const withProposal = (p, request_id = 'press-0100-aaaa') => ask({}, { ...motionOp, request_id, proposal: p });
+// The /jobs bodies the worker sent, read beside world()'s orchestrator double (restored only while it is still this wrapper).
+function jobBodies(t) {
+  const bodies = [], inner = globalThis.fetch;
+  const mine = async (url, init) => { if (/orchestrator\.test\/jobs$/.test(String(url)) && init?.method === 'POST') bodies.push(JSON.parse(init.body)); return inner(url, init); };
+  globalThis.fetch = mine;
+  t.after(() => { if (globalThis.fetch === mine) globalThis.fetch = inner; });
+  return bodies;
+}
+
+test('MOT-20 Generate with the approved proposal: one job, and the orchestrator gets its title, duration and description as binding input', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const bodies = jobBodies(t);
+  const env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a'), env);
+  const p = await approved(env);
+  const [x, y] = await Promise.all([actor.fetch(withProposal(p)), actor.fetch(withProposal(p))]).then(rs => Promise.all(rs.map(r => r.json())));
+  assert.equal(x.placementId, y.placementId, 'a double click is one press: one card');
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite).length], [1, 1, 1], 'one job, one hold');
+  assert.deepEqual(bodies[0].approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 10, description: WATER });
+  assert.equal(bodies[0].request, motionOp.request);
+});
+
+test('MOT-20 refused before any hold or POST: a forged, edited, other-learner or expired proposal; one video per proposal', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const env = env0(LEARN_DB);
+  const actor = new LearnVideos(durable('video-a'), env);
+  const p = await approved(env);
+  const refusedWith = async (proposal, why, id) => {
+    const response = await actor.fetch(withProposal(proposal, id));
+    assert.equal(response.status, 409, why);
+    assert.match((await response.json()).error, why);
+  };
+  await refusedWith({ ...p, sig: 'f'.repeat(64) }, /not made for you, or it was changed/);
+  await refusedWith({ ...p, title: 'Something else' }, /changed/);
+  await refusedWith(await approved(env, {}, 'bob@example.test'), /not made for you/);
+  await refusedWith(await approved(env, {}, 'alice@example.test', { now: Math.floor(Date.now() / 1000) - 2 * 24 * 3600 }), /expired/);
+  assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length, (await actor.list()).videos.length], [0, 0, 0], 'nothing held, started or added');
+  // The proposal makes its video once; its next version (a stale approval, or a second press) is refused, nothing more starts.
+  await actor.fetch(withProposal(p));
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  const { proposal: v2 } = await reviseSettings(env, p, { duration_seconds: 20, audio: false }, 'alice@example.test');
+  const again = await actor.fetch(withProposal(v2, 'press-0101-bbbb'));
+  assert.deepEqual([again.status, (await again.json()).code], [409, 'proposal_used']);
+  assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [1, 1]);
 });

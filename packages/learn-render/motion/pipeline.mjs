@@ -17,6 +17,9 @@
 // ({brief, storyboard, from}) reuses an already-accepted brief and storyboard for the same request,
 // so a renderer proof tests the Author and render path, not a new Director run: the request is
 // still resolved and grounded, the plan is validated again, and the record says where it came from.
+//
+// MOT-20: approved ({title, duration_seconds, description}) is the proposal the learner approved in chat. The Director takes it
+// as binding input and only adds the internal detail; a brief that does not keep its title and duration fails the job.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
@@ -39,6 +42,12 @@ const secs = ms => +(ms / 1000).toFixed(1);
 // with its review state (unreviewed | blocking | accepted), that review's verbatim findings and its preview's keyframes.
 export const CAUSES = Object.freeze(['renderer', 'content', 'missing_context', 'model', 'limit', 'stopped']);
 
+// What a brief must keep of the approved proposal (MOT-20): its exact title and its duration.
+export const approvedErrors = (brief, approved) => (!approved ? [] : [
+  ...(brief.title === approved.title ? [] : [`title ${JSON.stringify(brief.title)} is not the approved ${JSON.stringify(approved.title)}`]),
+  ...(brief.duration?.seconds === approved.duration_seconds ? [] : [`duration ${brief.duration?.seconds}s is not the approved ${approved.duration_seconds}s`]),
+]);
+
 // context: motion_request.context (control-plane motion-context.js), the learner's selected card.
 // source: a pinned repository the canvas really has (the harness), never a default: a request with
 // no selection and no source is ungrounded (owner, 2026-10-21). sources: the pinned repositories a
@@ -46,7 +55,7 @@ export const CAUSES = Object.freeze(['renderer', 'content', 'missing_context', '
 export async function runMotionRequest({
   message, location = {}, context = null, repository_context = null, source = null, sources = [fixtureSource()],
   call, env = {}, service, dir, effort = 'high', signal = null, onStage = () => {},
-  stages = {}, now = () => Date.now(), renderer = DEFAULT_RENDERER, plan = null,
+  stages = {}, now = () => Date.now(), renderer = DEFAULT_RENDERER, plan = null, approved = null,
   // recover {mode, checkpoint}: a recovery attempt from a saved checkpoint, no Director call. mode 'render' renders its
   // accepted composition again (no model call); 'fix' continues from it: the repair with its exact findings, the review of
   // an unreviewed composition, or the Author from its storyboard.
@@ -95,13 +104,15 @@ export async function runMotionRequest({
     if (!out.target) return end('needs_clarification', { clarification: grounding.clarification, cause: 'missing_context' });
 
     if (plan) return await fromPlan(grounding);
-    const d = await enter('directing', () => director({ turn, grounding, call, env, effort }));
+    const d = await enter('directing', () => director({ turn, grounding, call, env, effort, ...(approved ? { approved } : {}) }));
     record(d);
     out.decision_line = d.decision_line ?? null;
     if (d.status === 'needs_clarification') return end('needs_clarification', { clarification: d.clarification, cause: 'missing_context' });
     if (d.status !== 'brief') return fail(`brief: ${d.error}: ${d.detail}${d.errors?.length ? `: ${d.errors.slice(0, 3).join('; ')}` : ''}`);
     const brief = out.brief = d.brief;
     keep('brief.json', brief);
+    const unkept = approvedErrors(brief, approved);
+    if (unkept.length) return fail(`brief: it does not keep the approved proposal: ${unkept.join('; ')}`);
 
     let s = await enter('storyboarding', () => storyboarder({ brief, call, env, effort }));
     record(s);

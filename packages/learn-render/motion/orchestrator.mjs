@@ -4,7 +4,8 @@
 // (hostable: environment only, plain HTTP behind the host's TLS) and scripts/motion-orchestrator.mjs
 // (the local Motion stack).
 //
-//   POST /jobs {request, location?, context?, idempotency_key, grant} -> 202 {job_id} | 429 busy | 503 renderer | 400 | 403
+//   POST /jobs {request, location?, context?, approved_proposal?, idempotency_key, grant} -> 202 {job_id} | 429 busy | 503 renderer | 400 | 403
+//   approved_proposal (MOT-20): {title, duration_seconds, description} the learner approved; the Director keeps them binding.
 //   GET  /jobs/<id>                                                   -> status, stage, provenance, spend
 //   GET  /jobs/<id>/final.mp4                                         -> the validated final render, once ready
 //   POST /jobs/<id>/cancel                                            -> 202; Stop at the next stage boundary
@@ -152,10 +153,12 @@ export const GRANT_MAX_AGE_S = 600;
 export function validateJobRequest(body) {
   const e = [];
   if (!body || typeof body !== 'object' || Array.isArray(body)) return ['body: an object is required'];
-  for (const k of Object.keys(body)) if (!['request', 'location', 'context', 'repository', 'idempotency_key', 'grant'].includes(k)) e.push(`${k}: not a field`);
+  for (const k of Object.keys(body)) if (!['request', 'location', 'context', 'repository', 'approved_proposal', 'idempotency_key', 'grant'].includes(k)) e.push(`${k}: not a field`);
   const r = body.repository;
   if (r !== undefined && (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).some(k => !['repo', 'commit'].includes(k)) || !/^[\w.-]+\/[\w.-]+$/.test(r.repo || '') || !/^[0-9a-f]{40}$/.test(r.commit || ''))) e.push('repository: {repo: owner/name, commit: 40 hex}');
   try { validateMotionContext(body.context); } catch (error) { e.push(error.message); }
+  const a = body.approved_proposal;
+  if (a !== undefined && (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).some(k => !['title', 'duration_seconds', 'description'].includes(k)) || typeof a.title !== 'string' || !a.title.trim() || a.title.length > 120 || !Number.isInteger(a.duration_seconds) || a.duration_seconds < 5 || a.duration_seconds > 30 || typeof a.description !== 'string' || !a.description.trim() || a.description.length > 1500)) e.push('approved_proposal: {title, duration_seconds 5-30, description}');
   if (typeof body.request !== 'string' || !/^\/motion\s+\S/.test(body.request) || body.request.length > 500) e.push('request: "/motion <what to explain>", at most 500 characters');
   const l = body.location;
   if (l !== undefined && (!l || typeof l !== 'object' || Array.isArray(l) || Object.keys(l).some(k => k !== 'concept') || (l.concept !== undefined && l.concept !== null && (typeof l.concept !== 'string' || l.concept.length > 100)))) e.push('location: {concept?: string of at most 100 characters}');
@@ -348,7 +351,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     // Each new checkpoint the pipeline saves bumps rev, so the worker copies it while the job still runs (a restart loses only
     // the work in flight).
     const onStage = (stage, out) => { job.stage = stage; if (out?.checkpoint && out.checkpoint !== job.checkpoint) { job.checkpoint = out.checkpoint; job.rev++; } };
-    runner({ message: recover ? recover.checkpoint.request : body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage, ...(renderer ? { renderer } : {}), ...(!recover && plans[body.request] ? { plan: plans[body.request] } : {}), ...(recover ? { recover, renderer: recover.checkpoint.renderer ?? renderer } : {}) })
+    runner({ message: recover ? recover.checkpoint.request : body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage, ...(renderer ? { renderer } : {}), ...(!recover && plans[body.request] ? { plan: plans[body.request] } : {}), ...(!recover && body.approved_proposal ? { approved: body.approved_proposal } : {}), ...(recover ? { recover, renderer: recover.checkpoint.renderer ?? renderer } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
       .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
       .finally(() => {

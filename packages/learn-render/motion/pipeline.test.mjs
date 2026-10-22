@@ -234,3 +234,22 @@ test('a plan: the accepted brief and storyboard, validated again, no Director ca
   assert.match(f.failure_reason, /^plan: /);
   assert.deepEqual(bad.log, []);
 });
+
+// MOT-20: the approved proposal binds the brief. The Director gets it, and a brief that changes its title or duration fails the job
+// before any storyboard, Author or render work.
+test('an approved proposal reaches the Director, and a brief that does not keep its title and duration stops the job', async () => {
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const seen = [];
+  const d = doubles();
+  const director = d.stages.director;
+  d.stages.director = async a => { seen.push(a.approved); return director(a); };
+  assert.equal((await run(d, { approved: keep })).status, 'ready');
+  assert.deepEqual(seen, [keep]);
+  for (const changed of [{ ...keep, title: 'A different title' }, { ...keep, duration_seconds: 20 }]) {
+    const dd = doubles();
+    const r = await run(dd, { approved: changed });
+    assert.equal(r.status, 'failed');
+    assert.match(r.failure_reason, /^brief: it does not keep the approved proposal: (title|duration)/);
+    assert.deepEqual(dd.log.map(([stage]) => stage), ['director'], 'no storyboard, Author or render after it');
+  }
+});

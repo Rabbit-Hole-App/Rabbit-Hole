@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cardsFor, commandLine, holdsLine, materialCommands, MOTION_OFF, pickerSections, parseSlash, releaseLine, runLearnCommand, runMaterials } from './learn-slash.js';
+import { generationField } from './generation-proposal-chat.js';
 import { commandsFor, learnRequest } from './agent/slash.js';
 import { readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
@@ -238,36 +239,21 @@ test('a paid command holds no place until Generate; Generate holds it and the co
   assert.deepEqual(did.slice(1), [['reserve', { label: 'Creating /video…', card: 'videoGenerate', prompt: true }], ['block', 'video', { into: 'slot:1' }]]);
 });
 
-// /motion exists only in a development or review build (agent/slash.js MOTION_DEV) and costs nothing until Generate.
-test('/motion: development and review builds only; the proposal makes no request, Generate inserts the existing video card already confirmed', async () => {
+// /motion exists only in a development or review build (agent/slash.js MOTION_DEV). MOT-20 (owner message 39): it is a chat turn,
+// whose proposal card is the chat's (generation-proposal-chat.js); the command itself makes no request, card or confirmation.
+test('/motion: development and review builds only; the line becomes a chat turn, with no request, card or confirmation here', async () => {
   const off = harness({});
   // A build without Motion (production) says so and runs nothing.
   assert.deepEqual((await off.run('/motion 15s explain me softmax func')).notice, { tone: 'error', text: MOTION_OFF });
   assert.ok(!(pickerSections('/mo') || []).flatMap(section => section.items).some(item => item.name === 'motion'), 'no /motion in the picker of a normal build');
   const did = [];
-  const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive') };
+  const canvas = { insertBlock: block => { did.push(block); return 'block-1'; }, dive: () => did.push('dive'), reserve: () => did.push('reserve') };
   const post = async () => { did.push('POST'); return {}; };
-  const run = text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'Attention' }, motionDev: true, motionHold: async () => 100 });
+  const run = text => runLearnCommand(text, { app: 'demo', canvas, post, openSearch: () => {}, motionDev: true });
   const out = await run('/motion 15s explain me softmax func');
-  // Owner messages 30 and 32: the server's estimate in credits, never the reservation.
-  assert.equal(out.proposal.message, 'This uses paid generation · about 100 credits');
-  const unread = await runLearnCommand('/motion 10s explain layer norm', { app: 'demo', canvas, post, openSearch: () => {}, motionDev: true, motionHold: async () => { throw new Error('offline'); } });
-  assert.equal(unread.proposal.message, 'This uses paid generation.', 'the same line when the server could not be read');
-  // Owner message 28: while the server pauses new generation, the confirmation says so (the server refuses the start itself).
-  const paused = await runLearnCommand('/motion 10s explain layer norm', { app: 'demo', canvas, post, openSearch: () => {}, motionDev: true, motionHold: async () => 'paused' });
-  assert.equal(paused.proposal.message, 'Motion generation is temporarily unavailable while we fix a reliability issue.');
-  assert.deepEqual(did, [], 'no request, no card and no Rabbit Hole before Generate');
-  out.proposal.generate();
-  assert.deepEqual(did, [{
-    type: 'video', mode: 'generate', title: 'Motion: 15s explain me softmax func', src: '', caption: '', status: 'idle',
-    operation: { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } }, confirmedStart: true,
-    promptUsed: '/motion 15s explain me softmax func',
-  }]);
-  assert.ok(!did.includes('dive') && !did.includes('POST'), 'Generate only inserts the card: no dive, no artifact call');
+  assert.deepEqual(out, { prompt: '15s explain me softmax func' }, 'the chat asks; the proposal comes back as its card');
+  assert.deepEqual(did, [], 'no request, no card, no held place and no Rabbit Hole');
   assert.match((await run('/motion')).notice.text, /Add what to explain/);
-  const long = await runLearnCommand(`/motion ${'x'.repeat(600)}`, { app: 'demo', canvas, post, openSearch: () => {}, location: { concept: 'y'.repeat(300) }, motionDev: true });
-  long.proposal.generate();
-  assert.deepEqual([did.at(-1).operation.request.length, did.at(-1).operation.location.concept.length], [500, 100], 'bounded to what LearnVideos accepts');
 });
 
 // ---------- Professor Next Steps (contract §2.5): the commands a hook turn may run, and running them ----------
@@ -476,24 +462,17 @@ test('CAD command selection is inert; empty submit clarifies and a detailed subm
  await Promise.all([result.proposal.generate(),result.proposal.generate()]);assert.equal(starts,1);
 });
 
+
 // Owner brief 2026-10-21 message 7 item 4: the selected card reaches Motion's resolver as motion_request context.selection
-// (control-plane motion-context.js), read when the line runs and bounded to 4000 characters; with none, only the words go.
-test('/motion with a selected card sends it as context.selection; the line stays the learner words', async () => {
-  const did = [];
-  const canvas = { insertBlock: block => { did.push(block); return 'block-1'; } };
-  let reads = 0;
-  const target = { id: 'b-photo', kind: 'Explanation', title: 'Photosynthesis', card: true, get text() { reads += 1; return `Explanation: Photosynthesis\n${'Plants make glucose. '.repeat(400)}`; } };
-  const run = (text, extra = {}) => runLearnCommand(text, { app: 'demo', canvas, post: async () => assert.fail('no request'), openSearch: () => {}, location: { concept: 'Biology' }, motionDev: true, ...extra });
-  (await run('/motion explain this', { target })).proposal.generate();
-  const { operation } = did.at(-1);
-  assert.equal(reads, 1, 'the card text is read once, when the line runs');
-  assert.equal(operation.request, '/motion explain this');
-  assert.deepEqual(Object.keys(operation.context.selection), ['cardId', 'kind', 'title', 'text']);
-  assert.deepEqual([operation.context.selection.cardId, operation.context.selection.kind, operation.context.selection.title], ['b-photo', 'Explanation', 'Photosynthesis']);
-  assert.equal(operation.context.selection.text.length, 4000);
-  assert.ok(operation.context.selection.text.startsWith('Explanation: Photosynthesis\nPlants make glucose.'));
-  (await run('/motion explain photosynthesis')).proposal.generate();
-  assert.equal(did.at(-1).operation.context, undefined, 'no selection, no context');
-  (await run('/motion explain this', { target: { id: 'b-empty', kind: 'Whiteboard', text: '  ' } })).proposal.generate();
-  assert.equal(did.at(-1).operation.context, undefined, 'a card with no text has nothing to ground on');
+// (control-plane motion-context.js), bounded to 4000 characters; with none, only the words go. MOT-20: it rides the chat turn's
+// generation field, so the proposal (and the video it approves) is about that card.
+test('/motion with a selected card: the chat turn sends it as context.selection, bounded; with none, only the concept', () => {
+  const target = { id: 'b-photo', kind: 'Explanation', title: 'Photosynthesis', card: true, text: `Explanation: Photosynthesis\n${'Plants make glucose. '.repeat(400)}` };
+  const { motion } = generationField({ offered: true, concept: 'Biology', target });
+  assert.deepEqual(Object.keys(motion.context.selection), ['cardId', 'kind', 'title', 'text']);
+  assert.deepEqual([motion.concept, motion.context.selection.cardId, motion.context.selection.kind, motion.context.selection.title], ['Biology', 'b-photo', 'Explanation', 'Photosynthesis']);
+  assert.equal(motion.context.selection.text.length, 4000);
+  assert.ok(motion.context.selection.text.startsWith('Explanation: Photosynthesis\nPlants make glucose.'));
+  assert.equal(generationField({ offered: true, concept: 'Biology' }).motion.context, undefined, 'no selection, no context');
+  assert.equal(generationField({ offered: true, target: { id: 'b-empty', kind: 'Whiteboard', text: '  ' } }).motion.context, undefined, 'a card with no text has nothing to ground on');
 });

@@ -12,6 +12,7 @@ import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from '
 import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
+import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
 import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
@@ -1011,6 +1012,21 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (canvas && conversation !== 'learn') return json({ error: 'canvas_context is a Learn chat field' }, 400);
   if (chat && conversation !== 'learn') return json({ error: 'mode, command, context_refs and regenerate are Learn chat fields' }, 400);
   if (chat?.regenerate && !thread_id) return json({ error: 'regenerate needs its thread_id' }, 400);
+  // UI-15/MOT-20 (generation-proposal.js): a Learn chat turn from a build that offers proposals sends generation
+  // {motion: {concept, context}, current}: what a Motion proposal would be about, and the unanswered proposal a refinement
+  // revises (verified for this learner, else ignored). The proposal tool rides only where a video can start; a /motion turn
+  // that cannot is answered here, before any model call.
+  let generation = null;
+  if (conversation === 'learn' && chat && body.generation != null) {
+    const motionInput = body.generation?.motion === undefined ? null : motionAbout(body.generation.motion);
+    if (body.generation?.motion !== undefined && !motionInput) return json({ error: 'generation.motion must be {concept?, context?}' }, 400);
+    const current = body.generation?.current && !(await verifyProposal(env, body.generation.current, user.email)) ? body.generation.current : null;
+    generation = motionInput && motionOffered(env) ? { motion: motionInput, current: current?.command === 'motion' ? current : null } : null;
+  }
+  if (chat?.command === 'motion' && !generation) {
+    return json(motionPaused(env) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was started.', code: 'motion_unavailable' }, 503);
+  }
+  let proposed = null;
   let lessonSnapshot = null;
   // The tutor may propose outline changes when the learner's canvas has sections.
   // runTool only records: canvas blocks are browser state, so nothing here can
@@ -1034,8 +1050,8 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     // learner's screen counts as read, so the tutor can point at another of
     // its sections without fetching it twice.
     articles,
-    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || [])],
-    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system].filter(Boolean).join('\n'),
+    tools: [SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, ...videos.tools, ...(body.outline?.length ? [OUTLINE_TOOL] : []), ...(repository?.tools || []), ...(generation ? [PROPOSAL_TOOL] : [])],
+    system: [WIKI_SYSTEM, videos.system, body.outline?.length ? OUTLINE_SYSTEM : null, repository?.system, generation ? PROPOSAL_SYSTEM : null].filter(Boolean).join('\n'),
     runTool: async (name, input) => {
       if (repository?.tools.some(tool => tool.name === name)) return repository.runTool(name, input);
       if (name === SEARCH_WIKIPEDIA_TOOL.name) return searchWikipedia(input?.query);
@@ -1052,10 +1068,20 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         shownWiki = validateShowWikipedia(input, [...articles.values()]);
         return { opened: true, section: shownWiki.sectionTitle || 'the top', note: WIKI_SHOWN_NOTE };
       }
-      if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
       // A refused proposal is answered as not proposed, with its reason, never as an error the reply could gloss over:
       // nothing reaches the learner, and the model may correct the change and call again in this answer.
       const refused = reason => ({ proposed: 0, applied: false, error: `Not proposed: ${reason}`, note: 'Nothing was shown to the learner. Do not say you proposed this change.' });
+      // UI-15/MOT-20: the proposal card, signed for this learner. A refinement is the next version of the proposal it revises,
+      // for the same input (the request, concept and selected card the first version was made for).
+      if (generation && name === PROPOSAL_TOOL.name) {
+        if (proposed) return refused('one generation proposal per answer');
+        const checked = validateProposalInput(input, chat?.contextRefs || []);
+        if (checked.error) return refused(checked.error);
+        const current = generation.current?.command === checked.command ? generation.current : null;
+        proposed = await signProposal(env, { ...checked, input: current ? current.input : { request: motionRequestLine(message), ...generation.motion } }, user.email, current ? { id: current.proposal_id, version: current.version + 1 } : {});
+        return { proposed: 1, applied: false, note: 'Shown to the learner as a card with Generate; nothing is generated until they press it. Reply in one short sentence and do not repeat the description.' };
+      }
+      if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
       if (proposedOps) return refused('one outline proposal per answer; describe the rest in your reply');
       try { proposedOps = validateOutlineOps(input?.ops, body.outline); }
       catch (error) { return refused(error.message); }
@@ -1221,6 +1247,9 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     system = chatSystem(system, answerMetaSystem({ repository: !!repository }), resolved, memory.long);
     // The trailer is split off before any chunk is sent or anything stored.
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
+    // A refinement revises the learner's unanswered proposal: the model sees what the card says now.
+    const current = generation?.current;
+    if (current) context = `${context}\n\nThe proposal you made, not generated yet (version ${current.version}): ${JSON.stringify({ command: current.command, title: current.title, description: current.description, settings: current.settings, source_ref_ids: current.source_refs.map(r => r.sourceId) })}`;
   }
 
   const q = [note, uploadNote && `(${uploadNote})`, message].filter(Boolean).join(' ');
@@ -1240,7 +1269,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
     // motionDev false: /motion exists only in a dev web build (VITE_MOTION_DEV); the control plane has no motion flag, so it never suggests motion.
-    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: false }) });
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);

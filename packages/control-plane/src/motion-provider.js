@@ -3,6 +3,7 @@
 // Same asynchronous contract as ManimProvider: submit -> ticket, poll -> null while
 // rendering, a final error on failure, or the bytes.
 import { validateMotionContext } from './motion-context.js';
+import { approvedProposal, proposalShape } from './generation-proposal.js';
 
 const MAX_ASSET = 25 * 1024 * 1024;
 const RENDER_ID = /^[0-9a-f]{32}$/;
@@ -85,7 +86,7 @@ const timeoutSignal = ms => {
 
 export function validateMotionRequest(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('motion_request: an object is required');
-  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context', 'request_id'].includes(key));
+  const extra = Object.keys(value).find(key => !['op', 'request', 'location', 'context', 'request_id', 'proposal'].includes(key));
   if (extra) throw new Error(`motion_request: unknown field ${extra}`);
   // request_id (owner message 37): made once per Generate press, so the same prompt pressed again is a new video.
   if (value.request_id !== undefined && (typeof value.request_id !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(value.request_id))) throw new Error('motion_request: request_id must be 8 to 64 characters [A-Za-z0-9_-]');
@@ -96,13 +97,21 @@ export function validateMotionRequest(value) {
   const concept = location.concept ?? null;
   if (concept !== null && (typeof concept !== 'string' || concept.length > 100)) throw new Error('motion_request: concept must be a string of at most 100 characters');
   const context = validateMotionContext(value.context);
-  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}), ...(value.request_id ? { request_id: value.request_id } : {}) };
+  // MOT-20: the approved Motion proposal (generation-proposal.js), whose signature LearnVideos verifies. It is this very request.
+  const proposal = value.proposal;
+  if (proposal !== undefined) {
+    const bad = proposalShape(proposal);
+    if (bad) throw new Error(`motion_request: ${bad}`);
+    if (proposal.command !== 'motion' || proposal.input.request !== value.request.trim() || (proposal.input.concept ?? null) !== (concept?.trim() || null) || JSON.stringify(proposal.input.context ?? null) !== JSON.stringify(context ?? null)) throw new Error('motion_request: the request is not the one the approved proposal is for');
+  }
+  return { op: 'motion_request', request: value.request.trim(), location: { concept: concept?.trim() || null }, ...(context ? { context } : {}), ...(value.request_id ? { request_id: value.request_id } : {}), ...(proposal ? { proposal } : {}) };
 }
 
 // A different selected card is a different video; a request with no context keeps the key it always had. A request id (one per
 // Generate press, owner message 37) makes each press its own job; a request without one (saved before it) keeps its old key.
+// Each approved proposal version is its own video too (MOT-20).
 export async function motionRequestCacheKey(input) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}${input.request_id ? `|press:${input.request_id}` : ''}`));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`motion-request|${input.request}|${input.location.concept ?? ''}${input.context ? `|${JSON.stringify(input.context)}` : ''}${input.request_id ? `|press:${input.request_id}` : ''}${input.proposal ? `|proposal ${input.proposal.proposal_id} v${input.proposal.version}` : ''}`));
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
@@ -150,10 +159,11 @@ export class MotionRequestProvider {
   // repository: the canvas's repository as the worker's records say (learn-video.js canvasRepository), or null.
   // recover {mode, checkpoint, seal}: a recovery attempt (POST /recover) from the sealed checkpoint the worker saved; it is
   // admitted, answered and reconciled exactly as a new job is.
+  // approved_proposal (MOT-20): the Director keeps its title, duration and scope.
   async submit(input, spend, repository = null, timeoutMs = 20000, recover = null) {
     const response = await this.request(recover ? '/recover' : '/jobs', { method: 'POST', timeoutMs, body: recover
       ? { idempotency_key: spend.opId, grant: spend.grant, mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal }
-      : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+      : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), ...(input.proposal ? { approved_proposal: approvedProposal(input.proposal) } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);

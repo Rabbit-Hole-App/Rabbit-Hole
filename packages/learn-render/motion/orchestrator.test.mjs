@@ -476,3 +476,11 @@ test('MOT-08 cold start: a grant bound to the run that just booted starts exactl
   assert.match((await replay.json()).detail, /issued before the Motion service restarted; nothing was started/);
   assert.equal(runs, 2);
 });
+
+// MOT-20: POST /jobs accepts the approved proposal as binding Director input, and only in its shape.
+test('approved_proposal: {title, duration_seconds 5-30, description} is a job field; anything else is refused', () => {
+  const body = { request: '/motion explain softmax', idempotency_key: 'motion-abcdefgh', grant: { micros: 1, issued_at: 1, boot: 'a'.repeat(32), sig: 'x' } };
+  const ok = { title: 'Softmax', duration_seconds: 10, description: 'Scores become weights. They sum to one. Masked ones get none.' };
+  assert.deepEqual(validateJobRequest({ ...body, approved_proposal: ok }), []);
+  for (const bad of [{ ...ok, duration_seconds: 40 }, { ...ok, title: '' }, { ...ok, audio: true }, 'x', null]) assert.match(validateJobRequest({ ...body, approved_proposal: bad }).join(' '), /approved_proposal/);
+});

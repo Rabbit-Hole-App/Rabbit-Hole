@@ -10,6 +10,39 @@ import { cn } from './ui.jsx';
 import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
+import GenerationProposalCard from './GenerationProposalCard.jsx';
+import { madeFrom, proposalActive, proposalBlock } from './generation-proposal-chat.js';
+import { withPrompt } from './card-prompt.js';
+
+// UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
+// proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
+// Generate adds the existing video card with the exact approved proposal, once (insertCard finds one it already made).
+function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
+  const p = m.meta.proposal;
+  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false);
+  const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
+  const saved = /^\d+$/.test(String(m.messageId ?? ''));
+  const active = !made && !!ops?.insertCard && proposalActive(p, msgs);
+  const onSettingsChange = async settings => {
+    if (!saved) return;
+    setBusy(true); setError(null);
+    try {
+      const { proposal } = await api(`/api/learn/chat/messages/${m.messageId}/proposal`, { method: 'PUT', body: JSON.stringify({ settings }) });
+      setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal } } : x)));
+    } catch (failure) { setError(failure.message); } finally { setBusy(false); }
+  };
+  const onGenerate = () => {
+    setPressed(true);
+    const { id } = ops.insertCard(withPrompt(proposalBlock(p), p.input.request), { same: madeFrom(p.proposal_id) });
+    if (id) ops.locate?.(id);
+  };
+  return (
+    <div className="mt-2">
+      <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} onGenerate={onGenerate} onSettingsChange={onSettingsChange} />
+      {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
+    </div>
+  );
+}
 
 // Phase 2 proposal card: what will happen with the exact inputs; nothing runs
 // until Run posts the approval. Change hands the args back to the input box.
@@ -179,6 +212,7 @@ export function ChatMessage({ m, i, msgs, sheetMode, busy, learnChat, privateCha
             <div data-answer-body><Md doc text={m.content} onRun={id => { setFilePeek(null); setRunPeek(id); }} onFile={fileApp ? (path, line, lineEnd) => { setRunPeek(null); setFilePeek({ path, line, lineEnd }); } : null} /></div>
             {/* A Tutor syllabus (contract B6): an editable list under its answer; edits save to this message (chat-syllabus-route.js)
                 once it has its server id. */}
+            {m.meta?.proposal?.proposal_id && <ProposalSlot m={m} i={i} msgs={msgs} setMsgs={setMsgs} ops={outputOps} />}
             {m.kind === 'syllabus' && Array.isArray(m.meta?.syllabus?.topics) && <SyllabusMessage syllabus={m.meta.syllabus} toContents={toContents} saveSyllabus={/^\d+$/.test(String(m.messageId ?? '')) ? async topics => (await api(`/api/learn/chat/messages/${m.messageId}/syllabus`, { method: 'PUT', body: JSON.stringify({ topics }) })).syllabus : null} />}
             <AnswerFooter key={m.messageId ?? i} message={{ ...m, status: answerStatus(m, busy && i === msgs.length - 1) }} latest={!msgs.slice(i + 1).some(x => x.role === 'assistant')}
               onAddAsCard={onAddToCanvas && addAsCard} onLocateCard={onAddToCanvas && (id => addAsCard({ id, answer: m.content, sources: m.meta?.contextRefs ?? null }))} cardExists={() => !!m.added || !!hasCard?.(cardIdFor(m))}
