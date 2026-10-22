@@ -140,7 +140,11 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
   }, [index]);
   // Add to canvas on a link result (UI-13, the keyboard and touch way to place it): the canvas's link card where the learner
   // looks, as Link to canvas... adds one; a link card already here is shown instead, never added twice.
+  // A link card resolves its title through links.resolve, which knows only this canvas's saved links: a card added before the
+  // save would read "Unavailable" until then. The canvas this result names is remembered first, as Link to canvas... does.
+  const rememberLink = result => { if (result.link?.href && !result.link.unavailable) links?.remember?.({ id: result.target.id, title: result.title, href: result.link.href }); };
   const addToCanvas = result => {
+    rememberLink(result);
     const api = canvasApi.current, existing = linkCardFor(api?.blocks?.(), result.target?.id);
     if (existing) { api.focusBlock(existing.id); setNotice({ scopeKey, message: 'A link card to this canvas is already here.' }); return; }
     setNotice(api?.insertRefCard?.(result.target?.id) ? null : { scopeKey, message: 'This canvas cannot take a link card.' });
@@ -152,5 +156,5 @@ export function useCanvasSearch({ scopeKey, canvasApi, epoch, shown, commentsBas
     : found.availability.status !== 'ready' ? { state: found.availability.status, message: 'Some sources are only partially searchable. Result badges describe the available content.' }
     : { state: 'ready' };
   return { registry, scopeKey, panel: { canvasKey: scopeKey, showLinks: linkResults, scrollPositions: current.scrollPositions, query: current.query, onQueryChange: query => patch({ query, activeId: null }), filter: current.filter, onFilterChange: filter => patch({ filter, activeId: null }), includeResolved: current.includeResolved, onIncludeResolvedChange: includeResolved => patch({ includeResolved }), results: found.results, counts: found.counts, status: notice?.scopeKey === scopeKey ? { ...status, ...notice } : status, onRetry: () => { setRetry(value => value + 1); links?.refresh?.(); for (const entry of loadedContent.values()) entry.retry?.(); }, activeId: current.activeId, onActiveIdChange: activeId => patch({ activeId }), onActivate: activate, canGoBack: !!current.back, onGoBack: goBack, getPreview,
-    onAddToCanvas: canInsert ? addToCanvas : null, onDropNotice: message => setNotice({ scopeKey, message }) } };
+    onAddToCanvas: canInsert ? addToCanvas : null, onDragLink: rememberLink, onDropNotice: message => setNotice({ scopeKey, message }) } };
 }

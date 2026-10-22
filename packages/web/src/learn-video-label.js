@@ -13,25 +13,23 @@ const renderedBy = block => RENDERER_LABELS[block.motion?.renderer] ?? null;
 const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source' ? `Not grounded in ${block.motion.grounding.searched.join(', ')}`
   : block.motion?.grounding ? 'Not grounded in a source' : null);
 
-// What a Motion job does to the learner's allowance (owner messages 22 and 25): a temporary reservation of the amount the server
-// says it holds (LearnVideos list motionHoldUsd, MOTION_JOB_RESERVATION_USD), actual AI usage charged, the rest released, and
-// rendering covered by Rabbit Hole. No amount of the browser's own: without the server's, the note names none.
-const money = usd => `$${usd.toFixed(2)}`;
-const known = usd => Number.isFinite(usd) && usd > 0;
-export const motionHoldNote = usd => `Temporarily reserves ${known(usd) ? `${money(usd)} from your available AI allowance` : 'part of your available AI allowance'}. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.`;
+// Owner message 30 (replacing message 25's wording): the learner never sees the reservation amount or how it is held. The server
+// still holds it and returns it (LearnVideos list motionHoldUsd) for internal tools only.
 // Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
 // server refuses the start itself with the same text.
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
-// hold: what the server said (learn-scene-client.js motionHold): the reservation amount, 'paused', or null.
-export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED : `This uses paid generation. ${motionHoldNote(hold)}`);
-// The card's reservation line from the job's hold ({usd, state} in the LearnVideos list): reserved while it runs, pending while
-// its final cost is not confirmed, nothing once released.
-export function motionHoldStatus(hold) {
-  if (!hold || !known(hold.usd)) return null;
-  if (hold.state === 'reserved') return `${money(hold.usd)} of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.`;
-  if (hold.state === 'pending') return `Reconciliation pending: the ${money(hold.usd)} reservation stays until the final cost is confirmed.`;
-  return null;
-}
+// hold: what the server said (learn-scene-client.js motionHold): 'paused', its estimate in credits (owner message 32), or null, which
+// leaves PaidConfirm's default.
+export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED
+  : Number.isInteger(hold) && hold > 0 ? `This uses paid generation · about ${hold} credit${hold === 1 ? '' : 's'}` : 'This uses paid generation.');
+
+// MOT-11 (owner review of 274bd689): a card saved with its job's placement follows that job again after a reload, while it runs and
+// once it failed or was stopped, so its error and its settlement reads come back. Read-only: the list GET, never a start.
+export const resumesJob = block => !!block?.placementId && ['generating', 'queued', 'failed'].includes(block.status);
+// A failed or stopped job is read again while its hold is not confirmed settled (state pending), at most this many times per page
+// load (10 minutes at 5 s): an unknown cost stays pending until it is reconciled outside the app.
+export const SETTLE_READS = 120;
+export const readsAgain = (video, reads) => video?.status === 'failed' && video.hold?.state === 'pending' && reads < SETTLE_READS;
 
 export function videoLabel(block) {
   const op = block.operation;

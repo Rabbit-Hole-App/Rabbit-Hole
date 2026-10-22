@@ -9,13 +9,15 @@ export const USAGE_PATH = '/api/learn/usage';
 export const TRACKING_NOTE = 'Tracking only - limits are not enforced yet.';
 const AMOUNTS = ['allowanceMicros', 'usedMicros', 'reservedMicros', 'remainingMicros'];
 
-// Dollars with two decimals from integer micros, rounded half up on integers, so no float sums ever reach the screen.
-export function formatMicros(micros) {
-  const cents = Math.floor((micros + 5000) / 10000);
-  return `$${Math.floor(cents / 100).toLocaleString('en-US')}.${String(cents % 100).padStart(2, '0')}`;
+// Credits from integer micros (owner messages 32-33, 2026-10-21): people see credits, never dollars; 1 credit = $0.01, so
+// 10,000 micros. Rounded to the nearest credit with thousands separators. Nonzero usage never reads "0 credits": a balance
+// or a charge below half a credit reads "less than 1 credit".
+export const creditCount = micros => Math.round(micros / 10_000).toLocaleString('en-US');
+export function formatCredits(micros) {
+  const credits = Math.round(micros / 10_000);
+  if (credits === 0 && micros > 0) return 'less than 1 credit';
+  return `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
 }
-// A balance above zero never reads $0.00: that would look exhausted while the gauge is green.
-export const formatRemaining = micros => (micros > 0 && micros < 5000 ? 'less than $0.01' : formatMicros(micros));
 
 // The reset instant is the start of a UTC month; its date is shown in UTC so it never reads as the last day of the month.
 export const formatReset = (iso, { year = true } = {}) => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', ...(year && { year: 'numeric' }), timeZone: 'UTC' });
@@ -70,7 +72,7 @@ export function usageView(state) {
   if (state.status === 'ready') {
     const { usage } = state;
     const empty = usage.remaining === 0;
-    const label = empty ? 'No AI allowance remaining' : `AI allowance: ${formatRemaining(usage.remaining)} remaining`;
+    const label = empty ? 'No AI allowance remaining' : `AI allowance: ${formatCredits(usage.remaining)} remaining`;
     const note = usage.enforced ? null : TRACKING_NOTE;
     return { tone: empty ? 'empty' : 'ok', label, note, title: note ? `${label}. ${note}` : label, usage };
   }

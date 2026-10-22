@@ -8,7 +8,7 @@ import { api, wsHeaders } from './api.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { loadAsset } from './learn-board-assets.js';
 import { colorLine } from './code.jsx';
-import { CodeBlock } from './ui.jsx';
+import { Button, CodeBlock } from './ui.jsx';
 import { runPython } from './pyodide-runner.js';
 import { describeGraphError, graphRenderers } from './graph-renderers.js';
 import { validateGraph } from '../../control-plane/src/learn-graph-schema.js';
@@ -30,7 +30,7 @@ import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { motionHold, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
-import { motionConfirm, motionHoldStatus, videoLabel } from './learn-video-label.js';
+import { motionConfirm, readsAgain, resumesJob, videoLabel } from './learn-video-label.js';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
@@ -1498,16 +1498,14 @@ const hostOf = src => { try { return /^https?:/.test(src) ? new URL(src).hostnam
 function VideoBody({ block, appName, onChange, onFile }) {
   const [error, setError] = useState('');
   const elapsed = useElapsed(block.status === 'generating' || block.status === 'queued');
-  const polling = useRef(null);
+  const polling = useRef(null), settleReads = useRef(0);
   useEffect(() => () => clearTimeout(polling.current), []);
   // The poll writes onto the card as it is NOW: a copy captured when Generate ran would put back
   // fields since dropped (confirmedStart, which would start a second job) or since edited.
   const latest = useRef(block);
   latest.current = block;
   const [placement, setPlacement] = useState(null);
-  // A /motion job's reservation as the server reports it ({usd, state}), and the amount it would reserve for a new one.
-  const [hold, setHold] = useState(null);
-  const [offer, setOffer] = useState(null); // what a new start would hold: the amount, 'paused' or null (motionHold)
+  const [offer, setOffer] = useState(null); // whether a new /motion start is paused (motionHold: 'paused', an amount or null)
   // Follows the exact job this Generate started (see SceneBody). Its placement id is kept on the card, so a reload resumes
   // following the same job (a /motion job runs for minutes) instead of showing it generating forever.
   const follow = async placementId => {
@@ -1517,7 +1515,6 @@ function VideoBody({ block, appName, onChange, onFile }) {
       const list = await videoList(appName);
       const mine = list.videos?.find(video => video.id === placementId);
       if (!mine) return;
-      setHold(mine.hold || null);
       const current = latest.current;
       if (mine.status === 'ready') {
         const src = videoAssetUrl(appName, mine.key);
@@ -1531,14 +1528,19 @@ function VideoBody({ block, appName, onChange, onFile }) {
       if (mine.status === 'failed') {
         setError(mine.error || 'The provider could not generate this clip.');
         if (current.status !== 'failed') onChange({ ...current, status: 'failed' });
-        // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is.
-        if (mine.hold?.state === 'pending') polling.current = setTimeout(() => follow(placementId), 5000);
+        // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is (bounded).
+        if (readsAgain(mine, settleReads.current)) { settleReads.current += 1; polling.current = setTimeout(() => follow(placementId), 5000); }
         return;
       }
       if (mine.status !== current.status) onChange({ ...current, status: mine.status });
       polling.current = setTimeout(() => follow(placementId), 5000);
     } catch (problem) { setError(problem.message); }
   };
+  // Stop asks first (owner message 35): an inline confirmation, Cancel focused; Cancel or Escape sends nothing and returns focus
+  // to Stop; its Stop sends the stop request once.
+  const [askStop, setAskStop] = useState(false);
+  const stopButton = useRef(null);
+  const keepGoing = () => { setAskStop(false); stopButton.current?.focus(); };
   // Stop: only an operation whose provider can stop (label.stoppable, a /motion request).
   const stop = async () => {
     clearTimeout(polling.current);
@@ -1547,20 +1549,25 @@ function VideoBody({ block, appName, onChange, onFile }) {
   };
   const [confirming, setConfirming] = useState(false);
   const generate = async (current = block) => {
+    clearTimeout(polling.current); settleReads.current = 0;
     setError(''); setConfirming(false);
+    // Owner message 37: each Generate press of a /motion request is its own video. Its request id is made once for the press and
+    // kept on the card, so a resend or reload of that press reuses it; Retry of a failed card keeps the key it has (old cards none).
+    const retry = current.status === 'failed';
+    const operation = current.operation?.op === 'motion_request' && !retry && !current.operation.request_id ? { ...current.operation, request_id: crypto.randomUUID() } : current.operation;
+    current = { ...current, operation };
     onChange({ ...current, status: 'generating' });
-    try { const { placementId } = await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(placementId); }
+    try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
     catch (problem) { setError(problem.message); onChange({ ...current, status: 'failed' }); }
   };
   useConfirmedStart(block, onChange, generate);
   const pending = block.status === 'generating' || block.status === 'queued';
   const motionRequest = block.operation?.op === 'motion_request';
-  // A failed /motion card can be generated again: its confirmation names the reservation the server returned, or the pause.
+  // A failed /motion card can be generated again: its confirmation says paid generation, or that generation is paused.
   useEffect(() => { if (motionRequest && !pending) motionHold(appName).then(setOffer, () => {}); }, [motionRequest, pending]); // eslint-disable-line react-hooks/exhaustive-deps
-  const holdLine = motionRequest ? motionHoldStatus(hold) : null;
-  // A card saved while its job ran: follow that job again (a read, never a new start). Cards saved without a placement id
-  // (before this) keep their old behaviour.
-  useEffect(() => { if (pending && block.placementId) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A card saved with its job (running, failed or stopped): follow that job again (a read, never a new start; MOT-11). Cards saved
+  // without a placement id (before this) keep their old behaviour.
+  useEffect(() => { if (resumesJob(block)) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));
@@ -1586,25 +1593,32 @@ function VideoBody({ block, appName, onChange, onFile }) {
                 <button type="button" aria-label="Next clip" onClick={() => onChange({ ...block, variant: (position + 1) % clips.length })} className="rounded p-1 text-ink-2 hover:bg-hover hover:text-ink"><ChevronRight size={15} /></button>
               </div>
             )}
-            {label.sources && (
+            {/* Owner message 31: a Motion video's meta line (duration · Motion explainer · renderer · grounding) is not shown; the
+                label keeps it as data. Its sources still are. */}
+            {label.sources?.length > 0 && (
               <div data-video-meta className="mt-1.5 text-xs text-ink-2">
-                <p>{label.detail}</p>
-                {label.sources.length > 0 && <p className="mt-0.5">Sources: {label.sources.join(', ')}</p>}
+                <p>Sources: {label.sources.join(', ')}</p>
               </div>
             )}
           </>
         : <div className="mt-2 flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line bg-hover p-4 text-center" onPointerDown={event => event.stopPropagation()}>
-            <p className="text-xs text-ink-2">{label.detail}</p>
+            {!/^motion_(request|render)$/.test(block.operation?.op || '') && <p className="text-xs text-ink-2">{label.detail}</p>}
             {pending
               ? <>
                   <Progress seconds={elapsed} expected={label.expected} label={label.progress} />
-                  {holdLine && <p data-video-hold={hold.state} className="max-w-sm text-[11px] text-ink-2">{holdLine}</p>}
-                  {label.stoppable && placement && <button type="button" data-stop-video onClick={stop} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
+                  {label.stoppable && placement && <button ref={stopButton} type="button" data-stop-video aria-expanded={askStop} onClick={() => setAskStop(true)} className="flex h-8 items-center rounded-lg border border-line px-3.5 text-sm font-medium text-ink hover:bg-white">Stop</button>}
+                  {label.stoppable && placement && askStop && (
+                    <div data-stop-confirm role="group" aria-label="Stop this video" className="flex flex-wrap items-center justify-center gap-2 text-xs text-ink-2"
+                      onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); keepGoing(); } }}>
+                      <span>Stop this video? Credits already used won't be refunded.</span>
+                      <Button type="button" variant="secondary" size="sm" data-stop-cancel autoFocus onClick={keepGoing}>Cancel</Button>
+                      <Button type="button" variant="inverse" size="sm" data-stop-confirmed onClick={() => { setAskStop(false); stop(); }}>Stop</Button>
+                    </div>
+                  )}
                 </>
               : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(offer) : undefined} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
-              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? 'Retry render' : label.button}</button>}
+              : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? (motionRequest ? 'Generate again' : 'Retry render') : label.button}</button>}
             {error && <p className="text-xs text-red-700">{error}</p>}
-            {!pending && holdLine && <p data-video-hold={hold.state} className="max-w-sm text-[11px] text-ink-2">{holdLine}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
     </div>

@@ -84,7 +84,7 @@ function LinkActions({ result, onOpenAction }) {
 
 export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false, inputRef, scrollPositions, query = '', onQueryChange, filter = 'all', onFilterChange,
   includeResolved = false, onIncludeResolvedChange, results = [], counts = {}, status = {}, onRetry,
-  activeId, onActiveIdChange, onActivate, onOpenAction, canGoBack, onGoBack, getPreview, onAddToCanvas, onDropNotice }) {
+  activeId, onActiveIdChange, onActivate, onOpenAction, canGoBack, onGoBack, getPreview, onAddToCanvas, onDragLink, onDropNotice }) {
   const scroller = useRef(null), fallbackPositions = useRef(new Map()), pendingFocus = useRef(null);
   const positions = scrollPositions || fallbackPositions.current;
   const [viewport, setViewport] = useState({ width: 320, height: 400, scrollTop: 0 });
@@ -120,7 +120,8 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
   const activate = (index, open = true) => { const result = results[index]; if (result) { onActiveIdChange?.(result.id); reveal(index); if (open || result.kind !== 'link') onActivate?.(result); } };
   // Drag a result onto the canvas (UI-13, search-drag.js): the canvas plans, outlines and does the drop; what it reports - or
   // why it refused, when the drop ended on it with nothing done - shows in this panel's status line. A click still reveals.
-  const dragStart = (event, payload) => {
+  const dragStart = (event, payload, result) => {
+    if (payload.kind === 'link') onDragLink?.(result);
     searchDrag.start(payload);
     event.dataTransfer.setData(SEARCH_DRAG, JSON.stringify(payload));
     event.dataTransfer.setData('text/plain', payload.title || '');
@@ -159,7 +160,7 @@ export default function CanvasSearchPanel({ canvasKey, hidden, showLinks = false
           return <li key={result.id} aria-posinset={index + 1} aria-setsize={results.length} data-search-result={result.id} data-links-direction={link?.direction} data-unavailable={link?.unavailable || undefined} data-search-layout={lines.length ? 'code' : preview.kind === 'picture' ? 'picture' : 'text'} className="absolute inset-x-0 overflow-hidden pb-2" style={{ top: layout.offsets[index], height: heights[index] }}>
             <div className={`flex h-full flex-col rounded-lg border p-2 ${selected ? 'border-ink-3 bg-hover' : 'border-line'}`}>
               <button type="button" data-find-match={result.objectId} data-search-index={index} aria-current={selected ? 'true' : undefined} draggable={!!payload} data-search-drag={payload?.kind}
-                onDragStart={payload ? event => dragStart(event, payload) : undefined} onDragEnd={payload ? dragEnd : undefined} className={`${button} flex min-h-0 flex-1 items-start gap-2 text-left`} onClick={() => activate(index)} onKeyDown={event => {
+                onDragStart={payload ? event => dragStart(event, payload, result) : undefined} onDragEnd={payload ? dragEnd : undefined} className={`${button} flex min-h-0 flex-1 items-start gap-2 text-left`} onClick={() => activate(index)} onKeyDown={event => {
                 const next = searchKeyIndex(event.key, index, results.length);
                 if (next !== null) { event.preventDefault(); event.stopPropagation(); if (next >= 0) { onActiveIdChange?.(results[next].id); reveal(next, true); } }
                 if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();

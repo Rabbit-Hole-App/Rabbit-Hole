@@ -295,6 +295,12 @@ delete your clone when the session ends:
 `npx wrangler delete --name rabbit-hole-web-dev-<worktree-name> --config wrangler.dev.jsonc`.
 Only deploy to the shared worker (no `--name`) when explicitly told to promote.
 
+Delete each worktree once its branch is merged to main (owner, 2026-10-21; stale worktrees filled
+drive C:). First confirm its head is an ancestor of `rabbit-hole/main`, check `git status` for work
+that matters, stop only the stack processes your task recorded, and check that no other worktree's
+`node_modules` is a junction into it. Then `git worktree remove <path>`, and delete its local stack
+data and its dev clone.
+
 ## Trigger word: `learn-cleanup`
 
 When the user types just `learn-cleanup`, resume the deferred Learn cleanup on

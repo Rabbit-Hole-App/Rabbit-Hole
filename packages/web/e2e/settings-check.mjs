@@ -351,7 +351,7 @@ await check('12 AI usage still shows the server allowance, used, remaining, rese
   const split = pane(page, 'usage').locator('[data-usage-by-feature]');
   await split.waitFor({ timeout: 10000 });
   const rows = await split.innerText();
-  assert.ok(rows.includes('Tutor') && rows.includes('$1.23') && rows.includes('Ctrl+K edits') && rows.includes('$0.40'), rows);
+  assert.ok(rows.includes('Tutor') && rows.includes('123 credits') && rows.includes('Ctrl+K edits') && rows.includes('40 credits') && rows.includes('5 credits reserved') && !rows.includes('$'), rows);
   await shot(page, 'usage-by-feature');
   await page.context().close();
 });
