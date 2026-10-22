@@ -13,7 +13,7 @@ import { checkRequest, checkUrl } from './url-guard.js';
 import { screenCapture } from './webpage-screen.js';
 
 export const WEBPAGE_LIMITS = Object.freeze({ width: 1280, tile: 1400, minTile: 280, height: 20_000, bytes: 10 * 1024 * 1024, chars: 200_000,
-  perDay: 30, navigateMs: 20_000, idleMs: 5_000, screenMs: 120_000, staleMs: 3 * 60_000, keepUnreferencedMs: 30 * 86_400_000, keepUploadingMs: 86_400_000 });
+  perDay: 30, navigateMs: 20_000, idleMs: 5_000, screenMs: 120_000, staleMs: 3 * 60_000, keepAliveMs: 10_000, keepUnreferencedMs: 30 * 86_400_000, keepUploadingMs: 86_400_000 });
 const L = WEBPAGE_LIMITS;
 const FS_ID = /^fs_[0-9a-f]{24}$/, LINEAGE = /^wc_[0-9a-f]{24}$/, BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -274,8 +274,8 @@ export async function sweepWebpageSources(env, owner, now = Date.now()) {
   return gone.size;
 }
 
-// An idle Browser Run session if one is open (new sessions are rate limited per account), else a new one kept alive a
-// minute for the next capture. The route disconnects, never closes, so the session stays reusable.
+// An idle Browser Run session if one is open (new sessions are rate limited per account), else a new one kept alive
+// keepAliveMs (10 s: reuse for a capture then a quick Refresh or Retry; idle browser time is billed, integrator 2026-10-22). The route disconnects, never closes, so the session stays reusable.
 async function launchBrowser(env) {
   const { default: puppeteer } = await import('@cloudflare/puppeteer');
   const open = await puppeteer.sessions(env.BROWSER).catch(error => { console.error('webpage capture: sessions failed', String(error?.message || error).slice(0, 200)); return []; });
@@ -284,14 +284,14 @@ async function launchBrowser(env) {
   for (const { sessionId } of idle) {
     try { return await puppeteer.connect(env.BROWSER, sessionId); } catch { /* taken by another request: try the next */ }
   }
-  try { return await puppeteer.launch(env.BROWSER, { keep_alive: 60_000 }); } catch (error) {
+  try { return await puppeteer.launch(env.BROWSER, { keep_alive: L.keepAliveMs }); } catch (error) {
     // New sessions are rate limited per account: wait for the next allowed one once, if it is near.
     const limits = /429/.test(String(error?.message)) && await puppeteer.limits(env.BROWSER).catch(() => null);
     console.log('webpage capture: limits', JSON.stringify(limits));
     const wait = limits?.timeUntilNextAllowedBrowserAcquisition;
     if (!(Number.isFinite(wait) && wait <= 15_000)) throw error;
     await new Promise(r => setTimeout(r, wait + 250));
-    return puppeteer.launch(env.BROWSER, { keep_alive: 60_000 });
+    return puppeteer.launch(env.BROWSER, { keep_alive: L.keepAliveMs });
   }
 }
 

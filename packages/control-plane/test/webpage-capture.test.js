@@ -11,6 +11,10 @@ import { pdfExcerptsFetch } from '../src/pdf-excerpts.js';
 import { checkUrl, isPrivateIp } from '../src/url-guard.js';
 import { WEBPAGE_LIMITS, capturePage, sweepWebpageSources, tilePlan, webpagesFetch } from '../src/webpage-capture.js';
 
+// Idle Browser Run time is billed; 10 s keeps a session for a capture then a quick Refresh (integrator decision 2026-10-22,
+// measured launch about 1-2 s of a 4-6.6 s capture). A longer value multiplies billed idle time per capture.
+test('a launched capture browser idles at most 10 s for reuse', () => assert.equal(WEBPAGE_LIMITS.keepAliveMs, 10_000));
+
 // ---- fake DNS-over-HTTPS: host -> list of IPs, or 'nx'
 function doh(table) {
   const calls = [];

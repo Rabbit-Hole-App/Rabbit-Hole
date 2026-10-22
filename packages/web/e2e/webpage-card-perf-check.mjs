@@ -95,13 +95,18 @@ const renderedAt = page => page.waitForFunction(() => {
 }, null, { polling: 'raf', timeout: 60000 }).then(h => h.jsonValue());
 // rAF frame intervals over `ms` while `act` runs repeatedly: frames per second (from the mean interval), p95 and worst frame.
 const fpsDuring = async (page, ms, act) => {
-  const sampling = page.evaluate(ms => new Promise(resolve => { const t = []; let last = performance.now(); const end = last + ms;
-    const tick = now => { t.push(now - last); last = now; if (now < end) requestAnimationFrame(tick); else resolve(t); }; requestAnimationFrame(tick); }), ms);
+  // Diagnosis: Long Animation Frames over 100 ms in the window, with their slowest scripts (Chromium LoAF API).
+  const sampling = page.evaluate(ms => new Promise(resolve => { const t = [], loaf = []; let last = performance.now(); const end = last + ms;
+    let observer = null;
+    try { observer = new PerformanceObserver(list => { for (const e of list.getEntries()) if (e.duration > 100) loaf.push({ at: Math.round(e.startTime - (end - ms)), ms: Math.round(e.duration), block: Math.round(e.blockingDuration || 0), layout: Math.round((e.startTime + e.duration) - (e.styleAndLayoutStart || e.startTime + e.duration)),
+      scripts: (e.scripts || []).sort((a, b) => b.duration - a.duration).slice(0, 3).map(x => `${Math.round(x.duration)}ms ${x.invokerType}:${x.invoker} ${x.sourceFunctionName || ''} ${(x.sourceURL || '').split('/').pop()}:${x.sourceCharPosition}`) }); });
+      observer.observe({ type: 'long-animation-frame', buffered: false }); } catch { /* no LoAF in this browser */ }
+    const tick = now => { t.push(now - last); last = now; if (now < end) requestAnimationFrame(tick); else { observer?.disconnect(); resolve({ t, loaf }); } }; requestAnimationFrame(tick); }), ms);
   const stop = Date.now() + ms; let i = 0;
   while (Date.now() < stop) { await act(i); i += 1; }
-  const t = (await sampling).slice(1).sort((a, b) => a - b);
+  const sampled = await sampling, t = sampled.t.slice(1).sort((a, b) => a - b);
   const mean = t.reduce((a, b) => a + b, 0) / t.length;
-  return { fps: +(1000 / mean).toFixed(1), p95: +t[Math.floor(t.length * 0.95)].toFixed(1), worst: +t[t.length - 1].toFixed(1) };
+  return { fps: +(1000 / mean).toFixed(1), p95: +t[Math.floor(t.length * 0.95)].toFixed(1), worst: +t[t.length - 1].toFixed(1), frames: t.length, loaf: sampled.loaf };
 };
 const barePoint = page => page.evaluate(() => {
   const limit = Math.min(...[...document.querySelectorAll('[data-chat-pane],[data-sources-pane]')].filter(e => e.offsetWidth).map(e => e.getBoundingClientRect().x), innerWidth) - 30;
@@ -150,14 +155,16 @@ for (const n of SIZES) {
     Object.assign(row, { panFps: pan.fps, panP95: pan.p95 });
     // Diagnosis: board thumbnail uploads relative to the pan window's start (ms; the window is 0 to 1500).
     const thumbAt = thumbs.map(t => t - panFrom).join(' ') || 'none';
-    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}`);
+    ok(`${n} cards: panning the canvas runs at ${BUDGET.fps} fps or more`, pan.fps >= BUDGET.fps, `${pan.fps} fps, p95 ${pan.p95} ms, worst ${pan.worst} ms, thumbnail sent at ${thumbAt}, ${pan.frames} frames, long frames ${JSON.stringify(pan.loaf)}`);
 
     // Offscreen unload: pan every card off screen, wait past the release delay, then come back.
-    for (let i = 0; i < 30 && (await tileState(page)).visible > 0; i += 1) { await page.mouse.wheel(0, -800); await page.waitForTimeout(30); }
+    // A card that slides under the pointer takes the wheel (an unlocked card scrolls its page), so pan from a bare point each time.
+    const wheelBare = async dy => { const p = await barePoint(page); if (p) await page.mouse.move(p.x, p.y); await page.mouse.wheel(0, dy); await page.waitForTimeout(30); };
+    for (let i = 0; i < 30 && (await tileState(page)).visible > 0; i += 1) await wheelBare(-800);
     await page.waitForTimeout(3000);
     const away = await tileState(page);
     row.mountedAway = away.mounted;
-    for (let i = 0; i < 60 && (await tileState(page)).visible === 0; i += 1) { await page.mouse.wheel(0, 400); await page.waitForTimeout(30); }
+    for (let i = 0; i < 60 && (await tileState(page)).visible === 0; i += 1) await wheelBare(400);
     await page.waitForTimeout(1500);
     const back = await tileState(page), worstTile = Math.max(0, ...tileRequests.values());
     row.maxReqPerTile = worstTile;

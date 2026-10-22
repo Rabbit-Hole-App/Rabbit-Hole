@@ -219,6 +219,15 @@ const barePoint = () => page.evaluate(() => {
   }
   return null;
 });
+// A point of the card's page where the card itself is on top: the pasted card can sit under earlier text boxes, which the
+// canvas draws above cards (fast-e2e 39747703510: a click at the body's top selected the "note" text box instead).
+const cardPoint = id => page.evaluate(id => {
+  const frame = document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${id}"] [data-webcard-frame]`), r = frame.getBoundingClientRect();
+  for (let y = r.top + 20; y < r.bottom - 10; y += 20) for (let x = r.left + 20; x < r.right - 10; x += 40) {
+    if (document.elementFromPoint(x, y)?.closest('[data-webcard-frame]') === frame) return { x, y };
+  }
+  return null;
+}, id);
 const focusCanvas = async () => { const p = await barePoint(); assert.ok(p, 'a bare point of canvas'); await page.mouse.click(p.x, p.y); await page.waitForTimeout(200); };
 const copy = text => page.evaluate(t => navigator.clipboard.writeText(t), text);
 const pasteOnCanvas = async text => { await focusCanvas(); await copy(text); await page.keyboard.press('Control+v'); };
@@ -351,7 +360,7 @@ await check('aligned text: each run sits over its place in the capture (CSS px o
 await check('scrolling the card moves the capture, not the canvas; zero AI requests', async () => {
   await noAi('scroll', async () => {
     const body = await part(ID, SEL.body).boundingBox(), cam = await camera(), top = await scrollTop(ID);
-    await page.mouse.click(body.x + body.width / 2, body.y + 20);
+    const at = await cardPoint(ID); assert.ok(at, 'a point of the card on top'); await page.mouse.click(at.x, at.y);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
     for (let i = 0; i < 8; i += 1) { await page.mouse.wheel(0, 250); await frames(); }
     await waitFor(async () => await scrollTop(ID) >= top + 1000, 4000, `the capture did not scroll (scroll-top ${await scrollTop(ID)})`);
@@ -502,7 +511,7 @@ await check('the refreshed version survives reload and the old highlight stays o
 await check('region selection after scrolling the card and zooming the canvas pictures the scrolled part of the page; zero AI requests', async () => {
   await noAi('region', async () => {
     const body = await part(ID, SEL.body).boundingBox();
-    await page.mouse.click(body.x + body.width / 2, body.y + 20);
+    const at = await cardPoint(ID); assert.ok(at, 'a point of the card on top'); await page.mouse.click(at.x, at.y);
     await page.mouse.move(body.x + body.width / 2, body.y + body.height / 2);
     const target = TILE_H + 300; // inside the green tile, clear of its band
     for (let i = 0; i < 20 && Math.abs(await scrollTop(ID) - target) > 150; i += 1) { await page.mouse.wheel(0, Math.sign(target - await scrollTop(ID)) * 100); await frames(); }
