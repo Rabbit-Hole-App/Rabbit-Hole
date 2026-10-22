@@ -14,6 +14,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { COMMIT, REPO, SNAPSHOT, content, repoRow, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
@@ -52,6 +53,8 @@ await context.route(`**/api/{apps,repositories}/${REPO2}{,/snapshot,/file}`, (ro
   if (p.endsWith('/file')) { const { path } = JSON.parse(route.request().postData()); return route.fulfill({ json: { path, commit: COMMIT, content: content[path] } }); }
   return route.fulfill({ json: { ...repoRow(real), name: REPO2 } });
 });
+// CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
+await mockChatRoute(context);
 await context.route('**/api/learn/ask', (route) => {
   asks.push(JSON.parse(route.request().postData()));
   // cite: one stubbed answer's own words after the usual line (case 10d: code references), then it clears.

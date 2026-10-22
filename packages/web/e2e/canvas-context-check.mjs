@@ -14,6 +14,7 @@ import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { REPO, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8851';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8853';
@@ -209,6 +210,8 @@ async function openBoard(board) {
   await context.addInitScript(seeds => { if (window !== window.top) return; for (const [key, value] of Object.entries(seeds)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, board.seeds);
   if (board.repo) await routeRepository(context); // registered first, so this file's router (below) runs first and falls back to it
   await context.route('**/*', router);
+  // CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+  await mockChatRoute(context);
   page = await context.newPage();
   page.on('pageerror', error => errors.push(`${board.name}: ${error.message.slice(0, 160)}`));
   await page.goto(`${BASE}/apps/${board.name}${board.repo ? '?tab=learn' : ''}`);

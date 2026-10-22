@@ -11,6 +11,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9601';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9603';
@@ -75,6 +76,8 @@ await context.route('**/api/**', route => {
   if (MODEL.test(path) && !(path === '/api/learn/journey' && request.method() === 'GET')) { model.push(`${request.method()} ${path}`); return route.abort(); }
   return route.continue();
 });
+// CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+await mockChatRoute(context);
 const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
 

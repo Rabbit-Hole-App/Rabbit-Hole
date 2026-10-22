@@ -82,3 +82,27 @@ test('the Chat routes plain turns and proposed commands; other command prompts, 
   assert.ok(ask.includes('if (outcome.token) payload.route_token = outcome.token;'));
   assert.ok(ask.includes('if (!keepDraft) setInput(current => current || (commandName ?'), 'a shown decision gives the words back, never over a kept draft');
 });
+test('the e2e route fixture (e2e/dev-cp.mjs) passes the client: routeChat keeps it and the turn is sent; a body with no route falls back', async () => {
+  const { routeChat, routeOutcome, ROUTE_FAILED } = await import('./generation-proposal-chat.js');
+  const { CHAT_ROUTE_PROTOCOL_VERSION } = await import('./inline-ai-route.js');
+  const { chatRouteAnswer, mockChatRoute } = await import('../e2e/dev-cp.mjs');
+  const payload = { scope: { app: 'canvas-0a1b2c3d' }, message: 'Why does a metal spoon feel colder than a wooden one?', mode: 'ask' };
+  const serve = make => async (url, init) => { const json = make(JSON.parse(init.body)); return { status: 200, ok: true, json: async () => json }; };
+  const decision = await routeChat(serve(chatRouteAnswer), payload);
+  assert.deepEqual(decision, chatRouteAnswer({ text: payload.message }), 'kept as served, args the line as typed');
+  assert.equal(decision.meta.protocol, CHAT_ROUTE_PROTOCOL_VERSION);
+  assert.deepEqual(routeOutcome(decision), { send: true, token: null }, 'an answer: the turn is sent, with no token');
+  // The catch-all the checks used to answer it with ({ ok: true }) is malformed: the fallback, and no turn.
+  const caught = await routeChat(serve(() => ({ ok: true })), payload);
+  assert.deepEqual([caught.via, caught.code, routeOutcome(caught).show], ['fallback', 'malformed', { kind: 'fallback', message: ROUTE_FAILED, retryable: true }]);
+  // mockChatRoute answers only the route path, with the request's own body.
+  const handlers = [];
+  await mockChatRoute({ route: async (pattern, handler) => handlers.push([pattern, handler]) }, []);
+  const [[pattern, handler]] = handlers;
+  assert.ok(pattern.test('http://127.0.0.1:9261/api/learn/chat/route'));
+  assert.ok(!pattern.test('http://127.0.0.1:9261/api/learn/chat/threads/x/state'));
+  let fulfilled = null;
+  await handler({ request: () => ({ postData: () => JSON.stringify({ text: ' hi ' }) }), fulfill: async reply => { fulfilled = reply; } });
+  assert.deepEqual(fulfilled, { json: chatRouteAnswer({ text: ' hi ' }) });
+  assert.equal(fulfilled.json.args, 'hi');
+});

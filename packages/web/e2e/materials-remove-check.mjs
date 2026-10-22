@@ -11,6 +11,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8881';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8883';
@@ -90,6 +91,8 @@ const browser = await chromium.launch();
 const context = await browser.newContext({ viewport: { width: 1800, height: 1000 } });
 await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
 await context.route('**/*', router);
+// CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+await mockChatRoute(context);
 const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
 const results = [], facts = {};

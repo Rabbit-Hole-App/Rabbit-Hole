@@ -6,6 +6,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8888';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8889';
@@ -386,7 +387,7 @@ const longKey = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${longCan
 const ctx2 = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 await ctx2.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
 await ctx2.addInitScript(([key, value]) => { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, [longKey, LONG]);
-const tocAsks = [], tocStray = [], tocErrors = [], chatRequests = [];
+const tocAsks = [], tocStray = [], tocErrors = [], chatRequests = [], chatRoutes = [];
 await ctx2.route('**/api/learn/ask', route => {
   tocAsks.push(JSON.parse(route.request().postData() || '{}'));
   const n = tocAsks.length;
@@ -394,6 +395,9 @@ await ctx2.route('**/api/learn/ask', route => {
 });
 await ctx2.route(/\/api\/learn\/(tutor(?!\/next-steps)|artifact|home-ask|journeys?)\b/, route => { if (route.request().method() === 'GET') return route.continue(); tocStray.push(route.request().url()); return route.abort(); });
 await ctx2.route(/\/api\/learn\/chat\//, route => (route.request().method() === 'GET' ? route.continue() : route.fulfill({ json: { ok: true } }))); // the canned thread exists nowhere
+// CR-1: a Chat line asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered after the
+// catch-all above so it wins. CI has no JEV key, so the real route would fall back and send nothing.
+await mockChatRoute(ctx2, chatRoutes);
 const p2 = await ctx2.newPage();
 p2.on('pageerror', error => tocErrors.push(error.message));
 p2.on('request', request => { const path = new URL(request.url()).pathname; if (/^\/api\/(ask\b|learn\/(ask|chat|tutor)\b)/.test(path)) chatRequests.push(`${request.method()} ${path}`); });
@@ -439,6 +443,7 @@ await check('L1 in Chat: one Ask question answered, then an unsent draft and a c
   await field().fill('Why does a metal spoon feel colder than a wooden one?');
   await send2().click();
   await p2.locator('[data-chat-pane]').getByText('Canned answer 1.', { exact: true }).waitFor({ timeout: 15000 });
+  assert.deepEqual(chatRoutes.map(r => [r.mode, r.text, r.capability]), [['ask', 'Why does a metal spoon feel colder than a wooden one?', null]], 'the typed line was routed once, as typed, in Ask');
   await field().fill('Which part should I review next?');
   await p2.locator('[data-block-id="t-card"] [data-drag-zone]').last().click({ position: { x: 12, y: 8 }, force: true });
   await p2.getByRole('button', { name: 'Add to chat', exact: true }).click();

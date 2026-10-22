@@ -21,6 +21,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { COMMIT, REPO, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8911';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8913';
@@ -101,6 +102,8 @@ const openContext = async (viewport = { width: 1800, height: 1000 }) => {
   await context.addInitScript(([key, value]) => { if (window !== window.top) return; try { if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch { /* a sandboxed frame */ } }, seed(REPO));
   await routeRepository(context); // registered first, so the router below runs first and falls back to it
   await context.route('**/*', router);
+  // CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+  await mockChatRoute(context);
   page = await context.newPage();
   page.setDefaultTimeout(15000); // an action on a missing control fails in 15 s instead of waiting forever
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));

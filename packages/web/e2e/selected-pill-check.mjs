@@ -11,6 +11,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { chatRouteAnswer } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8848';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8849';
@@ -76,6 +77,8 @@ const contextFor = async who => {
     // The question, answered here: the Learn ask, the Tutor planner (a canvas turn, #46) and the shared ask. No model.
     const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     if (path === '/api/learn/ask') { asks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', {}) }); }
+    // CR-1 route decision (dev-cp.mjs chatRouteAnswer): an answer. CI has no JEV key, so the real route would fall back and send nothing.
+    if (path === '/api/learn/chat/route') return route.fulfill({ json: chatRouteAnswer(JSON.parse(route.request().postData() || '{}')) });
     if (path === '/api/learn/tutor/plan') { plans.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'Answered here.' }] } }); }
     if (/^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(path)) { sharedAsks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', { ok: true }) }); }
     // Next Steps' hook on canvas open is expected; the stack's tripwire answers its planner with fixtures.

@@ -123,11 +123,14 @@ await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); //
 await shot('holes-map-02-clamped');
 assert.equal(await page.locator('[data-dive-grip]').evaluate(node => node.tagName === 'BUTTON' && node.tabIndex === 0 && node.getAttribute('aria-label')), 'Move Rabbit Holes Map', 'a focusable, named grip');
 await page.locator('[data-dive-grip]').focus();
-await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp');
+// Six steps right clear the 84 px tools gutter: since UI-17 the map's slot sits above the toolbar, so the toolbar ends lower
+// and covers a map stepped only up from the corner (fast-e2e 39721083356: the toolbar took the grip's double-click).
+for (const key of ['ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowRight', 'ArrowUp', 'ArrowUp']) await page.keyboard.press(key);
 const stepped = await mapAt();
-near(stepped, { x: clamped.x + 16, y: clamped.y - 32 }, 'arrow keys step the map 16 px');
+near(stepped, { x: clamped.x + 96, y: clamped.y - 32 }, 'arrow keys step the map 16 px');
 await open(ROOT_URL);
 near(await mapAt(), stepped, 'a reload keeps the spot');
+await page.locator('[data-dive-grip]').click({ trial: true, timeout: 5000 }); // actionable: nothing intercepts the grip
 await shot('holes-map-03-after-reload');
 await page.locator('[data-dive-grip]').dblclick();
 near(await mapAt(), home, 'double-click puts it back in the gutter');
@@ -262,7 +265,7 @@ assert.ok(softmaxOrigin.origin_concept_ids.length > 0, 'concepts resolved, not d
 let rootTree = await tree(root.name, BOARD);
 assert.deepEqual(rootTree.children.map(child => [child.name, child.title, child.origin_block_id]), [[softmax, 'Softmax', card1]]);
 // The map dragged inside the hole: its levels still work from the new spot, and the spot is the same on every canvas.
-const holeSpot = await dragMap(-420, 240);
+const holeSpot = await dragMap(420, 240); // right, over the canvas: the map's home is the tools gutter's top left (UI-17)
 await shot('holes-map-04-dragged-in-hole');
 await nav().locator('[data-dive-level]').first().click(); // the root, from the moved map
 await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1500);

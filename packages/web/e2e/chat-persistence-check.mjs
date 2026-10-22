@@ -8,6 +8,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8851';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8853';
@@ -79,6 +80,8 @@ await context.route(url => url.pathname === '/api/learn/chat/active', route => {
   return route.fallback();
 });
 
+// CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+await mockChatRoute(context);
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', error => errors.push(error.message));

@@ -17,6 +17,7 @@ import { installPointerDiagnostics, reportPointerFailure } from './pointer-diagn
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { COMMIT, REPO, routeRepository } from './nanogpt-repository-fixture.mjs';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8868';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8869';
@@ -55,6 +56,8 @@ await context.route('**/api/learn/ask', (route) => {
 // The Curious hook on the canvas: scripted, so nothing reaches a model and the planner's absence on a keyless stack is quiet.
 await context.route('**/api/learn/tutor/next-steps', (route) => { hooks.push(1); return route.fulfill({ json: { set_id: `ws-set-${hooks.length}`, generated_at: new Date().toISOString(), options: [] } }); });
 await installPointerDiagnostics(context);
+// CR-1: a Chat line (any mode) asks POST /api/learn/chat/route first; a contract-valid answer decision (dev-cp.mjs), registered last so it wins. CI has no JEV key.
+await mockChatRoute(context);
 const page = await context.newPage();
 page.setDefaultTimeout(15000);
 const errors = [];
