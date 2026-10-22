@@ -4,8 +4,18 @@
 // column, so the canvas surface (overflow hidden) ended 92 px before the panel - a blank strip - and cut the PDF card's right
 // side; Add to chat opening Chat narrowed the canvas and left the selected card cut.
 // UI-17 (owner, 2026-10-21): the same 92 px column stayed at every canvas row of 784 px or more (Chat alone, say), so the
-// strip and the early cut came back there. The map now always sits at the top of the tools gutter.
-// Covered: both panels open (no blank strip, the map shown in the tools gutter, the selected PDF card and its reader
+// strip and the early cut came back there. The map now always sits at the top of the tools column.
+// Owner decision 2026-10-22 (supersedes the reserved 84 px tools gutter and the header row above the canvas): a shape was cut
+// along an invisible vertical line beside the toolbar and a horizontal one below the header while the dotted workspace ran on.
+// The drawing surface now fills the workspace from its outer left edge and the page top to the right panel; the header
+// ([data-canvas-header]) and the tools column ([data-tool-gutter]) float over it, taking the pointer only on their controls;
+// fit, reveal and placement keep clear of the controls' measured rectangles; the opening camera is compensated (no jump).
+// Covered for it: the surface's edges with zero, one and two right panels; a card pushed past each of the four edges at 50%,
+// 100% and 117% is drawn right up to the surface boundary and clipped only there; in the old gutter and header bands a
+// click selects a card, the pen draws ink and the region capture starts its marquee; a window resize and a reload move no
+// card on screen or in its saved coordinates; fit (Shift+1, Back to content) with zero, one and two panels and a new card
+// placed in view never sit under the toolbar, the navigator, the header, Home or the minimap.
+// Covered: both panels open (no blank strip, the map shown in the tools column, the selected PDF card and its reader
 // whole); Chat dragged wider; Add to chat opening a hidden Chat keeps the selected card in view (a PDF card, then a Notebook
 // card); zoom 64%, 100% and 156% (the canvas still runs to the panel); Context closed, Chat alone (the map still in the tools
 // gutter, no column of its own; a card reaches the panel edge); the window resized so the canvas row crosses 784 px (800,
@@ -98,12 +108,13 @@ const geometry = () => page.evaluate(pdfId => {
   const frame = pdfId && document.querySelector(`[aria-label="Lesson canvas"] [data-block-id="${pdfId}"] iframe`);
   return { surface: r(surface), row: r(surface?.parentElement), panelLeft: panels.length ? Math.min(...panels.map(p => p.x)) : innerWidth, panels: panels.length,
     nav: r(document.querySelector('[data-dive-navigator]')), diveGutter: r(document.querySelector('[data-dive-gutter]')), tools: r(document.querySelector('[data-tool-gutter]')), cards, frame: r(frame),
+    header: r(document.querySelector('[data-canvas-header]')), learn: r(document.querySelector('section[aria-label="Learn"]')),
     zoom: document.querySelector('[data-zoom]')?.innerText.match(/\d+%/)?.[0] ?? null };
 }, PDF_CARD);
-// The canvas runs to the panel: nothing but the row's own 4 px edge between the surface and the first panel, and no
-// map column inside the row while panels are open on this laptop.
+// The canvas runs to the panel: nothing between the surface and the first panel (owner, 2026-10-22: the lesson column's old
+// 4 px right padding is gone too), and no map column inside the row while panels are open on this laptop.
 const noBlankStrip = (g, label) => {
-  assert.ok(g.panelLeft - g.surface.right <= 6, `${label}: ${Math.round(g.panelLeft - g.surface.right)} px between the canvas surface (right ${Math.round(g.surface.right)}) and the panel (${Math.round(g.panelLeft)})`);
+  assert.ok(Math.abs(g.panelLeft - g.surface.right) <= 1, `${label}: ${Math.round(g.panelLeft - g.surface.right)} px between the canvas surface (right ${Math.round(g.surface.right)}) and the panel (${Math.round(g.panelLeft)})`);
 };
 // A card the surface has room for is drawn whole, its reader too. One wider than the canvas (a 640 px Notebook in a 628 px
 // canvas) shows its start, and runs on under the panel: that edge is the real one (noBlankStrip), ordinary canvas clipping.
@@ -116,12 +127,26 @@ const whole = (g, id, label) => {
 };
 const geometryOf = blocks => (blocks || []).map(b => ({ id: b.id, dx: b.dx ?? 0, dy: b.dy ?? 0, w: b.w ?? null, h: b.h ?? null })).sort((a, b) => a.id.localeCompare(b.id));
 const saved = async () => geometryOf((await page.evaluate(key => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }, INK))?.blocks);
-// The Rabbit Holes Map (UI-17): shown, at the top of the tools gutter, never in a column of its own, never on the canvas.
+// The Rabbit Holes Map (UI-17): shown, at the top of the tools column, never in a column of its own. Owner, 2026-10-22: that
+// column floats over the canvas below the header, so the map floats over the canvas's left edge too, never under the header.
 const mapInTools = (g, label) => {
   assert.equal(g.diveGutter, null, `${label}: the map has no column of its own`);
   assert.ok(g.nav, `${label}: the Rabbit Holes Map is on screen`);
-  assert.ok(g.nav.x >= g.tools.x - 0.5 && g.nav.right <= g.tools.right + 0.5 && g.nav.y < g.tools.y + 120, `${label}: the map ${JSON.stringify(g.nav)} at the top of the tools gutter ${JSON.stringify(g.tools)}`);
-  assert.ok(g.nav.right <= g.surface.x + 0.5 || g.nav.x >= g.surface.right - 0.5, `${label}: the map ${Math.round(g.nav.x)}-${Math.round(g.nav.right)} never sits on the canvas ${Math.round(g.surface.x)}-${Math.round(g.surface.right)}`);
+  assert.ok(g.nav.x >= g.tools.x - 0.5 && g.nav.right <= g.tools.right + 0.5 && g.nav.y < g.tools.y + 120, `${label}: the map ${JSON.stringify(g.nav)} at the top of the tools column ${JSON.stringify(g.tools)}`);
+  assert.ok(g.nav.x >= g.surface.x - 0.5 && g.nav.y >= g.surface.y - 0.5, `${label}: the map ${JSON.stringify(g.nav)} floats over the canvas ${JSON.stringify(g.surface)}`);
+  assert.ok(!g.header || g.nav.y >= g.header.bottom - 0.5, `${label}: the map (top ${Math.round(g.nav.y)}) is below the header (bottom ${Math.round(g.header?.bottom)})`);
+};
+// Owner, 2026-10-22: the surface fills the canvas workspace - from the Learn section's outer left edge and its top to the
+// right panel - and the header and the tools column float over it, below the header, the pointer through them.
+const fillsWorkspace = async (g, label) => {
+  assert.ok(g.learn && g.header && g.tools, `${label}: the Learn section, the header and the tools column are on screen`);
+  assert.ok(Math.abs(g.surface.x - g.learn.x) <= 1, `${label}: the surface starts at the workspace's left edge (${Math.round(g.surface.x)} vs ${Math.round(g.learn.x)}), no tools gutter`);
+  assert.ok(Math.abs(g.surface.y - g.learn.y) <= 1, `${label}: the surface starts at the workspace's top (${Math.round(g.surface.y)} vs ${Math.round(g.learn.y)}), no header row`);
+  assert.ok(g.header.y >= g.surface.y - 0.5 && g.header.bottom < g.surface.bottom, `${label}: the header ${JSON.stringify(g.header)} floats over the surface ${JSON.stringify(g.surface)}`);
+  assert.ok(g.tools.x >= g.surface.x - 0.5 && Math.abs(g.tools.y - g.header.bottom) <= 1 && g.tools.bottom <= g.surface.bottom + 0.5, `${label}: the tools column ${JSON.stringify(g.tools)} floats over the surface from below the header (${Math.round(g.header.bottom)})`);
+  const events = await page.evaluate(() => ['[data-canvas-header]', '[data-tool-gutter]'].map(sel => getComputedStyle(document.querySelector(sel)).pointerEvents));
+  assert.deepEqual(events, ['none', 'none'], `${label}: the header and the tools column let the pointer through (only their controls take it)`);
+  noBlankStrip(g, label);
 };
 // A press on the card's drag strip, near its left end (always on screen here), selects it.
 // A point of bare canvas (no card, no chrome) to wheel over: a wheel over a card's own content scrolls that instead.
@@ -186,6 +211,105 @@ const pan = async dx => {
   await page.mouse.wheel(-dx, 0);
   await page.waitForTimeout(300);
 };
+// ---- owner decision 2026-10-22 helpers
+const panBy = async (dx, dy) => {
+  const at = await barePoint();
+  if (!at) throw Error('no bare canvas to pan from');
+  await page.mouse.move(at.x, at.y);
+  await page.mouse.wheel(-dx, -dy);
+  await page.waitForTimeout(300);
+};
+// Right panels: 0 (hidden), 1 (Chat) or 2 (Chat and the companion column), the same controls as the UI-19 step.
+const setPanels = async n => {
+  if ((await geometry()).panels === 0 && n > 0) { await page.getByRole('button', { name: 'Show the right panel' }).click({ timeout: 5000 }); await settle(); }
+  if (n === 2 && (await geometry()).panels < 2) { await page.locator('[data-panel-companion]').click({ timeout: 5000 }); await settle(); }
+  if (n < 2 && (await geometry()).panels === 2) { await page.locator('[data-companion-close]').click({ timeout: 5000 }); await settle(); }
+  if (n === 0 && (await geometry()).panels > 0) { await page.getByRole('button', { name: 'Hide the right panel' }).click({ timeout: 5000 }); await settle(); }
+  await waitFor(async () => (await geometry()).panels === n, 5000, `${n} right panel(s) not open`);
+};
+const deselect = async () => {
+  const at = await barePoint();
+  if (!at) throw Error('no bare canvas to click');
+  await page.mouse.click(at.x, at.y);
+  await page.locator('[role="toolbar"][aria-label="Selection actions"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+};
+// Zoom by Ctrl+wheel at a bare point (exp(-deltaY * 0.002) per event) until the zoom pill reads `pct`; Shift+0 is 100%.
+const zoomTo = async pct => {
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Shift+Digit0');
+  await settle();
+  for (let i = 0; i < 6; i += 1) {
+    const now = Number(((await geometry()).zoom || '').replace('%', ''));
+    if (now === pct) return;
+    const at = await barePoint();
+    await page.mouse.move(at.x, at.y);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -Math.log(pct / now) / 0.002);
+    await page.keyboard.up('Control');
+    await page.waitForTimeout(300);
+  }
+  assert.equal((await geometry()).zoom, `${pct}%`, `the zoom pill reads ${pct}%`);
+};
+// The card's first clipping ancestor: the canvas surface, nothing between them.
+const firstClip = id => page.evaluate(blockId => {
+  for (let el = document.querySelector(`[data-canvas-surface] [data-block-id="${blockId}"]`)?.parentElement; el; el = el.parentElement) {
+    const cs = getComputedStyle(el);
+    if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible' || cs.clipPath !== 'none') return el.hasAttribute('data-canvas-surface') ? 'surface' : `${el.tagName}.${String(el.className).slice(0, 60)}`;
+  }
+  return null;
+}, id);
+// Every floating control's rectangle (viewport px), for probes that must land beside them, never on them.
+const controlRects = () => page.evaluate(() => { const boxesIn = n => { const r = n.getBoundingClientRect(); return r.width || r.height ? [r] : [...n.children].flatMap(boxesIn); };
+  return [...document.querySelectorAll('[data-tool-gutter] > *, [data-canvas-header] > *, [data-left-stack] > *, [role="dialog"], [role="toolbar"][aria-label="Selection actions"]')].map(n => n.getBoundingClientRect())
+    .concat([...document.querySelectorAll('[data-canvas-bottom] > * > *')].flatMap(boxesIn)).filter(r => r.width && r.height).map(r => ({ left: r.left, right: r.right, top: r.top, bottom: r.bottom })); });
+// Push the card 40 px past `edge`, its other axis well inside, then probe 2 px inside that surface edge beside the controls.
+const pastEdge = async (id, edge) => {
+  for (let i = 0; i < 5; i += 1) {
+    const g = await geometry(), c = g.cards[id], s = g.surface;
+    const [dx, dy] = { left: [s.x - 40 - c.x, s.y + 160 - c.y], right: [s.right + 40 - c.right, s.y + 160 - c.y], top: [s.x + 140 - c.x, s.y - 40 - c.y], bottom: [s.x + 140 - c.x, s.bottom + 40 - c.bottom] }[edge];
+    if (Math.abs(dx) < 2 && Math.abs(dy) < 2) break;
+    await panBy(dx, dy);
+  }
+  return page.evaluate(([blockId, side, controls]) => {
+    const free = (x, y) => !controls.some(r => x >= r.left - 1 && x <= r.right + 1 && y >= r.top - 1 && y <= r.bottom + 1);
+    const s = document.querySelector('[data-canvas-surface]').getBoundingClientRect();
+    const card = document.querySelector(`[data-canvas-surface] [data-block-id="${blockId}"]`).getBoundingClientRect();
+    const mine = (x, y) => !!document.elementFromPoint(x, y)?.closest(`[data-canvas-surface] [data-block-id="${blockId}"]`);
+    const vertical = side === 'left' || side === 'right';
+    const inner = { left: s.left + 2, right: s.right - 2, top: s.top + 2, bottom: s.bottom - 2 }[side];
+    const outer = { left: s.left - 2, right: s.right + 2, top: s.top - 2, bottom: s.bottom + 2 }[side];
+    const [from, to] = vertical ? [Math.max(card.top, s.top) + 4, Math.min(card.bottom, s.bottom) - 4] : [Math.max(card.left, s.left) + 4, Math.min(card.right, s.right) - 4];
+    const past = { left: card.left < s.left - 1, right: card.right > s.right + 1, top: card.top < s.top - 1, bottom: card.bottom > s.bottom + 1 }[side];
+    for (let t = from; t <= to; t += 6) {
+      const [x, y] = vertical ? [inner, t] : [t, inner];
+      if (!free(x, y)) continue;
+      const [ox, oy] = vertical ? [outer, t] : [t, outer];
+      const onScreen = ox >= 0 && oy >= 0 && ox < innerWidth && oy < innerHeight;
+      return { x, y, hit: mine(x, y), outside: onScreen ? mine(ox, oy) : null, past, card: { x: card.left, right: card.right, y: card.top, bottom: card.bottom } };
+    }
+    return { none: true, past, card: { x: card.left, right: card.right, y: card.top, bottom: card.bottom }, surface: { x: s.left, right: s.right, y: s.top, bottom: s.bottom } };
+  }, [id, edge, await controlRects()]);
+};
+// Points in the bands the old layout reserved (owner, 2026-10-22): `left`, the old 84 px tools gutter below the header;
+// `top`, the old header row. Each beside every control, with a drag end 24-30 px on (a region capture needs 8 px each way).
+const bandPoints = async band => page.evaluate(([which, controls]) => {
+  const free = (x, y) => !controls.some(r => x >= r.left - 1 && x <= r.right + 1 && y >= r.top - 1 && y <= r.bottom + 1);
+  const bare = (x, y) => { const el = document.elementFromPoint(x, y); return !!el?.closest('[data-canvas-surface]') && !el.closest('[data-block-id],[data-item-id],[data-shape-id],button,[role="toolbar"]'); };
+  const s = document.querySelector('[data-canvas-surface]').getBoundingClientRect(), header = document.querySelector('[data-canvas-header]').getBoundingClientRect();
+  const out = [];
+  const add = (x, y, ex, ey) => { if (free(x, y) && free(ex, ey) && free((x + ex) / 2, (y + ey) / 2)) out.push({ x, y, end: { x: ex, y: ey }, bare: bare(x, y) && bare(ex, ey) && bare((x + ex) / 2, (y + ey) / 2), surface: !!document.elementFromPoint(x, y)?.closest('[data-canvas-surface]') }); };
+  if (which === 'left') { for (let y = header.bottom + 6; y < s.bottom - 180; y += 6) for (let x = s.left + 8; x <= s.left + 60; x += 6) add(x, y, x + 24, y + 30); }
+  else for (let x = s.left + 8; x < s.right - 60; x += 6) for (let y = s.top + 6; y <= header.bottom - 8; y += 4) add(x, y, x + 30, y + 24);
+  return { points: out, header: header.bottom, surface: { x: s.left, y: s.top, right: s.right, bottom: s.bottom } };
+}, [band, await controlRects()]);
+const inkCount = () => page.evaluate(key => { try { return (JSON.parse(localStorage.getItem(key) || '{}').strokes || []).length; } catch { return -1; } }, INK);
+const drag = async (from, to) => {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 4 });
+  await page.mouse.move(to.x, to.y, { steps: 4 });
+};
+const canvasTool = name => page.getByRole('toolbar', { name: 'Canvas tools' }).getByRole('button', { name, exact: typeof name === 'string' });
 
 // ================================================================ setup: the PDF card (through Sources) and a Notebook card
 await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -340,6 +464,91 @@ await check('View > Rabbit Hole Map off, then on: the map hides and comes back i
   assert.ok(Math.abs(on.surface.w - before.surface.w) <= 1, `the canvas width is unchanged: ${Math.round(before.surface.w)} -> ${Math.round(on.surface.w)}`);
 });
 
+// ================================================================ owner decision 2026-10-22: the surface fills the workspace
+await check('owner 2026-10-22: with zero, one and two right panels the surface fills the workspace from its outer left edge and top to the panel; the header and tools column float over it', async () => {
+  const seen = {};
+  for (const n of [1, 2, 0, 1]) {
+    await setPanels(n);
+    const g = await geometry();
+    seen[n] = { surface: g.surface, header: g.header, tools: g.tools, learn: g.learn, panelLeft: g.panelLeft };
+    await fillsWorkspace(g, `${n} right panel(s)`);
+    if (g.nav) mapInTools(g, `${n} right panel(s)`);
+    await shot(`06f-fills-workspace-${n}-panels`);
+  }
+  facts.fills_workspace = seen;
+});
+
+for (const pct of [50, 100, 117]) {
+  await check(`owner 2026-10-22: at ${pct}% the PDF card pushed past each of the four edges is drawn up to the surface boundary beside the controls, and clipped only there`, async () => {
+    await setPanels(1);
+    await deselect();
+    await zoomTo(pct);
+    const seen = {};
+    for (const edge of ['left', 'top', 'right', 'bottom']) {
+      const probe = await pastEdge(PDF_CARD, edge);
+      seen[edge] = probe;
+      assert.ok(probe.past, `${pct}% ${edge}: the card runs past the ${edge} edge ${JSON.stringify(probe.card)}`);
+      assert.ok(!probe.none, `${pct}% ${edge}: no point along the edge beside the controls: ${JSON.stringify(probe)}`);
+      assert.equal(probe.hit, true, `${pct}% ${edge}: 2 px inside the surface edge at (${Math.round(probe.x)}, ${Math.round(probe.y)}) is the card, not an invisible band`);
+      if (probe.outside !== null) assert.equal(probe.outside, false, `${pct}% ${edge}: 2 px outside the surface the card is clipped`);
+      assert.equal(await firstClip(PDF_CARD), 'surface', `${pct}% ${edge}: the card's first clipping ancestor is the surface`);
+      await shot(`06g-edge-${pct}-${edge}`);
+    }
+    facts[`edges_${pct}`] = seen;
+    await page.keyboard.press('Shift+Digit0');
+    await settle();
+  });
+}
+
+for (const band of ['left', 'top']) {
+  await check(`owner 2026-10-22: in the old ${band === 'left' ? 'tools gutter' : 'header row'} band a click selects a card, the pen draws ink and the region capture starts there`, async () => {
+    await setPanels(1);
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.keyboard.press('Shift+Digit0');
+    await settle();
+    await deselect();
+    // Select: the card's drag strip (30, 10 in from its corner, as select() presses it) parked under a band point.
+    let { points } = await bandPoints(band);
+    const target = points.find(point => point.surface);
+    assert.ok(target, `${band}: a point of the band beside the controls answers as the canvas: ${JSON.stringify(points.slice(0, 3))}`);
+    for (let i = 0; i < 5; i += 1) {
+      const card = (await geometry()).cards[PDF_CARD], dx = target.x - (card.x + 30), dy = target.y - (card.y + 10);
+      if (Math.abs(dx) < 2 && Math.abs(dy) < 2) break;
+      await panBy(dx, dy);
+    }
+    const under = await page.evaluate(([x, y, id]) => !!document.elementFromPoint(x, y)?.closest(`[data-canvas-surface] [data-block-id="${id}"]`), [target.x, target.y, PDF_CARD]);
+    assert.equal(under, true, `${band}: the card is what the pointer meets at (${Math.round(target.x)}, ${Math.round(target.y)})`);
+    await page.mouse.click(target.x, target.y);
+    await page.locator('[role="toolbar"][aria-label="Selection actions"] [data-add-to-chat]').waitFor({ state: 'visible', timeout: 5000 }).catch(() => { throw Error(`${band}: a click in the band did not select the card`); });
+    await shot(`06h-band-${band}-select`);
+    // Pen: move the card away (Shift+0), then draw across bare band canvas.
+    await page.keyboard.press('Shift+Digit0');
+    await settle();
+    await deselect();
+    ({ points } = await bandPoints(band));
+    const blank = points.find(point => point.bare);
+    assert.ok(blank, `${band}: bare canvas in the band to draw on`);
+    const inkBefore = await inkCount();
+    await canvasTool('Pen').click();
+    await drag(blank, blank.end);
+    await page.mouse.up();
+    await waitFor(async () => (await inkCount()) === inkBefore + 1, 8000, `${band}: the pen stroke in the band was not drawn (${inkBefore} strokes)`);
+    const stroke = await page.evaluate(() => { const r = document.querySelector('svg[data-ink]')?.lastElementChild?.getBoundingClientRect(); return r && { x: r.left, y: r.top, right: r.right, bottom: r.bottom }; });
+    assert.ok(stroke && Math.abs(stroke.x - blank.x) <= 8 && Math.abs(stroke.y - blank.y) <= 8, `${band}: the ink ${JSON.stringify(stroke)} starts where the pen went down (${Math.round(blank.x)}, ${Math.round(blank.y)})`);
+    await shot(`06h-band-${band}-pen`);
+    // Region capture: the marquee starts at the band point.
+    await canvasTool(/^Ask about selection/).click();
+    await drag(blank, blank.end);
+    const marquee = await waitFor(() => page.evaluate(() => { const r = document.querySelector('[data-area-marquee] rect')?.getBoundingClientRect(); return r && r.width ? { x: r.left, y: r.top, right: r.right, bottom: r.bottom } : null; }), 3000, `${band}: no region capture marquee`);
+    assert.ok(Math.abs(marquee.x - blank.x) <= 3 && Math.abs(marquee.y - blank.y) <= 3, `${band}: the marquee ${JSON.stringify(marquee)} starts at the band point (${Math.round(blank.x)}, ${Math.round(blank.y)})`);
+    await shot(`06h-band-${band}-capture`);
+    await page.mouse.up();
+    await page.locator('[data-area-marquee]').waitFor({ state: 'detached', timeout: 30000 });
+    await canvasTool('Select and move').click();
+    facts[`band_${band}`] = { selectAt: target, drawAt: blank, stroke, marquee };
+  });
+}
+
 // UI-19 (owner, 2026-10-21): the canvas tools stay one vertical column left of the canvas at every panel width, and the one
 // minimap sits lower left above the zoom row (View > Minimap owns it) - no Show/Hide overview button, no strip under a
 // narrow canvas. Checked with two, one and no right panels, a canvas row either side of 640/641 px, in dark mode and after
@@ -353,7 +562,8 @@ const controls = () => page.evaluate(() => {
 const controlsHold = async label => {
   const c = await controls();
   assert.ok(c.toolbar && c.surface, `${label}: the Canvas tools toolbar and the canvas are on screen`);
-  assert.ok(c.toolbar.h > c.toolbar.w && c.toolbar.right <= c.surface.x + 0.5, `${label}: the toolbar is a vertical column left of the canvas, never over cards: ${JSON.stringify({ toolbar: c.toolbar, surface: c.surface })}`);
+  // Owner, 2026-10-22: the toolbar floats over the canvas's left edge (no gutter); fit and placement keep cards clear of it.
+  assert.ok(c.toolbar.h > c.toolbar.w && c.toolbar.x >= c.surface.x - 0.5 && c.toolbar.x <= c.surface.x + 24, `${label}: the toolbar is a vertical column at the canvas's left edge: ${JSON.stringify({ toolbar: c.toolbar, surface: c.surface })}`);
   assert.equal(c.overviewButtons, 0, `${label}: no Show/Hide overview button`);
   assert.equal(c.minimaps, 1, `${label}: one canvas minimap`);
   assert.ok(c.minimap && c.zoom && c.minimap.bottom <= c.zoom.y + 0.5 && Math.abs(c.minimap.x - c.zoom.x) <= 1, `${label}: the minimap sits directly above the zoom row: ${JSON.stringify({ minimap: c.minimap, zoom: c.zoom })}`);
@@ -416,6 +626,60 @@ await check('UI-19: two, one and no right panels, rows across 640/641 px, dark m
 
 await check('every saved card position and size is unchanged by opening, closing, resizing and zooming', async () => {
   assert.deepEqual(await saved(), positions);
+});
+
+await check('owner 2026-10-22: a window resize and a reload move no card on screen and leave its saved coordinates (the opening camera is compensated)', async () => {
+  await setPanels(1);
+  await deselect();
+  await page.evaluate(() => document.activeElement?.blur());
+  await page.keyboard.press('Shift+Digit0');
+  await settle();
+  const before = (await geometry()).cards[PDF_CARD], savedBefore = await saved(), viewport = page.viewportSize();
+  const near = (a, b, label) => assert.ok(a && Math.abs(a.x - b.x) <= 1 && Math.abs(a.y - b.y) <= 1, `${label}: the card moved from (${Math.round(b.x)}, ${Math.round(b.y)}) to ${a ? `(${Math.round(a.x)}, ${Math.round(a.y)})` : 'nowhere'}`);
+  for (const size of [{ width: viewport.width - 240, height: viewport.height - 80 }, viewport]) {
+    await page.setViewportSize(size);
+    await settle();
+    near((await geometry()).cards[PDF_CARD], before, `resized to ${size.width}x${size.height}`);
+  }
+  await page.reload();
+  await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
+  const first = await waitFor(async () => (await geometry()).cards[PDF_CARD], 30000, 'the PDF card was not drawn after the reload');
+  near(first, before, 'as the reloaded canvas first draws it');
+  await page.waitForTimeout(2000);
+  near((await geometry()).cards[PDF_CARD], before, 'two seconds after the reload');
+  assert.deepEqual(await saved(), savedBefore, 'saved card positions and sizes after the resize and the reload');
+  facts.reload_no_jump = { before, first };
+  await shot('10-reload-no-jump');
+});
+
+await check('owner 2026-10-22: fit (Shift+1, Back to content) with zero, one and two panels, and a new card placed in view, never sit under the toolbar, navigator, header, Home or minimap', async () => {
+  const controlsNow = () => page.evaluate(() => [...document.querySelectorAll('[role="toolbar"][aria-label="Canvas tools"], [data-gutter-top] [data-dive-navigator], [data-header-group], [data-learn-home], [data-canvas-minimap]')]
+    .map(n => { const b = n.getBoundingClientRect(); return { what: n.getAttribute('aria-label') || [...n.attributes].map(a => a.name).find(a => a.startsWith('data-')), x: b.left, right: b.right, y: b.top, bottom: b.bottom }; }).filter(b => b.right > b.x && b.bottom > b.y));
+  const clear = async (label, only = null) => {
+    const g = await geometry(), cs = await controlsNow(), hits = [];
+    for (const [id, c] of Object.entries(g.cards)) if (c && (!only || only === id)) for (const k of cs) if (c.x < k.right && c.right > k.x && c.y < k.bottom && c.bottom > k.y) hits.push({ id, card: c, under: k });
+    assert.deepEqual(hits, [], `${label}: a card under a control`);
+  };
+  for (const n of [2, 1, 0]) {
+    await setPanels(n);
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.keyboard.press('Shift+Digit1');
+    await settle();
+    await clear(`${n} panel(s), Shift+1`);
+    await page.getByRole('button', { name: 'Back to content' }).click();
+    await settle();
+    await clear(`${n} panel(s), Back to content`);
+    await shot(`11-fit-${n}-panels`);
+  }
+  await setPanels(1);
+  const ids = Object.keys((await geometry()).cards);
+  await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'Insert' }).click();
+  await page.getByRole('menuitem', { name: 'Notebook' }).click();
+  const added = await waitFor(async () => Object.keys((await geometry()).cards).find(id => !ids.includes(id)), 15000, 'no new Notebook card');
+  await settle();
+  await page.waitForTimeout(800); // the new card's one camera correction waits for its size to settle
+  await clear('a new card placed in view', added);
+  await shot('12-new-card-placed');
 });
 
 // ================================================================ repository cards (repo-graph Release 2), on a second canvas
@@ -501,7 +765,7 @@ await check('nothing left the local stack, no page error; every model-capable re
 
 writeFileSync(`${OUT}/results.json`, JSON.stringify({ canvas: canvas.name, results, facts }, null, 2));
 await browser.close();
-const total = 20;
+const total = 28;
 const passed = results.filter(r => r.ok).length;
 console.log(`${passed}/${total} checks passed`);
 process.exit(passed === total && results.length === total ? 0 : 1);

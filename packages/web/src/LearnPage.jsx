@@ -2223,6 +2223,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             return meta?.author === 'script' && meta.learnLesson?.startsWith('course-');
           }));
         }} />;
+  // The lesson canvas fills its workspace up to the page's top edge (owner, 2026-10-22): the header floats over it, with no
+  // band of its own, unless a lesson heading, an error or the review-board note sits between them.
+  const headerOver = !courseView && learningView === 'lesson' && !((!isRepository && !isCanvas) || progress) && !graphError && !(reviewTools && board && !BOARDS[board]);
   return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col max-lg:overflow-y-auto">
     {/* Below lg the panel stacks under the lesson and the page scrolls: the
         lesson canvas keeps a real working height (see below) instead of being
@@ -2230,7 +2233,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     <section aria-label="Learn" className={`min-h-0 min-w-0 flex-1 ${!courseView && learningView === 'lesson' ? 'max-lg:flex-none' : ''}`}>
       {/* The lesson canvas goes full-bleed so its toolbar and zoom controls sit
           at the window edges; every other view keeps the centered page frame. */}
-      <div className={`expanded-page-frame @container/frame mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
+      <div className={`expanded-page-frame @container/frame relative mx-auto flex h-full w-full min-h-0 flex-col ${!courseView && learningView === 'lesson' ? '' : 'max-w-[900px] px-6 py-6'}`}>
         {pdfAdd && <PdfAddDialog key={pdfAdd.total ?? 'reading'} name={pdfAdd.name} total={pdfAdd.total} busy={pdfAdd.busy} progress={pdfAdd.progress} error={pdfAdd.error} onCancel={closePdf} onConfirm={confirmPdf} />}
         {pendingNoteView && <ConfirmDialog title="Save notes before switching?" body="Save your changes and open the selected view, or cancel to keep editing." confirmLabel="Save notes" confirmVariant="primary" onCancel={() => setPendingNoteView(null)} onConfirm={async () => { if (await noteSave.current?.()) leaveNote(pendingNoteView); }} />}
         {/* One centered strip is all the chrome the canvas gets: an editable
@@ -2243,7 +2246,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             instead of clipping or overlapping, never a scroller, which would clip the dropdowns. Equal side padding (px-12)
             clears the absolute Home button on the left and balances it on the right, so Home never shifts the group off the
             canvas area's centre (owner header correction, 2026-10-16). */}
-        {!canvasState.presenting && <div data-canvas-header className="relative flex shrink-0 items-center justify-center-safe px-12 pt-3 pb-1 max-md:px-2 max-md:pt-2">
+        {/* Over the canvas (headerOver) it takes no pointer itself: only its controls do, so the canvas under the rest of the row
+            pans, draws and selects (owner, 2026-10-22: no full-width band). */}
+        {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? 'pointer-events-none absolute inset-x-0 top-0 z-40 [&>*]:pointer-events-auto' : 'relative shrink-0'} flex items-center justify-center-safe px-12 pt-3 pb-1 max-md:px-2 max-md:pt-2`}>
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
@@ -2356,7 +2361,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {suppliedCourse && learningView === 'curriculum' && <LessonPlanPreview onPreview={editor && nanoProgress.loaded && !answering ? () => previewLesson(nanoLesson, true) : null} edits={canAuthor ? planEdits : {}} selectedSection={sectionTarget?.id} onEdit={target => { setSectionTarget(target); setSetupChat(true); }} course={course.course} learnerView={!canAuthor || learnerOpen} editorPanel={courseView ? coursePanel : null} view={planOpen ? 'plan' : 'curriculum'} selected={plannedLesson} onBack={() => { setPlanOpen(false); setSectionTarget(null); }} onSelect={index => { setPlannedLesson(index); setPlanOpen(true); }} />}
         {courseView && !suppliedCourse && coursePanel}
         {learnerOpen && !suppliedCourse && <LearnOutline allowSample={!isRepository && !isCanvas} onToggleComplete={toggleSection} completed={completed} state={course} sample={sampleOutline} onSampleChange={setSampleOutline} activeId={lesson.current?.lessonId} activePage={progress?.page} disabled={outlineDisabled} onOpen={openFromOutline} />}
-        <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col pr-1`}>
+        <div className={`${courseView || learningView !== 'lesson' ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>
         {!canvasState.presenting && ((!isRepository && !isCanvas) || progress) && <div aria-label="Current lesson and section" className="mb-4"><h2 className="text-lg font-semibold">Lesson {sampleIndex >= 0 ? sampleIndex + 1 : 1}: {currentLesson?.title}</h2><p className="mt-1 text-sm text-ink-2">Section {(progress?.page || 0) + 1} of {pages.length}: {progress?.label || pages[0].label}</p></div>}
         {graphError && <p role="alert" className="text-sm text-red-700">{graphError}</p>}
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges

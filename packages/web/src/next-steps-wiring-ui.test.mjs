@@ -106,7 +106,8 @@ test('LearnPage: useNextSteps mounts only with Rabbit Hole on and a Chat compose
   assert.match(canvas, /if \(curious && slot && room && !slot\.getBoundingClientRect\(\)\.height\) rects\.push\(/);
   // A hook click opens Chat and sends through the Chat AskPanel's nextStepRef (chatAskProps).
   assert.match(page, /tray: journey\.trayProps, voice, nextStepRef: nextStepSend,/);
-  assert.match(canvas, /<div data-left-stack className="absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] left-3 flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
+  // Owner, 2026-10-22: right of the floating tools column when it docks left.
+  assert.match(canvas, /<div data-left-stack className=\{`absolute bottom-\[calc\(var\(--chrome-left,0px\)\+0\.75rem\)\] \$\{toolSide === 'left' \? 'left-24' : 'left-3'\} flex w-\[clamp\(208px,calc\(50cqw-500px\),300px\)\] flex-col items-start gap-2 /);
 });
 
 test('LearnPage: canvasVersion, graded, no /ask or /teach, the repository detach and the block follow-up Tutor (contract §1.7)', () => {

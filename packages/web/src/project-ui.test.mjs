@@ -74,7 +74,8 @@ test('repository canvas review fixes: graph keys stay in the column, Retry refet
   // (centred only while it fits), with the right panel open or closed alike: no separate column layout any more.
   // Equal side padding (owner header correction, 2026-10-16): Home's room on the left is balanced on the right, so the group
   // centres on the canvas area itself.
-  assert.match(learn, /<div data-canvas-header className="relative flex shrink-0 items-center justify-center-safe px-12 [^"]*">/);
+  // Owner, 2026-10-22: over the lesson canvas the header floats (absolute, the pointer through but its controls), else in flow.
+  assert.match(learn, /<div data-canvas-header className=\{`\$\{headerOver \? 'pointer-events-none absolute inset-x-0 top-0 z-40 \[&>\*\]:pointer-events-auto' : 'relative shrink-0'\} flex items-center justify-center-safe px-12 [^`]*`\}>/);
   assert.match(learn, /<div data-header-group className="flex max-w-full min-w-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0\.5">/);
   assert.doesNotMatch(learn, /TITLE_CENTRED|data-header-left|data-header-right/);
   assert.match(learn, /<div data-title-crumbs className="flex max-w-full min-w-0 items-center">/);

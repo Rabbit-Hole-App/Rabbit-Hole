@@ -303,6 +303,10 @@ const stripOf = frame => frame.parentElement?.querySelector('[data-canvas-bottom
 const boxesIn = node => { const rect = node.getBoundingClientRect(); return rect.width || rect.height ? [rect] : [...node.children].flatMap(boxesIn); };
 const chromeIn = (frame, f) => [...(stripOf(frame)?.querySelectorAll(':scope > * > *') || [])].flatMap(boxesIn)
   .filter(rect => rect.width && rect.height).map(rect => ({ left: rect.left - f.left, right: rect.right - f.left, top: rect.top - f.top }));
+// The page header's controls floating over the canvas (LearnPage [data-canvas-header], owner decision 2026-10-22), measured as
+// AdaptiveCanvas's controlRects reads them, in frame px: the map is never dragged under them.
+const headerIn = f => [...(document.querySelector('[data-canvas-header]')?.children || [])].map(node => node.getBoundingClientRect())
+  .filter(rect => rect.width && rect.height).map(rect => ({ left: rect.left - f.left, right: rect.right - f.left, bottom: rect.bottom - f.top }));
 const STEPS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 function useMapGrip(shown) {
   const ref = useRef(null);
@@ -313,7 +317,7 @@ function useMapGrip(shown) {
     if (!map) return null;
     map.toggleAttribute('data-moved', !!(next && frame)); // first: moved, it is a wider card, clamped at that size
     const slot = map.parentElement.getBoundingClientRect(), f = frame?.getBoundingClientRect();
-    const at = next && frame ? clampSpot(next, { w: frame.clientWidth, h: frame.clientHeight }, { w: map.offsetWidth, h: map.offsetHeight }, chromeIn(frame, f)) : null;
+    const at = next && frame ? clampSpot(next, { w: frame.clientWidth, h: frame.clientHeight }, { w: map.offsetWidth, h: map.offsetHeight }, chromeIn(frame, f), headerIn(f)) : null;
     map.style.transform = at ? `translate(${f.left + at.x - slot.left}px, ${f.top + at.y - slot.top}px)` : '';
     return at;
   }, []);
