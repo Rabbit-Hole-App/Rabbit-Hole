@@ -9,9 +9,9 @@ const THREAD = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // The pins the canvas draws. No comment pin without a text comment (owner, 2026-10-13): a thread's pin only while it has
 // a live comment (every live comment has text; `comments` counts them), and the draft's ghost only while its New
 // comment panel shows (`composing`). Oldest first, so an object's slot keeps its order as threads get busy.
-// The toolbar badge (owner, 2026-10-21): what the Comments tab lists as Open, so resolved and fully deleted threads drop out.
-// shortcut: counts the loaded page (30 a page); a canvas with more open threads shows 30 until Load more, upgrade with a server total.
-export const openCount = threads => threads.filter(thread => thread.status !== 'resolved' && (thread.comments ?? 1) > 0).length;
+// The toolbar badge (owner, 2026-10-21): the server's open_count (open threads with a live comment the reader may read),
+// independent of the list's page and Status filter; the loaded threads only stand in before a list answers with it.
+export const openCount = (threads, total) => total ?? threads.filter(thread => thread.status !== 'resolved' && (thread.comments ?? 1) > 0).length;
 export const badgeText = count => (count > 99 ? '99+' : String(count));
 
 export const pinsOf = (threads, selected, draft, composing) => [
@@ -28,6 +28,8 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
     return THREAD.test(asked || '') ? asked : null;
   });
   const [threads, setThreads] = useState([]);
+  const [openTotal, setOpenTotal] = useState(null);
+  const listed = useCallback((list, total) => { setThreads(list); setOpenTotal(total ?? null); }, []);
   const [showPins, setShowPins] = useState(true);
   // Bumped after a pin's colour or delete, so the panel reloads its list (and with it the pins) from the server.
   const [stamp, setStamp] = useState(0);
@@ -55,12 +57,12 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
   return {
     active,
     unread: active ? threads.filter(thread => thread.unread).length : 0,
-    open: active ? openCount(threads) : 0,
+    open: active ? openCount(threads, openTotal) : 0,
     showPins, togglePins: () => setShowPins(on => !on),
     openPin, addComment,
     canvasProps: active ? { onAddComment: canAdd ? addComment : null, commentPins: pins, onCommentPin: openPin, onPinColor: colorPin, onPinDelete: deletePin } : {},
     panelProps: active ? {
-      base, draftAnchor: draft, selected, onSelect: setSelected, onThreads: setThreads, stamp,
+      base, draftAnchor: draft, selected, onSelect: setSelected, onThreads: listed, stamp,
       onDraftDone: id => { setDraft(null); if (id) setSelected(id); },
       threadLink: link ? id => `${window.location.origin}${link}?thread=${id}` : null,
       // ponytail: liveness reads the rendered canvas; a virtualized canvas would need the board model instead.
