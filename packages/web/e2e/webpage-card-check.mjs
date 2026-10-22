@@ -29,6 +29,9 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const PERSIST = process.env.PERSIST || '.small/fork-local', D1_CONFIG = process.env.D1_CONFIG || 'packages/web/wrangler.dev.jsonc';
 const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
+// The wrangler seeding below leaves the pooled keep-alive socket idle past the dev server's timeout; the next fetch then meets
+// "other side closed" (UND_ERR_SOCKET, CI fast-e2e run 39742142945). One retry on a fresh socket; any other failure throws.
+const fetch = async (url, init) => { try { return await globalThis.fetch(url, init); } catch (error) { if (error?.cause?.code !== 'UND_ERR_SOCKET') throw error; return globalThis.fetch(url, init); } };
 const mint = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
 const ownerSession = await mint(`webcard-${run}@example.com`, `wc_${run}`), otherSession = await mint(`webcard-other-${run}@example.org`, `wco_${run}`);
 const OWNER = `small_session=${ownerSession}`, OTHER = `small_session=${otherSession}`;

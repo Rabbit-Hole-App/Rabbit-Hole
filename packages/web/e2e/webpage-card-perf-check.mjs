@@ -25,6 +25,8 @@ const OUT = process.env.OUT || process.argv[2] || fileURLToPath(new URL('./shots
 mkdirSync(OUT, { recursive: true });
 const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
+// A pooled keep-alive socket left idle past the dev server's timeout fails with "other side closed" (UND_ERR_SOCKET); retry once.
+const fetch = async (url, init) => { try { return await globalThis.fetch(url, init); } catch (error) { if (error?.cause?.code !== 'UND_ERR_SOCKET') throw error; return globalThis.fetch(url, init); } };
 const session = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `webperf-${run}@example.com`, secret, handle: `wp_${run}` }) })).json()).session;
 const call = async (path, method = 'GET', body) => (await fetch(`${BASE}${path}`, { method, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' }, body: body && JSON.stringify(body) })).json().catch(() => null);
 
