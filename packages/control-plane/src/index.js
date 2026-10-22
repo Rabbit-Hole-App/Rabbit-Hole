@@ -13,7 +13,7 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { verifyChatRoute } from './chat-capability-route.js';
-import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
+import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
 import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
@@ -1034,7 +1034,7 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
   if (chat?.command === 'motion' && !generation) {
     return json(motionPaused(env) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was started.', code: 'motion_unavailable' }, 503);
   }
-  let proposed = null;
+  let proposed = null, proposalMeta = null;
   let lessonSnapshot = null;
   // The tutor may propose outline changes when the learner's canvas has sections.
   // runTool only records: canvas blocks are browser state, so nothing here can
@@ -1088,7 +1088,15 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         const current = generation.current?.command === checked.command ? generation.current : null;
         // MOT-22: signed for this canvas and workspace (the authorized scope, never the browser's); a revision of an old unbound one binds it.
         const bind = { org: user.org, app: scopeRef };
-        proposed = await signProposal(env, { ...checked, input: { ...(current ? current.input : { request: motionRequestLine(message), ...generation.motion }), ...bind } }, user.email, current ? { id: current.proposal_id, version: current.version + 1 } : {});
+        const signed = await signProposal(env, { ...checked, input: { ...(current ? current.input : { request: motionRequestLine(message), ...generation.motion }), ...bind } }, user.email, current ? { id: current.proposal_id, version: current.version + 1 } : {});
+        // A revision is published on the proposal's one state against what this turn read (generation-proposal.js); another
+        // revision or a Generate that landed meanwhile wins, and this one comes back to the learner beside it, not applied.
+        if (current && !(await publishRevision(db, generation.record, signed))) {
+          proposalMeta = { proposalConflict: { draft: { title: signed.title, description: signed.description, settings: signed.settings }, current: (await proposalRecord(db, user.email, scopeRef, current.proposal_id)).current } };
+          return { proposed: 0, applied: false, error: 'Not applied: the proposal changed while you were answering (another tab saved a newer version, or it was generated).', note: 'The learner sees your version beside the current one. Say in one sentence that it was not applied because the proposal changed meanwhile.' };
+        }
+        proposed = signed;
+        if (!current) proposalMeta = { proposalState: proposalState(signed) };
         return { proposed: 1, applied: false, note: 'Shown to the learner as a card with Generate; nothing is generated until they press it. Reply in one short sentence and do not repeat the description.' };
       }
       if (name !== OUTLINE_TOOL.name) throw new Error('Unknown Learn tool');
@@ -1263,7 +1271,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
     research.onAnswer = text => { const split = splitAnswerMeta(text); trailer = split.raw; return split.content; };
     // A refinement revises the learner's unanswered proposal: the model sees what the card says now. MOT-22: the server's current
     // revision on this canvas, not the browser's copy (stale in another tab, or already generated: the turn proposes anew).
-    if (generation?.current) generation.current = await currentRevision(db, user.email, scopeRef, generation.current);
+    if (generation?.current) { const found = await currentRevision(db, user.email, scopeRef, generation.current); Object.assign(generation, { current: found?.proposal ?? null, record: found?.record ?? null }); }
     const current = generation?.current;
     if (current) context = `${context}\n\nThe proposal you made, not generated yet (version ${current.version}): ${JSON.stringify({ command: current.command, title: current.title, description: current.description, settings: current.settings, source_ref_ids: current.source_refs.map(r => r.sourceId) })}`;
   }
@@ -1285,7 +1293,7 @@ ${await progressQuestionContext(req, env, chat.contextRefs, seam?.app)}`;
   // it goes through learnMomentsDb (learn-storage.js), LEARN_DB on dev for every app kind.
   return askStream(seam ? { ...env, DB: db } : env, context, history, q, async (full, stopped = false) => {
     // motionDev: motion is suggested only on a turn where a Motion video can start (generation, MOT-20b); its Send proposes it first.
-    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: !!generation }) });
+    if (chat) return recordAnswer(db, { threadId, userMessageId: history.userMessageId, content: full, raw: trailer, stopped, chat, resolved, turn, prior: memory.summary, long: memory.long, proposal: proposed, proposalMeta, validate: (raw, opts) => validateAnswerMeta(raw, { ...opts, motionDev: !!generation }) });
     if (stopped) return;
     await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)').bind(threadId, 'assistant', full).run();
   }, { threadId, ...(note ? { note } : {}) }, extraBlocks, toolOpts, modelId, conversation === 'learn' ? null : user.org, system, research);

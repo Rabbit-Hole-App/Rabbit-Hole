@@ -2,10 +2,12 @@
 // proposal card (Motion: its duration), saved over that answer's meta.proposal as its next version, validated per command and
 // signed again for the learner (generation-proposal.js reviseSettings). No model call: the stored proposal is the one revised,
 // never one the browser sends. Only the owner of the message's thread may write it; anything else is a 404. LEARN_DB only.
-// MOT-22: only the current revision changes (a newer one, or one that made its video, is a 409), and the write is a
-// compare-and-swap on the row, so a save that lost a race with another tab or a Generate is refused, never applied.
+// MOT-22: the body names the revision it was made from ({settings, expected_version}); only the published current revision
+// changes, through the proposal's one state (generation-proposal.js saveRevision). A save from an older revision, one that lost
+// a race with another tab, a chat refinement or a Generate, or one after it made its video is a 409 with the current proposal,
+// never applied, so the browser keeps the learner's choice beside the latest.
 import { repositoryIdentity } from './repositories.js';
-import { PROPOSAL_STALE, PROPOSAL_USED, proposalRecord, reviseSettings } from './generation-proposal.js';
+import { PROPOSAL_STALE, PROPOSAL_USED, proposalRecord, reviseSettings, saveRevision } from './generation-proposal.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const PATH = /^\/api\/learn\/chat\/messages\/(\d{1,15})\/proposal$/;
@@ -26,12 +28,13 @@ export async function chatProposalFetch(req, env, deps = {}) {
     .bind(id, user.org, user.email).first();
   const meta = row && JSON.parse(row.meta_json);
   if (!meta?.proposal) return json({ error: 'Proposal not found' }, 404);
+  if (!Number.isSafeInteger(body?.expected_version)) return json({ error: 'expected_version (the revision this change was made from) is required' }, 400);
   const record = await proposalRecord(db, user.email, row.scope_ref, meta.proposal.proposal_id);
-  if (record.used) return json({ error: PROPOSAL_USED, code: 'proposal_used' }, 409);
-  if (record.latest?.messageId !== id) return json({ error: PROPOSAL_STALE, code: 'proposal_stale' }, 409);
-  const revised = await reviseSettings(env, meta.proposal, body?.settings, user.email, { org: user.org, app: row.scope_ref });
+  const conflict = async (code, error) => { const now = await proposalRecord(db, user.email, row.scope_ref, meta.proposal.proposal_id); return json({ error, code, current: now.current, current_message_id: now.currentMessageId }, 409); };
+  if (record.state?.used) return conflict('proposal_used', PROPOSAL_USED);
+  if (!record.state || record.state.sig !== meta.proposal.sig || record.state.version !== body.expected_version) return conflict('proposal_stale', PROPOSAL_STALE);
+  const revised = await reviseSettings(env, meta.proposal, body.settings, user.email, { org: user.org, app: row.scope_ref });
   if (revised.error) return json({ error: revised.error }, 400);
-  const { meta: written } = await db.prepare('UPDATE chat_message_meta SET meta_json = ? WHERE message_id = ? AND meta_json = ?').bind(JSON.stringify({ ...meta, proposal: revised.proposal }), id, row.meta_json).run();
-  if (written?.changes !== 1) return json({ error: 'This proposal changed in another tab or was just generated. Reload to see the latest card.', code: 'proposal_stale' }, 409);
-  return json({ proposal: revised.proposal });
+  const saved = await saveRevision(db, record, { messageId: id, raw: row.meta_json, meta }, revised.proposal);
+  return saved.conflict ? conflict('proposal_stale', 'This proposal changed in another tab or was just generated. Your choice was not saved.') : json({ proposal: saved.proposal });
 }

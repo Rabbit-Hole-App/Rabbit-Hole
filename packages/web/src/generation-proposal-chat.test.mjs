@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { currentProposal, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refusedReason } from './generation-proposal-chat.js';
+import { currentProposal, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refinementConflictText, refusedReason, settingsConflict } from './generation-proposal-chat.js';
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
 const p = (id, version, over = {}) => ({ proposal_id: id, version, command: 'motion', title: `T ${id} ${version}`, settings: { duration_seconds: 10, audio: false }, input: { request: '/motion explain rain', concept: 'Weather' }, expires_at: soon, ...over });
@@ -167,4 +167,22 @@ test('MOT-22: repeated clicks on the stale and current cards, and a revision lan
   const paused = failedStart({ ...proposalBlock(v3), id: 'x' }, Object.assign(new Error('paused'), { status: 503, data: { code: 'motion_paused' } }));
   assert.deepEqual([paused.reason, paused.block.proposalRefused, madeFrom('gp-a')(paused.block)], [null, undefined, true]);
   assert.equal(refusedReason(failedStart({}, stale('proposal_canvas')).block), 'Refresh this proposal.');
+});
+
+// MOT-22 reopened: a settings save names its revision; refused, the learner's choice is kept beside the latest, never dropped.
+test('a refused settings save keeps the draft beside the latest; a lost chat refinement keeps its text; nothing reads Added to the canvas', () => {
+  const v2 = p('gp-a', 2, { settings: { duration_seconds: 20, audio: false } });
+  const refusal = (code, here) => Object.assign(new Error('changed'), { status: 409, data: { code, current: v2, current_message_id: here } });
+  const draft = { duration_seconds: 30, audio: false };
+  const same = settingsConflict(refusal('proposal_stale', '40'), draft, 40);
+  assert.deepEqual([same.here, same.retryable, same.draft, same.current], [true, true, draft, v2], 'this card shows the latest; Use mine saves the draft from it');
+  assert.equal(same.message, 'Not saved: this proposal changed meanwhile. Latest: 20 seconds (version 2). Yours: 30 seconds.');
+  assert.equal(settingsConflict(refusal('proposal_stale', '41'), draft, 40).here, false, 'the latest is on another answer');
+  const used = settingsConflict(refusal('proposal_used', '40'), draft, 40);
+  assert.deepEqual([used.retryable, used.message], [false, 'Not saved: this proposal already made a video. Your choice was 30 seconds.']);
+  assert.equal(settingsConflict(Object.assign(new Error('bad'), { status: 400, data: {} }), draft, 40), null, 'other failures keep their message');
+  assert.equal(refinementConflictText({ draft: { title: 'Rivers', description: 'Rain runs to the sea.' } }), 'Not applied: the proposal changed meanwhile. Your version: Rivers. Rain runs to the sea.');
+  // A conflict changes no canvas card: the latest stays live with Generate.
+  const msgs = [answer(p('gp-a', 1)), answer(v2)];
+  assert.equal(proposalActive(v2, msgs, () => false), true);
 });

@@ -168,10 +168,12 @@ for (const theme of ['light', 'dark']) {
     const messages = turns.filter(t => t.threadId === id).flatMap(t => [t.user, { ...t.answer, meta: { ...t.answer.meta, ...(proposals.has(t.answer.messageId) ? { proposal: proposals.get(t.answer.messageId) } : {}), alternatives: [t.answer.messageId] } }]);
     return route.fulfill({ json: { id, title: 'Motion check', mode: 'auto', contextRefs: [], draft: null, messages } });
   });
-  // MOCKED duration change on the card: the next version of the same proposal, saved over its message.
+  // MOCKED duration change on the card: the next version of the same proposal, saved over its message. MOT-22: as the server, a
+  // save names the revision it was made from, and one from an older revision is a 409 with the current proposal.
   await context.route(/\/api\/learn\/chat\/messages\/\d+\/proposal$/, route => {
-    const id = /messages\/(\d+)\//.exec(route.request().url())[1], previous = proposals.get(id);
-    const proposal = { ...previous, version: previous.version + 1, settings: JSON.parse(route.request().postData()).settings };
+    const id = /messages\/(\d+)\//.exec(route.request().url())[1], previous = proposals.get(id), sent = JSON.parse(route.request().postData());
+    if (sent.expected_version !== previous.version) return route.fulfill({ status: 409, json: { error: 'changed', code: 'proposal_stale', current: previous, current_message_id: id } });
+    const proposal = { ...previous, version: previous.version + 1, settings: sent.settings };
     proposals.set(id, proposal);
     return route.fulfill({ json: { proposal } });
   });
@@ -329,6 +331,7 @@ for (const theme of ['light', 'dark']) {
     await card.locator('[data-proposal-duration]').selectOption('20');
     await until(async () => (await card.getAttribute('data-proposal-version')) === '2', 'version 2 after the duration change');
     assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '20');
+    assert.ok(seen.some(r => r.method === 'PUT' && /\/proposal$/.test(r.path) && JSON.parse(r.body || '{}').expected_version === 1), 'the save names the revision it was made from (MOT-22)');
     assert.equal(asks.length - turns, 1, 'a settings change is no chat turn');
     await card.screenshot({ path: `${OUT}/${theme}-03-proposal.png` });
     // Nothing reaches the video route before Generate (a saved card's clip may load meanwhile, a GET of its asset), and no card lands.
