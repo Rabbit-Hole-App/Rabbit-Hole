@@ -31,6 +31,23 @@ export const resumesJob = block => !!block?.placementId && ['generating', 'queue
 export const SETTLE_READS = 120;
 export const readsAgain = (video, reads) => video?.status === 'failed' && video.hold?.state === 'pending' && reads < SETTLE_READS;
 
+// A failed /motion card's actions (owner message 38, integrator ruling): the server's recovery actions for its cause, in this
+// order, then Generate again (paid regeneration, never called Retry render). Edit request needs the Chat composer.
+export const RECOVERY_BUTTONS = Object.freeze({ fix: 'Continue fixing', render: 'Retry rendering', edit: 'Edit request', regenerate: 'Generate again' });
+export function recoveryButtons(recovery, { composer = false } = {}) {
+  if (!recovery) return null;
+  const actions = (recovery.actions || []).filter(a => a in RECOVERY_BUTTONS && (a !== 'edit' || composer));
+  return [...new Set([...['fix', 'render', 'edit'].filter(a => actions.includes(a)), ...(recovery.regenerate ? ['regenerate'] : [])])];
+}
+// Usage in credits (1 credit = $0.01), short, and the reservation's state; never a dollar amount or the hold's size.
+export function motionUsageLine(usage, hold) {
+  if (!usage) return null;
+  const micros = usage.usedMicros || 0, credits = Math.round(micros / 10_000);
+  const used = credits === 0 && micros > 0 ? 'less than 1 credit' : `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
+  const state = hold?.state === 'reserved' ? 'reservation held' : hold?.state === 'pending' ? 'reservation pending' : 'reservation released';
+  return `Used ${used}${usage.unknown ? ' so far' : ''} · ${state}`;
+}
+
 export function videoLabel(block) {
   const op = block.operation;
   if (op?.op === 'generate_math_animation') {

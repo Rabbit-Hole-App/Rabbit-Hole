@@ -73,8 +73,7 @@ export async function runMotionRequest({
     return out;
   };
   const fail = (reason, cause = 'model') => end('failed', { failure_reason: reason, cause });
-  // The reusable state, replaced (never mutated) so the caller can tell when it changed.
-  const save = part => { out.checkpoint = { ...out.checkpoint, ...part }; onStage(out.stage, out); };
+  const save = part => { out.checkpoint = { ...out.checkpoint, ...part }; }; // replaced, never mutated: the orchestrator notices it on the next stage or job log line
   // Diagnostics stay with the job: every stage's artifact, whatever happens next.
   const keep = (name, value) => { if (!dir) return; mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, name), typeof value === 'string' ? value : JSON.stringify(value, null, 2)); };
 

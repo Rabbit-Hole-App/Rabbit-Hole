@@ -99,14 +99,14 @@ test('content findings: the saved review findings feed the targeted repair verba
   assert.ok(!w2.log.some(l => ['director', 'storyboard', 'author'].includes(l[0])), 'no new brief, storyboard or first-pass Author call');
 });
 
-test('missing context: one specific question before any paid call; the card offers Edit request and Add source', async () => {
+test('missing context: one specific question before any paid call; the card offers Edit request', async () => {
   const w = world();
   const r = await run(w, { location: {} });
   assert.equal(r.status, 'needs_clarification');
   assert.equal(r.cause, 'missing_context');
   assert.match(r.clarification.question, /CausalSelfAttention\.forward .* or in GPT\.generate/);
   assert.deepEqual([w.log, r.calls], [[], []]);
-  assert.deepEqual(recoveryActions(r.cause, r.checkpoint), ['edit', 'source']);
+  assert.deepEqual(recoveryActions(r.cause, r.checkpoint), ['edit']);
 });
 
 test('a model step that fails partway keeps the work so far: an unreviewed composition is reviewed on recovery, never re-authored', async () => {

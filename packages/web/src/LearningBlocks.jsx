@@ -28,9 +28,10 @@ import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import SceneActivity from './SceneActivity.jsx';
 import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
-import { motionHold, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
+import { motionHold, recoverVideo, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
-import { motionConfirm, readsAgain, resumesJob, videoLabel } from './learn-video-label.js';
+import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, readsAgain, recoveryButtons, resumesJob, videoLabel } from './learn-video-label.js';
+import { useChatWorkspace } from './chat-workspace.jsx';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
@@ -1506,6 +1507,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
   latest.current = block;
   const [placement, setPlacement] = useState(null);
   const [offer, setOffer] = useState(null); // whether a new /motion start is paused (motionHold: 'paused', an amount or null)
+  // A failed /motion job as the server reports it: its recovery (cause, actions, explanation), usage and hold state.
+  const [failure, setFailure] = useState(null);
+  const workspace = useChatWorkspace();
   // Follows the exact job this Generate started (see SceneBody). Its placement id is kept on the card, so a reload resumes
   // following the same job (a /motion job runs for minutes) instead of showing it generating forever.
   const follow = async placementId => {
@@ -1526,7 +1530,8 @@ function VideoBody({ block, appName, onChange, onFile }) {
         return;
       }
       if (mine.status === 'failed') {
-        setError(mine.error || 'The provider could not generate this clip.');
+        setFailure(mine.recovery ? mine : null);
+        setError(mine.recovery?.explanation || mine.error || 'The provider could not generate this clip.');
         if (current.status !== 'failed') onChange({ ...current, status: 'failed' });
         // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is (bounded).
         if (readsAgain(mine, settleReads.current)) { settleReads.current += 1; polling.current = setTimeout(() => follow(placementId), 5000); }
@@ -1547,10 +1552,19 @@ function VideoBody({ block, appName, onChange, onFile }) {
     try { await stopVideo(appName, placement); setError('Stopped.'); onChange({ ...latest.current, status: 'failed' }); follow(placement); }
     catch (problem) { setError(problem.message); polling.current = setTimeout(() => follow(placement), 5000); }
   };
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(false); // false, true (Generate) or 'fix' (Continue fixing)
+  // Recovery from the saved work: Retry rendering (free) or Continue fixing (paid, confirmed) under the same card and job.
+  const recover = async mode => {
+    clearTimeout(polling.current); settleReads.current = 0;
+    setError(''); setConfirming(false); setFailure(null);
+    onChange({ ...latest.current, status: 'generating' });
+    try { await recoverVideo(appName, placement || block.placementId, mode, { confirmed: mode === 'fix' }); follow(placement || block.placementId); }
+    catch (problem) { setError(problem.message); onChange({ ...latest.current, status: 'failed' }); follow(placement || block.placementId); }
+  };
+  const editRequest = () => workspace?.composer.prepare({ text: block.operation?.request || '' });
   const generate = async (current = block) => {
     clearTimeout(polling.current); settleReads.current = 0;
-    setError(''); setConfirming(false);
+    setError(''); setConfirming(false); setFailure(null);
     // Owner message 37: each Generate press of a /motion request is its own video. Its request id is made once for the press and
     // kept on the card, so a resend or reload of that press reuses it; Retry of a failed card keeps the key it has (old cards none).
     const retry = current.status === 'failed';
@@ -1616,9 +1630,19 @@ function VideoBody({ block, appName, onChange, onFile }) {
                     </div>
                   )}
                 </>
-              : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(offer) : undefined} onGenerate={() => generate()} onCancel={() => setConfirming(false)} />
+              : confirming ? <PaidConfirm message={motionRequest ? motionConfirm(offer) : undefined} onGenerate={() => (confirming === 'fix' ? recover('fix') : generate())} onCancel={() => setConfirming(false)} />
+              : motionRequest && block.status === 'failed' && failure
+                ? <div data-motion-recovery={failure.recovery.cause || 'unknown'} className="flex flex-wrap items-center justify-center gap-2">
+                    {recoveryButtons({ ...failure.recovery }, { composer: !!workspace }).map(action => (
+                      <Button key={action} type="button" size="sm" variant={action === 'edit' ? 'secondary' : 'inverse'} data-recovery-action={action}
+                        onClick={() => (action === 'fix' ? setConfirming('fix') : action === 'render' ? recover('render') : action === 'edit' ? editRequest() : setConfirming(true))}>
+                        {action === 'render' ? <RotateCcw size={14} /> : action === 'edit' ? <PenLine size={14} /> : <Play size={14} />}{RECOVERY_BUTTONS[action]}
+                      </Button>
+                    ))}
+                  </div>
               : <button type="button" data-generate-video onClick={() => setConfirming(true)} className="flex h-8 items-center gap-1.5 rounded-lg bg-ink px-3.5 text-sm font-medium text-white"><Play size={14} />{block.status === 'failed' ? (motionRequest ? 'Generate again' : 'Retry render') : label.button}</button>}
-            {error && <p className="text-xs text-red-700">{error}</p>}
+            {error && <p data-video-error className={`max-w-sm text-xs ${failure ? 'text-ink-2' : 'text-red-700'}`}>{error}</p>}
+            {!pending && failure && motionUsageLine(failure.usage, failure.hold) && <p data-motion-usage className="text-[11px] text-ink-2">{motionUsageLine(failure.usage, failure.hold)}</p>}
           </div>}
       {block.caption && <div className="mt-1.5 text-xs text-ink-2"><Md text={block.caption} onFile={onFile} /></div>}
     </div>

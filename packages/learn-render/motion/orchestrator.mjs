@@ -103,7 +103,7 @@ export const sealCheckpoint = (token, checkpoint) => createHmac('sha256', token)
 // Author; edit the request after findings or a clarification; add a source when the request needs one. A job that hit its
 // call or spend limit offers nothing more. The worker applies the same rule to a job lost in a restart (learn-video.js).
 export function recoveryActions(cause, cp) {
-  if (cause === 'missing_context') return ['edit', 'source'];
+  if (cause === 'missing_context') return ['edit']; // ponytail: no Add source: /motion grounds only on a selected card or the pinned repository, and no source picker reaches either
   if (cause === 'limit' || !cp?.brief || !cp.storyboard) return cause === 'content' ? ['edit'] : [];
   if (cp.composition?.state === 'accepted' && cause !== 'content') return ['render'];
   return cause === 'content' ? ['fix', 'edit'] : ['fix'];
@@ -273,7 +273,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     return {
       job_id: job.id, rev: job.rev, status: job.status, cause, failure_reason: job.result?.failure_reason ?? null, clarification: job.result?.clarification ?? null,
       findings: job.result?.job?.findings ?? cp?.findings ?? [], blocking: classifyFindings(cp?.findings ?? []).blocking.map(({ category, beat_id, description }) => ({ category, beat_id, description })), checkpoint: cp, seal: cp ? sealCheckpoint(token, cp) : null,
-      actions: job.status === 'failed' ? recoveryActions(cause, cp) : [], hold_usd: { fix: usd(policyHoldMicros(RECOVERY_POLICY.fix)), render: 0 },
+      actions: ['running', 'ready'].includes(job.status) ? [] : recoveryActions(cause, cp), hold_usd: { fix: usd(policyHoldMicros(RECOVERY_POLICY.fix)), render: 0 },
       frames: job.frames ?? keyframes(job),
     };
   }
