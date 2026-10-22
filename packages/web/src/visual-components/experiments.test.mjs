@@ -38,20 +38,20 @@ test('pendulum: a quarter of the length gives half the period in the geometry, t
 
 test('pendulum: mass is a declared invariant: the period and plot stay, the bob and its readout change', () => {
   const compiled = compileVisual(pendulum);
-  const states = [0, 1, 2].map(index => at(compiled, { pend_mass: index }));
+  const states = [0, 1].map(index => at(compiled, { pend_mass: index }));
   for (const id of ['pend.periodText', 'pend.marker', 'pend.lengthText']) assert.equal(new Set(states.map(state => JSON.stringify(state.get(id)))).size, 1, id);
-  assert.equal(new Set(states.map(state => state.get('pend.bob').w)).size, 3);
-  assert.equal(new Set(states.map(state => state.get('pend.massText').label)).size, 3);
+  assert.equal(new Set(states.map(state => state.get('pend.bob').w)).size, 2);
+  assert.equal(new Set(states.map(state => state.get('pend.massText').label)).size, 2);
   assert.deepEqual(compiled.scene.presentation.experiments[1], { id: 'mass', input: 'pend_mass', purpose: massExperiment.purpose, affects: ['pend.periodText', 'pend.marker'], contrasts: massExperiment.contrasts, invariant: true });
 });
 
 test('every admitted state is enumerated, default first, and counted', () => {
   const compiled = compileVisual(pendulum);
   const states = compiled.coverage.stateInputs;
-  assert.equal(states.length, 9);
-  assert.equal(compiled.coverage.states, 9);
-  assert.deepEqual(states[0], { pend_length: 1, pend_mass: 1 });
-  assert.equal(new Set(states.map(state => JSON.stringify(state))).size, 9);
+  assert.equal(states.length, 6);
+  assert.equal(compiled.coverage.states, 6);
+  assert.deepEqual(states[0], { pend_length: 1, pend_mass: 0 });
+  assert.equal(new Set(states.map(state => JSON.stringify(state))).size, 6);
   // A static card without controls is one state.
   assert.deepEqual(compileVisual(EXAMPLES['pendulum-law']).coverage.stateInputs, [{}]);
 });

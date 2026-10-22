@@ -52,7 +52,7 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // renderStates and explain-review.js reviewCaptures, through the adapters below), repair (T19, explain-repair.js).
 // Preparation: the sourced brief (T16, explain-brief.js).
 
-// Render: the compiled scene's finished state per part, light and dark where the round's captures allow, as one manifest
+// Render: every part, admitted control state and named step, light and dark where the round's captures allow, as one manifest
 // reserved before rendering. PNGs go to LEARN_MEDIA under the job (renderStates); the job keeps keys and hashes, not bytes.
 // deps.render defaults to Lane D's explain-render.js: renderStates drives Browser Rendering (env.BROWSER, @cloudflare/puppeteer,
 // keep_alive 10 s) on the render entry served from this Worker's own assets (env.ASSETS, render/scene.html in every build),
@@ -60,12 +60,16 @@ export const EXPLAIN_DISABLED = 'Explanations are not available here yet.';
 // A deployment without BROWSER says rendering is unavailable and keeps the compiled result for Retry rendering.
 export const renderStage = ({ render = explainRender, ...deps } = {}) => async (job, ctx) => {
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
-  const { compiledHash, renderStates, reserveCaptures } = render;
-  const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
-  const themes = parts * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
-  const entries = [];
-  for (let part = 0; part < parts; part++) for (const theme of themes) entries.push({ id: `${parts > 1 ? `p${part}-` : ''}${theme}`, part, time: scene.duration, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
-  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
+  const { captureManifest, renderStates, reserveRound } = render;
+  const { scene } = job.compiled;
+  // Every part, admitted control state and named step (EXP-T18 per-step review, r2-contract.md section 4), within the
+  // round's reservation; a card with more distinct frames than one review covers is refused, never trimmed.
+  let manifest;
+  try { manifest = await captureManifest(scene, { reserved: reserveRound({ cap: EXPLAIN_LIMITS.render.capturesPerRound }) }); }
+  catch (error) {
+    if (error.code !== 'over_budget') throw error;
+    throw Object.assign(fail('This explanation has more steps or settings than one check can cover. Edit the request to use fewer.', 422, 'over_budget'), { category: 'budget', stopReason: 'unsupported_repair' });
+  }
   let out;
   try { out = await renderStates(ctx.env, job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) { throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' }); }

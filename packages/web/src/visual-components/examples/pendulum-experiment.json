@@ -12,7 +12,7 @@
       { "id": "length", "purpose": "Does four times the length make the swing four times slower?", "input": "pend.length", "domain": { "values": [0.25, 1, 4] },
         "affects": ["pend.string", "pend.bob", "pend.lengthText", "pend.periodText", "pend.marker"],
         "contrasts": ["0.25 m: half the 1 m period", "4 m: twice the 1 m period, not four times"] },
-      { "id": "mass", "purpose": "Does a heavier bob swing faster or slower?", "input": "pend.mass", "domain": { "values": [0.5, 1, 2] },
+      { "id": "mass", "purpose": "Does a heavier bob swing faster or slower?", "input": "pend.mass", "domain": { "values": [1, 2] },
         "affects": ["pend.periodText", "pend.marker"], "invariant": true,
         "contrasts": ["the period readout and plot point stay put while the bob grows"] }
     ]
