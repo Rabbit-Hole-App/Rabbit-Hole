@@ -52,6 +52,9 @@ await context.route(`**/api/{apps,repositories}/${REPO2}{,/snapshot,/file}`, (ro
   if (p.endsWith('/file')) { const { path } = JSON.parse(route.request().postData()); return route.fulfill({ json: { path, commit: COMMIT, content: content[path] } }); }
   return route.fulfill({ json: { ...repoRow(real), name: REPO2 } });
 });
+// MOCKED CR-1 route decision (chat-route-interface.md): an answer, as JEV would decide for a question. A code, page or file turn
+// in Auto asks it before /api/learn/ask, and CI has no JEV key, so the real route would fall back and send nothing.
+await context.route('**/api/learn/chat/route', route => route.fulfill({ json: { route: 'answer', via: 'jev', capability: null, flow: null, token: null } }));
 await context.route('**/api/learn/ask', (route) => {
   asks.push(JSON.parse(route.request().postData()));
   // cite: one stubbed answer's own words after the usual line (case 10d: code references), then it clears.

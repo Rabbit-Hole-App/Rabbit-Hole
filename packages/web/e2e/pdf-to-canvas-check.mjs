@@ -91,6 +91,9 @@ const router = async route => {
     captured.push({ route: 'plan', body, reply });
     return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', constraints_add: [], actions: [{ type: 'respond_text', text: `Canned reply ${reply}.` }] } });
   }
+  // MOCKED CR-1 route decision (chat-route-interface.md): an answer, as JEV would decide for a question. A code, page or file turn
+  // in Auto asks it before /api/learn/ask, and CI has no JEV key, so the real route would fall back and send nothing.
+  if (path === '/api/learn/chat/route') return route.fulfill({ json: { route: 'answer', via: 'jev', capability: null, flow: null, token: null } });
   if (path === '/api/learn/tutor/evaluate') return route.fulfill({ json: { status: 'settled', evaluator: 'jev', events: [] } });
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } }); // the canned thread ids exist nowhere
   if (path === '/api/learn/paper' && request.method() === 'POST') papers.push(path);

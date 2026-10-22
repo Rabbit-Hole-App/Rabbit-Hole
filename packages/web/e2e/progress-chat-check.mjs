@@ -78,6 +78,9 @@ await context.route('**/api/**', async route => {
       + frame('answer_meta', { messageId, actions: [], followUps: [], alternatives: [messageId], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id || `canvaschat-pchat-${n}`, userMessageId: `u-${n}`, messageId }) });
   }
+  // MOCKED CR-1 route decision (chat-route-interface.md): an answer, as JEV would decide for a question. A code, page or file turn
+  // in Auto asks it before /api/learn/ask, and CI has no JEV key, so the real route would fall back and send nothing.
+  if (url.pathname === '/api/learn/chat/route' && request.method() === 'POST') return route.fulfill({ json: { route: 'answer', via: 'jev', capability: null, flow: null, token: null } });
   // The canned thread exists only in this page: its state saves (attachments, draft) are answered here.
   if (url.pathname.includes('/threads/canvaschat-pchat-')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
   if (/\/reassess$/.test(url.pathname)) reviews.push(request.postDataJSON());

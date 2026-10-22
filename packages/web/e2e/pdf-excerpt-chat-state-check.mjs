@@ -75,6 +75,9 @@ const router = async route => {
       + frame('answer_meta', { messageId: `m-${n}`, actions: [], followUps: [], alternatives: [`m-${n}`], kind: 'answer', syllabus: null })
       + frame('done', { ok: true, threadId: body.thread_id, userMessageId: `u-${n}`, messageId: `m-${n}` }) });
   }
+  // MOCKED CR-1 route decision (chat-route-interface.md): an answer, as JEV would decide for a question. A code, page or file turn
+  // in Auto asks it before /api/learn/ask, and CI has no JEV key, so the real route would fall back and send nothing.
+  if (request.method() === 'POST' && url.pathname === '/api/learn/chat/route') return route.fulfill({ json: { route: 'answer', via: 'jev', capability: null, flow: null, token: null } });
   if (MODEL.test(url.pathname) && request.method() !== 'GET') { refused.push(url.pathname); return route.abort(); }
   return route.fallback();
 };

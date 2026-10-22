@@ -76,6 +76,9 @@ const contextFor = async who => {
     // The question, answered here: the Learn ask, the Tutor planner (a canvas turn, #46) and the shared ask. No model.
     const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
     if (path === '/api/learn/ask') { asks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', {}) }); }
+    // MOCKED CR-1 route decision (chat-route-interface.md): an answer, as JEV would decide for a question. A code, page or file turn
+    // in Auto asks it before /api/learn/ask, and CI has no JEV key, so the real route would fall back and send nothing.
+    if (path === '/api/learn/chat/route') return route.fulfill({ json: { route: 'answer', via: 'jev', capability: null, flow: null, token: null } });
     if (path === '/api/learn/tutor/plan') { plans.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ json: { strategy: 'none', move: 'answer', reason: '', actions: [{ type: 'respond_text', text: 'Answered here.' }] } }); }
     if (/^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(path)) { sharedAsks.push(JSON.parse(request.postData() || '{}')); return route.fulfill({ status: 200, headers: { 'content-type': 'text/event-stream' }, body: frame('chunk', { text: 'Answered here.' }) + frame('done', { ok: true }) }); }
     // Next Steps' hook on canvas open is expected; the stack's tripwire answers its planner with fixtures.
