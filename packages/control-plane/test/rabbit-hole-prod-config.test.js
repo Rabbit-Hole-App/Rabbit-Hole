@@ -108,7 +108,7 @@ test('every Durable Object class a web config binds is exported by its entry and
   const web = new URL('../../web/', here);
   for (const name of ['wrangler.dev.jsonc', 'wrangler.parallel.jsonc', 'wrangler.rabbit-hole-prod.jsonc']) {
     const c = config(new URL(name, web)), classes = c.durable_objects.bindings.map(b => b.class_name);
-    for (const entry of [c.main, `e2e/tripwire-${c.main}`, ...(c.main === 'dev-worker.js' ? ['e2e/explain-gate-stub-worker.js'] : [])]) {
+    for (const entry of [c.main, `e2e/tripwire-${c.main}`, ...(c.main === 'dev-worker.js' ? ['e2e/explain-gate-stub-worker.js', 'dev-access-worker.js'] : [])]) {
       const names = exported(new URL(entry, web));
       for (const cls of classes) assert.ok(names.includes(cls), `${entry} does not export ${cls}, which ${name} binds`);
     }
