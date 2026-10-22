@@ -17,6 +17,7 @@ import { sha256Hex } from './learn-grade-jev.js';
 import { fileContext } from './file-context.js';
 import { chatContext } from './chat-modes.js';
 import { fileChatRef } from '../../web/src/file-chat-ref.js';
+import { sharedState } from './shared-privacy.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -316,7 +317,8 @@ export async function askShared(env, row, viewer, body, link = null, guest = nul
   if (!env.ANTHROPIC_API_KEY && env.SUBSCRIPTION_ONLY !== 'true') return json({ error: MODEL_NOT_CONFIGURED }, 503);
   const refused = subscriptionOwnerRefusal(env, viewer);
   if (refused) return refused;
-  const db = env.LEARN_DB, state = await redactRepositoryCards(db, JSON.parse(row.state_json), viewer);
+  // Only what was placed on the canvas (shared-privacy.js sharedState, SHARE-01 section 7): never the creator's answers, attempts or highlights.
+  const db = env.LEARN_DB, state = sharedState(await redactRepositoryCards(db, JSON.parse(row.state_json), viewer));
   const canvas = CANVAS.test(row.app) ? await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first() : null;
   const source = link ? link.source : await shareSource(db, row, viewer);
   const repository = source?.allowed ? source : null;

@@ -121,19 +121,26 @@ test('signed in, the guest trial does not apply: the viewer\'s own caps and allo
 test('a guest\'s model context holds only the shared canvas: never the creator\'s chats, goals, notes, highlights or other canvases', async t => {
   const f = setup(t), sent = scriptModel(t);
   const secret = await f.privateCanvas();
-  const { canvas, token } = await f.shareProject({ state: { blocks: [{ id: 'b1', type: 'explanation', title: 'Attention', body: 'PUBLIC-BODY' }],
+  const { canvas, token } = await f.shareProject({ state: { blocks: [{ id: 'b1', type: 'explanation', title: 'Attention', body: 'PUBLIC-BODY', attemptLog: ['PRIVATE-ATTEMPT'] },
+      { id: 'c1', type: 'challenge', title: 'Why scale?', question: 'PUBLIC-QUESTION', answer: 'PRIVATE-ANSWER', verdict: 'PRIVATE-VERDICT' },
+      { id: 'q1', type: 'quiz', title: 'Pick one', choice: 'PRIVATE-CHOICE' },
+      { id: 'p1', type: 'paper', title: 'Attention paper', paper: { id: '1706.03762' }, highlights: [{ text: 'PRIVATE-PAPER-HIGHLIGHT' }] }],
     goals: ['PRIVATE-GOAL'], notes: 'PRIVATE-NOTE', tutor: { memory: 'PRIVATE-TUTOR' }, progress: { mastered: 'PRIVATE-PROGRESS' } } });
   f.sqlite.exec(`INSERT INTO threads (id, org, user, scope_ref, commit_sha, title) VALUES ('t1', 'ana-ws', 'ana@test', '${canvas.name}', '', 'PRIVATE-THREAD');
     INSERT INTO messages (thread_id, role, content) VALUES ('t1', 'user', 'PRIVATE-CHAT');
     INSERT INTO learn_goals (id, org, owner_user_id, app, board, label, origin, created_at, updated_at) VALUES ('g1', 'ana-ws', 'u-ana-5d1e', '${canvas.name}', 'main', 'PRIVATE-GOAL-ROW', 'coaching', 'now', 'now');
     INSERT INTO pdf_highlights (id, org, owner_email, source_key, source_sha256, kind, page_index, anchor_json, created_at, updated_at) VALUES ('h1', 'ana-ws', 'ana@test', 'k', 's', 'text', 0, '{"text":"PRIVATE-HIGHLIGHT"}', 1, 1);`);
-  const answer = await browser(f).ask(token, { message: 'Summarise', selected: 'b1', state: { blocks: [{ title: 'INJECTED' }] }, scope: { app: secret.name } });
-  assert.equal(answer.status, 200);
-  const request = JSON.stringify(sent[0]);
-  assert.ok(request.includes('PUBLIC-BODY'), 'the shared content is the context');
-  for (const leak of ['PRIVATE-GOAL', 'PRIVATE-NOTE', 'PRIVATE-TUTOR', 'PRIVATE-PROGRESS', 'PRIVATE-THREAD', 'PRIVATE-CHAT', 'PRIVATE-GOAL-ROW', 'PRIVATE-HIGHLIGHT', 'INJECTED', 'SECRET', secret.name, 'ana@test']) {
-    assert.ok(!request.includes(leak), `model request carries ${leak}`);
-    assert.ok(!answer.text.includes(leak), `answer stream carries ${leak}`);
+  // Each card selected in turn: the creator's own answers, attempts and highlights on it never ride (sharedState, SHARE-01).
+  const tab = browser(f);
+  for (const selected of ['b1', 'c1', 'q1', 'p1']) {
+    const answer = await tab.ask(token, { message: 'Summarise', selected, state: { blocks: [{ title: 'INJECTED' }] }, scope: { app: secret.name } });
+    assert.equal(answer.status, 200);
+    const request = JSON.stringify(sent.at(-1));
+    assert.ok(request.includes('PUBLIC-BODY') && request.includes('PUBLIC-QUESTION'), 'the shared content is the context');
+    for (const leak of ['PRIVATE-', 'INJECTED', 'SECRET', secret.name, 'ana@test']) {
+      assert.ok(!request.includes(leak), `model request carries ${leak} (selected ${selected})`);
+      assert.ok(!answer.text.includes(leak), `answer stream carries ${leak}`);
+    }
   }
 });
 

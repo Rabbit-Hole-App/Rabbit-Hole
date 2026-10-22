@@ -90,6 +90,7 @@ const READERS = {
   'web/src/canvas-persist.js': 'saves them as one of the board lists',
   'web/src/learn-style-panel.js': 'styles selected links',
   'control-plane/src/learn-boards.js': 'copies the list on fork; no reading',
+  'control-plane/src/shared-privacy.js': 'keeps the list on a shared state (SHARE-01 sharedState); no reading',
   'control-plane/src/canvases.js': 'the empty board',
   'control-plane/src/dives.js': 'its "links" are canvas_dives rows (the Dive tree and map), not board links',
   'web/src/map-memory.js': 'a helper named links over code references, not board links',
