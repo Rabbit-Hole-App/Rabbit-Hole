@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { currentProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal } from './generation-proposal-chat.js';
+import { currentProposal, failedStart, generateProposal, generationField, madeFrom, proposalActive, proposalBlock, proposalRefusal, refusedReason } from './generation-proposal-chat.js';
 
 const soon = Math.floor(Date.now() / 1000) + 3600;
 const p = (id, version, over = {}) => ({ proposal_id: id, version, command: 'motion', title: `T ${id} ${version}`, settings: { duration_seconds: 10, audio: false }, input: { request: '/motion explain rain', concept: 'Weather' }, expires_at: soon, ...over });
@@ -95,4 +95,52 @@ test('a card whose Generate was refused for its proposal is not the card it made
   assert.deepEqual(['proposal_stale', 'proposal_canvas', 'proposal_refused', 'proposal_used'].map(code => proposalRefusal(problem(code))),
     ['This proposal changed; use the latest version.', 'Refresh this proposal.', 'Refresh this proposal.', 'This proposal already made a video.']);
   assert.equal(proposalRefusal(Object.assign(new Error('paused'), { status: 503, data: { code: 'motion_paused' } })), null, 'other failures keep their own message');
+});
+
+// MOT-22 owner acceptance: through the Chat's own helpers (the Generate handler's generateProposal and its in-flight guard, the
+// video card's failedStart, madeFrom and proposalActive) over a board that inserts like the canvas (a `same` card is found again).
+function board() {
+  const blocks = [];
+  return { blocks, insertCard: (block, { same } = {}) => { const found = same && blocks.find(same); if (found) return { id: found.id }; const id = `b${blocks.length + 1}`; blocks.push({ ...block, id }); return { id }; },
+    made: id => blocks.some(madeFrom(id)), refuse: (id, code) => { const i = blocks.findIndex(b => b.id === id); blocks[i] = failedStart(blocks[i], Object.assign(new Error('x'), { status: 409, data: { code } })).block; } };
+}
+const stale = code => Object.assign(new Error('x'), { status: 409, data: { code } });
+
+test('MOT-22: a refused Generate leaves a marked, unplayable card; the current version then Generates once; a reload keeps that', () => {
+  const v1 = p('gp-a', 1), v2 = p('gp-a', 2), b = board();
+  const msgs = [answer(v1)]; // a stale tab: it has not seen v2
+  const first = generateProposal(v1, { inFlight: false, insertCard: b.insertCard });
+  assert.equal(generateProposal(v1, { inFlight: true, insertCard: b.insertCard }), null, 'a second click while in flight adds nothing');
+  b.refuse(first, 'proposal_stale');
+  const card = b.blocks[0];
+  assert.deepEqual([card.status, card.proposalRefused, card.src, card.placementId, refusedReason(card)], ['failed', 'proposal_stale', '', undefined, 'This proposal changed; use the latest version.']);
+  assert.equal(proposalActive(v1, msgs, b.made), true, 'nothing reads Added to the canvas');
+  // Reload: the saved board keeps the refused card; the restored chat has v2, which is live.
+  const restored = JSON.parse(JSON.stringify(b.blocks)), after = [answer(v1), answer(v2)], made = id => restored.some(madeFrom(id));
+  assert.deepEqual([proposalActive(v1, after, made), proposalActive(v2, after, made)], [false, true], 'the stale card is inactive; the current one is live');
+  const next = board(); next.blocks.push(...restored);
+  const id = generateProposal(v2, { inFlight: false, insertCard: next.insertCard });
+  assert.notEqual(id, first, 'a new card, not the refused one');
+  assert.equal(generateProposal(v2, { inFlight: false, insertCard: next.insertCard }), id, 'pressed again (another click or tab): the same card');
+  assert.equal(next.blocks.filter(x => !x.proposalRefused).length, 1, 'one card that can run, so one start');
+  assert.equal(proposalActive(v2, after, next.made), false, 'now Added to the canvas');
+});
+
+test('MOT-22: repeated clicks on the stale and current cards, and a revision landing while Generate is in flight', () => {
+  const v1 = p('gp-a', 1), v2 = p('gp-a', 2), v3 = p('gp-a', 3), b = board();
+  let msgs = [answer(v1), answer(v2)];
+  assert.equal(proposalActive(v1, msgs, b.made), false, 'the stale card has no live Generate');
+  const pressed = generateProposal(v2, { inFlight: false, insertCard: b.insertCard });
+  for (let i = 0; i < 3; i++) assert.equal(generateProposal(v2, { inFlight: true, insertCard: b.insertCard }), null);
+  // Another tab saves v3 while v2's start is in flight; the server refuses v2 as stale.
+  msgs = [...msgs, answer(v3)];
+  b.refuse(pressed, 'proposal_stale');
+  assert.deepEqual([proposalActive(v2, msgs, b.made), proposalActive(v3, msgs, b.made)], [false, true]);
+  const third = generateProposal(v3, { inFlight: false, insertCard: b.insertCard });
+  assert.deepEqual([b.blocks.length, b.blocks.filter(x => x.proposalRefused).map(x => x.id), third], [2, [pressed], 'b2']);
+  assert.equal(proposalActive(v3, msgs, b.made), false);
+  // Any other failure (paused) keeps today's failed card, which still counts as made: it offers Generate again itself.
+  const paused = failedStart({ ...proposalBlock(v3), id: 'x' }, Object.assign(new Error('paused'), { status: 503, data: { code: 'motion_paused' } }));
+  assert.deepEqual([paused.reason, paused.block.proposalRefused, madeFrom('gp-a')(paused.block)], [null, undefined, true]);
+  assert.equal(refusedReason(failedStart({}, stale('proposal_canvas')).block), 'Refresh this proposal.');
 });

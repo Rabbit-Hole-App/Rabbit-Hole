@@ -28,7 +28,7 @@ import InteractiveScene, { sceneSummary } from './InteractiveScene.jsx';
 import SceneActivity from './SceneActivity.jsx';
 import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
-import { PROPOSAL_REFUSED_EVENT, proposalRefusal } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, failedStart, refusedReason } from './generation-proposal-chat.js';
 import { motionHold, recoverVideo, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
 import { RECOVERY_BUTTONS, motionConfirm, motionUsageLine, readsAgain, recoveryButtons, resumesJob, videoLabel } from './learn-video-label.js';
@@ -1575,9 +1575,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
     try { const { placementId } = await startVideo(appName, operation, { confirmed: true, retry }); follow(placementId); }
     catch (problem) {
       // MOT-22: refused for its proposal: the card says why and stops counting as the card the proposal made.
-      const refused = proposalRefusal(problem);
-      setError(refused || problem.message);
-      onChange({ ...current, status: 'failed', ...(refused ? { proposalRefused: problem.data.code } : {}) });
+      const { block: failed, reason: refused } = failedStart(current, problem);
+      setError(refused ? '' : problem.message);
+      onChange(failed);
       if (refused) window.dispatchEvent(new CustomEvent(PROPOSAL_REFUSED_EVENT, { detail: { proposalId: operation.proposal?.proposal_id, message: refused } }));
     }
   };
@@ -1595,15 +1595,18 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const shown = clips[position]?.src || '';
   useEffect(() => { if (!shown) afterPaint(() => { report('content'); report('interactive'); }); }, [shown]);
   const label = videoLabel(block);
+  const refused = refusedReason(block); // MOT-22: a start the server refused for its proposal: not a video, never was
   return (
     <div data-scroll className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
       <Kicker>Video</Kicker>
       <p data-drag-zone className="cursor-grab text-sm font-medium active:cursor-grabbing">{block.title}</p>
       {/* Where the clip comes from (owner, 2026-10-20): a generated clip says AI-generated; a linked one names its host. */}
-      {block.mode === 'generate'
+      {refused ? null : block.mode === 'generate'
         ? <p data-media-provenance="ai" className="mt-0.5 text-[11px] text-ink-2">AI-generated video, not real footage.</p>
         : hostOf(block.src) && <p data-media-provenance="sourced" className="mt-0.5 text-[11px] text-ink-2">Sourced · {hostOf(block.src)}</p>}
-      {shown
+      {refused
+        ? <div data-proposal-refused={block.proposalRefused} role="status" className="mt-2 rounded-lg border border-dashed border-line bg-hover p-4 text-center text-xs text-red-700">Not generated. {refused}</div>
+        : shown
         ? <>
             <video data-lesson-video src={shown} controls preload="metadata" onLoadedData={() => { report('content'); report('interactive'); }} onPointerDown={event => event.stopPropagation()}
               className="mt-2 w-full rounded-lg border border-line bg-black" />

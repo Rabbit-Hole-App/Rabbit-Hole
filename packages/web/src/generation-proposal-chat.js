@@ -40,6 +40,19 @@ export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 const REFUSED = { proposal_stale: 'This proposal changed; use the latest version.', proposal_canvas: 'Refresh this proposal.', proposal_refused: 'Refresh this proposal.', proposal_used: 'This proposal already made a video.' };
 export const proposalRefusal = problem => REFUSED[problem?.data?.code] ?? null;
 export const PROPOSAL_REFUSED_EVENT = 'rh-proposal-refused';
+export const refusedReason = block => (block?.proposalRefused ? REFUSED[block.proposalRefused] || REFUSED.proposal_canvas : null);
+// The video card after a failed start: refused for its proposal, it is marked (never playable, never generating, never the card
+// the proposal made) with the reason; any other failure keeps today's failed card. -> {block, reason}
+export function failedStart(block, problem) {
+  const reason = proposalRefusal(problem);
+  return { block: { ...block, status: 'failed', ...(reason ? { proposalRefused: problem.data.code } : {}) }, reason };
+}
+// ProposalSlot's Generate: one press in flight per proposal; the card is its capability's, found again if this proposal already
+// made one. -> the card id, or null while a press is in flight (or with no adapter).
+export function generateProposal(p, { inFlight, insertCard, wrap = block => block }) {
+  const block = !inFlight && proposalBlock(p);
+  return block ? insertCard(wrap(block), { same: madeFrom(p.proposal_id) })?.id ?? null : null;
+}
 // The card a proposal already made, so a second press (or a reload) finds it instead of adding another.
 export const madeFrom = proposalId => block => block?.operation?.proposal?.proposal_id === proposalId && !block.proposalRefused;
 

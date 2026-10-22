@@ -13,7 +13,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, madeFrom, proposalActive, proposalBlock } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, generateProposal, proposalActive, proposalBlock } from './generation-proposal-chat.js';
 import { withPrompt } from './card-prompt.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -40,9 +40,9 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
   }, [p.proposal_id]);
   const onGenerate = () => {
+    const id = generateProposal(p, { inFlight: pressed, insertCard: ops.insertCard, wrap: block => withPrompt(block, p.input.request) });
     if (pressed) return; // one press in flight
     setPressed(true); setError(null);
-    const { id } = ops.insertCard(withPrompt(proposalBlock(p), p.input.request), { same: madeFrom(p.proposal_id) });
     if (id) ops.locate?.(id);
   };
   return (
