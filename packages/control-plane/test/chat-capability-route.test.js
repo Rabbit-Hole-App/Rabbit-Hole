@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chatRouteFetch, decideChat, verifyChatRoute, FALLBACK } from '../src/chat-capability-route.js';
 import { JevError } from '../src/learn-grade-jev.js';
-import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
+import { CHAT_CAPABILITIES, CHAT_ROUTES, chatCapability } from '../../web/src/inline-ai-route.js';
 import { SLASH } from '../../web/src/agent/slash.js';
 import { reviewRequired } from '../src/generation-proposal.js';
 
@@ -32,7 +32,10 @@ test('every declared chat capability is a Learn command; proposal flow exactly w
     assert.equal(entry.flow === 'proposal', reviewRequired(id), `${id} flow`);
     assert.equal(typeof entry.intent, 'string');
   }
-  assert.equal(CHAT_CAPABILITIES.explain, undefined, '/explain is not wired (owner)');
+  // EXP-T15 (owner authorized /explain v2.1 T15, 2026-10-22; replaces "/explain is not wired"): declared direct and guarded,
+  // so the router never offers it unless the server enables /explain v2.
+  assert.deepEqual([CHAT_CAPABILITIES.explain.flow, CHAT_CAPABILITIES.explain.guarded], ['direct', true]);
+  assert.equal(CHAT_ROUTES.explain, undefined, 'not a plain-words route by default');
   assert.deepEqual(Object.keys(chatCapability('motion').settings), ['duration_seconds', 'audio'], 'card field order');
   assert.deepEqual(chatCapability('motion').settings.duration_seconds, { type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 });
   assert.deepEqual(chatCapability('motion').settings.audio, { type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' });
@@ -154,4 +157,47 @@ test('/goal is explicit only: typed or picked it is a direct route with no route
   const named = await decideWith(counted(jev('goal', 0.99)), 'change my goal to accounting');
   assert.deepEqual([named.route, named.via, named.capability], ['answer', 'fallback', null], 'a router answer of goal is malformed, never a goal edit');
   assert.deepEqual(fetches, []);
+});
+
+// EXP-T15: /explain's deterministic dispatch and its guarded natural-language route.
+test('/explain typed, picked or with a selected card dispatches directly with no router call, flag on or off', async t => {
+  const fetches = noFetch(t);
+  for (const env of [ENV, { ...ENV, EXPLAIN_V2_ENABLED: 'true' }]) {
+    const none = counted(jev('motion', 0.99));
+    const typed = await decideWith(none, '/explain how a heap keeps its order', { env });
+    assert.deepEqual([typed.route, typed.via, typed.flow, typed.args, typed.settings], ['capability:explain', 'command', 'direct', 'how a heap keeps its order', null]);
+    const picked = await decideWith(none, 'how a heap keeps its order', { env, capability: 'explain' });
+    assert.deepEqual([picked.route, picked.via, picked.flow], ['capability:explain', 'capability', 'direct']);
+    // A selected card rides as context; /explain still makes a new card (never an edit of the selection).
+    const selected = await decideWith(none, '/explain this', { env, over: { selection: { kind: 'card', title: 'Heaps', text: 'a tree' } } });
+    assert.deepEqual([selected.route, selected.flow], ['capability:explain', 'direct']);
+    assert.equal(none.calls.length, 0);
+  }
+  assert.deepEqual(fetches, []);
+});
+
+test('plain words reach /explain only where the server enables /explain v2; off, the router question is unchanged', async t => {
+  noFetch(t);
+  const offAsk = counted(jev('answer', 0.9));
+  await decideWith(offAsk, 'make a visual explanation of how a heap works');
+  assert.equal(offAsk.calls[0][1].questions.route.criteria.explain, undefined, 'off: never offered');
+  const offNamed = await decideWith(counted(jev('explain', 0.99)), 'make a visual explanation of how a heap works');
+  assert.deepEqual([offNamed.route, offNamed.via], ['answer', 'fallback'], 'off: a router answer of explain is not a usable route');
+  const on = { ...ENV, EXPLAIN_V2_ENABLED: 'true' };
+  const onAsk = counted(jev('explain', 0.92));
+  const routed = await decideWith(onAsk, 'make a visual explanation of how a heap works', { env: on });
+  assert.match(onAsk.calls[0][1].questions.route.criteria.explain, /new visual explanation card/);
+  assert.deepEqual([routed.route, routed.via, routed.flow, routed.args], ['capability:explain', 'jev', 'direct', 'make a visual explanation of how a heap works']);
+  assert.ok(routed.token, 'a signed route bound to this turn');
+  // Ordinary questions, negations and capability questions stay answers; uncertainty asks; a timeout answers.
+  assert.equal((await decideWith(counted(jev('answer', 0.9)), 'why is a heap not sorted?', { env: on })).route, 'answer');
+  assert.equal((await decideWith(counted(jev('answer', 0.9)), 'explain heaps, but don\'t make a card', { env: on })).route, 'answer');
+  const unsure = await decideWith(counted(jev('explain', 0.4, 0.2)), 'heap picture?', { env: on });
+  assert.deepEqual([unsure.route, unsure.clarification.options], ['clarify', ['explain', 'answer']]);
+  const slow = await decideWith(counted(new JevError('timeout', 'timeout')), 'draw an explainer of heaps', { env: on });
+  assert.deepEqual([slow.route, slow.via, slow.code], ['answer', 'fallback', 'timeout']);
+  // Plain "explain this" never reaches the router: it is an answer.
+  const plain = counted(jev('explain', 0.99));
+  assert.equal((await decideWith(plain, 'explain this', { env: on })).route, 'answer');
+  assert.equal(plain.calls.length, 0);
 });

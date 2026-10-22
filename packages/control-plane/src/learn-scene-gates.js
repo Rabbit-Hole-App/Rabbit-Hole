@@ -187,9 +187,111 @@ function firstProblem(scene) {
     const count = snaps.length >= 3 && drawnEntriesProblem(name, snaps);
     if (count) return count;
   }
+  const presentation = presentationProblem(scene);
+  if (presentation) return presentation;
   const small = legibility[0];
   if (small) return `${small.textClass} text would draw at ${small.effectivePx}px, below its ${small.floor}px floor: the scene is too wide or tall for one card, so draw less or split it into parts with a pager`;
   return null;
+}
+
+// Presentation and interaction validation (EXP-T26 M2, plan v2.1 section 1.2): checks that a declared presentation's
+// controls, steps and playback each change what is drawn, by comparing evaluated states, never by reading words. It is
+// validation of the presentation, not proof that a scene teaches correctly: the independent review of usefulness and
+// meaning (T18) still decides that. Only a scene that declares a presentation is held to it; saved scenes without one keep
+// the card's static reading (animation-scene.js presentationMode).
+// What an object shows, without the attention marks: a highlight directs the eye, it does not change what is drawn.
+const substance = object => JSON.stringify([object.visible && object.opacity > 0.01, Math.round(object.opacity * 100), object.x, object.y, object.w, object.h,
+  object.from, object.to, object.rotation, object.label, object.runs, object.values, object.labels, object.tokens]);
+const listedValues = (input, data) => input.type === 'bool' ? [false, true] : input.type === 'choice' ? input.options.map(option => option.id)
+  : [...Array((data?.[input.of] || []).length).keys()];
+const REVEAL_ONLY = ['appear', 'highlight', 'emphasize', 'pause'];
+const revealOnly = timeline => timeline.every(event => REVEAL_ONLY.includes(event.action));
+export function presentationProblem(scene) {
+  const presentation = scene?.presentation;
+  if (!presentation) return null;
+  let base;
+  try { base = evaluateScene(structuredClone(scene), scene.duration, {}); } catch (error) { return error.message; }
+  if (presentation.mode === 'time' && revealOnly(base.scene.timeline)) {
+    return 'presentation: time mode on a timeline that only reveals or highlights, so playing it shows nothing the finished frame does not: declare static, or steps (presentationRepair derives named steps from the reveal order)';
+  }
+  if (presentation.mode === 'steps') {
+    const at = time => evaluateScene(structuredClone(scene), time, {}).state.objects.map(substance).join('|');
+    const steps = base.scene.presentation.steps;
+    for (let i = 1; i < steps.length; i += 1) {
+      if (at(steps[i].at) === at(steps[i - 1].at)) return `presentation: step "${steps[i].title}" draws the same as "${steps[i - 1].title}" (a highlight alone is not a step): merge them or change what the step shows`;
+    }
+  }
+  const visible = (base.declarations || []).filter(input => !input.hidden && input.presentation !== 'pager');
+  const experiments = presentation.experiments || [];
+  const missing = visible.find(input => !experiments.some(experiment => experiment.input === input.name));
+  if (missing) return `presentation: control "${missing.name}" has no experiment: declare its purpose, the objects it affects and the contrasts to compare, or remove the control`;
+  for (const experiment of experiments) {
+    const input = visible.find(entry => entry.name === experiment.input);
+    const values = listedValues(input, scene.exampleData);
+    // dependsOn: the controls this effect needs set (a reference shown, a mode chosen); the change may show in any of their settings.
+    let contexts = [{}];
+    for (const name of experiment.dependsOn || []) {
+      const other = visible.find(entry => entry.name === name);
+      if (!other || name === input.name) return `presentation: experiment "${experiment.id}" depends on "${name}", which is not another visible control`;
+      contexts = contexts.flatMap(context => listedValues(other, scene.exampleData).map(value => ({ ...context, [name]: value })));
+    }
+    const drawn = contexts.map(context => values.map(value => new Map(evaluateScene(structuredClone(scene), scene.duration, { ...context, [input.name]: value }).state.objects.map(object => [object.id, substance(object)]))));
+    const same = (target, i) => drawn.every(series => series[i].get(target) === series[i - 1].get(target));
+    for (let i = 1; i < values.length; i += 1) {
+      const pair = `${input.name} = ${JSON.stringify(values[i - 1])} and ${JSON.stringify(values[i])}`;
+      if (experiment.invariant) {
+        // A declared invariant: the results it lists stay the same, and the card must still show which setting is in
+        // effect (the setting or both values drawn), or the comparison cannot be seen and it is an accidental no-op.
+        const moved = experiment.affects.find(target => !same(target, i));
+        if (moved) return `presentation: experiment "${experiment.id}" declares "${moved}" invariant under "${input.name}", but it draws differently at ${pair}: list only what stays the same, or drop invariant`;
+        const shown = [...drawn[0][i].keys()].some(id => !experiment.affects.includes(id) && !same(id, i));
+        if (!shown) return `presentation: experiment "${experiment.id}" is invariant, but nothing on the card changes between ${pair}, so the comparison cannot be seen: show the setting in effect or both values side by side`;
+        continue;
+      }
+      const target = experiment.affects.find(id => same(id, i));
+      if (target) return `presentation: experiment "${experiment.id}" says "${input.name}" changes "${target}", but it draws the same at ${pair} (a moved highlight does not count): make every setting change it, list it as invariant if that is the point, or do not list it in affects`;
+    }
+  }
+  return null;
+}
+
+// The deterministic repair for a time presentation whose timeline only builds the picture up (for T19's bounded repair):
+// each group of objects revealed together becomes one named step, at the moment its reveal (and any highlight that
+// follows it) has finished; one group or none becomes static. Facts, objects and the timeline are unchanged. -> the repaired
+// scene, or null when this repair does not apply.
+export function presentationRepair(scene) {
+  if (scene?.presentation?.mode !== 'time') return null;
+  let base;
+  try { base = evaluateScene(structuredClone(scene), scene.duration, {}); } catch { return null; }
+  const timeline = [...base.scene.timeline].sort((a, b) => a.at - b.at);
+  if (!revealOnly(timeline)) return null;
+  const names = new Map(base.state.objects.map(object => [object.id, String(object.label || object.semanticId || object.id).trim()]));
+  const groups = [];
+  for (const event of timeline) {
+    const last = groups.at(-1);
+    if (event.action === 'appear' && !(last && last.start === event.at && last.revealed.length)) groups.push({ start: event.at, end: event.at, revealed: [] });
+    const group = groups.at(-1);
+    if (!group) continue; // a highlight before anything is revealed belongs to the opening frame
+    if (event.action === 'appear') group.revealed.push(names.get(event.target) || event.target);
+    group.end = Math.max(group.end, event.at + (event.duration || 0));
+  }
+  const presentation = { ...scene.presentation };
+  delete presentation.steps;
+  if (groups.length < 2) return { ...scene, presentation: { ...presentation, mode: 'static' } };
+  const steps = [];
+  const drawnAt = time => evaluateScene(structuredClone(scene), time, {}).state.objects.map(substance).join('|');
+  let previous = null;
+  for (const group of groups) {
+    // A zero-length event takes effect just after its moment (animation-scene.js phase), so the step sits a hair later.
+    const at = Number(Math.min(scene.duration, Math.max(group.end + 0.01, (steps.at(-1)?.at ?? -1) + 0.01)).toFixed(2));
+    if (steps.length && at <= steps.at(-1).at) break;
+    // A reveal of something already on screen changes nothing: it joins the step before it.
+    const drawn = drawnAt(at);
+    if (drawn === previous) { Object.assign(steps.at(-1), { at, title: `${steps.at(-1).title}, ${group.revealed.join(', ')}`.slice(0, 120) }); continue; }
+    previous = drawn;
+    steps.push({ id: `step-${steps.length + 1}`, title: `Show ${group.revealed.join(', ')}`.slice(0, 120), at });
+  }
+  return { ...scene, presentation: steps.length < 2 ? { ...presentation, mode: 'static' } : { ...presentation, mode: 'steps', steps } };
 }
 
 // "live" is a claim that the scene calculates: a scene whose derived block only selects (pick, choose, gate, concat) shows

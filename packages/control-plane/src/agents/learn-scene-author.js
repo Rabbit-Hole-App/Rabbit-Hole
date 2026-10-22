@@ -36,6 +36,13 @@ export const SCENE_EXAMPLE = {
     { at: 0.5, action: 'appear', target: 'weights', duration: 0.4 },
     { at: 1, action: 'appear', target: 'parts', duration: 0.5 },
   ],
+  presentation: {
+    mode: 'static',
+    experiments: [
+      { id: 'weighting', input: 'scheme', purpose: 'Which score decides the grade when the exam counts most?', affects: ['weights', 'parts', 'grade'], contrasts: ['equal weights', 'exam counts most'] },
+      { id: 'contributions', input: 'showParts', purpose: 'Where does the grade come from?', affects: ['note'], contrasts: ['contributions shown', 'contributions hidden'] },
+    ],
+  },
 };
 
 export const SCENE_AUTHORING = `
@@ -48,6 +55,7 @@ OBJECTS: {id (unique), type, initialState}. Types and their initialState fields:
 - text: text, x, y (where the line starts), typography (heading | body | caption | annotation), role.
 - box: x, y, w, h, label (drawn inside), role. circle: x, y (its centre), w (diameter), label, role.
 - arrow, line: from {x, y}, to {x, y}, label, role. An arrowhead must not land on text.
+- runs (on text, box, circle, arrow, line, instead of text or label): a line mixing words and formulas, [{"kind": "text", "text": "Period: "}, {"kind": "math", "tex": "T = 2\\pi\\sqrt{L/g}"}]. Write every formula as a math run in TeX, never as calculator text like 2*pi*sqrt(L/g); keep code as code.
 - equation: text (TeX), x, y, w, h. An equation with an operator and "= <number>" (even "T = 2\\pi\\sqrt{L/g}") is read as a computed result, so its numbers must come from derived values ({{name}} in the TeX); write a general law as a text line instead. code: text, x, y.
 - strip (one row of numbers): x, y, values [numbers], cell (pixel pitch, 40-64), label, numberFormat (decimal | integer).
 - grid (a table of numbers): x, y, rows, cols, values (row-major, rows x cols numbers), cell, label, rowLabels (one per row), columnLabels (one per column), matrixKind (input = given data, derived = computed, relational = compares two labelled sets: REQUIRED whenever values are present).
@@ -76,6 +84,12 @@ CALCULATION (set the tool's "calculation" field honestly; prefer live: compute e
 - live: every number the learner sees is computed by derived ops from the inputs (picking a parameter value from a list is fine).
 - precomputed: some shown results are stored values you worked out (for example a table of results per setting, because the ops above cannot compute them). Then the controls only select stored samples: use index or choice inputs over exactly the samples you stored, never imply a continuous range. Work each setting out step by step before you write it, and make every stored list for that setting (marks, numbers, counts, sentences) agree with the others. The server refuses a sentence its own card contradicts: a written calculation ("80 - 60 = 20") must hold, and a count or an index range ("cells 4..6") must name exactly the drawn entries it describes (derive a count with sum over the 0/1 list and print it with {{name}}). The card adds the note "Precomputed samples" itself; do not write one.
 - none: the scene shows no numbers.
+
+PRESENTATION (declare it): "presentation": {mode, steps?, experiments}. Choose the simplest that teaches:
+- static (prefer it): the complete picture; the card shows its finished frame with no playback. A timeline that only reveals or highlights is static.
+- steps: 2-12 named moments {id, title (max 120), at (seconds, increasing: the moment the step shows, after its events have finished)} on the timeline, each changing what is drawn (a highlight alone is not a step); earlier context stays on screen. The card shows Previous / Next by name.
+- time: only when timing itself is the lesson (a process unfolding); the card gets Play and a scrubber.
+- experiments: exactly one per control: {id, input (the control's name), purpose (the question moving it answers, shown above the controls, max 300), affects (ids of objects that EVERY setting of the control visibly changes), contrasts (1-8 short phrases naming what to compare), dependsOn? (other controls this effect needs set), invariant? (true when the point is that the listed results stay the same, for example "the period does not depend on mass"; then also draw the setting in effect or both values so the comparison is visible)}. The server evaluates every setting: a control whose listed objects stay the same between two settings without invariant, or that only moves a highlight, is refused.
 
 TIMELINE (plays once when the card appears; at most 30 events): {at (seconds), action, target, duration?, value?}. Actions: appear, disappear, highlight, unhighlight, emphasize, move (value {x, y}), change_text (value a string), set_values (value a list the same length as the target's values), highlight_cell, sweep. Every event ends within duration. Objects shown from the start need no event.
 

@@ -71,6 +71,13 @@ export function evaluateScene(raw, time, rawInputs) {
       throw new Error(`Object "${object.id}": pickInput "${name}" spans ${domain} positions but the object draws ${items ?? 'no'} items`);
     }
   }
+  // An experiment teaches with a control the learner can move (EXP-T26 M2).
+  for (const experiment of raw?.presentation?.experiments || []) {
+    const declaration = declarations.find(entry => entry.name === experiment?.input);
+    if (!declaration || declaration.hidden || declaration.presentation === 'pager') {
+      throw new Error(`Experiment "${experiment?.id}": input "${experiment?.input}" names no visible control`);
+    }
+  }
   // Inputs join the pool by name (collisions were refused above), and the
   // root `inputs` key is dropped before validation - the validated scene is a
   // plain animation scene whose numbers happen to come from this evaluation.

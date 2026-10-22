@@ -3,6 +3,7 @@ import {readRegionalOriginal,regionalMaskBlob} from './inline-regional-mask.js';
 import { createBackgroundRemovalController, createRegionalImageEditController } from './inline-background-removal.js';
 import { createImageJobClient } from './inline-image-job-client.js';
 import { cadClient, submitCadOnce } from './cad-client.js';
+import { explainClient, explainDisabled, explainEditing, explainEditProblem, explainEditRequest, explainPendingBlock } from './explain-client.js';
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -477,6 +478,14 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // revealed, never added twice by a double-click or a retry; otherwise inserted where the learner looks, one undo step.
     // Returns { id, existed }.
     // `at` (a drop point): the card lands there in one undo step (insertImported); without it, where the learner is looking.
+    // Generate on an /explain brief (EXP-T20, Lane C approve): the job on this canvas whose card already waits. A brief made on
+    // another canvas is not found here and is refused by the server, never attached to this one. -> the card id.
+    approveExplain: async proposal => {
+      const boardId = commentBoardRef.current;
+      if (!boardId || typeof proposal?.input?.job !== 'string') throw new Error('This explanation can be generated only on its own canvas.');
+      const { job } = await explainClient(api, boardId).action(proposal.input.job, 'approve', { proposal });
+      return job?.cardId || null;
+    },
     insertCard: (block, { same = null, at = null } = {}) => {
       const existing = same && canvasApi.current?.blocks?.().find(same);
       if (existing) { canvasApi.current.focusBlock(existing.id); return { id: existing.id, existed: true }; }
@@ -876,8 +885,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       return runLearnCommand(text, {
         app: app.name,
         target: askTarget,
+        // The composer's attached image (its uploaded media id), as a question carries it (ask.jsx image_context).
+        attachedImage: imageAttached && imageContext?.id ? imageContext.id : null,
         canvas: withCardSink({
           startCad: async (prompt, options) => { const result = await startCad(prompt, options); if (result?.block?.id) sink?.(result.block.id); return result; },
+          startExplain: async (prompt, options) => { const result = await startExplain(prompt, options); if (result?.blockId) sink?.(result.blockId); return result; },
           insertNotebook: () => canvasApi.current?.insertNotebook(),
           insertBlock: (block, options) => canvasApi.current?.insertBlock(block, options),
           // A paid Generate whose job a card here already shows reveals that card (learn-slash.js existingGeneration).
@@ -965,6 +977,32 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The inline AI editor (docs/features/inline-ai-editor.md): this canvas's routes - the registry's commands available
   // here (Motion only in its development build) - the same transport and auth as a / command, and its telemetry rows.
   const cadRequests = useRef(new Map());
+  // /explain v2 (EXP-T20 slice 1): one job per press, its card placed at once under the job's card id. null where v2 is off
+  // here (the server's 404), which keeps today's /explain; remembered so later presses do not ask again.
+  const explainRequests = useRef(new Map()), explainOff = useRef(false);
+  const startExplain = async (prompt, { context = null, promptUsed = prompt, source = 'explicit' } = {}) => {
+    if (explainOff.current || !commentBoard || !prompt.trim()) return null;
+    const payload = { prompt, requestClass: 'simple', source, ...(context ? { context: { text: context } } : {}) };
+    let result;
+    try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
+    catch (error) { if (explainDisabled(error)) { explainOff.current = true; return null; } throw error; }
+    const blockId = canvasApi.current?.placeExplain(withPrompt(explainPendingBlock({ job: result.job, prompt }), promptUsed));
+    return { blockId: blockId || result.job.cardId };
+  };
+  // Ctrl+K Edit on an Explanation (EXP-T20 slice 2): an edit job bound to the card and the revision the learner saw; the card
+  // shows its stage, then Current / Proposed with Apply changes and Discard (ExplainEditBar).
+  const startExplainEdit = async (block, instruction) => {
+    const off = 'Editing explanations is not available here yet.';
+    if (explainOff.current || !commentBoard) throw new Error(off);
+    const problem = explainEditProblem(block);
+    if (problem) throw new Error(problem);
+    const payload = explainEditRequest(block, instruction);
+    let result;
+    try { result = await submitCadOnce(explainRequests.current, JSON.stringify({ board: commentBoard, ...payload }), explainClient(api, commentBoard).create, payload); }
+    catch (error) { if (explainDisabled(error)) { explainOff.current = true; throw new Error(off); } throw error; }
+    canvasApi.current?.updateBlock(block.id, current => (explainEditProblem(current) ? null : explainEditing(current, result.job, instruction)));
+    return result.job;
+  };
   // promptUsed: the typed line the card keeps (card-prompt.js); the inline editor's words are the prompt itself. An edit keeps
   // none here: the server's Accept answer carries the accepted revision's words (cad-jobs.js acceptedResponse), on the card's
   // Accept, the inline editor's and after a reload alike; a rejected edit leaves the old prompt.
@@ -1017,6 +1055,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       sourcesRef.current=next;setSources(next);return true;
     },
     cad: startCad,
+    explainEdit: startExplainEdit,
     cadRead: id => cadClient(api,app.name,boardName).get(id),
     cadAction: async (id,action,body) => {
       const destination=canvasApi.current;
@@ -1104,6 +1143,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const [sharing, setSharing] = useState(null);
   // Comments (docs/features/canvas-comments.md): keyed by the main board's id, which the owner's board reads return.
   const [commentBoard, setCommentBoard] = useState(null);
+  const commentBoardRef = useRef(null);
+  commentBoardRef.current = commentBoard;
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const commentsShown = panelOpen && panelTab === 'comments';
   const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });

@@ -11,7 +11,7 @@ import { authorizedBoardApp } from './learn-board.js';
 import { subscriptionOwnerRefusal } from './subscription-transport.js';
 import { MOTION_PAUSED, motionOffered, motionPaused, reviewRequired } from './generation-proposal.js';
 import { sha256, sign, verify } from './token.js';
-import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, explicitCommand, isPlainExplain, readChatRoute } from '../../web/src/inline-ai-route.js';
+import { CHAT_ROUTE_PROTOCOL_VERSION, ROUTE_THRESHOLDS, ROUTE_TIMEOUT_MS, chatCapability, chatRouteRequest, chatRoutesWith, explicitCommand, isPlainExplain, readChatRoute } from '../../web/src/inline-ai-route.js';
 import { IMAGE_GENERATION, SLASH, commandLabel, unavailableCommand } from '../../web/src/agent/slash.js';
 import { paidOf } from '../../web/src/inline-ai-decide.js';
 
@@ -36,6 +36,9 @@ function availability(env, cap, enabled) {
   if (cap.needs) return Array.isArray(enabled);
   return true;
 }
+// The guarded capabilities plain words may reach here (EXP-T15): /explain v2 only where EXPLAIN_V2_ENABLED (explain-job.js
+// explainEnabled). Off, the router's question is exactly what it was; a typed /explain still dispatches either way.
+const offeredRoutes = env => chatRoutesWith(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []);
 const unavailable = (env, name) => (name === 'motion' && motionPaused(env) ? MOTION_PAUSED : name === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${commandLabel(name)} isn't available here.`);
 
 // One chat line's decision. deps.ask is the JEV call (counted in tests). Returns the response body.
@@ -67,10 +70,11 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
   const started = Date.now();
   const failed = code => answer('fallback', { retryable: true, code, message: FALLBACK, meta: { ...base.meta, ms: Date.now() - started } });
   if (!transport || !(await signingKey(env))) return failed('unavailable');
+  const routes = offeredRoutes(env);
   let out, read;
   try {
-    out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs }, JEV_TRANSPORTS[transport].model), { transport, timeoutMs });
-    read = readChatRoute(out.body);
+    out = await ask(env, chatRouteRequest({ text, selection: fields.selection, sourceRefs: fields.source_refs }, JEV_TRANSPORTS[transport].model, routes), { transport, timeoutMs });
+    read = readChatRoute(out.body, routes);
   } catch (error) {
     const code = error instanceof JevError ? (error.code === 'timeout' ? 'timeout' : 'unavailable') : 'malformed';
     log({ request_id: requestId, outcome: code, ms: Date.now() - started, transport, called: error?.called !== false });

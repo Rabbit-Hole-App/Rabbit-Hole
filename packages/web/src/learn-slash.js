@@ -154,9 +154,11 @@ export const imageSearchBlock = args => ({ type: 'image', mode: 'search', title:
 // One artifact command's generation, with no side effect: the /api/learn/artifact answer ({ result: 'artifact' |
 // 'paid_proposal' | 'clarification' | 'unsupported' | ... }). runLearnCommand inserts what comes back; the inline editor
 // stages it as a preview (docs/features/inline-ai-editor.md §7). A caller's signal (Cancel) aborts it too.
-export function generateCommand(name, args, { app, selection = null, context = null, post, signal = null }) {
+// image (EXP-T15, /explain only): an uploaded image's media id; the server reads its bytes under this canvas's own
+// authorization (learn-image-context.js), never from a browser URL. Its role is a layout reference by default.
+export function generateCommand(name, args, { app, selection = null, context = null, image = null, post, signal = null }) {
   const timeout = AbortSignal.timeout(ARTIFACT_TIMEOUT_MS);
-  return post('/api/learn/artifact', { app, command: name, args, selection, context }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
+  return post('/api/learn/artifact', { app, command: name, args, selection, context, ...(image ? { image_context: { id: image }, image_role: 'layout_reference' } : {}) }, { signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
 }
 
 // What a typed /motion says in a build that does not offer it (production): it runs nothing.
@@ -173,7 +175,8 @@ export const MOTION_OFF = 'Motion (animated explainer videos) is not available h
 // a promise of { added } that settles when the finder closes.
 // internal: the Tutor's own create_material (runMaterials) may run its material tools; a typed line never can, and a removed
 // command says it is unavailable and runs nothing (owner, 2026-10-20).
-export async function runLearnCommand(text, { app, target = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false }) {
+// attachedImage: the composer's attached image (an uploaded media id), used by /explain when the target carries none.
+export async function runLearnCommand(text, { app, target = null, attachedImage = null, canvas, openSearch, post, motionDev, promptUsed = text, internal = false }) {
   const resolved = resolveCommand(text, 'learn', { motionDev, internal });
   if (!resolved?.command) return { notice: { tone: 'error', text: (resolved && (unavailableCommand(resolved.unsupported) || (resolved.unsupported === 'motion' ? MOTION_OFF : null))) || `${resolved ? `/${resolved.unsupported}` : 'That'} is not a Learn command. Type / to see them.` } };
   const { command: { name, source }, arg: args } = resolved;
@@ -216,9 +219,24 @@ export async function runLearnCommand(text, { app, target = null, canvas, openSe
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
   const hold = () => canvas.reserve?.({ label: `Creating /${name}`, card: cardsFor(name)[0]?.card ?? null, ...(String(promptUsed ?? '').trim() ? { prompt: true } : {}) });
+  // /explain with an image: the target's own (a region crop or an image card, uploaded) first, else the composer's attached
+  // image, as ask.jsx picks one for a question. The words say what to show; an image alone asks. A crop whose upload has not
+  // landed is waited for, never dropped.
+  const image = name === 'explain' ? (typeof target?.image === 'string' ? target.image : typeof attachedImage === 'string' ? attachedImage : null) : null;
+  if (name === 'explain' && !image && target?.preview && String(target.id || '').startsWith('area:')) {
+    return { notice: { tone: 'info', text: 'The selected area is still being attached. Send /explain again in a moment.' }, keep: `/explain ${args}`.trimEnd() + ' ' };
+  }
+  if (image && !args.trim()) return { notice: { tone: 'question', text: 'What should the explanation show? The image is used as a layout reference.' }, keep: '/explain ' };
+  // /explain v2 (EXP-T20 slice 1): a durable job whose card is placed at once and fills in when the job is ready. Where the
+  // server has it off (startExplain answers null) the command runs as it always has. shortcut: an attached image keeps
+  // today's path until the job API resolves images on the server (Lane C), so it is never dropped.
+  if (name === 'explain' && canvas.startExplain && !image && args.trim()) {
+    const started = await canvas.startExplain(args, { context: target?.text ? String(target.text).slice(0, 8000) : null, promptUsed });
+    if (started) return { notice: { tone: 'done', text: 'Making the explanation on the canvas.', ...(started.blockId ? { blockId: started.blockId } : {}) } };
+  }
   const slot = mayConfirmPaid(name) ? null : hold();
   let result;
-  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, post }); }
+  try { result = await generateCommand(name, args, { app, selection, context: target?.text ? String(target.text).slice(0, 8000) : null, image, post }); }
   catch (error) { if (error.name === 'TimeoutError') return { notice: { tone: 'error', text: `/${name} took too long. Try again.` } }; throw error; }
   finally { if (slot && result?.result !== 'artifact') canvas.release?.(slot); }
   // The notice names the new card and can take the learner to it.

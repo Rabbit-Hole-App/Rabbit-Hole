@@ -13,7 +13,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict } from './generation-proposal-chat.js';
 import { withPrompt } from './card-prompt.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -47,6 +47,13 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
   }, [p.proposal_id]);
   const onGenerate = () => {
+    // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
+    if (approvesJob(p)) {
+      if (pressed || !ops.approveExplain) return;
+      setPressed(true); setError(null);
+      ops.approveExplain(p).then(id => { if (id) ops.locate?.(id); }).catch(failure => { setPressed(false); setError(failure.message); });
+      return;
+    }
     const id = generateProposal(p, { inFlight: pressed, insertCard: ops.insertCard, wrap: block => withPrompt(block, p.input.request) });
     if (pressed) return; // one press in flight
     setPressed(true); setError(null);

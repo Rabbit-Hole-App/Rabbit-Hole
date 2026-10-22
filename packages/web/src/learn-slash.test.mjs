@@ -505,3 +505,45 @@ test('/motion with a selected card: the chat turn sends it as context.selection,
   assert.equal(generationField({ offered: true, concept: 'Biology' }).motion.context, undefined, 'no selection, no context');
   assert.equal(generationField({ offered: true, target: { id: 'b-empty', kind: 'Whiteboard', text: '  ' } }).motion.context, undefined, 'a card with no text has nothing to ground on');
 });
+
+// EXP-T15: an attached image rides /explain as a media id the server resolves, with its role; never a URL, never dropped.
+test('/explain carries the attached image as a layout reference; an image alone asks first and sends nothing', async () => {
+  const card = { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'Heap' } };
+  const { did, run } = harness(card);
+  await run('/explain how this heap keeps its order', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  const [, path, body] = did.find(entry => entry[0] === 'post');
+  assert.equal(path, '/api/learn/artifact');
+  assert.deepEqual([body.command, body.args, body.image_context, body.image_role], ['explain', 'how this heap keeps its order', { id: 'media:0123456789ab' }, 'layout_reference']);
+  assert.ok(!JSON.stringify(body).includes('http'), 'no browser URL');
+  const alone = harness(card);
+  const asked = await alone.run('/explain', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  assert.equal(asked.notice.tone, 'question');
+  assert.equal(asked.keep, '/explain ');
+  assert.deepEqual(alone.did, [], 'no call and no card');
+  // Other commands and an image-less /explain send no image.
+  const plain = harness(card);
+  await plain.run('/explain how heaps work', { id: 'card-2', title: 'Notes' });
+  await plain.run('/quiz heaps', { id: 'card-1', title: 'Heap photo', image: 'media:0123456789ab' });
+  for (const [, , sent] of plain.did.filter(entry => entry[0] === 'post')) assert.equal(sent.image_context, undefined);
+});
+
+// EXP-T15: the composer's attached image and a region crop reach /explain the same server-resolved way; a crop still uploading waits.
+test('/explain takes the composer image when the target has none, and waits for a crop that is still uploading', async () => {
+  const card = { result: 'artifact', primitive: 'animation', block: { type: 'animation', title: 'Heap' } };
+  const did = [];
+  const run = (text, target, attachedImage) => runLearnCommand(text, { app: 'demo', target, attachedImage, canvas: { insertBlock: () => did.push('block') },
+    post: async (path, body) => { did.push(['post', body]); return card; }, openSearch: () => {} });
+  await run('/explain how this sorts', null, 'media:aaaaaaaaaaaa');
+  assert.deepEqual(did.find(entry => entry[0] === 'post')[1].image_context, { id: 'media:aaaaaaaaaaaa' });
+  did.length = 0;
+  // A crop's own uploaded pixels win over the composer image; its text (the cards inside) rides as context.
+  await run('/explain this part', { id: 'area:1', title: 'Selected area', text: 'Cards inside: Heap', preview: 'data:image/png;base64,AA', image: 'media:bbbbbbbbbbbb' }, 'media:aaaaaaaaaaaa');
+  const sent = did.find(entry => entry[0] === 'post')[1];
+  assert.deepEqual([sent.image_context, sent.image_role, sent.context], [{ id: 'media:bbbbbbbbbbbb' }, 'layout_reference', 'Cards inside: Heap']);
+  assert.ok(!JSON.stringify(sent).includes('data:image'), 'the browser preview never rides');
+  did.length = 0;
+  const waiting = await run('/explain this part', { id: 'area:2', title: 'Selected area', preview: 'data:image/png;base64,AA' }, null);
+  assert.equal(waiting.notice.tone, 'info');
+  assert.equal(waiting.keep, '/explain this part ');
+  assert.deepEqual(did, [], 'nothing sent until the crop is attached');
+});

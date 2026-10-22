@@ -208,6 +208,26 @@ const eventSchema = z.object({
   sound: z.enum(SOUNDS).optional(),
 });
 
+// How the card presents the scene (EXP-T26 M2, plan v2.1 section 1.2; the
+// saved-scene form of Lane A's ExplanationPresentation). static: the finished
+// frame, no transport. steps: named moments on the timeline, earlier context
+// still drawn, Previous/Next. time: one Play/Pause (Replay at the end) and a
+// scrubber. Experiments are a separate dimension: each names the input it
+// teaches with, its question, the objects it changes and what to compare.
+// Absent on every saved scene before M2: those keep isStaticScene's reading.
+const name = z.string().min(1).max(64);
+const presentationSchema = z.object({
+  mode: z.enum(['static', 'steps', 'time']),
+  steps: z.array(z.object({ id: name, title: z.string().min(1).max(120), at: z.number().min(0).max(600) }).strict()).max(12).optional(),
+  experiments: z.array(z.object({
+    id: name, input: name, purpose: z.string().min(1).max(300),
+    affects: z.array(name).min(1).max(32), contrasts: z.array(z.string().min(1).max(200)).min(1).max(8),
+    dependsOn: z.array(name).max(8).optional(),
+    // The point is that the listed results stay the same (an invariant, e.g. mass does not change a period).
+    invariant: z.boolean().optional(),
+  }).strict()).max(4).optional(),
+}).strict();
+
 export const animationSchema = z.object({
   id: z.string().min(1).max(100),
   title: z.string().max(200).optional(),
@@ -219,6 +239,7 @@ export const animationSchema = z.object({
   objects: z.array(objectSchema).max(240),
   timeline: z.array(eventSchema).max(200),
   camera: z.object({ x: z.number().nullable().default(null), y: z.number().nullable().default(null), zoom: z.number().positive().max(8).default(1) }).prefault({}),
+  presentation: presentationSchema.optional(),
 });
 
 const ease = (kind, t) => {
@@ -433,6 +454,21 @@ export function validateScene(raw) {
       throw new Error(`Timeline event at ${event.at}s: pan_camera needs an x and a y`);
     }
     if (event.at + event.duration > scene.duration + 0.001) throw new Error(`Timeline event at ${event.at}s runs past the ${scene.duration}s scene`);
+  }
+  const presentation = scene.presentation;
+  if (presentation) {
+    const steps = presentation.steps || [];
+    if (presentation.mode === 'steps' && steps.length < 2) throw new Error('Invalid animation at presentation: steps mode needs at least 2 named steps');
+    if (presentation.mode !== 'steps' && steps.length) throw new Error(`Invalid animation at presentation: ${presentation.mode} mode takes no steps`);
+    steps.forEach((step, index) => {
+      if (step.at > scene.duration) throw new Error(`Invalid animation at presentation: step "${step.id}" at ${step.at}s is past the ${scene.duration}s scene`);
+      if (index && !(step.at > steps[index - 1].at)) throw new Error(`Invalid animation at presentation: step "${step.id}" must come after "${steps[index - 1].id}"`);
+    });
+    if (new Set(steps.map(step => step.id)).size !== steps.length) throw new Error('Invalid animation at presentation: every step needs a unique id');
+    const experiments = presentation.experiments || [];
+    if (new Set(experiments.map(item => item.id)).size !== experiments.length) throw new Error('Invalid animation at presentation: every experiment needs a unique id');
+    const unknown = experiments.flatMap(item => item.affects).find(target => !ids.has(target));
+    if (unknown) throw new Error(`Invalid animation at presentation: an experiment affects unknown object "${unknown}"`);
   }
   // VALUE's domain, resolved once here rather than re-guessed per frame from
   // whatever a single moment's values happen to be (the fix this whole axis
@@ -675,6 +711,11 @@ export function getSceneState(scene, time) {
 // keeps the timeline, because there time may be the lesson.
 const BUILD_ONLY = new Set(['appear', 'highlight', 'emphasize', 'pause']);
 export const isStaticScene = scene => scene.timeline.every(event => BUILD_ONLY.has(event.action) && !event.sound);
+// The mode a card shows: declared, or for a saved scene without a declaration
+// the conservative reading above.
+export const presentationMode = scene => scene.presentation?.mode ?? (isStaticScene(scene) ? 'static' : 'time');
+// Which named step a moment is on: the last one already reached.
+export const stepAt = (steps, time) => Math.max(0, steps.findLastIndex(step => step.at <= time + 0.001));
 
 // Templates place objects so the agent supplies A -> B -> C, never pixels.
 // GAP and PAD are spacing between and around nodes, so they sit on SPACE; a

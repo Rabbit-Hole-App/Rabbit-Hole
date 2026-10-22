@@ -12,10 +12,10 @@ import katex from 'katex';
 // no such CSS and rendered every equation as flat, unstyled text. Importing
 // it here directly makes AnimatedScene correct on its own.
 import 'katex/dist/katex.min.css';
-import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, isStaticScene, validateScene } from './animation-scene.js';
+import { CHIP_CHAR, CHIP_GAP, CHIP_PAD, getSceneState, presentationMode, stepAt, validateScene } from './animation-scene.js';
 import { applyInputToBlock, evaluateScene, experimentChanged, resetInputs } from './scene-evaluate.js';
 import { lockedInputNames, revealHiddenInputs } from './scene-activity.js';
-import SceneControls, { CardPager } from './SceneControls.jsx';
+import SceneControls, { CardPager, StepPager } from './SceneControls.jsx';
 import { isMuted, onMuted, setMuted } from './learn-audio.js';
 import { distributeRounding } from './scene-derive.js';
 import { cellNumeralSize, formatCell } from './scene-format.js';
@@ -782,7 +782,12 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   // A static scene is always its finished frame. Its moment is committed too,
   // so the composer context (scene-describe.js reads block.time) describes
   // the picture the learner sees, not an empty first frame.
-  const staticScene = !!scene && isStaticScene(scene);
+  // Declared presentation (EXP-T26 M2), or the static reading for a saved
+  // scene that declares none: static has no transport, steps step between
+  // named moments, time keeps the one Play/Pause and the scrubber.
+  const mode = scene ? presentationMode(scene) : 'time';
+  const staticScene = mode === 'static';
+  const steps = mode === 'steps' ? scene.presentation.steps : null;
   useEffect(() => { if (staticScene && time !== scene.duration) setTime(scene.duration); }, [staticScene, scene?.duration]);
   // The evaluator is time-in, state-out, so honouring reduced motion costs a
   // constant and a branch: states settle where they already were going.
@@ -790,7 +795,8 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
   const pop = still ? { duration: 0 } : POP;
   if (error) return <div className="grid min-h-24 place-content-center p-4 text-center text-xs text-red-700">{error}</div>;
   if (!scene) return null;
-  const shown = staticScene ? scene.duration : time;
+  const step = steps ? stepAt(steps, time) : -1;
+  const shown = staticScene ? scene.duration : steps ? steps[step].at : time;
   const state = getSceneState(scene, shown);
   const pauseAnd = run => { setPlaying(false); run(); };
   const atEnd = time >= scene.duration - 0.001;
@@ -817,7 +823,7 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
       <div className="flex shrink-0 items-center gap-1.5">
         {/* One transport for one state: Play/Pause, becoming Replay at the
             end (plan v2.1 section 1.2). A static scene has none. */}
-        {!staticScene && (
+        {mode === 'time' && (
         <button type="button" data-animation-play onClick={play}
           className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-sm hover:bg-hover">
           {playing ? <Pause size={14} /> : <Play size={14} />}{playing ? 'Pause' : atEnd ? 'Replay' : 'Play'}
@@ -828,14 +834,15 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
             not merely disabled - scene.timeline is the same source of truth
             the playback effect above already filters on (soundEvents), so
             "has sound" here can never disagree with what actually plays. */}
-        {!staticScene && scene.timeline.some(event => event.sound) && (
+        {mode === 'time' && scene.timeline.some(event => event.sound) && (
           <button type="button" data-animation-mute title={muted ? 'Unmute' : 'Mute'} aria-pressed={muted}
             onClick={() => setMuted(!muted)}
             className="flex h-8 items-center rounded-lg border border-line px-2.5 hover:bg-hover">
             {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
           </button>
         )}
-        {!staticScene && (<>
+        {steps && <StepPager steps={steps} index={step} onStep={index => pauseAnd(() => setTime(steps[index].at))} />}
+        {mode === 'time' && (<>
         <input type="range" aria-label="Explanation time" min={0} max={scene.duration} step={0.05} value={time}
           onChange={event => pauseAnd(() => setTime(Number(event.target.value)))} className="h-8 min-w-0 flex-1 accent-accent" />
         <span className="w-14 shrink-0 text-right text-xs tabular-nums text-ink-2">{time.toFixed(1)}s</span>
@@ -847,7 +854,8 @@ export default function AnimatedScene({ block, onChange, onChangeQuiet, onAskReg
           on-scene manipulation stays as a synchronized shortcut. */}
       {interactive && evaluated && (
         <SceneControls declarations={evaluated.declarations} inputs={evaluated.inputs}
-          data={block.scene.exampleData} onInput={setInput} onReset={experimentChanged(block) ? resetExperiment : null} locked={lockedInputs} onHeight={onControlsHeight} />
+          data={block.scene.exampleData} onInput={setInput} onReset={experimentChanged(block) ? resetExperiment : null} locked={lockedInputs} onHeight={onControlsHeight}
+          experiments={block.scene.presentation?.experiments || []} />
       )}
       {(block.selectedObject || block.marked) && (
         <p data-animation-selection className="flex shrink-0 items-center gap-2 text-[11px] text-ink-2">
