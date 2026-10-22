@@ -53,10 +53,12 @@ const json = z.lazy(() => z.union([
 
 // Texts with typed math. A bare string is plain text. KaTeX already refuses
 // these with trust off; refusing them here keeps them out of saved specs.
+// A math run is one unbreakable piece, so it keeps the scene's own 200-character
+// limit on runs (Lane B, runs-shape.md); text runs may be longer and split.
 const UNSAFE_TEX = /\\(href|url|includegraphics|html\w*|def|gdef|edef|xdef|newcommand|renewcommand|providecommand|let|futurelet|input|include|write|immediate)\b/;
 const run = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('text'), text: z.string().min(1).max(600) }).strict(),
-  z.object({ kind: z.literal('math'), tex: z.string().min(1).max(400).refine(tex => !UNSAFE_TEX.test(tex), 'unsupported LaTeX command') }).strict(),
+  z.object({ kind: z.literal('math'), tex: z.string().min(1).max(200).refine(tex => !UNSAFE_TEX.test(tex), 'unsupported LaTeX command') }).strict(),
 ]);
 export const labelContentSchema = z.union([
   z.string().max(600),
