@@ -260,3 +260,16 @@ test('Context row metadata: pages, how a long PDF is read, pages without text; l
   assert.equal(C.docNote({ ...doc, reads: 'whole', noText: 0 }), '');
   assert.equal(C.docNote(doc), '');
 });
+
+// PDF-02 states on a Context row (contract-pdf-status.md sections 2-3): a failed document shows the server's message and a
+// labelled Retry that reads its pages again in this browser (retryContextDoc); while this tab reads pages the row says how far.
+test('Context rows: Retry on a failed PDF, and the page-reading progress on its row', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('./SourcesPane.jsx', import.meta.url), 'utf8');
+  assert.match(source, /const jobs = useContextProcessing\(chat\?\.canvas\);/);
+  assert.match(source, /const readingLabel = job => \(job\?\.total \? `Reading pages \$\{job\.done\} of \$\{job\.total\}` : ''\);/);
+  assert.match(source, /const job = item\.doc \? jobs\.find\(entry => entry\.id === item\.doc\.id\) : busy \? jobs\.find\(entry => !entry\.id && entry\.name === name\) : null;/);
+  assert.match(source, /\{ready && item\.doc\?\.status === 'failed' && <Button variant="secondary" size="sm" data-material-action="retry" disabled=\{reading \|\| pending\}\s+onClick=\{\(\) => run\(item, 'retry', \(\) => retryContextDoc\(chat\.canvas, item\.doc\.id, name\)\)\}/);
+  assert.match(source, /\{item\.doc\?\.status === 'failed' && !reading && <p role="alert" data-material-doc-error [^>]*>\{item\.doc\.error\?\.message \|\| 'This file could not be read\.'\}<\/p>\}/);
+  assert.match(source, /`Could not read the pages of \$\{item\.ref\.name\}: \$\{error\.message\}`/);
+});

@@ -197,10 +197,17 @@ const goTo = async index => {
 };
 const openReader = async (sourceId, count, { cardId = null } = {}) => {
   await openCompanion();
-  if (!(await row(sourceId).count()) && cardId) { await reveal(cardLocator(cardId)); }
-  await row(sourceId).waitFor({ timeout: 15000 }).catch(() => { throw Error(`Sources shows no row for ${sourceId}`); });
-  const toggle = row(sourceId).locator('button[aria-expanded]').first();
-  if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+  // UI-26: the reader replaces the file list. Already open on this source: its reader bar's row names it; else Back to Files.
+  const readerOn = () => page.locator(`[data-sources-pane] [data-sources-header] [data-material-row][data-source-id="${sourceId}"]`);
+  if (!(await readerOn().count())) {
+    const back = page.locator('[data-sources-pane] [data-back-to-files]');
+    if (await back.count()) await back.click();
+    if (!(await row(sourceId).count()) && cardId) { await reveal(cardLocator(cardId)); }
+    if (!(await readerOn().count())) {
+      await row(sourceId).waitFor({ timeout: 15000 }).catch(() => { throw Error(`Sources shows no row for ${sourceId}`); });
+      await row(sourceId).locator('button').first().click(); // the filename opens its reader
+    }
+  }
   await waitFor(async () => (await where())?.of === count, 30000, `the reader did not open the ${count}-page PDF`);
 };
 const textLayerScript = `
