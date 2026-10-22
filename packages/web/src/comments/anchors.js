@@ -46,10 +46,11 @@ export function pinSpot(box, row, index, size, gap, lead = 0) {
 
 // An object's pins sit at the top centre of its screen box (owner, 2026-10-21: "the comments [icon] should be top middle of
 // the card irrespective of whether we zoom or not"): the first pin's centre is the box's top-centre, at the pins' constant
-// screen size, so zoom, pan, drag and resize never move it off that point. Pins after the first line up to its right.
+// screen size, so zoom, pan, drag and resize never move it off that point. Pins after the first line up to its right, and
+// never past CONTACT px inside its right edge, so on a small or zoomed-out card they still touch it (comments-check 26).
 // ponytail: a second or third thread on one card shifts right of centre; fine for the few threads one object gets.
 export function pinTopCentre(box, index, size, gap) {
-  return { left: (box.left + box.right) / 2 - size / 2 + index * (size + gap), top: box.top - size / 2, tail: 'bl' };
+  return { left: Math.min((box.left + box.right) / 2 - size / 2 + index * (size + gap), box.right - CONTACT), top: box.top - size / 2, tail: 'bl' };
 }
 
 // The anchor a right-click makes: on the object under it, relative to the object's origin, else on the canvas.
