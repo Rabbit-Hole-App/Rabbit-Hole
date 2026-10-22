@@ -173,7 +173,9 @@ test('increment 2 seams: Share carries the comment settings; the published page 
   assert.match(page, /comments=\{comments\.active \? <><PeopleWithAccess base=\{memberBase\(commentBoard\)\} \/><CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/><\/> : null\}/);
   assert.match(settings, /<Switch on=\{enabled\} label="Allow comments"/, 'labelled exactly Allow comments');
   assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
-  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post,/, 'posting only for those the server lets post');
+  // Add comment for those the server lets post, and (SHARE-02) a signed-out visitor where signing in would let them: they draft, and post through sign-in.
+  assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post \|\| guestMayDraft,/);
+  assert.match(shared, /const guestMayDraft = !!commentsInfo && !commentsInfo\.signed_in && commentsInfo\.public_mode === 'open' && !!commentsInfo\.comments_enabled;/);
   assert.match(shared, /const commentsBase = memberBoard \? memberBase\(memberBoard\) : shared\?\.published \? publicBase\(token\) : null;/, 'a share link (/b) never asks the public family; owners and members get theirs');
   assert.match(canvas, /if \(readOnlyRef\.current && !\(onAddComment && \(id \|\| group\)\) && \(!onStartRabbitHole/);
 });
@@ -291,5 +293,5 @@ test('an object pin stays at the card top centre at every zoom (owner, 2026-10-2
   const canvas = read('../AdaptiveCanvas.jsx');
   assert.ok(canvas.includes(`['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side}`), 'a card hides its top port under a pin');
   assert.ok(canvas.includes(`SIDES.filter(side => side !== 'top' || !canvasEdit.hasPin?.(shape.id)).map(`), 'a shape hides its top port under a pin');
-  assert.ok(canvas.includes('<CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, hasPin,'), 'the canvas shares which objects have pins');
+  assert.ok(canvas.includes('<CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin,'), 'the canvas shares which objects have pins');
 });

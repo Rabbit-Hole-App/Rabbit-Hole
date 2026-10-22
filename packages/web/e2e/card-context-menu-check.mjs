@@ -337,16 +337,19 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   page.on('request', request => { if (request.url().includes('/rabbit-hole') && request.method() === 'POST') sent.push(JSON.parse(request.postData() || '{}')); });
   await page.goto(`${BASE}/b/${token}`);
   await page.locator('[data-start-rabbit-hole]').waitFor({ timeout: 30000 }); await page.waitForTimeout(1500);
-  // A view-only board selects by a click through the hand tool (shared-rabbit-hole-check clickCard), so press by coordinates.
+  // A visitor's board (SHARE-02: their temporary copy) selects by a click, as shared-rabbit-hole-check clickCard does, so press by coordinates.
   const point = async id => { const box = await page.locator(`[data-block-id="${id}"]`).first().boundingBox(); return [box.x + box.width / 2, box.y + Math.min(40, box.height / 2)]; };
   const [ax, ay] = await point('m-a'); await page.mouse.click(ax, ay); await page.waitForTimeout(300);
   const [bx, by] = await point('m-b'); await page.mouse.click(bx, by, { button: 'right' });
   await menu().waitFor();
   assert.equal((await startItem().innerText()).trim(), 'Start Rabbit Hole');
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
-  // View-only edits nothing: Start Rabbit Hole is the only item (no Duplicate, Group, Select all or Delete).
-  assert.deepEqual((await menu().locator('[role="menuitem"]').allInnerTexts()).map(text => text.trim()), ['Start Rabbit Hole']);
-  assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group]').count(), 0, 'a viewer never sees Rename');
+  // SHARE-02 (owner brief 2026-10-22): a visitor edits a temporary copy - Duplicate and Delete act on it, never on the source -
+  // and still never renames or quick-edits a card's content.
+  const rows = await menu().locator('[role="menuitem"]').evaluateAll(nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint).map(child => child.textContent).join('').trim()));
+  assert.equal(rows[0], 'Start Rabbit Hole');
+  for (const local of ['Duplicate', 'Delete']) assert.ok(rows.includes(local), `${local} in ${rows.join(', ')}`);
+  assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group], [data-menu-inline-ai]').count(), 0, 'a viewer never sees Rename or Quick Edit');
   await iconsOnEveryItem('a view-only board');
   await shot('04-shared-view-only-menu');
   await startItem().click();

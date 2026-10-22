@@ -314,6 +314,12 @@ async function readThread(env, ctx, id, params) {
 
 const hashOf = parts => sha256Hex(JSON.stringify(parts));
 
+async function onCanvas(env, boardId, id) {
+  const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(boardId).first();
+  const state = JSON.parse(row?.state_json || '{}');
+  return ['blocks', 'exchanges', 'items', 'shapes', 'groups'].some(key => Array.isArray(state[key]) && state[key].some(entry => entry?.id === id));
+}
+
 async function startThread(req, env, ctx) {
   const input = await readJson(req);
   if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
@@ -322,6 +328,9 @@ async function startThread(req, env, ctx) {
   if (!allowed(ctx, 'post', audience)) return postRefusal(ctx, audience);
   const anchor = anchorOf(input.anchor);
   if (!anchor || JSON.stringify(anchor).length > 1024) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
+  // SHARE-02: a visitor's temporary copy has objects only they see; a comment may name only an object on the canvas itself.
+  // The owner is exempt: an object they drew a moment ago may not have reached the server copy yet.
+  if (anchor.kind === 'object' && !ctx.actor.owner && !await onCanvas(env, ctx.board.id, anchor.object_id)) return refuse("That object isn't on this canvas, so it can't take a comment.", 'object_not_on_canvas', 409);
   const { body, error } = bodyOf(input.body);
   if (error) return error;
   const mentions = mentionsOf(input.mentions);

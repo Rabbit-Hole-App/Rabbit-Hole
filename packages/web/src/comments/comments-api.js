@@ -56,6 +56,17 @@ export function failureText(error, online = true) {
 // A draft (its client id, text and failure) lives in session storage per thread, so a reload or a failed send keeps it.
 // Storage that throws (private mode, blocked) keeps the draft in memory only.
 const draftKey = key => `rh-comment-draft:${key}`;
+// A new comment's anchor back from sign-in (CommentsPanel resume, SHARE-02): read once and dropped from the address, so the
+// draft kept under it opens again; nothing is sent.
+export const COMMENT_RESUME = 'comment';
+export function takeResumedAnchor(location = window.location, history = window.history) {
+  const params = new URLSearchParams(location.search), raw = params.get(COMMENT_RESUME);
+  if (raw === null) return null;
+  params.delete(COMMENT_RESUME);
+  const rest = params.toString();
+  history.replaceState(history.state, '', `${location.pathname}${rest ? `?${rest}` : ''}${location.hash}`);
+  try { const anchor = JSON.parse(raw); return anchor && (anchor.kind === 'object' || anchor.kind === 'point') ? anchor : null; } catch { return null; }
+}
 export const freshDraft = () => ({ id: crypto.randomUUID(), body: '', failed: null });
 export function loadDraft(storage, key) {
   try { const saved = JSON.parse(storage().getItem(draftKey(key)) || 'null'); return saved && typeof saved.body === 'string' && saved.id ? saved : null; } catch { return null; }

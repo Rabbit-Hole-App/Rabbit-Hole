@@ -185,7 +185,7 @@ try {
       await input.fill(`${audience} orphan celadon`); await expect(row(`comment:${ids.orphan}`)).toBeVisible();
       await row(`comment:${ids.orphan}`).locator('[data-search-index]').click();
       await expect(page.locator(`[data-comment-thread-view="${ids.orphan}"]`)).toContainText('Card deleted');
-      if (audience === 'public') await expect(page.locator('[data-comment-sign-in]')).toHaveText('Sign in to comment');
+      if (audience === 'public') await expect(page.locator('[data-comment-sign-in]')).toHaveText('Sign in to post'); // SHARE-02: drafts are kept through sign-in, so the line names the post
       await page.screenshot({ path: `${OUT}/${audience}-orphan.png` });
       await page.getByRole('button', { name: 'Back to Search', exact: true }).click();
     });
