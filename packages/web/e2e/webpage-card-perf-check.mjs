@@ -99,7 +99,7 @@ const fpsDuring = async (page, ms, act) => {
   const sampling = page.evaluate(ms => new Promise(resolve => { const t = [], loaf = []; let last = performance.now(); const end = last + ms;
     let observer = null;
     try { observer = new PerformanceObserver(list => { for (const e of list.getEntries()) if (e.duration > 100) loaf.push({ at: Math.round(e.startTime - (end - ms)), ms: Math.round(e.duration), block: Math.round(e.blockingDuration || 0), layout: Math.round((e.startTime + e.duration) - (e.styleAndLayoutStart || e.startTime + e.duration)),
-      scripts: (e.scripts || []).sort((a, b) => b.duration - a.duration).slice(0, 3).map(x => `${Math.round(x.duration)}ms ${x.invokerType}:${x.invoker} ${x.sourceFunctionName || ''} ${(x.sourceURL || '').split('/').pop()}:${x.sourceCharPosition}`) }); });
+      scripts: [...(e.scripts || [])].sort((a, b) => b.duration - a.duration).slice(0, 3).map(x => `${Math.round(x.duration)}ms ${x.invokerType}:${x.invoker} ${x.sourceFunctionName || ''} ${(x.sourceURL || '').split('/').pop()}:${x.sourceCharPosition}`) }); });
       observer.observe({ type: 'long-animation-frame', buffered: false }); } catch { /* no LoAF in this browser */ }
     const tick = now => { t.push(now - last); last = now; if (now < end) requestAnimationFrame(tick); else { observer?.disconnect(); resolve({ t, loaf }); } }; requestAnimationFrame(tick); }), ms);
   const stop = Date.now() + ms; let i = 0;
