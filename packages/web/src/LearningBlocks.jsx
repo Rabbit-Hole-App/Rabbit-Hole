@@ -30,7 +30,7 @@ import { describeActivity } from './scene-activity.js';
 import MermaidDiagram, { MermaidSource } from './MermaidDiagram.jsx';
 import { motionHold, sceneAssetUrl, sceneList, startScene, startVideo, stopVideo, videoAssetUrl, videoList } from './learn-scene-client.js';
 import PaidConfirm from './PaidConfirm.jsx';
-import { motionConfirm, videoLabel } from './learn-video-label.js';
+import { motionConfirm, readsAgain, resumesJob, videoLabel } from './learn-video-label.js';
 import { describeNotebook } from './learn-notebook.js';
 import { describeYouTube } from './learn-ask-target.js';
 import { afterPaint, usePerf } from './learn-perf.js';
@@ -1498,7 +1498,7 @@ const hostOf = src => { try { return /^https?:/.test(src) ? new URL(src).hostnam
 function VideoBody({ block, appName, onChange, onFile }) {
   const [error, setError] = useState('');
   const elapsed = useElapsed(block.status === 'generating' || block.status === 'queued');
-  const polling = useRef(null);
+  const polling = useRef(null), settleReads = useRef(0);
   useEffect(() => () => clearTimeout(polling.current), []);
   // The poll writes onto the card as it is NOW: a copy captured when Generate ran would put back
   // fields since dropped (confirmedStart, which would start a second job) or since edited.
@@ -1528,8 +1528,8 @@ function VideoBody({ block, appName, onChange, onFile }) {
       if (mine.status === 'failed') {
         setError(mine.error || 'The provider could not generate this clip.');
         if (current.status !== 'failed') onChange({ ...current, status: 'failed' });
-        // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is.
-        if (mine.hold?.state === 'pending') polling.current = setTimeout(() => follow(placementId), 5000);
+        // Its final cost is not confirmed yet (a stopped job settling, or reconciliation pending): keep reading until it is (bounded).
+        if (readsAgain(mine, settleReads.current)) { settleReads.current += 1; polling.current = setTimeout(() => follow(placementId), 5000); }
         return;
       }
       if (mine.status !== current.status) onChange({ ...current, status: mine.status });
@@ -1544,6 +1544,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
   };
   const [confirming, setConfirming] = useState(false);
   const generate = async (current = block) => {
+    clearTimeout(polling.current); settleReads.current = 0;
     setError(''); setConfirming(false);
     onChange({ ...current, status: 'generating' });
     try { const { placementId } = await startVideo(appName, current.operation, { confirmed: true, retry: current.status === 'failed' }); follow(placementId); }
@@ -1554,9 +1555,9 @@ function VideoBody({ block, appName, onChange, onFile }) {
   const motionRequest = block.operation?.op === 'motion_request';
   // A failed /motion card can be generated again: its confirmation says paid generation, or that generation is paused.
   useEffect(() => { if (motionRequest && !pending) motionHold(appName).then(setOffer, () => {}); }, [motionRequest, pending]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A card saved while its job ran: follow that job again (a read, never a new start). Cards saved without a placement id
-  // (before this) keep their old behaviour.
-  useEffect(() => { if (pending && block.placementId) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // A card saved with its job (running, failed or stopped): follow that job again (a read, never a new start; MOT-11). Cards saved
+  // without a placement id (before this) keep their old behaviour.
+  useEffect(() => { if (resumesJob(block)) follow(block.placementId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const report = usePerf();
   const clips = block.variants?.length ? block.variants : (block.src ? [{ src: block.src }] : []);
   const position = Math.max(0, Math.min(block.variant ?? clips.length - 1, clips.length - 1));

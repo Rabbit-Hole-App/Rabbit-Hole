@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { videoLabel, motionConfirm, MOTION_PAUSED } from './learn-video-label.js';
+import { videoLabel, motionConfirm, MOTION_PAUSED, resumesJob, readsAgain, SETTLE_READS } from './learn-video-label.js';
 import { motionVideoBlock } from '../../learn-render/motion/video-block.js';
 
 // The two samples' operations as BLOCK_TYPES.mathAnimation / videoGenerate build them (LearningBlocks.jsx).
@@ -64,4 +64,17 @@ test('the Motion confirmation: the server estimate in credits, else the plain pa
 test('while the server pauses new Motion generation, the confirmation says so (owner message 28)', () => {
   assert.equal(motionConfirm('paused'), 'Motion generation is temporarily unavailable while we fix a reliability issue.');
   assert.equal(MOTION_PAUSED, motionConfirm('paused'));
+});
+
+// MOT-11 (owner review of 274bd689): a reloaded card follows its saved job when it failed or was stopped too, not only while it runs,
+// and keeps reading (GET only) while its hold is pending, up to a bound; a released hold, or the bound, stops the reads.
+test('a reloaded failed or stopped card resumes its job, and reads again only while its hold is pending, bounded', () => {
+  for (const status of ['generating', 'queued', 'failed']) assert.equal(resumesJob({ status, placementId: 'p1' }), true, status);
+  for (const block of [{ status: 'failed' }, { status: 'ready', placementId: 'p1' }, { status: 'idle', placementId: 'p1' }, null]) assert.equal(resumesJob(block), false, JSON.stringify(block));
+  const pending = { status: 'failed', hold: { usd: 8.96, state: 'pending' } };
+  assert.equal(readsAgain(pending, 0), true);
+  assert.equal(readsAgain(pending, SETTLE_READS - 1), true);
+  assert.equal(readsAgain(pending, SETTLE_READS), false, 'bounded');
+  for (const done of [{ status: 'failed', hold: { usd: 8.96, state: 'released' } }, { status: 'failed' }, { status: 'ready', hold: { state: 'pending' } }, undefined]) assert.equal(readsAgain(done, 0), false, JSON.stringify(done));
+  assert.ok(SETTLE_READS > 0 && SETTLE_READS <= 120);
 });

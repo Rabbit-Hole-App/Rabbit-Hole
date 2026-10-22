@@ -10,6 +10,8 @@
 //   4. MOCKED generation (/api/learn/video stubbed here): Generate adds one card and starts exactly one confirmed
 //      motion_request; the card shows its progress, then the ready video with the job's title (no meta line, owner message 31);
 //   5. MOCKED failure: the stubbed job fails; the card says why and offers Retry render; nothing else starts;
+//   5c. MOCKED reload of an ended job (MOT-11): failed, stopped and interrupted cards whose hold is still pending keep their error
+//      after a reload and keep reading the list (GET only, no start) until the server settles the hold, then stop;
 //   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
 //      follows the same job (polls only, no second start) and shows the video once ready;
 //   6. REAL refusal (no stub): the stack's worker has no orchestrator, so Generate's one request is refused and the card
@@ -68,7 +70,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 22; // per theme: 11 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 24; // per theme: 12 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -239,9 +241,9 @@ for (const theme of ['light', 'dark']) {
     // New generation paused on the server (MOCKED, owner message 28): the list says so and the start is refused.
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
     // The server's reservation (MOCKED): still in the API (internal only, owner message 30); the card must never show it.
-    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' ? 'pending' : 'released' });
+    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
     const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
-      ...(status === 'failed' ? { error: 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
+      ...(status === 'failed' ? { error: stub.error || 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
     if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, motionEstimateCredits: 100, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
@@ -341,6 +343,43 @@ for (const theme of ['light', 'dark']) {
     await mine.screenshot({ path: `${OUT}/${theme}-06b-reloaded-ready-card.png` });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
     await dismiss();
+  });
+
+  await step(`${theme}: MOCKED reload of failed, stopped and interrupted cards with a pending hold: the error stays, reads continue until settled, then stop; no start`, async () => {
+    const ended = [['failed', 'The Motion job failed: still blocking after the repair round: blank_frame'], ['stopped', 'Stopped.'],
+      ['interrupted', 'The Motion service restarted while this video was being made. Generate it again; the interrupted attempt\'s cost stays counted.']];
+    for (const [kind, error] of ended) {
+      stub = { id: `p-ended-${kind}-${theme}`, polls: 0, end: 'failed', error };
+      await composer().fill(`/motion 10s explain ${kind} jobs ${theme}`); await composer().press('Enter');
+      await dock.locator('[data-paid-generate]').click();
+      const card = page.locator('[data-block-id]', { hasText: error });
+      await card.waitFor({ timeout: 20000 });
+      const id = await card.getAttribute('data-block-id');
+      await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id) && r.body.includes('"failed"')), `the board saved with the ${kind} card`);
+      const posts = videoPosts().length;
+      await page.reload();
+      await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
+      const mine = page.locator(`[data-block-id="${id}"]`);
+      await mine.waitFor({ timeout: 30000 });
+      // After the reload: the card reads its job again and shows its error (owner review MOT-11), still pending.
+      const polled = stub.polls;
+      await until(() => stub.polls > polled, `the reloaded ${kind} card reads its job`);
+      await mine.getByText(error, { exact: false }).waitFor({ timeout: 10000 });
+      assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+      const again = stub.polls;
+      await until(() => stub.polls > again, `the ${kind} card keeps reading while its hold is pending`);
+      // The server settles the hold: one more read sees it released, then reading stops.
+      stub.settled = true;
+      const settledAt = stub.polls;
+      await until(() => stub.polls > settledAt, `the ${kind} card reads the settled hold`);
+      const last = stub.polls;
+      await page.waitForTimeout(6500); // one 5 s read interval and a margin: proves no further read
+      assert.equal(stub.polls, last, `the ${kind} card stops reading once its hold is settled`);
+      assert.equal(videoPosts().length - posts, 0, `no start after reloading the ${kind} card`);
+      await mine.scrollIntoViewIfNeeded();
+      await mine.screenshot({ path: `${OUT}/${theme}-06c-reloaded-${kind}-card.png` });
+      await dismiss();
+    }
   });
 
   await step(`${theme}: REAL refusal: with no orchestrator the worker refuses Generate; the card says Motion is not available here`, async () => {

@@ -23,6 +23,14 @@ export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while
 export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED
   : Number.isInteger(hold) && hold > 0 ? `This uses paid generation · about ${hold} credit${hold === 1 ? '' : 's'}` : 'This uses paid generation.');
 
+// MOT-11 (owner review of 274bd689): a card saved with its job's placement follows that job again after a reload, while it runs and
+// once it failed or was stopped, so its error and its settlement reads come back. Read-only: the list GET, never a start.
+export const resumesJob = block => !!block?.placementId && ['generating', 'queued', 'failed'].includes(block.status);
+// A failed or stopped job is read again while its hold is not confirmed settled (state pending), at most this many times per page
+// load (10 minutes at 5 s): an unknown cost stays pending until it is reconciled outside the app.
+export const SETTLE_READS = 120;
+export const readsAgain = (video, reads) => video?.status === 'failed' && video.hold?.state === 'pending' && reads < SETTLE_READS;
+
 export function videoLabel(block) {
   const op = block.operation;
   if (op?.op === 'generate_math_animation') {
