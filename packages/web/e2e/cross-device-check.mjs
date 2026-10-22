@@ -198,12 +198,17 @@ const kernelsSettled = async (page) => {
 };
 await check('3 concurrent edits on A and B: the second gets the 409 message, overwrites nothing and stops pushing', async () => {
   // A page whose notebook is still starting can save the board again later (the notebook frame reports its document back
-  // onto the card, AdaptiveCanvas NotebookCard copyNotebook): A, reloaded in check 2, saved after its stroke and moved the
-  // version B's 409 is measured against (gate 39735737303 shard 5, fast-e2e 39733724666: a second PUT main 200 beside a
-  // notebook asset PUT, still 3 strokes). Both pages' kernels are up before anything is drawn.
-  await until('the notebook kernels on A ready or torn down', () => kernelsSettled(A.page), 120000);
+  // onto the card, AdaptiveCanvas NotebookCard copyNotebook; fix/notebook-board-rewrite looks at it). Such a save from one
+  // page leaves the other page's copy stale, so its next edit is a 409: A after its stroke (gate 39735737303 shard 5), and
+  // B's page left open from check 2 while A's kernel was awaited (fast-e2e 39737687800 attempts 1 and 2: B's PUT main 200
+  // right before B reloads, then A's stroke PUT 409). So B loads first and its kernel comes up, then A loads last with its
+  // kernel up: A holds the newest version and B's copy is the stale one the 409 is about.
   await open(B.page, C1.name, '[data-block-id="e1"]');
   await until('the notebook kernels on B ready or torn down', () => kernelsSettled(B.page), 120000);
+  let lastB = null;
+  await until('the board settled with B loaded', async () => { const now = (await boardOf(C1.name)).version; await new Promise(r => setTimeout(r, 1500)); const settled = now === lastB; lastB = now; return settled; });
+  await open(A.page, C1.name, '[data-block-id="e1"]');
+  await until('the notebook kernels on A ready or torn down', () => kernelsSettled(A.page), 120000);
   // Both on the same version only once the board stops changing: a save B (or A's notebook) makes after B loads bumps the
   // version, and A's stroke is then a stale save (409) that never reaches the server (fast-e2e 39726853274: PUT 200 then
   // PUT 409 before B drew, A's stroke never stored). The same settle as check 2.
