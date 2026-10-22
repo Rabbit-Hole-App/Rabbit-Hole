@@ -12,13 +12,11 @@ for (let s = DURATION.min; s <= DURATION.max; s += 5) STEPS.push(s);
 export const durationOptions = current => [...new Set([...STEPS, ...(Number.isInteger(current) ? [current] : [])])].sort((a, b) => a - b);
 
 const fmt = n => Number(n).toLocaleString('en-US');
-// Server-provided credits only (owner messages 30-33: never dollars). -> '' when the server sent neither number.
+// Server-provided credits only (owner messages 30-33: never dollars). The reservation stays internal: the line is the estimate
+// alone (owner, 2026-10-21: "About 100 credits"). -> '' without an estimate.
 export function usageLine(usage) {
-  const e = usage?.estimate_credits, r = usage?.reserve_credits;
-  if (e != null && r != null) return `About ${fmt(e)} credits · ${fmt(r)} reserved while generating`;
-  if (e != null) return `About ${fmt(e)} credits`;
-  if (r != null) return `${fmt(r)} credits reserved while generating`;
-  return '';
+  const e = usage?.estimate_credits;
+  return e != null ? `About ${fmt(e)} credits` : '';
 }
 
 const field = 'h-7 rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';

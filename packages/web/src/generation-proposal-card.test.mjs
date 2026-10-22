@@ -87,13 +87,14 @@ test('Audio: Off selected, On disabled with the coming-soon tooltip', () => {
 });
 
 test('the usage line: server credits on one line, never dollars', () => {
-  assert.match(html(), /<p data-proposal-usage="true"[^>]*>About 100 credits · 896 reserved while generating<\/p>/);
+  assert.match(html(), /<p data-proposal-usage="true"[^>]*>About 100 credits<\/p>/, 'the reservation stays internal (owner, 2026-10-21)');
   const big = html({ proposal: proposal({ usage: { estimate_credits: 1200, reserve_credits: 8960 } }) });
-  assert.match(big, /About 1,200 credits · 8,960 reserved while generating/);
+  assert.match(big, /About 1,200 credits</);
   for (const usage of [{ estimate_credits: 100, reserve_credits: 896 }, { estimate_credits: 100, reserve_credits: null }, { estimate_credits: null, reserve_credits: 896 }, { estimate_credits: 1200, reserve_credits: 8960 }]) {
     assert.doesNotMatch(B.usageLine(usage), /\$/, JSON.stringify(usage));
   }
   assert.equal(B.usageLine({ estimate_credits: null, reserve_credits: null }), '');
+  assert.equal(B.usageLine({ estimate_credits: null, reserve_credits: 896 }), '', 'a reservation alone shows nothing');
   assert.doesNotMatch(html({ proposal: proposal({ usage: { estimate_credits: null, reserve_credits: null } }) }), /data-proposal-usage/, 'no line without numbers');
   assert.doesNotMatch(html(), /\$/);
 });
