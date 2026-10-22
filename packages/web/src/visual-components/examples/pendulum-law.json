@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "pendulum-law",
+  "title": "What sets a pendulum's period",
+  "components": [
+    { "id": "row", "component": "stack", "version": 1, "hints": { "direction": "row", "gap": 96 } },
+    { "id": "length", "component": "module", "version": 1, "parent": "row", "params": { "label": "Length of the string", "role": "input" } },
+    { "id": "period", "component": "module", "version": 1, "parent": "row", "params": { "label": "Time for one full swing", "role": "output" } },
+    { "id": "law", "component": "callout", "version": 1, "params": { "text": "Four times the length gives twice the period: the period grows with the square root of the length, and the mass of the bob does not change it.", "tone": "key" } }
+  ],
+  "connections": [{ "from": "length.right", "to": "period.left" }],
+  "presentation": { "mode": "static" }
+}
