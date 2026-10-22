@@ -62,10 +62,15 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
   if (!ctx.env?.BROWSER && !deps.launch && !deps.browser) throw Object.assign(fail('Rendering explanations is not available here yet.', 503, 'render_unavailable'), { category: 'renderer' });
   const { compiledHash, renderStates, reserveCaptures } = render;
   const { scene } = job.compiled, parts = scene.exampleData?.partTitles?.length || 1;
-  const themes = parts * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
+  // Every admitted state is reviewed: each named step of a steps presentation (validateStage keeps parts x steps within one
+  // review), else the finished state.
+  const states = scene.presentation?.mode === 'steps' && scene.presentation.steps?.length ? scene.presentation.steps.map(step => ({ step: step.id, time: step.at })) : [{ time: scene.duration }];
+  const themes = parts * states.length * 2 <= EXPLAIN_LIMITS.render.capturesPerRound ? ['light', 'dark'] : ['light'];
   const entries = [];
-  for (let part = 0; part < parts; part++) for (const theme of themes) entries.push({ id: `${parts > 1 ? `p${part}-` : ''}${theme}`, part, time: scene.duration, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
-  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
+  for (let part = 0; part < parts; part++) for (const state of states) for (const theme of themes) {
+    entries.push({ id: [parts > 1 && `p${part}`, state.step && `s-${state.step}`, theme].filter(Boolean).join('-'), part, ...(state.step ? { step: state.step } : {}), time: state.time, inputs: parts > 1 ? { part } : {}, theme, width: scene.width, height: scene.height, dpr: 1 });
+  }
+  const manifest = { compiledHash: await compiledHash(scene), reserved: reserveCaptures({ parts, states: states.length, themes: themes.length, width: scene.width, height: scene.height, dpr: 1 }), entries };
   let out;
   try { out = await renderStates(ctx.env, job.compiled, manifest, { jobId: job.id, ...deps }); }
   catch (error) { throw Object.assign(fail(`The explanation could not be rendered (${error.code || 'render_failed'}). Retry rendering.`, 503), { category: 'renderer' }); }
@@ -112,7 +117,8 @@ export function recoveryOf(job) {
   if (job.inFlight) return ['reconcile'];
   const actions = [];
   if (job.failure?.stage === 'rendering' && job.compiled) actions.push('retry_render');
-  else if (job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
+  // Paused for the provider: the refused call was never counted, so resuming is always within the ceiling.
+  else if (job.failure?.category === 'provider_unavailable' || job.failure?.retryable && withinCeiling(job)) actions.push('new_attempt');
   return [...actions, 'edit_request'];
 }
 const withinCeiling = job => job.counts.author < EXPLAIN_LIMITS.calls.author || (job.spec && job.round < EXPLAIN_LIMITS.correctionRounds);
@@ -306,8 +312,11 @@ export class ExplainJobs {
     if (actions.includes('retry_render')) {
       Object.assign(job, { stage: 'rendering', failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else if (actions.includes('new_attempt')) {
-      await this.admitGeneration(job);
-      const stage = job.spec ? 'validating' : 'authoring';
+      // A job paused for the provider resumes at the stage it paused in, keeping every completed stage (its spec, compiled
+      // result and captures); preparation is admitted per call, so only generation is checked against the allowance.
+      const paused = job.failure?.category === 'provider_unavailable' ? job.failure.stage : null;
+      if (paused !== 'preparing') await this.admitGeneration(job);
+      const stage = paused || (job.spec ? 'validating' : 'authoring');
       Object.assign(job, { stage, failure: null, stopReason: null, attempt: job.attempt + 1, deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     } else throw fail(job.stage === 'failed' ? 'This explanation reached its limit. Edit the request to start a new one.' : 'Only a failed explanation can be retried.', 409);
     beginStage(job.timing, job.stage);
@@ -417,8 +426,11 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id), call = current.calls.find(c => c.key === key);
       const usage = out?.usage, cost = usage ? costUsd({ model: out.identity.served || out.identity.requested, ...usage }) : null;
-      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: error ? 'failed' : 'settled',
-        costMicros: toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
+      // A provider refusal (cap, limit, overload) ran nothing and cost nothing: it does not use the job's call ceiling.
+      const refused = error?.code === 'provider_unavailable';
+      if (refused) { current.counts[role]--; current.reservedMicros -= call.boundMicros; }
+      Object.assign(call, { requested: out?.identity.requested ?? null, served: out?.identity.served ?? error?.served ?? null, status: refused ? 'refused' : error ? 'failed' : 'settled',
+        costMicros: refused ? 0 : toMicros(cost), inputTokens: usage?.input_tokens ?? null, outputTokens: usage?.output_tokens ?? null, endedAt: Date.now(), error: error?.code || (error ? 'failed' : null) });
       if (current.inFlight?.key === key) current.inFlight = null;
       countStage(current.timing, { calls: 1, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, images });
       await this.save(current);
@@ -567,9 +579,16 @@ export class ExplainJobs {
     await this.locked(async () => {
       const current = await this.get(job.id);
       if (!current || TERMINAL.has(current.stage) || current.inFlight || error.abandoned) return;
+      endStage(current.timing, 'failed');
+      if (error.code === 'provider_unavailable') {
+        // Paused, not lost: stage, spec, compiled result and captures stay; Retry resumes at this stage (retry()).
+        Object.assign(current, { stage: 'failed', stopReason: 'provider_unavailable', failure: { stage: current.stage, category: 'provider_unavailable', message: error.message, retryable: true } });
+        // Not a finding: a paused repair resumes from the findings it was given (the refused call is in calls, status refused).
+        await this.save(current); await this.finishUsage(current, 'failed');
+        return;
+      }
       const refused = ['spend_limited', 'spend_refused'].includes(error.code) || error.status === 429;
       const policy = error instanceof ExplainPolicyError;
-      endStage(current.timing, 'failed');
       Object.assign(current, { stage: 'failed', stopReason: error.stopReason || (refused ? 'budget' : 'error'),
         failure: { stage: current.stage, category: refused ? 'budget' : policy ? 'transport' : error.category || 'internal', message: error.status || policy ? error.message : 'The explanation stopped unexpectedly.', retryable: !error.stopReason && error.code !== 'model_unavailable' } });
       // Private, structured: what failed, never the learner's words or the provider's raw text in a log.
