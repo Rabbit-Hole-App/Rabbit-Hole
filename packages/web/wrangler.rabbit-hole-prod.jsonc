@@ -70,9 +70,9 @@
     // and the per-job hold admitted against the learner's allowance before anything starts (motion-deploy-plan.md 2B).
     "MOTION_ORCHESTRATOR_URL": "https://rabbit-hole-motion-orchestrator.fly.dev",
     "MOTION_JOB_RESERVATION_USD": "8.96",
-    // Owner message 28 (2026-10-21): new Motion generation paused until MOT-06/07 are fixed. Jobs already started still poll,
-    // stop, settle and play. Restore generation by removing this line with the verified fix.
-    "MOTION_GENERATION_PAUSED": "1"
+    // Owner message 28 (2026-10-21): new Motion generation was paused ("1") until MOT-06/07 were fixed; restored ("0") with the
+    // verified MOT-06..09 fix under the same GO. "1" refuses every new start; jobs already started still poll, stop, settle and play.
+    "MOTION_GENERATION_PAUSED": "0"
   }
   // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), TYPESAFE_API_KEY,
   // FISH_AUDIO_API_KEY, ELEVENLABS_API_KEY, SCENE_WORKER_TOKEN. Optional: OPENAI_API_KEY and the paid-provider keys.

@@ -315,7 +315,7 @@ test('only the production app config points at the Motion orchestrator, with a c
       assert.match(text, /"MOTION_ORCHESTRATOR_URL": "https:\/\/rabbit-hole-motion-orchestrator\.fly\.dev"/);
       assert.ok(motionReservationMicros({ MOTION_JOB_RESERVATION_USD: text.match(/"MOTION_JOB_RESERVATION_USD": "([^"]+)"/)?.[1] }) > 0, 'a valid hold');
       // Owner message 28: new generation paused in production until MOT-06/07 are fixed; dev, preview and local stay unpaused.
-      assert.match(text, /"MOTION_GENERATION_PAUSED": "1"/);
+      assert.match(text, /"MOTION_GENERATION_PAUSED": "0"/);
     } else assert.doesNotMatch(text, /MOTION_ORCHESTRATOR|MOTION_JOB_RESERVATION|MOTION_GENERATION_PAUSED/, name);
   }
 });
