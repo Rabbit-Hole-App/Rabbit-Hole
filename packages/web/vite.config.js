@@ -49,6 +49,7 @@ export default defineConfig({
         team: fileURLToPath(new URL('./design/rabbit-hole-team.html', import.meta.url)),
         support: fileURLToPath(new URL('./design/rabbit-hole-support.html', import.meta.url)),
         docs: fileURLToPath(new URL('./design/rabbit-hole-docs.html', import.meta.url)),
+        render: fileURLToPath(new URL('./render/scene.html', import.meta.url)), // /explain render entry (EXP-T18)
       } },
     } : {}),
   },
