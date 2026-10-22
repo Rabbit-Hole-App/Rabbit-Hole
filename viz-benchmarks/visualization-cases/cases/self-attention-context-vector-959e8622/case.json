@@ -10,7 +10,19 @@
   "family": "attention-math",
   "lineage": "self-attention-context",
   "split": "heldout",
-  "exposure": "unseen",
+  "exposure": "seen",
+  "exposureNotes": [
+    {
+      "at": "2026-10-22T02:50:00-07:00",
+      "by": "Lane A (component library, EXP-T10 corpus coverage)",
+      "what": "Viewed this original to map corpus coverage (packages/web/src/visual-components/examples/corpus-coverage.json). No component was changed from this image."
+    },
+    {
+      "at": "2026-10-22T02:50:00-07:00",
+      "by": "Lane A (component library, EXP-T10 corpus coverage)",
+      "what": "attention-steps (EXP-T08a, built earlier from the plan text and Vaswani 2017) mirrors this case. Its bank record carries lineage self-attention-context and is ineligible; this case no longer supports a generalization claim for attention-steps (plan section 6: use a fresh unseen family)."
+    }
+  ],
   "reuseEligible": false,
   "generationReady": true,
   "reference": {

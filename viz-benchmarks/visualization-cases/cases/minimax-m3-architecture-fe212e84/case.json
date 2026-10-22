@@ -11,7 +11,14 @@
   "family": "llm-architecture",
   "lineage": "decoder-moe-swiglu",
   "split": "example",
-  "exposure": "unseen",
+  "exposure": "seen",
+  "exposureNotes": [
+    {
+      "at": "2026-10-22T02:50:00-07:00",
+      "by": "Lane A (component library, EXP-T10 corpus coverage)",
+      "what": "Viewed this original to map corpus coverage (packages/web/src/visual-components/examples/corpus-coverage.json). No component was changed from this image."
+    }
+  ],
   "reuseEligible": false,
   "generationReady": true,
   "reference": {
