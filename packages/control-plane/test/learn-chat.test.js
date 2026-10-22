@@ -554,8 +554,8 @@ test('a malformed upload id is refused before anything is read', async t => {
   for (const id of ['upload:xyz', 'upload:0123456789abc', 'upload:../secret']) {
     assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', paper_context: { id, page: 1 } }), env, {}, owner, 'learn')).status, 400, id);
   }
-  // and the page ceiling still holds for an upload
-  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', paper_context: { id: 'upload:0123456789ab', page: 101 } }), env, {}, owner, 'learn')).status, 400);
+  // and the page ceiling still holds for an upload: PDF-02 raised it from the model's 100 pages to the 2,000 a PDF may have
+  assert.equal((await handlers.apiAsk(request({ scope: { app: 'counter' }, message: 'hi', paper_context: { id: 'upload:0123456789ab', page: 2001 } }), env, {}, owner, 'learn')).status, 400);
   assert.equal(env.answers.length, 0);
 });
 

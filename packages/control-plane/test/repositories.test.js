@@ -349,7 +349,7 @@ test('repository asks read the outline, video window, Wikipedia section and uplo
   await (await f.send('ask',{message:'who coined it?',wiki_context:{title:'Machine_learning',section:1}})).text();
   assert.match(turn(),/Arthur Samuel coined the term/);assert.match(turn(),/cannot be read here/);
   assert.equal(tools().includes('read_wikipedia'),false);
-  for(const body of [{outline:'x'},{video_context:{videoId:'nope'}},{wiki_context:{title:'',section:0}},{paper_context:{id,page:101}},{image_context:{id:'../x'}}])assert.equal((await f.send('ask',{message:'q',...body})).status,400,JSON.stringify(body));
+  for(const body of [{outline:'x'},{video_context:{videoId:'nope'}},{wiki_context:{title:'',section:0}},{paper_context:{id,page:2001}},{image_context:{id:'../x'}}])assert.equal((await f.send('ask',{message:'q',...body})).status,400,JSON.stringify(body));
   const missing=await f.send('ask',{message:'q',paper_context:{id:'upload:0123456789ab',page:1}});
   // An upload this account cannot read never fails the question and is never dropped silently (pdf-to-canvas.md follow-up 2).
   assert.equal(missing.status,200);await missing.text();assert.match(turn(),/page 1 of an uploaded PDF this account cannot read/);

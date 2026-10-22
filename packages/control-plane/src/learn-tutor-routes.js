@@ -11,7 +11,8 @@
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
 import { contextDocumentBlocks } from './learn-context-docs.js';
-import { isCanvasName, isUploadedPaperId, PAPER_PAGE_LIMIT, paperIdentity, uploadedPaperAsDocument } from './learn-paper.js';
+import { isCanvasName, isUploadedPaperId, paperIdentity, uploadedPaperAsDocument } from './learn-paper.js';
+import { PDF_PAGE_MAX } from './pdf-pages.js';
 import { CANVAS_CONTEXT_RULES, canvasContextText, validateCanvasContext } from './canvas-context.js';
 import { JEV_TRANSPORTS, THRESHOLDS, askJev } from './learn-grade-jev.js';
 import { anthropic } from './ask.js';
@@ -434,17 +435,17 @@ export function validPageContext(value) {
   const page = value?.[kind];
   const shape = page && typeof page === 'object' && Object.keys(page).every(key => ['id', 'page', 'home'].includes(key)) && Number.isInteger(page.page) && page.page >= 1;
   if (rest.length || !shape) throw Error('page_context must be { paper: { id, page, home? } } or { doc: { id, page } }');
-  if (kind === 'paper' && isUploadedPaperId(page.id) && page.page <= PAPER_PAGE_LIMIT && (page.home === undefined || isCanvasName(page.home))) return { kind, ...page };
+  if (kind === 'paper' && isUploadedPaperId(page.id) && page.page <= PDF_PAGE_MAX && (page.home === undefined || isCanvasName(page.home))) return { kind, ...page };
   if (kind === 'doc' && /^ctx:[0-9a-f]{12}$/.test(page.id ?? '') && page.home === undefined) return { kind, ...page };
   throw Error('page_context must be { paper: { id, page, home? } } or { doc: { id, page } }');
 }
 
 // That page's PDF and a line naming the page, for the planner. The learner's own copy only, as /api/learn/ask reads it
 // (paperIdentity, ownDocument); one this account cannot read is named as unread, never dropped silently.
-async function pageBlocks(env, access, page, { readPaper = uploadedPaperAsDocument } = {}) {
+async function pageBlocks(env, access, page, { readPaper = uploadedPaperAsDocument } = {}, query = '') {
   if (page.kind === 'doc') return [{ type: 'text', text: `The learner's question is about page ${page.page} of the attached document doc:${page.id}. Read that page before you plan.` }];
   try {
-    const paper = await readPaper(env, paperIdentity(access, page.home), page.id);
+    const paper = await readPaper(env, paperIdentity(access, page.home), page.id, { page: page.page, query });
     return [paper.document, { type: 'text', text: `The learner's question is about page ${page.page} of ${JSON.stringify(paper.title)}, the attached PDF. Read that page before you plan.` }];
   } catch { return [{ type: 'text', text: `The learner asked about page ${page.page} of an uploaded PDF this account cannot read (removed, or another person's). You have not seen it; say so if the question needs it.` }]; }
 }
@@ -497,8 +498,8 @@ export async function tutorRoute(path, req, env, deps = {}) {
   // The canvas's switched-on context documents reach the planner (canvas-context-docs.md), with a page's document beside them;
   // JEV is unchanged.
   let documents;
-  try { documents = await (deps.documents || contextDocumentBlocks)(env, access, null, { also: page?.kind === 'doc' ? [page.id] : [] }); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
-  documents = [...documents, ...(page ? await pageBlocks(env, access, page, deps) : []), ...image.blocks];
+  try { documents = await (deps.documents || contextDocumentBlocks)(env, access, null, { also: page?.kind === 'doc' ? [page.id] : [], page: new Map(page?.kind === 'doc' ? [[page.id, page.page]] : []), query: String(body.context?.turn?.raw_user_message ?? '') }); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  documents = [...documents, ...(page ? await pageBlocks(env, access, page, deps, String(body.context?.turn?.raw_user_message ?? '')) : []), ...image.blocks];
   // v2 checkpoint I: { stream: true } answers in NDJSON - {type:'sentence', text} as soon as the plan's
   // first sentence is written, then {type:'plan', ...TutorResponse} or {type:'error', error, telemetry}.
   // The browser validates the sentence against the route before anything is spoken (speakable).

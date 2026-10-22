@@ -3,7 +3,8 @@ import { ArrowLeft, CircleAlert, CornerUpLeft, ExternalLink, Loader2, MoreHorizo
 import { Button, Menu, MenuItem, useMenuButton } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
-import { CONTEXT_ACCEPT } from './context-docs.js';
+import { CONTEXT_ACCEPT, retryContextDoc } from './context-docs.js';
+import { useContextProcessing } from './context-doc-pages.js';
 import { RefIcon } from './ContextChips.jsx';
 import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
@@ -36,7 +37,8 @@ const fileCount = n => `${n} file${n === 1 ? '' : 's'}`;
 // PDF-02 status (C:/s/spec/pdfctx/contract-pdf-status.md; a missing field is a legacy row, ready): how questions read a long
 // PDF, its pages without text, or why it failed (the server's message, verbatim, naming the next step).
 export const docNote = doc => [doc?.reads === 'pages' ? 'Questions read the relevant pages' : '', doc?.noText > 0 ? `${doc.noText} page${doc.noText === 1 ? '' : 's'} without text` : ''].filter(Boolean).join(' · ');
-// ponytail: Retry and the page-reading progress come with pc/p1 (retryContextDoc, useContextProcessing); this row shows the failure only.
+// Reading a PDF's pages in this tab (context-doc-pages.js): "Reading pages 120 of 312", or Uploading before the count is known.
+const readingLabel = job => (job?.total ? `Reading pages ${job.done} of ${job.total}` : '');
 
 // Upload, in the Context header beside Close (LearnPage passes it to CompanionHeader while Context shows).
 export function ContextUpload() {
@@ -117,6 +119,7 @@ export default function SourcesPane({ onSwitchOff = null }) {
   live.current = chat;
   // Per row (sourceId): the action running ('context' | 'remove' | 'canvas') or its error.
   const [rows, setRows] = useState({});
+  const jobs = useContextProcessing(chat?.canvas);
   if (!chat) return null;
   const { context, sources } = chat;
   const sections = paneSections(context.items, active);
@@ -128,7 +131,8 @@ export default function SourcesPane({ onSwitchOff = null }) {
     setRows(state => ({ ...state, [key]: { busy: action } }));
     try { await work(); setRows(({ [key]: _, ...rest }) => rest); }
     catch (error) {
-      setRows(state => ({ ...state, [key]: { error: action === 'remove' ? `Could not remove ${item.ref.name} from context: ${error.message}. Try again from File options.` : `Could not change ${item.ref.name}: ${error.message}` } }));
+      setRows(state => ({ ...state, [key]: { error: action === 'remove' ? `Could not remove ${item.ref.name} from context: ${error.message}. Try again from File options.`
+        : action === 'retry' ? `Could not read the pages of ${item.ref.name}: ${error.message}` : `Could not change ${item.ref.name}: ${error.message}` } }));
     }
   };
   // Remove from context: membership only - excerpt cards, pages and the file they read stay. On success (context.remove applies
@@ -208,16 +212,19 @@ export default function SourcesPane({ onSwitchOff = null }) {
           {sections.map(({ key, item, ref, active: isActive }) => {
             const ready = item.state === 'ready', busy = item.state === 'uploading' || item.state === 'processing', failed = item.state === 'failed';
             const name = ref.name, add = adder(item, ref), pending = !!item.removing || rows[ref.sourceId]?.busy === 'remove';
-            const meta = busy ? (item.state === 'processing' ? 'Processing' : 'Uploading') : pending ? 'Removing' : docMeta(item.doc);
+            // A retry reads its pages on this row; an upload's reading shows on its upload row (same name, no id yet).
+            const job = item.doc ? jobs.find(entry => entry.id === item.doc.id) : busy ? jobs.find(entry => !entry.id && entry.name === name) : null;
+            const reading = !!(item.doc && job) || rows[ref.sourceId]?.busy === 'retry';
+            const meta = busy ? readingLabel(job) || (item.state === 'processing' ? 'Processing' : 'Uploading') : pending ? 'Removing' : reading ? readingLabel(job) || 'Reading pages' : docMeta(item.doc);
             const range = rangeLabel(ref.kind === 'excerpt' ? null : ref.range);
             return (
-              <li key={key} data-material-row data-source-id={ref.sourceId} data-source-section={isActive ? 'active' : ''} aria-busy={pending || busy || undefined}
+              <li key={key} data-material-row data-source-id={ref.sourceId} data-source-section={isActive ? 'active' : ''} aria-busy={pending || busy || reading || undefined}
                 className="@container border-b border-line/70 last:border-b-0">
                 {/* Narrower than 30rem the two actions take their own line under the name; the name keeps the row's width. */}
                 <div className="flex flex-col px-2 py-1 @[30rem]:flex-row @[30rem]:items-center @[30rem]:gap-2">
                   <button type="button" disabled={!ready} onClick={() => (isActive ? setFolded(null) : chat.openSource(ref))} title={item.error || name}
                     className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35 disabled:cursor-default disabled:hover:bg-transparent">
-                    {busy || pending ? <Loader2 size={15} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : failed || item.doc?.status === 'failed' ? <CircleAlert size={15} aria-hidden className="shrink-0 text-danger" /> : <RefIcon kind={ref.kind} size={15} className="shrink-0 text-ink-2" />}
+                    {busy || pending || reading ? <Loader2 size={15} aria-hidden className="shrink-0 animate-spin text-ink-3" /> : failed || item.doc?.status === 'failed' ? <CircleAlert size={15} aria-hidden className="shrink-0 text-danger" /> : <RefIcon kind={ref.kind} size={15} className="shrink-0 text-ink-2" />}
                     <span className={`flex min-w-0 flex-1 flex-col leading-tight ${pending ? 'opacity-60' : ''}`}>
                       <span data-material-name title={name} className={`min-w-0 truncate text-sm text-ink ${isActive ? 'font-medium' : ''}`}>{name}</span>
                       {(meta || range) && <span data-material-meta className="truncate text-xs text-ink-3">{[meta, range].filter(Boolean).join(' · ')}</span>}
@@ -225,6 +232,8 @@ export default function SourcesPane({ onSwitchOff = null }) {
                   </button>
                   <div data-material-actions className="flex shrink-0 items-center gap-1 pb-1 pl-7 @[30rem]:pb-0 @[30rem]:pl-0">
                     {ready && <UseInChat item={item} name={name} disabled={pending} onChange={() => toggleChat(item)} />}
+                    {ready && item.doc?.status === 'failed' && <Button variant="secondary" size="sm" data-material-action="retry" disabled={reading || pending}
+                      onClick={() => run(item, 'retry', () => retryContextDoc(chat.canvas, item.doc.id, name))} aria-label={`Retry reading the pages of ${name}`} className="gap-1 px-2 text-xs"><RotateCw size={13} aria-hidden />Retry</Button>}
                     {ready && options(item, name, add)}
                     {ready && !item.doc && add && <Button variant="secondary" size="sm" data-material-action="canvas" disabled={!!rows[ref.sourceId]?.busy} onClick={add}
                       aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className="gap-1 px-2 text-xs">{rows[ref.sourceId]?.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
@@ -235,7 +244,7 @@ export default function SourcesPane({ onSwitchOff = null }) {
                   </div>
                 </div>
                 {failed && <p role="alert" className="px-3 pb-1.5 text-xs text-danger">{item.error}</p>}
-                {item.doc?.status === 'failed' && <p role="alert" data-material-doc-error className="px-3 pb-1.5 text-xs text-danger">{item.doc.error?.message || 'This file could not be read.'}</p>}
+                {item.doc?.status === 'failed' && !reading && <p role="alert" data-material-doc-error className="px-3 pb-1.5 text-xs text-danger">{item.doc.error?.message || 'This file could not be read.'}</p>}
                 {docNote(item.doc) && <p data-material-note className="px-3 pb-1.5 pl-10 text-xs text-ink-3">{docNote(item.doc)}</p>}
                 {errorOf(item)}
               </li>

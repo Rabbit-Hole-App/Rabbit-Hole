@@ -165,7 +165,7 @@ export async function artifactFetch(req, env, generate = generateArtifact, { ima
   const ownerRefused = subscriptionOwnerRefusal(env, access);
   if (ownerRefused) return ownerRefused;
   let documents;
-  try { documents = await contextDocumentBlocks(env, access); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
+  try { documents = await contextDocumentBlocks(env, access, null, { query: `${body.args || ''} ${body.context || ''}` }); } catch (error) { return json({ error: `Context documents: ${error.message}` }, 502); }
   // The image's bytes, read here under this canvas's authorization: never a browser-claimed URL, and never silently dropped.
   if (body.image_context !== undefined) {
     const got = await images(env, access, { image_context: body.image_context, board: body.board ?? 'main' }).catch(() => null);

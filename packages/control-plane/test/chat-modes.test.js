@@ -625,9 +625,9 @@ test('an answer written beside a show tool call survives a final turn that holds
 test('pageDocIds names the documents a ref holds at one page, and the ask route sends them as pages', () => {
   const refs = [{ sourceId: 'doc:ctx:aaaaaaaaaaaa', kind: 'doc', range: null }, { sourceId: 'doc:ctx:bbbbbbbbbbbb', kind: 'doc', range: { page: 12 } },
     { sourceId: 'paper:upload:cccccccccccc', kind: 'web', range: { page: 3 } }];
-  assert.deepEqual([...chatModes.pageDocIds(refs)], ['ctx:bbbbbbbbbbbb']);
-  assert.deepEqual([...chatModes.pageDocIds(null)], []);
-  assert.match(readFileSync(new URL('../src/index.js', import.meta.url), 'utf8'), /contextDocumentBlocks\(env, scopedApp, docIds\(chat\?\.contextRefs\), \{ pages: pageDocIds\(chat\?\.contextRefs\) \}\)/);
+  assert.deepEqual([...chatModes.pageDocIds(refs).keys()], ['ctx:bbbbbbbbbbbb']);
+  assert.deepEqual([...chatModes.pageDocIds(null).keys()], []);
+  assert.match(readFileSync(new URL('../src/index.js', import.meta.url), 'utf8'), /contextDocumentBlocks\(env, scopedApp, docIds\(chat\?\.contextRefs\), \{ pages: pageDocIds\(chat\?\.contextRefs\), query: message \}\)/);
 });
 
 test('a selected graph card rides as a named graph ref: scope only, no range and no text (repo-graph Release 2)', () => {

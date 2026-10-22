@@ -378,7 +378,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
     {/* One control row: title, pages, zoom and the region picker together. In the companion (the Context reader) the title
         is the Context header's, shown once (UI-26); pages and zoom are each one group. */}
     <header className={`flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink ${companion ? 'flex-wrap' : ''}`}>
-      <div className="min-w-0 flex-1">{!companion && <h3 className="truncate text-sm font-medium">{paper.title}</h3>}<p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{companion ? where : document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
+      <div className={`min-w-0 flex-1 ${companion ? 'basis-full' : ''}`}>{!companion && <h3 className="truncate text-sm font-medium">{paper.title}</h3>}<p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{companion ? where : document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
       {document && <>
         <div role="group" aria-label="Pages" className="flex items-center gap-0.5">
           <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} /></button>
