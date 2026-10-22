@@ -85,7 +85,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 42; // per theme: 21 steps with Motion on (7 for MOT-20b entry points, decisions and reload), 3 with it off
+const total = OFF ? 6 : 44; // per theme: 22 steps with Motion on (7 for MOT-20b entry points, decisions and reload; 1 for MOT-22's refusal), 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -345,6 +345,8 @@ for (const theme of ['light', 'dark']) {
     const request = route.request(), url = new URL(request.url());
     if (url.searchParams.get('asset')) return route.fulfill({ body: CLIP_BYTES, headers: { 'content-type': 'video/mp4', 'accept-ranges': 'bytes' } });
     // New generation paused on the server (MOCKED, owner message 28): the list says so and the start is refused.
+    // MOT-22 (MOCKED): the server refuses this start for its proposal (a newer version exists), once; nothing starts.
+    if (stub.refuse && request.method() === 'POST') { const code = stub.refuse; stub.refuse = null; return route.fulfill({ status: 409, json: { error: 'A newer version of this proposal exists. Use the latest card in the chat.', code } }); }
     if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
     // The server's reservation (MOCKED): still in the API (internal only, owner message 30); the card must never show it.
     const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' && !stub.settled ? 'pending' : 'released' });
@@ -423,6 +425,28 @@ for (const theme of ['light', 'dark']) {
     assert.equal(videoPosts().length - posts, 1, 'one start, refused by the server');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06a-paused-card.png` });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED refusal for its proposal (MOT-22): the refused card says so and plays nothing, the proposal stays live, and its next Generate starts once`, async () => {
+    stub = { id: `p-refused-${theme}`, polls: 0, end: 'ready', refuse: 'proposal_stale' };
+    const posts = videoPosts().length;
+    const proposal = await propose(`/motion 13s explain layer norm ${theme}`);
+    await proposal.locator('[data-proposal-generate]').click();
+    const card = page.locator('[data-block-id]').filter({ has: page.locator('[data-proposal-refused="proposal_stale"]') }).last();
+    await card.waitFor({ timeout: 10000 });
+    assert.match(await card.innerText(), /Not generated\. This proposal changed; use the latest version\./);
+    assert.equal(await card.locator('video, [data-generate-video], [data-stop-video], [data-media-provenance], [data-recovery-action]').count(), 0, 'nothing playable, generating or offered on the refused card');
+    await proposal.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
+    assert.doesNotMatch(await proposal.innerText(), /Added to the canvas/, 'the refused start made nothing');
+    await dock.getByRole('alert').filter({ hasText: 'This proposal changed; use the latest version.' }).first().waitFor({ timeout: 5000 });
+    assert.equal(videoPosts().length - posts, 1, 'one refused start');
+    await proposal.locator('[data-proposal-generate]').click();
+    await until(() => videoPosts().length - posts === 2, 'the next press starts');
+    await until(async () => /Added to the canvas/.test(await proposal.innerText()), 'Added to the canvas once a start was accepted');
+    assert.equal(videoPosts().length - posts, 2, 'one refused start and one real one');
+    await card.scrollIntoViewIfNeeded();
+    await card.screenshot({ path: `${OUT}/${theme}-06c-refused-card.png` });
     await dismiss();
   });
 
