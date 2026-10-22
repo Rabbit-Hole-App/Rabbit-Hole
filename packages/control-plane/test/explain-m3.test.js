@@ -13,6 +13,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { devWorker } from './worker-import.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 import { ExplainJobs, explainPipeline, renderStage } from '../src/explain-job.js';
+import * as render from '../src/explain-render.js';
 
 const worker = (await devWorker()).default;
 const CANVAS = 'canvas-0a1b2c3d', OWNER = 'owner@test';
@@ -36,7 +37,7 @@ function stack(t) {
   const FAKE_BROWSER = { async newPage() { return { setRequestInterception: async () => {}, on() {}, emulateMediaFeatures: async () => {}, goto: async () => {}, waitForFunction: async () => {}, setViewport: async () => {},
     evaluate: async (fn, request) => { rendered.push({ theme: request.theme, time: request.time, inputs: request.inputs }); return { ok: true, fonts: { missing: [] } }; }, $: async () => ({ screenshot: async () => PNG }), close: async () => {} }; }, close: async () => {} };
   const FAKE_ASSETS = { fetch: async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }) };
-  const pipeline = { ...explainPipeline, render: renderStage({ launch: async () => FAKE_BROWSER }) };
+  const pipeline = { ...explainPipeline, render: renderStage({ render, launch: async () => FAKE_BROWSER }) };
   const stored = new Map(), actors = new Map();
   const durable = (data) => { let lock = Promise.resolve(); return { id: 'x', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => { if (typeof k === 'object') for (const [a, b] of Object.entries(k)) data.set(a, structuredClone(b)); else data.set(k, structuredClone(v)); }, delete: async k => data.delete(k), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {}, getAlarm: async () => null, deleteAlarm: async () => {} }, blockConcurrencyWhile: fn => { const r = lock.then(fn); lock = r.catch(() => {}); return r; } }; };
   const actor = name => { if (!actors.has(name)) { if (!stored.has(name)) stored.set(name, new Map()); actors.set(name, new ExplainJobs(durable(stored.get(name)), env, pipeline)); } return actors.get(name); };

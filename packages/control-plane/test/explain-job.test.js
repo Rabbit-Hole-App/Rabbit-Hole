@@ -266,9 +266,8 @@ test('the production pipeline authors and compiles a real spec; with no browser 
   const calls = authorReplies(t, [{ kind: 'spec', spec: SPEC }]);
   const { body } = await s.create({ prompt: 'Explain where rain comes from.' });
   const done = await s.run(body.job.id);
-  // No ASSETS or BROWSER on this test worker: Lane D's renderStates refuses before any browser, and the job says so.
-  assert.deepEqual([done.stage, done.failure.stage, done.failure.category], ['failed', 'rendering', 'renderer']);
-  assert.match(done.failure.message, /could not be rendered \(render_unavailable\)/);
+  // Rendering is not wired into the worker until @cloudflare/puppeteer and BROWSER land: the job says so and keeps its result.
+  assert.deepEqual([done.stage, done.failure.stage, done.failure.category, done.failure.message], ['failed', 'rendering', 'renderer', 'Rendering explanations is not available here yet.']);
   assert.equal(calls.length, 1);
   assert.equal(calls[0].model, 'claude-opus-5-5');
   assert.equal(done.compiled.counts.authored, 1);
