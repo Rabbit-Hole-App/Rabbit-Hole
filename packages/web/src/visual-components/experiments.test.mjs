@@ -3,7 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { evaluateScene } from '../scene-evaluate.js';
-import { compileVisual } from './compile.js';
+import { Worker } from 'node:worker_threads';
+import { compileVisual, contentHash, enumeration } from './compile.js';
 import { period } from './components/pendulum.js';
 import { EXAMPLES } from './examples/index.js';
 import { catalogue } from './registry.js';
@@ -76,7 +77,7 @@ test('controls are refused outside what the component declares', () => {
   // A range domain expands by its step into finite states.
   const ranged = compileVisual(withExperiments(pendulum, [{ ...lengthExperiment, domain: { min: 0.5, max: 2, step: 0.5 } }]));
   assert.deepEqual(ranged.scene.exampleData.pend_length_values, ['0.5 m', '1 m', '1.5 m', '2 m']);
-  assert.throws(() => compileVisual(withExperiments(pendulum, [{ ...lengthExperiment, domain: { min: 0.1, max: 4, step: 0.05 } }])), /admit 79 states .*over the 64/);
+  assert.throws(() => compileVisual(withExperiments(pendulum, [{ ...lengthExperiment, domain: { min: 0.1, max: 4, step: 0.05 } }])), /admit at least 79 states .*over the 64/);
 });
 
 test('flow cases: a cache hit dims the database steps, a miss runs every step', () => {
@@ -115,4 +116,65 @@ test('the real scene gate agrees: the compiled experiments pass it, a tampered a
   const tampered = structuredClone(scene);
   tampered.presentation.experiments[0].affects.push('law.box');
   assert.match(presentationProblem(tampered), /experiment "length" says "pend_length" changes "law.box"/);
+});
+
+// EXP-14: the experiment-state limit (budget.js LIMITS.settings, 64, parts included) is counted before any state is enumerated.
+const lengths = n => Array.from({ length: n }, (_, i) => (i === 0 ? 1 : Number((1 + i * (3 / (n - 1))).toFixed(3))));
+const masses = n => Array.from({ length: n }, (_, i) => 1 + i);
+const grid = (nLength, nMass, extra = {}) => ({ ...withExperiments(pendulum, [{ ...lengthExperiment, domain: { values: lengths(nLength) } }, { ...massExperiment, domain: { values: masses(nMass) } }]), ...extra });
+const paged = (nLength, nMass) => grid(nLength, nMass, { parts: [{ id: 'a', title: 'A' }, { id: 'b', title: 'B' }], components: [{ ...pendulum.components[0], part: 0 }, { ...pendulum.components[1], part: 1 }] });
+// Two pendulums, four controls, every domain schema-valid (a range is at most 256 steps).
+const fourControls = (lengthDomain, massDomain) => ({
+  ...pendulum, components: [...pendulum.components, { id: 'pend2', component: 'pendulum', version: 1, params: { length: 1, mass: 1 } }],
+  presentation: { mode: 'static', experiments: ['pend', 'pend2'].flatMap(id => [
+    { ...lengthExperiment, id: `${id}-length`, input: `${id}.length`, affects: [`${id}.string`], domain: lengthDomain },
+    { ...massExperiment, id: `${id}-mass`, input: `${id}.mass`, affects: [`${id}.periodText`], domain: massDomain }]) },
+});
+const refusedBeforeEnumeration = (spec, count) => {
+  const before = enumeration.calls;
+  assert.throws(() => compileVisual(spec), { message: `The experiments admit at least ${count} states (parts included), over the 64 that are checked one by one: admit fewer values` });
+  assert.equal(enumeration.calls, before, 'no state was enumerated');
+};
+
+test('EXP-14: 64 states (parts included) compile; 65 are refused before any state is enumerated', () => {
+  for (const spec of [grid(16, 4), paged(8, 4)]) {
+    const compiled = compileVisual(spec);
+    assert.deepEqual([compiled.coverage.states, compiled.coverage.stateInputs.length], [64, 64]);
+  }
+  refusedBeforeEnumeration(grid(13, 5), 65);
+  refusedBeforeEnumeration(paged(11, 3), 66);
+});
+
+test('EXP-14: four 17-value controls are refused at the second control, never enumerating 83521 states', () => {
+  const spec = fourControls({ min: 0.2, max: 1, step: 0.05 }, { min: 1, max: 5, step: 0.25 });
+  refusedBeforeEnumeration(spec, 17 * 17);
+});
+
+// A guard that fails rather than hangs: the compile runs in a worker with a small heap and a deadline, so enumerating
+// 257^4 states (or even 257^3) runs it out of memory or time instead of returning.
+test('EXP-14: four schema-valid 257-value ranges are refused promptly, with bounded work', async () => {
+  const spec = fourControls({ min: 1, max: 4, step: 3 / 256 }, { min: 1, max: 5, step: 4 / 256 });
+  const out = await new Promise((resolve, reject) => {
+    const worker = new Worker(`const { parentPort, workerData } = require('node:worker_threads');
+      import(workerData.url).then(({ compileVisual, enumeration }) => {
+        try { compileVisual(workerData.spec); parentPort.postMessage({ compiled: true }); } catch (error) { parentPort.postMessage({ message: error.message, calls: enumeration.calls }); }
+      });`, { eval: true, workerData: { url: new URL('./compile.js', import.meta.url).href, spec }, resourceLimits: { maxOldGenerationSizeMb: 128 } });
+    const timer = setTimeout(() => { worker.terminate(); reject(new Error('compile did not return within 20 s: it enumerated the states')); }, 20_000);
+    worker.once('message', message => { clearTimeout(timer); worker.terminate(); resolve(message); });
+    worker.once('error', error => { clearTimeout(timer); reject(error); });
+  });
+  assert.deepEqual(out, { message: `The experiments admit at least 257 states (parts included), over the 64 that are checked one by one: admit fewer values`, calls: 0 });
+});
+
+test('EXP-14: admitted experiments compile exactly as before the bound (hashes recorded on main f3c5c1f1)', () => {
+  const golden = {
+    'pendulum-experiment': [pendulum, 'fnv64-fe291feb7b64f335', 6],
+    '64 states': [grid(16, 4), 'fnv64-bda643f42582c41c', 64],
+    '64 states with parts': [paged(8, 4), 'fnv64-379067e2a33e303c', 64],
+    'request-path-parts': [EXAMPLES['request-path-parts'], 'fnv64-c2e382be5c8fdaf8', 3],
+  };
+  for (const [name, [spec, hash, states]] of Object.entries(golden)) {
+    const compiled = compileVisual(spec);
+    assert.deepEqual([contentHash(compiled), compiled.coverage.states], [hash, states], name);
+  }
 });

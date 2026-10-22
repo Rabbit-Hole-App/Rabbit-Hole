@@ -288,6 +288,43 @@ test('the production pipeline: an experiment whose input is not a control is ref
   assert.match(done.findings[0].problems.join(' '), /must name a component's control/);
 });
 
+// EXP-14: an experiment over the state limit (64, parts included) is a repairable spec problem found before any state is
+// enumerated: nothing is rendered or reviewed, and the job's counters say so. An admitted one renders each state once.
+test('the production pipeline: experiments over the state limit dispatch no render or review; admitted ones render every state', async t => {
+  const { EXAMPLES } = await import('../../web/src/visual-components/examples/index.js');
+  const { captureManifest, reserveRound } = await import('../src/explain-render.js');
+  const { EXPLAIN_LIMITS } = await import('../src/explain-policy.js');
+  const pendulum = EXAMPLES['pendulum-experiment'];
+  const [length, mass] = pendulum.presentation.experiments;
+  const over = { ...pendulum, components: [...pendulum.components, { id: 'pend2', component: 'pendulum', version: 1, params: { length: 1, mass: 1 } }],
+    presentation: { mode: 'static', experiments: ['pend', 'pend2'].flatMap(id => [
+      { ...length, id: `${id}-length`, input: `${id}.length`, affects: [`${id}.string`], domain: { min: 0.2, max: 1, step: 0.05 } },
+      { ...mass, id: `${id}-mass`, input: `${id}.mass`, affects: [`${id}.periodText`], domain: { min: 1, max: 5, step: 0.25 } }]) } };
+  const dispatched = { render: [], review: 0 };
+  const pipeline = { ...explainPipeline,
+    render: async job => {
+      const manifest = await captureManifest(job.compiled.scene, { reserved: reserveRound({ cap: EXPLAIN_LIMITS.render.capturesPerRound }) });
+      dispatched.render.push(manifest.coverage);
+      return { captures: manifest.entries.map(entry => ({ id: entry.id })), renders: manifest.entries.map(() => ({ ok: true })) };
+    },
+    review: async () => { dispatched.review++; return { accepted: true }; } };
+
+  const s = setup(t, { pipeline });
+  authorReplies(t, [{ kind: 'spec', spec: over }, { operation: 'none', reason: 'Needs fewer values.' }]);
+  const refused = await s.run((await s.create({ prompt: 'Compare two pendulums.' })).body.job.id);
+  assert.deepEqual(dispatched, { render: [], review: 0 }, 'nothing rendered or reviewed');
+  assert.deepEqual([refused.stage, refused.stopReason, refused.compiled, refused.result, refused.renders, refused.captures, refused.round], ['failed', 'no_progress', null, null, 0, undefined, 1]);
+  assert.deepEqual([refused.counts.author, refused.counts.repair, refused.counts.review], [1, 1, 0]);
+  assert.deepEqual(refused.findings[0], { round: 0, stage: 'validating', problems: ['The experiments admit at least 289 states (parts included), over the 64 that are checked one by one: admit fewer values'] });
+
+  const a = setup(t, { pipeline });
+  authorReplies(t, [{ kind: 'spec', spec: pendulum }]);
+  const admitted = await a.run((await a.create({ prompt: 'Show how the length sets the period.', requestId: 'req-00000003', cardId: 'card-0003' })).body.job.id);
+  assert.equal(admitted.stage, 'ready');
+  assert.deepEqual(dispatched, { render: [{ states: 6, moments: 1, frames: 6, themes: ['light'] }], review: 1 });
+  assert.deepEqual([admitted.compiled.coverage.states, admitted.renders, admitted.captures.length, admitted.round], [6, 6, 6, 0]);
+});
+
 test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', async t => {
   const s = setup(t);
   const namespace = { idFromName: name => name, get: () => ({ fetch: (url, init) => s.actor.fetch(new Request(url, init)) }) };
