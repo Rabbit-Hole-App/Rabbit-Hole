@@ -298,7 +298,8 @@ const dropPdf = async doc => {
 const uploadContext = async doc => {
   await openCompanion();
   const posts = uploads.length;
-  await sourcesPane().locator('input[type="file"]').first().setInputFiles({ name: doc.name, mimeType: 'application/pdf', buffer: doc.bytes });
+  // UI-26: the one Upload sits in the Context header (SourcesPane.jsx ContextUpload inside [data-companion-header]).
+  await page.locator('[data-companion-header] input[type="file"]').first().setInputFiles({ name: doc.name, mimeType: 'application/pdf', buffer: doc.bytes });
   await waitFor(() => uploads.length > posts, 60000, `the ${doc.count}-page PDF was never uploaded (POST /api/learn/context)`);
   const listed = await waitFor(async () => (await docsNow()).find(d => d.name === doc.name), 30000, `${doc.name} is not listed`);
   return { listed, post: uploads[posts] };
