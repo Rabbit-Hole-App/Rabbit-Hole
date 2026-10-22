@@ -78,6 +78,8 @@ export const renderStage = ({ render = explainRender, ...deps } = {}) => async (
   return { captures: out.captures.map(({ png, ...capture }) => ({ ...capture, compiledHash: out.compiledHash, mediaType: 'image/png' })), renders: out.captures.map(() => ({ ok: true })) };
 };
 const base64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+// The spec's title is not drawn (the card's header shows the learner's request), so it is not a fact the pixels must show:
+// live runs r2b/r3/r4 had the reviewer fail cards for a missing title.
 // Review: every capture's actual pixels (read back from LEARN_MEDIA), the request, evidence and the spec's facts, through the
 // job's admitted explain_review call. -> what apply and repair read: accepted, findings, whether the spec can fix them.
 export async function reviewStage(job, ctx) {
@@ -87,7 +89,7 @@ export async function reviewStage(job, ctx) {
     return object ? { ...capture, data: base64(new Uint8Array(await object.arrayBuffer())) } : capture;
   }));
   let out;
-  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts(job.spec), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
+  try { out = await reviewCaptures({ request: job.prompt, compiledHash: captures[0]?.compiledHash, facts: specFacts({ ...job.spec, title: null }), evidence: job.evidence || [], captures }, { callRole: ctx.call }); }
   catch (error) { if (error.cause) throw error.cause; throw Object.assign(fail(`The explanation could not be reviewed (${error.code || 'review_failed'}).`, 503), { category: error.code === 'missing_pixels' ? 'renderer' : 'spec' }); }
   const findings = out.captures.flatMap(capture => capture.findings), serious = findings.filter(f => f.severity !== 'minor');
   return { accepted: out.accepted, findings, repairable: allowedRepairs({ findings }).length > 0, category: serious[0]?.category || 'spec', imagesReviewed: captures.length };
