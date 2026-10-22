@@ -443,7 +443,7 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   assert.equal(await startItem().getAttribute('data-origin'), 'm-b');
   // SHARE-02 (owner brief 2026-10-22): a visitor edits a temporary copy - Duplicate and Delete act on it, never on the source -
   // and still never renames or quick-edits a card's content.
-  const rows = await menu().locator('[role="menuitem"]').evaluateAll(nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint).map(child => child.textContent).join('').trim()));
+  const rows = await menu().locator('[role="menuitem"]').evaluateAll(nodes => nodes.map(node => { const copy = node.cloneNode(true); copy.querySelectorAll('[data-menu-reason], [data-menu-hint]').forEach(extra => extra.remove()); return copy.textContent.trim(); }));
   assert.equal(rows[0], 'Start Rabbit Hole');
   for (const local of ['Duplicate', 'Delete']) assert.ok(rows.includes(local), `${local} in ${rows.join(', ')}`);
   assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group], [data-menu-inline-ai]').count(), 0, 'a viewer never sees Rename or Quick Edit');

@@ -71,7 +71,8 @@ const shot = async (name, clip = null) => {
 const card = id => page.locator(`[data-block-id="${id}"]`);
 const panel = () => page.locator('[data-comments-panel]');
 // A row's name without its shortcut hint ("Add comment", hint "C").
-const rowNames = nodes => nodes.map(node => [...node.childNodes].filter(child => !child.dataset?.menuHint && !child.dataset?.menuReason).map(child => child.textContent).join('').trim());
+// A row's name: its text without the shortcut hint and the reason, which sit inside the row at any depth (MenuItem wraps the label in a span).
+const rowNames = nodes => nodes.map(node => { const copy = node.cloneNode(true); copy.querySelectorAll('[data-menu-reason], [data-menu-hint]').forEach(extra => extra.remove()); return copy.textContent.trim(); });
 const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
