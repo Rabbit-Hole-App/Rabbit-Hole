@@ -13,7 +13,7 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { madeFrom, proposalActive, proposalBlock } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, madeFrom, proposalActive, proposalBlock } from './generation-proposal-chat.js';
 import { withPrompt } from './card-prompt.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -33,8 +33,15 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal } } : x)));
     } catch (failure) { setError(failure.message); } finally { setBusy(false); }
   };
+  // MOT-22: the server refused this proposal's Generate (its card is marked, not counted as made): live again, with the reason.
+  useEffect(() => {
+    const refused = event => { if (event.detail?.proposalId === p.proposal_id) { setPressed(false); setError(event.detail.message); } };
+    window.addEventListener(PROPOSAL_REFUSED_EVENT, refused);
+    return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
+  }, [p.proposal_id]);
   const onGenerate = () => {
-    setPressed(true);
+    if (pressed) return; // one press in flight
+    setPressed(true); setError(null);
     const { id } = ops.insertCard(withPrompt(proposalBlock(p), p.input.request), { same: madeFrom(p.proposal_id) });
     if (id) ops.locate?.(id);
   };
