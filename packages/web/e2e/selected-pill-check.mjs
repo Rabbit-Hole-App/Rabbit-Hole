@@ -375,7 +375,7 @@ await check('Home: a click on a card picks it - one pill with its type icon and 
   assert.equal(await homePill.locator('svg').count(), 2, 'the type icon and the x');
   assert.equal(await card.getAttribute('data-card-selected'), '');
   assert.equal(page.url(), url, 'the click did not open it');
-  assert.equal(await dockField.getAttribute('placeholder'), `Ask about ${`Every card ${run}`}…`);
+  assert.equal(await dockField.getAttribute('placeholder'), `Ask about ${`Every card ${run}`}`);
   await page.screenshot({ path: `${SHOTS}/home-pill-home.png` });
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);

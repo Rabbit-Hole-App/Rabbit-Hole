@@ -1573,7 +1573,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
   if (ready) await check('bar-page: a project canvas names its repository in Chat\'s placeholder and shows no Agent Bar; back on the Library the bar carries no project chip', async () => {
     const page = await canvasAt(`/apps/${ready.name}`);
-    must(await chatInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}…`, 'Chat\'s placeholder does not name the ready project');
+    must(await chatInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}`, 'Chat\'s placeholder does not name the ready project');
     must(await barOf(page).count() === 0, 'the Agent Bar shows on the project canvas');
     await spa(page, '/library');
     await barOf(page).waitFor({ timeout: 10000 });
