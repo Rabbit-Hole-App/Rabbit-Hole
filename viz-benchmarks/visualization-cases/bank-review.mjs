@@ -1,7 +1,7 @@
 // EXP-T11 independent semantic review of the accepted-spec bank (packages/web/src/visual-components/examples/bank.json).
-// For each record that only lacks its semantic check: compile the immutable spec, render it in both themes (each part of a
-// paged card), and send the actual PNGs to the /explain image reviewer (explain-review.js, claude-opus-5-5), which did not
-// author the spec. Records ineligible for any other reason (held-out lineage, private, stale) are not reviewed.
+// For each record that only lacks its semantic check: compile the immutable spec, render it in the states the product job
+// captures (reviewStates below), and send the actual PNGs to the /explain image reviewer (explain-review.js,
+// claude-opus-5-5), which did not author the spec. Records ineligible for any other reason (held-out lineage, private, stale) are not reviewed.
 // Writes <out>/<runId>/<recordId>/{<capture>.png, review.json} and <out>/<runId>/summary.json; never edits bank.json
 // (apply the verdicts by hand, in a reviewed commit).
 //   node bank-review.mjs <runId> --cap-usd <n> [--out C:/s/spec/explain/renders/t11-bank-review] [--only id,id]
@@ -13,11 +13,12 @@ import { HERE, sha256 } from './cases.mjs';
 
 const web = name => import(`../../packages/web/src/visual-components/${name}`);
 
-// The states a record is reviewed in: both themes, and every part of a paged card in both themes.
-export function reviewStates(scene) {
-  const pager = (scene.inputs || []).find(input => input.presentation === 'pager');
-  const parts = pager ? [...Array((scene.exampleData?.[pager.of] || []).length).keys()] : [null];
-  return parts.flatMap(part => ['light', 'dark'].map(theme => ({ id: part === null ? theme : `part-${part}-${theme}`, theme, ...(part === null ? {} : { inputs: { [pager.name]: part } }) })));
+// The states a record is reviewed in: the product job's capture manifest (explain-flow.mjs productionManifest), so a
+// record is reviewed on every part, step, experiment value and combined state, deduplicated by frame, and a record one
+// review cannot cover is refused (over_budget), never sampled (EXP-12).
+export async function reviewStates(scene) {
+  const { productionManifest } = await import('./explain-flow.mjs');
+  return (await productionManifest(scene)).entries;
 }
 
 // deps: { entries (loadBank output), compile, facts, capture(scene, states) -> { captures }, review(input) -> result, ledger }
@@ -29,7 +30,10 @@ export async function reviewBank({ entries, compile, facts, capture, review, has
     if (others.length) { rows.push({ id: record.id, reviewed: false, why: others }); continue; }
     const scene = compile(spec).scene;
     const compiledHash = await hash(scene);
-    const { captures } = await capture(scene, reviewStates(scene));
+    let states;
+    try { states = await reviewStates(scene); }
+    catch (error) { if (error.code !== 'over_budget') throw error; rows.push({ id: record.id, reviewed: false, why: [error.message] }); continue; }
+    const { captures } = await capture(scene, states);
     for (const c of captures) save(record.id, `${c.id}.png`, c.png);
     const started = Date.now();
     const request = `${spec.title} (${record.intent})`;

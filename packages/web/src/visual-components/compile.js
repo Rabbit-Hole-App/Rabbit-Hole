@@ -65,8 +65,10 @@ export function compileVisual(raw) {
   for (const item of spec.components) item.part = inherit(item);
   const { presentation } = spec;
   const controls = readControls(spec, resolved);
+  // Counted before anything is enumerated (EXP-14): four 257-value ranges are 4.4e9 states.
+  const states = boundedProduct([Math.max(1, spec.parts.length), ...controls.map(control => control.values.length)], LIMITS.settings);
+  if (states > LIMITS.settings) throw new Error(`The experiments admit at least ${states} states (parts included), over the ${LIMITS.settings} that are checked one by one: admit fewer values`);
   const combos = cartesian(controls.map(control => control.values.length));
-  if (combos.length * Math.max(1, spec.parts.length) > LIMITS.settings) throw new Error(`The experiments admit ${combos.length * Math.max(1, spec.parts.length)} states (parts included), over the ${LIMITS.settings} that are checked one by one: admit fewer values`);
 
   // One complete layout per admitted control state: a control sets its parameter, every placement is shared code.
   const draw = combo => {
@@ -312,8 +314,21 @@ export function stateInputs(scene) {
   return [...all.filter(isDefault), ...all.filter(state => !isDefault(state))];
 }
 
-// Row-major index tuples over the given sizes: [[0,0],[0,1],...]; no sizes -> one empty tuple.
+// The product of the sizes, stopping at the first partial product over the limit, so a count never costs enumeration.
+function boundedProduct(sizes, limit) {
+  let product = 1;
+  for (const size of sizes) if ((product *= size) > limit) return product;
+  return product;
+}
+
+// Calls of cartesian, so a test can prove a refused spec is never enumerated (EXP-14).
+export const enumeration = { calls: 0 };
+// Row-major index tuples over the given sizes: [[0,0],[0,1],...]; no sizes -> one empty tuple. Refuses more tuples than the
+// gates check before building any, so a scene from anywhere (stateInputs) cannot make it loop without bound.
 function cartesian(sizes) {
+  enumeration.calls++;
+  const count = boundedProduct(sizes, LIMITS.settings);
+  if (count > LIMITS.settings) throw new Error(`The scene admits at least ${count} states, over the ${LIMITS.settings} that are checked one by one: admit fewer values`);
   return sizes.reduce((combos, size) => combos.flatMap(combo => [...Array(size).keys()].map(value => [...combo, value])), [[]]);
 }
 
