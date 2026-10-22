@@ -20,6 +20,7 @@ import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
 import { boardFileLimit, formatBytes } from '../../web/src/file-capabilities.js';
 import { retainedFileSources } from '../../web/src/file-context-manifest.js';
+import { linkAccess, sharedState } from './shared-privacy.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
@@ -430,6 +431,10 @@ export function forkState(state, canvas = null) {
   return out;
 }
 
+// A link visitor's fork starts from what the link shows (sharedState: never the creator's answers, attempts or highlights),
+// plus the Materials file manifests forkState retains (their access is checked per file, file-access.js).
+const forkable = state => ({ ...sharedState(state), ...(Array.isArray(state?.sources) ? { sources: state.sources } : {}) });
+
 // What a fork copies from. A share link: whoever may open it (existing rules).
 // A canvas by name: its owner only - and their browser holds its content, so
 // the request carries it (`state`); without it (or null), the board's server copy.
@@ -443,7 +448,7 @@ async function forkSource(req, env, user, body) {
     // The fork inherits the share's pinned revision (never the current HEAD); a repository the share may not show
     // stays unnamed in the fork's title and provenance.
     const pinned = await linkSource(env.LEARN_DB, found, user);
-    return { row, state: await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), user), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
+    return { row, state: forkable(await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), user)), org: row.org, canvas: canvas?.name ?? null, owner: row.owner_email, title: sharedTitle(row, canvas?.title, pinned), share: source.token, sharePath: linkPath(found, source.token),
       revision: pinned && { id: pinned.id, commit: pinned.commit }, resource: canvas?.name || (row.app.startsWith('repo-') && !pinned?.allowed ? null : row.app) };
   }
   if (typeof source?.canvas !== 'string' || !CANVAS.test(source.canvas)) return json({ error: 'Choose a canvas or a share link to fork.' }, 400);
@@ -783,7 +788,8 @@ async function openShared(req, env, token) {
   const viewer = found.viewer || await repositoryIdentity(req, env);
   const source = await linkSource(env.LEARN_DB, found, viewer instanceof Response ? null : viewer);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
-  const state = await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer);
+  // Only what was placed on the canvas, never the creator's own learning state (shared-privacy.js, SHARE-01 section 7).
+  const state = sharedState(await redactRepositoryCards(env.LEARN_DB, JSON.parse(row.state_json), viewer instanceof Response ? null : viewer));
   // Who made it (docs/features/user-handles.md): the owner's @handle and display name, read by reference; no handle,
   // no creator. Never the owner's email: a link may be opened by anyone it reaches.
   const made = await env.LEARN_DB.prepare(`SELECT h.handle, ${NAME_OF('h.email')} AS name FROM user_handles h WHERE h.email = ?`).bind(row.owner_email).first();
@@ -795,7 +801,7 @@ async function openShared(req, env, token) {
     || (signedIn.userId && await env.LEARN_DB.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(row.org, row.app, signedIn.userId).first()));
   const projectCanvases = row.app.startsWith('repo-') && row.board === 'main' ? await projectCanvasLinks(env.LEARN_DB, row, !!signedIn) : null;
   return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, ...(projectCanvases ? { project_canvases: projectCanvases } : {}), title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
-    ...(member ? { member_board_id: row.id } : {}),
+    ...(member ? { member_board_id: row.id } : {}), access: linkAccess({ found, viewer: signedIn, member }),
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
 
