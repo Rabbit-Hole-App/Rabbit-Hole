@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { anchorOf, placeBar } from './selection-bar-place.js';
+import { readFileSync } from 'node:fs';
+import { anchorOf, placeBar, usesHost } from './selection-bar-place.js';
 import { pinTopCentre } from './comments/anchors.js';
 
 const bar = { w: 260, h: 32 }, view = { w: 1200, h: 800 };
@@ -52,4 +53,18 @@ test('the floating bar never covers a narrow object top-centre comment pin, at z
     const apart = at.top + bar.h <= pin.top || pin.top + SIZE <= at.top || at.left + bar.w <= pin.left || pin.left + SIZE <= at.left;
     assert.ok(apart, `z=${z}: ${JSON.stringify({ at, pin })}`);
   }
+});
+
+test('a pinned card shows the floating bar, which never meets its pin at zoom 0.2, 1 and 2 (owner ruling, 2026-10-21)', () => {
+  const card = { x: 200, y: 260, w: 340, h: 220 }, SIZE = 30, pinned = id => id === 'c1';
+  assert.equal(usesHost({ sole: 'c1', pinned }, 'c1'), false, 'a pinned card: the floating bar');
+  assert.equal(usesHost({ sole: 'c2', pinned }, 'c2'), true, 'a card without a pin keeps its row');
+  assert.equal(usesHost({ sole: 'c2', narrow: true, pinned }, 'c2'), false, 'a narrow view: the floating bar');
+  for (const z of [0.2, 1, 2]) {
+    const anchor = anchorOf([card], { x: 10, y: 5, z });
+    const at = placeBar(anchor, bar, view), pin = pinTopCentre(anchor, 0, SIZE, 4);
+    const apart = at.top + bar.h <= pin.top || pin.top + SIZE <= at.top || at.left + bar.w <= pin.left || pin.left + SIZE <= at.left;
+    assert.ok(apart, `z=${z}: ${JSON.stringify({ at, pin })}`);
+  }
+  assert.match(readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8'), /pinned=\{commentPins && presenting === null \? id => commentPins\.some\(pin => pin\.anchor\?\.kind === 'object' && pin\.anchor\.object_id === id\)/, 'the canvas tells the bar which objects have pins');
 });
