@@ -223,6 +223,8 @@ const presentationSchema = z.object({
     id: name, input: name, purpose: z.string().min(1).max(300),
     affects: z.array(name).min(1).max(32), contrasts: z.array(z.string().min(1).max(200)).min(1).max(8),
     dependsOn: z.array(name).max(8).optional(),
+    // The point is that the listed results stay the same (an invariant, e.g. mass does not change a period).
+    invariant: z.boolean().optional(),
   }).strict()).max(4).optional(),
 }).strict();
 

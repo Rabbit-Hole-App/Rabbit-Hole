@@ -147,3 +147,19 @@ test('pendulum: drawn length is proportional to L, quarter length halves the per
     assert.equal(ref.y, states[lengths.indexOf(1)].state.objects.find(object => object.id === 'bob').y, 'the 1.00 m reference bob sits where a 1.00 m bob does');
   }
 });
+
+// Owner refinement 2026-10-22: playback, steps, Reset and every control change are local state, never a model call. The card
+// and everything it imports for playback, steps and controls hold no network path; the only way out is the callbacks the
+// canvas passes in (onChange, onChangeQuiet, onAskRegion - the region ask adds a context target, it sends nothing).
+test('playback, steps and controls make no model or network call: the scene card and its modules have no network path', async () => {
+  const { readFileSync } = await import('node:fs');
+  const files = ['AnimatedScene.jsx', 'SceneControls.jsx', 'scene-evaluate.js', 'animation-scene.js', 'scene-inputs.js', 'scene-activity.js',
+    'scene-derive.js', 'scene-format.js', 'scene-layout.js', 'scene-style.js', 'scene-vocab.js', 'scene-legacy.js', 'scene-engine.js', 'scene-behaviors.js', 'scene-sound.js', 'learn-audio.js', 'inline-equation-result.js'];
+  for (const file of files) {
+    const source = readFileSync(new URL(`./${file}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /\bfetch\s*\(|\/api\/|XMLHttpRequest|sendBeacon|new WebSocket|EventSource/, `${file} has a network path`);
+    for (const [, path] of source.matchAll(/^import [^'"]*['"](\.[^'"]+)['"]/gm)) {
+      assert.ok(files.includes(path.replace(/^\.\//, '')) || /\.css$/.test(path), `${file} imports ${path}, which this test does not cover`);
+    }
+  }
+});

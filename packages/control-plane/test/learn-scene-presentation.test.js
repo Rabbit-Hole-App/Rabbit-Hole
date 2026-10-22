@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SCENE_EXAMPLE } from '../src/agents/learn-scene-author.js';
-import { presentationProblem, sceneProblem } from '../src/learn-scene-gates.js';
+import { presentationProblem, presentationRepair, sceneProblem } from '../src/learn-scene-gates.js';
 
 const pendulum = () => JSON.parse(readFileSync(new URL('../../web/src/explain-examples/pendulum.json', import.meta.url), 'utf8')).block.scene;
 const withPresentation = (scene, presentation) => ({ ...structuredClone(scene), presentation });
@@ -99,4 +99,52 @@ test('an experiment that depends on another control may show its change under th
   const toggle = { id: 'toggle', input: 'on', purpose: 'p', affects: ['box', 'note'], contrasts: ['c'] };
   assert.equal(presentationProblem(withPresentation(scene, { mode: 'static', experiments: [toggle, sizeAffectsBox(['on'])] })), null);
   assert.match(presentationProblem(withPresentation(scene, { mode: 'static', experiments: [toggle, sizeAffectsBox(['nope'])] })), /depends on "nope"/);
+});
+
+// Owner refinement 2026-10-22: an invariant is allowed when declared and visibly compared; only an accidental no-op is refused.
+const massScene = (massShown = true) => ({
+  id: 'mass', duration: 1, width: 700, height: 260,
+  inputs: [{ name: 'mass', type: 'index', label: 'Bob mass', of: 'masses', default: 0 }],
+  exampleData: { masses: ['1 kg', '2 kg', '4 kg'], period: 2.01 },
+  derived: { m: { op: 'pick', args: ['masses', 'mass'] } },
+  objects: [
+    { id: 'massLabel', type: 'text', initialState: { text: massShown ? 'Bob mass: {{m}}' : 'Bob mass', x: 40, y: 60 } },
+    { id: 'result', type: 'text', initialState: { text: 'Period T = {{period}} s', x: 40, y: 120, typography: 'heading' } },
+  ],
+  timeline: [],
+});
+const massExperiment = extra => ({ id: 'mass', input: 'mass', purpose: 'Does a heavier bob swing slower?', affects: ['result'], contrasts: ['1 kg and 4 kg give the same period'], ...extra });
+
+test('a declared invariant passes when the card shows the setting it compares', () => {
+  assert.equal(presentationProblem(withPresentation(massScene(), { mode: 'static', experiments: [massExperiment({ invariant: true })] })), null);
+});
+
+test('an undeclared no-op, an invariant nobody can see, and an "invariant" that changes are all refused', () => {
+  assert.match(presentationProblem(withPresentation(massScene(), { mode: 'static', experiments: [massExperiment()] })), /draws the same at mass = 0 and 1 .*list it as invariant if that is the point/);
+  assert.match(presentationProblem(withPresentation(massScene(false), { mode: 'static', experiments: [massExperiment({ invariant: true })] })), /nothing on the card changes between mass = 0 and 1, so the comparison cannot be seen/);
+  assert.match(presentationProblem(withPresentation(massScene(), { mode: 'static', experiments: [massExperiment({ invariant: true, affects: ['massLabel'] })] })), /declares "massLabel" invariant under "mass", but it draws differently/);
+});
+
+test('a time presentation that only builds up is repaired into named steps from its reveal order, which then pass', () => {
+  // The example's scores, weights and contributions fade in one after another.
+  const hidden = id => ['scores', 'weights', 'parts'].includes(id);
+  const building = { ...structuredClone(SCENE_EXAMPLE), objects: SCENE_EXAMPLE.objects.map(object => (hidden(object.id) ? { ...object, initialState: { ...object.initialState, opacity: 0 } } : object)) };
+  const timed = withPresentation(building, { ...SCENE_EXAMPLE.presentation, mode: 'time' });
+  assert.match(presentationProblem(timed), /presentationRepair derives named steps/);
+  const repaired = presentationRepair(timed);
+  assert.deepEqual(repaired.presentation.steps.map(step => [step.id, step.at]), [['step-1', 0.41], ['step-2', 0.91], ['step-3', 1.51]]);
+  assert.match(repaired.presentation.steps[0].title, /^Show scores: homework, quiz, exam$/);
+  assert.equal(repaired.presentation.mode, 'steps');
+  assert.deepEqual(repaired.presentation.experiments, SCENE_EXAMPLE.presentation.experiments, 'experiments unchanged');
+  assert.deepEqual([repaired.objects, repaired.timeline], [building.objects, building.timeline], 'facts and timeline unchanged');
+  // Reveals of objects already on screen change nothing, so they are not steps: the plain example has one, so it is static.
+  assert.equal(presentationRepair(withPresentation(SCENE_EXAMPLE, { ...SCENE_EXAMPLE.presentation, mode: 'time' })).presentation.mode, 'static');
+  assert.equal(presentationProblem(repaired), null);
+  assert.equal(sceneProblem(repaired), null);
+  // One reveal group is static; a timeline that changes values is not this repair's to make; nor is a static scene.
+  const single = withPresentation({ ...SCENE_EXAMPLE, timeline: [{ at: 0, action: 'appear', target: 'scores', duration: 0.4 }] }, { ...SCENE_EXAMPLE.presentation, mode: 'time' });
+  assert.equal(presentationRepair(single).presentation.mode, 'static');
+  const changing = withPresentation({ ...SCENE_EXAMPLE, timeline: [...SCENE_EXAMPLE.timeline, { at: 1.6, action: 'disappear', target: 'note', duration: 0.2 }] }, { ...SCENE_EXAMPLE.presentation, mode: 'time' });
+  assert.equal(presentationRepair(changing), null);
+  assert.equal(presentationRepair(SCENE_EXAMPLE), null);
 });
