@@ -52,7 +52,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     const declared = chatCapability(name);
     const entry = SLASH.find(command => command.name === name && command.places.includes('learn'));
     if (!entry) return refuse(via, `/${name} is not a Learn command.`);
-    if (!availability(env, { name, needs: entry.needs || null }, enabled)) return refuse(via, unavailable(env, name));
+    if (!availability(env, { name, needs: entry.needs || null }, enabled)) return { ...refuse(via, unavailable(env, name)), ...extra };
     const flow = declared?.flow === 'proposal' && reviewRequired(name) ? 'proposal' : 'direct';
     const token = await sign({ t: 'chat-route', cap: name, flow, h: await bindingOf(email, fields), exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_S }, await signingKey(env));
     return { ...base, ...extra, route: `capability:${name}`, via, capability: name, flow, args, paid: paidOf(name), settings: declared?.settings || null, token };

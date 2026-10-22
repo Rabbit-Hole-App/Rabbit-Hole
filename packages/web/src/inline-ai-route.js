@@ -131,16 +131,22 @@ export function readRoute(body, routes = ROUTES, meta = META) {
 // ---- Chat capability routing (CR-1, owner 2026-10-21; C:/s/spec/day-1021/chat-route-interface.md) ----
 // What a plain chat line may ask for, declared over the command registry (agent/slash.js gives label, kind, action, needs):
 //   intent: the JEV Choice criterion (no phrase matching anywhere); flow: 'proposal' (a signed proposal card through the
-//   chat turn, generation-proposal.js PROPOSAL_RULES 'always') or 'direct' (the command's existing handler, with its own
-//   confirmation or finder); settings: the proposal card's capability-specific fields (null: none).
-// Adding a capability is one entry here (plus, for a proposal, its settings validator in generation-proposal.js).
+//   chat turn) or 'direct' (the command's existing handler, with its own
+//   confirmation or finder); settings: the shared proposal card's capability-specific fields (null: none). The Generate
+//   adapter stays web code (generation-proposal-chat.js). generation-proposal.js reads flow and settings from here.
+// Adding a capability is one entry here (plus, for a proposal, its settings validator and Generate adapter).
 // Not declared, so explicit only: /explain (not wired, owner), navigation and empty inserts (dive, notebook, whiteboard),
 // practice, compare, animate, walkthrough, cad, and the removed commands.
 export const CHAT_ROUTE_PROTOCOL_VERSION = 'chat-route-c1';
 export const CHAT_ANSWER = Object.freeze({ intent: 'Reply in the chat: a question, an explanation, a definition, advice, or a question about a video, a picture, a feature or a tool (for example "can Motion make audio?" or "why is this video wrong?"), and any request that declines a format (for example "explain this, but don\'t make a video").' });
 export const CHAT_CAPABILITIES = Object.freeze({
   motion: { flow: 'proposal', intent: 'A new animated explainer video made for the learner, asked for as the output: for example "make this into a video" or "create a short animated explanation of X".',
-    settings: Object.freeze({ duration_seconds: Object.freeze({ type: 'integer', min: 5, max: 30, unit: 's', label: 'Duration' }), audio: Object.freeze({ type: 'boolean', available: false, label: 'Narration audio' }) }) },
+    // The shared card's fields, in key order: integer (min..max in steps of step, plus the proposal's own value) or boolean;
+    // available: false shows the control disabled with `unavailable` as the reason.
+    settings: Object.freeze({
+      duration_seconds: Object.freeze({ type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 }),
+      audio: Object.freeze({ type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' }),
+    }) },
   video: { flow: 'direct', intent: 'A new generated realistic video clip of a real-world scene or footage, not an explainer of an idea.' },
   'generate-image': { flow: 'direct', intent: 'A new AI-generated picture or illustration (made, not found).' },
   '3d': { flow: 'direct', intent: 'A new 3D model or 3D scene.' },

@@ -9,6 +9,7 @@ import { JevError } from '../src/learn-grade-jev.js';
 import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
 import { SLASH } from '../../web/src/agent/slash.js';
 import { reviewRequired } from '../src/generation-proposal.js';
+import { proposalFields as legacyFields, reviewRequired as legacyReview } from '../src/proposal-rules.js';
 
 const MOTION_ENV = { MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48) };
 const untouchable = new Proxy({}, { get: (_, key) => { throw new Error(`touched ${String(key)}`); } });
@@ -33,9 +34,13 @@ test('every declared chat capability is a Learn command; proposal flow exactly w
     assert.equal(typeof entry.intent, 'string');
   }
   assert.equal(CHAT_CAPABILITIES.explain, undefined, '/explain is not wired (owner)');
-  assert.deepEqual(chatCapability('motion').settings.duration_seconds, { type: 'integer', min: 5, max: 30, unit: 's', label: 'Duration' });
-  assert.equal(chatCapability('motion').settings.audio.available, false);
+  assert.deepEqual(Object.keys(chatCapability('motion').settings), ['duration_seconds', 'audio'], 'card field order');
+  assert.deepEqual(chatCapability('motion').settings.duration_seconds, { type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 });
+  assert.deepEqual(chatCapability('motion').settings.audio, { type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' });
   assert.equal(chatCapability('youtube').settings, null, 'search gets no generation card fields');
+  // Until MOT-20b removes proposal-rules.js, it agrees with the declaration.
+  for (const id of Object.keys(CHAT_CAPABILITIES)) assert.equal(legacyReview(id), reviewRequired(id), id);
+  assert.deepEqual(legacyFields('motion').map(f => [f.key, f.min ?? null, f.max ?? null]), Object.entries(CHAT_CAPABILITIES.motion.settings).map(([key, f]) => [key, f.min ?? null, f.max ?? null]));
 });
 
 test('explicit commands, picker and suggestion ids, Tutor mode and plain explain make zero router calls', async t => {

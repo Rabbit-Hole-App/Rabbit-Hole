@@ -1,13 +1,13 @@
 // CR-1: runs the frozen corpus once against the real configured JEV, through the server's own route decision (decideChat
 // with the real askJev), from Node, no browser. Paid (about $0.00004 a case). Not part of node --test.
-//   node test/chat-route-corpus/run-real.mjs <path to .env>   -> results.json next to the corpus
+//   node chat-route-corpus/run-real.mjs <path to .env>   -> results.json next to the corpus
 // Keys are read by name from the .env and never printed. SMALL_ENV=test: this process has no D1, so the platform spend
 // ledger is skipped here; the run is recorded by hand in the Motion spend log instead. The Motion orchestrator URL is a
 // placeholder so Motion counts as available: routing never calls it (the unit tests prove no fetch beyond JEV).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { decideChat } from '../../src/chat-capability-route.js';
-import { askJev } from '../../src/learn-grade-jev.js';
-import { jevTransport } from '../../src/learn-inline.js';
+import { decideChat } from '../src/chat-capability-route.js';
+import { askJev } from '../src/learn-grade-jev.js';
+import { jevTransport } from '../src/learn-inline.js';
 
 const dir = new URL('.', import.meta.url);
 const corpus = JSON.parse(readFileSync(new URL('corpus.json', dir), 'utf8'));
