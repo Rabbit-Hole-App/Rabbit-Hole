@@ -7,7 +7,7 @@ import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { learnMedia } from './learn-storage.js';
 import { admitSpend, operationId, settleSpend, spendEnforced, spendMessage } from './learn-spend-ledger.js';
-import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity } from './learn-usage.js';
+import { forwardUsagePayer, usageFromForwarded, recordMedia, usageContext, usageRefusal, settleAttempt, withUsage, noteUsageIdentity, finishAction, finishActionOf } from './learn-usage.js';
 import { admitRender, releaseRender } from './learn-render-admission.js';
 
 const json = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -19,7 +19,22 @@ const dollars = micros => `$${(micros / 1e6).toFixed(2)}`;
 // A Motion job's model spending (owner items 1 and 6, 2026-10-21): one hold per attempt, admitted against the learner's
 // allowance before anything starts, sized to what is left of the job's ceiling (MOTION_JOB_RESERVATION_USD) across its
 // attempts, and settled once with the orchestrator's real cost. Stopped jobs keep polling until their cost is known.
+// How a Motion job's action ends, by the job's actual terminal state (owner message 25): completed with its video; cancelled when
+// it was stopped or never started; failed when it ended without a video at a known cost; interrupted (outcome unknown) when its
+// cost could not be confirmed, as after an orchestrator restart. Never completed because its hold settled.
+const motionOutcome = (job, view, known) => (known == null ? { status: 'interrupted', result: null }
+  : view?.status === 'ready' ? { status: 'completed', result: 'full' }
+    : job.stopped || view?.status === 'cancelled' || view?.status === 'refused' ? { status: 'cancelled', result: 'none' }
+      : { status: 'failed', result: 'none' });
+// A Motion job's reservation as the card shows it: reserved while it runs; pending while its final cost is not confirmed (a
+// stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
+const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
+  state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
 const needsSettling = job => job.provider === 'motion_request' && job.spend?.admitted && !job.spend.settled;
+// Owner message 28: new Motion generation is paused (MOTION_GENERATION_PAUSED "1") until MOT-06/07 are fixed. Nothing new starts or
+// is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
+export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
+const motionPaused = env => env.MOTION_GENERATION_PAUSED === '1';
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
 export async function videoFetch(req, env) {
@@ -144,6 +159,8 @@ export class LearnVideos {
         const maths = body.operation?.op === 'generate_math_animation';
         const motion = body.operation?.op === 'motion_render';
         const motionRequest = body.operation?.op === 'motion_request';
+        // Before any admission or hold: Generate, Retry, inline Motion and Ctrl+K all start here.
+        if (motionRequest && motionPaused(this.env)) return json({ error: MOTION_PAUSED, code: 'motion_paused' }, 503);
         const provider = maths ? new ManimProvider(this.env) : motion ? new MotionProvider(this.env) : motionRequest ? new MotionRequestProvider(this.env) : videoProvider(this.env);
         const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : motion ? validateMotionRender(body.operation) : motionRequest ? validateMotionRequest(body.operation) : validateVideo(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page are required');
@@ -197,9 +214,13 @@ export class LearnVideos {
   async list() {
     const placements = await this.state.storage.list({ prefix: 'placement:' });
     const jobs = await this.state.storage.list({ prefix: 'job:' });
-    return { videos: [...placements.values()].map(p => {
+    // motionHoldUsd: the per-job reservation the server admits (MOTION_JOB_RESERVATION_USD), only where Motion can start, so the
+    // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
+    const paused = motionPaused(this.env);
+    const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
+    return { ...(holdMicros ? { motionHoldUsd: holdMicros / 1e6 } : {}), ...(paused ? { motionPaused: true } : {}), videos: [...placements.values()].map(p => {
       const j = jobs.get(`job:${p.key}`);
-      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}) };
+      return { ...p, status: j?.status || 'idle', error: j?.error, retryable: !j?.uncertain, duration: j?.input.duration, provider: j?.result?.provider, generationId: j?.result?.generationId, ...(j?.result?.motion ? { motion: j.result.motion } : {}), ...(motionHold(j) ? { hold: motionHold(j) } : {}) };
     }) };
   }
   // Admission, then submission. A refusal or a definite orchestrator refusal starts nothing and releases the hold; an
@@ -228,7 +249,8 @@ export class LearnVideos {
     const now = Math.floor(Date.now() / 1000), opId = operationId('motion');
     if (spendEnforced(this.env)) {
       const gate = await admitSpend(this.env.LEARN_DB, scoped, { opId, userId: 'provider:motion', org: 'platform', category: 'motion', reservedUsd: left / 1e6, kind: 'generation', provider: 'anthropic', now, deadlineAt: now + maxWait(job) / 1000 });
-      if (gate.refused) return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`;
+      // Refused: the action admission opened for this request is closed here (no route boundary runs inside the object).
+      if (gate.refused) { await finishAction(scoped, { status: 'failed', result: 'none' }); return `${spendMessage(gate.reason, usageRefusal(scoped)?.period)} Nothing was started.`; }
       job.spend = { opId, attemptId: gate.attemptId, micros: left };
     } else job.spend = { opId, attemptId: null, micros: left };
     Object.assign(job.spend, { admitted: true, settled: false, grant: await motionGrant(this.env.MOTION_ORCHESTRATOR_TOKEN, opId, left, now) });
@@ -247,15 +269,19 @@ export class LearnVideos {
     if (spendEnforced(this.env)) {
       await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
       await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
+      await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
     }
     job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
     Object.assign(spend, { settled: true, costMicros: known });
     await this.state.storage.put(`job:${job.key}`, job);
-    const renders = Math.min(Number(view?.renders) || 0, 8);
-    for (let i = 0; i < renders; i++) {
+    // Each render as the renderer reported it (orchestrator.mjs render_states): a finished one completed, a failed one failed,
+    // one never reported finished interrupted (outcome unknown), never completed. Written once, with the settlement guard above.
+    const states = (Array.isArray(view?.render_states) ? view.render_states : Array(Math.min(Number(view?.renders) || 0, 8)).fill('unknown')).slice(0, 8);
+    for (const state of states) {
       const scoped = withUsage(this.env, { feature: 'render' });
       noteUsageIdentity(scoped, job.payer);
-      await recordMedia(scoped, { provider: 'motion_renderer' });
+      await finishAction(scoped, state === 'ready' ? { status: 'completed', result: 'full' } : state === 'failed' ? { status: 'failed', result: 'none' } : { status: 'interrupted', result: null });
+      await recordMedia(scoped, { provider: 'motion_renderer', ok: state === 'ready' });
     }
   }
 
@@ -265,7 +291,8 @@ export class LearnVideos {
     const provider = new MotionRequestProvider(this.env);
     const late = Date.now() - job.startedAt > maxWait(job);
     if (!job.ticket) {
-      try { job.ticket = await provider.submit(job.input, job.spend, job.repository); }
+      // Paused: no resend (it could start the work if the first submission never landed); like no answer, the hold stays.
+      try { if (motionPaused(this.env)) throw new Error(MOTION_PAUSED); job.ticket = await provider.submit(job.input, job.spend, job.repository); }
       catch (error) {
         if (!error.definite && !late) return;
         // A refused resend of a fresh grant started nothing; a grant refused after a restart, or no answer at all, may have.

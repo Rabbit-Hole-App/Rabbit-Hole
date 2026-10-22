@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { generateArtifact } from '../src/learn-artifact.js';
 import { SCENE_AUTHORING, SCENE_EXAMPLE } from '../src/agents/learn-scene-author.js';
-import { SAMPLES_NOTE, calculationProblem, falseCalculation, inputStates, sceneProblem, withSamplesNote } from '../src/learn-scene-gates.js';
+import { MAX_SETTINGS, SAMPLES_NOTE, calculationProblem, cardAtSettings, falseCalculation, inputStates, sceneProblem, withSamplesNote } from '../src/learn-scene-gates.js';
 import { VERIFY_SYSTEM, VERIFY_TOOL } from '../src/agents/learn-scene-verify.js';
 import { attemptKind } from '../src/learn-usage.js';
 import { evaluateScene } from '../../web/src/scene-evaluate.js';
@@ -31,7 +31,8 @@ const noKind = scene({ objects: [...SCENE_EXAMPLE.objects, { id: 'table', type: 
 
 test('the contract\'s own example passes every gate, at every input state it offers', () => {
   assert.equal(sceneProblem(SCENE_EXAMPLE), null);
-  assert.deepEqual(inputStates(SCENE_EXAMPLE), [{}, { scheme: 'exam' }, { showParts: false }]);
+  // Every setting, the combination included (EXP-04, owner review 2026-10-21): the defaults, each control alone, then both.
+  assert.deepEqual(inputStates(SCENE_EXAMPLE), [{}, { scheme: 'exam' }, { showParts: false }, { scheme: 'exam', showParts: false }]);
   assert.match(SCENE_AUTHORING, /"id":"weighted-grade"/);
 });
 
@@ -252,4 +253,94 @@ test('the server keeps only verifier items marked false, quoted from the card, a
   await generateArtifact({}, { command: 'explain', args: record.args }, kept);
   assert.equal(kept.seen.length, 2, 'the kept item (matched despite case, spacing and curly quotes) goes to the repair');
   assert.doesNotMatch(kept.seen[1].messages.at(-1).content[0].content, /checked: it holds|a quote the card does not show|rounding only/);
+});
+
+// EXP-04 (owner review 2026-10-21, item 1): the gates and the verifier see every setting a learner can reach, combinations of
+// controls and every slider position included. Each hand-made scene (test/fixtures/explain-states/) says one false thing at
+// a setting the old single-control sampling never reached; its gate variant puts a fault a deterministic gate reads there.
+const stateCase = name => JSON.parse(readFileSync(new URL(`./fixtures/explain-states/${name}.json`, import.meta.url), 'utf8')).response.block;
+const settingOf = (card, words) => card.split('\n\n').find(part => part.includes(words))?.split('\n')[0];
+const verifierRefuses = async (block, says, against) => {
+  const answer = ['make_animation', { title: block.title, calculation: block.calculation, scene: block.scene }];
+  const run = scripted(answer, answer);
+  const verdict = [{ status: 'false', object: 'line', says, against, finding: 'false at this setting' }];
+  run.verdicts.push(verdict, verdict);
+  const out = await generateArtifact({}, { command: 'explain', args: 'interactive' }, run);
+  return { out, run };
+};
+
+test('a two-toggle contradiction visible only with both toggles on is refused by the gates and shown to the verifier', async () => {
+  const block = stateCase('two-toggles');
+  assert.deepEqual(inputStates(block.scene), [{}, { heat: true }, { lid: true }, { heat: true, lid: true }]);
+  const gated = structuredClone(block.scene);
+  gated.exampleData.both = 'Heat with the lid on: 20 + 30 = 60 degrees gained.';
+  assert.match(sceneProblem(gated), /^With inputs heat = true, lid = true: "line" writes "20 \+ 30 = 60", but 20 \+ 30 = 50/);
+  // The verifier reads the combined setting, so a finding quoted from it is kept: the one repair, then no card.
+  assert.equal(sceneProblem(block.scene), null);
+  const card = cardAtSettings(block.scene);
+  assert.equal(settingOf(card, 'boils at 60 °C'), 'Setting heat = on, lid = on (only what differs from the defaults):');
+  const { out, run } = await verifierRefuses(block, 'Heat with the lid on: the water now boils at 60 °C.', 'At sea level, pure water boils at 100 °C.');
+  assert.deepEqual([run.seen.length, run.checks.length], [2, 2], 'generation, check, the one repair, check');
+  assert.equal(out.result, 'validation_error');
+  assert.ok(!('block' in out));
+});
+
+test('a derived value that is invalid only in a combination of controls is refused before any verifier call', async () => {
+  const block = stateCase('combined-chance');
+  // The chance as a bar's opacity: 0.3 and 0.7 are valid, 1.1 (both on) is not.
+  const gated = structuredClone(block.scene);
+  gated.objects[1].initialState.opacity = { $derive: 'chance' };
+  assert.match(sceneProblem(gated), /^With inputs clouds = true, wind = true: .*opacity/);
+  const answer = ['make_animation', { title: block.title, calculation: 'live', scene: gated }];
+  const run = scripted(answer, answer);
+  const out = await generateArtifact({}, { command: 'explain', args: 'interactive' }, run);
+  assert.deepEqual([out.result, run.seen.length, run.checks.length], ['validation_error', 2, 0], 'one repair, still invalid: no card and no verifier call');
+  assert.match(run.seen[1].messages.at(-1).content[0].content, /With inputs clouds = true, wind = true:/);
+  // As drawn (no opacity), the gates pass and the verifier reads the impossible 1.1 at the combined setting.
+  assert.equal(sceneProblem(block.scene), null);
+  assert.equal(settingOf(cardAtSettings(block.scene), 'Chance of rain: 1.1"'), 'Setting clouds = on, wind = on (only what differs from the defaults):');
+});
+
+test('every position of a slider is checked, the interior ones included', async () => {
+  const block = stateCase('interior-slider');
+  assert.deepEqual(inputStates(block.scene), [...Array(12).keys()].map(k => (k ? { k } : {})));
+  const gated = structuredClone(block.scene);
+  gated.exampleData.lines[3] = 'After 3 half-lives: 80 / 8 = 12 g remain.';
+  assert.match(sceneProblem(gated), /^With input k = 3: "line" writes "80 \/ 8 = 12", but 80 \/ 8 = 10/);
+  assert.equal(sceneProblem(block.scene), null);
+  assert.equal(settingOf(cardAtSettings(block.scene), '1/6 of the sample'), 'Setting k = 3 half-lives (position 3) (only what differs from the defaults):');
+  const { out } = await verifierRefuses(block, 'After 3 half-lives, 1/6 of the sample remains.', 'Remaining: 10 g of 80 g');
+  assert.equal(out.result, 'validation_error');
+});
+
+test('a scene with more settings than are checked, or a control whose settings cannot all be listed, is refused: never sampled', async () => {
+  const slider = length => {
+    const scene = structuredClone(stateCase('interior-slider').scene);
+    for (const key of ['names', 'grams', 'lines']) scene.exampleData[key] = Array.from({ length }, (_, i) => scene.exampleData[key][i % 12]);
+    return scene;
+  };
+  assert.equal(MAX_SETTINGS, 64);
+  assert.equal(inputStates(slider(64)).length, 64, 'at the bound: every position');
+  assert.match(sceneProblem(slider(65)), /^The controls offer 65 settings in combination \(k: 65\); every setting is checked, and at most 64 are supported: use fewer controls, options or positions/);
+  assert.throws(() => inputStates(slider(65)), /offer 65 settings/);
+  // Combinations count: a 5-position picker, a 2-option choice, a toggle and a 4-option choice make 80.
+  const four = { ...SCENE_EXAMPLE, exampleData: { ...SCENE_EXAMPLE.exampleData, tries: ['a', 'b', 'c', 'd', 'e'] }, inputs: [...SCENE_EXAMPLE.inputs,
+    { name: 'attempt', type: 'index', label: 'Attempt', default: 0, of: 'tries' }, { name: 'mood', type: 'choice', label: 'Mood', default: 'a', options: ['a', 'b', 'c', 'd'].map(id => ({ id, label: id })) }] };
+  assert.match(sceneProblem(four), /offer 80 settings in combination \(scheme: 2 x showParts: 2 x attempt: 5 x mood: 4\)/);
+  assert.match(sceneProblem({ ...SCENE_EXAMPLE, inputs: [...SCENE_EXAMPLE.inputs, { name: 'picked', type: 'indices', label: 'Pick scores', default: [0], of: 'scores' }] }),
+    /^Input "picked": a generated scene's controls are bool, choice or index inputs, whose settings can all be checked, not "indices"/);
+  // Through the artifact path: the one repair is told why, a second over-bound answer is no card, and the verifier never runs.
+  const answer = ['make_animation', { title: 'Half-life', calculation: 'precomputed', scene: slider(65) }];
+  const run = scripted(answer, answer);
+  const out = await generateArtifact({}, { command: 'explain', args: 'interactive half-life' }, run);
+  assert.deepEqual([out.result, 'block' in out, run.seen.length, run.checks.length], ['validation_error', false, 2, 0]);
+  assert.match(run.seen[1].messages.at(-1).content[0].content, /offer 65 settings/);
+});
+
+test('the verifier reads exactly the settings the gates check', () => {
+  for (const name of ['two-toggles', 'combined-chance', 'interior-slider']) {
+    const { scene } = stateCase(name);
+    assert.equal(cardAtSettings(scene).match(/^Setting /gm).length, inputStates(scene).length, name);
+  }
+  assert.equal(cardAtSettings(SCENE_EXAMPLE).match(/^Setting /gm).length, 4);
 });

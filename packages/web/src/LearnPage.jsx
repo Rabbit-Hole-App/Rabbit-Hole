@@ -33,6 +33,7 @@ import FeedbackButton from './FeedbackButton.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, motionProposal, runLearnCommand } from './learn-slash.js';
+import { motionHold } from './learn-scene-client.js';
 import { commandsFor, labelOf } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
@@ -1012,7 +1013,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     // internal: Ctrl+K's automatic routing still makes comparisons and walkthroughs from plain words (owner, 2026-10-20), though
     // /compare and /walkthrough are no longer typed commands (its / list is the registry's user commands, inline-ai-command.js).
     enabled: ['note', 'equation', ...commandsFor('learn', { internal: true }).filter(available).map(command => command.name).filter(name => INLINE_ROUTES[name] || EXPLICIT_ROUTES[name])],
-    motion: isLearnCommand('motion') ? (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection) : null,
+    motion: isLearnCommand('motion') ? async (args, about = {}) => motionProposal(args, { concept: about.concept || null }, about.selection, await motionHold(app.name).catch(() => null)) : null,
     // Current Chat's live transcript and deliberately attached source metadata support the selected edit.
     // The existing context builder budgets these separately from the complete editable target. A listed reference
     // is not source-text coverage; TOC has its own conversation and is never inherited here.

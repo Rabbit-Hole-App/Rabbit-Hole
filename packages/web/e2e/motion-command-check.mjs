@@ -50,6 +50,7 @@ const LINE = '/motion 15s explain me softmax func';
 const CLIP = '/lesson-assets/motion-softmax-8a2015a4.mp4';
 const CLIP_BYTES = readFileSync(new URL(`../public${CLIP}`, import.meta.url));
 const TITLE = 'Softmax: Turning Attention Scores into Weights';
+const PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
 const REFUSED = 'Motion is not available in this environment yet. Nothing was started.';
 // Saved before this change: a maths animation made by /animate (its clip a committed file here, as a stored clip would be) and
 // an animation scene card. Neither may regenerate or break.
@@ -67,7 +68,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 20; // per theme: 10 steps with Motion on, 3 with it off
+const total = OFF ? 6 : 22; // per theme: 11 steps with Motion on, 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -211,9 +212,15 @@ for (const theme of ['light', 'dark']) {
     await composer().fill(LINE); await composer().press('Enter');
     await dock.locator('[data-paid-generate]').waitFor();
     assert.equal((await dock.locator('[data-paid-prompt]').innerText()).trim(), LINE);
-    assert.match(await notice.innerText(), /This uses paid generation\./);
-    // A saved card's clip may load meanwhile (a GET of its asset); nothing else may reach the video route.
-    const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && !r.query.includes('asset='));
+    // Owner message 25: the reservation is the server's amount. This stack's worker has no orchestrator, so it returns none, and
+    // the confirmation names no amount of its own (the MOCKED steps below return one).
+    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves part of your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
+    assert.doesNotMatch(await notice.innerText(), /\$\d/);
+    // Owner message 25: the confirmation reads the server's reservation (a GET of the video list) before Generate; nothing else
+    // may reach the video route (a saved card's clip may load meanwhile, a GET of its asset).
+    const reads = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method === 'GET' && !r.query.includes('asset='));
+    const asked = () => seen.slice(before).filter(r => r.path === '/api/learn/video' && r.method !== 'GET');
+    assert.ok(reads().length >= 1, 'the confirmation read the reservation from the server');
     assert.equal(asked().length, 0, 'nothing asked of the video route before Generate');
     await notice.screenshot({ path: `${OUT}/${theme}-03-confirm.png` });
     await dock.locator('[data-paid-cancel]').click();
@@ -230,22 +237,33 @@ for (const theme of ['light', 'dark']) {
     if (!stub) return route.fallback();
     const request = route.request(), url = new URL(request.url());
     if (url.searchParams.get('asset')) return route.fulfill({ body: CLIP_BYTES, headers: { 'content-type': 'video/mp4', 'accept-ranges': 'bytes' } });
-    const video = status => ({ id: stub.id, key: KEY, status, retryable: true,
+    // New generation paused on the server (MOCKED, owner message 28): the list says so and the start is refused.
+    if (stub.paused) return request.method() === 'POST' ? route.fulfill({ status: 503, json: { error: PAUSED, code: 'motion_paused' } }) : route.fulfill({ json: { motionPaused: true, videos: [] } });
+    // The server's reservation (MOCKED): the amount for a new job, and this job's hold as it runs, waits on its cost, or is released.
+    const hold = status => ({ usd: 8.96, state: status === 'generating' ? 'reserved' : status === 'failed' ? 'pending' : 'released' });
+    const video = status => ({ id: stub.id, key: KEY, status, retryable: true, hold: hold(status),
       ...(status === 'failed' ? { error: 'The Motion job failed: still blocking after the repair round: blank_frame' } : {}),
       ...(status === 'ready' ? { provider: 'motion', motion: { title: TITLE, duration_seconds: 15, renderer: 'remotion', source_refs: [{ id: 'S1', kind: 'code', path: 'model.py', start_line: 62, end_line: 64 }] } } : {}) });
-    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { videos: [video('generating')], placementId: stub.id } });
+    if (request.method() === 'POST') return route.fulfill({ status: 202, json: { motionHoldUsd: 8.96, videos: [video('generating')], placementId: stub.id } });
     stub.polls += 1;
-    return route.fulfill({ json: { videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
+    return route.fulfill({ json: { motionHoldUsd: 8.96, videos: [video(!stub.held && stub.polls >= 2 ? stub.end : 'generating')] } });
   });
 
   await step(`${theme}: MOCKED generation: Generate adds one card and starts one confirmed motion_request; the ready video plays in it`, async () => {
-    stub = { id: `p-ready-${theme}`, polls: 0, end: 'ready' };
+    stub = { id: `p-ready-${theme}`, polls: 0, end: 'ready', held: true };
     const posts = videoPosts().length;
     await composer().fill(LINE); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').waitFor();
+    // Before confirmation: the amount the server returned (MOCKED 8.96), never one of the browser's own.
+    assert.match(await notice.innerText(), /This uses paid generation\. Temporarily reserves \$8\.96 from your available AI allowance\. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed\. Rendering is covered by Rabbit Hole\./);
     await dock.locator('[data-paid-generate]').click();
     const card = page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' });
     await card.waitFor({ timeout: 10000 });
     const id = await card.getAttribute('data-block-id');
+    // While it runs: the reserved amount stays visible on the card.
+    await card.locator('[data-video-hold="reserved"]').waitFor({ timeout: 10000 });
+    assert.equal(await card.locator('[data-video-hold="reserved"]').innerText(), '$8.96 of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.');
+    stub.held = false;
     await page.waitForTimeout(600);
     await shot('04-generating');
     const mine = page.locator(`[data-block-id="${id}"]`);
@@ -271,9 +289,27 @@ for (const theme of ['light', 'dark']) {
     const mine = page.locator('[data-block-id]', { hasText: 'still blocking after the repair round: blank_frame' });
     await mine.waitFor({ timeout: 20000 });
     assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Retry render');
+    // Its final cost is not confirmed yet (MOCKED pending): the card says reconciliation is pending.
+    assert.equal(await mine.locator('[data-video-hold="pending"]').innerText(), 'Reconciliation pending: the $8.96 reservation stays until the final cost is confirmed.');
     assert.equal(videoPosts().length - posts, 1, 'one start, no automatic retry');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-06-failed-card.png` });
+    await dismiss();
+  });
+
+  await step(`${theme}: MOCKED paused: the confirmation says Motion generation is paused; Generate is refused with the same text`, async () => {
+    stub = { id: `p-paused-${theme}`, polls: 0, paused: true };
+    const posts = videoPosts().length;
+    await composer().fill(`/motion 11s explain dropout ${theme}`); await composer().press('Enter');
+    await dock.locator('[data-paid-generate]').waitFor();
+    assert.equal((await notice.innerText()).includes(PAUSED), true, 'the confirmation says generation is paused');
+    assert.doesNotMatch(await notice.innerText(), /\$\d/, 'no reservation is offered');
+    await dock.locator('[data-paid-generate]').click();
+    const mine = page.locator('[data-block-id]', { hasText: PAUSED });
+    await mine.waitFor({ timeout: 20000 });
+    assert.equal(videoPosts().length - posts, 1, 'one start, refused by the server');
+    await mine.scrollIntoViewIfNeeded();
+    await mine.screenshot({ path: `${OUT}/${theme}-06a-paused-card.png` });
     await dismiss();
   });
 
@@ -358,10 +394,10 @@ for (const theme of ['light', 'dark']) {
     await sheet.screenshot({ path: `${OUT}/${theme}-09-window-seeked-10s.png` });
     const during = seen.slice(before);
     // The canvas behind the window keeps its own persistence (the board thumbnail is drawn after its saves pause, LearnPage.jsx
-    // thumbnailScheduler) and may reload a saved card's clip (a GET of its asset). The window itself sends nothing: no POST, no
-    // generation or model route.
+    // thumbnailScheduler) and may reload a saved card's clip (a GET of its asset). Choosing /motion reads the server's reservation
+    // (a GET of the video list, owner message 25). The window itself sends nothing: no POST, no generation or model route.
     const persistence = r => r.method === 'PUT' && /^\/api\/learn\/boards\/[^/]+\/main(\/thumbnail)?$/.test(r.path);
-    const sent = during.filter(r => !persistence(r) && (r.method !== 'GET' || (/\/api\/learn\/(video|artifact|scene|image)/.test(r.path) && !r.query.includes('asset=')))).map(r => `${r.method} ${r.path}${r.query}`);
+    const sent = during.filter(r => !persistence(r) && (r.method !== 'GET' || (/\/api\/learn\/(artifact|scene|image)/.test(r.path) && !r.query.includes('asset=')))).map(r => `${r.method} ${r.path}${r.query}`);
     console.log(`   ${theme}: requests while the window was open: ${during.map(r => `${r.method} ${r.path}`).join(', ') || 'none'}`);
     assert.deepEqual(sent, [], `the window sends nothing: ${sent.join(' ')}`);
     } finally { await closeWindow(sheet); }

@@ -61,7 +61,7 @@ INPUTS (the learner's controls, at most 4): {name (letters/digits), type, label 
 - bool: default true/false. Toggles.
 - choice: options [{id, label}] (2-5), default an option id.
 - index: of (an exampleData list), default a position, presentation (picker | slider). A picker (up to 8 settings) shows each entry of that list as a button, so make the list short strings naming each setting ("10°", "20°", "30°"); a slider (longer lists) shows only "3 of 12", so also print the current setting in a text with {{...}}. Keep the numbers for each setting in separate lists picked by the same input.
-Input names may not reuse exampleData or derived names.
+Input names may not reuse exampleData or derived names. The server checks every setting a learner can reach, each combination of the controls included: at most 64 in all (two toggles and a 16-position slider make 64); a scene with more is refused.
 
 VALUES: exampleData holds the given data (numbers, lists, records, strings). derived names each calculation once, in order, and may use earlier names; args are names, dotted paths ("table.2", "rec.field") or plain numbers. Ops:
 - pick [list, indexInput] (by position) or [record, choiceInput] (keys are the choice's option ids): one entry (a number, list or record). An index input never picks from a record.

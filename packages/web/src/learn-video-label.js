@@ -13,6 +13,26 @@ const renderedBy = block => RENDERER_LABELS[block.motion?.renderer] ?? null;
 const notGrounded = block => (block.motion?.grounding?.status === 'not_in_source' ? `Not grounded in ${block.motion.grounding.searched.join(', ')}`
   : block.motion?.grounding ? 'Not grounded in a source' : null);
 
+// What a Motion job does to the learner's allowance (owner messages 22 and 25): a temporary reservation of the amount the server
+// says it holds (LearnVideos list motionHoldUsd, MOTION_JOB_RESERVATION_USD), actual AI usage charged, the rest released, and
+// rendering covered by Rabbit Hole. No amount of the browser's own: without the server's, the note names none.
+const money = usd => `$${usd.toFixed(2)}`;
+const known = usd => Number.isFinite(usd) && usd > 0;
+export const motionHoldNote = usd => `Temporarily reserves ${known(usd) ? `${money(usd)} from your available AI allowance` : 'part of your available AI allowance'}. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.`;
+// Owner message 28: while the server pauses new Motion generation (LearnVideos list motionPaused) the confirmation says so; the
+// server refuses the start itself with the same text.
+export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
+// hold: what the server said (learn-scene-client.js motionHold): the reservation amount, 'paused', or null.
+export const motionConfirm = hold => (hold === 'paused' ? MOTION_PAUSED : `This uses paid generation. ${motionHoldNote(hold)}`);
+// The card's reservation line from the job's hold ({usd, state} in the LearnVideos list): reserved while it runs, pending while
+// its final cost is not confirmed, nothing once released.
+export function motionHoldStatus(hold) {
+  if (!hold || !known(hold.usd)) return null;
+  if (hold.state === 'reserved') return `${money(hold.usd)} of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.`;
+  if (hold.state === 'pending') return `Reconciliation pending: the ${money(hold.usd)} reservation stays until the final cost is confirmed.`;
+  return null;
+}
+
 export function videoLabel(block) {
   const op = block.operation;
   if (op?.op === 'generate_math_animation') {

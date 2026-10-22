@@ -111,7 +111,7 @@ export function createInlineSession({ transport, boardKey, enabled = ['note'], v
       const objects = request.context?.target?.objects || [];
       const selection = { id: request.frozen?.ids?.[0], kind: objects.length === 1 ? [objects[0].type, objects[0].kind].filter(Boolean).join(':') : 'Selection', title: input.concept,
         text: objects.map(entry => String(entry.range?.text ?? entry.text ?? '').trim()).filter(Boolean).join('\n') };
-      const proposal = motion?.(input.args, { selection, concept: input.concept });
+      const proposal = await motion?.(input.args, { selection, concept: input.concept }); // its message names the server's reservation
       if (!proposal) throw Object.assign(new Error('Video explainers (Motion) are not available on this canvas.'), { code: 'unavailable' });
       return { kind: 'proposal', route, block: proposal.block, message: proposal.message, primitive: 'motion' };
     }

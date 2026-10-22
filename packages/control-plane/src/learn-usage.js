@@ -288,6 +288,17 @@ export async function finishAction(env, { status, result = null, now = nowSecond
   } catch (error) { warn(`action not finished: ${error?.message}`); }
 }
 
+// A Durable Object job's action, closed once through its attempt when the job ends (a Motion job settles long after the request
+// that admitted it, whose boundary closes nothing it did not open). Only a running action changes. Never throws.
+export async function finishActionOf(env, attemptId, { status, result = null, now = nowSeconds() }) {
+  const db = env?.LEARN_DB;
+  if (!db || !attemptId) return;
+  try {
+    await db.prepare("UPDATE usage_actions SET status = ?, result = ?, ended_at = ? WHERE action_id = (SELECT action_id FROM usage_attempts WHERE attempt_id = ?) AND status = 'running'")
+      .bind(status, result, now, attemptId).run();
+  } catch (error) { warn(`action not finished: ${error?.message}`); }
+}
+
 // A route that can tell what it delivered says so: 'full', 'partial' or 'none'. The boundary uses it over its default.
 export function noteUsageResult(env, result) {
   const ctx = env?.[USAGE];

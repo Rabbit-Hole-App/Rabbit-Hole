@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { videoLabel } from './learn-video-label.js';
+import { videoLabel, motionConfirm, motionHoldNote, motionHoldStatus, MOTION_PAUSED } from './learn-video-label.js';
 import { motionVideoBlock } from '../../learn-render/motion/video-block.js';
 
 // The two samples' operations as BLOCK_TYPES.mathAnimation / videoGenerate build them (LearningBlocks.jsx).
@@ -51,4 +51,20 @@ test('an ungrounded Motion video is labelled on its card, never shown as sourced
   assert.equal(videoLabel(elsewhere).detail, '10s · Motion explainer · Remotion · Not grounded in karpathy/nanoGPT@3adf61e');
   const brief = { ...JSON.parse(readFileSync(new URL('../../learn-render/motion/fixtures/demo-a/brief.json', import.meta.url), 'utf8')), source_refs: [], evidence: [], grounding: { status: 'no_source_supplied' } };
   assert.deepEqual(motionVideoBlock({ brief, renderId: 'd'.repeat(32), jobId: 'motion-job-u' }).motion.grounding, { status: 'no_source_supplied' });
+});
+
+// Owner message 25: the amount is the server's (never a literal here), shown before confirmation; the card keeps the reservation
+// visible while it runs and says when reconciliation is pending.
+test('the Motion hold wording uses the amount the server returns, and the card shows reserved or pending', () => {
+  assert.equal(motionConfirm(8.96), 'This uses paid generation. Temporarily reserves $8.96 from your available AI allowance. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.');
+  assert.equal(motionHoldNote(2), 'Temporarily reserves $2.00 from your available AI allowance. Only actual AI usage is charged; the unused reservation is released once the final cost is confirmed. Rendering is covered by Rabbit Hole.');
+  for (const none of [null, undefined, NaN, 0]) assert.match(motionHoldNote(none), /^Temporarily reserves part of your available AI allowance\./, 'no amount of its own');
+  assert.equal(motionHoldStatus({ usd: 8.96, state: 'reserved' }), '$8.96 of your AI allowance is reserved until the final cost is confirmed. Only actual AI usage is charged.');
+  assert.equal(motionHoldStatus({ usd: 8.96, state: 'pending' }), 'Reconciliation pending: the $8.96 reservation stays until the final cost is confirmed.');
+  for (const quiet of [{ usd: 8.96, state: 'released' }, null, { state: 'reserved' }]) assert.equal(motionHoldStatus(quiet), null);
+});
+
+test('while the server pauses new Motion generation, the confirmation says so (owner message 28)', () => {
+  assert.equal(motionConfirm('paused'), 'Motion generation is temporarily unavailable while we fix a reliability issue.');
+  assert.equal(MOTION_PAUSED, motionConfirm('paused'));
 });
