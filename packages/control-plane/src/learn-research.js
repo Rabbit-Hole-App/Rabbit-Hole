@@ -57,7 +57,7 @@ export async function researchAnswer(env, turns, system, model, {
         // (blocks must be preserved verbatim) and ask once for the text answer.
         if (step < RESEARCH_STEPS && result.content?.some(block => block.type === 'thinking')) {
           messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: 'Continue with your final answer now, as plain text.' });
-          await onProgress('Preparing answer...');
+          await onProgress('Preparing answer');
           continue;
         }
         if (result.stop_reason === 'max_tokens') throw new Error('The answer was cut short. Try a narrower question.');
@@ -73,27 +73,27 @@ export async function researchAnswer(env, turns, system, model, {
     let content, is_error = false;
     try {
       if (arxiv && call.name === SEARCH_ARXIV_TOOL.name) {
-        await onProgress('Finding papers...');
+        await onProgress('Finding papers');
         content = [{ type: 'text', text: JSON.stringify(await findPapers(call.input.query)) }];
       } else if (arxiv && call.name === READ_ARXIV_TOOL.name) {
-        await onProgress('Reading paper...');
+        await onProgress('Reading paper');
         if (papers.size >= PAPERS_PER_ANSWER && !papers.has(call.input.id)) throw new Error('Use the papers already read');
         const paper = await readPaper(call.input.id);
         papers.set(paper.id, paper);
         content = [{ type: 'text', text: JSON.stringify(paper) }, paperDocument(paper)];
       } else if (arxiv && call.name === SHOW_PAPER_TOOL.name) {
         shown = validateShowPaper(call.input, [...papers.values()]);
-        await onProgress(`Opening ${shown.title}...`, 'paper');
+        await onProgress(`Opening ${shown.title}`, 'paper');
         content = [{ type: 'text', text: JSON.stringify({ opened: true, page: shown.page, note: PAPER_SHOWN_NOTE }) }];
       } else if (runTool && tools.some(tool => tool.name === call.name)) {
         // A show tool reports once it has validated: a refused one opens nothing.
-        if (!SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}...`);
+        if (!SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}`);
         content = [{ type: 'text', text: JSON.stringify(await runTool(call.name, call.input)) }];
-        if (SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}...`, SHOWN_CARD[call.name]);
+        if (SHOWN_CARD[call.name]) await onProgress(`${call.name.replaceAll('_', ' ')}`, SHOWN_CARD[call.name]);
       } else throw new Error('Unknown Learn tool');
     } catch (error) { await onProgress(`Retrieval failed: ${error.message}`); is_error = true; content = [{ type: 'text', text: error.message }]; }
     if (call.name.startsWith('show_')) said.push(...(result.content || []).filter(block => block.type === 'text' && block.text.trim()).map(block => block.text));
     messages.push({ role: 'assistant', content: result.content }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, content, is_error }] });
-    await onProgress('Preparing answer...');
+    await onProgress('Preparing answer');
   }
 }
