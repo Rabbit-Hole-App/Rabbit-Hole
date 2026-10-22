@@ -20,7 +20,7 @@ export default {
     sharedExperts: { type: 'int', min: 0, max: 4, default: 0 },
     selected: { type: 'list', min: 1, max: 8 },
     input: { type: 'label', maxLength: 120, default: 'Token' },
-    output: { type: 'label', maxLength: 120, default: 'Weighted sum of the chosen experts' },
+    output: { type: 'label', maxLength: 120, default: 'Weighted sum of the expert outputs' },
   },
   hints: { maxDrawn: { type: 'number', unit: 'count', min: 4, max: 16, default: 8 } },
   repairWritable: ['maxDrawn'],
@@ -94,10 +94,12 @@ export default {
       combine[`s${i}`] = { x: cx + SW / 2, y: expertY + EH };
     });
     const output = place(labelledBox({ id: 'output', label: validateLabelContent(params.output), role: 'output', minWidth: 200, maxWidth: 360 }), center, combineY);
-    for (const [key, from] of Object.entries(combine)) {
-      if (key === 'y') continue;
-      objects.push({ id: `into${key}`, type: 'arrow', initialState: { from, to: { x: output.x + output.w / 2, y: output.y } } });
-    }
+    // Each input lands at its own point along the output's top edge, in
+    // left-to-right order, so arrowheads do not pile up on one spot.
+    const feeds = Object.entries(combine).filter(([key]) => key !== 'y').sort(([, p], [, q]) => p.x - q.x);
+    feeds.forEach(([key, from], index) => {
+      objects.push({ id: `into${key}`, type: 'arrow', initialState: { from, to: { x: output.x + output.w * (index + 1) / (feeds.length + 1), y: output.y } } });
+    });
     const caption = params.routing === 'switch' ? `each token goes to 1 of ${n} experts` : `each token goes to ${k} of ${n} experts${shared.length ? ` plus ${shared.length} shared that every token uses` : ''}`;
     const captionY = output.y + output.h + 32;
     objects.push({ id: 'caption', type: 'text', initialState: { text: caption, x: 0, y: captionY, typography: 'caption' } });
