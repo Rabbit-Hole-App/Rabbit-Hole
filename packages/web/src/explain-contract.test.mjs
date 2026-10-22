@@ -118,9 +118,11 @@ test('VisualSpec connections and bindings name real instances through namespaced
 test('LabelContent: text, math or mixed runs; unsafe LaTeX refused', () => {
   assert.equal(validateContract('LabelContent', 'plain'), 'plain');
   assert.ok(validateContract('LabelContent', { runs: [{ kind: 'math', tex: '\\frac{a}{b}' }] }));
+  // One backslash on purpose: in a JS literal it makes a form feed, the lost-backslash bug.
   rejects('LabelContent', () => ({ runs: [{ kind: 'math', tex: '\\href{https://x}{y}' }] }), /unsupported LaTeX/);
   rejects('LabelContent', () => ({ runs: [{ kind: 'math', tex: '\\def\\x{1}' }] }), /unsupported LaTeX/);
   rejects('LabelContent', () => ({ runs: [] }), /too_small|at least|>=1/i);
+  rejects('LabelContent', () => ({ runs: [{ kind: 'math', tex: '\frac{a}{b}' }] }), /control character/);
   rejects('LabelContent', () => ({ runs: [{ kind: 'html', text: 'b' }] }), /Invalid/);
 });
 
