@@ -44,6 +44,10 @@ test('the author receives the actual catalogue (every capability and parameter l
   const instance = body.tools[0].input_schema.properties.spec.properties.components.items;
   assert.deepEqual(instance.required, ['id', 'component', 'version']);
   assert.deepEqual(instance.properties.component.enum, catalogue().map(entry => entry.name));
+  // Owner requirement: Lane B2's presentation contract (static first, named steps, purposeful experiments) and math runs.
+  const system = body.system[0].text;
+  for (const rule of ['presentation contract', 'static (prefer it)', 'a highlight alone is not a step', 'purpose (the question moving it answers', 'math runs in TeX', 'never calculator text', 'about 27 characters per line'])
+    assert.ok(system.includes(rule), rule);
   // The compiled result is the trusted compiler's.
   assert.equal(out.compiled.counts.authored, 1);
   assert.equal(out.compiled.componentVersions.flow, 1);
