@@ -285,10 +285,15 @@ async function listThreads(env, ctx, params) {
     .bind(ctx.actor.uid, ctx.board.id, ...(cursor ? [cursor[1], cursor[2]] : [])).all();
   const readable = results.filter(row => allowed(ctx, 'read', row.audience));
   const page = readable.slice(0, PAGE);
+  // The toolbar badge (owner, 2026-10-21): every open thread with a live comment this reader may read, whatever page,
+  // status or audience filter the list is on; the same read rule as the list, per audience.
+  const { results: open } = await env.LEARN_DB.prepare(`SELECT t.audience, count(*) AS n FROM canvas_comment_threads t WHERE t.board_id = ? AND t.resolved_at IS NULL
+      AND EXISTS (SELECT 1 FROM canvas_comments m WHERE m.thread_id = t.id AND m.deleted_at IS NULL) GROUP BY t.audience`).bind(ctx.board.id).all();
   const last = results.length > PAGE ? results[PAGE - 1] : null;
   return json({
     threads: page.map(row => ({ ...threadShape(ctx, row), unread: !!row.unread, preview: row.first_deleted ? null : (row.first_body || '').slice(0, 200) })),
     cursor: last ? `${last.last_activity_at}|${last.id}` : null,
+    open_count: open.filter(row => allowed(ctx, 'read', row.audience)).reduce((sum, row) => sum + row.n, 0),
     has_public: ctx.family === 'public' || !!(await env.LEARN_DB.prepare("SELECT 1 FROM canvas_comment_threads WHERE board_id = ? AND audience = 'public' LIMIT 1").bind(ctx.board.id).first()),
   });
 }

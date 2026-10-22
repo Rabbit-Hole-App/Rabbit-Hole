@@ -50,7 +50,7 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
   }, [hidden, refresh]);
   // Only a loaded list goes to the pins: a panel that opens (a pin's click on a page whose panel was closed) keeps the
   // pins it had until its list arrives, so the picked pin stays.
-  useEffect(() => { if (list) onThreads?.(list.threads); }, [list, onThreads]);
+  useEffect(() => { if (list) onThreads?.(list.threads, list.open_count); }, [list, onThreads]);
   // 30 per page; Load more appends the next page. A refresh starts again from the first.
   const more = async () => {
     try { const page = await client.threads(status, audience, list.cursor); setList(current => ({ ...page, threads: [...current.threads, ...page.threads] })); } catch (error) { setFailed(error.message); }

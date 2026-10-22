@@ -231,6 +231,11 @@ test('entry points: the Comment tool in the rail, C with its guards, the shortcu
 test('toolbar Comments badge (owner, 2026-10-21): counts the open threads the Comments tab lists, hidden at 0, 99+ past 99; the button toggles the Comments tab', () => {
   assert.equal(openCount([]), 0);
   assert.equal(openCount([{ status: 'open', comments: 2 }, { status: 'resolved', comments: 1 }, { status: 'open', comments: 0 }, { status: 'open' }]), 2, 'resolved and fully deleted threads are not counted');
+  assert.equal(openCount([{ status: 'open' }], 31), 31, 'the server count wins over the loaded page');
+  assert.equal(openCount([{ status: 'resolved' }], 4), 4, 'a Resolved list keeps the open count');
+  assert.equal(badgeText(openCount([], 140)), '99+');
+  const panelSource = read('./CommentsPanel.jsx');
+  assert.match(panelSource, /onThreads\?\.\(list\.threads, list\.open_count\)/, 'the panel hands up the server count');
   assert.equal(badgeText(7), '7');
   assert.equal(badgeText(99), '99');
   assert.equal(badgeText(100), '99+');

@@ -110,6 +110,19 @@ test('owner and member: start, reply, resolve; stored apart from the board, whic
   assert.deepEqual(f.sqlite.prepare('SELECT updated_at FROM canvas_metadata WHERE canvas = ?').get(name), meta, 'nor its Library order');
 });
 
+test('open_count (toolbar badge, owner 2026-10-21): every open readable thread, past the 30-a-page list and under any Status filter', async t => {
+  const f = setup(t);
+  Object.assign(f.env, { COMMENT_CANVAS_10MIN: '100', COMMENT_PERSON_DAY: '100', COMMENT_CANVAS_DAY: '100' });
+  const { base } = await canvas(f);
+  const made = [];
+  for (let i = 0; i < 32; i += 1) made.push((await start(f, base, 'ana', `thread ${i}`)).body.thread.id);
+  assert.equal((await comments(f, 'POST', `${base}/threads/${made[0]}/resolve`, { as: 'ana' })).status, 200);
+  const open = await comments(f, 'GET', `${base}/threads`, { as: 'ben' });
+  assert.deepEqual([open.body.threads.length, open.body.open_count], [30, 31], 'one page, the true count');
+  assert.equal((await comments(f, 'GET', `${base}/threads?status=resolved`, { as: 'ben' })).body.open_count, 31, 'the Resolved filter keeps it');
+  assert.equal((await comments(f, 'GET', `${base}/threads?status=all&audience=public`, { as: 'ana' })).body.open_count, 31, 'and the audience filter');
+});
+
 test('unread: someone else posted after my last read; marking read clears it', async t => {
   const f = setup(t);
   const { base } = await canvas(f);
