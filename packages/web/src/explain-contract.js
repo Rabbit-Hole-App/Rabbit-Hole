@@ -92,6 +92,9 @@ const experiment = z.object({
   affects: z.array(id).min(1).max(32),
   contrasts: z.array(text(200).min(1)).min(1).max(8),
   dependsOn: z.array(id).max(8).default([]),
+  // Mirrors Lane B's gate (explain/b2-t26m2): an invariant experiment is valid only when its listed
+  // results stay the same and the card shows which setting is in effect.
+  invariant: z.boolean().optional(),
 }).strict();
 export const explanationPresentationSchema = z.object({
   mode: z.enum(['static', 'steps', 'time']),
