@@ -255,12 +255,15 @@ async function probeEdge(page, card, title, label, side = 'right') {
     for (let y = g.header.bottom + 4; y < Math.min(box.y + box.height, g.strip?.y ?? Infinity) - 4; y += 24) bands.tools.push([g.surface.x + 4, y], [g.gutter.x + g.gutter.w / 2, y], [g.gutter.right - 4, y]);
     for (const [name, points] of Object.entries(bands)) {
       let probed = 0, drawn = 0;
+      const missed = [];
       for (const [x, y] of points) {
         if (x < box.x + 2 || x > box.x + box.width - 2 || y < box.y + 2 || y > box.y + box.height - 2 || inside(controls, x, y, 4)) continue;
         probed += 1;
-        if (await page.evaluate(([px, py, t]) => !!document.elementFromPoint(px, py)?.closest('[data-block-id]')?.textContent?.includes(t), [x, y, widest.block.title])) drawn += 1;
+        // The element that took the point is named, so a miss says what covers the card there.
+        const hit = await page.evaluate(([px, py, t]) => { const el = document.elementFromPoint(px, py); return el?.closest('[data-block-id]')?.textContent?.includes(t) ? null : `${el?.tagName?.toLowerCase()}${[...(el?.attributes || [])].filter(a => a.name.startsWith('data-') || a.name === 'role' || a.name === 'aria-label').map(a => `[${a.name}=${a.value}]`).join('')} in ${el?.closest('[data-gutter-top],[data-tool-gutter],[data-canvas-header],[data-canvas-bottom]')?.outerHTML?.slice(0, 60) ?? 'the page'}`; }, [x, y, widest.block.title]);
+        if (hit) missed.push(`(${Math.round(x)},${Math.round(y)}) ${hit}`); else drawn += 1;
       }
-      if (!probed || drawn < probed) fail(`desktop: under the ${name} ${name === 'header' ? 'row' : 'column'} only ${drawn}/${probed} points beside the controls reach the card ${JSON.stringify(round(box))}`);
+      if (!probed || drawn < probed) fail(`desktop: under the ${name} ${name === 'header' ? 'row' : 'column'} only ${drawn}/${probed} points beside the controls reach the card ${JSON.stringify(round(box))}; not the card at ${missed.join('; ')}`);
       results[`${name}Band`] = { probed, drawn };
     }
     await page.screenshot({ path: `${OUT}/desktop-card-under-header-and-tools.png` });
