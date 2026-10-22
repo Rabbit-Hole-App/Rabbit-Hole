@@ -117,7 +117,7 @@ test('a duration change sends the whole Motion settings with audio false', () =>
   // The settings and each declared field are component elements (MOT-20b: fields from proposal-rules.js): render each as a
   // probe in turn to reach the duration select.
   let select = null;
-  const open = element => { const Inner = () => { const t = element.type(element.props); select ||= find(t, n => n.props?.['data-proposal-duration']); if (!select) { const field = find(t, n => typeof n.type === 'function' && n.props?.f?.kind === 'seconds'); if (field) open(field); } return t; }; B.renderToStaticMarkup(B.createElement(Inner)); };
+  const open = element => { const Inner = () => { const t = element.type(element.props); select ||= find(t, n => n.props?.['data-proposal-duration']); if (!select) { const field = find(t, n => typeof n.type === 'function' && n.props?.f?.type === 'integer'); if (field) open(field); } return t; }; B.renderToStaticMarkup(B.createElement(Inner)); };
   open(settings);
   select.props.onChange({ target: { value: '25' } });
   assert.deepEqual(changes, [{ duration_seconds: 25, audio: false }]);

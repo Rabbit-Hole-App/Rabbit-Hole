@@ -21,11 +21,11 @@ const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 // Which commands are proposed first, and the card's fields (proposal-rules.js, shared with the web). A proposed command also
 // needs its settings validator below.
 export { PROPOSAL_RULES, reviewRequired } from './proposal-rules.js';
-import { PROPOSED } from './proposal-rules.js';
+import { PROPOSAL_SETTINGS, PROPOSED } from './proposal-rules.js';
 export const WIRED = PROPOSED;
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
-export const MOTION_DURATION = Object.freeze({ min: 5, max: 30 });
+export const MOTION_DURATION = Object.freeze({ min: PROPOSAL_SETTINGS.motion.duration_seconds.min, max: PROPOSAL_SETTINGS.motion.duration_seconds.max }); // the declaration's bounds
 const SETTINGS = {
   motion(value) {
     if (!plain(value)) return { error: 'settings must be {duration_seconds, audio}' };

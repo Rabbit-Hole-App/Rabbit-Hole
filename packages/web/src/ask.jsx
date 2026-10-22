@@ -39,7 +39,8 @@ import { GenerationIndicator, useGenerationWatch } from './ChatOutputs.jsx';
 import { CadReview } from './CadReview.jsx';
 import { openOnce } from './learn-opening.js';
 import { lateEvent, settle, withAnswerMeta, withDone } from './chat-threads.js';
-import { currentProposal } from './generation-proposal-chat.js';
+import { currentProposal, routeChat, routeOutcome } from './generation-proposal-chat.js';
+import RouteDecision from './RouteDecision.jsx';
 import { newThreadId, turnSaver } from './chat-persist.js';
 import { askMode, tutorTurn } from './chat-route.js';
 import { TutorCoaching, openGuided } from './use-learn-coaching.jsx';
@@ -342,6 +343,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   // A guided Rabbit Hole opening that coaching may not send here (owner 4a): shown above the composer, sent only on the learner's press.
   const [waitingOpening, setWaitingOpening] = useState(null);
   const [choices, setChoices] = useState(null); // { message, candidates }
+  // CR-1's route decision shown above the composer (RouteDecision.jsx): { kind, message, options?, retryable?, raw }.
+  const [routeShown, setRouteShown] = useState(null);
   const [file, setFile] = useState(null); // one attachment per question
   const [mentions, setMentions] = useState([]); // @app chips
   const [plusOpen, setPlusOpen] = useState(false);
@@ -494,7 +497,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
   useEffect(() => { if (chatThread) chatThread.restore.messages = msgs; }, [msgs]); // eslint-disable-line react-hooks/exhaustive-deps
   // prompted: raw is a command's prompt coming back from LearnSlash (onPrompt), the chat turn itself. Answers false when it
   // refuses that turn, so LearnSlash gives the line back with an error instead of losing it.
-  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false } = {}) => {
+  const send = async (raw, scopeOverride, { opening = false, skipJourney = false, command: commandName = null, regenerate = null, prompted = false, about = null, keepDraft = false, routeAs = null } = {}) => {
     // A chosen command pill sends exactly "/command text" and a typed /command replaces the pill (learn-slash.js commandLine);
     // LearnSlash runs it and the slot goes back to "/". The composer shows the line until it runs, so a line LearnSlash holds
     // while another command runs is still there to release (releaseLine).
@@ -538,6 +541,7 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
     const message = [...mentions.map((m) => `@${m}`), raw.trim()].filter(Boolean).join(' ');
     // A refused turn leaves no /deeper or /simplify waiting for the next one (LearnTutor slash).
     if (!message || busy) { tutor?.slash?.(null); return false; }
+    setRouteShown(null);
     // The main composer starts a new block; the sheet keeps its own thread.
     // A journey in setup (intake, diagnostic, path review) gets no permanent card before its path is accepted: the
     // Tutor's answer stays in the sheet, even about a selected card, and opens no reader on the canvas.
@@ -749,6 +753,21 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         threadId.current = d.threadId;
         setThreads((ts) => [d.thread, ...ts.filter((t) => t.id !== d.threadId)]);
         return;
+      }
+      // CR-1 (chat-route-interface.md): a plain Chat turn first asks the server which capability it is; explicit commands, Tutor
+      // turns, regenerations and attachments never do (zero router calls). Only a decided answer or proposal is sent (a proposal
+      // with its route_token); a direct capability runs its own command; anything else gives the words back with the decision.
+      if (chat && learnChat && !tocView && !privateChat && !attached && !regenerate && !prompted && !commandName && !isDemo && payload.mode !== 'tutor' && routeAs !== 'answer') {
+        const outcome = routeOutcome(await routeChat((url, init) => fetch(url, { ...init, headers: { ...init.headers, ...wsHeaders() }, signal: flight.signal }), payload, { capability: routeAs }));
+        if (late()) return;
+        if (!outcome.send) {
+          setMsgs(m => m.slice(0, -2)); // no turn happened: the decision replaces it
+          if (outcome.direct && slashRef.current?.intercept(`/${outcome.direct.command} ${outcome.direct.args}`.trim())) return;
+          setInput(current => current || raw);
+          setRouteShown({ ...(outcome.show || { kind: 'unsupported', message: 'That isn\'t available here.' }), raw });
+          return;
+        }
+        if (outcome.token) payload.route_token = outcome.token;
       }
       let r;
       if (attached) {
@@ -1185,6 +1204,8 @@ export function AskPanel({ scope, appName = null, placeholder = 'Ask anything…
         {!tocView && <GenerationIndicator entries={generation.entries} ops={outputOps} onDismiss={generation.dismiss} />}
         {/* A /cad request's design brief to approve before anything is generated (CAD_BRIEF_FIRST; CadReview.jsx). */}
         {!tocView && <CadReview ops={workspace?.canvasOps} />}
+        {routeShown && <RouteDecision decision={routeShown} onDismiss={() => setRouteShown(null)} onChoose={id => send(routeShown.raw, undefined, { routeAs: id })}
+          onAnswer={() => send(routeShown.raw, undefined, { routeAs: 'answer' })} onRetry={() => send(routeShown.raw)} />}
         {slash && <div className="relative"><slash.Picker apiRef={slashRef} onRun={recordCommand} composerRef={inputRef} input={input} setInput={setComposerInput} target={canvasTarget} run={slash.run} onFinder={keepDraft} onFocusBlock={slash.focusBlock} onPrompt={prompt => send(prompt, undefined, { skipJourney: true, command: promptCommand.current, prompted: true })} onHelp={slash.onHelp && (() => { setComposerInput(''); slash.onHelp(); })} /></div>}
         {(dock || chat) && voice?.state === 'off' && voice.caption?.error && <div role="alert" data-voice-error className="mb-1.5 truncate text-xs text-fail">{voice.caption.error}</div>}
         <ChatComposer value={input} onChange={value => { boardContext?.pause(); setComposerInput(value); }} onSubmit={send} ready={!!command} token={commandToken}

@@ -16,13 +16,15 @@ export const PROPOSAL_RULES = Object.freeze({
 export const reviewRequired = command => PROPOSAL_RULES[command] === 'always';
 export const PROPOSED = Object.freeze(Object.keys(PROPOSAL_RULES).filter(reviewRequired));
 
-// The card's settings fields per capability, in order. seconds: a choice of whole seconds from min to max in steps of step
-// (plus the proposal's own value); toggle: Off and On, where `unavailable` says why On cannot be chosen yet. A capability
-// without a field shows none: no duration or audio where it does not support them.
-export const PROPOSAL_FIELDS = Object.freeze({
-  motion: Object.freeze([
-    Object.freeze({ key: 'duration_seconds', kind: 'seconds', label: 'Duration', min: 5, max: 30, step: 5 }),
-    Object.freeze({ key: 'audio', kind: 'toggle', label: 'Audio', unavailable: 'Narration coming soon' }),
-  ]),
+// The card's settings per capability, in CR-1's declaration shape (chat-route-interface.md section 6, CHAT_CAPABILITIES[id].settings):
+// { key: { type: 'integer', min, max, step, unit, label } | { type: 'boolean', available, unavailable, label } }, in order.
+// integer: a choice of min..max in steps (plus the proposal's own value); boolean: Off and On, never editable while
+// available is false (unavailable says why). A capability without settings shows none: no duration or audio where unsupported.
+export const PROPOSAL_SETTINGS = Object.freeze({
+  motion: Object.freeze({
+    duration_seconds: Object.freeze({ type: 'integer', min: 5, max: 30, step: 5, unit: 's', label: 'Duration' }),
+    audio: Object.freeze({ type: 'boolean', available: false, unavailable: 'Narration coming soon', label: 'Audio' }),
+  }),
 });
-export const proposalFields = command => PROPOSAL_FIELDS[command] || [];
+// -> [{ key, ...field }] in declaration order; [] for a capability without settings.
+export const proposalFields = command => Object.entries(PROPOSAL_SETTINGS[command] || {}).map(([key, field]) => ({ key, ...field }));

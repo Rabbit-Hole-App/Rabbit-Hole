@@ -36,3 +36,32 @@ const ADAPTERS = {
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // The card a proposal already made, so a second press (or a reload) finds it instead of adding another.
 export const madeFrom = proposalId => block => block?.operation?.proposal?.proposal_id === proposalId;
+
+// ---- CR-1's route decision (C:/s/spec/day-1021/chat-route-interface.md): the call a plain chat turn makes before it is sent ----
+// The bound fields are read from the ask's own payload, so the ask sends them unchanged. -> the decision, or null where the
+// route endpoint is not deployed (the turn is sent as today).
+export async function routeChat(fetcher, payload, { capability = null, requestId = crypto.randomUUID() } = {}) {
+  const body = { request_id: requestId, app: payload.scope?.app, pending: payload.scope?.pending ?? null, text: payload.message, capability,
+    mode: payload.mode ?? 'auto', selection: payload.canvas_target ?? null, source_refs: payload.context_refs ?? null, motion: payload.generation?.motion ?? null };
+  let response;
+  try { response = await fetcher('/api/learn/chat/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
+  catch { return { route: 'answer', via: 'fallback', retryable: true, code: 'unavailable', message: ROUTE_FAILED }; }
+  if (response.status === 404) return null;
+  const decision = await response.json().catch(() => null);
+  if (!response.ok || !decision?.route) return { route: 'answer', via: 'fallback', retryable: true, code: 'malformed', message: decision?.error || ROUTE_FAILED };
+  return decision;
+}
+export const ROUTE_FAILED = 'Couldn\'t check whether this asks for a video or another tool. Answer normally, or try again.';
+// What the Chat does with a decision. send: the turn goes on (with the token a proposal needs); direct: the command's own
+// handler, as if picked; show: clarification, unsupported or a router failure above the composer, the draft kept, no turn.
+// Never a paid capability on a failure: a fallback is shown, not answered silently.
+export function routeOutcome(decision) {
+  if (!decision) return { send: true, token: null };
+  if (decision.route === 'answer' && decision.via === 'fallback') return { show: { kind: 'fallback', message: decision.message || ROUTE_FAILED, retryable: decision.retryable !== false } };
+  if (decision.route === 'answer') return { send: true, token: null };
+  if (decision.route === 'clarify') return { show: { kind: 'clarify', message: decision.clarification?.question || 'Which did you mean?', options: decision.clarification?.options || ['answer'] } };
+  if (decision.route === 'unsupported') return { show: { kind: 'unsupported', message: decision.message || 'That isn\'t available here.' } };
+  const capability = decision.capability || String(decision.route).replace(/^capability:/, '');
+  if (decision.flow === 'proposal') return decision.token ? { send: true, token: decision.token } : { show: { kind: 'fallback', message: ROUTE_FAILED, retryable: true } };
+  return { direct: { command: capability, args: String(decision.args ?? '') } };
+}

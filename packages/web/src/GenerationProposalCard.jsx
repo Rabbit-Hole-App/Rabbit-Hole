@@ -8,11 +8,11 @@ import { Button, Tip, cn } from './ui.jsx';
 
 // The card's fields come from the capability's declaration (proposal-rules.js proposalFields, MOT-20b): no capability has a
 // settings component of its own, and one without a field shows none.
-const MOTION_SECONDS = proposalFields('motion').find(f => f.kind === 'seconds');
+const MOTION_SECONDS = proposalFields('motion').find(f => f.type === 'integer');
 // A seconds field's choices: min to max in steps, plus the proposal's own value when the model chose another second.
 export function durationOptions(current, f = MOTION_SECONDS) {
   const steps = [];
-  for (let s = f.min; s <= f.max; s += f.step) steps.push(s);
+  for (let s = f.min; s <= f.max; s += f.step || 1) steps.push(s);
   return [...new Set([...steps, ...(Number.isInteger(current) ? [current] : [])])].sort((a, b) => a - b);
 }
 
@@ -50,21 +50,21 @@ function ToggleField({ f, value, disabled, onChange }) {
       <span id={labelId}>{f.label}</span>
       <div role="group" aria-labelledby={labelId} className="inline-flex overflow-hidden rounded-md border border-line">
         {button('off', 'Off', { disabled })}
-        {f.unavailable
-          ? <Tip label={f.unavailable} align="end">{button('on', 'On', { disabled: true, title: f.unavailable })}</Tip>
+        {f.available === false
+          ? <Tip label={f.unavailable || 'Not available yet'} align="end">{button('on', 'On', { disabled: true, title: f.unavailable || 'Not available yet' })}</Tip>
           : button('on', 'On', { disabled })}
       </div>
     </div>
   );
 }
 
-const FIELDS = { seconds: SecondsField, toggle: ToggleField };
+const FIELDS = { integer: SecondsField, boolean: ToggleField };
 function Settings({ command, settings, disabled, onChange }) {
-  const fields = proposalFields(command).filter(f => FIELDS[f.kind]);
+  const fields = proposalFields(command).filter(f => FIELDS[f.type]);
   if (!fields.length) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-proposal-settings={command}>
-      {fields.map(f => { const Field = FIELDS[f.kind]; return <Field key={f.key} f={f} value={settings?.[f.key]} disabled={disabled} onChange={value => onChange({ ...settings, [f.key]: value })} />; })}
+      {fields.map(f => { const Field = FIELDS[f.type]; return <Field key={f.key} f={f} value={settings?.[f.key]} disabled={disabled} onChange={value => onChange({ ...settings, [f.key]: value })} />; })}
     </div>
   );
 }
