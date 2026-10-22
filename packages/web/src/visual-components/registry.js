@@ -12,6 +12,7 @@ import patternStack from './components/pattern-stack.js';
 import routerExperts from './components/router-experts.js';
 import section from './components/section.js';
 import stack from './components/stack.js';
+import stateSpaceBlock from './components/state-space-block.js';
 
 const REGISTRY = new Map();
 
@@ -23,7 +24,7 @@ export function register(definition) {
   return checked;
 }
 
-for (const definition of [section, module, stack, flow, callout, legend, patternStack, attentionFanout, attentionSteps, routerExperts]) register(definition);
+for (const definition of [section, module, stack, flow, callout, legend, patternStack, attentionFanout, attentionSteps, routerExperts, stateSpaceBlock]) register(definition);
 
 export function componentFor(name, version) {
   const found = REGISTRY.get(`${name}@${version}`);
