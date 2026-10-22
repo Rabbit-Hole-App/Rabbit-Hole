@@ -98,14 +98,7 @@
     "refOn": "Grey bob = 1.00 m reference, period 2.01 s.",
     "refOff": "Reference bob hidden.",
     "refVisible": 1,
-    "refHidden": 0,
-    "periodLabels": [
-     "1.00",
-     "1.42",
-     "2.01",
-     "2.84",
-     "4.01"
-    ]
+    "refHidden": 0
    },
    "derived": {
     "L": {
@@ -171,13 +164,6 @@
       "compare",
       "refVisible",
       "refHidden"
-     ]
-    },
-    "Tlabel": {
-     "op": "pick",
-     "args": [
-      "periodLabels",
-      "len"
      ]
     }
    },
@@ -343,7 +329,7 @@
      "id": "result",
      "type": "text",
      "initialState": {
-      "text": "T = {{Tlabel}} s per full back-and-forth swing",
+      "text": "T = {{T}} s per full back-and-forth swing",
       "x": 450,
       "y": 400,
       "typography": "heading",

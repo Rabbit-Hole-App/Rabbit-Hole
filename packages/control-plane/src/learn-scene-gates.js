@@ -56,7 +56,6 @@ const HINTS = [
   [/lands its arrowhead .* inside the label/, 'end the arrow at least 12px clear of that label, or move the label'],
   [/non-zero entries there/, 'make the sentence and the drawn entries agree: derive the count with sum over the 0/1 list and print it with {{name}}, or correct the stored list'],
   [/non-zero entries at \d+\.\.-?\d+ there/, 'work that setting out again, then make the stored list and the sentence name the same cells'],
-  [/prints a whole number beside decimals/, 'store the readout as a list of strings at one precision (["1.00", "1.42"]), pick it with the same input and print that with {{name}}; keep the number list for bars and calculations'],
   [/writes ".*", (but|which is false)/, 'compute the result with a derived op (sub, add, scale, sum) and print it with {{name}}, correct the stored numbers, or say it without a calculation'],
 ];
 
@@ -135,33 +134,6 @@ function drawnEntriesProblem(name, series) {
   }
   return null;
 }
-// A number list keeps no trailing zeros (owner follow-up 2026-10-21, "Period T = 1 s"): a text {{marker}} that picks from
-// [1, 1.42, 2.01] prints "1" at one setting and "1.42" at the next. The renderer prints a number as JSON holds it, so the
-// readout has to be stored as text. Only a few whole numbers among decimals all written to one precision read as a dropped
-// precision: a halving list (80, 40, 20, 10, 5, 2.5, 1.25) is whole numbers that happen to end in fractions.
-const places = n => (String(n).split('.')[1] || '').length;
-const wholeAmongDecimals = list => {
-  if (!Array.isArray(list) || !list.every(Number.isFinite)) return false;
-  const fractions = list.filter(n => !Number.isInteger(n));
-  const wholes = list.length - fractions.length;
-  return wholes > 0 && wholes < fractions.length && new Set(fractions.map(places)).size === 1;
-};
-function mixedPrecisionProblem(scene) {
-  const data = scene.exampleData || {};
-  const source = name => {
-    const spec = scene.derived?.[name];
-    if (spec?.op === 'pick' && typeof spec.args[0] === 'string') return spec.args[0];
-    return !spec && name.includes('.') ? name.slice(0, name.lastIndexOf('.')) : null;
-  };
-  for (const object of scene.objects || []) {
-    const text = object?.initialState?.text;
-    for (const [, name] of typeof text === 'string' ? text.matchAll(/\{\{([\w.]+)\}\}/g) : []) {
-      const list = source(name) && data[source(name)];
-      if (wholeAmongDecimals(list)) return `"${object.id}" prints {{${name}}} from "${source(name)}" (${list.slice(0, 4).join(', ')}): it prints a whole number beside decimals ("${list.find(Number.isInteger)}" next to "${list.find(n => !Number.isInteger(n))}")`;
-    }
-  }
-  return null;
-}
 const hinted = message => { const hint = HINTS.find(([pattern]) => pattern.test(message)); return hint ? `${message}. Fix: ${hint[1]}` : message; };
 
 const where = inputs => {
@@ -184,8 +156,6 @@ function firstProblem(scene) {
   }
   const space = spaceProblem(scene);
   if (space) return space;
-  const precision = mixedPrecisionProblem(scene);
-  if (precision) return precision;
   const legibility = (() => { try { return legibilityIssues(scene); } catch { return []; } })();
   const series = new Map(); // each line of settings along one control, its first setting first: what drawnEntriesProblem compares
   for (const inputs of inputStates(scene)) {

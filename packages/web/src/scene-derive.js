@@ -341,8 +341,9 @@ const usesDeriveMarker = ({ cellHighlight: _selection, ...node } = {}) => /"\$de
 // cellPool: where a data cell's `values` resolve from - the canonical pool
 // (see canonical above); everything else reads `pool`.
 // math: inside an equation object, whose text is TeX (groupDigits' {,}).
-function walk(node, pool, cellPool = pool, math = false) {
-  if (Array.isArray(node)) return node.map(entry => walk(entry, pool, cellPool, math));
+// places: the decimals a text marker's whole number is printed to (see dropped).
+function walk(node, pool, cellPool = pool, math = false, places = {}) {
+  if (Array.isArray(node)) return node.map(entry => walk(entry, pool, cellPool, math, places));
   if (node && typeof node === 'object') {
     if (typeof node.$derive === 'string' && Object.keys(node).length === 1) {
       const value = lookupPath(pool, node.$derive);
@@ -351,7 +352,7 @@ function walk(node, pool, cellPool = pool, math = false) {
     }
     const out = {};
     for (const [key, value] of Object.entries(node)) {
-      const resolved = key === 'values' ? walk(value, cellPool, cellPool) : walk(value, pool, cellPool, math);
+      const resolved = key === 'values' ? walk(value, cellPool, cellPool) : walk(value, pool, cellPool, math, places);
       // A grid or strip's `values` is always the flat array the schema
       // expects; a matmul's own shape is two-dimensional, so it is flattened
       // row-major exactly here, the one place a derived value ever meets it.
@@ -364,7 +365,11 @@ function walk(node, pool, cellPool = pool, math = false) {
       const value = lookupPath(pool, name);
       if (value === undefined) throw new Error(`"{{${name}}}" names no entry in the scene's "derived" block (or "exampleData")`);
       if (Array.isArray(value)) throw new Error(`"{{${name}}}" resolves to a list, not a number - reference it as a value instead of inside text`);
-      return typeof value === 'number' && !writtenRaw(node, at, at + marker.length) ? groupDigits(value, math ? '{,}' : ',') : String(value);
+      if (typeof value !== 'number') return String(value);
+      // A whole number read out of a list written to N decimals lost its zeros in JSON (1.00 is stored as 1): print it at N.
+      const shown = Number.isInteger(value) ? places[name] ?? dropped(lookupPath(pool, name.split('.').slice(0, -1).join('.'))) : 0;
+      const text = shown ? value.toFixed(shown) : value;
+      return writtenRaw(node, at, at + marker.length) ? String(text) : groupDigits(text, math ? '{,}' : ',');
     });
   }
   return node;
@@ -435,9 +440,25 @@ export function buildPool(raw, fit = round) {
   return pool;
 }
 
+// The decimals a number list's whole entries lost: a few whole numbers among fractions that all share one place count
+// ([1, 1.42, 2.01] -> 2). 0 otherwise - an all-integer list, or a halving series (80, 40, ... 2.5, 1.25) whose fractions
+// differ in length and whose whole numbers are the majority.
+export function dropped(list) {
+  if (!Array.isArray(list) || !list.length || !list.every(n => typeof n === 'number' && Number.isFinite(n) && !/e/i.test(String(n)))) return 0;
+  const fractions = list.filter(n => !Number.isInteger(n));
+  const wholes = list.length - fractions.length;
+  const lengths = new Set(fractions.map(n => String(n).split('.')[1].length));
+  return wholes > 0 && wholes < fractions.length && lengths.size === 1 ? [...lengths][0] : 0;
+}
+
 export function resolveDerived(raw) {
   const pool = buildPool(raw);
   const cellPool = buildPool(raw, canonical);
+  // A pick reads one entry of a list: its whole-number results print at the list's precision.
+  const places = {};
+  for (const [name, spec] of Object.entries(raw?.derived || {})) {
+    if (spec?.op === 'pick' && typeof spec.args?.[0] === 'string') places[name] = dropped(lookupPath(pool, spec.args[0]));
+  }
   const objects = (raw?.objects || []).map(object => {
     // An object may author no initialState at all - the schema defaults it
     // to {} at the zod stage, which runs after this - so the same default
@@ -445,7 +466,7 @@ export function resolveDerived(raw) {
     // provenance check below instead of passing through untouched.
     const authoredState = object.initialState || {};
     const usesDerive = usesDeriveMarker(authoredState);
-    const initialState = walk(authoredState, pool, cellPool, object.type === 'equation');
+    const initialState = walk(authoredState, pool, cellPool, object.type === 'equation', places);
     if (usesDerive) {
       // Earned, not claimed: a derived value stamps its own provenance so an
       // author cannot separately mark the same object illustrative or
@@ -464,7 +485,7 @@ export function resolveDerived(raw) {
     }
     return { ...object, initialState };
   });
-  const timeline = (raw?.timeline || []).map(event => walk(event, pool, cellPool));
+  const timeline = (raw?.timeline || []).map(event => walk(event, pool, cellPool, false, places));
   const { exampleData: _exampleData, derived: _derived, ...rest } = raw || {};
   return { ...rest, objects, timeline };
 }

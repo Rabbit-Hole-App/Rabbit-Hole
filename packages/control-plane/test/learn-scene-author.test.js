@@ -344,21 +344,3 @@ test('the verifier reads exactly the settings the gates check', () => {
   }
   assert.equal(cardAtSettings(SCENE_EXAMPLE).match(/^Setting /gm).length, 4);
 });
-
-test('a text readout picked from a number list mixing whole numbers and decimals is refused (owner follow-up: "Period T = 1 s")', () => {
-  const pendulum = JSON.parse(readFileSync(new URL('../../web/src/explain-examples/pendulum.json', import.meta.url), 'utf8')).block.scene;
-  assert.equal(sceneProblem(pendulum), null);
-  // The scene as the model first wrote it: periods [1, 1.42, ...] printed straight into the readout showed "T = 1 s".
-  const asWritten = structuredClone(pendulum);
-  asWritten.objects.find(object => object.id === 'result').initialState.text = 'T = {{T}} s per full back-and-forth swing';
-  assert.match(sceneProblem(asWritten), /^"result" prints \{\{T\}\} from "periods" \(1, 1\.42, 2\.01, 2\.84\): it prints a whole number beside decimals \("1" next to "1\.42"\)\. Fix: store the readout as a list of strings/);
-  // A dotted path into the same list is the same readout.
-  asWritten.objects.find(object => object.id === 'result').initialState.text = 'T = {{periods.0}} s';
-  assert.match(sceneProblem(asWritten), /prints \{\{periods\.0\}\} from "periods"/);
-  // A list of whole numbers alone (swings per minute) is one precision and passes, and so does a list that is mostly
-  // whole numbers (a halving series ending in 2.5).
-  asWritten.objects.find(object => object.id === 'result').initialState.text = 'About {{swings}} swings';
-  assert.equal(sceneProblem(asWritten), null);
-  asWritten.exampleData.swingsPerMinute = [80, 40, 20, 10, 2.5];
-  assert.equal(sceneProblem(asWritten), null);
-});
