@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { ArrowRight, ArrowUpRight, Search } from 'lucide-react';
 import { navigate } from './api.js';
 import { reviewTools } from './flags.js';
 import { browserOnly, openHref, readContinue, readRecent, recentCard, recentItems } from './home/continue.js';
 import LearningCard, { CARD_ROWS, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as AWAY, SortMenu } from './home/LearningCard.jsx';
-import { cardThumbnail } from './card-thumbnail.js';
+import { cardThumbnail, subscribeThumbnails, thumbnailBumps } from './card-thumbnail.js';
 import PublicCards, { CreatorCards, ProjectCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
 import { appPick } from './agent/surface.js';
@@ -34,6 +34,7 @@ export default function Home() {
 }
 
 function HomeContent({ data, load }) {
+  useSyncExternalStore(subscribeThumbnails, thumbnailBumps); // a canvas's new picture landed: its card loads it (card-thumbnail.js)
   const ready = data && !data.error;
   const apps = ready ? data.apps : [];
   const recent = readRecent(localStorage);

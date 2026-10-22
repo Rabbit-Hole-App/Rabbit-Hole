@@ -10,9 +10,13 @@ export const COVER_LIMIT = 10 * 1024 * 1024;
 const COVER_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 
 // A changed thumbnail gets a new address in this page, so a card that showed the old one loads the new one at once; a
-// fresh page revalidates by ETag (private, no-cache).
-const versions = new Map();
-export const bumpThumbnail = name => versions.set(name, Date.now());
+// fresh page revalidates by ETag (private, no-cache). A page already showing the cards (Home, the Library) re-renders on a
+// bump through subscribeThumbnails: the snapshot taken on leaving a canvas lands after Home has drawn its cards.
+const versions = new Map(), listeners = new Set();
+let bumps = 0;
+export const bumpThumbnail = name => { versions.set(name, Date.now()); bumps += 1; listeners.forEach(fn => fn()); };
+export const subscribeThumbnails = fn => { listeners.add(fn); return () => listeners.delete(fn); };
+export const thumbnailBumps = () => bumps;
 export const ownThumbnail = name => `/api/learn/boards/${encodeURIComponent(name)}/main/thumbnail${versions.has(name) ? `?v=${versions.get(name)}` : ''}`;
 // Your own card's picture (Home, the Library): a canvas or project, never a review fixture or an archived canvas (the
 // server shows those to nobody) or a canvas you cannot edit.
@@ -119,8 +123,9 @@ export async function drawThumbnail(node, region) {
 // One snapshot per pause in saving (owner: "taken in the browser when it saves", never on every keystroke). `saved(text)`
 // after each board save that changed its content; the capture runs `delay` ms after the last one, at most once per `gap`,
 // and only for content that differs from the last snapshot sent. A capture with nothing to draw (null) counts as sent.
-// ponytail: a change made in the last `delay` before leaving the canvas waits for the next save there; drawing needs the
-// canvas on screen. Flush on leave if stale cards are reported.
+// `flush(text)` on leaving the canvas, while it is still on screen: a change not yet in a snapshot (saved, or `text`, the
+// board as its waiting save will send it) is drawn now, past `delay` and `gap`, so Home and other devices never keep the
+// old picture (owner follow-up 5, 2026-10-21).
 export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000, now = () => Date.now(), timers = globalThis }) {
   let timer = null, pending = null, sent = null, last = -Infinity, busy = false;
   const schedule = wait => { timers.clearTimeout(timer); timer = timers.setTimeout(run, wait); };
@@ -141,6 +146,13 @@ export function thumbnailScheduler({ capture, upload, delay = 4000, gap = 30000,
   return {
     saved(text) { pending = text; if (!busy) schedule(delay); },
     stop() { timers.clearTimeout(timer); timer = null; },
+    flush(text = pending) {
+      timers.clearTimeout(timer); timer = null;
+      if (text == null || text === sent) return;
+      pending = text; last = -Infinity;
+      // shortcut: a capture already running when the canvas closes is the last one; flush during it if cards stay stale.
+      if (!busy) return run();
+    },
   };
 }
 

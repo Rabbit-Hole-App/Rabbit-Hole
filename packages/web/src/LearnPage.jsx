@@ -1381,6 +1381,16 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     fetch(`${boardPath}/thumbnail`, { method: 'HEAD', credentials: 'same-origin' }).then(r => { if (r.status === 204) scheduler.saved('none yet'); }, () => {});
     return () => { scheduler.stop(); if (thumbs.current === scheduler) thumbs.current = null; };
   }, [boardPath]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Leaving the canvas (back to Home): its last change is drawn now, in a layout cleanup, which runs while the canvas is
+  // still in the page (a passive one runs after it is gone). A save still waiting its 1.5 s goes up after this; its board
+  // is what the picture shows.
+  const leaveThumb = useRef(null);
+  leaveThumb.current = () => {
+    let text;
+    try { text = boardText(boardSnapshot()); } catch { /* no readable copy: only a save already made is drawn */ }
+    thumbs.current?.flush(boardLoaded.current && text !== boardSynced.current ? text : undefined);
+  };
+  useLayoutEffect(() => () => leaveThumb.current(), []);
   const pushTimer = useRef(null);
   // One PUT of this browser's board, run inside pushQueue: based on the version the server last answered, or 0 when it
   // had none (so a row made meanwhile elsewhere is a 409, never overwritten); none at all when the server already holds
