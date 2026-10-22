@@ -63,6 +63,8 @@ const router = async route => {
   }
   if (method === 'GET' && path === '/api/learn/context' && failLists) { failedReads.push(url.search); return route.fulfill({ status: 500, json: { error: 'The list is unavailable' } }); }
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path) && method !== 'GET') return route.fulfill({ json: { ok: true } });
+  // Reads go through, as in context-remove-check: a GET (the Journey state, a list) calls no model; model-capable calls are writes.
+  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return route.fallback();
   if (MODEL.test(path)) { refused.push(`${method} ${path}`); return route.abort(); }
   return route.fallback();
 };
