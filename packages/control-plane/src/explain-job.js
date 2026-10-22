@@ -16,6 +16,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { authorizedBoardApp } from './learn-board.js';
 import { tutorImageContext } from './learn-image-context.js';
+import { resolveExplainRefs } from './explain-context-refs.js';
 import { anthropic } from './ask.js';
 import { costUsd, MESSAGE_LIMIT } from './learn-models.js';
 import { spendTransport, spendEnforced, platformCaps } from './learn-spend.js';
@@ -171,6 +172,13 @@ export async function explainRoute(path, req, env, deps = {}) {
     await learnMedia(env).put(key, JSON.stringify({ mediaType: image.source.media_type, data: image.source.data }), { httpMetadata: { contentType: 'application/json' } });
     body.reference = { key, role: 'layout_reference', mediaType: image.source.media_type };
   }
+  // EXP-T20 slice 3: the Chat's pinned and temporary refs, read here under this canvas's authorization, never the browser's text.
+  if (action === 'create' && body.context_refs != null) {
+    let got;
+    try { got = await resolveExplainRefs(req, env, { user, board }, body.context_refs); } catch (error) { return json({ error: error.message }, error.status || 400); }
+    body.context = { ...(body.context && typeof body.context === 'object' ? body.context : {}), refs: got.refs, ...(got.text ? { refText: got.text } : {}) };
+  }
+  delete body.context_refs;
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
