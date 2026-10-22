@@ -27,10 +27,11 @@ export const forkDraft = draft => (draft ? { base_version: draft.base_version ??
 // The page's handle on it. `state`: the draft board to mount (null: mount the source); `edited`: an edit was made in this
 // tab (also a kept draft back after sign-in or a reload); `save`: AdaptiveCanvas onSave; `forDraft`: ForkButton draft.
 export function useGuestDraft(token, version, { enabled = true, storage = () => sessionStorage } = {}) {
-  const [kept] = useState(() => (enabled ? loadGuestDraft(storage, token) : null));
+  // Read once on the first render, before the page knows `enabled` (the shared board arrives later).
+  const [kept] = useState(() => loadGuestDraft(storage, token));
   const [edited, setEdited] = useState(!!kept);
   const save = useCallback(state => { if (enabled) { saveGuestDraft(storage, token, version, state); setEdited(true); } }, [enabled, token, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const forDraft = useCallback(() => (enabled ? forkDraft(loadGuestDraft(storage, token)) : null), [enabled, token]); // eslint-disable-line react-hooks/exhaustive-deps
   const clear = useCallback(() => { clearGuestDraft(storage, token); setEdited(false); }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { state: kept?.state || null, edited: enabled && edited, save, forDraft, clear };
+  return { state: enabled ? kept?.state || null : null, edited: enabled && edited, save, forDraft, clear };
 }
