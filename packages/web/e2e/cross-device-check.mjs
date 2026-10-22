@@ -193,7 +193,13 @@ await check('3 concurrent edits on A and B: the second gets the 409 message, ove
   let last = null;
   await until('the board settled with B open', async () => { const now = (await boardOf(C1.name)).version; await new Promise(r => setTimeout(r, 1500)); const settled = now === last; last = now; return settled; });
   await draw(A.page, 2);
-  const afterA = await until('A\'s stroke on the server', async () => { const b = await boardOf(C1.name); return b.state.strokes.length === 3 && b; });
+  await until('A\'s stroke on the server', async () => (await boardOf(C1.name)).state.strokes.length === 3);
+  // A's save stands once A stops saving: A can save again right after its stroke (fast-e2e 39733724666: A's stroke PUT 200
+  // at version 4, B's stale PUT 409, then another PUT 200 at version 5 with the same 3 strokes, no GET between that B could
+  // have learned version 4 from). The version B must not move is A's last one, so wait for it to hold, as above.
+  let lastA = null;
+  const afterA = await until('A\'s saves settled', async () => { const b = await boardOf(C1.name); await new Promise(r => setTimeout(r, 1500)); const settled = b.version === lastA; lastA = b.version; return settled && b; });
+  assert.equal(afterA.state.strokes.length, 3, 'A\'s stroke stays on the server');
   const puts = [];
   B.page.on('request', request => { if (request.method() === 'PUT' && new URL(request.url()).pathname === `/api/learn/boards/${C1.name}/main`) puts.push(Date.now()); }); // the board, not its files
   await draw(B.page, 3);
