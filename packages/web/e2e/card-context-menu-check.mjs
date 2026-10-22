@@ -305,11 +305,11 @@ await check('2b Rename (owner, 2026-10-21): right-click, Rename, type, Enter sav
 });
 await shot('01b-card-renamed');
 
-await check('2c Rename a group (owner, 2026-10-21): right-click its chip, Rename, the caret at the end, Enter saves and survives a reload; Escape cancels', async () => {
+await check('2c Rename a group (owner, 2026-10-21; UI-25 label Rename group): right-click its chip, Rename group, the caret at the end, Enter saves and survives a reload; Escape cancels', async () => {
   const chip = page.locator('[data-group-chip="g-1"]');
   const rename = () => menu().locator('[data-menu-rename-group]');
   await chip.click({ button: 'right' }); await menu().waitFor();
-  assert.equal((await rename().innerText()).trim(), 'Rename');
+  assert.equal((await rename().innerText()).trim(), 'Rename group');
   await rename().click();
   await page.waitForTimeout(250);
   await page.keyboard.type(' 2');

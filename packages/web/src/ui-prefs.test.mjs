@@ -86,6 +86,13 @@ test('View > Comments is remembered like the other View switches; the card menu 
   storage.setItem('rh.ui-prefs', JSON.stringify({ comments: false }));
   assert.equal(read(storage).comments, false);
   const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(canvas, /data-card-layout-toggle role=\"menuitemcheckbox\" aria-checked=\{supportsCardLayout\(block\) && block\.cardLayout\?\.mode === 'full'\}/);
-  assert.doesNotMatch(canvas, /data-card-layout-menu|role="menuitemradio"/);
+  // UI-25: the row is the action registry's (canvas-actions.js full-content), drawn checkable by CanvasMenu.jsx.
+  const menu = readFileSync(new URL('./CanvasMenu.jsx', import.meta.url), 'utf8');
+  const { COMMON_ACTIONS } = await import('./canvas-actions.js');
+  const full = COMMON_ACTIONS.find(entry => entry.id === 'full-content');
+  assert.deepEqual([full.label, full.data, typeof full.checked], ['Full content', 'data-card-layout-toggle', 'function']);
+  assert.equal(full.checked({ object: { cardLayout: { mode: 'full' } } }, { canvas: { fullContent: object => object?.cardLayout?.mode === 'full' } }), true);
+  assert.match(menu, /role=\{check \? 'menuitemcheckbox' : 'menuitem'\} aria-checked=\{check \? row\.checked : undefined\}/);
+  assert.match(canvas, /fullContent: object => object\?\.cardLayout\?\.mode === 'full',/);
+  assert.doesNotMatch(canvas + menu, /data-card-layout-menu|role="menuitemradio"/);
 });

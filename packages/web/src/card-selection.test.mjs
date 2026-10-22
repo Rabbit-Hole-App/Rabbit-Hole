@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { openTarget, opensFrom, selectedCardContext } from './card-open.js';
 import { canvasTargetField, describeCanvasObject } from './learn-ask-target.js';
+import { COMMON_ACTIONS } from './canvas-actions.js';
+import { TYPE_ACTIONS } from './canvas-actions-types.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const everything = { dive: true, readers: true };
@@ -177,27 +179,30 @@ test('Open in notebook is a compact icon button on every code card, named Open i
 // and the page's Edit menu, and asks the editor to open in Edit selection mode (the inline editor's open path takes the mode).
 test('the Ctrl+K menu rows read Quick Edit and open in Edit mode', () => {
   const canvas = read('./AdaptiveCanvas.jsx'), page = read('./LearnPage.jsx');
-  assert.match(canvas, /data-menu-inline-ai hint="Ctrl K" disabled=\{!selection\.length\} onClick=\{act\(\(\) => openInline\(performance\.now\(\), false, 'edit'\)\)\}>Quick Edit<\/MenuRow>/);
+  // UI-25: the canvas menu's row is the registry's (canvas-actions.js), run through the canvas's own opener in Edit mode.
+  const quick = COMMON_ACTIONS.find(entry => entry.id === 'quick-edit');
+  assert.deepEqual([quick.label, quick.hint, quick.data], ['Quick Edit', 'Ctrl K', 'data-menu-inline-ai']);
+  assert.match(canvas, /quickEdit: inlineAi \? \(\) => openInline\(performance\.now\(\), false, 'edit'\) : null,/);
   assert.match(page, /\{ label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState\.selected \|\| !inlineAi, onSelect: \(\) => canvas\(\)\?\.inlineAi\?\.\('edit'\) \}/);
   assert.doesNotMatch(canvas + page, /Edit or explain/);
 });
 
 // Owner, 2026-10-08: "on card, when we right click we see Copy text, Duplicate etc... each options should have an icon next to it".
 test('the canvas right-click menu: every item is one MenuRow with its icon, on card, canvas, note and group menus alike', () => {
-  const canvas = read('./AdaptiveCanvas.jsx');
-  const menu = canvas.slice(canvas.indexOf('{menuAt && presenting === null && (() => {'), canvas.indexOf('})()}', canvas.indexOf('{menuAt && presenting === null && (() => {')));
+  // UI-25: the rows are the action registry's (canvas-actions.js), drawn by CanvasMenu.jsx as the ⋮ menu's MenuItem.
+  const menu = read('./CanvasMenu.jsx');
   assert.doesNotMatch(menu, /<button[^>]*role="menuitem"/, 'no bare row');
-  const rows = menu.match(/<MenuRow [^>]*>/g);
+  const rows = [...COMMON_ACTIONS, ...TYPE_ACTIONS];
   assert.ok(rows.length >= 20, `${rows.length} rows`);
-  for (const row of rows) assert.match(row, /icon=\{[A-Za-z]/, row);
+  for (const row of rows) assert.ok(row.icon, row.id);
   // The shared row: the ⋮ menu's MenuItem (16px, strokeWidth 1.5, text-ink-2), a menu item, dimmed when disabled.
-  assert.match(canvas, /const MenuRow = props => <MenuItem type="button" role="menuitem" \{\.\.\.props\} \/>;/);
+  assert.match(menu, /const MenuRow = props => <MenuItem type="button" role="menuitem" \{\.\.\.props\} \/>;/);
   const ui = read('./ui.jsx');
   assert.match(ui, /\{Icon && <Icon size=\{16\} strokeWidth=\{1\.5\} aria-hidden="true" className="shrink-0 text-ink-2 group-disabled:text-ink-3" \/>\}/);
   assert.match(ui, /disabled:cursor-default disabled:text-ink-3 disabled:hover:bg-transparent/);
   // The suggested marks where they apply: Start Rabbit Hole's own, Add comment, Copy text, Duplicate, Delete.
   for (const [label, icon] of [['Start Rabbit Hole', 'ArrowDownToLine'], ['Add comment', 'MessageCircle'], ['Copy text', 'Copy'], ['Duplicate', 'CopyPlus'], ['Delete', 'Trash2']]) {
-    const line = menu.split('\n').find(text => text.includes(`>${label}</MenuRow>`));
-    assert.ok(line?.includes(`icon={${icon}}`), `${label}: ${line?.trim().slice(0, 80)}`);
+    const row = rows.find(entry => entry.label === label || (label === 'Delete' && entry.id === 'delete'));
+    assert.equal(row?.icon, icon, label);
   }
 });
