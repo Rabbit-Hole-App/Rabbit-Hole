@@ -168,7 +168,11 @@ for (const n of SIZES) {
     const wheelBare = async dy => { const p = await barePoint(page); if (p) await page.mouse.move(p.x, p.y); await page.mouse.wheel(0, dy); await page.waitForTimeout(30); };
     for (let i = 0; i < 30 && (await tileState(page)).visible > 0; i += 1) await wheelBare(-800);
     await page.waitForTimeout(3000);
-    const away = await tileState(page);
+    // The release is 2 s after the last tile leaves, but the board thumbnail draw can stall the page thread past a fixed 3 s
+    // (card-thumbnail.js: about 1.2 s with 20 cards on CI): wait for the unload itself, up to 3 s more. A tile that is really
+    // stuck still fails at that ceiling, and the bound is unchanged (investigation 2026-10-22, tile-unload-investigation.md).
+    let away = await tileState(page);
+    for (const stop = Date.now() + 3000; away.mounted > away.bound && Date.now() < stop;) { await page.waitForTimeout(100); away = await tileState(page); }
     row.mountedAway = away.mounted;
     for (let i = 0; i < 60 && (await tileState(page)).visible === 0; i += 1) await wheelBare(400);
     await page.waitForTimeout(1500);
