@@ -433,3 +433,216 @@ test('switching off after a job was queued or admitted contacts no provider and 
   // Status still answers while off.
   assert.equal((await h.get(admitted.generationId)).status, 200);
 });
+
+// ---- No-spend fault injection (acceptance plan section 5): fixture transports and in-memory fakes only. ----
+
+const prefixOf = h => id => `file-sources/${h.job(id).sourceId}/original/`;
+
+test('retries stop at MAX_RETRIES with backoff 30 s x n capped at 600 s; the job then waits for retry-save, which re-arms it', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  const alarms = h.states.get(h.nameOf(generationId)).storage.alarms;
+  h.db.fail = text => text.startsWith('INSERT INTO file_sources'); // a permanent outage of the record step
+  for (let n = 1; n <= 20; n++) {
+    const before = alarms.length;
+    await h.alarm(generationId);
+    assert.equal(h.job(generationId).retries, n);
+    assert.equal(h.job(generationId).stage, 'stored');
+    if (n < 20) {
+      assert.equal(alarms.length, before + (n === 1 ? 2 : 1), `retry ${n} re-armed (the first alarm also armed the submit lease)`);
+      const wait = alarms.at(-1) - Date.now(), expected = Math.min(30000 * n, 600000);
+      assert.ok(wait <= expected && wait > expected - 5000, `retry ${n}: ${wait} ms, expected ${expected}`);
+    } else assert.equal(alarms.length, before, 'no alarm after the last retry');
+  }
+  assert.equal(h.calls.length, 1, 'the provider was contacted once, never again');
+  assert.equal(h.job(generationId).lastError, 'synthetic database outage');
+  assert.equal((await (await h.get(generationId)).json()).job.saveRetryable, true);
+  h.db.fail = () => false;
+  assert.equal((await h.get(generationId, '/retry-save')).status, 202);
+  assert.equal(h.job(generationId).retries, 0);
+  await h.alarm(generationId);
+  assert.equal(h.job(generationId).stage, 'ready');
+  assert.equal(h.calls.length, 1);
+});
+
+test('a database failure inside admitSpend: nothing reserved is refused with no provider contact; a commit whose answer was lost is found by the ledger row', async t => {
+  const down = harness(t);
+  const a = await down.create();
+  down.db.fail = text => text.startsWith('INSERT INTO usage_operations');
+  await down.alarm(a.generationId);
+  assert.equal(down.job(a.generationId).stage, 'refused');
+  assert.equal(down.job(a.generationId).reason, 'allowance_unavailable');
+  assert.equal(down.calls.length, 0);
+  assert.equal(ops(down).length, 0, 'the transaction rolled back');
+  // The batch commits, then the connection drops before the answer: admitSpend reports a refusal, the ledger row is the evidence.
+  const lost = harness(t);
+  const b = await lost.create();
+  const batch = lost.db.batch.bind(lost.db);
+  lost.db.batch = async statements => { await batch(statements); throw new Error('response lost'); };
+  await lost.alarm(b.generationId);
+  assert.equal(lost.job(b.generationId).stage, 'ready');
+  assert.equal(lost.calls.length, 1);
+  assert.equal(ops(lost).length, 1);
+  assert.equal(attempts(lost).length, 1);
+});
+
+test('a ledger row for this operation in any state but admitted fails the job without admitting again or contacting the provider', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  h.sqlite.prepare("INSERT INTO usage_operations (op_id, user_id, org, category, status, admitted_at, deadline_at, settled_at, cost_usd) VALUES (?, 'x', ?, 'image_generate', 'settled', 1, 2, 3, 0.01)").run(h.job(generationId).opId, OWNER.org);
+  await h.alarm(generationId);
+  assert.equal(h.job(generationId).stage, 'failed');
+  assert.equal(h.job(generationId).reason, 'ledger_state_unexpected');
+  assert.equal(h.calls.length, 0);
+  assert.equal(ops(h).length, 1);
+});
+
+test('partial settlement: the ledger row settled but the attempt row did not: only settlement is retried, the settled row is untouched', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  h.db.fail = text => text.startsWith('UPDATE usage_attempts SET status');
+  await h.alarm(generationId);
+  let job = h.job(generationId);
+  assert.equal(job.stage, 'ready');
+  assert.equal(job.settlement.done, false);
+  assert.equal(job.lastError, 'attempt not settled');
+  assert.equal(ops(h)[0].status, 'settled');
+  assert.equal(attempts(h)[0].status, 'running');
+  const settledOp = ops(h)[0];
+  h.db.fail = () => false;
+  await h.alarm(generationId);
+  job = h.job(generationId);
+  assert.equal(job.settlement.done, true);
+  assert.deepEqual(ops(h)[0], settledOp);
+  assert.notEqual(attempts(h)[0].status, 'running');
+  assert.equal(rows(h.sqlite, 'usage_actions')[0].status, 'completed');
+  assert.equal(h.calls.length, 1);
+});
+
+test('two alarms for one job in one isolate while the provider call is in flight: one provider request, one image', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  h.setReply(async () => { await new Promise(resolve => setTimeout(resolve, 30)); return Response.json({ steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }] }); });
+  const instance = h.restart(h.nameOf(generationId));
+  await Promise.all([h.alarm(generationId, instance), h.alarm(generationId, instance), h.alarm(generationId, instance)]);
+  assert.equal(h.job(generationId).stage, 'ready');
+  assert.equal(h.calls.length, 1);
+  assert.equal(ops(h).length, 1);
+  assert.equal(rows(h.sqlite, 'file_sources').length, 1);
+});
+
+test('recovery: a failing R2 list() is retried, not closed as unknown; another job object is never adopted', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  const name = h.nameOf(generationId);
+  h.setReply(() => new Promise(() => {}));
+  h.alarm(generationId); // hangs in the provider call; this isolate is then evicted
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(h.job(generationId).stage, 'submitting');
+  const list = h.bucket.list;
+  h.bucket.list = async () => { throw new Error('synthetic R2 list outage'); };
+  await h.alarm(generationId, h.restart(name));
+  assert.equal(h.job(generationId).stage, 'submitting', 'not closed as unknown on a failed read');
+  assert.equal(h.job(generationId).retries, 1);
+  assert.equal(ops(h)[0].status, 'admitted', 'the hold stays');
+  h.bucket.list = list;
+  // An object under this job's prefix that another job wrote, and a stray non-hash key: neither is adopted.
+  const prefix = prefixOf(h)(generationId);
+  await h.bucket.put(`${prefix}${'a'.repeat(64)}`, Uint8Array.of(1, 2, 3), { customMetadata: { imageJob: 'gen-some-other-job-0001' } });
+  await h.bucket.put(`${prefix}not-a-hash`, Uint8Array.of(1, 2, 3), { customMetadata: { imageJob: generationId } });
+  await h.alarm(generationId, h.restart(name));
+  assert.equal(h.job(generationId).stage, 'unknown');
+  assert.equal(h.job(generationId).reason, 'interrupted_after_submission');
+  assert.equal(h.job(generationId).recoveredFrom, undefined);
+  assert.equal(h.calls.length, 1);
+});
+
+test('provider answers through the job: 429, 5xx and a moderation block are failed at unknown cost with the reason code kept; none is resubmitted', async t => {
+  const body = code => JSON.stringify({ error: { type: 'image_generation_user_error', code, message: 'echoed prompt text' } });
+  for (const [status, text, code] of [[429, body('rate_limit_exceeded'), 'rate_limit_exceeded'], [503, '', null], [400, body('moderation_blocked'), 'moderation_blocked']]) {
+    const h = harness(t);
+    h.setReply(async () => new Response(text, { status }));
+    const { generationId } = await h.create();
+    await h.alarm(generationId); await h.alarm(generationId);
+    const job = h.job(generationId);
+    assert.equal(job.stage, 'failed', String(status));
+    assert.equal(job.reason, 'provider_rejected');
+    assert.equal(job.providerStatus, status);
+    assert.equal(job.providerCode, code);
+    assert.equal(h.calls.length, 1);
+    assert.equal(attempts(h)[0].cost_state, 'unknown');
+    assert.equal(ops(h)[0].cost_usd, RESERVE, 'the reservation stays as the cost bound');
+    const inspected = (await (await h.get(generationId, '/inspect')).json()).job;
+    assert.ok(!JSON.stringify(inspected).includes('echoed prompt text'));
+    assert.equal(inspected.providerCode, code);
+    assert.ok(h.logs.every(line => !line.includes('echoed prompt text')));
+  }
+});
+
+test('a Gemini 200 that is not completed: failed is a failure at unknown cost, incomplete is an unknown outcome; neither is resubmitted', async t => {
+  for (const [status, stage, reason] of [['failed', 'failed', 'provider_rejected'], ['incomplete', 'unknown', 'outcome_unknown']]) {
+    const h = harness(t);
+    h.setReply(async () => Response.json({ status, steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }] }));
+    const { generationId } = await h.create();
+    await h.alarm(generationId); await h.alarm(generationId);
+    assert.equal(h.job(generationId).stage, stage, status);
+    assert.equal(h.job(generationId).reason, reason);
+    assert.equal(h.calls.length, 1);
+    assert.equal(rows(h.sqlite, 'file_sources').length, 0, 'a partial image is not saved');
+    assert.equal(attempts(h)[0].cost_state, 'unknown');
+  }
+});
+
+test('Gemini usage is priced into the job: measured when the modality split adds up, estimated (reservation held) when it does not', async t => {
+  const usage = { total_input_tokens: 12, total_output_tokens: 1130, output_tokens_by_modality: [{ modality: 'text', tokens: 10 }, { modality: 'image', tokens: 1120 }], total_thought_tokens: 300, total_tool_use_tokens: 0, total_tokens: 1442 };
+  const image = [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }];
+  const h = harness(t);
+  h.setReply(async () => Response.json({ status: 'completed', steps: image, usage }));
+  const a = await h.create();
+  await h.alarm(a.generationId);
+  const expected = Number(((12 * 1.5 + 1120 * 30 + 310 * 7.5) / 1e6).toFixed(6));
+  assert.deepEqual(h.job(a.generationId).cost, { state: 'measured', usd: expected });
+  assert.equal(ops(h)[0].cost_usd, expected);
+  assert.equal(attempts(h)[0].cost_state, 'settled');
+  assert.equal(attempts(h)[0].input_tokens, 12); assert.equal(attempts(h)[0].output_tokens, 1130);
+  const unsplit = harness(t);
+  unsplit.setReply(async () => Response.json({ status: 'completed', steps: image, usage: { ...usage, output_tokens_by_modality: undefined } }));
+  const b = await unsplit.create();
+  await unsplit.alarm(b.generationId);
+  assert.equal(unsplit.job(b.generationId).cost.state, 'estimated');
+  assert.equal(attempts(unsplit)[0].cost_state, 'unknown');
+  assert.equal(ops(unsplit)[0].cost_usd, RESERVE);
+});
+
+test('an output over 20 MiB and a provider body over 30 MiB are failed as invalid_output at unknown cost, stored nowhere', async t => {
+  // The largest base64 string the adapter accepts decodes to 20 MiB + 1 byte: past the job's own output limit.
+  const big = new Uint8Array(20 * 1024 * 1024 + 1); big.set([0x89, 0x50, 0x4e, 0x47]);
+  let encoded = ''; for (let i = 0; i < big.length; i += 0x8000) encoded += String.fromCharCode(...big.subarray(i, i + 0x8000));
+  for (const reply of [() => Response.json({ steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: btoa(encoded) }] }] }), () => new Response(`{"pad":"${'a'.repeat(31 * 1024 * 1024)}"}`)]) {
+    const h = harness(t);
+    h.setReply(reply);
+    const { generationId } = await h.create();
+    await h.alarm(generationId);
+    assert.equal(h.job(generationId).stage, 'failed');
+    assert.equal(h.job(generationId).reason, 'invalid_output');
+    assert.equal(h.bucket.objects.size, 0);
+    assert.equal(rows(h.sqlite, 'file_sources').length, 0);
+    assert.equal(attempts(h)[0].cost_state, 'unknown');
+    assert.equal(h.calls.length, 1);
+  }
+});
+
+test('a file_sources row that exists with another hash is never overwritten or accepted: the record step keeps failing visibly until someone looks', async t => {
+  const h = harness(t);
+  const { generationId } = await h.create();
+  const j = h.job(generationId);
+  h.sqlite.prepare("INSERT INTO file_sources (id, org, owner_email, app, board_id, family, name, media_type, bytes, sha256, r2_key, status, created_at) VALUES (?, ?, ?, 'canvas-abcdef12', 'board-1', 'image', 'other.png', 'image/png', 1, ?, 'other-key', 'stored', 1)").run(j.sourceId, OWNER.org, OWNER.email, 'f'.repeat(64));
+  await h.alarm(generationId); await h.alarm(generationId);
+  const job = h.job(generationId);
+  assert.equal(job.stage, 'stored');
+  assert.equal(job.retries, 2);
+  assert.equal(job.lastError, 'file source not confirmed');
+  assert.equal(rows(h.sqlite, 'file_sources')[0].sha256, 'f'.repeat(64), 'the existing row is untouched');
+  assert.equal(h.calls.length, 1);
+  assert.equal(ops(h)[0].status, 'admitted', 'not settled until the image is recorded');
+});

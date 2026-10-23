@@ -139,7 +139,7 @@ const publicJob = job => ({
 });
 // Everything the job knows except bytes, which it never keeps, and the requester's identity beyond its org.
 const inspectJob = job => ({ ...publicJob(job), opId: job.opId, settings: job.request.settings, prompt: job.request.prompt, references: job.request.references.map(r => ({ id: r.id, sha256: r.sha256, bytes: r.bytes, mimeType: r.mimeType })),
-  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null,
+  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null,
   settlement: job.settlement || null, retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
 
 const payerEnv = (env, requester) => {
@@ -271,7 +271,7 @@ export class ImageJobs {
     try { result = await adapter[references.length ? 'edit' : 'generate']({ model: job.request.model, prompt: job.request.prompt, settings: job.request.settings, references }); }
     catch (error) {
       const ms = Date.now() - startedAt, unknownCost = { status: 'failed', calls: 1, costUsd: null };
-      const failed = { ...sent, providerMs: ms, providerStatus: error?.status ?? null };
+      const failed = { ...sent, providerMs: ms, providerStatus: error?.status ?? null, providerCode: error?.providerCode ?? null };
       // Nothing left the worker: release. The provider answered with an error: failed, cost unknown (it may bill).
       // No answer (timeout, network): the outcome is unknown and is never resubmitted.
       if (!error?.providerRequestStarted) return this.close(failed, 'failed', error?.code || 'provider_not_started', { status: 'cancelled', calls: 0, costUsd: 0 });
@@ -319,7 +319,7 @@ export class ImageJobs {
   // ledger: null (nothing was reserved), or { status, calls, costUsd } where costUsd null keeps the reservation as unknown cost.
   async close(job, stage, reason, ledger) {
     const closed = await this.save({ ...job, stage, reason, endedAt: Date.now(), settlement: ledger ? { ...ledger, done: false } : null });
-    this.log(closed, 'closed', { ms: closed.providerMs ?? null });
+    this.log(closed, 'closed', { ms: closed.providerMs ?? null, providerCode: closed.providerCode ?? null });
     if (ledger) await this.settleLedger(closed);
     return true;
   }
@@ -328,7 +328,7 @@ export class ImageJobs {
   async settleLedger(job) {
     const s = job.settlement, db = this.env.LEARN_DB;
     await settleSpend(db, job.opId, { status: s.status, calls: s.calls, costUsd: s.costUsd, provider: job.request.provider, model: job.providerModel || job.request.model, error: job.reason || null });
-    await settleAttempt(this.env, job.opId, { status: s.status, costMicros: toMicros(s.costUsd), model: job.providerModel || null, inputTokens: job.usage?.input_tokens ?? null, outputTokens: job.usage?.output_tokens ?? null });
+    await settleAttempt(this.env, job.opId, { status: s.status, costMicros: toMicros(s.costUsd), model: job.providerModel || null, inputTokens: job.usage?.input_tokens ?? job.usage?.total_input_tokens ?? null, outputTokens: job.usage?.output_tokens ?? job.usage?.total_output_tokens ?? null });
     const attempt = await db.prepare('SELECT status FROM usage_attempts WHERE attempt_id = ?').bind(job.opId).first();
     if (attempt?.status === 'running') throw new Error('attempt not settled');
     await finishActionOf(this.env, job.opId, { status: job.stage === 'ready' ? 'completed' : job.stage === 'cancelled' ? 'cancelled' : 'failed', result: job.stage === 'ready' ? 'full' : 'none' });

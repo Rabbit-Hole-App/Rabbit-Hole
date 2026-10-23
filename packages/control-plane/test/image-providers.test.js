@@ -81,18 +81,61 @@ test('OpenAI edits: reference images go as multipart to the edits endpoint', asy
   await assert.rejects(openaiImageAdapter({ apiKey: KEY, transport }).edit(gen('gpt-image-2.5-flare', { aspect_ratio: '1:1', resolution: '1K' })), e => e.code === 'invalid_input' && !e.providerRequestStarted);
 });
 
-test('Gemini Interactions: text and inline images in, the image read from either documented accessor', async () => {
-  for (const reply of [{ steps: [{ type: 'thought' }, { type: 'model_output', content: [{ type: 'text', text: 'ok' }, { type: 'image', mime_type: 'image/png', data: PNG }] }] }, { output_image: { data: PNG } }]) {
-    const { calls, transport } = recorder(async () => Response.json(reply));
-    const out = await geminiImageAdapter({ apiKey: KEY, transport }).edit(gen('gemini-3-pro-image', { aspect_ratio: '16:9', resolution: '2K' }, [ref]));
-    assert.equal(calls[0].url, 'https://generativelanguage.googleapis.com/v1beta/interactions');
-    assert.equal(calls[0].init.headers['x-goog-api-key'], KEY);
-    const body = JSON.parse(calls[0].init.body);
-    assert.deepEqual(body.response_format, { type: 'image', mime_type: 'image/png', aspect_ratio: '16:9', image_size: '2K' });
-    assert.deepEqual(body.input, [{ type: 'text', text: 'A lighthouse at dusk.' }, { type: 'image', mime_type: 'image/png', data: PNG }]);
-    assert.equal(out.mimeType, 'image/png');
-    assert.equal(out.usage, null);
+// Shapes from the Interactions API reference (https://ai.google.dev/api/interactions-api): status, steps[model_output].content[], usage.
+const PNG2 = btoa(String.fromCharCode(0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4));
+const interaction = (patch = {}) => ({ id: 'v1_fixture', status: 'completed', model: 'gemini-nano-banana-2.1', steps: [{ type: 'thought' }, { type: 'model_output', content: [{ type: 'text', text: 'ok' }, { type: 'image', mime_type: 'image/png', data: PNG }] }],
+  usage: { total_input_tokens: 12, input_tokens_by_modality: [{ modality: 'text', tokens: 12 }], total_cached_tokens: 0, total_output_tokens: 1130, output_tokens_by_modality: [{ modality: 'text', tokens: 10 }, { modality: 'image', tokens: 1120 }], total_thought_tokens: 300, total_tool_use_tokens: 0, total_tokens: 1442 }, ...patch });
+
+test('Gemini Interactions: text and inline images in, store:false, the LAST image of the REST steps out, usage kept', async () => {
+  const two = interaction({ steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }, { type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG2 }] }] });
+  const { calls, transport } = recorder(async () => Response.json(two));
+  const out = await geminiImageAdapter({ apiKey: KEY, transport }).edit(gen('gemini-3-pro-image', { aspect_ratio: '16:9', resolution: '2K' }, [ref]));
+  assert.equal(calls[0].url, 'https://generativelanguage.googleapis.com/v1beta/interactions');
+  assert.equal(calls[0].init.headers['x-goog-api-key'], KEY);
+  const body = JSON.parse(calls[0].init.body);
+  assert.deepEqual(body.response_format, { type: 'image', mime_type: 'image/png', aspect_ratio: '16:9', image_size: '2K' });
+  assert.deepEqual(body.input, [{ type: 'text', text: 'A lighthouse at dusk.' }, { type: 'image', mime_type: 'image/png', data: PNG }]);
+  assert.equal(body.store, false); assert.equal(body.background, undefined); assert.equal(body.previous_interaction_id, undefined);
+  assert.equal(out.mimeType, 'image/png');
+  assert.equal(btoa(String.fromCharCode(...out.bytes)), PNG2, 'the last image, as the SDK output_image documents');
+  assert.equal(out.usage.total_output_tokens, 1130);
+  // output_image is an SDK property, not a REST field: it is not read.
+  await assert.rejects(geminiImageAdapter({ apiKey: KEY, transport: async () => Response.json({ status: 'completed', output_image: { data: PNG } }) }).generate(gen('gemini-3-pro-image', { aspect_ratio: '1:1', resolution: '1K' })), e => e.code === 'invalid_output');
+});
+
+test('Gemini status: failed and cancelled are definite failures; incomplete and any other non-completed status is an unknown outcome', async () => {
+  const run = status => geminiImageAdapter({ apiKey: KEY, transport: async () => Response.json(interaction({ status })) }).generate(gen('gemini-nano-banana-2.1', { aspect_ratio: '1:1', resolution: '1K' }));
+  for (const status of ['failed', 'cancelled']) await assert.rejects(run(status), e => e.code === 'provider_failed' && e.providerRequestStarted && e.definiteResponse);
+  for (const status of ['incomplete', 'in_progress', 'requires_action', 'new_status']) await assert.rejects(run(status), e => e.code === 'incomplete' && e.providerRequestStarted && !e.definiteResponse, status);
+  assert.equal((await run('completed')).mimeType, 'image/png');
+});
+
+test('Gemini cost from usage: priced only when the modality split adds up; thinking at the text rate; estimated otherwise', () => {
+  const usage = interaction().usage;
+  // NB 2.1: 12 x $1.5 + 1120 x $30 + (10 + 300) x $7.5, per million
+  assert.equal(measuredCostUsd('gemini-nano-banana-2.1', usage), Number(((12 * 1.5 + 1120 * 30 + 310 * 7.5) / 1e6).toFixed(6)));
+  assert.equal(measuredCostUsd('gemini-3-pro-image', usage), Number(((12 * 2 + 1120 * 120 + 310 * 12) / 1e6).toFixed(6)));
+  const { output_tokens_by_modality, ...noSplit } = usage;
+  for (const bad of [noSplit, { ...usage, total_thought_tokens: undefined }, { ...usage, total_output_tokens: 1131 }, { ...usage, total_tool_use_tokens: 5 }, { ...usage, total_input_tokens: -1 }, { ...usage, output_tokens_by_modality: [{ modality: 'image', tokens: '1130' }] }])
+    assert.equal(measuredCostUsd('gemini-nano-banana-2.1', bad), null);
+});
+
+test('OpenAI 4xx: the stable reason code is kept, the message (which can echo the prompt) is not; no code when the body has none', async () => {
+  const settings = { aspect_ratio: '1:1', resolution: '1K' };
+  const fail = body => openaiImageAdapter({ apiKey: KEY, transport: async () => new Response(body, { status: 400 }) }).generate(gen('gpt-image-2.5-flare', settings));
+  await assert.rejects(fail(JSON.stringify({ error: { type: 'image_generation_user_error', code: 'moderation_blocked', message: 'secret prompt text', moderation_details: {} } })),
+    e => e.code === 'provider_error' && e.status === 400 && e.providerCode === 'moderation_blocked' && e.definiteResponse && !JSON.stringify(e).includes('secret prompt') && !e.message.includes('secret prompt'));
+  for (const body of ['not json', '{}', JSON.stringify({ error: { code: 'has spaces and a sentence of prompt text' } }), JSON.stringify({ error: { code: 400 } })])
+    await assert.rejects(fail(body), e => e.providerCode === undefined && e.status === 400);
+  await assert.rejects(geminiImageAdapter({ apiKey: KEY, transport: async () => new Response(JSON.stringify({ error: { code: 400, message: 'x', status: 'INVALID_ARGUMENT' } }), { status: 400 }) }).generate(gen('gemini-3-pro-image', settings)), e => e.providerCode === 'INVALID_ARGUMENT');
+});
+
+test('OpenAI sizes above 2560x1440 are experimental: never quoted; the options themselves stay', () => {
+  for (const settings of [{ aspect_ratio: '1:1', resolution: '2K' }, { aspect_ratio: '16:9', resolution: '4K' }, { aspect_ratio: '9:16', resolution: '4K' }]) {
+    assert.ok(imageSettings({ model: 'gpt-image-2.5-flare', ...settings }).value);
+    assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '5' }, { model: 'gpt-image-2.5-flare', ...settings }).reason, 'experimental_size');
   }
+  assert.equal(imageQuote({ IMAGE_GENERATE_RESERVED_USD: '5' }, { model: 'gpt-image-2.5-flare', aspect_ratio: '1:1', resolution: '1K' }).reason, 'pricing_unverified');
 });
 
 test('every failure says whether a request left and whether the provider answered; the key is never in an error', async () => {
