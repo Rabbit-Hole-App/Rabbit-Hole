@@ -266,11 +266,10 @@ await check('Start a rabbit hole still creates a canvas, which opens with its co
   await page.getByRole('button', { name: 'Start a rabbit hole' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Start a rabbit hole', exact: true });
   await dialog.waitFor({ timeout: 30000 });
-  assert.equal(await dialog.getByRole('tab', { name: 'Repository' }).count(), 1, 'the repository choice is still offered');
-  assert.equal(await dialog.getByRole('tab', { name: 'Blank canvas' }).count(), 1, 'the blank canvas choice is still offered');
-  await dialog.getByRole('tab', { name: 'Blank canvas' }).click();
-  await dialog.getByPlaceholder('Untitled canvas').fill(`Fresh from Start ${run}`);
-  await dialog.getByRole('button', { name: 'Create canvas' }).click();
+  // Combined sources (owner brief 2026-10-23): the three adds and the blank shortcut; Blank imports nothing and makes the canvas.
+  for (const name of ['Add files', 'Add link', 'Connect repository', 'Start with a blank canvas']) assert.equal(await dialog.getByRole('button', { name, exact: true }).count(), 1, `${name} is still offered`);
+  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isDisabled(), true, 'Start rabbit hole needs a source');
+  await dialog.getByRole('button', { name: 'Start with a blank canvas', exact: true }).click();
   await page.waitForURL((u) => /^\/apps\/canvas-[a-f0-9]{8}$/.test(u.pathname), { timeout: 60000 });
   await page.getByLabel('Lesson canvas').waitFor({ timeout: 60000 });
   await page.locator('[data-chat-composer]').first().waitFor({ timeout: 60000 });

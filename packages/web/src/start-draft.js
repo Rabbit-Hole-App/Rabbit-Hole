@@ -170,9 +170,9 @@ export function reduce(draft, action) {
       if (starting) return draft;
       if (repositoryRow(draft)) return withNotices(draft, [COPY.oneRepository]);
       if (draft.destination && draft.destination.kind !== 'repository') return withNotices(draft, ['A canvas was already created for this start. Start a new rabbit hole to connect a repository.']);
-      const { url, repo, branch, existing = null } = action;
+      const { url, repo, branch, existing = null, connect = null } = action;
       return addRows(draft, [{ kind: 'repository', key: 'repository', label: repo, detail: `${branch}, public GitHub${existing ? ', already connected' : ''}`, context: true, canvas: false,
-        meta: { url, repo, branch, existing } }], []);
+        meta: { url, repo, branch, existing, connect } }], []);
     }
     case 'remove': {
       const row = rowOf(draft, action.id);
@@ -200,7 +200,7 @@ export function reduce(draft, action) {
       const row = rowOf(draft, action.id);
       if (!row) return draft;
       const done = { ...row.done, ...(action.done || {}) };
-      const next = { ...row, done, ...(action.label ? { label: action.label } : {}), ...(action.detail ? { detail: action.detail } : {}), ...('waiting' in action ? { waiting: action.waiting } : {}) };
+      const next = { ...row, done, ...(action.meta ? { meta: { ...row.meta, ...action.meta } } : {}), ...(action.label ? { label: action.label } : {}), ...(action.detail ? { detail: action.detail } : {}), ...('waiting' in action ? { waiting: action.waiting } : {}) };
       if (action.status && action.status !== row.status) {
         if (!canMove(row.status, action.status)) return draft;
         if (action.status === 'ready' && !settled(next, draft)) return draft;
@@ -211,8 +211,9 @@ export function reduce(draft, action) {
       if (next.status === 'ready') next.waiting = '';
       return { ...draft, rows: draft.rows.map((r) => (r === row ? next : r)) };
     }
+    case 'lock': return starting ? draft : { ...draft, phase: 'starting', error: '', notices: [] };
     case 'finish': {
-      const all = draft.rows.every((row) => row.status === 'ready');
+      const all = draft.rows.length > 0 && draft.rows.every((row) => row.status === 'ready');
       const anyFailed = draft.rows.some((row) => row.status === 'failed');
       return { ...draft, phase: all ? 'done' : anyFailed ? 'partial' : 'editing', error: action.error || '' };
     }

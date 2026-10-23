@@ -304,3 +304,16 @@ test('removing and toggling clear the notices; an unknown row or option changes 
   assert.equal(reduce(d, { type: 'set-option', id: 's1', option: 'color', value: true }), d);
   assert.equal(reduce(d, { type: 'remove', id: 'nope' }), d);
 });
+
+test('lock holds the list for a blank start; finish with no sources is editing, not done; a row can carry resolved details', () => {
+  let d = createDraft();
+  d = reduce(d, { type: 'lock' });
+  assert.equal(d.phase, 'starting');
+  assert.equal(reduce(d, { type: 'lock' }), d);
+  assert.equal(reduce(d, { type: 'finish', error: 'The server is busy.' }).phase, 'editing');
+  assert.equal(reduce(d, { type: 'finish', error: 'The server is busy.' }).error, 'The server is busy.');
+  const r = repo(createDraft(), { connect: { url: 'https://github.com/a/b', repo: 'a/b', branch: 'main' } });
+  assert.deepEqual(r.rows[0].meta.connect, { url: 'https://github.com/a/b', repo: 'a/b', branch: 'main' });
+  const m = move(files(file('a.pdf'))(createDraft()), 's1', 'uploading', { meta: { doc: { id: 'd1' } }, label: 'A title' });
+  assert.deepEqual([m.rows[0].meta.doc, m.rows[0].meta.name, m.rows[0].label], [{ id: 'd1' }, 'a.pdf', 'A title']);
+});

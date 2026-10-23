@@ -28,7 +28,7 @@ const HEADING = 'pb-2 text-xs text-ink-2';
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 const fixtureNote = () => toast('Review fixture: there is nothing behind this card.');
 // The Start dialog lives once in main.jsx Root (StartHost); pages only ask for it.
-const start = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
+const start = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'start' } }));
 
 export default function Home() {
   return <Shell>{(data, load) => <HomeContent data={data} load={load} />}</Shell>;
