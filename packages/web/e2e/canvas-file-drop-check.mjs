@@ -224,14 +224,33 @@ const afterFake = (await (await fetch(`${ownBoard}/assets`, { headers: authed })
 ok('the refused fake-video upload was not stored', !afterFake.includes(`bypass:${run}:fake`));
 const exact = await raw(`bypass:${run}:exact`, webmOf(50 * MiB));
 ok('exactly 50 MiB is accepted by the server', exact.status === 200 && (await exact.json()).size === 50 * MiB, String(exact.status));
-const over = await raw(`bypass:${run}:over`, webmOf(50 * MiB + 1));
-ok('50 MiB + 1 byte is refused by the server', over.status === 413 && /over 50 MiB/.test((await over.json()).error), String(over.status));
+// The Worker answers this refusal at once, while 50 MiB are still streaming in. Through `wrangler dev` (workerd and its proxy
+// worker) that early answer was lost in transit in about 7% of sends (a reset, or a chunked 413 that ended before its body)
+// when the Worker cancelled the request body first; upload-body.js no longer does. Send again until one complete answer
+// arrives, and assert that answer as before: status 413 and the stable error text.
+const refusedUpload = async (key, size) => {
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      const response = await raw(key, webmOf(size));
+      const text = await response.text();
+      if (text) return { status: response.status, body: JSON.parse(text) };
+      console.log(`info attempt ${attempt}: ${response.status} with an empty body (response cut short in transit), sending again`);
+    } catch (error) { console.log(`info attempt ${attempt}: ${error.cause?.code || error.message}, sending again`); }
+  }
+  return { status: 0, body: {} };
+};
+const over = await refusedUpload(`bypass:${run}:over`, 50 * MiB + 1);
+ok('50 MiB + 1 byte is refused by the server', over.status === 413 && /over 50 MiB/.test(over.body.error), String(over.status));
 const chunks = webmOf(50 * MiB + 1);
 // Without a length the Worker stops at its separate 1 MiB fallback limit and returns 411. Some local transports reset
 // the connection while this larger body is still being sent; that proves no status contract, only refusal plus the
 // no-stored-object assertion below. The isolated workerd boundary check covers the exact fallback independently.
 const chunked = await raw(`bypass:${run}:chunked`, new ReadableStream({ start(controller) { for (let at = 0; at < chunks.length; at += 4 * MiB) controller.enqueue(chunks.slice(at, at + 4 * MiB)); controller.close(); } }))
-  .then(async response => ({ status: response.status, body: await response.json() }), error => ({ closed: error.cause?.code || error.message }));
+  .then(async response => {
+    const text = await response.text().catch(() => '');
+    if (!text && response.status === 411) return { closed: 'the 411 arrived without its body' };
+    return { status: response.status, body: text ? JSON.parse(text) : {} };
+  }, error => ({ closed: error.cause?.code || error.message }));
 if (chunked.closed) console.log(`info no-length transport closed (${chunked.closed}); fallback status unobserved, checking no stored object`);
 ok('an upload without Content-Length requires a length past the fallback limit (or closes without storing)',
   (chunked.status === 411 && chunked.body?.error === 'Send this file with its Content-Length.') || !!chunked.closed, JSON.stringify(chunked));
