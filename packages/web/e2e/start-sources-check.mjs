@@ -253,7 +253,7 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   // Two rows need another try: the cancelled window (no card), and the page whose capture the check made unavailable (its card stays).
   await waitFor(async () => /2 sources need another try/.test(await chipText()), 60000, 'the chip did not report the cancelled window and the unavailable page');
   assert.match(await chipText(), /tool-.*[.]py: No card was added/);
-  assert.match(await chipText(), /example[.]com: This page could not be captured/);
+  assert.match(await chipText(), /example[.]com[/]both-.*: This page could not be captured/);
   // Cards: the .md from its one stored source, the PDF from its context document, the webpage and the paper from their links.
   const board = await waitFor(async () => { const b = await blocks(slugB); return b.some(x => x.type === 'paper') && b.some(x => x.type === 'webpage') && b.some(x => x.type === 'pdf') && b.some(x => x.type === 'file') ? b : null; }, 60000, 'the cards did not all land');
   assert.equal(board.filter(b => b.type === 'file' && b.kind === 'markdown').length, 1, 'one Markdown card');

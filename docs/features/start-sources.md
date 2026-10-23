@@ -39,7 +39,9 @@ Binding decisions of 2026-10-23 (the integrator's message), on top of the layout
 
 1. **Files, links and one repository together.** Use as context and Add to canvas are independent for every supported source:
    context only is available to Chat with no visible card; canvas only is a card that is not added to Chat's context; both
-   reuse one imported source; neither leaves the source out with feedback.
+   reuse one imported source; neither leaves the source out with feedback. Placing a card never adds it to Chat: the drop and
+   Search roads register what they place as a source the next question rides, and the page switches that off again for a card
+   made from Start (`detachStartSources`), so a canvas-only paper, image or PDF is a card and nothing more.
 2. **Context-only links need no card.** The server resolves the link into a small note and stores it as an ordinary context
    document (`POST /api/learn/context/link`, `learn-context-link.js`): the title, authors and abstract for arXiv, the
    introduction for Wikipedia, and only the name and address for a YouTube link or any other page, said in the note and beside
