@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasOwnsWheel, clampHeight, embedFetch, embedHref, embedRoute, embedSnippet, embedTarget, emailSnippet, fullHref, receiveHandoff, serveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
+import { canvasOwnsWheel, clampHeight, clampWidth, embedFetch, embedHref, embedRoute, embedSnippet, embedSources, emailSnippet, linkSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
 import { loadGuestDraft } from './guest-draft.js';
 import { takeDraft, takeTarget } from './shared-ask.js';
 
@@ -23,18 +23,22 @@ test('url builders: the embed page, the full page and the thumbnail per link typ
   assert.equal(embedHref(ORIGIN, 'e', TOKEN, { chat: true }), `${ORIGIN}/embed/e/${TOKEN}?chat=1`);
   assert.equal(embedHref(ORIGIN, 'b', TOKEN, { chat: true, theme: 'light' }), `${ORIGIN}/embed/b/${TOKEN}?chat=1&theme=light`);
   assert.equal(fullHref(ORIGIN, 'b', TOKEN), `${ORIGIN}/b/${TOKEN}`);
-  assert.equal(fullHref(ORIGIN, 'e', TOKEN, 'fork'), `${ORIGIN}/e/${TOKEN}?from=embed&fork=1`, 'a flag only, never the visitor\'s text');
+  assert.equal(fullHref(ORIGIN, 'e', TOKEN, { intent: 'fork', handoff: true }), `${ORIGIN}/e/${TOKEN}?from=embed&fork=1`, 'flags only, never the visitor\'s text');
+  assert.equal(fullHref(ORIGIN, 'b', TOKEN, { intent: 'fork' }), `${ORIGIN}/b/${TOKEN}?fork=1`, 'Fork original: no hand-off asked');
   assert.equal(thumbnailUrl(ORIGIN, 'b', TOKEN), `${ORIGIN}/api/learn/boards/shared/${TOKEN}/thumbnail`);
   assert.equal(thumbnailUrl(ORIGIN, 'e', TOKEN), `${ORIGIN}/api/learn/boards/published/${TOKEN}/thumbnail`);
 });
 
-test('Embed is offered only for a public canvas: a public view link first, else the publication', () => {
-  assert.deepEqual(embedTarget({ shared: true, view: 'v', public_view: true, published: true, publication: 'p' }), { kind: 'b', token: 'v' });
-  assert.deepEqual(embedTarget({ shared: true, view: 'v', public_view: false, published: true, publication: 'p' }), { kind: 'e', token: 'p' });
-  assert.deepEqual(embedTarget({ shared: false, view: 'v', public_view: true, published: true, publication: 'p' }), { kind: 'e', token: 'p' });
-  assert.equal(embedTarget({ shared: true, view: 'v', public_view: false }), null, 'a link that needs sign-in is not embeddable');
-  assert.equal(embedTarget({ shared: false }), null);
-  assert.equal(embedTarget(null), null);
+test('Embed sources: a public view link and an Explore publication, available only when public', () => {
+  const find = (sharing, kind) => embedSources(sharing, ORIGIN).find(source => source.kind === kind);
+  const both = { shared: true, view: 'v', public_view: true, published: true, publication: 'p' };
+  assert.deepEqual([find(both, 'shared').available, find(both, 'explore').available], [true, true]);
+  assert.equal(find(both, 'shared').url, `${ORIGIN}/b/v`);
+  assert.equal(find(both, 'explore').url, `${ORIGIN}/e/p`);
+  assert.deepEqual([find({ ...both, public_view: false }, 'shared').available, find({ ...both, public_view: false }, 'explore').available], [false, true], 'a link that needs sign-in is not embeddable');
+  assert.equal(find({ ...both, shared: false }, 'shared').available, false);
+  assert.equal(find({ ...both, published: false }, 'explore').available, false);
+  assert.deepEqual(embedSources(null, ORIGIN).map(source => source.available), [false, false]);
 });
 
 test('the embed snippet: lazy, titled, full width, the chosen height, no allow list, escaped', () => {
@@ -47,6 +51,10 @@ test('the embed snippet: lazy, titled, full width, the chosen height, no allow l
   assert.match(snippet, /chat=1&amp;theme=dark/);
   assert.doesNotMatch(snippet, /\sallow=|allowfullscreen|sandbox/);
   assert.match(embedSnippet({ src: 'x', title: '', height: 500 }), /title="Rabbit Hole canvas"/);
+  assert.match(embedSnippet({ src: 'x', title: 't', height: 500, width: 640 }), /width="640"/, 'a pixel width when chosen');
+  assert.equal(clampWidth(50), 200);
+  assert.equal(clampWidth(99999), 2000);
+  assert.equal(linkSnippet({ href: `${ORIGIN}/b/${TOKEN}`, title: 'A & B' }), `<a href="${ORIGIN}/b/${TOKEN}">A &amp; B</a>`);
 });
 
 test('height is a whole number of pixels between 200 and 2000, else the default', () => {
@@ -110,49 +118,116 @@ test('guest session: init, then a probe; Send is enabled only when the probe say
   assert.deepEqual(await startEmbedSession(TOKEN, async () => { throw new Error('offline'); }), { session: false, guest: null });
 });
 
-// Two windows that share one origin: the embed (iframe) and the full site's new tab.
+// Windows on one origin: the embed (an iframe) and the tab it opened. postMessage on a window delivers to that window's listeners,
+// from the other one; `stranger` is a third window (another frame of the host page) with its own listeners.
 function windows() {
-  const listeners = { embed: [], full: [] };
-  const make = name => ({ location: { origin: ORIGIN }, addEventListener: (type, fn) => listeners[name].push(fn), removeEventListener: (type, fn) => listeners[name].splice(listeners[name].indexOf(fn), 1) });
-  const embed = make('embed'), full = make('full');
-  const to = name => ({ postMessage: (data, origin) => { assert.equal(origin, ORIGIN, 'only the own origin'); listeners[name].forEach(fn => fn({ data, origin: ORIGIN, source: name === 'embed' ? full : embed })); } });
-  embed.opener = null; full.opener = to('embed');
-  Object.assign(embed, { postMessage: to('embed').postMessage }); Object.assign(full, { postMessage: to('full').postMessage });
-  return { embed, full, listeners };
+  const listeners = new Map();
+  const make = () => { const win = { location: { origin: ORIGIN }, opener: null, addEventListener: (type, fn) => listeners.get(win).push(fn), removeEventListener: (type, fn) => listeners.get(win).splice(listeners.get(win).indexOf(fn), 1) }; listeners.set(win, []); return win; };
+  const embed = make(), tab = make(), stranger = make();
+  const deliver = (from, to) => (data, origin) => { assert.equal(origin, ORIGIN, 'only the own origin'); listeners.get(to).forEach(fn => fn({ data, origin: ORIGIN, source: from })); };
+  tab.opener = embed; embed.postMessage = deliver(tab, embed); tab.postMessage = deliver(embed, tab);
+  embed.sent = []; // what reaches the tab
+  stranger.postMessage = deliver(embed, stranger);
+  return { embed, tab, stranger, listeners };
 }
+const payload = { draft: { base_version: 4, state: { blocks: [{ id: 'mine' }] } }, chatDraft: 'Why is the sky blue', target: { id: 'c1', kind: 'quiz', title: 'Q' } };
 
-test('hand-off: the new tab gets the local copy and the unsent draft from its opener, never through the URL', async () => {
-  const { embed, full } = windows();
-  const stop = serveHandoff(embed, TOKEN, () => ({ draft: { base_version: 4, state: { blocks: [{ id: 'mine' }] } }, chatDraft: 'Why is the sky blue', target: { id: 'c1', kind: 'quiz', title: 'Q' } }));
+test('hand-off: the tab gets the local copy and the unsent draft from its opener and acknowledges; the embed then lets go', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN);
   const storage = memory();
-  assert.equal(await receiveHandoff(full, TOKEN, storage), true);
-  assert.deepEqual(loadGuestDraft(() => storage, TOKEN), { base_version: 4, state: { blocks: [{ id: 'mine' }] }, edited_at: loadGuestDraft(() => storage, TOKEN).edited_at });
+  let done = 0, failed = 0;
+  host.start(tab, payload, { onDone: () => { done += 1; }, onFail: () => { failed += 1; } });
+  assert.equal(await receiveHandoff(tab, TOKEN, storage), true);
+  const kept = loadGuestDraft(() => storage, TOKEN);
+  assert.deepEqual([kept.base_version, kept.state], [4, { blocks: [{ id: 'mine' }] }]);
   assert.equal(takeDraft(TOKEN, storage), 'Why is the sky blue', 'restored into the composer by the existing ?ask=1 path, unsent');
-  assert.equal(takeTarget(TOKEN, storage).id, 'c1');
-  stop();
+  assert.equal(takeTarget(TOKEN, storage).id, 'c1', 'the card the question was about comes along');
+  assert.equal(done, 1);
+  assert.equal(failed, 0);
+  host.stop();
 });
 
-test('hand-off: another link\'s request, no opener, and silence all end without storing anything', async () => {
-  const { embed, full } = windows();
-  const stop = serveHandoff(embed, TOKEN, () => ({ draft: { base_version: 1, state: {} }, chatDraft: 'x' }));
+test('hand-off is single use: after the acknowledgement the embed answers nobody', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN);
+  host.start(tab, payload);
+  await receiveHandoff(tab, TOKEN, memory());
+  const again = memory();
+  assert.equal(await receiveHandoff(tab, TOKEN, again, 30), false);
+  assert.equal(again.map.size, 0);
+  host.stop();
+});
+
+test('hand-off is short lived: an offer that expired is not answered', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN, { ttl: 10 });
+  host.start(tab, payload);
+  await new Promise(done => setTimeout(done, 40));
   const storage = memory();
-  assert.equal(await receiveHandoff(full, 'other-token-other-token-0000', storage, 20), false);
+  assert.equal(await receiveHandoff(tab, TOKEN, storage, 30), false);
   assert.equal(storage.map.size, 0);
-  assert.equal(await receiveHandoff({ ...embed, opener: null }, TOKEN, storage), false);
-  stop();
-  assert.equal(await receiveHandoff(full, TOKEN, storage, 20), false, 'the embed is gone: the page opens without it');
+  host.stop();
+});
+
+test('hand-off: no acknowledgement reports the failure and keeps the offer open for a retry; a late one still completes', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN, { wait: 10 });
+  const events = [];
+  host.start(tab, payload, { onFail: () => events.push('fail'), onDone: () => events.push('done') });
+  await new Promise(done => setTimeout(done, 40));
+  assert.deepEqual(events, ['fail']);
+  assert.equal(await receiveHandoff(tab, TOKEN, memory()), true);
+  assert.deepEqual(events, ['fail', 'done']);
+  host.stop();
+});
+
+test('hand-off: a wrong window, a wrong origin, a wrong link and a stop are ignored', async () => {
+  const { embed, tab, stranger, listeners } = windows();
+  const host = handoffHost(embed, TOKEN);
+  host.start(tab, payload);
+  const heard = [];
+  stranger.addEventListener('message', event => heard.push(event.data));
+  const ask = (source, origin) => listeners.get(embed).forEach(fn => fn({ data: { type: 'rh-embed-handoff-request', token: TOKEN }, origin, source }));
+  ask(stranger, ORIGIN); // another frame of the host page
+  ask(tab, 'https://evil.example'); // right window, wrong origin
+  assert.deepEqual(heard, [], 'another window gets nothing');
+  const storage = memory();
+  assert.equal(await receiveHandoff(tab, 'other-token-other-token-0000', storage, 20), false, 'another link');
   assert.equal(storage.map.size, 0);
+  host.stop();
+  assert.equal(await receiveHandoff(tab, TOKEN, storage, 20), false, 'stopped');
+  assert.equal(storage.map.size, 0);
+});
+
+test('hand-off: the full page ignores a reply that is not from its opener and a message from another origin', async () => {
+  const { embed, tab, stranger, listeners } = windows();
+  const storage = memory();
+  const waiting = receiveHandoff(tab, TOKEN, storage, 60);
+  const reply = { type: 'rh-embed-handoff', token: TOKEN, ...payload };
+  listeners.get(tab).forEach(fn => fn({ data: reply, origin: ORIGIN, source: stranger }));
+  listeners.get(tab).forEach(fn => fn({ data: reply, origin: 'https://evil.example', source: embed }));
+  assert.equal(await waiting, false);
+  assert.equal(storage.map.size, 0);
+});
+
+test('hand-off: no opener means nothing to wait for', async () => {
+  const { tab } = windows();
+  tab.opener = null;
+  assert.equal(await receiveHandoff(tab, TOKEN, memory()), false);
 });
 
 test('copy rules: no ellipsis in the embed surfaces; Open in Rabbit Hole and the Embed controls are present', () => {
   const read = name => readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const panel = read('./SharePanel.jsx'), chat = read('./SharedChat.jsx'), page = read('./SharedBoardPage.jsx');
-  const embedPanel = panel.slice(panel.indexOf('function CopyField('), panel.indexOf('// onPublish(publish)'));
+  const panel = read('./EmbedPanel.jsx'), share = read('./SharePanel.jsx'), chat = read('./SharedChat.jsx'), page = read('./SharedBoardPage.jsx');
   const spread = /\.\.\.(?=[\w({[])/g;
-  for (const text of [read('./embed-api.js'), embedPanel, chat.slice(chat.indexOf('embed (SHARE-04')), page.slice(page.indexOf('if (embed) {'))]) assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, '').replace(spread, ''), /\.\.\.|…/);
-  for (const attribute of ['data-embed-section', 'data-embed-height', 'data-embed-show-chat', 'data-embed-copy', 'data-embed-code', 'data-embed-preview', 'data-embed-email-image']) assert.ok(panel.includes(attribute), attribute);
+  for (const text of [read('./embed-api.js'), panel, share.slice(share.indexOf('function EmbedRow('), share.indexOf('// onPublish(publish)')), chat.slice(chat.indexOf('embed (SHARE-04')), page.slice(page.indexOf('if (embed) {'))]) assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, '').replace(spread, ''), /\.\.\.|…/);
+  for (const attribute of ['data-embed-section', 'data-embed-source', 'data-embed-height', 'data-embed-show-chat', 'data-embed-copy', 'data-embed-code', 'data-embed-preview', 'data-embed-email-image', 'data-embed-change-access']) assert.ok(panel.includes(attribute), attribute);
   for (const attribute of ['data-embed-root', 'data-embed-title', 'data-embed-open', 'data-embed-fork', 'data-embed-chat-button']) assert.ok(page.includes(attribute), attribute);
   assert.ok(chat.includes('data-embed-chat-fallback') && chat.includes('Open Chat in Rabbit Hole'));
   assert.match(panel, /loading="lazy"/, 'the preview iframe is lazy');
+  assert.match(panel, /Sending an email newsletter\?/);
+  assert.match(panel, /View embed code/);
+  assert.equal((share.match(/<EmbedPanel /g) || []).length, 1, 'the Share panel mounts the standalone panel once');
   assert.match(page, /\{embed\.chat && <button type="button" data-embed-chat-button/, 'no Chat entry point unless ?chat=1');
 });
