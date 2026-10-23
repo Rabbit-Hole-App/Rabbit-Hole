@@ -191,7 +191,8 @@ request. A period overlapping a `partial` entry, starting before `since` or endi
   and the publication token, the shared board state exactly as a visitor gets it (`sharedState` and
   `redactRepositoryCards` with no viewer), and `authorizeFileSource` through the token for imported files.
 - **Decision: on demand, not stored.** The owner presses Check; `GET /api/analytics/health[?canvas=<name>]` runs the
-  checks then and returns them with `checked_at` = the time of the check. Nothing is written, so no storage approval is
+  checks then and returns them with `checked_at` = the time of the check (built: `control-plane/src/creator-analytics-health.js`,
+  tests `control-plane/test/creator-analytics-health.test.js`). Nothing is written, so no storage approval is
   needed. Owner-only (401 signed out, 404 for a canvas that is not the owner's live public one), at most one run per
   owner every 30 seconds per worker instance (429), and at most 40 checks per run (the rest count as unchecked).
 - Read-only: never changes sharing or permissions, never executes notebooks, generates content or calls a paid or
