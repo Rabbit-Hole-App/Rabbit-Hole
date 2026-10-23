@@ -21,7 +21,10 @@
       { "name": "REPOSITORY_IMPORTS", "class_name": "RepositoryImports" },
       { "name": "CAD_JOBS", "class_name": "CadJobs" },
       // /explain v2 jobs (control-plane/src/explain-job.js, EXP-T12); routes off unless EXPLAIN_V2_ENABLED.
-      { "name": "EXPLAIN_JOBS", "class_name": "ExplainJobs" }
+      { "name": "EXPLAIN_JOBS", "class_name": "ExplainJobs" },
+      // IMG-01 image generation jobs, one object per generation (control-plane/src/image-jobs.js, docs/features/image-jobs.md).
+      // Bound even while IMAGE_GENERATE_ENABLED is off, so existing jobs can still be inspected and settled.
+      { "name": "IMAGE_JOBS", "class_name": "ImageJobs" }
     ]
   },
   "migrations": [
@@ -29,7 +32,8 @@
     { "tag": "learn-scenes-1", "new_sqlite_classes": ["LearnScenes"] },
     { "tag": "repository-imports-1", "new_sqlite_classes": ["RepositoryImports"] },
     { "tag": "cad-jobs-1", "new_sqlite_classes": ["CadJobs"] },
-    { "tag": "explain-jobs-1", "new_sqlite_classes": ["ExplainJobs"] }
+    { "tag": "explain-jobs-1", "new_sqlite_classes": ["ExplainJobs"] },
+    { "tag": "image-jobs-1", "new_sqlite_classes": ["ImageJobs"] }
   ],
   // dev-worker.js bundles its pages from ./dist-dev; build with the production VITE_* env into that directory.
   "assets": { "directory": "./dist-dev", "binding": "ASSETS", "run_worker_first": true },
@@ -51,6 +55,9 @@
   "vars": {
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
+    // IMG-01 image generation (docs/features/image-jobs.md): off. Only "true" accepts new jobs; IMAGE_GENERATE_RESERVED_USD
+    // (the per-image hold) is unset, so no image could be quoted or started even if this were switched on.
+    "IMAGE_GENERATE_ENABLED": "false",
     // A simple request within these goes straight to authoring; missing thresholds would review every request (explain-brief.js).
     "EXPLAIN_BRIEF_THRESHOLDS": "{\"components\":12,\"credits\":400}",
     "PUBLIC_ORIGIN": "https://digrabbithole.com",
@@ -87,7 +94,7 @@
     "MOTION_GENERATION_PAUSED": "0"
   }
   // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), TYPESAFE_API_KEY,
-  // FISH_AUDIO_API_KEY, ELEVENLABS_API_KEY, SCENE_WORKER_TOKEN. Optional: OPENAI_API_KEY and the paid-provider keys.
+  // FISH_AUDIO_API_KEY, ELEVENLABS_API_KEY, SCENE_WORKER_TOKEN. Optional: OPENAI_API_KEY, GEMINI_API_KEY (IMG-01) and the paid-provider keys.
   // Never here: RESEND_API_KEY or OAuth secrets (rabbit-hole-cp only).
   // CAD activation switches CAD_PRODUCTION_ENABLED/CAD_MODEL_ENABLED are managed
   // server bindings: absent means disabled. Do not overwrite them on later releases.
