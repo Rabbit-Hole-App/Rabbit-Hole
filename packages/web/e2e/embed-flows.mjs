@@ -329,7 +329,7 @@ export async function runEmbed(engine) {
     const page = await ctx.newPage();
     const logged = [];
     page.on('console', m => { if (m.type() === 'error' && logged.length < 6) logged.push(m.text().slice(0, 200)); });
-    page.on('pageerror', e => { if (logged.length < 6) logged.push(`pageerror: ${String(e.message).slice(0, 200)}`); });
+    page.on('pageerror', e => { if (logged.length < 6) logged.push(`pageerror: ${String(e.message).slice(0, 200)} ${String(e.stack).slice(0, 500)}`); });
     await page.goto(hostUrl(host, 'a', path, '&lazy=0&h=480'));
     let fl;
     try { fl = await embedOf(page); } catch {

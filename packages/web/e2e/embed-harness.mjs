@@ -105,7 +105,7 @@ async function profile(kind, prefs) {
   const dir = mkdtempSync(join(tmpdir(), `embed-${kind}-`));
   mkdirSync(join(dir, 'Default'), { recursive: true });
   writeFileSync(join(dir, 'Default', 'Preferences'), JSON.stringify(prefs));
-  const context = await chromium.launchPersistentContext(dir, { headless: true, ignoreHTTPSErrors: true });
+  const context = await chromium.launchPersistentContext(dir, { headless: true, channel: 'chromium', ignoreHTTPSErrors: true }) // the full Chromium in new headless mode: the headless shell keeps no content settings, so a Preferences file changes nothing there;
   return { context, dir, kind, close: async () => {
     await context.close();
     // Evidence for a recipe that did not block: what the browser left in the profile's Preferences (were ours read or rewritten?).
@@ -134,7 +134,7 @@ export async function blockedProfile(host) {
   const tried = [];
   // Last recipe first tried by command line: third-party cookie phase-out test mode with partitioning off, so Partitioned is just a third-party cookie.
   {
-    const browser = await chromium.launch({ args: ['--test-third-party-cookie-phaseout', '--disable-features=PartitionedCookies'] });
+    const browser = await chromium.launch({ channel: 'chromium', args: ['--test-third-party-cookie-phaseout', '--disable-features=PartitionedCookies'] });
     const context = await browser.newContext(contextOptions);
     if (!(await crossSiteCookieKept(host, context))) { console.log('blocked profile: chromium --test-third-party-cookie-phaseout (the canary cookie is not returned and not stored)'); return { context, kind: 'phaseout', close: () => browser.close() }; }
     tried.push('phaseout'); await browser.close();
@@ -206,8 +206,10 @@ export async function launchEngine(engine, options = {}) {
   try { return await type.launch(options); } catch (error) {
     if (engine === 'chromium') throw error;
     console.log(`installing ${engine}`);
-    execFileSync('npx', ['--no-install', 'playwright', 'install', ...(process.platform === 'linux' ? ['--with-deps'] : []), engine], { stdio: 'inherit', shell: process.platform === 'win32' });
-    return type.launch(options);
+    for (let attempt = 1; ; attempt++) { // a package mirror or lock that hangs must not take the 15 minute check budget
+      try { execFileSync('npx', ['--no-install', 'playwright', 'install', ...(process.platform === 'linux' ? ['--with-deps'] : []), engine], { stdio: 'inherit', shell: process.platform === 'win32', timeout: 240000 }); break; } catch (installError) { console.log(`install ${engine} attempt ${attempt} failed: ${String(installError.message).split(String.fromCharCode(10))[0]}`); if (attempt === 2) throw installError; }
+    }
+    return type.launch({ timeout: 60000, ...options });
   }
 }
 
