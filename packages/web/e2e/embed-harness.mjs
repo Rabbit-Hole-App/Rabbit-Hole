@@ -77,7 +77,7 @@ async function profile(kind, prefs) {
 export async function crossSiteCookieKept(host, context) {
   const page = await context.newPage();
   const abs = path => `http://${SITE.same}:${host.port}${path}`;
-  await page.goto(host.url('a', `/framed?abs=${encodeURIComponent(abs('/canary'))}`));
+  await page.goto(host.url('a', `/framed?lazy=0&abs=${encodeURIComponent(abs('/canary'))}`));
   const frame = page.frames().find(f => f.url() === abs('/canary'));
   if (!frame) throw Error('the canary frame did not load');
   const sent = await frame.evaluate(async () => (await (await fetch('/canary/read')).json()).sent);
