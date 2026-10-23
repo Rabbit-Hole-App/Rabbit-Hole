@@ -86,7 +86,7 @@ Server code is in `packages/control-plane/src/learn-boards.js`.
 |---|---|---|
 | `GET`/`HEAD /api/learn/boards/<app>/main/thumbnail` | The owner only: `boardOwner`, the board routes' own check. A project is whoever may open its Learn, and each person gets their own board's picture. | The custom picture, else the snapshot. 204 when there is neither. |
 | `PUT …/thumbnail`, `PUT …/thumbnail/custom`, `DELETE …/thumbnail/custom` | The owner, from this origin | `{ source, size }` |
-| `GET`/`HEAD /api/learn/boards/published/<token>/thumbnail` | Anyone, signed out too | Only while the canvas is in Explore: the `PUBLISHED` set (live, top level, not in Trash, owner has a @handle) |
+| `GET`/`HEAD /api/learn/boards/published/<token>/thumbnail` | Anyone, signed out too | Only while the canvas is in Explore: the `PUBLISHED` set (live, top level, not in Trash, owner has a @handle). Serves the owner's custom picture only; 204 when there is none, because the snapshot is drawn from the owner's own view of the canvas (owner decision 2026-10-22). `GET`/`HEAD /api/learn/boards/shared/<viewToken>/thumbnail` is the same for a public view link (embed and email), 404 once the link is off or not public. |
 
 - **Other people:**
   - Signed out: 401.
@@ -136,7 +136,7 @@ Each is one small WebP per canvas, plus a custom one only when the owner chose o
   - Change thumbnail refuses a GIF and replaces with a PNG cropped to 2:1;
   - Use canvas snapshot reverts;
   - another person gets 404 for private and unlisted;
-  - published is visible to anyone, and unpublished is gone;
+  - a published canvas shows its custom picture to anyone and a snapshot-only one shows none, on Explore and on a public view link; unpublished or switched off is gone, on conditional requests too;
   - Explore shows the pictures on the right, by token;
   - the phone layout;
   - no page errors and the tripwire at 0.

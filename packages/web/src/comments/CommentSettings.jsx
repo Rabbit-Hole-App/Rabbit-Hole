@@ -1,69 +1,105 @@
-import { useEffect, useState } from 'react';
-import { Ban, Globe, MessageCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Ban } from 'lucide-react';
 import { api } from '../api.js';
-import { Switch } from '../SharePanel.jsx';
 import { displayName } from './comments-api.js';
 
-// The owner's comment settings in Share (docs/features/canvas-comments.md section 4): "Allow comments" for everyone the
-// canvas is shared with, and, once it is published to Explore, Public comments Off / Open / Closed - each saying what
-// happens to existing comments. The public setting is disabled while Allow comments is off.
-const MODES = [
-  ['off', 'Off', 'The published page shows no comments.'],
-  ['open', 'Open', 'Anyone signed in to Rabbit Hole can comment.'],
-  ['closed', 'Closed', 'Existing comments stay visible. No new comments or replies.'],
-];
-
-export default function CommentSettings({ base, published }) {
+// The owner's comment settings in the Share dialog (docs/features/canvas-comments.md section 4), mapped to the two server
+// settings that exist and nothing else (owner brief 2026-10-22):
+//   Share tab    comments_enabled  View only (false) / Allow comments (true), for the people the owner invites.
+//   Explore tab  public_mode       Hidden (off) / View only (closed) / Allow comments (open), once published; disabled while
+//                                  comments_enabled is false.
+// A share link shows no comments at all and has no setting, so the Share tab has no Hidden choice.
+// The value shown is the pending one while a save is in flight and goes back to the server's last answer when it fails.
+export function useCommentSettings(base, published) {
   const [settings, setSettings] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(null);
   const [error, setError] = useState(null);
-  // Blocked from commenting (section 3): each person blocked by a public comment of theirs, with Unblock.
   const [blocks, setBlocks] = useState([]);
-  useEffect(() => { api(`${base}/blocks`).then(data => setBlocks(data.blocks), () => {}); }, [base]);
-  const unblock = async id => { try { setBlocks((await api(`${base}/blocks/${id}`, { method: 'DELETE' })).blocks); } catch (failure) { setError(failure.message); } };
+  const seq = useRef(0);
   useEffect(() => {
+    if (!base) return undefined;
+    const mine = ++seq.current;
+    setSettings(null); setPending(null); setError(null); setBlocks([]);
+    api(`${base}/blocks`).then(data => { if (mine === seq.current) setBlocks(data.blocks); }, () => {});
+    return () => { seq.current++; };
+  }, [base]);
+  useEffect(() => {
+    if (!base) return undefined;
     let live = true;
     api(base).then(about => { if (live) setSettings({ comments_enabled: about.comments_enabled, public_mode: about.public_mode }); }, failure => { if (live) setError(failure.message); });
     return () => { live = false; };
   }, [base, published]);
   const save = async patch => {
-    setBusy(true); setError(null);
-    try { setSettings(await api(`${base}/comment-settings`, { method: 'PUT', body: JSON.stringify(patch) })); } catch (failure) { setError(failure.message); } finally { setBusy(false); }
+    const mine = ++seq.current;
+    setPending(patch); setError(null);
+    try {
+      const next = await api(`${base}/comment-settings`, { method: 'PUT', body: JSON.stringify(patch) });
+      if (mine === seq.current) setSettings(next);
+    } catch (failure) { if (mine === seq.current) setError(failure.message); } finally { if (mine === seq.current) setPending(null); }
   };
-  if (!settings) return error ? <p role="alert" className="mt-2 text-xs text-red-700">{error}</p> : null;
-  const enabled = settings.comments_enabled;
+  const unblock = async id => { try { setBlocks((await api(`${base}/blocks/${id}`, { method: 'DELETE' })).blocks); } catch (failure) { setError(failure.message); } };
+  return { on: !!base, ready: !!settings, value: settings && { ...settings, ...pending }, saving: !!pending, error, blocks, save, unblock };
+}
+
+// Native radios (arrow keys, one tab stop, a name for each option), laid invisibly over their label so a click hits the radio itself.
+export function Choice({ label, options, value, disabled = false, onPick }) {
   return (
-    <div data-comment-settings className="mt-3 rounded-lg border border-line p-2.5">
-      <div className="flex items-center gap-2">
-        <MessageCircle size={14} className="shrink-0 text-ink-2" />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm text-ink">Allow comments</div>
-          <div className="text-xs text-ink-3">{enabled ? 'People you share this canvas with can comment.' : 'Only you can comment. Existing comments stay visible.'}</div>
-        </div>
-        <Switch on={enabled} label="Allow comments" disabled={busy} onChange={on => save({ comments_enabled: on })} />
-      </div>
-      {published && (
-        <div data-public-comments className="mt-2.5 border-t border-line pt-2.5">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-ink-2"><Globe size={13} className="shrink-0" />Public comments on the published page</div>
-          <div role="radiogroup" aria-label="Public comments" className="flex gap-0.5 rounded-lg border border-line p-0.5">
-            {MODES.map(([value, label]) => (
-              <button key={value} type="button" role="radio" aria-checked={settings.public_mode === value} disabled={busy || !enabled} onClick={() => save({ public_mode: value })}
-                className={`flex-1 rounded-md px-2 py-1 text-xs disabled:opacity-40 ${settings.public_mode === value ? 'bg-hover text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
-            ))}
-          </div>
-          <p className="mt-1.5 text-xs text-ink-3">{enabled ? MODES.find(([value]) => value === settings.public_mode)?.[2] : 'Turn on Allow comments to change this.'}</p>
-        </div>
-      )}
-      {blocks.length > 0 && (
+    <div role="radiogroup" aria-label={label} className="flex gap-0.5 rounded-lg border border-line p-0.5">
+      {options.map(([key, text]) => (
+        <label key={String(key)} className={`relative flex-1 rounded-md px-2 py-1 text-center text-xs has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-[#2383e2] ${disabled ? 'opacity-40' : 'cursor-pointer'} ${value === key ? 'bg-hover text-ink' : 'text-ink-2 hover:text-ink'}`}>
+          <input type="radio" name={label} className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default" checked={value === key} disabled={disabled} onChange={() => onPick(key)} />{text}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+const SIGN_IN = 'Sign in to post a comment.';
+const SHARE = [[false, 'View only'], [true, 'Allow comments']];
+const EXPLORE = [['off', 'Hidden'], ['closed', 'View only'], ['open', 'Allow comments']];
+const EXPLORE_TEXT = { off: 'The Explore page shows no comments.', closed: 'Existing comments stay visible. No new comments or replies.', open: 'Anyone signed in to Rabbit Hole can comment.' };
+
+function Failure({ cs }) {
+  return cs.error ? <p role="alert" className="mt-1 text-xs text-red-700">{cs.error}</p> : null;
+}
+
+export function ShareCommentSetting({ cs }) {
+  if (!cs.on) return null;
+  if (!cs.ready) return <Failure cs={cs} />;
+  const allowed = cs.value.comments_enabled;
+  return (
+    <div data-comment-settings className="border-t border-line py-2.5">
+      <div className="mb-1.5 text-sm text-ink">Comments</div>
+      <Choice label="Comments" options={SHARE} value={allowed} disabled={cs.saving} onPick={on => cs.save({ comments_enabled: on })} />
+      <p className="mt-1.5 text-xs text-ink-3">{allowed ? 'People you invite can view and comment.' : 'People you invite see existing comments but cannot post. Only you can.'}</p>
+      {allowed && <p className="text-xs text-ink-3">{SIGN_IN}</p>}
+      {cs.saving && <p role="status" className="text-xs text-ink-3">Saving</p>}
+      <Failure cs={cs} />
+      {cs.blocks.length > 0 && (
         <div data-comment-blocks className="mt-2.5 border-t border-line pt-2.5">
           <div className="mb-1 flex items-center gap-1.5 text-xs text-ink-2"><Ban size={13} className="shrink-0" />Blocked from commenting</div>
-          <ul className="space-y-1">{blocks.map(block => (
+          <ul className="space-y-1">{cs.blocks.map(block => (
             <li key={block.block_id} className="flex items-center gap-2 text-sm text-ink"><span className="min-w-0 flex-1 truncate">{displayName(block.person)}</span>
-              <button type="button" data-unblock onClick={() => unblock(block.block_id)} className="h-6 rounded-md border border-line px-2 text-xs text-ink hover:bg-hover">Unblock</button></li>
+              <button type="button" data-unblock onClick={() => cs.unblock(block.block_id)} className="h-6 rounded-md border border-line px-2 text-xs text-ink hover:bg-hover">Unblock</button></li>
           ))}</ul>
         </div>
       )}
-      {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
+    </div>
+  );
+}
+
+export function ExploreCommentSetting({ cs }) {
+  if (!cs.on) return null;
+  if (!cs.ready) return <Failure cs={cs} />;
+  const mode = cs.value.public_mode;
+  return (
+    <div data-public-comments className="border-t border-line py-2.5">
+      <div className="mb-1.5 text-sm text-ink">Comments on Explore</div>
+      <Choice label="Public comments" options={EXPLORE} value={mode} disabled={cs.saving || !cs.value.comments_enabled} onPick={value => cs.save({ public_mode: value })} />
+      <p className="mt-1.5 text-xs text-ink-3">{EXPLORE_TEXT[mode]}</p>
+      {mode === 'open' && <p className="text-xs text-ink-3">{SIGN_IN}</p>}
+      {cs.saving && <p role="status" className="text-xs text-ink-3">Saving</p>}
+      <Failure cs={cs} />
     </div>
   );
 }

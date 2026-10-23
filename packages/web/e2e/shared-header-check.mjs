@@ -80,6 +80,8 @@ for (const theme of ['light', 'dark']) {
   const closedOffset = await centred();
   check(`${theme}: the title and menus are centred on the header with the panel open and closed, whatever the right side holds`, openOffset <= 2 && closedOffset <= 2, `${openOffset} / ${closedOffset}`);
   await p.toggle.click();
+  await page.waitForFunction(() => document.querySelector('[data-panel-toggle]').getAttribute('aria-pressed') === 'true'); // the panel is back before anything below is measured
+  await page.waitForTimeout(400);
   const creator = page.locator('[data-shared-creator]');
   const link = creator.locator('[data-creator-link]');
   const colours = await creator.evaluate(node => [getComputedStyle(node).color, getComputedStyle(node.querySelector('[data-creator-link]')).color]);
@@ -88,10 +90,10 @@ for (const theme of ['light', 'dark']) {
   check(`${theme}: one Fork button at zero forks - no 0, badge or separator - and no Sign in, Start Rabbit Hole or usage meter in the header`,
     (await p.fork.innerText()).trim() === 'Fork' && await p.fork.locator('[data-fork-count-value]').count() === 0 && (await p.fork.getAttribute('aria-label')) === null
     && await p.header.locator('[data-sign-in], [data-start-rabbit-hole], [data-usage-gauge]').count() === 0 && !/Sign in|Start Rabbit Hole/.test(await p.header.innerText()));
-  const noteBox = await box(p.note);
-  check(`${theme}: the exact note sits directly beneath Fork`, (await p.note.innerText()).trim() === "Changes aren't saved. Fork to keep them" && noteBox.y >= forkBox.bottom - 1 && noteBox.y - forkBox.bottom < 16
-    && noteBox.x + noteBox.w > forkBox.x - 1 && noteBox.x < forkBox.right + 1 && !/\.\.\.|…/.test(await p.header.innerText()),
-    JSON.stringify({ note: (await p.note.innerText()).trim(), noteBox, forkBox, ellipsis: (await p.header.innerText()).match(/.{0,20}(\.\.\.|…).{0,20}/)?.[0] ?? null }));
+  const [noteBox, forkNow] = await Promise.all([box(p.note), box(p.fork)]); // measured together, in one layout
+  check(`${theme}: the exact note sits directly beneath Fork`, (await p.note.innerText()).trim() === "Changes aren't saved. Fork to keep them" && noteBox.y >= forkNow.bottom - 1 && noteBox.y - forkNow.bottom < 16
+    && noteBox.x + noteBox.w > forkNow.x - 1 && noteBox.x < forkNow.right + 1 && !/\.\.\.|…/.test(await p.header.innerText()),
+    JSON.stringify({ note: (await p.note.innerText()).trim(), noteBox, forkNow, ellipsis: (await p.header.innerText()).match(/.{0,20}(\.\.\.|…).{0,20}/)?.[0] ?? null }));
   const titleFacts = await p.title.evaluate(node => ({ full: node.getAttribute('title'), text: node.textContent, clipped: node.scrollWidth > node.clientWidth }));
   check(`${theme}: a long title truncates but stays whole in its tooltip, and nothing scrolls sideways or overlaps`, titleFacts.full === TITLE && titleFacts.text === TITLE && titleFacts.clipped
     && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth) && (await noOverlaps(page)).length === 0, JSON.stringify(await noOverlaps(page)));

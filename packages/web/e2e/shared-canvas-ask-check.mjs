@@ -245,7 +245,7 @@ await ownerPage.goto(`${BASE}/apps/${lab.name}?tab=learn`);
 await ownerPage.locator('[data-share-button]').waitFor({ timeout: 60000 });
 await ownerPage.waitForTimeout(1500);
 await ownerPage.locator('[data-share-button]').click();
-await ownerPage.locator('[role="dialog"][aria-label="Share this board"]').waitFor({ timeout: 20000 });
+await ownerPage.locator('[role="dialog"][aria-label="Share canvas"]').waitFor({ timeout: 20000 });
 check('the owner\'s Share panel has no private repository switch', await ownerPage.locator('[data-share-repository]').count() === 0 && !(await ownerPage.content()).includes('Allow questions to use private repository code'));
 await shot(ownerPage, '06-owner-share-no-repository-switch');
 // The original importer (the owner here) on her own link: her stored snapshot's repository, at the pinned commit.

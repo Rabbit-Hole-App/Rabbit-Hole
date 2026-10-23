@@ -257,7 +257,7 @@ function ShareDialog({ a, state, onClose, onChanged }) {
   };
   return (
     <div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]">
-      <SharePanel place="relative mt-[26vh] max-w-[90vw]" sharing={sharing} busy={busy || !sharing} error={error} onClose={onClose}
+      <SharePanel place="relative mt-[26vh] max-w-[90vw]" key={a.name} title={titleOf(a)} sharing={sharing} busy={busy || !sharing} error={error} onClose={onClose}
         onChange={run((next) => post(`${base}/share`, { ...next, ...(state ? { state } : {}) }))}
         // A project's link is its Main canvas board's; a project itself is never in Explore (its canvases are, by Visibility).
         onPublish={a.kind === 'repository' ? null : run(async (publish) => {

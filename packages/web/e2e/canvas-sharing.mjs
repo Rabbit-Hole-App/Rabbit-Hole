@@ -37,18 +37,14 @@ await owner.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await owner.locator('[data-shape-id="shared-rect"]').waitFor({ timeout: 60000 });
 await owner.waitForTimeout(1500);
 await owner.getByRole('button', { name: 'Share', exact: true }).click();
-const dialog = owner.getByRole('dialog', { name: 'Share this board' });
-await dialog.getByRole('switch', { name: 'Share this board' }).click();
-const viewUrl = dialog.getByRole('textbox', { name: 'View link URL' });
+const dialog = owner.getByRole('dialog', { name: 'Share canvas' });
+await dialog.getByLabel('Who can open this?').selectOption('signin');
+const viewUrl = dialog.getByRole('textbox', { name: 'Share link URL' });
 await viewUrl.waitFor({ timeout: 10000 });
 const viewLink = await viewUrl.inputValue();
 check('sharing makes a view link, and there is no edit link', /\/b\/[A-Za-z0-9_-]{20,}$/.test(viewLink) && await dialog.getByRole('switch', { name: 'Edit link' }).count() === 0);
-const rules = dialog.getByRole('tooltip');
-const hiddenFirst = await rules.evaluate(node => getComputedStyle(node).opacity === '0');
-await dialog.getByRole('button', { name: 'How sharing works' }).hover();
-await owner.waitForTimeout(300);
-check('the sharing rules sit behind a ! icon and show on hover', hiddenFirst && await rules.evaluate(node => getComputedStyle(node).opacity === '1')
-  && (await rules.innerText()).startsWith('Shared boards are view-only'));
+// Owner brief 2026-10-22 (Share dialog redesign): the rules icon is gone; the selected option explains itself in one line.
+check('the selected access option is explained under the dropdown, and says viewers cannot edit', (await dialog.innerText()).includes('Anyone with the link can view this canvas after signing in. They cannot edit it.'));
 if (SHOTS) await owner.screenshot({ path: `${SHOTS}/share-panel.png` });
 
 // a signed-in friend opens the view link: read-only
@@ -65,7 +61,7 @@ const stranger = await strangerContext.newPage();
 await stranger.goto(viewLink);
 await stranger.waitForURL(url => url.pathname === '/login', { timeout: 15000 }).catch(() => {});
 check('signed out, a non-public view link asks you to sign in', new URL(stranger.url()).pathname === '/login');
-await dialog.getByRole('switch', { name: 'Public view link' }).click();
+await dialog.getByLabel('Who can open this?').selectOption('public');
 await owner.waitForTimeout(1500);
 await stranger.goto(viewLink);
 await stranger.locator('[data-shape-id="shared-rect"]').waitFor({ timeout: 60000 }).catch(() => {});
@@ -94,8 +90,8 @@ check('the fork is editable by the forker; the shared original is not changed', 
   && (await owner.evaluate(async key => JSON.parse(localStorage.getItem(key) || '{}').shapes?.length, KEY)) === 1);
 
 // sharing off: the links stop working
-if (!(await owner.getByRole('dialog', { name: 'Share this board' }).isVisible())) await owner.getByRole('button', { name: 'Share', exact: true }).click();
-await owner.getByRole('dialog', { name: 'Share this board' }).getByRole('switch', { name: 'Share this board' }).click();
+if (!(await owner.getByRole('dialog', { name: 'Share canvas' }).isVisible())) await owner.getByRole('button', { name: 'Share', exact: true }).click();
+await owner.getByRole('dialog', { name: 'Share canvas' }).getByLabel('Who can open this?').selectOption('invited');
 await owner.waitForTimeout(1500);
 await friend.goto(viewLink);
 await friend.getByText('This link is not shared any more').waitFor({ timeout: 15000 }).catch(() => {});

@@ -55,9 +55,9 @@ await owner.locator('[data-block-id="img1"] img').waitFor({ timeout: 30000 });
 
 // share: the files go up
 await owner.getByRole('button', { name: 'Share', exact: true }).click();
-const dialog = owner.getByRole('dialog', { name: 'Share this board' });
-await dialog.getByRole('switch', { name: 'Share this board' }).click();
-const viewUrl = dialog.getByRole('textbox', { name: 'View link URL' });
+const dialog = owner.getByRole('dialog', { name: 'Share canvas' });
+await dialog.getByLabel('Who can open this?').selectOption('signin');
+const viewUrl = dialog.getByRole('textbox', { name: 'Share link URL' });
 await viewUrl.waitFor({ timeout: 10000 });
 const viewLink = await viewUrl.inputValue();
 let keys = [];
