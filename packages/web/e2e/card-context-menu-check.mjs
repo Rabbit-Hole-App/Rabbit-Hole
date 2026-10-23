@@ -433,7 +433,7 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   const sent = [];
   page.on('request', request => { if (request.url().includes('/rabbit-hole') && request.method() === 'POST') sent.push(JSON.parse(request.postData() || '{}')); });
   await page.goto(`${BASE}/b/${token}`);
-  await page.locator('[data-start-rabbit-hole]').waitFor({ timeout: 30000 }); await page.waitForTimeout(1500);
+  await page.locator('[data-shared-title]').waitFor({ timeout: 30000 }); await page.waitForTimeout(1500); // no header Start Rabbit Hole button since the owner header brief, 2026-10-22
   // A visitor's board (SHARE-02: their temporary copy) selects by a click, as shared-rabbit-hole-check clickCard does, so press by coordinates.
   const point = async id => { const box = await page.locator(`[data-block-id="${id}"]`).first().boundingBox(); return [box.x + box.width / 2, box.y + Math.min(40, box.height / 2)]; };
   const [ax, ay] = await point('m-a'); await page.mouse.click(ax, ay); await page.waitForTimeout(300);

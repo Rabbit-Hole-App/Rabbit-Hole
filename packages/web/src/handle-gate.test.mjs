@@ -38,10 +38,11 @@ test('Settings > Profile can change the handle; the server is the authority', ()
 
 test('the shared header names the creator by @handle only when there is one', () => {
   const page = read('./SharedBoardPage.jsx');
-  // A share says "Shared by", an Explore publication "Published by" (docs/features/explore-publish.md); both by @handle.
-  assert.ok(page.includes("{shared.creator && <span data-shared-creator className=\"truncate text-xs text-ink-3\">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle"));
+  // Owner header brief, 2026-10-22: under the title, "by" muted and the @handle blue, on a share and a publication alike.
+  assert.ok(page.includes("<span data-shared-creator className=\"max-w-full truncate text-xs text-ink-3\">by{' '}"));
+  assert.doesNotMatch(page, /Published by|Shared by/, 'the old inline attribution is gone');
   // Every @handle links to the public profile, a share link's too (owner, 2026-10-08; docs/features/creator-profile.md).
-  assert.ok(page.includes("? <a data-creator-link href={`/@${shared.creator.handle}`} className=\"rounded-sm text-ink-2 hover:text-ink hover:underline\">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}"));
+  assert.ok(page.includes("? <a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className=\"rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60\">@{shared.creator.handle}</a>"));
   assert.doesNotMatch(page, /shared\.owner\b/, 'the owner email is gone from the page');
 });
 

@@ -70,8 +70,7 @@ check('a public view link opens without signing in', await stranger.locator('[da
 const forkDialog = page => page.getByRole('dialog', { name: 'Fork this canvas' });
 await stranger.goto(viewLink);
 await stranger.getByRole('button', { name: 'Fork' }).waitFor({ timeout: 30000 });
-await stranger.getByRole('button', { name: 'Fork' }).click();
-await forkDialog(stranger).getByRole('button', { name: 'Fork', exact: true }).click();
+await stranger.getByRole('button', { name: 'Fork' }).click(); // signed out, Fork goes straight to sign-in, no dialog first (owner, 2026-10-22)
 await stranger.waitForURL(url => url.pathname === '/login', { timeout: 15000 }).catch(() => {});
 const next = new URL(stranger.url()).searchParams.get('next') || '';
 check('a signed-out Fork asks you to sign in, then comes back to fork', new URL(stranger.url()).pathname === '/login' && next.endsWith('?fork=1'), next);

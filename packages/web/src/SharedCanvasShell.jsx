@@ -6,7 +6,6 @@ import TableOfContents from './TableOfContents.jsx';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { slashOpensFind } from './source-finder.js';
 import { sharedPanelTabs } from './canvas-permissions.js';
-import { Button } from './ui.jsx';
 
 // The shared canvas's shell pieces (SHARE-01, owner brief 2026-10-22 sections 1-2, 6): a share link or publication
 // (SharedBoardPage) and a member's canvas (MemberBoardPage) use the normal canvas's right panel - PanelHeader's tabs Chat, Find,
@@ -59,7 +58,7 @@ export function SharedPanel({ panel, permissions, chat = null, search, onOpenAct
 export function PanelToggle({ panel }) {
   return (
     <button type="button" data-panel-toggle title={panel.open ? 'Hide the right panel' : 'Show the right panel'} aria-label={panel.open ? 'Hide the right panel' : 'Show the right panel'} aria-pressed={panel.open}
-      onClick={panel.toggle} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${panel.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+      onClick={panel.toggle} className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${panel.open ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
       {panel.open ? <PanelRightClose size={15} strokeWidth={1.8} /> : <PanelRightOpen size={15} strokeWidth={1.8} />}
     </button>
   );
@@ -72,17 +71,16 @@ export function CommentsToggle({ panel, comments }) {
   return (
     <button type="button" data-comments-header title="Comments" aria-label={comments.unread ? `Comments, ${comments.unread} unread` : 'Comments'} aria-pressed={shown}
       onClick={() => (shown ? panel.setOpen(false) : panel.show('comments'))}
-      className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${shown ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
+      className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${shown ? 'bg-hover text-ink' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
       <MessageCircle size={15} strokeWidth={1.8} aria-hidden />{comments.unread > 0 && <span data-unread-dot className="absolute top-1.5 left-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-white" />}
     </button>
   );
 }
 
-// The account area: signed out, a clear Sign in back to this page; signed in, the viewer's own canvases (an initial, never an
-// email: the shared page shows no address, handle-check).
+// The account area: signed in, the viewer's own canvases (an initial, never an email: the shared page shows no address,
+// handle-check). Signed out there is no Sign in button in the header: Fork carries the sign-in (owner, 2026-10-22).
 export function ViewerAccount({ viewer }) {
-  const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
-  if (!viewer) return <Button type="button" variant="primary" data-sign-in onClick={() => window.location.assign(`/login?next=${next}`)}>Sign in</Button>;
+  if (!viewer) return null;
   return (
     <a data-viewer-account href="/apps" title="Your canvases" aria-label="Your canvases"
       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hover text-sm font-semibold text-ink no-underline hover:bg-active">{viewer.slice(0, 1).toUpperCase()}</a>

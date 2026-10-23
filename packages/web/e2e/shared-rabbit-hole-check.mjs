@@ -79,8 +79,15 @@ const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 let page;
 const shot = async name => { await page.waitForTimeout(500); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
-const openShared = async source => { await page.goto(`${BASE}/b/${source.token}`); await page.locator('[data-start-rabbit-hole]').waitFor({ timeout: 30000 }); await page.waitForTimeout(1200); };
+const openShared = async source => { await page.goto(`${BASE}/b/${source.token}`); await page.locator('[data-shared-title]').waitFor({ timeout: 30000 }); await page.waitForTimeout(1200); };
 // A view-only canvas: the click lands on the canvas surface, which selects the card under it.
+// Owner header brief, 2026-10-22: the header has no Start Rabbit Hole button; it starts from the card's right-click menu (card-context-menu-check).
+const startFromCard = async id => {
+  await clickCard(id);
+  const box = await page.locator(`[data-block-id="${id}"]`).boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + Math.min(40, box.height / 2), { button: 'right' });
+  await page.locator('[data-canvas-menu] [data-menu-start-rabbit-hole]').click();
+};
 const clickCard = async id => { const box = await page.locator(`[data-block-id="${id}"]`).boundingBox(); await page.mouse.click(box.x + box.width / 2, box.y + Math.min(40, box.height / 2)); await page.waitForTimeout(300); };
 const holeOf = url => new URL(url).pathname.match(/^\/apps\/(canvas-[a-f0-9]{8})$/)?.[1];
 const tree = async (who, hole) => (await api(who, `/api/canvases/dives?app=${hole}&board=main`));
@@ -93,35 +100,32 @@ const pickStart = async (name = 'From this canvas') => { await choice().waitFor(
 
 ({ page } = await contextFor(viewer));
 await openShared(kitchen);
-await check('1 the shared viewer shows Start Rabbit Hole, then Fork', async () => {
+await check('1 the shared viewer header has Fork (no count at zero) and no Start Rabbit Hole button (owner, 2026-10-22)', async () => {
   const order = await page.locator('header button').evaluateAll(buttons => buttons.map(button => (button.hasAttribute('data-start-rabbit-hole') ? 'start' : button.hasAttribute('data-fork-button') ? 'fork' : null)).filter(Boolean));
-  assert.deepEqual(order, ['start', 'fork']);
-  assert.equal(await page.locator('[data-start-rabbit-hole]').innerText(), 'Start Rabbit Hole');
-  // Fork is still there, now carrying the canvas's direct fork count (canvas-forking.md): none yet.
-  assert.equal(await page.locator('[data-fork-button]').getAttribute('aria-label'), 'Fork, 0 forks', 'Fork is still there, with its count');
-  assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'root', 'nothing selected: the canvas root');
+  assert.deepEqual(order, ['fork']);
+  assert.equal(await page.locator('[data-fork-button]').getAttribute('aria-label'), null, 'Fork alone at zero forks');
+  assert.equal((await page.locator('[data-fork-button]').innerText()).trim(), 'Fork');
 });
 await shot('01-shared-header-root');
 
-// ---- 3: no selection, a root start on one shared canvas ----
+// ---- 3: a card's menu starts a Rabbit Hole on one shared canvas (the header's root start is gone, owner 2026-10-22) ----
 let rootHole;
-await check('3 no selection: Start Rabbit Hole begins at the shared canvas root', async () => {
-  await page.locator('[data-start-rabbit-hole]').click();
+await check('3 Start Rabbit Hole from a card of the shared canvas asks first, then begins at that card', async () => {
+  await startFromCard('k-exp');
   // The choice: Cancel, Blank and From this canvas; Escape starts nothing.
   await choice().waitFor({ timeout: 10000 });
   assert.deepEqual((await choice().getByRole('button').allInnerTexts()).map(t => t.trim()), ['Cancel', 'Blank', 'From this canvas']);
   await page.keyboard.press('Escape');
   await choice().waitFor({ state: 'detached', timeout: 5000 });
   assert.match(page.url(), /\/b\//, 'Escape starts nothing');
-  await page.locator('[data-start-rabbit-hole]').click();
+  await startFromCard('k-exp');
   await pickStart();
   await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 20000 });
   rootHole = holeOf(page.url());
-  await anchor('Started from the shared canvas "Kitchen chemistry".');
-  assert.match(await anchorCard().innerText(), /Exploring from Kitchen chemistry/);
+  await anchor('on the shared canvas "Kitchen chemistry".');
   await page.getByText('Your Rabbit Hole is ready. It is private to you.').waitFor({ timeout: 10000 });
   const t = (await tree(viewer, rootHole)).body;
-  assert.equal(t.dive.origin.origin_block_id, ':root');
+  assert.equal(t.dive.origin.origin_block_id, 'k-exp');
   assert.deepEqual(t.path.map(level => level.kind), ['shared', 'canvas']);
 });
 await page.locator('[data-dive-navigator]').waitFor({ timeout: 15000 });
@@ -130,7 +134,7 @@ await shot('02-root-hole');
 // Blank (owner, 2026-10-08): a new empty private canvas titled after the source, linked back to it, nothing copied.
 await check('3b Blank: an empty canvas of the viewer, "<source> notes", linked to the shared source, with no anchor card', async () => {
   await openShared(kitchen);
-  await page.locator('[data-start-rabbit-hole]').click();
+  await startFromCard('k-exp');
   await pickStart('Blank');
   await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 20000 });
   const blank = holeOf(page.url());
@@ -142,7 +146,7 @@ await check('3b Blank: an empty canvas of the viewer, "<source> notes", linked t
   await page.waitForTimeout(1500);
   assert.equal(await page.locator('[data-block-id]', { hasText: 'Started from' }).count(), 0, 'nothing copied, not even an anchor');
   await page.goto(`${BASE}/apps/${rootHole}`);
-  await anchor('Started from the shared canvas "Kitchen chemistry".');
+  await anchor('on the shared canvas "Kitchen chemistry".');
 });
 
 await check('5 the hole is the viewer\'s own and private', async () => {
@@ -157,7 +161,7 @@ await check('10 back: the map leads to the shared source, view only', async () =
   assert.equal(await level.innerText(), 'Kitchen chemistry');
   await page.locator('[data-dive-navigator] [aria-label="Up to the parent hole"]').click();
   await page.waitForURL(new RegExp(`/b/${kitchen.token}$`), { timeout: 20000 });
-  await page.locator('[data-start-rabbit-hole]').waitFor();
+  await page.locator('[data-shared-title]').waitFor();
   assert.equal(await page.getByText('View only').count(), 0, 'a visitor edits a temporary copy, so no view-only pill');
   assert.ok(await page.locator('[data-shared-title]').isVisible(), 'still the shared page');
   // SHARE-02 (owner brief 2026-10-22): the visitor's tools edit their temporary copy, never the source.
@@ -171,10 +175,9 @@ await openShared(bridges);
 await check('4 a selected card is the origin (flashcards, on another shared canvas)', async () => {
   await clickCard('b-cards');
   await page.locator('[data-block-id="b-cards"][aria-current="true"]').waitFor({ timeout: 5000 }); // SHARE-02: selected on the visitor's copy
-  assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'b-cards');
-  assert.match(await page.locator('[data-start-rabbit-hole]').getAttribute('title'), /from ".+", or a blank canvas\. This canvas stays as it is\./);
+  assert.equal(await page.locator('[data-start-rabbit-hole]').count(), 0, 'no header Start Rabbit Hole button');
   await shot('03-shared-card-selected');
-  await page.locator('[data-start-rabbit-hole]').click();
+  await startFromCard('b-cards');
   await pickStart();
   await page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 20000 });
   cardHole = holeOf(page.url());
@@ -219,9 +222,7 @@ let resumedHole;
   page = anon.page;
   await openShared(kitchen);
   await check('11 signed out: sign in, come back, and the Rabbit Hole is started from the same card', async () => {
-    await clickCard('k-quiz');
-    assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'k-quiz');
-    await page.locator('[data-start-rabbit-hole]').click();
+    await startFromCard('k-quiz');
     await pickStart();
     // The existing sign-in: /login, which the app worker sends on to its /sign-in page with `next` kept.
     await page.waitForURL(/\/(login|sign-in)\?next=/, { timeout: 20000 });

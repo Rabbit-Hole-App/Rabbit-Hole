@@ -1,19 +1,20 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
 import { can } from './canvas-permissions.js';
 import { CommentsToggle, PanelToggle, SharedPanel, ViewerAccount, useSharedPanel } from './SharedCanvasShell.jsx';
+import logoBlack from './assets/rabbit-hole-black.png';
+import logoWhite from './assets/rabbit-hole-white.png';
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { docIsEmpty } from './canvas-doc.js';
-import { ArrowDownToLine, ChevronDown, ExternalLink, Eye, GitFork, Loader2, MessageCircle, Shapes } from 'lucide-react';
+import { ChevronDown, ExternalLink, Eye, GitFork, Menu as MenuIcon, MessageCircle, Shapes } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
 import ForkButton from './ForkButton.jsx';
 import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
-import UsageGauge, { goToUsageSettings } from './UsageGauge.jsx';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
 import { BLANK, rabbitOrigin, requestRabbitHole, resumeHref, takeResume } from './shared-rabbit-hole.js';
@@ -22,7 +23,7 @@ import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.
 import { markGuidedEntry } from './learn-opening.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
-import { learnPreview, PRODUCT } from './flags.js';
+import { PRODUCT } from './flags.js';
 import { creatorLabel } from './home/provenance.js';
 import { NextStepsCard } from './ask.jsx';
 import SharedChat from './SharedChat.jsx';
@@ -280,37 +281,50 @@ function SharedBoard({ token, embed = null }) {
   // working height (75dvh), so the tools column and the minimap fit inside it instead of spilling over the header.
   return (
     <main className="flex h-screen bg-white max-lg:flex-col max-lg:overflow-y-auto">
-      <section aria-label="Shared canvas" className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
-      <header data-canvas-header className="flex shrink-0 flex-wrap items-center gap-2 gap-y-2 px-4 py-2">
-        {/* The product, top left (owner, 2026-10-04): the aperture mark and the name, to the site home. */}
-        <a href="/" data-shared-brand className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
-          <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" />
-          <span className="text-sm font-semibold text-ink">{PRODUCT}</span>
-        </a>
-        {/* One line, the full title on hover; with holes, the chevron opens their tree, each level its own link (owner r35). */}
-        <span data-shared-title title={title} className="min-w-16 truncate text-sm font-semibold text-ink">{title}</span>
-        {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
-        {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
-        {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>}
-        <CanvasMenubar menus={menus} />
-        {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
-        {/* Who made it, by @handle (docs/features/user-handles.md); no handle, no line - never an email. The @handle
-            links to the creator's public profile on a publication and a share link alike (owner, 2026-10-08). */}
-        {shared.creator && <span data-shared-creator className="truncate text-xs text-ink-3">{shared.published ? 'Published by' : 'Shared by'} {shared.creator.handle
-          ? <a data-creator-link href={`/@${shared.creator.handle}`} className="rounded-sm text-ink-2 hover:text-ink hover:underline">{creatorLabel(shared.creator)}</a> : creatorLabel(shared.creator)}</span>}
-        <span className="flex-1" />
-        <StartRabbitHole token={token} state={shared.state} card={card} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
-        {/* The viewer's own monthly AI allowance (owner D4 section 2), never the owner's; signed out, no personal allowance. */}
-        {learnPreview && <UsageGauge signedIn={!!shared.viewer} onViewUsage={goToUsageSettings} />}
-        {guest.edited && <span data-guest-draft-notice role="status" className="shrink-0 text-xs text-ink-2">Changes aren't saved. Fork to keep them.</span>}
-        <CommentsToggle panel={panel} comments={comments} />
-        <PanelToggle panel={panel} />
-        <ViewerAccount viewer={shared.viewer} />
-        <ForkButton source={{ token }} title={shared.title} auto={forkRequested} draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count} />
-        {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here.
-            Last, at the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
-        <ProvenanceRow provenance={provenance} />
+      <section aria-label="Shared canvas" className="@container flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
+      {/* Three areas (owner header brief, 2026-10-22): the logo; the title with its menus and creator, centred on the header; Fork
+          with its note, then the panel toggle. Equal side columns keep the centre put whatever the right side holds. */}
+      <header data-canvas-header className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 px-3 py-2 @5xl:grid-cols-[minmax(17rem,1fr)_minmax(0,auto)_minmax(17rem,1fr)] @5xl:gap-x-3 @5xl:px-4">
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center @5xl:col-auto @5xl:row-auto">
+          <a href="/" data-shared-brand className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 h-11 w-11 justify-center @5xl:h-8 @5xl:w-8 @5xl:justify-start" aria-label={`${PRODUCT} home`}>
+            <img src={logoBlack} alt="" width="32" height="32" className="h-8 w-8 dark:hidden" />
+            <img src={logoWhite} alt="" width="32" height="32" className="hidden h-8 w-8 dark:block" />
+          </a>
+        </div>
+        <div data-header-center className="col-span-3 row-start-2 flex min-w-0 flex-col items-center @5xl:col-span-1 @5xl:col-auto @5xl:row-auto">
+          <div className="flex min-w-0 max-w-full items-center gap-2">
+            {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
+            <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
+            {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
+            {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
+            {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2 max-lg:hidden"><Eye size={11} />View only</span>}
+            <HeaderMenus menus={menus} />
+            {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
+            {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here. */}
+            <ProvenanceRow provenance={provenance} end={false} />
+          </div>
+          {/* Who made it (docs/features/user-handles.md): "by" muted, the @handle blue and a link to the creator's public profile
+              on a publication and a share link alike. No handle: the name alone, never an email. */}
+          {shared.creator && (shared.creator.handle || shared.creator.name) && <span data-shared-creator className="max-w-full truncate text-xs text-ink-3">by{' '}
+            {shared.creator.handle
+              ? <a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className="rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">@{shared.creator.handle}</a>
+              : creatorLabel(shared.creator)}</span>}
+        </div>
+        <div className="col-start-3 row-start-1 flex min-w-0 items-start justify-end gap-2 @5xl:col-auto @5xl:row-auto [&_[data-comments-header]]:h-11 [&_[data-comments-header]]:w-11 [&_[data-panel-toggle]]:h-11 [&_[data-panel-toggle]]:w-11 @5xl:[&_[data-comments-header]]:h-8 @5xl:[&_[data-comments-header]]:w-8 @5xl:[&_[data-panel-toggle]]:h-8 @5xl:[&_[data-panel-toggle]]:w-8">
+          <ViewerAccount viewer={shared.viewer} />
+          {/* Fork, the one primary action; signed out it goes through sign-in and forks on return. The note sits directly beneath it
+              in the temporary-edit experience only, never for an owner's saved editing view. */}
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="min-h-11 @5xl:min-h-8" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
+            {localCopy && <span data-guest-draft-notice role="note" className="max-w-36 text-right text-xs leading-tight text-ink-2">Changes aren't saved. Fork to keep them</span>}
+          </div>
+          <CommentsToggle panel={panel} comments={comments} />
+          <PanelToggle panel={panel} />
+        </div>
       </header>
+      {/* Start Rabbit Hole has no header button (owner header brief, 2026-10-22): its choice dialog and one-start guard serve the card
+          menu, the selection and Next Steps hooks, and the return from sign-in. */}
+      <StartRabbitHole token={token} state={shared.state} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
       <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
         {canvasEl}
       </div>
@@ -329,13 +343,12 @@ function SharedBoard({ token, embed = null }) {
 // A Professor Next Steps hook (contract §1.4) starts the same hole, carrying the clicked step: the server checks it and echoes
 // it, and the new hole's first Tutor turn opens on it once (carryStep, by the hole's name). A stale step (the board changed or
 // was renamed) starts the hole without it. Signed out, the step waits through sign-in for this link and hook (keepPendingStep).
-function StartRabbitHole({ token, state, card, title, resume, startRef, askRef }) {
-  const [busy, setBusy] = useState(false);
+function StartRabbitHole({ token, state, title, resume, startRef, askRef }) {
   const [asking, setAsking] = useState(null); // { card } while the choice is open
   const flight = useRef(false);
   const run = async (cardId, step = null, hookId = null) => {
     if (flight.current) return; // a double click is one start
-    flight.current = true; setBusy(true);
+    flight.current = true;
     try {
       // The card names the hole as every canvas surface describes it (describeBlock), kind first: "Quiz: ...".
       const origin = cardId === BLANK ? BLANK : rabbitOrigin(state, cardId, describeBlock);
@@ -351,7 +364,7 @@ function StartRabbitHole({ token, state, card, title, resume, startRef, askRef }
       window.location.href = made.url;
     } catch (error) {
       toast(error.message, { tone: 'error' });
-      flight.current = false; setBusy(false);
+      flight.current = false;
     }
   };
   // Back from sign-in: the kept step only for this link and the hook id that came back; none (or a stale reply) starts plain.
@@ -363,10 +376,6 @@ function StartRabbitHole({ token, state, card, title, resume, startRef, askRef }
   if (askRef) askRef.current = ask;
   return (
     <>
-      <Button type="button" variant="primary" data-start-rabbit-hole data-origin={card?.id || 'root'} aria-busy={busy} onClick={() => ask(card?.id || null)}
-        title={card ? `Start your own private Rabbit Hole from "${card.title}", or a blank canvas. This canvas stays as it is.` : 'Start your own private Rabbit Hole from this canvas, or a blank canvas. This canvas stays as it is.'}>
-        {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowDownToLine size={13} strokeWidth={1.8} />}Start Rabbit Hole
-      </Button>
       {asking && <RabbitHoleChoice title={title} card={asking.card} onCancel={() => setAsking(null)} onPick={(origin) => { setAsking(null); run(origin); }} />}
     </>
   );
@@ -402,6 +411,36 @@ function ProjectCanvases({ list }) {
       <Menu open={open} onClose={() => setOpen(false)} className="top-9 left-0 w-64">
         {list.map(c => <MenuItem key={c.href} icon={Shapes} data-project-canvas={c.href} onClick={() => window.location.assign(c.href)}>{c.title}</MenuItem>)}
       </Menu>
+    </div>
+  );
+}
+
+// Wide: the menubar in the header. When the header itself is under 1024px wide (a phone, or a window with the right panel open) the
+// menus collapse into one Menu button whose panel holds the same menubar, so labels stay readable instead of a squeezed row
+// (owner header brief, 2026-10-22, item 7). The same 1024px is the header's @5xl container query, which sets the layout.
+function HeaderMenus({ menus }) {
+  const anchor = useRef(null);
+  const [narrow, setNarrow] = useState(false);
+  const [open, setOpen] = useState(false);
+  useLayoutEffect(() => {
+    const header = anchor.current?.closest('[data-canvas-header]');
+    if (!header) return undefined;
+    const measure = () => setNarrow(header.getBoundingClientRect().width < 1024);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(header);
+    return () => watch.disconnect();
+  }, []);
+  return (
+    <div ref={anchor} className="contents">
+      {!narrow ? <CanvasMenubar menus={menus} /> : (
+        <div className="relative shrink-0">
+          <button type="button" data-compact-menu aria-haspopup="true" aria-expanded={open} aria-label="Canvas menus" onClick={() => setOpen(!open)}
+            onKeyDown={event => { if (event.key === 'Escape') setOpen(false); }}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><MenuIcon size={18} strokeWidth={1.8} /></button>
+          {open && <div className="absolute top-12 left-0 z-30 rounded-lg border border-line bg-white p-1 shadow-lg"><CanvasMenubar menus={menus} /></div>}
+        </div>
+      )}
     </div>
   );
 }
