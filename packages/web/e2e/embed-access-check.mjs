@@ -4,7 +4,7 @@
 // Chromium page on a distinct-origin host (embed-harness.mjs): which pages a third-party site can frame and which it cannot.
 // The browser half that needs cookies (guest Chat count, blocked storage, wheel, owner powers) is embed-check.mjs.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/embed-access-check.mjs [shotsDir]
-import { BASE, SITE, startHost, launchAvailable, sessionFor, run, api, post, makeCanvas, putCover, reporter, hostUrl, embedPath } from './embed-harness.mjs';
+import { BASE, SITE, startHost, launchAvailable, sessionFor, run, api, post, makeCanvas, putCover, PNG, reporter, hostUrl, embedPath } from './embed-harness.mjs';
 
 const TOTAL = 29; // bump with the checks below; the printed line is what CI reads
 const { check, finish } = reporter('embed-access-check', TOTAL);
@@ -54,11 +54,14 @@ check('a wrong token gives the same nothing as a revoked one', none(await dead('
 
 // ---- D. thumbnails ----
 const thumb = async path => { const r = await fetch(BASE + path, { redirect: 'manual' }); const bytes = new Uint8Array(await r.arrayBuffer()); return { status: r.status, type: r.headers.get('content-type'), source: r.headers.get('x-thumbnail-source'), cache: r.headers, bytes: bytes.length }; };
-const tv = await thumb(`${shared(pub.view)}/thumbnail`), tp = await thumb(`/api/learn/boards/published/${exp.publication}/thumbnail`), te = await thumb(`${shared(exp.publication)}/thumbnail`);
+const tv = await thumb(`${shared(pub.view)}/thumbnail`), tp = await thumb(`/api/learn/boards/published/${exp.publication}/thumbnail`);
 check('the thumbnail is the owner\'s cover, by view token and by publication token, signed out', tv.status === 200 && tp.status === 200 && tv.source === 'custom' && tp.source === 'custom' && /^image\/png/.test(tv.type || '') && tv.bytes > 0, JSON.stringify([tv.status, tv.source, tp.status, tp.source]));
 check('a thumbnail revalidates on every request: private and no-cache, never public or s-maxage', uncached(tv.cache) && uncached(tp.cache), `${tv.cache.get('cache-control')} | ${tp.cache.get('cache-control')}`);
 check('the thumbnail is an image the page links, never framed: sandboxed and nosniff', /sandbox/.test(tv.cache.get('content-security-policy') || '') && tv.cache.get('x-content-type-options') === 'nosniff');
-check('a publication token also works on the shared thumbnail path the embed uses', [200, 204].includes(te.status), String(te.status));
+const snap = await makeCanvas(owner, `Embed snapshot ${run}`);
+const put = await fetch(`${BASE}${snap.board}/thumbnail`, { method: 'PUT', body: PNG, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' } });
+const ownSnap = await fetch(`${BASE}${snap.board}/thumbnail`, { headers: { cookie: `small_session=${owner.session}` } }), pubSnap = await thumb(`${shared(snap.view)}/thumbnail`);
+check('open item T: a canvas with only a drawn snapshot (no cover) shows its owner the snapshot, and a public embed viewer nothing of it', put.status === 200 && ownSnap.status === 200 && ownSnap.headers.get('x-thumbnail-source') === 'snapshot' && [204, 404].includes(pubSnap.status) && pubSnap.source !== 'snapshot', `${put.status} ${ownSnap.status} ${ownSnap.headers.get('x-thumbnail-source')} / ${pubSnap.status} ${pubSnap.source}`);
 await pub.setPublicView(false); await exp.setPublicView(false); await exp.unpublish();
 const after = await Promise.all([thumb(`${shared(pub.view)}/thumbnail`), thumb(`/api/learn/boards/published/${exp.publication}/thumbnail`)]);
 check('after revocation both thumbnails answer 404', after.every(t => t.status === 404), after.map(t => t.status).join(','));
