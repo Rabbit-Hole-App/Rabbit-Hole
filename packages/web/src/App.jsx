@@ -13,6 +13,7 @@ import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx'
 import { FolderCrumb, FolderTitle, useLibraryFolders } from './LibraryFolders.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
 import { SortMenu } from './home/LearningCard.jsx';
+import CardSize from './home/CardSize.jsx';
 import { LIBRARY_SORTS, readLibrarySort, saveLibrarySort } from './home/card-sort.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { Avatar, Button, Chk, cn, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, PillButton, SkeletonRows, SubMenu, Tip, toast, useHeaderDrag, ValuePicker } from './ui.jsx';
@@ -231,7 +232,7 @@ function AppContent({ data, load }) {
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>}
           {openFolder && <FolderCrumb folder={openFolder} onDropOut={lib.unfile} />}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5"><h1 className="min-w-0 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{openFolder ? <FolderTitle folder={openFolder} /> : title}</h1>{learnPreview && <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2">{!archived && type !== 'apps' && <div className="w-48 max-md:w-32"><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} /></div>}<LibraryFilters type={type} section={section} archived={archived} />{!archived && type !== 'apps' && <SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} />}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5"><h1 className="min-w-0 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{openFolder ? <FolderTitle folder={openFolder} /> : title}</h1>{learnPreview && <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2">{!archived && type !== 'apps' && <div className="w-48 max-md:w-32"><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} /></div>}{!archived && type !== 'apps' && <CardSize />}<LibraryFilters type={type} section={section} archived={archived} />{!archived && type !== 'apps' && <SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} />}
             {/* New folder beside the filters (library-folders.md); inside a folder, its ⋮ (Rename, Colour, Delete) takes the spot. */}
             {!archived && type !== 'apps' && data && !data.error && (openFolder
               ? <IconBtn title="Folder options" aria-label={`Options for ${openFolder.name}`} data-folder-more className="h-8 w-8 rounded-lg border border-line-strong bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]" onClick={lib.onMore(openFolder)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>

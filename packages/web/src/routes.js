@@ -67,6 +67,8 @@ export function takeWs(search) {
 }
 
 const IDENTITY = ['org', 'email', 'orgName', 'catalog'];
+// The Agent Bar (the dock composer) is gone from Home, Library and Explore (owner, 2026-10-22: "Remove the composer completely from
+// Home, Library and Explore ... Chat remains inside canvases"); it stays on an app's own page.
 export function baseSurfaceFor(pathname, search, from = {}) {
   const at = pageFor(pathname, search, true);
   const place = at.page !== 'app' ? at.page
@@ -75,7 +77,7 @@ export function baseSurfaceFor(pathname, search, from = {}) {
     : at.slug.startsWith('repo-') ? 'learn' // a repository opens on its canvas (repo-canvas-graph.md); an app's ?tab=learn is its Runbook (D7)
     : 'app';
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
-  return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run'].includes(place), resultsHost: 'sheet', handlers: {} };
+  return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore'].includes(place), resultsHost: 'sheet', handlers: {} };
 }
 
 // A repository opens on its canvas, always (owner, 2026-10-15, repo-canvas-graph.md correction to decision 2: no repository

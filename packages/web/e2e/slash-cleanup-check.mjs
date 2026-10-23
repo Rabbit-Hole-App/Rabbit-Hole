@@ -273,18 +273,13 @@ async function pass(theme) {
   await paper.scrollIntoViewIfNeeded();
   await shot('18-paper-card');
 
-  // 7. The Library bar: no slash commands.
+  // 7. The Library has no bar at all (owner, 2026-10-22: the composer is removed from Home, Library and Explore); it used to be
+  // checked for having no slash commands, which went with the bar.
   await page.goto(`${BASE}/library`);
-  const barInput = page.locator('[data-agent-bar] textarea');
-  await barInput.waitFor({ timeout: 60000 });
-  await barInput.fill('/');
-  await page.waitForTimeout(300);
-  ok(`${theme}: the Library bar opens no picker and shows no Auto or command pill`, await page.locator('[data-agent-bar] [role="listbox"]').count() === 0 && await page.locator('[data-agent-bar] [data-command-pill]').count() === 0
-    && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
-  await barInput.fill('/teach attention');
-  await barInput.press('Enter');
-  ok(`${theme}: a removed bar command says it is unavailable`, await page.locator('[data-result-sheet]').getByText('/teach is no longer available. Ask in your own words.', { exact: true }).first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
-  await shot('19-bar-removed');
+  await page.locator('main').first().waitFor({ timeout: 60000 });
+  await page.waitForTimeout(500);
+  ok(`${theme}: the Library has no bar, no composer and so no slash picker, Auto or command pill`, await page.locator('[data-agent-bar], main textarea, main [data-chat-composer], [role="listbox"]').count() === 0);
+  await shot('19-library-no-bar');
 
   // 8. /dive <topic> opens a Rabbit Hole about it (light only: it leaves the canvas).
   if (theme === 'light') {

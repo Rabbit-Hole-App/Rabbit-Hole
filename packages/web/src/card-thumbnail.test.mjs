@@ -165,7 +165,9 @@ test('addresses: your own card by its name, a published card by its token; a cha
 
 test('the card: the picture on the right from md, on top on a phone; one per row; one fixed size; quiet placeholder', () => {
   const card = read('./home/LearningCard.jsx');
-  assert.match(card, /export const CARD_ROWS = 'grid grid-cols-1 gap-4'/);
+  // Owner, 2026-10-22 (card size): the grid reads html[data-card-size] (index.css .card-grid); Large, the unset look, is one per row.
+  assert.match(card, /export const CARD_ROWS = 'card-grid grid gap-4'/);
+  assert.match(read('./index.css'), /\.card-grid \{ grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, var\(--card-min, 100%\)\), 1fr\)\); \}/);
   // Owner, 2026-10-09: the picture's inset above equals its inset below, and the footer ends on its bottom edge - the text
   // column and the picture are one fixed height from md, the card that plus its padding.
   assert.match(card, /export const CARD_BODY_H = 'md:h-\[190px\]';/);

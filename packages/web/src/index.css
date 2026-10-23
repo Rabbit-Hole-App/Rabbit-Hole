@@ -837,6 +837,18 @@ tr.cursor-pointer:active > td {
   padding-bottom: var(--agent-bar-h, 0px);
 }
 
+/* Card size (owner, 2026-10-22; home/card-size.js sets html[data-card-size], 0 Small to 3 Large): the minimum width of a card in
+   the learning-card grid on Home, Library and Explore, so smaller cards fit more columns. Large (or unset) is one card per row with
+   the picture beside the text; below Large the picture sits above the text, 2:1, and scales with the card. Titles, buttons and
+   text keep their size. Only .card-grid reads this: never the page, the sidebar or the other grids. */
+.card-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min, 100%)), 1fr)); }
+html[data-card-size="0"] { --card-min: 220px; }
+html[data-card-size="1"] { --card-min: 300px; }
+html[data-card-size="2"] { --card-min: 460px; }
+html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li { flex-direction: column; }
+html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
+html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-text] { height: 196px; flex: none; }
+
 /* Rabbit Hole dev, below md: the sidebar is a drawer opened from a fixed top strip (Shell.jsx),
    which publishes --shell-top-h; pages start below it. The live build never sets it, and no
    page <main> has a top padding class, so this is 0 there. */

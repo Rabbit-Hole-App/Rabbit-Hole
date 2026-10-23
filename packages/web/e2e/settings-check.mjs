@@ -228,33 +228,24 @@ await check('7 reduced decorative motion: chrome transitions stop, the canvas wo
   await page.context().close();
 });
 
-await check('8 chat send key: with Ctrl+Enter chosen, Enter adds a line and Ctrl+Enter sends; it survives a refresh', async () => {
+// Owner, 2026-10-22: the Library composer is gone, so the send key is no longer exercised there; it still governs Chat inside a
+// canvas (ChatComposer.jsx chatSendKey), so this step keeps what Settings owns: the choice is saved and survives a refresh.
+await check('8 chat send key: with Ctrl+Enter chosen it is saved and survives a refresh; Enter chosen again is saved; the Library has no composer', async () => {
   const page = await fresh();
+  const saved = () => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('rh.ui-prefs') || '{}').chatSend; } catch { return null; } });
   await open(page, '/library');
   await viaEvent(page, { tab: 'appearance' });
   await pane(page, 'appearance').getByRole('button', { name: /^(Ctrl|⌘)\+Enter$/ }).click();
   await closeEsc(page);
+  assert.equal(await saved(), 'mod', 'Ctrl+Enter was not saved');
   await page.reload();
-  const input = page.locator('[data-agent-bar] [data-chat-composer] textarea');
-  await input.waitFor({ timeout: 60000 });
-  // "settings" is a bar command (no model): sending it opens Settings, so a send is visible without any request.
-  await input.click();
-  await input.fill('settings');
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(600);
-  assert.equal(await dialog(page).count(), 0, 'Enter sent');
-  assert.equal(await input.inputValue(), 'settings\n', 'Enter did not add a line');
-  await input.fill('settings');
-  await page.keyboard.press('Control+Enter');
-  await dialog(page).waitFor({ timeout: 10000 });
-  await closeEsc(page);
-  // Back to Enter: Enter sends again.
+  await page.locator('[data-account-menu]').waitFor({ timeout: 60000 });
+  assert.equal(await saved(), 'mod', 'it did not survive a refresh');
+  assert.equal(await page.locator('[data-agent-bar], main [data-chat-composer]').count(), 0, 'the Library shows a composer');
   await viaEvent(page, { tab: 'appearance' });
   await pane(page, 'appearance').getByRole('button', { name: 'Enter', exact: true }).click();
   await closeEsc(page);
-  await input.fill('settings');
-  await input.press('Enter');
-  await dialog(page).waitFor({ timeout: 10000 });
+  assert.equal(await saved(), 'enter', 'Enter was not saved');
   assert.deepEqual(page.modelCalls, []);
   await page.context().close();
 });

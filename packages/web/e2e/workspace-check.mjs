@@ -4,7 +4,7 @@
 // pinned in packages/learn-render (commit 3adf61e). /api/learn/ask and the Curious hook are scripted: no model call. Prints no
 // secrets.
 // Since the repository graph Release 1 (docs/features/repo-canvas-graph.md, owner 2026-10-15) a repository is only its canvas:
-// the dock (the Agent Bar) lives on Home and the Library and is hidden on every canvas, and the Map page's inspector is the
+// the dock (the Agent Bar) was removed from Home, the Library and Explore (owner, 2026-10-22) and is hidden on every canvas, and the Map page's inspector is the
 // Graph view's node details in the companion column beside Chat. Each case below keeps its old intent on the new surface.
 // Retired, with their subject gone:
 //   - inspector Overview sections (Purpose, Why it matters, preview, symbols fold, sticky header): Overview was already hidden
@@ -69,8 +69,6 @@ const box = (locator) => locator.evaluate((n) => { const r = n.getBoundingClient
 const near = (a, b, msg, tol = 1.5) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} vs ${b}`);
 const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
 
-// The dock (Home and the Library).
-const bar = page.locator('[data-agent-bar]'), input = bar.locator('textarea');
 // The repository canvas: Chat, its composer, the companion column and the Graph view's node details (the old inspector).
 const pane = () => page.locator('[data-chat-pane]');
 const field = () => pane().locator('[data-chat-composer] textarea').first();
@@ -109,50 +107,34 @@ const askMode = async () => {
   await page.waitForTimeout(200);
 };
 
-// ---------------------------------------------------------------- the dock, on Home
+// ---------------------------------------------------------------- no dock on Home, the Library or Explore
+// Owner, 2026-10-22: "Remove the composer completely from Home, Library and Explore, including its bottom bar and reserved
+// space. Chat remains inside canvases." This replaces the dock checks (§1 geometry, §2 chrome, §12 growth, §13 no +, the
+// Home breadcrumb row), which asserted the removed Agent Bar on Home.
+const noDock = async (where) => {
+  assert.equal(await page.locator('[data-agent-bar]').count(), 0, `${where}: a dock is mounted`);
+  assert.equal(await page.locator('main textarea, main [data-chat-composer]').count(), 0, `${where}: a composer shows`);
+  const reserved = await page.evaluate(() => ({ h: getComputedStyle(document.documentElement).getPropertyValue('--agent-bar-h').trim(), pad: getComputedStyle(document.querySelector('main')).paddingBottom }));
+  assert.ok(reserved.h === '' || reserved.h === '0px', `${where}: --agent-bar-h is ${reserved.h}`);
+  assert.ok(parseFloat(reserved.pad) <= 48, `${where}: main reserves ${reserved.pad} at the bottom`); // the page's own 48px (pb-12), nothing for a bar
+};
 await page.goto(`${BASE}/apps`);
-await bar.waitFor({ timeout: 60000 });
+await page.locator('main a, main button').first().waitFor({ timeout: 60000 });
 await page.waitForTimeout(800);
-await check('dock §1 §11: the dock spans the workspace from the sidebar edge to the window edge, never behind the sidebar; its input is half of it, centred', async () => {
-  const b = await box(bar), side = await box(page.locator('[data-shell-sidebar]')), form = await box(bar.locator('[data-chat-composer]'));
-  near(b.left, side.right, 'dock starts at the sidebar edge');
-  near(b.right, 1440, 'dock ends at the window edge');
-  // The input is half of the dock's content width (its padding excluded), centred, never under 28rem (owner, 2026-10-08;
-  // AgentBar.jsx md:w-1/2 md:min-w-[min(100%,28rem)]); measured against the element the half is taken of.
-  const m = await bar.locator('[data-chat-composer]').evaluate((n) => { let d = n; while (d && !/(^|\s)md:w-1\/2(\s|$)/.test(d.className)) d = d.parentElement; const p = d.parentElement, c = getComputedStyle(p); return { w: d.getBoundingClientRect().width, inner: p.clientWidth - parseFloat(c.paddingLeft) - parseFloat(c.paddingRight) }; });
-  const half = Math.max(m.inner / 2, Math.min(m.inner, 448));
-  assert.ok(Math.abs(m.w - half) <= 2 && Math.abs((form.left - b.left) - (b.right - form.right)) <= 2, `input is ${m.w}px at ${form.left - b.left} / ${b.right - form.right}, not half the dock's ${m.inner}px content (${half}px) centred`);
+await check('no composer, no bottom bar and no reserved space on Home', async () => { await noDock('Home'); });
+await check('no composer, no bottom bar and no reserved space on the Library and Explore', async () => {
+  for (const where of ['/library?type=canvases', '/explore']) {
+    await page.goto(`${BASE}${where}`);
+    await page.locator('main a, main button').first().waitFor({ timeout: 60000 });
+    await page.waitForTimeout(800);
+    await noDock(where);
+  }
 });
-// Owner, 2026-10-20: the dock has no slash commands left, so no Auto button (its mode picker) either.
-await check('dock §2 §19: the dock is chrome - a top divider, an opaque surface, no gradient, a hairline input shadow; no Auto button', async () => {
-  const s = await bar.evaluate((n) => { const c = getComputedStyle(n), f = getComputedStyle(n.querySelector('[data-chat-composer]')); return { border: c.borderTopWidth, bg: c.backgroundColor, image: c.backgroundImage, shadow: f.boxShadow, auto: [...n.querySelectorAll('button')].some((x) => x.textContent.trim() === 'Auto') }; });
-  assert.equal(s.border, '1px'); assert.equal(s.bg, 'rgb(255, 255, 255)'); assert.equal(s.image, 'none');
-  assert.doesNotMatch(s.shadow, /24px/, 'the popover shadow is gone'); assert.match(s.shadow, /0px 1px 2px/);
-  assert.equal(s.auto, false, 'the dock still shows Auto');
-});
-await check('dock §12: the input grows upward to five lines, then scrolls', async () => {
-  const one = await box(input), top0 = (await box(bar)).top;
-  await input.fill(Array.from({ length: 9 }, (_, i) => `line ${i + 1} of a long paste`).join('\n'));
-  await page.waitForTimeout(300);
-  const many = await input.evaluate((n) => ({ h: n.clientHeight, sh: n.scrollHeight }));
-  assert.ok(one.height <= 40, `one line: ${one.height}`);
-  assert.equal(many.h, 132, 'five 24px lines and the 12px padding'); assert.ok(many.sh > many.h, 'then it scrolls');
-  assert.ok((await box(bar)).top < top0 - 90, 'the dock grew upward');
-  await input.fill('');
-});
-await shot('dock-F-multiline');
-// dock §13: + (the Start paths) belonged to the project's Map and an app's page; the Map is gone, and Home, the Library and
-// Explore never had it (AgentBar.jsx plus). Home keeps its input free of it.
-await check('dock §13: no + on Home - the Start paths live on an app page, not on Home', async () => {
-  assert.equal(await bar.getByRole('button', { name: 'Add' }).count(), 0);
-});
-// Owner, 2026-10-08: "if we are not in a particular project, the breadcrumbs disappear". A repository is now only its canvas,
-// where the dock is hidden (Chat's composer asks there), so no repository chip ever rides the dock.
-await check('the dock shows no repository breadcrumbs off a repository, and none on its canvas: there the dock is hidden and Chat asks', async () => {
-  assert.equal(await bar.locator('[data-scope-chip], [data-scope-chips]').count(), 0, 'no breadcrumb row on Home');
+// A repository is only its canvas, where Chat's composer asks.
+await check('the repository canvas has no dock either: Chat asks there', async () => {
   await openCanvas();
-  assert.equal(await page.locator('[data-agent-bar]').isVisible().catch(() => false), false, 'no dock on the repository canvas');
-  assert.ok(await field().isVisible(), 'Chat\'s composer is the input there');
+  assert.equal(await page.locator('[data-agent-bar]').count(), 0, 'a dock on the repository canvas');
+  assert.ok(await field().isVisible(), "Chat's composer is the input there");
 });
 
 // ---------------------------------------------------------------- the inspector: the Graph view's node details
@@ -332,28 +314,22 @@ for (const [width, height, name] of [[820, 1000, 'dock-I1-tablet'], [390, 844, '
 }
 await page.setViewportSize({ width: 1440, height: 900 });
 
-await check('dock §15: on Home and in the Library nothing hides behind the dock - the last card ends above it', async () => {
+await check('nothing is reserved at the bottom of Home or the Library: the last card ends at the page padding', async () => {
   await page.setViewportSize({ width: 1440, height: 640 });
   for (const where of ['/apps', '/library?type=canvases']) {
     await page.goto(`${BASE}${where}`);
-    await page.locator('[data-library-card], [data-home-card], main a, main button').first().waitFor({ timeout: 60000 });
-    await page.waitForTimeout(1500); // no networkidle: the page keeps a connection open
-    // Scroll every scroller to its end until the page stops growing (cards fill in their counts after the first paint).
-    for (let last = -1, now = 0; last !== now; await page.waitForTimeout(400)) { last = now; now = await page.evaluate(() => { let h = 0; document.querySelectorAll('main, main *').forEach((n) => { if (n.scrollHeight > n.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowY)) { n.scrollTop = n.scrollHeight; h += n.scrollHeight; } }); window.scrollTo(0, document.scrollingElement.scrollHeight); return h + document.scrollingElement.scrollHeight; }); }
-    const top = (await box(bar)).top;
-    const lowest = await page.evaluate(() => Math.max(...[...document.querySelectorAll('main *')].filter((n) => n.getBoundingClientRect().height > 0 && n.children.length === 0 && getComputedStyle(n).visibility !== 'hidden').map((n) => n.getBoundingClientRect().bottom)));
-    assert.ok(lowest <= top + 1, `${where}: content ends at ${lowest}, the dock starts at ${top}`);
-    near((await box(bar)).left, (await box(page.locator('[data-shell-sidebar]'))).right, `${where}: dock from the sidebar edge`);
+    await page.locator('[data-library-card], [data-recent-card], main a, main button').first().waitFor({ timeout: 60000 });
+    await noDock(where);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(`${BASE}/apps`); await page.waitForTimeout(1200);
 });
-await shot('dock-J-home');
+await shot('home');
 
-await check('no page errors, no model call, no email in the workspace or the dock', async () => {
+await check('no page errors, no model call, no email in the workspace', async () => {
   assert.deepEqual(errors, []);
   assert.ok(asks.length === 1, `${asks.length} stubbed asks`);
-  for (const where of ['main', '[data-agent-bar]']) assert.doesNotMatch(await page.locator(where).first().innerText(), /@example\.com/);
+  assert.doesNotMatch(await page.locator('main').first().innerText(), /@example\.com/);
 });
 
 await browser.close();

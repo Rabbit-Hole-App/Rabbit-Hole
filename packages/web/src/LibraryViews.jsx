@@ -1,7 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { AppWindow, Archive, ArrowRight, ArrowUpRight, Check, FolderGit2, ListFilter, Loader2, Play, Shapes, UserRound, X } from 'lucide-react';
 import { titleOf } from './agent/catalog.js';
-import { appPick } from './agent/surface.js';
 import { ago, navigate } from './api.js';
 import { browserOnly, onAnotherDevice, readRecent } from './home/continue.js';
 import { cardModel } from './home/provenance.js';
@@ -132,7 +131,7 @@ function LibraryCard({ a, ctx, onMore, drag = {} }) {
     <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas', ...drag }}
       href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}
       access={!a.fixture ? a.access || null : null} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
-      onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} pick={appPick(a, cardModel(a).title)} />
+      onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} />
   );
 }
 
