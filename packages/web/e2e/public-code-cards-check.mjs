@@ -347,7 +347,7 @@ await check('4c revoking the share and removing the publication refuse every lat
     }
   }
   await page.reload();
-  await page.getByText('This link is not shared any more, or never was.').waitFor({ timeout: 20000 });
+  await page.getByText("You don't have access to this canvas.").waitFor({ timeout: 20000 }); // the link is off, its token kept (owner decision 2026-10-22)
   assert.equal(await page.locator('[data-code-card]').count(), 0);
   assert.equal(await page.locator('[data-search-result]').count(), 0, 'revoked view exposes no Search results');
   await shot('04-revoked');

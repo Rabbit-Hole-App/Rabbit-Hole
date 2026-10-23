@@ -69,15 +69,14 @@ test('revocation is immediate: a conditional request with the right ETag still g
   const restricted = await conditional(token);
   assert.deepEqual([restricted.status, restricted.headers.get('cache-control')], [404, 'no-store']);
   assert.equal((await f.raw('GET', view(token), { as: 'ana' })).status, 404, 'not even for the owner: it is the public picture');
-  // Public again keeps its token; switching the link off and on makes a new one and the old stays dead.
+  // Public again keeps its token; switching the link off and on keeps it too (owner decision 2026-10-22): denied while off, back when on.
   await share({ shared: true, view: true, public_view: true });
   assert.equal((await conditional(token)).status, 304);
   await share({ shared: false });
   assert.equal((await conditional(token)).status, 404, 'unshared');
   const renewed = (await share({ shared: true, view: true, public_view: true })).body.sharing.view;
-  assert.notEqual(renewed, token);
-  assert.equal((await conditional(token)).status, 404, 'the old token after a new link');
-  assert.equal((await f.raw('GET', view(renewed))).status, 200);
+  assert.equal(renewed, token, 'the same permanent link');
+  assert.equal((await conditional(token)).status, 304, 'on again: the same link works');
   // Trash suspends it, Restore wakes it; an unknown or malformed token is 404.
   await f.call('POST', `/api/apps/${canvas.name}/trash`, { as: 'ana' });
   assert.equal((await f.raw('GET', view(renewed))).status, 404);

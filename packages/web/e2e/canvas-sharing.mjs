@@ -95,8 +95,9 @@ if (!(await owner.getByRole('dialog', { name: 'Share canvas' }).isVisible())) aw
 await owner.getByRole('dialog', { name: 'Share canvas' }).getByLabel('Who can open this?').selectOption('invited');
 await owner.waitForTimeout(1500);
 await friend.goto(viewLink);
-await friend.getByText('This link is not shared any more').waitFor({ timeout: 15000 }).catch(() => {});
-check('turning sharing off stops the links', await friend.getByText('This link is not shared any more', { exact: false }).count() === 1);
+// One permanent link (owner decision 2026-10-22): off keeps the token and the page says the owner has not given access.
+await friend.getByText("You don't have access to this canvas.").waitFor({ timeout: 15000 }).catch(() => {});
+check('turning sharing off stops the links', await friend.getByText("You don't have access to this canvas.", { exact: false }).count() === 1);
 
 console.log('board', BOARD);
 await browser.close();

@@ -59,12 +59,12 @@ test('B pin: a share answers from the commit pinned when its link was made; refr
   const read = toolResult(sent[1]);
   assert.deepEqual([read.commit, /CausalSelfAttention/.test(read.content)], [SHA, true], 'the pinned snapshot, not the refreshed one');
   assert.ok(!JSON.stringify(sent).includes(NEW) && !JSON.stringify(sent).includes('Rewritten'));
-  // Settings on the same link keep the pin; a new link is a new share, pinned at the commit then.
+  // Settings on the same link keep the pin; so does switching it off and on, which keeps the link itself (owner decision 2026-10-22 (one permanent share link)).
   await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: false } });
   assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' })).body.context.repository.commit, SHA, 'Public off: same link, same pin');
-  const fresh = await relink(f, canvas);
-  assert.notEqual(fresh.view, token);
-  assert.equal((await f.call('GET', `/api/learn/boards/shared/${fresh.view}`, { as: 'ben' })).body.context.repository.commit, NEW);
+  const again = await relink(f, canvas);
+  assert.equal(again.view, token);
+  assert.equal((await f.call('GET', `/api/learn/boards/shared/${token}`, { as: 'ben' })).body.context.repository.commit, SHA, 'off and on: the same link keeps its pin');
 });
 
 test('B pin: a pinned snapshot that is gone fails closed - no repository code, a clear notice, never the current HEAD', async t => {
@@ -284,7 +284,7 @@ test('D limits: a viewer\'s daily limit, across every shared canvas', async t =>
   assert.match(limited.body.error, /1 questions about shared canvases today, the daily limit/);
 });
 
-test('D limits: a share link over its limit refuses every viewer on that link; the revoked link and its replacement are distinct identities', async t => {
+test('D limits: a share link over its limit refuses every viewer on that link; switching it off and on keeps the link and its budget', async t => {
   const f = setup(t, { vars: { SHARED_ASK_SHARE_HOUR: '2' } }), sent = scriptModel(t);
   const { canvas, token } = await f.shareProject();
   assert.equal((await f.ask(token, 'ben', { message: 'q' })).status, 200);
@@ -292,14 +292,15 @@ test('D limits: a share link over its limit refuses every viewer on that link; t
   const limited = await f.ask(token, 'ben', { message: 'q' });
   assert.equal(limited.status, 429);
   assert.match(limited.body.error, /This share link has had as many questions as it can take for now/);
-  // Off and on: the old link is dead, the new one is a new share with its own budget.
-  const fresh = await relink(f, canvas);
+  // Off: denied. On again (owner decision 2026-10-22 (one permanent share link)): the same link, so the same bucket - a toggle never resets a spending limit.
+  await f.call('POST', `/api/learn/boards/${canvas.name}/main/share`, { as: 'ana', body: { shared: false } });
   assert.equal((await f.ask(token, 'cara', { message: 'q' })).status, 404);
-  assert.equal((await f.ask(fresh.view, 'cara', { message: 'q' })).status, 200);
-  assert.equal(sent.length, 3);
+  const fresh = await relink(f, canvas);
+  assert.equal(fresh.view, token);
+  assert.equal((await f.ask(token, 'cara', { message: 'q' })).status, 429, 'still over the cap');
+  assert.equal(sent.length, 2);
   const keys = f.sqlite.prepare('SELECT share_key FROM shared_ask_events ORDER BY id').all().map(row => row.share_key);
-  assert.deepEqual(keys, [await shareKey(token), await shareKey(token), await shareKey(fresh.view)], 'same link, same bucket; a new link, a new one');
-  assert.notEqual(keys[0], keys[2]);
+  assert.deepEqual(keys, [await shareKey(token), await shareKey(token)], 'one link, one bucket, across off and on');
 });
 
 test('D links: two share links of one board have separate share buckets, and the viewer\'s own bucket spans both', async t => {

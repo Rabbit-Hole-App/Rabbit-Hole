@@ -208,15 +208,17 @@ test('View original opens while the source is reachable, and reads unavailable -
   const first = await f.share('ana', a.name);
   const viaLink = (await f.fork('ben', { token: first.view })).body;
   assert.deepEqual((await f.app('ben', viaLink.name)).forked_from, { state: 'accessible', title: 'Attention', url: `/b/${first.view}`, handle: null });
-  // Ana renames, then turns the link off and shares again: Ben's link is dead and the new one is not his.
+  // Ana renames, then turns the link off: Ben's link is denied. Private now, with no saved title either (owner decision E1,
+  // 2026-10-16): nothing about the source, the link he once held included.
   await f.call('PATCH', `/api/apps/${a.name}`, { as: 'ana', body: { title: 'Secret new title' } });
   await f.share('ana', a.name, false);
-  const again = await f.share('ana', a.name);
-  assert.notEqual(again.view, first.view);
   const lost = await f.app('ben', viaLink.name);
-  // Private now, with no saved title either (owner decision E1, 2026-10-16): nothing about the source, the link he once held included.
   assert.deepEqual(lost.forked_from, { state: 'private' });
-  assert.doesNotMatch(JSON.stringify(lost), new RegExp(`Secret new title|${again.view}|${first.view}|ana@test|${a.name}`), 'nothing about the source');
+  assert.doesNotMatch(JSON.stringify(lost), new RegExp(`Secret new title|${first.view}|ana@test|${a.name}`), 'nothing about the source');
+  // Sharing again keeps the one permanent link (owner decision 2026-10-22 (one permanent share link)): Ben's old link opens again, under the title it has now.
+  const again = await f.share('ana', a.name);
+  assert.equal(again.view, first.view);
+  assert.deepEqual((await f.app('ben', viaLink.name)).forked_from, { state: 'accessible', title: 'Secret new title', url: `/b/${first.view}`, handle: null });
   // An own source opens by its page until it is deleted.
   const mine = await f.canvas('ben', 'Mine');
   const ownFork = (await f.fork('ben', { canvas: mine.name }, { state: BOARD })).body;

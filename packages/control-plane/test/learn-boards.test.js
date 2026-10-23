@@ -90,19 +90,19 @@ test('only someone with access to the app can save or share it', async t => {
   assert.equal((await call('POST', `${OWN}/share`, { as: 'friend', body: { shared: true, view: true } })).status, 404);
 });
 
-test('sharing makes a view link; turning it off revokes it and on again makes a new one', async t => {
+test('sharing makes a view link; turning it off denies it and on again opens the same one (owner decision 2026-10-22, one permanent share link)', async t => {
   const { call } = setup(t);
   const on = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true, edit: true, state: STATE } })).body.sharing;
   assert.ok(on.shared && on.view);
   assert.equal(on.edit, null, 'links are view-only: no edit link, even when asked');
   assert.equal((await call('GET', `/api/learn/boards/shared/${on.view}`, { as: 'friend' })).body.role, 'view');
   const viewOff = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: false } })).body.sharing;
-  assert.equal(viewOff.view, null);
+  assert.deepEqual([viewOff.shared, viewOff.view], [false, on.view], 'no view link: off, the token is kept');
   assert.equal((await call('GET', `/api/learn/boards/shared/${on.view}`, { as: 'friend' })).status, 404);
   const viewAgain = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: true, view: true } })).body.sharing;
-  assert.notEqual(viewAgain.view, on.view);
+  assert.equal(viewAgain.view, on.view);
   const off = (await call('POST', `${OWN}/share`, { as: 'owner', body: { shared: false, view: true } })).body.sharing;
-  assert.deepEqual(off, { shared: false, view: null, edit: null, public_view: false });
+  assert.deepEqual(off, { shared: false, view: on.view, edit: null, public_view: false });
   assert.equal((await call('GET', `/api/learn/boards/shared/${viewAgain.view}`, { as: 'friend' })).status, 404);
 });
 
