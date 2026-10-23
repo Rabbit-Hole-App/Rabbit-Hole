@@ -478,9 +478,28 @@ test('MOT-08 cold start: a grant bound to the run that just booted starts exactl
 });
 
 // MOT-20: POST /jobs accepts the approved proposal as binding Director input, and only in its shape.
-test('approved_proposal: {title, duration_seconds 5-30, description} is a job field; anything else is refused', () => {
+test('approved_proposal: {title, duration_seconds 5-60, aspect_ratio, description} is a job field; anything else is refused', () => {
   const body = { request: '/motion explain softmax', idempotency_key: 'motion-abcdefgh', grant: { micros: 1, issued_at: 1, boot: 'a'.repeat(32), sig: 'x' } };
   const ok = { title: 'Softmax', duration_seconds: 10, description: 'Scores become weights. They sum to one. Masked ones get none.' };
   assert.deepEqual(validateJobRequest({ ...body, approved_proposal: ok }), []);
-  for (const bad of [{ ...ok, duration_seconds: 40 }, { ...ok, title: '' }, { ...ok, audio: true }, 'x', null]) assert.match(validateJobRequest({ ...body, approved_proposal: bad }).join(' '), /approved_proposal/);
+  // owner brief 2026-10-23: up to 60 seconds, and any of the nine ratios; none is the original 16:9
+  for (const extra of [{ duration_seconds: 60 }, { duration_seconds: 35, aspect_ratio: '9:16' }, { aspect_ratio: '5:4' }]) assert.deepEqual(validateJobRequest({ ...body, approved_proposal: { ...ok, ...extra } }), [], JSON.stringify(extra));
+  for (const bad of [{ ...ok, duration_seconds: 61 }, { ...ok, duration_seconds: 4 }, { ...ok, aspect_ratio: '2:1' }, { ...ok, aspect_ratio: 16 }, { ...ok, title: '' }, { ...ok, audio: true }, 'x', null]) assert.match(validateJobRequest({ ...body, approved_proposal: bad }).join(' '), /approved_proposal/);
+});
+
+// Owner correction 2026-10-23: the job is bound to the renderer configuration the readiness evidence was gathered on; another is refused
+// before anything starts, and the terms the worker adds (config, covered complexity) have a fixed shape.
+test('approved_proposal terms: renderer_config and allowed_complexity have their shape; a different live config is refused before a job exists', async t => {
+  const body = { request: '/motion explain softmax', idempotency_key: 'motion-abcdefgh', grant: { micros: 1, issued_at: 1, boot: 'a'.repeat(32), sig: 'x' } };
+  const ok = { title: 'Softmax', duration_seconds: 10, description: 'Scores become weights. They sum to one. Masked ones get none.' };
+  assert.deepEqual(validateJobRequest({ ...body, approved_proposal: { ...ok, renderer_config: 'r1', allowed_complexity: ['simple', 'standard'] } }), []);
+  for (const bad of [{ renderer_config: 5 }, { renderer_config: 'x'.repeat(65) }, { allowed_complexity: 'simple' }, { allowed_complexity: ['simple', 'huge'] }]) assert.notDeepEqual(validateJobRequest({ ...body, approved_proposal: { ...ok, ...bad } }), [], JSON.stringify(bad));
+  const unconfigured = await start(t, { run: async () => ({}) });
+  assert.equal((await unconfigured.req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r1' } }) })).status, 409, 'an orchestrator with no configuration id does not accept a bound job');
+  const starts = [];
+  const { req } = await start(t, { run: async () => { starts.push(1); return { status: 'ready', brief: { title: 'S' }, block: { motion: {} }, render: {}, job: {}, timings: {} }; }, env: { MOTION_RENDERER_CONFIG: 'r1' } });
+  const mismatch = await req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r0' } }) });
+  assert.deepEqual([mismatch.status, (await mismatch.json()).error, starts.length], [409, 'renderer_config_mismatch', 0], 'refused: nothing started');
+  const accepted = await req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r1' } }) });
+  assert.equal(accepted.status, 202);
 });

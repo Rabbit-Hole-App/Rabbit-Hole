@@ -4,6 +4,7 @@
 // rendering, a final error on failure, or the bytes.
 import { validateMotionContext } from './motion-context.js';
 import { approvedProposal, proposalShape } from './generation-proposal.js';
+import { motionExecutionTerms } from './motion-settings.js';
 
 const MAX_ASSET = 25 * 1024 * 1024;
 const RENDER_ID = /^[0-9a-f]{32}$/;
@@ -138,6 +139,7 @@ export class MotionRequestProvider {
   constructor(env, transport = fetch) {
     this.url = env.MOTION_ORCHESTRATOR_URL;
     this.token = env.MOTION_ORCHESTRATOR_TOKEN;
+    this.env = env; // the readiness terms the job is bound to (motion-settings.js motionExecutionTerms)
     this.transport = transport;
     this.version = 'motion-orchestrator';
   }
@@ -163,7 +165,7 @@ export class MotionRequestProvider {
   async submit(input, spend, repository = null, timeoutMs = 20000, recover = null) {
     const response = await this.request(recover ? '/recover' : '/jobs', { method: 'POST', timeoutMs, body: recover
       ? { idempotency_key: spend.opId, grant: spend.grant, mode: recover.mode, checkpoint: recover.checkpoint, seal: recover.seal }
-      : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), ...(input.proposal ? { approved_proposal: approvedProposal(input.proposal) } : {}), idempotency_key: spend.opId, grant: spend.grant } });
+      : { request: input.request, location: input.location.concept ? { concept: input.location.concept } : {}, ...(input.context ? { context: input.context } : {}), ...(repository ? { repository } : {}), ...(input.proposal ? { approved_proposal: approvedProposal(input.proposal, motionExecutionTerms(this.env, input.proposal.settings)) } : {}), idempotency_key: spend.opId, grant: spend.grant } });
     const body = await response.json().catch(() => ({}));
     if (response.status === 202 && /^[0-9a-f]{32}$/.test(body.job_id || '')) return { id: body.job_id };
     if (NO_START[response.status]?.includes(body.error)) throw definite(`The Motion harness did not start the job${body.detail ? `: ${body.detail}` : ` (${body.error})`}`, body.error);

@@ -14,6 +14,7 @@ import { LearnVideos, MOTION_PAUSED, withCanvasRepository, withLessonApp } from 
 import { forwardUsagePayer, periodOf, usageTotals } from '../src/learn-usage.js';
 import { motionOrchestrator } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
+import { READY } from './motion-ready-env.js';
 import { reviseSettings, signProposal } from '../src/generation-proposal.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
@@ -82,7 +83,7 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
         if (signal.aborted) throw Object.assign(new Error('stopped'), { name: 'MotionCancelled' });
         // A render the renderer reports finished (or the status the step names), as render-job polls it.
         if (step.render) { const { render_id } = await (await svc.submit({})).json(); reported.set(render_id, step.renderStatus || 'ready'); await svc.status(render_id); continue; }
-        if (step.fail) return { status: 'failed', failure_reason: `${step.stage}: ${step.fail}` };
+        if (step.fail) return { status: 'failed', failure_reason: `${step.stage}: ${step.fail}`, ...(step.cause ? { cause: step.cause } : {}), ...(step.failure_class ? { failure_class: step.failure_class } : {}) };
         const r = await guarded({}, { max_tokens: step.max_tokens, messages: [{ role: 'user', content: step.stage || 'x' }], out: step.out, hold: step.hold }, MODEL);
         if (!r.ok) return { status: 'failed', failure_reason: `${step.stage}: model_error` };
         await r.text();
@@ -99,7 +100,7 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
   orchestrator.start = async ({ later = 0 } = {}) => {
     if (server) { server.close(); orchestrator.o.close(); }
     const outDir = mkdtempSync(join(tmpdir(), 'motion-e2e-'));
-    orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir, run: args => pipeline(script)(args), now: () => Date.now() + later });
+    orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir, env: { MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG }, run: args => pipeline(script)(args), now: () => Date.now() + later });
     server = createServer(orchestrator.o.handle);
     await new Promise(r => server.listen(0, '127.0.0.1', r));
     orchestrator.base = `http://127.0.0.1:${server.address().port}`;
@@ -118,7 +119,7 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
 const FIRST_PASS = [{ stage: 'directing', max_tokens: 16000, out: 5000 }, { stage: 'storyboarding', max_tokens: 16000, out: 5000 }, { stage: 'authoring', max_tokens: 64000, out: 30000 }, { render: true }, { render: true }];
 const motionOp = { op: 'motion_request', request: '/motion 15s explain me softmax func', location: { concept: 'Attention' } };
 const env0 = (LEARN_DB, allowanceUsd = '50', extra = {}) => ({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: allowanceUsd, LEARN_MEDIA: memoryBucket(),
-  MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_JOB_RESERVATION_USD: '2', ...extra });
+  MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_JOB_RESERVATION_USD: '2', ...READY, ...extra });
 const ask = (extra = {}, op = motionOp) => forwardUsagePayer(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST',
   body: JSON.stringify({ operation: op, lessonId: 'canvas', page: 'canvas', confirmed: true, ...extra }) }), { userId: 'u-alice', email: 'alice@example.test' });
 const stopping = placementId => new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'cancel', id: placementId }) });
@@ -343,7 +344,7 @@ test('four topics, with and without a selected card, and the nanoGPT course canv
   const outDir = mkdtempSync(join(tmpdir(), 'motion-topics-'));
   const service = { health: async () => ({ ok: true, busy: false, sandbox: 'linux' }), submit: async () => { w.renders.push(1); return Response.json({ render_id: `t${w.renders.length}` }, { status: 202 }); }, status: async id => ({ render_id: id, status: 'ready' }) };
   const call = async (env, body) => { w.model.calls.push(body.max_tokens); return Response.json({ model: MODEL, usage: { input_tokens: 0, output_tokens: body.out } }); };
-  const o = motionOrchestrator({ token: TOKEN, service, call, outDir, run: args => runMotionRequest({ ...args, stages }) });
+  const o = motionOrchestrator({ token: TOKEN, service, call, outDir, env: { MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG }, run: args => runMotionRequest({ ...args, stages }) });
   const server = createServer(o.handle);
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   t.after(() => { server.close(); o.close(); });
@@ -876,7 +877,7 @@ test('MOT-20 Generate with the approved proposal: one job, and the orchestrator 
   assert.equal(x.placementId, y.placementId, 'a double click is one press: one card');
   await settle(actor, async () => (await video(actor)).status === 'ready');
   assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, motionAttempts(sqlite).length], [1, 1, 1], 'one job, one hold');
-  assert.deepEqual(bodies[0].approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 10, description: WATER });
+  assert.deepEqual(bodies[0].approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 10, aspect_ratio: '16:9', description: WATER, renderer_config: 'r-test', allowed_complexity: ['simple', 'standard', 'heavy'] });
   assert.equal(bodies[0].request, motionOp.request);
 });
 
@@ -903,4 +904,108 @@ test('MOT-20 refused before any hold or POST: a forged, edited, other-learner or
   const again = await actor.fetch(withProposal(v2, 'press-0101-bbbb'));
   assert.deepEqual([again.status, (await again.json()).code], [409, 'proposal_used']);
   assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [1, 1]);
+});
+
+// Owner correction 2026-10-23 (C): a renderer capacity or timeout failure, or our own infrastructure failure, charges the learner
+// nothing and releases the WHOLE reservation; the provider cost is recorded internally; settlement happens exactly once.
+const FAILED_AFTER_MODEL = failure_class => [{ stage: 'directing', max_tokens: 16000, out: 5000 }, { stage: 'storyboarding', max_tokens: 16000, out: 5000 }, { stage: 'authoring', max_tokens: 64000, out: 30000 },
+  { stage: 'rendering_final', fail: 'final: render_failed: x', cause: 'renderer', ...(failure_class ? { failure_class } : {}) }];
+for (const [failure_class, text] of [['renderer_capacity', /renderer was busy\. You were not charged/], ['renderer_timeout', /longer to render than the renderer allows\. You were not charged/], ['infrastructure', /video service had a problem\. You were not charged/]]) {
+  test(`${failure_class}: the learner is charged zero, the full hold is released, the provider cost is absorbed internally`, async t => {
+    const { sqlite, LEARN_DB } = d1(t);
+    const w = world(t); await w.orchestrator.start(); w.script(FAILED_AFTER_MODEL(failure_class));
+    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+    await actor.fetch(ask());
+    await settle(actor, async () => (await video(actor)).status === 'failed');
+    const v = await video(actor);
+    assert.match(v.error, text);
+    assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0], 'nothing used, nothing still held');
+    assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.category, o.cost_usd, o.calls, o.error]), [['motion', 0, 3, `absorbed:${failure_class}:800000`]], 'the ledger row charges zero and names what the provider charged');
+    assert.deepEqual(motionAttempts(sqlite).map(a => a[2]), [0], 'the attempt is charged zero');
+    const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+    assert.deepEqual(job.absorbed, { class: failure_class, costMicros: 800_000 });
+    assert.doesNotMatch(JSON.stringify(await actor.list()), /absorbed|800000/, 'never shown to the learner');
+    assert.equal(w.orchestrator.posts, 1, 'no new paid generation to reconcile it');
+  });
+}
+
+test('a content failure with the same renderer cause is charged as before; only the three platform classes are absorbed', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FAILED_AFTER_MODEL(null));
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  await actor.fetch(ask());
+  await settle(actor, async () => (await video(actor)).status === 'failed');
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [800_000, 0]);
+  const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  assert.equal(job.absorbed, undefined);
+  assert.equal(rows(sqlite, 'usage_operations')[0].cost_usd, 0.8);
+});
+
+test('settlement is exactly once: concurrent and repeated settlements of one job change the ledger once', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start();
+  w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }, ...FIRST_PASS.slice(1)]);
+  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+  await actor.fetch(ask());
+  const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  const view = failure_class => ({ status: 'failed', failure_class, spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 }, renders: 0, render_states: [] });
+  // Two settlements race (an alarm and a poll); the others, with another class, do nothing.
+  await Promise.all([actor.settleMotion(job, view('renderer_timeout')), actor.settleMotion(job, view('infrastructure')), actor.settleMotion(job, view(null))]);
+  await actor.settleMotion(job, view(null));
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd, o.error]), [['failed', 0, 'absorbed:renderer_timeout:800000']]);
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
+  assert.equal(motionAttempts(sqlite).length, 1);
+  assert.equal(job.absorbed.class, 'renderer_timeout');
+  w.model.held?.();
+});
+
+test('our storage failure: a transient put error settles nothing and asks again; one that outlasts the wait charges zero and releases the hold', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const bucket = memoryBucket(); let down = true;
+  const env = { ...env0(LEARN_DB), LEARN_MEDIA: { ...bucket, put: async (...a) => { if (down && /\.mp4$/.test(a[0])) throw new Error('r2 unavailable'); return bucket.put(...a); } } };
+  const actor = new LearnVideos(durable('video-a'), env);
+  await actor.fetch(ask());
+  await until(() => w.orchestrator.o.jobs.size === 1 && [...w.orchestrator.o.jobs.values()][0].status === 'ready', 'the orchestrator finished');
+  for (let i = 0; i < 3; i++) await actor.alarm();
+  assert.equal((await video(actor)).status, 'generating', 'transient: still asking');
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 2_000_000], 'not settled while the clip is unsaved');
+  const [[key, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+  await actor.state.storage.put(key, { ...job, startedAt: Date.now() - 24 * 3600 * 1000 }); // the wait is over
+  await actor.alarm();
+  const v = await video(actor);
+  assert.deepEqual([v.status, v.retryable], ['failed', true]);
+  assert.match(v.error, /video service had a problem\. You were not charged/);
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
+  assert.match(rows(sqlite, 'usage_operations')[0].error, /^absorbed:infrastructure:800000$/);
+  down = false;
+});
+
+test('a stored clip is saved before it is settled, and settles at the real cost once', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const bucket = memoryBucket(), order = [];
+  const env = { ...env0(LEARN_DB), LEARN_MEDIA: { ...bucket, put: async (...a) => { if (/\.mp4$/.test(a[0])) order.push(`put:${rows(sqlite, 'usage_operations')[0].status}`); return bucket.put(...a); } } };
+  const actor = new LearnVideos(durable('video-a'), env);
+  await actor.fetch(ask());
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.deepEqual(order, ['put:admitted'], 'the clip was stored while the hold was still open');
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [800_000, 0]);
+});
+
+test('not ready: refused with a stable code before any hold, model call, orchestrator POST or consumed proposal; nothing is clamped', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  for (const [extra, request] of [[{ MOTION_READY_POLICY: undefined }, '/motion 15s explain me softmax func'], [{}, '/motion 50s explain me softmax func']]) {
+    const actor = new LearnVideos(durable(`video-${request.length}`), { ...env0(LEARN_DB), ...extra });
+    const r = await actor.fetch(ask({}, { ...motionOp, request }));
+    const body = await r.json();
+    if (request.includes('50s')) assert.equal(r.status, 202, 'a ready combination (READY covers 5 to 60) starts');
+    else assert.deepEqual([r.status, body.code, body.error], [409, 'motion_not_ready', 'A 15 second 16:9 video is not ready to generate yet. Pick other settings or try again later.']);
+  }
+  const before = w.orchestrator.posts;
+  const closed = new LearnVideos(durable('video-narrow'), { ...env0(LEARN_DB), MOTION_READY_POLICY: JSON.stringify({ version: 'p', renderer_config: 'r-test', entries: [{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple'] }] }) });
+  const refused = await closed.fetch(ask({}, { ...motionOp, request: '/motion 55s explain me softmax func' }));
+  assert.deepEqual([refused.status, (await refused.json()).code, w.orchestrator.posts - before], [409, 'motion_not_ready', 0], '55 seconds is outside the measured bucket: refused, not clamped to 30');
+  assert.equal(rows(sqlite, 'usage_operations').filter(o => o.category === 'motion').length, 1, 'only the ready combination reserved anything');
 });

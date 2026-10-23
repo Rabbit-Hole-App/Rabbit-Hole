@@ -127,9 +127,47 @@ test('a duration change sends the whole Motion settings with audio false', () =>
   assert.deepEqual(changes, [{ duration_seconds: 25, audio: false }]);
 });
 
+test('an aspect ratio change keeps the duration and audio in the settings it sends', () => {
+  let el = null;
+  const changes = [];
+  const Probe = () => { const tree = B.Card({ proposal: proposal({ settings: { duration_seconds: 45, audio: false } }), onGenerate: () => {}, onSettingsChange: s => changes.push(s) }); el = tree; return tree; };
+  B.renderToStaticMarkup(B.createElement(Probe));
+  const settings = find(el, n => typeof n.type === 'function' && n.props?.settings);
+  let fields = null;
+  const Inner = () => { fields = settings.type(settings.props); return fields; };
+  B.renderToStaticMarkup(B.createElement(Inner));
+  find(fields, n => n.props?.f?.key === 'aspect_ratio').props.onChange('9:16');
+  assert.deepEqual(changes, [{ duration_seconds: 45, audio: false, aspect_ratio: '9:16' }]);
+});
+
 // MOT-20b: the fields are the capability's declaration (CHAT_CAPABILITIES settings), never a card of its own per capability.
 test('a capability that declares no fields shows no settings: no Duration and no Audio', () => {
   const out = html({ proposal: proposal({ command: 'flashcards', settings: {} }) });
   assert.doesNotMatch(out, /data-proposal-settings|data-proposal-duration|data-proposal-audio|Duration|Audio/);
   assert.match(out, /data-proposal-generate/);
+});
+
+// Owner decisions 2026-10-23: every option stays visible and selectable; a combination the server says is not ready is explained
+// before confirmation and Generate is disabled (the server also refuses it).
+test('not ready: the server\'s one line shows before confirmation, Generate is disabled, every option stays selectable', () => {
+  const readiness = { ready: false, code: 'motion_not_ready', message: 'A 60 second 9:16 video is not ready to generate yet. Pick other settings or try again later.' };
+  const props = { proposal: proposal({ settings: { duration_seconds: 60, aspect_ratio: '9:16', audio: false }, readiness }) };
+  const out = html(props);
+  assert.match(out, /data-proposal-error-path="readiness"[^>]*>(<svg[^>]*>.*?<\/svg>)?A 60 second 9:16 video is not ready to generate yet\. Pick other settings or try again later\./);
+  assert.match(out, /<button[^>]*data-proposal-generate="true"[^>]*disabled=""|<button[^>]*disabled=""[^>]*data-proposal-generate="true"/);
+  assert.equal([...out.matchAll(/<option value="\d+:\d+"/g)].length, 9, 'all nine ratios stay visible');
+  assert.equal([...out.matchAll(/<option value="\d+"[^>]*>\d+ seconds/g)].length, 12, 'all twelve durations stay visible');
+  assert.doesNotMatch(out.match(/<select[^>]*data-proposal-duration[^>]*>/)[0] + out.match(/<select[^>]*data-aspect-ratio-select[^>]*>/)[0], /disabled=""/, 'the selects can still be changed');
+  assert.doesNotMatch(out.replace(/<[^>]+>/g, ' '), /\$|\.\.\.|…/, 'credits only, no ellipsis');
+  const calls = [];
+  generateElement({ ...props, onGenerate: p => calls.push(p) }).props.onClick?.();
+  assert.equal(calls.length, 0, 'a press does nothing');
+  assert.doesNotMatch(html({ proposal: proposal({ readiness: { ready: true } }) }).replace(/<[^>]+>/g, ' '), /not ready/);
+});
+
+test('a duration saved before the 5-second steps is named, kept visible and never rounded', () => {
+  const out = html({ proposal: proposal({ settings: { duration_seconds: 12, audio: false } }) });
+  assert.match(out, /data-proposal-notice="settings\.duration_seconds"[^>]*>Saved with 12 seconds, not a current option\.</);
+  assert.match(out, /<option value="12" selected="">12 seconds<\/option>/, 'the saved value stays selected, not rounded to a neighbour');
+  assert.doesNotMatch(html({ proposal: proposal({ settings: { duration_seconds: 15, audio: false } }) }), /not a current option/);
 });

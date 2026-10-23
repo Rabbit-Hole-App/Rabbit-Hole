@@ -8,9 +8,11 @@ import {
   firstReadOnly, isAvailable, isEditable, IMAGE_MODELS, fieldsFor, imageSize, referenceProblems, referenceRules, settingsProblems, proposalView, reviewFor, reviewPolicyOf, settingsOf, validateSettings, visibleSections,
 } from './generation-confirmation-schema.js';
 
-test('the schema file is dependency free: no React, no provider, no network, no import at all', () => {
+test('the schema file is dependency free: no React, no provider, no network; its one import is the shared ratio table, which imports nothing', () => {
   const source = readFileSync(new URL('./generation-confirmation-schema.js', import.meta.url), 'utf8');
-  assert.deepEqual(source.match(/^\s*import\b.*$/gm) || [], [], 'no import statements');
+  // Owner decision 2026-10-23: aspect ratio is a shared field type, so the schema declares each command's subset over one table.
+  assert.deepEqual((source.match(/^\s*import\b.*$/gm) || []).map(l => l.trim()), ["import { ratiosFor } from './aspect-ratios.js';"], 'only the ratio table');
+  assert.deepEqual(readFileSync(new URL('./aspect-ratios.js', import.meta.url), 'utf8').match(/^\s*import\b.*$/gm) || [], [], 'the ratio table has no imports');
   assert.doesNotMatch(source, /require\(|import\(|\bfetch\(|XMLHttpRequest|\bnew Request\b|crypto\.subtle|from ['"](react|@anthropic)/);
 });
 
@@ -54,7 +56,7 @@ test('definitions are well formed: types, policies, sections, editable keys and 
   assert.deepEqual(Object.values(GENERATION_COMMANDS).filter(d => d.review_policy === 'none').every(d => d.settings.length === 0 && d.editable_fields.length === 0), true, 'no-review commands declare no fields');
 });
 
-test('Motion: aspect ratio, a duration select of exactly 5 to 60 in fives, audio disabled', () => {
+test('Motion: its own nine aspect ratios, a duration select of exactly 5 to 60 in fives, audio disabled', () => {
   const fields = settingsOf('motion');
   assert.deepEqual(fields.map(f => f.key), ['aspect_ratio', 'duration_seconds', 'audio']);
   const duration = fields.find(f => f.key === 'duration_seconds');
@@ -63,18 +65,22 @@ test('Motion: aspect ratio, a duration select of exactly 5 to 60 in fives, audio
   assert.equal(duration.options[0].label, '5 seconds');
   const audio = fields.find(f => f.key === 'audio');
   assert.deepEqual([audio.available, audio.unavailable_reason], [false, 'Narration coming soon']);
-  assert.equal(fields.find(f => f.key === 'aspect_ratio').available, false, 'disabled until the renderer reports what it supports');
+  const ratio = fields.find(f => f.key === 'aspect_ratio');
+  assert.deepEqual([ratio.available ?? true, ratio.control, ratio.default], [true, 'aspect_ratio', '16:9'], 'available (owner 2026-10-23)');
+  assert.deepEqual(ratio.options.map(o => o.value), ['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4'], 'Motion declares its own subset of the shared table');
+  assert.deepEqual(ratio.options.map(o => o.label).slice(0, 3), ['9:16 portrait', '1:1 square', '16:9 landscape'], 'labels come from the shared table');
+  assert.ok(!IMAGE_MODELS['gpt-image-2.5-flare'].ratios.some(o => o.value === '3:4'), 'the image models keep their own subsets: Motion nine ratios are no promise about them');
   assert.equal(isAvailable(audio), false); assert.equal(isAvailable(duration), true);
   assert.deepEqual([isEditable('motion', 'duration_seconds'), isEditable('motion', 'audio'), isEditable('motion', 'title'), isEditable('motion', 'original_request')], [true, false, true, false]);
 });
 
 test('validateSettings: Motion values, defaults, unavailable fields and unknown keys', () => {
-  assert.deepEqual(validateSettings('motion', { duration_seconds: 10, audio: false }).value, { duration_seconds: 10, audio: false });
-  assert.deepEqual(validateSettings('motion', { duration_seconds: 60 }).value, { duration_seconds: 60, audio: false }, 'audio takes its default');
+  assert.deepEqual(validateSettings('motion', { duration_seconds: 10, audio: false }).value, { aspect_ratio: '16:9', duration_seconds: 10, audio: false }, 'no ratio saved is the original 16:9');
+  assert.deepEqual(validateSettings('motion', { duration_seconds: 60, aspect_ratio: '9:16' }).value, { aspect_ratio: '9:16', duration_seconds: 60, audio: false }, 'audio takes its default');
   for (const [values, why] of [
     [{ duration_seconds: 10, audio: true }, /narration audio is not available yet/], [{ duration_seconds: 4 }, /5 to 60/], [{ duration_seconds: 65 }, /5 to 60/], [{ duration_seconds: 12 }, /in steps of 5/],
     [{ duration_seconds: 12.5 }, /whole number/], [{ duration_seconds: '10' }, /whole number/], [{}, /duration_seconds is required/], [{ duration_seconds: 10, voice: 'x' }, /settings.voice is not a Motion setting/],
-    [{ duration_seconds: 10, aspect_ratio: '9:16' }, /aspect_ratio is not available yet/], [[], /settings must be/], [undefined, /settings must be/],
+    [{ duration_seconds: 10, aspect_ratio: '7:3' }, /aspect_ratio must be 9:16, 1:1, 16:9, 3:4, 4:3, 2:3, 3:2, 4:5 or 5:4/], [{ duration_seconds: 10, aspect_ratio: '21:9' }, /aspect_ratio must be 9:16/], [[], /settings must be/], [undefined, /settings must be/],
   ]) assert.match(validateSettings('motion', values).error, why, JSON.stringify(values));
   assert.equal(validateSettings('motion', { duration_seconds: 4 }).path, 'settings.duration_seconds');
 });

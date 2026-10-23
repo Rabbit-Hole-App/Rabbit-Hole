@@ -66,7 +66,7 @@ existing LEARN_MEDIA / LearnVideos storage
 existing `type: "video"` block via insertBlock
 ```
 
-**Duration:** any whole number of seconds from 5 to 30. Default 10 seconds when the learner gives none. See §2.2.
+**Duration:** any whole number of seconds from 5 to 60 (owner brief 2026-10-23; it was 30). The Motion form offers exactly 5, 10, 15 ... 60. Default 10 seconds when the learner gives none. See §2.2. **Aspect ratio:** the nine shared ratios (§2.2a), default 16:9.
 
 **Renderers** (owner decision 2026-10-04, locked): Motion V1 needs BOTH.
 
@@ -174,7 +174,7 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 
 ## 2.2 Duration
 
-**Motion V1 output is 5–30 seconds.** Internally every duration is a whole number of seconds from 5 to 30. Longer videos are the future long-form tier in [learn-video-motion-generation.md](learn-video-motion-generation.md), not V1.
+**Motion V1 output is 5–60 seconds** (owner brief 2026-10-23, replacing 5–30). Internally every duration is a whole number of seconds from 5 to 60. The proposal card offers exactly 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55 and 60 and the control plane refuses any other `duration_seconds`; a typed duration still takes the rounding below. Longer videos are the future long-form tier in [learn-video-motion-generation.md](learn-video-motion-generation.md), not V1.
 
 **Default:** 10 seconds when the learner supplies no duration.
 
@@ -183,7 +183,7 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 **Normalization** (owner decision, 2026-10-04):
 
 1. Round to the nearest whole second; `.5` rounds up (12.4s → 12s, 12.5s → 13s).
-2. Clamp to 5..30.
+2. Clamp to 5..60.
 3. Print the decision line whenever the used value differs from what was asked.
 
 | Learner wrote | Duration used | Decision line |
@@ -191,8 +191,9 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 | (nothing) | 10s | `✓ duration: 10s (default)` |
 | `12 seconds` | 12s | `✓ duration: 12s` |
 | `25 sec` | 25s | `✓ duration: 25s` |
-| `45 sec` | 30s | `✓ duration: 30s (asked 45s; Motion V1 max is 30s)` |
-| `1 minute` | 30s | `✓ duration: 30s (asked 60s; Motion V1 max is 30s)` |
+| `45 sec` | 45s | `✓ duration: 45s` |
+| `1 minute` | 60s | `✓ duration: 60s` |
+| `90 sec` | 60s | `✓ duration: 60s (asked 90s; Motion V1 max is 60s)` |
 | `3 sec` | 5s | `✓ duration: 5s (asked 3s; Motion V1 min is 5s)` |
 | `12.4s` | 12s | `✓ duration: 12s (asked 12.4s)` |
 | `12.5s` | 13s | `✓ duration: 13s (asked 12.5s)` |
@@ -224,6 +225,14 @@ Complexity guide for the Director when choosing scope inside the duration:
 ```
 
 If a request cannot be taught coherently even in 30 seconds, narrow the objective or ask the learner what to focus on. Do not silently compress a whole chapter into an incoherent 30-second animation.
+
+## 2.2a Aspect ratio (owner brief 2026-10-23)
+
+The Motion form (the shared proposal card) offers the nine ratios of the shared table (`packages/web/src/aspect-ratios.js`, the same dropdown the image form uses): 9:16 portrait, 1:1 square, 16:9 landscape, 3:4 portrait, 4:3, 2:3, 3:2, 4:5, 5:4. The setting is `aspect_ratio` next to `duration_seconds` in the proposal's signed settings; a proposal or card saved without one is 16:9 and renders as before.
+
+Each ratio has one output size (`packages/learn-render/motion/stage-sizes.js`, 30 fps, never larger in area than 1920x1080, whole even dimensions at the 0.45 preview scale): 16:9 1920x1080, 9:16 1080x1920, 1:1 1080x1080, 4:3 1440x1080, 3:4 1080x1440, 3:2 1560x1040, 2:3 1040x1560, 5:4 1400x1120, 4:5 1120x1400. The control plane accepts a ratio only when it has a size there. The brief carries `aspect_ratio` and the matching `output_requirements`; the Author is told the stage, the static checks demand it as literals, and the final, preview, poster and RenderResult are checked against it, so a render at another size fails instead of being accepted as the selection.
+
+Limits that apply to the longer durations (unchanged by this brief): the render service stops a job at 420 s (its limits section), the final is at most 25 MB, a storyboard has 2 to 8 beats, and the hold and credit estimate are one flat figure per job. See the lane report for what is unmeasured.
 
 ## 2.3 Teaching mode hints
 
@@ -3193,3 +3202,45 @@ and, when appropriate:
 ```text
 "I can map what I just saw back to the real code / math / system."
 ```
+
+
+## Motion settings, readiness, quotes and failure charging (motion/int, owner decisions 2026-10-23)
+
+Unit-tested only. Nothing here has been rendered, model-tested or run against a real renderer, and nothing below says a video will succeed.
+
+### One schema, one renderer of it
+
+- The Motion fields are declared once, in `packages/web/src/generation-confirmation-schema.js`: Duration is a select of exactly 5, 10, ... 60 seconds, Aspect ratio is a select over Motion's nine ratios (`MOTION_RATIOS`, a subset of the shared table `aspect-ratios.js`), Audio stays disabled. The shared card draws them; the ratio uses the shared `AspectRatioSelect` through the field `control: 'aspect_ratio'`. The server validates with the same declarations (`validateSettings`).
+- The shared table lists a ratio once. Each command or model declares its own subset: Motion's nine are no promise about any image model (their lists stay in `IMAGE_MODELS`). A control-plane test keeps Motion's nine equal to the ratios the renderer has a stage size for (`learn-render/motion/stage-sizes.js`).
+- Every option stays visible and selectable. Nothing is clamped, rounded or substituted: the renderer's duration range is 5 to 60 (`learn-render/motion/duration.js`), and a not-ready combination is refused by the readiness policy, never shortened.
+
+### Readiness policy (server side, `control-plane/src/motion-settings.js`)
+
+`MOTION_READY_POLICY` (worker variable, default unset, which means nothing is ready) is an allowlist of measured combinations with a policy version, for one renderer configuration:
+
+```json
+{"version": "p1", "renderer_config": "r1", "entries": [{"aspect_ratio": ["16:9"], "min_seconds": 5, "max_seconds": 30, "complexity": ["simple", "standard"]}]}
+```
+
+- `MOTION_RENDERER_CONFIG` is the live renderer configuration id, set with each renderer deploy. A policy measured on another configuration, a policy with no version and any malformed entry are empty: the policy fails closed.
+- Quote time: each signed proposal carries `readiness` for its own settings. When not ready, the card says so in one line before confirmation ("A 60 second 9:16 video is not ready to generate yet. Pick other settings or try again later.") and Generate is disabled. The options stay selectable.
+- Execution time: Generate (and Retry) ask again before the proposal is consumed or any credit is reserved (`motionGenerationCheck`, stable codes `motion_not_ready`, `motion_settings_invalid`, `motion_renderer_changed`, `motion_quote_stale`, HTTP 409), and `startMotion` asks once more after the hold exists and before the grant and the one POST (a refusal releases the hold). A request with no proposal is judged by the duration its words ask for and 16:9.
+- Renderer configuration binding: the signed proposal records the renderer configuration (`input.binding.renderer_config`) and the job records it. A different live configuration refuses with `motion_renderer_changed`; the orchestrator also refuses a different `approved_proposal.renderer_config` (409 `renderer_config_mismatch`) before any model call.
+- Pre-render validation (`learn-render/motion/composition-limits.js`): after a composition is authored and before any review or render, it is measured (layers, elements, text characters, asset bytes, duration) against a stable limit table with three complexity classes. Beyond the heaviest class, or in a class the policy entry does not list (`approved_proposal.allowed_complexity`), the job fails before rendering with `composition limits: ...`. The numbers are unmeasured placeholders (`UNMEASURED`) until evidence sets them. Passing the check is not a promise of success.
+
+### Quotes
+
+- Inputs: `motionQuoteInputs(settings)` is the one function from settings to everything that can change price or readiness.
+- Price: `MOTION_PRICE_TABLE` (`{"version": "b1", "buckets": [{"aspect_ratio": [...], "min_seconds": 5, "max_seconds": 30, "estimate_usd": 1.2}]}`) gives measured, versioned buckets; unset, the flat `MOTION_ESTIMATE_USD` applies under the version `flat`, which is today's price. The hold (`MOTION_JOB_RESERVATION_USD`) and rendering (platform funded) are unchanged.
+- The inputs, the quote, the price version, the policy version and the renderer configuration are signed with the settings (`input.binding`). A settings change signs a new binding. At Generate the binding is recomputed; if the price version, the quote or the inputs differ, the answer is 409 `motion_quote_stale` with the UPDATED quote (`quote: {price_version, estimate_credits, inputs}`) and the sentence "The price changed to About N credits. Review it and press Generate again to confirm." The card then signs the same settings again with the new quote and the person confirms it; nothing is charged at a different amount.
+
+### Saved proposals with a duration that is no longer an option
+
+A proposal saved before the 5-second steps (for example 12 seconds) stays readable. The card keeps the saved value selected and says "Saved with 12 seconds, not a current option." It is never rounded. Changing the duration offers only the current values, and the server refuses a save that keeps the old one together with a change. If it is still executable it goes through a compatibility path: the schema refuses 12, so `legacyMotionSettings` accepts it only as a whole number of seconds from 5 to 60 with a known ratio and audio off, and it is still subject to the readiness policy (a policy bucket is an inclusive range, so 12 is ready only inside one).
+
+### Failure charging (`learn-video.js settleMotion`)
+
+- A renderer capacity failure (busy or degraded), a renderer timeout and an infrastructure failure (renderer unreachable, or our storage could not take the finished video) charge the learner zero credits and release the whole reservation. The pipeline names the class (`failure_class`); the ledger row records `absorbed:<class>:<micros the provider charged>` and the job keeps `absorbed`; none of it is shown to the learner.
+- A finished video is stored before it is settled. A transient storage error settles nothing and asks again at the next poll; one that outlasts the wait settles as an infrastructure failure at zero. A clip that is itself unusable is settled as before.
+- An uncertain outcome is reconciled against the existing job by its key and never resubmitted. Settlement runs exactly once: a second or concurrent settlement does nothing.
+- A content failure, including a render failure that is not a platform class, is charged as before.

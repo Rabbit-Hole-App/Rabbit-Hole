@@ -61,8 +61,11 @@ export const refinementConflictText = c => `Not applied: the proposal changed me
 // MOT-22: a Generate the server refused for its proposal (a newer version exists, it was made on another canvas or needs a
 // refresh, or it already made its video) marks its card proposalRefused: never the card this proposal made, so the latest
 // version stays live with Generate. The card and the proposal say why; ProposalSlot hears it by PROPOSAL_REFUSED_EVENT.
-const REFUSED = { proposal_stale: 'This proposal changed; use the latest version.', proposal_canvas: 'Refresh this proposal.', proposal_refused: 'Refresh this proposal.', proposal_used: 'This proposal already made a video.' };
-export const proposalRefusal = problem => REFUSED[problem?.data?.code] ?? null;
+const REFUSED = { proposal_stale: 'This proposal changed; use the latest version.', proposal_canvas: 'Refresh this proposal.', proposal_refused: 'Refresh this proposal.', proposal_used: 'This proposal already made a video.',
+  motion_quote_stale: 'The price changed. Review the card and generate again.', motion_not_ready: 'These settings are not ready to generate yet.', motion_renderer_changed: 'The video renderer was updated. Ask for the proposal again.', motion_settings_invalid: 'These video settings are not valid. Change them on the card.' };
+// The Motion codes the server words itself (the updated price is in the sentence); the card shows that sentence.
+const SERVER_WORDED = new Set(['motion_quote_stale', 'motion_not_ready', 'motion_renderer_changed', 'motion_settings_invalid']);
+export const proposalRefusal = problem => (SERVER_WORDED.has(problem?.data?.code) && typeof problem.data.error === 'string' ? problem.data.error : REFUSED[problem?.data?.code] ?? null);
 export const PROPOSAL_REFUSED_EVENT = 'rh-proposal-refused';
 export const refusedReason = block => (block?.proposalRefused ? REFUSED[block.proposalRefused] || REFUSED.proposal_canvas : null);
 // The video card after a failed start: refused for its proposal, it is marked (never playable, never generating, never the card

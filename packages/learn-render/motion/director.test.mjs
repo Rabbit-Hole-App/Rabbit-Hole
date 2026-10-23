@@ -253,3 +253,18 @@ test('an approved proposal: the brief keeps its exact title and duration, and th
   assert.match(body.messages[0].content, /"duration":\{"seconds":20/);
   assert.match(body.system[0].text, /approved_proposal[^.]*binding|They are binding/);
 });
+
+// Owner brief 2026-10-23: the approved duration (up to 60 s) and aspect ratio are the brief's, set by the harness, never the model.
+test('an approved 45 s 9:16 proposal: the brief, its stage and its output requirements are the selection; an approval without a ratio is 16:9', async () => {
+  const approved = { title: 'Softmax turns scores into weights', duration_seconds: 45, aspect_ratio: '9:16', description: 'One row of scores appears. Future positions are blocked. Softmax turns the rest into weights that sum to one.' };
+  const r = await runDirector({ turn: softmaxTurn(), grounding: groundTarget(softmaxTurn(), source), call: fakeModel(toolMessage(goodBrief())).call, clock, approved });
+  assert.equal(r.status, 'brief', JSON.stringify(r.errors));
+  assert.deepEqual([r.brief.duration.seconds, r.brief.aspect_ratio], [45, '9:16']);
+  assert.deepEqual([r.brief.output_requirements.stage_width, r.brief.output_requirements.stage_height, r.brief.output_requirements.fps], [1080, 1920, 30]);
+  assert.deepEqual(validateBrief(r.brief), []);
+  const old = await runDirector({ turn: softmaxTurn(), grounding: groundTarget(softmaxTurn(), source), call: fakeModel(toolMessage(goodBrief())).call, clock, approved: { ...approved, aspect_ratio: undefined, duration_seconds: 20 } });
+  assert.deepEqual([old.brief.aspect_ratio, old.brief.output_requirements.stage_width, old.brief.output_requirements.stage_height], ['16:9', 1920, 1080]);
+  // No proposal at all (a typed line): the original 16:9.
+  const typed = await runDirector({ turn: softmaxTurn(), grounding: groundTarget(softmaxTurn(), source), call: fakeModel(toolMessage(goodBrief())).call, clock });
+  assert.equal(typed.brief.aspect_ratio, '16:9');
+});

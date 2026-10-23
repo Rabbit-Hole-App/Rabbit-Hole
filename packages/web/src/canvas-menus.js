@@ -37,7 +37,8 @@ export const ownerInsertItems = ({ canvas, onUpload, onSearchSources, onLinkToCa
 const arrangeRows = (canvas, rows, least, state) => rows.map(([label, how]) => ({ label, disabled: (state.units || 0) < least, onSelect: () => canvas()?.arrange(how) }));
 
 // panel: the right panel's { open, setOpen } where the page has one; drawing: false where the canvas has no toolbar (a viewer).
-export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true }) => {
+// study: the owner's Pinned Study (StudyPane.jsx useStudy, UI-27); a shared canvas passes none, so it has no Canvas / Study rows.
+export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdit = false, comments = {}, docView, setDocView, panel = null, drawing = true, study = null }) => {
   const locked = canvasState.selectionLocked;
   const checkRow = (label, on, set) => ({ label, check: !!on, onToggle: set });
   const widget = name => on => canvas()?.showWidget(name, on);
@@ -92,6 +93,13 @@ export const canvasEditMenus = ({ canvas, canvasState, inlineAi = null, quickEdi
         { label: 'Fit canvas', icon: Maximize2, hint: 'Shift 1', onSelect: () => canvas()?.zoomFit() },
         { label: 'Fit selection', icon: Focus, disabled: !canvasState.selected, onSelect: () => canvas()?.zoomToSelection() },
         { divider: true },
+        // The workspace layout (Pinned Study): Canvas shows the full canvas, Study the pinned reference beside the work. Neither
+        // moves a card, saves the board or asks a model; this browser remembers the choice for this canvas.
+        ...(study ? [
+          { label: 'Canvas', radio: study.mode !== 'study', onSelect: () => study.setMode('canvas') },
+          { label: 'Study', radio: study.mode === 'study', onSelect: () => study.setMode('study') },
+          { divider: true },
+        ] : []),
         // The canvas's document (docs/features/blocknote-canvas.md): Editor shows it on the canvas, Canvas hides it (never clears
         // it); this browser remembers the choice for this canvas.
         { label: 'Workspace', icon: PanelsTopLeft, items: [

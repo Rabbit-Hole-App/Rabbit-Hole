@@ -5,7 +5,7 @@
 // (the local Motion stack).
 //
 //   POST /jobs {request, location?, context?, approved_proposal?, idempotency_key, grant} -> 202 {job_id} | 429 busy | 503 renderer | 400 | 403
-//   approved_proposal (MOT-20): {title, duration_seconds, description} the learner approved; the Director keeps them binding.
+//   approved_proposal (MOT-20): {title, duration_seconds, aspect_ratio?, description} the learner approved; the Director keeps them binding.
 //   GET  /jobs/<id>                                                   -> status, stage, provenance, spend
 //   GET  /jobs/<id>/final.mp4                                         -> the validated final render, once ready
 //   POST /jobs/<id>/cancel                                            -> 202; Stop at the next stage boundary
@@ -44,7 +44,8 @@ import { PRICES } from './director.js';
 import { fixtureSource } from './fixture-source.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
-import { classifyFindings } from './contracts.js';
+import { COMPLEXITY_CLASSES } from './composition-limits.js';
+import { DURATION, MOTION_RATIOS, classifyFindings } from './contracts.js';
 
 const ID = /^[0-9a-f]{32}$/;
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
@@ -158,7 +159,7 @@ export function validateJobRequest(body) {
   if (r !== undefined && (!r || typeof r !== 'object' || Array.isArray(r) || Object.keys(r).some(k => !['repo', 'commit'].includes(k)) || !/^[\w.-]+\/[\w.-]+$/.test(r.repo || '') || !/^[0-9a-f]{40}$/.test(r.commit || ''))) e.push('repository: {repo: owner/name, commit: 40 hex}');
   try { validateMotionContext(body.context); } catch (error) { e.push(error.message); }
   const a = body.approved_proposal;
-  if (a !== undefined && (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).some(k => !['title', 'duration_seconds', 'description'].includes(k)) || typeof a.title !== 'string' || !a.title.trim() || a.title.length > 120 || !Number.isInteger(a.duration_seconds) || a.duration_seconds < 5 || a.duration_seconds > 30 || typeof a.description !== 'string' || !a.description.trim() || a.description.length > 1500)) e.push('approved_proposal: {title, duration_seconds 5-30, description}');
+  if (a !== undefined && (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).some(k => !['title', 'duration_seconds', 'aspect_ratio', 'description', 'renderer_config', 'allowed_complexity'].includes(k)) || (a.renderer_config !== undefined && (typeof a.renderer_config !== 'string' || a.renderer_config.length > 64)) || (a.allowed_complexity !== undefined && (!Array.isArray(a.allowed_complexity) || a.allowed_complexity.some(c => !COMPLEXITY_CLASSES.includes(c)))) || typeof a.title !== 'string' || !a.title.trim() || a.title.length > 120 || !Number.isInteger(a.duration_seconds) || a.duration_seconds < DURATION.min || a.duration_seconds > DURATION.max || (a.aspect_ratio !== undefined && !MOTION_RATIOS.includes(a.aspect_ratio)) || typeof a.description !== 'string' || !a.description.trim() || a.description.length > 1500)) e.push(`approved_proposal: {title, duration_seconds ${DURATION.min}-${DURATION.max}, aspect_ratio (${MOTION_RATIOS.join(', ')}; 16:9 when absent), description}`);
   if (typeof body.request !== 'string' || !/^\/motion\s+\S/.test(body.request) || body.request.length > 500) e.push('request: "/motion <what to explain>", at most 500 characters');
   const l = body.location;
   if (l !== undefined && (!l || typeof l !== 'object' || Array.isArray(l) || Object.keys(l).some(k => k !== 'concept') || (l.concept !== undefined && l.concept !== null && (typeof l.concept !== 'string' || l.concept.length > 100)))) e.push('location: {concept?: string of at most 100 characters}');
@@ -209,7 +210,7 @@ export const jobView = j => ({
   ...(j.result ? {
     failure_reason: j.result.failure_reason ?? null, clarification: j.result.clarification ?? null, cause: j.result.cause ?? null,
     title: j.result.brief?.title ?? null, motion: j.result.block?.motion ?? null, render_id: j.result.render?.render_id ?? null,
-    repair_count: j.result.job?.repair_count ?? null, repairs: j.result.repairs ?? null, transport_retries: j.result.transport_retries ?? [], model_latency_s: j.result.model_latency_s ?? null, timings: j.result.timings ?? null,
+    failure_class: j.result.failure_class ?? null, repair_count: j.result.job?.repair_count ?? null, repairs: j.result.repairs ?? null, transport_retries: j.result.transport_retries ?? [], model_latency_s: j.result.model_latency_s ?? null, timings: j.result.timings ?? null,
   } : {}),
 });
 
@@ -406,6 +407,9 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         // The same key while it is being admitted answers what that admission answers: one key, one job (MOT-06).
         if (admitting.has(key)) { const [status, answer] = await admitting.get(key); return send(res, status, status === 202 ? { ...answer, duplicate: true } : answer); }
         if (closed.has(key)) return send(res, 403, { error: 'grant_refused', detail: 'the worker closed this submission; nothing was started' });
+        // The job is bound to the renderer configuration the readiness evidence was gathered on (owner correction 2026-10-23): another
+        // one is refused here, before a hold is used, a model is called or a render starts.
+        if (body.approved_proposal?.renderer_config !== undefined && body.approved_proposal.renderer_config !== (String(env.MOTION_RENDERER_CONFIG ?? '').trim() || null)) return send(res, 409, { error: 'renderer_config_mismatch', detail: 'this video was approved for another renderer configuration; nothing was started' });
         const refused = grantError(body);
         if (refused) return send(res, 403, { error: 'grant_refused', detail: refused });
         // One slot, taken before the first await: an admission in progress holds it as a running job does.

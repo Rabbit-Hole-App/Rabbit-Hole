@@ -59,10 +59,15 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const onSettingsChange = (settings, base = p) => onSave({ settings }, base).catch(() => {});
   // MOT-22: the server refused this proposal's Generate (its card is marked, not counted as made): live again, with the reason.
   useEffect(() => {
-    const refused = event => { if (event.detail?.proposalId === p.proposal_id) { setPressed(false); setError(event.detail.message); } };
+    const refused = event => {
+      if (event.detail?.proposalId !== p.proposal_id) return;
+      setPressed(false); setError(event.detail.message);
+      // A stale price: the same settings are signed again with the server's updated quote, which the card then shows for explicit confirmation.
+      if (event.detail.code === 'motion_quote_stale') onSave({ settings: p.settings }).catch(() => {});
+    };
     window.addEventListener(PROPOSAL_REFUSED_EVENT, refused);
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
-  }, [p.proposal_id]);
+  }, [p.proposal_id, p.version]); // eslint-disable-line react-hooks/exhaustive-deps
   const onGenerate = () => {
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
     if (approvesJob(p)) {

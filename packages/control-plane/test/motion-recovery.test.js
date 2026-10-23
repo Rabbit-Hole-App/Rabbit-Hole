@@ -13,6 +13,7 @@ import { LearnVideos } from '../src/learn-video.js';
 import { forwardUsagePayer } from '../src/learn-usage.js';
 import { RECOVERY_POLICY, motionOrchestrator, policyHoldMicros, sealCheckpoint } from '../../learn-render/motion/orchestrator.mjs';
 import { memoryBucket } from './live-storage-spy.js';
+import { READY } from './motion-ready-env.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
 const TOKEN = 'm'.repeat(48);
@@ -88,7 +89,7 @@ function world(t) {
   const orchestrator = { posts: [], cancels: 0, delivered: 0, lose: 0, cancelFault: null, hang: () => false };
   orchestrator.start = async () => {
     if (server) { server.close(); orchestrator.o.close(); }
-    orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir: mkdtempSync(join(tmpdir(), 'motion-rec-')), run });
+    orchestrator.o = motionOrchestrator({ token: TOKEN, service, call, outDir: mkdtempSync(join(tmpdir(), 'motion-rec-')), env: { MOTION_RENDERER_CONFIG: READY.MOTION_RENDERER_CONFIG }, run });
     server = createServer(orchestrator.o.handle);
     await new Promise(r => server.listen(0, '127.0.0.1', r));
     orchestrator.base = `http://127.0.0.1:${server.address().port}`;
@@ -115,7 +116,7 @@ function world(t) {
 
 const op = { op: 'motion_request', request: '/motion 10s explain how friction slows a sliding block', location: { concept: null } };
 const env0 = (LEARN_DB, extra = {}) => ({ SMALL_ENV: 'dev', LEARN_DB, USAGE_PLATFORM_DAY_USD: '100', AI_MONTHLY_ALLOWANCE_USD: '50', LEARN_MEDIA: memoryBucket(),
-  MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_JOB_RESERVATION_USD: '25', ...extra });
+  MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: TOKEN, MOTION_JOB_RESERVATION_USD: '25', ...READY, ...extra });
 const who = req => forwardUsagePayer(req, { userId: 'u-alice', email: 'alice@example.test' });
 const generate = () => who(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: op, lessonId: 'canvas', page: 'canvas', confirmed: true }) }));
 const recover = (id, mode, extra = {}) => who(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ action: 'recover', id, mode, ...extra }) }));

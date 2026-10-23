@@ -8,8 +8,9 @@ import { readFileSync } from 'node:fs';
 import {
   MODEL_ROLES, BLOCKING_CATEGORIES, ADVISORY_CATEGORIES, STRUCTURED_STAGES, validateBrief, validateStoryboard, validateAuthorOutput,
   validateFinding, classifyFindings, afterReview, afterNeedsRevision, startRepair, afterMalformed, validateJob, blockProvenance, leakErrors,
-  validateRenderRequest,
+  validateRenderRequest, validateRenderResult, stageOf, stageFor, MOTION_RATIOS, STAGE,
 } from './contracts.js';
+import { MOTION_STAGE_SIZES } from './stage-sizes.js';
 import { durationDecision, parseDuration } from './duration.js';
 
 const read = p => JSON.parse(readFileSync(new URL(p, import.meta.url), 'utf8'));
@@ -23,8 +24,11 @@ test('duration: every §2.2 row and the owner decisions', () => {
     ['/motion explain me softmax func', 10, '✓ duration: 10s (default)'],
     ['12 seconds', 12, '✓ duration: 12s'],
     ['25 sec', 25, '✓ duration: 25s'],
-    ['45 sec', 30, '✓ duration: 30s (asked 45s; Motion V1 max is 30s)'],
-    ['1 minute', 30, '✓ duration: 30s (asked 60s; Motion V1 max is 30s)'],
+    // owner brief 2026-10-23: the maximum is 60 s (it was 30 s)
+    ['45 sec', 45, '✓ duration: 45s'],
+    ['1 minute', 60, '✓ duration: 60s'],
+    ['90 sec', 60, '✓ duration: 60s (asked 90s; Motion V1 max is 60s)'],
+    ['2 min', 60, '✓ duration: 60s (asked 120s; Motion V1 max is 60s)'],
     ['3 sec', 5, '✓ duration: 5s (asked 3s; Motion V1 min is 5s)'],
     ['12.4s', 12, '✓ duration: 12s (asked 12.4s)'],
     ['12.5s', 13, '✓ duration: 13s (asked 12.5s)'],
@@ -35,26 +39,28 @@ test('duration: every §2.2 row and the owner decisions', () => {
     ['/motion explain attention in 5 sec', 5, '✓ duration: 5s'],
     ['4.5s', 5, '✓ duration: 5s (asked 4.5s)'],
     ['4.4s', 5, '✓ duration: 5s (asked 4.4s; Motion V1 min is 5s)'],
-    ['30.5s', 30, '✓ duration: 30s (asked 30.5s; Motion V1 max is 30s)'],
+    ['30.5s', 31, '✓ duration: 31s (asked 30.5s)'],
+    ['60.4s', 60, '✓ duration: 60s (asked 60.4s)'],
+    ['60.5s', 60, '✓ duration: 60s (asked 60.5s; Motion V1 max is 60s)'],
     ['0.25 min', 15, '✓ duration: 15s'],
   ];
   for (const [text, seconds, line] of rows) {
     const d = durationDecision(text);
     assert.equal(d.duration.seconds, seconds, text);
     assert.equal(d.line, line, text);
-    assert.ok(Number.isInteger(d.duration.seconds) && d.duration.seconds >= 5 && d.duration.seconds <= 30);
+    assert.ok(Number.isInteger(d.duration.seconds) && d.duration.seconds >= 5 && d.duration.seconds <= 60);
     // the brief records both values; normalization only when they differ, never silently
     if (d.duration.requested_seconds !== undefined) assert.equal(!!d.duration.normalization, d.duration.seconds !== d.duration.requested_seconds, text);
   }
   assert.equal(parseDuration('explain it a second time'), null);
-  assert.deepEqual(durationDecision('45 sec').duration, { requested_text: '45 sec', requested_seconds: 45, seconds: 30, normalization: '✓ duration: 30s (asked 45s; Motion V1 max is 30s)' });
+  assert.deepEqual(durationDecision('90 sec').duration, { requested_text: '90 sec', requested_seconds: 90, seconds: 60, normalization: '✓ duration: 60s (asked 90s; Motion V1 max is 60s)' });
 });
 
 test('MotionBrief: the Demo A fixture validates', () => assert.deepEqual(validateBrief(brief()), []));
 
 test('MotionBrief: §5.1 rules reject', () => {
   const bad = (mutate, re) => { const b = brief(); mutate(b); has(validateBrief(b), re); };
-  bad(b => { b.duration.seconds = 31; }, /duration.seconds: integer 5..30/);
+  bad(b => { b.duration.seconds = 61; }, /duration.seconds: integer 5..60/);
   bad(b => { b.duration.seconds = 20; }, /never lengthens or silently changes/);
   bad(b => { b.duration = { seconds: 15 }; }, /never lengthens or silently changes/); // no request: default 10, not 15
   bad(b => { b.duration = { requested_text: '12.5s', requested_seconds: 12.5, seconds: 13 }; }, /decision line is required/);
@@ -68,7 +74,9 @@ test('MotionBrief: §5.1 rules reject', () => {
   bad(b => { b.must_not_claim = []; }, /must_not_claim/);
   bad(b => { b.implementation_conditions[0].branches.pop(); }, /at least two/);
   bad(b => { b.output_requirements.preview_scale = 0.4448; }, /whole, even preview dimensions/);
-  bad(b => { b.aspect_ratio = '9:16'; }, /16:9/);
+  // owner brief 2026-10-23: nine ratios, no longer 16:9 only; a ratio the renderer has no size for, or a stage that is not the ratio's, is refused
+  bad(b => { b.aspect_ratio = '2:1'; }, /aspect_ratio: one of 9:16/);
+  bad(b => { b.aspect_ratio = '9:16'; }, /stage_width: 1080, stage_height: 1920 \(for 9:16\)/);
   bad(b => { b.qa_requirements.blocking_categories = ['aesthetic_preference']; }, /blocking_categories/);
   bad(b => { b.resolved_target.selection = { kind: 'tab', id: 'x' }; }, /SELECTIONS/);
   bad(b => { b.title = 'Made by claude-opus-5-5'; }, /model ID/);
@@ -259,4 +267,34 @@ test('§27 fixtures: pinned full SHAs, verbatim evidence', () => {
     const file = execFileSync('git', ['show', `${C}:${e.path}`], { encoding: 'utf8' });
     assert.equal(file.split('\n').slice(e.start_line - 1, e.end_line).join('\n'), e.text, e.path);
   }
+});
+
+// Owner brief 2026-10-23: the brief's aspect ratio decides the stage every renderer input uses.
+const withRatio = ratio => { const b = brief(), size = stageFor(ratio); return { ...b, aspect_ratio: ratio, output_requirements: { ...b.output_requirements, stage_width: size.width, stage_height: size.height } }; };
+
+test('every Motion ratio has a brief that validates at its own stage; no other size passes', () => {
+  assert.deepEqual([...MOTION_RATIOS], ['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4']);
+  for (const ratio of MOTION_RATIOS) {
+    const b = withRatio(ratio);
+    assert.deepEqual(validateBrief(b), [], ratio);
+    assert.deepEqual([stageOf(b).width, stageOf(b).height, stageOf(b).fps], [MOTION_STAGE_SIZES[ratio].width, MOTION_STAGE_SIZES[ratio].height, 30], ratio);
+    const at1080 = validateBrief({ ...b, output_requirements: { ...b.output_requirements, stage_width: 1920, stage_height: 1080 } });
+    if (ratio === '16:9') assert.deepEqual(at1080, []); else has(at1080, /stage_width/);
+  }
+  assert.deepEqual(stageOf(brief()), { width: 1920, height: 1080, fps: 30 }, 'the stored 16:9 fixture renders as before');
+  assert.deepEqual(stageOf({}), { width: STAGE.width, height: STAGE.height, fps: 30 }, 'a record without a ratio is the original stage');
+});
+
+test('every duration the form offers is a valid brief duration; the render result must be at the brief stage', () => {
+  for (let seconds = 5; seconds <= 60; seconds += 5) {
+    const b = { ...brief(), duration: { seconds, requested_seconds: seconds }, qa_requirements: { blocking_categories: [...BLOCKING_CATEGORIES] } };
+    assert.deepEqual(validateBrief(b), [], `${seconds}s`);
+  }
+  const ready = ratio => ({ status: 'ready', width: MOTION_STAGE_SIZES[ratio].width, height: MOTION_STAGE_SIZES[ratio].height, fps: 30, duration_seconds: 15 });
+  const errors = (r, b) => validateRenderResult({ schema: 'motion-render-result/1', render_id: null, composition_id: 'x', renderer: { name: 'remotion' }, provenance: {}, artifacts: {}, ...r }, b).filter(e => /render_result: ready is/.test(e));
+  assert.deepEqual(errors(ready('9:16'), withRatio('9:16')), []);
+  assert.equal(errors(ready('16:9'), withRatio('9:16')).length, 1, 'a 16:9 render for a 9:16 brief is refused, never accepted as the selection');
+  assert.match(errors(ready('16:9'), withRatio('9:16'))[0], /1080x1920 at 30 fps \(got 1920x1080\)/);
+  assert.deepEqual(errors(ready('1:1')), [], 'without the brief, any supported stage');
+  assert.equal(errors({ ...ready('1:1'), width: 1000 }).length, 1);
 });

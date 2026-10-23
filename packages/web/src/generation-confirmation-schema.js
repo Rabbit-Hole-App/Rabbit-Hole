@@ -3,12 +3,15 @@
 // the shared renderer (GenerationProposalCard.jsx) draws from it and the control plane validates with it. Adding a generation
 // command's confirmation fields is ONE declaration here plus its execution adapter: no custom form, no second set of field rules.
 //
-// Dependency free on purpose: no React, no provider, no network, no job execution (a unit test reads this file's imports).
+// Dependency free on purpose: no React, no provider, no network, no job execution. Its one import is aspect-ratios.js, the shared
+// ratio table (pure data, itself import free); a unit test reads this file's imports.
 // Capability-specific validation (a CAD parameter's constraints, Motion's renderer limits, a provider's accepted sizes) stays in the
 // existing handler; here lives only what is true of the field itself. The server resolves conditional review, availability,
 // estimates and allowed actions; nothing here, and nothing a model returns, can switch a required confirmation off.
 
 // The FORMAT of a proposal; separate from its revision, which counts the edits of ONE proposal.
+import { ratiosFor } from './aspect-ratios.js';
+
 export const SCHEMA_VERSION = 1;
 export const FIELD_TYPES = Object.freeze(['text', 'textarea', 'number', 'integer', 'select', 'boolean', 'string_list', 'parameter_group']);
 export const REVIEW_POLICIES = Object.freeze(['always', 'conditional', 'none']);
@@ -21,6 +24,11 @@ export const PROPOSAL_EDITABLE = Object.freeze(['title', 'description', 'referen
 
 const field = (key, label, type, rest = {}) => Object.freeze({ key, label, type, required: false, editable: true, ...rest });
 const seconds = Array.from({ length: 12 }, (_, i) => ({ value: (i + 1) * 5, label: `${(i + 1) * 5} seconds` }));
+// Motion's supported aspect ratios: ITS declaration over the shared table, never a promise about any image model (those declare their own
+// in IMAGE_MODELS). A control-plane test keeps this list equal to the ratios the renderer has a stage size for (learn-render stage-sizes.js).
+export const MOTION_RATIOS = Object.freeze(['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4']);
+export const MOTION_DEFAULT_RATIO = '16:9';
+const motionRatios = ratiosFor(MOTION_RATIOS).map(r => ({ value: r.id, label: r.label }));
 const PRESENTATIONS = [{ value: 'static', label: 'Static' }, { value: 'steps', label: 'Steps' }, { value: 'time', label: 'Over time' }, { value: 'experiment', label: 'Experiment' }];
 
 // review_policy: 'always' (a person approves every request), 'conditional' (the SERVER decides per request and says why in
@@ -75,17 +83,18 @@ export function imageSize(settings) {
 }
 
 export const GENERATION_COMMANDS = Object.freeze({
-  // Motion: a signed proposal; every request is reviewed. Duration is the renderer's exact 5-second steps to a minute. Audio
-  // stays disabled until narration works. Aspect ratio is declared but hidden and unavailable until feat/motion-settings reports the
-  // ratios the renderer really supports: it then replaces `available: false, hidden: true` with `options` from aspect-ratios.js (one edit here).
+  // Motion: a signed proposal; every request is reviewed. Duration is the renderer's exact 5-second steps to a minute; aspect ratio
+  // is Motion's own subset (motionRatios), drawn with the shared AspectRatioSelect (control). Every option stays visible: whether a
+  // combination may be GENERATED is the server's readiness decision (control-plane motion-readiness.js), not an option's availability.
+  // Audio stays disabled until narration works.
   motion: define({
     label: 'Motion video', noun: 'video', review_policy: 'always', settings_noun: 'a Motion setting', cancel: false,
     settings: [
-      field('aspect_ratio', 'Aspect ratio', 'select', { available: false, hidden: true, unavailable_reason: 'Coming soon' }),
+      field('aspect_ratio', 'Aspect ratio', 'select', { control: 'aspect_ratio', options: motionRatios, default: MOTION_DEFAULT_RATIO }),
       field('duration_seconds', 'Duration', 'select', { required: true, unit: 'seconds', options: seconds, default: 10 }),
       field('audio', 'Audio', 'boolean', { default: false, available: false, unavailable_reason: 'Narration coming soon', unavailable_error: 'narration audio is not available yet; propose the video without it' }),
     ],
-    sections: ['references', 'usage'], editable_fields: ['title', 'description', 'references', 'duration_seconds'],
+    sections: ['references', 'usage'], editable_fields: ['title', 'description', 'references', 'duration_seconds', 'aspect_ratio'],
   }),
   // Explain: the server's conditional-review policy (explain-brief.js briefDecision) decides whether a brief is reviewed; the
   // same card is used when it is, the direct path otherwise. Presentation is its only setting.
@@ -116,7 +125,7 @@ export const GENERATION_COMMANDS = Object.freeze({
     settings: [
       field('model', 'Model', 'select', { required: true, options: Object.entries(IMAGE_MODELS).map(([value, m]) => ({ value, label: m.label })) }),
       field('quality', 'Quality', 'select', { by_model: byModel('qualities') }),
-      field('aspect_ratio', 'Aspect ratio', 'select', { by_model: byModel('ratios') }),
+      field('aspect_ratio', 'Aspect ratio', 'select', { control: 'aspect_ratio', by_model: byModel('ratios') }),
       field('resolution', 'Resolution', 'select', { by_model: byModel('resolutions') }),
     ],
     sections: ['references', 'usage'], editable_fields: ['title', 'description', 'references', 'model', 'quality', 'aspect_ratio', 'resolution'],
@@ -237,6 +246,13 @@ export function validateSettings(command, values, options = {}) {
   return { value: out };
 }
 
+// A saved select value that is no longer one of the field's options (a duration saved before Motion offered 5-second steps): said as
+// one line, never rounded or replaced. The card keeps showing the value (selectOptions) and the person must pick a current one to edit it.
+export function legacyNotices(command, settings = {}) {
+  return fieldsFor(command, settings).filter(f => f.type === 'select' && !f.by_model && f.available !== false && settings[f.key] != null && !f.options.some(o => o.value === settings[f.key]))
+    .map(f => ({ path: `settings.${f.key}`, message: `Saved with ${settings[f.key]}${f.unit ? ` ${f.unit}` : ''}, not a current option.` }));
+}
+
 // ---- the logical proposal a card draws ----
 // The server-resolved parts, kept apart from what is signed: status, validation errors, review, allowed actions. proposal: the
 // envelope (generation-proposal.js); `description` here is the editable text, which the envelope carries as `prompt` with its pills.
@@ -248,12 +264,15 @@ export function proposalView(p, resolved = {}) {
   // dropped). A proposal saved before the schema existed keeps the values it was made with. A command that needs a server quote
   // (requires_quote) is blocked, with the reason, while the server has none: the price is never taken as zero.
   const priced = p.usage?.estimate_credits != null;
-  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...(def?.requires_quote && !priced ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...(resolved.validation_errors ?? [])];
+  // The server's readiness answer (control-plane motion-settings.js) is shown before confirmation and blocks Generate; the options stay selectable.
+  const unready = p.readiness?.ready === false ? [{ path: 'readiness', message: p.readiness.message }] : [];
+  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...(def?.requires_quote && !priced ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...unready, ...(resolved.validation_errors ?? [])];
   return {
     schema_version: p.schema_version ?? SCHEMA_VERSION, proposal_id: p.proposal_id, revision: p.version, command: p.command, original_request: p.original_request ?? p.input?.request ?? '',
     title: p.title, description: typeof p.prompt === 'string' ? p.prompt : p.description, settings: p.settings ?? {}, references: p.references ?? [],
     requirements: p.requirements ?? [], assumptions: p.assumptions ?? [], missing_information, limitations: p.limitations ?? [],
     review: resolved.review ?? reviewFor(p.command), ...(def?.requires_quote && !priced ? { usage: { estimate_credits: null, unknown: true } } : priced ? { usage: { estimate_credits: p.usage.estimate_credits, ...(resolved.quote_id ? { quote_id: resolved.quote_id } : {}), ...(resolved.quote_expires_at ? { expires_at: resolved.quote_expires_at } : {}) } } : {}),
+    notices: legacyNotices(p.command, p.settings ?? {}),
     status, validation_errors, allowed_actions: allowedActions(def, { status, validation_errors, missing_information, review: resolved.review }),
   };
 }

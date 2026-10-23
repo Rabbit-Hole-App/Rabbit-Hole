@@ -181,3 +181,19 @@ test('every row with an icon draws it aria-hidden, 16px at about 1.75 stroke; no
 test('no app-owned menu label ends in an ellipsis', () => {
   for (const { items } of allMenus()) for (const item of items) assert.doesNotMatch(item.label || '', /\.\.\.|…/, item.label);
 });
+
+// Pinned Study (UI-27 Release 1, owner-approved spec 2026-10-22: Canvas and Study belong inside View, no extra top row).
+test('View: Canvas and Study radio rows above Workspace only where the page passes study; a shared canvas never gets them', () => {
+  const modes = [];
+  const study = mode => ({ mode, setMode: next => modes.push(next) });
+  const view = owner({}, { study: study('canvas') })[2];
+  assert.deepEqual(groups(view.items), [['Zoom in', 'Zoom out', 'Zoom to 100%', 'Fit canvas', 'Fit selection'], ['Canvas', 'Study'], ['Workspace', 'Show / hide', 'Page guides'], ['Go to document start']]);
+  assert.deepEqual(['Canvas', 'Study'].map(label => find(view.items, label).radio), [true, false]);
+  assert.deepEqual(['Canvas', 'Study'].map(label => find(owner({}, { study: study('study') })[2].items, label).radio), [false, true]);
+  find(view.items, 'Study').onSelect();
+  find(view.items, 'Canvas').onSelect();
+  assert.deepEqual(modes, ['study', 'canvas']);
+  assert.deepEqual(labels(find(view.items, 'Workspace').items), ['Canvas', 'Editor'], 'the document Canvas / Editor choice is untouched');
+  assert.ok(!labels(build({})[2].items).includes('Study'), 'no study given (a shared canvas): no rows');
+  assert.doesNotMatch(labels(walk(view.items)).join('|'), /layout|Save|\.\.\.|…/i, 'no Release 2 layout rows');
+});

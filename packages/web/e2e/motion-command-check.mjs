@@ -8,7 +8,9 @@
 //   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
 //   3. typed /motion (MOT-20/UI-15, owner messages 39 and 40) is a chat turn: the chat answer (MOCKED /api/learn/ask, a proposal
 //      in answer_meta) draws the generation proposal card: title, Duration, Audio Off with On disabled, the server's credits line
-//      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); nothing reaches the video route;
+//      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); Duration offers exactly 5 to 60 in
+//      fives and Aspect ratio the nine shared ratios (a proposal without one reads 16:9), and a change of either keeps the other
+//      (owner brief 2026-10-23); nothing reaches the video route;
 //   4. MOCKED generation (/api/learn/video stubbed here): the card's Generate adds one video card and starts exactly one confirmed
 //      motion_request carrying the approved proposal; the card shows its progress, then the ready video with the job's title
 //      (no meta line, owner message 31);
@@ -332,6 +334,19 @@ for (const theme of ['light', 'dark']) {
     await until(async () => (await card.getAttribute('data-proposal-version')) === '2', 'version 2 after the duration change');
     assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '20');
     assert.ok(seen.some(r => r.method === 'PUT' && /\/proposal$/.test(r.path) && JSON.parse(r.body || '{}').expected_version === 1), 'the save names the revision it was made from (MOT-22)');
+    // Owner brief 2026-10-23: Duration offers exactly 5 to 60 in fives; Aspect ratio lists the nine shared ratios and a proposal saved without one reads 16:9.
+    assert.deepEqual(await card.locator('[data-proposal-duration] option').evaluateAll(o => o.map(x => x.value)), ['5', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', '60']);
+    assert.deepEqual(await card.locator('[data-proposal-aspect-ratio] option').evaluateAll(o => o.map(x => x.textContent)), ['9:16 portrait', '1:1 square', '16:9 landscape', '3:4 portrait', '4:3', '2:3', '3:2', '4:5', '5:4']);
+    assert.equal(await card.locator('[data-proposal-aspect-ratio]').inputValue(), '16:9');
+    await card.locator('[data-proposal-aspect-ratio]').selectOption('9:16');
+    await until(async () => (await card.getAttribute('data-proposal-version')) === '3', 'version 3 after the aspect ratio change');
+    assert.equal(await card.locator('[data-proposal-aspect-ratio]').inputValue(), '9:16');
+    assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '20', 'the duration is kept');
+    const ratioSave = seen.filter(r => r.method === 'PUT' && /\/proposal$/.test(r.path)).map(r => JSON.parse(r.body || '{}')).find(b => b.expected_version === 2);
+    assert.deepEqual(ratioSave?.settings, { duration_seconds: 20, audio: false, aspect_ratio: '9:16' }, 'the save carries both selections');
+    await card.locator('[data-proposal-duration]').selectOption('60');
+    await until(async () => (await card.getAttribute('data-proposal-version')) === '4', 'version 4 after choosing 60 seconds');
+    assert.equal(await card.locator('[data-proposal-aspect-ratio]').inputValue(), '9:16', 'the ratio is kept');
     assert.equal(asks.length - turns, 1, 'a settings change is no chat turn');
     await card.screenshot({ path: `${OUT}/${theme}-03-proposal.png` });
     // Nothing reaches the video route before Generate (a saved card's clip may load meanwhile, a GET of its asset), and no card lands.

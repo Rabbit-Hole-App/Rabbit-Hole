@@ -253,3 +253,38 @@ test('an approved proposal reaches the Director, and a brief that does not keep 
     assert.deepEqual(dd.log.map(([stage]) => stage), ['director'], 'no storyboard, Author or render after it');
   }
 });
+
+// Owner correction 2026-10-23: a composition beyond the supported limits, or in a complexity class the readiness policy does not
+// cover, stops BEFORE any review or render; a platform failure is named so the worker can charge nothing.
+test('pre-render validation: a composition over the limit table, or in an uncovered class, never reaches the review job', async () => {
+  const big = '<AbsoluteFill>' + '<Sequence><div>x</div></Sequence>'.repeat(60) + '</AbsoluteFill>';
+  const d = doubles();
+  const author = d.stages.author;
+  d.stages.author = async a => { const r = await author(a); r.output.source = big; return r; };
+  const r = await run(d);
+  assert.deepEqual([r.status, r.cause], ['failed', 'content']);
+  assert.match(r.failure_reason, /^composition limits: the composition is beyond the supported limits \(layers 61 over 40/);
+  assert.deepEqual(d.log.map(([stage]) => stage), ['director', 'storyboard', 'author'], 'no review job, no render');
+  assert.equal(r.complexity.class, null);
+  const keep = { title: BRIEF.title, duration_seconds: BRIEF.duration.seconds, description: 'Scores become weights. The weights sum to one. Masked positions get none.' };
+  const covered = doubles();
+  assert.equal((await run(covered, { approved: { ...keep, allowed_complexity: ['simple'] } })).status, 'ready', 'a small composition in a covered class renders');
+  const uncovered = doubles();
+  const refused = await run(uncovered, { approved: { ...keep, allowed_complexity: ['standard', 'heavy'] } });
+  assert.match(refused.failure_reason, /^composition limits: the composition is simple, which is not covered for these settings/);
+  assert.ok(!uncovered.log.some(([stage]) => stage === 'job'));
+});
+
+test('a platform failure is classed: busy or degraded is capacity, a render timeout is timeout, unreachable is infrastructure; a content failure has none', async () => {
+  const { failureClassOf, FAILURE_CLASSES } = await import('./pipeline.mjs');
+  assert.deepEqual(FAILURE_CLASSES, ['renderer_capacity', 'renderer_timeout', 'infrastructure']);
+  assert.deepEqual(failureClassOf('final: render_failed: busy: one render at a time'), { failure_class: 'renderer_capacity' });
+  assert.deepEqual(failureClassOf('final: render_failed: degraded: the renderer is degraded'), { failure_class: 'renderer_capacity' });
+  assert.deepEqual(failureClassOf('final: render_failed: timeout: the render exceeded 420s and was stopped'), { failure_class: 'renderer_timeout' });
+  assert.deepEqual(failureClassOf('final: render_failed: unreachable: fetch failed'), { failure_class: 'infrastructure' });
+  for (const none of ['final: render_failed: artifact_invalid: blank frame', 'author: invalid: x', '', undefined]) assert.deepEqual(failureClassOf(none), {}, String(none));
+  const d = doubles({ job: 'failed' });
+  d.stages.job = async () => ({ job: { id: 'j', status: 'failed', failure_reason: 'final: render_failed: timeout: the render exceeded 420s and was stopped' }, passes: [], render: null, calls: [], cause: 'renderer', job_errors: [], repairs: {} });
+  const r = await run(d);
+  assert.deepEqual([r.status, r.cause, r.failure_class], ['failed', 'renderer', 'renderer_timeout']);
+});

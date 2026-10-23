@@ -1590,7 +1590,7 @@ function VideoBody({ block, appName, onChange, onFile }) {
       const { block: failed, reason: refused } = failedStart(current, problem);
       setError(refused ? '' : problem.message);
       onChange(failed);
-      if (refused) window.dispatchEvent(new CustomEvent(PROPOSAL_REFUSED_EVENT, { detail: { proposalId: operation.proposal?.proposal_id, message: refused } }));
+      if (refused) window.dispatchEvent(new CustomEvent(PROPOSAL_REFUSED_EVENT, { detail: { proposalId: operation.proposal?.proposal_id, message: refused, code: problem?.data?.code } }));
     }
   };
   useConfirmedStart(block, onChange, generate);
