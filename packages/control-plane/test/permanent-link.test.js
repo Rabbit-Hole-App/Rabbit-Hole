@@ -194,3 +194,12 @@ test('an embed never sees hidden comments, even the owner\'s embed; Explore and 
   f.sqlite.prepare("INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES ('m1', 'ana-ws', ?, 'ben@test', 'u-ben-9a2b', 'ben@test', 'active', 'sent', 'u-ana-5d1e', '2026-10-22T00:00:00Z', '2027-10-22T00:00:00Z')").run(canvas.name);
   assert.equal((await api(f, 'GET', `/api/learn/c/${boardId}/threads?audience=public`, { as: 'ben' })).status, 200);
 });
+
+test('two first switch-ons at once make one token, and it is the one every response names', async t => {
+  const f = setup(t);
+  const canvas = (await f.call('POST', '/api/canvases', { as: 'ana', body: { title: 'Fresh' } })).body;
+  await f.call('PUT', `/api/learn/boards/${canvas.name}/main`, { as: 'ana', body: { state: { blocks: [] }, version: 0 } });
+  const tokens = (await Promise.all(Array.from({ length: 6 }, () => on(f, canvas)))).map(tokenOf);
+  assert.equal(new Set(tokens).size, 1);
+  assert.equal(f.sqlite.prepare('SELECT view_token FROM learn_boards WHERE app = ?').get(canvas.name).view_token, tokens[0]);
+});
