@@ -98,7 +98,9 @@ await check('Library header at desktop width: title row (Library left; New folde
   assert.ok(b.filters.x - b.search.right >= 8 && b.filters.x - b.search.right <= 12, `Filters ${b.filters.x - b.search.right}px after the search`);
   assert.ok(b.search.w >= 240, `the search expands into the free space (${b.search.w}px)`);
   assert.ok(b.sort.x > b.filters.right && b.size.x > b.sort.right, 'Sort then Size, after the left group');
-  assert.ok(b.sort.x - b.filters.right > 100, 'Sort belongs to the right group, not beside Filters');
+  // Search expands to fill the left group (owner brief 2026-10-23), so Filters ends where the group ends and Sort starts the right group one group gap later: the groups are told apart by their containers and that gap, not by free space between Filters and Sort.
+  assert.ok(await page.evaluate(() => { const left = document.querySelector('[data-library-controls] > div:first-child'); const right = document.querySelector('[data-library-view]'); return !!left && !!right && !left.contains(right) && right.contains(document.querySelector('[data-sort-control]')) && !left.contains(document.querySelector('[data-sort-control]')); }), 'Sort and Size are in the right group, Search and Filters in the left group');
+  assert.ok(b.sort.x - b.filters.right >= 8 && b.sort.x - b.filters.right <= 24, `${b.sort.x - b.filters.right}px between the left group and the right group`);
   assert.ok(b.size.x - b.sort.right >= 8 && b.size.x - b.sort.right <= 12, `Size ${b.size.x - b.sort.right}px after Sort`);
   assert.ok(Math.abs(b.size.right - b.start.right) <= 1, `Size is at the far right, in line with Start (${b.size.right} vs ${b.start.right})`);
   assert.equal(await page.locator('[data-sort-control]').innerText().then((t) => /Last updated/.test(t)), true, 'the sort defaults to Last updated');
