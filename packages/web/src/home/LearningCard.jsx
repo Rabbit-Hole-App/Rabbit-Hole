@@ -69,7 +69,7 @@ export function CardThumbnail({ kind, src }) {
   const Icon = TYPES[kind]?.Icon || Shapes;
   return (
     <div data-card-thumbnail={shown ? 'image' : 'placeholder'} aria-hidden="true"
-      className={`relative grid aspect-[2/1] w-full max-w-[500px] shrink-0 place-items-center self-start overflow-hidden rounded-md border border-line md:order-last ${CARD_BODY_H} md:w-[min(380px,42%)] md:aspect-auto ${PLACEHOLDER[kind] || PLACEHOLDER.canvas} bg-[radial-gradient(var(--color-line)_1px,transparent_1px)] bg-[size:14px_14px]`}>
+      className={`relative grid aspect-[2/1] w-full max-w-[500px] shrink-0 place-items-center self-start overflow-hidden rounded-md border border-(color:--thumb-border) md:order-last ${CARD_BODY_H} md:w-[min(380px,42%)] md:aspect-auto ${PLACEHOLDER[kind] || PLACEHOLDER.canvas} bg-[radial-gradient(var(--color-line)_1px,transparent_1px)] bg-[size:14px_14px]`}>
       {!shown && <Icon size={22} strokeWidth={1.5} />}
       {src && <img src={src} alt="" loading="lazy" decoding="async" draggable={false} onLoad={() => setShown(true)} onError={() => setShown(false)}
         className={`absolute inset-0 h-full w-full bg-white object-cover ${shown ? '' : 'invisible'}`} />}
@@ -135,7 +135,7 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
   const repo = kind === 'repository' && m.sourceUrl;
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
-      className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
+      className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 browse-card max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
       {learning && <CardThumbnail kind={kind} src={thumbnail} />}
       <div data-card-text className={`flex min-h-0 min-w-0 flex-1 flex-col *:shrink-0 ${CARD_BODY_H} ${CARD_TEXT_PHONE}`}>
         <div className="flex min-w-0 items-start gap-3">
@@ -172,10 +172,10 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
             {m.description && <p data-card-description className={`${actions || note ? 'line-clamp-2' : 'line-clamp-3'} break-words text-[13px] leading-5 text-ink-2`}>{m.description}</p>}
           </div>
         )}
-        {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-ink-3">{note}</div>}
+        {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-(color:--browse-meta)">{note}</div>}
         {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">{actions}</div>}
         {learning && (
-          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-ink-3 ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
+          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-(color:--browse-meta) ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
             {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
             <Forks m={m} />
             {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}

@@ -5,8 +5,12 @@
 // text, "Card size" and the current step kept for assistive tech; the same label on Home and Explore) and
 // the removed composer ("Remove the composer completely from Home, Library and Explore ... Chat remains inside canvases"), against
 // the LOCAL stack only. No model call: nothing here asks one, and every /api/ask and /api/learn/ask is refused and counted.
+// Card contrast (owner brief, 2026-10-23: "improve card separation in light mode across Home, Library and Explore; page background a
+// subtle light gray, card surface opaque white, a clearer outer border, a very subtle shadow, a lighter thumbnail border, quieter
+// dots, darker secondary text; boundaries clear before hovering, keyboard focus distinct, dark mode and the canvas unchanged"):
+// the last four steps assert computed styles, never pixels.
 //   BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/card-size-check.mjs [shotsDir]
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
@@ -270,9 +274,121 @@ await check('Start a rabbit hole still creates a canvas, which opens with its co
   await page.context().close();
 });
 
+// Card contrast (owner brief 2026-10-23). Computed styles, so a regression names the property. The values are index.css's scoped
+// browse tokens (--browse-bg, --card-border, --card-shadow, --thumb-border, --dots, --browse-meta); browse-contrast.test.mjs holds the
+// contrast arithmetic, these steps hold what the browser actually draws.
+const LIGHT = { page: 'rgb(245, 246, 248)', surface: 'rgb(255, 255, 255)', edge: 'rgb(196, 203, 213)', edgeHover: 'rgb(170, 179, 192)', thumb: 'rgb(225, 229, 234)', dots: 'rgb(228, 231, 236)', meta: 'rgb(99, 97, 93)', focus: 'rgb(35, 131, 226)' };
+const DARK = { surface: 'rgb(25, 25, 25)', edge: 'rgb(47, 47, 47)', edgeHover: 'rgb(74, 74, 74)', thumb: 'rgb(47, 47, 47)', dots: 'rgb(47, 47, 47)', meta: 'rgb(111, 111, 111)' };
+const channels = (c) => c.match(/[\d.]+/g).map(Number);
+// Everything a card shows at rest, as the browser computes it; the text contrast is against the card's own opaque surface.
+const cardLook = (page, selector) => page.locator(selector).first().evaluate((card) => {
+  const css = (el, p) => getComputedStyle(el)[p];
+  const lum = (rgb) => { const [r, g, b] = rgb.map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+  const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+  const surface = css(card, 'backgroundColor');
+  const secondary = [...card.querySelectorAll('[data-updated], [data-card-note], [data-fork-count], [data-card-description]')].map((n) => ({ what: n.hasAttribute('data-updated') ? 'updated' : n.tagName + (n.hasAttribute('data-card-note') ? ' note' : ''), color: css(n, 'color'), ratio: ratio(rgb(css(n, 'color')), rgb(surface)) }));
+  const thumb = card.querySelector('[data-card-thumbnail]');
+  const main = card.closest('main');
+  const box = card.getBoundingClientRect();
+  return { surface, edge: css(card, 'borderTopColor'), width: css(card, 'borderTopWidth'), shadow: css(card, 'boxShadow'), thumb: thumb && css(thumb, 'borderTopColor'), secondary, page: css(main, 'backgroundColor'), dots: css(main, 'backgroundImage'), left: box.left, right: box.right };
+});
+const assertLight = (look, where) => {
+  assert.equal(look.page, LIGHT.page, `${where}: the page is the subtle grey`);
+  assert.ok(look.dots.includes(LIGHT.dots) && !look.dots.includes('rgb(233, 233, 231)'), `${where}: the page dots are the quiet browse dots (${look.dots})`);
+  assert.equal(look.surface, LIGHT.surface, `${where}: the card surface is opaque white`);
+  assert.equal(look.edge, LIGHT.edge, `${where}: the card edge`);
+  assert.equal(look.width, '1px', `${where}: the card edge is 1px`);
+  assert.equal(look.shadow, 'rgba(16, 24, 40, 0.06) 0px 1px 2px 0px', `${where}: a hairline shadow at rest, before any hover`);
+  assert.equal(look.thumb, LIGHT.thumb, `${where}: the thumbnail edge`);
+  const lighter = (a, b) => a !== b && channels(a).every((c, i) => c >= channels(b)[i]);
+  assert.ok(lighter(look.thumb, look.edge), `${where}: the thumbnail edge is lighter than the card edge`);
+  assert.ok(lighter(LIGHT.dots, look.edge), `${where}: the dots are quieter than the card edge`);
+  assert.ok(look.secondary.length > 0, `${where}: the card has secondary text to measure`);
+  for (const t of look.secondary) assert.ok(t.ratio >= 4.5, `${where}: ${t.what} text ${t.color} is ${t.ratio.toFixed(2)}:1 on the card`);
+  assert.ok(look.secondary.some((t) => t.what === 'updated' && t.color === LIGHT.meta), `${where}: Updated uses the readable secondary ink`);
+};
+const lightPage = async (viewport) => {
+  const page = await fresh(viewport);
+  await page.emulateMedia({ colorScheme: 'light' });
+  return page;
+};
+
+await check('light: Library cards are separated before any hover (page grey, opaque white card, clear edge, hairline shadow, lighter thumbnail edge, quieter dots, readable times) at all four sizes; the hover keeps a darker edge and keyboard focus is distinct', async () => {
+  const page = await lightPage();
+  await onLibrary(page);
+  const card = page.locator('[data-library-card]').first();
+  for (const size of [3, 2, 1, 0]) {
+    await slider(page).fill(String(size));
+    await expect(slider(page)).toHaveValue(String(size));
+    assertLight(await cardLook(page, '[data-library-card]'), `Library size ${size}`);
+  }
+  await page.mouse.move(0, 0);
+  await card.hover();
+  await expect(card).toHaveCSS('border-top-color', LIGHT.edgeHover); // after the 150ms transition: darker than at rest, never lighter
+  await expect(card).toHaveCSS('border-top-width', '1px');
+  await card.focus();
+  await expect(card).toHaveCSS('border-top-color', LIGHT.focus);
+  assert.ok((await card.evaluate((n) => getComputedStyle(n).boxShadow)).includes(LIGHT.focus), 'the focused card shows the accent ring');
+  await page.screenshot({ path: `${SHOTS}/contrast-library-light.png` });
+  await page.context().close();
+});
+
+await check('light: Home (Continue learning, Recent) and Explore use the same page grey and card look', async () => {
+  const page = await lightPage();
+  await page.goto(`${BASE}/apps/${made[0].name}`);
+  await page.getByLabel('Lesson canvas').waitFor({ timeout: 60000 });
+  await page.goto(`${BASE}/apps`);
+  await page.locator('[data-recent-card], [data-continue-card]').first().waitFor({ timeout: 60000 });
+  for (const sel of ['[data-continue-card]', '[data-recent-card]']) if (await page.locator(sel).count()) assertLight(await cardLook(page, sel), `Home ${sel}`);
+  await page.screenshot({ path: `${SHOTS}/contrast-home-light.png` });
+  await page.goto(`${BASE}/explore`);
+  await slider(page).waitFor({ timeout: 60000 });
+  assert.equal(await page.locator('main').first().evaluate((m) => getComputedStyle(m).backgroundColor), LIGHT.page, 'Explore: the page is the subtle grey');
+  if (await page.locator('[data-explore-card]').count()) assertLight(await cardLook(page, '[data-explore-card]'), 'Explore');
+  await page.screenshot({ path: `${SHOTS}/contrast-explore-light.png` });
+  await page.context().close();
+});
+
+await check('light, 390 px phone: the same edge, surface and times, inside the screen', async () => {
+  const page = await lightPage({ width: 390, height: 844 });
+  await onLibrary(page);
+  const look = await cardLook(page, '[data-library-card]');
+  assertLight(look, 'phone Library');
+  assert.ok(look.left >= 0 && look.right <= 390, `the card is on screen (${look.left}..${look.right})`);
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, 'the page does not scroll sideways');
+  await page.screenshot({ path: `${SHOTS}/contrast-library-phone.png` });
+  await page.context().close();
+});
+
+await check('dark theme keeps its browse values; the canvas page and the shared line token are unchanged in light', async () => {
+  const dark = await fresh();
+  await dark.emulateMedia({ colorScheme: 'dark' });
+  await onLibrary(dark);
+  const look = await cardLook(dark, '[data-library-card]');
+  assert.equal(look.page, 'rgba(0, 0, 0, 0)', 'dark: the page keeps the body surface');
+  assert.ok(look.dots.includes(DARK.dots) && !look.dots.includes(LIGHT.dots), `dark: the page dots are the line colour (${look.dots})`);
+  assert.equal(look.surface, DARK.surface);
+  assert.equal(look.edge, DARK.edge);
+  assert.equal(look.shadow, 'none', 'dark: no resting shadow');
+  assert.equal(look.thumb, DARK.thumb);
+  assert.ok(look.secondary.some((t) => t.what === 'updated' && t.color === DARK.meta), 'dark: Updated keeps the tertiary ink');
+  const card = dark.locator('[data-library-card]').first();
+  await dark.mouse.move(0, 0);
+  await card.hover();
+  await expect(card).toHaveCSS('border-top-color', DARK.edgeHover);
+  await dark.context().close();
+  const light = await lightPage();
+  await light.goto(`${BASE}/apps/${made[0].name}`);
+  await light.getByLabel('Lesson canvas').waitFor({ timeout: 60000 });
+  const canvas = await light.evaluate(() => ({ browse: document.querySelectorAll('.browse-page').length, greys: [...document.querySelectorAll('main')].filter((m) => getComputedStyle(m).backgroundColor === 'rgb(245, 246, 248)').length, body: getComputedStyle(document.body).backgroundColor, line: getComputedStyle(document.documentElement).getPropertyValue('--color-line').trim() }));
+  assert.deepEqual(canvas, { browse: 0, greys: 0, body: 'rgb(255, 255, 255)', line: '#e9e9e7' }, 'the canvas page keeps its look and the shared line token');
+  await light.context().close();
+});
+
 await browser.close();
 assert.deepEqual(asks, [], 'no ask request was made');
 assert.deepEqual(errors, [], 'no page errors');
-const TOTAL = 10;
+const TOTAL = 14;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);

@@ -306,9 +306,28 @@ html {
      stored Notion near-black; dark mode goes full white - the ink token's
      #d4d4d4 reads as gray handwriting on a dark board. */
   --learn-canvas-ink: #37352f;
+  /* Browse pages only (Home, Library, Explore; owner brief 2026-10-23, card contrast): the shared --color-line is left
+     alone because it also draws unrelated dividers. Page grey under opaque white cards, a clearer card edge (1.51:1
+     on the page, 1.63:1 on white), a hairline of shadow, a thumbnail edge lighter than the card's, page dots quieter
+     than the card edge, and the readable secondary ink (6.18:1 on white, 5.71:1 on the page) for times and notes.
+     .dark below restores today's values exactly. browse-contrast.test.mjs. */
+  --browse-bg: #f5f6f8;
+  --card-border: #c4cbd5;
+  --card-border-hover: #aab3c0;
+  --card-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --thumb-border: #e1e5ea;
+  --dots: #e4e7ec;
+  --browse-meta: var(--color-ink-2);
 }
 .dark {
   --learn-canvas-ink: #ffffff;
+  --browse-bg: transparent;
+  --card-border: var(--color-line);
+  --card-border-hover: var(--color-line-strong);
+  --card-shadow: none;
+  --thumb-border: var(--color-line);
+  --dots: var(--color-line);
+  --browse-meta: var(--color-ink-3);
   --tok-c: #82817d;
   --tok-s: #6fbf8e;
   --tok-k: #b79ae3;
@@ -484,6 +503,12 @@ main {
   background-size: 18px 18px;
 }
 
+/* The browse pages (Home, Library, Explore) sit on the scoped grey with quieter dots; the canvas pages keep main's own. */
+.browse-page {
+  background-color: var(--browse-bg);
+  background-image: radial-gradient(var(--dots) 1px, transparent 1px);
+}
+
 /* Design system (see DESIGN.md): every enabled clickable gets the hand cursor -
    never rely on per-element classes for this. Hover surface is always --color-hover. */
 button:not(:disabled),
@@ -617,6 +642,15 @@ tr.cursor-pointer:active > td {
 }
 .dark .lift-card:hover {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+/* The learning card's resting edge and shadow, clear before any hover; :where() keeps the hover rule below the focus ring's
+   specificity, so a hovered selected card still shows its accent edge. */
+.browse-card {
+  border-color: var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+:where(.browse-card).lift-card:hover {
+  border-color: var(--card-border-hover);
 }
 /* A click on a card selects it, never opens it (owner, 2026-10-08): the card takes focus, so one card is selected at a
    time and a click elsewhere clears it. After .lift-card:hover, so a hovered selected card keeps its accent edge. */
