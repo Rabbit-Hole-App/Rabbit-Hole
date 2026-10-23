@@ -37,7 +37,7 @@ import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
-import { canvasOwnsWheel, focusAfter, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
+import { canvasOwnsWheel, focusAfter, leftoverZoom, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
 import { forkNumber } from './home/provenance.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
@@ -475,14 +475,23 @@ function EmbedCanvasFrame({ children }) {
     const focusin = event => note('focusin', event);
     const wheel = event => { if (!canvasOwnsWheel(event, focused)) event.stopPropagation(); };
     const leave = () => { focused = focusAfter(focused, 'blur', false); };
+    // After the canvas's own handlers (bubble phase): a ctrl/cmd+wheel nobody took never scrolls the host page.
+    const leftover = event => {
+      const surface = element.querySelector('[data-canvas-surface]');
+      const { prevent, forward } = leftoverZoom(event, focused, !!surface?.contains(event.target));
+      if (prevent) event.preventDefault();
+      if (forward && surface) surface.dispatchEvent(new WheelEvent('wheel', { bubbles: true, cancelable: true, clientX: event.clientX, clientY: event.clientY, deltaX: event.deltaX, deltaY: event.deltaY, deltaMode: event.deltaMode, ctrlKey: event.ctrlKey, metaKey: event.metaKey }));
+    };
     document.addEventListener('pointerdown', press, true);
     element.addEventListener('focusin', focusin);
     element.addEventListener('wheel', wheel, { capture: true, passive: true });
+    element.addEventListener('wheel', leftover, { passive: false });
     window.addEventListener('blur', leave);
     return () => {
       document.removeEventListener('pointerdown', press, true);
       element.removeEventListener('focusin', focusin);
       element.removeEventListener('wheel', wheel, { capture: true });
+      element.removeEventListener('wheel', leftover);
       window.removeEventListener('blur', leave);
     };
   }, []);

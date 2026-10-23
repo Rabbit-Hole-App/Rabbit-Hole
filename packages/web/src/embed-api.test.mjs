@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasOwnsWheel, clampHeight, focusAfter, clampWidth, embedFetch, embedHref, embedRoute, embedSnippet, embedSources, emailSnippet, linkSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
+import { canvasOwnsWheel, clampHeight, leftoverZoom, focusAfter, clampWidth, embedFetch, embedHref, embedRoute, embedSnippet, embedSources, emailSnippet, linkSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
 import { loadGuestDraft } from './guest-draft.js';
 import { takeDraft, takeTarget } from './shared-ask.js';
 
@@ -98,6 +98,15 @@ test('canvas focus survives the focusout a press causes, and ends only when the 
   assert.equal(focusAfter(false, 'focusin', true), true, 'keyboard focus into the canvas');
   assert.equal(focusAfter(true, 'focusin', false), true);
   assert.equal(canvasOwnsWheel({ ctrlKey: true }, focused), true);
+});
+
+test('a focused ctrl/cmd+wheel nobody took never scrolls the host page: cancelled, and replayed on the surface from a floating control', () => {
+  const zoom = { ctrlKey: true, defaultPrevented: false };
+  assert.deepEqual(leftoverZoom(zoom, true, true), { prevent: true, forward: false }, 'on the surface the canvas should have taken it: just keep the page still');
+  assert.deepEqual(leftoverZoom(zoom, true, false), { prevent: true, forward: true }, 'over the left stack or a pill outside the surface');
+  assert.deepEqual(leftoverZoom({ ...zoom, defaultPrevented: true }, true, false), { prevent: false, forward: false }, 'already taken');
+  assert.deepEqual(leftoverZoom(zoom, false, false), { prevent: false, forward: false }, 'unfocused: the browser alone');
+  assert.deepEqual(leftoverZoom({ ctrlKey: false, metaKey: false }, true, false), { prevent: false, forward: false }, 'a plain wheel is the article\'s');
 });
 
 test('every same-origin API request of an embed carries X-RH-Embed; nothing else is touched', async () => {
