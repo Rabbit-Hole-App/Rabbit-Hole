@@ -183,23 +183,47 @@ One press, one job: the card disables Generate on the first click and keeps one 
 the server consumes the proposal once, keyed by the press (`consumeProposal`), and a repeat with the same key is idempotent while a
 different key is `proposal_used`. Allowance admission, reservations and the job engines' own idempotency are unchanged.
 
-## 10. What each generator sends and consumes, and Release 1 adoption
+## 10. What each generator sends and consumes, and Release 1 adoption (migration matrix)
 
-| Generator | Old confirmation | New path (Release 1) | Executes |
-|---|---|---|---|
-| motion | proposal card (v2) | shared card, v3, schema fields | `approvedProposal`: the approved prompt rendered with labels is the Director's description; duration from settings; references empty or `unsupported` |
-| explain | proposal card posted by the brief stage; Generate blocked because the card required Motion's output-card adapter | shared card; Generate approves the existing job; conditional review stays the server's | after consume, the job authors from the approved prompt and settings, and from resolved reference text |
-| cad | `PaidConfirm` (consent before the paid brief), then `CadReview` when CAD_BRIEF_FIRST | `PaidConfirm` stays as the consent only where a paid brief is prepared; the brief renders through the shared card (`description`, requirements, assumptions, missing information, limitations, parameters) | the job's `briefHash` approval is unchanged; the hash is also recorded as the review hash |
-| generate-image | none (flag off) | declared in the schema; adoption stub behind IMAGE_GENERATION | IMG-01 builds the executor on `references` and `server options` |
-| video, 3d, animate | `PaidConfirm` with the raw line | deferred: they author a block the person never sees, so they need a prepare step first (largest change); declared in the schema now | unchanged |
-| flashcards, code, graph, diagram, image search | none | none by policy | unchanged |
+| Command | Old confirmation | New path (Release 1) | Signature or hash | Review policy | Flag |
+|---|---|---|---|---|---|
+| motion | proposal card (v2) | shared card, v3 envelope, schema fields; Edit details saves prompt, title, references; settings save as they change | proposal `sig` (v3, own HMAC label); consumed once by `consumeProposal`; `approvedProposal` = signed title, duration and the pill-free prompt | always | VITE_MOTION as before |
+| explain | proposal card posted by the brief stage; Generate was never enabled (it required Motion's output-card adapter) | shared card, v3; Generate enabled by `startAdapter` = 'job' and approves the existing job; after consume the job authors from the approved title, prompt, assumptions and presentation and from the references the route read | proposal `sig` and `brief_hash` unchanged; the job's `briefHash` is recomputed over the executed brief and the approval records the `review_hash` | conditional (the server's briefDecision) | EXPLAIN_V2_ENABLED as before |
+| cad | `PaidConfirm` consent (raw line), then `CadReview` when CAD_BRIEF_FIRST | the consent stays (it authorizes the paid brief); the brief renders through the shared card (`cad-review-view.js` adapter, `settingsMode: 'form'`) with the job's own state, units fixed, parameter values, requirements, assumptions, missing information, limitations and context | the job's `briefHash` approve, revalidation on every brief edit and the 409 re-read are unchanged | conditional (CAD_BRIEF_FIRST, server) | CAD_BRIEF_FIRST as before |
+| generate-image | none (flag off) | declared in the schema with four models; no adapter or executor in this release | none yet; IMG-01 signs a v3 proposal | always | IMAGE_GENERATION, off |
+| video, 3d, animate (maths) | `PaidConfirm` with the raw line | deferred, unchanged | job-side only | always | as before |
+| flashcards, code, graph, diagram, image search, compare, walkthrough | none | none by policy | none | none | as before |
 
-Recommendation: Motion and Explain first through the proposal framework (they already sign proposals); CAD binds through its job
-`briefHash` rather than being converted to a proposal (its job is the stored state); video, 3d and animate are deferred because they
-have no planning step to review.
+Why video, 3d and animate are deferred: they author a block the person never sees (the model writes the operation, `/api/learn/artifact`
+returns `paid_proposal`), so a shared review needs a prepare step first, which is a server change in each, and their `PaidConfirm` is
+asserted by more than a dozen browser checks. Why `PaidConfirm` is not removed: it is the consent that authorizes paid brief
+preparation for /cad and the only confirmation for those commands; removing it would authorize paid work without asking. Recommendation:
+Motion and Explain first through the proposal framework (done); CAD binds through its job `briefHash` rather than being converted to a
+proposal (done); video and 3d next, as a prepare step that returns a proposal.
+
+What each executor receives from a v3 proposal: Motion, the signed `description` (the prompt with each pill as its label) as the Director's
+brief and the signed duration; a reference on a Motion proposal is `unsupported` before dispatch. Explain, the approved title, prompt,
+assumptions and presentation as its brief, and the content of the file and code references the route read under the learner's access as
+its context. CAD, the brief edit the job validates. Image (IMG-01), the authorized bytes of each reference and the model's settings.
 
 ## 11. Compatibility
 
 Old proposals (v1, v2), stored chat history, pending jobs, the card's `settingsConflict` flow, and every existing signature or hash
 (`briefHash`, `brief_hash`, proposal `sig`) keep working. Nothing is removed until all its callers are migrated; obsolete code and
 tests are deleted only then, in the cleanup commit, with the matrix in the hand-back.
+
+## 12. For the UI lanes (exact names)
+
+- Schema (`generation-confirmation-schema.js`): `GENERATION_COMMANDS`, `commandDefinition`, `settingsOf`, `fieldsFor(command, settings)`, `settingsProblems`,
+  `validateSettings`, `referenceRules`, `referenceProblems`, `reviewFor`, `proposalView(envelope, resolved)`, `allowedActions`, `visibleSections`, `changedKeys`.
+- Review (`generation-review.js`): `parsePrompt`, `serializePrompt`, `escapeText`, `promptSegments`, `plainPrompt`, `validateReview`, `applyEdit`,
+  `removeReference`, `referenceFromContextRef`, `nextReferenceId`, `reviewHash`, `referenceStates`.
+- Client (`generation-review-client.js`): `fetchProposal`, `saveProposal`, `problemOf`, `canGenerate`, `confirmProposal`.
+- Card (`GenerationProposalCard.jsx`): props `proposal` or `view`, `onSave(edit)`, `onGenerate`, `onCancel`, `onOpenReference`, `states`, `problem`,
+  `Editor` (the pill editor lane's component: `({ value, references, onChange, disabled })`, value being the prompt text with its tokens),
+  `groups`, `groupProblem`, `settingsMode`, `attrs`. A new command adds one entry to the schema and its adapter; it adds no form.
+- Chat (`generation-proposal-chat.js`): `startAdapter(proposal, ops)` says how a proposal starts ('output', 'job' or null).
+
+Open items: Motion duration above 30 seconds and the aspect ratio options need `feat/motion-settings`; OpenAI and Gemini pricing, the OpenAI
+reference maximum and the other limits listed in section 3 are unresolved; Explain's Cancel needs the job cancel wired to the card's
+`onCancel`; the pill editor replaces the default description editor.
