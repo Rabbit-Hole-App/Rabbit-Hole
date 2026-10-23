@@ -123,6 +123,16 @@ export async function runEmbed(engine) {
     });
     return at && { x: box.x + at.x, y: box.y + at.y };
   }
+  // Firefox aborts a reload while requests are still in flight (NS_BINDING_ABORTED): let the page settle first, and retry the reload once, said in the output.
+  const reload = async page => {
+    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+    try { await page.reload(); } catch (error) {
+      if (!/NS_BINDING_ABORTED/.test(String(error))) throw error;
+      console.log(`reload aborted by the browser (NS_BINDING_ABORTED) at ${page.url().slice(0, 80)}: retrying once`);
+      await page.waitForLoadState('load', { timeout: 30000 }).catch(() => {});
+      await reload(page);
+    }
+  };
   const hostMessages = page => page.evaluate(() => window.__messages);
   const hasDraft = u => decodeURIComponent(u).includes(DRAFT) || u.includes(encodeURIComponent(DRAFT));
   // The host page (another origin) forges every hand-off message it can into the embed's window: none may be believed.
@@ -200,7 +210,7 @@ export async function runEmbed(engine) {
     check(`${tag} message 11 is not sent: the used-up notice is up, Send hands the draft to the full site in a new tab instead, no request is made and no answer is added`, await fl.locator('[data-guest-spent]').isVisible() && net.sends.length === 10 && net.sends.every(s => s.status === 200) && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && new URL(spentTab.url()).pathname === `/b/${pub.view}`, JSON.stringify({ sends: net.sends.length, url: spentTab.url() }));
     await spentTab.close();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-spent-${engine}.png` });
-    await page.reload();
+    await reload(page);
     fl = await embedOf(page);
     const initAfterReload = await initProbe(page);
     await openChat(fl);
@@ -220,7 +230,7 @@ export async function runEmbed(engine) {
       const a = await fetch(`/api/learn/boards/shared/${token}/ask`, init), b = await fetch(`/api/learn/boards/shared/${token}/ask`, init);
       return [a.status, b.status];
     });
-    await siteB.reload();
+    await reload(siteB);
     const flB2 = await embedOf(siteB); await openChat(flB2);
     check(`${tag} a retry with the same action key counts once: 9 of 10 left, not 8`, retried[0] === 200 && retried[1] === 200 && await left(flB2, 9));
     const tabB = await context.newPage();
@@ -233,13 +243,13 @@ export async function runEmbed(engine) {
     await siteB.close(); await tabB.close();
 
     // Open in Rabbit Hole / sign-in return.
-    await page.reload();
+    await reload(page);
     fl = await embedOf(page);
     const [opened] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-open]').click()]);
     await opened.waitForURL(u => u.origin === APP, { timeout: 30000 });
     check(`${tag} Open in Rabbit Hole opens the full site in a new tab on the same canvas, with no embed page and no text in the URL`, new URL(opened.url()).pathname === `/b/${pub.view}` && !hasDraft(opened.url()) && await opened.locator('[data-fork-button]').waitFor({ timeout: 60000 }).then(() => true, () => false) && await opened.locator('[data-embed-root]').count() === 0, opened.url());
     await context.addCookies([{ name: 'small_session', value: viewer.session, url: APP }]);
-    await opened.reload();
+    await reload(opened);
     await opened.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
     check(`${tag} signing in and coming back to that tab works: the same canvas, signed in, no guest count`, new URL(opened.url()).pathname === `/b/${pub.view}` && await opened.locator('[data-guest-remaining]').count() === 0);
     await context.clearCookies({ name: 'small_session' });
@@ -373,7 +383,7 @@ export async function runEmbed(engine) {
     check(`${tag} Chat context carries over and is never auto-sent: the new tab shows the Chat with the canvas's context, and no ask request was made by anyone`, await handoff.locator('[data-shared-ask]').isVisible() && !net.requests.some(r => r.method === 'POST' && /\/ask$/.test(new URL(r.url).pathname)));
     await handoff.close();
     // A reload keeps this state: still no cookie, still the fallback, no fresh trial.
-    await page.reload();
+    await reload(page);
     fl = await embedOf(page); await openChat(fl);
     await fl.locator('[data-embed-chat-fallback]').waitFor({ timeout: 30000 });
     check(`${tag} a reload changes nothing: still no cookie, still Open Chat in Rabbit Hole, still nothing counted`, !(await ctx.cookies()).some(c => c.name === 'rh_embed') && net.sends.length === 0 && net.probes.every(p => !p.cookieSent));
