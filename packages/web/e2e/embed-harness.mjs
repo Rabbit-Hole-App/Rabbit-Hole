@@ -206,8 +206,10 @@ export async function launchEngine(engine, options = {}) {
   try { return await type.launch(options); } catch (error) {
     if (engine === 'chromium') throw error;
     console.log(`installing ${engine}`);
-    for (let attempt = 1; ; attempt++) { // a package mirror or lock that hangs must not take the 15 minute check budget
-      try { execFileSync('npx', ['--no-install', 'playwright', 'install', ...(process.platform === 'linux' ? ['--with-deps'] : []), engine], { stdio: 'inherit', shell: process.platform === 'win32', timeout: 240000 }); break; } catch (installError) { console.log(`install ${engine} attempt ${attempt} failed: ${String(installError.message).split(String.fromCharCode(10))[0]}`); if (attempt === 2) throw installError; }
+    // The apt step for WebKit's libraries alone can take over three minutes on a busy runner: the first attempt gets 7 minutes with the
+    // libraries, the second only the browser download (4 minutes), so both fit the 15 minute check budget.
+    for (const withDeps of [true, false]) {
+      try { execFileSync('npx', ['--no-install', 'playwright', 'install', ...(withDeps && process.platform === 'linux' ? ['--with-deps'] : []), engine], { stdio: 'inherit', shell: process.platform === 'win32', timeout: withDeps ? 420000 : 240000 }); break; } catch (installError) { console.log(`install ${engine}${withDeps ? ' with libraries' : ''} failed: ${String(installError.message).split(String.fromCharCode(10))[0]}`); if (!withDeps) throw installError; }
     }
     return type.launch({ timeout: 60000, ...options });
   }
