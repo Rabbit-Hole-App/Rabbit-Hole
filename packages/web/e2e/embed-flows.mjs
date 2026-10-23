@@ -50,11 +50,11 @@ export async function runEmbed(engine) {
     context.on('request', r => s.requests.push({ method: r.method(), url: r.url() }));
     // The browser's own word on its cookie: the init answers created:true when the request it sent carried no valid rh_embed and
     // created:false when it carried one (a real round trip through the browser's jar, no script involved).
-    context.on('response', async r => {
+    context.on('requestfinished', async r => {
       if (!/\/api\/learn\/boards\/embed-session$/.test(new URL(r.url()).pathname)) return;
       try {
-        const site = new URL(r.request().frame().page().mainFrame().url()).hostname;
-        s.inits.push({ site, created: (await r.json()).created });
+        const site = new URL(r.frame().page().mainFrame().url()).hostname;
+        s.inits.push({ site, created: (await (await r.response()).json()).created });
       } catch (error) { s.inits.push({ error: String(error).slice(0, 120) }); }
     });
     const allowance = jar => { const used = s.used.get(jar)?.size ?? 0; return { limit: 10, used, remaining: 10 - used }; };
@@ -64,7 +64,11 @@ export async function runEmbed(engine) {
       // The count is kept per embedding site, as a partitioned jar keeps it. A Playwright request does not list a partitioned
       // cookie among its headers, so the cookie is read from the browser's jar: present means this browser holds a session.
       const site = new URL(req.frame().page().mainFrame().url()).hostname;
-      const jar = (await context.cookies()).some(c => c.name === 'rh_embed') ? site : null;
+      const mine = (await context.cookies()).filter(c => c.name === 'rh_embed');
+      const cookie = mine.length === 1 ? mine[0] : mine.find(c => JSON.stringify(c.partitionKey ?? '').includes(site)) ?? null;
+      const jar = cookie ? site : null;
+      // route.fetch does not take a partitioned cookie from the jar: the cookie the browser holds for this site goes on the request.
+      if (cookie) headers.cookie = [headers.cookie, `rh_embed=${cookie.value}`].filter(Boolean).join('; ');
       if (req.method() === 'GET') {
         const real = await route.fetch({ headers }), text = await real.text(), body = json(text);
         s.probes.push({ cookieSent: !!jar, account: /(?:^|;\s*)small_session=/.test(headers.cookie || ''), session: body?.embed?.session ?? null });
@@ -99,6 +103,8 @@ export async function runEmbed(engine) {
   const flow = async (name, expected, body) => { const before = results.length; plan(expected); await body(); if (results.length - before !== expected) check(`${name}: ran ${results.length - before} checks, expected ${expected}`, false); };
   // Closes every tab the page opens while `on` (a full site tab that never answers).
   const closeNextTab = context => { const state = { on: false, closed: 0 }; context.on('page', p => { if (state.on) { state.closed++; p.close().catch(() => {}); } }); return state; };
+  // A smooth wheel scroll is still moving when scrollY first changes: wait until two reads 150 ms apart agree.
+  const settled = async page => { let last = -1; for (let i = 0; i < 60; i++) { const y = await page.evaluate(() => window.scrollY); if (y === last) return y; last = y; await new Promise(r => setTimeout(r, 150)); } return last; };
   const hostMessages = page => page.evaluate(() => window.__messages);
   const hasDraft = u => decodeURIComponent(u).includes(DRAFT) || u.includes(encodeURIComponent(DRAFT));
   // The host page (another origin) forges every hand-off message it can into the embed's window: none may be believed.
@@ -119,8 +125,15 @@ export async function runEmbed(engine) {
     await page.keyboard.press('r');
     await page.mouse.move(box.x + from.x, box.y + from.y); await page.mouse.down(); await page.mouse.move(box.x + to.x, box.y + to.y, { steps: 6 }); await page.mouse.up();
     await page.keyboard.press('Escape');
-    await fl.locator('[data-guest-draft-notice]').waitFor({ timeout: 20000 }).catch(() => {});
-    return await fl.locator('[data-guest-draft-notice]').count() === 1;
+    await fl.locator('[data-guest-draft-notice]').waitFor({ timeout: 8000 }).catch(() => {});
+    if (await fl.locator('[data-guest-draft-notice]').count() === 1) return true;
+    // The rectangle did not register: move a card instead (the same kind of edit).
+    const card = await fl.locator('[data-block-id]').first().boundingBox();
+    if (card) { await page.mouse.move(card.x + card.width / 2, card.y + 12); await page.mouse.down(); await page.mouse.move(card.x + card.width / 2 + 90, card.y + 70, { steps: 8 }); await page.mouse.up(); }
+    await fl.locator('[data-guest-draft-notice]').waitFor({ timeout: 8000 }).catch(() => {});
+    const ok = await fl.locator('[data-guest-draft-notice]').count() === 1;
+    if (!ok && SHOTS) await page.screenshot({ path: `${SHOTS}/draw-failed-${engine}.png` });
+    return ok;
   }
 
   // ===================================================================================================================
@@ -239,7 +252,7 @@ export async function runEmbed(engine) {
       await original.close();
 
     } else {
-      for (const what of ['when the new tab never acknowledges the embed says so after about 15 s, offers Retry and Fork original instead, and keeps the edits', 'a forged request or acknowledgement from the embedding page is ignored', 'Retry opens a new tab that acknowledges and the failure notice goes', 'Fork original instead is an explicit choice']) check(`${tag} ${what}`, false, `the rectangle drag raised no unsaved-changes notice, so there was nothing to hand off (guest-draft keys in the frame: ${JSON.stringify(stored)})`);
+      for (const what of ['when the new tab never acknowledges the embed says so after about 15 s, offers Retry and Fork original instead, and keeps the edits', 'a forged request or acknowledgement from the embedding page is ignored', 'Retry opens a new tab that acknowledges and the failure notice goes', 'Fork original instead is an explicit choice']) check(`${tag} ${what}`, false, `the rectangle drag raised no unsaved-changes notice, so there was nothing to hand off (guest-draft keys in the frame: ${JSON.stringify(stored)}, cards ${await fl.locator('[data-block-id]').count()}, canvas ${JSON.stringify(await fl.locator('[data-canvas-surface]').boundingBox())}, iframe ${JSON.stringify(await page.locator('iframe').boundingBox())})`);
     }
 
     // Wheel: plain wheel over the embed scrolls the host page, never the canvas; ctrl+wheel zooms the canvas only.
@@ -254,7 +267,7 @@ export async function runEmbed(engine) {
     await wheel.mouse.wheel(0, 300);
     await wheel.waitForFunction(y => window.scrollY > y, y0, { timeout: 15000 }).catch(() => {});
     check(`${tag} a plain wheel over the embed scrolls the host page and leaves the canvas zoom alone`, (await scrollY()) > y0 && await camera(flW) === cam0, `${y0} -> ${await scrollY()}; ${cam0} -> ${await camera(flW)}`);
-    const y1 = await scrollY();
+    const y1 = await settled(wheel);
     const box2 = await wheel.locator('#f0').boundingBox(); // the wheel scrolled the page: measure again
     await wheel.mouse.click(box2.x + 40, box2.y + box2.height - 60);
     await wheel.keyboard.down('Control'); await wheel.mouse.wheel(0, -240); await wheel.keyboard.up('Control');
