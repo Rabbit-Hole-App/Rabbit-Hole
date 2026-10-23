@@ -181,7 +181,8 @@ test('renderer failure: Retry rendering holds and calls nothing; an orchestrator
   assert.equal((await actor.fetch(recover(lost.id, 'render'))).status, 202);
   await settle(actor, async () => (await video(actor)).status === 'ready');
   assert.equal(w.model.calls, 1, 'only the first attempt called a model');
-  assert.deepEqual(attempts(sqlite), [[25_000_000, 'settled', 100000, 'failed']], 'one hold, settled once; the recoveries held nothing');
+  // Owner 2026-10-23: a renderer failure charges zero credits (the $0.10 of model cost is recorded in usage_operations, not charged).
+  assert.deepEqual(attempts(sqlite), [[25_000_000, 'settled', 0, 'failed']], 'one hold, settled once at zero credits; the recoveries held nothing');
   assert.deepEqual(w.runs.map(r => r.mode), ['new', 'render', 'render']);
 });
 

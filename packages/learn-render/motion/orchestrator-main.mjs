@@ -7,6 +7,8 @@
 //   /health says {ready: false, missing}, and every job is refused before anything starts.
 //   MOTION_RENDERER_URL, MOTION_RENDERER_TOKEN
 //   HOST (0.0.0.0), PORT (8080), MOTION_WORK_DIR (/tmp/motion-jobs), MOTION_MAX_CALLS (9), MOTION_JOB_TIMEOUT_S (3300)
+//   MOTION_JOB_CEILING_USD (optional, e.g. 3.00): the most provider spend one job may reach, whatever the worker's grant says; every call's
+//   worst case, in flight and unknown calls included, must fit under it before it is sent. Unset: the grant is the ceiling.
 // Every job runs under PRODUCTION_POLICY (orchestrator.mjs): its worst case is the per-job hold the worker admits.
 //   MOTION_DIRECTOR_MODEL, MOTION_AUTHOR_MODEL, MOTION_VISUAL_REVIEW_MODEL, MOTION_PEDAGOGICAL_REVIEW_MODEL (optional)
 import { createServer } from 'node:http';
@@ -38,7 +40,9 @@ export function orchestratorConfig(e = process.env) {
   let renderer = null;
   try { renderer = new URL(e.MOTION_RENDERER_URL); } catch { errors.push('MOTION_RENDERER_URL: the sandboxed render service URL'); }
   if (!e.MOTION_RENDERER_TOKEN) errors.push('MOTION_RENDERER_TOKEN: required');
+  const ceiling = e.MOTION_JOB_CEILING_USD == null || e.MOTION_JOB_CEILING_USD === '' ? null : /^\d+(\.\d{1,6})?$/.test(e.MOTION_JOB_CEILING_USD) && Number(e.MOTION_JOB_CEILING_USD) > 0 ? Number(e.MOTION_JOB_CEILING_USD) : (errors.push('MOTION_JOB_CEILING_USD: a dollar amount above 0'), null);
   const config = {
+    ceilingMicros: ceiling == null ? Infinity : Math.round(ceiling * 1e6),
     host: e.HOST || '0.0.0.0', port: int('PORT', 8080, 1, 65535), workDir: e.MOTION_WORK_DIR || '/tmp/motion-jobs',
     maxCalls: int('MOTION_MAX_CALLS', 9, 1, 32), jobTimeoutMs: int('MOTION_JOB_TIMEOUT_S', 3300, 60, 3500) * 1000,
     renderer: renderer && { url: renderer.href.replace(/\/$/, ''), token: e.MOTION_RENDERER_TOKEN }, token: e.MOTION_ORCHESTRATOR_TOKEN,
@@ -53,7 +57,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   if (errors) { for (const line of errors) console.error(`✗ ${line}`); process.exit(2); }
   const orchestrator = motionOrchestrator({
     token: config.token, service: serviceClient(config.renderer), call: apiCall, env: config.env, outDir: config.workDir,
-    maxCalls: config.maxCalls, policy: PRODUCTION_POLICY, missing: config.missing, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
+    maxCalls: config.maxCalls, ceilingMicros: config.ceilingMicros, policy: PRODUCTION_POLICY, missing: config.missing, rendererHashes: rendererCodeHashes(), jobTimeoutMs: config.jobTimeoutMs, log: line => console.log(`${new Date().toISOString()} ${line}`),
   });
   const server = createServer(orchestrator.handle).listen(config.port, config.host, () => console.log(`✓ Motion orchestrator on http://${config.host}:${config.port} (renderer ${new URL(config.renderer.url).host}, sandbox required: linux; ${config.maxCalls} calls and ${config.jobTimeoutMs / 1000} s per job, the production policy; hold per job from the worker's grant)${config.missing.length ? `; NOT READY: missing ${config.missing.join(', ')}, every job is refused` : ''}`));
   // A stop (deploy, scale) ends running jobs; the worker keeps their holds as unknown cost and refuses their grants here.

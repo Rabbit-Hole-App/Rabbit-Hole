@@ -31,6 +31,10 @@ const motionOutcome = (job, view, known) => (known == null ? { status: 'interrup
 // stopped job settling, or a cost that could not be read: reconciliation pending); released once settled at a known cost.
 const motionHold = j => (j?.provider === 'motion_request' && j.spend?.admitted ? { usd: j.spend.micros / 1e6,
   state: !j.spend.settled ? (j.status === 'generating' ? 'reserved' : 'pending') : j.spend.costMicros == null ? 'pending' : 'released' } : null);
+// Zero-credit failures (owner 2026-10-23): a renderer failure or timeout (cause renderer), our own infrastructure failing (the
+// orchestrator crashed, cause infra, or lost the job: no view) charge the learner nothing and release the whole reservation. The
+// provider cost is still recorded (usage_operations.cost_usd, job.providerCost) and still counts toward the video's ceiling.
+const zeroCredit = view => !view || (view.status === 'failed' && ['renderer', 'infra'].includes(view.cause));
 // An attempt is reconciled until it settles, held or free (MOT-21): a free render recovery holds nothing, yet a Stop of it is
 // followed until the orchestrator confirms it ended, its renders are recorded once, and nothing new starts over it.
 const needsSettling = job => job.provider === 'motion_request' && (job.spend?.admitted || job.spend?.free) && !job.spend.settled;
@@ -392,15 +396,19 @@ export class LearnVideos {
     if (!spend?.admitted || spend.settled) return;
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
-    const calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    const free = zeroCredit(view), calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
     if (spendEnforced(this.env)) {
+      // The platform ledger keeps the provider's actual cost; the learner's attempt is charged only outside the zero-credit class.
       await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
-      await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
+      const tokens = key => (view?.spend?.provider_calls || []).reduce((n, c) => n + (c.usage?.[key] || 0), 0);
+      await settleAttempt(this.env, spend.attemptId, { costMicros: free ? 0 : known, status, inputTokens: tokens('input_tokens'), outputTokens: tokens('output_tokens') });
       await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
     }
-    job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
-    job.usedMicros = (job.usedMicros || 0) + (known ?? 0);
-    if (known == null) job.usageUnknown = true;
+    // The video's ceiling counts what the provider may bill, the real cost even above the hold, never less.
+    job.consumedMicros = (job.consumedMicros || 0) + (known ?? Math.min(bound, spend.micros));
+    job.usedMicros = (job.usedMicros || 0) + (free ? 0 : known ?? 0);
+    if (known == null && !free) job.usageUnknown = true;
+    (job.providerCost ||= []).push({ opId: spend.opId, micros: known, charged: free ? 0 : known, free, cause: view?.cause ?? (view ? null : 'lost'), calls: view?.spend?.provider_calls ?? null });
     Object.assign(spend, { settled: true, costMicros: known });
     await this.stopLanded(job);
     await this.state.storage.put(`job:${job.key}`, job);

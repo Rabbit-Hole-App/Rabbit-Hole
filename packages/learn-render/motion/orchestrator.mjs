@@ -38,13 +38,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, s
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { requestSpendBound } from '../../control-plane/src/learn-spend.js';
-import { MODEL_PRICES } from '../../control-plane/src/learn-models.js';
 import { validateMotionContext } from '../../control-plane/src/motion-context.js';
 import { PRICES } from './director.js';
 import { fixtureSource } from './fixture-source.js';
 import { runMotionRequest } from './pipeline.mjs';
 import { MotionCancelled } from './review-job.mjs';
 import { DURATION, MOTION_RATIOS, classifyFindings } from './contracts.js';
+import { jobWorstCase } from './spend-bound.mjs';
 
 const ID = /^[0-9a-f]{32}$/;
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
@@ -81,13 +81,9 @@ export function requestSize(body) {
   const text = JSON.stringify(body, (k, v) => { if (v && typeof v === 'object' && v.type === 'image') images++; return k === 'data' && typeof v === 'string' ? '' : v; });
   return { bytes: new TextEncoder().encode(text).length, images };
 }
-// The policy's enforced worst case, in micro-USD: every allowed call at its caps, priced as learn-spend.js requestSpendBound
-// prices it (input bytes + 1000 framing tokens + 4784 tokens per image, x1.25 for the cached system prompt; max_tokens at the
-// output price). The hold that equals it never refuses a call the policy allows.
-export function policyHoldMicros(policy = PRODUCTION_POLICY, model = 'claude-opus-5-5') {
-  const [input, output] = MODEL_PRICES[model];
-  return Object.values(policy).reduce((sum, r) => sum + r.calls * Math.ceil((r.bytes + 1000 + r.images * 4784) * input * 1.25 + r.max_tokens * output), 0);
-}
+// The policy's enforced worst case, in micro-USD: spend-bound.mjs jobWorstCase (every allowed call at its caps, priced as
+// learn-spend.js requestSpendBound prices it). The hold that equals it never refuses a call the policy allows.
+export const policyHoldMicros = (policy = PRODUCTION_POLICY, model = 'claude-opus-5-5') => jobWorstCase(policy, model).micros;
 
 // A recovery attempt's policy (owner message 38): 'render' renders an accepted composition again and may call no model;
 // 'fix' continues from a checkpoint without a Director call: at most one storyboard revision, the Author and its one repair,
@@ -168,28 +164,36 @@ export function validateJobRequest(body) {
   return e;
 }
 
-// What one finished response cost, read from a copy of it (a stream's message_start and
-// message_delta usage, or a JSON message's usage). null when it cannot be read.
-export async function responseCost(response, model) {
-  const price = PRICES[model];
-  if (!price) return null;
+// The usage of one finished response, read from a copy of it (a stream's message_start and message_delta usage, or a JSON
+// message's usage). null when it cannot be read, and for a stream that ended before its final message_delta: message_start
+// carries only the input tokens and a placeholder output count, so a dropped stream's partial figure would undercount the
+// output the provider already generated and bills. An unknown outcome is held at its bound, never at a partial figure.
+export async function responseUsage(response) {
   try {
     const text = await response.text();
-    let u = null;
     if (/^\s*\{/.test(text)) {
       const j = JSON.parse(text);
-      if (j.billing === 'claude-subscription') return 0; // the owner's subscription: no API spend
-      u = j.usage || null;
-    } else for (const line of text.split(/\r?\n/)) {
+      if (j.billing === 'claude-subscription') return { subscription: true };
+      return j.usage ? { ...j.usage } : null;
+    }
+    let u = null, final = false;
+    for (const line of text.split(/\r?\n/)) {
       if (!line.startsWith('data:')) continue;
       const event = JSON.parse(line.slice(5).trim() || '{}');
       if (event.type === 'message_start') u = { ...event.message?.usage };
-      if (event.type === 'message_delta' && u) Object.assign(u, event.usage);
+      if (event.type === 'message_delta' && u) { Object.assign(u, event.usage); final = true; }
     }
-    if (!u) return null;
-    return ((u.input_tokens || 0) * price.input + (u.output_tokens || 0) * price.output + (u.cache_creation_input_tokens || 0) * price.cache_write + (u.cache_read_input_tokens || 0) * price.cache_read) / 1e6;
+    return u && final ? u : null;
   } catch { return null; }
 }
+// What one finished response cost in USD (fast mode bills double), or null when its usage cannot be read.
+export const costOf = (u, model) => {
+  const price = PRICES[model];
+  if (!u || !price) return null;
+  if (u.subscription) return 0; // the owner's subscription: no API spend
+  return ((u.input_tokens || 0) * price.input + (u.output_tokens || 0) * price.output + (u.cache_creation_input_tokens || 0) * price.cache_write + (u.cache_read_input_tokens || 0) * price.cache_read) * (u.speed === 'fast' ? 2 : 1) / 1e6;
+};
+export const responseCost = async (response, model) => costOf(await responseUsage(response), model);
 
 // The hold's accounting: finished calls at their real cost, or their bound when it cannot be read; calls in flight
 // (or abandoned) at their bound. Refused calls were never sent. The real total is null while any cost is unknown;
@@ -201,7 +205,9 @@ const realMicros = job => (sent(job).some(c => c.cost_micros == null) ? null : s
 // The job as the provider polls it: no prompt, no key, no request text, no source text beyond the block provenance.
 export const jobView = j => ({
   job_id: j.id, status: j.status, stage: j.stage, created_at: j.created_at, finished_at: j.finished_at ?? null,
-  spend: { hold_usd: usd(j.grant_micros), cost_usd: j.status === 'running' ? null : (m => (m == null ? null : usd(m)))(realMicros(j)), bound_usd: usd(committedMicros(j)), calls: sent(j).length, in_flight: sent(j).filter(c => c.state === 'running').length, refused: j.refusal },
+  spend: { hold_usd: usd(j.grant_micros), cost_usd: j.status === 'running' ? null : (m => (m == null ? null : usd(m)))(realMicros(j)), bound_usd: usd(committedMicros(j)), ceiling_usd: usd(j.ceiling_micros), calls: sent(j).length, in_flight: sent(j).filter(c => c.state === 'running').length, refused: j.refusal,
+    // Each call the provider may bill, from its usage fields, for the worker's internal cost record: no prompt, no key, no text.
+    provider_calls: sent(j).map(c => ({ stage: c.stage, kind: c.kind, model: c.model, state: c.state, bound_usd: usd(c.bound_micros), cost_usd: c.cost_micros == null ? null : usd(c.cost_micros), usage: c.usage ?? null })) },
   // Each render as the renderer last reported it: ready, failed (failed or invalid), or unknown (never reported finished).
   renders: j.renders.length,
   render_states: j.renders.map(r => (r.status === 'ready' ? 'ready' : ['failed', 'invalid'].includes(r.status) ? 'failed' : 'unknown')),
@@ -219,7 +225,7 @@ export const jobView = j => ({
 // rendererHashes: the entries pass rendererCodeHashes(); a renderer whose /health version carries another starts no job.
 // missing: the settings this process still lacks (the model key before its secret is set): /health says not ready and every
 // job is refused before anything starts, never failed halfway.
-export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, policy = null, rendererHashes = null, missing = [], log = () => {}, renderer, plans = {},
+export function motionOrchestrator({ token, service, call, env = {}, outDir, run = runMotionRequest, maxCalls = 16, ceilingMicros = Infinity, budget = null, policy = null, rendererHashes = null, missing = [], log = () => {}, renderer, plans = {},
   jobTimeoutMs = 55 * 60 * 1000, resultTtlMs = 60 * 60 * 1000, recordTtlMs = 6 * 60 * 60 * 1000, now = () => Date.now() }) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('motionOrchestrator: a token of at least 32 characters is required');
   if (!service || typeof service.health !== 'function') throw new Error('motionOrchestrator: a render service client is required (there is no in-process renderer)');
@@ -285,7 +291,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const id = randomBytes(16).toString('hex');
     const controller = new AbortController();
     const recover = body.mode ? { mode: body.mode, checkpoint: body.checkpoint } : null;
-    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, refusal: null, kinds: {}, digests: new Set(), rev: 0, checkpoint: null,
+    const job = { id, key: body.idempotency_key, status: 'running', stage: 'queued', created_at: new Date(now()).toISOString(), controller, calls: [], renders: [], grant_micros: body.grant.micros, ceiling_micros: Math.min(body.grant.micros, ceilingMicros), refusal: null, kinds: {}, digests: new Map(), rev: 0, checkpoint: null,
       policy: recover && policy ? RECOVERY_POLICY[recover.mode] : policy };
     jobs.set(id, job); keys.set(job.key, id);
     active = job;
@@ -305,22 +311,43 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
         if ((job.kinds[kind] || 0) >= rule.calls) return refuse(`the production policy allows ${rule.calls} ${kind} call${rule.calls === 1 ? '' : 's'} per job`);
         if (!(request.max_tokens <= rule.max_tokens) || bytes > rule.bytes || images > rule.images) return refuse(`this ${kind} call (${request.max_tokens} max_tokens, ${bytes} bytes, ${images} images) is larger than the production policy allows (${rule.max_tokens}, ${rule.bytes}, ${rule.images})`);
       }
+      // No automatic paid retry after an unknown outcome (a timeout, a dropped connection, an unreadable answer, a call still in
+      // flight), policy or not: the same call is never sent again while the first may have been billed.
+      const earlier = job.digests.get(digest);
+      if (earlier && earlier.cost_micros == null) return refuse(`resending the same ${kind} call while the first one's outcome is unknown`);
       const bound = requestSpendBound(request, model);
       if (bound == null) return refuse(`the next model call's maximum cost cannot be bounded (${model})`);
-      const need = toMicros(bound), left = job.grant_micros - committedMicros(job);
-      if (need > left) return refuse(`the next step (${job.stage}) could cost up to $${usd(need).toFixed(2)}, more than the $${usd(Math.max(0, left)).toFixed(2)} left of this job's $${usd(job.grant_micros).toFixed(2)} hold`);
-      const record = { state: 'running', stage: job.stage, kind, bound_micros: need, cost_micros: null };
+      const need = toMicros(bound), left = job.ceiling_micros - committedMicros(job);
+      if (need > left) return refuse(`the next step (${job.stage}) could cost up to $${usd(need).toFixed(2)}, more than the $${usd(Math.max(0, left)).toFixed(2)} left of this job's $${usd(job.ceiling_micros).toFixed(2)} hold`);
+      // The shared validation budget (acceptance harness only, off by default; C:/s/spec/budget/budget.mjs): this call's conservative
+      // maximum is reserved atomically across jobs and processes before it is sent; a refusal or a failure of the ledger sends nothing.
+      const ledgerId = `${job.id}:${job.calls.length}`;
+      if (budget) {
+        let got;
+        try { got = budget.reserve(ledgerId, 'motion-model', usd(need)); } catch (error) { got = { ok: false, reason: error.message }; }
+        if (!got.ok) return refuse(`the shared validation budget refused the next ${kind} call (${got.reason})`);
+      }
+      const record = { state: 'running', stage: job.stage, kind, model, bound_micros: need, cost_micros: null, usage: null };
       job.calls.push(record);
-      job.kinds[kind] = (job.kinds[kind] || 0) + 1; job.digests.add(digest);
+      job.kinds[kind] = (job.kinds[kind] || 0) + 1; job.digests.set(digest, record);
       // Its real cost once read from a copy; a failed or unreadable response keeps its bound (unknown, never 0).
       // Stop or the timeout abandons a call in flight: its response is discarded and its bound stays committed.
-      const sending = Promise.resolve(call(env2, request, model)).then(async response => {
-        const cost = response?.ok && typeof response.clone === 'function' ? await responseCost(response.clone(), model) : null;
+      // A call settles once: the first outcome closes its record and a later one changes nothing.
+      const land = (usage = null) => {
+        if (record.state !== 'running') return;
         record.state = 'done';
-        if (cost != null) record.cost_micros = toMicros(cost);
+        const cost = costOf(usage, model);
+        if (cost != null) { record.cost_micros = toMicros(cost); record.usage = usage; }
+        // Actual from usage settles the reservation; an unknown outcome stays reserved at its maximum, as uncertain.
+        if (budget) try { cost != null ? budget.settle(ledgerId, usd(record.cost_micros)) : budget.uncertain(ledgerId); } catch { /* stays reserved at its maximum */ }
+      };
+      const sending = Promise.resolve(call(env2, request, model)).then(async response => {
+        land(response?.ok && typeof response.clone === 'function' ? await responseUsage(response.clone()) : null);
         return response;
-      }, error => { record.state = 'done'; throw error; });
+      }, error => { land(); throw error; });
       sending.catch(() => {});
+      // Stop or the job timeout abandons the call: its outcome is unknown until it lands.
+      if (budget) controller.signal.addEventListener('abort', () => { try { if (record.state === 'running') budget.uncertain(ledgerId); } catch { /* stays reserved at its maximum */ } }, { once: true });
       return Promise.race([sending, new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
     };
     // Each render the service is asked for is platform-funded compute the worker records apart (feature render).
@@ -353,7 +380,7 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const onStage = (stage, out) => { job.stage = stage; if (out?.checkpoint && out.checkpoint !== job.checkpoint) { job.checkpoint = out.checkpoint; job.rev++; } };
     runner({ message: recover ? recover.checkpoint.request : body.request, ...(readable ? { source: pinned } : {}), location: body.location ?? {}, context: body.context ?? null, call: guarded, env, service: counted, dir: join(outDir, id), signal: controller.signal, onStage, ...(renderer ? { renderer } : {}), ...(!recover && plans[body.request] ? { plan: plans[body.request] } : {}), ...(!recover && body.approved_proposal ? { approved: body.approved_proposal } : {}), ...(recover ? { recover, renderer: recover.checkpoint.renderer ?? renderer } : {}) })
       .then(result => { job.result = result; job.status = result.status; })
-      .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}` }; job.status = 'failed'; })
+      .catch(error => { job.result = { status: 'failed', failure_reason: `the pipeline crashed: ${String(error?.message || error).split('\n')[0]}`, cause: 'infra' }; job.status = 'failed'; })
       .finally(() => {
         clearTimeout(timer);
         if (job.timedOut) { job.status = 'failed'; job.result = { ...job.result, failure_reason: `the job ran past ${Math.round(jobTimeoutMs / 60000)} minutes and was stopped`, cause: 'limit' }; }
