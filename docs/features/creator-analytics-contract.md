@@ -18,7 +18,9 @@ The older sections stay as the record of the event design, which this section re
   (CreatorProfile.jsx) and from ⋮ → Analytics on one of the owner's public canvases (opens with that canvas selected).
   Header: lock icon and "Private · only you", canvas selector (All public canvases, or one canvas), range (7 days,
   30 days, All time), the visible date range and reporting timezone, close.
-- Route: `GET /api/analytics/creator?range=7d|30d|all[&canvas=<canvas name>]`. Default range `30d`.
+- Route: `GET /api/analytics/creator?range=7d|30d|all[&canvas=<canvas name>]`. Default range `30d`. Built:
+  `control-plane/src/creator-analytics.js`, dispatched in `web/dev-worker.js`; tests in
+  `control-plane/test/creator-analytics.test.js`.
   - **Owner-only, on the server.** Signed out: 401. The scope is always the session's own live public canvases, the
     same set the creator profile lists (learn-boards.js `PUBLISHED` filtered to the session's handle). There is no handle
     or org parameter, so another creator's data cannot be named.
