@@ -23,7 +23,10 @@
 //      Generate, Edit details re-approves, reload keeps the review, Generate sends the new brief hash, Cancel ends another;
 //  12. keyboard and tooltips: typing in a parameter never reaches the canvas, More parameters by Enter, tooltips on focus;
 //  13. dark theme: the same surfaces on dark tokens;
-//  14. no browser errors, no model requests, no unexpected writes.
+//  14. the controls above the selected card are one row (owner finding 2026-10-23): at several card widths, canvas zooms and window
+//      widths, light and dark, every control is present, no two boxes meet, the row stands a few px above the card's outline
+//      without covering it or its top connection handle, and a press at each control's centre reaches that control;
+//  15. no browser errors, no model requests, no unexpected writes.
 // Usage: BASE=http://127.0.0.1:9181 SMALL_CP=http://127.0.0.1:9183 VARS=<cp .dev.vars> node e2e/cad-controls-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
@@ -237,7 +240,7 @@ const router = role => async route => {
 };
 
 const results = [];
-const total = 14;
+const total = 15;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); service.failNext = false; service.unsupported = false; await page?.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {}); }
@@ -245,8 +248,8 @@ const step = async (name, fn) => {
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 100)); } throw Error(label); };
 
 const browser = await chromium.launch();
-const open = async ({ signedIn = true, path = `/apps/${canvas.name}`, dark = false, role = 'owner' } = {}) => {
-  const context = await browser.newContext({ viewport: { width: 3000, height: 1700 }, colorScheme: dark ? 'dark' : 'light' });
+const open = async ({ signedIn = true, path = `/apps/${canvas.name}`, dark = false, role = 'owner', width = 3000 } = {}) => {
+  const context = await browser.newContext({ viewport: { width, height: 1700 }, colorScheme: dark ? 'dark' : 'light' });
   if (signedIn) await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.route('**/*', router(role));
   const page = await context.newPage();
@@ -576,6 +579,71 @@ await step('dark theme: Quick edit, dimensions, details and Review design on dar
   await shot(dark.page, 'after-13-dark-review', reviewOf(dark.page, 'cad-review-c'));
   await card.locator('[data-cad-reset]').click();
   await dark.context.close();
+});
+
+await step('the controls above a selected card are one row: Open, Interact, Fit view, Show dimensions, Add to chat, Quick Edit never meet or cover the card', async () => {
+  // Narrow = the card's corner dragged to its 280 px minimum; zoom = the canvas's own Zoom out / Zoom in steps (x1.25), so the
+  // percentages are the nearest steps to 25, 50 and 200. The window widths stand in for the side panel open and closed.
+  const cases = [
+    { name: 'wide-100-light', width: 3000, dark: false, zoom: 0, narrow: false },
+    { name: 'narrow-100-light', width: 1500, dark: false, zoom: 0, narrow: true },
+    { name: 'narrow-100-dark-small-window', width: 900, dark: true, zoom: 0, narrow: true },
+    { name: 'default-50-light', width: 1500, dark: false, zoom: -3, narrow: false },
+    { name: 'narrow-25-dark', width: 1500, dark: true, zoom: -6, narrow: true },
+    { name: 'default-200-light', width: 3000, dark: false, zoom: 3, narrow: false },
+  ];
+  const parts = {
+    open: '[data-card-open]', interact: '[data-cad-interact]', fit: '[data-cad-fit]', dimensions: '[data-cad-dimensions-toggle]',
+    chat: '[data-add-to-chat]', quick: '[data-quick-edit]',
+  };
+  for (const c of cases) {
+    const { context, page: view } = await open({ dark: c.dark, width: c.width });
+    try {
+      const card = cardOf(view);
+      if (c.narrow) {
+        const box = await card.boundingBox(), grip = await card.getByRole('button', { name: 'Resize chat block' }).boundingBox();
+        await view.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await view.mouse.down();
+        await view.mouse.move(grip.x + grip.width / 2 - (box.width - 280), grip.y + grip.height / 2, { steps: 8 }); await view.mouse.up();
+        await until(async () => Math.abs((await card.boundingBox()).width - 280) < 2, `${c.name}: the card did not narrow to 280`);
+      }
+      for (let i = 0; i < Math.abs(c.zoom); i++) { await view.locator(c.zoom < 0 ? '[title="Zoom out"]' : '[title="Zoom in"]').click(); }
+      await select(view);
+      for (const selector of Object.values(parts)) await card.locator(selector).first().waitFor();
+      const read = () => view.evaluate(({ id, parts }) => {
+        const card = document.querySelector(`[data-block-id="${id}"]`), rect = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, w: r.width, h: r.height }; };
+        const out = { card: rect(card), scale: card.getBoundingClientRect().width / card.offsetWidth, parts: {}, hits: {}, port: rect(card.querySelector('[data-port="top"]')) };
+        for (const [name, selector] of Object.entries(parts)) {
+          const el = card.querySelector(selector), r = rect(el);
+          out.parts[name] = r;
+          const hit = document.elementFromPoint(r.x + r.w / 2, r.y + r.h / 2);
+          out.hits[name] = !!hit && (hit === el || el.contains(hit));
+        }
+        const group = selector => { const el = card.querySelector(selector); return el ? rect(el).h : null; };
+        out.heights = { open: group('[data-card-open]'), cad: group('[data-cad-tools]'), actions: group('[data-selection-bar="host"]') };
+        return out;
+      }, { id: PLATE, parts });
+      let m = await read();
+      // The row's own layout settles after the card narrows or the canvas zooms; read until two reads agree.
+      await until(async () => { const next = await read(); const same = JSON.stringify(next.parts) === JSON.stringify(m.parts); m = next; return same; }, `${c.name}: the row kept moving`);
+      const names = Object.keys(parts), tol = Math.max(0.5, m.scale);
+      for (const name of names) {
+        const b = m.parts[name];
+        assert.ok(b.w > 0 && b.h > 0, `${c.name}: ${name} has a box`);
+        assert.ok(b.x >= -1 && b.right <= c.width + 1, `${c.name}: ${name} stays inside the window`);
+        assert.ok(b.x >= m.card.x - tol && b.right <= m.card.right + tol, `${c.name}: ${name} stays within the card's width ${JSON.stringify([b, m.card])}`);
+        assert.ok(b.bottom <= m.card.y - 2 * m.scale && m.card.y - b.bottom <= 60 * m.scale, `${c.name}: ${name} stands a few px above the card's outline ${JSON.stringify([b, m.card])}`);
+        assert.ok(m.hits[name], `${c.name}: a press at the centre of ${name} reaches it`);
+        assert.ok(b.right <= m.port.x || b.x >= m.port.right || b.bottom <= m.port.y, `${c.name}: ${name} does not cover the top connection handle`);
+      }
+      for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
+        const a = m.parts[names[i]], b = m.parts[names[j]];
+        assert.ok(a.right <= b.x + 0.5 || b.right <= a.x + 0.5 || a.bottom <= b.y + 0.5 || b.bottom <= a.y + 0.5, `${c.name}: ${names[i]} and ${names[j]} meet ${JSON.stringify([a, b])}`);
+      }
+      const heights = Object.values(m.heights).filter(h => h);
+      assert.ok(Math.max(...heights) - Math.min(...heights) <= 1 * Math.max(1, m.scale), `${c.name}: the three groups share one height ${JSON.stringify(m.heights)}`);
+      await shot(view, `after-14-${c.name}`);
+    } finally { await context.close(); }
+  }
 });
 
 await step('no browser errors, no model requests, nothing outside the stack', async () => {

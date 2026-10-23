@@ -285,7 +285,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -382,13 +382,22 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       } : undefined}
       style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
-      {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
-      {selected && opens && opener.single === id && (
-        <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
-          onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
-          className="absolute -top-10 left-0 z-30 flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-          Open<ArrowUpRight size={13} />
-        </button>
+      {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
+          Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
+          follow right-aligned; one gap, one height; when they do not fit the row wraps upward from the card (bottom-full) so it never
+          lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
+          (touch has no double-click). */}
+      {selected && ((opens && opener.single === id) || tools) && (
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-3.5 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[38px]">
+          {opens && opener.single === id && (
+            <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
+              onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
+              className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+              Open<ArrowUpRight size={13} />
+            </button>
+          )}
+          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
+        </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
@@ -896,14 +905,12 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
       extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      {selected && (
-        <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
-          {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
-          <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-          <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
-        </div>
-      )}
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      tools={selected ? <>
+        {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
+        <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
+      </> : null}>
       <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
       </PerfContext.Provider>
