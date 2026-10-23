@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import CanvasMenubar from './CanvasMenubar.jsx';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
@@ -197,17 +197,17 @@ export default function SharedBoardPage({ token }) {
   // working height (75dvh), so the tools column and the minimap fit inside it instead of spilling over the header.
   return (
     <main className="flex h-screen bg-white max-lg:flex-col max-lg:overflow-y-auto">
-      <section aria-label="Shared canvas" className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
+      <section aria-label="Shared canvas" className="@container flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
       {/* Three areas (owner header brief, 2026-10-22): the logo; the title with its menus and creator, centred on the header; Fork
           with its note, then the panel toggle. Equal side columns keep the centre put whatever the right side holds. */}
-      <header data-canvas-header className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2 max-lg:gap-x-2 max-lg:px-3 lg:grid-cols-[minmax(17rem,1fr)_minmax(0,auto)_minmax(17rem,1fr)]">
-        <div className="flex min-w-0 items-center">
-          <a href="/" data-shared-brand className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 max-lg:h-11 max-lg:w-11 max-lg:justify-center" aria-label={`${PRODUCT} home`}>
+      <header data-canvas-header className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 px-3 py-2 @5xl:grid-cols-[minmax(17rem,1fr)_minmax(0,auto)_minmax(17rem,1fr)] @5xl:gap-x-3 @5xl:px-4">
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center @5xl:col-auto @5xl:row-auto">
+          <a href="/" data-shared-brand className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 h-11 w-11 justify-center @5xl:h-8 @5xl:w-8 @5xl:justify-start" aria-label={`${PRODUCT} home`}>
             <img src={logoBlack} alt="" width="32" height="32" className="h-8 w-8 dark:hidden" />
             <img src={logoWhite} alt="" width="32" height="32" className="hidden h-8 w-8 dark:block" />
           </a>
         </div>
-        <div data-header-center className="flex min-w-0 flex-col items-center">
+        <div data-header-center className="col-span-3 row-start-2 flex min-w-0 flex-col items-center @5xl:col-span-1 @5xl:col-auto @5xl:row-auto">
           <div className="flex min-w-0 max-w-full items-center gap-2">
             {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
             <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
@@ -226,12 +226,12 @@ export default function SharedBoardPage({ token }) {
               ? <a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className="rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">@{shared.creator.handle}</a>
               : creatorLabel(shared.creator)}</span>}
         </div>
-        <div className="flex min-w-0 items-start justify-end gap-2">
+        <div className="col-start-3 row-start-1 flex min-w-0 items-start justify-end gap-2 @5xl:col-auto @5xl:row-auto [&_[data-comments-header]]:h-11 [&_[data-comments-header]]:w-11 [&_[data-panel-toggle]]:h-11 [&_[data-panel-toggle]]:w-11 @5xl:[&_[data-comments-header]]:h-8 @5xl:[&_[data-comments-header]]:w-8 @5xl:[&_[data-panel-toggle]]:h-8 @5xl:[&_[data-panel-toggle]]:w-8">
           <ViewerAccount viewer={shared.viewer} />
           {/* Fork, the one primary action; signed out it goes through sign-in and forks on return. The note sits directly beneath it
               in the temporary-edit experience only, never for an owner's saved editing view. */}
           <div className="flex shrink-0 flex-col items-end gap-1">
-            <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="max-lg:min-h-11" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
+            <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="min-h-11 @5xl:min-h-8" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
             {localCopy && <span data-guest-draft-notice role="note" className="max-w-36 text-right text-xs leading-tight text-ink-2">Changes aren't saved. Fork to keep them</span>}
           </div>
           <CommentsToggle panel={panel} comments={comments} />
@@ -337,26 +337,32 @@ function ProjectCanvases({ list }) {
   );
 }
 
-// Wide: the menubar in the header. Below lg (1024px) the menus collapse into one Menu button whose panel holds the same menubar,
-// so a phone keeps readable labels instead of a squeezed row (owner header brief, 2026-10-22, item 7).
-const NARROW = '(max-width: 1023px)';
+// Wide: the menubar in the header. When the header itself is under 1024px wide (a phone, or a window with the right panel open) the
+// menus collapse into one Menu button whose panel holds the same menubar, so labels stay readable instead of a squeezed row
+// (owner header brief, 2026-10-22, item 7). The same 1024px is the header's @5xl container query, which sets the layout.
 function HeaderMenus({ menus }) {
-  const [narrow, setNarrow] = useState(() => window.matchMedia?.(NARROW).matches ?? false);
+  const anchor = useRef(null);
+  const [narrow, setNarrow] = useState(false);
   const [open, setOpen] = useState(false);
-  useEffect(() => {
-    const query = window.matchMedia?.(NARROW);
-    if (!query) return undefined;
-    const change = () => setNarrow(query.matches);
-    query.addEventListener('change', change);
-    return () => query.removeEventListener('change', change);
+  useLayoutEffect(() => {
+    const header = anchor.current?.closest('[data-canvas-header]');
+    if (!header) return undefined;
+    const measure = () => setNarrow(header.getBoundingClientRect().width < 1024);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(header);
+    return () => watch.disconnect();
   }, []);
-  if (!narrow) return <CanvasMenubar menus={menus} />;
   return (
-    <div className="relative shrink-0">
-      <button type="button" data-compact-menu aria-haspopup="true" aria-expanded={open} aria-label="Canvas menus" onClick={() => setOpen(!open)}
-        onKeyDown={event => { if (event.key === 'Escape') setOpen(false); }}
-        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><MenuIcon size={18} strokeWidth={1.8} /></button>
-      {open && <div className="absolute top-12 left-1/2 z-30 -translate-x-1/2 rounded-lg border border-line bg-white p-1 shadow-lg"><CanvasMenubar menus={menus} /></div>}
+    <div ref={anchor} className="contents">
+      {!narrow ? <CanvasMenubar menus={menus} /> : (
+        <div className="relative shrink-0">
+          <button type="button" data-compact-menu aria-haspopup="true" aria-expanded={open} aria-label="Canvas menus" onClick={() => setOpen(!open)}
+            onKeyDown={event => { if (event.key === 'Escape') setOpen(false); }}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-2 outline-none hover:bg-hover hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60"><MenuIcon size={18} strokeWidth={1.8} /></button>
+          {open && <div className="absolute top-12 left-0 z-30 rounded-lg border border-line bg-white p-1 shadow-lg"><CanvasMenubar menus={menus} /></div>}
+        </div>
+      )}
     </div>
   );
 }

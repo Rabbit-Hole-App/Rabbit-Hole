@@ -111,7 +111,7 @@ test('A: the viewer\'s chat stays private - the heading says so, and Fork sends 
   assert.match(composer, /<Lock size=\{11\} aria-hidden \/>Only you see this chat\.<\/p>/);
   // count is the canvas's canonical fork count from the server, shown on the button (canvas-forking.md).
   // SHARE-02's temporary copy (draft=) may ride with the fork; the chat never does.
-  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\}( signedIn=\{!!shared\.viewer\} variant="primary" className="max-lg:min-h-11")?( draft=\{guest\.forDraft\})? onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count > 0 \? shared\.fork_count : null\})? \/>/);
+  assert.match(page, /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\}( signedIn=\{!!shared\.viewer\} variant="primary" className="min-h-11 @5xl:min-h-8")?( draft=\{guest\.forDraft\})? onForked=\{[^}]*\}[^}]*\}( count=\{shared\.fork_count > 0 \? shared\.fork_count : null\})? \/>/);
   assert.doesNotMatch(page, /<ForkButton[^>]*snapshot=/, 'no browser state rides with a shared fork');
   // The chat goes to this tab's sessionStorage (saveChat) and, as history, only with this viewer's own questions.
   assert.deepEqual(composer.match(/saveChat\([^)]*\)|askHistory\([^)]*\)/g), ['saveChat(token, who, turns)', 'askHistory(turns)']);

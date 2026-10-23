@@ -115,18 +115,20 @@ for (const theme of ['light', 'dark']) {
   await context.close();
 }
 
-// ---- the narrowest width that keeps the full menubar (1024): the title truncates, the centre holds, nothing overlaps ----
-{
-  const { context, page } = await contextFor(null, { width: 1024, height: 800 });
+// ---- the header's own width decides: 1024px keeps the full menubar (a 1424 window with the panel open), less collapses it ----
+for (const [width, full] of [[1424, true], [1280, false]]) {
+  const { context, page } = await contextFor(null, { width, height: 800 });
   await open(page);
   const p = parts(page);
   const [h, c] = await Promise.all([box(p.header), box(p.centre)]);
-  check('1024 wide: the full menubar, a centred group, the long title cut short, nothing overlapping or scrolling sideways', await page.locator('[role="menubar"]').count() === 1 && await page.locator('[data-compact-menu]').count() === 0
-    && Math.abs((c.x + c.w / 2) - (h.x + h.w / 2)) <= 2 && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth) && (await noOverlaps(page)).length === 0, JSON.stringify(await noOverlaps(page)));
+  check(`${width} wide with the panel open (header ${Math.round(h.w)}px): ${full ? 'the full menubar, a centred group' : 'the compact menu, the title on its own row'}, the long title cut short, nothing overlapping or scrolling sideways`,
+    (await page.locator('[role="menubar"]').count()) === (full ? 1 : 0) && (await page.locator('[data-compact-menu]').count()) === (full ? 0 : 1)
+    && (full ? Math.abs((c.x + c.w / 2) - (h.x + h.w / 2)) <= 2 : c.y >= (await box(p.brand)).bottom - 1 && (await box(p.title)).w >= 60)
+    && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth) && (await noOverlaps(page)).length === 0, JSON.stringify(await noOverlaps(page)));
   await context.close();
 }
 
-// ---- a phone (and anything under 1024): the menus collapse into one compact menu; logo, Fork and the panel toggle stay usable at 44px ----
+// ---- a phone: the menus collapse into one compact menu; logo, Fork and the panel toggle stay usable at 44px ----
 {
   const { context, page } = await contextFor(null, { width: 390, height: 844 });
   await open(page);
