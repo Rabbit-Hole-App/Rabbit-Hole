@@ -275,13 +275,13 @@ test('AdaptiveCanvas.jsx: insertBlock takes `after` (indexAfter, ignoring the vi
 
 test('AdaptiveCanvas.jsx: persist() saves the board read through refs (canvas-persist.js); the debounced save is unchanged (LP1 Task 15)', () => {
   const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(src, /boardRef\.current = \{ strokes, shapes, items, links, blocks, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};/);
+  assert.match(src, /boardRef\.current = \{ strokes, shapes, items, links, blocks, groups, areas, \.\.\.\(toc \? \{ toc \} : \{\}\), \.\.\.\(doc \? \{ doc \} : \{\}\) \};/);
   // Final review B-C1: an unmounted canvas saves nothing (its stale board would overwrite the new canvas's copy).
   // The canvas document's live words ride too (docs/features/blocknote-canvas.md): the board read through refs plus liveDoc().
   assert.match(src, /persist: \(\) => \{\n\s+if \(!alive\.current\) return Promise\.resolve\(\{ ok: false \}\);\n\s+const live = liveDoc\(\);[\s\S]{0,300}return persistBoard\(\{ state: \{ \.\.\.boardRef\.current, \.\.\.\(live \? \{ doc: live \} : \{\}\) \}, storageKey, storage: \(\) => localStorage, onSave: onSaveRef\.current \}\);\n\s+\},/);
   // The debounced save: same key, shape, stripping, 400 ms, and onSave only after the first (loaded) run.
   assert.match(src, /const light = lightBlocks\(blocks\);/);
-  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); docWritten\.current = JSON\.stringify\(state\.doc \?\? null\); lastWritten\.current = JSON\.stringify\(state\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
+  assert.match(src, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(toc \? \{ toc \} : \{\}\), \.\.\.\(doc \? \{ doc \} : \{\}\) \};\n\s+if \(storageKey\) \{ try \{ localStorage\.setItem\(storageKey, JSON\.stringify\(state\)\); docWritten\.current = JSON\.stringify\(state\.doc \?\? null\); lastWritten\.current = JSON\.stringify\(state\); \} catch \{ \/\* full or blocked storage loses drawings only \*\/ \} \}\n\s+if \(!loaded\) onSaveRef\.current\?\.\(state\);\n\s+\}, 400\);/);
   // board-empty-report (owner: cancelling a pending save or remounting never discards work): what was last written is kept,
   // and on unmount a board that differs from it is written and pushed at once - never by a retired canvas.
   assert.match(src, /useEffect\(\(\) => \(\) => \{\n\s+const key = storageKeyRef\.current;\n\s+if \(retired\.current \|\| \(!key && !onSaveRef\.current\)\) return;\n\s+const state = savedShape\(boardRef\.current\), text = JSON\.stringify\(state\);\n\s+if \(text === lastWritten\.current\) return;[\s\S]{0,300}onSaveRef\.current\?\.\(state, \{ now: true \}\);\n\s+\}, \[\]\);/);
@@ -304,4 +304,22 @@ test('LearnPage.jsx: pushBoard has an awaitable immediate variant for persist() 
   // Publish to Explore (docs/features/explore-publish.md). Every board PUT in the page is one of these.
   assert.equal((page.match(/await pushQueue\(saveBoard\);/g) || []).length, 2);
   assert.equal((page.match(/method: 'PUT', body: JSON\.stringify\(\{ state/g) || []).length, 1, 'saveBoard is the one board PUT');
+});
+
+// Owner brief 2026-10-23, D3: a board that keeps its own Table of contents list gets the heading the journey draws as one
+// linked entry (learn-outline-model.js linkTocHeading); a resumed section draws no heading and links nothing again.
+test('materializeSection: a drawn heading joins a stored contents list once, linked; a resumed section links nothing', async () => {
+  const { linkTocHeading } = await import('./learn-outline-model.js');
+  const withToc = (seed, toc) => { const canvas = fakeCanvas(seed); canvas.toc = toc; canvas.linkTocHeading = heading => { canvas.calls.push(['linkTocHeading', heading]); canvas.toc = linkTocHeading(canvas.toc, heading); }; return canvas; };
+  const mine = [{ id: 'own', level: 1, text: 'My own section', done: false }];
+  const canvas = withToc([{ id: 'old', type: 'explanation' }], mine);
+  const out = await materializeSection({ canvas, journey: journeyWith(), sectionPlan: plan, post: async () => ({}) });
+  assert.deepEqual(canvas.calls.filter(c => c[0] === 'linkTocHeading'), [['linkTocHeading', { id: out.heading_block_id, level: 1, text: section1.title }]]);
+  assert.deepEqual(canvas.toc, [...mine, { id: out.heading_block_id, level: 1, text: section1.title, done: false, heading: out.heading_block_id }]);
+  const again = withToc(canvas.flow, canvas.toc);
+  await materializeSection({ canvas: again, journey: journeyWith(), sectionPlan: plan, post: async () => ({}) });
+  assert.equal(again.calls.filter(c => c[0] === 'linkTocHeading').length, 0, 'resumed: the heading is reused, not linked again');
+  assert.equal(again.toc.length, 2);
+  // A board still reading its canvas headings keeps null: the drawn heading is in its contents already.
+  assert.equal(linkTocHeading(null, { id: 'h', text: 'x' }), null);
 });

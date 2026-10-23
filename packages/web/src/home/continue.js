@@ -37,7 +37,7 @@ const lastQuestion = (chat) => {
 };
 
 // The learner's own outline and ticks (AdaptiveCanvas.jsx:901), never an inference.
-const nextHeading = (blob) => { try { return outlineFrom(blob?.blocks).find((h) => !h.done)?.label || null; } catch { return null; } };
+const nextHeading = (blob) => { try { return outlineFrom(blob?.blocks, blob?.toc).find((h) => !h.done)?.label || null; } catch { return null; } };
 
 // What this browser holds for a project's or canvas's Learn: the last question and the next
 // unticked heading, or null when it was never explored here.

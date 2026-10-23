@@ -111,3 +111,29 @@ test('the largest syllabus adopts into empty contents and into existing ones tha
   assert.equal(adoptAll([...titles, ...others(36)], syllabusProposal(big, outlineFrom([...titles, ...others(36)]))).ok, true, '12 + 36 + 72 = 120');
   assert.match(adoptAll([...titles, ...others(37)], syllabusProposal(big, outlineFrom([...titles, ...others(37)]))).message, /adds 72 headings to 49, .*: 71 more fit\.$/);
 });
+
+// Owner brief 2026-10-23: the page adopts a syllabus into the Table of contents' own list (AdaptiveCanvas applyOutline ->
+// applyTocAction). The canvas keeps every object as it was and gains no heading; the 120 limit counts the list.
+test('adoption as the page applies it changes the contents only: no canvas heading, the limit counts the stored list', async () => {
+  const { applyTocAction, tocOf } = await import('./learn-outline-model.js');
+  const canvas = [{ id: 'k1', type: 'explanation', dx: 0, dy: 0, title: 'Course notes', body: 'Where the course starts.' }];
+  const before = structuredClone(canvas);
+  const adoptToc = (toc, proposal) => applyTocAction(canvas, toc, { baseOutlineRevision: proposal.base, changes: proposal.ops }, { source: proposal.source, newId });
+  const first = adoptToc(null, syllabusProposal(syllabus, outlineFrom(canvas)));
+  assert.equal(first.ok, true, first.message);
+  assert.equal('blocks' in first, false, 'the answer carries no canvas blocks');
+  assert.deepEqual(first.toc.map(e => [e.level, e.text, e.description || '', e.done]), [
+    [1, 'Tides', 'Why the sea rises and falls.', false], [2, 'The moon', 'Its pull makes the bulges.', false], [2, 'The sun', '', false], [1, 'Tide tables', '', false],
+  ]);
+  assert.ok(first.toc.every(e => e.heading === undefined), 'new entries link no canvas heading');
+  assert.deepEqual(canvas, before, 'the canvas is untouched');
+  // Adopting the same syllabus again proposes nothing; Apply of the old proposal is stale.
+  assert.deepEqual(syllabusToOutlineOps(syllabus, outlineFrom(canvas, first.toc)), []);
+  assert.equal(adoptToc(first.toc, syllabusProposal(syllabus, outlineFrom(canvas))).reason, 'stale');
+  const big = { topics: Array.from({ length: 12 }, (_, i) => ({ title: `Unit ${i + 1}`, objectives: ['o'], subtopics: Array.from({ length: 6 }, (_, j) => ({ title: `Part ${j + 1}` })) })) };
+  const mine = n => Array.from({ length: n }, (_, i) => ({ id: `o${i}`, level: 1, text: `Mine ${i}`, done: false }));
+  assert.equal(adoptToc(mine(36), syllabusProposal(big, outlineFrom(canvas, mine(36)))).toc.length, MAX_OUTLINE_HEADINGS);
+  assert.match(adoptToc(mine(37), syllabusProposal(big, outlineFrom(canvas, mine(37)))).message, /adds 84 headings to 37, .*: 83 more fit\.$/);
+  assert.deepEqual(canvas, before, 'still untouched');
+  assert.deepEqual(tocOf(canvas, null), [], 'a canvas without headings starts with empty contents');
+});

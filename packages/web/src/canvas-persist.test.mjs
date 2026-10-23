@@ -225,3 +225,31 @@ test('switching canvases with an unsaved conflicted edit: each canvas keeps its 
   assert.deepEqual(merged.state.blocks.map(b => b.id), ['e1', 'e2', 'e3']);
   assert.deepEqual(merged.state.strokes, [], 'a stroke removed on the other device stays removed');
 });
+
+// Owner brief 2026-10-23: the Table of contents keeps its own list (board state `toc`). It goes up with the board, reads
+// back after a reload, and a 409 keeps its edits like any other object's; the canvas objects stay as they were.
+test('toc: saved, reloaded and compared with the board; none stays none, an emptied list stays empty', () => {
+  const toc = [{ id: 't1', level: 1, text: 'Kitchen science', done: true, heading: 't1' }, { id: 'n1', level: 2, text: 'Proofing', done: false }];
+  const board = { ...state, toc };
+  assert.deepEqual(boardFromText(boardText(board)).toc, toc, 'a reload reads the list back');
+  assert.notEqual(boardText(board), boardText(state), 'a contents-only edit is a change the page pushes');
+  assert.notEqual(boardText({ ...state, toc: [] }), boardText(state), 'every entry removed is not the same as reading the headings');
+  assert.deepEqual(boardFromText(boardText({ ...state, toc: [] })).toc, []);
+  assert.equal('toc' in boardFromText(boardText(state)), false, 'a board without a list reads its headings again');
+  // A board text written before the list existed (ten keys) reads back without one.
+  assert.equal('toc' in boardFromText(JSON.stringify(JSON.parse(boardText(state)).slice(0, 10))), false);
+  assert.equal(boardHasContent({ toc }), true, 'contents alone are worth a save');
+});
+
+test('toc: a 409 merge keeps this browser\'s contents edits on the server\'s newer copy, and the server\'s own', () => {
+  const blocks = [{ id: 't1', type: 'heading', level: 1, text: 'Kitchen chemistry' }, { id: 'c1', type: 'explanation' }];
+  const base = { ...state, blocks, toc: [{ id: 't1', level: 1, text: 'Kitchen chemistry', done: false, heading: 't1' }] };
+  const mine = { ...base, toc: [{ ...base.toc[0], text: 'Kitchen science' }, { id: 'n1', level: 2, text: 'Proofing', done: false }] };
+  const server = { ...base, toc: [...base.toc, { id: 'n2', level: 1, text: 'Baking', done: false }] };
+  const merged = withPendingWork(server, pendingWork(base, mine), id => `${id}-mine`);
+  assert.deepEqual(merged.state.toc.map(e => [e.id, e.text]), [['t1', 'Kitchen science'], ['n2', 'Baking'], ['n1', 'Proofing']]);
+  assert.deepEqual(merged.state.blocks, blocks, 'the canvas objects are untouched');
+  // The first edit on a board that read its headings: the whole copied list is this browser's work.
+  const first = withPendingWork({ ...state, blocks }, pendingWork({ ...state, blocks }, mine), id => `${id}-mine`);
+  assert.deepEqual(first.state.toc, mine.toc);
+});

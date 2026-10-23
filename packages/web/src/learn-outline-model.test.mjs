@@ -345,3 +345,134 @@ test('a syllabus adoption may carry up to 96 changes; anything else stays at 24 
   assert.equal(proposalProblem([], { ops: topics(60), source: 'syllabus' }), null);
   assert.match(proposalProblem([], { ops: topics(60), source: 'tutor' }), /at most 24/);
 });
+
+// ---- Owner brief 2026-10-23: Table of contents actions change only the contents' own list, never the canvas. Each test
+// drives the canvas command as the panel calls it (TableOfContents.jsx -> canvasApi.applyOutline / moveSection /
+// toggleSectionDone / removeSection -> AdaptiveCanvas -> these functions) on a canvas with headings and cards, and checks
+// the canvas blocks stay exactly as they were.
+import { applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocOf, tocHeading, tocEntryFor, linkedHeadings, outlinePlan } from './learn-outline-model.js';
+import { readFileSync } from 'node:fs';
+
+const canvasBoard = () => [h('t1', 1, 'Kitchen chemistry'), card('c1'), h('s11', 2, 'Maillard browning', true), card('c11'), h('t2', 1, 'Baking'), card('c2')];
+let made = 0;
+const mint = () => `new-${made += 1}`;
+// As the panel's add row sends it (TableOfContents.jsx onBlur), and as the canvas applies it (AdaptiveCanvas applyOutline).
+const panelAdd = (blocks, toc, level, text) => applyTocAction(blocks, toc, { changes: [{ op: 'add', level, text, after: null }] }, { newId: mint });
+const unchanged = (blocks, label) => assert.deepEqual(blocks, canvasBoard(), `${label}: the canvas objects and their content are unchanged`);
+
+test('TOC: add section creates no canvas object; the first edit copies the canvas headings into the list, linked and with their ids', () => {
+  const blocks = canvasBoard();
+  const result = panelAdd(blocks, null, 1, 'Fermentation');
+  assert.equal(result.ok, true);
+  assert.equal('blocks' in result, false);
+  unchanged(blocks, 'add section');
+  assert.equal(blocks.filter(b => b.type === 'heading').length, 3, 'no heading was added to the canvas');
+  assert.deepEqual(result.toc, [
+    { id: 't1', level: 1, text: 'Kitchen chemistry', done: false, heading: 't1' },
+    { id: 's11', level: 2, text: 'Maillard browning', done: true, heading: 's11' },
+    { id: 't2', level: 1, text: 'Baking', done: false, heading: 't2' },
+    { id: 'new-1', level: 1, text: 'Fermentation', done: false },
+  ]);
+  // The outline the panel and the Tutor read: the stored list, as before plus the new section, at the same revision for
+  // the copied part, so a proposal made before the first edit still applies.
+  assert.deepEqual(outlineFrom(blocks, result.toc).map(e => [e.id, e.level, e.label]), [['t1', 1, 'Kitchen chemistry'], ['s11', 2, 'Maillard browning'], ['t2', 1, 'Baking'], ['new-1', 1, 'Fermentation']]);
+  assert.equal(outlineRevision(outlineFrom(blocks, tocOf(blocks, null))), outlineRevision(outlineFrom(blocks)));
+});
+
+test('TOC: add subsection lands in the list only; the canvas keeps its count', () => {
+  const blocks = canvasBoard();
+  const first = panelAdd(blocks, null, 1, 'Fermentation');
+  const second = panelAdd(blocks, first.toc, 2, 'Sourdough starters');
+  assert.equal(second.ok, true);
+  assert.deepEqual(second.toc.at(-1), { id: `new-${made}`, level: 2, text: 'Sourdough starters', done: false });
+  assert.equal(second.toc.length, 5);
+  assert.deepEqual(outlineFrom(blocks, second.toc).at(-1).level, 2);
+  unchanged(blocks, 'add subsection');
+});
+
+test('TOC: Apply of a Tutor proposal changes only the list; a repeated Apply is stale and changes nothing', () => {
+  const blocks = canvasBoard();
+  const base = outlineRevision(outlineFrom(blocks));
+  const proposal = { ops: [{ op: 'add', level: 2, text: 'Proofing', parent: 't2', description: 'Why dough rests.' }, { op: 'retitle', id: 't1', text: 'Kitchen science' }], base, source: 'tutor' };
+  // As ProposalCard apply() and LearnPage's TOC conversation call it.
+  const apply = toc => applyTocAction(blocks, toc, { baseOutlineRevision: proposal.base, changes: proposal.ops }, { source: proposal.source, newId: mint });
+  const once = apply(null);
+  assert.equal(once.ok, true, once.message);
+  assert.equal(once.applied, 2);
+  assert.deepEqual(once.toc.map(e => [e.id, e.level, e.text, e.description ?? '', e.heading ?? null]), [
+    ['t1', 1, 'Kitchen science', '', 't1'], ['s11', 2, 'Maillard browning', '', 's11'], ['t2', 1, 'Baking', '', 't2'], [once.toc[3].id, 2, 'Proofing', 'Why dough rests.', null],
+  ]);
+  assert.equal(once.outlineRevision, outlineRevision(outlineFrom(blocks, once.toc)));
+  unchanged(blocks, 'Apply');
+  for (let i = 0; i < 3; i += 1) {
+    const again = apply(once.toc);
+    assert.deepEqual([again.ok, again.reason], [false, 'stale'], 'repeated Apply');
+    assert.equal(again.toc, undefined);
+  }
+  unchanged(blocks, 'repeated Apply');
+  // The same request asked again on the new contents adds no duplicate either (a twin title is skipped).
+  const fresh = applyTocAction(blocks, once.toc, { baseOutlineRevision: once.outlineRevision, changes: [proposal.ops[0]] }, { source: 'tutor', newId: mint });
+  assert.deepEqual([fresh.ok, fresh.applied, fresh.skipped], [true, 0, 1]);
+  assert.deepEqual(fresh.toc, once.toc);
+  // A view-only board takes nothing.
+  assert.equal(applyTocAction(blocks, null, { changes: proposal.ops }, { canEdit: false }).reason, 'read_only');
+});
+
+test('TOC: edits, ticks, drags and removals of a linked entry change the entry only, never its canvas heading', () => {
+  const blocks = canvasBoard();
+  const renamed = applyTocAction(blocks, null, { changes: [{ op: 'retitle', id: 's11', text: 'Browning' }, { op: 'describe', id: 's11', description: 'Above 140 C.' }] }, {}).toc;
+  assert.deepEqual(renamed[1], { id: 's11', level: 2, text: 'Browning', done: true, heading: 's11', description: 'Above 140 C.' });
+  const ticked = toggleTocDone(blocks, renamed, 't2');
+  assert.equal(ticked[2].done, true);
+  const moved = moveTocSection(blocks, ticked, 't2', 't1');
+  assert.deepEqual(moved.map(e => e.id), ['t2', 't1', 's11'], 'the section moves with its sub-sections in the contents');
+  assert.deepEqual(moved.find(e => e.id === 's11'), renamed[1], 'an entry keeps what it holds when it moves');
+  const removed = removeTocEntry(blocks, moved, 't1');
+  assert.deepEqual(removed.map(e => e.id), ['t2', 's11'], 'only the entry goes; its sub-section stays');
+  unchanged(blocks, 'edit, tick, drag and remove');
+  // A tick on a board still reading its headings stores the copy; the canvas heading's own done is untouched.
+  assert.deepEqual(toggleTocDone(blocks, null, 't1').map(e => [e.id, e.done]), [['t1', true], ['s11', true], ['t2', false]]);
+  unchanged(blocks, 'first tick');
+});
+
+test('TOC: a title frames its linked canvas heading; an entry without one frames nothing; the viewed heading marks its entry', () => {
+  const toc = [{ id: 't1', level: 1, text: 'A', done: false, heading: 't1' }, { id: 'n1', level: 1, text: 'B', done: false }];
+  assert.equal(tocHeading(toc, 't1'), 't1');
+  assert.equal(tocHeading(toc, 'n1'), null, 'nothing on the canvas to frame');
+  assert.equal(tocHeading(toc, 'journey-heading'), 'journey-heading', 'a canvas heading id (the journey rail, Resume) frames itself');
+  assert.equal(tocHeading(null, 'x'), 'x');
+  assert.equal(tocEntryFor(toc, 't1'), 't1');
+  assert.equal(tocEntryFor(toc, 's11'), null, 'a canvas heading the contents do not list marks no entry');
+  assert.equal(tocEntryFor(null, 's11'), 's11');
+});
+
+test('TOC: a journey heading the contents no longer list reads as Section removed; the canvas heading and its cards stay', () => {
+  const blocks = [h('notes', 1, 'Notes'), { id: 'hj', type: 'heading', level: 1, text: 'Step 1', journey_section_id: 's1', journey_id: 'j1' }, { id: 'k1', type: 'explanation', journey: { section_id: 's1' } }];
+  const journey = { id: 'j1', state: 'active', active_section_id: 's1' }, path = { sections: [{ id: 's1', title: 'Step 1', status: 'current', heading_block_id: 'hj' }] };
+  const listed = toggleTocDone(blocks, null, 'notes');
+  assert.deepEqual(outlinePlan({ headings: linkedHeadings(blocks, listed), journey, path }).learningNow, { headingId: 'hj' });
+  const removed = removeTocEntry(blocks, listed, 'hj');
+  const plan = outlinePlan({ headings: linkedHeadings(blocks, removed), journey, path });
+  assert.deepEqual(plan.steps.map(s => [s.sectionId, s.state]), [['s1', 'removed']]);
+  assert.deepEqual(plan.learningNow, { sectionId: 's1', title: 'Step 1', removed: true });
+  assert.equal(blocks.length, 3, 'the canvas heading and its card stay');
+  assert.deepEqual(linkedHeadings(blocks, null).map(b => b.id), ['notes', 'hj'], 'a board reading its headings links them all');
+  assert.deepEqual(linkTocHeading(removed, { id: 'hj', text: 'Step 1' }).at(-1), { id: 'hj', level: 1, text: 'Step 1', done: false, heading: 'hj' });
+  assert.equal(linkTocHeading(listed, { id: 'hj' }), listed, 'already linked: unchanged');
+  assert.deepEqual(tocOf(blocks, removed), removed);
+});
+
+// The wiring: every Table of contents command on the canvas sets the contents list and never the canvas blocks.
+test('TOC: AdaptiveCanvas applyOutline, moveSection, toggleSectionDone, removeSection and linkTocHeading never set the canvas blocks', () => {
+  const src = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const start = src.indexOf('      applyOutline: (ops, { base, source, planBase, plan = null } = {}) => {'), end = src.indexOf('      showSection: id => {', start);
+  assert.ok(start > 0 && end > start);
+  const commands = src.slice(start, end);
+  for (const name of ['applyOutline:', 'moveSection:', 'toggleSectionDone:', 'removeSection:', 'linkTocHeading:']) assert.ok(commands.includes(name), name);
+  assert.doesNotMatch(commands, /setBlocks|insertBlock|insertHeading/);
+  assert.match(commands, /setToc\(result\.toc\)/);
+  assert.match(src, /const outline = outlineFrom\(blocks, toc\);/);
+  // Saved with the board and restored on load and undo.
+  assert.match(src, /useState\(\(\) => \(Array\.isArray\(stored\.current\.toc\) \? stored\.current\.toc : null\)\)/);
+  assert.match(src, /if \('toc' in state\) setToc\(state\.toc\);/);
+});
