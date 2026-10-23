@@ -68,6 +68,14 @@ export const sharedRole = ({ embed = false, access = null, viewer = null } = {})
 // Plain wheel belongs to the article; ctrl/cmd+wheel (a pinch too) belongs to the canvas only once it has focus.
 export const canvasOwnsWheel = (event, focused) => focused && !!(event.ctrlKey || event.metaKey);
 
+// A zoom the canvas did not take (nothing called preventDefault on it): over a control that floats beside the canvas surface (the
+// left stack, the zoom pill) the surface never sees the wheel, so the browser would scroll the host page. The embed takes it:
+// the default is cancelled, and a zoom over a control outside the surface is replayed on the surface.
+export const leftoverZoom = (event, focused, insideSurface) => {
+  const mine = canvasOwnsWheel(event, focused) && !event.defaultPrevented;
+  return { prevent: mine, forward: mine && !insideSurface };
+};
+
 // Whether the canvas has focus after an event: a press or focus inside it sets it; a press elsewhere in the frame or the frame
 // losing the window's focus clears it. focusout and other types change nothing.
 export const focusAfter = (focused, type, inside) => (type === 'pointerdown' ? inside : type === 'focusin' ? inside || focused : type === 'blur' ? false : focused);
