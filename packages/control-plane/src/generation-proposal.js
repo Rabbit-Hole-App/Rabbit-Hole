@@ -20,6 +20,8 @@ import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
 import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
+import { imageQuote } from './image-providers.js';
+import { imageReadiness } from './image-settings.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
@@ -32,7 +34,8 @@ export const reviewRequired = command => chatCapability(command)?.flow === 'prop
 export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewRequired));
 // What the server may sign: the chat tool's commands plus /explain, whose brief the server prepares itself (EXP-T12/T16).
 // The chat model is offered only WIRED; /explain joins it when its capability is declared (Lane B, CHAT_CAPABILITIES).
-export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain'])]);
+// IMG-01: /generate-image is signed (v3 only, chat-proposal-route.js) by the server from the person's own request: no chat model proposes it.
+export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain', 'generate-image'])]);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // The bounds are the declaration's Duration field: one definition with the card.
@@ -153,6 +156,22 @@ export function proposalUsage(env, command) {
   return { estimate_credits: credits(estimate), reserve_credits: hold == null ? null : credits(hold / 1e6) };
 }
 
+// IMG-01: the signed quote of a generate-image proposal (what image-jobs.js compares with its own at create), the display usage from it,
+// and the readiness answer for the card (image-settings.js; unsigned like usage and decided again at create).
+// The prompt the provider receives is the proposal's pill-free description, trimmed (image-jobs.js), so its bytes are priced.
+export function imageProposalQuote(env, r) {
+  const description = (plainPrompt(r.prompt, r.references) || '').trim();
+  const quote = imageQuote(env, r.settings, r.references.length, new TextEncoder().encode(description).length);
+  return quote.state === 'priced' ? { estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits } : null;
+}
+const quoteUsage = quote => ({ estimate_credits: quote?.estimate_credits ?? null, reserve_credits: quote?.reserve_credits ?? null });
+const readinessOf = p => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : {});
+// The default verifier of image-jobs.js: only the v3 envelope carries the references and the quote an image is approved with.
+export async function verifyImageProposal(env, p, user) {
+  if (p?.command === 'generate-image' && !v3sig(p.sig)) return 'This image proposal is out of date. Ask for it again.';
+  return verifyProposal(env, p, user);
+}
+
 // fields: validateProposalInput's result plus input. A revision keeps the proposal id and takes the next version.
 // v3 is signed when envelope is 'v3' (a v2 key and the destination, org and app, must exist); fields may carry prompt, references, the lists,
 // original_request, mode, visual_constraints and quote (generation-review.js). Without a prompt, the description is the prompt.
@@ -162,22 +181,25 @@ export async function signProposal(env, fields, user, { id = null, version = 1, 
     settings: fields.settings, source_refs: fields.source_refs || [], input: fields.input, expires_at: now + PROPOSAL_TTL_S };
   const destination = fields.destination ?? (fields.input?.org && fields.input?.app ? { org: fields.input.org, app: fields.input.app } : null);
   if (envelope === 'v3' && !destination) throw new Error('A reviewed proposal needs its canvas.');
+  if (p.command === 'generate-image' && envelope !== 'v3') throw new Error('An image proposal needs the reviewed envelope.');
   if (envelope === 'v3') {
     if (!v2Secret(env)) throw unavailable(p.command);
     const review = validateReview({ command: p.command, mode: fields.mode, original_request: fields.original_request ?? fields.input?.request ?? '', title: p.title, prompt: fields.prompt ?? escapeText(p.description),
       visual_constraints: fields.visual_constraints, references: fields.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, fields[k]])), settings: p.settings, quote: fields.quote, destination });
     if (review.error) throw new Error(review.error);
     const r = review.value;
+    // IMG-01: the price is the server's own quote for these settings and references, never a client's (null = not known, Generate stays blocked).
+    if (p.command === 'generate-image') r.quote = imageProposalQuote(env, r);
     Object.assign(p, { description: plainPrompt(r.prompt, r.references), schema_version: SCHEMA_VERSION, mode: r.mode, original_request: r.original_request, prompt: r.prompt, visual_constraints: r.visual_constraints,
       references: r.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, r[k]])), destination: r.destination, quote: r.quote, review_hash: await reviewHash(r) });
-    return { ...p, sig: await signature(env, p, user, 'v3'), usage: proposalUsage(env, p.command) };
+    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command), ...readinessOf(p) };
   }
   return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command) };
 }
 
 // The shape only (synchronous, for motion_request validation); verifyProposal checks the signature.
 export function proposalShape(p) {
-  if (!plain(p) || Object.keys(p).some(k => ![...(v3sig(p.sig) ? SIGNED_V3 : SIGNED), 'sig', 'usage'].includes(k))) return 'the proposal is not a generation proposal';
+  if (!plain(p) || Object.keys(p).some(k => ![...(v3sig(p.sig) ? SIGNED_V3 : SIGNED), 'sig', 'usage', 'readiness'].includes(k))) return 'the proposal is not a generation proposal';
   if (!ID.test(p.proposal_id || '') || !Number.isSafeInteger(p.version) || p.version < 1 || !SIGNABLE.includes(p.command) || !SIG.test(p.sig || '') || !Number.isSafeInteger(p.expires_at) || !plain(p.settings) || !plain(p.input)) return 'the proposal is not a generation proposal';
   return null;
 }
@@ -264,7 +286,7 @@ const RECORD = "SELECT mm.message_id, mm.meta_json FROM chat_message_meta mm JOI
 export const PROPOSAL_STALE = 'A newer version of this proposal exists. Use the latest card in the chat.';
 export const PROPOSAL_USED = 'This proposal already made a video. Ask for a new version in chat to make another.';
 // The used text per capability (Motion's unchanged).
-export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : PROPOSAL_USED);
+export const proposalUsedText = command => (command === 'explain' ? 'This proposal already made an explanation. Ask for a new version in chat to make another.' : command === 'generate-image' ? 'This proposal already made an image. Ask for a new one to make another.' : PROPOSAL_USED);
 export const proposalState = p => ({ version: p.version, sig: p.sig, used: null });
 // -> {rows, root, state, current}: current is the published revision's proposal (null while its answer is being written).
 export async function proposalRecord(db, user, app, id) {

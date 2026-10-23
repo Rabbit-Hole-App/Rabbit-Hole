@@ -9,6 +9,19 @@ import { blockedReferences, referenceStates, revisionOfContextRef } from '../../
 // reference's content yet, so a reference on a Motion proposal is unsupported rather than ignored. /explain reads files and code
 // through the same reader its job-create uses (explain-context-refs.js), under the asker's access.
 export const CONSUMES = Object.freeze({ motion: [], explain: ['file', 'code'] });
+const IMAGE_FILE = /^fs_[a-f0-9]{24}$/, IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'], IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+// /generate-image reads the stored image itself (image-jobs.js loads the authorized bytes), so its states come from the file source:
+// the id is a stored file the requester may read, an image the provider takes, and its sha256 is the revision the person attached.
+async function imageProbes(env, references, ctx, authorize) {
+  const authorizeSource = authorize || (await import('./file-access.js')).authorizeFileSource;
+  const probes = {};
+  for (const r of references) {
+    if (r.kind !== 'file' || !IMAGE_FILE.test(r.sourceId)) { probes[r.id] = { supported: false }; continue; }
+    const access = await authorizeSource(ctx.req, env, r.sourceId).catch(() => null), s = access instanceof Response ? null : access?.source;
+    probes[r.id] = !s ? { access: false } : s.family !== 'image' || !IMAGE_TYPES.includes(s.media_type) || s.bytes > IMAGE_MAX_BYTES ? { supported: false } : { revision: s.sha256 };
+  }
+  return probes;
+}
 
 const contextRef = r => ({ sourceId: r.sourceId, kind: r.kind, name: r.label.slice(0, 120), version: r.revision, range: r.range });
 
@@ -17,6 +30,10 @@ const contextRef = r => ({ sourceId: r.sourceId, kind: r.kind, name: r.label.sli
 export async function resolveReferences(env, p, ctx, deps = {}) {
   const references = p.references || [];
   if (!references.length) return { states: [], blocked: [], text: '', refs: [] };
+  if (p.command === 'generate-image') {
+    const states = referenceStates(references, await imageProbes(env, references, ctx, deps.authorize));
+    return { states, blocked: blockedReferences(states), text: '', refs: [] };
+  }
   const consumes = CONSUMES[p.command] || [];
   const probes = {}, readable = references.filter(r => consumes.includes(r.kind));
   for (const r of references) if (!consumes.includes(r.kind)) probes[r.id] = { supported: false };

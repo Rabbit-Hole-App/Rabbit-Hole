@@ -14,7 +14,8 @@
 import { admitSpend, settleSpend, spendMessage } from './learn-spend-ledger.js';
 import { learnMedia } from './learn-storage.js';
 import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, toMicros } from './learn-usage.js';
-import { verifyProposal, consumeProposal } from './generation-proposal.js';
+import { verifyImageProposal, consumeProposal } from './generation-proposal.js';
+import { imageReadiness } from './image-settings.js';
 import { IMAGE_MODELS, imageSettings, imageQuote, imageAdapter, providerConfigured, measuredCostUsd } from './image-providers.js';
 
 const GEN = /^[A-Za-z0-9_-]{16,64}$/, SOURCE = /^fs_[a-f0-9]{24}$/, HEX = /^[a-f0-9]{64}$/;
@@ -48,9 +49,9 @@ const defaults = {
     return { owner, row: await ownerRow(env, owner, body.app, body.board || 'main') };
   },
   source: async (req, env, id, row) => (await import('./file-access.js')).authorizeFileSource(req, env, id, { row }),
-  // The shared confirmation's signed proposal (generation-proposal.js). Until the UI-15.1 v3 envelope adds generate-image, this
-  // refuses every image proposal, so no job can start from main even with the flag on.
-  verify: (env, p, user) => verifyProposal(env, p, user),
+  // The shared confirmation's signed v3 proposal (generation-proposal.js verifyImageProposal; made by chat-proposal-route.js).
+  verify: (env, p, user) => verifyImageProposal(env, p, user),
+  ready: imageReadiness,
   consume: (db, p, user, dest, key) => consumeProposal(db, p, user, dest, key),
 };
 const stub = (env, user, id) => env.IMAGE_JOBS.get(env.IMAGE_JOBS.idFromName(`image-job:${user.org}|${String(user.email).toLowerCase()}|${id}`));
@@ -98,6 +99,9 @@ async function createJob(req, env, deps) {
   if (!prompt || prompt.length > PROMPT_MAX || !Array.isArray(refs)) return json({ error: 'The approved prompt is missing or too long.', code: 'proposal_invalid' }, 409);
   const settings = imageSettings(p.settings, refs.length);
   if (settings.error) return json({ error: settings.error, code: 'settings_invalid' }, 409);
+  // Only combinations a live acceptance run covered may start (image-settings.js); the card said so before the person confirmed.
+  const ready = deps.ready(settings.value, refs.length);
+  if (!ready.ready) return json({ error: ready.message, code: ready.code }, 409);
   const quote = imageQuote(env, settings.value, refs.length, new TextEncoder().encode(prompt).length);
   if (quote.state !== 'priced') return json({ error: quote.message, code: 'quote_unknown', reason: quote.reason }, 409);
   // The approval covers the quote: a price or bound that changed since needs a new approval (generation-review-contract.md 5).

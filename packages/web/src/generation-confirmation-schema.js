@@ -248,7 +248,9 @@ export function proposalView(p, resolved = {}) {
   // dropped). A proposal saved before the schema existed keeps the values it was made with. A command that needs a server quote
   // (requires_quote) is blocked, with the reason, while the server has none: the price is never taken as zero.
   const priced = p.usage?.estimate_credits != null;
-  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...(def?.requires_quote && !priced ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...(resolved.validation_errors ?? [])];
+  // The server's readiness answer (control-plane motion-settings.js) is shown before confirmation and blocks Generate; the options stay selectable.
+  const unready = p.readiness?.ready === false ? [{ path: 'readiness', message: p.readiness.message }] : [];
+  const validation_errors = [...(p.schema_version ? settingsProblems(p.command, p.settings, { references: p.references ?? [] }) : []), ...(def?.requires_quote && !priced ? [{ path: 'usage', message: 'The price for these settings is not known yet, so it cannot be generated.' }] : []), ...unready, ...(resolved.validation_errors ?? [])];
   return {
     schema_version: p.schema_version ?? SCHEMA_VERSION, proposal_id: p.proposal_id, revision: p.version, command: p.command, original_request: p.original_request ?? p.input?.request ?? '',
     title: p.title, description: typeof p.prompt === 'string' ? p.prompt : p.description, settings: p.settings ?? {}, references: p.references ?? [],
