@@ -4,7 +4,7 @@
 // Chromium page on a distinct-origin host (embed-harness.mjs): which pages a third-party site can frame and which it cannot.
 // The browser half that needs cookies (guest Chat count, blocked storage, wheel, owner powers) is embed-check.mjs.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/embed-access-check.mjs [shotsDir]
-import { BASE, SITE, startHost, launchAvailable, sessionFor, run, api, post, makeCanvas, putCover, PNG, SEED, reporter, hostUrl, embedPath } from './embed-harness.mjs';
+import { BASE, SITE, startHost, launchAvailable, sessionFor, run, api, post, makeCanvas, putCover, PNG, SEED, contextOptions, reporter, hostUrl, embedPath } from './embed-harness.mjs';
 
 const TOTAL = 34; // bump with the checks below; the printed line is what CI reads
 const { check, finish } = reporter('embed-access-check', TOTAL);
@@ -122,25 +122,24 @@ check('without the marker a /b link behaves as before: data for a signed-out vis
 // ---- H. framing, in a real browser on a distinct origin ----
 const host = await startHost();
 const browser = await launchAvailable();
-const context = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+const context = await browser.newContext(contextOptions);
 const page = await context.newPage();
 const frameOf = async (path, pred) => {
   await page.goto(hostUrl(host, 'a', path, '&lazy=0'));
-  const want = BASE + path;
   // A blocked frame ends on chrome-error://chromewebdata/ (the host cannot read why); a framed page keeps its address.
   await page.waitForFunction(() => document.querySelector('iframe'), null, { timeout: 15000 });
   const frame = () => page.frames().find(f => f !== page.mainFrame());
   const end = Date.now() + 30000;
-  while (Date.now() < end) { const f = frame(); if (f && (f.url().startsWith(BASE) || f.url().startsWith('chrome-error:'))) return { f, url: f.url() }; await new Promise(r => setTimeout(r, 100)); } // wait for the frame's navigation to commit
+  while (Date.now() < end) { const f = frame(); if (f && (f.url().startsWith(host.app) || f.url().startsWith('chrome-error:'))) return { f, url: f.url() }; await new Promise(r => setTimeout(r, 100)); } // wait for the frame's navigation to commit
   return { f: frame(), url: frame()?.url() };
 };
 const blocked = [];
 for (const p of ['/sign-in', '/library', `/b/${pub.view}`]) blocked.push([p, (await frameOf(p)).url]);
 check('a third-party site cannot frame sign-in, the library or an ordinary shared page', blocked.every(([, u]) => u.startsWith('chrome-error:')), JSON.stringify(blocked));
 const ok = await frameOf(embedPath('b', pub.view));
-check('the same third-party site can frame the embed page, and it renders there', ok.url.startsWith(`${BASE}/embed/b/`) && await ok.f.locator('[data-embed-root]').waitFor({ timeout: 60000 }).then(() => true, () => false), ok.url);
+check('the same third-party site can frame the embed page, and it renders there', ok.url.startsWith(`${host.app}/embed/b/`) && await ok.f.locator('[data-embed-root]').waitFor({ timeout: 60000 }).then(() => true, () => false), ok.url);
 // Internal frames of our own pages keep working: same-origin frames (frame-ancestors self), and blob documents.
-await page.goto(`${BASE}/sign-in`);
+await page.goto(`${host.app}/sign-in`);
 const internal = await page.evaluate(async () => {
   const load = src => new Promise(resolve => { const f = document.createElement('iframe'); f.src = src; f.onload = () => resolve(f); document.body.append(f); });
   const own = await load('/sign-in'), blob = await load(URL.createObjectURL(new Blob(['<p id="in">inside</p>'], { type: 'text/html' })));

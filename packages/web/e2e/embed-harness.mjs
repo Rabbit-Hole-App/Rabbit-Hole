@@ -13,6 +13,7 @@
 //     profile before launch; blocking is never assumed - blockedProfile() launches, asks the app to set a cookie from inside a
 //     cross-site frame and only returns a profile in which context.cookies() really holds nothing.
 import http from 'node:http';
+import https from 'node:https';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -29,16 +30,51 @@ export const SITE = { a: others[0], b: others[1], same: appHost };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 // /host?src=<path>&src=<path>&h=320&lazy=1 holds one iframe per src (an app path), between two tall spacers so the host page scrolls.
 // /framed?src=<path> is one bare iframe. /hit is a recorded no-op the host page can fetch (nothing to see).
-function page(url) {
-  const srcs = url.searchParams.getAll('src').map(p => BASE + p).concat(url.searchParams.getAll('abs')), height = Number(url.searchParams.get('h')) || 320;
+function page(url, app) {
+  const srcs = url.searchParams.getAll('src').map(p => app + p).concat(url.searchParams.getAll('abs')), height = Number(url.searchParams.get('h')) || 320;
   const frames = srcs.map((s, i) => `<iframe id="f${i}" src="${esc(s)}" title="Embedded canvas ${i + 1}" ${url.searchParams.get('lazy') === '0' ? '' : 'loading="lazy"'} style="display:block;width:100%;height:${height}px;border:1px solid #ccc"></iframe>`).join('\n');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Host page</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;font:16px sans-serif"><script>window.__messages = []; addEventListener('message', e => window.__messages.push(typeof e.data === 'string' ? e.data : JSON.stringify(e.data)));</script><div id="above" style="height:900px">A blog post above the embed.</div>${frames}<div id="below" style="height:1400px">The rest of the blog post.</div></body></html>`;
 }
+// A throwaway self-signed certificate (openssl, 2 days). Without openssl the whole harness falls back to plain http and says so:
+// WebKit may refuse a Secure cookie over http, so that run is then reported as such.
+function selfSigned() {
+  try {
+    const dir = mkdtempSync(join(tmpdir(), 'embed-tls-'));
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', join(dir, 'k.pem'), '-out', join(dir, 'c.pem'), '-days', '2', '-subj', '/CN=localhost',
+      '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1,IP:127.0.0.2'], { stdio: 'ignore' });
+    const tls = { key: readFileSync(join(dir, 'k.pem')), cert: readFileSync(join(dir, 'c.pem')) };
+    rmSync(dir, { recursive: true, force: true });
+    return tls;
+  } catch (error) { console.log(`no openssl (${error.code || error.message}): the embed checks run over plain http`); return null; }
+}
+// Every browser context the checks make: the self-signed certificate is accepted.
+export const contextOptions = { ignoreHTTPSErrors: true, viewport: { width: 1000, height: 800 } };
+// Starts the host site and, over the same certificate, an https front for the app (the stack itself is http): the browser sees the
+// app at host.app, https://<app host>:<port>, so Secure and Partitioned cookies behave as on the real site. The front rewrites only
+// Host, Origin and Referer going in and Location coming out, and streams everything else.
 export async function startHost() {
-  const server = http.createServer((req, res) => {
+  const tls = selfSigned(), scheme = tls ? 'https' : 'http', make = handler => (tls ? https.createServer(tls, handler) : http.createServer(handler));
+  const listen = server => new Promise(resolve => server.listen(0, '0.0.0.0', () => resolve(server.address().port)));
+  let app = BASE, front = null;
+  if (tls) {
+    const target = new URL(BASE);
+    front = make((req, res) => {
+      const headers = { ...req.headers, host: target.host };
+      for (const name of ['origin', 'referer']) if (headers[name]) headers[name] = headers[name].replace(app, BASE);
+      const up = http.request({ host: target.hostname, port: target.port, method: req.method, path: req.url, headers }, r => {
+        const out = { ...r.headers };
+        if (out.location) out.location = out.location.replace(BASE, app);
+        res.writeHead(r.statusCode, out); r.pipe(res);
+      });
+      up.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); });
+      req.pipe(up);
+    });
+    app = `https://${appHost}:${await listen(front)}`;
+  }
+  const server = make((req, res) => {
     const url = new URL(req.url, 'http://host.invalid');
-    if (url.pathname === '/host' || url.pathname === '/framed') { res.writeHead(200, { 'content-type': 'text/html;charset=utf-8', 'cache-control': 'no-store' }); return res.end(page(url)); }
+    if (url.pathname === '/host' || url.pathname === '/framed') { res.writeHead(200, { 'content-type': 'text/html;charset=utf-8', 'cache-control': 'no-store' }); return res.end(page(url, app)); }
     // The cookie canary: this server answers on the app's own host (another port; cookies ignore ports), so framed under a
     // different site it is a third-party cookie exactly like the app's. /canary sets one the way rh_embed is set; /canary/read
     // reports whether the browser sent it back.
@@ -46,9 +82,9 @@ export async function startHost() {
     if (url.pathname === '/canary/read') { res.writeHead(200, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ sent: /(^|;\s*)canary=1/.test(req.headers.cookie || '') })); }
     res.writeHead(404); res.end('not found');
   });
-  await new Promise(resolve => server.listen(0, '0.0.0.0', resolve));
-  const port = server.address().port;
-  return { port, url: (site, path) => `http://${SITE[site]}:${port}${path}`, close: () => new Promise(resolve => server.close(resolve)) };
+  const port = await listen(server);
+  const close = s => new Promise(resolve => { s.closeAllConnections?.(); s.close(resolve); });
+  return { port, scheme, app, url: (site, path) => `${scheme}://${SITE[site]}:${port}${path}`, close: async () => { await close(server); if (front) await close(front); } };
 }
 export const embedPath = (kind, token, query = '') => `/embed/${kind}/${token}${query}`;
 export const hostUrl = (host, site, paths, extra = '') => host.url(site, `/host?${[].concat(paths).map(p => `src=${encodeURIComponent(p)}`).join('&')}${extra}`);
@@ -69,7 +105,7 @@ async function profile(kind, prefs) {
   const dir = mkdtempSync(join(tmpdir(), `embed-${kind}-`));
   mkdirSync(join(dir, 'Default'), { recursive: true });
   writeFileSync(join(dir, 'Default', 'Preferences'), JSON.stringify(prefs));
-  const context = await chromium.launchPersistentContext(dir, { headless: true });
+  const context = await chromium.launchPersistentContext(dir, { headless: true, ignoreHTTPSErrors: true });
   return { context, dir, kind, close: async () => { await context.close(); rmSync(dir, { recursive: true, force: true }); } };
 }
 // Does a cross-site frame keep a Secure; SameSite=None; Partitioned cookie in this context? The canary is served on the app's
@@ -77,7 +113,7 @@ async function profile(kind, prefs) {
 // back (/canary/read, from inside the same frame) and what context.cookies() holds. Both must agree.
 export async function crossSiteCookieKept(host, context) {
   const page = await context.newPage();
-  const abs = path => `http://${SITE.same}:${host.port}${path}`;
+  const abs = path => `${host.scheme}://${SITE.same}:${host.port}${path}`;
   await page.goto(host.url('a', `/framed?lazy=0&abs=${encodeURIComponent(abs('/canary'))}`));
   const frame = page.frames().find(f => f.url() === abs('/canary'));
   if (!frame) throw Error('the canary frame did not load');
@@ -171,7 +207,7 @@ export async function forcedBlocked(engine, host) {
   if (engine !== 'firefox') return null;
   // network.cookie.cookieBehavior 1: reject all third-party cookies (the default 5 partitions them instead).
   const browser = await launchEngine('firefox', { firefoxUserPrefs: { 'network.cookie.cookieBehavior': 1 } });
-  const context = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+  const context = await browser.newContext(contextOptions);
   if (await crossSiteCookieKept(host, context)) { await browser.close(); throw Error('firefox kept the canary cookie with cookieBehavior 1'); }
   console.log('blocked profile: firefox cookieBehavior 1 (the canary cookie is not returned and not stored)');
   return { context, close: () => browser.close() };

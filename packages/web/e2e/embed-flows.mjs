@@ -24,7 +24,7 @@
 // guest_limit). The server's own admission (atomic insert, 16 concurrent sends, hashes only) is proven against real SQLite by
 // control-plane embed-session.test.js. The 60 s offer expiry and single use of a hand-off are proven by web embed-api.test.mjs.
 import { mkdirSync } from 'node:fs';
-import { BASE, startHost, launchEngine, forcedBlocked, crossSiteCookieKept, sessionFor, run, api, makeCanvas, reporter, hostUrl, embedPath } from './embed-harness.mjs';
+import { contextOptions, startHost, launchEngine, forcedBlocked, crossSiteCookieKept, sessionFor, run, api, makeCanvas, reporter, hostUrl, embedPath } from './embed-harness.mjs';
 
 const AVAILABLE = 26, BLOCKED = 11; // checks per flow; bump with the checks below (the flow fails if the number that ran differs)
 const sse = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -39,6 +39,7 @@ export async function runEmbed(engine) {
   const pub = await makeCanvas(owner, TITLE);
   const path = embedPath('b', pub.view, '?chat=1'), plain = embedPath('b', pub.view);
   const host = await startHost();
+  const APP = host.app; // what the browser sees: the app behind https (the stack itself is http, BASE)
   const DRAFT = `Why does attention scale by sqrt(d) ${engine} ${run}?`;
   const ANSWER = 'The scale keeps the dot products from growing with the head size.';
 
@@ -48,7 +49,7 @@ export async function runEmbed(engine) {
     context.on('request', r => s.requests.push({ method: r.method(), url: r.url() }));
     const allowance = jar => { const used = s.used.get(jar)?.size ?? 0; return { limit: 10, used, remaining: 10 - used }; };
     const json = text => { try { return JSON.parse(text); } catch { return null; } };
-    await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname) && url.origin === BASE, async route => {
+    await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname) && url.origin === APP, async route => {
       const req = route.request(), headers = await req.allHeaders();
       const jar = /(?:^|;\s*)rh_embed=([^;]+)/.exec(headers.cookie || '')?.[1] ?? null;
       if (req.method() === 'GET') {
@@ -70,7 +71,7 @@ export async function runEmbed(engine) {
     });
     return s;
   }
-  const frameOf = page => page.frames().find(f => f !== page.mainFrame() && f.url().startsWith(BASE));
+  const frameOf = page => page.frames().find(f => f !== page.mainFrame() && f.url().startsWith(APP));
   const embedOf = async page => { const fl = page.frameLocator('iframe').first(); await fl.locator('[data-embed-root]').waitFor({ timeout: 60000 }); return fl; };
   const openChat = async fl => { await fl.locator('[data-embed-chat-button]').click(); await fl.locator('[data-shared-ask]').waitFor({ timeout: 30000 }); };
   const camera = fl => fl.locator('[data-canvas-surface]').evaluate(n => [...n.children].find(c => c.style.transform)?.style.transform ?? null);
@@ -111,7 +112,7 @@ export async function runEmbed(engine) {
   // the browser, and which flow it gets
   // ===================================================================================================================
   const browser = await launchEngine(engine);
-  const context = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+  const context = await browser.newContext(contextOptions);
   plan(1);
   const kept = await crossSiteCookieKept(host, context);
   check(`[${engine}] canary: a Secure SameSite=None Partitioned cookie from the app's host in a cross-site frame is ${kept ? 'kept' : 'NOT kept'} by this browser (decides the flow; Chromium must keep it)`, engine !== 'chromium' || kept);
@@ -125,13 +126,13 @@ export async function runEmbed(engine) {
     const page = await context.newPage();
     await page.goto(hostUrl(host, 'a', path, '&lazy=0&h=480'));
     let fl = await embedOf(page);
-    check(`${tag} the embed loads inside a page on another origin, as an iframe of the app`, frameOf(page)?.url().startsWith(`${BASE}/embed/b/`) && new URL(page.url()).hostname !== new URL(BASE).hostname, frameOf(page)?.url());
+    check(`${tag} the embed loads inside a page on another origin, as an iframe of the app`, frameOf(page)?.url().startsWith(`${APP}/embed/b/`) && new URL(page.url()).hostname !== new URL(APP).hostname, frameOf(page)?.url());
     check(`${tag} it shows the canvas title, Open in Rabbit Hole and Fork, and Chat only behind its button`, (await fl.locator('[data-embed-title]').innerText()).trim() === TITLE && await fl.locator('[data-embed-open]').isVisible() && await fl.locator('[data-embed-fork]').isVisible() && await fl.locator('[data-embed-chat-button]').isVisible() && await fl.locator('[data-shared-ask]').count() === 0);
     check(`${tag} it has no menubar, no Progress, no owner controls and no comments panel`, await fl.locator('[data-share-button], [data-unpublish], [data-menubar], [data-comments-panel]').count() === 0);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/01-embed-${engine}.png` });
     const own = net.requests.filter(r => new URL(r.url).port !== String(host.port));
     const writes = own.filter(r => r.method !== 'GET' && !/\/api\/learn\/boards\/embed-session$/.test(new URL(r.url).pathname));
-    const heavy = own.filter(r => new URL(r.url).origin !== BASE || /\/api\/(learn\/(tutor|chat|next-steps|capture)|.*(notebook|render|capture|video))/i.test(new URL(r.url).pathname));
+    const heavy = own.filter(r => new URL(r.url).origin !== APP || /\/api\/(learn\/(tutor|chat|next-steps|capture)|.*(notebook|render|capture|video))/i.test(new URL(r.url).pathname));
     check(`${tag} opening it makes no AI, capture, notebook or render request: no write but the session init, nothing to another origin`, writes.length === 0 && heavy.length === 0, JSON.stringify([...writes, ...heavy].slice(0, 5)));
     const plainPage = await context.newPage();
     await plainPage.goto(hostUrl(host, 'a', plain, '&lazy=0'));
@@ -180,9 +181,9 @@ export async function runEmbed(engine) {
     await page.reload();
     fl = await embedOf(page);
     const [opened] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-open]').click()]);
-    await opened.waitForURL(u => u.origin === BASE, { timeout: 30000 });
+    await opened.waitForURL(u => u.origin === APP, { timeout: 30000 });
     check(`${tag} Open in Rabbit Hole opens the full site in a new tab on the same canvas, with no embed page and no text in the URL`, new URL(opened.url()).pathname === `/b/${pub.view}` && !hasDraft(opened.url()) && await opened.locator('[data-fork-button]').waitFor({ timeout: 60000 }).then(() => true, () => false) && await opened.locator('[data-embed-root]').count() === 0, opened.url());
-    await context.addCookies([{ name: 'small_session', value: viewer.session, url: BASE }]);
+    await context.addCookies([{ name: 'small_session', value: viewer.session, url: APP }]);
     await opened.reload();
     await opened.locator('[data-shared-ask] [data-chat-composer]').waitFor({ timeout: 60000 });
     check(`${tag} signing in and coming back to that tab works: the same canvas, signed in, no guest count`, new URL(opened.url()).pathname === `/b/${pub.view}` && await opened.locator('[data-guest-remaining]').count() === 0);
@@ -202,7 +203,7 @@ export async function runEmbed(engine) {
     check(`${tag} when the new tab never acknowledges (closed at once), the embed says so after about 15 s and offers Retry and Fork original instead; the edits are still there`, took >= 10000 && took <= 35000 && edited && await fl.locator('[data-embed-handoff-retry]').isVisible() && await fl.locator('[data-embed-handoff-original]').isVisible() && await fl.locator('[data-guest-draft-notice]').count() === 1, `${took} ms, edited ${edited}, closed ${tabs.closed}`);
     check(`${tag} a forged request or acknowledgement from the embedding page is ignored: the failure stands, and the embedding page received no message from the hand-off`, await fl.locator('[data-embed-handoff-failed]').isVisible() && (await hostMessages(page)).length === 0, JSON.stringify(await hostMessages(page)));
     const [retry] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-retry]').click()]);
-    await retry.waitForURL(u => u.origin === BASE, { timeout: 30000 });
+    await retry.waitForURL(u => u.origin === APP, { timeout: 30000 });
     await fl.locator('[data-embed-handoff-failed]').waitFor({ state: 'hidden', timeout: 30000 });
     check(`${tag} Retry opens a new tab that acknowledges: the failure notice goes, the tab is the full site (flags only in the URL)`, new URL(retry.url()).pathname === `/b/${pub.view}` && !/state|shape|rect/.test(retry.url()) && await retry.locator('[data-fork-button]').waitFor({ timeout: 60000 }).then(() => true, () => false), retry.url());
     await retry.close();
@@ -211,7 +212,7 @@ export async function runEmbed(engine) {
     await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
     tabs.on = false;
     const [original] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-original]').click()]);
-    await original.waitForURL(u => u.origin === BASE, { timeout: 30000 });
+    await original.waitForURL(u => u.origin === APP, { timeout: 30000 });
     check(`${tag} Fork original instead is an explicit choice: it opens the original canvas to fork, with no hand-off flag and nothing of the edits in the URL`, new URL(original.url()).pathname === `/b/${pub.view}` && !/from=embed/.test(original.url()) && /fork=1/.test(original.url()), original.url());
     await original.close();
 
@@ -236,8 +237,8 @@ export async function runEmbed(engine) {
     await page.close();
 
     // The owner viewing their own embed (same-site host, so the account cookie really rides along): a public guest, no powers.
-    const ownerCtx = await browser.newContext({ viewport: { width: 1000, height: 800 } });
-    await ownerCtx.addCookies([{ name: 'small_session', value: owner.session, url: BASE }]);
+    const ownerCtx = await browser.newContext(contextOptions);
+    await ownerCtx.addCookies([{ name: 'small_session', value: owner.session, url: APP }]);
     const ownerNet = await wire(ownerCtx);
     const ownerPage = await ownerCtx.newPage();
     const versionBefore = (await api(owner, pub.board)).body.version;
@@ -283,7 +284,7 @@ export async function runEmbed(engine) {
     check(`${tag} if the tab never acknowledges, the embed says the draft did not arrive after about 15 s and offers Retry; the draft is still in the composer and nothing was sent`, took >= 10000 && took <= 35000 && await fl.locator('[data-embed-handoff-retry]').isVisible() && await field.inputValue() === DRAFT && net.sends.length === 0, `${took} ms`);
     // Retry: this tab is allowed to answer.
     const [handoff] = await Promise.all([ctx.waitForEvent('page'), fl.locator('[data-embed-handoff-retry]').click()]);
-    await handoff.waitForURL(u => u.origin === BASE, { timeout: 30000 });
+    await handoff.waitForURL(u => u.origin === APP, { timeout: 30000 });
     const draftBack = handoff.locator('[data-shared-ask] [data-chat-composer] textarea');
     await draftBack.waitFor({ timeout: 60000 });
     await fl.locator('[data-embed-handoff-failed]').waitFor({ state: 'hidden', timeout: 30000 });
