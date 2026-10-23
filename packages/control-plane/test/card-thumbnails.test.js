@@ -91,12 +91,14 @@ test('nobody else gets a private, unlisted, trashed or archived canvas thumbnail
   const published = token => `/api/learn/boards/published/${token}/thumbnail`;
   assert.equal((await f.raw('GET', published(view), { as: 'ben' })).status, 404, 'an unlisted canvas');
   assert.equal((await f.raw('GET', published('x'.repeat(32)))).status, 404);
-  // Public: anyone, signed out too; the custom picture wins there as well.
+  // Public: anyone, signed out too, but only the owner's custom picture (owner decision 2026-10-22: the snapshot is drawn from the
+  // owner's own view of the canvas and is not known to hold only what a public viewer may see).
   const token = (await f.call('POST', `/api/apps/${c.name}/publish`, { as: 'ana' })).body.publication_token;
   const open = await f.raw('GET', published(token));
-  assert.deepEqual([open.status, open.headers.get('cache-control'), open.bytes], [200, 'private, no-cache', PNG]);
+  assert.deepEqual([open.status, open.headers.get('cache-control'), open.bytes.length], [204, 'private, no-cache', 0], 'a snapshot only: no picture');
   await f.raw('PUT', `${own(c.name)}/custom`, { as: 'ana', body: JPEG });
-  assert.deepEqual((await f.raw('GET', published(token), { as: 'ben' })).bytes, JPEG);
+  const covered = await f.raw('GET', published(token), { as: 'ben' });
+  assert.deepEqual([covered.status, covered.headers.get('cache-control'), covered.headers.get('x-thumbnail-source'), covered.bytes], [200, 'private, no-cache', 'custom', JPEG]);
   assert.equal((await f.raw('PUT', published(token), { as: 'ben', body: PNG })).status, 405, 'read-only');
   // A published canvas with no picture yet: 204, like the owner's.
   const blank = await f.canvas('Blank');
