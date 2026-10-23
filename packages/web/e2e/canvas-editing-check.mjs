@@ -1567,7 +1567,8 @@ await run('sloppiness touch and narrow panel', async () => {
   await row.waitFor({ state: 'visible' });
   const inside = await panel.boundingBox();
   const boxes = await Promise.all(LEVELS.map(name => level(name).boundingBox()));
-  check('on a narrow panel all three levels are fully inside it and the panel does not scroll sideways', boxes.every(entry => entry && entry.x >= inside.x - 0.5 && entry.x + entry.width <= inside.x + inside.width + 0.5) && await panel.evaluate(node => node.scrollWidth <= node.clientWidth + 1), JSON.stringify([inside, boxes]));
+  // On a phone the panel is the tools column (about 76 px): the three levels wrap one under another, each whole and inside it.
+  check('on a narrow panel all three levels are fully inside it and the Sloppiness row does not run sideways', boxes.every(entry => entry && entry.x >= inside.x - 0.5 && entry.x + entry.width <= inside.x + inside.width + 0.5) && await row.evaluate(node => node.scrollWidth <= node.clientWidth + 1), JSON.stringify([inside, boxes]));
   await level('Sketchy').tap();
   check('a tap picks a level', (await shapeOf(saved, 'r1')).roughness === 1 && (await level('Sketchy').getAttribute('aria-pressed')) === 'true');
   await context.close();
