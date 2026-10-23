@@ -43,7 +43,7 @@ const noComposer = async (page, where) => {
   assert.ok(['', '0px'].includes(reserved.h) && parseFloat(reserved.pad) === 0, `${where}: space is reserved at the bottom (${reserved.h} / ${reserved.pad})`);
 };
 
-await check('Library: Card size sits beside Filters, Small to Large, named for assistive tech, Large by default (one card per row)', async () => {
+await check('Library: Card size sits in the Filters and Sort row, Small to Large, named for assistive tech, Large by default (one card per row)', async () => {
   const page = await fresh();
   await onLibrary(page);
   const control = page.locator('[data-card-size-control]');
@@ -51,7 +51,7 @@ await check('Library: Card size sits beside Filters, Small to Large, named for a
   assert.equal(await slider(page).getAttribute('aria-valuetext'), 'Large');
   assert.equal(await value(page), 3);
   const sameRow = await page.evaluate(() => { const y = (el) => Math.round(el.getBoundingClientRect().top / 10); const c = document.querySelector('[data-card-size-control]'); const f = [...document.querySelectorAll('button')].find((b) => /^Filters/.test(b.textContent.trim())); return y(c) === y(f); });
-  assert.ok(sameRow, 'beside Filters');
+  assert.ok(sameRow, 'in the Filters row');
   assert.equal(await columns(page, '[data-library-card]'), 1, 'Large is one card per row');
   await page.screenshot({ path: `${SHOTS}/library-large.png` });
   await page.context().close();
@@ -114,8 +114,8 @@ await check('the setting is remembered across Library, Explore and Home, and aft
 
 await check('blocked storage: the pages render, the slider works for the visit, nothing throws', async () => {
   const page = await fresh({ width: 1440, height: 900 }, () => {
-    const block = () => { throw new DOMException('blocked', 'SecurityError'); };
-    for (const k of ['getItem', 'setItem']) Storage.prototype[k] = block;
+    // Only this key is refused, as a full or blocked store would: the rest of the app keeps its storage.
+    for (const k of ['getItem', 'setItem']) { const real = Storage.prototype[k]; Storage.prototype[k] = function (key, ...rest) { if (key === 'small.cardSize') throw new DOMException('blocked', 'SecurityError'); return real.call(this, key, ...rest); }; }
   });
   await page.goto(`${BASE}/library?type=canvases`);
   await slider(page).waitFor({ timeout: 60000 });

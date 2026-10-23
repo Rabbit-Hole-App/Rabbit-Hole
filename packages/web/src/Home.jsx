@@ -192,9 +192,9 @@ function Explore() {
             <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
           </label>
-          {tab === 'explainers' && <CardSize />}
           {tab === 'explainers' && <LibraryFilters type={type} path="/explore" types={EXPLORE_TYPES} />}
           {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+          {tab === 'explainers' && <CardSize />}
         </div>
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators">

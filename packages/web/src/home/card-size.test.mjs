@@ -36,7 +36,7 @@ test('the slider, its placement on all three pages, and the grid rule that makes
   assert.match(control, />Small</);
   assert.match(control, />Large</);
   assert.match(control, /max-md:w-full/, 'on a phone it takes its own row');
-  assert.match(read('../App.jsx'), /<CardSize \/>\}<LibraryFilters /, 'the Library: beside Filters and Sort');
+  assert.match(read('../App.jsx'), /<LibraryFilters type=\{type\}[^\n]*<SortMenu size="md"[^\n]*\/>\}\{!archived && type !== 'apps' && <CardSize \/>\}/, 'the Library: after Filters and Sort');
   const home = read('../Home.jsx');
   assert.equal((home.match(/<CardSize \/>/g) || []).length, 2, 'Home (beside Start a rabbit hole) and Explore (beside Filters and Sort)');
   const css = read('../index.css');
