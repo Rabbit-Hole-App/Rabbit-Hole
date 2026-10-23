@@ -225,13 +225,36 @@ const GUEST_REPLAYS = 2;
 const GUEST_COOKIE = 'rh_guest';
 const GUEST_ID = /^[A-Za-z0-9_-]{32}$/;
 const ACTION_KEY = /^[A-Za-z0-9_-]{8,128}$/;
+const cookieOf = (req, name) => (req.headers.get('cookie') || '').split(/;\s*/).map(pair => pair.split('=')).find(([key]) => key === name)?.[1] || '';
 // This browser's trial id from the request's cookie, or a new one to set (`fresh`). Never a person's identity.
 export function guestOf(req) {
   const key = req.headers.get('x-rh-action-key') || '';
-  const found = (req.headers.get('cookie') || '').split(/;\s*/).map(pair => pair.split('=')).find(([name]) => name === GUEST_COOKIE)?.[1];
-  if (GUEST_ID.test(found || '')) return { id: found, fresh: false, key };
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  return { id: btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_'), fresh: true, key };
+  const found = cookieOf(req, GUEST_COOKIE);
+  if (GUEST_ID.test(found)) return { id: found, fresh: false, key };
+  return { id: newGuestId(), fresh: true, key };
+}
+const newGuestId = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g, '-').replace(/\//g, '_');
+
+// SHARE-04 embed Chat (C:/s/spec/embed/guest-session-note.md): the page inside a cross-site iframe sends X-RH-Embed: 1 on every
+// call. Such a request is a public guest whatever cookies ride along (isEmbed: the account session is never read), and its
+// trial is keyed by rh_embed, a Partitioned cookie (one jar per embedding site, so 10 messages per site). embedOf never mints:
+// a missing or invalid cookie is null and the Send is refused, so no Send ever starts a fresh trial. Only embedSession mints.
+const EMBED_COOKIE = 'rh_embed';
+export const isEmbed = req => req.headers.get('x-rh-embed') === '1';
+export function embedOf(req) {
+  const found = cookieOf(req, EMBED_COOKIE);
+  return GUEST_ID.test(found) ? { id: found, fresh: false, key: req.headers.get('x-rh-action-key') || '', embed: true } : null;
+}
+export const embedSessionRequired = () => json({ error: 'Chat needs a session in this page first. Open Chat in Rabbit Hole to keep going.', code: 'embed_session_required' }, 403);
+// POST /api/learn/boards/embed-session: sets the cookie when the browser has none; an existing one is kept as it is.
+export function embedSession(req) {
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (!isEmbed(req)) return json({ error: 'Embed sessions are for embedded pages.', code: 'embed_header_required' }, 400);
+  if (req.headers.has('origin') && req.headers.get('origin') !== new URL(req.url).origin) return json({ error: 'Invalid origin' }, 403);
+  if (embedOf(req)) return json({ created: false });
+  const response = json({ created: true });
+  response.headers.append('Set-Cookie', `${EMBED_COOKIE}=${newGuestId()}; Path=/api/learn; Max-Age=31536000; HttpOnly; Secure; SameSite=None; Partitioned`);
+  return response;
 }
 // The response, with the trial's cookie when this request made it.
 export function withGuestCookie(response, guest) {
@@ -240,7 +263,8 @@ export function withGuestCookie(response, guest) {
   headers.append('Set-Cookie', `${GUEST_COOKIE}=${guest.id}; Path=/api/learn; Max-Age=31536000; HttpOnly; Secure; SameSite=Lax`);
   return new Response(response.body, { status: response.status, headers });
 }
-const browserKey = guest => sha256Hex(`guest-chat:${guest.id}`);
+// An embed trial and an rh_guest trial never share a key: 10 messages per embedding site beside the one on digrabbithole.com.
+const browserKey = guest => sha256Hex(`${guest.embed ? 'embed-chat' : 'guest-chat'}:${guest.id}`);
 // The admitted messages of this browser's trial: one index range on viewer_email (';' sorts right after ':').
 async function guestUsed(db, browser) {
   const row = await db.prepare("SELECT COUNT(*) AS n FROM shared_ask_events WHERE category = 'shared_canvas_ask' AND viewer_email >= ?1 AND viewer_email < ?2")
