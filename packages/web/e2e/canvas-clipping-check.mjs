@@ -25,6 +25,7 @@
 // Chat alone, their saved geometry unchanged.
 // Prints `ok <label>` per check; exits 1 on any failure. Evidence (screenshots, results.json) goes to OUT.
 // Usage: BASE=http://127.0.0.1:8881 SMALL_CP=http://127.0.0.1:8883 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-clipping-check.mjs
+import { openShowHide, showHideRow } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -195,11 +196,11 @@ const reachesPanel = async (id, label) => {
 };
 // View > Rabbit Hole Map (view-menu-check.mjs's helpers): the switch row's label takes the click; the menu stays open.
 const menubar = () => page.getByRole('menubar', { name: 'Canvas menu' });
-const mapSwitch = () => menubar().getByRole('switch', { name: 'Rabbit Hole Map', exact: true });
+const mapSwitch = () => showHideRow(page, 'Rabbit Hole Map'); // Owner brief 2026-10-22: a checked row under View > Show / hide
 const setMap = async on => {
-  if (!(await mapSwitch().count())) await menubar().getByRole('menuitem', { name: 'View', exact: true }).click();
+  await openShowHide(page);
   await mapSwitch().waitFor({ timeout: 5000 });
-  if ((await mapSwitch().getAttribute('aria-checked')) !== String(on)) await menubar().locator('[data-menu-switch]', { hasText: 'Rabbit Hole Map' }).locator('span', { hasText: 'Rabbit Hole Map' }).click();
+  if ((await mapSwitch().getAttribute('aria-checked')) !== String(on)) await mapSwitch().click();
   await waitFor(async () => (await mapSwitch().getAttribute('aria-checked')) === String(on), 5000, `the Rabbit Hole Map switch did not turn ${on ? 'on' : 'off'}`);
   await page.keyboard.press('Escape');
   await settle();

@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import CanvasMenubar from './CanvasMenubar.jsx';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
+import { typingIn } from './canvas-equation.js';
 import { can } from './canvas-permissions.js';
 import { CommentsToggle, PanelToggle, SharedPanel, ViewerAccount, useSharedPanel } from './SharedCanvasShell.jsx';
 import logoBlack from './assets/rabbit-hole-black.png';
@@ -36,7 +37,7 @@ import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
-import { canvasOwnsWheel, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
+import { canvasOwnsWheel, focusAfter, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
 import { forkNumber } from './home/provenance.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
@@ -95,13 +96,26 @@ function SharedBoard({ token, embed = null }) {
   // The normal canvas's right panel (SharedCanvasShell.jsx): Chat first, then Find, Table of contents and Comments.
   const panel = useSharedPanel('chat');
   const { show } = panel;
-  // Comments (docs/features/canvas-comments.md): a published canvas has the public family, while the owner's public
-  // setting is Open or Closed (else it answers 404 and the page shows none); signed out reads, posting needs an account.
-  // On a share link the owner and members (member_board_id) get the members panel; other link viewers see no comments.
+  // Comments (docs/features/canvas-comments.md): the public family answers for an Explore token and a share-link token alike. An
+  // Explore token follows the owner's public setting; a share link follows its own Hidden / View only / Allow comments
+  // (permanent-link-note.md), and Hidden answers 404, so the page shows none. Signed out reads; posting needs an account.
+  // On a share link the owner and members (member_board_id) get the members panel.
   const [commentsInfo, setCommentsInfo] = useState(null);
   // The canvas's document (docs/features/blocknote-canvas.md), read-only here: View > Mode shows it, the canvas first.
   const [docView, setDocView] = useState('canvas');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
+  useEffect(() => {
+    const key = event => {
+      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return;
+      const active = window.document.activeElement;
+      if (typingIn(active) || active?.tagName === 'SELECT') return;
+      event.preventDefault();
+      setShortcutsOpen(open => !open);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   // The guest Chat allowance SharedChat reports (SHARE-03): ctx.guestChat.remaining in the permission model.
   const [guestRemaining, setGuestRemaining] = useState(null);
   const canvasApi = useRef(null);
@@ -118,7 +132,7 @@ function SharedBoard({ token, embed = null }) {
     return () => window.removeEventListener('small:ask-focus', open);
   }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
   const memberBoard = shared?.member_board_id || null;
-  const commentsBase = memberBoard ? memberBase(memberBoard) : shared?.published ? publicBase(token) : null;
+  const commentsBase = memberBoard ? memberBase(memberBoard) : publicBase(token);
   useEffect(() => {
     if (!commentsBase || embed) return undefined; // an embed reads no comments
     let live = true;
@@ -128,7 +142,7 @@ function SharedBoard({ token, embed = null }) {
   // Signed out, a visitor drafts where a signed-in visitor could post (public setting Open, comments on); posting goes
   // through sign-in with the draft kept (SHARE-02, CommentsPanel).
   const guestMayDraft = !!commentsInfo && !commentsInfo.signed_in && commentsInfo.public_mode === 'open' && !!commentsInfo.comments_enabled;
-  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post || guestMayDraft, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}`, shown: panel.open && panel.tab === 'comments' });
+  const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post || guestMayDraft, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : window.location.pathname, shown: panel.open && panel.tab === 'comments' });
   // The one permission model (canvas-permissions.js; contract-permissions.md): the server's role for this visitor on this link.
   // An embed never takes the account's role: every viewer there is a public guest (embed-api.js sharedRole).
   const viewer = embed ? null : shared?.viewer || null;
@@ -227,7 +241,7 @@ function SharedBoard({ token, embed = null }) {
   // editable here. No Files: a shared canvas's Materials are not shareable (panel.files).
   const menus = [
     ...(editable && can('canvas.local-edit', permissions).allowed ? [{ title: 'Insert', items: localInsertItems(canvas) }] : []),
-    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true) })
+    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, drawing: editable })
       .filter(menu => editable || menu.title === 'View'),
   ];
   // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.
@@ -453,19 +467,21 @@ function EmbedCanvasFrame({ children }) {
   useEffect(() => {
     const element = frame.current;
     let focused = false;
-    const focus = () => { focused = true; };
-    const blur = event => { if (!event.relatedTarget || !element.contains(event.relatedTarget)) focused = false; };
+    // Focus is the canvas's own: set by a press or focus inside it, cleared by a press elsewhere in this frame or the frame
+    // losing the window's focus. A focusout is NOT a signal: pressing a card moves focus off the previous control and would
+    // clear it right after the press set it (embed-api.js focusAfter).
+    const note = (type, event) => { focused = focusAfter(focused, type, element.contains(event.target)); };
+    const press = event => note('pointerdown', event);
+    const focusin = event => note('focusin', event);
     const wheel = event => { if (!canvasOwnsWheel(event, focused)) event.stopPropagation(); };
-    const leave = () => { focused = false; };
-    element.addEventListener('pointerdown', focus, true);
-    element.addEventListener('focusin', focus);
-    element.addEventListener('focusout', blur);
+    const leave = () => { focused = focusAfter(focused, 'blur', false); };
+    document.addEventListener('pointerdown', press, true);
+    element.addEventListener('focusin', focusin);
     element.addEventListener('wheel', wheel, { capture: true, passive: true });
     window.addEventListener('blur', leave);
     return () => {
-      element.removeEventListener('pointerdown', focus, true);
-      element.removeEventListener('focusin', focus);
-      element.removeEventListener('focusout', blur);
+      document.removeEventListener('pointerdown', press, true);
+      element.removeEventListener('focusin', focusin);
       element.removeEventListener('wheel', wheel, { capture: true });
       window.removeEventListener('blur', leave);
     };

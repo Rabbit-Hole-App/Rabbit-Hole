@@ -591,6 +591,7 @@ await check('the upload/drop road: a dropped PDF opens the same dialog; the uplo
   // The hidden file input (Insert > Upload a file) opens the same dialog; Cancel adds and uploads nothing.
   const count = (await blocksNow()).length;
   await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles({ name: DROP_NAME, mimeType: 'application/pdf', buffer: PDF });
+  await page.locator('[data-upload-destination] [data-upload-choice="canvas"]').click(); // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the drop road
   await dialog().waitFor({ timeout: 15000 });
   assert.equal((await dialog().locator('[data-pdf-file]').innerText()).trim(), DROP_NAME, 'the upload names its file');
   await cancelButton().click();

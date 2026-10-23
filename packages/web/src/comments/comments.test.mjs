@@ -179,14 +179,20 @@ test('increment 2 seams: Share carries the comment settings; the published page 
   assert.match(share, /<ExploreCommentSetting cs=\{cs\} \/>/, 'the Explore tab, under its link');
   assert.match(page, /comments=\{comments\.active \? \{ base: memberBase\(commentBoard\) \} : null\}/);
   assert.match(settings, /const SHARE = \[\[false, 'View only'\], \[true, 'Allow comments'\]\];/);
+  // Owner decision 2026-10-22: the Share tab also offers all three states for the share link, enforced by the server (link_comments).
+  assert.match(settings, /const LINK = \[\['hidden', 'Hidden'\], \['view', 'View only'\], \['allow', 'Allow comments'\]\];/);
+  assert.match(settings, /const linkPatch = mode => \(\{ link_comments: mode \}\);/, 'the server field name lives in one place');
+  assert.match(settings, /\(allowed \|\| link === 'allow'\) && <p className="text-xs text-ink-3">\{SIGN_IN\}<\/p>/);
   assert.match(settings, /const EXPLORE = \[\['off', 'Hidden'\], \['closed', 'View only'\], \['open', 'Allow comments'\]\];/);
   assert.match(settings, /disabled=\{cs\.saving \|\| !cs\.value\.comments_enabled\}/, 'the public setting is disabled while comments are off');
   assert.match(settings, /\{mode === 'open' && <p className="text-xs text-ink-3">\{SIGN_IN\}<\/p>\}/, 'Sign in to post a comment. when posting is allowed');
-  assert.match(settings, /if \(mine === seq\.current\) setSettings\(next\)/, 'a failed or superseded save never replaces the server value shown');
+  assert.match(settings, /if \(mine === seq\.current\) setSettings\(previous => /, 'a failed or superseded save never replaces the server value shown');
   // Add comment for those the server lets post, and (SHARE-02) a signed-out visitor where signing in would let them: they draft, and post through sign-in.
   assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post \|\| guestMayDraft,/);
   assert.match(shared, /const guestMayDraft = !!commentsInfo && !commentsInfo\.signed_in && commentsInfo\.public_mode === 'open' && !!commentsInfo\.comments_enabled;/);
-  assert.match(shared, /const commentsBase = memberBoard \? memberBase\(memberBoard\) : shared\?\.published \? publicBase\(token\) : null;/, 'a share link (/b) never asks the public family; owners and members get theirs');
+  // Permanent link (E-S permanent-link-note.md section 2): a share link has its own Hidden / View only / Allow comments, answered by the
+  // same public family for its token (Hidden is a 404, so no panel, pin or count); owners and members still get theirs.
+  assert.match(shared, /const commentsBase = memberBoard \? memberBase\(memberBoard\) : publicBase\(token\);/, 'any link token asks the public family; owners and members get theirs');
   // UI-25: a view-only board's menu opens when it has a row for the target (Add comment for commenters; canvas-actions.js).
   // SHARE-01 one permission model: Add comment asks can('comment.draft'), which follows the comments the canvas has.
   assert.match(canvas, /const commentCtx = onAddComment \? \{ read: true, post: true \} : null;/);
@@ -279,9 +285,11 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(hook, /new URLSearchParams\(window\.location\.search\)\.get\('thread'\)/);
   assert.match(hook, /threadLink: link \? id => `\$\{window\.location\.origin\}\$\{link\}\?thread=\$\{id\}` : null/);
   assert.match(page, /link: commentBoard && `\/c\/\$\{commentBoard\}`/, 'members\' links go to /c');
-  assert.match(shared, /link: memberBoard \? `\/c\/\$\{memberBoard\}` : `\/e\/\$\{token\}`/, 'public links go to /e, members\' to /c');
+  // A link visitor's thread link is the page they are on: /b/<view token> or /e/<publication token> (the tokens differ).
+  assert.match(shared, /link: memberBoard \? `\/c\/\$\{memberBoard\}` : window\.location\.pathname/, 'public links go to the page itself, members\' to /c');
   assert.match(member, /window\.location\.replace\(`\/apps\/\$\{read\.body\.canvas\}\$\{window\.location\.search\}`\)/, 'the owner keeps ?thread= on the way home');
-  assert.match(read('../canvas-menus.js'), /label: 'Comments', icon: MessageCircle, toggle: comments\.showPins, onToggle: comments\.setPins/);
+  // Owner brief 2026-10-22 item 6: the View row is Comment pins, under Show / hide; it shows markers only, permissions stay in Share.
+  assert.ok(read('../canvas-menus.js').includes("...(comments.active ? [checkRow('Comment pins', comments.showPins, comments.setPins)] : [])"));
   assert.match(panel, /data-more-threads/);
   assert.match(panel, /data-earlier-replies/);
   assert.match(panel, /data-copy-thread-link/);

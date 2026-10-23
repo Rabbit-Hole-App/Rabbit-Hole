@@ -5,23 +5,16 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = name => readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const card = read('home/LearningCard.jsx'), bar = read('agent/AgentBar.jsx'), css = read('index.css');
+const card = read('home/LearningCard.jsx'), bar = read('agent/AgentBar.jsx');
 
-test('a click on the card body picks it; the title, Open, the menu and links still stop the click, so they never pick', () => {
-  assert.match(card, /onClick=\{pick \? \(\) => pickCard\(pick\) : undefined\} data-card-selected=\{picked \? '' : undefined\}/);
-  assert.match(card, /const picked = !!pick && pickedKey\(surface\) === `\$\{pick\.kind\}:\$\{pick\.slug\}`;/);
+// Owner, 2026-10-22: "Remove the composer completely from Home, Library and Explore". With no dock there, a card's body click
+// picks nothing (it replaces the two tests that pinned the pick: the card's onClick and the three pages' pick props).
+test('a click on the card body picks nothing; the title, Open, the menu and links still open or act', () => {
+  assert.doesNotMatch(card, /pickCard|pickedKey|data-card-selected|pick=|pick =/);
   assert.match(card, /<a data-card-title href=\{href\} onClick=\{\(e\) => \{ e\.stopPropagation\(\); if \(plain\(e\)\) \{ e\.preventDefault\(\); onOpen\(\); \} \}\}/, 'the title opens');
   assert.match(card, /data-card-open onClick=\{stop\(onOpen\)\}/, 'Open opens');
   assert.match(card, /onClick=\{stop\(onMore\)\}/);
-  // It stays selected while it is the pill, not only while it holds focus.
-  assert.match(css, /\.select-card:focus-within,\n\.select-card\[data-card-selected\] \{/);
-});
-
-test('Home, Library and Explore (a creator profile too) pass the pick: their own canvases and projects, a published canvas by its link', () => {
-  assert.equal((read('Home.jsx').match(/pick=\{appPick\(/g) || []).length, 2, 'Continue and Recent');
-  assert.match(read('LibraryViews.jsx'), /pick=\{appPick\(a, cardModel\(a\)\.title\)\}/);
-  assert.match(read('home/PublicCards.jsx'), /pick=\{\{ kind: 'shared', slug: card\.url\.split\('\/'\)\.pop\(\), title: card\.title, type: 'canvas' \}\}/);
-  assert.match(read('CreatorProfile.jsx'), /<PublicCards /);
+  for (const file of ['Home.jsx', 'LibraryViews.jsx', 'home/PublicCards.jsx']) assert.doesNotMatch(read(file), /appPick|pick=/, file);
 });
 
 test('the dock shows the canvas composer\'s selected-card pill: the type icon, the title, x clears; Esc clears; the draft follows', () => {

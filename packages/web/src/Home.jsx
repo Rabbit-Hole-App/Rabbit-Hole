@@ -7,7 +7,8 @@ import LearningCard, { CARD_ROWS, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as 
 import { cardThumbnail, subscribeThumbnails, thumbnailBumps } from './card-thumbnail.js';
 import PublicCards, { CreatorCards, ProjectCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
-import { appPick } from './agent/surface.js';
+import { useLibraryFolders } from './LibraryFolders.jsx';
+import CardSize from './home/CardSize.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -46,7 +47,9 @@ function HomeContent({ data, load }) {
   const items = [...shown, ...recentItems(recent, apps)].slice(0, 5);
   const cardCtx = { catalog: apps, email: data?.email, storage: localStorage };
   // The Library's own ⋮ on Recent's canvas and project cards (owner, 2026-10-08), opened in place; Archive asks here.
-  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps, onChanged: load });
+  // Move to folder works from Home as from the Library (owner brief 2026-10-22): the same folder list, the same rows.
+  const folders = useLibraryFolders(ready, apps);
+  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps, onChanged: load, folders });
   const startButton = <Button variant="primary" onClick={start}>Start a rabbit hole</Button>;
   return (
     <main className="flex-1 overflow-y-auto">
@@ -57,9 +60,9 @@ function HomeContent({ data, load }) {
         )}
         {/* Start sits top right, the page's one header action (owner, 2026-10-08), as in the Library. */}
         {ready && (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 max-md:flex-wrap">
             {!cont && !items.length ? <p className="text-sm text-ink-2">Start from a repository or a blank canvas.</p> : <span />}
-            {startButton}
+            <div className="flex flex-wrap items-center gap-3 max-md:w-full">{(cont || items.length > 0) && <CardSize />}{startButton}</div>
           </div>
         )}
         {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
@@ -69,10 +72,11 @@ function HomeContent({ data, load }) {
             {items.length > 0 && (
               <section aria-label="Recent">
                 <h2 className={HEADING}>Recent</h2>
-                <ul className={CARD_ROWS}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} onMore={cardMenu.onMore(a)} />)}</ul>
+                <ul className={CARD_ROWS}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} onMore={cardMenu.onMore(a)} onVaries={cardMenu.onVaries(a)} />)}</ul>
               </section>
             )}
             {cardMenu.element}
+            {folders.element}
           </>
         )}
       </div>
@@ -90,7 +94,7 @@ function Continue({ item, app, email }) {
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_ROWS}>
-        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)} pick={appPick(a, cardModel(a).title)}
+        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)}
           mine={isMine(a, email)} access={a.kind === 'canvas' || a.kind === 'repository' ? a.access || null : null}
           note={(
             <>
@@ -108,7 +112,7 @@ function Continue({ item, app, email }) {
 // Recent: the same card for what was opened in this browser. A canvas says where its content is (continue.js
 // recentCard: no action means another browser holds it, and then it does not open from here; a board on the server
 // says nothing). Jobs and servers keep their own line and action.
-function RecentCard({ app, card, email, onMore }) {
+function RecentCard({ app, card, email, onMore, onVaries }) {
   const { action, meta } = card;
   const go = (to) => (app.fixture ? fixtureNote() : navigate(to));
   const learning = app.kind === 'canvas' || app.kind === 'repository';
@@ -118,9 +122,9 @@ function RecentCard({ app, card, email, onMore }) {
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';
   return (
-    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} pick={appPick(app, cardModel(app).title)}
+    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
-      mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} note={note} onMore={onMore}
+      mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} onVaries={onVaries} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}
       actions={learning ? null : action?.to ? <button type="button" className={`${link} cursor-pointer`} onClick={stop(() => go(action.to))}>{action.label} <ArrowRight size={12} className="nudge-arrow" /></button>
         : action?.href ? <a href={action.href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className={link}>{action.label} <ArrowUpRight size={12} /></a> : null} />
@@ -187,13 +191,14 @@ function Explore() {
         <Tabs value={tab} onValueChange={choose}>
           <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
-        <div className="flex items-center gap-3 pb-6">
-          <label className="relative block min-w-0 flex-1">
+        <div className="flex items-center gap-3 pb-6 max-md:flex-wrap">
+          <label className="relative block min-w-0 flex-1 max-md:basis-full">
             <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
           </label>
           {tab === 'explainers' && <LibraryFilters type={type} path="/explore" types={EXPLORE_TYPES} />}
           {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+          {tab === 'explainers' && <CardSize />}
         </div>
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators">

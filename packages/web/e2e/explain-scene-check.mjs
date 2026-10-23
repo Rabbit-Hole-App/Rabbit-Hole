@@ -12,6 +12,7 @@
 //   6. View > Slash commands: /explain's Interactive visual examples work there, and opening it generates nothing.
 // Steps 2-4 run for every replayed scene. THEME=dark runs it in the dark theme.
 // Usage: BASE=http://127.0.0.1:9311 SMALL_CP=http://127.0.0.1:9313 VARS=<stack .dev.vars> [SCENES=<dir>] [THEME=dark] node e2e/explain-scene-check.mjs [shotsDir]
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -226,8 +227,7 @@ await step('a refused scene adds and saves no card, keeps the line, says what fa
 
 await step('View > Slash commands: /explain\'s interactive examples work there, and opening it generates nothing', async () => {
   const before = posts.length;
-  await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-  await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
   const sheet = page.getByRole('dialog', { name: 'Slash commands' });
   await sheet.locator('[data-slash-help="explain"]').click();
   assert.equal(await sheet.locator('[data-slash-label]').innerText(), 'Add explanation');

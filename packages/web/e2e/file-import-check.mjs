@@ -99,7 +99,7 @@ if (process.env.OFFLINE !== '1') {
   // A real drop at the canvas centre (or the page's Upload/Insert picker). Files go in through a file input, so a 50 MiB
   // fixture is never copied through page.evaluate.
   const enter = async files => {
-    if (ENTRY === 'upload') return page.setInputFiles('input[type="file"][multiple][accept]', files);
+    if (ENTRY === 'upload') { await page.setInputFiles('input[type="file"][multiple][accept]', files); return page.locator('[data-upload-destination] [data-upload-choice="canvas"]').click(); } // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the drop road
     await page.evaluate(() => { if (!document.getElementById('fixture-files')) document.body.append(Object.assign(document.createElement('input'), { type: 'file', multiple: true, id: 'fixture-files', hidden: true })); });
     await page.setInputFiles('#fixture-files', files);
     await page.evaluate(() => {

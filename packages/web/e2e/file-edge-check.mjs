@@ -176,6 +176,7 @@ await page.waitForTimeout(3000);
 const uploaded = page.waitForResponse(response => response.request().method() === 'PUT' && /\/assets\/drop%3A/.test(response.url()), { timeout: 180000 });
 t0 = Date.now();
 await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles(clip.path);
+await page.locator('[data-upload-destination] [data-upload-choice="canvas"]').click(); // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the drop road
 await canvas.locator('video[controls]').first().waitFor({ timeout: 30000 }).catch(() => {});
 const putClip = await uploaded.catch(() => null);
 ok(`a ${(clip.size / MiB).toFixed(1)} MiB WebM uploaded through the page saves to the account`, putClip?.status() === 200, `${putClip?.status()} in ${Date.now() - t0} ms`);

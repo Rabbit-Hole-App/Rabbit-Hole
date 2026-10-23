@@ -324,7 +324,7 @@ artifactNext = () => new Promise(resolve => { releaseD = () => resolve({ json: {
 await send('/explain shared boards');
 await slots().first().waitFor({ timeout: 2000 });
 await page.locator('[role="menubar"] button', { hasText: 'Insert' }).click();
-await page.getByText('Divider line', { exact: true }).click();
+await page.getByRole('menuitem', { name: 'Divider', exact: true }).click(); // // Owner brief 2026-10-22: Divider line is Divider
 await waitFor(async () => pushes.length > 0, 'a push while the skeleton waits', 8000);
 check('D1 the board pushed while the skeleton waited, without it', pushes.length > 0 && pushes.every(body => !SLOT_ID.test(body)) && (await slots().count()) === 1);
 releaseD();

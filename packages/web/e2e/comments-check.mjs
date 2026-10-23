@@ -4,6 +4,7 @@
 // and its pin, and none of it touches the board's version. Against the LOCAL stack only: local D1 and a fresh browser
 // profile. No model is called: model routes are answered or refused here. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8862 SMALL_CP=http://127.0.0.1:8863 node e2e/comments-check.mjs [shotsDir] (app on app-worker.js, SMALL_ENV=test)
+import { openShowHide, showHideRow } from './canvas-menu-helpers.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -276,17 +277,16 @@ const visitor = { session: await sessionFor(`comments-visitor-${run}@example.com
 let token;
 const share = () => page.locator('[role="dialog"][aria-label="Share canvas"]');
 // Owner 2026-10-21: View > Comments is a switch like Minimap; off hides the pins, on brings them back, remembered on this device.
-await check('8b View > Comments: a switch, on by default; off hides the pins and survives a reload; on shows them again', async () => {
-  const bar = page.getByRole('menubar', { name: 'Canvas menu' });
-  const toggle = bar.getByRole('switch', { name: 'Comments', exact: true });
+await check('8b View > Show / hide > Comment pins: a checked row, on by default; off hides the pins and survives a reload; on shows them again', async () => {
+  const toggle = showHideRow(page, 'Comment pins'); // Owner brief 2026-10-22: Comments is Comment pins under Show / hide
   const set = async on => {
-    if (!(await toggle.count())) await bar.getByRole('menuitem', { name: 'View' }).click();
+    await openShowHide(page);
     await toggle.waitFor({ timeout: 5000 });
     if ((await toggle.getAttribute('aria-checked')) !== String(on)) await toggle.click();
-    await page.waitForFunction(v => document.querySelector('[role="menubar"] [role="switch"][aria-label="Comments"]')?.getAttribute('aria-checked') === v, String(on), { timeout: 5000 });
-    await page.keyboard.press('Escape');
+    await page.waitForFunction(v => [...document.querySelectorAll('[role="menubar"] [role="menuitemcheckbox"]')].find(node => node.textContent.trim() === 'Comment pins')?.getAttribute('aria-checked') === v, String(on), { timeout: 5000 });
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
   };
-  await bar.getByRole('menuitem', { name: 'View' }).click();
+  await openShowHide(page);
   assert.equal(await toggle.getAttribute('aria-checked'), 'true', 'on by default');
   await page.keyboard.press('Escape');
   await set(false);
@@ -307,9 +307,17 @@ await check('10 Share: Allow comments (on by default); published, Public comment
   await card('k-exp').waitFor({ timeout: 60000 });
   await page.locator('[data-share-button]').click();
   await share().locator('[data-comment-settings]').waitFor();
-  const allow = share().locator('[data-comment-settings]').getByRole('radio', { name: 'Allow comments' });
-  const viewOnly = share().locator('[data-comment-settings]').getByRole('radio', { name: 'View only' });
+  const invited = share().getByRole('radiogroup', { name: 'Invited people comments' });
+  const allow = invited.getByRole('radio', { name: 'Allow comments' });
+  const viewOnly = invited.getByRole('radio', { name: 'View only' });
   assert.equal(await allow.isChecked(), true);
+  // Owner decision 2026-10-22: the share link has its own Hidden / View only / Allow comments, Hidden by default, enforced by the server.
+  const linkGroup = share().getByRole('radiogroup', { name: 'Link comments' });
+  assert.equal(await linkGroup.getByRole('radio', { name: 'Hidden' }).isChecked(), true, 'link comments start Hidden');
+  await linkGroup.getByRole('radio', { name: 'View only' }).click();
+  await share().getByRole('tabpanel').getByText('Visitors with the share link see existing comments but cannot post.').waitFor();
+  await linkGroup.getByRole('radio', { name: 'Hidden' }).click();
+  await share().getByRole('tabpanel').getByText('Visitors with the share link see no comments.').waitFor();
   await share().getByRole('tabpanel').getByText('Sign in to post a comment.').waitFor();
   await share().getByRole('tab', { name: 'Explore' }).click();
   const publicComments = share().locator('[data-public-comments]');

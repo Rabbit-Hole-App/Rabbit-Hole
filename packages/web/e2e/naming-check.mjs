@@ -34,7 +34,7 @@ const shot = async name => { await page.waitForTimeout(400); await page.screensh
 const card = title => page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title.replace(/[()]/g, '\\$&')}$`) }) });
 const duplicateFrom = async title => {
   await card(title).hover();
-  await card(title).getByTitle('More').click();
+  await card(title).getByTitle('Card options').click();
   await page.getByRole('button', { name: 'Duplicate', exact: true }).waitFor();
   await shot(`menu-${results.length}`);
   await page.getByRole('button', { name: 'Duplicate', exact: true }).click();

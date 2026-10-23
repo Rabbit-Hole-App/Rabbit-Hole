@@ -165,7 +165,9 @@ test('addresses: your own card by its name, a published card by its token; a cha
 
 test('the card: the picture on the right from md, on top on a phone; one per row; one fixed size; quiet placeholder', () => {
   const card = read('./home/LearningCard.jsx');
-  assert.match(card, /export const CARD_ROWS = 'grid grid-cols-1 gap-4'/);
+  // Owner, 2026-10-22 (card size): the grid reads html[data-card-size] (index.css .card-grid); Large, the unset look, is one per row.
+  assert.match(card, /export const CARD_ROWS = 'card-grid grid gap-4'/);
+  assert.match(read('./index.css'), /\.card-grid \{ grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, var\(--card-min, 100%\)\), 1fr\)\); \}/);
   // Owner, 2026-10-09: the picture's inset above equals its inset below, and the footer ends on its bottom edge - the text
   // column and the picture are one fixed height from md, the card that plus its padding.
   assert.match(card, /export const CARD_BODY_H = 'md:h-\[190px\]';/);
@@ -184,12 +186,13 @@ test('the card: the picture on the right from md, on top on a phone; one per row
     assert.doesNotMatch(src, /CARD_GRID/, file);
     assert.match(src, /thumbnail=\{(cardThumbnail|publishedThumbnail)\(/, file);
   }
-  // Change thumbnail and Use canvas snapshot: the owner's menu only.
+  // Change cover (owner brief 2026-10-22: renamed from Change thumbnail; Use canvas snapshot moved into its picker as
+  // Reset to canvas snapshot): the owner's menu only, and the reset only while a custom cover of yours is up.
   const menu = read('./home/CardMenu.jsx');
-  // (card-menu-items.js: owner rows; Use canvas snapshot only while a picture of yours is up.)
   assert.match(menu, /accept="image\/png,image\/jpeg,image\/webp"/);
-  assert.match(menu, /id === 'snapshot' \? cover\?\.name === a\.name && cover\.source === 'custom'/);
-  assert.match(menu, /snapshot: 'data-menu-thumbnail-revert'/);
+  assert.match(menu, /cover\?\.name === dialog\.a\.name && cover\.source === 'custom'/);
+  assert.match(menu, /<button type="button" data-menu-thumbnail-revert onClick=/);
+  assert.match(menu, />Reset to canvas snapshot<\/button>/);
 });
 
 // Parallel, 2026-10-08: "the picture must never show canvas chrome", and always in the light theme.

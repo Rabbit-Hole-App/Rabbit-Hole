@@ -190,7 +190,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
                 {choice('method', 'connection', 'From a connection')}
               </div>}
               {f.method === 'upload'
-                ? <p className="mt-3 text-xs text-ink-2">After the canvas opens, add the PDF from the canvas menu: Sources → PDF… {LOCAL}</p>
+                ? <p className="mt-3 text-xs text-ink-2">After the canvas opens, add the PDF from the canvas menu: Insert → Upload a file. {LOCAL}</p>
                 : (
                   <div className="mt-3 grid grid-cols-3 gap-2 max-sm:grid-cols-1">
                     {PLANNED.map((c) => (

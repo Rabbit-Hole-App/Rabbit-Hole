@@ -1,3 +1,4 @@
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
@@ -39,8 +40,7 @@ page.on('request', request => { if (request.method() === 'POST' && /\/api\/learn
 const canvasName = LOCAL && (await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Slash sheet check' }) })).json()).name;
 await page.goto(LOCAL ? `${BASE}/apps/${canvasName}` : `${BASE}/apps/repo-06745f10-nanogpt?tab=learn&board=sheet-${Date.now().toString(36)}`);
 await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
 const sheet = page.getByRole('dialog', { name: 'Slash commands' });
 await sheet.waitFor();
 // The search: focused on open; a leading / is ignored; Enter takes the first match; Esc clears it before it closes the sheet.
@@ -144,8 +144,7 @@ await page.keyboard.press('Escape');
 ok('Esc with an empty search closes the sheet', await sheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
 // Use example (owner, 2026-10-20): the example becomes an editable draft - the command's pill and its words - in the Chat
 // composer, and nothing is sent.
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
 await sheet.waitFor();
 await sheet.locator('[data-slash-help="explain"]').click();
 const posted = paid.length;
@@ -161,20 +160,13 @@ ok('Use example: the composer holds the Add explanation pill and the words, edit
 await page.screenshot({ path: `${SHOTS}/use-example-draft.png` });
 await chatComposer.fill('how merge sort works');
 ok('the drafted words can be edited before sending', await chatComposer.inputValue() === 'how merge sort works' && paid.length === posted);
-// The Agent Bar on the Library has no slash commands left (owner, 2026-10-20): no Auto picker or / commands sheet, and a typed
-// removed command says it is unavailable. Library, so nothing here asks a model.
+// The Library has no Agent Bar at all (owner, 2026-10-22: the composer is removed from Home, Library and Explore), so no / commands
+// sheet, Auto picker or removed-command note can show there. Library, so nothing here asks a model.
 await page.goto(`${BASE}/library`);
-const barInput = page.locator('[data-agent-bar] textarea');
-await barInput.waitFor({ timeout: 60000 });
-await barInput.fill('/');
-await page.waitForTimeout(300);
-ok('the bar opens no picker, has no Auto button and no / commands sheet', await page.locator('[data-agent-bar] [role="listbox"]').count() === 0 && await page.locator('[data-bar-slash-help]').count() === 0
-  && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
-await barInput.fill('/find nanoGPT');
-await barInput.press('Enter');
-const barNote = page.locator('[data-result-sheet]').getByText('/find is no longer available.', { exact: false }).first();
-ok('a removed bar command says it is unavailable', await barNote.waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
-await page.screenshot({ path: `${SHOTS}/bar-removed-command.png` });
+await page.locator('main').first().waitFor({ timeout: 60000 });
+await page.waitForTimeout(500);
+ok('the Library has no bar: no composer, picker, Auto button or / commands sheet', await page.locator('[data-agent-bar], main textarea, main [data-chat-composer], [role="listbox"], [data-bar-slash-help]').count() === 0);
+await page.screenshot({ path: `${SHOTS}/library-no-bar.png` });
 ok('no page errors and no paid request', errors.length === 0 && paid.length === 0, `${errors.join(' | ')} ${paid.join(' ')}`);
 await browser.close();
 process.exit(failed ? 1 : 0);

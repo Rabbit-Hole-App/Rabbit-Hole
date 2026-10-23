@@ -44,12 +44,13 @@ test('sidebar section labels: live unchanged (Sidebar.jsx:714,717); the preview 
 
 const at = (url) => { const [p, s = ''] = url.split('?'); const b = baseSurfaceFor(p, s); return [b.place, b.barHidden]; };
 
-test('the baseline surface names the place and hides the bar where another input owns the bottom (T02 §6.1; every canvas route, contract v3)', () => {
-  assert.deepEqual(at('/apps'), ['home', false]);
-  assert.deepEqual(at('/dash'), ['home', false]);
-  assert.deepEqual(at('/library?type=canvases'), ['library', false]);
-  assert.deepEqual(at('/apps?s=shared'), ['library', false]);
-  assert.deepEqual(at('/explore'), ['explore', false]);
+// Owner, 2026-10-22: "Remove the composer completely from Home, Library and Explore" - their bar is hidden too (no composer, no reserved space).
+test('the baseline surface names the place and hides the bar where another input owns the bottom or the page has none (T02 §6.1; every canvas route, contract v3; Home, Library and Explore)', () => {
+  assert.deepEqual(at('/apps'), ['home', true]);
+  assert.deepEqual(at('/dash'), ['home', true]);
+  assert.deepEqual(at('/library?type=canvases'), ['library', true]);
+  assert.deepEqual(at('/apps?s=shared'), ['library', true]);
+  assert.deepEqual(at('/explore'), ['explore', true]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['learn', true]); // a repository opens on its canvas (owner, 2026-10-15)
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['learn', true]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), ['learn', true]);
@@ -58,7 +59,7 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/apps/canvas-1a2b3c4d'), ['canvas', true]);
   assert.deepEqual(at('/apps/counter/runs/r-1'), ['run', true]);
   assert.deepEqual(at('/chat?app=counter'), ['chat', true]);
-  assert.deepEqual(at('/members'), ['home', false]); // solo v1: no members page in the preview
+  assert.deepEqual(at('/members'), ['home', true]); // solo v1: no members page in the preview
 });
 
 test('Learn and canvas routes are immersive, with no persistent sidebar or icon rail; every other page keeps it (WP6 closeout)', () => {
@@ -90,8 +91,8 @@ test('Root inputs: a split path and getSurface(); a chip click keeps who is look
   patchSurface(identity);
   setSurface({ place: 'project', resource: { kind: 'project', slug: 'repo-x', title: 'x' }, selected: { id: 'n1' }, resultsHost: 'panel', handlers: { onGraph() {} } });
   setSurface(baseSurfaceFor(...rootInputs('/library?type=canvases&s=private')));
-  assert.deepEqual(getSurface(), { ...identity, place: 'library', resource: null, selected: null, barHidden: false, resultsHost: 'sheet', handlers: {} });
-  for (const [path, place, hidden] of [['/apps?s=shared', 'library', false], ['/apps/counter?tab=learn', 'app', false], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'learn', true]]) {
+  assert.deepEqual(getSurface(), { ...identity, place: 'library', resource: null, selected: null, barHidden: true, resultsHost: 'sheet', handlers: {} });
+  for (const [path, place, hidden] of [['/apps?s=shared', 'library', true], ['/apps/counter?tab=learn', 'app', false], ['/apps/canvas-1a2b3c4d', 'canvas', true], ['/apps/repo-1a2b3c4d-nanogpt?tab=map', 'learn', true]]) {
     setSurface(baseSurfaceFor(...rootInputs(path)));
     assert.deepEqual([getSurface().place, getSurface().barHidden, getSurface().org], [place, hidden, 'gmail-com'], path);
   }

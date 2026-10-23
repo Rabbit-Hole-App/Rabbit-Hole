@@ -20,6 +20,7 @@
 // Before this change step 1 fails: /3d shows img[data-slash-illustration] (slash-3d-frustum.svg) and no viewer, and its e.g.
 // line asked for the solar system while the model shown is the camera frustum sample.
 // Usage: BASE=http://127.0.0.1:9271 SMALL_CP=http://127.0.0.1:9273 VARS=C:/s/toc-ui3d/.dev.vars node e2e/slash-3d-check.mjs [shotsDir]
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
@@ -131,8 +132,7 @@ const open = async theme => {
 const sheetOf = page => page.getByRole('dialog', { name: 'Slash commands' });
 const openSheet = async page => {
   phase = 'window';
-  await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-  await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
   await sheetOf(page).waitFor();
   await sheetOf(page).locator('[data-slash-help="3d"]').click();
 };

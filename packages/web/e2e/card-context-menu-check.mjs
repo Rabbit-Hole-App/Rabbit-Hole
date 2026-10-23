@@ -269,7 +269,7 @@ await check('6e the Library ⋮ menu still opens from the keyboard (Enter) with 
   const card = page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^Tides ${run}$`) }) });
   await card.waitFor({ timeout: 60000 });
   await card.hover();
-  const more = card.getByTitle('More');
+  const more = card.getByTitle('Card options');
   await more.focus(); await page.keyboard.press('Enter');
   await page.getByRole('button', { name: 'Rename', exact: true }).waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');

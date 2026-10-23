@@ -14,6 +14,7 @@
 //   7. the Library bar has no slash commands: no picker, no Auto, a removed one says so;
 //   8. (light only, last) typed /dive <topic> opens a Rabbit Hole about it.
 // Usage: BASE=http://127.0.0.1:9231 SMALL_CP=http://127.0.0.1:9233 VARS=C:/s/toc-uislash/.dev.vars node e2e/slash-cleanup-check.mjs [shotsDir]
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
@@ -224,8 +225,7 @@ async function pass(theme) {
   await page.keyboard.press('Escape');
 
   // 5. The Slash commands window.
-  await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-  await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
   const sheet = page.getByRole('dialog', { name: 'Slash commands' });
   await sheet.waitFor();
   const listed = await sheet.locator('[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));
@@ -273,18 +273,13 @@ async function pass(theme) {
   await paper.scrollIntoViewIfNeeded();
   await shot('18-paper-card');
 
-  // 7. The Library bar: no slash commands.
+  // 7. The Library has no bar at all (owner, 2026-10-22: the composer is removed from Home, Library and Explore); it used to be
+  // checked for having no slash commands, which went with the bar.
   await page.goto(`${BASE}/library`);
-  const barInput = page.locator('[data-agent-bar] textarea');
-  await barInput.waitFor({ timeout: 60000 });
-  await barInput.fill('/');
-  await page.waitForTimeout(300);
-  ok(`${theme}: the Library bar opens no picker and shows no Auto or command pill`, await page.locator('[data-agent-bar] [role="listbox"]').count() === 0 && await page.locator('[data-agent-bar] [data-command-pill]').count() === 0
-    && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
-  await barInput.fill('/teach attention');
-  await barInput.press('Enter');
-  ok(`${theme}: a removed bar command says it is unavailable`, await page.locator('[data-result-sheet]').getByText('/teach is no longer available. Ask in your own words.', { exact: true }).first().waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
-  await shot('19-bar-removed');
+  await page.locator('main').first().waitFor({ timeout: 60000 });
+  await page.waitForTimeout(500);
+  ok(`${theme}: the Library has no bar, no composer and so no slash picker, Auto or command pill`, await page.locator('[data-agent-bar], main textarea, main [data-chat-composer], [role="listbox"]').count() === 0);
+  await shot('19-library-no-bar');
 
   // 8. /dive <topic> opens a Rabbit Hole about it (light only: it leaves the canvas).
   if (theme === 'light') {

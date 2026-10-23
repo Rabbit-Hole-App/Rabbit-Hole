@@ -391,18 +391,16 @@ async function n7() {
       `${dock.errors.slice(0, 2).join(' | ')} aborted: ${dock.aborted.join(', ') || 'none'}`);
     await dock.page.screenshot({ path: `${OUT}/N7-dock.png` });
     await dock.context.close();
-    // Control: the observer does see a journey start when the product makes one. Home's Agent Bar starts a journey from the same
-    // kind of request (journey-check.mjs J8), and its POST /api/learn/journey is in the log.
+    // Control: the observer does see a journey start when one is posted. Home's Agent Bar used to start one from a typed request
+    // (journey-check.mjs J8); the bar is gone from Home (owner, 2026-10-22), so the control posts the same start from the page
+    // itself, and its POST /api/learn/journey is in the log.
     const home = await pageFor(browser);
     await home.page.goto(`${BASE}/apps`);
     await home.page.waitForTimeout(3000);
-    const bar = home.page.locator('textarea').last();
-    await bar.fill(REQUEST);
-    await bar.press('Enter');
-    await home.page.waitForURL(url => /^\/apps\/canvas-[a-f0-9]{8}$/.test(url.pathname) && url.searchParams.get('tab') === 'learn', { timeout: 30000 }).catch(() => null);
+    await home.page.evaluate(async (text) => { await fetch('/api/learn/journey', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'start', text }) }).catch(() => null); }, REQUEST);
     await home.page.waitForTimeout(1500);
     const homeStarts = posted(home.seen, '/api/learn/journey').filter(entry => entry.body?.action === 'start');
-    check('N7 dock control', homeStarts.length === 1, 'control: Home starts a journey from a request, and the same observer sees its one POST /api/learn/journey start', `${homeStarts.length} journey start POST(s) seen from Home (page at ${new URL(home.page.url()).pathname})`);
+    check('N7 dock control', homeStarts.length === 1, 'control: a journey start posted from the page, and the same observer sees its one POST /api/learn/journey start', `${homeStarts.length} journey start POST(s) seen from Home (page at ${new URL(home.page.url()).pathname})`);
     await home.context.close();
   } finally { await browser.close(); }
 }

@@ -13,6 +13,7 @@
 // Prints `ok <label>` per check, ids and counts only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json and *.png (the picker, chips, the standalone card, grouped backlinks).
 // Usage: BASE=http://127.0.0.1:8931 SMALL_CP=http://127.0.0.1:8933 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-refs-check.mjs
+import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -520,14 +521,10 @@ await check('10 the card menu keeps its items, each with an icon; panel tabs kee
   const tabs = await page.locator('[data-panel-header] [role="tablist"] [role="tab"]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-panel-tab')));
   assert.deepEqual(tabs, ['chat', 'find', 'toc', 'comments', 'progress'], `panel tabs: ${tabs.join(',')}`);
   assert.equal(await page.locator('[data-panel-tab="links"]').count(), 0, 'Links is a Search filter, not a tab');
-  const viewMenu = page.locator('[role="menubar"][aria-label="Canvas menu"]').getByRole('menuitem', { name: 'View', exact: true });
-  const mode = page.locator('[role="menubar"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
-  await viewMenu.click();
-  await mode.selectOption({ label: 'Editor' });
+  await chooseWorkspace(page, 'Editor'); // Owner brief 2026-10-22: View > Workspace
   await waitFor(async () => (await page.locator('[data-canvas-doc]').getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, 'Editor view never got ready');
   assert.ok((await page.locator('[data-canvas-doc]').innerText()).includes(`Document kept ${run}`), 'the document is not shown');
-  await viewMenu.click();
-  await mode.selectOption({ label: 'Canvas' });
+  await chooseWorkspace(page, 'Canvas');
   await waitFor(async () => (await page.locator('[data-canvas-doc]').count()) === 0, 5000, 'Canvas view still shows the document');
 });
 

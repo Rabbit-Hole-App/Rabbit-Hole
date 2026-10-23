@@ -5,6 +5,7 @@
 // canvas Find (which still finds), while inside Chat, Ctrl+K and the BlockNote document "/" is typed as before.
 // Search answers come from a route in this check: no Exa call, no model call, nothing sent to the Tutor.
 // usage: BASE=http://127.0.0.1:<app> SMALL_CP=http://127.0.0.1:<cp> TEST_BYPASS_SECRET=<that stack's> node e2e/source-finder-check.mjs [outDir]
+import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 
@@ -120,17 +121,18 @@ await finder.waitFor({ state: 'detached' });
 ok('Escape gives the typed line back', await composer().inputValue() === '/wikipedia backprop');
 await composer().fill('');
 
-// 5. Insert: the three entries open the same finder, empty, waiting.
+// 5. Insert: Search sources opens the one finder, empty, waiting; its source choices are YouTube, arXiv and Wikipedia.
 await blank();
 await menubar.getByRole('menuitem', { name: /^Insert/ }).click();
-const rows = await page.locator('[role="menubar"] [class*="top-9"] button[role="menuitem"]').allInnerTexts();
-const at = label => rows.findIndex(text => text.trim() === label);
-ok('Insert lists Search YouTube, Search arXiv and Search Wikipedia, in that order', at('Search YouTube') >= 0 && at('Search YouTube') < at('Search arXiv') && at('Search arXiv') < at('Search Wikipedia'), rows.map(text => text.trim()).join(' | '));
+// // Owner brief 2026-10-22: one Search sources row; YouTube, arXiv and Wikipedia are choices inside the finder
+const rows = await menubar.locator('button[data-menu-item]').evaluateAll(buttons => buttons.filter(button => button.closest('[role="menu"]').parentElement.className.includes('top-9')).map(button => button.dataset.menuItem));
+ok('Insert lists one Search sources row, and no per-source rows', rows.includes('Search sources') && !rows.some(label => /^Search (YouTube|arXiv|Wikipedia)$/.test(label)), rows.join(' | '));
 await page.screenshot({ path: `${OUT}/04-insert-menu.png` });
-await page.getByRole('menuitem', { name: 'Search Wikipedia', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Search sources', exact: true }).click();
 await finder.waitFor({ timeout: 10000 });
 const quiet = searches.length;
-ok('Insert > Search Wikipedia opens the finder on Wikipedia, empty, searching nothing', await finder.getByLabel('Search in').inputValue() === 'wikipedia' && await finder.getByRole('textbox').inputValue() === '' && searches.length === quiet);
+await finder.getByLabel('Search in').selectOption('wikipedia');
+ok('Insert > Search sources, then the Wikipedia choice, is the finder on Wikipedia, empty, searching nothing', await finder.getByLabel('Search in').inputValue() === 'wikipedia' && await finder.getByRole('textbox').inputValue() === '' && searches.length === quiet);
 await finder.getByRole('textbox').fill('backpropagation');
 await finder.getByRole('textbox').press('Enter');
 await finder.getByText('The algorithm itself.').waitFor({ timeout: 10000 });
@@ -140,11 +142,12 @@ await addButton.click();
 await finder.waitFor({ state: 'detached' });
 await page.locator('[aria-label="Lesson canvas"]').getByText('Backpropagation computes gradients.').first().waitFor({ timeout: 10000 }).catch(() => {});
 ok('Add to canvas puts the article card on the canvas', await page.locator('[aria-label="Lesson canvas"]').getByText('Backpropagation computes gradients.').count() >= 1);
-for (const [label, source] of [['Search YouTube', 'youtube'], ['Search arXiv', 'arxiv']]) {
-  await menubar.getByRole('menuitem', { name: /^Insert/ }).click();
-  await page.getByRole('menuitem', { name: label, exact: true }).click();
+for (const source of ['youtube', 'arxiv']) {
+  await menubar.getByRole('menuitem', { name: 'Insert', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Search sources', exact: true }).click();
   await finder.waitFor({ timeout: 10000 });
-  ok(`Insert > ${label.slice(0, -1)} opens the same finder on ${source}`, await finder.getByLabel('Search in').inputValue() === source);
+  await finder.getByLabel('Search in').selectOption(source);
+  ok(`Insert > Search sources, then the ${source} choice, is the same finder on ${source}`, await finder.getByLabel('Search in').inputValue() === source);
   await page.keyboard.press('Escape');
   await finder.waitFor({ state: 'detached' });
 }
@@ -207,10 +210,7 @@ if (await quick.count()) {
 
 // 9. Inside the BlockNote document "/" stays in the document.
 await blank();
-const viewMenu = menubar.getByRole('menuitem', { name: 'View', exact: true });
-const viewChoice = menubar.locator('select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
-await viewMenu.click();
-await viewChoice.selectOption({ label: 'Editor' });
+await chooseWorkspace(page, 'Editor'); // Owner brief 2026-10-22: View > Workspace > Editor
 await page.locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 20000 }).catch(() => {});
 const doc = page.locator('[data-canvas-doc-editor] .bn-editor');
 await doc.getByText('Notes on attention').click();

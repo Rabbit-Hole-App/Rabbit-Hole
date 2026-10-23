@@ -154,6 +154,7 @@ await dialog.getByRole('button', { name: 'Cancel' }).click();
 
 // --- Insert > Upload a file opens the same dialog ---
 await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles({ name: 'upload.py', mimeType: 'text/x-python', buffer: Buffer.from('x = 1\n') });
+await page.locator('[data-upload-destination] [data-upload-choice="canvas"]').click(); // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the drop road
 await page.waitForTimeout(500);
 ok('Upload a file opens the same dialog', await dialog.count() === 1 && (await dialog.locator('[data-import-file]').innerText()).trim() === 'upload.py');
 await dialog.getByRole('button', { name: 'Cancel' }).click();
@@ -167,6 +168,7 @@ const authed = { cookie: `small_session=${session}` };
 const uploaded = page.waitForResponse(response => response.request().method() === 'PUT' && /\/assets\/drop%3A/.test(response.url()), { timeout: 120000 });
 const clipsBefore = await canvas.locator('video[controls]').count();
 await page.locator('input[type="file"][accept*=".ipynb"]').setInputFiles(big.path);
+await page.locator('[data-upload-destination] [data-upload-choice="canvas"]').click(); // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the drop road
 // Caching 34 MiB in IndexedDB comes first: wait for the card, at most 30 s.
 await canvas.locator('video[controls]').nth(clipsBefore).waitFor({ timeout: 30000 }).catch(() => {});
 ok(`Upload a file places a ${(big.size / MiB).toFixed(1)} MiB WebM as a video card, with no dialog`, await dialog.count() === 0 && await canvas.locator('video[controls]').count() === clipsBefore + 1);

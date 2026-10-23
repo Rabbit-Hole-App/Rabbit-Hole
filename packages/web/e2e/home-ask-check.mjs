@@ -1,6 +1,8 @@
-// Home ask (docs/features/home-ask.md) in the browser, against the LOCAL stack only. No model call: the answer route is
-// scripted. Every canvas creation (POST /api/canvases) is refused and counted, so the check proves which questions
-// would create a Rabbit Hole and which never do.
+// Home has no ask (docs/features/home-ask.md; owner, 2026-10-22: "Remove the composer completely from Home, Library and Explore"),
+// in the browser, against the LOCAL stack only. It used to type seven questions into the Home composer and prove which answered
+// in place and which started a Rabbit Hole; with the composer gone it proves there is nothing to type into, that no ask, home-ask
+// or canvas creation is made by visiting or using the pages, and that Start a rabbit hole still opens its dialog. No model call:
+// the answer routes are scripted. Every canvas creation (POST /api/canvases) is refused and counted.
 //   PRACTICE_BASE=http://127.0.0.1:8788 SMALL_CP=http://127.0.0.1:8790 node e2e/home-ask-check.mjs [outDir]
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
@@ -29,43 +31,25 @@ await page.route('**/api/learn/home-ask', async route => {
 await page.route('**/api/canvases', route => { if (route.request().method() === 'POST') { created.push(route.request().postDataJSON()); return route.abort(); } return route.continue(); });
 await page.route(/\/api\/ask(\?|$)/, route => { if (route.request().method() === 'POST') { oldAgent.push(route.request().url()); return route.abort(); } return route.continue(); });
 
-const bar = () => page.locator('textarea').last();
-const send = async text => { await bar().fill(text); await bar().press('Enter'); await page.waitForTimeout(1500); };
 const shot = async name => { await page.screenshot({ path: `${OUT}/${name}.png` }); console.log('shot', name); };
 
-const cases = [
-  ['What canvases do I have?', 'inline'], ['Where did I learn about softmax?', 'inline'], ['What is softmax?', 'inline'],
-  ['Explain attention', 'inline'], ['tell me something about attention?', 'inline'],
-  ['Teach me attention', 'rabbit-hole'], ['Start a Rabbit Hole about attention', 'rabbit-hole'],
-];
 const results = [];
-for (const [text, want] of cases) {
-  await page.goto(`${BASE}/apps`); await page.waitForTimeout(3000);
-  const before = { asked: asked.length, created: created.length };
-  await send(text);
-  const got = created.length > before.created ? 'rabbit-hole' : asked.length > before.asked ? 'inline' : 'nothing';
-  results.push([text, got]);
-  assert.equal(got, want, `${text}: ${got}`);
-  if (want === 'inline') {
-    const sheet = page.locator('[data-result-sheet]');
-    await sheet.waitFor({ timeout: 10000 });
-    assert.ok((await sheet.innerText()).includes(text.endsWith('?') && /canvases|where did/i.test(text) ? 'karpathy/nanoGPT' : 'A short answer'), `${text}: the answer shows in place`);
-  }
-  await shot(`${results.length}-${want}`);
+for (const path of ['/apps', '/library', '/explore']) {
+  await page.goto(`${BASE}${path}`); await page.waitForTimeout(3000);
+  const composers = await page.locator('[data-agent-bar], main textarea, main [data-chat-composer]').count();
+  assert.equal(composers, 0, `${path}: a composer shows`);
+  await page.keyboard.press('Control+j'); await page.keyboard.press('Control+o');
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName === 'TEXTAREA'), false, `${path}: a shortcut focused a text area`);
+  results.push([path, 'no composer']);
+  await shot(`${results.length}-no-composer`);
 }
-// The offer is a button the learner presses: only then is a Rabbit Hole started, with the original question.
+// Start a rabbit hole is the creation path: it opens its dialog and creates nothing by itself.
 await page.goto(`${BASE}/apps`); await page.waitForTimeout(3000);
-await send('What is softmax?');
-const offer = page.locator('[data-answer-offer]');
-await offer.waitFor({ timeout: 10000 });
-const beforeOffer = created.length;
-await offer.click(); await page.waitForTimeout(1500);
-assert.equal(created.length, beforeOffer + 1, 'the offer starts one Rabbit Hole');
-// A library answer links to what it names.
-await page.goto(`${BASE}/apps`); await page.waitForTimeout(3000);
-await send('What canvases do I have?');
-assert.equal(await page.locator('[data-answer-links] button').count(), 1);
-await shot('8-library-answer-links');
+await page.getByRole('button', { name: 'Start a rabbit hole' }).first().click();
+await page.getByRole('dialog', { name: 'Start a rabbit hole', exact: true }).waitFor({ timeout: 10000 });
+assert.equal(created.length, 0, 'opening Start creates nothing');
+await shot('4-start-dialog');
+assert.deepEqual(asked, [], 'no Home ask is made');
 assert.deepEqual(oldAgent, [], 'the old apps agent is never asked');
 assert.deepEqual(errors, []);
 console.log(JSON.stringify({ ok: true, results, created: created.map(c => c.title) }));

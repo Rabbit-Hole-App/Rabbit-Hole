@@ -15,6 +15,7 @@
 //      and the candidate kept;
 //  10. nothing else asked a model, left the stack, or threw.
 // Usage: BASE=http://127.0.0.1:9311 SMALL_CP=http://127.0.0.1:9313 VARS=<stack .dev.vars> node e2e/explain-entry-check.mjs [shotsDir]
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -157,8 +158,7 @@ await step('the picker: the Add explanation pill and its words make the same job
 });
 
 await step('Use example only fills the composer; its Send makes one job', async () => {
-  await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-  await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
   const sheet = page.getByRole('dialog', { name: 'Slash commands' });
   await sheet.waitFor();
   await sheet.locator('[data-slash-help="explain"]').click();

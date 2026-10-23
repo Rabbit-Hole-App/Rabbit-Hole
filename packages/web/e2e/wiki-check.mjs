@@ -78,7 +78,7 @@ await page.waitForTimeout(3000);
 ok('no article on the canvas to begin with', (await card.count()) === 0);
 // Insert > Search Wikipedia (Release B removed the top-bar Search control); a card only on Add to canvas.
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
-await page.getByRole('menuitem', { name: 'Search Wikipedia', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Search sources', exact: true }).click(); // // Owner brief 2026-10-22: one Search sources row; Wikipedia is chosen inside
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('wikipedia');
