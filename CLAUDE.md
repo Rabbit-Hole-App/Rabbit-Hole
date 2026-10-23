@@ -70,6 +70,34 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 - Reuse authorization already given for the current task.
 - Use a short plan proportional to the change. Small fixes do not need
   a separate design document or repeated planning cycle.
+- Always look for a faster plan before committing to one or giving an ETA
+  (owner, 2026-10-16): what can run at the same time, the smallest correct
+  scope, which step can start now. Speed never skips required verification
+  or approvals.
+- Never guess an ETA (owner, 2026-10-16). Derive it from the remaining steps,
+  their owners, what runs in parallel and each step's measured duration. When
+  a duration is unknown, say what is unknown and when it will be known.
+  "ETA" means pushed to `main` and live on digrabbithole.com (owner,
+  2026-10-22); report a slip with its specific blocker.
+
+### Credentials, remotes and processes
+
+- Credentials (owner, 2026-10-21): read them only from
+  `C:\Users\cyudhist\Desktop\workspace\small-deploy\.env`, never from a
+  worktree's own `.env`. Read key names only, pass values by name, never print
+  or source the file.
+- Push only to the `rabbit-hole` remote (Rabbit-Hole-App/Rabbit-Hole), never
+  `origin`. Check `git remote -v` first.
+- Stop only processes or process trees whose PID your task recorded when it
+  started them. Never kill by process name, command line or start time
+  (owner, 2026-10-21).
+
+### UI copy (owner, 2026-10-21)
+
+- No "..." or "…" in user-facing text. Say "Capturing the page", not
+  "Capturing the page...".
+- A disabled item keeps its name, greyed out, with no explanation text.
+- Show credits, never dollars.
 
 ### Understand the affected flow
 
@@ -121,12 +149,24 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 
 ### Integration and release
 
-- Before requesting release, run the existing required unit, production
-  build, bundle and affected browser checks on the exact candidate.
-  - Release readiness (owner, 2026-10-13): `make test-unit`; the
-    production build plus `packages/web/e2e/production-bundle-check.mjs`;
-    every existing browser check that exercises the screens you changed.
-    New checks of your own do not replace the existing ones.
+- Claude runs no browser checks (owner, 2026-10-21: "stop making claude do
+  browser checks. i will do them"). That means no local e2e, no Chrome
+  checks and no production browser verification, by Claude or by its lanes.
+  Lanes run the unit tests for their change and the web build, then push.
+  CI still runs the browser checks on the exact candidate. The owner tests the
+  result in the browser, so each hand-back includes a short "how to try it".
+  This supersedes every browser-check item below and in the sections above.
+- Before requesting release, run the existing required unit and production
+  build and bundle checks on the exact candidate.
+  - Release readiness (owner, 2026-10-13, amended 2026-10-21): the unit tests
+    for the change; the production build plus
+    `packages/web/e2e/production-bundle-check.mjs`; the CI gate. CI runs the
+    existing browser checks for the screens changed. New checks of your own do
+    not replace the existing ones.
+- A push to `main` is run by the owner with `!` commands (`rel-main.sh` in `C:/s/spec/day-1021`,
+  on the owner's machine); Claude prepares the candidate and the command.
+  Production migrations, production D1 commands and paid calls keep their own
+  approvals.
   - `make test-integration` before merge.
   - After changing the gate harness or a workflow, run the changed phase
     locally before pushing.
