@@ -385,11 +385,13 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
       {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
           Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
-          follow right-aligned; one gap, one height; when they do not fit the row wraps upward from the card (bottom-full) so it never
+          follow right-aligned; one gap, one height (34px, the old selection bar's; 38px when the CAD tools are in it); the 8px gap above the card is the first-row
+          card's limit: it sits 24px under the floating canvas header, and the row must keep its centre below the header's buttons
+          (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
           lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
           (touch has no double-click). */}
       {selected && ((opens && opener.single === id) || tools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-3.5 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[38px]">
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {opens && opener.single === id && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
@@ -397,7 +399,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
               Open<ArrowUpRight size={13} />
             </button>
           )}
-          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
+          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
         </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
