@@ -16,7 +16,8 @@ import http from 'node:http';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { chromium } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { chromium, firefox, webkit } from '@playwright/test';
 
 export const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 export const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -134,14 +135,44 @@ export const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAA
 export const putCover = (owner, c) => fetch(`${BASE}${c.board}/thumbnail/custom`, { method: 'PUT', body: PNG, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' } });
 
 // ---- reporting: the printed count line is what the gate and CI read ----
-export function reporter(name, total) {
+// plan(n) adds the checks a section is about to run; finish() fails when the number that ran differs from the number planned.
+export function reporter(name, total = 0) {
   const results = [];
+  let planned = total;
   const check = (label, ok, detail = '') => { results.push(!!ok); console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}${!ok && detail ? ` - ${detail}` : ''}`); };
+  const plan = n => { planned += n; };
   const finish = () => {
     const passed = results.filter(Boolean).length;
-    console.log(`${passed}/${total} checks passed`);
-    if (results.length !== total) console.log(`FAIL ${name}: ran ${results.length} checks, expected ${total}`);
-    process.exit(passed === total && results.length === total ? 0 : 1);
+    console.log(`${passed}/${planned} checks passed`);
+    if (results.length !== planned) console.log(`FAIL ${name}: ran ${results.length} checks, planned ${planned}`);
+    process.exit(passed === planned && results.length === planned ? 0 : 1);
   };
-  return { check, finish, results };
+  return { check, finish, results, plan };
+}
+
+// ---- engines: Chromium, Firefox and WebKit (Playwright's WebKit build, never Safari) ----
+// The Browsers step of fast-e2e installs Chromium only. A check run for another engine installs it on first use (and, on Linux,
+// its system libraries) so no workflow edit is needed; with the engine already installed this launches at once.
+const TYPES = { chromium, firefox, webkit };
+export async function launchEngine(engine, options = {}) {
+  const type = TYPES[engine];
+  try { return await type.launch(options); } catch (error) {
+    if (engine === 'chromium') throw error;
+    console.log(`installing ${engine}`);
+    execFileSync('npx', ['--no-install', 'playwright', 'install', ...(process.platform === 'linux' ? ['--with-deps'] : []), engine], { stdio: 'inherit', shell: process.platform === 'win32' });
+    return type.launch(options);
+  }
+}
+
+// A context in which a cross-site frame cannot keep the app's cookie, forced by the engine's own setting and verified with the
+// canary (never assumed); null when the engine has no setting to force it (WebKit: its default decides, see embed-flows.mjs).
+export async function forcedBlocked(engine, host) {
+  if (engine === 'chromium') return blockedProfile(host);
+  if (engine !== 'firefox') return null;
+  // network.cookie.cookieBehavior 1: reject all third-party cookies (the default 5 partitions them instead).
+  const browser = await launchEngine('firefox', { firefoxUserPrefs: { 'network.cookie.cookieBehavior': 1 } });
+  const context = await browser.newContext({ viewport: { width: 1000, height: 800 } });
+  if (await crossSiteCookieKept(host, context)) { await browser.close(); throw Error('firefox kept the canary cookie with cookieBehavior 1'); }
+  console.log('blocked profile: firefox cookieBehavior 1 (the canary cookie is not returned and not stored)');
+  return { context, close: () => browser.close() };
 }

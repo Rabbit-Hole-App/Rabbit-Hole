@@ -4,9 +4,9 @@
 // Chromium page on a distinct-origin host (embed-harness.mjs): which pages a third-party site can frame and which it cannot.
 // The browser half that needs cookies (guest Chat count, blocked storage, wheel, owner powers) is embed-check.mjs.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/embed-access-check.mjs [shotsDir]
-import { BASE, SITE, startHost, launchAvailable, sessionFor, run, api, post, makeCanvas, putCover, PNG, reporter, hostUrl, embedPath } from './embed-harness.mjs';
+import { BASE, SITE, startHost, launchAvailable, sessionFor, run, api, post, makeCanvas, putCover, PNG, SEED, reporter, hostUrl, embedPath } from './embed-harness.mjs';
 
-const TOTAL = 29; // bump with the checks below; the printed line is what CI reads
+const TOTAL = 34; // bump with the checks below; the printed line is what CI reads
 const { check, finish } = reporter('embed-access-check', TOTAL);
 
 const owner = { session: await sessionFor(`embed-owner-${run}@example.com`, `emb_${run}`) };
@@ -62,9 +62,17 @@ const snap = await makeCanvas(owner, `Embed snapshot ${run}`);
 const put = await fetch(`${BASE}${snap.board}/thumbnail`, { method: 'PUT', body: PNG, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' } });
 const ownSnap = await fetch(`${BASE}${snap.board}/thumbnail`, { headers: { cookie: `small_session=${owner.session}` } }), pubSnap = await thumb(`${shared(snap.view)}/thumbnail`);
 check('open item T: a canvas with only a drawn snapshot (no cover) shows its owner the snapshot, and a public embed viewer nothing of it', put.status === 200 && ownSnap.status === 200 && ownSnap.headers.get('x-thumbnail-source') === 'snapshot' && [204, 404].includes(pubSnap.status) && pubSnap.source !== 'snapshot', `${put.status} ${ownSnap.status} ${ownSnap.headers.get('x-thumbnail-source')} / ${pubSnap.status} ${pubSnap.source}`);
+const etag = tv.cache.get('etag');
+const condPub = await fetch(BASE + `${shared(pub.view)}/thumbnail`, { headers: { 'if-none-match': etag || 'none' } });
+const pubSnapOnly = await makeCanvas(owner, `Embed published snapshot ${run}`, { publish: true });
+await fetch(`${BASE}${pubSnapOnly.board}/thumbnail`, { method: 'PUT', body: PNG, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' } });
+const pubSnapRes = await fetch(`${BASE}/api/learn/boards/published/${pubSnapOnly.publication}/thumbnail`);
+check('open item T, publications too: a published canvas with only a drawn snapshot serves none of it (204), and a conditional request for the cover is a 304 while public', [204, 404].includes(pubSnapRes.status) && pubSnapRes.headers.get('x-thumbnail-source') !== 'snapshot' && !!etag && condPub.status === 304, `${pubSnapRes.status} ${pubSnapRes.headers.get('x-thumbnail-source')} / etag ${etag} -> ${condPub.status}`);
 await pub.setPublicView(false); await exp.setPublicView(false); await exp.unpublish();
 const after = await Promise.all([thumb(`${shared(pub.view)}/thumbnail`), thumb(`/api/learn/boards/published/${exp.publication}/thumbnail`)]);
 check('after revocation both thumbnails answer 404', after.every(t => t.status === 404), after.map(t => t.status).join(','));
+const condGone = await fetch(BASE + `${shared(pub.view)}/thumbnail`, { headers: { 'if-none-match': etag || 'none' } });
+check('after revocation a conditional request with the old ETag is a 404, never a 304', condGone.status === 404, String(condGone.status));
 await pub.setPublicView(true);
 check('and it is not remembered: public again, the same token serves it again', (await thumb(`${shared(pub.view)}/thumbnail`)).status === 200);
 
@@ -75,6 +83,19 @@ const probeOwner = await get(owner, `${shared(pub.view)}/ask`, M);
 check('the owner\'s account does not stand in for an embed session: no rh_embed, no Chat', probeOwner.status === 200 && probeOwner.body?.embed?.session === false && (probeOwner.body?.guest ?? null) === null, JSON.stringify(probeOwner.body));
 const viewerSend = await post(viewer, `${shared(pub.view)}/ask`, { message: 'hello' }, { ...M, 'X-RH-Action-Key': `k-${run}-a` });
 check('a signed-in visitor\'s Send through the embed is refused for the missing session before any model call or count', viewerSend.status === 403 && viewerSend.body?.code === 'embed_session_required', `${viewerSend.status} ${JSON.stringify(viewerSend.body)}`);
+
+// ---- E2. assets: the embed reads a file only as a public viewer does, even for the canvas owner ----
+const FILE = (id, key) => ({ id, type: 'file', kind: 'image', dx: 0, dy: id === 'a' ? 0 : 260, assetKey: key, label: `${id}.png` });
+const withFile = await post(owner, '/api/canvases', { title: `Embed assets ${run}` });
+const fb = `/api/learn/boards/${withFile.body.name}/main`;
+const fileView = (await post(owner, `${fb}/share`, { shared: true, view: true, public_view: true, state: { ...SEED('files'), blocks: [FILE('a', 'drop:a')] } })).body.sharing.view;
+for (const key of ['drop:a', 'drop:old']) await fetch(`${BASE}${fb}/assets/${encodeURIComponent(key)}`, { method: 'PUT', body: PNG, headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' } });
+const asset = (who, key, headers = M) => get(who, `${shared(fileView)}/assets/${encodeURIComponent(key)}`, headers).then(r => r.status);
+check('an owner-only asset is refused through the embed: a file the board uses is served, but a file the board no longer uses (which the owner holds) is a 404 even with the owner cookie', await asset(null, 'drop:a') === 200 && await asset(owner, 'drop:a') === 200 && await asset(owner, 'drop:old') === 404 && await asset(null, 'drop:old') === 404);
+await post(owner, `${fb}/share`, { shared: true, view: true, public_view: false, state: { ...SEED('files'), blocks: [FILE('a', 'drop:a')] } });
+const [ownerEmbed, ownerPlain, anonEmbed] = [await asset(owner, 'drop:a'), await asset(owner, 'drop:a', {}), await asset(null, 'drop:a')];
+check('with public view off, the owner account still opens the file on the ordinary page but not through the embed marker; signed out gets nothing', [403, 404].includes(ownerEmbed) && ownerPlain === 200 && [403, 404].includes(anonEmbed), `embed ${ownerEmbed}, plain ${ownerPlain}, anon ${anonEmbed}`);
+check('the embed marker changes nothing for a canvas that is public: the same file, the same bytes for the owner and for a stranger', await (async () => { await post(owner, `${fb}/share`, { shared: true, view: true, public_view: true, state: { ...SEED('files'), blocks: [FILE('a', 'drop:a')] } }); const [x, y] = await Promise.all([fetch(`${BASE}${shared(fileView)}/assets/drop%3Aa`, { headers: { ...M, cookie: `small_session=${owner.session}` } }), fetch(`${BASE}${shared(fileView)}/assets/drop%3Aa`, { headers: M })]); return x.status === 200 && y.status === 200 && (await x.arrayBuffer()).byteLength === (await y.arrayBuffer()).byteLength; })());
 
 // ---- F. the embed session, over HTTP (the browser proves the cookie round trip in embed-check.mjs) ----
 const tripwire = async () => { const r = await fetch(`${BASE}/__provider-tripwire`).catch(() => null); return r?.ok ? (await r.json()).hits.length : null; };
