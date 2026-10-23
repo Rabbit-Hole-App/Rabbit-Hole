@@ -268,7 +268,15 @@ await check('9 a signed-in other person cannot fetch a private or unlisted canva
 });
 // Owner decision 2026-10-22 (public-safe thumbnails): anyone else gets only the owner's custom picture. The snapshot is drawn
 // from the owner's own view of the canvas, so Explore and a public view link serve none (204) until the owner chooses a cover.
-const putCover = name => fetch(`${BASE}${own(name)}/custom`, { method: 'PUT', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' }, body: Buffer.from(cover, 'base64') });
+// The 1200 x 900 PNG is over the server's 1 MB limit; the card menu redraws a chosen picture at 800 x 400 WebP (coverBlob), so does this.
+const smallCover = await page.evaluate(async b64 => {
+  const bitmap = await createImageBitmap(new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], { type: 'image/png' }));
+  const canvas = new OffscreenCanvas(800, 400); canvas.getContext('2d').drawImage(bitmap, 0, 0, 800, 400);
+  const bytes = new Uint8Array(await (await canvas.convertToBlob({ type: 'image/webp', quality: 0.85 })).arrayBuffer());
+  let text = ''; for (const byte of bytes) text += String.fromCharCode(byte);
+  return btoa(text);
+}, cover);
+const putCover = name => fetch(`${BASE}${own(name)}/custom`, { method: 'PUT', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/webp' }, body: Buffer.from(smallCover, 'base64') });
 const publicPicture = (who, path, headers = {}) => call(who, path, { headers });
 const viewLinks = {};
 await check('10 a published canvas\'s custom picture shows on Explore, to anyone; a snapshot-only canvas shows none; unpublished, it is gone', async () => {
