@@ -5,7 +5,7 @@ import { pinCount, pinPoint, pinTopCentre } from './anchors.js';
 
 // Comment pins (docs/features/canvas-comments.md section 5): a speech bubble whose tail is the anchor, at a constant
 // screen size over the canvas, showing how many live comments its thread has (owner, 2026-10-08). Unread: an accent ring. Open in the panel: an ink ring. The draft's
-// pin carries a + until Send. A detached thread (its card deleted) has no pin. Hidden while presenting (the caller).
+// pin carries a + until Send. A deleted object's threads have no pin (owner decision 2026-10-23). Hidden while presenting (the caller).
 // Every pin is filled with its colour, outlined solid in it, orange by default (owner, 2026-10-08); the + and the count
 // are text-white, a token that is white in light mode and the dark surface in dark mode.
 // A pin is a canvas object too (owner, 2026-10-08): a click picks it - the selection ring and the keyboard focus, so Del

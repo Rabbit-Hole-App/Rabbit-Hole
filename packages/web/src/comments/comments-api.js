@@ -28,6 +28,8 @@ export const commentsApi = base => ({
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
   color: (id, color) => send(`${base}/threads/${id}/color`, { color }, 'PUT'),
   removeThread: id => changed(api(`${base}/threads/${id}`, { method: 'DELETE' })),
+  // Ungroup and its Undo (owner decision 2026-10-23): { ungroup: [{ id, x, y }] } or { regroup: [id] }; answers { threads }.
+  moveAnchors: body => send(`${base}/anchors`, body),
   read: id => send(`${base}/threads/${id}/read`),
   block: (commentId, removeComments = false) => send(`${base}/blocks`, { comment_id: commentId, remove_comments: removeComments }),
   blocks: () => api(`${base}/blocks`),

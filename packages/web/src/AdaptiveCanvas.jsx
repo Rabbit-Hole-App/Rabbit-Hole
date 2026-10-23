@@ -1518,7 +1518,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1898,6 +1898,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onDeleteRef.current = onDelete;
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
+  const onUngroupCommentsRef = useRef(onUngroupComments);
+  onUngroupCommentsRef.current = onUngroupComments;
   const onAskTargetRef = useRef(onAskTarget);
   onAskTargetRef.current = onAskTarget;
   const onCardActionRef = useRef(onCardAction);
@@ -2632,11 +2634,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setGroupIds(ids, gid);
     setGroups(previous => [...previous, { id: gid, label: '' }]);
   };
-  const ungroupSelection = () => {
+  const ungroupSelection = async () => {
     const gids = new Set(selectedRef.current.map(groupOf).filter(Boolean));
     if (!gids.size) return;
+    // Ungroup is not a delete (owner decision 2026-10-23): the group's comments move to the canvas at its top centre first, so
+    // a refused move keeps the group; the move rides in this undo step (travelHistory).
+    let comments = null;
+    if (onUngroupCommentsRef.current) {
+      const spots = [...gids].map(id => { const slot = commentSlot(id); return slot && { id, x: slot.x + slot.w / 2, y: slot.y }; }).filter(Boolean);
+      try { comments = await onUngroupCommentsRef.current(spots); } catch (problem) { toast(`Not ungrouped: ${problem?.data?.error || problem.message}`, { tone: 'error' }); return; }
+    }
     const members = everything().filter(entry => gids.has(entry.groupId)).map(entry => entry.id);
-    snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
+    if (!members.length) return; // a second press while the first moved the comments: that one ungrouped already
+    const step = snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
+    if (comments) step.comments = comments;
     setGroupIds(members, null);
     setGroups(previous => previous.filter(group => !gids.has(group.id)));
   };
@@ -3163,7 +3174,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before=capture(!!next.exchanges),fingerprint=JSON.stringify(before),sourceStack=from.current,destinationStack=to.current;
     const result=notebookHistory.current.run({before,after:next,editor:notebookEditor,
       current:()=>alive.current&&!readOnlyRef.current&&from.current===sourceStack&&to.current===destinationStack&&from.current.at(-1)===next&&JSON.stringify(capture(!!next.exchanges))===fingerprint,
-      commit:()=>{from.current.pop();to.current.push(before);restore(next);}});
+      commit:()=>{from.current.pop();to.current.push(before);restore(next);
+        // A step's comment moves (Ungroup's) go back with Undo and again with Redo; the step on the other stack carries them on.
+        if(next.comments){before.comments=next.comments;(from===history?next.comments.undo:next.comments.redo)().catch(problem=>toast(problem?.data?.error||problem.message,{tone:'error'}));}}});
     result?.catch?.(error=>toast(error.message));
   };
   const undo = () => travelHistory(history,future);
@@ -3996,6 +4009,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const groupMembers = {};
   for (const entry of [...blocks, ...items, ...shapes, ...exchanges]) if (entry.groupId) (groupMembers[entry.groupId] ||= []).push(entry.id);
   const commentBoard = { bounds, items, shapes, groups: groupMembers };
+  // The commentable objects, to the page's comments (owner decision 2026-10-23): a deleted object's threads leave the Comments
+  // panel and the counts as its pin does, and come back with Undo. A group is live while it has members.
+  const commentKey = onCommentObjects ? JSON.stringify([[...blocks, ...items, ...shapes, ...exchanges].map(entry => entry.id), Object.keys(groupMembers)]) : '';
+  useEffect(() => {
+    if (!onCommentObjects) return;
+    const [ids, gids] = JSON.parse(commentKey).map(list => new Set(list));
+    onCommentObjects({ ids, groups: gids });
+  }, [commentKey, onCommentObjects]);
   const commentAt = (world, id) => {
     const group = id && groupMembers[id] ? groups.find(candidate => candidate.id === id) || { id } : null;
     const entry = id && !group ? [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === id) : null;
