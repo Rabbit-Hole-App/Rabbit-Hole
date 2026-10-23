@@ -286,11 +286,13 @@ export async function runEmbed(engine) {
       // A hand-off the new tab cannot store (owner finding 2026-10-23): its sessionStorage is full, then blocked (a cookie only this
       // check sets, read by an init script in the top-level full-site tab). Nothing is acknowledged, forked or lost; the embed keeps
       // the edits and says why; Retry once storage works stores everything and forks nothing the visitor did not ask for.
+      // full: only the hand-off's own keys refuse their write (the app's boot keeps working). blocked: the browser refuses the store itself;
+      // the app then runs on its in-page stand-in (storage-fallback.js), which the hand-off must not trust.
       await context.addInitScript(() => {
-        if (window.top !== window || !location.search.includes('from=embed')) return;
+        if (window.top !== window) return;
         const mode = (document.cookie.match(/(?:^|; )rh-test-storage=(\w+)/) || [])[1];
         if (mode === 'blocked') Object.defineProperty(window, 'sessionStorage', { get() { throw new DOMException('Access is denied', 'SecurityError'); }, configurable: true });
-        if (mode === 'full') { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (this === window.sessionStorage) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); return set.call(this, key, value); }; }
+        if (mode === 'full') { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (this === window.sessionStorage && /^(rh\.|small\.shared-ask)/.test(key)) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); return set.call(this, key, value); }; }
       });
       const forks = [];
       context.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/learn/boards/fork') forks.push(r.url()); });
@@ -299,7 +301,7 @@ export async function runEmbed(engine) {
       for (const mode of ['full', 'blocked']) {
         await context.addCookies([{ name: 'rh-test-storage', value: mode, url: APP }]);
         const [refused] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-fork]').click()]);
-        await refused.locator('[data-handoff-refused]').waitFor({ timeout: 60000 });
+        await refused.locator('[data-handoff-refused]').waitFor({ timeout: 60000 }).catch(async error => { throw new Error(`${error.message} (${mode}: tab ${refused.url()}, cookie ${await refused.evaluate(() => document.cookie).catch(() => '?')}, page text ${JSON.stringify(await refused.locator('body').innerText({ timeout: 3000 }).then(t => t.slice(0, 200), () => '?'))})`); });
         await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
         const note = await fl.locator('[data-embed-handoff-failed]').innerText();
         check(`${tag} storage ${mode} in the new tab: it says the changes did not arrive and offers Retry and the original; the embed says so at once, keeps the edits and offers Retry; nothing was forked`, await refused.locator('[data-handoff-retry]').isVisible() && await refused.locator('[data-handoff-original]').isVisible() && await refused.locator('[data-fork-button]').count() === 0 && /could not store/.test(note) && await fl.locator('[data-embed-handoff-retry]').isVisible() && await fl.locator('[data-guest-draft-notice]').count() === 1 && forks.length === 0, JSON.stringify({ note, forks: forks.length }));

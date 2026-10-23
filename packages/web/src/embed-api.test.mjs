@@ -272,14 +272,14 @@ test('hand-off, healthy storage: edits, Chat draft, card and the fork key all ar
   host.stop();
 });
 
-for (const [mode, make] of [['blocked (SecurityError on every call)', blockedStore], ['full (QuotaExceededError on the first write)', () => limited(0)], ['null (the storage accessor threw)', () => null],
+for (const [mode, make] of [['blocked (SecurityError on every call)', blockedStore], ['blocked, replaced by the in-page stand-in storage (memory: true)', () => Object.assign(memory(), { memory: true })], ['full (QuotaExceededError on the first write)', () => limited(0)], ['null (the storage accessor threw)', () => null],
   ['writes that silently drop', () => ({ ...memory(), setItem: () => {} })]]) {
   test(`hand-off, ${mode}: no acknowledgement, a refusal with its reason at once; the tab reports the failure`, async () => {
     const storage = make();
     const { result, events, host } = await handOff(storage);
     assert.deepEqual(result, { ok: false, reason: 'storage' });
     assert.deepEqual(events, ['fail:storage'], 'the embed keeps its copy and offers Retry without waiting for the timeout');
-    if (storage?.map && mode !== 'blocked (SecurityError on every call)') keepsNothing(storage, mode);
+    if (storage?.map && !mode.startsWith('blocked (')) keepsNothing(storage, mode);
     host.stop();
   });
 }

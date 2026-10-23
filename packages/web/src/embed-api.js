@@ -144,9 +144,11 @@ export function handoffHost(win, token, { ttl = 60000, wait = 15000 } = {}) {
 
 // Stores the whole hand-off in this tab's storage, or none of it. true: every key written and read back equal. false: storage is
 // null, blocked, full, silently dropping or partly writable; whatever was written is put back as it was (best effort).
+// A storage with memory: true is the in-page stand-in storage-fallback.js installs where the browser blocks the real one: it dies
+// with the page, so a hand-off kept there would be lost at the sign-in redirect and must not be acknowledged.
 const handoffId = id => (typeof id === 'string' && /^[\w-]{8,80}$/.test(id) ? id : null);
 function storeHandoff(storage, token, { draft, chatDraft, target, id }) {
-  if (!storage) return false;
+  if (!storage || storage.memory) return false;
   const marker = `rh.handoff-done:${token}`;
   try { if (id && storage.getItem(marker) === id) return true; } catch { return false; } // already stored: the composer may have taken the draft since
   const undo = [], wrote = new Map();
