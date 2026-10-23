@@ -1550,6 +1550,21 @@ await run('sloppiness view', async () => {
   await page.keyboard.press('ArrowLeft');
   await reload();
   check('after a reload the strokes are exactly the same', (await look(page)) === first);
+  // The drawing preference is kept on this device (rh.ui-prefs), and a refused save is not passed off as saved.
+  const { level, pressed } = sloppiness(page);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('r');
+  check('a new device starts on Clean', (await pressed()) === '["true","false","false"]', await pressed());
+  await level('Rough').click();
+  await reload();
+  await page.keyboard.press('r');
+  check('the chosen level is still armed after a reload', (await pressed()) === '["false","false","true"]', await pressed());
+  await page.evaluate(() => { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (key === 'rh.ui-prefs') throw new Error('denied'); return set.call(this, key, value); }; });
+  await level('Sketchy').click();
+  check('with storage refusing the save the choice still holds in this page', (await pressed()) === '["false","true","false"]', await pressed());
+  await reload();
+  await page.keyboard.press('r');
+  check('and a reload does not have it: the earlier saved level is back', (await pressed()) === '["false","false","true"]', await pressed());
   for (const [name, options] of [['readonly', { readonly: true }], ['localcopy', { localcopy: true }]]) {
     const other = await open(`sloppiness-view-${name}`, board, options);
     check(`a ${name} view of the board draws the same strokes`, (await look(other.page)) === first);

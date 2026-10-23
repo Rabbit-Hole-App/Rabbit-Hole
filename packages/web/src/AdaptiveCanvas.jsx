@@ -1594,7 +1594,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState('solid');
   // Sloppiness armed for the next shape, arrow or connector (0 Clean, 1 Sketchy, 2 Rough; canvas-sloppy.js).
-  const [rough, setRough] = useState(0);
+  const [rough, setRough] = useState(() => uiPrefs().sloppiness);
   const [fill, setFill] = useState(null);
   const [noStroke, setNoStroke] = useState(false);
   const [opacity, setOpacity] = useState(1);
@@ -5154,6 +5154,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // One press is one undo step, on every selected shape, arrow and connector that is not locked (panel.targets).
     sloppiness: value => {
       setRough(value);
+      try { saveUiPref('sloppiness', value); } catch { /* storage refused: the level holds in this page until a reload */ }
       const ids = panel.targets.filter(id => { const entry = entryOf(id); return entry && sloppyCapable(entry) && roughnessOf(entry) !== value; });
       if (!ids.length) return;
       if (!editorRef.current || editorRef.current.state().code) snapshot();

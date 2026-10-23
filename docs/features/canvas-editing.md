@@ -180,7 +180,9 @@ selection, the handles, the labels, the fill, the dashes and the connector bindi
 ends of an open path never move, so arrowheads stay attached (their arms wobble, their tips do not). The same object
 always gets the same strokes, on every rerender, move, zoom, theme change, reload, share and fork. A duplicate copies
 the seed (it looks identical); paste style copies the level and keeps the destination's own seed. The level is armed
-like the other panel values and is not saved beyond the session. The group picture (`learn-group-shot.js`) draws Sketchy
+like the other panel values, and is also kept on this device (`sloppiness` in `ui-prefs.js`, `rh.ui-prefs`): after a
+reload the next shape starts at the last level chosen. When the browser refuses the save it holds in the page only
+until a reload. Colour, width and dash have no such store and are not kept. The group picture (`learn-group-shot.js`) draws Sketchy
 and Rough rectangles, ellipses and lines the same way. Checks: `canvas-sloppy.test.mjs`, `learn-style-panel.test.mjs`,
 the `sloppiness` steps of `e2e/canvas-editing-check.mjs`, and the Rough rectangle in `e2e/canvas-forking-check.mjs`
 (shared view and fork draw the same strokes).
