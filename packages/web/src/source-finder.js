@@ -2,8 +2,10 @@
 // /youtube /arxiv /wikipedia, Ctrl+K's and the Insert menu's entries all open the same finder (SearchBar.jsx) through
 // openSourceFinder. The page that renders the finder registers itself as the host (LearnPage); nothing else draws one.
 //
-//   openSourceFinder({ source: 'youtube' | 'arxiv' | 'wikipedia', query = '', origin = {} }) -> Promise<{ added: boolean }>
+//   openSourceFinder({ source: 'youtube' | 'arxiv' | 'wikipedia' | null, query = '', origin = {} }) -> Promise<{ added: boolean }>
 //
+// - No source (Insert > Search sources) opens the finder on the source this browser last used, else YouTube (SearchBar);
+//   a source that is given and unknown is refused.
 // - A nonempty query searches at once; an empty one opens the finder and waits for input.
 // - Results preview in the finder; nothing is added until the learner presses Add to canvas.
 // - origin: { into?, returnFocus? }. into: a reserved canvas slot (canvas-slots.js) the added card takes, else it lands where
@@ -22,8 +24,8 @@ export function setSourceFinderHost(open) {
   return () => { if (host === open) host = null; };
 }
 
-export function openSourceFinder({ source, query = '', origin = {} } = {}) {
-  if (!FINDER_SOURCES.includes(source)) return Promise.reject(new Error(`unknown finder source: ${source}`));
+export function openSourceFinder({ source = null, query = '', origin = {} } = {}) {
+  if (source !== null && !FINDER_SOURCES.includes(source)) return Promise.reject(new Error(`unknown finder source: ${source}`));
   if (!host) return Promise.resolve({ added: false });
   return Promise.resolve(host({ source, query: String(query ?? '').trim(), origin: origin || {} })).then(done => ({ added: !!done?.added, ...(typeof done?.blockId === 'string' ? { blockId: done.blockId } : {}) }));
 }

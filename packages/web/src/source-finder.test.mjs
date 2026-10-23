@@ -30,6 +30,17 @@ test('an empty query reaches the host as empty (the finder waits); closed with n
   off();
 });
 
+// Owner report 2026-10-23: Insert > Search sources calls openSourceFinder({}) and nothing opened, because a missing source was refused.
+test('no source (Insert > Search sources) reaches the host as null, so the finder opens on its remembered source', async () => {
+  const opened = [];
+  const off = setSourceFinderHost(seed => { opened.push(seed); return undefined; });
+  assert.deepEqual(await openSourceFinder({}), { added: false });
+  assert.deepEqual(await openSourceFinder(), { added: false });
+  assert.deepEqual(await openSourceFinder({ source: undefined, query: '  hi ' }), { added: false });
+  assert.deepEqual(opened, [{ source: null, query: '', origin: {} }, { source: null, query: '', origin: {} }, { source: null, query: 'hi', origin: {} }]);
+  off();
+});
+
 test('no host (no page draws the finder): nothing opens and nothing is added; an unknown source is refused', async () => {
   assert.deepEqual(await openSourceFinder({ source: 'youtube', query: 'x' }), { added: false });
   await assert.rejects(openSourceFinder({ source: 'paper', query: 'x' }), /unknown finder source/);
