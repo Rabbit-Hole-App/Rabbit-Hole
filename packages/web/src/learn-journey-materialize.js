@@ -7,7 +7,7 @@
 // reported for the tray.
 // Resumable from the canvas itself: a heading and steps already stamped for this section (an earlier visit, a failed
 // step, a reload mid-way) are reused, and only the missing steps are drawn, each under the step before it.
-// Pure apart from the injected canvas (canvasApi's blocks / reserve / insertBlock / release / showSection / persist) and
+// Pure apart from the injected canvas (canvasApi's blocks / reserve / insertBlock / linkTocHeading / release / showSection / persist) and
 // post.
 
 import { withPrompt } from './card-prompt.js';
@@ -45,6 +45,8 @@ export async function materializeSection({ canvas, journey, sectionPlan, post, o
       slot = canvas.reserve({ label: `Preparing section ${at + 1}` });
       await paint();
       heading = canvas.insertBlock({ type: 'heading', level: 1, text: section.title, done: false, journey_section_id: id, ...own }, { into: slot });
+      // A board keeping its own contents list gets the drawn heading as a linked entry (owner brief 2026-10-23, D3).
+      if (heading) canvas.linkTocHeading?.({ id: heading, level: 1, text: section.title });
     }
     let after = heading;
     for (let i = 0; i < steps.length; i += 1) {

@@ -1,5 +1,6 @@
-// The lesson's structure, read off the canvas. Headings are the outline: the
-// table of contents is not a view onto some other document, it IS this list.
+// The lesson's structure. The table of contents keeps its own list (board state `toc`, owner brief 2026-10-23): adding or
+// applying sections changes only that list and never creates a canvas object. A board without `toc` reads its canvas
+// headings as the contents until the first edit there copies them in (tocOf).
 //
 // Flat, with a level, rather than a tree. Both the learner and the agent
 // restructure this - promoting a sub-section, splicing one in mid-lesson,
@@ -20,8 +21,9 @@ export const MAX_OUTLINE_HEADINGS = 120;
 const levelOf = block => (block.level >= 1 && block.level <= 3 ? block.level : 1);
 const describedBy = block => (typeof block.description === 'string' ? block.description.trim().slice(0, DESCRIPTION_MAX) : '');
 
-export function outlineFrom(blocks) {
-  return (blocks || [])
+// toc: the board's own contents list, when it has one; else the canvas headings are read.
+export function outlineFrom(blocks, toc = null) {
+  return (Array.isArray(toc) ? rowsOf(toc) : blocks || [])
     .filter(block => block.type === 'heading')
     .map(block => {
       const level = levelOf(block);
@@ -297,3 +299,44 @@ export function moveSection(blocks, id, beforeId) {
   if (at < 0) return list;
   return [...rest.slice(0, at), ...chunk, ...rest.slice(at)];
 }
+
+// ---- The Table of contents' own list (owner brief 2026-10-23): adding a section or subsection, Apply, a Tutor proposal,
+// an edit, a tick, a drag or a removal changes this list only, never a canvas object. Entries: { id, level, text,
+// description?, done, heading? }, `heading` naming the canvas heading block the entry frames. A board without one (every
+// board saved before) reads its canvas headings, each linked to itself; the first edit stores that copy, so the canvas is
+// never written to and existing ids, revisions and proposals carry over unchanged.
+export const tocOf = (blocks, toc = null) => (Array.isArray(toc) ? toc : (blocks || []).filter(block => block.type === 'heading').map(block => {
+  const description = describedBy(block);
+  return { id: block.id, level: levelOf(block), text: block.text || '', ...(description ? { description } : {}), done: !!block.done, heading: block.id };
+}));
+// As heading-shaped rows, so the same planOutline and moveSection edit the list; and back, without row-only keys.
+const rowsOf = toc => toc.map(entry => ({ ...entry, type: 'heading' }));
+const entriesOf = rows => rows.map(({ type: _type, dx: _dx, dy: _dy, ...entry }) => entry);
+
+// The canvas's applyOutline on the contents: applyOutlineAction's answer with `toc` in place of blocks.
+export function applyTocAction(blocks, toc, action, options) {
+  const result = applyOutlineAction(rowsOf(tocOf(blocks, toc)), action, options);
+  if (!result.ok) return result;
+  const { blocks: rows, ...rest } = result;
+  return { ...rest, toc: entriesOf(rows) };
+}
+export const moveTocSection = (blocks, toc, id, beforeId) => entriesOf(moveSection(rowsOf(tocOf(blocks, toc)), id, beforeId));
+export const toggleTocDone = (blocks, toc, id) => tocOf(blocks, toc).map(entry => (entry.id === id ? { ...entry, done: !entry.done } : entry));
+// Removes the entry only: its sub-sections, the canvas and any canvas heading it framed stay.
+export const removeTocEntry = (blocks, toc, id) => tocOf(blocks, toc).filter(entry => entry.id !== id);
+// A heading drawn on the canvas by the journey (learn-journey-materialize.js) joins a stored list once, linked; a board
+// still reading its headings needs nothing.
+export const linkTocHeading = (toc, { id, level = 1, text = '' }) => (!Array.isArray(toc) || toc.some(entry => entry.heading === id) ? toc
+  : [...toc, { id, level, text, done: false, heading: id }]);
+// The canvas heading an entry frames (an id that is no entry - a journey heading - is its own), and back: the entry
+// framing the heading being viewed.
+export const tocHeading = (toc, id) => (Array.isArray(toc) ? toc.find(entry => entry.id === id)?.heading ?? (toc.some(entry => entry.id === id) ? null : id) : id);
+export const tocEntryFor = (toc, headingId) => (Array.isArray(toc) && headingId != null ? toc.find(entry => entry.heading === headingId)?.id ?? null : headingId);
+// The canvas headings the contents still link (outlinePlan's input): an entry removed from the contents leaves its step
+// "Section removed" while the canvas heading and its cards stay.
+export const linkedHeadings = (blocks, toc) => {
+  const headings = (blocks || []).filter(block => block.type === 'heading');
+  if (!Array.isArray(toc)) return headings;
+  const linked = new Set(toc.map(entry => entry.heading).filter(Boolean));
+  return headings.filter(block => linked.has(block.id));
+};

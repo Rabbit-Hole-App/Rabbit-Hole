@@ -224,6 +224,11 @@ await check('setup: the header reads Context, Upload and Close; two files listed
     const keys = new Set((await api(`/api/learn/boards/${canvas.name}/main/assets`)).keys || []);
     return blocks.length === 3 && blocks.every(b => keys.has(b.assetKey));
   }, 60000, 'the server board does not hold the 3 pages and their pictures');
+  // A comment on the page 2 card, which Remove from context must leave alone (owner decision 2026-10-23, canvas-comments.md Q13).
+  const board = await api(`/api/learn/boards/${canvas.name}/main`), page2 = board.state.blocks.find(b => b.type === 'slide' && b.slide === 2) || board.state.blocks.filter(b => b.type === 'slide')[1];
+  const made = await api(`/api/learn/c/${board.board_id}/threads`, { method: 'POST', body: JSON.stringify({ id: crypto.randomUUID(), anchor: { kind: 'object', object_id: page2.id, object_kind: 'block', dx: 10, dy: 10, label: 'Page 2' }, body: 'Keep me after Remove from context.', mentions: [] }) });
+  assert.ok(made.thread?.id, `the comment on the page card: ${JSON.stringify(made).slice(0, 200)}`);
+  facts.comment = { board: board.board_id, thread: made.thread.id, card: page2.id };
   await shot('01-list');
 });
 
@@ -427,8 +432,12 @@ await check('after a reload: both stay removed; a new chat starts with neither; 
   assert.ok(!refs.some(r => [KEY, LONG_KEY].includes(r.sourceId) && !r.range), `no whole removed document rides (${JSON.stringify(facts.reload_refs)})`);
 });
 
-await check('the page cards still open their source at their page and ask with that page, never the whole document', async () => {
+await check('the page cards still open their source at their page and ask with that page, never the whole document; their comments stay', async () => {
   await waitFor(async () => (await slides()).filter(b => b.loaded).length === 3, 30000, 'the page blocks did not draw');
+  // Remove from context is membership only: the page card and its comment thread stay, on the server and on the canvas.
+  const listed = (await api(`/api/learn/c/${facts.comment.board}/threads?status=all`)).threads || [];
+  assert.deepEqual(listed.filter(t => t.id === facts.comment.thread).map(t => [t.anchor.object_id, t.preview]), [[facts.comment.card, 'Keep me after Remove from context.']], 'the thread is still served');
+  await page.locator(`[data-comment-pin="${facts.comment.thread}"]`).waitFor({ timeout: 15000 });
   if (await sourcesOpen()) { await page.locator('[data-companion-close]').click(); await page.waitForTimeout(300); }
   const two = (await slides()).find(b => b.slide === 2);
   await selectBlock(two.id);

@@ -27,7 +27,7 @@ import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
 import { activeSection, presentSteps } from './learn-present.js';
 import { pageRects, PAGE_W } from './learn-pages.js';
-import { outlineFrom, applyOutlineAction, moveSection } from './learn-outline-model.js';
+import { outlineFrom, applyTocAction, moveTocSection, toggleTocDone, removeTocEntry, linkTocHeading, tocHeading, tocEntryFor } from './learn-outline-model.js';
 import { loadAsset } from './learn-board-assets.js';
 import { groupShot } from './learn-group-shot.js';
 import { describeCanvasObject, groupTargetText } from './learn-ask-target.js';
@@ -1516,7 +1516,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1713,6 +1713,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Every area asked about stays on the canvas, outlined and lightly filled red, saved with the
   // board, until the learner clicks its outline to remove it.
   const [areas, setAreas] = useState(stored.current.areas || []);
+  // The Table of contents' own list (owner brief 2026-10-23; learn-outline-model.js tocOf), or null while the board reads
+  // its canvas headings. Saved and undone with the board; no TOC command touches the canvas objects.
+  const [toc, setToc] = useState(() => (Array.isArray(stored.current.toc) ? stored.current.toc : null));
+  const tocRef = useRef(toc);
+  tocRef.current = toc;
   const areaById = id => areas.find(area => area.id === id);
   // The board an answer was asked about: the whiteboard itself, or the board a toolbar area was drawn on (EXP-T28).
   const boardOf = id => { const host = areaById(id)?.blockId || id; return blocks.find(block => block.id === host && block.type === 'whiteboard')?.id; };
@@ -1733,7 +1738,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onSaveRef.current = onSave;
   // The board as last rendered, for persist(): a caller holding an older canvasApi still saves the latest.
   const boardRef = useRef(null);
-  boardRef.current = { strokes, shapes, items, links, blocks, groups, areas, ...(doc ? { doc } : {}) };
+  boardRef.current = { strokes, shapes, items, links, blocks, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
   // The board as this canvas first showed it, which retire() compares the live board against (pendingWork).
   const mountedBoard = useRef(null);
   if (!mountedBoard.current) mountedBoard.current = boardRef.current;
@@ -1748,7 +1753,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const retired = useRef(false);
   // The board as this browser's copy holds it (the debounced save's shape), and the last such board this canvas wrote or
   // mounted with: the unmount flush below writes only a board that differs from it.
-  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.doc ? { doc: board.doc } : {}) });
+  const savedShape = board => ({ strokes: board.strokes, shapes: board.shapes, items: board.items, links: board.links, blocks: lightBlocks(board.blocks), groups: board.groups, areas: board.areas, ...(board.toc ? { toc: board.toc } : {}), ...(board.doc ? { doc: board.doc } : {}) });
   const lastWritten = useRef(null);
   if (lastWritten.current === null) lastWritten.current = JSON.stringify(savedShape(mountedBoard.current));
   const storageKeyRef = useRef(storageKey);
@@ -1767,12 +1772,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // it: the server's copy the page put there on open, about to remount this canvas with it. Written over, the remounted
       // canvas read this board back empty and the page's next push sent that over the server's copy (board-empty-report).
       if (loaded && storageKey) { try { if (localStorage.getItem(storageKey) !== readCopy.current) return; } catch { /* blocked storage: nothing to write over */ } }
-      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(doc ? { doc } : {}) };
+      const state = { strokes, shapes, items, links, blocks: light, groups, areas, ...(toc ? { toc } : {}), ...(doc ? { doc } : {}) };
       if (storageKey) { try { localStorage.setItem(storageKey, JSON.stringify(state)); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = JSON.stringify(state); } catch { /* full or blocked storage loses drawings only */ } }
       if (!loaded) onSaveRef.current?.(state);
     }, 400);
     return () => clearTimeout(timer);
-  }, [strokes, shapes, items, links, blocks, groups, areas, doc, storageKey]);
+  }, [strokes, shapes, items, links, blocks, groups, areas, toc, doc, storageKey]);
   // Leaving the canvas (Home, the sidebar, a Rabbit Hole, a remount) cancels the pending save above, so an edit made less
   // than 400 ms before is written here instead, once, on unmount: this browser's copy, then the board's push at once
   // (owner: cancelling a pending save or remounting never discards work). Not for a retired canvas - the page has put its
@@ -1896,6 +1901,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   onDeleteRef.current = onDelete;
   const onRestoreRef = useRef(onRestore);
   onRestoreRef.current = onRestore;
+  const onUngroupCommentsRef = useRef(onUngroupComments);
+  onUngroupCommentsRef.current = onUngroupComments;
   const onAskTargetRef = useRef(onAskTarget);
   onAskTargetRef.current = onAskTarget;
   const onCardActionRef = useRef(onCardAction);
@@ -1996,6 +2003,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Tutor v1 (docs/features/tutor-v1-implementation-map.md §4): read the cards, and change one
       // card through a pure reducer (pager, practice), undoable like any other edit.
       blocks: () => blocksRef.current,
+      // The contents' own list, or null while they read the canvas headings (learn-outline-model.js tocOf).
+      toc: () => tocRef.current,
       getSearchSnapshot: searchStore.current.get,
       subscribeSearch: searchStore.current.subscribe,
       captureNavigation: () => ({ owner: searchStore.current, view: { ...viewRef.current }, selection: [...selectedRef.current],
@@ -2395,18 +2404,25 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // planBase, the accepted plan it was made on, and plan, the plan now; a view-only board ('read_only') and any moved base
       // ('stale') change nothing.
       applyOutline: (ops, { base, source, planBase, plan = null } = {}) => {
-        const result = applyOutlineAction(blocksRef.current, { baseOutlineRevision: base, basePlanRevision: planBase, changes: ops }, { canEdit: !readOnlyRef.current, planRevision: plan, source });
+        // Owner brief 2026-10-23: the contents' own list only (applyTocAction); no canvas object is created or changed.
+        const result = applyTocAction(blocksRef.current, tocRef.current, { baseOutlineRevision: base, basePlanRevision: planBase, changes: ops }, { canEdit: !readOnlyRef.current, planRevision: plan, source });
         if (!result.ok) return result;
-        if (result.applied) { snapshot(); setBlocks(result.blocks); }
+        if (result.applied) { snapshot(); setToc(result.toc); }
         return { ok: true, applied: result.applied, skipped: result.skipped };
       },
-      moveSection: (id, beforeId) => { if (readOnlyRef.current) return; snapshot(); setBlocks(previous => moveSection(previous, id, beforeId)); },
-      toggleSectionDone: id => { if (readOnlyRef.current) return; snapshot(); setBlocks(previous => previous.map(block => block.id === id ? { ...block, done: !block.done } : block)); },
+      moveSection: (id, beforeId) => { if (readOnlyRef.current) return; snapshot(); setToc(moveTocSection(blocksRef.current, tocRef.current, id, beforeId)); },
+      toggleSectionDone: id => { if (readOnlyRef.current) return; snapshot(); setToc(toggleTocDone(blocksRef.current, tocRef.current, id)); },
+      removeSection: id => { if (readOnlyRef.current) return; snapshot(); setToc(removeTocEntry(blocksRef.current, tocRef.current, id)); },
+      // A journey heading just drawn joins a stored contents list (learn-journey-materialize.js).
+      linkTocHeading: heading => setToc(previous => linkTocHeading(previous, heading)),
       // Frame the section rather than scroll to it: a section is a heading plus
-      // what follows, and the camera already knows how to land on one.
+      // what follows, and the camera already knows how to land on one. A contents entry frames the heading it links; one
+      // with no canvas heading has nothing to frame.
       showSection: id => {
+        const heading = tocHeading(tocRef.current, id);
+        if (heading == null) return;
         const steps = presentSteps(blocksRef.current, boundsRef.current);
-        const step = steps.find(entry => entry.ids[0] === id) || steps.find(entry => entry.ids.includes(id));
+        const step = steps.find(entry => entry.ids[0] === heading) || steps.find(entry => entry.ids.includes(heading));
         if (step) frame(step.boxes, 64, 1.2);
       },
       // The board saved now, a shared board's push awaited (canvas-persist.js; architecture §6.5.5, LP1 Task 15): a
@@ -2436,7 +2452,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (apiRef) apiRef.current = commandsRef.current;
   });
   // Menu checkmarks need these as state on the page, not as a ref it cannot watch.
-  const outline = outlineFrom(blocks);
+  const outline = outlineFrom(blocks, toc);
   // Serialised for the comparison on the page: the outline changes whenever a
   // heading is added, retitled, reordered or ticked, and only then.
   const outlineKey = JSON.stringify(outline);
@@ -2629,11 +2645,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     setGroupIds(ids, gid);
     setGroups(previous => [...previous, { id: gid, label: '' }]);
   };
-  const ungroupSelection = () => {
+  const ungroupSelection = async () => {
     const gids = new Set(selectedRef.current.map(groupOf).filter(Boolean));
     if (!gids.size) return;
+    // Ungroup is not a delete (owner decision 2026-10-23): the group's comments move to the canvas at its top centre first, so
+    // a refused move keeps the group; the move rides in this undo step (travelHistory).
+    let comments = null;
+    if (onUngroupCommentsRef.current) {
+      const spots = [...gids].map(id => { const slot = commentSlot(id); return slot && { id, x: slot.x + slot.w / 2, y: slot.y }; }).filter(Boolean);
+      try { comments = await onUngroupCommentsRef.current(spots); } catch (problem) { toast(`Not ungrouped: ${problem?.data?.error || problem.message}`, { tone: 'error' }); return; }
+    }
     const members = everything().filter(entry => gids.has(entry.groupId)).map(entry => entry.id);
-    snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
+    if (!members.length) return; // a second press while the first moved the comments: that one ungrouped already
+    const step = snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
+    if (comments) step.comments = comments;
     setGroupIds(members, null);
     setGroups(previous => previous.filter(group => !gids.has(group.id)));
   };
@@ -2965,7 +2990,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: viewing, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -3108,7 +3133,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // ponytail: single-level lists + 100-step cap; both stacks die with the tab.
   const present = useRef(null);
   // groups ride in every undo step (UI-25): Undo after Ungroup or Group brings back the group itself, its name included.
-  present.current = { strokes, shapes, items, links, blocks, groups };
+  present.current = { strokes, shapes, items, links, blocks, groups, toc };
   const history = useRef([]);
   const future = useRef([]);
   const notebookHistory=useRef(null);
@@ -3151,7 +3176,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before = blocksRef.current.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached), after = state.blocks.filter(block=>block.type==='cad' && block.jobId && !block.cadDetached);
     for(const block of before.filter(block=>!after.some(next=>next.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:true}).catch(problem=>toast(problem.message));
     for(const block of after.filter(block=>!before.some(old=>old.id===block.id)))cadClient(api,appName).action(block.jobId,'placement',{hidden:false}).catch(problem=>toast(problem.message));
-    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); if (state.groups) setGroups(state.groups); setSelected(null);
+    setStrokes(state.strokes); setShapes(state.shapes); setItems(state.items); setLinks(state.links); setBlocks(state.blocks); if (state.groups) setGroups(state.groups); if ('toc' in state) setToc(state.toc); setSelected(null);
     if (state.exchanges) onRestoreRef.current?.(state.exchanges);
   };
   const travelHistory = (from,to) => {
@@ -3160,7 +3185,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const before=capture(!!next.exchanges),fingerprint=JSON.stringify(before),sourceStack=from.current,destinationStack=to.current;
     const result=notebookHistory.current.run({before,after:next,editor:notebookEditor,
       current:()=>alive.current&&!readOnlyRef.current&&from.current===sourceStack&&to.current===destinationStack&&from.current.at(-1)===next&&JSON.stringify(capture(!!next.exchanges))===fingerprint,
-      commit:()=>{from.current.pop();to.current.push(before);restore(next);}});
+      commit:()=>{from.current.pop();to.current.push(before);restore(next);
+        // A step's comment moves (Ungroup's) go back with Undo and again with Redo; the step on the other stack carries them on.
+        if(next.comments){before.comments=next.comments;(from===history?next.comments.undo:next.comments.redo)().catch(problem=>toast(problem?.data?.error||problem.message,{tone:'error'}));}}});
     result?.catch?.(error=>toast(error.message));
   };
   const undo = () => travelHistory(history,future);
@@ -3993,6 +4020,14 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const groupMembers = {};
   for (const entry of [...blocks, ...items, ...shapes, ...exchanges]) if (entry.groupId) (groupMembers[entry.groupId] ||= []).push(entry.id);
   const commentBoard = { bounds, items, shapes, groups: groupMembers };
+  // The commentable objects, to the page's comments (owner decision 2026-10-23): a deleted object's threads leave the Comments
+  // panel and the counts as its pin does, and come back with Undo. A group is live while it has members.
+  const commentKey = onCommentObjects ? JSON.stringify([[...blocks, ...items, ...shapes, ...exchanges].map(entry => entry.id), Object.keys(groupMembers)]) : '';
+  useEffect(() => {
+    if (!onCommentObjects) return;
+    const [ids, gids] = JSON.parse(commentKey).map(list => new Set(list));
+    onCommentObjects({ ids, groups: gids });
+  }, [commentKey, onCommentObjects]);
   const commentAt = (world, id) => {
     const group = id && groupMembers[id] ? groups.find(candidate => candidate.id === id) || { id } : null;
     const entry = id && !group ? [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === id) : null;

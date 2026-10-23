@@ -443,7 +443,7 @@ const CANVAS = /^canvas-[a-f0-9]{8}$/;
 const FORK_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 // A fork copies the board's content and nothing else a browser saved beside it
 // (selection, view, anything newer); chat cards arrive settled, never mid-answer.
-const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges'];
+const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'toc'];
 // `canvas`: the source canvas. A PDF card or page made before blocks named their home canvas (pdf-to-canvas.md) was made on
 // the source, so the copy names it, and the copy's reader and questions still find the learner's own upload there.
 export function forkState(state, canvas = null) {

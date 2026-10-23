@@ -170,7 +170,7 @@ try {
       await chooseWorkspace(page, 'Canvas'); // // Owner brief 2026-10-22: View > Workspace > Canvas
       await expect(page.locator('[data-canvas-doc]')).toHaveCount(0);
     });
-    await check(`${audience}: open, resolved and orphan threads retain Search state and never resolve on opening`, async () => {
+    await check(`${audience}: open and resolved threads retain Search state and never resolve on opening; a deleted card's thread is out of Search`, async () => {
       const ids = threads[audience], base = audience === 'member' ? memberBase : publicBase;
       await search(`${audience} open celadon`, 'comments');
       await expect(row(`comment:${ids.open}`)).toBeVisible();
@@ -182,12 +182,12 @@ try {
       await input.fill(`${audience} resolved celadon`); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');
       await panel.getByRole('checkbox', { name: 'Include resolved' }).check();
       await expect(row(`comment:${ids.resolved}`)).toBeVisible();
-      await input.fill(`${audience} orphan celadon`); await expect(row(`comment:${ids.orphan}`)).toBeVisible();
-      await row(`comment:${ids.orphan}`).locator('[data-search-index]').click();
-      await expect(page.locator(`[data-comment-thread-view="${ids.orphan}"]`)).toContainText('Card deleted');
-      if (audience === 'public') await expect(page.locator('[data-comment-sign-in]')).toHaveText('Sign in to post'); // SHARE-02: drafts are kept through sign-in, so the line names the post
+      // Owner decision 2026-10-23 (canvas-comments.md Q13; replaces the detached "Card deleted" thread): a deleted card's thread
+      // is out of Search, the panel and the API for every viewer, resolved filter or not.
+      await input.fill(`${audience} orphan celadon`); await expect(panel.locator('[data-find-count]')).toHaveText('0 results');
+      await expect(row(`comment:${ids.orphan}`)).toHaveCount(0);
+      assert.equal((await api(`${base}/threads/${ids.orphan}`)).status, 404, 'the deleted card\'s thread is not served');
       await page.screenshot({ path: `${OUT}/${audience}-orphan.png` });
-      await page.getByRole('button', { name: 'Back to Search', exact: true }).click();
     });
     await check(`${audience}: private linked titles stay unavailable; close/reopen preserves query and filter`, async () => {
       await search('', 'references'); await expect(panel.locator('[data-find-count]')).toHaveText('1 result');
@@ -212,7 +212,7 @@ try {
     assert.deepEqual(modelAttempts, []); assert.deepEqual(errors, []);
     for (const [audience, base] of [['member', memberBase], ['public', publicBase]]) {
       assert.equal((await api(`${base}/threads/${threads[audience].resolved}`)).body.thread.status, 'resolved');
-      assert.equal((await api(`${base}/threads/${threads[audience].orphan}`)).body.thread.status, 'open');
+      assert.equal((await api(`${base}/threads/${threads[audience].orphan}`)).status, 404, 'still hidden: its card is not on the board (owner decision 2026-10-23)');
     }
   });
 } catch (error) { failure = error.message; process.exitCode = 1; console.error(failure); } finally {

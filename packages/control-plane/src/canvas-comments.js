@@ -254,7 +254,52 @@ function messageShape(ctx, audience, row, mentions = []) {
 async function threadIn(env, ctx, id) {
   if (!UUID.test(id)) return null;
   const row = await env.LEARN_DB.prepare(`SELECT ${THREAD_COLUMNS} FROM canvas_comment_threads t WHERE t.id = ? AND t.board_id = ?${ctx.family === 'public' ? " AND t.audience = 'public'" : ''}`).bind(id, ctx.board.id).first();
-  return row && allowed(ctx, 'read', row.audience) ? row : null;
+  if (!row || !allowed(ctx, 'read', row.audience)) return null;
+  const anchor = JSON.parse(row.anchor_json);
+  return anchor.kind !== 'object' || (await boardLive(env, ctx.board.id)).has(anchor) ? row : null;
+}
+
+// A deleted object's threads (owner decision 2026-10-23): hidden from every list, count and read - reloads, other sessions,
+// members and the public alike - while the saved board lacks the object, and back as they were when it returns (Undo restores
+// the same id). Never destroyed by the delete: the canvas's permanent delete purges them (canvases.js purgeCommentRows).
+// A group is live while an object carries its groupId: state.groups keeps a group whose members were all deleted.
+const CONTENT = ['blocks', 'exchanges', 'items', 'shapes'];
+export function liveObjects(state) {
+  const ids = new Set(), groups = new Set();
+  for (const key of CONTENT) for (const entry of Array.isArray(state?.[key]) ? state[key] : []) {
+    if (entry?.id) ids.add(entry.id);
+    if (entry?.groupId) groups.add(entry.groupId);
+  }
+  return { has: anchor => anchor?.kind !== 'object' || (anchor.object_kind === 'group' ? groups : ids).has(anchor.object_id) };
+}
+async function boardLive(env, boardId) {
+  const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(boardId).first();
+  return liveObjects(JSON.parse(row?.state_json || '{}'));
+}
+// This board's hidden thread ids as one JSON parameter, for `t.id NOT IN (SELECT value FROM json_each(?))`: one parse of the
+// board per request (about 3 ms at the 1.9 MB cap), and none on a canvas without object threads.
+const OBJECT_THREADS = "SELECT id, board_id, anchor_json FROM canvas_comment_threads WHERE board_id = ? AND json_extract(anchor_json, '$.kind') = 'object'";
+const NOT_HIDDEN = n => `t.id NOT IN (SELECT value FROM json_each(?${n}))`;
+async function hiddenOn(env, boardId) {
+  const { results } = await env.LEARN_DB.prepare(OBJECT_THREADS).bind(boardId).all();
+  return JSON.stringify(await hiddenAmong(env, results));
+}
+// rows: {id, board_id, anchor_json}; the ids among them whose object is not on their board, each board read once.
+async function hiddenAmong(env, rows) {
+  const boards = new Map(), hidden = [];
+  for (const row of rows) {
+    const anchor = JSON.parse(row.anchor_json);
+    if (anchor.kind !== 'object') continue;
+    if (!boards.has(row.board_id)) boards.set(row.board_id, await boardLive(env, row.board_id));
+    if (!boards.get(row.board_id).has(anchor)) hidden.push(row.id);
+  }
+  return hidden;
+}
+// Counts by key over thread rows {key, id, board_id, anchor_json}, without the hidden ones.
+async function countVisible(env, rows) {
+  const hidden = new Set(await hiddenAmong(env, rows)), counts = {};
+  for (const row of rows) if (!hidden.has(row.id)) counts[row.key] = (counts[row.key] || 0) + 1;
+  return counts;
 }
 const missingThread = () => refuse("This thread isn't available.", 'thread_gone', 404);
 
@@ -289,29 +334,30 @@ async function suggest(env, ctx, params) {
 async function listThreads(env, ctx, params) {
   const status = ['open', 'resolved', 'all'].includes(params.get('status')) ? params.get('status') : 'open';
   const audience = ctx.family === 'public' ? 'public' : ['members', 'public'].includes(params.get('audience')) ? params.get('audience') : null;
-  const conditions = ['t.board_id = ?2'];
+  const hidden = await hiddenOn(env, ctx.board.id);
+  const conditions = ['t.board_id = ?2', NOT_HIDDEN(3)];
   if (status === 'open') conditions.push('t.resolved_at IS NULL');
   if (status === 'resolved') conditions.push('t.resolved_at IS NOT NULL');
   if (audience) conditions.push(`t.audience = '${audience}'`);
   const cursor = /^([^|]{1,40})\|([0-9a-f-]{36})$/i.exec(params.get('cursor') || '');
-  if (cursor) conditions.push('(t.last_activity_at < ?3 OR (t.last_activity_at = ?3 AND t.id < ?4))');
+  if (cursor) conditions.push('(t.last_activity_at < ?4 OR (t.last_activity_at = ?4 AND t.id < ?5))');
   const { results } = await env.LEARN_DB.prepare(`SELECT ${THREAD_COLUMNS}, ${unreadSql(ctx.family === 'public')} AS unread,
       (SELECT f.body FROM canvas_comments f WHERE f.thread_id = t.id ORDER BY f.created_at, f.id LIMIT 1) AS first_body,
       (SELECT f.deleted_at IS NOT NULL FROM canvas_comments f WHERE f.thread_id = t.id ORDER BY f.created_at, f.id LIMIT 1) AS first_deleted
     FROM canvas_comment_threads t WHERE ${conditions.join(' AND ')} ORDER BY t.last_activity_at DESC, t.id DESC LIMIT ${PAGE + 1}`)
-    .bind(ctx.actor.uid, ctx.board.id, ...(cursor ? [cursor[1], cursor[2]] : [])).all();
+    .bind(ctx.actor.uid, ctx.board.id, hidden, ...(cursor ? [cursor[1], cursor[2]] : [])).all();
   const readable = results.filter(row => allowed(ctx, 'read', row.audience));
   const page = readable.slice(0, PAGE);
   // The toolbar badge (owner, 2026-10-21): every open thread with a live comment this reader may read, whatever page,
   // status or audience filter the list is on; the same read rule as the list, per audience.
-  const { results: open } = await env.LEARN_DB.prepare(`SELECT t.audience, count(*) AS n FROM canvas_comment_threads t WHERE t.board_id = ? AND t.resolved_at IS NULL
-      AND EXISTS (SELECT 1 FROM canvas_comments m WHERE m.thread_id = t.id AND m.deleted_at IS NULL) GROUP BY t.audience`).bind(ctx.board.id).all();
+  const { results: open } = await env.LEARN_DB.prepare(`SELECT t.audience, count(*) AS n FROM canvas_comment_threads t WHERE t.board_id = ?1 AND t.resolved_at IS NULL AND ${NOT_HIDDEN(2)}
+      AND EXISTS (SELECT 1 FROM canvas_comments m WHERE m.thread_id = t.id AND m.deleted_at IS NULL) GROUP BY t.audience`).bind(ctx.board.id, hidden).all();
   const last = results.length > PAGE ? results[PAGE - 1] : null;
   return json({
     threads: page.map(row => ({ ...threadShape(ctx, row), unread: !!row.unread, preview: row.first_deleted ? null : (row.first_body || '').slice(0, 200) })),
     cursor: last ? `${last.last_activity_at}|${last.id}` : null,
     open_count: open.filter(row => allowed(ctx, 'read', row.audience)).reduce((sum, row) => sum + row.n, 0),
-    has_public: ctx.family === 'public' || !!(await env.LEARN_DB.prepare("SELECT 1 FROM canvas_comment_threads WHERE board_id = ? AND audience = 'public' LIMIT 1").bind(ctx.board.id).first()),
+    has_public: ctx.family === 'public' || !!(await env.LEARN_DB.prepare(`SELECT 1 FROM canvas_comment_threads t WHERE t.board_id = ?1 AND t.audience = 'public' AND ${NOT_HIDDEN(2)} LIMIT 1`).bind(ctx.board.id, hidden).first()),
   });
 }
 
@@ -330,12 +376,6 @@ async function readThread(env, ctx, id, params) {
 
 const hashOf = parts => sha256Hex(JSON.stringify(parts));
 
-async function onCanvas(env, boardId, id) {
-  const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(boardId).first();
-  const state = JSON.parse(row?.state_json || '{}');
-  return ['blocks', 'exchanges', 'items', 'shapes', 'groups'].some(key => Array.isArray(state[key]) && state[key].some(entry => entry?.id === id));
-}
-
 async function startThread(req, env, ctx) {
   const input = await readJson(req);
   if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
@@ -345,8 +385,9 @@ async function startThread(req, env, ctx) {
   const anchor = anchorOf(input.anchor);
   if (!anchor || JSON.stringify(anchor).length > 1024) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
   // SHARE-02: a visitor's temporary copy has objects only they see; a comment may name only an object on the canvas itself.
-  // The owner is exempt: an object they drew a moment ago may not have reached the server copy yet.
-  if (anchor.kind === 'object' && !ctx.actor.owner && !await onCanvas(env, ctx.board.id, anchor.object_id)) return refuse("That object isn't on this canvas, so it can't take a comment.", 'object_not_on_canvas', 409);
+  // The owner too (owner decision 2026-10-23: no new comment on a deleted object): the owner's page saves its board before
+  // posting on an object, so an object drawn a moment ago is on the server copy by then.
+  if (anchor.kind === 'object' && !(await boardLive(env, ctx.board.id)).has(anchor)) return refuse("That object isn't on this canvas, so it can't take a comment.", 'object_not_on_canvas', 409);
   const { body, error } = bodyOf(input.body);
   if (error) return error;
   const mentions = mentionsOf(input.mentions);
@@ -531,6 +572,36 @@ async function markRead(env, ctx, id) {
   return json({ read: true });
 }
 
+// Ungroup (owner decision 2026-10-23): a group's threads become canvas threads at its former place before the group goes, and
+// the Ungroup's Undo puts them back. The owner's only - moving comments with the canvas is an edit of the canvas, never a
+// commenter's right. { ungroup: [{ id: group id, x, y }] } or { regroup: [group id] }; the answer is { threads: [{ id, anchor }] },
+// every thread of those groups as it now is.
+// Atomic: every update of one request is one D1 batch (one transaction), so a failure moves nothing. Idempotent by target: a
+// moved thread keeps the group anchor it had under `ungrouped` - a retry, a lost answer's resend or a concurrent duplicate
+// finds it there and writes the same place again, and Regroup restores exactly that anchor, so no thread is ever moved twice
+// or left half-moved. An object target is not checked against the saved board: the Undo's group reaches it with the next
+// save, and until then the thread is hidden, as any thread of a missing object.
+const OBJECT_ID = /^[!-~]{1,100}$/;
+async function moveAnchors(req, env, ctx) {
+  if (!ctx.actor.owner) return refuse('Only the owner moves comments.', 'forbidden', 403);
+  const input = await readJson(req);
+  const ungroup = Array.isArray(input?.ungroup) ? input.ungroup.slice(0, 100) : null;
+  const regroup = Array.isArray(input?.regroup) ? input.regroup.slice(0, 100) : null;
+  const gids = ungroup ? ungroup.map(spot => spot?.id) : regroup || [];
+  if (!gids.length || !gids.every(id => typeof id === 'string' && OBJECT_ID.test(id))) return refuse('Nothing to move.', 'bad_move', 400);
+  const points = ungroup?.map(spot => anchorOf({ kind: 'point', x: spot.x, y: spot.y }));
+  if (points?.some(point => !point)) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
+  const db = env.LEARN_DB, was = "json_extract(anchor_json, '$.ungrouped.object_id') = ?2 AND json_extract(anchor_json, '$.kind') = 'point'";
+  await db.batch(gids.flatMap((gid, i) => (ungroup ? [
+    db.prepare(`UPDATE canvas_comment_threads SET anchor_json = json_set(anchor_json, '$.x', ?3, '$.y', ?4) WHERE board_id = ?1 AND ${was}`).bind(ctx.board.id, gid, points[i].x, points[i].y),
+    db.prepare(`UPDATE canvas_comment_threads SET anchor_json = json_object('kind', 'point', 'x', ?3, 'y', ?4, 'ungrouped', json(anchor_json))
+      WHERE board_id = ?1 AND json_extract(anchor_json, '$.kind') = 'object' AND json_extract(anchor_json, '$.object_kind') = 'group' AND json_extract(anchor_json, '$.object_id') = ?2`).bind(ctx.board.id, gid, points[i].x, points[i].y),
+  ] : [db.prepare(`UPDATE canvas_comment_threads SET anchor_json = json_extract(anchor_json, '$.ungrouped') WHERE board_id = ?1 AND ${was}`).bind(ctx.board.id, gid)])));
+  const { results } = await db.prepare(`SELECT id, anchor_json FROM canvas_comment_threads WHERE board_id = ?1 AND (json_extract(anchor_json, '$.ungrouped.object_id') IN (SELECT value FROM json_each(?2))
+    OR (json_extract(anchor_json, '$.object_kind') = 'group' AND json_extract(anchor_json, '$.object_id') IN (SELECT value FROM json_each(?2)))) ORDER BY id`).bind(ctx.board.id, JSON.stringify(gids)).all();
+  return json({ threads: results.map(row => ({ id: row.id, anchor: JSON.parse(row.anchor_json) })) });
+}
+
 // Allow comments and the public setting (section 4): the owner's; the public setting only on a published canvas.
 async function saveSettings(req, env, ctx) {
   if (!ctx.actor.owner) return refuse('Only the owner changes comment settings.', 'forbidden', 403);
@@ -600,13 +671,14 @@ async function readBoard(env, ctx) {
 async function sharedWithMe(req, env) {
   const viewer = await viewerOf(req, env);
   if (!viewer?.userId) return refuse('Sign in to see what is shared with you.', 'sign_in', 401, { signIn: true });
-  const { results } = await env.LEARN_DB.prepare(`SELECT b.id AS board_id, c.title, COALESCE(md.updated_at, c.created_at) AS updated_at, ${PERSON('c.owner_email', 'owner_')},
-      (SELECT count(*) FROM canvas_comment_threads t WHERE t.board_id = b.id AND ${unreadSql(false)}) AS unread
-    FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
-    JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
-    LEFT JOIN canvas_metadata md ON md.org = c.org AND md.canvas = c.name
-    WHERE m.member_user_id = ?1 AND m.status = 'active' AND ${NOT_TRASHED('c.org', 'c.name')} ORDER BY updated_at DESC`).bind(viewer.userId).all();
-  return json({ canvases: results.map(row => ({ board_id: row.board_id, title: row.title, owner: person(row, 'owner_'), updated_at: row.updated_at, unread: row.unread })) });
+  const from = `FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
+    JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'`;
+  const where = `WHERE m.member_user_id = ?1 AND m.status = 'active' AND ${NOT_TRASHED('c.org', 'c.name')}`;
+  const { results } = await env.LEARN_DB.prepare(`SELECT b.id AS board_id, c.title, COALESCE(md.updated_at, c.created_at) AS updated_at, ${PERSON('c.owner_email', 'owner_')}
+    ${from} LEFT JOIN canvas_metadata md ON md.org = c.org AND md.canvas = c.name ${where} ORDER BY updated_at DESC`).bind(viewer.userId).all();
+  const unread = await countVisible(env, (await env.LEARN_DB.prepare(`SELECT b.id AS key, t.id, t.board_id, t.anchor_json ${from}
+    JOIN canvas_comment_threads t ON t.board_id = b.id ${where} AND ${unreadSql(false)}`).bind(viewer.userId).all()).results);
+  return json({ canvases: results.map(row => ({ board_id: row.board_id, title: row.title, owner: person(row, 'owner_'), updated_at: row.updated_at, unread: unread[row.board_id] || 0 })) });
 }
 
 function about(ctx) {
@@ -625,13 +697,12 @@ async function unreadCounts(req, env) {
   const viewer = await viewerOf(req, env);
   if (!viewer?.userId) return refuse('Sign in first.', 'sign_in', 401, { signIn: true });
   const db = env.LEARN_DB;
-  const owned = await db.prepare(`SELECT c.name AS key, count(*) AS n FROM canvases c JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
-      JOIN canvas_comment_threads t ON t.board_id = b.id WHERE c.org = ?2 AND c.owner_email = ?3 AND t.resolved_at IS NULL AND ${unreadSql(false)} GROUP BY c.name`).bind(viewer.userId, viewer.org, viewer.email).all();
-  const shared = await db.prepare(`SELECT b.id AS key, count(*) AS n FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
+  const owned = await db.prepare(`SELECT c.name AS key, t.id, t.board_id, t.anchor_json FROM canvases c JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
+      JOIN canvas_comment_threads t ON t.board_id = b.id WHERE c.org = ?2 AND c.owner_email = ?3 AND t.resolved_at IS NULL AND ${unreadSql(false)}`).bind(viewer.userId, viewer.org, viewer.email).all();
+  const shared = await db.prepare(`SELECT b.id AS key, t.id, t.board_id, t.anchor_json FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
       JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' JOIN canvas_comment_threads t ON t.board_id = b.id
-      WHERE m.member_user_id = ?1 AND m.status = 'active' AND t.resolved_at IS NULL AND ${unreadSql(false)} AND ${NOT_TRASHED('c.org', 'c.name')} GROUP BY b.id`).bind(viewer.userId).all();
-  const map = rows => Object.fromEntries(rows.results.map(row => [row.key, row.n]));
-  return json({ owned: map(owned), shared: map(shared) });
+      WHERE m.member_user_id = ?1 AND m.status = 'active' AND t.resolved_at IS NULL AND ${unreadSql(false)} AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(viewer.userId).all();
+  return json({ owned: await countVisible(env, owned.results), shared: await countVisible(env, shared.results) });
 }
 
 // Whatever fails inside answers JSON (owner bug, 2026-10-09: an uncaught error reached the browser as the platform's HTML
@@ -673,6 +744,7 @@ async function commentsRoute(path, req, env) {
   }
   if ((part = rest.match(/^\/comments\/([^/]+)$/))) return method === 'PATCH' ? editComment(req, env, ctx, part[1]) : method === 'DELETE' ? deleteComment(env, ctx, part[1]) : not();
   if (rest === '/people') return method === 'GET' ? suggest(env, ctx, url.searchParams) : not();
+  if (family === 'member' && rest === '/anchors') return method === 'POST' ? moveAnchors(req, env, ctx) : not();
   if (family === 'member' && rest === '/comment-settings') return method === 'PUT' ? saveSettings(req, env, ctx) : not();
   if (family === 'member' && rest === '/blocks') return method === 'GET' ? listBlocks(env, ctx) : method === 'POST' ? addBlock(req, env, ctx) : not();
   if (family === 'member' && (part = rest.match(/^\/blocks\/([^/]+)$/))) return method === 'DELETE' ? removeBlock(env, ctx, part[1]) : not();

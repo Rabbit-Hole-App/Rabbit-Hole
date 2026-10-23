@@ -1,10 +1,10 @@
 // The Table of contents tab (R4 redesign, owner decisions 2026-10-15 1A, 2A, 3A, 6A, 7A). The table of contents IS the
-// lesson's structure, not a view onto another document: its sections are the canvas headings, and the learner and the
-// Tutor both author them. It reads as a numbered syllabus - 1, 1.1, 1.1.1 (owner brief 2026-10-16 item 7, mockup reference 4;
+// lesson's structure, kept as its own list (owner brief 2026-10-23: adding, applying or editing a section changes the contents
+// only, never a canvas object; learn-outline-model.js tocOf), and the learner and the Tutor both author it. It reads as a numbered syllabus - 1, 1.1, 1.1.1 (owner brief 2026-10-16 item 7, mockup reference 4;
 // it was "Topic 1") - each section expanding and collapsing its sub-sections, with an optional description under
 // each title and a thin guide line through the topic markers. The round controls are checkboxes: completion changes only
-// when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its section,
-// cards and sub-sections with it; clicking a title frames it on the canvas.
+// when the learner clicks one, never because a section is visible, open or discussed. Dragging a row moves its entry, its
+// sub-sections with it; clicking a title frames its linked canvas heading, if any.
 import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronRight, GripVertical, Heading1, Heading2, Heading3, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button, toast } from './ui.jsx';
@@ -15,7 +15,7 @@ import { STATUS_LABEL, fetchProgress } from './learn-progress-client.js';
 const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];
 const LEVEL_NAMES = { 1: 'section', 2: 'sub-section', 3: 'sub-sub-section' };
 
-// outline: outlineFrom entries. canvasApi: the canvas commands (applyOutline, moveSection, toggleSectionDone, removeBlock).
+// outline: outlineFrom entries. canvasApi: the canvas commands (applyOutline, moveSection, toggleSectionDone, removeSection).
 // onShow(id): frame that section. proposal: the Tutor's { ops, base, source } (contract C6; a bare ops array from an older
 // emitter reads as ops with no base), cleared through onProposal(null). activeId: the section being viewed (the canvas
 // decides which). readOnly: a viewer - titles navigate, nothing edits, drags or ticks. className: the scroll container's
@@ -109,8 +109,8 @@ export default function TableOfContents({ outline, canvasApi, onShow, proposal, 
           <div data-no-drag className="flex shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
             <button type="button" aria-label={`Edit ${entry.label}`} title="Edit title and description" onClick={() => setEditing(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-ink"><Pencil size={14} /></button>
-            {/* Removes the heading only; the cards under it and any saved learning stay, and Ctrl+Z brings it back. */}
-            <button type="button" aria-label={`Remove heading ${entry.label}`} title="Remove heading only (its cards stay; Ctrl+Z undoes it)" onClick={() => canvasApi.current?.removeBlock(entry.id)}
+            {/* Removes the entry from the contents only; the canvas and any saved learning stay, and Ctrl+Z brings it back. */}
+            <button type="button" aria-label={`Remove heading ${entry.label}`} title="Remove from the contents (the canvas stays; Ctrl+Z undoes it)" onClick={() => canvasApi.current?.removeSection(entry.id)}
               className="flex h-6 w-6 items-center justify-center rounded text-ink-3 hover:bg-hover hover:text-red-700"><Trash2 size={14} /></button>
           </div>
         )}

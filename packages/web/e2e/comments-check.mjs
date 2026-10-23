@@ -791,7 +791,9 @@ await check('26b every pin touches its object, of every kind, at 100% and at 25%
     groups: [{ id: 't-g', label: 'Beakers' }],
   };
   const chat = [{ id: 't-chat', question: 'Why exponentiate the scores?', answer: 'Scores become positive weights that add to 1.', status: 'done', dx: 0, dy: 0 }];
-  const board = (await api(`/api/learn/boards/${made.name}/main`)).body?.board_id;
+  // The objects go on the server's board first: a comment names only an object the saved board has, the owner's too (owner
+  // decision 2026-10-23, canvas-comments.md Q13).
+  const board = (await api(`/api/learn/boards/${made.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...ink, exchanges: chat } }) })).body?.board_id;
   assert.ok(board, 'the board id for its comments');
   const ON = [['t-card', 'block'], ['t-file', 'block'], ['t-img', 'block'], ['t-text', 'item'], ['t-note', 'item'], ['t-note', 'item'], ['t-chat', 'exchange'], ['t-box', 'shape'], ['t-dot', 'shape'], ['t-g', 'group']];
   const threads = [];

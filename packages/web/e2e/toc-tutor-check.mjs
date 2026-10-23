@@ -8,7 +8,8 @@
 // proposes nothing; 9 the TOC conversation (owner brief 2026-10-16 item 7): a request sent from the Table of contents, Tutor its
 // only mode, applies its outline change at once in place, numbered; the reply stays in TOC, never Chat; Chat's draft and New
 // chat leave it alone; a reload restores the TOC's own thread.
-// The headings are read from the canvas's saved blocks (localStorage), so the check does not depend on the panel's markup.
+// The contents are read from the canvas's saved board (localStorage), so the check does not depend on the panel's markup:
+// owner brief 2026-10-23, the board's own `toc` list once edited, else its headings; and no step ever adds a canvas heading.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Usage: BASE=http://127.0.0.1:8911 SMALL_CP=http://127.0.0.1:8913 VARS=<cp .dev.vars> OUT=<dir> node e2e/toc-tutor-check.mjs
 import { chromium } from '@playwright/test';
@@ -105,8 +106,10 @@ const pane = () => page.locator('[data-chat-pane]');
 const tab = name => page.getByRole('tab', { name: name === 'Table of contents' ? /^Table of contents(, \d+ proposals? to review)?$/ : name, exact: name !== 'Table of contents' });
 const contents = () => page.getByRole('tabpanel', { name: 'Table of contents' });
 const apply = () => contents().getByRole('button', { name: 'Apply', exact: true });
-const headings = () => page.evaluate(key => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).filter(b => b.type === 'heading')
-  .map(b => ({ id: b.id, level: b.level, text: b.text, description: b.description || '', done: !!b.done })), inkKey);
+const headings = () => page.evaluate(key => { const s = JSON.parse(localStorage.getItem(key) || '{}'); return (Array.isArray(s.toc) ? s.toc : (s.blocks || []).filter(b => b.type === 'heading')); }, inkKey)
+  .then(list => list.map(b => ({ id: b.id, level: b.level, text: b.text, description: b.description || '', done: !!b.done })));
+// Owner brief 2026-10-23: the canvas's own heading objects, which no Table of contents action creates.
+const canvasHeadings = () => page.evaluate(key => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).filter(b => b.type === 'heading').length, inkKey);
 const setMode = async mode => {
   if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode) return;
   await pane().getByRole('button', { name: 'Mode', exact: true }).click();
@@ -174,6 +177,7 @@ await check('2 Use as table of contents in the TOC conversation makes the headin
     [1, 'Tides', 'Why the sea rises and falls twice a day.', false], [2, 'The moon', 'Its pull makes the bulges.', false], [2, 'The sun', '', false], [1, 'Tide tables', '', false],
   ]);
   assert.equal(await apply().count(), 0, 'nothing waits for Apply');
+  assert.equal(await canvasHeadings(), 0, 'owner brief 2026-10-23: the contents only, no canvas heading');
   await contents().screenshot({ path: `${OUT}/2-adopted.png` });
 });
 
@@ -197,6 +201,7 @@ await check('4 a Tutor turn sends the headings with ids, descriptions and outlin
   assert.deepEqual(after.map(h => [h.level, h.text, h.done]), [[1, 'Tides', false], [2, 'The moon', false], [2, 'The sun', false], [2, 'Spring tides', false], [1, 'Tide tables', false]]);
   assert.equal(after[3].description, 'When the sun and moon line up.');
   assert.deepEqual(after.filter(h => h.text !== 'Spring tides').map(h => h.id), adopted.map(h => h.id), 'existing headings keep their ids');
+  assert.equal(await canvasHeadings(), 0, 'owner brief 2026-10-23: the contents only, no canvas heading');
   await contents().screenshot({ path: `${OUT}/4-applied.png` });
 });
 
@@ -300,6 +305,7 @@ await check('9 the TOC conversation: Tutor only; a request there applies its out
   assert.equal(await tocField().inputValue(), 'A TOC draft', 'the TOC draft survives the reload');
   assert.equal(await contents().locator('[data-toc-goal]').count(), 0, 'a restored TOC thread is not a goal either (draft acceptance 52)');
   assert.ok((await headings()).some(h => h.text === 'Tidal bores'), 'the outline change survives the reload');
+  assert.equal(await canvasHeadings(), 0, 'owner brief 2026-10-23: the contents only, no canvas heading');
   await tab('Chat').click();
   await page.waitForFunction(() => document.querySelector('[data-chat-pane]')?.dataset.chatRestore === 'ready');
   assert.equal(await pane().getByText('The saved TOC reply.', { exact: true }).count(), 0, 'Chat never restores the TOC\'s thread');
