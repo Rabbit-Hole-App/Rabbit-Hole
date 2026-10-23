@@ -289,13 +289,18 @@ await check('9 scrolled up, new replies show New replies and the reading place s
   await expect(message(replies.at(-1))).toHaveCount(1, SYNC);
   const list = page.locator('[data-comments-panel] [data-comment-messages]');
   await expect.poll(() => list.evaluate(node => node.scrollHeight - node.clientHeight), { timeout: 5000 }).toBeGreaterThan(200);
+  const newReplies = page.locator('[data-comments-panel] [data-new-replies]');
+  // Settle at the bottom first: the batch above may have raised New replies already, and reaching the bottom clears it.
+  await list.evaluate(node => { node.scrollTop = node.scrollHeight; node.dispatchEvent(new Event('scroll')); });
+  await expect(newReplies).toHaveCount(0);
   await list.evaluate(node => { node.scrollTop = 0; node.dispatchEvent(new Event('scroll')); });
   const later = await reply('A reply that arrives while the owner reads the top');
-  await expect(page.locator('[data-comments-panel] [data-new-replies]')).toHaveText('New replies', SYNC);
+  await expect(message(later)).toHaveCount(1, SYNC);
+  await expect(newReplies).toHaveText('New replies');
   assert.ok(await list.evaluate(node => node.scrollTop) < 10, 'the reading place stays at the top');
-  await page.locator('[data-comments-panel] [data-new-replies]').click();
+  await newReplies.click();
   await expect(message(later)).toBeInViewport();
-  await expect(page.locator('[data-comments-panel] [data-new-replies]')).toHaveCount(0);
+  await expect(newReplies).toHaveCount(0);
   await page.locator('[data-comments-panel] [data-comment-composer] textarea').fill('Typed before going offline');
   assert.deepEqual([asks, stray, errors], [[], [], []]);
   await context.setOffline(true);
