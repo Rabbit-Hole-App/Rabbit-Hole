@@ -30,11 +30,16 @@ import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 import { editorOpen, reloadForNewBuild } from './chunk-reload.js';
 import { installAiRefusalHook } from './ai-refusal.js';
+import { embedRoute, installEmbedFetch } from './embed-api.js';
 
 // Every refused AI request, from any entry point, explains itself the same way (owner D4 section 4, L12).
 installAiRefusalHook();
 
-applyTheme(getTheme()); // before first paint - no light flash for dark users
+// /embed/b|e/<token>: a public canvas framed by another site (SHARE-04, embed-api.js). Every API request says so, and the theme
+// is the host's choice (?theme=) or the visitor's system setting, never this browser's saved Rabbit Hole theme.
+const embedded = embedRoute(window.location.pathname, window.location.search);
+if (embedded) installEmbedFetch();
+applyTheme(embedded ? embedded.theme || 'system' : getTheme()); // before first paint - no light flash for dark users
 applyUiPrefs(); // text size and reduced motion (Settings > Appearance & input), also before first paint
 // The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v3: the same
 // aperture centred and 1.2x larger, so it fills the tab, on a tile rounded to a quarter of its side (owner, 2026-10-08).
@@ -114,6 +119,8 @@ const InvitePage = learnPreview ? lazy(() => import('./comments/InvitePage.jsx')
 const MEMBER_BOARD = /^\/c\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 function Root() {
+  // The embed is the shared page in embed mode and nothing else: no handle gate, no account chrome.
+  if (embedded) return <Suspense fallback={null}><SharedBoardPage token={embedded.token} embed={embedded} /><Toasts /></Suspense>;
   const sharedBoard = window.location.pathname.match(SHARED_BOARD);
   const creator = CreatorProfilePage && window.location.pathname.match(CREATOR);
   const memberBoard = MemberBoardPage && window.location.pathname.match(MEMBER_BOARD);

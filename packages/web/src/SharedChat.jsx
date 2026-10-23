@@ -5,6 +5,7 @@ import { ChatMessages } from './ChatMessages.jsx';
 import { MaterialIcon } from './ask.jsx';
 import { Button } from './ui.jsx';
 import { streamAsk } from './agent/ask-stream.js';
+import { startEmbedSession } from './embed-api.js';
 import { GUEST, adoptGuestChat, askHistory, askPath, loadChat, readGuestAllowance, saveChat, sendKey, signInForAsk } from './shared-ask.js';
 
 // The shared canvas's Chat (SHARE-03, owner brief 2026-10-22 section 5; C:/s/spec/share/contract-guest-chat.md): the normal
@@ -16,17 +17,25 @@ import { GUEST, adoptGuestChat, askHistory, askPath, loadChat, readGuestAllowanc
 // No +, attachments, model picker or / commands: every message is a question about the canvas (the server dispatches none).
 // target: the card selected or attached by Ask in Chat, Explain in Chat or Ask about selection (one pill; only its id is sent).
 // onAllowance(remaining): the guest messages left, for canvas-permissions' ctx.guestChat (S1); null signed in.
-export default function SharedChat({ token, viewer, context = null, draft = null, target = null, onClearTarget = null, onAllowance = null }) {
+// embed (SHARE-04, embed-api.js): { openFull({ draft, target }) } when this Chat is framed by another site. Send waits for the
+// partitioned guest session (init, then a probe that the cookie came back); where this browser keeps none, Send and the
+// "Open Chat in Rabbit Hole" button open the full site in a new tab with the draft, and nothing is sent.
+export default function SharedChat({ token, viewer, context = null, draft = null, target = null, onClearTarget = null, onAllowance = null, embed = null }) {
   const who = viewer || GUEST;
   const [input, setInput] = useState(draft || '');
   const [turns, setTurns] = useState(() => { adoptGuestChat(token, viewer); return loadChat(token, who); });
   const [busy, setBusy] = useState(false);
   const [allowance, setAllowance] = useState(null); // guest only: { limit, used, remaining }
+  const [session, setSession] = useState(embed ? 'checking' : 'ready'); // embed only: checking | ready | blocked
   const inputRef = useRef(null), flight = useRef(null);
   useEffect(() => { if (draft) inputRef.current?.focus(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!busy) saveChat(token, who, turns); }, [turns, busy]); // eslint-disable-line react-hooks/exhaustive-deps
   const learned = next => { setAllowance(next); onAllowance?.(next ? next.remaining : null); };
-  useEffect(() => { if (!viewer) readGuestAllowance(token).then(learned); else onAllowance?.(null); }, [token, viewer]); // eslint-disable-line react-hooks/exhaustive-deps
+  const checkSession = () => startEmbedSession(token).then(result => { setSession(result.session ? 'ready' : 'blocked'); if (result.guest) learned(result.guest); });
+  useEffect(() => {
+    if (embed) checkSession();
+    else if (!viewer) readGuestAllowance(token).then(learned); else onAllowance?.(null);
+  }, [token, viewer]); // eslint-disable-line react-hooks/exhaustive-deps
   // Ask in Chat / Explain in Chat put their words in the composer and focus it (agent/scope.js askDraft); they never send.
   useEffect(() => {
     const prefill = event => { const text = event.detail?.text; if (text) setInput(current => (current.trim() ? current : text)); inputRef.current?.focus(); };
@@ -34,11 +43,12 @@ export default function SharedChat({ token, viewer, context = null, draft = null
     return () => window.removeEventListener('small:ask-focus', prefill);
   }, []);
   const spent = !viewer && allowance?.remaining === 0;
-  const toSignIn = text => { window.location.href = signInForAsk(token, text, undefined, window.location.pathname, target); };
+  const toSignIn = text => { if (embed) embed.openFull({ draft: text, target }); else window.location.href = signInForAsk(token, text, undefined, window.location.pathname, target); };
   const last = patch => setTurns(all => all.map((turn, i) => (i === all.length - 1 ? { ...turn, ...(typeof patch === 'function' ? patch(turn) : patch) } : turn)));
   const send = async raw => {
     const message = raw.trim();
     if (!message || busy) return;
+    if (embed && session !== 'ready') { if (session === 'blocked') embed.openFull({ draft: raw, target }); return; }
     if (spent) return toSignIn(raw); // the trial is used: Send is "Sign in to continue", the draft kept, nothing sent
     // Sending the same question again right after it failed is a retry of that Send: the same request id, never a second count.
     const failed = turns.at(-1)?.error && turns.at(-2)?.content === message ? turns.at(-2).key : null;
@@ -47,12 +57,13 @@ export default function SharedChat({ token, viewer, context = null, draft = null
     setTurns(all => [...all, { role: 'user', content: message, key }, { role: 'assistant', content: '', pending: true }]);
     const controller = new AbortController();
     flight.current = controller;
-    let signIn = false, refusedGuest = null, limited = false, heard = false;
+    let signIn = false, refusedGuest = null, limited = false, heard = false, lostSession = false;
     const onEvent = (type, data) => {
       heard = true;
       if (type === 'chunk') last(turn => ({ content: turn.content + data.text }));
       else if (type === 'progress') last({ status: data.stage });
       else if (type === 'error' && data.code === 'guest_limit') refusedGuest = data.guest || { limit: 10, used: 10, remaining: 0 };
+      else if (type === 'error' && data.code === 'embed_session_required') lostSession = true; // nothing was counted or sent
       else if (type === 'error' && data.signIn) signIn = true;
       else if (type === 'error') { limited = !!data.limited; last({ error: data.error }); }
       else if (type === 'done') { if (data.notice) last({ notice: data.notice }); if (data.guest) learned(data.guest); }
@@ -69,6 +80,7 @@ export default function SharedChat({ token, viewer, context = null, draft = null
       setBusy(false);
     }
     // Refused before any model call (the trial is used, or the session ended): the question goes back into the composer.
+    if (lostSession) { setTurns(all => all.slice(0, -2)); setInput(current => current || raw); setSession('checking'); checkSession(); }
     if (refusedGuest || signIn) { setTurns(all => all.slice(0, -2)); setInput(current => current || raw); }
     if (refusedGuest) learned(refusedGuest);
     if (signIn && viewer) toSignIn(raw);
@@ -105,8 +117,14 @@ export default function SharedChat({ token, viewer, context = null, draft = null
         <button type="button" aria-label="Remove selected card context" title="Remove selected card context" onClick={onClearTarget} className="shrink-0 rounded-full p-0.5 hover:bg-active hover:text-ink"><X size={12} /></button>
       </div>}
       <div className="mt-2 shrink-0">
-        <ChatComposer multiline value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
+        <ChatComposer multiline value={input} onChange={setInput} onSubmit={send} inputRef={inputRef} busy={busy} disabled={embed && session === 'checking'} onStop={() => flight.current?.abort()} maxLength={4000} placeholder="Ask about this canvas" />
       </div>
+      {embed && session === 'blocked' && (
+        <div role="status" className="mt-2 flex shrink-0 flex-wrap items-center gap-2 text-xs text-ink-2">
+          <span className="mr-auto">Chat needs a cookie this page cannot keep. Your draft is kept.</span>
+          <Button type="button" variant="primary" size="sm" data-embed-chat-fallback onClick={() => embed.openFull({ draft: input, target })}>Open Chat in Rabbit Hole</Button>
+        </div>
+      )}
       {spent ? (
         <div data-guest-spent role="status" className="mt-2 flex shrink-0 flex-wrap items-center gap-2 text-xs text-ink-2">
           <span className="mr-auto">You have used your {allowance.limit} free messages. Your draft is kept.</span>
