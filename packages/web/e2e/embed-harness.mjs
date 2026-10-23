@@ -127,6 +127,13 @@ export async function crossSiteCookieKept(host, context) {
 // and the next recipe tried; if none blocks, the check fails with every attempt listed.
 export async function blockedProfile(host) {
   const tried = [];
+  // Last recipe first tried by command line: third-party cookie phase-out test mode with partitioning off, so Partitioned is just a third-party cookie.
+  {
+    const browser = await chromium.launch({ args: ['--test-third-party-cookie-phaseout', '--disable-features=PartitionedCookies'] });
+    const context = await browser.newContext(contextOptions);
+    if (!(await crossSiteCookieKept(host, context))) { console.log('blocked profile: chromium --test-third-party-cookie-phaseout (the canary cookie is not returned and not stored)'); return { context, kind: 'phaseout', close: () => browser.close() }; }
+    tried.push('phaseout'); await browser.close();
+  }
   for (const kind of ['exception', 'thirdParty', 'all']) {
     const p = await profile(kind, PREFS[kind](SITE.same));
     if (!(await crossSiteCookieKept(host, p.context))) { console.log(`blocked profile: ${kind} (the canary cookie is not returned and not stored)`); return p; }

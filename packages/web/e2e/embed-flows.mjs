@@ -66,9 +66,10 @@ export async function runEmbed(engine) {
       const site = new URL(req.frame().page().mainFrame().url()).hostname;
       const mine = (await context.cookies()).filter(c => c.name === 'rh_embed');
       const cookie = mine.length === 1 ? mine[0] : mine.find(c => JSON.stringify(c.partitionKey ?? '').includes(site)) ?? null;
-      const jar = cookie ? site : null;
+      const fromHeader = /(?:^|;\s*)rh_embed=/.test(headers.cookie || '');
+      const jar = fromHeader || cookie ? site : null;
       // route.fetch does not take a partitioned cookie from the jar: the cookie the browser holds for this site goes on the request.
-      if (cookie) headers.cookie = [headers.cookie, `rh_embed=${cookie.value}`].filter(Boolean).join('; ');
+      if (cookie && !fromHeader) headers.cookie = [headers.cookie, `rh_embed=${cookie.value}`].filter(Boolean).join('; ');
       if (req.method() === 'GET') {
         const real = await route.fetch({ headers }), text = await real.text(), body = json(text);
         s.probes.push({ cookieSent: !!jar, account: /(?:^|;\s*)small_session=/.test(headers.cookie || ''), session: body?.embed?.session ?? null });
@@ -105,6 +106,8 @@ export async function runEmbed(engine) {
   const closeNextTab = context => { const state = { on: false, closed: 0 }; context.on('page', p => { if (state.on) { state.closed++; p.close().catch(() => {}); } }); return state; };
   // A smooth wheel scroll is still moving when scrollY first changes: wait until two reads 150 ms apart agree.
   const settled = async page => { let last = -1; for (let i = 0; i < 60; i++) { const y = await page.evaluate(() => window.scrollY); if (y === last) return y; last = y; await new Promise(r => setTimeout(r, 150)); } return last; };
+  // Asks the embed session init again from inside the frame: created:false only if THIS frame sent a valid rh_embed (idempotent).
+  const initProbe = page => frameOf(page).evaluate(async () => (await (await fetch('/api/learn/boards/embed-session', { method: 'POST', headers: { 'X-RH-Embed': '1' } })).json()).created);
   const hostMessages = page => page.evaluate(() => window.__messages);
   const hasDraft = u => decodeURIComponent(u).includes(DRAFT) || u.includes(encodeURIComponent(DRAFT));
   // The host page (another origin) forges every hand-off message it can into the embed's window: none may be believed.
@@ -182,16 +185,19 @@ export async function runEmbed(engine) {
     await spentTab.close();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-spent-${engine}.png` });
     await page.reload();
-    fl = await embedOf(page); await openChat(fl);
-    check(`${tag} a reload keeps the count (no fresh trial): the browser sent its cookie back (init created:false), still 0 of 10 left, still one cookie`, await left(fl, 0) && net.inits.filter(i => i.site === SITE_A)[0]?.created === true && net.inits.filter(i => i.site === SITE_A).at(-1)?.created === false && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 1, JSON.stringify({ inits: net.inits, posts: net.requests.filter(r => /embed-session$/.test(r.url)).length }));
+    fl = await embedOf(page);
+    const initAfterReload = await initProbe(page);
+    await openChat(fl);
+    check(`${tag} a reload keeps the count (no fresh trial): the browser sent its cookie back (init created:false), still 0 of 10 left, still one cookie`, await left(fl, 0) && initAfterReload === false && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 1, JSON.stringify({ initAfterReload }));
 
     const siteB = await context.newPage();
     await siteB.goto(hostUrl(host, 'b', path, '&lazy=0'));
-    const flB = await embedOf(siteB); await openChat(flB);
-    const initB = net.inits.find(i => i.site === SITE_B);
-    const partitioned = initB?.created === true;
+    const flB = await embedOf(siteB);
+    const initB = await initProbe(siteB); // site A already holds a cookie: created:true here means B's frame sent none, a separate jar
+    await openChat(flB);
+    const partitioned = initB === true;
     if (!partitioned) console.log(`FINDING [${engine}] a second embedding site sent the first site's rh_embed cookie back (init created:false): this browser does not partition it, so its count is per browser, not per embedding site. ${JSON.stringify(net.inits)}`);
-    check(`${tag} another embedding site gets its own session (its first init created:true although site A already holds one) and its own 10 messages: partitioned storage${partitioned ? '' : ' (FINDING: not partitioned in this browser, see the FINDING line; only Chromium is required to partition)'}`, await left(flB, 10) && (partitioned || engine !== 'chromium'), JSON.stringify(net.inits));
+    check(`${tag} another embedding site gets its own session (its first init created:true although site A already holds one) and its own 10 messages: partitioned storage${partitioned ? '' : ' (FINDING: not partitioned in this browser, see the FINDING line; only Chromium is required to partition)'}`, await left(flB, 10) && (partitioned || engine !== 'chromium'), JSON.stringify({ initB }));
     const retried = await frameOf(siteB).evaluate(async () => {
       const init = { method: 'POST', headers: { 'content-type': 'application/json', 'X-RH-Embed': '1', 'X-RH-Action-Key': 'retry-key-0001' }, body: JSON.stringify({ message: 'retry me', history: [] }) };
       const token = location.pathname.split('/').pop();
@@ -270,7 +276,10 @@ export async function runEmbed(engine) {
     const y1 = await settled(wheel);
     const box2 = await wheel.locator('#f0').boundingBox(); // the wheel scrolled the page: measure again
     await wheel.mouse.click(box2.x + 40, box2.y + box2.height - 60);
-    await wheel.keyboard.down('Control'); await wheel.mouse.wheel(0, -240); await wheel.keyboard.up('Control');
+    if (engine === 'chromium') { // Playwright's wheel carries no Control modifier in Chromium: send the wheel with it through the protocol
+      const cdp = await context.newCDPSession(wheel);
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: box2.x + 40, y: box2.y + box2.height - 60, deltaX: 0, deltaY: -240, modifiers: 2 });
+    } else { await wheel.keyboard.down('Control'); await wheel.mouse.wheel(0, -240); await wheel.keyboard.up('Control'); }
     const zoomed = await flW.locator('[data-canvas-surface]').evaluate(async (n, before) => { for (let i = 0; i < 100; i++) { const t = [...n.children].find(c => c.style.transform)?.style.transform; if (t && t !== before) return t; await new Promise(r => setTimeout(r, 100)); } return null; }, cam0);
     check(`${tag} ctrl+wheel on the focused canvas zooms the canvas and does not scroll the host page`, !!zoomed && await scrollY() === y1, `${cam0} -> ${zoomed}; scroll ${y1} -> ${await scrollY()}`);
     await wheel.close();
