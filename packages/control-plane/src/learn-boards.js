@@ -14,7 +14,7 @@ import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
-import { NO_CAP, admitUsage, askShared, guestChatAllowance, guestOf, withGuestCookie, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
+import { NO_CAP, admitUsage, askShared, embedOf, embedSession, embedSessionRequired, guestChatAllowance, guestOf, isEmbed, withGuestCookie, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
 import { selectedStepProblem } from './agents/learn-next-steps.js';
 import { assetKeysOf } from '../../web/src/learn-board-assets.js';
@@ -129,7 +129,7 @@ export const THUMBNAIL_LIMIT = 1024 * 1024;
 const thumbnailObject = (boardId, source) => `learn-thumbnails/${boardId}/${source}`;
 const THUMBNAIL_HEADERS = { 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff' };
 
-// The custom picture, else the snapshot (`sources`: a public view link or Explore serves the custom one only). 204 when there is none, so a card's <img> quietly keeps its placeholder;
+// The custom picture, else the snapshot (`sources`: a public view link serves the custom one only). 204 when there is none, so a card's <img> quietly keeps its placeholder;
 // 304 when the browser's copy is current (ETag).
 async function serveThumbnail(req, env, boardId, sources = ['custom', 'snapshot']) {
   const media = learnMedia(env);
@@ -349,6 +349,10 @@ export async function linkTarget(env, token, signedIn) {
   return { url: linkPath(found, token), title: sharedTitle(found.row, canvas?.title, await linkSource(env.LEARN_DB, found)) };
 }
 
+// Who is viewing a link they were admitted to: the signed-in account, or a Response (401 signed out). An embed request
+// (X-RH-Embed, learn-shared-ask.js) ignores the account session - cookies or none - and is always the public guest.
+const viewerOf = (req, env, found) => found.viewer || (isEmbed(req) ? new Response(null, { status: 401 }) : repositoryIdentity(req, env));
+
 // Who may open a shared link: anyone for a public view link or an Explore publication, otherwise any
 // signed-in account. Returns the row and role (and the viewer, when it had to
 // ask), or the refusal.
@@ -356,6 +360,8 @@ export async function sharedAccess(req, env, token) {
   const found = await sharedRow(env, token);
   if (!found) return json({ error: 'This link is not shared any more, or never was.' }, 404);
   if (!(found.role === 'view' && (found.row.public_view || found.publication))) {
+    // An embed is public or nothing: it never asks who is signed in, and never offers sign-in (SHARE-04).
+    if (isEmbed(req)) return json({ error: 'This canvas is not public, so it cannot be embedded.', code: 'embed_not_public' }, 403);
     const viewer = await repositoryIdentity(req, env);
     if (viewer instanceof Response) return json({ error: 'Sign in to open this board.', signIn: true }, 401);
     found.viewer = viewer;
@@ -370,11 +376,14 @@ const MAX_ASK_BODY = 128 * 1024;
 async function askAboutShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
-  let viewer = found.viewer || await repositoryIdentity(req, env);
+  let viewer = await viewerOf(req, env, found);
   if (viewer instanceof Response && viewer.status !== 401) return viewer;
   if (viewer instanceof Response) viewer = null;
-  const guest = viewer ? null : guestOf(req);
-  if (req.method === 'GET') return withGuestCookie(json({ guest: guest ? await guestChatAllowance(env.LEARN_DB, guest) : null }), guest);
+  // An embed's trial is its Partitioned rh_embed session, never minted here: GET is the probe that says whether the cookie came
+  // back, and a Send without it is refused before anything is read, counted or asked (embed-session note).
+  const embed = isEmbed(req), guest = viewer ? null : embed ? embedOf(req) : guestOf(req);
+  if (req.method === 'GET') return withGuestCookie(json({ guest: guest ? await guestChatAllowance(env.LEARN_DB, guest) : null, ...(embed ? { embed: { session: !!guest } } : {}) }), guest);
+  if (!guest && !viewer) return embedSessionRequired();
   const raw = await req.text();
   if (raw.length > MAX_ASK_BODY) return json({ error: 'This question and its history are too long.' }, 413);
   let body = null;
@@ -391,7 +400,7 @@ async function askAboutShared(req, env, token) {
 async function nextStepsAboutShared(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
-  const viewer = found.viewer || await repositoryIdentity(req, env);
+  const viewer = await viewerOf(req, env, found);
   if (viewer instanceof Response) return viewer.status === 401 ? json({ error: 'Sign in to see next steps for this canvas.', signIn: true }, 401) : viewer;
   const raw = await req.text();
   if (raw.length > NEXT_STEPS_BODY_CHARS) return json({ error: `the request body must be at most ${NEXT_STEPS_BODY_CHARS} characters` }, 400);
@@ -667,7 +676,7 @@ function originOf(origin, state) {
 async function startRabbitHole(req, env, token, body) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
-  const user = found.viewer || await repositoryIdentity(req, env);
+  const user = await viewerOf(req, env, found);
   if (user instanceof Response) return user.status === 401 ? json({ error: 'Sign in to start your own Rabbit Hole from this canvas.', signIn: true }, 401) : user;
   const { row } = found, db = env.LEARN_DB, state = await redactRepositoryCards(db, JSON.parse(row.state_json), user);
   const blank = body?.blank === true;
@@ -764,7 +773,7 @@ async function sharedHoles(req, env, token) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
   const db = env.LEARN_DB, { row } = found;
-  const viewer = found.viewer || await repositoryIdentity(req, env);
+  const viewer = await viewerOf(req, env, found);
   const anyone = viewer instanceof Response ? 0 : 1;
   const OPEN = `b.shared = 1 AND b.view_token IS NOT NULL AND ${NOT_TRASHED('b.org', 'b.app')} AND (b.public_view = 1 OR ?)`;
   const canvasTitle = CANVAS.test(row.app) ? (await db.prepare('SELECT title FROM canvases WHERE org = ? AND name = ?').bind(row.org, row.app).first())?.title : null;
@@ -818,7 +827,7 @@ export const SHARED_CARD_SOURCE_LIMITS = { SHARED_CARD_SOURCE_HOUR: 600, SHARED_
 async function sharedCard(req, env, token, cardId) {
   const found = await sharedAccess(req, env, token);
   if (found instanceof Response) return found;
-  const identity = found.viewer || await repositoryIdentity(req, env), viewer = identity instanceof Response ? null : identity;
+  const identity = await viewerOf(req, env, found), viewer = identity instanceof Response ? null : identity;
   const limit = limitsFrom(SHARED_CARD_SOURCE_LIMITS, env);
   const admit = async () => ((await admitUsage(env.LEARN_DB, { category: 'shared_card_source', viewer: '', shareKey: found.publication ? await publicationKey(token) : await shareKey(token),
     boardId: found.row.id, owner: found.row.owner_email, viewerHour: NO_CAP, viewerDay: NO_CAP, shareHour: limit.SHARED_CARD_SOURCE_HOUR, shareDay: limit.SHARED_CARD_SOURCE_DAY }))
@@ -837,7 +846,7 @@ async function openShared(req, env, token) {
   // and the context pills - the repository at the share's pinned commit, and the sources on the board. A private
   // repository shows nothing of itself to anyone but its original importer: no name, commit or pill, and a project
   // board's app name (which names it) is withheld too.
-  const viewer = found.viewer || await repositoryIdentity(req, env);
+  const viewer = await viewerOf(req, env, found);
   const source = await linkSource(env.LEARN_DB, found, viewer instanceof Response ? null : viewer);
   const hidden = row.app.startsWith('repo-') && !source?.allowed;
   // Only what was placed on the canvas, never the creator's own learning state (shared-privacy.js, SHARE-01 section 7).
@@ -930,6 +939,7 @@ async function explore(env, sort, q = '', project = null, type = null) {
 
 export async function learnBoardsRoute(path, req, env) {
   if (!env.LEARN_DB) return json({ error: 'Board sharing needs the Learn database on this worker.' }, 503);
+  if (path === '/api/learn/boards/embed-session') return embedSession(req);
   const sharedFile = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/assets\/([^/]+)$/);
   if (sharedFile) {
     const found = await sharedAccess(req, env, decodeURIComponent(sharedFile[1]));
