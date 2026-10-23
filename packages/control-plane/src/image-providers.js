@@ -70,34 +70,73 @@ export function imageQuote(env, settings, referenceCount = 0, promptBytes = 0) {
   return { state: 'priced', model, estimateUsd, reserveUsd, estimate_credits: credits(estimateUsd), reserve_credits: credits(reserveUsd), basis: 'published_per_image', excludes: ['thinking_tokens'] };
 }
 
-// Google paid standard rates per million tokens (pricing page, 2026-10-23): input text/image, output text and thinking, output image.
-const GOOGLE_RATES = { 'gemini-nano-banana-2.1': { input: 1.5, text: 7.5, image: 30 }, 'gemini-3-pro-image': { input: 2, text: 12, image: 120 } };
-// Interaction usage (API reference): thought tokens are reported apart from total_output_tokens (the page's example: 7 + 23 + 49 = 79).
-// Priced only when the output split by modality adds up to the total and nothing unpriced (tool use) was billed; otherwise null.
-function googleCostUsd(model, usage) {
-  const r = GOOGLE_RATES[model], n = v => (Number.isSafeInteger(v) && v >= 0 ? v : null);
-  const input = n(usage.total_input_tokens), output = n(usage.total_output_tokens), thought = n(usage.total_thought_tokens);
-  const split = Array.isArray(usage.output_tokens_by_modality) ? usage.output_tokens_by_modality : null;
-  if (!r || input == null || output == null || thought == null || !split || n(usage.total_tool_use_tokens ?? 0) !== 0) return null;
-  let image = 0, other = 0;
-  for (const part of split) { const tokens = n(part?.tokens); if (tokens == null || typeof part.modality !== 'string') return null; if (part.modality === 'image') image += tokens; else other += tokens; }
-  if (image + other !== output) return null;
-  return Number(((input * r.input + image * r.image + (other + thought) * r.text) / 1e6).toFixed(6));
+// Token rates in USD per million tokens, from the providers' own pricing pages read 2026-10-23: Google
+// https://ai.google.dev/gemini-api/docs/pricing (paid, standard: input text/image/video, output text-and-thinking, output image);
+// OpenAI https://developers.openai.com/api/pricing (both 2.5 models: text in $5, image in $8, image out $30; no text-output row is
+// published). verified: true only where a page states the rate; a model without a verified row is never priced.
+const RATES = {
+  'gemini-nano-banana-2.1': { verified: true, input: { text: 1.5, image: 1.5 }, output: { text: 7.5, image: 30 } },
+  'gemini-3-pro-image': { verified: true, input: { text: 2, image: 2 }, output: { text: 12, image: 120 } },
+  'gpt-image-2.5-sunburst': { verified: true, input: { text: 5, image: 8 }, output: { image: 30 } },
+  'gpt-image-2.5-flare': { verified: true, input: { text: 5, image: 8 }, output: { image: 30 } },
+};
+const maxOf = o => Math.max(...Object.values(o));
+const tokens = v => (Number.isSafeInteger(v) && v >= 0 ? v : null);
+const usd = micro => Number((micro / 1e6).toFixed(6));
+const splitOf = list => (Array.isArray(list) && list.every(p => typeof p?.modality === 'string' && tokens(p.tokens) != null) ? list : null);
+
+// Google Interaction usage -> { measuredUsd, estimatedUpperBoundUsd } (each null when it cannot be stated).
+//  measured: only when the usage reconciles exactly: output_tokens_by_modality adds up to total_output_tokens, thought tokens are
+//    reported (billed at the text rate, apart from total_output_tokens: the API reference's example is 7 + 23 + 49 = 79) and no
+//    tool-use tokens exist. Input tokens are priced per modality.
+//  estimatedUpperBoundUsd: input tokens at the input rate by modality (any unattributed remainder at the highest input rate) +
+//    max(total_output_tokens, every reported output component: modality tokens + thought + tool-use) x the model's HIGHEST output
+//    rate (image). Assumption: nothing the provider reported can cost more than its highest per-token output rate. Real payloads
+//    (2026-10-23 runs C, D, E) report thought tokens that exceed what total_output_tokens leaves over, which is why the max.
+function googleUsage(model, usage) {
+  const r = RATES[model], input = tokens(usage.total_input_tokens), output = tokens(usage.total_output_tokens);
+  if (!r?.verified || input == null || output == null) return { measuredUsd: null, estimatedUpperBoundUsd: null };
+  const thought = tokens(usage.total_thought_tokens), tool = tokens(usage.total_tool_use_tokens ?? 0);
+  const inSplit = splitOf(usage.input_tokens_by_modality) || [], outSplit = splitOf(usage.output_tokens_by_modality);
+  const inSum = inSplit.reduce((n, p) => n + p.tokens, 0), outSum = (outSplit || []).reduce((n, p) => n + p.tokens, 0);
+  const inputMicro = inSplit.reduce((n, p) => n + p.tokens * (r.input[p.modality] ?? maxOf(r.input)), 0) + Math.max(0, input - inSum) * maxOf(r.input);
+  const bound = inputMicro + Math.max(output, outSum + (thought ?? 0) + (tool ?? 0)) * maxOf(r.output);
+  let measured = null;
+  if (outSplit && thought != null && tool === 0 && outSum === output && inSum === input) {
+    const image = outSplit.filter(p => p.modality === 'image').reduce((n, p) => n + p.tokens, 0);
+    measured = inputMicro + image * r.output.image + (outSum - image + thought) * r.output.text;
+  }
+  return { measuredUsd: measured == null ? null : usd(measured), estimatedUpperBoundUsd: usd(bound) };
 }
 
-// Cost from provider-reported usage, where the rates are verified. null = not priceable, so the ledger keeps the reservation as
-// unknown cost and the job says 'estimated'. OpenAI reports tokens (image output $30/M; image input $8/M; text input $5/M); output
-// tokens are all priced at the image output rate (an upper bound). Google: googleCostUsd.
-export function measuredCostUsd(model, usage) {
-  if (!usage || typeof usage !== 'object') return null;
-  if (IMAGE_MODELS[model]?.provider === 'google') return googleCostUsd(model, usage);
-  if (IMAGE_MODELS[model]?.provider !== 'openai') return null;
-  const n = key => (Number.isSafeInteger(usage[key]) && usage[key] >= 0 ? usage[key] : null);
-  const input = n('input_tokens'), output = n('output_tokens');
-  if (input == null || output == null) return null;
-  const d = usage.input_tokens_details, text = Number.isSafeInteger(d?.text_tokens) ? d.text_tokens : 0, image = Number.isSafeInteger(d?.image_tokens) ? d.image_tokens : input - text;
-  if (text + image !== input) return null;
-  return Number(((text * 5 + image * 8 + output * 30) / 1e6).toFixed(6));
+// OpenAI usage: measured when input_tokens reconciles with its text/image details and no text output tokens exist (no text-output
+// rate is published); the upper bound prices every output token at the image rate and unattributed input at the image input rate.
+function openaiUsage(model, usage) {
+  const r = RATES[model], input = tokens(usage.input_tokens), output = tokens(usage.output_tokens);
+  if (!r?.verified || input == null || output == null) return { measuredUsd: null, estimatedUpperBoundUsd: null };
+  const d = usage.input_tokens_details, text = tokens(d?.text_tokens) ?? 0, image = tokens(d?.image_tokens) ?? Math.max(0, input - text);
+  const micro = text * r.input.text + image * r.input.image + Math.max(0, input - text - image) * maxOf(r.input) + output * maxOf(r.output);
+  const exact = text + image === input && !(tokens(usage.output_tokens_details?.text_tokens) > 0);
+  return { measuredUsd: exact ? usd(micro) : null, estimatedUpperBoundUsd: usd(micro) };
+}
+
+// Provider-reported usage -> { measuredUsd, estimatedUpperBoundUsd }; both null when there is no usable usage.
+export function usageCost(model, usage) {
+  if (!usage || typeof usage !== 'object') return { measuredUsd: null, estimatedUpperBoundUsd: null };
+  const provider = IMAGE_MODELS[model]?.provider;
+  return provider === 'google' ? googleUsage(model, usage) : provider === 'openai' ? openaiUsage(model, usage) : { measuredUsd: null, estimatedUpperBoundUsd: null };
+}
+export const measuredCostUsd = (model, usage) => usageCost(model, usage).measuredUsd;
+
+// The three values, kept apart (owner 2026-10-23). reservedMaxUsd is what the job held; settledUsd is what the ledger and the
+// learner are charged: measured if there is one, else the estimated upper bound (never labelled measured), else null (unknown: the
+// ledger keeps the reservation as unknown cost). A settled amount above the reservation is an explicit overrun, never clipped.
+export function imageCost(model, usage, reservedMaxUsd) {
+  const { measuredUsd, estimatedUpperBoundUsd } = usageCost(model, usage);
+  const settledUsd = measuredUsd ?? estimatedUpperBoundUsd;
+  const over = settledUsd != null && settledUsd > reservedMaxUsd + 1e-9;
+  return { state: measuredUsd != null ? 'measured' : estimatedUpperBoundUsd != null ? 'estimated_upper_bound' : 'unknown', measuredUsd, estimatedUpperBoundUsd, reservedMaxUsd, settledUsd,
+    overrun: { exceeded: over, amountUsd: over ? Number((settledUsd - reservedMaxUsd).toFixed(6)) : 0 } };
 }
 
 const failure = (code, { started = false, definite = false, status, providerCode } = {}) => Object.assign(new Error(`image provider ${code}`), { code, providerRequestStarted: started, definiteResponse: definite, ...(status ? { status } : {}), ...(providerCode ? { providerCode } : {}) });

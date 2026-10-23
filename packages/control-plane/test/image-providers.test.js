@@ -1,7 +1,7 @@
 // IMG-01 provider adapters and quote (image-providers.js). Fixture transports only: no request leaves this process.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { IMAGE_MODELS, imageSettings, imageQuote, measuredCostUsd, openaiImageAdapter, geminiImageAdapter, imageAdapter, providerConfigured } from '../src/image-providers.js';
+import { IMAGE_MODELS, imageSettings, imageQuote, measuredCostUsd, usageCost, imageCost, openaiImageAdapter, geminiImageAdapter, imageAdapter, providerConfigured } from '../src/image-providers.js';
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 const KEY = 'fixture-key-not-real';
@@ -118,6 +118,45 @@ test('Gemini cost from usage: priced only when the modality split adds up; think
   const { output_tokens_by_modality, ...noSplit } = usage;
   for (const bad of [noSplit, { ...usage, total_thought_tokens: undefined }, { ...usage, total_output_tokens: 1131 }, { ...usage, total_tool_use_tokens: 5 }, { ...usage, total_input_tokens: -1 }, { ...usage, output_tokens_by_modality: [{ modality: 'image', tokens: '1130' }] }])
     assert.equal(measuredCostUsd('gemini-nano-banana-2.1', bad), null);
+});
+
+// Real usage payloads from the 2026-10-23 live runs (receipts img-A-1, img-B-1, img-C-4, img-D-1, img-E-1).
+const REAL = {
+  A: { input_tokens: 19, input_tokens_details: { image_tokens: 0, text_tokens: 19 }, output_tokens: 196, output_tokens_details: { image_tokens: 196, text_tokens: 0 }, total_tokens: 215 },
+  B: { input_tokens: 551, input_tokens_details: { image_tokens: 512, text_tokens: 39 }, output_tokens: 196, output_tokens_details: { image_tokens: 196, text_tokens: 0 }, total_tokens: 747 },
+  C: { total_tokens: 2453, total_input_tokens: 14, input_tokens_by_modality: [{ modality: 'text', tokens: 14 }], total_cached_tokens: 0, total_output_tokens: 1439, output_tokens_by_modality: [{ modality: 'image', tokens: 1120 }], total_tool_use_tokens: 0, total_thought_tokens: 1000 },
+  D: { total_tokens: 1312, total_input_tokens: 14, input_tokens_by_modality: [{ modality: 'text', tokens: 14 }], total_cached_tokens: 0, total_output_tokens: 1218, output_tokens_by_modality: [{ modality: 'image', tokens: 1120 }], total_tool_use_tokens: 0, total_thought_tokens: 80 },
+  E: { total_tokens: 3038, total_input_tokens: 1134, input_tokens_by_modality: [{ modality: 'text', tokens: 14 }, { modality: 'image', tokens: 1120 }], total_cached_tokens: 0, total_output_tokens: 1407, output_tokens_by_modality: [{ modality: 'image', tokens: 1120 }], total_tool_use_tokens: 0, total_thought_tokens: 497 },
+};
+
+test('the three cost values on the real payloads: OpenAI is measured; Gemini does not reconcile, so it is an estimated upper bound (never measured)', () => {
+  assert.deepEqual(usageCost('gpt-image-2.5-flare', REAL.A), { measuredUsd: 0.005975, estimatedUpperBoundUsd: 0.005975 }); // 19 x 5 + 196 x 30
+  assert.deepEqual(usageCost('gpt-image-2.5-sunburst', REAL.B), { measuredUsd: 0.010171, estimatedUpperBoundUsd: 0.010171 }); // 39 x 5 + 512 x 8 + 196 x 30
+  // C: 14 x $1.5/M + max(1439, 1120 + 1000) = 2120 x $30/M
+  assert.deepEqual(usageCost('gemini-nano-banana-2.1', REAL.C), { measuredUsd: null, estimatedUpperBoundUsd: Number(((14 * 1.5 + 2120 * 30) / 1e6).toFixed(6)) });
+  assert.equal(usageCost('gemini-nano-banana-2.1', REAL.C).estimatedUpperBoundUsd, 0.063621);
+  // D: 14 x $2/M + max(1218, 1120 + 80) = 1218 x $120/M
+  assert.deepEqual(usageCost('gemini-3-pro-image', REAL.D), { measuredUsd: null, estimatedUpperBoundUsd: 0.146188 });
+  // E: (14 + 1120) x $1.5/M + max(1407, 1120 + 497) = 1617 x $30/M
+  assert.deepEqual(usageCost('gemini-nano-banana-2.1', REAL.E), { measuredUsd: null, estimatedUpperBoundUsd: Number(((1134 * 1.5 + 1617 * 30) / 1e6).toFixed(6)) });
+  assert.equal(usageCost('gemini-nano-banana-2.1', REAL.E).estimatedUpperBoundUsd, 0.050211);
+  assert.equal(measuredCostUsd('gemini-nano-banana-2.1', REAL.C), null);
+});
+
+test('imageCost keeps measured, estimated upper bound and reserved apart; an amount over the reservation is an explicit overrun; no usage is unknown', () => {
+  assert.deepEqual(imageCost('gemini-nano-banana-2.1', REAL.C, 0.06), { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.063621, reservedMaxUsd: 0.06, settledUsd: 0.063621, overrun: { exceeded: true, amountUsd: 0.003621 } });
+  assert.equal(imageCost('gemini-nano-banana-2.1', REAL.E, 0.065).overrun.exceeded, false);
+  assert.equal(imageCost('gpt-image-2.5-flare', REAL.A, 0.03).state, 'measured');
+  assert.equal(imageCost('gpt-image-2.5-flare', { ...REAL.A, output_tokens_details: { image_tokens: 100, text_tokens: 96 } }, 0.03).state, 'estimated_upper_bound', 'text output has no published rate: not measured');
+  assert.equal(imageCost('gpt-image-2.5-flare', { ...REAL.A, input_tokens: 40 }, 0.03).state, 'estimated_upper_bound', 'input not accounted for by its details: the rest at the highest input rate');
+  assert.equal(usageCost('gpt-image-2.5-flare', { ...REAL.A, input_tokens: 40 }).estimatedUpperBoundUsd, Number(((19 * 5 + 21 * 8 + 196 * 30) / 1e6).toFixed(6)));
+  for (const usage of [null, undefined, {}, { total_tokens: 5 }, { total_input_tokens: 5 }, { input_tokens: 5 }]) {
+    for (const model of ['gpt-image-2.5-flare', 'gemini-3-pro-image']) assert.deepEqual(imageCost(model, usage, 0.1), { state: 'unknown', measuredUsd: null, estimatedUpperBoundUsd: null, reservedMaxUsd: 0.1, settledUsd: null, overrun: { exceeded: false, amountUsd: 0 } });
+  }
+  // Unknown modalities and tool-use tokens are bounded, not ignored: highest input rate, highest output rate.
+  const odd = usageCost('gemini-3-pro-image', { total_input_tokens: 10, input_tokens_by_modality: [{ modality: 'video', tokens: 4 }], total_output_tokens: 5, total_thought_tokens: 2, total_tool_use_tokens: 3 });
+  assert.equal(odd.measuredUsd, null);
+  assert.equal(odd.estimatedUpperBoundUsd, Number(((10 * 2 + 5 * 120) / 1e6).toFixed(6)));
 });
 
 test('OpenAI 4xx: the stable reason code is kept, the message (which can echo the prompt) is not; no code when the body has none', async () => {
