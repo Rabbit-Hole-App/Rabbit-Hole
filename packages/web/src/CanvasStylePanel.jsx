@@ -3,6 +3,7 @@ import { AlignCenter, AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizo
 import { DASH_STYLES, HEADS, OPACITIES, TEXT_LEVELS, dashStyle } from './learn-style-panel.js';
 import { FONTS, FONT_KEYS, SIZE_PRESETS, fontSize as validSize, hexColor } from './learn-rich-text.js';
 import { CODE_LANGS } from './code-lang.js';
+import { ROUGHNESS } from './canvas-sloppy.js';
 
 export const COLORS = ['#37352f', '#2383e2', '#b42318', '#1a7f37', '#f59e0b', '#7c3aed'];
 export const WIDTHS = [2, 3.5, 6];
@@ -119,6 +120,18 @@ function SizeField({ value, onSize, refocus }) {
   );
 }
 
+// A sample stroke per level: smooth, a slight wobble, a doubled wobble. Fixed paths, so the sample never moves.
+const SLOPPY_SAMPLES = {
+  0: ['M2 7H30'],
+  1: ['M2 7C8 5.2 12 8.6 17 6.8S26 6.2 30 7.4'],
+  2: ['M2 6.4C7 4 11 9 16 6.2S25 4.6 30 7.8', 'M2 8C8 9.6 13 4.6 18 7.6S26 9 30 6.2'],
+};
+const sloppyIcon = level => (
+  <svg width="32" height="14" viewBox="0 0 32 14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    {SLOPPY_SAMPLES[level].map(d => <path key={d} d={d} />)}
+  </svg>
+);
+
 const rule = <div className="mx-1 my-0.5 h-px bg-line" />;
 
 // panel: what applies (learn-style-panel.js panelFor). values: what the selection holds (or the armed defaults).
@@ -162,6 +175,14 @@ export default function StylePanel({ side = 'right', colorOnly = false, panel = 
             <Btn key={dash} label={`${dash} lines`} pressed={values.dash !== MIXED && dashStyle(values.dash) === dash} onClick={() => on.dash(dash)}>
               <svg width="16" height="4" aria-hidden="true"><line x1="0" y1="2" x2="16" y2="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={dash === 'dashed' ? '4 3' : dash === 'dotted' ? '0 4' : undefined} /></svg>
             </Btn>
+          ))}
+        </Row>
+      )}
+      {panel.sloppy && (
+        <Row label="Sloppiness" mixed={values.rough === MIXED}>
+          {ROUGHNESS.map(entry => (
+            <Btn key={entry.id} label={`Sloppiness: ${entry.label}`} tip={entry.tip} pressed={values.rough === MIXED ? undefined : values.rough === entry.value}
+              onClick={() => on.sloppiness(entry.value)} data-sloppiness={entry.id} className="w-10">{sloppyIcon(entry.value)}</Btn>
           ))}
         </Row>
       )}

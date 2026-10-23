@@ -4,8 +4,10 @@
 // The canvas View menu's three widgets (owner brief 2026-10-21 item 3) are kept here too: minimap, holeMap (the Rabbit Hole
 // Map) and curious (the Curious suggestions), all on by default, for every canvas on this device. toolbar (owner brief
 // 2026-10-22, View > Show / hide > Toolbar) is the same kind of personal choice: this device only, never the shared canvas.
+// sloppiness (UI-34, owner note 2026-10-23) is the drawing preference of the canvas style panel: 0 Clean, 1 Sketchy, 2 Rough,
+// the level the next shape, arrow or connector is drawn with. Colour, width and dash are not kept: they have no such store.
 const KEY = 'rh.ui-prefs';
-export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true, toolbar: true });
+export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true, toolbar: true, sloppiness: 0 });
 // Interface text only: index.css scales the chrome's text tokens by these and the canvas world keeps authored content at 1.
 export const TEXT_SIZES = { default: 1, large: 1.125, larger: 1.25 };
 const VALID = {
@@ -16,6 +18,7 @@ const VALID = {
   holeMap: value => typeof value === 'boolean',
   curious: value => typeof value === 'boolean',
   comments: value => typeof value === 'boolean',
+  sloppiness: value => value === 0 || value === 1 || value === 2,
 };
 
 const store = () => { try { return globalThis.localStorage ?? null; } catch { return null; } };

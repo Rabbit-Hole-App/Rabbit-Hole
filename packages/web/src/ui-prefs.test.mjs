@@ -96,3 +96,17 @@ test('View > Comments is remembered like the other View switches; the card menu 
   assert.match(canvas, /fullContent: object => object\?\.cardLayout\?\.mode === 'full',/);
   assert.doesNotMatch(canvas + menu, /data-card-layout-menu|role="menuitemradio"/);
 });
+
+test('the drawing sloppiness level is kept on this device: read, odd values, saved, refused', () => {
+  assert.equal(UI_PREF_DEFAULTS.sloppiness, 0);
+  for (const odd of [3, -1, '1', 1.5, null, true]) assert.equal(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ sloppiness: odd }) })).sloppiness, 0, String(odd));
+  assert.equal(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ sloppiness: 2 }) })).sloppiness, 2);
+  const storage = memory(), html = root();
+  saveUiPref('sloppiness', 1, { storage, root: html });
+  assert.equal(readUiPrefs(storage).sloppiness, 1, 'a fresh read (a reload) finds it');
+  assert.throws(() => saveUiPref('sloppiness', 5, { storage, root: html }), /Unknown sloppiness/);
+  const blocked = { getItem: () => null, setItem: () => { throw new Error('denied'); } };
+  assert.throws(() => saveUiPref('sloppiness', 2, { storage: blocked, root: html }), /Not saved/);
+  assert.equal(uiPrefs(blocked).sloppiness, 2, 'blocked storage: it holds in this page, and a reload does not have it');
+  assert.equal(readUiPrefs(blocked).sloppiness, 0);
+});
