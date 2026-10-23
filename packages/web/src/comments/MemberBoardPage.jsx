@@ -18,6 +18,7 @@ import { useCanvasComments } from './useCanvasComments.js';
 import { displayName, memberBase } from './comments-api.js';
 import { useCanvasLinks } from '../LinksPanel.jsx';
 import { ProvenanceRow, useProvenance } from '../ProvenanceGroup.jsx';
+import { CanvasChromeLoading, MEMBER_BODY, MEMBER_HEADER, MEMBER_MAIN, MemberBrand, MemberCanvasLoading, VIEWER_CANVAS } from '../CanvasLoading.jsx';
 
 const AdaptiveCanvas = lazy(() => import('../AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -103,18 +104,16 @@ export default function MemberBoardPage({ boardId }) {
     else toast('This source cannot be opened from this shared view.');
   };
   if (problem) return <main className="grid h-screen place-items-center bg-white p-6"><div className="max-w-sm text-center"><h1 className="text-lg font-semibold text-ink">{problem}</h1><a href="/" className="mt-3 inline-block text-sm text-ink-2 underline">Go to {PRODUCT}</a></div></main>;
-  if (!board) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the canvas</main>;
+  if (!board) return <MemberCanvasLoading />; // this page's own shell while the board loads (CanvasLoading.jsx, owner brief 2026-10-23)
   const { exchanges = EMPTY_EXCHANGES, ...state } = board.state || {};
   const owner = board.owner;
   // A member's role in the one permission model (canvas-permissions.js): commenter, view-only.
   const permissions = { role: 'commenter', shared: true, comments: about ? { read: true, post: !!about.can?.post } : null };
   const menus = canvasEditMenus({ canvas: () => canvasApi.current, canvasState, comments, docView: state.doc && !docIsEmpty(state.doc) ? docView : 'canvas', setDocView, drawing: false }).filter(menu => menu.title === 'View');
   return (
-    <main data-member-board className="flex h-screen flex-col bg-white max-lg:overflow-y-auto">
-      <header data-canvas-header className="flex shrink-0 flex-wrap items-center gap-2 gap-y-2 px-4 py-2">
-        <a href="/" className="flex shrink-0 items-center gap-2 border-r border-line pr-3 no-underline" aria-label={`${PRODUCT} home`}>
-          <img src="/landing/favicon-32-v1.png" alt="" width="20" height="20" className="h-5 w-5 rounded-sm" /><span className="text-sm font-semibold text-ink">{PRODUCT}</span>
-        </a>
+    <main data-member-board className={MEMBER_MAIN}>
+      <header data-canvas-header className={MEMBER_HEADER}>
+        <MemberBrand />
         <span className="truncate text-sm font-semibold text-ink">{board.title}</span>
         <CanvasMenubar menus={menus} />
         <span className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />{about?.comments_enabled === false ? 'View only' : 'View and comment'}</span>
@@ -128,9 +127,9 @@ export default function MemberBoardPage({ boardId }) {
             the row's right edge, and right-aligned on the next row when the header wraps (E2). */}
         <ProvenanceRow provenance={provenance} />
       </header>
-      <div className="relative flex min-h-0 flex-1 max-lg:flex-none max-lg:flex-col">
-        <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
-          <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}>
+      <div className={MEMBER_BODY}>
+        <div className={VIEWER_CANVAS} aria-label="Lesson canvas">
+          <Suspense fallback={<CanvasChromeLoading tools={false} />}><SearchContentProvider key={search.scopeKey} registry={search.registry}>
             <AdaptiveCanvas {...comments.canvasProps} apiRef={canvasApi} refLinks={refLinks} exchanges={exchanges} onMove={() => {}} boardState={state} docView={state.doc && !docIsEmpty(state.doc) ? docView : 'canvas'} onState={setCanvasState} readOnly />
           </SearchContentProvider></Suspense>
         </div>

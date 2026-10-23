@@ -2,7 +2,9 @@ import { useRef } from 'react';
 import { LocateFixed } from 'lucide-react';
 import { minimapLayout, minimapToView } from './learn-minimap.js';
 
-const SIZE = { w: 184, h: 124 };
+// Exported for the canvas loading skeleton (CanvasLoading.jsx), which reserves this frame before the canvas loads.
+export const MINIMAP_SIZE = { w: 184, h: 124 };
+const SIZE = MINIMAP_SIZE;
 
 // Overview of the canvas: lower right in the bottom strip beside the composer (the tools' strip on a phone) - never over it.
 // Press or drag inside it to send the camera there; the button in its corner
