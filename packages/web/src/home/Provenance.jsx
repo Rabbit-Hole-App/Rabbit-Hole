@@ -23,7 +23,8 @@ export function Creator({ m }) {
   if (!m.creator) return null;
   return (
     <span data-creator className="flex min-w-0 items-center gap-1 text-xs text-ink-2">
-      <span className="truncate">{m.creator.name}</span>
+      {/* wraps to two lines, then the card's Show full title button opens it (LearningCard): a handle is never cut to a stub */}
+      <span data-clamp className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{m.creator.name}</span>
       {m.creator.sourceOwner && <OwnerCheck />}
     </span>
   );

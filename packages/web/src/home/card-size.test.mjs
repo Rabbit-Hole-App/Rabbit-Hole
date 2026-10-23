@@ -48,6 +48,27 @@ test('the slider, its placement on all three pages, and the grid rule that makes
   assert.doesNotMatch(css.match(/Card size \(owner[\s\S]*?(?=\/\* Rabbit Hole dev, below md)/)[0], /font-size|\bmain\b|data-shell-sidebar|zoom/);
 });
 
+// Owner brief 2026-10-23 (small-card layout): Small permits 220px cards, and the header must follow the CARD's width - a container query on the
+// card, not the viewport - with the visibility pill on its own row, the Card options button in reserved space, the footer wrapping, and a clamped
+// title kept readable behind a button.
+test('the small card: a size container, a 22rem header breakpoint and a 40rem stacking breakpoint, the pill on its own row, a Show full title button', () => {
+  const card = read('LearningCard.jsx');
+  const css = read('../index.css');
+  assert.match(card, /select-card @container\/card flex min-w-0 flex-wrap/, 'the card element is the named size container');
+  assert.match(css, /@container card \(width < 40rem\) \{[^}]*\[data-card-thumbnail\][^}]*\}[^}]*\[data-card-text\]:not\(\[data-open\]\) \{ height: 196px; flex: none; width: 100%; \}/, 'under 40rem the picture stacks above the text on every size');
+  const narrow = css.match(/@container card \(width < 22rem\) \{[\s\S]*?\n\}/)[0];
+  assert.match(narrow, /\[data-card-text\]:not\(\[data-open\]\) \{ height: 296px; \}/, 'the narrow column is taller by the pill row, one fixed height');
+  assert.match(narrow, /\[data-card-head\] \{ display: grid;/);
+  assert.match(narrow, /\[data-card-head-actions\] \{ grid-column: 1 \/ -1; grid-row: 3; flex-wrap: wrap; \}/, 'the visibility pill and Card options have a row of their own');
+  assert.match(narrow, /\[data-card-meta\] \{ grid-column: 1 \/ -1; grid-row: 2; \}/, 'the creator has the full width');
+  assert.match(narrow, /\[data-card-footer\] \{ flex-wrap: wrap;/, 'Open has its own line when the footer metadata fills the width');
+  assert.match(card, /aria-expanded=\{open\}/, 'the disclosure is a button that says whether it is open');
+  assert.match(card, /title=\{open \? 'Show less' : 'Show full title'\} aria-label=\{open \? 'Show less' : 'Show full title'\}/);
+  assert.match(read('Provenance.jsx'), /<span data-clamp className="line-clamp-2 min-w-0 \[overflow-wrap:anywhere\]">\{m\.creator\.name\}<\/span>/, 'a handle wraps instead of truncating');
+  assert.doesNotMatch(css.match(/Small cards \(owner[\s\S]*?\n\.card-grid > li \[data-card-text\]\[data-open\] \[data-clamp\][^\n]*\n/)[0], /\.\.\.|\u2026/, 'no ellipsis in the new rules');
+  assert.doesNotMatch(card.match(/Show full title[^\n]*/g).join('\n'), /\.\.\.|\u2026/, 'no ellipsis in the new copy');
+});
+
 test('Home, Library and Explore have no composer: the Agent Bar is hidden there and the card grid is the only thing that resizes', () => {
   const routes = read('../routes.js');
   assert.match(routes, /barHidden: \['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore'\]\.includes\(place\)/);

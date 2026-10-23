@@ -9,6 +9,8 @@
 // subtle light gray, card surface opaque white, a clearer outer border, a very subtle shadow, a lighter thumbnail border, quieter
 // dots, darker secondary text; boundaries clear before hovering, keyboard focus distinct, dark mode and the canvas unchanged"):
 // the last four steps assert computed styles, never pixels.
+// Small-card layout (owner brief 2026-10-23): the last seven steps read the card's own boxes at all four sizes - no overlap, every control hit at its
+// centre, nothing cut short without a Show full title button, hovered and focused cards unmoved - on Library, Explore and Home, a phone, a tablet and dark.
 //   BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/card-size-check.mjs [shotsDir]
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -388,9 +390,259 @@ await check('dark theme keeps its browse values; the canvas page and the shared 
   await light.context().close();
 });
 
+// Small-card layout (owner brief 2026-10-23: "Fix the small-card layout in the shared LearningCard ... Varies by canvas overlapping the
+// project title, Public/Private pills squeezing canvas titles into narrow fragments, creator handles unreadable ... at narrow card
+// widths move visibility metadata onto a separate row; keep the Card options button in its own reserved space; keep the full title
+// reachable by an accessible disclosure; adapt to the card's own width (a container query, 22rem of card content; a Small card is
+// 220px); no two controls overlap, every control's centre hits the control, text is not clipped without disclosure, hovered and
+// focused states keep the same guarantees"). Every box is read from the page. The rows are the real Library and Explore data with long
+// titles, a long name, 30-character handles and every access label swapped in, so no layout is inferred from class names.
+const LONG_TITLE = 'miniGPT: building a small language model from scratch, one layer at a time, with every attention head and the whole training loop explained step by step';
+const UNBROKEN = 'Supercalifragilisticexpialidocious_unbroken_title_word_that_never_wraps_at_all';
+const LONG_NAME = 'Alexandrina Montgomery-Featherstonehaugh';
+const LONG_HANDLE = 'abcdefghij_klmnopqrst_uvwxyz_1'; // 30 characters, the longest handle there is (control-plane handle.js)
+const LONG_PROJECT = 'some-organisation-with-a-long-name/some-repository-with-a-long-name';
+const LONG_START = LONG_TITLE.slice(0, 20);
+const catalog = (await api('/api/apps')).body;
+const canvasPatch = {
+  [made[0].name]: { title: LONG_TITLE, owner_handle: LONG_HANDLE, owner_name: LONG_NAME, access: 'unlisted', description: 'A walk through the whole model, written down while it was built.', fork_count: 1240 },
+  [made[1].name]: { title: 'miniGPT', access: 'public', description: 'Short.', fork_count: 3 },
+  [made[2].name]: { title: UNBROKEN, owner_name: 'Ada', access: 'private', description: 'One unbroken word as a title.' },
+  [made[3].name]: { title: 'Public canvas with a mid-length title that wraps', access: 'public' },
+};
+const project = (n, extra) => ({ kind: 'repository', hosting: 'repository', name: `repo-5ca1ab1e-${run}-${n}`.slice(0, 40), org: catalog.org, email: catalog.email, owner_email: catalog.email,
+  owner_handle: LONG_HANDLE, owner_name: LONG_NAME, repo: 'karpathy/nanoGPT', branch: 'master', commit_sha: 'abc1234def', status: 'ready', created_at: '2026-10-01 09:00:00', updated_at: '2026-10-20 09:00:00',
+  canEdit: true, canView: true, visibility: 'domain', description: 'Learn from karpathy/nanoGPT', url: `/apps/repo-5ca1ab1e-${run}-${n}`, members: [], inputs: {}, outputs: {}, canvas_count: 12, fork_count: 1240, ...extra });
+const PROJECTS = [
+  project(1, { title: 'miniGPT', access: 'mixed' }),
+  project(2, { title: LONG_TITLE, access: 'private' }),
+  project(3, { title: 'miniGPT, read only', access: 'mixed', canEdit: false }),
+  project(4, { title: 'Public project', access: 'public' }),
+  project(5, { title: 'Unlisted project', access: 'unlisted', owner_name: null, owner_handle: `cs_${run}` }),
+];
+const EXPLORE = {
+  canvases: [
+    { url: '/e/tokLong1', title: LONG_TITLE, description: 'A long walk.', creator: { handle: LONG_HANDLE, name: LONG_NAME }, fork_count: 1240, updated_at: '2026-10-20 09:00:00', project: LONG_PROJECT },
+    { url: '/e/tokShort2', title: 'miniGPT', description: 'Short.', creator: { handle: 'ada', name: null }, fork_count: 3, updated_at: '2026-10-20 09:00:00' },
+    { url: '/e/tokMine3', title: 'My own canvas', creator: { handle: `cs_${run}`, name: null }, fork_count: 2, updated_at: '2026-10-20 09:00:00' },
+    { url: '/e/tokWord4', title: UNBROKEN, creator: { handle: 'bob_the_builder_of_things', name: 'Bob' }, updated_at: '2026-10-20 09:00:00', project: 'karpathy/nanoGPT' },
+  ],
+  projects: [
+    { label: LONG_PROJECT, repo: LONG_PROJECT, boards: 12, url: '/explore?project=x', updated_at: '2026-10-20 09:00:00' },
+    { label: 'karpathy/nanoGPT', repo: 'karpathy/nanoGPT', boards: 1, url: '/explore?project=y', updated_at: '2026-10-20 09:00:00' },
+  ],
+};
+const seeded = async (viewport = { width: 1440, height: 900 }, { mobile = false } = {}) => {
+  const context = await browser.newContext({ viewport, ...(mobile ? { hasTouch: true } : {}) });
+  await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
+  await context.addInitScript((recent) => localStorage.setItem('small.recent', JSON.stringify(recent)), [...made.map((c) => c.name), ...PROJECTS.map((p) => p.name)]);
+  await context.route(/\/api\/(learn\/)?ask(\?|$)/, (route) => { asks.push(route.request().url()); return route.abort(); });
+  await context.route((url) => new URL(url).pathname === '/api/apps', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    route.fulfill({ response, json: { ...body, apps: [...body.apps.map((a) => ({ ...a, ...(canvasPatch[a.name] || {}) })), ...PROJECTS] } });
+  });
+  await context.route((url) => new URL(url).pathname === '/api/learn/boards/published', (route) => route.fulfill({ json: EXPLORE }));
+  const page = await context.newPage();
+  page.on('pageerror', (e) => errors.push(e.message));
+  return page;
+};
+
+// One read of every matching card (or the card at `index`): the problems found, and each part's box relative to its card, so a hover
+// or a focus is compared with the resting card and not with the page.
+const measure = (page, selector, index = -1) => page.evaluate(({ selector, index }) => {
+  const problems = [], rel = {};
+  let narrow = 0;
+  const cards = [...document.querySelectorAll(selector)];
+  (index < 0 ? cards : [cards[index]]).filter(Boolean).forEach((card, n) => {
+    card.scrollIntoView({ block: 'center' }); // a hit test only sees what is on screen
+    const q = (s) => card.querySelector(s);
+    const name = `${selector}[${index < 0 ? n : index}] ${(q('[data-card-title]')?.textContent || '?').slice(0, 18)}`;
+    const box = card.getBoundingClientRect();
+    const inner = box.width - 34; // 16px padding and a 1px border each side: the width the container query reads
+    const parts = [
+      ['icon', q('[data-type-icon]')], ['title', q('[data-card-title]')], ['visibility', q('[data-card-visibility]')], ['creator', q('[data-creator-link]') || q('[data-creator]')],
+      ['project', q('[data-card-project]')], ['more', q('[title="Card options"]')], ['toggle', q('[data-card-title-toggle]')], ['forks', q('[data-fork-count]')],
+      ['canvases', q('[data-canvas-count]')], ['updated', q('[data-updated]')], ['open', q('[data-card-open]') || q('[data-card-footer] > :last-child:not([data-card-spacer])')],
+      ['start', q('[data-card-start-rabbit-hole]')],
+    ].filter(([, el]) => el);
+    const r = Object.fromEntries(parts.map(([k, el]) => [k, el.getBoundingClientRect()]));
+    rel[name] = Object.fromEntries(parts.map(([k]) => [k, [r[k].x - box.x, r[k].y - box.y, r[k].width, r[k].height].map((v) => Math.round(v * 10) / 10)]));
+    for (let i = 0; i < parts.length; i += 1) {
+      const a = r[parts[i][0]];
+      if (a.left < box.left - 0.5 || a.right > box.right + 0.5 || a.top < box.top - 0.5 || a.bottom > box.bottom + 0.5) problems.push(`${name}: ${parts[i][0]} is outside the card`);
+      for (let j = i + 1; j < parts.length; j += 1) {
+        const b = r[parts[j][0]];
+        if (Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5) problems.push(`${name}: ${parts[i][0]} overlaps ${parts[j][0]}`);
+      }
+    }
+    for (const [k, el] of parts) {
+      if (['A', 'BUTTON'].includes(el.tagName)) {
+        const hit = document.elementFromPoint(r[k].x + r[k].width / 2, r[k].y + r[k].height / 2);
+        if (!(hit && (hit === el || el.contains(hit)))) problems.push(`${name}: the centre of ${k} hits ${hit?.tagName}.${String(hit?.className).slice(0, 40)} instead`);
+      }
+      if (['visibility', 'forks', 'canvases', 'updated', 'open', 'more'].includes(k) && el.scrollWidth > el.clientWidth + 1) problems.push(`${name}: ${k} is clipped (${el.scrollWidth} > ${el.clientWidth})`);
+      if (parseFloat(getComputedStyle(el).fontSize) < 12) problems.push(`${name}: ${k} is ${getComputedStyle(el).fontSize}`);
+    }
+    // A title or creator that is cut short must offer the Show full title button (collapsed); an open card is cut nowhere.
+    const toggle = q('[data-card-title-toggle]');
+    for (const el of card.querySelectorAll('[data-clamp]')) {
+      const cut = el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+      if (cut && !(toggle && toggle.getAttribute('aria-expanded') === 'false')) problems.push(`${name}: ${el.hasAttribute('data-card-title') ? 'the title' : 'the creator'} is cut short and offers no way to read it`);
+    }
+    const mixed = q('[data-card-visibility="mixed"]');
+    if (mixed && mixed.textContent.trim() !== 'Varies by canvas') problems.push(`${name}: the mixed pill reads ${mixed.textContent}`);
+    if (inner < 352) {
+      narrow += 1;
+      const heading = q('[data-card-heading]').getBoundingClientRect(), meta = q('[data-card-meta]')?.getBoundingClientRect();
+      if (heading.width < 120) problems.push(`${name}: the title has ${heading.width}px`);
+      if (meta && meta.width < inner - 2) problems.push(`${name}: the creator row has ${meta.width} of ${inner}px`);
+      for (const k of ['visibility', 'more']) if (r[k] && r[k].top < heading.bottom - 0.5) problems.push(`${name}: ${k} shares the title's row`);
+    }
+  });
+  return { problems, rel, narrow };
+}, { selector, index });
+const settled = (page, selector, where, index = -1) => expect.poll(async () => (await measure(page, selector, index)).problems, { message: where, timeout: 20000 }).toEqual([]);
+const drift = (a, b) => Object.entries(a).flatMap(([card, parts]) => Object.entries(parts).filter(([k, v]) => !b[card]?.[k] || v.some((x, i) => Math.abs(x - b[card][k][i]) > 1.5)).map(([k]) => `${card}: ${k} moved ${JSON.stringify(parts[k])} to ${JSON.stringify(b[card]?.[k])}`));
+// The resting cards, then each of the first five hovered and then focused: the same guarantees, and nothing moves inside the card.
+const stable = async (page, selector, where) => {
+  await settled(page, selector, `${where} at rest`);
+  const count = Math.min(await page.locator(selector).count(), 5);
+  for (let i = 0; i < count; i += 1) {
+    const card = page.locator(selector).nth(i);
+    const rest = (await measure(page, selector, i)).rel;
+    await card.hover();
+    await settled(page, selector, `${where} hovered ${i}`, i);
+    await expect.poll(async () => drift(rest, (await measure(page, selector, i)).rel), { message: `${where}: hovering card ${i} moved a part`, timeout: 10000 }).toEqual([]);
+    await card.locator('[data-card-title]').focus();
+    await settled(page, selector, `${where} focused ${i}`, i);
+    await expect.poll(async () => drift(rest, (await measure(page, selector, i)).rel), { message: `${where}: focusing card ${i} moved a part`, timeout: 10000 }).toEqual([]);
+  }
+  await page.mouse.move(0, 0);
+};
+// All four steps of the slider. `narrow`: the sizes at which some card must be in the narrow layout (so the check cannot pass by
+// looking at nothing); `largeWide`: a Large card at 1440 is wide.
+const sweep = async (page, selector, where, { long = null, narrow = [0, 1], largeWide = true } = {}) => {
+  for (const n of [3, 2, 1, 0]) {
+    await slider(page).fill(String(n));
+    await expect(slider(page)).toHaveValue(String(n));
+    await stable(page, selector, `${where}, size ${n}`);
+    const seen = (await measure(page, selector)).narrow;
+    if (narrow.includes(n)) assert.ok(seen > 0, `${where}, size ${n}: no card was in the narrow layout, so the narrow layout was not tested`);
+    if (n === 3 && largeWide) assert.equal(seen, 0, `${where}: Large cards are in the narrow layout`);
+    if (long) await expect(page.locator(selector).filter({ hasText: long }).getByRole('button', { name: 'Show full title' }).first()).toBeVisible();
+  }
+};
+const visibilities = (page, selector) => page.locator(selector).locator('[data-card-visibility]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-card-visibility') + (e.tagName === 'BUTTON' ? ':button' : '')))].sort());
+const onProjects = async (page) => { await page.goto(`${BASE}/library?type=projects`); await slider(page).waitFor({ timeout: 60000 }); await page.locator('[data-library-card="project"]').nth(4).waitFor({ timeout: 30000 }); };
+const onExplore = async (page, query = '') => { await page.goto(`${BASE}/explore${query}`); await slider(page).waitFor({ timeout: 60000 }); };
+
+await check('Library canvases at 1440, all four sizes: Private, Unlisted and Public pills, a long title, a 30-character handle with a long name, one unbroken word; nothing overlaps, every control is hit at its centre, nothing is cut short without a way to read it, hovered and focused cards keep every part where it was', async () => {
+  const page = await seeded();
+  await onLibrary(page);
+  assert.deepEqual(await visibilities(page, '[data-library-card="canvas"]'), ['private', 'public', 'unlisted']);
+  await sweep(page, '[data-library-card="canvas"]', 'Library canvases', { long: LONG_START });
+  await slider(page).fill('0');
+  await page.screenshot({ path: `${SHOTS}/small-card-library-canvases.png` });
+  await page.context().close();
+});
+
+await check('Library projects at 1440, all four sizes: Private, Unlisted, Public, and Varies by canvas as a button (editable) and as plain text (read only), whole and readable on its own row at Small', async () => {
+  const page = await seeded();
+  await onProjects(page);
+  assert.deepEqual(await visibilities(page, '[data-library-card="project"]'), ['mixed', 'mixed:button', 'private', 'public', 'unlisted']);
+  await sweep(page, '[data-library-card="project"]', 'Library projects', { long: LONG_START });
+  await slider(page).fill('0');
+  const pill = page.locator('[data-library-card="project"] button[data-card-visibility="mixed"]').first();
+  await pill.scrollIntoViewIfNeeded();
+  assert.equal((await pill.innerText()).trim(), 'Varies by canvas');
+  assert.equal(await pill.evaluate((n) => n.scrollWidth <= n.clientWidth + 1 && parseFloat(getComputedStyle(n).fontSize) >= 12), true, 'Varies by canvas is whole and 12px or larger at Small');
+  await page.screenshot({ path: `${SHOTS}/small-card-library-projects.png` });
+  await page.context().close();
+});
+
+await check('Explore at 1440, all four sizes: public canvases (a long name and handle, a long project label, Start Rabbit Hole and Fork beside it, one of your own) and project cards', async () => {
+  const page = await seeded();
+  await onExplore(page);
+  await page.locator('[data-explore-card]').nth(3).waitFor({ timeout: 30000 });
+  assert.deepEqual(await visibilities(page, '[data-explore-card]'), ['public']);
+  await sweep(page, '[data-explore-card]', 'Explore canvases', { long: LONG_START });
+  await page.screenshot({ path: `${SHOTS}/small-card-explore.png` });
+  await onExplore(page, '?type=projects');
+  await page.locator('[data-explore-project]').nth(1).waitFor({ timeout: 30000 });
+  await sweep(page, '[data-explore-project]', 'Explore projects');
+  await page.context().close();
+});
+
+await check('Home (Recent) at 1440, all four sizes: the same cards, the same guarantees', async () => {
+  const page = await seeded();
+  await page.goto(`${BASE}/apps`);
+  await page.locator('[data-recent-card]').nth(3).waitFor({ timeout: 60000 });
+  await slider(page).waitFor({ timeout: 60000 });
+  await sweep(page, '[data-recent-card]', 'Home Recent', { long: LONG_START });
+  await page.screenshot({ path: `${SHOTS}/small-card-home.png` });
+  await page.context().close();
+});
+
+await check('a phone (390) and a tablet (800): Library canvases, Library projects and Explore at all four sizes, with no sideways scroll', async () => {
+  for (const [label, viewport, mobile, narrow] of [['phone', { width: 390, height: 844 }, true, [0, 1, 2, 3]], ['tablet', { width: 800, height: 900 }, false, []]]) {
+    const page = await seeded(viewport, { mobile });
+    const options = { narrow, largeWide: false };
+    await onLibrary(page);
+    await sweep(page, '[data-library-card="canvas"]', `${label} Library canvases`, { ...options, long: LONG_START });
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth) <= 0, `${label}: the page scrolls sideways`);
+    await onProjects(page);
+    await sweep(page, '[data-library-card="project"]', `${label} Library projects`, options);
+    await onExplore(page);
+    await page.locator('[data-explore-card]').nth(3).waitFor({ timeout: 30000 });
+    await sweep(page, '[data-explore-card]', `${label} Explore`, options);
+    await slider(page).fill('0');
+    await page.screenshot({ path: `${SHOTS}/small-card-${label}.png` });
+    await page.context().close();
+  }
+});
+
+await check('dark theme: the same cards at all four sizes keep every guarantee', async () => {
+  const page = await seeded();
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await onLibrary(page);
+  await sweep(page, '[data-library-card="canvas"]', 'dark Library canvases', { long: LONG_START });
+  await onProjects(page);
+  await sweep(page, '[data-library-card="project"]', 'dark Library projects', { long: LONG_START });
+  await slider(page).fill('0');
+  await page.screenshot({ path: `${SHOTS}/small-card-dark.png` });
+  await page.context().close();
+});
+
+await check('a clamped title keeps its full text: Show full title is a button with aria-expanded that the keyboard and a tap both work, the open card shows the whole title with no overlap, Show less closes it', async () => {
+  for (const mobile of [false, true]) {
+    const where = mobile ? 'phone' : 'desktop';
+    const page = await seeded(mobile ? { width: 390, height: 844 } : { width: 1440, height: 900 }, { mobile });
+    await onLibrary(page);
+    await slider(page).fill('0');
+    const card = page.locator('[data-library-card="canvas"]').filter({ hasText: LONG_START });
+    const title = card.locator('[data-card-title]');
+    const open = card.getByRole('button', { name: 'Show full title' });
+    await expect(open).toHaveCount(1);
+    assert.equal(await open.getAttribute('aria-expanded'), 'false');
+    assert.equal(await title.evaluate((n) => n.scrollHeight > n.clientHeight + 1), true, `${where}: the title is clamped at Small`);
+    assert.equal((await title.innerText()).replace(/\s+/g, ' ').trim(), LONG_TITLE, `${where}: the title link carries the whole title for assistive tech`);
+    if (mobile) await open.tap(); else { await open.focus(); await page.keyboard.press('Enter'); }
+    const close = card.getByRole('button', { name: 'Show less' });
+    await expect(close).toHaveAttribute('aria-expanded', 'true');
+    assert.equal(await title.evaluate((n) => n.scrollHeight <= n.clientHeight + 1), true, `${where}: the open card shows the whole title`);
+    await settled(page, '[data-library-card="canvas"]', `${where}: the open card`);
+    await page.screenshot({ path: `${SHOTS}/small-card-title-open-${where}.png` });
+    if (mobile) await close.tap(); else await page.keyboard.press('Space');
+    await expect(card.getByRole('button', { name: 'Show full title' })).toHaveAttribute('aria-expanded', 'false');
+    await settled(page, '[data-library-card="canvas"]', `${where}: closed again`);
+    await page.context().close();
+  }
+});
+
 await browser.close();
 assert.deepEqual(asks, [], 'no ask request was made');
 assert.deepEqual(errors, [], 'no page errors');
-const TOTAL = 14;
+const TOTAL = 21;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);
