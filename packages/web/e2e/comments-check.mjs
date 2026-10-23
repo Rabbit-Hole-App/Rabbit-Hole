@@ -78,6 +78,8 @@ const menuItems = () => page.locator('[data-canvas-menu] [role="menuitem"]').eva
 const menuHint = () => page.locator('[data-canvas-menu] [data-menu-add-comment] [data-menu-hint]').textContent();
 const composer = () => panel().locator('[data-comment-composer] textarea');
 const pins = () => page.locator('[data-comment-pin]');
+// A pin is drawn when the thread list answers after a post, not at the instant of the click: wait for the count (a retrying assertion), then assert it exactly.
+const pinsAre = async (n, why) => { const end = Date.now() + 15000; let count; while (Date.now() < end) { count = await pins().count(); if (count === n) return; await page.waitForTimeout(150); } assert.equal(count, n, why || `${n} pins`); };
 // The pin slot (owner, 2026-10-08): an object's pin sits left of its selection actions (Add to chat, Quick Edit: they replaced the
 // Ask in chat pill, owner 2026-10-13), never under them; and it touches its object (owner, 2026-10-13: "every comment icon should
 // have a minimal contact to the shape/cafrd etc it is attached to"): their boxes overlap by a few px on both axes.
@@ -128,7 +130,7 @@ await check('3 Send posts the thread: the author\'s name and avatar, and a pin o
   assert.equal(await panel().locator('[data-comment-message] img, [data-comment-message] span[title]').count() >= 1, true, 'an avatar');
   await page.waitForTimeout(500);
   assert.equal(await page.locator('[data-comment-pin="draft"]').count(), 0, 'the ghost is gone');
-  assert.equal(await pins().count(), 1, 'one pin');
+  await pinsAre(1, 'one pin');
   const pin = await pins().first().boundingBox();
   await topCentre(card('k-exp'));
   await shot('03-thread-posted');
@@ -473,7 +475,7 @@ await check('15 right-click a drawn shape: Add comment (hint C) puts the pin on 
   await page.locator('[data-menu-add-comment]').click();
   assert.match(await panel().innerText(), /on Ice/);
   await send('Is this the ice or the brine?');
-  assert.equal(await pins().count(), 1);
+  await pinsAre(1);
   const before = await lastPin(), body = await shape('s-box').boundingBox();
   assert.ok(touching(before, body), `the pin touches the shape: ${JSON.stringify([before, body])}`);
   await dragBy(await centre(shape('s-box')), 150, 40);
@@ -496,7 +498,7 @@ await check('16 right-click a group (its outline, or its name chip): Add comment
   assert.match(await panel().innerText(), /on Ice setup/);
   const known = await pins().evaluateAll(nodes => nodes.map(node => node.dataset.commentPin));
   await send('Label both beakers.');
-  assert.equal(await pins().count(), 2);
+  await pinsAre(2);
   const id = (await pins().evaluateAll(nodes => nodes.map(node => node.dataset.commentPin))).find(pin => !known.includes(pin));
   const groupPin = async () => { await page.waitForTimeout(400); return page.locator(`[data-comment-pin="${id}"]`).boundingBox(); };
   await shot('16a-group-comment');

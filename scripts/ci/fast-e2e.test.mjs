@@ -138,6 +138,15 @@ test('empty parts stop after selection; every later step is gated on the selecti
   assert.ok(steps.slice(sel + 1).filter(s => !/uses: actions\/upload-artifact/.test(s)).every(s => /if: (always\(\) && )?steps\.sel\.outputs\.n/.test(s)));
 });
 
+// Owner 2026-10-23: a part that launches Firefox or WebKit gets their system libraries in a bounded step, not inside the check's own budget.
+test('engine libraries: installed after the Chromium cache save and before the build, only for a part that names an engine, bounded', () => {
+  const i = step(/engine-deps\.sh/), b = step(/Build both bundles/), save = step(/Save Playwright browsers/);
+  assert.ok(save >= 0 && save < i && i < b, 'after the cache save (the cache stays Chromium only), before the build');
+  assert.match(steps[i], /if: steps\.sel\.outputs\.n != '0' && steps\.sel\.outputs\.engines != ''/);
+  assert.match(steps[i], /timeout-minutes: \d+/);
+  assert.match(steps[i], /ENGINES: \$\{\{ steps\.sel\.outputs\.engines \}\}/);
+  assert.match(y, /echo "engines=\$\(node -p '[^']*\.engines\.join\(" "\)/);
+});
 test('readiness: the dispatch input reaches the selection and run-part.sh as env only, never inlined in a script', () => {
   assert.match(y, /workflow_dispatch:\n\s+inputs:\n\s+readiness:/);
   assert.match(e2e.slice(0, e2e.indexOf('steps:')), /^ {6}READINESS: \$\{\{ inputs\.readiness \}\}$/m);
