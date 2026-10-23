@@ -91,70 +91,67 @@ const card = (page, sel, title) => page.locator(sel).filter({ has: page.locator(
 const ours = (page, title) => card(page, '[data-explore-card]', title).filter({ has: page.locator(`[data-creator-link][href="/@${H.full}"]`) });
 
 const viewer = await contextFor(who.viewer);
-// Owner, 2026-10-08: Explore has two tabs - Explainers (default) and Creators - and the creators row left the feed.
-await check('1 Explore: Explainers by default with no creator row; the Creators tab lists profiles - picture or initials, name, @handle, public explainer count; never an email; the tab is in the URL', async () => {
+// Owner, 2026-10-08: Explore has two tabs - Canvases (default; "Learning Boards" until the owner brief 2026-10-23) and
+// Creators - and the creators row left the feed.
+await check('1 Explore: Canvases by default with no creator row; the Creators tab lists rows - picture or initial, name, @handle link, description, non-zero public counts, View profile; never an email; the tab is in the URL', async () => {
   await viewer.goto(`${BASE}/explore`);
   await viewer.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
-  assert.equal(await viewer.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText(), 'Learning Boards');
-  assert.equal(await viewer.locator('[data-creator-chip]').count(), 0, 'no creators in the Explainers feed');
+  assert.equal(await viewer.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText(), 'Canvases');
+  assert.equal(await viewer.locator('[data-creator-card]').count(), 0, 'no creators in the Canvases feed');
   await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
-  await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 30000 });
+  await viewer.locator('[data-explore-creators] [data-creator-card]').first().waitFor({ timeout: 30000 });
   assert.equal(new URL(viewer.url()).search, '?tab=creators');
   assert.equal(await viewer.locator('[data-explore-card], [data-sort-control]').count(), 0, 'no cards and no Sort on Creators');
-  const full = viewer.locator(`[data-creator-chip="${H.full}"]`), min = viewer.locator(`[data-creator-chip="${H.min}"]`);
-  assert.equal(await full.getAttribute('href'), `/@${H.full}`);
-  // Owner, 2026-10-08: a square card - name, @handle, the description, and "N projects · M canvases" of public things only
-  // (the private, unlisted and archived canvases never count; neither creator has a public project). The meta lines are
-  // read by their own elements: the card's text also holds the avatar's initial when there is no picture.
+  const full = viewer.locator(`[data-creator-card="${H.full}"]`), min = viewer.locator(`[data-creator-card="${H.min}"]`);
+  for (const sel of ['[data-creator-handle]', '[data-creator-view]']) assert.equal(await full.locator(sel).getAttribute('href'), `/@${H.full}`, sel);
+  // Owner brief 2026-10-23 (replaces the square card of 2026-10-08/09): a row - the saved name, the @handle link, the
+  // description, and the non-zero counts of public things only (the private, unlisted and archived canvases never count;
+  // neither creator has a public project, so no project count). The meta lines are read by their own elements: the row's
+  // text also holds the avatar's initial when there is no picture.
   const meta = async card => Promise.all(['name', 'handle', 'description', 'counts'].map(async k => {
     const el = card.locator(`[data-creator-${k}]`);
     return (await el.count()) ? (await el.innerText()).trim() : null;
   }));
-  assert.deepEqual(await meta(full), ['Mayank', `@${H.full}`, DESC, '0 projects · 3 canvases']);
+  assert.deepEqual(await meta(full), ['Mayank', `@${H.full}`, DESC, '3 canvases']);
   assert.equal(await full.locator('img').count(), 1, 'the uploaded picture');
-  assert.deepEqual(await meta(min), [`@${H.min}`, null, null, '0 projects · 1 canvas'], 'the @handle once, as the name; no description, no empty line');
+  assert.deepEqual(await meta(min), [null, `@${H.min}`, null, '1 canvas'], 'no name and no description: no empty line; a zero count is hidden');
   assert.equal(await min.locator('img').count(), 0, 'initials');
-  // Owner, 2026-10-09: "a little bigger", and the avatar bigger: at 1440, three squares across Explore's column (four
-  // fitted at the first 200px minimum), each about 300px, and a 60px avatar, picture or initial.
-  const columns = await viewer.locator('[data-explore-creators] [data-creator-cards]').first().evaluate(g => getComputedStyle(g).gridTemplateColumns.split(' ').length);
-  assert.equal(columns, 3, 'three across at 1440');
+  // One row per line at 1440, sized to its content, with a 64px avatar, picture or initial.
+  const [a, b] = [await full.boundingBox(), await min.boundingBox()];
+  assert.ok(Math.abs(a.x - b.x) <= 1 && Math.abs(a.width - b.width) <= 1 && a.y !== b.y, `one per line: ${JSON.stringify([a, b])}`);
   for (const h of [H.full, H.min]) {
-    const box = await viewer.locator(`[data-creator-card="${h}"]`).boundingBox();
-    assert.ok(Math.abs(box.width - box.height) <= 1, `square: ${box.width}x${box.height}`);
-    assert.ok(box.width >= 280 && box.width <= 320, `about 300px: ${box.width}`);
-    const avatar = await viewer.locator(`[data-creator-chip="${h}"]`).locator('img, span[title]').first().boundingBox();
-    assert.deepEqual([Math.round(avatar.width), Math.round(avatar.height)], [60, 60], `the avatar 60px: ${h}`);
+    const avatar = await viewer.locator(`[data-creator-card="${h}"]`).locator('img, span[title]').first().boundingBox();
+    assert.deepEqual([Math.round(avatar.width), Math.round(avatar.height)], [64, 64], `the avatar 64px: ${h}`);
   }
-  assert.equal(await viewer.locator(`[data-creator-chip="${H.viewer}"]`).count(), 0, 'no publication, no creator chip');
+  assert.equal(await viewer.locator(`[data-creator-card="${H.viewer}"]`).count(), 0, 'no publication, no creator row');
   await viewer.reload();
-  await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 30000 });
+  await viewer.locator('[data-explore-creators] [data-creator-card]').first().waitFor({ timeout: 30000 });
   assert.equal(await viewer.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText(), 'Creators', 'a reload keeps the tab');
   await noEmail(viewer, EMAIL.viewer);
 });
 await shot(viewer, 'C-explore-creator-row');
-// Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
-// The profile's full button says it on itself; the creator card's compact one stays icon-sized (it never spreads over the
-// name): its link icon becomes a check, and the words go to its sr-only live region and tooltip.
-const copied = async (page, button, handle, compact = false) => {
+// Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button". The profile's button says
+// it on itself. The Creators rows have none (owner brief 2026-10-23: no chain-link icon).
+const copied = async (page, button, handle) => {
   const url = page.url();
-  const width = (await button.boundingBox()).width;
   await button.click();
   await page.waitForTimeout(300);
-  if (compact) {
-    assert.deepEqual([await button.locator('svg.lucide-check').count(), await button.locator('svg.lucide-link-2').count()], [1, 0], 'the link icon swaps to a check');
-    assert.equal((await button.locator('[data-copy-status][aria-live="polite"]').textContent()).trim(), 'Profile link copied', 'announced, not shown');
-    assert.equal(await button.getAttribute('title'), 'Profile link copied', 'and in the tooltip');
-    assert.equal((await button.boundingBox()).width, width, 'no wider than the icon');
-  } else assert.equal((await button.innerText()).trim(), 'Profile link copied', 'the button says it, in place');
+  assert.equal((await button.innerText()).trim(), 'Profile link copied', 'the button says it, in place');
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), `${BASE}/@${handle}`, 'origin + /@handle, nothing else');
   assert.equal(page.url(), url, 'the click opens nothing');
   await page.waitForTimeout(1800);
   assert.equal(await button.getAttribute('aria-label'), 'Copy profile link', 'then it reverts');
-  if (compact) assert.equal(await button.locator('svg.lucide-link-2').count(), 1, 'the link icon is back');
 };
-await check('1b a creator card copies its profile link: origin + /@handle on the clipboard, a check icon and the live text, no navigation', async () => {
-  await copied(viewer, viewer.locator(`[data-creator-card="${H.full}"] [data-copy-profile]`), H.full, true);
-  await copied(viewer, viewer.locator(`[data-creator-card="${H.min}"] [data-copy-profile]`), H.min, true);
+await check('1b a creator row has no chain-link (owner brief 2026-10-23): its @handle and its View profile each open /@handle', async () => {
+  const row = viewer.locator(`[data-creator-card="${H.full}"]`);
+  assert.equal(await row.locator('[data-copy-profile], svg.lucide-link-2, svg.lucide-link').count(), 0, 'no copy-link icon on a row');
+  await row.locator('[data-creator-handle]').click();
+  await viewer.waitForURL(`${BASE}/@${H.full}`);
+  await viewer.locator('[data-creator-profile]').waitFor({ timeout: 30000 });
+  await viewer.goBack();
+  await row.locator('[data-creator-view]').click();
+  await viewer.waitForURL(`${BASE}/@${H.full}`);
+  await viewer.locator('[data-creator-profile]').waitFor({ timeout: 30000 });
   await noEmail(viewer, EMAIL.viewer);
 });
 await check('2 the Explore card\'s @handle is a neutral link to /@handle; the title still opens /e', async () => {
@@ -266,11 +263,11 @@ await check('8 handles are case-insensitive and the address takes the canonical 
 await check('9 Explore search applies to the active tab only: Explainers by @handle and title, Creators by @handle first; never by email', async () => {
   await viewer.goto(`${BASE}/explore`);
   await viewer.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
-  assert.equal(await viewer.locator('[data-explore-search]').getAttribute('placeholder'), 'Search learning boards');
+  assert.equal(await viewer.locator('[data-explore-search]').getAttribute('placeholder'), 'Search canvases');
   await viewer.locator('[data-explore-search]').fill(`@${H.full}`);
   await viewer.waitForTimeout(900);
   assert.deepEqual(new Set(await titles(viewer, '[data-explore-card]')), new Set([T.kv, T.flash, T.prefill]));
-  assert.equal(await viewer.locator('[data-creator-chip]').count(), 0, 'Explainers search shows no creators');
+  assert.equal(await viewer.locator('[data-creator-card]').count(), 0, 'Canvases search shows no creators');
   await viewer.locator('[data-explore-search]').fill('flash attention');
   await viewer.waitForTimeout(900);
   const found = await titles(viewer, '[data-explore-card]');
@@ -278,17 +275,17 @@ await check('9 Explore search applies to the active tab only: Explainers by @han
   await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
   assert.equal(await viewer.locator('[data-explore-search]').getAttribute('placeholder'), 'Search creators');
   await viewer.locator('[data-explore-search]').fill(`@${H.full}`);
-  await viewer.locator('[data-explore-creators] [data-creator-chip]').first().waitFor({ timeout: 10000 });
+  await viewer.locator('[data-explore-creators] [data-creator-card]').first().waitFor({ timeout: 10000 });
   await viewer.waitForTimeout(600);
-  assert.equal(await viewer.locator('[data-explore-creators] [data-creator-chip]').first().getAttribute('data-creator-chip'), H.full);
+  assert.equal(await viewer.locator('[data-explore-creators] [data-creator-card]').first().getAttribute('data-creator-card'), H.full);
   assert.equal(await viewer.locator('[data-explore-card]').count(), 0, 'Creators search shows no explainers');
   await shot(viewer, 'D-search-creators-explainers');
   for (const email of [EMAIL.full, EMAIL.min.split('@')[0]]) {
     await viewer.locator('[data-explore-search]').fill(email);
     await viewer.waitForTimeout(900);
-    assert.equal(await viewer.locator('[data-explore-creators] [data-creator-chip]').count(), 0, email);
+    assert.equal(await viewer.locator('[data-explore-creators] [data-creator-card]').count(), 0, email);
   }
-  await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Learning Boards' }).click();
+  await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Canvases' }).click();
   for (const email of [EMAIL.full, EMAIL.min.split('@')[0]]) {
     await viewer.locator('[data-explore-search]').fill(email);
     await viewer.waitForTimeout(900);

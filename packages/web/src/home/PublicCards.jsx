@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDownToLine, Check, FolderGit2, Link2, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowRight, Check, FolderGit2, Link2, X } from 'lucide-react';
 import { navigate } from '../api.js';
 import ForkButton from '../ForkButton.jsx';
 import RabbitHoleChoice from '../RabbitHoleChoice.jsx';
@@ -126,10 +126,9 @@ export const CreatorAvatar = ({ c, className }) => <Avatar email={c.name || c.ha
 
 // Copy profile link (owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button"): the
 // creator's absolute /@handle (provenance.js profileUrl), never an email or an id. The button itself says it was copied,
-// then reverts - no corner toast. It never opens the card it sits on. `compact` (the creator card): an icon only, always
-// the same size - the link icon swaps to a check for 1.6 s, the words go to a screen-reader live region and the tooltip,
-// so the feedback never spreads over the name beside it. The profile's full button keeps its text label.
-export function CopyProfileLink({ handle, compact = false, className = '' }) {
+// then reverts - no corner toast. It sits on the profile beside the name; the Creators rows have none (owner brief
+// 2026-10-23: no chain-link icon on a row).
+export function CopyProfileLink({ handle, className = '' }) {
   const [copied, setCopied] = useState(null);
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -143,46 +142,43 @@ export function CopyProfileLink({ handle, compact = false, className = '' }) {
   const Icon = copied ? Check : Link2;
   const label = copied || 'Copy profile link';
   return (
-    <Button type="button" size="sm" variant={compact ? 'ghost' : 'secondary'} data-copy-profile={handle} aria-label={label} title={label}
-      onClick={copy} className={`shrink-0 ${compact ? 'w-7 justify-center px-0' : ''} ${className}`}>
+    <Button type="button" size="sm" variant="secondary" data-copy-profile={handle} aria-label={label} title={label}
+      onClick={copy} className={`shrink-0 ${className}`}>
       <Icon size={13} strokeWidth={1.8} aria-hidden="true" />
-      {compact ? <span data-copy-status aria-live="polite" className="sr-only">{copied || ''}</span> : <span aria-live="polite">{label}</span>}
+      <span aria-live="polite">{label}</span>
     </Button>
   );
 }
 
-// One creator in Explore's Creators tab, its Recommended creators and creator search (owner, 2026-10-08: "The creators
-// card should be square shape. They should list the number of Projects and Canvas and maybe it should also display their
-// description"): a square card - picture, name, @handle, their profile description (three lines at most, as text) and
-// "N projects · M canvases", counting only what any viewer can see (creators.js COUNTS) - opening /@handle. No follower,
-// verification or reputation signal (owner: no social features). Copy profile link sits at its top right, outside the link,
-// so copying never opens the profile.
+// One creator in Explore's Creators tab, its Recommended creators and creator search (owner brief 2026-10-23): a compact
+// row - the picture (64px, 48px on a phone; the initial without one), the saved display name, the blue @handle link, the
+// profile description in two lines at most (omitted when there is none), then the public project and canvas counts
+// (creators.js COUNTS: only what a signed-out visitor can see; a zero count is hidden), and View profile at the right,
+// under the text on a phone. The @handle and View profile are two separate links to the same /@handle; the row itself is
+// not a link. No follower, badge or other statistic.
 const count = (n, one, many) => `${forkNumber(n)} ${n === 1 ? one : many}`;
-function CreatorChip({ c }) {
+const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+function CreatorRow({ c }) {
+  const counts = [c.project_count && count(c.project_count, 'project', 'projects'), c.explainer_count && count(c.explainer_count, 'canvas', 'canvases')].filter(Boolean);
   return (
-    // overflow-hidden keeps it square (an aspect-ratio box otherwise grows to fit its content); select-card draws focus on
-    // the card's edge, where the clip cannot hide it.
-    <div data-creator-card={c.handle} className="lift-card select-card relative aspect-square min-w-0 overflow-hidden rounded-lg border border-line bg-white">
-      <a data-creator-chip={c.handle} href={c.url} className="flex h-full min-w-0 flex-col gap-3 rounded-lg p-3 outline-none sm:gap-4 sm:p-5">
-        {/* pr-8: the top right is Copy profile link's, beside the link and outside it. The avatar is 1.5x its first size
-            (owner 2026-10-09: "the avatar profile picture should be bigger in the card"), centred on the name lines. */}
-        <span className="flex min-w-0 items-center gap-2 pr-8 sm:gap-3">
-          <CreatorAvatar c={c} className="h-12 w-12 text-base! sm:h-15 sm:w-15 sm:text-xl!" />
-          <span className="flex min-w-0 flex-col leading-tight">
-            <span data-creator-name className="truncate text-sm font-medium text-ink sm:text-base">{c.name || `@${c.handle}`}</span>
-            {c.name && <span data-creator-handle className="truncate text-xs text-ink-2 sm:text-sm">@{c.handle}</span>}
-          </span>
-        </span>
-        {c.description && <span data-creator-description className="line-clamp-3 break-words text-xs leading-4 text-ink-2 sm:text-sm sm:leading-5">{c.description}</span>}
-        <span data-creator-counts className="mt-auto truncate text-xs text-ink-3">{count(c.project_count, 'project', 'projects')} · {count(c.explainer_count, 'canvas', 'canvases')}</span>
+    <li data-creator-card={c.handle} className="flex min-w-0 items-center gap-5 rounded-lg border border-line bg-white p-6 max-sm:flex-col max-sm:items-stretch max-sm:gap-4 max-sm:p-4">
+      <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
+        <CreatorAvatar c={c} className="h-12 w-12 text-lg! sm:h-16 sm:w-16 sm:text-2xl!" />
+        <div className="min-w-0 flex-1">
+          {c.name && <p data-creator-name className="truncate text-base font-semibold leading-6 text-ink">{c.name}</p>}
+          <a data-creator-handle href={c.url} className={`inline-block max-w-full truncate rounded-sm align-top text-sm leading-5 text-accent hover:underline ${FOCUS}`}>@{c.handle}</a>
+          {c.description && <p data-creator-description className="line-clamp-2 break-words pt-1.5 text-sm leading-5 text-ink-2">{c.description}</p>}
+          {counts.length > 0 && <p data-creator-counts className="pt-2 text-xs text-ink-3">{counts.join(' · ')}</p>}
+        </div>
+      </div>
+      <a data-creator-view href={c.url} className={`inline-flex h-8 shrink-0 items-center gap-1.5 self-center rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium whitespace-nowrap text-ink shadow-[0_1px_3px_rgba(0,0,0,0.12)] hover:bg-hover active:bg-active max-sm:self-start ${FOCUS}`}>
+        View profile<ArrowRight size={14} strokeWidth={1.8} aria-hidden="true" />
       </a>
-      <CopyProfileLink handle={c.handle} compact className="absolute right-2 top-2" />
-    </div>
+    </li>
   );
 }
 
-// The creator cards, in the server's order: two columns on a phone, then as many squares of at least 250px as fit
-// (owner 2026-10-09: "a little bigger" - three across Explore's column at 1440, where 200px fitted four).
+// The creator rows, in the server's order, one per line at every width.
 export function CreatorCards({ creators }) {
-  return <div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(250px,1fr))] sm:gap-4">{creators.map(c => <CreatorChip key={c.handle} c={c} />)}</div>;
+  return <ul data-creator-cards className="flex flex-col gap-3 sm:gap-4">{creators.map(c => <CreatorRow key={c.handle} c={c} />)}</ul>;
 }

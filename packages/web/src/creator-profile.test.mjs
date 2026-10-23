@@ -75,38 +75,48 @@ test('every @handle links to its creator\'s profile: every card, fork provenance
   assert.match(shared, /\{shared\.creator\?\.handle && <span data-shared-creator[^\n]*\n\s+<a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a share link\'s header links too');
 });
 
-// Owner, 2026-10-08: Explore is two tabs, Learning Boards (default, with Sort; "Explainers" until 2026-10-09) and Creators; the search applies to the active tab
-// only, and the tab is in the URL so a reload keeps it.
-test('Explore: Learning Boards and Creators tabs; each tab asks the server for its own search; the card list is the shared one', async () => {
+// Owner, 2026-10-08: Explore is two tabs, Canvases (default, with Sort; "Explainers" until 2026-10-09, "Learning Boards" until
+// the owner brief 2026-10-23) and Creators; the search applies to the active tab only, and the tab is in the URL so a reload keeps it.
+test('Explore: Canvases and Creators tabs; each tab asks the server for its own search; the card list is the shared one', async () => {
   const home = read('./Home.jsx');
   const explore = home.slice(home.indexOf('function Explore()'));
   const { exploreTab, EXPLORE_TABS } = await import('./home/card-sort.js');
-  assert.deepEqual(EXPLORE_TABS, [['explainers', 'Learning Boards'], ['creators', 'Creators']], 'the tab id stays an identifier');
+  assert.deepEqual(EXPLORE_TABS, [['explainers', 'Canvases'], ['creators', 'Creators']], 'the tab id stays an identifier');
   assert.deepEqual(['', '?tab=creators', '?tab=bogus', '?tab=explainers'].map(exploreTab), ['explainers', 'creators', 'explainers', 'explainers']);
   assert.match(explore, /window\.history\.replaceState\(window\.history\.state, '', next === 'creators' \? '\/explore\?tab=creators' : '\/explore'\);/);
   assert.match(explore, /if \(tab !== 'explainers'\) return;\n\s+let live = true;\n\s+fetch\(`\/api\/learn\/boards\/published/);
   assert.match(explore, /if \(tab !== 'creators'\) return;\n\s+let live = true;\n\s+fetch\(`\/api\/learn\/creators\$\{q && `\?\$\{q\}`\}`/);
-  assert.match(explore, /const searchLabel = tab === 'creators' \? 'Search creators' : 'Search learning boards';/);
-  assert.match(explore, /\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'Sort stays on Learning Boards');
+  assert.match(explore, /const searchLabel = tab === 'creators' \? 'Search creators' : 'Search canvases';/);
+  assert.match(explore, /\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'Sort stays on Canvases');
+  // Owner brief 2026-10-23: the subtitle, a blue underline and a focus ring on the tabs, the page's plain background.
+  assert.match(explore, />Discover canvases and the people behind them\.<\/p>/);
+  assert.match(home, /const EXPLORE_TAB = '[^']*data-\[state=active\]:border-accent! [^']*focus-visible:outline-accent';/);
+  assert.match(explore, /<TabsTrigger key=\{id\} value=\{id\} className=\{EXPLORE_TAB\}>/);
+  assert.match(explore, /<main data-explore className="browse-page flex-1 overflow-y-auto bg-none!">/, 'no dot grid (index.css main)');
+  // The matching creator count is the server's total, past the list's cap.
+  assert.match(explore, /setCreatorTotal\(data\.total \?\? \(data\.creators \|\| \[\]\)\.length\)/);
+  assert.match(explore, /\{creatorTotal\} \{creatorTotal === 1 \? 'creator' : 'creators'\}/);
   assert.doesNotMatch(explore, /Creators to explore|data-creator-row/, 'the creators row left the Explainers feed');
   assert.match(read('./home/PublicCards.jsx'), /export const CreatorAvatar = \(\{ c, className \}\) => <Avatar email=\{c\.name \|\| c\.handle\} src=\{c\.avatar\}/, 'the initials come from the name or @handle');
 });
 
-// Owner, 2026-10-08: "The creators card should be square shape. They should list the number of Projects and Canvas and
-// maybe it should also display their description. in profile add a discription".
-test('creator cards: square at every width, picture, name, @handle, the description as text (3 lines), N projects · M canvases', () => {
+// Owner brief 2026-10-23 (replaces the square cards of 2026-10-08/09): compact rows - picture, display name, the blue @handle
+// link, the description in two lines at most, the non-zero public counts, and a separate View profile link with ArrowRight.
+test('creator rows: picture, name, @handle link, two-line description, non-zero counts, View profile; no chain-link, the row is not a link', () => {
   const cards = read('./home/PublicCards.jsx');
-  const chip = cards.slice(cards.indexOf('function CreatorChip'), cards.indexOf('export function CreatorCards'));
-  assert.match(chip, /<div data-creator-card=\{c\.handle\} className="[^"]*\baspect-square\b[^"]*\boverflow-hidden\b/, '1:1, clipped so content never stretches it');
-  assert.match(chip, /<a data-creator-chip=\{c\.handle\} href=\{c\.url\}/, 'the card opens /@handle');
-  assert.match(chip, /\{c\.description && <span data-creator-description className="line-clamp-3 [^"]*">\{c\.description\}<\/span>\}/, 'text, three lines at most, no empty line');
-  assert.match(chip, /\{count\(c\.project_count, 'project', 'projects'\)\} · \{count\(c\.explainer_count, 'canvas', 'canvases'\)\}/);
-  assert.match(chip, /pr-8/, 'room for one small icon button at the top right');
-  // Owner, 2026-10-09: "The creator cards should be a little bigger and the avatar profile picture should be bigger in the card."
-  assert.match(cards, /<div data-creator-cards className="grid grid-cols-2 gap-3 sm:grid-cols-\[repeat\(auto-fill,minmax\(250px,1fr\)\)\] sm:gap-4">/, 'two on a phone, squares of at least 250px above');
-  assert.match(chip, /<CreatorAvatar c=\{c\} className="h-12 w-12 text-base! sm:h-15 sm:w-15 sm:text-xl!" \/>/, 'the avatar 1.5x: 48px on a phone, 60px above');
-  assert.match(cards, /kind === 'creators' \? <CreatorCards creators=\{picks\} \/>/, 'Recommended creators: the same cards');
-  assert.match(read('./Home.jsx'), /\{creators\?\.length > 0 && <CreatorCards creators=\{creators\} \/>\}/, 'the Creators tab: the same cards');
+  const row = cards.slice(cards.indexOf('function CreatorRow'), cards.indexOf('export function CreatorCards'));
+  assert.match(row, /<li data-creator-card=\{c\.handle\} className="[^"]*\bp-6\b[^"]*max-sm:flex-col/, 'a row, 24px padding; stacked on a phone');
+  assert.match(row, /<CreatorAvatar c=\{c\} className="h-12 w-12 text-lg! sm:h-16 sm:w-16 sm:text-2xl!" \/>/, '48px on a phone, 64px above');
+  assert.match(row, /\{c\.name && <p data-creator-name [^>]*>\{c\.name\}<\/p>\}/, 'the saved display name, omitted when unset');
+  assert.match(row, /<a data-creator-handle href=\{c\.url\} className=\{`[^`]*text-accent[^`]*`\}>@\{c\.handle\}<\/a>/, 'the blue @handle opens /@handle');
+  assert.match(row, /\{c\.description && <p data-creator-description className="line-clamp-2 break-words [^"]*">\{c\.description\}<\/p>\}/, 'two lines at most, text, no empty line');
+  assert.match(row, /c\.project_count && count\(c\.project_count, 'project', 'projects'\), c\.explainer_count && count\(c\.explainer_count, 'canvas', 'canvases'\)\]\.filter\(Boolean\)/, 'a zero count is hidden');
+  assert.match(row, /<a data-creator-view href=\{c\.url\} [^>]*>\r?\n\s+View profile<ArrowRight /, 'View profile, a second link to the same profile');
+  assert.equal((row.match(/<a /g) || []).length, 2, 'two links; the row itself is not one');
+  assert.doesNotMatch(row, /CopyProfileLink|Link2|MoreHorizontal|Ellipsis/, 'no chain-link, no overflow icon');
+  assert.match(cards, /<ul data-creator-cards className="flex flex-col gap-3 sm:gap-4">/, 'one per line, 12-16px apart');
+  assert.match(cards, /kind === 'creators' \? <CreatorCards creators=\{picks\} \/>/, 'Recommended creators: the same rows');
+  assert.match(read('./Home.jsx'), /\{creators\?\.length > 0 && <CreatorCards creators=\{creators\} \/>\}/, 'the Creators tab: the same rows');
 });
 
 test('the profile description: edited in Settings > Profile (160 characters, as the server caps it), shown under the name on /@handle as text', async () => {
@@ -123,7 +133,7 @@ test('the profile description: edited in Settings > Profile (160 characters, as 
 });
 
 // Owner, 2026-10-08: "Cretors card and in Creator profile should have a copy profile url button".
-test('Copy profile link: the absolute /@handle only, on every creator card and on the profile beside the name; in place, no navigation', async () => {
+test('Copy profile link: the absolute /@handle only, on the profile beside the name (not on a Creators row); in place, no navigation', async () => {
   const { profileUrl } = await import('./home/provenance.js');
   assert.equal(profileUrl('https://digrabbithole.com', 'ada_l'), 'https://digrabbithole.com/@ada_l');
   assert.equal(profileUrl('http://127.0.0.1:8848', null), null, 'no handle, no link - never an email or an id');
@@ -131,17 +141,12 @@ test('Copy profile link: the absolute /@handle only, on every creator card and o
   // The button copies profileUrl(origin, handle), says so on itself, reverts, and stops the click from reaching the card.
   assert.match(cards, /event\.preventDefault\(\); event\.stopPropagation\(\);\n\s+try \{ await navigator\.clipboard\.writeText\(profileUrl\(window\.location\.origin, handle\)\); setCopied\('Profile link copied'\); \}/);
   assert.match(cards, /timer\.current = setTimeout\(\(\) => setCopied\(null\), 1600\);/);
-  const button = cards.slice(cards.indexOf('export function CopyProfileLink'), cards.indexOf('function CreatorChip'));
+  const button = cards.slice(cards.indexOf('export function CopyProfileLink'), cards.indexOf('function CreatorRow'));
   assert.doesNotMatch(button, /toast\(/, 'no corner toast');
-  // Compact (the creator card): the same icon-sized button whatever it says - the link icon swaps to a check, the words
-  // go to an sr-only live region and the tooltip, never over the name. The full button (the profile) keeps its label.
+  // The button says it on itself, then reverts (the compact icon-only form left with the creator cards: owner brief 2026-10-23).
   assert.match(button, /const Icon = copied \? Check : Link2;\n\s+const label = copied \|\| 'Copy profile link';/);
   assert.match(button, /aria-label=\{label\} title=\{label\}/);
-  assert.match(button, /className=\{`shrink-0 \$\{compact \? 'w-7 justify-center px-0' : ''\} \$\{className\}`\}/, 'compact never widens');
-  assert.match(button, /\{compact \? <span data-copy-status aria-live="polite" className="sr-only">\{copied \|\| ''\}<\/span> : <span aria-live="polite">\{label\}<\/span>\}/);
-  // On the creator card, at its top right, beside the profile link and outside it, so copying never opens the profile.
-  const chip = cards.slice(cards.indexOf('function CreatorChip'));
-  assert.match(chip, /<\/a>\n\s+<CopyProfileLink handle=\{c\.handle\} compact className="absolute right-2 top-2" \/>\n\s+<\/div>/);
+  assert.match(button, /<span aria-live="polite">\{label\}<\/span>/);
   // On the profile, in the name and handle row, for every viewer (no own or signed-in condition).
   assert.match(profile, /\{p\.name && <span data-profile-handle>@\{p\.handle\}<\/span>\}\n[\s\S]{0,400}<CopyProfileLink handle=\{p\.handle\} \/>/);
   assert.doesNotMatch(profile, /\{own && <CopyProfileLink|\{me && <CopyProfileLink/);

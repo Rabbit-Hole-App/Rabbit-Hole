@@ -90,32 +90,24 @@ const viewer = await contextFor(who.viewer);
 await viewer.page.goto(`${BASE}/explore`);
 await viewer.page.locator('[data-explore-card]').first().waitFor({ timeout: 60000 });
 const card = viewer.page.locator('[data-explore-card]').filter({ hasText: TITLE });
-// Owner, 2026-10-08: two tabs, Explainers (the default, with Sort) and Creators; the search is the active tab's.
-check('Explore opens on the Learning Boards tab, with Sort, searching learning boards only', (await viewer.page.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText()) === 'Learning Boards'
-  && await viewer.page.locator('[data-sort-control]').count() === 1 && (await viewer.page.locator('[data-explore-search]').getAttribute('placeholder')) === 'Search learning boards'
-  && await viewer.page.locator('[data-creator-chip]').count() === 0);
+// Owner, 2026-10-08: two tabs, Canvases (the default, with Sort; "Learning Boards" until the owner brief 2026-10-23) and
+// Creators; the search is the active tab's.
+check('Explore opens on the Canvases tab, with Sort, searching canvases only', (await viewer.page.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText()) === 'Canvases'
+  && await viewer.page.locator('[data-sort-control]').count() === 1 && (await viewer.page.locator('[data-explore-search]').getAttribute('placeholder')) === 'Search canvases'
+  && await viewer.page.locator('[data-creator-card]').count() === 0);
 check('the Explore card shows the creator\'s @handle and the fork count, no email', (await card.locator('[data-creator]').innerText()).trim() === `@${H.owner}` && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '04-explore');
-// Copy profile link on the Creators tab (owner, 2026-10-08): the absolute /@handle on the clipboard; the card's compact
-// button stays icon-sized (a check replaces the link icon, the words are its sr-only live text), then reverts; Explore
-// stays where it is.
+// A creator row on the Creators tab (owner brief 2026-10-23, replacing the card's Copy profile link of 2026-10-08): no
+// chain-link icon; the @handle and View profile are two links to the same /@handle.
 await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
 const creatorCard = viewer.page.locator(`[data-explore-creators] [data-creator-card="${H.owner}"]`);
 await creatorCard.waitFor({ timeout: 30000 });
-const copyProfile = creatorCard.locator('[data-copy-profile]');
-const before = viewer.page.url();
-const iconWidth = (await copyProfile.boundingBox()).width;
-await copyProfile.click();
-await viewer.page.waitForTimeout(300);
-const said = (await copyProfile.locator('[data-copy-status][aria-live="polite"]').textContent()).trim();
-const swapped = await copyProfile.locator('svg.lucide-check').count() === 1 && (await copyProfile.boundingBox()).width === iconWidth;
-const clip = await viewer.page.evaluate(() => navigator.clipboard.readText());
-await shot(viewer.page, '04b-explore-copy-profile', creatorCard);
-await viewer.page.waitForTimeout(1800);
-check('Copy profile link on a creator card: the clipboard holds origin + /@handle, a check icon and the live text Profile link copied, no wider, then reverts; nothing navigates',
-  clip === `${BASE}/@${H.owner}` && said === 'Profile link copied' && swapped && viewer.page.url() === before && (await copyProfile.getAttribute('aria-label')) === 'Copy profile link',
-  `${clip} | ${said} | ${swapped} | ${viewer.page.url()}`);
-await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Learning Boards' }).click();
+const rowLinks = [await creatorCard.locator('[data-creator-handle]').getAttribute('href'), await creatorCard.locator('[data-creator-view]').getAttribute('href')];
+await shot(viewer.page, '04b-explore-creator-row', creatorCard);
+check('a creator row has no Copy profile link; its @handle and View profile both link to /@handle',
+  await creatorCard.locator('[data-copy-profile], svg.lucide-link-2').count() === 0 && rowLinks.every(h => h === `/@${H.owner}`)
+  && (await creatorCard.locator('[data-creator-view]').innerText()).trim() === 'View profile', JSON.stringify(rowLinks));
+await viewer.page.locator('[data-explore-tabs]').getByRole('tab', { name: 'Canvases' }).click();
 await card.waitFor({ timeout: 30000 });
 // A click on the card body only selects it (owner, 2026-10-08); its title opens it.
 await card.click();
@@ -200,13 +192,14 @@ const share = await api(who.viewer, `/api/learn/boards/shared/${shareToken}`);
 check('removed: /e no longer opens, Explore drops it, the share link still opens', !(await explore(who.viewer)).some(c => c.title === TITLE) && share.status === 200);
 await shot(viewer.page, '08-unpublished-link');
 
-// ---- the creator card (owner, 2026-10-08): square, the profile description as text, "N projects · M canvases" counting
-// published canvases only (a private one never counts; the other creator has no public project) ----
+// ---- the creator row (owner brief 2026-10-23, replacing the square card of 2026-10-08): the profile description as text,
+// the non-zero public counts - published canvases only (a private one never counts; the other creator has no public
+// project, so no project count) ----
 const ABOUT = `Explains <b>trusses</b> & loads ${run}`;
 check('a profile description saves through Settings\' route', (await api(who.other, '/api/profile', { method: 'PUT', body: JSON.stringify({ description: ABOUT }) })).body.description === ABOUT);
 await api(who.other, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Private sketch (explore ${run})` }) });
-// The phone row below measures two creator cards. Creators lists only people with a live publication, and the owner's was
-// removed above, so a second creator publishes here: on a fresh stack nothing else would put a second card on the row.
+// The phone layout below measures two creator rows. Creators lists only people with a live publication, and the owner's was
+// removed above, so a second creator publishes here: on a fresh stack nothing else would put a second row on the list.
 const gears = (await api(who.late, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Gear trains (explore ${run})` }) })).body;
 await api(who.late, `/api/learn/boards/${gears.name}/main`, { method: 'PUT', body: JSON.stringify({ state: SEED('Gears') }) });
 check('a second creator publishes, so the Creators tab has two cards to lay out', (await api(who.late, `/api/apps/${gears.name}/publish`, { method: 'POST', body: '{}' })).status === 200);
@@ -214,17 +207,18 @@ const people = await contextFor(who.viewer);
 await people.page.goto(`${BASE}/explore?tab=creators`);
 const otherCard = people.page.locator(`[data-explore-creators] [data-creator-card="${H.other}"]`);
 await otherCard.waitFor({ timeout: 30000 });
-const square = async () => { const b = await otherCard.boundingBox(); return Math.abs(b.width - b.height) <= 1; };
+// View profile sits below the row's text on a phone, beside it above.
+const viewBelow = async () => { const [t, v] = [await otherCard.locator('[data-creator-handle]').boundingBox(), await otherCard.locator('[data-creator-view]').boundingBox()]; return v.y >= t.y + t.height; };
 const about = otherCard.locator('[data-creator-description]');
 const counts = (await otherCard.locator('[data-creator-counts]').innerText()).trim();
-check('a creator card is square, shows the description as text (never HTML) and N projects · M canvases of published canvases only',
-  await square() && (await about.innerText()).trim() === ABOUT && await about.locator('*').count() === 0 && counts === '0 projects · 1 canvas', counts);
+check('a creator row shows the description as text (never HTML) and only the non-zero count of published canvases, View profile beside the text',
+  !(await viewBelow()) && (await about.innerText()).trim() === ABOUT && await about.locator('*').count() === 0 && counts === '1 canvas', counts);
 await shot(people.page, '09-creator-card', otherCard);
 await people.page.locator(`[data-explore-creators] [data-creator-card="${H.late}"]`).waitFor({ timeout: 30000 });
 await people.page.setViewportSize({ width: 390, height: 844 });
 await people.page.waitForTimeout(400);
 const tops = await people.page.locator('[data-explore-creators] [data-creator-card]').evaluateAll(cards => cards.slice(0, 2).map(c => Math.round(c.getBoundingClientRect().top)));
-check('on a phone the creator cards stay square, two to a row, with no sideways scroll', await square() && tops.length === 2 && tops[0] === tops[1]
+check('on a phone the creator rows stack one per line with View profile below the text, with no sideways scroll', await viewBelow() && tops.length === 2 && tops[0] < tops[1]
   && await people.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(tops));
 await shot(people.page, '10-creator-cards-phone');
 await people.context.close();

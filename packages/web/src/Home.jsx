@@ -145,12 +145,15 @@ export function ExplorePreview() {
 // The search applies to the active tab only, and the tab is in the URL (/explore?tab=creators) so a reload keeps it.
 
 const EXPLORE_EMPTY = { projects: 'No projects match', canvases: 'No canvases match' };
+// Explore's tabs (owner brief 2026-10-23): a blue underline on the active tab and a visible keyboard focus ring.
+const EXPLORE_TAB = 'rounded-t-sm data-[state=active]:border-accent! focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
 function Explore() {
   const [tab, setTab] = useState(() => exploreTab(window.location.search));
   const [order, setOrder] = useState('newest');
   const [cards, setCards] = useState(null);
   const [listed, setListed] = useState(null); // the type `cards` holds, set with them: projects, canvases or null (all)
   const [creators, setCreators] = useState(null);
+  const [creatorTotal, setCreatorTotal] = useState(0); // every match, past the list's cap (creators.js total)
   const [me, setMe] = useState(null);
   const [typed, setTyped] = useState('');
   const [term, setTerm] = useState('');
@@ -162,7 +165,7 @@ function Explore() {
   };
   // ?project=owner/repo: a card's project label opened Explore on that project's published canvases (PublicCards ProjectFilter).
   const project = new URLSearchParams(window.location.search).get('project');
-  // ?type=projects|canvases: the Library's Type filter, on the Learning Boards tab (library-filter.js EXPLORE_TYPES).
+  // ?type=projects|canvases: the Library's Type filter, on the Canvases tab (library-filter.js EXPLORE_TYPES).
   const type = exploreType(window.location.search);
   // A sentence-length search also gets AI picks, Recommended above the tab's keyword results (explore-publish.md "AI find");
   // not while a project filter narrows the list.
@@ -179,17 +182,18 @@ function Explore() {
     if (tab !== 'creators') return;
     let live = true;
     fetch(`/api/learn/creators${q && `?${q}`}`, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : { creators: [] }))
-      .then(data => { if (live) setCreators(data.creators || []); }).catch(() => { if (live) setCreators([]); });
+      .then(data => { if (live) { setCreators(data.creators || []); setCreatorTotal(data.total ?? (data.creators || []).length); } }).catch(() => { if (live) setCreators([]); });
     return () => { live = false; };
   }, [tab, q]);
-  const searchLabel = tab === 'creators' ? 'Search creators' : 'Search learning boards';
+  const searchLabel = tab === 'creators' ? 'Search creators' : 'Search canvases';
   return (
-    <main className="browse-page flex-1 overflow-y-auto">
+    // bg-none!: Explore is a page, not a workspace - no dot grid (index.css main; owner brief 2026-10-23).
+    <main data-explore className="browse-page flex-1 overflow-y-auto bg-none!">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
-        <p className="pb-6 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
+        <p className="pb-6 pt-1 text-sm text-ink-2">Discover canvases and the people behind them.</p>
         <Tabs value={tab} onValueChange={choose}>
-          <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id}>{name}</TabsTrigger>)}</TabsList>
+          <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id} className={EXPLORE_TAB}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
         <div className="flex items-center gap-3 pb-6 max-md:flex-wrap">
           <label className="relative block min-w-0 flex-1 max-md:basis-full">
@@ -204,6 +208,7 @@ function Explore() {
           <section data-explore-creators aria-label="Creators">
             <Recommended found={found} me={me} kind="creators" />
             {creators === null && <SkeletonRows rows={2} />}
+            {creators?.length > 0 && <p data-creator-count className="pb-3 text-sm text-ink-2">{creatorTotal} {creatorTotal === 1 ? 'creator' : 'creators'}</p>}
             {creators?.length > 0 && <CreatorCards creators={creators} />}
             {creators?.length === 0 && term && <p data-search-empty className="text-sm text-ink-3">No creators match &ldquo;{term}&rdquo;.</p>}
           </section>
@@ -212,7 +217,7 @@ function Explore() {
           <Recommended found={project || type ? null : found} me={me} kind="canvases" />
           {project && <ProjectFilter project={project} empty={cards?.length === 0 && !term} />}
           {cards === null && <SkeletonRows rows={3} />}
-          {cards?.length === 0 && (term || listed) && <p data-search-empty className="text-sm text-ink-3">{EXPLORE_EMPTY[listed] || 'No learning boards match'}{term && <> &ldquo;{term}&rdquo;</>}.</p>}
+          {cards?.length === 0 && (term || listed) && <p data-search-empty className="text-sm text-ink-3">{EXPLORE_EMPTY[listed] || 'No canvases match'}{term && <> &ldquo;{term}&rdquo;</>}.</p>}
           {cards?.length > 0 && (listed === 'projects' ? <div data-explore-projects-list><ProjectCards projects={cards} /></div>
             : <div data-explore-list><PublicCards cards={cards} me={me} attr="data-explore-card" /></div>)}
         </>}
