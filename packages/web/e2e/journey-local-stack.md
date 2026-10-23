@@ -115,7 +115,7 @@ would bind a value it cannot see.
 Check that no key reached the workers, by name and by behaviour (both answer "not configured" without a model call):
 the startup binding table lists no `*_API_KEY` or `ELEVENLABS_*`; with a session, `POST /api/learn/home-ask` answers 503
 "AI answers aren’t configured on this preview." and `POST /api/learn/image` with `confirmed: true` answers 503
-"Image generation is not configured on this environment."
+{ "code": "image_generation_unavailable" } (legacy image generation is off unless LEGACY_IMAGE_GENERATION is the exact string true)
 
 ## 4. Run
 

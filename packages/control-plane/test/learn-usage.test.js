@@ -535,7 +535,7 @@ test('the dev worker records an image generation as an estimated media attempt o
   sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Mine')");
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; } };
   // Image generation only reaches the provider where spend is not enforced (the paid-submission gate refuses it elsewhere).
-  const env = { SMALL_ENV: 'test', LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), OPENAI_API_KEY: 'fixture',
+  const env = { SMALL_ENV: 'test', LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), OPENAI_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true',
     CONTROL_PLANE: { fetch: async () => Response.json({ org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' }) } };
   const original = globalThis.fetch;
   globalThis.fetch = async () => Response.json({ data: [{ b64_json: 'AAAA' }] });
@@ -545,6 +545,38 @@ test('the dev worker records an image generation as an estimated media attempt o
   assert.equal(response.status, 200);
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.status, a.result]), [['u-owner-3c9f', 'image', 'completed', 'full']]);
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'estimated', imageEstimate('a cat')]]);
+});
+
+// Owner 2026-10-23: legacy image generation is off unless LEGACY_IMAGE_GENERATION is the exact string 'true' (gpt-image-1 is shut down).
+// Off, the full worker answers 503 image_generation_unavailable with no provider call, no session read and no usage row; the board learns it from graph-config.
+test('legacy image generation is unavailable by default: no provider call, no session read, no usage row, and the board is told', async t => {
+  const worker = (await devWorker()).default;
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8'));
+  sqlite.exec("INSERT INTO canvases(org,name,owner_email,title) VALUES('team','canvas-0a1b2c3d','owner@test','Mine')");
+  const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, all: async () => ({ results: stmt.all(...args) }), run: async () => ({ meta: stmt.run(...args) }) }; } };
+  const original = globalThis.fetch;
+  globalThis.fetch = async url => assert.fail(`provider called: ${url}`);
+  t.after(() => { globalThis.fetch = original; });
+  const identity = { org: 'team', email: 'owner@test', orgName: 'Team', user_id: 'u-owner-3c9f' };
+  const call = async (flag, path, init) => {
+    let sessions = 0;
+    const env = { SMALL_ENV: 'test', LEARN_DB, LEARN_MEDIA: memoryBucket(), DB: liveDb(), RUNS: liveRuns(), OPENAI_API_KEY: 'fixture', AI_MONTHLY_ALLOWANCE_USD: '50', USAGE_PLATFORM_DAY_USD: '10',
+      ...(flag === undefined ? {} : { LEGACY_IMAGE_GENERATION: flag }), CONTROL_PLANE: { fetch: async () => { sessions++; return Response.json(identity); } } };
+    const response = await worker.fetch(new Request(`https://dev.example${path}`, { headers: { cookie: 's', 'content-type': 'application/json' }, ...init }), env, { waitUntil() {} });
+    return { response, sessions };
+  };
+  const generate = { method: 'POST', body: JSON.stringify({ app: 'canvas-0a1b2c3d', prompt: 'a cat', confirmed: true }) };
+  for (const flag of [undefined, '', 'false', 'TRUE', '1']) {
+    const { response, sessions } = await call(flag, '/api/learn/image', generate);
+    assert.equal(response.status, 503, JSON.stringify(flag));
+    assert.equal((await response.json()).code, 'image_generation_unavailable');
+    assert.equal(sessions, 0, 'refused before the session is read');
+    const config = await (await call(flag, '/api/learn/graph-config?app=canvas-0a1b2c3d')).response.json();
+    assert.equal(config.imageGeneration, false);
+  }
+  assert.deepEqual([rows(sqlite, 'usage_actions').length, rows(sqlite, 'usage_attempts').length], [0, 0]);
+  assert.equal((await (await call('true', '/api/learn/graph-config?app=canvas-0a1b2c3d')).response.json()).imageGeneration, true);
 });
 
 // Owner R3 decision (2026-10-16, rel-a.md A2 item 4), superseding the Phase 1 platform-funded anonymous call: a signed-out
