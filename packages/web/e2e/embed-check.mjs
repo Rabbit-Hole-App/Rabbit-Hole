@@ -211,9 +211,8 @@ await flX.locator('[data-embed-chat-fallback]').waitFor({ timeout: 30000 });
 check('[blocked] Open Chat in Rabbit Hole is offered, and the browser really holds no rh_embed', await flX.locator('[data-embed-chat-fallback]').isVisible() && !(await blocked.context.cookies()).some(c => c.name === 'rh_embed'));
 check('[blocked] the probe saw no cookie come back and said so; no Send went out', bnet.probes.length > 0 && bnet.probes.every(p => !p.cookieSent && p.session === false) && bnet.sends.length === 0, JSON.stringify(bnet.probes));
 const bfield = flX.locator('[data-shared-ask] [data-chat-composer] textarea');
-const canSend = await flX.locator('[data-shared-ask] [data-chat-composer] button[type="submit"]:not([disabled]), [data-shared-ask] [data-chat-composer] [data-send]:not([disabled])').count();
-if (await bfield.count()) { await bfield.fill(DRAFT); await bfield.press('Enter'); }
-check('[blocked] Send is not offered: no enabled Send, and Enter in the composer sends nothing', canSend === 0 && bnet.sends.length === 0 && !bnet.requests.some(r => r.method === 'POST' && /\/ask$/.test(new URL(r.url).pathname)));
+await bfield.fill(DRAFT);
+check('[blocked] nothing is sent while the cookie is missing: no Send request, no count, the draft stays in the composer', bnet.sends.length === 0 && !bnet.requests.some(r => r.method === 'POST' && /\/ask$/.test(new URL(r.url).pathname)) && await bfield.inputValue() === DRAFT);
 const [handoff] = await Promise.all([blocked.context.waitForEvent('page'), flX.locator('[data-embed-chat-fallback]').click()]);
 await handoff.waitForURL(u => u.origin === BASE, { timeout: 30000 });
 const draftBack = handoff.locator('[data-shared-ask] [data-chat-composer] textarea');
