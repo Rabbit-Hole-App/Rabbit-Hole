@@ -2083,7 +2083,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Insert > Equation: an empty equation opens for typing at the view's centre, as the Equation tool does where it is clicked.
       insertEquation: () => { if (readOnlyRef.current || localCopyRef.current) return; snapshot(); setEquationDraft(newEquation(viewCenter())); },
       // Insert > Webpage: asks for the address, then makes the capture a pasted link makes.
-      insertWebpage: () => { if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); },
+      // With a link (the Start dialog's sources) the card is added at once and its id returned; without one, the address prompt opens.
+      insertWebpage: url => { if (typeof url === 'string' && url) return addWebpage(url); if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); return null; },
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null) => openInline(performance.now(), false, mode), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,

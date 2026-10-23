@@ -18,7 +18,10 @@ status line; Remove; and two checkboxes under the name, each with its own label.
 | file, link | on | on |
 | repository | on | off, labelled **Add overview to canvas** |
 
-Above the list, once: "Context lets Chat and Tutor use a source." "Canvas shows it as a card in your workspace."
+The Start dialog opens neutral from Home and Library (`small:start` path `start`); the composer's Repository item and a connect
+link open it with the repository input shown (path `repository`), Blank canvas from the menu opens it neutral. Cancel on a checked
+repository goes back to the URL field with the URL kept; on an empty input it hides the input. Either way the list stays. Esc
+closes the dialog (the draft stays, in this tab). Above the list, once: "Context lets Chat and Tutor use a source." "Canvas shows it as a card in your workspace."
 Above the footer: a compact summary ("2 context sources, 3 canvas cards"). Footer: **Start with a blank canvas** (left, a
 text action) and **Start rabbit hole** (right, primary). A row with both options off shows "Choose context, canvas, or
 both." and Start is disabled. One source record serves both destinations: unchecking one never removes the other.
@@ -112,18 +115,31 @@ with exactly the destinations still missing, repository first (it creates the de
 Cards are inserted by the browser on the mounted canvas (`canvasApi` in `LearnPage`); the server never writes cards. So the
 card half of a start runs on the destination page:
 
-- API-only work runs in the dialog before navigation: creating the destination, connecting the repository, uploading
-  context documents (`uploadContextDoc`).
-- The dialog navigates as soon as the destination exists, and stays open over the destination (it is hosted at Root and
-  survives the Shell remount) showing each row's status. Closing it never cancels; the card work continues on the page.
-- The destination page reads the pending card items for its own slug from the saved job (below), places each card once
-  (`file-to-canvas.js`, `small:pdf-to-canvas` for a PDF with the stored context document id, `pickResult`/`insertWebpage`
-  for links, `graphCardBlock` with `sameGraphCard` for the overview) and reports each as a `small:start-result` event
-  `{ id, status, reason }` and into the saved job. A reported id is not acted on twice.
-- A PDF is stored once: the context document, then the pdf-to-canvas recipe naming that stored document. A `.txt` or
-  `.md` for both destinations is NOT done with the LearnPage "Both" path, which stores the bytes twice.
-- A `.ipynb` or `.py` goes through `FileImportDialog` (Notebook, Code card or File attachment; inert, never executed).
-- File bytes are held by the orchestrator in memory for the life of the tab (a File cannot go to storage).
+- The job (`start-job.js`, wired by `start-run.js`) lives outside React: the draft store, the orchestrator and a per-destination
+  card queue. Closing the dialog never cancels a start. `createJob(deps)` takes every outside effect as a dependency, so
+  `start-job.test.mjs` runs the whole job against fakes.
+- API-only work runs from the job before the page needs to exist: creating the destination (`create_canvas` or
+  `connect_repository`, or opening an already connected project), uploading context documents (`uploadContextDoc`).
+  The destination is reported once (`destination` action); a retry reuses it and navigates back to it if the person is elsewhere.
+- Right after the destination exists the dialog steps aside (`StartHost`), so the canvas and its own choice windows are usable.
+  A chip bottom right says "Adding sources, N to go"; when the job ends with failures it says how many sources need another
+  try and offers Review, which reopens the list with Start rabbit hole as the retry. A clean finish clears the draft and
+  toasts "Sources added."
+- The destination page (`LearnPage`, preview builds) calls `startJob.attach(app.name, place)`. The job feeds it one item at a
+  time (`file`, `link`, `overview`); a resolved `place` means the card is on the canvas, a thrown Error is the reason the
+  row shows. If the page detaches, unplaced items fail ("The canvas was closed before this was added"); if no page attaches
+  in 30 seconds they fail ("The canvas did not open"). Both retry with Start again.
+- Placement reuses the existing roads: a PDF stored as a context document is placed from that stored copy
+  (`placePdf` mode `pdf`, the pdf-to-canvas recipe), nothing uploaded again; every other file goes through `takeDrop`, so
+  `.ipynb`/`.py`/text/Markdown open `FileImportDialog` (nothing executed), workbooks and decks their own choice, a canvas-only
+  PDF its page choice. Such a row is Ready when a card appeared, and fails with "No card was added" when the window was
+  cancelled. Links resolve through the Search lookup (`/api/learn/search`) and `pickResult`, or a webpage card
+  (`canvasApi.insertWebpage(url)`); the row takes the resolved title. A repository overview is the whole-repository graph card
+  (`graphCardBlock`, `sameGraphCard`), added once `GET /api/repositories/<project>` reports a commit.
+- A `.txt` or `.md` with both options on is stored as a context document and as the card's own file: two stores, one row.
+  A card made from a context document exists only for PDFs today. Not the LearnPage "Both" path, but the same duplication.
+  Needs a server or card change to avoid (see NEEDS DECISION in the lane report).
+- File bytes are held by the job in memory for the life of the tab (a File cannot go to storage).
 
 ## Reload recovery
 
@@ -144,3 +160,14 @@ dialog keeps working and says nothing misleading. The record is cleared when nav
 - Cross-tab or lost-response duplicates are possible until the server takes an idempotency key (needs a migration:
   `canvases.start_key`, `repository_apps.start_key`; not built).
 - Extending context documents to repository projects (server) is a later change.
+
+## Checks
+
+- `start-draft.test.mjs`: copy, link and file classification, defaults, the repository rule, the option capabilities, the state
+  machine, the retry plan, reload recovery and storage handling.
+- `start-job.test.mjs`: the job against fakes (blank, one destination, context stored once, cards through the page, partial
+  failure and retry, page detach and timeout, repository connect and the index wait, an existing project, reload mid start).
+- `start-wiring.test.mjs`, `start-connect-card.test.mjs`: the hand-off and dialog wiring that only a browser could otherwise reach.
+- Browser: `card-size-check.mjs` (fork runner) opens the dialog, lists files and links, checks the defaults, the blank shortcut and
+  the "Choose context, canvas, or both." block, and asserts nothing is written; `rabbit-hole-check.mjs` (Windows only) keeps the
+  repository flows (lookup in flight, Branch select, connected project, stale list).

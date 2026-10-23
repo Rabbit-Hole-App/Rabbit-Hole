@@ -45,6 +45,7 @@ import ShortcutsSheet from './ShortcutsSheet.jsx';
 import UploadDestinationDialog from './UploadDestinationDialog.jsx';
 import { isPdf } from './upload-destination.js';
 import { isContextCanvas, uploadContextDoc } from './context-docs.js';
+import { graphCardBlock, sameGraphCard } from './graph-card.js';
 // Lazy: it draws real cards, so it brings the card components with it.
 const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
 import FileImportDialog from './FileImportDialog.jsx';
@@ -2057,6 +2058,62 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     if (pending) take(pending);
     return () => window.removeEventListener('small:learn-request', onRequest);
   }, []);
+  // Start sources (docs/features/start-sources.md): the cards of a combined Start. The start job (start-job.js) queues them for this
+  // canvas and calls place(item) one at a time: a resolved call means the card is on the canvas, a thrown Error is the reason the
+  // row shows. Files take the ordinary drop road (takeDrop, so its choice windows apply and nothing is executed); a PDF already
+  // stored as a context document is placed from that stored copy; links resolve through the Search lookup above; a repository's
+  // overview is the whole-graph card. Preview builds only, as the dialog is.
+  const startBusy = useRef(false);
+  startBusy.current = imports.length > 0 || !!pdfAdd || !!docImport.dialog; // a window is still asking how a file is added
+  const startPlace = useRef(null);
+  startPlace.current = async item => {
+    const waitFor = async (check, ms) => { for (const end = Date.now() + ms; ; await new Promise(resolve => setTimeout(resolve, 100))) { const value = check(); if (value || Date.now() > end) return value; } };
+    if (!await waitFor(() => canvasApi.current, 20000)) throw new Error('The canvas did not open. Start again to retry.');
+    if (item.kind === 'file') {
+      if (item.doc && isPdf(item.file)) {
+        await placePdf({ file: item.file, source: `doc:${item.doc.id}`, label: item.doc.name || item.file.name }, { mode: 'pdf' }, () => {});
+        return {};
+      }
+      const before = canvasApi.current.blocks().length;
+      await takeDrop([item.file]);
+      await new Promise(resolve => setTimeout(resolve, 150)); // let the choice window, if this file opens one, render
+      await waitFor(() => !startBusy.current, 10 * 60 * 1000);
+      await new Promise(resolve => setTimeout(resolve, 100)); // and the card, if one was chosen, land
+      if (canvasApi.current.blocks().length <= before) throw new Error('No card was added. Start again to choose how to add it.');
+      return {};
+    }
+    if (item.kind === 'overview') {
+      const ops = chat?.canvasOps;
+      if (!ops?.insertCard) throw new Error('This canvas cannot take the overview yet. Use Add to canvas in the Graph panel.');
+      const block = graphCardBlock({ name: item.repository.app, app: { repo: item.repository.repo }, snapshot: { commit: item.repository.commit } });
+      ops.insertCard(block, { same: other => sameGraphCard(other, block) });
+      return {};
+    }
+    const { type, url } = item.link;
+    if (type === 'webpage') {
+      const blockId = canvasApi.current.insertWebpage(url);
+      if (!blockId) throw new Error('This page could not be added to the canvas.');
+      const card = await waitFor(() => { const found = canvasApi.current?.blocks?.().find(block => block.id === blockId); return found && (!found.pending || ['inconclusive', 'error'].includes(found.pending.status)) ? found : null; }, 90000);
+      if (!card) return { warning: 'This page is still being read. The card on the canvas shows how it goes.' };
+      if (card.failure || card.pending) return { label: card.title, warning: card.failure?.reason || card.pending?.reason || 'This page could not be read.' };
+      return { label: card.title };
+    }
+    const from = { arxiv: 'arxiv', wikipedia: 'wikipedia', youtube: 'youtube' }[type];
+    const response = await fetch(`/api/learn/search?app=${encodeURIComponent(app.name)}&source=${from}&q=${encodeURIComponent(url)}`, { headers: wsHeaders() });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || 'The search failed. Start again to retry.');
+    const found = data.results?.[0]?.item;
+    if (!found) throw new Error(`Nothing on ${from} matched this link.`);
+    const blockId = pickResult(from, found);
+    if (!blockId || !await waitFor(() => window.document.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`), 5000)) throw new Error('The card did not appear on the canvas.');
+    return { label: found.title || undefined };
+  };
+  useEffect(() => {
+    if (!learnPreview) return undefined;
+    let detach = null, gone = false;
+    import('./start-run.js').then(({ startJob }) => { if (!gone) detach = startJob.attach(app.name, item => startPlace.current(item)); });
+    return () => { gone = true; detach?.(); };
+  }, [app.name]);
   // The canvas's own name, editable in the strip. Local like the ink: a board
   // and the main canvas each keep theirs; empty falls back to the course title.
   const titleKey = `${canvasKey}${board ? `:${board}` : ''}:title`;
