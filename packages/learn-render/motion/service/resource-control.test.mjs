@@ -8,7 +8,7 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync, rmSync
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import {
-  LIMITS, ResourceLimitsUnavailable, attach, cleanup, controllerFor, cpuQuota, detach, detect, jobPath, normalize, parseMounts,
+  LIMITS, ResourceLimitsUnavailable, limitsFromEnv, limitsSetting, resolveLimits, attach, cleanup, controllerFor, cpuQuota, detach, detect, jobPath, normalize, parseMounts,
   removeGroups, renderUserProcesses, selfLimits, unlimited, finishJob, procStatusField,
 } from './resource-control.mjs';
 
@@ -228,4 +228,43 @@ test('/proc status fields: an empty Groups line followed by NStgid reads as empt
 
 test('parseMounts keeps the type and every option', () => {
   assert.deepEqual(parseMounts('cgroup /sys/fs/cgroup/cpu,cpuacct cgroup rw,cpu,cpuacct 0 0'), [{ mountPoint: '/sys/fs/cgroup/cpu,cpuacct', type: 'cgroup', options: ['rw', 'cpu', 'cpuacct'] }]);
+});
+
+// The CPU quota and memory limit are deployment settings for the dev machine-size comparison. Production sets neither and keeps
+// 1.5 CPUs and 3 GiB (fly.prod.toml has no such env); an unset deployment must be exactly the frozen LIMITS.
+test('limits are deployment settings: unset is exactly the defaults, valid values replace only what is set, invalid values throw', () => {
+  assert.equal(resolveLimits(), LIMITS);
+  assert.equal(resolveLimits({}), LIMITS);
+  assert.equal(limitsFromEnv({}), LIMITS);
+  assert.equal(limitsFromEnv({ MOTION_CPU_QUOTA: '', MOTION_MEMORY_GIB: '' }), LIMITS);
+  assert.deepEqual(limitsSetting(LIMITS), { cpus: 1.5, memory_gib: 3 });
+  const big = limitsFromEnv({ MOTION_CPU_QUOTA: '3.5', MOTION_MEMORY_GIB: '12' });
+  assert.deepEqual([big.cpu_quota_us, big.cpu_period_us, big.memory_bytes, big.pids_max], [350000, 100000, 12 * 1024 ** 3, 1024]);
+  assert.equal(limitsFromEnv({ MOTION_CPU_QUOTA: '6' }).memory_bytes, LIMITS.memory_bytes);
+  assert.equal(limitsFromEnv({ MOTION_MEMORY_GIB: '8' }).cpu_quota_us, LIMITS.cpu_quota_us);
+  assert.ok(Object.isFrozen(big));
+  for (const bad of [{ cpus: 0.4 }, { cpus: 17 }, { cpus: 'many' }, { cpus: -1 }, { memoryGiB: 0.5 }, { memoryGiB: 65 }, { memoryGiB: 'lots' }]) assert.throws(() => resolveLimits(bad), /MOTION_(CPU_QUOTA|MEMORY_GIB)/, JSON.stringify(bad));
+});
+
+test('a job created with overridden limits gets exactly those limits on cgroup v1 and v2; the default call is unchanged', t => {
+  const big = resolveLimits({ cpus: 3.5, memoryGiB: 12 });
+  const f = v1Root(t);
+  const ctl = controllerFor(detect(f.opts), f.opts);
+  ctl.create(ID, big);
+  const at = (h, file) => f.read(`/sys/fs/cgroup/${h}/motion/${ID}/${file}`);
+  assert.deepEqual([at('memory', 'memory.limit_in_bytes'), at('memory', 'memory.memsw.limit_in_bytes'), at('cpu,cpuacct', 'cpu.cfs_quota_us'), at('pids', 'pids.max')], [String(12 * 1024 ** 3), String(12 * 1024 ** 3), '350000', '1024']);
+  const v2 = fakeRoot(t, { '/proc/mounts': 'cgroup2 /sys/fs/cgroup cgroup2 rw 0 0', '/sys/fs/cgroup/cgroup.controllers': 'cpu memory pids', '/sys/fs/cgroup/cgroup.subtree_control': '', [`/sys/fs/cgroup/motion/${ID}/memory.swap.max`]: 'max' });
+  controllerFor(detect(v2.opts), v2.opts).create(ID, big);
+  assert.deepEqual([v2.read(`/sys/fs/cgroup/motion/${ID}/memory.max`), v2.read(`/sys/fs/cgroup/motion/${ID}/cpu.max`)], [String(12 * 1024 ** 3), '350000 100000']);
+  const plain = v1Root(t);
+  controllerFor(detect(plain.opts), plain.opts).create(ID);
+  assert.deepEqual([plain.read(`/sys/fs/cgroup/memory/motion/${ID}/memory.limit_in_bytes`), plain.read(`/sys/fs/cgroup/cpu,cpuacct/motion/${ID}/cpu.cfs_quota_us`)], [String(3 * 1024 ** 3), '150000']);
+});
+
+test('production keeps the defaults: no deployed config sets the limit variables, and the launcher reads them only from the job directory', () => {
+  const here = dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+  for (const f of ['fly.prod.toml', 'fly.dev.toml', 'Dockerfile']) assert.doesNotMatch(readFileSync(join(here, f), 'utf8'), /MOTION_(CPU_QUOTA|MEMORY_GIB|DEADLINE|JOB_STORE)/, f);
+  const launcher = readFileSync(join(here, 'motion-sandbox'), 'utf8');
+  assert.match(launcher, /^LIMIT=420$/m);
+  assert.match(launcher, /"\$\(\(LIMIT \+ 5\)\)s"/);
 });
