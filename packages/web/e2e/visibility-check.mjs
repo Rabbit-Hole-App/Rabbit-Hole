@@ -1,4 +1,4 @@
-// The owned-card ⋮ menu and Library trash (docs/features/visibility-menu.md, library-trash.md), against the LOCAL stack
+// The owned-card Card options menu, Share and Library trash (docs/features/visibility-menu.md, library-trash.md), against the LOCAL stack
 // only: local D1 and fresh browser profiles. No model calls; prints no secrets.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/visibility-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -38,28 +38,89 @@ const check = async (label, fn) => { await fn(); results.push(label); console.lo
 const shot = async name => { await page.waitForTimeout(350); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const card = title => page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
 const library = async () => { await page.goto(`${BASE}/library?type=canvases`); await page.locator('[data-library-card]').first().waitFor({ timeout: 60000 }); await page.waitForTimeout(500); };
-const menuOf = async title => { await card(title).hover(); await card(title).getByTitle('More').click(); await page.getByRole('button', { name: 'Rename', exact: true }).waitFor(); };
+const menuOf = async title => { await card(title).hover(); await card(title).getByTitle('Card options').click(); await page.getByRole('button', { name: 'Rename', exact: true }).waitFor(); };
 const button = name => page.getByRole('button', { name, exact: true });
-const access = async (title, to) => { await menuOf(title); await page.locator('[data-menu-visibility]').click(); await page.locator(`[data-access="${to}"]`).click(); await page.waitForTimeout(1200); };
+// Owner brief 2026-10-22: access is managed inside the Share window (no Visibility dropdown in the Card options menu). These helpers
+// drive that window: the link mode is its "Who can open this?" select, Explore publication is its own tab.
+const shareDialog = page.locator('[data-share-dialog]').getByRole('dialog', { name: 'Share canvas' });
+const until = async (fn, what) => { for (let i = 0; i < 80; i++) { if (await fn()) return; await page.waitForTimeout(250); } assert.fail(`never reached: ${what}`); };
+const openShare = async title => {
+  await menuOf(title);
+  await button('Share').click();
+  await shareDialog.waitFor({ timeout: 60000 });
+  await until(() => shareDialog.getByLabel('Who can open this?').isEnabled(), 'the Share window has loaded');
+};
+const closeShare = async () => { await page.keyboard.press('Escape'); await page.locator('[data-share-dialog]').waitFor({ state: 'detached' }); };
+const linkMode = async (title, mode) => {
+  await openShare(title);
+  await shareDialog.getByLabel('Who can open this?').selectOption(mode);
+  await until(() => shareDialog.getByLabel('Who can open this?').isEnabled(), 'the link mode is saved');
+  await closeShare();
+};
+const publish = async (title, on) => {
+  await openShare(title);
+  await shareDialog.getByRole('tab', { name: 'Explore' }).click();
+  if (on) await shareDialog.locator('[data-publish]').click();
+  else { await shareDialog.locator('[data-unpublish]').click(); await shareDialog.locator('[data-confirm-unpublish]').click(); }
+  await shareDialog.locator(`[data-explore-publish="${on ? 'published' : 'private'}"]`).waitFor({ timeout: 30000 });
+  await closeShare();
+};
 
 await library();
-await check('1 the owned canvas ⋮ is the owner\'s menu, in order', async () => {
+await check('1 the owned canvas Card options menu is the owner\'s menu, in order; no Visibility, Copy link, Archive or snapshot row', async () => {
   await menuOf(TITLE);
-  const labels = await page.locator('[role="menu"] button, .shadow-pop button').allInnerTexts();
-  const order = labels.map(l => l.trim()).filter(l => ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive', 'Move to Trash'].includes(l));
-  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Archive', 'Move to Trash']);
+  const labels = (await page.locator('[role="menu"] button, .shadow-pop button').allInnerTexts()).map(l => l.trim());
+  const order = labels.filter(l => ['Rename', 'Edit description', 'Duplicate', 'Change cover', 'Share', 'Move to Trash'].includes(l));
+  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Change cover', 'Share', 'Move to Trash']);
+  for (const gone of ['Visibility', 'Copy link', 'Archive', 'Use canvas snapshot', 'Share / Manage link', 'Change thumbnail']) assert.ok(!labels.includes(gone), `${gone} is not in the menu`);
+  assert.equal(await page.locator('[data-menu-item="trash"]').count(), 1);
+  assert.equal(await page.locator('[data-menu-item]').last().getAttribute('data-menu-item'), 'trash', 'Move to Trash is last');
 });
-await check('2 Visibility opens Private / Unlisted / Public with the current one checked', async () => {
-  await page.locator('[data-menu-visibility]').click();
-  assert.equal(await page.locator('[data-access="private"]').getAttribute('aria-checked'), 'true');
-  assert.equal(await page.locator('[data-access="public"]').getAttribute('aria-checked'), 'false');
-});
-await shot('01-menu-visibility');
+await shot('01-menu');
 await page.keyboard.press('Escape');
+await check('1b Card options by keyboard: Enter opens it with focus on the first row, the arrows move, Escape closes it and returns focus to the button; opening it does not open the card', async () => {
+  const at = page.url();
+  const button = card(TITLE).getByTitle('Card options');
+  assert.equal(await button.getAttribute('aria-label'), 'Card options');
+  await button.focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-card-menu]').waitFor();
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute('data-menu-item'));
+  await until(async () => (await focused()) === 'open', 'focus is on the first row');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await focused(), 'pin');
+  await page.keyboard.press('End');
+  assert.equal(await focused(), 'trash');
+  await page.keyboard.press('Home');
+  assert.equal(await focused(), 'open');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-card-menu]').waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Card options', 'focus is back on the button');
+  assert.equal(page.url(), at, 'opening the menu did not open the card');
+});
+await check('2 Share shows a private canvas as Invited people only, never "Only you", and no working link', async () => {
+  await openShare(TITLE);
+  assert.equal(await shareDialog.getByLabel('Who can open this?').inputValue(), 'invited');
+  assert.doesNotMatch(await shareDialog.innerText(), /only you/i);
+  assert.equal(await shareDialog.locator('input[aria-label="Share link URL"]').count(), 0, 'no share link while it is off');
+  await shot('01b-share-private');
+  await closeShare();
+});
+await check('2b copying the private link names it as one recipients cannot open and never turns sharing on', async () => {
+  await openShare(TITLE);
+  const note = shareDialog.locator('[data-private-link]');
+  await note.waitFor();
+  assert.match(await note.innerText(), /Private link: people you send it to cannot open it\. Copying it does not share anything/);
+  await note.getByRole('button', { name: 'Copy link' }).click();
+  await until(async () => /Copied|Copy failed/.test(await note.innerText()), 'the copy reports its result');
+  assert.equal((await row()).access, 'private', 'copying changed nothing');
+  assert.equal((await api(owner, `/api/learn/boards/${c.name}/main`)).body.sharing.shared, false);
+  await closeShare();
+});
 
 let shareToken;
-await check('3 Private -> Unlisted: a share link, still not in Explore', async () => {
-  await access(TITLE, 'unlisted');
+await check('3 Invited -> link, sign-in required: a share link, still not in Explore', async () => {
+  await linkMode(TITLE, 'signin');
   const now = await row();
   assert.equal(now.access, 'unlisted');
   shareToken = (await api(owner, `/api/learn/boards/${c.name}/main`)).body.sharing.view;
@@ -67,34 +128,23 @@ await check('3 Private -> Unlisted: a share link, still not in Explore', async (
   assert.ok(!(await explore()).includes(TITLE));
 });
 let fork;
-await check('4 Unlisted -> Public: in Explore under the @handle, the share link kept', async () => {
+await check('4 Publish to Explore: in Explore under the @handle, the share link kept', async () => {
   fork = (await api(viewer, '/api/learn/boards/fork', { method: 'POST', body: JSON.stringify({ source: { token: shareToken }, key: `vis-fork-${run}` }) })).body;
-  await access(TITLE, 'public');
+  await publish(TITLE, true);
   assert.equal((await row()).access, 'public');
   assert.ok((await explore()).includes(TITLE));
   assert.equal((await api(viewer, `/api/learn/boards/shared/${shareToken}`)).status, 200);
 });
-await check('5 Public -> Unlisted: out of Explore and /e dies; the share link still opens', async () => {
+await check('5 Remove from Explore: out of Explore and /e dies; the share link still opens', async () => {
   const token = (await row()).publication_token;
-  await access(TITLE, 'unlisted');
+  await publish(TITLE, false);
   assert.ok(!(await explore()).includes(TITLE));
   assert.equal((await api(viewer, `/api/learn/boards/shared/${token}`)).status, 404);
   assert.equal((await api(viewer, `/api/learn/boards/shared/${shareToken}`)).status, 200);
 });
-await check('6 -> Private asks first, with the owner\'s words; Cancel changes nothing', async () => {
-  await access(TITLE, 'private');
-  const dialog = page.getByRole('dialog', { name: 'Make this canvas private?' });
-  await dialog.waitFor();
-  assert.match(await dialog.innerText(), /It will be visible only to you\. Existing public and shared links will stop working\. Existing forks will not be deleted\./);
-  await shot('02-make-private-confirm');
-  await dialog.getByRole('button', { name: 'Cancel' }).click();
-  assert.equal((await row()).access, 'unlisted');
-});
-await check('7 Make private: the link stops; forks made from it survive', async () => {
-  await access(TITLE, 'private');
-  await page.getByRole('dialog', { name: 'Make this canvas private?' }).getByRole('button', { name: 'Make private' }).click();
-  await page.waitForTimeout(1200);
-  assert.equal((await row()).access, 'private');
+await check('7 Invited people only: the link stops; forks made from it survive', async () => {
+  await linkMode(TITLE, 'invited');
+  await until(async () => (await row()).access === 'private', 'the canvas is private');
   assert.equal((await api(viewer, `/api/learn/boards/shared/${shareToken}`)).status, 404);
   assert.equal((await api(viewer, `/api/apps/${fork.name}`)).status, 200);
 });
@@ -122,11 +172,11 @@ await check('9 Edit description: up to 500 characters, saved on the canvas', asy
   await page.waitForTimeout(1000);
   assert.equal((await row()).description, 'How light bends at a boundary, hands on.');
 });
-// Owner, 2026-10-08: Share / Manage link opens the canvas page's own Share panel as a popup over the Library, never the canvas.
-await check('10 Share / Manage link opens the Share panel as a popup over the Library; closing it leaves the Library as it was', async () => {
+// Owner, 2026-10-08: Share opens the canvas page's own Share dialog as a popup over the Library, never the canvas.
+await check('10 Share opens the Share dialog as a popup over the Library; closing it leaves the Library as it was', async () => {
   const at = page.url();
   await menuOf(TITLE);
-  await button('Share / Manage link').click();
+  await button('Share').click();
   const panel = page.locator('[data-share-dialog]').getByRole('dialog', { name: 'Share canvas' });
   await panel.waitFor({ timeout: 60000 });
   assert.equal(page.url(), at, 'still the Library');
@@ -140,7 +190,7 @@ await check('10 Share / Manage link opens the Share panel as a popup over the Li
 
 await check('11 Move to Trash confirms with the owner\'s words; the canvas leaves the Library; Restore brings it back unpublished', async () => {
   await library();
-  await access(TITLE, 'public');
+  await publish(TITLE, true);
   await library();
   await menuOf(TITLE);
   await button('Move to Trash').click();
@@ -169,7 +219,7 @@ await check('11 Move to Trash confirms with the owner\'s words; the canvas leave
 await shot('08-restored-library');
 await check('12 an unlisted canvas in Trash suspends its link; Restore reactivates the same link', async () => {
   await library();
-  await access(OTHER, 'unlisted');
+  await linkMode(OTHER, 'signin');
   const token = (await api(owner, `/api/learn/boards/${other.name}/main`)).body.sharing.view;
   await api(owner, `/api/apps/${other.name}/trash`, { method: 'POST', body: '{}' });
   assert.equal((await api(viewer, `/api/learn/boards/shared/${token}`)).status, 404);
@@ -179,5 +229,5 @@ await check('12 an unlisted canvas in Trash suspends its link; Restore reactivat
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/13 checks passed`);
-process.exit(results.length === 13 ? 0 : 1);
+console.log(`${results.length}/14 checks passed`);
+process.exit(results.length === 14 ? 0 : 1);

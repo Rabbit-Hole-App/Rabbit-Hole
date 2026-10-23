@@ -1,5 +1,14 @@
 # Owned-card menu: Visibility, Rename, Edit description, Trash
 
+## 2026-10-22 update: Card options (owner brief, lane H3). This section replaces the Visibility, Share / Manage link and Archive parts below
+
+- The three-dot button is named Card options. One menu from `home/card-menu-items.js`, the same on Home and Library: Open, Explore codebase (project), New canvas in project (project) | Pin / Unpin, Rename, Edit description (canvas), Duplicate (canvas), Move to folder, Change cover | Share, Analytics (published canvas) | Move to Trash (always last). Only the actions that apply to this card and person show.
+- Gone from the menu: Learn (Open lands on the learning canvas), Visibility, Copy link, Use canvas snapshot, Archive (archived canvases stay under Archived canvas in the Library with Restore). No Duplicate project.
+- Access is managed in the Share window (`SharePanel.jsx`). A project's window has two tabs: Share (the project link only, the Main canvas board's) and Canvases (`home/ProjectCanvases.jsx`, logic in `home/project-access.js`): every canvas with its own link access and Explore publication, and Apply to all canvases, the one bulk change, which shows the count, confirms, writes link access only, then reloads every state and lists the canvases that failed. The project itself is never published to Explore.
+- Mixed is now the badge Varies by canvas, on a project only, when its canvases differ. It is a button that opens the project's Share window on Canvases.
+- Change cover opens a picker: Upload image, and Reset to canvas snapshot only while a custom cover is up. Reset deletes only the custom cover; public endpoints serve only a custom cover (fix/thumb-containment), so the owner-only snapshot is never public.
+- Checks: visibility-check, project-menu-check, card-redesign-check, card-thumbnails-check, analytics-ui-check, rabbit-hole-check; unit tests `home/card-menu-items.test.mjs`, `home/project-access.test.mjs`, `visibility-menu.test.mjs`.
+
 Owner rules, 2026-10-06. This is the Library card ⋮ on your own top-level canvas, and since 2026-10-09 on your project too.
 
 ```

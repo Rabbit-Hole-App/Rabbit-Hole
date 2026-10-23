@@ -31,13 +31,13 @@ const open = (a) => guard(a, () => navigate(`/apps/${a.name}`))();
 export default function LibraryViews({ apps: listed, type, data, sort, onType, onArchive, onRun, runningOf, onForked, folders = null, folderId = null, searching = false }) {
   useSyncExternalStore(subscribeThumbnails, thumbnailBumps); // a canvas's new picture landed: its card loads it (card-thumbnail.js)
   // The card ⋮ (home/CardMenu.jsx), the same menu Home's Recent cards open (owner, 2026-10-08); its Archive asks in App.jsx.
-  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps: data?.apps || [], onArchive, onChanged: onForked, folders });
+  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps: data?.apps || [], onChanged: onForked, folders });
   // Comment news (docs/features/canvas-comments.md): a line on your canvases' cards, and the canvases shared with you.
   const unread = useCommentUnread();
   const ctx = { org: data?.org, email: data?.email, storage: localStorage, unread: unread.owned };
   // A card you own drags onto a folder tile, or onto the Library crumb to leave its folder (library-folders.md).
   const drag = (a) => (folders && !a.fixture && hasCardMenu(a) ? { draggable: true, onDragStart: (e) => { e.dataTransfer.setData(DRAG_TYPE, a.name); e.dataTransfer.effectAllowed = 'move'; } } : {});
-  const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={cardMenu.onMore(a)} drag={drag(a)} />;
+  const card = (a) => <LibraryCard key={a.name} a={a} ctx={ctx} onMore={cardMenu.onMore(a)} onVaries={cardMenu.onVaries(a)} drag={drag(a)} />;
   const apps = folders ? inView(listed, folders.items, folderId, searching) : listed;
   const recent = readRecent(localStorage);
   const sections = librarySections(apps, recent).map((s) => (s.key === 'apps' ? s : { ...s, items: sortCards(ofType(apps, s.key), sort).slice(0, SECTION_LIMIT) }));
@@ -120,7 +120,7 @@ export function ActiveFilters({ type, section, archived, path = '/library' }) {
 // truthful content state only for a canvas whose board is not on the server (canvas-persistence.md, step 8).
 // Its title and its hover Open open it; its own canvases carry the blue Owned-by-you badge beside the @handle. No Fork
 // on your own canvas (owner, 2026-10-08): Duplicate in the ⋮ copies it; the footer reads N forks once others forked it.
-function LibraryCard({ a, ctx, onMore, drag = {} }) {
+function LibraryCard({ a, ctx, onMore, onVaries, drag = {} }) {
   const away = a.kind === 'canvas' && !a.fixture && onAnotherDevice(a, ctx.email, ctx.storage);
   // No 'Map ready' label (owner, 2026-10-04): only a Map still indexing or failed says so.
   const state = a.fixture ? null
@@ -131,7 +131,7 @@ function LibraryCard({ a, ctx, onMore, drag = {} }) {
   return (
     <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas', ...drag }}
       href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}
-      access={!a.fixture ? a.access || null : null} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
+      access={!a.fixture ? a.access || null : null} onVaries={onVaries} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
       onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} pick={appPick(a, cardModel(a).title)} />
   );
 }

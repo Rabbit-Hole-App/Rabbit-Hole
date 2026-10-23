@@ -212,22 +212,33 @@ const cover = await page.evaluate(() => {
 // One plain click, wherever the card sits: the menu no longer closes on the scroll its own click causes (menu-scroll.js).
 const menu = async (title) => {
   const card = libraryCard(title);
-  await card.hover(); await card.getByTitle('More').click();
+  const head = page.waitForResponse(r => r.request().method() === 'HEAD' && r.url().includes('/thumbnail'), { timeout: 15000 });
+  await card.hover(); await card.getByTitle('Card options').click();
+  await head; // the menu has read whether a custom cover of yours is up (the picker's reset option)
   await page.locator('[data-menu-thumbnail]').waitFor({ timeout: 5000 }).catch(async error => { await shot(page, SHOTS, 'menu-failed'); throw error; });
   await page.waitForTimeout(400);
 };
-await check('7 Change thumbnail: a GIF is refused in one line; a PNG is cropped to 2:1 and replaces the snapshot on the card', async () => {
+// Owner brief 2026-10-22: Change thumbnail is Change cover; its row opens a picker with Upload image (the file chooser) and,
+// only while a custom cover of yours is up, Reset to canvas snapshot (formerly the menu's Use canvas snapshot).
+const picker = page.getByRole('dialog', { name: 'Change cover' });
+const openPicker = async () => { await page.locator('[data-menu-thumbnail]').click(); await picker.waitFor({ timeout: 5000 }); };
+const uploadFromPicker = async () => { await openPicker(); await picker.getByRole('button', { name: 'Upload image', exact: true }).click(); };
+await check('7 Change cover: a GIF is refused in one line; a PNG is cropped to 2:1 and replaces the snapshot on the card', async () => {
   await menu(gradient.title);
-  assert.equal(await page.locator('[data-menu-thumbnail-revert]').count(), 0, 'no picture of yours yet: no Use canvas snapshot');
-  await shot(page, SHOTS, '03-menu-change-thumbnail');
+  assert.equal(await page.locator('[data-menu-item="thumbnail"]').innerText(), 'Change cover');
+  await openPicker();
+  assert.equal(await picker.locator('[data-menu-thumbnail-revert]').count(), 0, 'no picture of yours yet: no Reset to canvas snapshot');
+  await shot(page, SHOTS, '03-menu-change-cover');
+  await picker.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await menu(gradient.title); // picking a row closes the menu
   let chooser = page.waitForEvent('filechooser');
-  await page.locator('[data-menu-thumbnail]').click();
+  await uploadFromPicker();
   await (await chooser).setFiles({ name: 'cover.gif', mimeType: 'image/gif', buffer: Buffer.from('GIF89a') });
   await page.getByText('Choose a PNG, JPEG or WebP image.').waitFor({ timeout: 5000 });
   await menu(gradient.title);
   chooser = page.waitForEvent('filechooser');
   const put = page.waitForResponse(r => r.url().endsWith(`${own(gradient.name)}/custom`) && r.request().method() === 'PUT');
-  await page.locator('[data-menu-thumbnail]').click();
+  await uploadFromPicker();
   await (await chooser).setFiles({ name: 'cover.png', mimeType: 'image/png', buffer: Buffer.from(cover, 'base64') });
   assert.equal((await put).status(), 200);
   assert.equal((await call(owner, own(gradient.name))).source, 'custom');
@@ -239,19 +250,26 @@ await check('7 Change thumbnail: a GIF is refused in one line; a PNG is cropped 
   assert.ok(p.corner[0] > 180 && p.corner[1] < 90, `the picture, not the snapshot (corner ${p.corner})`);
 });
 await shot(page, SHOTS, '04-library-custom');
-await check('8 Use canvas snapshot goes back to the automatic picture', async () => {
+await check('8 Reset to canvas snapshot (in the cover picker) goes back to the automatic picture and never makes the snapshot public', async () => {
   await menu(gradient.title);
+  await openPicker();
   const del = page.waitForResponse(r => r.url().endsWith(`${own(gradient.name)}/custom`) && r.request().method() === 'DELETE');
-  await page.locator('[data-menu-thumbnail-revert]').click();
+  await picker.locator('[data-menu-thumbnail-revert]').click();
   assert.equal((await del).status(), 200);
   assert.equal((await call(owner, own(gradient.name))).source, 'snapshot');
   const p = await pixels(page, own(gradient.name));
   assert.ok(!(p.corner[0] > 180 && p.corner[1] < 90), `no longer the red cover (corner ${p.corner})`);
+  // Reset deletes only the custom cover: the owner's snapshot stays owner-only, so once published the canvas serves no image on
+  // Explore, signed out or in, until a cover is uploaded again (owner brief 2026-10-22 item 5; fix/thumb-containment).
+  const token = (await call(owner, `/api/apps/${gradient.name}/publish`, { method: 'POST' })).body.publication_token;
+  assert.ok(token, 'published for the check');
+  for (const who of [null, viewer]) assert.equal((await call(who, `/api/learn/boards/published/${token}/thumbnail`)).status, 204, 'a reset cover exposes no snapshot');
+  await call(owner, `/api/apps/${gradient.name}/unpublish`, { method: 'POST' });
   // The custom picture again, for Explore below.
   await menu(gradient.title);
   const chooser = page.waitForEvent('filechooser');
   const put = page.waitForResponse(r => r.url().endsWith(`${own(gradient.name)}/custom`) && r.request().method() === 'PUT');
-  await page.locator('[data-menu-thumbnail]').click();
+  await uploadFromPicker();
   await (await chooser).setFiles({ name: 'cover.png', mimeType: 'image/png', buffer: Buffer.from(cover, 'base64') });
   assert.equal((await put).status(), 200);
 });

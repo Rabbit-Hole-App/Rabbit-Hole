@@ -7,6 +7,7 @@ import LearningCard, { CARD_ROWS, IN_THIS_BROWSER as HERE, ON_ANOTHER_DEVICE as 
 import { cardThumbnail, subscribeThumbnails, thumbnailBumps } from './card-thumbnail.js';
 import PublicCards, { CreatorCards, ProjectCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
+import { useLibraryFolders } from './LibraryFolders.jsx';
 import { appPick } from './agent/surface.js';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
@@ -46,7 +47,9 @@ function HomeContent({ data, load }) {
   const items = [...shown, ...recentItems(recent, apps)].slice(0, 5);
   const cardCtx = { catalog: apps, email: data?.email, storage: localStorage };
   // The Library's own ⋮ on Recent's canvas and project cards (owner, 2026-10-08), opened in place; Archive asks here.
-  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps, onChanged: load });
+  // Move to folder works from Home as from the Library (owner brief 2026-10-22): the same folder list, the same rows.
+  const folders = useLibraryFolders(ready, apps);
+  const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps, onChanged: load, folders });
   const startButton = <Button variant="primary" onClick={start}>Start a rabbit hole</Button>;
   return (
     <main className="flex-1 overflow-y-auto">
@@ -69,10 +72,11 @@ function HomeContent({ data, load }) {
             {items.length > 0 && (
               <section aria-label="Recent">
                 <h2 className={HEADING}>Recent</h2>
-                <ul className={CARD_ROWS}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} onMore={cardMenu.onMore(a)} />)}</ul>
+                <ul className={CARD_ROWS}>{items.map((a) => <RecentCard key={`${a.org}/${a.name}`} app={a} card={recentCard(a, cardCtx)} email={data.email} onMore={cardMenu.onMore(a)} onVaries={cardMenu.onVaries(a)} />)}</ul>
               </section>
             )}
             {cardMenu.element}
+            {folders.element}
           </>
         )}
       </div>
@@ -108,7 +112,7 @@ function Continue({ item, app, email }) {
 // Recent: the same card for what was opened in this browser. A canvas says where its content is (continue.js
 // recentCard: no action means another browser holds it, and then it does not open from here; a board on the server
 // says nothing). Jobs and servers keep their own line and action.
-function RecentCard({ app, card, email, onMore }) {
+function RecentCard({ app, card, email, onMore, onVaries }) {
   const { action, meta } = card;
   const go = (to) => (app.fixture ? fixtureNote() : navigate(to));
   const learning = app.kind === 'canvas' || app.kind === 'repository';
@@ -120,7 +124,7 @@ function RecentCard({ app, card, email, onMore }) {
   return (
     <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} pick={appPick(app, cardModel(app).title)}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
-      mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} note={note} onMore={onMore}
+      mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} onVaries={onVaries} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}
       actions={learning ? null : action?.to ? <button type="button" className={`${link} cursor-pointer`} onClick={stop(() => go(action.to))}>{action.label} <ArrowRight size={12} className="nudge-arrow" /></button>
         : action?.href ? <a href={action.href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className={link}>{action.label} <ArrowUpRight size={12} /></a> : null} />

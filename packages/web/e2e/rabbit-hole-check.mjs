@@ -324,7 +324,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(await nav.getByRole('button', { name: 'Library', exact: true }).getAttribute('aria-current') === 'page', 'Library is not current on /library');
       await filterBy(page, 'Canvas');
       await page.waitForURL(/[?&]type=canvases/);
-      await page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check pin' }).getByTitle('More').click();
+      await page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check pin' }).getByTitle('Card options').click();
       await page.getByRole('button', { name: 'Pin', exact: true }).click();
       const pinned = aside.getByRole('region', { name: 'Pinned' });
       await pinned.getByText('rabbit-hole-check pin').waitFor({ timeout: 10000 });
@@ -502,7 +502,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('sh-library: Archive from a canvas card menu with confirmation; Archived lists it; Restore brings it back (T02 §8.4)', async () => {
+  // Owner brief 2026-10-22: Archive left the active-card menu; an archived canvas stays listed under Archived canvas with its Restore.
+  await check('sh-library: the canvas card menu has no Archive; an archived canvas is listed under Archived canvas and Restore brings it back (T02 §8.4)', async () => {
     const page = await open();
     await page.goto(`${base}/library?type=canvases`);
     await shH1(page, 'Library').waitFor({ timeout: 20000 });
@@ -510,9 +511,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     try {
       await page.reload();
       const row = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check archive' });
-      await row.getByTitle('More').click();
-      await page.getByRole('button', { name: 'Archive', exact: true }).click();
-      await page.getByRole('dialog', { name: 'Archive rabbit-hole-check archive?' }).getByRole('button', { name: 'Archive', exact: true }).click();
+      await row.getByTitle('Card options').click();
+      await page.getByRole('button', { name: 'Rename', exact: true }).waitFor({ timeout: 5000 });
+      must(await page.getByRole('button', { name: 'Archive', exact: true }).count() === 0, 'Archive is still offered in the card menu');
+      await page.keyboard.press('Escape');
+      const archived = await shApi(page, `/api/apps/${c.name}/archive`, 'POST');
+      must(archived.status < 300, `archiving through the API: HTTP ${archived.status}`);
+      await page.reload();
       await row.waitFor({ state: 'detached', timeout: 20000 });
       await filterBy(page, 'Archived canvas');
       const item = page.getByRole('list', { name: 'Archived canvas' }).getByRole('listitem').filter({ hasText: 'rabbit-hole-check archive' });
@@ -587,15 +592,16 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  if (repo) await check('library: Projects is a card grid; the card opens the project; its menu offers Learn and Explore codebase', async () => {
+  if (repo) await check('library: Projects is a card grid; the card opens the project; its menu offers Open and Explore codebase, no Learn shortcut', async () => {
     const page = await open();
     await loaded(page, '/library?type=projects');
     const card = page.locator('[data-library-card="project"]').filter({ hasText: repo.repo });
     await card.waitFor({ timeout: 20000 });
     must(await page.locator('table').count() === 0, 'Projects renders a table');
     for (const ops of ['Deployed', 'Last run', 'Watch']) must(!(await card.innerText()).includes(ops), `${ops} on a project card`);
-    await card.getByTitle('More').click();
-    for (const name of ['Learn', 'Explore codebase']) await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
+    await card.getByTitle('Card options').click();
+    for (const name of ['Open', 'Explore codebase']) await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
+    must(await page.getByRole('button', { name: 'Learn', exact: true }).count() === 0, 'the redundant Learn shortcut is still in the menu');
     await page.keyboard.press('Escape');
     await card.locator('[data-card-title]').click();
     await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
@@ -628,7 +634,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     try {
       await page.evaluate((name) => localStorage.setItem('small.recent', JSON.stringify([name])), c.name);
       await page.reload();
-      const more = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check touch' }).getByTitle('More');
+      const more = page.locator('[data-library-card="canvas"]').filter({ hasText: 'rabbit-hole-check touch' }).getByTitle('Card options');
       await more.waitFor({ timeout: 20000 });
       must((await opacityOf(more))[0] === 1, 'the canvas card menu is invisible without hover');
       await loaded(page, '/apps');

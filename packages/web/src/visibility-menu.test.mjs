@@ -67,22 +67,23 @@ test('-> Private takes every outside access away, and asks first only when there
   assert.deepEqual(PRIVATE_CONFIRM, { title: 'Make this canvas private?', body: 'It will be visible only to you. Existing public and shared links will stop working. Existing forks will not be deleted.', action: 'Make private' });
 });
 
-test('the owned canvas menu, in the owner\'s order: Rename, Edit description, Duplicate | Visibility, Share / Manage link | Archive, Move to Trash', () => {
+test('the owned canvas menu, in the owner\'s order: Rename, Edit description, Duplicate, Change cover | Share | Move to Trash; no Visibility dropdown', () => {
   const menu = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
-  // Since 2026-10-09 one list for canvases and projects (home/card-menu-items.js, card-menu-items.test.mjs), Open first.
+  // Owner brief 2026-10-22: one list for canvases and projects (home/card-menu-items.js, card-menu-items.test.mjs); access is managed
+  // inside Share, so there is no separate expanding Visibility dropdown, no Copy link row, no Archive and no snapshot row.
   const order = menuRows({ kind: 'canvas', canEdit: true }).filter(r => !r.separator).map(r => r.label)
-    .filter(l => ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Copy link', 'Archive', 'Move to Trash'].includes(l));
-  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Visibility', 'Share / Manage link', 'Copy link', 'Archive', 'Move to Trash']);
-  assert.match(menu, /role="menuitemradio" aria-checked=\{a\.access === id\}/, 'the current state is checked');
-  // Share / Manage link opens the canvas page's own Share panel as a popup over the Library (owner, 2026-10-08), never the canvas.
-  assert.match(menu, /share: \(a\) => setDialog\(\{ kind: 'share', a, state: local\(a\) \}\),/);
+    .filter(l => ['Rename', 'Edit description', 'Duplicate', 'Change cover', 'Share', 'Move to Trash'].includes(l));
+  assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Change cover', 'Share', 'Move to Trash']);
+  assert.doesNotMatch(menu, /data-menu-visibility|role="menuitemradio" aria-checked=\{a\.access === id\}|data-access-mixed|chooseAccess|visibilityRows/, 'no Visibility dropdown');
+  // Share opens the canvas page's own Share dialog as a popup over the Library (owner, 2026-10-08), never the canvas.
+  assert.match(menu, /share: \(a, tab = 'share'\) => setDialog\(\{ kind: 'share', a, state: local\(a\), tab \}\),/);
   assert.doesNotMatch(menu, /\?share=1/, 'no trip into the canvas');
 });
 
 test('the Library\'s Share popup is the canvas page\'s SharePanel on the same routes; closing it leaves the Library as it was', () => {
   const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
   assert.match(library, /import SharePanel from '\.\.\/SharePanel\.jsx';/, 'the existing panel, not a new share UI');
-  assert.match(library, /\{dialog\?\.kind === 'share' && <ShareDialog a=\{dialog\.a\} state=\{dialog\.state\} onClose=\{\(\) => setDialog\(null\)\} onChanged=\{\(\) => ctx\.onForked\?\.\(\)\} \/>\}/);
+  assert.match(library, /\{dialog\?\.kind === 'share' && \(\s*<ShareDialog a=\{dialog\.a\} state=\{dialog\.state\} tab=\{dialog\.tab\} canvases=\{dialog\.a\.kind === 'repository' \? projectCanvasesOf\(dialog\.a\) : \[\]\} stateOf=\{\(x\) => local\(x\)\}\s*onClose=\{\(\) => setDialog\(null\)\} onChanged=\{\(\) => ctx\.onForked\?\.\(\)\} onManage=/);
   const share = library.slice(library.indexOf('function ShareDialog('));
   assert.match(share, /<div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black\/20/, 'a modal popup over the Library');
   assert.match(share, /<SharePanel place="relative mt-\[26vh\] max-w-\[90vw\]"/);
@@ -90,9 +91,10 @@ test('the Library\'s Share popup is the canvas page\'s SharePanel on the same ro
   // decision A2, 2026-10-16): no link opens a private repository.
   assert.match(share, /useEffect\(\(\) => \{ api\(base\)\.then\(\(board\) => setSharing\(board\.sharing\)/);
   assert.match(share, /post\(`\$\{base\}\/share`, \{ \.\.\.next, \.\.\.\(state \? \{ state \} : \{\}\) \}\)/, 'a null copy is never sent');
+  assert.match(share, /onPublish=\{project \? null : run\(/, 'a project itself is never published to Explore');
   assert.doesNotMatch(share, /share\/repository|onRepository/);
   assert.match(share, /post\(`\/api\/apps\/\$\{a\.name\}\/\$\{publish \? 'publish' : 'unpublish'\}`\)/);
-  assert.match(share, /setSharing\(\(await api\(base\)\)\.sharing\); onChanged\(\);/, 'the panel and the Library card follow each change');
+  assert.match(share, /setSharing\(\(await api\(base\)\)\.sharing\); if \(project\) await reload\(\); onChanged\(\);/, 'the panel and the Library card follow each change');
   assert.doesNotMatch(share, /navigate\(/);
   // The canvas page keeps the panel under its Share button.
   assert.match(read('./SharePanel.jsx'), /place = 'absolute top-full right-0 mt-2'/);
@@ -116,7 +118,7 @@ test('a typed title is kept: a repeat only earns a quiet note; the description i
   assert.match(library, /\{dialog\.value\.length\}\/500/);
 });
 
-test('Trash restores canvases and projects from the Library\'s own list; Share / Manage link opens the panel once', () => {
+test('Trash restores canvases and projects from the Library\'s own list; Share opens the panel once', () => {
   const sidebar = read('./Sidebar.jsx');
   assert.match(sidebar, /api\('\/api\/library\/trash'\)/);
   assert.match(sidebar, /`\/api\/apps\/\$\{name\}\/\$\{learnPreview \? 'untrash' : 'restore'\}`/);
@@ -126,38 +128,40 @@ test('Trash restores canvases and projects from the Library\'s own list; Share /
   assert.match(learn, /url\.searchParams\.delete\('share'\);/);
 });
 
-// Owner, 2026-10-08: Copy link in the ⋮ of your own canvas and project cards, the link that matches what the card is.
-test('Copy link copies the link that matches the card: public /e, unlisted its share link, private or a project /apps', () => {
+// Owner, 2026-10-08: the link that matches what the card is (copyLinkFor). Owner brief 2026-10-22: Copy link left the menu; copying lives
+// inside Share beside the relevant link (SharePanel CopyLink) and never enables sharing.
+test('copyLinkFor names the link that matches the card; the menu has no Copy link row, Share has the copy beside the link', () => {
   const origin = 'https://app.test';
   assert.deepEqual(copyLinkFor({ kind: 'canvas', name: 'canvas-1', access: 'public', publication_token: 'pub' }, { origin }), { url: 'https://app.test/e/pub', copied: 'Public link copied' });
   assert.deepEqual(copyLinkFor({ kind: 'canvas', name: 'canvas-1', access: 'unlisted' }, { origin, view: 'tok' }), { url: 'https://app.test/b/tok', copied: 'Share link copied' });
   assert.deepEqual(copyLinkFor({ kind: 'canvas', name: 'canvas-1', access: 'unlisted' }, { origin }), { url: 'https://app.test/apps/canvas-1', copied: 'Private link copied, opens only for you' }, 'view link off: its own page');
   assert.deepEqual(copyLinkFor({ kind: 'canvas', name: 'canvas-1', access: 'private' }, { origin }), { url: 'https://app.test/apps/canvas-1', copied: 'Private link copied, opens only for you' });
   assert.equal(copyLinkFor({ kind: 'repository', name: 'repo-1', access: undefined }, { origin }).url, 'https://app.test/apps/repo-1');
-  const menu = read('./home/CardMenu.jsx');
-  // The row itself says what was copied, then the menu closes: no corner toast (toasts rule).
-  assert.match(menu, /<MenuItem key="copy" icon=\{copied \? Check : Link\} data-menu-item="copy" data-menu-copy-link onClick=\{copyLink\}>\{copied \|\| item\.label\}<\/MenuItem>;/);
-  const copy = menu.slice(menu.indexOf('const copyLink = async'), menu.indexOf('const kindWord'));
-  assert.doesNotMatch(copy, /toast\(/);
-  assert.match(copy, /closing\.current = setTimeout\(\(\) => setMenu\(null\), 1400\);/);
-  assert.match(copy, /api\(`\/api\/learn\/boards\/\$\{a\.name\}\/main`\)/, 'an unlisted canvas reads its share link from its board');
-  // Both menus: an owned canvas and an owned project, after Share / Manage link (card-menu-items.js).
-  for (const kind of ['canvas', 'repository']) assert.deepEqual(menuRows({ kind, canEdit: true }).map(r => r.id).filter(id => ['share', 'copy'].includes(id)), ['share', 'copy'], kind);
+  const menu = read('./home/CardMenu.jsx'), panel = read('./SharePanel.jsx');
+  assert.doesNotMatch(menu, /data-menu-copy-link|copyLink|navigator\.clipboard/, 'the menu copies nothing');
+  for (const kind of ['canvas', 'repository']) assert.deepEqual(menuRows({ kind, canEdit: true }).map(r => r.id).filter(id => ['share', 'copy'].includes(id)), ['share'], kind);
+  // Copy link sits beside the link inside Share and only reports Copied after the clipboard accepted it; failure selects the field.
+  assert.match(panel, /\{shareUrl && <CopyLink url=\{shareUrl\} fieldLabel="Share link URL" \/>\}/);
+  assert.match(panel, /try \{ await navigator\.clipboard\.writeText\(url\); setState\('copied'\); \} catch \{ input\.current\?\.focus\(\); input\.current\?\.select\(\); setState\('failed'\); \}/);
+  // A link that is off is not offered as a working one: the private address says recipients cannot open it, and copying turns nothing on.
+  assert.match(panel, /\{!shareUrl && privateUrl && \(\s*<div data-private-link>/);
+  assert.match(panel, /Private link: people you send it to cannot open it\. Copying it does not share anything/);
 });
 
 // Owner, 2026-10-08: Home's Recent cards open the same ⋮ the Library shows, in place; a card the Library shows no menu
 // for (a canvas you do not own, a job or a server) shows none.
 test('Home Recent cards open the Library card menu; only what the Library shows for each', () => {
   const home = read('./Home.jsx'), library = read('./LibraryViews.jsx'), menu = read('./home/CardMenu.jsx');
-  assert.match(home, /const cardMenu = useCardMenu\(\{ org: data\?\.org, email: data\?\.email, apps, onChanged: load \}\);/);
-  assert.match(home, /<RecentCard key=\{`\$\{a\.org\}\/\$\{a\.name\}`\} app=\{a\} card=\{recentCard\(a, cardCtx\)\} email=\{data\.email\} onMore=\{cardMenu\.onMore\(a\)\} \/>/);
-  assert.match(home, /note=\{note\} onMore=\{onMore\}/);
-  assert.match(library, /const cardMenu = useCardMenu\(\{ org: data\?\.org, email: data\?\.email, apps: data\?\.apps \|\| \[\], onArchive, onChanged: onForked, folders \}\);/); // folders: the Library's Move to folder rows (library-folders.md)
+  assert.match(home, /const cardMenu = useCardMenu\(\{ org: data\?\.org, email: data\?\.email, apps, onChanged: load, folders \}\);/);
+  assert.match(home, /onMore=\{cardMenu\.onMore\(a\)\} onVaries=\{cardMenu\.onVaries\(a\)\} \/>/);
+  assert.match(home, /onVaries=\{onVaries\} note=\{note\} onMore=\{onMore\}/);
+  assert.match(library, /const cardMenu = useCardMenu\(\{ org: data\?\.org, email: data\?\.email, apps: data\?\.apps \|\| \[\], onChanged: onForked, folders \}\);/); // folders: Move to folder rows (library-folders.md), on Home too
+  assert.match(library, /onMore=\{cardMenu\.onMore\(a\)\} onVaries=\{cardMenu\.onVaries\(a\)\}/);
   assert.match(menu, /export const hasCardMenu = \(a\) => a\.kind === 'repository' \|\| \(a\.kind === 'canvas' && !!a\.canEdit\);/);
   assert.match(menu, /setMenu\(\{ a, anchor: e\.currentTarget, \.\.\.menuAt\(e\.currentTarget, 224\) \}\)/, 'opened in place, kept inside the window');
-  // Without the Library's App.jsx confirm, Archive asks in the menu itself, in the same words.
-  assert.match(menu, /const archive = \(a\) => \(onArchive \? onArchive\(a\) : setDialog\(\{ kind: 'archive', a \}\)\);/);
-  assert.match(menu, /body="It leaves the Library\. Its content stays in this browser, and Restore brings it back\." confirmLabel="Archive"/);
+  // Archive left the active-card menu (owner brief 2026-10-22); the Library's Archived canvas filter keeps the restore path (App.jsx).
+  assert.doesNotMatch(menu, /onArchive|kind: 'archive'|\/archive`|Archive/);
+  assert.match(read('./LibraryViews.jsx'), /'Archived canvas', archived/);
 });
 
 // A project's visibility (owner, 2026-10-09; visibility-menu.md "Projects"): every canvas in it set at once through its own
@@ -188,10 +192,9 @@ test('a project goes Unlisted, Public or Private by setting each canvas and its 
   assert.deepEqual(projectConfirm(3, 'public').title, 'Make 3 canvases public?');
   assert.deepEqual(projectConfirm(1, 'unlisted').title, 'Make 1 canvas unlisted?');
   const menu = read('./home/CardMenu.jsx');
-  assert.match(menu, /const countOf = \(a\) => projectCanvasesOf\(a\)\.length \+ 1;/);
-  assert.match(menu, /body=\{PRIVATE_CONFIRM\.body\} confirmLabel=\{PRIVATE_CONFIRM\.action\}/);
-  assert.match(menu, /const blocked = a\.kind === 'repository' && id === 'public' && !a\.repo_public;/);
-  assert.match(menu, /\{a\.access === 'mixed' && <span data-access-mixed className="text-xs text-ink-3">Mixed<\/span>\}/, 'Mixed, none checked');
+  // Owner brief 2026-10-22: the menu no longer sets a project's visibility (no Visibility dropdown, no "Mixed" row); its Share window
+  // shows each canvas and Apply to all canvases is the one explicit bulk action (project-access.test.mjs).
+  assert.doesNotMatch(menu, /setProjectAccess|countOf|data-access-mixed|>Mixed</);
   // A project's Copy link is its link while it is on.
   assert.deepEqual(copyLinkFor({ kind: 'repository', name: 'repo-1', access: 'mixed' }, { origin: 'https://app.test', view: 'tok' }), { url: 'https://app.test/b/tok', copied: 'Project link copied' });
 });

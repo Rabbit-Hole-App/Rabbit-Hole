@@ -55,7 +55,7 @@ const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async (page, name, locator = page) => { await page.waitForTimeout(400); await locator.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const card = (page, title) => page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
-const menuOf = async (page, title) => { await card(page, title).hover(); await card(page, title).getByTitle('More').click(); await page.getByRole('button', { name: 'Rename', exact: true }).waitFor(); };
+const menuOf = async (page, title) => { await card(page, title).hover(); await card(page, title).getByTitle('Card options').click(); await page.getByRole('button', { name: 'Rename', exact: true }).waitFor(); };
 // What every metric row shows: its typed state, or a canonical public counter.
 const values = async scope => scope.locator('[data-metric]').evaluateAll(rows => rows.map(r => [r.dataset.metric, r.lastElementChild.textContent.trim()]));
 
@@ -63,17 +63,16 @@ const page = await contextFor(owner);
 await page.goto(`${BASE}/library?type=canvases`);
 await card(page, T.kv).waitFor({ timeout: 60000 });
 await page.waitForTimeout(500);
-await check('1 ⋮ → Analytics: on the owner\'s public canvas, after the link and thumbnail rows; never on a private one', async () => {
+await check('1 ⋮ → Analytics: on the owner\'s public canvas, after Change cover and Share; never on a private one', async () => {
   await menuOf(page, T.draft);
   assert.equal(await page.locator('[data-menu-analytics]').count(), 0, 'private');
   await page.keyboard.press('Escape');
   await menuOf(page, T.kv);
   const labels = (await page.locator('.shadow-pop button, [role="menu"] button').allInnerTexts()).map(l => l.trim());
-  // The unified r35 menu puts thumbnail actions after the links (visibility-menu.md).
-  // This fresh canvas has no custom thumbnail, so no Use canvas snapshot row appears.
-  const linkStart = labels.indexOf('Share / Manage link');
-  assert.ok(linkStart >= 0, 'the link group remains present');
-  assert.deepEqual(labels.slice(linkStart, linkStart + 4), ['Share / Manage link', 'Copy link', 'Change thumbnail', 'Analytics']);
+  // Owner brief 2026-10-22: Change cover closes the organization group, then Share and Analytics, then Move to Trash last.
+  const coverAt = labels.indexOf('Change cover');
+  assert.ok(coverAt >= 0, 'Change cover is present');
+  assert.deepEqual(labels.slice(coverAt, coverAt + 4), ['Change cover', 'Share', 'Analytics', 'Move to Trash']);
   assert.equal(await page.locator('[data-menu-analytics]').count(), 1, 'one Analytics entry');
   assert.equal(await page.locator('[data-menu-analytics]').isVisible(), true, 'Analytics remains visible');
 });
@@ -142,7 +141,7 @@ await check('7 nobody else sees Analytics: not on the owner\'s Explore card, not
   await other.goto(`${BASE}/explore`);
   const theirs = other.locator('[data-explore-card]').filter({ has: other.locator('[data-card-title]', { hasText: new RegExp(`^${T.kv}$`) }) }).filter({ has: other.locator(`[data-creator-link][href="/@${H.owner}"]`) });
   await theirs.waitFor({ timeout: 60000 });
-  await theirs.getByTitle('More').click();
+  await theirs.getByTitle('Card options').click();
   assert.deepEqual((await other.locator('[data-menu-copy-link]').count()), 1);
   assert.equal(await other.getByText('Analytics', { exact: true }).count(), 0);
   await other.keyboard.press('Escape');
@@ -153,7 +152,7 @@ await check('7 nobody else sees Analytics: not on the owner\'s Explore card, not
   await other.goto(`${BASE}/library?type=canvases`);
   const own = other.locator('[data-library-card="canvas"]').filter({ has: other.locator('[data-card-title]', { hasText: new RegExp(`^Reader notes ${run}$`) }) });
   await own.waitFor({ timeout: 60000 });
-  await own.hover(); await own.getByTitle('More').click();
+  await own.hover(); await own.getByTitle('Card options').click();
   await other.getByRole('button', { name: 'Rename', exact: true }).waitFor();
   assert.equal(await other.locator('[data-menu-analytics]').count(), 0, mine.name);
 });
