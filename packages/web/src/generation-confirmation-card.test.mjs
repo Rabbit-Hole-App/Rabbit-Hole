@@ -134,7 +134,7 @@ test('Generate image: only the selected model\'s options, an unquoted price bloc
 });
 
 test('a CAD brief view: units fixed, parameter values editable by the capability\'s own rules, lists shown, missing information blocks Generate', () => {
-  const groups = { parameters: [{ id: 'width', label: 'Width', type: 'number', unit: 'mm', min: 5, max: 200, value: 40 }, { id: 'holes', label: 'Holes', type: 'count', min: 0, max: 8 }, { id: 'finish', label: 'Finish', type: 'choice', choices: [{ value: 'matte', label: 'Matte' }, { value: 'gloss', label: 'Gloss' }] }] };
+  const groups = { parameters: { defs: [{ id: 'width', label: 'Width', type: 'number', unit: 'mm', min: 5, max: 200, value: 40 }, { id: 'holes', label: 'Holes', type: 'count', min: 0, max: 8 }, { id: 'finish', label: 'Finish', type: 'choice', choices: [{ value: 'matte', label: 'Matte' }, { value: 'gloss', label: 'Gloss' }] }] } };
   const view = proposalView({ proposal_id: 'cad-job-1', version: 3, schema_version: 1, command: 'cad', title: 'Bracket', description: 'An L bracket.', settings: { units: 'mm', parameters: { width: 40, holes: 2, finish: 'matte' } },
     original_request: 'make a bracket', requirements: ['Wall 3 mm'], assumptions: ['Mild steel'], missing_information: ['Hole diameter?'], limitations: ['No threads'], references: [] });
   const out = B.renderToStaticMarkup(B.createElement(B.Card, { view, groups, groupProblem: (key, id, value) => (id === 'width' && value > 100 ? 'must be at most 100 mm' : ''), onGenerate: () => {}, onSave: async () => {} }));
