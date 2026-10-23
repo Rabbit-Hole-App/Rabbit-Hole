@@ -10,14 +10,15 @@ import { cn } from './ui.jsx';
 // command never clears anything else. Without onRemove (a sent Chat message, UI-16) it is read-only: no x and no action.
 // Sizes come from the caller (className for the pill, removeClassName for the x), so
 // each composer keeps its own height.
-export default function CommandPill({ name, onOpen = null, onRemove = null, disabled = false, className = '', removeClassName = '' }) {
+// text / ariaLabel: a read-only display may set the pill's words and name (always the label on a composer pill) (the CAD confirmation shows `cad`, owner brief 2026-10-23).
+export default function CommandPill({ name, text = null, ariaLabel = null, onOpen = null, onRemove = null, disabled = false, className = '', removeClassName = '' }) {
   const label = commandLabel(name);
   const tone = commandTone(name);
   return (
-    <span data-command-pill={name} data-command-tone={tone || undefined} className={cn('inline-flex shrink-0 items-center border', !tone && 'border-line bg-hover text-ink', className)}>
+    <span data-command-pill={name} data-command-tone={tone || undefined} {...(ariaLabel ? { role: 'img', 'aria-label': ariaLabel } : {})} className={cn('inline-flex shrink-0 items-center border', !tone && 'border-line bg-hover text-ink', className)}>
       {onOpen
         ? <button type="button" title="Change the command" disabled={disabled} onMouseDown={event => event.preventDefault()} onClick={onOpen} className="inline-flex cursor-pointer items-center gap-1 font-medium">{label}</button>
-        : <span className="inline-flex items-center gap-1 font-medium">{label}</span>}
+        : <span className="inline-flex items-center gap-1 font-medium">{text ?? label}</span>}
       {onRemove && <button type="button" aria-label={`Remove ${label}`} title={`Remove ${label}`} onMouseDown={event => event.preventDefault()} onClick={onRemove} disabled={disabled}
         className={cn('flex cursor-pointer items-center justify-center rounded-md text-ink-3 hover:bg-white hover:text-ink', removeClassName)}><X size={13} /></button>}
     </span>
