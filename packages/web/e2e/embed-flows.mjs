@@ -45,13 +45,19 @@ export async function runEmbed(engine) {
 
   // ---- the network, recorded; the ask route, scripted behind the cookie ----
   async function wire(context) {
-    const s = { requests: [], probes: [], sends: [], used: new Map() }; // used: rh_embed value -> Map(turn -> replays)
+    const s = { requests: [], probes: [], sends: [], inits: [], used: new Map() }; // used: embedding site -> Map(turn -> replays)
     context.on('request', r => s.requests.push({ method: r.method(), url: r.url() }));
+    // The browser's own word on its cookie: the init answers created:true when the request it sent carried no valid rh_embed and
+    // created:false when it carried one (a real round trip through the browser's jar, no script involved).
+    context.on('response', async r => { if (/\/api\/learn\/boards\/embed-session$/.test(new URL(r.url()).pathname)) s.inits.push((await r.json().catch(() => ({}))).created); });
     const allowance = jar => { const used = s.used.get(jar)?.size ?? 0; return { limit: 10, used, remaining: 10 - used }; };
     const json = text => { try { return JSON.parse(text); } catch { return null; } };
     await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname) && url.origin === APP, async route => {
       const req = route.request(), headers = await req.allHeaders();
-      const jar = /(?:^|;\s*)rh_embed=([^;]+)/.exec(headers.cookie || '')?.[1] ?? null;
+      // The count is kept per embedding site, as a partitioned jar keeps it. A Playwright request does not list a partitioned
+      // cookie among its headers, so the cookie is read from the browser's jar: present means this browser holds a session.
+      const site = new URL(req.frame().page().mainFrame().url()).hostname;
+      const jar = (await context.cookies()).some(c => c.name === 'rh_embed') ? site : null;
       if (req.method() === 'GET') {
         const real = await route.fetch({ headers }), text = await real.text(), body = json(text);
         s.probes.push({ cookieSent: !!jar, account: /(?:^|;\s*)small_session=/.test(headers.cookie || ''), session: body?.embed?.session ?? null });
@@ -153,7 +159,7 @@ export async function runEmbed(engine) {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-spent-${engine}.png` });
     await page.reload();
     fl = await embedOf(page); await openChat(fl);
-    check(`${tag} a reload keeps the count (no fresh trial): still 0 of 10 left, the same cookie`, await left(fl, 0) && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 1);
+    check(`${tag} a reload keeps the count (no fresh trial): the browser sent its cookie back (init created:false), still 0 of 10 left, still one cookie`, await left(fl, 0) && net.inits[0] === true && net.inits.at(-1) === false && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 1, JSON.stringify(net.inits));
 
     const siteB = await context.newPage();
     await siteB.goto(hostUrl(host, 'b', path, '&lazy=0'));
