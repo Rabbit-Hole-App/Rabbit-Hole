@@ -1,9 +1,164 @@
 # Creator analytics: event contract and Analytics UI
 
-Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedback loop). **The events, routes and storage
-are a contract only.** No event is emitted, no route exists, no table is created. Storage is a separate proposal at the end
-and needs the owner's GO. The Analytics UI is built (#70, "UI as built" below), and until storage it shows its typed "not
-collected" state and never derives numbers from anything else.
+Owner briefs, 2026-10-06 (#62: analytics, creator profile, analytics UI, feedback loop) and **2026-10-23 (redo: one
+Creator analytics screen for deciding what to create or improve; binding, see "Dashboard read contract" next)**.
+**The events and storage are a contract only.** No event is emitted and no analytics table exists. The one analytics
+route that exists is the owner-only read `GET /api/analytics/creator` (2026-10-23), which returns real numbers only for
+what is already stored canonically and `not_collected` for everything else. Storage and its production migration are a
+separate proposal (docs/features/creator-analytics-storage-proposal.md) that needs the owner's separate approval.
+
+## Dashboard read contract (owner brief 2026-10-23)
+
+This section supersedes "Derived metrics", "Analytics UI (read contract)" and "Read API" below wherever they differ.
+The older sections stay as the record of the event design, which this section reuses unchanged.
+
+### One screen, one route
+
+- Screen: **Creator analytics**, opened from the existing Analytics entry on the owner's own creator profile
+  (CreatorProfile.jsx) and from ⋮ → Analytics on one of the owner's public canvases (opens with that canvas selected).
+  Header: lock icon and "Private · only you", canvas selector (All public canvases, or one canvas), range (7 days,
+  30 days, All time), the visible date range and reporting timezone, close.
+- Route: `GET /api/analytics/creator?range=7d|30d|all[&canvas=<canvas name>]`. Default range `30d`.
+  - **Owner-only, on the server.** Signed out: 401. The scope is always the session's own live public canvases, the
+    same set the creator profile lists (learn-boards.js `PUBLISHED` filtered to the session's handle). There is no handle
+    or org parameter, so another creator's data cannot be named.
+  - `canvas` that is not one of the session's own live public canvases (someone else's, private, unlisted, archived,
+    trashed or unknown): 404, the same answer for each, so existence is not revealed.
+  - An invalid `range` or a malformed `canvas`: 400 with a one-line fix.
+  - It writes nothing. It never returns a learner key, a person's id, free text, or a protected raw value.
+- Shape: `packages/web/src/creator-analytics-shape.js` (pure; the control plane imports it). Development fixtures, one
+  per state, are in `packages/web/src/creator-analytics-fixtures.dev.js`, labelled in the file name and in every
+  payload (`fixture: 'DEVELOPMENT FIXTURE ...'`); a unit test fails if production source imports them.
+
+### States (every section and every metric)
+
+| State | Meaning | Value | Set by |
+|---|---|---|---|
+| `loading` | request in flight | null | client |
+| `not_collected` | nothing records this yet; the section carries one `reason` and `message` | null | server |
+| `not_enough_learners` | protected, and fewer than 10 learners at this exact cell | null; the count is not returned either | server (`suppress`) |
+| `measured_zero` | measured, and it is 0 | 0 | server (`metric` turns a ready 0 into it) |
+| `failed` | the request or a section failed; the screen offers Retry | null | client (a server section may also report it) |
+| `ready` | measured | the number | server |
+
+`metric(state, value, extra)` keeps a value only for `ready` and `measured_zero`. `suppress(count, value)` applies the
+cohort rule. `counter(value, period)` is a public counter, shown at any count. Missing values are never 0 and never
+interpolated; a sort puts them last in either direction (`sortRows`).
+
+### Cohort rule
+
+- Protected metrics need **at least 10 distinct learners** (learner keys) behind the **exact** cell: the selected
+  range, canvas filter and the cell's own filter (one day of the series, one topic, one concept, one resource, one
+  traffic source, one campaign, one comparison row).
+- Below 10 the server returns `{ state: 'not_enough_learners', value: null }`. The raw value and the count are never
+  sent, so hiding is not left to the UI.
+- A percentage's cohort is its denominator. A share of traffic is shown only when both its row and the denominator pass.
+- Public counters (public canvases, canonical forks, Rabbit Holes started) show at any count: they count objects that
+  exist, not learner behaviour.
+
+### Periods
+
+Every metric carries `period`: `selected` (the chosen range), `current` (a total right now) or `all_time`. The screen
+labels it, for example "Forks · all time". Ranges are reporting-timezone days, today included: `7d` is today and the 6
+days before, `30d` today and the 29 before, `all` from `collected_since` (null until collection starts, so "All time"
+never implies history before recording). **Reporting timezone: UTC** in V1 (`TIMEZONE`), shown in the header.
+Rollups are daily UTC; a creator-chosen timezone needs hourly rollups and is not in V1. History is never invented or
+backfilled, and never derived from usage, billing or Ask rate-limit logs (`shared_ask_events`).
+
+### Definitions
+
+"Learner" below means a learner key: a signed-in account, or an anonymous **browser** (not a person). "Session" and
+"visit" are the deduplicated session of "Deduplication": a reload or a return from a Rabbit Hole adds nothing.
+**Learning action** (the qualifying action for active learning): the first interaction with a card
+(`material_interacted`: a selection, input, play, answer or pager change), a question to the shared Ask or Tutor on the
+publication, a successful Rabbit Hole start, a Next Step selection, or a checked answer. Not a learning action: opening,
+scrolling, panning, zooming, hovering, a card merely in view, an outbound link, or an embed loading.
+
+| Metric | Event source | Formula | Denominator / cohort | Period | Protected | Data today |
+|---|---|---|---|---|---|---|
+| Active learners | `material_interacted`, `concept_explored`, `next_step_selected`, `rabbit_hole_started_from_publication`, shared Ask question | distinct learners with ≥ 1 learning action in range | itself | selected | yes | not collected |
+| Average active learning time | `publication_session_ended` (`active_learning_seconds`) | Σ active seconds of active learners ÷ active learners | active learners | selected | yes | not collected |
+| Rabbit Holes started | `rabbit_hole_started_from_publication` (server, 201 only) | count | none | selected | no | not collected (no publication attribution is stored on holes today) |
+| Forks | `canvas_forks` via `FORK_COUNT` | Σ `FORK_COUNT` over the scope | none | **all time** | no | **real** |
+| Returning learners | sessions with a learning action | active learners in range who also had a learning action in an earlier session on an earlier reporting day within the 30 days before (`RETURNING_LOOKBACK_DAYS`); count and share | active learners | selected | yes | not collected |
+| Visits that became active learning | sessions | sessions with ≥ 1 learning action ÷ eligible sessions (all deduplicated sessions in range, excluding owner and test) | eligible sessions (cohort = distinct learners in them) | selected | yes | not collected |
+| Public canvases | `canvas_publications` (live, top-level, not in Trash: `PUBLISHED`) | count | none | **current** | no | **real** |
+| Visits | `publication_opened`, deduplicated by session | distinct sessions | distinct learners in them | selected | yes | not collected |
+| Unique visitors (Audience) | any client event | distinct learner keys | itself | selected | yes | not collected |
+| Topics explored next | `concept_explored`, `rabbit_hole_started_from_publication` (`concept_ids`), `next_step_selected` | per topic: distinct learners who explored it, started a hole on it or chose a Next Step for it; ranked; the row says which (`via`) | per topic row | selected | yes, per row | not collected |
+| Concepts needing support | a publication-safe assessment outcome (correct / incorrect, no answer text); see Open question B | per concept: incorrect outcomes ÷ outcomes | learners with an outcome on that concept | selected | yes, per row | not collected: **unavailable until assessment evidence is supported**; never inferred from time or repeat views |
+| Traffic | `publication_opened` `source` (first in session) | visits per category, and share | all visits in range (explicit denominator) | selected | yes, per row | not collected |
+| Campaign visits / active learning / attributed forks | `publication_opened` with `campaign`, plus learning actions and `fork_completed` in those sessions | visits; sessions with a learning action ÷ visits; successful forks in those sessions | per campaign row | selected | yes, per row | not collected (campaign links not built) |
+| Most-used cards and resources (tools) | `material_interacted`, `outbound_resource_opened` | distinct learners per card or resource | per row | selected | yes, per row | not collected |
+| What would you like next? (tools) | a future explicit request event | distinct learners per chosen topic | per row | selected | yes, per row | not enabled |
+
+Series (Audience): one point per reporting day for Visits, Unique visitors, Active learners, Rabbit Holes started and
+Forks; each point is its own cell, suppressed on its own day's cohort, and an unrecorded day is null. Ranged forks in the
+series stay `not_collected` (reason `ranged_forks_not_attributed`) until `fork_completed` exists: `forked_at` would also
+count forks through `/b` links and the owner's own forks.
+
+### Measurement rules
+
+- **Visits** are deduplicated sessions ("Deduplication"); reloads never inflate them.
+- **Active time** excludes hidden and idle time: `IDLE_THRESHOLD_SECONDS = 60` ("Active learning time"); a session is
+  capped at 4 h active.
+- **Owner self-views and test activity are excluded:** the ingest route drops events whose signed-in viewer owns the
+  canvas, events from non-production deployments (dev and preview record into their own databases and never into
+  production), and requests from the automated checks (they run on dev clones only).
+- **Rabbit Holes and forks count only after successful creation** (201 in the same batch); retries, failures, a
+  resumed existing hole (200 `existing`) and a replayed fork add nothing.
+- **No drop-off from spatial order.** Canvas order is not reading order, so drop-off is not shown. The older
+  `drop_off` metric and its insight are withdrawn.
+- **Anonymous learners are browsers**, not people ("Limitations").
+- **Embeds:** `/embed/e/<token>` (a public Explore publication framed on a website) is in scope; its visit counts only
+  once the frame is at least 50% visible for 2 s, and it is active learning only after a learning action, never on
+  load. An offscreen iframe adds nothing. `/embed/b/<token>` (a view link) is out of scope.
+- **Scope:** public Explore publications only. Private canvases, unlisted `/b` share links and their embeds record
+  nothing.
+
+### Traffic categories
+
+`newsletter | linkedin | explore | creator_profile | direct | other_referrer`, shown as Newsletter, LinkedIn, Explore,
+Creator profile, Direct/unknown, Other referrers, each with its count, its percentage and the denominator ("of N
+visits"). The order of "Traffic source" applies, with Newsletter first: `newsletter` only when the link carries an
+explicit newsletter tag (`utm_source=newsletter` or a `newsletter_issue` campaign). **Newsletter is never guessed**:
+email clients usually strip the referrer, so an untagged newsletter click is Direct/unknown.
+
+### Campaigns
+
+- A campaign is a named label on the **canonical** publication link: `/e/<token>?c=<campaign id>` (and on the embed
+  snippet). Kinds: Newsletter issue, LinkedIn post, Website placement. The creator creates and names it on the screen.
+- Attribution metadata only. A campaign never rotates or mints a token, never changes visibility or permissions, and
+  never resets a guest allowance. Unpublishing kills its link exactly as it kills the canonical link.
+- Per campaign: visits, the share of visits that became active learning, and **attributed successful forks**
+  (`fork_completed` in a session that arrived through it). Canonical fork totals stay separate; campaign forks are a
+  subset, never added to them.
+- Storage (`publication_campaigns`) is in the storage proposal. Until then the section is `not_collected`
+  (`campaign_links_not_built`).
+
+### Sections of the payload
+
+`version, range {id, from, to, timezone}, timezone, threshold, collected_since, canvas, canvases, overview, audience,
+series, topics, support, comparison, traffic, campaigns, canvas_detail, tools, definitions`. Each section is
+`{ state, reason, message, ... }`; metric cells are `{ state, value, period?, share? }`. `canvas_detail` is present
+only with a `canvas` filter: concept exploration, Rabbit Hole and fork conversion, supported Next Steps, outbound
+resources and revision comparisons (the per-explainer metrics of "Derived metrics", same suppression). `definitions`
+carries each metric's label, one-line definition, period and protected flag for the tooltips.
+
+### What has real data today, and what each missing part needs
+
+| Part | Today | Needs |
+|---|---|---|
+| Public canvases (current) | real: `PUBLISHED` count | nothing |
+| Forks (all time, overview and comparison rows) | real: Σ `FORK_COUNT` | nothing |
+| Visits, unique visitors, active learners, active time, returning, conversion, series, traffic, topics, resources | `not_collected` (`storage_not_approved`) | the analytics storage and production migration (storage proposal), the ingest route, the client emitter on `/e` and `/embed/e` |
+| Rabbit Holes started | `not_collected` | storage, and `startRabbitHole` writing `rabbit_hole_started_from_publication` in its batch |
+| Ranged and campaign-attributed forks | `not_collected` | storage, and `fork()` writing `fork_completed` in its batch |
+| Campaigns | `not_collected` (`campaign_links_not_built`) | storage (`publication_campaigns`), the `?c=` parameter read on open, a create/name control |
+| Concepts needing support | `not_collected` (`assessment_evidence_unsupported`) | Learning: a publication-safe outcome event (Open question B) |
+| Supported Next Steps | `not_collected` | Learning: suggestion ids on public canvases (TBD-by-Learning) |
+| What would you like next? | `not_collected` (`requests_not_enabled`) | an owner-approved collection and privacy contract: a fixed list of topic choices, no free text, no Tutor or answer mining, opt-in per canvas |
+| Most-used cards: a deleted or changed card | — | a row whose card no longer exists says so (`exists: false`, no Locate); a changed card keeps its id and shows its current title |
 
 ## Scope
 
@@ -185,6 +340,9 @@ Publications are live (explore-publish.md), so every event records `board_versio
 
 ## Derived metrics
 
+The 10-06 per-explainer metrics. Where "Dashboard read contract" differs it wins: no drop-off, and Concepts needing
+support only from assessment outcomes.
+
 Ranges: `7d` and `30d` are the most recent 7 or 30 UTC days including today. `all` runs from collection start
 (`collected_since`). A rate is a number from 0 to 1. "Eligible" means distinct learner keys in the range (and in the
 filter, if any).
@@ -321,8 +479,9 @@ card shows its evidence number. At most one card per type; none fires means "No 
 
 ### Read API
 
-Not built. Until #62 storage has a GO, these routes do not exist. The client calls nothing and renders
-`state: 'not_collected'` from a constant.
+**Superseded 2026-10-23** by "Dashboard read contract" above: one route, `GET /api/analytics/creator` with an optional
+`canvas` filter, and the six states. The per-publication route below is not built; its metrics are the `canvas_detail`
+section. Kept as the record of the 10-06 design.
 
 ```ts
 type Range = '7d' | '30d' | 'all';
@@ -428,7 +587,8 @@ Owner section 14, for when the UI work begins. Non-blocking unless a new product
 
 ## Storage proposal (NOT implemented; needs owner GO)
 
-No migration file exists. The tables below are a proposal for review only.
+**Superseded 2026-10-23** by docs/features/creator-analytics-storage-proposal.md (adds sessions, campaigns, returning
+learners and the exact migration). No migration file exists. The tables below are the 10-06 draft.
 
 - **Where:** LEARN_DB, beside `canvas_publications` and `learn_boards`. Learn routes never read the main D1
   (user-handles.md).
