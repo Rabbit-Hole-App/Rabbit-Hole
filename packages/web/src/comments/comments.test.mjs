@@ -452,3 +452,19 @@ test('sync contract: a since-read reaches back by the overlap; the merge never s
   const reset = applySync(next, { thread: { id: 't' }, messages: [m('z', 9)], before: null, reset: true, cursor: 'c3' });
   assert.deepEqual([reset.messages.map(x => x.id), reset.before], [['z'], null], 'a reset replaces');
 });
+
+test('the open thread syncs itself (Comments v2 item 1): its own timer, focus and online, from the cursor; nothing re-reads it whole', () => {
+  const panel = read('./CommentsPanel.jsx'), client = read('./comments-api.js');
+  assert.match(client, /sync: \(id, since\) => api\(`\$\{base\}\/threads\/\$\{id\}\?since=\$\{encodeURIComponent\(since\)\}`\)/);
+  assert.match(panel, /const answer = cursor \? await client\.sync\(id, cursor\) : await client\.thread\(id\);/, 'a full read only before the first cursor');
+  assert.match(panel, /setData\(current => applySync\(current, answer\)\);/, 'merged into what is shown now');
+  assert.match(panel, /const timer = setInterval\(tick, SYNC_MS\);\n\s+window\.addEventListener\('focus', tick\);\n\s+window\.addEventListener\('online', tick\);/);
+  assert.match(panel, /if \(hidden \|\| lost\) return undefined;/, 'no sync behind a hidden panel or after access ended');
+  assert.match(panel, /<ThreadView key=\{selected\} client=\{client\} about=\{about\} id=\{selected\} hidden=\{hidden\}/);
+  assert.doesNotMatch(panel, /setData\(await client\.thread\(id\)\)/, 'the old whole re-read that dropped Earlier replies');
+  assert.match(panel, /messages: mergeMessages\(current\.messages, older\.messages\), before: older\.before/, 'Earlier replies merge too');
+  assert.match(panel, /if \(error\.status === 404 \|\| error\.status === 401\) \{ setLost\(/, 'lost access drops the thread');
+  assert.match(panel, /aria-label="Your unsent reply"/, 'and keeps the unsent reply to copy');
+  assert.match(panel, /data-new-replies onClick=\{showNew\}[^>]*>New replies<\/button>/);
+});
+

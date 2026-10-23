@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Globe, Link2, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
 import { anchorText } from './anchors.js';
+import { SYNC_MS, applySync, mergeMessages, newFromOthers } from './comment-sync.js';
 import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
 
 // The right panel's Comments view (docs/features/canvas-comments.md section 5): the thread list, one thread, or a
@@ -37,14 +38,18 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
   const [failed, setFailed] = useState(null);
   // Only the newest request's answer lands (owner decision 2026-10-23: a late answer never undoes a newer one); when it was
   // asked and its filter go with it to the pins, so a thread kept through an unsaved Undo joins only a list it belongs to.
-  const latest = useRef(0);
+  const latest = useRef(0), loaded = useRef(false);
   const refresh = useCallback(async () => {
     const seq = ++latest.current, asked = performance.now();
     try {
       const [info, page] = await Promise.all([client.about(), client.threads(status, audience)]);
       if (seq !== latest.current) return;
-      setAbout(info); setList({ ...page, asked, shape: { status, audience } }); setFailed(null);
-    } catch (error) { if (seq === latest.current) setFailed(error.status === 404 ? "This canvas isn't available to you." : error.message); }
+      setAbout(info); setList({ ...page, asked, shape: { status, audience } }); setFailed(null); loaded.current = true;
+    } catch (error) {
+      // Offline or a server failure after a list has loaded keeps the panel (and an open thread, its draft and scroll) as it is
+      // until the next refresh works; a first load that fails, or access gone (404), says why.
+      if (seq === latest.current && (error.status === 404 || !loaded.current)) setFailed(error.status === 404 ? "This canvas isn't available to you." : error.message);
+    }
   }, [client, status, audience]);
   useEffect(() => { refresh(); }, [refresh, stamp]); // stamp: a pin was recoloured or deleted on the canvas
   // Freshness (Q16): every 30 s while the panel shows and the tab is visible, and on focus.
@@ -67,7 +72,7 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
     : !about || !list ? <p className="text-sm text-ink-2">Loading comments</p>
     : draftAnchor ? <NewThread client={client} about={about} anchor={draftAnchor} live={objectLive(draftAnchor)} beforePost={beforePost} onCancel={() => onDraftDone?.(null)}
         onPosted={thread => { onDraftDone?.(thread.id); refresh(); }} />
-    : selected ? <ThreadView key={selected} client={client} about={about} id={selected} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} threadLink={threadLink} />
+    : selected ? <ThreadView key={selected} client={client} about={about} id={selected} hidden={hidden} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} threadLink={threadLink} />
     : <ThreadList list={{ ...list, threads: visible(list.threads, list.shape) }} about={about} status={status} setStatus={setStatus} audience={audience} setAudience={setAudience} objectLive={objectLive} onOpen={id => onSelect?.(id)} onMore={more} />;
   return <div role="tabpanel" aria-label="Comments" data-comments-panel className={`${hidden ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{body}</div>;
 }
@@ -170,20 +175,79 @@ function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted
   );
 }
 
-function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onChange, threadLink }) {
+// The open thread syncs itself (section 10, Sync protocol; comment-sync.js): a full read first, then only what changed since
+// its cursor, every SYNC_MS while shown and visible, on focus, on online and after the reader's own actions. Merged by id, so
+// nothing shows twice; drafts, loaded Earlier replies and the scroll position stay. Lost access drops what was shown.
+const NEAR_BOTTOM = 48;
+function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBack, onChange, threadLink }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(null);
-  const load = useCallback(async () => {
-    try { setData(await client.thread(id)); setFailed(null); } catch (error) { setFailed(error.status === 404 ? "This thread isn't available." : error.message); }
-  }, [client, id]);
-  useEffect(() => { load(); client.read(id).then(onChange, () => {}); }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
-  const act = async run => { try { await run(); } catch (error) { setFailed(error.message); } await load(); onChange(); };
+  const [lost, setLost] = useState(null);
+  // Replies from others that arrived while the reader was scrolled up: the New replies button.
+  const [fresh, setFresh] = useState(0);
+  const dataRef = useRef(null);
+  dataRef.current = data;
+  const scroller = useRef(null), stick = useRef(false), fromBottom = useRef(null), latest = useRef(0);
+  const atBottom = () => { const box = scroller.current; return !box || box.scrollHeight - box.scrollTop - box.clientHeight < NEAR_BOTTOM; };
+  const markRead = useCallback(() => client.read(id).then(onChange, () => {}), [client, id, onChange]);
+  // Only the newest sync's answer lands; each merges into what is shown now, so Earlier replies loaded meanwhile stay.
+  const sync = useCallback(async () => {
+    const seq = ++latest.current, cursor = dataRef.current?.cursor;
+    try {
+      const answer = cursor ? await client.sync(id, cursor) : await client.thread(id);
+      if (seq !== latest.current) return;
+      const incoming = answer.since && dataRef.current ? newFromOthers(dataRef.current.messages, answer.messages) : 0;
+      if (incoming && atBottom()) stick.current = true;
+      if (!dataRef.current) setFailed(null); // a first read that worked after one that failed; an action's refusal stays shown
+      setData(current => applySync(current, answer));
+      if (!incoming) return;
+      if (stick.current) markRead(); else { setFresh(count => count + incoming); onChange(); }
+    } catch (error) {
+      if (seq !== latest.current) return;
+      if (error.status === 404 || error.status === 401) { setLost(error.data?.error || "This thread isn't available."); setData(null); }
+      else if (!dataRef.current) setFailed(error.message);
+      // Offline or a server failure: what is shown stays, and the next tick tries again from the same cursor.
+    }
+  }, [client, id, markRead, onChange]);
+  useEffect(() => { sync(); client.read(id).then(onChange, () => {}); }, [sync]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (hidden || lost) return undefined;
+    const tick = () => { if (document.visibilityState === 'visible') sync(); };
+    const timer = setInterval(tick, SYNC_MS);
+    window.addEventListener('focus', tick);
+    window.addEventListener('online', tick);
+    return () => { clearInterval(timer); window.removeEventListener('focus', tick); window.removeEventListener('online', tick); };
+  }, [hidden, lost, sync]);
+  // After a render: new replies seen at the bottom (or the reader's own) scroll into view; Earlier replies keep the reading place.
+  useLayoutEffect(() => {
+    const box = scroller.current;
+    if (!box) return;
+    if (fromBottom.current != null) { box.scrollTop = box.scrollHeight - fromBottom.current; fromBottom.current = null; }
+    if (stick.current) { box.scrollTop = box.scrollHeight; stick.current = false; }
+  }, [data]);
+  const showNew = () => { stick.current = true; setFresh(0); setData(current => (current ? { ...current } : current)); markRead(); };
+  const scrolled = () => { if (fresh && atBottom()) { setFresh(0); markRead(); } };
+  const act = async run => { setFailed(null); try { await run(); } catch (error) { setFailed(error.message); } await sync(); onChange(); };
   // Earlier replies, 50 at a time, above the ones shown.
   const earlier = async () => {
-    try { const older = await client.thread(id, data.before); setData(current => ({ ...current, messages: [...older.messages, ...current.messages], before: older.before })); } catch (error) { setFailed(error.message); }
+    try {
+      const older = await client.thread(id, data.before);
+      if (scroller.current) fromBottom.current = scroller.current.scrollHeight - scroller.current.scrollTop;
+      setData(current => ({ ...current, messages: mergeMessages(current.messages, older.messages), before: older.before }));
+    } catch (error) { setFailed(error.message); }
   };
   const copy = () => navigator.clipboard?.writeText(threadLink(id)).then(() => setCopied(true), () => {});
   const [copied, setCopied] = useState(false);
+  if (lost) {
+    const unsent = loadDraft(storage, `${id}`)?.body;
+    return (
+      <div data-comment-thread-lost>
+        <BackButton onBack={onBack} />
+        <p className="text-sm text-ink-2">{lost}</p>
+        {unsent && <textarea readOnly aria-label="Your unsent reply" value={unsent} rows={3} className="mt-2 w-full resize-y rounded-md border border-line px-2 py-1 text-sm text-ink" />}
+      </div>
+    );
+  }
   if (failed && !data) return <div><BackButton onBack={onBack} /><p className="text-sm text-ink-2">{failed}</p></div>;
   if (!data) return <p className="text-sm text-ink-2">Loading</p>;
   const { thread, messages } = data;
@@ -204,13 +268,14 @@ function ThreadView({ client, about, id, objectLive, onFocusAnchor, onBack, onCh
         <button type="button" disabled={!live} onClick={() => onFocusAnchor?.(thread.anchor)} className="min-w-0 truncate text-left text-xs text-ink-2 hover:text-ink disabled:cursor-default disabled:hover:text-ink-2">{anchorText(thread.anchor, live)}</button>
       </div>
       {failed && <p role="alert" className="mb-2 text-xs text-red-700">{failed}</p>}
-      <ol data-comment-messages className="-mx-2 mb-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
+      <ol ref={scroller} onScroll={scrolled} data-comment-messages className="-mx-2 mb-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
         {data.before && <li><button type="button" data-earlier-replies onClick={earlier} className="w-full rounded-lg px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Earlier replies</button></li>}
         {messages.map(message => <Message key={message.id} message={message} audience={thread.audience} owner={about.role === 'owner'} client={client} act={act} />)}
       </ol>
+      {fresh > 0 && <button type="button" data-new-replies onClick={showNew} className="mb-1 self-center rounded-full bg-accent px-3 py-1 text-xs font-medium text-white shadow-pop hover:opacity-90">New replies</button>}
       <p className="mb-1 text-[11px] text-ink-3">Replying in {thread.audience === 'public' ? 'Public' : 'Members only'}</p>
       <CommentComposer people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)} resume={`?thread=${id}`}
-        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(() => { load(); onChange(); })} />
+        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(() => { stick.current = true; sync(); onChange(); })} />
     </div>
   );
 }

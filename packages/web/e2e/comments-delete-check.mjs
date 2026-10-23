@@ -6,6 +6,9 @@
 // reload keeps them. Deleting a group with its members does the same for the group's and the members' threads. Ungroup keeps
 // the members' threads and turns the group's into canvas threads at its place; its Undo and Redo move them back and again; a
 // refused move keeps the group and says so.
+// Freshness (owner brief 2026-10-23, Comments v2 item 1; section 10 Sync protocol): an open thread shows another person's
+// reply, edit and delete and a resolve from another session without Back or reload, keeps the typed reply; scrolled up, new
+// replies show New replies and the reading place stays; offline and back, it catches up with every message once.
 // Against the LOCAL stack only (the fork runner's keyless stack): local D1 and a fresh browser profile. No model is called:
 // /api/learn/ask is answered here and other model routes are aborted and counted. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<cp .dev.vars>] node e2e/comments-delete-check.mjs [shotsDir]
@@ -13,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 7; // the number of check() steps below; keep it equal
+const total = 9; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -247,6 +250,64 @@ await check('7 a refused move keeps the group and its comments, and says so; no 
   await shown(GROUP);
   await page.unroute(/\/api\/learn\/c\/[^/]+\/anchors$/);
   assert.deepEqual([asks, stray, errors], [[], [], []]);
+});
+
+const message = id => page.locator(`[data-comments-panel] [data-comment-message="${id}"]`);
+const reply = async (body, call = viewer) => {
+  const sent = await post(call, `${pub}/threads/${T.visitor}/comments`, { id: crypto.randomUUID(), body, mentions: [] });
+  assert.equal(sent.status, 201, `${body}: HTTP ${sent.status} ${JSON.stringify(sent.body)}`);
+  return sent.body.comment.id;
+};
+// The open thread syncs every 10 s while shown (SYNC_MS): each wait is for the asserted state, bounded by two ticks and slack.
+const SYNC = { timeout: 25000 };
+await check('8 an open thread shows another person\'s reply, edit and delete and a resolve from another session, with no Back or reload; the typed reply stays', async () => {
+  await row(T.visitor).click();
+  await page.locator(`[data-comment-thread-view="${T.visitor}"]`).waitFor();
+  const draft = page.locator('[data-comments-panel] [data-comment-composer] textarea');
+  await draft.fill('A reply I am still typing');
+  const live = await reply('A reply from the visitor while the owner reads');
+  await expect(message(live)).toContainText('A reply from the visitor while the owner reads', SYNC);
+  assert.equal((await viewer(`${pub}/comments/${live}`, { method: 'PATCH', body: JSON.stringify({ body: 'The visitor edited this reply', mentions: [] }) })).status, 200);
+  await expect(message(live)).toContainText('The visitor edited this reply', SYNC);
+  await expect(message(live)).toContainText('edited');
+  assert.equal((await viewer(`${pub}/comments/${live}`, { method: 'DELETE' })).status, 200);
+  await expect(message(live)).toContainText('This comment was deleted', SYNC);
+  assert.equal((await post(api, `${base}/threads/${T.visitor}/resolve`, {})).status, 200, 'the owner resolves it from another session');
+  await expect(page.locator(`[data-comment-thread-view="${T.visitor}"]`)).toContainText('Resolved', SYNC);
+  await expect(page.locator('[data-comments-panel]').getByRole('button', { name: 'Reopen' })).toHaveCount(1);
+  assert.equal((await post(api, `${base}/threads/${T.visitor}/reopen`, {})).status, 200);
+  await expect(page.locator('[data-comments-panel]').getByRole('button', { name: 'Resolve' })).toHaveCount(1, SYNC);
+  await expect(message(live)).toHaveCount(1);
+  await expect(draft).toHaveValue('A reply I am still typing');
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/08-live-thread.png` });
+});
+
+await check('9 scrolled up, new replies show New replies and the reading place stays; offline and back, the thread catches up with every message once', async () => {
+  const replies = [];
+  for (let i = 1; i <= 20; i += 1) replies.push(await reply(`Visitor reply number ${i}, long enough to take a line of the panel`));
+  await expect(message(replies.at(-1))).toHaveCount(1, SYNC);
+  const list = page.locator('[data-comments-panel] [data-comment-messages]');
+  await expect.poll(() => list.evaluate(node => node.scrollHeight - node.clientHeight), { timeout: 5000 }).toBeGreaterThan(200);
+  await list.evaluate(node => { node.scrollTop = 0; node.dispatchEvent(new Event('scroll')); });
+  const later = await reply('A reply that arrives while the owner reads the top');
+  await expect(page.locator('[data-comments-panel] [data-new-replies]')).toHaveText('New replies', SYNC);
+  assert.ok(await list.evaluate(node => node.scrollTop) < 10, 'the reading place stays at the top');
+  await page.locator('[data-comments-panel] [data-new-replies]').click();
+  await expect(message(later)).toBeInViewport();
+  await expect(page.locator('[data-comments-panel] [data-new-replies]')).toHaveCount(0);
+  await page.locator('[data-comments-panel] [data-comment-composer] textarea').fill('Typed before going offline');
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await context.setOffline(true);
+  const away = await reply('A reply posted while the owner was offline');
+  await page.waitForEvent('requestfailed', { predicate: request => request.url().includes(`/threads/${T.visitor}?since=`), timeout: 25000 }); // a sync tried and failed offline
+  await context.setOffline(false);
+  await expect(message(away)).toHaveCount(1, SYNC);
+  const shown = await page.locator('[data-comments-panel] [data-comment-message]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-comment-message')));
+  assert.equal(new Set(shown).size, shown.length, 'every message once');
+  for (const id of [...replies, later, away]) assert.ok(shown.includes(id), `${id} shown`);
+  await expect(page.locator('[data-comments-panel] [data-comment-composer] textarea')).toHaveValue('Typed before going offline');
+  assert.deepEqual([asks, stray], [[], []]);
 });
 
 await browser.close();
