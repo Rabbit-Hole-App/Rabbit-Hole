@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, ChevronsDown, ChevronsUp, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
 import { ACCESS } from '../canvas-visibility.js';
 import { Button, IconBtn, KindIcon, Menu, MenuItem } from '../ui.jsx';
@@ -21,6 +21,12 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 // focused card open it, Open showing on hover or focus (always on touch). The Home, Library and Explore composer is gone
 // (owner, 2026-10-22), so the body no longer picks the card as its context. N forks is read-only and only when someone
 // forked it; Fork itself lives in actions.
+// The card is a size container (`@container/card`, index.css "Small cards"): its header, picture and footer follow the CARD's own
+// width, not the viewport's. Below 22rem of card content (a Small card is 220px, 186 of content; a Medium small one 266) the
+// header is a grid: icon and title on one row, the creator and the repository on a full-width row, then one row for the visibility
+// pill and the Card options button; below 40rem the picture stacks above the text, so the text column is never narrower than
+// 22rem beside it. A title or creator that wraps past its two lines gets a Show full title button (aria-expanded) that opens
+// the card to its full height (owner brief 2026-10-23, small-card layout).
 // Blue is navigation and the primary action only (§13): the title, the repository link, the owner badge, Start Rabbit
 // Hole. Everything else - description, times, forks, visibility, ⋮, secondary buttons - stays neutral.
 
@@ -86,7 +92,7 @@ const VARIES = 'Canvases in this project have different access settings.';
 function Visibility({ access, kind, onVaries }) {
   const Icon = ACCESS_ICON[access];
   if (!Icon || (access === 'mixed' && kind !== 'repository')) return null;
-  const cls = 'inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-line px-2 text-xs text-ink-2';
+  const cls = 'inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-line px-2 text-xs text-ink-2';
   if (access === 'mixed') {
     const label = <><Icon size={12} strokeWidth={1.75} aria-hidden="true" />Varies by canvas</>;
     return onVaries
@@ -120,7 +126,7 @@ export function menuAt(button, width, room = 360) {
 
 // A plain click opens in place; a modified one (new tab, new window) stays the browser's.
 const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
-const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leading-snug';
+const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
 
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
 // `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
@@ -133,17 +139,35 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
   const learning = kind === 'repository' || kind === 'canvas';
   const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
+  // Whether the title or the creator is cut short (scrollHeight against clientHeight, width likewise): then, and only then,
+  // the Show full title button is there, so no clipped text is ever without a way to read it.
+  const head = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  useLayoutEffect(() => {
+    const el = head.current;
+    if (!el || open) return undefined;
+    const measure = () => setClamped([...el.querySelectorAll('[data-clamp]')].some((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1));
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [open, m.title, m.creator?.name]);
+  const toggle = clamped || open;
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
-      className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 browse-card max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
+      className={`group select-card @container/card flex min-w-0 flex-wrap gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 browse-card max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
       {learning && <CardThumbnail kind={kind} src={thumbnail} />}
-      <div data-card-text className={`flex min-h-0 min-w-0 flex-1 flex-col *:shrink-0 ${CARD_BODY_H} ${CARD_TEXT_PHONE}`}>
-        <div className="flex min-w-0 items-start gap-3">
+      <div data-card-text data-open={open || undefined} className={`flex min-h-0 min-w-0 flex-1 flex-col *:shrink-0 ${CARD_BODY_H} ${CARD_TEXT_PHONE}${open ? ' h-auto!' : ''}`}>
+        <div data-card-head ref={head} className="flex min-w-0 items-start gap-3">
           <TypeIcon kind={kind} schedule={schedule} />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
-              : onOpen ? <button type="button" data-card-title onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
-              : <span data-card-title className={`${TITLE} text-ink`}>{m.title}</span>}
+          <div data-card-head-text className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <div data-card-heading className="flex min-w-0 flex-col">
+            {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} data-clamp className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
+              : onOpen ? <button type="button" data-card-title data-clamp onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
+              : <span data-card-title data-clamp className={`${TITLE} text-ink`}>{m.title}</span>}
+            </div>
+            {(m.creator || m.project || m.forkedFrom) && <div data-card-meta className="flex min-w-0 flex-col gap-0.5">
             {/* the badge sits beside the @handle, outside data-creator: the attribution line reads exactly @handle */}
             {m.creator && <span className="flex min-w-0 items-center gap-1">{creatorHref
               ? <a data-creator-link href={creatorHref} title="Open the creator's profile" onClick={(e) => e.stopPropagation()} className="min-w-0 rounded-sm outline-none focus-visible:bg-accent/15 [&:hover_[data-creator]]:text-ink [&:hover_[data-creator]]:underline"><Creator m={m} /></a>
@@ -151,13 +175,17 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
             {/* A published canvas's parent project (project-canvases.md): Explore filtered to that project's published canvases. */}
             {m.project && <a data-card-project href={m.project.href} title="Explore published canvases from this project" onClick={(e) => e.stopPropagation()}
               className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-ink-2 hover:text-ink hover:underline">
-              <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="truncate">From {m.project.label}</span></a>}
+              <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span data-clamp className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">From {m.project.label}</span></a>}
             <ForkedFrom m={m} onOpen={onForkedFromOpen} />
+            </div>}
           </div>
-          {(access || onMore) && (
-            <div className="-mt-0.5 -mr-1.5 flex shrink-0 items-center gap-1">
+          {(access || onMore || toggle) && (
+            <div data-card-head-actions className="-mt-0.5 -mr-1.5 flex shrink-0 items-center gap-1">
               {access && <Visibility access={access} kind={kind} onVaries={onVaries} />}
-              {onMore && <IconBtn title="Card options" aria-label="Card options" aria-haspopup="menu" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} aria-hidden="true" /></IconBtn>}
+              <span className="ml-auto flex items-center gap-1">
+                {toggle && <IconBtn data-card-title-toggle title={open ? 'Show less' : 'Show full title'} aria-label={open ? 'Show less' : 'Show full title'} aria-expanded={open} onClick={stop(() => setOpen((o) => !o))}>{open ? <ChevronsUp size={16} strokeWidth={1.5} aria-hidden="true" /> : <ChevronsDown size={16} strokeWidth={1.5} aria-hidden="true" />}</IconBtn>}
+                {onMore && <IconBtn title="Card options" aria-label="Card options" aria-haspopup="menu" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} aria-hidden="true" /></IconBtn>}
+              </span>
             </div>
           )}
         </div>
@@ -181,7 +209,7 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
             {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}
             {m.canvases && <span data-canvas-count className="inline-flex shrink-0 items-center gap-1"><Shapes size={12} strokeWidth={1.5} />{m.canvases}</span>}
             {m.updated && <span data-updated className="shrink-0">Updated {ago(m.updated)}</span>}
-            <span className="flex-1" />
+            <span data-card-spacer className="flex-1" />
             {cta || (onOpen && (
               <Button size="sm" variant="secondary" data-card-open onClick={stop(onOpen)}
                 className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100">Open <ArrowRight size={13} className="nudge-arrow" /></Button>

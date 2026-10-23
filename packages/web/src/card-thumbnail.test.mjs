@@ -172,7 +172,8 @@ test('the card: the picture on the right from md, on top on a phone; one per row
   // column and the picture are one fixed height from md, the card that plus its padding.
   assert.match(card, /export const CARD_BODY_H = 'md:h-\[190px\]';/);
   assert.match(card, /aspect-\[2\/1\][^`]*md:order-last \$\{CARD_BODY_H\} md:w-\[min\(380px,42%\)\] md:aspect-auto/, 'right of the text from md, the body\'s height, 2:1 where the card is wide');
-  assert.match(card, /<div data-card-text className=\{`flex min-h-0 min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_BODY_H\} \$\{CARD_TEXT_PHONE\}`\}>/);
+  // Owner brief 2026-10-23 (small-card layout): an opened title (Show full title) lets that one card grow to its text, so the column carries data-open and h-auto then.
+  assert.match(card, /<div data-card-text data-open=\{open \|\| undefined\} className=\{`flex min-h-0 min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_BODY_H\} \$\{CARD_TEXT_PHONE\}\$\{open \? ' h-auto!' : ''\}`\}>/);
   assert.match(card, /<div data-card-body className="flex min-h-0 min-w-0 shrink! flex-col gap-1 overflow-hidden pt-2">/, 'only the description gives way');
   assert.doesNotMatch(card, /CARD_HEIGHT/, 'no fixed card height: the body sets it');
   assert.match(card, /max-md:flex-col/, 'a phone stacks it above the text');

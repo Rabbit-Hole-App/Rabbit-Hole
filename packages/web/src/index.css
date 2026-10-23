@@ -883,6 +883,34 @@ html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-
 html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
 html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-text] { height: 196px; flex: none; }
 
+/* Small cards (owner brief 2026-10-23, home/LearningCard.jsx). Each card is a size container (@container/card, named card), so
+   these rules follow the CARD's content width - a Small card is 220px wide, 186px of content - and not the viewport's. Two
+   breakpoints, both tied to that width:
+   - under 40rem the picture stacks above the text on every size, Large included: beside it the text column is 0.58 of the card
+     less 16px, which is under 22rem exactly when the card is under 40rem (flex-wrap on the card lets the text take its own row);
+   - under 22rem (352px: a Small card 186, a Medium small one 266; the icon, a 140px title, the widest pill "Varies by canvas"
+     at 126px and the 28px options button need 352 in one row) the header is a grid: the icon and the title; the creator, the
+     repository and the fork source on a full-width row; then the visibility pill with the Card options button at the row's
+     end. The text column is taller by that row and the footer wraps, so Open has its own line. A card still has one fixed
+     height per width, so every card in a grid is the same size.
+   Open (data-open, the Show full title button) lets one card grow to its content. */
+@container card (width < 40rem) {
+  .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
+  .card-grid > li > [data-card-text]:not([data-open]) { height: 196px; flex: none; width: 100%; }
+}
+@container card (width < 22rem) {
+  html .card-grid > li > [data-card-text]:not([data-open]) { height: 296px; }
+  [data-card-head] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.75rem; row-gap: 0.25rem; }
+  [data-card-head-text] { display: contents; }
+  [data-card-heading] { grid-column: 2; grid-row: 1; }
+  [data-card-meta] { grid-column: 1 / -1; grid-row: 2; }
+  [data-card-head-actions] { grid-column: 1 / -1; grid-row: 3; flex-wrap: wrap; }
+  [data-card-footer] { flex-wrap: wrap; row-gap: 0.25rem; }
+  [data-card-footer] > [data-card-spacer] { display: none; }
+  [data-card-footer] > :last-child { margin-left: auto; }
+}
+.card-grid > li [data-card-text][data-open] [data-clamp] { display: block; overflow: visible; -webkit-line-clamp: unset; }
+
 /* Rabbit Hole dev, below md: the sidebar is a drawer opened from a fixed top strip (Shell.jsx),
    which publishes --shell-top-h; pages start below it. The live build never sets it, and no
    page <main> has a top padding class, so this is 0 there. */
