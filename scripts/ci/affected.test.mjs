@@ -96,7 +96,16 @@ test('plan: an unmapped path exits 0, runs the default set and warns with the mi
   const ok = aff.plan({ part: 1, of: 2, changes: [{ status: 'M', path: 'packages/web/src/Dive.jsx' }], map, baseline: 'b' });
   assert.equal(ok.code, 0);
   assert.equal(ok.warning, undefined);
-  assert.deepEqual(ok.out, { part: 1, checks: ['dive-check.mjs'], reasons: ['dive-check.mjs: packages/web/src/Dive.jsx'], notCovered: [], baseline: 'b', unmapped: [] });
+  assert.deepEqual(ok.out, { part: 1, checks: ['dive-check.mjs'], engines: [], reasons: ['dive-check.mjs: packages/web/src/Dive.jsx'], notCovered: [], baseline: 'b', unmapped: [] });
+});
+// Owner 2026-10-23: WebKit's missing libraries are runner setup. The part that runs an engine check, and only that part, names it.
+test('plan: engines lists the non-Chromium browsers of this part only, from check-map.json engine', () => {
+  const m = { ...map, mapped: { 'packages/web/src/Embed.jsx': ['wk-check.mjs', 'ff-check.mjs', 'ch-check.mjs'] },
+    checks: { 'wk-check.mjs': { runner: 'fork', seconds: 300, engine: 'webkit' }, 'ff-check.mjs': { runner: 'fork', seconds: 299, engine: 'firefox' }, 'ch-check.mjs': { runner: 'fork', seconds: 10 } } };
+  const changes = [{ status: 'M', path: 'packages/web/src/Embed.jsx' }];
+  assert.deepEqual(aff.plan({ part: 1, of: 1, changes, map: m, baseline: 'b' }).out.engines, ['firefox', 'webkit']);
+  const split = [1, 2, 3].map(part => aff.plan({ part, of: 3, changes, map: m, baseline: 'b' }).out);
+  assert.deepEqual(split.map(p => [p.checks, p.engines]), [[['wk-check.mjs'], ['webkit']], [['ff-check.mjs'], ['firefox']], [['ch-check.mjs'], []]]);
 });
 test('plan: a selected check missing from check-map.json fails every part with exit 1 and one fix line per check', () => {
   const changes = [{ status: 'A', path: 'packages/web/e2e/new-check.mjs' }, { status: 'A', path: 'packages/web/e2e/other-check.mjs' }, { status: 'M', path: 'packages/web/src/Dive.jsx' }];

@@ -20,7 +20,14 @@
 //   9. a viewer whose model-loaders chunk is gone (404, as production after a release) shows the saved preview and Retry,
 //      never the raw import error and never an automatic reload; after a failed Retry the stale build is confirmed and
 //      Reload to update is offered, blocked while a chat draft is typed, and reloads only on its click;
-//  10. no browser errors and no model requests.
+//  10. Building -> Ready in the same tab: the finished card loads its interactive 3D model with no reload, under the same
+//      card id, with no second job started and a typed draft kept (owner bug report 2026-10-23: the card reached Ready,
+//      showed the saved image and "The 3D viewer could not load", and only a page refresh fixed it);
+//  11. a model download that fails once: the fallback names it and Retry fetches the saved model again, in place;
+//  12. a viewer chunk the server does not have (the tab is older than a release) and then has again: the fallback, then
+//      Retry loads it under a fresh URL in place, never by an automatic reload; a draft is kept;
+//  13. a model that stays unavailable: the saved preview, the message and a working Retry, until the model is served;
+//  14. no browser errors and no model requests.
 // Before this change step 1 fails: the completed card shows its thumbnail until selected, and Edit / Explain are present.
 // Usage: BASE=http://127.0.0.1:9151 SMALL_CP=http://127.0.0.1:9153 VARS=<cp .dev.vars> node e2e/cad-viewer-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -66,19 +73,24 @@ function triangleGlb() {
 const GLB = triangleGlb();
 const refused = [], outside = [], errors = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course|artifact))/;
-let brokenLoaders = false;
+let brokenLoaders = false, brokenRenderer = false, flipReady = false, glbFailures = 0;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(url.hostname); return route.abort(); }
   // As production after a release: the tab's hashed chunk is no longer on the server (GET and HEAD both 404).
   if (brokenLoaders && /^\/static\/model-loaders-[^/]+\.js$/.test(url.pathname)) return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not found' });
+  // As a tab older than a release: the renderer chunk is gone until `brokenRenderer` is cleared (GET and HEAD both 404).
+  if (brokenRenderer && /^\/static\/three-d-renderer-[^/]+\.js$/.test(url.pathname)) return route.fulfill({ status: 404, contentType: 'text/plain', body: 'Not found' });
   const file = url.pathname.match(/^\/api\/learn\/files\/fs_[^/]+\/d\/(fd_glb|fd_step|fd_thumbnail)$/)?.[1];
+  if (file === 'fd_glb' && glbFailures > 0) { glbFailures -= 1; return route.fulfill({ status: 503, contentType: 'text/plain', body: 'unavailable' }); }
   if (file === 'fd_glb') return route.fulfill({ contentType: 'model/gltf-binary', body: GLB });
   if (file === 'fd_step') return route.fulfill({ contentType: 'model/step', body: 'ISO-10303-21; fixture' });
   if (file === 'fd_thumbnail') return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect x="20" y="50" width="120" height="60" fill="#999"/></svg>' });
   if (url.pathname.startsWith('/api/learn/cad/jobs')) {
     if (request.method() !== 'GET') { refused.push(url.pathname); return route.abort(); }
     const id = url.pathname.split('/')[5];
+    // The poll of the card that is building: once `flipReady` it answers Ready with the model's files, as the server does.
+    if (id === 'job-cad-flip' && flipReady) { const done = ready('cad-flip', 0, 640); return route.fulfill({ json: { job: { ...jobs[id], state: 'ready', stage: 'ready', revisionId: 'revision-1', manifest: done.manifest }, block: done } }); }
     const current = await board().catch(() => ({ blocks }));
     const block = current.blocks.find(entry => entry.jobId === id) || blocks.find(entry => entry.jobId === id);
     return route.fulfill({ json: id ? { job: jobs[id], block } : { jobs: Object.values(jobs), blocks: current.blocks } });
@@ -89,7 +101,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 10;
+const total = 14;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); }
@@ -362,6 +374,87 @@ await step('a gone model-loaders chunk: saved preview and Retry, no raw error, n
   await until(async () => (await viewerOf(broken.page).getAttribute('data-viewer-live')) === 'true', 'after the reload the viewer did not load');
   assert.equal(loads, 1, 'exactly one reload, on the click');
   await broken.context.close();
+});
+
+const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] textarea').first();
+const requestsTo = (page, needle) => { const seen = []; page.on('request', request => { if (request.url().includes(needle)) seen.push(request.url()); }); return seen; };
+
+await step('Building -> Ready in the same tab: the finished card loads its interactive 3D model with no reload, the same card, no second job, a draft kept', async () => {
+  const building = { type: 'cad', id: 'cad-flip', jobId: 'job-cad-flip', modelId: 'm', revisionId: null, status: 'building', title: 'Flip plate', units: 'mm', w: 460, h: 420, dx: 0, dy: 640, briefSummary: 'Fixture.' };
+  jobs['job-cad-flip'] = { id: 'job-cad-flip', cardId: 'cad-flip', modelId: 'm', state: 'building', stage: 'building', attempt: 1, revisionId: null, manifest: null, createdAt: Date.now(), updatedAt: Date.now() };
+  const state = await board();
+  await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: { ...state, blocks: [...state.blocks.filter(block => block.id !== 'cad-flip'), building] } }) });
+  const tab = await open();
+  let loads = 0; tab.page.on('load', () => { loads += 1; });
+  const models = requestsTo(tab.page, 'fs_cad-flip/d/fd_glb');
+  await tab.page.keyboard.press('Shift+Digit1');
+  await cardOf(tab.page, 'cad-flip').locator('[data-cad-progress][data-gen-active="true"]').waitFor();
+  await composerOf(tab.page).fill('a draft kept while the model builds');
+  assert.deepEqual(models, [], 'no model is asked for before it exists');
+  flipReady = true;
+  await until(async () => (await viewerOf(tab.page, 'cad-flip').getAttribute('data-viewer-live')) === 'true', 'the finished card never loaded its 3D model without a reload', 30000);
+  assert.equal(await viewerOf(tab.page, 'cad-flip').locator('[data-cad-viewer-fallback]').count(), 0, 'no "could not load" notice');
+  assert.equal(await cardOf(tab.page, 'cad-flip').count(), 1, 'the same card, not a second one');
+  assert.equal(loads, 0, 'no reload');
+  assert.equal(models.length, 1, 'the saved model, fetched once');
+  assert.equal(await composerOf(tab.page).inputValue(), 'a draft kept while the model builds');
+  await shot(tab.page, 'after-11-building-to-ready-light');
+  await tab.context.close();
+  flipReady = false;
+  const after = await board();
+  await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: { ...after, blocks: after.blocks.filter(block => block.id !== 'cad-flip') } }) });
+});
+
+await step('a model download that fails once: the fallback names it, and Retry fetches the saved model again in place with the draft kept', async () => {
+  glbFailures = 1;
+  const tab = await open();
+  let loads = 0; tab.page.on('load', () => { loads += 1; });
+  const fallback = viewerOf(tab.page).locator('[data-cad-viewer-fallback="model"]');
+  await fallback.waitFor();
+  assert.match(await fallback.innerText(), /Model download failed \(503\)/);
+  assert.equal(await viewerOf(tab.page).locator('[data-cad-poster]').count(), 1, 'the saved preview is shown');
+  await composerOf(tab.page).fill('a draft kept through Retry');
+  await fallback.locator('[data-cad-viewer-retry]').click();
+  await until(async () => (await viewerOf(tab.page).getAttribute('data-viewer-live')) === 'true', 'Retry did not load the saved model in place');
+  assert.equal(await cardOf(tab.page).count(), 1);
+  assert.equal(loads, 0, 'no reload');
+  assert.equal(await composerOf(tab.page).inputValue(), 'a draft kept through Retry');
+  await tab.context.close();
+});
+
+await step('a viewer chunk missing from the server and then served again: the fallback, then Retry loads it under a fresh URL in place, never by a reload', async () => {
+  brokenRenderer = true;
+  const tab = await open();
+  let loads = 0; tab.page.on('load', () => { loads += 1; });
+  const chunks = requestsTo(tab.page, '/static/three-d-renderer-');
+  const fallback = viewerOf(tab.page).locator('[data-cad-viewer-fallback="module"]');
+  await fallback.waitFor();
+  assert.equal(await viewerOf(tab.page).locator('[data-cad-poster]').count(), 1, 'the saved preview is shown');
+  await composerOf(tab.page).fill('a draft kept through the chunk retry');
+  brokenRenderer = false;
+  await fallback.locator('[data-cad-viewer-retry]').click();
+  await until(async () => (await viewerOf(tab.page).getAttribute('data-viewer-live')) === 'true', 'Retry did not load the viewer in place once the chunk was served');
+  assert.ok(chunks.some(url => /\?retry=\d+$/.test(url)), `Retry asked for the chunk under a fresh URL: ${chunks.join(' ')}`);
+  assert.equal(loads, 0, 'no automatic reload');
+  assert.equal(await cardOf(tab.page).count(), 1);
+  assert.equal(await composerOf(tab.page).inputValue(), 'a draft kept through the chunk retry');
+  await tab.context.close();
+});
+
+await step('a model that stays unavailable: the saved preview, the message and a working Retry, until it is served', async () => {
+  glbFailures = Infinity;
+  const tab = await open();
+  const fallback = viewerOf(tab.page).locator('[data-cad-viewer-fallback="model"]');
+  await fallback.waitFor();
+  await fallback.locator('[data-cad-viewer-retry]').click();
+  await until(async () => (await fallback.locator('[data-cad-viewer-retry]').count()) === 1 && /Model download failed \(503\)/.test(await fallback.innerText()), 'the fallback did not stay honest after a failed Retry');
+  assert.equal(await viewerOf(tab.page).getAttribute('data-viewer-live'), null);
+  assert.equal(await viewerOf(tab.page).locator('[data-cad-poster]').count(), 1, 'the saved preview is shown');
+  assert.equal(await fallback.locator('[data-cad-reload-update]').count(), 0, 'a model failure never offers a reload');
+  glbFailures = 0;
+  await fallback.locator('[data-cad-viewer-retry]').click();
+  await until(async () => (await viewerOf(tab.page).getAttribute('data-viewer-live')) === 'true', 'Retry did not recover once the model was served');
+  await tab.context.close();
 });
 
 await step('no browser errors and no model requests escaped', async () => {

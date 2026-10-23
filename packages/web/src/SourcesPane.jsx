@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowLeft, CircleAlert, CornerUpLeft, ExternalLink, Loader2, MoreHorizontal, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
+import { ArrowLeft, CircleAlert, CornerUpLeft, ExternalLink, Loader2, MoreHorizontal, Pin, RotateCw, SquarePlus, Trash2, Upload, X } from 'lucide-react';
 import { Button, Menu, MenuItem, useMenuButton } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { externalUrl, paneSections, rangeLabel } from './chat-context.js';
@@ -10,6 +10,7 @@ import SourceReader from './SourceReader.jsx';
 import { pdfKeyOfRef } from './pdf-source.js';
 import { addFileToCanvas, canvasFamilyOf } from './file-to-canvas.js';
 import { wsHeaders } from './api.js';
+import { studyReaderPin } from './study-state.js';
 
 // The Context panel (UI-26, owner brief 2026-10-22 sections 1-4): the companion column's Context view. Its header (PanelHeader
 // CompanionHeader) holds "Context", the one blue Upload (ContextUpload below) and Close. The body is either the file list or
@@ -165,6 +166,8 @@ export default function SourcesPane({ onSwitchOff = null }) {
 
   if (reading) {
     const { item, ref } = reading, name = ref.name, add = adder(item, ref), ready = item.state === 'ready';
+    // Pin for study (UI-27): the same pin as the PDF card's menu, offered only when exactly one card on this canvas is this PDF.
+    const study = studyReaderPin(), pinTarget = study?.target(ref.sourceId) || null;
     return (
       <div data-sources-pane className="flex min-h-0 flex-1 flex-col">
         <div data-sources-header className="flex shrink-0 flex-col gap-1 border-b border-line px-2 py-1.5">
@@ -192,6 +195,7 @@ export default function SourcesPane({ onSwitchOff = null }) {
             {!item.attached && <span data-not-attached className="shrink-0 rounded border border-line px-1 text-[11px] text-ink-2">Not attached</span>}
             {add && <Button variant="secondary" size="sm" data-material-action="canvas" disabled={!!rows[ref.sourceId]?.busy} onClick={add}
               aria-label={`Add ${name} to canvas`} title={`Add ${name} to canvas`} className="gap-1 px-2 text-xs">{rows[ref.sourceId]?.busy === 'canvas' ? <Loader2 size={13} aria-hidden className="animate-spin" /> : <SquarePlus size={13} aria-hidden />}Add to canvas</Button>}
+            {pinTarget && <Button variant="secondary" size="sm" data-reader-pin-study onClick={() => study.pin(pinTarget)} className="gap-1 px-2 text-xs"><Pin size={13} aria-hidden />Pin for study</Button>}
             <span className="flex-1" />
             {options(item, name, add)}
           </div>}
