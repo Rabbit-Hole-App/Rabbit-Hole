@@ -1518,7 +1518,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, onPinForStudy = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -3468,11 +3468,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
       // Enter opens it - or the one selected card while nothing else holds the focus. Presenting keeps both keys.
       const focusedCard = document.activeElement?.matches?.('[data-block-id]') ? document.activeElement.dataset.blockId : null;
-      // Typing somewhere, an embedded editor or widget (focus inside a card), a dialog, a menu or the composer: the
-      // canvas's own letter, Space and arrow keys stand down there.
+      // Typing somewhere, an embedded editor or widget (focus inside a card), a dialog, a menu, the composer or the Pinned Study
+      // pane and its working-view row (its divider's arrows resize the pane, never nudge a card): the canvas's own letter, Space
+      // and arrow keys stand down there.
       const held = document.activeElement;
       const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
-        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[data-study-pane],[data-study-work],[role="dialog"],[role="menu"]'));
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       // Shift+F10 or the menu key (UI-25): on a focused card the browser sends the card a contextmenu event, which the
       // surface handles; with the focus elsewhere and the canvas holding the keyboard, the selection's (or canvas's) menu.
@@ -5259,6 +5260,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       downloadCad: (object, format) => downloadCadArtifact(cadArtifact(object.manifest, format), cadCanMutate(object, readOnly)).catch(problem => toast(problem.message, { tone: 'error' })),
       toggleDone: id => { snapshot(); setBlocks(previous => previous.map(entry => entry.id === id ? { ...entry, done: !entry.done } : entry)); },
       presentFrom: id => presentFrom(id),
+      // Pin for study (UI-27): the owner's page makes the clicked card its pinned reference; absent elsewhere, so the row hides.
+      pinForStudy: onPinForStudy ? id => onPinForStudy(id) : null,
       // A row S1 answers with signIn: the page's sign-in, keeping the draft and selection (false: none here, the reason shows).
       // Start Rabbit Hole's own flow (the page's onStartRabbitHole) already asks a guest to sign in and keeps the card.
       signIn: (capability, target) => {

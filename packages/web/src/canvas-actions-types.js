@@ -12,6 +12,7 @@ import { pdfBytesUrl } from './pdf-source.js';
 import { codeCardOf } from './code-card.js';
 import { notebookActions } from './notebook-inline-client.js';
 import { viewOf } from './cad-viewer-store.js';
+import { eligible } from './study-state.js';
 
 export const CLOSED_SHAPES = ['rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star'];
 export const LINE_SHAPES = ['line', 'arrow', 'curve', 'elbow'];
@@ -83,6 +84,14 @@ export const TYPE_ACTIONS = [
     targets: ['card'], requires: 'open', data: 'data-menu-open',
     applies: (t, ctx) => ['reader', 'external'].includes(reader(t, ctx)?.kind),
     run: (t, ctx) => { const open = reader(t, ctx); return open.kind === 'reader' ? ctx.canvas.cardAction(open.action, open.payload) : ctx.canvas.openUrl(open.url); },
+  },
+  // Pinned Study (UI-27): the clicked PDF, note or Explanation becomes the pinned reference; the owner's canvas only (the page
+  // supplies pinForStudy). No request, no model call, no board save.
+  {
+    id: 'study.pin', label: 'Pin for study', icon: 'Pin', group: 'primary', order: 50,
+    targets: ['card', 'object'], types: ['pdf', 'explanation', 'text', 'sticky'], requires: 'open', data: 'data-menu-pin-study',
+    applies: (t, ctx) => !!ctx.canvas.pinForStudy && !!eligible(t.object),
+    run: (t, ctx) => ctx.canvas.pinForStudy(t.id),
   },
   {
     id: 'wiki.open-source', label: 'Open on Wikipedia', icon: 'ExternalLink', group: 'type', order: 12,

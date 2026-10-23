@@ -101,6 +101,26 @@ await check('1 right-click a card: a small menu by the cursor, "Start Rabbit Hol
 });
 await shot('01-menu-start-rabbit-hole');
 
+// Pinned Study (UI-27 Release 1 contract): one shared Pin for study row on an Explanation and a sticky note, from the clicked
+// object; none on a quiz. Opening the menu pins nothing and opens no Study pane.
+await check('1b Pin for study: on an Explanation card and a sticky note, not on a quiz; opening the menu pins nothing', async () => {
+  await page.keyboard.press('Escape');
+  await menu().waitFor({ state: 'detached' });
+  const pinRow = () => menu().locator('[data-menu-pin-study]');
+  await rightClick('m-a');
+  assert.equal(await pinRow().count(), 1, 'Explanation has Pin for study');
+  assert.equal((await pinRow().innerText()).trim(), 'Pin for study');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.locator('[data-item-id="n-1"]').click({ button: 'right', position: { x: 30, y: 30 } }); await menu().waitFor();
+  assert.equal(await pinRow().count(), 1, 'a sticky note has Pin for study');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  await page.locator('[data-block-id="m-q"]').click({ button: 'right', position: { x: 20, y: 10 } }); await menu().waitFor();
+  assert.equal(await pinRow().count(), 0, 'a quiz has no Pin for study');
+  await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
+  assert.equal(await page.locator('[data-study-pane]').count(), 0, 'nothing was pinned');
+  await rightClick('m-b');
+});
+
 await check('2 opening, Escape and an outside click create no Rabbit Hole', async () => {
   await page.keyboard.press('Escape');
   await menu().waitFor({ state: 'detached' });
@@ -447,6 +467,7 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
   assert.equal(rows[0], 'Start Rabbit Hole');
   for (const local of ['Duplicate', 'Delete']) assert.ok(rows.includes(local), `${local} in ${rows.join(', ')}`);
   assert.equal(await menu().locator('[data-menu-rename], [data-menu-rename-group], [data-menu-inline-ai]').count(), 0, 'a viewer never sees Rename or Quick Edit');
+  assert.equal(await menu().locator('[data-menu-pin-study]').count(), 0, 'Pin for study is the owner canvas only');
   await iconsOnEveryItem('a view-only board');
   await shot('04-shared-view-only-menu');
   await startItem().click();
@@ -464,6 +485,6 @@ await check('7 on a shared view-only board the menu starts the viewer\'s own Rab
 
 await check('no page errors, no model call', async () => { assert.deepEqual(errors, []); assert.deepEqual(asks, []); });
 await browser.close();
-const total = 18;
+const total = 19;
 console.log(`${results.length}/${total} checks passed`);
 process.exit(results.length === total ? 0 : 1);
