@@ -87,3 +87,9 @@ test('the shared right panel: Chat where the page has one, Find, TOC, Comments o
   assert.deepEqual(sharedPanelTabs({ role: 'commenter', shared: true }), ['find', 'toc']);
   assert.ok(!sharedPanelTabs(shared('owner'), { chat: true }).includes('progress'));
 });
+
+test('chat.ask: hidden, not disabled, where an embed has no Chat; unchanged elsewhere', () => {
+  assert.equal(can('chat.ask', { role: 'guest', shared: true, chat: false }).hidden, true);
+  assert.equal(can('chat.ask', { role: 'guest', shared: true, chat: true }).allowed, true);
+  assert.equal(can('chat.ask', { role: 'guest', shared: true }).allowed, true);
+});

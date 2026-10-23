@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Check, CircleAlert, Code2, Compass, Copy, Eye, Globe } from 'lucide-react';
-import { DEFAULT_HEIGHT, clampHeight, embedHref, embedSnippet, embedTarget, emailSnippet, fullHref, thumbnailUrl } from './embed-api.js';
+import EmbedPanel from './EmbedPanel.jsx';
+import { embedSources } from './embed-api.js';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
 // Shared boards are view-only - editing someone else's board means forking.
-export function Switch({ on, label, disabled = false, onChange, ...rest }) {
+export function Switch({ on, label, disabled = false, onChange }) {
   return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)} {...rest}
+    <button type="button" role="switch" aria-checked={on} aria-label={label} disabled={disabled} onClick={() => onChange(!on)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? 'bg-[#2383e2]' : 'bg-line-strong'}`}>
       <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
     </button>
@@ -80,64 +81,18 @@ function ExploreRow({ published, token, busy, onPublish }) {
   );
 }
 
-// A read-only value with a Copy button that answers on the button itself (no toast).
-function CopyField({ label, value, rows = 0, copyLabel = 'Copy', fieldProps = {}, buttonProps = {} }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => navigator.clipboard?.writeText(value).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1400); });
-  const field = 'min-w-0 flex-1 rounded-md border border-line bg-hover/50 px-2 py-1 text-xs text-ink-2';
-  return (
-    <div className="mt-1.5 flex items-start gap-1.5">
-      {rows ? <textarea readOnly rows={rows} value={value} aria-label={label} onFocus={event => event.target.select()} className={`${field} resize-none font-mono`} {...fieldProps} />
-        : <input readOnly value={value} aria-label={label} onFocus={event => event.target.select()} className={field} {...fieldProps} />}
-      <button type="button" onClick={copy} aria-label={label ? `${copyLabel} ${label.toLowerCase()}` : copyLabel} {...buttonProps}
-        className={`flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs ${copied ? 'text-green-700' : 'text-ink-2 hover:bg-hover hover:text-ink'}`}>
-        {copied ? <Check size={13} /> : <Copy size={13} />}{copied ? 'Copied' : copyLabel}
-      </button>
-    </div>
-  );
-}
-
-// Embed (SHARE-04, embed-api.js): only for a public canvas (a public view link, else its Explore publication). A lazy live
-// preview, the iframe snippet at the publisher's height, Show Chat, and the email block (preview image plus link).
-function EmbedSection({ sharing, title }) {
-  const target = embedTarget(sharing);
+// Embed (SHARE-04): the standalone EmbedPanel in a collapsed row, only when the canvas has a public source to embed.
+function EmbedRow({ sharing, title, onChangeAccess }) {
   const [open, setOpen] = useState(false);
-  const [height, setHeight] = useState(DEFAULT_HEIGHT);
-  const [chat, setChat] = useState(false);
-  if (!target) return null;
-  const origin = window.location.origin;
-  const src = embedHref(origin, target.kind, target.token, { chat });
-  const code = embedSnippet({ src, title, height });
-  const link = fullHref(origin, target.kind, target.token);
+  const sources = embedSources(sharing, window.location.origin);
+  if (!sources.some(source => source.available)) return null;
   return (
-    <div data-embed-section className="mt-3 rounded-lg border border-line p-2.5">
+    <div className="mt-3 rounded-lg border border-line p-2.5">
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 text-left">
         <Code2 size={14} className="shrink-0 text-ink-2" />
         <span className="min-w-0 flex-1"><span className="block text-sm text-ink">Embed</span><span className="block text-xs text-ink-3">Put this canvas in a website or an email</span></span>
       </button>
-      {open && (
-        <div className="mt-2">
-          <p className="text-xs text-ink-3">Works on websites that accept an iframe or custom HTML. The embed is read-only, and anyone can still open the full canvas from it.</p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-ink-2">
-            <label className="flex flex-1 items-center gap-2">Height
-              <input data-embed-height type="number" min={200} max={2000} step={10} value={height} onChange={event => setHeight(event.target.value)} onBlur={() => setHeight(clampHeight(height))}
-                className="w-20 rounded-md border border-line bg-white px-2 py-1 text-xs text-ink" />px
-            </label>
-            <span className="flex items-center gap-2">Show Chat<Switch data-embed-show-chat on={chat} label="Show Chat" onChange={setChat} /></span>
-          </div>
-          <div data-embed-preview-box className="mt-2 max-h-72 overflow-auto rounded-md border border-line">
-            <iframe data-embed-preview src={src} title="Embed preview" loading="lazy" width="100%" height={clampHeight(height)} style={{ border: 0, maxWidth: '100%', display: 'block' }} />
-          </div>
-          <CopyField label="Embed code" copyLabel="Copy embed code" value={code} rows={4} fieldProps={{ 'data-embed-code': '' }} buttonProps={{ 'data-embed-copy': '', 'aria-label': 'Copy embed code' }} />
-          <div className="mt-3 border-t border-line pt-2">
-            <div className="text-sm text-ink">For email</div>
-            <p className="text-xs text-ink-3">An email cannot run an interactive embed. Use the preview image with the link. Turning sharing off stops the image from being served, but cannot remove copies an email provider already saved.</p>
-            <CopyField label="Preview image URL" value={thumbnailUrl(origin, target.kind, target.token)} fieldProps={{ 'data-embed-email-image': '' }} />
-            <CopyField label="Link" value={link} />
-            <CopyField label="Email HTML" rows={3} value={emailSnippet({ href: link, image: thumbnailUrl(origin, target.kind, target.token), title })} />
-          </div>
-        </div>
-      )}
+      {open && <div className="mt-2"><EmbedPanel canvasTitle={title} sources={sources} onChangeAccess={onChangeAccess} /></div>}
     </div>
   );
 }
@@ -197,7 +152,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onPublish =
       )}
       {onPublish && <ExploreRow published={!!current.published} token={current.publication} busy={busy} onPublish={onPublish} />}
       {comments}
-      <EmbedSection sharing={sharing} title={title} />
+      <EmbedRow sharing={sharing} title={title} onChangeAccess={() => panel.current?.querySelector('[role="switch"]')?.focus()} />
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );

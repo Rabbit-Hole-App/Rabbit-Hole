@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasOwnsWheel, clampHeight, embedFetch, embedHref, embedRoute, embedSnippet, embedTarget, emailSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
+import { canvasOwnsWheel, clampHeight, clampWidth, embedFetch, embedHref, embedRoute, embedSnippet, embedSources, emailSnippet, linkSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
 import { loadGuestDraft } from './guest-draft.js';
 import { takeDraft, takeTarget } from './shared-ask.js';
 
@@ -29,13 +29,16 @@ test('url builders: the embed page, the full page and the thumbnail per link typ
   assert.equal(thumbnailUrl(ORIGIN, 'e', TOKEN), `${ORIGIN}/api/learn/boards/published/${TOKEN}/thumbnail`);
 });
 
-test('Embed is offered only for a public canvas: a public view link first, else the publication', () => {
-  assert.deepEqual(embedTarget({ shared: true, view: 'v', public_view: true, published: true, publication: 'p' }), { kind: 'b', token: 'v' });
-  assert.deepEqual(embedTarget({ shared: true, view: 'v', public_view: false, published: true, publication: 'p' }), { kind: 'e', token: 'p' });
-  assert.deepEqual(embedTarget({ shared: false, view: 'v', public_view: true, published: true, publication: 'p' }), { kind: 'e', token: 'p' });
-  assert.equal(embedTarget({ shared: true, view: 'v', public_view: false }), null, 'a link that needs sign-in is not embeddable');
-  assert.equal(embedTarget({ shared: false }), null);
-  assert.equal(embedTarget(null), null);
+test('Embed sources: a public view link and an Explore publication, available only when public', () => {
+  const find = (sharing, kind) => embedSources(sharing, ORIGIN).find(source => source.kind === kind);
+  const both = { shared: true, view: 'v', public_view: true, published: true, publication: 'p' };
+  assert.deepEqual([find(both, 'shared').available, find(both, 'explore').available], [true, true]);
+  assert.equal(find(both, 'shared').url, `${ORIGIN}/b/v`);
+  assert.equal(find(both, 'explore').url, `${ORIGIN}/e/p`);
+  assert.deepEqual([find({ ...both, public_view: false }, 'shared').available, find({ ...both, public_view: false }, 'explore').available], [false, true], 'a link that needs sign-in is not embeddable');
+  assert.equal(find({ ...both, shared: false }, 'shared').available, false);
+  assert.equal(find({ ...both, published: false }, 'explore').available, false);
+  assert.deepEqual(embedSources(null, ORIGIN).map(source => source.available), [false, false]);
 });
 
 test('the embed snippet: lazy, titled, full width, the chosen height, no allow list, escaped', () => {
@@ -48,6 +51,10 @@ test('the embed snippet: lazy, titled, full width, the chosen height, no allow l
   assert.match(snippet, /chat=1&amp;theme=dark/);
   assert.doesNotMatch(snippet, /\sallow=|allowfullscreen|sandbox/);
   assert.match(embedSnippet({ src: 'x', title: '', height: 500 }), /title="Rabbit Hole canvas"/);
+  assert.match(embedSnippet({ src: 'x', title: 't', height: 500, width: 640 }), /width="640"/, 'a pixel width when chosen');
+  assert.equal(clampWidth(50), 200);
+  assert.equal(clampWidth(99999), 2000);
+  assert.equal(linkSnippet({ href: `${ORIGIN}/b/${TOKEN}`, title: 'A & B' }), `<a href="${ORIGIN}/b/${TOKEN}">A &amp; B</a>`);
 });
 
 test('height is a whole number of pixels between 200 and 2000, else the default', () => {
@@ -212,13 +219,15 @@ test('hand-off: no opener means nothing to wait for', async () => {
 
 test('copy rules: no ellipsis in the embed surfaces; Open in Rabbit Hole and the Embed controls are present', () => {
   const read = name => readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const panel = read('./SharePanel.jsx'), chat = read('./SharedChat.jsx'), page = read('./SharedBoardPage.jsx');
-  const embedPanel = panel.slice(panel.indexOf('function CopyField('), panel.indexOf('// onPublish(publish)'));
+  const panel = read('./EmbedPanel.jsx'), share = read('./SharePanel.jsx'), chat = read('./SharedChat.jsx'), page = read('./SharedBoardPage.jsx');
   const spread = /\.\.\.(?=[\w({[])/g;
-  for (const text of [read('./embed-api.js'), embedPanel, chat.slice(chat.indexOf('embed (SHARE-04')), page.slice(page.indexOf('if (embed) {'))]) assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, '').replace(spread, ''), /\.\.\.|…/);
-  for (const attribute of ['data-embed-section', 'data-embed-height', 'data-embed-show-chat', 'data-embed-copy', 'data-embed-code', 'data-embed-preview', 'data-embed-email-image']) assert.ok(panel.includes(attribute), attribute);
+  for (const text of [read('./embed-api.js'), panel, share.slice(share.indexOf('function EmbedRow('), share.indexOf('// onPublish(publish)')), chat.slice(chat.indexOf('embed (SHARE-04')), page.slice(page.indexOf('if (embed) {'))]) assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, '').replace(spread, ''), /\.\.\.|…/);
+  for (const attribute of ['data-embed-section', 'data-embed-source', 'data-embed-height', 'data-embed-show-chat', 'data-embed-copy', 'data-embed-code', 'data-embed-preview', 'data-embed-email-image', 'data-embed-change-access']) assert.ok(panel.includes(attribute), attribute);
   for (const attribute of ['data-embed-root', 'data-embed-title', 'data-embed-open', 'data-embed-fork', 'data-embed-chat-button']) assert.ok(page.includes(attribute), attribute);
   assert.ok(chat.includes('data-embed-chat-fallback') && chat.includes('Open Chat in Rabbit Hole'));
   assert.match(panel, /loading="lazy"/, 'the preview iframe is lazy');
+  assert.match(panel, /Sending an email newsletter\?/);
+  assert.match(panel, /View embed code/);
+  assert.equal((share.match(/<EmbedPanel /g) || []).length, 1, 'the Share panel mounts the standalone panel once');
   assert.match(page, /\{embed\.chat && <button type="button" data-embed-chat-button/, 'no Chat entry point unless ?chat=1');
 });

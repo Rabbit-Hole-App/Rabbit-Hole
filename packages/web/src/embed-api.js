@@ -35,22 +35,28 @@ export const embedHref = (origin, kind, token, { chat = false, theme = null } = 
 // The preview image for email: the view link's thumbnail, or the publication's own (control-plane learn-boards.js).
 export const thumbnailUrl = (origin, kind, token) => `${origin}/api/learn/boards/${kind === 'e' ? 'published' : 'shared'}/${token}/thumbnail`;
 
-// Which link a canvas embeds through: its public view link, else its Explore publication; null when it is not public.
-export function embedTarget(sharing) {
-  if (sharing?.shared && sharing.view && sharing.public_view) return { kind: 'b', token: sharing.view };
-  if (sharing?.published && sharing.publication) return { kind: 'e', token: sharing.publication };
-  return null;
-}
+// The sources EmbedPanel offers for a canvas's sharing state: its public view link and its Explore publication.
+export const embedSources = (sharing, origin) => [
+  { kind: 'shared', token: sharing?.view || '', url: sharing?.view ? fullHref(origin, 'b', sharing.view) : '', available: !!(sharing?.shared && sharing.view && sharing.public_view),
+    reason: 'Turn on the public view link to embed this canvas.' },
+  { kind: 'explore', token: sharing?.publication || '', url: sharing?.publication ? fullHref(origin, 'e', sharing.publication) : '', available: !!(sharing?.published && sharing.publication) },
+];
 
 export const DEFAULT_HEIGHT = 520;
 export const clampHeight = value => {
   const n = Math.round(Number(value));
   return Number.isFinite(n) ? Math.min(2000, Math.max(200, n)) : DEFAULT_HEIGHT;
 };
+export const clampWidth = value => {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? Math.min(2000, Math.max(200, n)) : 640;
+};
 const attr = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-// The iframe the publisher pastes: lazy, titled, full width, and no allow list.
-export const embedSnippet = ({ src, title, height }) =>
-  `<iframe src="${attr(src)}" title="${attr(title || 'Rabbit Hole canvas')}" width="100%" height="${clampHeight(height)}" loading="lazy" style="border:0;max-width:100%"></iframe>`;
+// The iframe the publisher pastes: lazy, titled, 100% wide unless a pixel width is given, and no allow list.
+export const embedSnippet = ({ src, title, height, width = '100%' }) =>
+  `<iframe src="${attr(src)}" title="${attr(title || 'Rabbit Hole canvas')}" width="${attr(width)}" height="${clampHeight(height)}" loading="lazy" style="border:0;max-width:100%"></iframe>`;
+// The newsletter fallback when the link has no preview image: a plain text link.
+export const linkSnippet = ({ href, title }) => `<a href="${attr(href)}">${attr(title || 'Open this canvas in Rabbit Hole')}</a>`;
 // The email block: the preview image linked to the canvas (an email cannot run an iframe).
 export const emailSnippet = ({ href, image, title }) =>
   `<a href="${attr(href)}"><img src="${attr(image)}" alt="${attr(title || 'Rabbit Hole canvas')}" width="600" style="max-width:100%;height:auto;border:0"></a>`;

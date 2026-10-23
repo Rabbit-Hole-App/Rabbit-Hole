@@ -132,7 +132,8 @@ function SharedBoard({ token, embed = null }) {
   // An embed never takes the account's role: every viewer there is a public guest (embed-api.js sharedRole).
   const viewer = embed ? null : shared?.viewer || null;
   const permissions = useMemo(() => ({ role: sharedRole({ embed: !!embed, access: shared?.access, viewer: shared?.viewer }), shared: true, shareable: shared?.access?.shareable || null,
-    comments: commentsInfo ? { read: true, post: !!commentsInfo.can?.post } : null, guestChat: guestRemaining === null ? null : { remaining: guestRemaining } }),
+    comments: commentsInfo ? { read: true, post: !!commentsInfo.can?.post } : null, guestChat: guestRemaining === null ? null : { remaining: guestRemaining },
+    ...(embed ? { chat: embed.chat } : {}) }), // an embed without ?chat=1 has no Ask in Chat entry (canvas-permissions chat.ask)
   [embed, shared?.access, shared?.viewer, commentsInfo, guestRemaining]);
   // The visitor's temporary copy (SHARE-02, C:/s/spec/share/contract-guest-draft.md): anyone who may not write the source edits
   // a copy kept in this tab; Fork carries it into their own canvas. An owner or editor gets the view-only canvas here.
