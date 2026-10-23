@@ -52,8 +52,10 @@ export async function runEmbed(engine) {
     // created:false when it carried one (a real round trip through the browser's jar, no script involved).
     context.on('response', async r => {
       if (!/\/api\/learn\/boards\/embed-session$/.test(new URL(r.url()).pathname)) return;
-      const site = new URL(r.request().frame().page().mainFrame().url()).hostname;
-      s.inits.push({ site, created: (await r.json().catch(() => ({}))).created });
+      try {
+        const site = new URL(r.request().frame().page().mainFrame().url()).hostname;
+        s.inits.push({ site, created: (await r.json()).created });
+      } catch (error) { s.inits.push({ error: String(error).slice(0, 120) }); }
     });
     const allowance = jar => { const used = s.used.get(jar)?.size ?? 0; return { limit: 10, used, remaining: 10 - used }; };
     const json = text => { try { return JSON.parse(text); } catch { return null; } };
@@ -92,7 +94,8 @@ export async function runEmbed(engine) {
     await field.fill(text); await field.press('Enter');
     await answers.nth(before).waitFor({ timeout: 20000 });
   }
-  const left = async (fl, n) => fl.locator('[data-guest-remaining]').filter({ hasText: `${n} of 10 free messages left` }).waitFor({ timeout: 20000 }).then(() => true, () => false);
+  // At 0 the page replaces the "N of 10 free messages left" line with the used-up notice.
+  const left = async (fl, n) => (n === 0 ? fl.locator('[data-guest-spent]') : fl.locator('[data-guest-remaining]').filter({ hasText: `${n} of 10 free messages left` })).waitFor({ timeout: 20000 }).then(() => true, () => false);
   const flow = async (name, expected, body) => { const before = results.length; plan(expected); await body(); if (results.length - before !== expected) check(`${name}: ran ${results.length - before} checks, expected ${expected}`, false); };
   // Closes every tab the page opens while `on` (a full site tab that never answers).
   const closeNextTab = context => { const state = { on: false, closed: 0 }; context.on('page', p => { if (state.on) { state.closed++; p.close().catch(() => {}); } }); return state; };
@@ -105,6 +108,7 @@ export async function runEmbed(engine) {
   }, token);
   // A visitor's edit: the rectangle tool and a drag, as the shared-canvas checks make one (the page gets its unsaved-changes notice).
   async function draw(page, fl) {
+    await page.locator('iframe').scrollIntoViewIfNeeded();
     const box = await page.locator('iframe').boundingBox();
     await page.mouse.click(box.x + 40, box.y + box.height - 40);
     const at = (x, y) => frameOf(page).evaluate(([x, y]) => {
@@ -122,7 +126,7 @@ export async function runEmbed(engine) {
   // ===================================================================================================================
   // the browser, and which flow it gets
   // ===================================================================================================================
-  const browser = await launchEngine(engine);
+  const browser = await launchEngine(engine, engine === 'firefox' ? { firefoxUserPrefs: { 'network.cookie.cookieBehavior': 5 } } : {}); // 5: Firefox's own default, state partitioning
   const context = await browser.newContext(contextOptions);
   plan(1);
   const kept = await crossSiteCookieKept(host, context);
@@ -158,9 +162,11 @@ export async function runEmbed(engine) {
     for (let i = 1; i <= 10; i++) await send(fl, `${DRAFT} ${i}`);
     check(`${tag} messages 1 to 10 are accepted and each is answered`, net.sends.filter(s => s.status === 200).length === 10 && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && await left(fl, 0), JSON.stringify({ sends: net.sends.map(s => s.status), answers: await fl.locator('[data-shared-chat] [data-answer]').count(), remaining: await fl.locator('[data-guest-remaining]').allInnerTexts() }));
     const field = fl.locator('[data-shared-ask] [data-chat-composer] textarea');
-    await field.fill('The eleventh question'); await field.press('Enter');
-    await fl.locator('[data-guest-spent]').waitFor({ timeout: 20000 });
-    check(`${tag} message 11 is refused with its draft kept, no new answer and no extra count`, net.sends.at(-1).status === 429 && await field.inputValue() === 'The eleventh question' && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && await left(fl, 0), JSON.stringify({ last: net.sends.at(-1), answers: await fl.locator('[data-shared-chat] [data-answer]').count(), field: await field.inputValue(), remaining: await fl.locator('[data-guest-remaining]').allInnerTexts() }));
+    await field.fill('The eleventh question');
+    const [spentTab] = await Promise.all([context.waitForEvent('page'), field.press('Enter')]);
+    await spentTab.waitForURL(u => u.origin === APP, { timeout: 30000 });
+    check(`${tag} message 11 is not sent: the used-up notice is up, Send hands the draft to the full site in a new tab instead, no request is made and no answer is added`, await fl.locator('[data-guest-spent]').isVisible() && net.sends.length === 10 && net.sends.every(s => s.status === 200) && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && new URL(spentTab.url()).pathname === `/b/${pub.view}`, JSON.stringify({ sends: net.sends.length, url: spentTab.url() }));
+    await spentTab.close();
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-spent-${engine}.png` });
     await page.reload();
     fl = await embedOf(page); await openChat(fl);
@@ -170,7 +176,9 @@ export async function runEmbed(engine) {
     await siteB.goto(hostUrl(host, 'b', path, '&lazy=0'));
     const flB = await embedOf(siteB); await openChat(flB);
     const initB = net.inits.find(i => i.site === SITE_B);
-    check(`${tag} another embedding site gets its own session (its first init created:true although site A already holds one) and its own 10 messages: partitioned storage`, await left(flB, 10) && initB?.created === true, JSON.stringify(net.inits));
+    const partitioned = initB?.created === true;
+    if (!partitioned) console.log(`FINDING [${engine}] a second embedding site sent the first site's rh_embed cookie back (init created:false): this browser does not partition it, so its count is per browser, not per embedding site. ${JSON.stringify(net.inits)}`);
+    check(`${tag} another embedding site gets its own session (its first init created:true although site A already holds one) and its own 10 messages: partitioned storage${partitioned ? '' : ' (FINDING: not partitioned in this browser, see the FINDING line; only Chromium is required to partition)'}`, await left(flB, 10) && (partitioned || engine !== 'chromium'), JSON.stringify(net.inits));
     const retried = await frameOf(siteB).evaluate(async () => {
       const init = { method: 'POST', headers: { 'content-type': 'application/json', 'X-RH-Embed': '1', 'X-RH-Action-Key': 'retry-key-0001' }, body: JSON.stringify({ message: 'retry me', history: [] }) };
       const token = location.pathname.split('/').pop();
@@ -247,7 +255,8 @@ export async function runEmbed(engine) {
     await wheel.waitForFunction(y => window.scrollY > y, y0, { timeout: 15000 }).catch(() => {});
     check(`${tag} a plain wheel over the embed scrolls the host page and leaves the canvas zoom alone`, (await scrollY()) > y0 && await camera(flW) === cam0, `${y0} -> ${await scrollY()}; ${cam0} -> ${await camera(flW)}`);
     const y1 = await scrollY();
-    await wheel.mouse.click(box.x + 40, box.y + box.height - 60);
+    const box2 = await wheel.locator('#f0').boundingBox(); // the wheel scrolled the page: measure again
+    await wheel.mouse.click(box2.x + 40, box2.y + box2.height - 60);
     await wheel.keyboard.down('Control'); await wheel.mouse.wheel(0, -240); await wheel.keyboard.up('Control');
     const zoomed = await flW.locator('[data-canvas-surface]').evaluate(async (n, before) => { for (let i = 0; i < 100; i++) { const t = [...n.children].find(c => c.style.transform)?.style.transform; if (t && t !== before) return t; await new Promise(r => setTimeout(r, 100)); } return null; }, cam0);
     check(`${tag} ctrl+wheel on the focused canvas zooms the canvas and does not scroll the host page`, !!zoomed && await scrollY() === y1, `${cam0} -> ${zoomed}; scroll ${y1} -> ${await scrollY()}`);
@@ -262,7 +271,7 @@ export async function runEmbed(engine) {
     const versionBefore = (await api(owner, pub.board)).body.version;
     await ownerPage.goto(hostUrl(host, 'same', path, '&lazy=0'));
     const flO = await embedOf(ownerPage); await openChat(flO);
-    check(`${tag} the owner viewing their own embed gets the guest view: 10 of 10 guest messages, no Share, no Unpublish, no owner controls`, await left(flO, 10) && await flO.locator('[data-share-button], [data-unpublish], [data-menubar], [data-owner-controls]').count() === 0);
+    check(`${tag} the owner viewing their own embed gets the guest view: 10 of 10 guest messages, no Share, no Unpublish, no owner controls`, await left(flO, 10) && await flO.locator('[data-share-button], [data-unpublish], [data-menubar], [data-owner-controls]').count() === 0, JSON.stringify({ probes: ownerNet.probes, inits: ownerNet.inits, remaining: await flO.locator('[data-guest-remaining], [data-guest-spent]').allInnerTexts() }));
     await draw(ownerPage, flO);
     await send(flO, `${DRAFT} owner`);
     const versionAfter = (await api(owner, pub.board)).body.version;
