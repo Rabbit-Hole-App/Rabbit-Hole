@@ -183,7 +183,8 @@ test('the Ctrl+K menu rows read Quick Edit and open in Edit mode', () => {
   const quick = COMMON_ACTIONS.find(entry => entry.id === 'quick-edit');
   assert.deepEqual([quick.label, quick.hint, quick.data], ['Quick Edit', 'Ctrl K', 'data-menu-inline-ai']);
   assert.match(canvas, /quickEdit: inlineAi && !visiting \? \(\) => openInline\(performance\.now\(\), false, 'edit'\) : null,/);
-  assert.match(read('./canvas-menus.js'), /\[\{ label: 'Quick Edit', icon: Wand, hint: 'Ctrl K', disabled: !canvasState\.selected \|\| !inlineAi, onSelect: \(\) => canvas\(\)\?\.inlineAi\?\.\('edit'\) \}/);
+  // The page's Edit menu names it Edit with AI (owner brief 2026-10-22 item 4); the same action, the same Ctrl K.
+  assert.ok(read('./canvas-menus.js').includes("{ label: 'Edit with AI', icon: Wand, hint: 'Ctrl K', disabled: !canvasState.selected || !inlineAi, onSelect: () => canvas()?.inlineAi?.('edit') }"));
   assert.match(page, /canvasEditMenus\(\{ canvas, canvasState, inlineAi, quickEdit: true,/);
   assert.doesNotMatch(canvas + page, /Edit or explain/);
 });

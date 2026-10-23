@@ -2,9 +2,10 @@
 // send key. There is no account preferences table yet (C:/s/spec/ui-changes/L11-report.md), so Settings labels each one
 // "This device". One JSON entry; a missing, unreadable or odd value is the default, never an error.
 // The canvas View menu's three widgets (owner brief 2026-10-21 item 3) are kept here too: minimap, holeMap (the Rabbit Hole
-// Map) and curious (the Curious suggestions), all on by default, for every canvas on this device.
+// Map) and curious (the Curious suggestions), all on by default, for every canvas on this device. toolbar (owner brief
+// 2026-10-22, View > Show / hide > Toolbar) is the same kind of personal choice: this device only, never the shared canvas.
 const KEY = 'rh.ui-prefs';
-export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true });
+export const UI_PREF_DEFAULTS = Object.freeze({ textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true, toolbar: true });
 // Interface text only: index.css scales the chrome's text tokens by these and the canvas world keeps authored content at 1.
 export const TEXT_SIZES = { default: 1, large: 1.125, larger: 1.25 };
 const VALID = {

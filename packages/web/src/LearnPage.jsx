@@ -7,7 +7,7 @@ import { EXPLAIN_JOB_EVENT, explainClient, explainDisabled, explainEditing, expl
 import { withCardSink } from './chat-output-refs.js';
 import { withPrompt } from './card-prompt.js';
 import { cloneElement, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, House, Upload, Type, PanelRightClose, PanelRightOpen, Pause, Play, Share2, NotebookPen } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, House, Type, PanelRightClose, PanelRightOpen, Pause, Play, Share2 } from 'lucide-react';
 import { SPEEDS, getSpeed, setSpeed } from './learn-audio.js';
 import { api, apiFetch, goBack, navigate, wsHeaders } from './api.js';
 import { canEditCourse, learnPreview, reviewTools } from './flags.js';
@@ -28,7 +28,7 @@ import { LessonNotebook, LessonPractice, LessonReading } from './LearnExtras.jsx
 import LearnOutline from './LearnOutline.jsx';
 import ContentsRail, { canvasEmpty } from './ContentsRail.jsx';
 import CanvasMenubar from './CanvasMenubar.jsx';
-import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
+import { canvasEditMenus, ownerInsertItems } from './canvas-menus.js';
 import SearchBar from './SearchBar.jsx';
 import LearnSlash from './LearnSlash.jsx';
 import FeedbackButton from './FeedbackButton.jsx';
@@ -36,7 +36,7 @@ import TableOfContents from './TableOfContents.jsx';
 import UsageGauge from './UsageGauge.jsx';
 import { available, isLearnCommand, runLearnCommand } from './learn-slash.js';
 import { generationField, madeFrom } from './generation-proposal-chat.js';
-import { commandsFor, labelOf } from './agent/slash.js';
+import { commandsFor } from './agent/slash.js';
 import { openSourceFinder, returnFocus, setSourceFinderHost, slashOpensFind } from './source-finder.js';
 import { httpTransport } from './inline-ai-transport.js';
 import { EXPLICIT_ROUTES, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
@@ -77,7 +77,7 @@ import { ChatWorkspaceProvider, TocWorkspace, useChatWorkspace } from './chat-wo
 import { effectiveControls } from './learn-coaching-client.js';
 import { canCoach, mayRun } from './learn-coaching-contract.js';
 import { canvasContextNow } from './chat-canvas-context.js';
-import { MessageCircle, RotateCw, Link2, MonitorPlay, ScrollText, Globe } from 'lucide-react';
+import { MessageCircle, RotateCw } from 'lucide-react';
 import { readDocView, writeDocView, boardSizeWarning, BOARD_LIMIT, docOnServerCopy, docSaved } from './canvas-doc.js';
 import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
@@ -135,8 +135,6 @@ const boardSlug = name => { const slug = String(name).toLowerCase().replace(/[^a
 // The review board this page opens (?board=, review builds only), or null for the learner's own canvas.
 const reviewBoard = hole => { const named = hole || !reviewTools ? null : new URLSearchParams(window.location.search).get('board'); return named ? boardSlug(named) : null; };
 const AdaptiveCanvas = lazyFeature(() => import('./AdaptiveCanvas.jsx'), 'The canvas');
-// The Insert menu's source search rows (descriptive icons, never a brand mark).
-const FINDER_ICONS = { youtube: MonitorPlay, arxiv: ScrollText, wikipedia: Globe };
 // What a reserved research card says while the answer finishes (docs/features/canvas-skeleton-cards.md).
 const OPENING = { paper: 'Opening the paper', wiki: 'Opening the article', video: 'Opening the video' };
 
@@ -580,7 +578,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // A PDF needs no account and no server: the bytes go to this browser's asset
   // store and the block keeps only the key. The file picker is hidden and
   // triggered from the Sources menu, so there is no dialog to dismiss.
-  // The Files menu's Upload: same router as a drop, one picker for all kinds.
+  // Insert > Upload a file: same router as a drop, one picker for all kinds.
   const filePicker = useRef(null);
   // Add to canvas for a PDF (docs/features/pdf-to-canvas.md), one flow for an upload or drop (takePdf) and for a PDF already in
   // Sources (small:pdf-to-canvas): the dialog's one PDF card, or chosen pages drawn as page images. `place(choice, progress)`
@@ -2073,66 +2071,9 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     setCanvasTitle(clean);
     try { clean ? localStorage.setItem(titleKey, clean) : localStorage.removeItem(titleKey); } catch { /* a full store loses the name only */ }
   };
-  // Which card a source row stands for. Papers from arXiv open in the reader
-  // rather than as a card, and the repository is not a card at all.
-  const cardOf = source => {
-    if (['wiki', 'video', 'image'].includes(source.kind)) return source.id.slice(source.id.indexOf(':') + 1);
-    if (source.kind === 'pdf') return (canvasState.cards || []).find(([, assetKey]) => assetKey === `pdf:${source.id}`)?.[0] || null;
-    if (source.kind === 'paper') return (canvasState.cards || []).find(([, , paperId]) => paperId === source.id.slice('paper:'.length))?.[0] || null;
-    return null;
-  };
-  // A row whose card was deleted is gone from the list; the stored flag stays,
-  // harmless, in case undo brings the card back.
-  const listedSources = sources.filter(source => !['wiki', 'video', 'image', 'pdf'].includes(source.kind) || !canvasState.cards
-    || canvasState.cards.some(([id]) => id === cardOf(source))).map(source => ({
-    ...source,
-    locatable: !!cardOf(source) || source.kind === 'paper',
-    removable: source.kind !== 'repository',
-  }));
-  const locateSource = source => {
-    const blockId = cardOf(source);
-    if (blockId) { canvas()?.focusBlock(blockId); return; }
-    // A paper read before papers became cards has only the reader.
-    if (source.kind === 'paper') openPaper({ id: source.id.slice('paper:'.length), title: source.label, pdfUrl: `https://arxiv.org/pdf/${source.id.slice('paper:'.length)}` });
-  };
-  // Removing is removing: the card leaves the canvas, the row leaves the list,
-  // and whatever context pointed at it stops riding the next question.
-  const removeSource = source => {
-    const blockId = cardOf(source);
-    // A PDF added as slides is one block per page: removing it removes every page.
-    if (source.kind === 'pdf') for (const [id, key] of canvasState.cards || []) { if (key === `pdf:${source.id}`) canvas()?.removeBlock(id); }
-    else if (blockId) canvas()?.removeBlock(blockId);
-    setSources(previous => previous.filter(entry => entry.id !== source.id));
-    if (wikiContext?.blockId && wikiContext.blockId === blockId) { setWikiContext(null); setWikiOpen(false); }
-    if (videoContext?.blockId && videoContext.blockId === blockId) setVideoContext(null);
-    if (imageContext?.blockId && imageContext.blockId === blockId) setImageContext(null);
-    const paperId = source.kind === 'paper' ? source.id.slice('paper:'.length) : source.kind === 'pdf' ? source.id : null;
-    if (paperId && paperContext?.id === paperId) { setPaperContext(null); setPaperOpen(false); }
-  };
   const canvasMenus = [
-    {
-      title: 'Files',
-      panel: close => <FilesPanel app={app.name} sources={listedSources} close={close}
-        onToggle={id => setSources(previous => toggleSource(previous, id))}
-        onLocate={locateSource} onRemove={removeSource} />,
-    },
-    {
-      title: 'Insert',
-      items: [
-        ...localInsertItems(canvas),
-        { divider: true },
-        { label: 'Notebook', icon: NotebookPen, onSelect: () => canvas()?.insertNotebook() },
-        // The one way to add a file besides dropping it on the canvas.
-        { label: 'Upload a file', icon: Upload, onSelect: () => filePicker.current?.click() },
-        { divider: true },
-        // Source search (owner decisions 4A and 5A, Release B): the registry's 'insert' commands open the shared finder; it adds
-        // a card only on Add to canvas.
-        ...commandsFor('insert').map(command => ({ label: `${labelOf(command)}`, icon: FINDER_ICONS[command.source], onSelect: () => openSourceFinder({ source: command.source }) })),
-        { divider: true },
-        { label: 'Link to canvas', icon: Link2, onSelect: () => setRefPick({}) },
-      ],
-    },
-    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true), onSlashHelp: () => setSlashHelpOpen(true) }),
+    { title: 'Insert', items: ownerInsertItems({ canvas, onUpload: () => filePicker.current?.click(), onSearchSources: () => openSourceFinder({}), onLinkToCanvas: () => setRefPick({}) }) },
+    ...canvasEditMenus({ canvas, canvasState, inlineAi, quickEdit: true, comments, docView, setDocView, panel: { open: panelOpen, setOpen: setPanelOpen } }),
   ];
   const canvasOutline = canvasState.outline || [];
   const outlineDisabled = !editor || answering || !!noteEditing;

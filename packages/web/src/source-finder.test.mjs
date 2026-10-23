@@ -77,7 +77,9 @@ test('LearnPage: "/" opens the right panel on Find and focuses it; the finder ho
   assert.match(page, /setSourceFinderHost\(/);
   assert.match(page, /openSearch: seed => openSourceFinder\(/);
   assert.equal((page.match(/<SearchBar /g) || []).length, 1, 'one finder');
-  assert.match(page, /commandsFor\('insert'\)/, 'the Insert menu lists the registry\'s insert commands');
+  // Owner brief 2026-10-22 item 3: one Search sources row opens the one finder; YouTube, arXiv and Wikipedia are choices inside it.
+  assert.ok(page.includes('onSearchSources: () => openSourceFinder({})'), 'Insert > Search sources opens the finder');
+  assert.doesNotMatch(page, /commandsFor\('insert'\)/, 'no per-source rows in Insert');
 });
 
 test('SearchBar adds only through the Add to canvas button: Enter searches a new query and only previews an answered one (lead ruling 2026-10-16)', () => {
