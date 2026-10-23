@@ -108,6 +108,21 @@ export async function runEmbed(engine) {
   const settled = async page => { let last = -1; for (let i = 0; i < 60; i++) { const y = await page.evaluate(() => window.scrollY); if (y === last) return y; last = y; await new Promise(r => setTimeout(r, 150)); } return last; };
   // Asks the embed session init again from inside the frame: created:false only if THIS frame sent a valid rh_embed (idempotent).
   const initProbe = page => frameOf(page).evaluate(async () => (await (await fetch('/api/learn/boards/embed-session', { method: 'POST', headers: { 'X-RH-Embed': '1' } })).json()).created);
+  // A point on bare canvas paper (no card, shape, button or link under it), in the page's coordinates: the canvas ignores the wheel over a card.
+  async function barePoint(page, locator = 'iframe') {
+    const box = await page.locator(locator).boundingBox();
+    const at = await frameOf(page).evaluate(() => {
+      const surface = document.querySelector('[data-canvas-surface]').getBoundingClientRect(), cx = surface.x + surface.width / 2, cy = surface.y + surface.height / 2;
+      const points = [];
+      for (let y = surface.y + 20; y < surface.bottom - 20; y += 24) for (let x = surface.x + 20; x < surface.right - 20; x += 24) points.push({ x, y, d: Math.hypot(x - cx, y - cy) });
+      for (const p of points.sort((m, n) => m.d - n.d)) {
+        const el = document.elementFromPoint(p.x, p.y);
+        if (el?.closest('[data-canvas-surface]') && !el.closest('[data-block-id],[data-item-id],[data-shape-id],[role="dialog"],[data-zoom],[data-canvas-minimap],button,a')) return { x: p.x, y: p.y };
+      }
+      return null;
+    });
+    return at && { x: box.x + at.x, y: box.y + at.y };
+  }
   const hostMessages = page => page.evaluate(() => window.__messages);
   const hasDraft = u => decodeURIComponent(u).includes(DRAFT) || u.includes(encodeURIComponent(DRAFT));
   // The host page (another origin) forges every hand-off message it can into the embed's window: none may be believed.
@@ -119,7 +134,8 @@ export async function runEmbed(engine) {
   async function draw(page, fl) {
     await page.locator('iframe').scrollIntoViewIfNeeded();
     const box = await page.locator('iframe').boundingBox();
-    await page.mouse.click(box.x + 40, box.y + box.height - 40);
+    const bare = await barePoint(page);
+    await page.mouse.click(bare?.x ?? box.x + 40, bare?.y ?? box.y + box.height - 40);
     const at = (x, y) => frameOf(page).evaluate(([x, y]) => {
       const world = document.querySelector('[data-canvas-surface] > div[style*="scale"]'), m = new DOMMatrix(getComputedStyle(world).transform), b = world.parentElement.getBoundingClientRect();
       return { x: b.left + m.e + x * m.a, y: b.top + m.f + y * m.d };
@@ -275,13 +291,14 @@ export async function runEmbed(engine) {
     check(`${tag} a plain wheel over the embed scrolls the host page and leaves the canvas zoom alone`, (await scrollY()) > y0 && await camera(flW) === cam0, `${y0} -> ${await scrollY()}; ${cam0} -> ${await camera(flW)}`);
     const y1 = await settled(wheel);
     const box2 = await wheel.locator('#f0').boundingBox(); // the wheel scrolled the page: measure again
-    await wheel.mouse.click(box2.x + 40, box2.y + box2.height - 60);
+    const bare = await barePoint(wheel, '#f0') ?? { x: box2.x + 40, y: box2.y + box2.height - 60 };
+    await wheel.mouse.click(bare.x, bare.y);
     if (engine === 'chromium') { // Playwright's wheel carries no Control modifier in Chromium: send the wheel with it through the protocol
       const cdp = await context.newCDPSession(wheel);
-      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: box2.x + 40, y: box2.y + box2.height - 60, deltaX: 0, deltaY: -240, modifiers: 2 });
-    } else { await wheel.keyboard.down('Control'); await wheel.mouse.wheel(0, -240); await wheel.keyboard.up('Control'); }
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: bare.x, y: bare.y, deltaX: 0, deltaY: -240, modifiers: 2 });
+    } else { await wheel.mouse.move(bare.x, bare.y); await wheel.keyboard.down('Control'); await wheel.mouse.wheel(0, -240); await wheel.keyboard.up('Control'); }
     const zoomed = await flW.locator('[data-canvas-surface]').evaluate(async (n, before) => { for (let i = 0; i < 100; i++) { const t = [...n.children].find(c => c.style.transform)?.style.transform; if (t && t !== before) return t; await new Promise(r => setTimeout(r, 100)); } return null; }, cam0);
-    check(`${tag} ctrl+wheel on the focused canvas zooms the canvas and does not scroll the host page`, !!zoomed && await scrollY() === y1, `${cam0} -> ${zoomed}; scroll ${y1} -> ${await scrollY()}`);
+    check(`${tag} ctrl+wheel on the focused canvas zooms the canvas and does not scroll the host page`, !!zoomed && await scrollY() === y1, `${cam0} -> ${zoomed}; scroll ${y1} -> ${await scrollY()}; clicked ${JSON.stringify(bare)}; under it: ${await frameOf(wheel).evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? `${e.tagName} ${e.getAttribute('data-block-id') || e.className?.toString().slice(0, 60) || ''}` : null; }, [bare.x - box2.x, bare.y - box2.y])}`);
     await wheel.close();
     await page.close();
 

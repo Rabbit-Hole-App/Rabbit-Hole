@@ -12,7 +12,7 @@
 import { BASE, startHost, launchAvailable, sessionFor, run, api, post, SEED, PNG, contextOptions, reporter, hostUrl, embedPath } from './embed-harness.mjs';
 
 const { check, finish, plan } = reporter('embed-link-check');
-plan(18);
+plan(19);
 const owner = { session: await sessionFor(`link-owner-${run}@example.com`, `lnk_${run}`) };
 const viewer = { session: await sessionFor(`link-viewer-${run}@example.org`, `lnkv_${run}`) };
 const NO_ACCESS = "You don't have access to this canvas.", NEVER = 'This link is not shared any more, or never was.';
@@ -91,7 +91,7 @@ const fresh = await context.newPage();
 fresh.on('response', r => { if (/\/comments/.test(new URL(r.url()).pathname)) seen.push({ url: new URL(r.url()).pathname, status: r.status() }); });
 await fresh.goto(`${host.app}/b/${T}`);
 await fresh.locator('[data-canvas-surface]').first().waitFor({ timeout: 60000 });
-check('Hidden in the viewer UI: no comments panel and no comment thread, and no comment request succeeded in the network', await fresh.locator('[data-shared-comments], [data-comment-thread]').count() === 0 && seen.every(s => s.status === 404), JSON.stringify(seen));
+check('Hidden in the viewer UI: no comments toggle, no comments panel and no comment thread, and no comment request succeeded in the network', await fresh.locator('[data-comments-header], [data-shared-comments], [data-comment-thread]').count() === 0 && seen.every(s => s.status === 404), JSON.stringify(seen));
 const thread = { id: crypto.randomUUID(), anchor: { kind: 'point', x: 40, y: 40 }, body: `Stored comment ${run}` };
 await settings({ link_comments: 'allow' });
 const stored = await post(viewer, `${shared}/comments/threads`, thread);
@@ -100,6 +100,11 @@ check('Allow comments: a signed-in visitor posts on the link and the thread is r
 await settings({ link_comments: 'view' });
 const viewOnly = await visitorThreads(), tryPost = await post(viewer, `${shared}/comments/threads`, { ...thread, id: crypto.randomUUID(), body: 'second' });
 check('View only: visitors read the thread and cannot post another', viewOnly.n === 1 && tryPost.status >= 400, `${viewOnly.n} ${tryPost.status} ${JSON.stringify(tryPost.body)}`);
+await fresh.reload();
+await fresh.locator('[data-comments-header]').first().waitFor({ timeout: 60000 }).catch(() => {});
+await fresh.locator('[data-comments-header]').first().click().catch(() => {});
+await fresh.locator('[data-shared-comments]').first().waitFor({ timeout: 30000 }).catch(() => {});
+check('View only in the viewer UI: the comments toggle opens the panel with the thread, and there is no composer, sign-in-to-post or Add comment control', await fresh.locator('[data-shared-comments]').count() >= 1 && /Stored comment/.test(await fresh.locator('[data-shared-comments]').first().innerText().catch(() => '')) && await fresh.locator('[data-comment-composer], [data-comment-sign-in], [data-menu-add-comment], [data-comment-draft]').count() === 0, JSON.stringify(seen));
 await settings({ link_comments: 'hidden' });
 const again = await visitorThreads(), kept = await api(owner, `/api/learn/c/${boardId}/threads`);
 await settings({ link_comments: 'allow' });
@@ -113,7 +118,10 @@ const [linkNow, exploreNow] = [await visitorThreads(), await get(null, `/api/lea
 check('Explore\'s setting is independent: with the link Hidden, the /e publication can have comments Open, and the link stays Hidden', exploreOpen < 300 && linkNow.status === 404 && exploreNow.status === 200 && await aboutLink() === 'hidden', JSON.stringify([exploreOpen, linkNow, exploreNow.status]));
 await settings({ link_comments: 'allow' });
 await fresh.reload();
-await fresh.locator('[data-shared-comments]').first().waitFor({ timeout: 60000 }).catch(() => {});
-check('Allow comments shows the comments panel to a visitor of the link', await fresh.locator('[data-shared-comments]').count() >= 1, JSON.stringify(seen));
+await fresh.locator('[data-comments-header]').first().waitFor({ timeout: 60000 }).catch(() => {});
+const toggle = await fresh.locator('[data-comments-header]').count();
+await fresh.locator('[data-comments-header]').first().click().catch(() => {});
+await fresh.locator('[data-shared-comments]').first().waitFor({ timeout: 30000 }).catch(() => {});
+check('Allow comments: the comments toggle is in the header, and it opens the comments panel for a visitor of the link', toggle >= 1 && await fresh.locator('[data-shared-comments]').count() >= 1, JSON.stringify({ toggle, seen }));
 await browser.close(); await host.close();
 finish();
