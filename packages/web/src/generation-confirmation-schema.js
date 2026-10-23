@@ -92,7 +92,7 @@ export const GENERATION_COMMANDS = Object.freeze({
   explain: define({
     label: 'Explanation', noun: 'explanation', review_policy: 'conditional', settings_noun: 'an explanation setting', cancel: true,
     settings: [field('presentation', 'Presentation', 'select', { options: PRESENTATIONS })],
-    sections: ['references', 'assumptions', 'usage'], editable_fields: ['title', 'description', 'references', 'presentation'],
+    sections: ['references', 'assumptions', 'usage'], editable_fields: ['title', 'description', 'references', 'assumptions', 'presentation'],
   }),
   // CAD: the job's own brief (cad-jobs.js), approved by its exact hash. Units are fixed by the brief; the parameter VALUES change
   // without a new brief, the parameter list does not (structuralChange in the job); requirements, assumptions, missing information

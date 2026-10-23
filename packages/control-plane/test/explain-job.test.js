@@ -8,6 +8,8 @@ import { explainRoute, explainPipeline } from '../src/explain-job.js';
 import { explainReservation } from '../src/explain-policy.js';
 import { BOARD, OWNER, explainStack, rows, spent } from './explain-fixture.js';
 import { signProposal, publishRevision, proposalRecord, proposalState } from '../src/generation-proposal.js';
+import { referencesKey } from '../src/generation-review-refs.js';
+import { plainPrompt } from '../../web/src/generation-review.js';
 
 const tool = { name: 'explain_out', description: 'Output.', input_schema: { type: 'object' } };
 
@@ -345,4 +347,48 @@ test('the route is off unless EXPLAIN_V2_ENABLED, owner-only, same-origin', asyn
   assert.equal('diagnostics' in await get(env, '&detail=1'), false);
   assert.equal('diagnostics' in await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, ''), false);
   assert.deepEqual(Object.keys((await get({ ...env, EXPLAIN_DIAGNOSTICS: 'true' }, '&detail=1')).diagnostics).sort(), ['calls', 'candidates', 'captures', 'counts', 'findings', 'settings', 'spec', 'timing']);
+});
+
+// UI-15.1: Generate on a brief the learner edited. The executed brief is the approved one (title, prompt, assumptions, presentation),
+// the references they kept are read at the route and reach the job as content, and an unchecked reference list fails closed.
+test('Generate on an edited brief runs the approved prompt; checked references reach the job; unchecked ones are refused and consume nothing', async t => {
+  const s = setup(t);
+  const { body } = await s.create({ requestClass: 'researched' });
+  const waiting = await s.run(body.job.id);
+  const SHA = 'e'.repeat(64);
+  const FILE = { id: 'r1', label: 'File · Pendulum notes', kind: 'file', sourceId: `file:fs_${'2'.repeat(24)}@${SHA}`, revision: SHA, range: null };
+  const edited = await signProposal(s.env, { command: 'explain', title: 'A swinging pendulum', description: 'x', settings: { presentation: 'steps' }, source_refs: [],
+    input: { org: OWNER.org, app: BOARD.app, job: waiting.id, brief_hash: waiting.briefHash, request: 'Explain a pendulum.' },
+    prompt: 'Show the swing of a pendulum in steps, with the numbers from {{ref:r1}}.', references: [FILE], assumptions: ['No friction.'] }, OWNER.email, { envelope: 'v3' });
+  s.sqlite.prepare("INSERT OR IGNORE INTO threads (id, org, user, scope_ref) VALUES ('th1', ?, ?, ?)").run(OWNER.org, OWNER.email, BOARD.app);
+  s.sqlite.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, meta_json) VALUES (101, 'th1', 'assistant', ?)").run(JSON.stringify({ proposal: edited, proposalState: proposalState(edited) }));
+  // The route did not check the references (a client sent the proposal straight to the job): refused, nothing consumed.
+  for (const approved_refs of [undefined, { key: 'r1|other|rev', refs: [], text: '' }]) {
+    const refused = await s.send('approve', { proposal: edited, ...(approved_refs ? { approved_refs } : {}) }, waiting.id);
+    assert.deepEqual([refused.status, refused.body.code], [409, 'reference_blocked']);
+  }
+  assert.equal((await stateOf(s, edited)).used, null);
+  assert.equal(s.state.data.get(`job:${waiting.id}`).stage, 'awaiting_approval');
+  const before = s.state.data.get(`job:${waiting.id}`).briefHash;
+  const checked = { key: referencesKey(edited.references), refs: [{ sourceId: FILE.sourceId, kind: 'file', name: FILE.label, status: 'extracted' }], text: 'PENDULUM NOTES: length 1 m, period 2 s' };
+  const approved = await s.send('approve', { proposal: edited, approved_refs: checked }, waiting.id);
+  assert.equal(approved.status, 202);
+  const job = s.state.data.get(`job:${waiting.id}`);
+  assert.deepEqual([job.brief.title, job.brief.summary, job.brief.assumptions, job.brief.presentation, job.settings], ['A swinging pendulum', plainPrompt(edited.prompt, edited.references), ['No friction.'], 'steps', { presentation: 'steps' }]);
+  assert.equal(job.approval.reviewHash, edited.review_hash);
+  assert.notEqual(job.briefHash, before, 'the hash names the brief authoring receives');
+  assert.deepEqual([job.context.refs, job.context.refText], [checked.refs, checked.text]);
+  assert.deepEqual((await stateOf(s, edited)).used, { version: 1, key: waiting.id });
+  assert.equal((await s.send('approve', { proposal: edited, approved_refs: checked }, waiting.id)).status, 200, 'a second press is the same job');
+});
+
+test('Generate on a v2 brief proposal is unchanged: no references to check, the prepared brief is what runs', async t => {
+  const s = setup(t);
+  const { body } = await s.create({ requestClass: 'researched' });
+  const waiting = await s.run(body.job.id);
+  const p = await proposeBrief(s, waiting);
+  const summary = s.state.data.get(`job:${waiting.id}`).brief.summary;
+  assert.equal((await s.send('approve', { proposal: p }, waiting.id)).status, 202);
+  assert.equal(s.state.data.get(`job:${waiting.id}`).brief.summary, summary);
+  assert.equal(s.state.data.get(`job:${waiting.id}`).approval.reviewHash, undefined);
 });

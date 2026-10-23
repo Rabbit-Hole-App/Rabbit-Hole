@@ -14,7 +14,7 @@ const water = (over = {}) => ({ command: 'motion', title: 'Water cycle: evaporat
 const input = { request: '/motion explain the water cycle', concept: 'Weather' };
 const sign = async (over = {}, user = 'alice@example.test') => signProposal(env, { ...validateProposalInput(water(over)), input }, user);
 
-test('the schema: title, a description of 3 to 10 plain sentences, Motion settings (duration 5-30, audio off), known refs only', () => {
+test('the schema: title, a description of 3 to 10 plain sentences, Motion settings (duration 5-60 in fives, audio off), known refs only', () => {
   assert.deepEqual(validateProposalInput(water()), { command: 'motion', title: 'Water cycle: evaporation to rain', description: DESCRIPTION, settings: { duration_seconds: 10, audio: false }, source_refs: [] });
   const refs = [{ sourceId: 'card:shape:a', kind: 'card', name: 'Clouds', text: 'not stored' }];
   assert.deepEqual(validateProposalInput(water({ source_ref_ids: ['card:shape:a'] }), refs).source_refs, [{ kind: 'card', sourceId: 'card:shape:a', name: 'Clouds' }]);
@@ -25,8 +25,9 @@ test('the schema: title, a description of 3 to 10 plain sentences, Motion settin
     [water({ description: '- Evaporation.\n- Clouds.\n- Rain.' }), /no lists or labels/],
     [water({ description: `Will show: ${DESCRIPTION}` }), /no lists or labels/],
     [water({ settings: { duration_seconds: 10, audio: true } }), /narration audio is not available yet/],
-    [water({ settings: { duration_seconds: 4, audio: false } }), /5 to 30/],
-    [water({ settings: { duration_seconds: 31 } }), /5 to 30/],
+    [water({ settings: { duration_seconds: 4, audio: false } }), /5 to 60/],
+    [water({ settings: { duration_seconds: 31 } }), /5 to 60 in steps of 5/],
+    [water({ settings: { duration_seconds: 65 } }), /5 to 60/],
     [water({ settings: { duration_seconds: 12.5 } }), /whole number/],
     [water({ settings: { duration_seconds: 10, voice: 'x' } }), /settings.voice is not a Motion setting/],
     [water({ command: 'explain' }), /command must be one of motion/],
@@ -68,7 +69,8 @@ test('a settings change is the next version of the same proposal, re-signed; aud
   assert.deepEqual([proposal.proposal_id, proposal.version, proposal.settings.duration_seconds, proposal.title, proposal.input], [p.proposal_id, 2, 20, p.title, p.input]);
   assert.equal(await verifyProposal(env, proposal, 'alice@example.test'), null);
   assert.match((await reviseSettings(env, p, { duration_seconds: 20, audio: true }, 'alice@example.test')).error, /narration audio/);
-  assert.match((await reviseSettings(env, p, { duration_seconds: 40 }, 'alice@example.test')).error, /5 to 30/);
+  assert.match((await reviseSettings(env, p, { duration_seconds: 65 }, 'alice@example.test')).error, /5 to 60/);
+  assert.equal((await reviseSettings(env, p, { duration_seconds: 60 }, 'alice@example.test')).proposal.settings.duration_seconds, 60, 'the whole 5 to 60 set is offered');
   assert.match((await reviseSettings(env, p, { duration_seconds: 20 }, 'bob@example.test')).error, /not made for you/);
 });
 

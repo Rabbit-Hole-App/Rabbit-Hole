@@ -10,15 +10,20 @@
 // motion_request.proposal, which LearnVideos verifies (signature, learner, expiry, one video per proposal) and whose title,
 // duration and description the orchestrator's Director takes as binding input. Nothing is authored, narrated or rendered
 // before Generate.
+// UI-15.1 (docs/features/generation-review-contract.md): the v3 envelope adds what the person reviews and edits (the prompt with its
+// reference pills, the references bound by revision, the lists, the destination, a review hash) under its own signature; v1 and v2
+// proposals keep validating. Settings are validated by the canonical schema (web/src/generation-confirmation-schema.js).
 import { validateMotionContext } from './motion-context.js';
 import { MotionRequestProvider, motionReservationMicros } from './motion-provider.js';
 import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
+import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateSettings as validateCommandSettings } from '../../web/src/generation-confirmation-schema.js';
+import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
-const ID = /^gp-[0-9a-f]{16}$/, SIG = /^(v2\.)?[0-9a-f]{64}$/;
+const ID = /^gp-[0-9a-f]{16}$/, SIG = /^(v[23]\.)?[0-9a-f]{64}$/;
 const plain = v => !!v && typeof v === 'object' && !Array.isArray(v);
 
 // CR-1: which commands are proposed is the capability declaration's flow (web/src/inline-ai-route.js CHAT_CAPABILITIES). A
@@ -31,30 +36,11 @@ export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain'])]);
 
 // Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
 // The bounds are the declaration's Duration field: one definition with the card.
-export const MOTION_DURATION = Object.freeze({ min: CHAT_CAPABILITIES.motion.settings.duration_seconds.min, max: CHAT_CAPABILITIES.motion.settings.duration_seconds.max });
-const SETTINGS = {
-  motion(value) {
-    if (!plain(value)) return { error: 'settings must be {duration_seconds, audio}' };
-    const extra = Object.keys(value).find(k => !['duration_seconds', 'audio'].includes(k));
-    if (extra) return { error: `settings.${extra} is not a Motion setting` };
-    if (value.audio === true) return { error: 'narration audio is not available yet; propose the video without it' };
-    if (value.audio !== undefined && value.audio !== false) return { error: 'settings.audio must be false' };
-    const seconds = value.duration_seconds;
-    if (!Number.isInteger(seconds) || seconds < MOTION_DURATION.min || seconds > MOTION_DURATION.max) return { error: `settings.duration_seconds must be a whole number from ${MOTION_DURATION.min} to ${MOTION_DURATION.max}` };
-    return { value: { duration_seconds: seconds, audio: false } };
-  },
-  // /explain (EXP-T12 slice 3): an optional presentation (plan section 1.2); no Duration or Audio, which belong to Motion.
-  explain(value) {
-    if (value === undefined) return { value: {} };
-    if (!plain(value)) return { error: 'settings must be {presentation}' };
-    const extra = Object.keys(value).find(k => k !== 'presentation');
-    if (extra) return { error: `settings.${extra} is not an explanation setting` };
-    if (value.presentation === undefined) return { value: {} };
-    if (!['static', 'steps', 'time', 'experiment'].includes(value.presentation)) return { error: 'settings.presentation must be static, steps, time or experiment' };
-    return { value: { presentation: value.presentation } };
-  },
-};
-export const validateSettings = (command, value) => SETTINGS[command]?.(value) ?? { error: 'These settings cannot be changed here.' };
+const MOTION_SECONDS = settingsOf('motion').find(f => f.key === 'duration_seconds').options.map(o => o.value);
+export const MOTION_DURATION = Object.freeze({ min: MOTION_SECONDS[0], max: MOTION_SECONDS.at(-1) });
+// Every command's settings are the schema's declarations (no validator of their own here): Motion's duration, audio and aspect ratio,
+// /explain's presentation. -> { value } | { error, path }
+export const validateSettings = (command, value, options) => validateCommandSettings(command, value, options);
 
 // Offered only where a video can start: an orchestrator is configured and new generation is not paused (owner message 28:
 // MOTION_GENERATION_PAUSED "1"; nothing new starts or is reserved, and a /motion chat turn is answered before any model call).
@@ -93,8 +79,8 @@ export function validateProposalInput(input, refs = []) {
   if (/(^|\n)\s*([-*•]|\d+[.)])\s/.test(raw) || /\b(will show|title|description)\s*:/i.test(description)) return { error: 'the description is plain sentences: no lists or labels' };
   const found = sentences(description);
   if (found.join(' ').replace(/\s+/g, ' ').trim() !== description || found.length < 3 || found.length > 10) return { error: `the description must be 3 to 10 complete sentences (it has ${found.length})` };
-  const settings = SETTINGS[input.command](input.settings);
-  if (settings.error) return settings;
+  const settings = validateCommandSettings(input.command, input.settings);
+  if (settings.error) return { error: settings.error };
   const ids = input.source_ref_ids ?? [];
   if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) return { error: 'source_ref_ids must be a list of sourceIds' };
   const known = new Map((refs || []).filter(r => r?.sourceId).map(r => [r.sourceId, r]));
@@ -116,7 +102,11 @@ export function motionAbout(value) {
 export const motionRequestLine = message => `/motion ${String(message || '').replace(/^\s*\/motion\b\s*/i, '').trim() || 'explain this'}`.slice(0, REQUEST_MAX);
 
 const SIGNED = ['proposal_id', 'version', 'command', 'title', 'description', 'settings', 'source_refs', 'input', 'expires_at'];
-const canonical = p => JSON.stringify(SIGNED.map(k => p[k] ?? null));
+// v3 (UI-15.1): the same fields, then everything the person reviews and edits. review_hash is generation-review.js reviewHash of them.
+const V3_EXTRA = ['schema_version', 'mode', 'original_request', 'prompt', 'visual_constraints', 'references', ...REVIEW_LISTS, 'destination', 'quote', 'review_hash'];
+const SIGNED_V3 = [...SIGNED, ...V3_EXTRA];
+const v3sig = sig => typeof sig === 'string' && sig.startsWith('v3.');
+const canonical = (p, v3 = v3sig(p.sig)) => JSON.stringify((v3 ? SIGNED_V3 : SIGNED).map(k => p[k] ?? null));
 const hex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
 // v1: HMAC-SHA256 with the worker's Motion secret (the orchestrator token), domain-separated from the job grant
 // ('motion-grant|'). Verified for Motion only, so proposals already on cards keep working; signed only where no v2 key exists.
@@ -130,6 +120,11 @@ const hmac = async (secret, text) => {
 };
 const unavailable = command => new Error(command === 'motion' ? 'Motion is not available in this environment yet.' : 'Generation proposals are not available in this environment yet.');
 async function signature(env, p, user, version) {
+  if (version === 'v3') {
+    const secret = v2Secret(env);
+    if (!secret) throw unavailable(p.command);
+    return `v3.${await hmac(await hmacHex(secret, 'generation-proposal-v3'), `generation-proposal|v3|${String(user).toLowerCase()}|${canonical(p, true)}`)}`;
+  }
   if (version === 'v2') {
     const secret = v2Secret(env);
     if (!secret) throw unavailable(p.command);
@@ -139,6 +134,9 @@ async function signature(env, p, user, version) {
   return hmac(env.MOTION_ORCHESTRATOR_TOKEN, `generation-proposal|${String(user).toLowerCase()}|${canonical(p)}`);
 }
 const signingVersion = env => (v2Secret(env) ? 'v2' : 'v1');
+// The envelope a new proposal is signed in: v3 where a v2 key and the canvas are known, else as before.
+export const envelopeFor = (env, bind) => (v2Secret(env) && bind?.org && bind?.app ? 'v3' : null);
+export const reviewAvailable = env => !!v2Secret(env);
 
 // What generating it uses, from the server's own settings (owner messages 30-33: credits only, 1 credit = $0.01): the estimate
 // (MOTION_ESTIMATE_USD) and the temporary reservation while it runs (MOTION_JOB_RESERVATION_USD). Unsigned: display only.
@@ -156,15 +154,30 @@ export function proposalUsage(env, command) {
 }
 
 // fields: validateProposalInput's result plus input. A revision keeps the proposal id and takes the next version.
-export async function signProposal(env, fields, user, { id = null, version = 1, now = Math.floor(Date.now() / 1000) } = {}) {
+// v3 is signed when envelope is 'v3' (a v2 key and the destination, org and app, must exist); fields may carry prompt, references, the lists,
+// original_request, mode, visual_constraints and quote (generation-review.js). Without a prompt, the description is the prompt.
+// Otherwise the proposal is signed as before (v1 or v2), so every existing signer and test is unchanged.
+export async function signProposal(env, fields, user, { id = null, version = 1, now = Math.floor(Date.now() / 1000), envelope = null } = {}) {
   const p = { proposal_id: id || `gp-${hex(crypto.getRandomValues(new Uint8Array(8)))}`, version, command: fields.command, title: fields.title, description: fields.description,
     settings: fields.settings, source_refs: fields.source_refs || [], input: fields.input, expires_at: now + PROPOSAL_TTL_S };
+  const destination = fields.destination ?? (fields.input?.org && fields.input?.app ? { org: fields.input.org, app: fields.input.app } : null);
+  if (envelope === 'v3' && !destination) throw new Error('A reviewed proposal needs its canvas.');
+  if (envelope === 'v3') {
+    if (!v2Secret(env)) throw unavailable(p.command);
+    const review = validateReview({ command: p.command, mode: fields.mode, original_request: fields.original_request ?? fields.input?.request ?? '', title: p.title, prompt: fields.prompt ?? escapeText(p.description),
+      visual_constraints: fields.visual_constraints, references: fields.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, fields[k]])), settings: p.settings, quote: fields.quote, destination });
+    if (review.error) throw new Error(review.error);
+    const r = review.value;
+    Object.assign(p, { description: plainPrompt(r.prompt, r.references), schema_version: SCHEMA_VERSION, mode: r.mode, original_request: r.original_request, prompt: r.prompt, visual_constraints: r.visual_constraints,
+      references: r.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, r[k]])), destination: r.destination, quote: r.quote, review_hash: await reviewHash(r) });
+    return { ...p, sig: await signature(env, p, user, 'v3'), usage: proposalUsage(env, p.command) };
+  }
   return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command) };
 }
 
 // The shape only (synchronous, for motion_request validation); verifyProposal checks the signature.
 export function proposalShape(p) {
-  if (!plain(p) || Object.keys(p).some(k => ![...SIGNED, 'sig', 'usage'].includes(k))) return 'the proposal is not a generation proposal';
+  if (!plain(p) || Object.keys(p).some(k => ![...(v3sig(p.sig) ? SIGNED_V3 : SIGNED), 'sig', 'usage'].includes(k))) return 'the proposal is not a generation proposal';
   if (!ID.test(p.proposal_id || '') || !Number.isSafeInteger(p.version) || p.version < 1 || !SIGNABLE.includes(p.command) || !SIG.test(p.sig || '') || !Number.isSafeInteger(p.expires_at) || !plain(p.settings) || !plain(p.input)) return 'the proposal is not a generation proposal';
   return null;
 }
@@ -175,22 +188,70 @@ export async function verifyProposal(env, p, user, now = Math.floor(Date.now() /
   if (!user) return 'Sign in first';
   let want;
   // The envelope names its version; a v1 envelope is valid only for Motion (signature refuses any other command).
-  try { want = await signature(env, p, user, p.sig.startsWith('v2.') ? 'v2' : 'v1'); } catch (error) { return error.message; }
+  try { want = await signature(env, p, user, v3sig(p.sig) ? 'v3' : p.sig.startsWith('v2.') ? 'v2' : 'v1'); } catch (error) { return error.message; }
   let diff = want.length ^ p.sig.length;
   for (let i = 0; i < Math.min(want.length, p.sig.length); i++) diff |= want.charCodeAt(i) ^ p.sig.charCodeAt(i);
   if (diff) return 'This proposal was not made for you, or it was changed. Ask for it again in chat.';
   if (p.expires_at < now) return 'This proposal has expired. Ask for it again in chat.';
+  return v3sig(p.sig) ? consistent(p) : null;
+}
+// A v3 envelope is also internally consistent: a valid review whose hash is review_hash, whose description is the prompt without
+// its pills, and whose destination is the canvas bound into its input. The signature already says the worker made it; this catches a
+// worker bug before it reaches a person or an executor.
+async function consistent(p) {
+  const review = validateReview(reviewOf(p));
+  if (review.error || p.review_hash !== await reviewHash(review.value) || p.description !== plainPrompt(p.prompt, p.references)) return 'This proposal is inconsistent. Ask for it again in chat.';
+  if (p.input.org !== undefined && (p.input.org !== p.destination.org || p.input.app !== p.destination.app)) return 'This proposal is inconsistent. Ask for it again in chat.';
   return null;
 }
 
 // A settings change on the card: the next version of the same proposal, signed again, with no model call.
 // bind {org, app}: the canvas the server found the proposal on (MOT-22), signed into its input; an old unbound proposal is bound here.
 export async function reviseSettings(env, p, settings, user, bind = null) {
+  return reviseProposal(env, p, { settings }, user, bind);
+}
+
+// A person's edit of a proposal on its card (UI-15.1): any of settings, description (the prompt with its pills), title, references and
+// the lists, made from the SERVER's current revision, never from the browser's copy. Only what the command's editable_fields allow;
+// original_request, command, mode, destination and quote never change. Validated by the schema (settings, references) and the
+// review (prompt against references), signed as the next revision with no model call. -> { proposal }
+// (words for the person; a draft is never dropped by a refusal): { error, code?, errors? } when refused.
+const EDITABLE_LISTS = ['title', 'references', ...REVIEW_LISTS];
+export async function reviseProposal(env, p, edit, user, bind = null) {
   const refused = await verifyProposal(env, p, user);
   if (refused) return { error: refused };
-  const checked = validateSettings(p.command, settings);
-  if (checked.error) return { error: checked.error };
-  return { proposal: await signProposal(env, { ...p, settings: checked.value, input: { ...p.input, ...bind } }, user, { id: p.proposal_id, version: p.version + 1 }) };
+  if (!plain(edit)) return { error: 'The edit must be an object.' };
+  const extra = Object.keys(edit).find(k => ![...EDITABLE_LISTS, 'settings', 'description', 'prompt', 'visual_constraints'].includes(k));
+  if (extra) return { error: `${extra} cannot be edited.`, code: 'field_not_editable' };
+  if (edit.description !== undefined && edit.prompt !== undefined && edit.description !== edit.prompt) return { error: 'Send the description once.' };
+  const text = edit.prompt ?? edit.description;
+  const destination = p.destination ?? (bind?.org && bind?.app ? { org: bind.org, app: bind.app } : p.input?.org && p.input?.app ? { org: p.input.org, app: p.input.app } : null);
+  const current = { ...reviewOf(p), destination };
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const references = edit.references ?? current.references;
+  let settings = p.settings;
+  // The value's own problem is said first (audio on, an unknown setting); then whether this command lets it change.
+  if (edit.settings !== undefined) {
+    const checked = validateCommandSettings(p.command, edit.settings, { references });
+    if (checked.error) return { error: checked.error, errors: [{ path: checked.path, message: checked.error }] };
+    settings = checked.value;
+  }
+  const keys = [...(text !== undefined && text !== current.prompt ? ['description'] : []), ...EDITABLE_LISTS.filter(k => edit[k] !== undefined && !same(edit[k], current[k])),
+    ...[...new Set([...Object.keys(settings), ...Object.keys(p.settings)])].filter(k => !same(settings[k], p.settings[k]))];
+  const locked = edit.visual_constraints !== undefined && !same(edit.visual_constraints, current.visual_constraints) ? 'visual_constraints' : firstReadOnly(p.command, keys);
+  if (locked) return { error: `${locked} cannot be edited on this proposal.`, code: 'field_not_editable' };
+  if (!destination && keys.some(k => !(k in p.settings))) return { error: 'This proposal needs refreshing: ask for it again in chat.', code: 'proposal_canvas' };
+  const fields = { ...current, settings, references, prompt: text ?? current.prompt };
+  for (const k of EDITABLE_LISTS) if (edit[k] !== undefined) fields[k] = edit[k];
+  const next = destination ? validateReview(fields) : { value: fields };
+  if (next.error) return { error: next.error, code: next.code, errors: [{ path: next.field || 'prompt', message: next.error }] };
+  const probs = validateCommandSettings(p.command, settings, { references: next.value.references });
+  if (probs.error) return { error: probs.error, errors: [{ path: probs.path, message: probs.error }] };
+  // Every save is the next revision, as it always was (a save of the same values included): the compare-and-swap decides which one lands.
+  const r = next.value;
+  const v3 = !!destination && !!(v2Secret(env));
+  return { proposal: await signProposal(env, { command: p.command, title: r.title, description: p.description, settings, source_refs: p.source_refs, input: { ...p.input, ...bind }, prompt: r.prompt, references: r.references,
+    ...Object.fromEntries(REVIEW_LISTS.map(k => [k, r[k]])), original_request: r.original_request, mode: r.mode, visual_constraints: r.visual_constraints, quote: r.quote, destination }, user, { id: p.proposal_id, version: p.version + 1, envelope: v3 ? 'v3' : null }) };
 }
 
 // MOT-22: ONE authoritative state per proposal, {version, sig, used}, kept as meta.proposalState on its root answer row (the

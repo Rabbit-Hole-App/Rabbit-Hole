@@ -72,7 +72,8 @@ test('a reviewed brief: one brief call, original wording kept, posted as the sig
   assert.deepEqual(sent.tools[0].input_schema.properties.components.items.enum, catalogue().map(entry => entry.name));
   const [meta] = posted(s);
   assert.deepEqual([meta.proposal.command, meta.proposal.version, meta.proposal.title], ['explain', 1, 'Where rain comes from']);
-  assert.match(meta.proposal.sig, /^v2\./, 'signed without a Motion secret');
+  // UI-15.1 (owner schema spec 2026-10-23): the brief is posted in the v3 review envelope (same key as v2, no Motion secret), so its edited prompt is signed.
+  assert.match(meta.proposal.sig, /^v3\./, 'signed without a Motion secret');
   assert.deepEqual(meta.proposal.input, { org: OWNER.org, app: BOARD.app, job: body.job.id, brief_hash: waiting.briefHash, request: 'explain   where RAIN comes from' });
   assert.deepEqual(meta.proposal.settings, { presentation: 'static' });
   assert.equal(meta.proposal.usage.reserve_credits, 332);

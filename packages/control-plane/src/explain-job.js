@@ -24,7 +24,9 @@ import { refusalBody } from './learn-spend-ledger.js';
 import { withUsage, noteUsageIdentity, usagePayer, usageTotals, recordMedia, finishAction, toMicros } from './learn-usage.js';
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { sha256Hex } from './learn-grade-jev.js';
-import { consumeProposal, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
+import { consumeProposal, envelopeFor, proposalRecord, proposalState, publishRevision, signProposal, verifyProposal } from './generation-proposal.js';
+import { blockedBody, referencesKey, resolveReferences } from './generation-review-refs.js';
+import { isReviewProposal } from '../../web/src/generation-review.js';
 import { needsPreparation, prepareStage } from './explain-brief.js';
 import { authorStage, selectExamples, specFacts, validateStage } from './explain-author.js';
 import { reviewCaptures } from './explain-review.js';
@@ -180,6 +182,14 @@ export async function explainRoute(path, req, env, deps = {}) {
     body.context = { ...(body.context && typeof body.context === 'object' ? body.context : {}), refs: got.refs, ...(got.text ? { refText: got.text } : {}) };
   }
   delete body.context_refs;
+  // UI-15.1: Generate on a reviewed brief. The proposal's references are read here, under this learner's access, and the job gets only what
+  // this read says (never a client field): a deleted, changed, refused or unsupported one answers 409 with every state, before anything is consumed.
+  delete body.approved_refs;
+  if (action === 'approve' && body.proposal?.references?.length && isReviewProposal(body.proposal)) {
+    const found = await (deps.resolveReferences || resolveReferences)(env, { ...body.proposal, command: 'explain' }, { req, user, app: board.app }, { read: deps.read });
+    if (found.blocked.length) return json(blockedBody(found.states), 409);
+    body.approved_refs = { key: referencesKey(body.proposal.references), refs: found.refs, text: found.text };
+  }
   const stub = env.EXPLAIN_JOBS.get(env.EXPLAIN_JOBS.idFromName(board.id));
   return stub.fetch('https://explain/action', { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, id: rest[0] || null, payload: body, board, user: { org: user.org, email: user.email, userId: user.userId || user.user_id || null }, origin: url.origin,
@@ -341,7 +351,9 @@ export class ExplainJobs {
     const record = previous ? await proposalRecord(db, job.owner.email, job.app, previous.id) : null;
     if (record?.state?.used) return;
     const p = await signProposal(this.env, { command: 'explain', title: job.brief.title, description: job.brief.summary, settings: { presentation: job.brief.presentation }, source_refs: [],
-      input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: job.briefHash, request: job.prompt.slice(0, 500) } }, job.owner.email, previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {});
+      assumptions: (job.brief.assumptions || []).map(a => String(a).replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 20),
+      input: { org: job.owner.org, app: job.app, job: job.id, brief_hash: job.briefHash, request: job.prompt.slice(0, 500) } }, job.owner.email,
+      { envelope: envelopeFor(this.env, { org: job.owner.org, app: job.app }), ...(previous ? { id: previous.id, version: (record?.current?.version ?? previous.version) + 1 } : {}) });
     const row = await db.prepare('INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?) RETURNING id').bind(job.threadId, 'assistant', 'Here is the plan for your explanation. Generate makes it.').first();
     const meta = { version: 1, mode: 'ask', kind: 'answer', contextRefs: [], actions: [], followUps: [], syllabus: null, proposal: p, ...(previous ? {} : { proposalState: proposalState(p) }) };
     await db.prepare("INSERT INTO chat_message_meta (message_id, thread_id, role, alternative_of, meta_json) VALUES (?, ?, 'assistant', NULL, ?)").bind(row.id, job.threadId, JSON.stringify(meta)).run();
@@ -389,12 +401,22 @@ export class ExplainJobs {
     if (refused) throw fail(refused, 409, 'proposal_invalid');
     if (p.command !== 'explain' || p.input?.job !== job.id || p.input?.brief_hash !== job.briefHash) throw stale();
     await this.admitGeneration(job);
+    // UI-15.1: references the person attached were checked at the route; no check, no Generate (fail closed).
+    if (isReviewProposal(p) && p.references.length && payload.approved_refs?.key !== referencesKey(p.references)) throw fail('The attached references were not checked. Review the brief again.', 409, 'reference_blocked');
     const used = await consumeProposal(this.env.LEARN_DB, p, job.owner.email, { org: job.owner.org, app: job.app }, job.id);
     if (used) throw fail(used.error, 409, used.code);
     job.proposal = { id: p.proposal_id, version: p.version };
     job.settings = p.settings; // the card's settings at Generate (presentation), applied to authoring
+    // The executed brief is the approved one: the person's edited description, title and assumptions replace the prepared brief's, and the
+    // content of the references they kept is the job's context. The hash then names what authoring actually receives.
+    let reviewHash = null;
+    if (isReviewProposal(p)) {
+      job.brief = { ...job.brief, title: p.title, summary: p.description, assumptions: p.assumptions, ...(p.settings.presentation ? { presentation: p.settings.presentation } : {}) };
+      job.briefHash = await sha256Hex(JSON.stringify(job.brief)); reviewHash = p.review_hash;
+      if (p.references.length) job.context = { ...(job.context && typeof job.context === 'object' ? job.context : {}), refs: payload.approved_refs.refs, refText: [job.context?.refText, payload.approved_refs.text].filter(Boolean).join('\n\n').slice(0, 24000) };
+    }
     markTiming(job.timing, 'generate');
-    Object.assign(job, { approval: { briefHash: job.briefHash, at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
+    Object.assign(job, { approval: { briefHash: job.briefHash, ...(reviewHash ? { reviewHash } : {}), at: Date.now() }, stage: 'authoring', deadline: Date.now() + EXPLAIN_LIMITS.deadlines.jobMs });
     beginStage(job.timing, 'authoring');
     await this.save(job); await this.wake();
     return json({ job: publicExplainJob(job) }, 202);

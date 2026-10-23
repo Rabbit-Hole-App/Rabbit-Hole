@@ -14,7 +14,7 @@ import { uploadedPaperAsDocument } from './learn-paper.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { OUTLINE_TOOL, OUTLINE_SYSTEM, validateOutlineOps } from './learn-outline-tool.js';
 import { verifyChatRoute } from './chat-capability-route.js';
-import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal } from './generation-proposal.js';
+import { MOTION_PAUSED, PROPOSAL_SYSTEM, PROPOSAL_TOOL, currentRevision, proposalRecord, proposalState, publishRevision, motionAbout, motionOffered, motionPaused, motionRequestLine, signProposal, validateProposalInput, verifyProposal, envelopeFor } from './generation-proposal.js';
 import { SEARCH_WIKIPEDIA_TOOL, READ_WIKIPEDIA_TOOL, SHOW_WIKIPEDIA_TOOL, WIKI_SYSTEM, searchWikipedia, readWikipedia, validateShowWikipedia, wikiTitle } from './learn-wiki.js';
 import { findVideoMoments, videoMomentTools } from './learn-youtube.js';
 import { WIKI_SHOWN_NOTE } from './agents/learn-chat.js';
@@ -1087,9 +1087,12 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
         const checked = validateProposalInput(input, chat?.contextRefs || []);
         if (checked.error) return refused(checked.error);
         const current = generation.current?.command === checked.command ? generation.current : null;
+        // UI-15.1: references the person attached on the card are theirs to edit there; a chat refinement would write a new description
+        // without them, so it is refused in words rather than dropping them.
+        if (current?.references?.length) return refused('this proposal has attached references; the learner changes it on its card, not in chat');
         // MOT-22: signed for this canvas and workspace (the authorized scope, never the browser's); a revision of an old unbound one binds it.
         const bind = { org: user.org, app: scopeRef };
-        const signed = await signProposal(env, { ...checked, input: { ...(current ? current.input : { request: motionRequestLine(message), ...generation.motion }), ...bind } }, user.email, current ? { id: current.proposal_id, version: current.version + 1 } : {});
+        const signed = await signProposal(env, { ...checked, input: { ...(current ? current.input : { request: motionRequestLine(message), ...generation.motion }), ...bind } }, user.email, { envelope: envelopeFor(env, bind), ...(current ? { id: current.proposal_id, version: current.version + 1 } : {}) });
         // A revision is published on the proposal's one state against what this turn read (generation-proposal.js); another
         // revision or a Generate that landed meanwhile wins, and this one comes back to the learner beside it, not applied.
         if (current && !(await publishRevision(db, generation.record, signed))) {

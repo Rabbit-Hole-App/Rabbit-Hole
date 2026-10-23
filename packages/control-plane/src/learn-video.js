@@ -4,6 +4,8 @@ import { videoProvider } from './video-provider.js';
 import { ManimProvider, cacheKey as mathCacheKey } from './math-provider.js';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from './motion-provider.js';
 import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
+import { blockedBody, resolveReferences } from './generation-review-refs.js';
+import { isReviewProposal } from '../../web/src/generation-review.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { byteRange, learnMedia } from './learn-storage.js';
@@ -252,6 +254,11 @@ export class LearnVideos {
         if (input.proposal && !provider.unavailable()) {
           const proposalRefused = await verifyProposal(this.env, input.proposal, proposer);
           if (proposalRefused) return json({ error: proposalRefused, code: 'proposal_refused' }, 409);
+          // UI-15.1: Motion reads no reference's content yet, so a reference on its proposal is named unsupported before anything is consumed or held.
+          if (isReviewProposal(input.proposal) && input.proposal.references.length) {
+            const found = await resolveReferences(this.env, input.proposal, { req, user: null, app: null });
+            if (found.blocked.length) return json(blockedBody(found.states), 409);
+          }
         }
         let job = await this.state.storage.get(`job:${key}`);
         if (!job || (body.retry === true && job.status === 'failed' && !job.uncertain)) {
