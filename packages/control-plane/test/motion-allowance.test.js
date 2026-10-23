@@ -83,7 +83,8 @@ function world(t, { health = { ok: true, busy: false, sandbox: 'linux' } } = {})
         if (signal.aborted) throw Object.assign(new Error('stopped'), { name: 'MotionCancelled' });
         // A render the renderer reports finished (or the status the step names), as render-job polls it.
         if (step.render) { const { render_id } = await (await svc.submit({})).json(); reported.set(render_id, step.renderStatus || 'ready'); await svc.status(render_id); continue; }
-        if (step.fail) return { status: 'failed', failure_reason: `${step.stage}: ${step.fail}`, ...(step.cause ? { cause: step.cause } : {}), ...(step.failure_class ? { failure_class: step.failure_class } : {}) };
+        if (step.crash) throw new Error('boom');
+        if (step.fail) return { status: 'failed', failure_reason: `${step.stage}: ${step.fail}`, ...(step.cause ? { cause: step.cause } : {}) };
         const r = await guarded({}, { max_tokens: step.max_tokens, messages: [{ role: 'user', content: step.stage || 'x' }], out: step.out, hold: step.hold }, MODEL);
         if (!r.ok) return { status: 'failed', failure_reason: `${step.stage}: model_error` };
         await r.text();
@@ -236,7 +237,7 @@ test('Stop: the call in flight is abandoned, its real cost is settled once it la
   assert.equal(env.LEARN_MEDIA.objects.size, 0);
 });
 
-test('an orchestrator restart mid-job: the job fails clearly, its hold is kept as unknown cost, and an explicit retry cannot exceed the ceiling', async t => {
+test('an orchestrator restart mid-job: the job fails clearly, the learner pays nothing, its unknown provider cost still counts toward the ceiling, and an explicit retry cannot exceed it', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   const w = world(t); await w.orchestrator.start();
   w.script([{ stage: 'directing', max_tokens: 16000, out: 5000, hold: true }]);
@@ -247,7 +248,11 @@ test('an orchestrator restart mid-job: the job fails clearly, its hold is kept a
   await settle(actor, async () => (await video(actor)).status === 'failed');
   const v = await video(actor);
   assert.match(v.error, /The Motion service restarted while this video was being made/);
-  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'unknown', null, 'failed']], 'a call was in flight: its cost is unknown, so the hold stays');
+  // Owner 2026-10-23: our infrastructure failing charges zero credits and releases the whole reservation. The provider cost is unknown, so the
+  // platform ledger row keeps its reservation (usage_operations) and the video's ceiling below still counts the whole hold.
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'failed']], 'infrastructure failure: zero credits, nothing held for the learner');
+  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd]), [['failed', 2]], 'the platform ledger keeps the unknown cost at its reservation');
   assert.deepEqual(actions(sqlite), [['video', 'interrupted', null, true]], 'cost unknown: interrupted, never completed because the hold settled');
   assert.deepEqual(v.hold, { usd: 2, state: 'pending' }, 'the card says reconciliation is pending');
   // Retry: the whole $2 ceiling counts as used by the interrupted attempt, so nothing more can start for this video.
@@ -272,6 +277,32 @@ test('an explicit retry after a failure spends from the same ceiling: the second
   await settle(actor, async () => (await video(actor)).status === 'ready');
   assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 500_000, 'failed'], [1_500_000, 'settled', 800_000, 'settled']]);
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [1_300_000, 0], 'the job cost $1.30 in all, inside its $2 ceiling');
+});
+
+// Owner 2026-10-23: renderer capacity, renderer timeout and our infrastructure failures charge the learner zero credits and release the
+// whole reservation; the provider cost is still recorded (usage_operations) and still counts toward the video's ceiling.
+test('zero-credit failures: a renderer failure and an orchestrator crash charge nothing; a content failure is charged; the provider cost is recorded and settled once', async t => {
+  for (const [name, step, charged] of [['renderer timeout', { stage: 'rendering', fail: 'render_timeout', cause: 'renderer' }, 0], ['orchestrator crash', { stage: 'rendering', crash: true }, 0], ['content', { stage: 'review', fail: 'blocking', cause: 'content' }, 100_000]]) {
+    const { sqlite, LEARN_DB } = d1(t);
+    const w = world(t); await w.orchestrator.start();
+    w.script([{ stage: 'directing', max_tokens: 16000, out: 5000 }, step]); // the model call cost $0.10
+    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
+    await actor.fetch(ask());
+    await settle(actor, async () => (await video(actor)).status === 'failed' && (await video(actor)).hold?.state === 'released');
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', charged, 'failed']], name);
+    assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [charged, 0], `${name}: the learner pays ${charged}, the rest is released`);
+    assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd, o.calls]), [['failed', 0.1, 1]], `${name}: the actual provider cost is recorded internally`);
+    const [[, stored]] = [...await actor.state.storage.list({ prefix: 'job:' })];
+    assert.deepEqual([stored.providerCost[0].micros, stored.providerCost[0].charged, stored.providerCost[0].calls[0].usage.output_tokens], [100_000, charged, 5000], `${name}: the per-call usage is kept with the job`);
+    assert.equal(stored.consumedMicros, 100_000, `${name}: the provider cost still counts toward the video's ceiling`);
+    // Settling the same ended job again changes nothing: the ledger and the learner's balance are written once.
+    await actor.settleMotion(stored, { status: 'failed', cause: 'renderer', spend: { cost_usd: 9, bound_usd: 9, calls: 5, in_flight: 0 }, renders: 0 });
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', charged, 'failed']], `${name}: no second settlement`);
+    assert.deepEqual(rows(sqlite, 'usage_operations').map(o => o.cost_usd), [0.1]);
+    w.script(FIRST_PASS);
+    await actor.fetch(ask({ retry: true }));
+    assert.equal([...w.orchestrator.o.jobs.values()].at(-1).grant_micros, 1_900_000, `${name}: a retry may spend only what the ceiling has left`);
+  }
 });
 
 test('renderer unavailable or unsandboxed: refused, never run in process; the hold is released in full', async t => {
@@ -511,7 +542,7 @@ test('MOT-07 a lost submission: a key the live orchestrator run never saw is a c
     const v = await video(actor);
     assert.match(v.error, /lost this video before it confirmed the start\. Its spending stays held/);
     assert.deepEqual([v.retryable, v.hold?.state], [false, 'pending']);
-    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'unknown', null, 'failed']], 'its cost is unknown: the reservation stays');
+    assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 0, 'failed']], 'its cost is unknown (platform ledger keeps its reservation) and, as an infrastructure failure (owner 2026-10-23), costs the learner zero credits');
     assert.deepEqual([w.orchestrator.posts, w.orchestrator.o.jobs.size, w.model.calls.length], [1, 0, 1], 'nothing was resent or started again');
   }
 });
@@ -906,41 +937,8 @@ test('MOT-20 refused before any hold or POST: a forged, edited, other-learner or
   assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [1, 1]);
 });
 
-// Owner correction 2026-10-23 (C): a renderer capacity or timeout failure, or our own infrastructure failure, charges the learner
-// nothing and releases the WHOLE reservation; the provider cost is recorded internally; settlement happens exactly once.
-const FAILED_AFTER_MODEL = failure_class => [{ stage: 'directing', max_tokens: 16000, out: 5000 }, { stage: 'storyboarding', max_tokens: 16000, out: 5000 }, { stage: 'authoring', max_tokens: 64000, out: 30000 },
-  { stage: 'rendering_final', fail: 'final: render_failed: x', cause: 'renderer', ...(failure_class ? { failure_class } : {}) }];
-for (const [failure_class, text] of [['renderer_capacity', /renderer was busy\. You were not charged/], ['renderer_timeout', /longer to render than the renderer allows\. You were not charged/], ['infrastructure', /video service had a problem\. You were not charged/]]) {
-  test(`${failure_class}: the learner is charged zero, the full hold is released, the provider cost is absorbed internally`, async t => {
-    const { sqlite, LEARN_DB } = d1(t);
-    const w = world(t); await w.orchestrator.start(); w.script(FAILED_AFTER_MODEL(failure_class));
-    const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
-    await actor.fetch(ask());
-    await settle(actor, async () => (await video(actor)).status === 'failed');
-    const v = await video(actor);
-    assert.match(v.error, text);
-    assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0], 'nothing used, nothing still held');
-    assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.category, o.cost_usd, o.calls, o.error]), [['motion', 0, 3, `absorbed:${failure_class}:800000`]], 'the ledger row charges zero and names what the provider charged');
-    assert.deepEqual(motionAttempts(sqlite).map(a => a[2]), [0], 'the attempt is charged zero');
-    const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
-    assert.deepEqual(job.absorbed, { class: failure_class, costMicros: 800_000 });
-    assert.doesNotMatch(JSON.stringify(await actor.list()), /absorbed|800000/, 'never shown to the learner');
-    assert.equal(w.orchestrator.posts, 1, 'no new paid generation to reconcile it');
-  });
-}
-
-test('a content failure with the same renderer cause is charged as before; only the three platform classes are absorbed', async t => {
-  const { sqlite, LEARN_DB } = d1(t);
-  const w = world(t); await w.orchestrator.start(); w.script(FAILED_AFTER_MODEL(null));
-  const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
-  await actor.fetch(ask());
-  await settle(actor, async () => (await video(actor)).status === 'failed');
-  assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [800_000, 0]);
-  const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
-  assert.equal(job.absorbed, undefined);
-  assert.equal(rows(sqlite, 'usage_operations')[0].cost_usd, 0.8);
-});
-
+// Owner correction 2026-10-23 (C), on top of motion/spend's zero-credit settlement (renderer, infra and lost jobs): settlement is exactly once,
+// and our own storage failing is the infrastructure class.
 test('settlement is exactly once: concurrent and repeated settlements of one job change the ledger once', async t => {
   const { sqlite, LEARN_DB } = d1(t);
   const w = world(t); await w.orchestrator.start();
@@ -948,14 +946,15 @@ test('settlement is exactly once: concurrent and repeated settlements of one job
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
   await actor.fetch(ask());
   const [[, job]] = [...await actor.state.storage.list({ prefix: 'job:' })];
-  const view = failure_class => ({ status: 'failed', failure_class, spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 }, renders: 0, render_states: [] });
-  // Two settlements race (an alarm and a poll); the others, with another class, do nothing.
-  await Promise.all([actor.settleMotion(job, view('renderer_timeout')), actor.settleMotion(job, view('infrastructure')), actor.settleMotion(job, view(null))]);
-  await actor.settleMotion(job, view(null));
-  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd, o.error]), [['failed', 0, 'absorbed:renderer_timeout:800000']]);
+  const view = cause => ({ status: 'failed', cause, spend: { cost_usd: 0.8, bound_usd: 0.8, calls: 3, in_flight: 0 }, renders: 0, render_states: [] });
+  // Three settlements race (an alarm and two polls); the others, with another cause, do nothing.
+  await Promise.all([actor.settleMotion(job, view('renderer')), actor.settleMotion(job, view('infra')), actor.settleMotion(job, view('content'))]);
+  await actor.settleMotion(job, view('content'));
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.status, o.cost_usd, o.error]), [['failed', 0.8, 'motion_failed']], 'the provider cost is recorded once');
+  assert.deepEqual(motionAttempts(sqlite).map(a => a[2]), [0], 'the learner is charged zero for a renderer failure');
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
   assert.equal(motionAttempts(sqlite).length, 1);
-  assert.equal(job.absorbed.class, 'renderer_timeout');
+  assert.deepEqual(job.providerCost.map(c => [c.micros, c.charged, c.cause]), [[800_000, 0, 'renderer']]);
   w.model.held?.();
 });
 
@@ -975,9 +974,10 @@ test('our storage failure: a transient put error settles nothing and asks again;
   await actor.alarm();
   const v = await video(actor);
   assert.deepEqual([v.status, v.retryable], ['failed', true]);
-  assert.match(v.error, /video service had a problem\. You were not charged/);
+  assert.match(v.error, /could not save the finished video\. You were not charged/);
   assert.deepEqual(await balance(LEARN_DB).then(b => [b.used, b.reserved]), [0, 0]);
-  assert.match(rows(sqlite, 'usage_operations')[0].error, /^absorbed:infrastructure:800000$/);
+  assert.deepEqual(rows(sqlite, 'usage_operations').map(o => [o.cost_usd, o.error]), [[0.8, 'motion_failed']], 'the real provider cost is kept internally');
+  assert.deepEqual(motionAttempts(sqlite).map(a => a[2]), [0], 'and the learner is charged zero');
   down = false;
 });
 
