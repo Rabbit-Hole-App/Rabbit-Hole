@@ -127,7 +127,7 @@ const PRIMARY = 'rgb(27, 111, 194)';
 // one more press is allowed before the check fails.
 const openMenu = async card => {
   for (let i = 0; i < 2; i++) {
-    await card.getByTitle('More').click();
+    await card.getByTitle('Card options').click();
     if (await card.page().locator('[data-menu-rename]').waitFor({ timeout: 3000 }).then(() => true, () => false)) return;
   }
   throw Error('the ⋮ menu did not open');
@@ -173,7 +173,7 @@ await check('4 hierarchy and colour: blue title and owner badge; neutral @handle
   assert.equal((await card.locator('[data-creator]').innerText()).trim(), `@${H.owner}`);
   assert.equal(await card.locator('[data-owned-badge]').getAttribute('aria-label'), 'Owned by you');
   assert.equal(await rgb(card.locator('[data-owned-badge] path').first(), 'fill'), ACCENT);
-  for (const sel of ['[data-creator]', '[data-card-description]', '[data-card-visibility]', '[data-updated]', '[title="More"]']) assert.notEqual(await rgb(card.locator(sel), 'color'), ACCENT, sel);
+  for (const sel of ['[data-creator]', '[data-card-description]', '[data-card-visibility]', '[data-updated]', '[title="Card options"]']) assert.notEqual(await rgb(card.locator(sel), 'color'), ACCENT, sel);
   assert.notEqual(await rgb(titled(lib, '[data-library-card="canvas"]', T.bridges).locator('[data-fork-count]'), 'color'), ACCENT, '[data-fork-count]');
   assert.equal((await card.locator('[data-card-visibility]').innerText()).trim(), 'Private');
   assert.equal((await titled(lib, '[data-library-card="canvas"]', T.bridges).locator('[data-card-visibility]').innerText()).trim(), 'Public');
@@ -342,7 +342,7 @@ await check('13 Home Recent: the same card; the away canvas keeps On another dev
   assert.equal(await titled(home, '[data-recent-card]', T.bridges).locator('[data-card-note]').count(), 0, 'published, so its board is on the server');
   // Recent cards carry the Library's own ⋮ (owner, 2026-10-08), opened in place.
   const recent = titled(home, '[data-recent-card]', T.bridges);
-  await recent.getByTitle('More').click();
+  await recent.getByTitle('Card options').click();
   for (const row of ['[data-menu-rename]', '[data-menu-visibility]', '[data-menu-share]', '[data-menu-copy-link]', '[data-menu-trash]']) await home.locator(row).waitFor({ timeout: 5000 });
   assert.ok(await home.locator('[data-menu-trash]').evaluate(n => n.getBoundingClientRect().bottom <= window.innerHeight), 'the menu is inside the window');
   await home.keyboard.press('Escape');

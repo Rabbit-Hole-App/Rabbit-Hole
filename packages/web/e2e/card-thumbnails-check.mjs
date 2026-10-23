@@ -212,7 +212,7 @@ const cover = await page.evaluate(() => {
 // One plain click, wherever the card sits: the menu no longer closes on the scroll its own click causes (menu-scroll.js).
 const menu = async (title) => {
   const card = libraryCard(title);
-  await card.hover(); await card.getByTitle('More').click();
+  await card.hover(); await card.getByTitle('Card options').click();
   await page.locator('[data-menu-thumbnail]').waitFor({ timeout: 5000 }).catch(async error => { await shot(page, SHOTS, 'menu-failed'); throw error; });
   await page.waitForTimeout(400);
 };

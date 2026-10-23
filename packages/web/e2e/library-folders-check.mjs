@@ -39,7 +39,7 @@ const cards = (p = page) => p.locator('[data-library-card]');
 const tile = (name, p = page) => p.locator('[data-folder-tile]').filter({ has: p.locator('[data-folder-name]', { hasText: new RegExp(`^${name}$`) }) });
 const tileMore = (name) => tile(name).locator('xpath=..').locator('[data-folder-more]');
 const library = async (search = '', p = page) => { await p.goto(`${BASE}/library${search}`); await p.locator('h1').waitFor(); await p.waitForTimeout(800); };
-const cardMenu = async (title) => { await card(title).hover(); await card(title).getByTitle('More').click(); await page.locator('[data-menu-folder]').waitFor(); };
+const cardMenu = async (title) => { await card(title).hover(); await card(title).getByTitle('Card options').click(); await page.locator('[data-menu-folder]').waitFor(); };
 const dialog = (name) => page.getByRole('dialog', { name });
 const edge = async (name) => tile(name).locator('span[aria-hidden="true"]').first().evaluate(el => getComputedStyle(el).backgroundColor);
 const byName = async (name) => (await folders()).folders.find(f => f.name === name);

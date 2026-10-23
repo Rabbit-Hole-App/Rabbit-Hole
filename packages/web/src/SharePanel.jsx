@@ -3,6 +3,7 @@ import { Check, Compass, Copy, X } from 'lucide-react';
 import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import EmbedPanel from './EmbedPanel.jsx';
 import { embedSources } from './embed-api.js';
+import { MODES, PATCH, accessMode } from './home/project-access.js';
 import { ExploreCommentSetting, ShareCommentSetting, useCommentSettings } from './comments/CommentSettings.jsx';
 
 // The Share canvas dialog (owner brief 2026-10-22; docs/features/canvas-sharing.md, explore-publish.md, canvas-comments.md):
@@ -18,25 +19,15 @@ export function Switch({ on, label, disabled = false, onChange }) {
   );
 }
 
-// The dropdown's three options are the server's own fields: shared, view (the link's token) and public_view. Invited
-// people only is shared: false, which turns the link off; their invitations and the Explore publication are other rows
-// the share route never touches. A shared canvas whose view link is off opens for nobody by link, so it reads as invited only.
-const MODES = [
-  ['invited', 'Invited people only'],
-  ['signin', 'Anyone with the link · sign-in required'],
-  ['public', 'Anyone with the link · no sign-in'],
-];
-const PATCH = {
-  invited: { shared: false },
-  signin: { shared: true, view: true, public_view: false },
-  public: { shared: true, view: true, public_view: true },
-};
+// The dropdown's three options are the server's own fields (home/project-access.js MODES, PATCH, accessMode): shared, view
+// (the link's token) and public_view. Invited people only is shared: false, which turns the link off; their invitations and
+// the Explore publication are other rows the share route never touches.
 const EXPLAIN = {
   invited: 'Only people you invite can open this canvas. The share link is off.',
   signin: 'Anyone with the link can view this canvas after signing in. They cannot edit it.',
   public: 'Anyone with the link can view this canvas without signing in. They cannot edit it.',
 };
-export const accessMode = sharing => (!sharing?.shared || !sharing.view ? 'invited' : sharing.public_view ? 'public' : 'signin');
+export { accessMode };
 
 // A read-only URL on one line (the field scrolls, and the whole URL is its title) with a blue Copy link. Copied shows only
 // after the clipboard accepted the text; when it refuses, the URL is selected and the message says how to copy it.
@@ -115,7 +106,11 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 // `place`: where it sits - under the canvas top bar's Share button, or the Library's popup (LibraryViews.jsx).
 // comments: { base } when the canvas has comments (docs/features/canvas-comments.md); the invitation list and both comment
 // settings are the dialog's own rows. `title`: the canvas's own title under the heading.
-export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null, title = '' }) {
+// A project's window (owner brief 2026-10-22 items 4-5, home/CardMenu.jsx): `project` = { canvases: <the Canvases tab>, publicBlocked }.
+// Its Share tab is the project link only (the Main canvas board's) and its Explore and Embed tabs are not shown: a project
+// itself is never on Explore, only its canvases are, and the Canvases tab shows each one's own access and publication.
+// `privateUrl`: the card's own address, offered as a private link only while the link is off (copying never turns it on).
+export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null, title = '', project = null, privateUrl = '' }) {
   const panel = useRef(null);
   const accessSelect = useRef(null);
   const seq = useRef(0);
@@ -149,7 +144,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onPublish =
     // The select shows the pending choice only while the save runs; after it, whatever the server last confirmed (sharing).
     try { await onChange(PATCH[next]); } finally { if (mine === seq.current) setPendingMode(null); }
   };
-  const tabs = [['share', 'Share'], ...(onPublish ? [['explore', 'Explore']] : []), ['embed', 'Embed']];
+  const tabs = project ? [['share', 'Share'], ['canvases', 'Canvases']] : [['share', 'Share'], ...(onPublish ? [['explore', 'Explore']] : []), ['embed', 'Embed']];
   const onTabKeys = event => {
     const index = tabs.findIndex(([key]) => key === tab);
     const next = { ArrowRight: (index + 1) % tabs.length, ArrowLeft: (index + tabs.length - 1) % tabs.length, Home: 0, End: tabs.length - 1 }[event.key];
@@ -172,16 +167,16 @@ export default function SharePanel({ sharing, busy, error, onChange, onPublish =
     ? { ...source, reason: mode === 'invited' ? 'Only invited people can open this canvas, so there is nothing to embed.' : 'Visitors must sign in to open this link, so it cannot be embedded publicly.' } : source);
   const panelProps = key => ({ role: 'tabpanel', id: `${uid}-panel-${key}`, 'aria-labelledby': `${uid}-tab-${key}`, hidden: tab !== key });
   return (
-    <div ref={panel} role="dialog" aria-label="Share canvas" onKeyDown={trap}
+    <div ref={panel} role="dialog" aria-label={project ? 'Share project' : 'Share canvas'} onKeyDown={trap}
       className={`${place} z-50 w-[26rem] max-w-[calc(100vw-1rem)] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-xl border border-line bg-white p-3 shadow-lg max-sm:fixed max-sm:inset-x-2 max-sm:top-14 max-sm:mt-0 max-sm:w-auto max-sm:max-w-none`}>
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-ink">Share canvas</h2>
+          <h2 className="text-sm font-semibold text-ink">{project ? 'Share project' : 'Share canvas'}</h2>
           {title && <p className="truncate text-xs text-ink-3" title={title}>{title}</p>}
         </div>
         <button type="button" aria-label="Close" onClick={onClose} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink"><X size={14} /></button>
       </div>
-      <div role="tablist" aria-label="Share canvas" onKeyDown={onTabKeys} className="mt-2 flex gap-4 border-b border-line">
+      <div role="tablist" aria-label={project ? 'Share project' : 'Share canvas'} onKeyDown={onTabKeys} className="mt-2 flex gap-4 border-b border-line">
         {tabs.map(([key, label]) => (
           <button key={key} type="button" role="tab" id={`${uid}-tab-${key}`} aria-selected={tab === key} aria-controls={`${uid}-panel-${key}`} tabIndex={tab === key ? 0 : -1} onClick={() => setTab(key)}
             className={`-mb-px border-b-2 px-0.5 pb-1.5 text-sm ${tab === key ? 'border-ink text-ink' : 'border-transparent text-ink-3 hover:text-ink'}`}>{label}</button>
@@ -192,16 +187,25 @@ export default function SharePanel({ sharing, busy, error, onChange, onPublish =
           <label htmlFor={`${uid}-access`} className="mb-1 block text-sm text-ink">Who can open this?</label>
           <select id={`${uid}-access`} ref={accessSelect} value={pendingMode ?? mode} disabled={busy || !!pendingMode} onChange={event => changeMode(event.target.value)}
             className="h-8 w-full rounded-md border border-line bg-white px-2 text-sm text-ink disabled:opacity-40">
-            {MODES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {MODES.map(([value, label]) => <option key={value} value={value} disabled={project?.publicBlocked && value === 'public'}>{label}</option>)}
           </select>
-          <p className="mt-1.5 text-xs text-ink-3">{EXPLAIN[mode]}</p>
+          <p className="mt-1.5 text-xs text-ink-3">{project ? EXPLAIN[mode].replace('this canvas', 'this project').replace('share link', 'project link') : EXPLAIN[mode]}</p>
           {pendingMode && <p role="status" className="text-xs text-ink-3">Saving</p>}
           {shareUrl && <CopyLink url={shareUrl} fieldLabel="Share link URL" />}
+          {project && <p data-project-link-note className="mt-2 text-xs text-ink-3">This is the project link only. The project itself is never listed on Explore, and each canvas keeps its own access: see the Canvases tab.</p>}
+          {project?.publicBlocked && <p className="mt-1 text-xs text-ink-3">Private repository: the link cannot be opened without signing in.</p>}
+          {!shareUrl && privateUrl && (
+            <div data-private-link>
+              <CopyLink url={privateUrl} fieldLabel="Private link URL" />
+              <p className="mt-1 text-xs text-ink-3">Private link: people you send it to cannot open it. Copying it does not share anything; choose who can open it above first.</p>
+            </div>
+          )}
         </div>
         {comments && <div className="mt-2"><PeopleWithAccess base={comments.base} /><ShareCommentSetting cs={cs} /></div>}
       </div>
       {tab === 'explore' && onPublish && <div {...panelProps('explore')}><ExploreTab published={!!current.published} token={current.publication} busy={busy} onPublish={onPublish} cs={cs} /></div>}
-      {tab === 'embed' && <div {...panelProps('embed')}><EmbedPanel canvasTitle={title} sources={sources} onChangeAccess={() => { setTab('share'); setFocusAccess(count => count + 1); }} /></div>}
+      {tab === 'canvases' && project && <div {...panelProps('canvases')}>{project.canvases}</div>}
+      {tab === 'embed' && !project && <div {...panelProps('embed')}><EmbedPanel canvasTitle={title} sources={sources} onChangeAccess={() => { setTab('share'); setFocusAccess(count => count + 1); }} /></div>}
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );

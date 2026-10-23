@@ -77,15 +77,25 @@ export function CardThumbnail({ kind, src }) {
   );
 }
 
-// Visibility as neutral metadata (visibility-menu.md's three states, and a project's Mixed when its canvases differ); it is
-// changed from the ⋮, never here.
+const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
+// Visibility as neutral metadata (visibility-menu.md's three states). A project whose canvases have different access settings
+// says Varies by canvas (owner brief 2026-10-22; never a canvas, never a fourth permission): with `onVaries` it is a button
+// that opens the project's Share window and its per-canvas breakdown. It is changed from Share, never here.
 const ACCESS_ICON = { private: Lock, unlisted: Link2, public: Globe, mixed: Layers };
-function Visibility({ access }) {
+const VARIES = 'Canvases in this project have different access settings.';
+function Visibility({ access, kind, onVaries }) {
   const Icon = ACCESS_ICON[access];
-  if (!Icon) return null;
+  if (!Icon || (access === 'mixed' && kind !== 'repository')) return null;
+  const cls = 'inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-line px-2 text-xs text-ink-2';
+  if (access === 'mixed') {
+    const label = <><Icon size={12} strokeWidth={1.75} aria-hidden="true" />Varies by canvas</>;
+    return onVaries
+      ? <button type="button" data-card-visibility="mixed" title={VARIES} aria-label={`Varies by canvas. ${VARIES} Open sharing`} onClick={stop(onVaries)} className={`${cls} cursor-pointer hover:bg-hover hover:text-ink`}>{label}</button>
+      : <span data-card-visibility="mixed" title={VARIES} className={cls}>{label}</span>;
+  }
   return (
-    <span data-card-visibility={access} className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-line px-2 text-xs text-ink-2">
-      <Icon size={12} strokeWidth={1.75} />{ACCESS.find((a) => a.id === access)?.label || 'Mixed'}
+    <span data-card-visibility={access} className={cls}>
+      <Icon size={12} strokeWidth={1.75} />{ACCESS.find((a) => a.id === access)?.label}
     </span>
   );
 }
@@ -108,20 +118,19 @@ export function menuAt(button, width, room = 360) {
   return { left: r.right - width, ...(window.innerHeight - r.bottom < room ? { bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4 }) };
 }
 
-const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 // A plain click opens in place; a modified one (new tab, new window) stays the browser's.
 const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leading-snug';
 
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
 // `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
-// `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the ⋮. `note`: this
+// `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the Card options button (the three dots). `onVaries`: a project's Varies by canvas badge opens its Share window. `note`: this
 // browser's content state. `actions`: the surface's buttons, in their own row. `cta`: a small text link at the footer's end
 // (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
 // (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface. `thumbnail`:
 // the picture's address (card-thumbnail.js); a canvas or project without one shows the placeholder. `pick`: what a click
 // on the card makes the dock composer's pill and context (surface.js pickCard); it stays selected while it is the pill.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null, pick = null }) {
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null, pick = null }) {
   const surface = useSurface();
   const picked = !!pick && pickedKey(surface) === `${pick.kind}:${pick.slug}`;
   const learning = kind === 'repository' || kind === 'canvas';
@@ -151,8 +160,8 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           </div>
           {(access || onMore) && (
             <div className="-mt-0.5 -mr-1.5 flex shrink-0 items-center gap-1">
-              {access && <Visibility access={access} />}
-              {onMore && <IconBtn title="More" aria-label="More" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>}
+              {access && <Visibility access={access} kind={kind} onVaries={onVaries} />}
+              {onMore && <IconBtn title="Card options" aria-label="Card options" aria-haspopup="menu" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} aria-hidden="true" /></IconBtn>}
             </div>
           )}
         </div>

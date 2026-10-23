@@ -91,7 +91,7 @@ const inWindowHeader = async (what, rows = '[role^="menuitem"]') => {
   assert.ok(m.rows > 0, `${what}: it has rows`);
   assert.deepEqual(m.blocked, [], `${what}: every row answers a press at its centre`);
 };
-const open = async card => { await card.hover(); await card.getByTitle('More').click(); await page.locator('[data-menu-item]').first().waitFor({ timeout: 5000 }); await page.waitForTimeout(300); };
+const open = async card => { await card.hover(); await card.getByTitle('Card options').click(); await page.locator('[data-menu-item]').first().waitFor({ timeout: 5000 }); await page.waitForTimeout(300); };
 const close = async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(200); };
 // The open menu as it is on screen: its box inside the window with the 8px margin, and every row the element a press at its
 // centre lands on (nothing over it, not cut off).
@@ -157,7 +157,7 @@ await check('3 the open project\'s header: Home alone at the far left, then one 
   await page.locator('[data-project-crumb]').waitFor({ timeout: 60000 });
   assert.equal((await page.locator('[data-project-crumb]').innerText()).trim(), NAME2, 'the name the Library gave it');
   assert.equal(await page.locator('[data-project-crumb]').evaluate(el => el.tagName), 'SPAN', 'plain text, not a button or link');
-  assert.equal(await page.locator('[data-canvas-header] [data-project-more], [data-canvas-header] [title="More"]').count(), 0, 'no project menu in the header');
+  assert.equal(await page.locator('[data-canvas-header] [data-project-more], [data-canvas-header] [title="Card options"]').count(), 0, 'no project menu in the header');
   assert.equal((await page.locator('[data-canvas-switcher]').innerText()).trim(), 'Main canvas');
   assert.equal(await page.locator('[data-repo-menu]').getAttribute('aria-label'), `Repository acme/attention-${run}`);
   assert.equal(await page.locator('[data-canvas-header] a[href*="github.com"]').count(), 0, 'the repository is a dropdown button, not a link in the header');

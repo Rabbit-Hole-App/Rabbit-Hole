@@ -38,7 +38,7 @@ const check = async (label, fn) => { await fn(); results.push(label); console.lo
 const shot = async name => { await page.waitForTimeout(350); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
 const card = title => page.locator('[data-library-card="canvas"]').filter({ has: page.locator('[data-card-title]', { hasText: new RegExp(`^${title}$`) }) });
 const library = async () => { await page.goto(`${BASE}/library?type=canvases`); await page.locator('[data-library-card]').first().waitFor({ timeout: 60000 }); await page.waitForTimeout(500); };
-const menuOf = async title => { await card(title).hover(); await card(title).getByTitle('More').click(); await page.getByRole('button', { name: 'Rename', exact: true }).waitFor(); };
+const menuOf = async title => { await card(title).hover(); await card(title).getByTitle('Card options').click(); await page.getByRole('button', { name: 'Rename', exact: true }).waitFor(); };
 const button = name => page.getByRole('button', { name, exact: true });
 const access = async (title, to) => { await menuOf(title); await page.locator('[data-menu-visibility]').click(); await page.locator(`[data-access="${to}"]`).click(); await page.waitForTimeout(1200); };
 

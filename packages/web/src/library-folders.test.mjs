@@ -44,15 +44,18 @@ test('a name is trimmed to one space and 1 to 60 characters, as the server keeps
   for (const bad of ['', '   ', 'x'.repeat(61), null, undefined]) assert.equal(cleanName(bad), null, JSON.stringify(bad));
 });
 
-test('Library only: the card menu shows Move to folder only with the Library\'s folders; Home passes none', () => {
+test('the card menu shows Move to folder with the page\'s folders: the Library and Home both pass them (owner brief 2026-10-22)', () => {
   const menu = read('./home/CardMenu.jsx'), library = read('./LibraryViews.jsx'), home = read('./Home.jsx');
-  assert.match(menu, /export function useCardMenu\(\{ org, email, apps = \[\], onArchive = null, onChanged, folders = null \}\)/);
+  assert.match(menu, /export function useCardMenu\(\{ org, email, apps = \[\], onChanged, folders = null \}\)/);
   assert.match(menu, /const folderRows = folders && menu\?\.a\.canEdit && </, 'your own canvas or project');
   assert.match(library, /onChanged: onForked, folders \}\);/);
-  assert.doesNotMatch(home, /folders/);
-  // Projects and canvases use one menu; folder actions follow its shared rows.
-  assert.match(menu, /menuRows\(menu.a, rowShown\(menu.a\)\)/);
-  assert.match(menu, /\{folderRows && <><div className="my-1 border-t border-line" \/>\{folderRows\}<\/>\}/);
+  assert.match(home, /const folders = useLibraryFolders\(ready, apps\);/);
+  assert.match(home, /onChanged: load, folders \}\);/);
+  assert.match(home, /\{folders\.element\}/, 'the folder dialogs (New folder) are mounted on Home too');
+  // Projects and canvases use one menu; Move to folder is one of its shared rows, in the organization group (card-menu-items.js).
+  assert.match(menu, /menuRows\(menu\.a, rowShown\(menu\.a\)\)/);
+  assert.match(menu, /if \(item\.id === 'folder'\) return <div key="folder" data-menu-item="folder">\{folderRows\}<\/div>;/);
+  assert.match(menu, /id === 'folder' \? !!folders/, 'offered only where the page has folders');
   // Every row has an icon: the submenu, each folder (its colour dot), New folder…, Remove from folder.
   assert.match(menu, /<FolderInput size=\{16\}[^>]*\/>\s*<span className="min-w-0 flex-1">Move to folder<\/span>/);
   assert.match(menu, /role="menuitemradio" aria-checked=\{inFolder === f\.id\} data-folder-option=\{f\.id\}/);
@@ -79,10 +82,10 @@ test('the folder ⋮ has Rename, Colour and Delete, each with an icon; the dialo
   assert.equal(DRAG_TYPE, 'application/x-rabbit-hole-library-item');
 });
 
-test('the Library header: New folder beside the filters, the open folder\'s ⋮ in its place; Explore, Home and shares never read folders', () => {
+test('the Library header: New folder beside the filters, the open folder\'s ⋮ in its place; Explore and shares never read folders (Home reads them only for the card menu)', () => {
   const app = read('./App.jsx');
   assert.match(app, /<Button variant="secondary" data-new-folder onClick=\{\(\) => lib\.newFolder\(\)\}>/);
   assert.match(app, /\{openFolder && <FolderCrumb folder=\{openFolder\} onDropOut=\{lib\.unfile\} \/>\}/);
   assert.match(app, /folders=\{lib\} folderId=\{folderId\} searching=\{!!needle\}/);
-  for (const file of ['./Home.jsx', './home/PublicCards.jsx', './SharedBoardPage.jsx', './CreatorProfile.jsx', './Sidebar.jsx']) assert.doesNotMatch(read(file), /library\/folders|LibraryFolders/, file);
+  for (const file of ['./home/PublicCards.jsx', './SharedBoardPage.jsx', './CreatorProfile.jsx', './Sidebar.jsx']) assert.doesNotMatch(read(file), /library\/folders|LibraryFolders/, file);
 });
