@@ -2,7 +2,7 @@
 // no DOM. study-state.js holds the remembered arrangement; this holds what is built from the live canvas.
 import { pdfRef } from './pdf-source.js';
 import { objectName, selectionRef } from './selection-ref.js';
-import { pinnedChatRef, versionStatus } from './study-attach.js';
+import { attachSnapshot, pinnedChatRef, versionStatus } from './study-attach.js';
 import { eligible } from './study-state.js';
 
 const textOf = (object, kind) => (kind === 'explanation'
@@ -32,6 +32,12 @@ export function currentPin(pin, object) {
 export function pinnedAttachRef({ pin, object, reader = null, excerpt = null, unavailable = false }) {
   const now = currentPin(pin, object);
   return now ? pinnedChatRef(now, { page: reader?.page, excerpt, unavailable }) : null;
+}
+
+// The whole Add pinned reference operation as it is when the button is pressed (study-attach.js attachSnapshot): the pin, its ref
+// at the reader's page or selection, the canvas scope and the destination Chat. null: nothing to attach.
+export function pinnedAttachSnapshot({ scope, destination, ...input }) {
+  return attachSnapshot({ pin: input.pin, ref: pinnedAttachRef(input), scope, destination });
 }
 
 // The line under the pinned title when the ref has no version of its own (doc and paper PDFs): binding is source and place.
