@@ -189,6 +189,10 @@ await check('4 a reload shows the restored threads; the badge counts them', asyn
 });
 
 await check('5 deleting a group with its members takes the group\'s and the members\' threads; Undo brings both back', async () => {
+  // The shapes sit right of the column, off the canvas at the opening camera with the panel open (fast-e2e run 39986263086
+  // clicked beside them): zoom to fit until the group is on the canvas surface.
+  await canvasKey('Shift+Digit1');
+  await expect.poll(() => shape('gb').evaluate(node => { const box = node.getBoundingClientRect(), surface = node.closest('[data-canvas-surface]').getBoundingClientRect(); return box.left >= surface.left && box.right <= surface.right && box.top >= surface.top && box.bottom <= surface.bottom; }), { timeout: 10000 }).toBe(true);
   await select(shape('ga'));
   await canvasKey('Delete');
   await expect(shape('ga')).toHaveCount(0);
