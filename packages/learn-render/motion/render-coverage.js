@@ -43,6 +43,9 @@ export function determinismFrames(brief, storyboard) {
   return [...new Set([Math.floor(last / 2), ...contactFrames(brief, storyboard)])].sort((a, b) => a - b);
 }
 
+// The frames whose decoded-pixel hashes differ between two stills lists (same frames, same order). Empty means identical.
+export const differingFrames = (frames, a, b) => frames.filter((_, i) => a[i].pixels_sha256 !== b[i].pixels_sha256);
+
 // Stills at the first frame, every beat start and middle, the last frame (the takeaway) and
 // any brief keyframe_times (spec §11.2).
 export function contactFrames(brief, storyboard) {

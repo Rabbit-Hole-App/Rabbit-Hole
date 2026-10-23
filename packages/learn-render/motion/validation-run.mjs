@@ -63,6 +63,8 @@ export function buildReceipt({ runId, fixture, stage, url, harnessRevision, heal
     output: { ...out, matches_expected: out.width === want.width && out.height === want.height && out.frame_count === want.frame_count },
     wall_s: wallS, cold_start_s: coldStartS,
     service_timings: record?.timings ?? null,
+    // Which determinism frames differed between the two contexts, with both hashes (a failed run keeps them).
+    determinism: record?.determinism ? { identical: record.determinism.identical, differing: record.determinism.differing ?? [], context_one_repeat_identical: record.determinism.context_one_repeat_identical ?? null, frames: (record.determinism.frames || []).map(f => ({ frame: f.frame, hashes: f.hashes.map(h => h.slice(0, 12)) })) } : null,
     resources: res ? pick(res, ['memory_peak', 'swap_peak', 'oom_kills', 'pids_peak', 'cpu_nr_periods', 'cpu_throttled', 'cpu_throttled_time_us', 'cpu_usage_us']) : null,
     cleanup_ok: res?.cleanup?.ok ?? null,
     posts: { made_by_harness: postsMade, received_by_service: serviceDelta, proxy_retry_suspected: serviceDelta !== null && serviceDelta > postsMade },

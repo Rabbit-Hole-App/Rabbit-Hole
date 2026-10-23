@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { RENDER_ARTIFACTS, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { finalChecks } from './remotion-renderer.mjs';
-import { coverageErrors, coverageFrames, determinismFrames, probeErrors } from './render-coverage.js';
+import { coverageErrors, coverageFrames, determinismFrames, differingFrames, probeErrors } from './render-coverage.js';
 import { canonical, judgeDeterminism, localService, previewChecks, renderComposition, renderProvenance, renderRequest, serviceClient, validateArtifacts } from './render-job.mjs';
 import { motionRenderService } from './service/server.mjs';
 
@@ -207,6 +207,12 @@ test('determinism: the M1 frames at every contact-sheet timestamp, two fresh con
   assert.deepEqual(judgeDeterminism(differ, brief, storyboard).errors, ['#224: the two fresh contexts differ']);
   const fewer = { determinism: { frames: record.determinism.frames.filter(f => f.frame !== 255) } };
   assert.match(judgeDeterminism(fewer, brief, storyboard).errors[0], /want \[0,60,120,165,210,224,255,300,338,375,413,420,449\]/);
+});
+
+test('differingFrames names the frames whose hashes differ between two contexts', () => {
+  const still = h => ({ pixels_sha256: h });
+  assert.deepEqual(differingFrames([0, 60, 120], [still('a'), still('b'), still('c')], [still('a'), still('x'), still('c')]), [60]);
+  assert.deepEqual(differingFrames([0, 60], [still('a'), still('b')], [still('a'), still('b')]), []);
 });
 
 test('provenance: canonical hashes of brief, storyboard and source; origins; fonts; no learner words', () => {

@@ -14,7 +14,7 @@ import { PNG } from 'pngjs';
 import { STAGE } from '../contracts.js';
 import { HF_NET_PROBE, NET_PROBE, NET_PROBE_PREFIX } from '../probes.js';
 import { RemotionRenderer } from '../remotion-renderer.mjs';
-import { compactProbe, coverageFrames, determinismFrames } from '../render-coverage.js';
+import { compactProbe, coverageFrames, determinismFrames, differingFrames } from '../render-coverage.js';
 import { chromeVersion, contactFrames, ffmpegVersion, probe } from '../renderer-common.mjs';
 import { rendererClass } from '../renderers.mjs';
 import { selfLimits, unlimited } from './resource-control.mjs';
@@ -190,6 +190,15 @@ async function previewJob(r, j, sandbox, firstLine) {
   });
 }
 
+// Failure diagnosis only (the verdict stays 'nondeterministic'): do the differing frames come out the same twice in the first
+// context? true = the contexts differ systematically; false = the render is noisy even within one context.
+async function repeatIdentical(r, j, differing, frames, a) {
+  try {
+    const again = await r.renderStills(j, differing, { scale: 1, dir: join(work, 'det-1-repeat') });
+    return again.every((s, i) => s.pixels_sha256 === a[frames.indexOf(differing[i])].pixels_sha256);
+  } catch { return null; }
+}
+
 async function main() {
   const sandbox = await sandboxReport();
   if (sandbox.breach?.length) return write({ status: 'failed', error: 'sandbox_breach', detail: sandbox.breach.join('; '), sandbox });
@@ -226,7 +235,8 @@ async function main() {
       return write({ status: 'failed', error: 'runtime_error', detail: firstLine(error), sandbox });
     }
     const validation = await r.validateFinal(j);
-    const determinism = { method: r.name === 'hyperframes' ? 'HyperFrames capture PNG, sha256 of decoded RGBA, two fresh contexts (separate project, server and browser)' : 'renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)', identical: frames.every((_, i) => a[i].pixels_sha256 === b[i].pixels_sha256), frames: frames.map((f, i) => ({ frame: f, hashes: [a[i].pixels_sha256, b[i].pixels_sha256] })) };
+    const differing = differingFrames(frames, a, b);
+    const determinism = { method: r.name === 'hyperframes' ? 'HyperFrames capture PNG, sha256 of decoded RGBA, two fresh contexts (separate project, server and browser)' : 'renderStill PNG, sha256 of decoded RGBA, two fresh contexts (separate bundle and browser)', identical: !differing.length, differing, ...(differing.length ? { context_one_repeat_identical: await repeatIdentical(r, j, differing, frames, a) } : {}), frames: frames.map((f, i) => ({ frame: f, hashes: [a[i].pixels_sha256, b[i].pixels_sha256] })) };
     const { coverage } = probed;
     const comparison = await comparePreviewFinal(j, contactFrames(j.brief, j.storyboard));
 
@@ -234,7 +244,7 @@ async function main() {
     const { v, size } = await probe(join(out, 'final.mp4'));
     const { v: pv, size: psize } = await probe(join(out, 'preview.mp4'));
     const failed = !validation.ok ? ['final_validation_failed', validation.checks.filter(c => !c.ok).map(c => `${c.name}: ${c.detail}`).join('; ')]
-      : !determinism.identical ? ['nondeterministic', 'the same frames differ between two fresh render contexts']
+      : !determinism.identical ? ['nondeterministic', `frames ${determinism.differing.join(', ')} of ${frames.length} differ between two fresh render contexts (the first context repeats itself: ${determinism.context_one_repeat_identical})`]
       : !comparison.ok ? ['preview_final_mismatch', `final vs preview mean difference ${comparison.max} > ${comparison.threshold}`] : null;
     write({
       status: failed ? 'failed' : 'ready', ...(failed ? { error: failed[0], detail: failed[1] } : {}),

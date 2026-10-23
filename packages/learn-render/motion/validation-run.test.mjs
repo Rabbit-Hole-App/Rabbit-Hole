@@ -7,7 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { serviceClient } from './render-job.mjs';
-import { DEFAULT_BUDGET, conservativeMaxUsd, countingFetch, loadBudget, main, runFixture } from './validation-run.mjs';
+import { DEFAULT_BUDGET, buildReceipt, conservativeMaxUsd, countingFetch, loadBudget, main, runFixture } from './validation-run.mjs';
 import { fakeService } from './validation-fake-service.mjs';
 import { MATRIX, buildFixture } from './validation-fixtures.js';
 
@@ -107,6 +107,14 @@ test('a render that failed on the service is a known outcome: settled, with the 
   assert.deepEqual([r.outcome, r.error_class, r.output.matches_expected], ['failure', 'timeout', false]);
   assert.equal(h.budget.entries.get('mv-fail').status, 'settled');
   assert.equal(posts(h.fake).length, 1);
+});
+
+test('a nondeterministic failure keeps which frames differed, with both hashes, in the receipt', () => {
+  const fixture = buildFixture({ scene: 'medium', ratio: '16:9', seconds: 5 });
+  const hash = c => c.repeat(64);
+  const determinism = { identical: false, differing: [60], context_one_repeat_identical: true, frames: [{ frame: 0, hashes: [hash('a'), hash('a')] }, { frame: 60, hashes: [hash('b'), hash('c')] }] };
+  const r = buildReceipt({ runId: 'x', fixture, stage: 'final', outcome: 'failed', record: { status: 'failed', error: 'nondeterministic', determinism }, failure: null, postsMade: 1 });
+  assert.deepEqual(r.determinism, { identical: false, differing: [60], context_one_repeat_identical: true, frames: [{ frame: 0, hashes: ['aaaaaaaaaaaa', 'aaaaaaaaaaaa'] }, { frame: 60, hashes: ['bbbbbbbbbbbb', 'cccccccccccc'] }] });
 });
 
 test('refused before it ran (busy, invalid): released, nothing spent, still one POST and no retry', async () => {
