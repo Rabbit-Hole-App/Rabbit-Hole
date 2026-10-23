@@ -15,7 +15,8 @@ export function createJob(deps) {
   const files = new Map(); // fileKey -> File: held for the life of the tab, never stored
   const lanes = new Map(); // slug -> { place, queue: [{ item, resolve }], busy, timer }
   const listeners = new Set();
-  const timers = { set: deps.setTimer || setTimeout, clear: deps.clearTimer || clearTimeout };
+  // Plain calls: a browser's setTimeout throws 'Illegal invocation' when called as a method of another object.
+  const timers = { set: (...args) => (deps.setTimer || setTimeout)(...args), clear: (...args) => (deps.clearTimer || clearTimeout)(...args) };
   let draft = loadDraft(deps.storage) || createDraft();
   let running = null;
 

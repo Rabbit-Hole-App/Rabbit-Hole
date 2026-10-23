@@ -285,3 +285,15 @@ test('a reload mid-start comes back as a list to retry: the held files are gone 
   assert.equal(second.kinds('command').length, 0); // the canvas the first page made is reused
   assert.equal(second.job.getDraft().rows.length, 0);
 });
+
+test('timers are called plainly, as a browser requires: setTimeout throws Illegal invocation as a method of another object', async () => {
+  const w = world();
+  const plain = function plain(fn) { if (this !== undefined) throw new TypeError('Illegal invocation'); return fn && 1; };
+  const job = createJob({ ...w.deps, setTimer: plain, clearTimer: function clear() { if (this !== undefined) throw new TypeError('Illegal invocation'); } });
+  job.addFiles([file('a.docx')]);
+  const run = job.start({});
+  await new Promise((r) => setImmediate(r)); // queued with no page: arms the timer
+  job.attach('canvas-1a2b3c4d', async () => {}); // a page arrives: clears it, drains
+  await run;
+  assert.equal(job.getDraft().rows.length, 0);
+});
