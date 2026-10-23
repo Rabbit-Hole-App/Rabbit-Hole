@@ -289,8 +289,9 @@ export async function runEmbed(engine) {
     await wheel.mouse.wheel(0, 300);
     await wheel.waitForFunction(y => window.scrollY > y, y0, { timeout: 15000 }).catch(() => {});
     check(`${tag} a plain wheel over the embed scrolls the host page and leaves the canvas zoom alone`, (await scrollY()) > y0 && await camera(flW) === cam0, `${y0} -> ${await scrollY()}; ${cam0} -> ${await camera(flW)}`);
+    await wheel.evaluate(() => document.getElementById('f0').scrollIntoView({ block: 'center' })); // the wheel moved the page: bring the embed back into view before clicking in it
     const y1 = await settled(wheel);
-    const box2 = await wheel.locator('#f0').boundingBox(); // the wheel scrolled the page: measure again
+    const box2 = await wheel.locator('#f0').boundingBox();
     const bare = await barePoint(wheel, '#f0') ?? { x: box2.x + 40, y: box2.y + box2.height - 60 };
     await wheel.mouse.click(bare.x, bare.y);
     if (engine === 'chromium') { // Playwright's wheel carries no Control modifier in Chromium: send the wheel with it through the protocol
