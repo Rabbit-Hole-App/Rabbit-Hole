@@ -205,28 +205,34 @@ export async function runEmbed(engine) {
     // The hand-off of the visitor's edits: kept until the new tab acknowledges; on failure Retry and Fork original instead.
     const tabs = closeNextTab(context);
     const edited = await draw(page, fl);
-    const t0 = Date.now();
-    tabs.on = true;
-    await fl.locator('[data-embed-fork]').click();
-    await forge(page, pub.view); // while the offer is pending, the embedding page can change nothing
-    await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
-    const took = Date.now() - t0;
-    tabs.on = false;
-    check(`${tag} when the new tab never acknowledges (closed at once), the embed says so after about 15 s and offers Retry and Fork original instead; the edits are still there`, took >= 10000 && took <= 35000 && edited && await fl.locator('[data-embed-handoff-retry]').isVisible() && await fl.locator('[data-embed-handoff-original]').isVisible() && await fl.locator('[data-guest-draft-notice]').count() === 1, `${took} ms, edited ${edited}, closed ${tabs.closed}`);
-    check(`${tag} a forged request or acknowledgement from the embedding page is ignored: the failure stands, and the embedding page received no message from the hand-off`, await fl.locator('[data-embed-handoff-failed]').isVisible() && (await hostMessages(page)).length === 0, JSON.stringify(await hostMessages(page)));
-    const [retry] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-retry]').click()]);
-    await retry.waitForURL(u => u.origin === APP, { timeout: 30000 });
-    await fl.locator('[data-embed-handoff-failed]').waitFor({ state: 'hidden', timeout: 30000 });
-    check(`${tag} Retry opens a new tab that acknowledges: the failure notice goes, the tab is the full site (flags only in the URL)`, new URL(retry.url()).pathname === `/b/${pub.view}` && !/state|shape|rect/.test(retry.url()) && await retry.locator('[data-fork-button]').waitFor({ timeout: 60000 }).then(() => true, () => false), retry.url());
-    await retry.close();
-    tabs.on = true;
-    await fl.locator('[data-embed-fork]').click();
-    await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
-    tabs.on = false;
-    const [original] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-original]').click()]);
-    await original.waitForURL(u => u.origin === APP, { timeout: 30000 });
-    check(`${tag} Fork original instead is an explicit choice: it opens the original canvas to fork, with no hand-off flag and nothing of the edits in the URL`, new URL(original.url()).pathname === `/b/${pub.view}` && !/from=embed/.test(original.url()) && /fork=1/.test(original.url()), original.url());
-    await original.close();
+    const stored = await frameOf(page).evaluate(() => Object.keys(sessionStorage).filter(k => /guest-draft/.test(k))).catch(e => String(e));
+    if (edited) {
+      const t0 = Date.now();
+      tabs.on = true;
+      await fl.locator('[data-embed-fork]').click();
+      await forge(page, pub.view); // while the offer is pending, the embedding page can change nothing
+      await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
+      const took = Date.now() - t0;
+      tabs.on = false;
+      check(`${tag} when the new tab never acknowledges (closed at once), the embed says so after about 15 s and offers Retry and Fork original instead; the edits are still there`, took >= 10000 && took <= 35000 && edited && await fl.locator('[data-embed-handoff-retry]').isVisible() && await fl.locator('[data-embed-handoff-original]').isVisible() && await fl.locator('[data-guest-draft-notice]').count() === 1, `${took} ms, edited ${edited}, closed ${tabs.closed}`);
+      check(`${tag} a forged request or acknowledgement from the embedding page is ignored: the failure stands, and the embedding page received no message from the hand-off`, await fl.locator('[data-embed-handoff-failed]').isVisible() && (await hostMessages(page)).length === 0, JSON.stringify(await hostMessages(page)));
+      const [retry] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-retry]').click()]);
+      await retry.waitForURL(u => u.origin === APP, { timeout: 30000 });
+      await fl.locator('[data-embed-handoff-failed]').waitFor({ state: 'hidden', timeout: 30000 });
+      check(`${tag} Retry opens a new tab that acknowledges: the failure notice goes, the tab is the full site (flags only in the URL)`, new URL(retry.url()).pathname === `/b/${pub.view}` && !/state|shape|rect/.test(retry.url()) && await retry.locator('[data-fork-button]').waitFor({ timeout: 60000 }).then(() => true, () => false), retry.url());
+      await retry.close();
+      tabs.on = true;
+      await fl.locator('[data-embed-fork]').click();
+      await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
+      tabs.on = false;
+      const [original] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-original]').click()]);
+      await original.waitForURL(u => u.origin === APP, { timeout: 30000 });
+      check(`${tag} Fork original instead is an explicit choice: it opens the original canvas to fork, with no hand-off flag and nothing of the edits in the URL`, new URL(original.url()).pathname === `/b/${pub.view}` && !/from=embed/.test(original.url()) && /fork=1/.test(original.url()), original.url());
+      await original.close();
+
+    } else {
+      for (const what of ['when the new tab never acknowledges the embed says so after about 15 s, offers Retry and Fork original instead, and keeps the edits', 'a forged request or acknowledgement from the embedding page is ignored', 'Retry opens a new tab that acknowledges and the failure notice goes', 'Fork original instead is an explicit choice']) check(`${tag} ${what}`, false, `the rectangle drag raised no unsaved-changes notice, so there was nothing to hand off (guest-draft keys in the frame: ${JSON.stringify(stored)})`);
+    }
 
     // Wheel: plain wheel over the embed scrolls the host page, never the canvas; ctrl+wheel zooms the canvas only.
     const wheel = await context.newPage();
