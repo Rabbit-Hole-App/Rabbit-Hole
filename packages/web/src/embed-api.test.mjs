@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasOwnsWheel, clampHeight, embedFetch, embedHref, embedRoute, embedSnippet, embedTarget, emailSnippet, fullHref, receiveHandoff, serveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
+import { canvasOwnsWheel, clampHeight, embedFetch, embedHref, embedRoute, embedSnippet, embedTarget, emailSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
 import { loadGuestDraft } from './guest-draft.js';
 import { takeDraft, takeTarget } from './shared-ask.js';
 
@@ -23,7 +23,8 @@ test('url builders: the embed page, the full page and the thumbnail per link typ
   assert.equal(embedHref(ORIGIN, 'e', TOKEN, { chat: true }), `${ORIGIN}/embed/e/${TOKEN}?chat=1`);
   assert.equal(embedHref(ORIGIN, 'b', TOKEN, { chat: true, theme: 'light' }), `${ORIGIN}/embed/b/${TOKEN}?chat=1&theme=light`);
   assert.equal(fullHref(ORIGIN, 'b', TOKEN), `${ORIGIN}/b/${TOKEN}`);
-  assert.equal(fullHref(ORIGIN, 'e', TOKEN, 'fork'), `${ORIGIN}/e/${TOKEN}?from=embed&fork=1`, 'a flag only, never the visitor\'s text');
+  assert.equal(fullHref(ORIGIN, 'e', TOKEN, { intent: 'fork', handoff: true }), `${ORIGIN}/e/${TOKEN}?from=embed&fork=1`, 'flags only, never the visitor\'s text');
+  assert.equal(fullHref(ORIGIN, 'b', TOKEN, { intent: 'fork' }), `${ORIGIN}/b/${TOKEN}?fork=1`, 'Fork original: no hand-off asked');
   assert.equal(thumbnailUrl(ORIGIN, 'b', TOKEN), `${ORIGIN}/api/learn/boards/shared/${TOKEN}/thumbnail`);
   assert.equal(thumbnailUrl(ORIGIN, 'e', TOKEN), `${ORIGIN}/api/learn/boards/published/${TOKEN}/thumbnail`);
 });
@@ -110,38 +111,103 @@ test('guest session: init, then a probe; Send is enabled only when the probe say
   assert.deepEqual(await startEmbedSession(TOKEN, async () => { throw new Error('offline'); }), { session: false, guest: null });
 });
 
-// Two windows that share one origin: the embed (iframe) and the full site's new tab.
+// Windows on one origin: the embed (an iframe) and the tab it opened. postMessage on a window delivers to that window's listeners,
+// from the other one; `stranger` is a third window (another frame of the host page) with its own listeners.
 function windows() {
-  const listeners = { embed: [], full: [] };
-  const make = name => ({ location: { origin: ORIGIN }, addEventListener: (type, fn) => listeners[name].push(fn), removeEventListener: (type, fn) => listeners[name].splice(listeners[name].indexOf(fn), 1) });
-  const embed = make('embed'), full = make('full');
-  const to = name => ({ postMessage: (data, origin) => { assert.equal(origin, ORIGIN, 'only the own origin'); listeners[name].forEach(fn => fn({ data, origin: ORIGIN, source: name === 'embed' ? full : embed })); } });
-  embed.opener = null; full.opener = to('embed');
-  Object.assign(embed, { postMessage: to('embed').postMessage }); Object.assign(full, { postMessage: to('full').postMessage });
-  return { embed, full, listeners };
+  const listeners = new Map();
+  const make = () => { const win = { location: { origin: ORIGIN }, opener: null, addEventListener: (type, fn) => listeners.get(win).push(fn), removeEventListener: (type, fn) => listeners.get(win).splice(listeners.get(win).indexOf(fn), 1) }; listeners.set(win, []); return win; };
+  const embed = make(), tab = make(), stranger = make();
+  const deliver = (from, to) => (data, origin) => { assert.equal(origin, ORIGIN, 'only the own origin'); listeners.get(to).forEach(fn => fn({ data, origin: ORIGIN, source: from })); };
+  tab.opener = embed; embed.postMessage = deliver(tab, embed); tab.postMessage = deliver(embed, tab);
+  embed.sent = []; // what reaches the tab
+  stranger.postMessage = deliver(embed, stranger);
+  return { embed, tab, stranger, listeners };
 }
+const payload = { draft: { base_version: 4, state: { blocks: [{ id: 'mine' }] } }, chatDraft: 'Why is the sky blue', target: { id: 'c1', kind: 'quiz', title: 'Q' } };
 
-test('hand-off: the new tab gets the local copy and the unsent draft from its opener, never through the URL', async () => {
-  const { embed, full } = windows();
-  const stop = serveHandoff(embed, TOKEN, () => ({ draft: { base_version: 4, state: { blocks: [{ id: 'mine' }] } }, chatDraft: 'Why is the sky blue', target: { id: 'c1', kind: 'quiz', title: 'Q' } }));
+test('hand-off: the tab gets the local copy and the unsent draft from its opener and acknowledges; the embed then lets go', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN);
   const storage = memory();
-  assert.equal(await receiveHandoff(full, TOKEN, storage), true);
-  assert.deepEqual(loadGuestDraft(() => storage, TOKEN), { base_version: 4, state: { blocks: [{ id: 'mine' }] }, edited_at: loadGuestDraft(() => storage, TOKEN).edited_at });
+  let done = 0, failed = 0;
+  host.start(tab, payload, { onDone: () => { done += 1; }, onFail: () => { failed += 1; } });
+  assert.equal(await receiveHandoff(tab, TOKEN, storage), true);
+  const kept = loadGuestDraft(() => storage, TOKEN);
+  assert.deepEqual([kept.base_version, kept.state], [4, { blocks: [{ id: 'mine' }] }]);
   assert.equal(takeDraft(TOKEN, storage), 'Why is the sky blue', 'restored into the composer by the existing ?ask=1 path, unsent');
-  assert.equal(takeTarget(TOKEN, storage).id, 'c1');
-  stop();
+  assert.equal(takeTarget(TOKEN, storage).id, 'c1', 'the card the question was about comes along');
+  assert.equal(done, 1);
+  assert.equal(failed, 0);
+  host.stop();
 });
 
-test('hand-off: another link\'s request, no opener, and silence all end without storing anything', async () => {
-  const { embed, full } = windows();
-  const stop = serveHandoff(embed, TOKEN, () => ({ draft: { base_version: 1, state: {} }, chatDraft: 'x' }));
+test('hand-off is single use: after the acknowledgement the embed answers nobody', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN);
+  host.start(tab, payload);
+  await receiveHandoff(tab, TOKEN, memory());
+  const again = memory();
+  assert.equal(await receiveHandoff(tab, TOKEN, again, 30), false);
+  assert.equal(again.map.size, 0);
+  host.stop();
+});
+
+test('hand-off is short lived: an offer that expired is not answered', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN, { ttl: 10 });
+  host.start(tab, payload);
+  await new Promise(done => setTimeout(done, 40));
   const storage = memory();
-  assert.equal(await receiveHandoff(full, 'other-token-other-token-0000', storage, 20), false);
+  assert.equal(await receiveHandoff(tab, TOKEN, storage, 30), false);
   assert.equal(storage.map.size, 0);
-  assert.equal(await receiveHandoff({ ...embed, opener: null }, TOKEN, storage), false);
-  stop();
-  assert.equal(await receiveHandoff(full, TOKEN, storage, 20), false, 'the embed is gone: the page opens without it');
+  host.stop();
+});
+
+test('hand-off: no acknowledgement reports the failure and keeps the offer open for a retry; a late one still completes', async () => {
+  const { embed, tab } = windows();
+  const host = handoffHost(embed, TOKEN, { wait: 10 });
+  const events = [];
+  host.start(tab, payload, { onFail: () => events.push('fail'), onDone: () => events.push('done') });
+  await new Promise(done => setTimeout(done, 40));
+  assert.deepEqual(events, ['fail']);
+  assert.equal(await receiveHandoff(tab, TOKEN, memory()), true);
+  assert.deepEqual(events, ['fail', 'done']);
+  host.stop();
+});
+
+test('hand-off: a wrong window, a wrong origin, a wrong link and a stop are ignored', async () => {
+  const { embed, tab, stranger, listeners } = windows();
+  const host = handoffHost(embed, TOKEN);
+  host.start(tab, payload);
+  const heard = [];
+  stranger.addEventListener('message', event => heard.push(event.data));
+  const ask = (source, origin) => listeners.get(embed).forEach(fn => fn({ data: { type: 'rh-embed-handoff-request', token: TOKEN }, origin, source }));
+  ask(stranger, ORIGIN); // another frame of the host page
+  ask(tab, 'https://evil.example'); // right window, wrong origin
+  assert.deepEqual(heard, [], 'another window gets nothing');
+  const storage = memory();
+  assert.equal(await receiveHandoff(tab, 'other-token-other-token-0000', storage, 20), false, 'another link');
   assert.equal(storage.map.size, 0);
+  host.stop();
+  assert.equal(await receiveHandoff(tab, TOKEN, storage, 20), false, 'stopped');
+  assert.equal(storage.map.size, 0);
+});
+
+test('hand-off: the full page ignores a reply that is not from its opener and a message from another origin', async () => {
+  const { embed, tab, stranger, listeners } = windows();
+  const storage = memory();
+  const waiting = receiveHandoff(tab, TOKEN, storage, 60);
+  const reply = { type: 'rh-embed-handoff', token: TOKEN, ...payload };
+  listeners.get(tab).forEach(fn => fn({ data: reply, origin: ORIGIN, source: stranger }));
+  listeners.get(tab).forEach(fn => fn({ data: reply, origin: 'https://evil.example', source: embed }));
+  assert.equal(await waiting, false);
+  assert.equal(storage.map.size, 0);
+});
+
+test('hand-off: no opener means nothing to wait for', async () => {
+  const { tab } = windows();
+  tab.opener = null;
+  assert.equal(await receiveHandoff(tab, TOKEN, memory()), false);
 });
 
 test('copy rules: no ellipsis in the embed surfaces; Open in Rabbit Hole and the Embed controls are present', () => {

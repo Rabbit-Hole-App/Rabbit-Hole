@@ -35,7 +35,7 @@ import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
-import { canvasOwnsWheel, fullHref, receiveHandoff, serveHandoff, sharedRole } from './embed-api.js';
+import { canvasOwnsWheel, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
 import { forkNumber } from './home/provenance.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
@@ -108,7 +108,8 @@ function SharedBoard({ token, embed = null }) {
   const openComments = useCallback(() => show('comments'), [show]);
   // An embed's Chat panel (closed until the visitor asks) and its hand-off of local state to the full site in a new tab.
   const [chatOpen, setChatOpen] = useState(false);
-  const handoff = useRef({});
+  const host = useRef(null);
+  const [handoffFailed, setHandoffFailed] = useState(null); // { intent, extra }: the full site never acknowledged the hand-off
   // Ask in Chat, Explain in Chat and Ask about selection (agent/scope.js askDraft) open Chat; SharedChat puts the words in.
   useEffect(() => {
     const open = () => (embed ? embed.chat && setChatOpen(true) : show('chat'));
@@ -140,10 +141,17 @@ function SharedBoard({ token, embed = null }) {
   const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
   const guestRef = useRef(guest);
   guestRef.current = guest;
-  // The embed answers the full site's request (a new tab opened by Fork or Open Chat in Rabbit Hole) with the local copy and draft.
-  useEffect(() => embed ? serveHandoff(window, token, () => ({ draft: guestRef.current.forDraft(), chatDraft: handoff.current.draft || '', target: handoff.current.target || null })) : undefined, [embed, token]);
-  // The full site in a new tab. The window keeps its opener: the hand-off above needs it, and the URL carries only a flag.
-  const openFull = useCallback((intent, extra = {}) => { handoff.current = extra; window.open(fullHref(window.location.origin, embed.kind, token, intent), '_blank'); }, [embed, token]);
+  // The embed answers only the tab it opened for Fork or Open Chat in Rabbit Hole, with the local copy and the unsent draft, and
+  // keeps both until that tab acknowledges (embed-api.js handoffHost). The window keeps its opener; the URL carries only flags.
+  useEffect(() => { if (!embed) return undefined; host.current = handoffHost(window, token); return () => host.current.stop(); }, [embed, token]);
+  const openFull = useCallback((intent, extra = {}) => {
+    const draft = guestRef.current.forDraft();
+    const carries = !!(draft || extra.draft || extra.target);
+    const tab = window.open(fullHref(window.location.origin, embed.kind, token, { intent, handoff: carries }), '_blank');
+    if (!carries || !tab) return;
+    setHandoffFailed(null);
+    host.current.start(tab, { draft, chatDraft: extra.draft || '', target: extra.target || null }, { onFail: () => setHandoffFailed({ intent, extra, edits: !!draft }), onDone: () => setHandoffFailed(null) });
+  }, [embed, token]);
   // Comments name only what is on the canvas itself, never an object of the visitor's copy (the server refuses it too).
   const sourceIds = useMemo(() => new Set(['blocks', 'exchanges', 'items', 'shapes', 'groups'].flatMap(key => (shared?.state?.[key] || []).map(entry => entry?.id))), [shared]);
   const addComment = comments.canvasProps.onAddComment;
@@ -247,6 +255,14 @@ function SharedBoard({ token, embed = null }) {
           </button>
           {openLink}
         </header>
+        {handoffFailed && (
+          <div data-embed-handoff-failed role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-hover px-3 py-1.5 text-xs text-ink-2">
+            <span className="mr-auto">{handoffFailed.edits ? 'Your changes' : 'Your draft'} did not reach Rabbit Hole. They are still here.</span>
+            <button type="button" data-embed-handoff-retry onClick={() => openFull(handoffFailed.intent, handoffFailed.extra)} className="rounded-md border border-line bg-white px-2 py-1 text-ink hover:bg-active">Retry</button>
+            {handoffFailed.intent === 'fork' && <button type="button" data-embed-handoff-original onClick={() => { setHandoffFailed(null); window.open(fullHref(window.location.origin, embed.kind, token, { intent: 'fork' }), '_blank'); }} className="rounded-md border border-line bg-white px-2 py-1 text-ink hover:bg-active">Fork original instead</button>}
+            <button type="button" aria-label="Dismiss" onClick={() => setHandoffFailed(null)} className="rounded-md px-1.5 py-1 text-ink-3 hover:bg-active hover:text-ink">Dismiss</button>
+          </div>
+        )}
         <div className="relative flex min-h-0 flex-1">
           <EmbedCanvasFrame>{canvasEl}</EmbedCanvasFrame>
           {embed.chat && chatOpen && (

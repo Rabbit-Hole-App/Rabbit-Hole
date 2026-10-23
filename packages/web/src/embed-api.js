@@ -18,8 +18,14 @@ export function embedRoute(pathname, search = '') {
   return { kind: found[1], token: found[2], chat: query.get('chat') === '1', theme: theme === 'light' || theme === 'dark' ? theme : null };
 }
 
-// The full site's page for a link: /b/<token> or /e/<token>. `intent` rides as a plain flag, never the visitor's text.
-export const fullHref = (origin, kind, token, intent = null) => `${origin}/${kind}/${token}${intent ? `?from=embed&${intent}=1` : ''}`;
+// The full site's page for a link: /b/<token> or /e/<token>. intent ('fork' | 'ask') and handoff (the tab will ask its opener for
+// the visitor's local copy) ride as plain flags, never the visitor's text.
+export const fullHref = (origin, kind, token, { intent = null, handoff = false } = {}) => {
+  const query = new URLSearchParams();
+  if (handoff) query.set('from', 'embed');
+  if (intent) query.set(intent, '1');
+  return `${origin}/${kind}/${token}${query.size ? `?${query}` : ''}`;
+};
 export const embedHref = (origin, kind, token, { chat = false, theme = null } = {}) => {
   const query = new URLSearchParams();
   if (chat) query.set('chat', '1');
@@ -84,27 +90,43 @@ export async function startEmbedSession(token, fetcher = globalThis.fetch) {
   } catch { return none; }
 }
 
-// Hand-off to the full site in a new tab (never the URL): the new tab asks its opener, the embed answers with the visitor's
-// local copy and unsent Chat draft, and the full page stores them where its own sign-in and Fork flows already look.
-const REQUEST = 'rh-embed-handoff-request', REPLY = 'rh-embed-handoff';
-export function serveHandoff(win, token, payload) {
-  const answer = event => {
-    if (event.origin !== win.location.origin || event.data?.type !== REQUEST || event.data.token !== token) return;
-    event.source?.postMessage({ type: REPLY, token, ...payload() }, win.location.origin);
+// Hand-off to the full site in a new tab (never the URL, never the host page). The embed opens the tab itself and answers only
+// that window, only on its own origin: the new tab asks its opener, the embed replies with the visitor's local copy and unsent
+// Chat draft, the tab stores them where its own sign-in and Fork flows already look and acknowledges. Until the acknowledgement
+// nothing is discarded (the embed keeps everything), the offer lives `ttl` ms, and an acknowledged hand-off is spent.
+const REQUEST = 'rh-embed-handoff-request', REPLY = 'rh-embed-handoff', ACK = 'rh-embed-handoff-ack';
+export function handoffHost(win, token, { ttl = 60000, wait = 15000 } = {}) {
+  let pending = null;
+  const clear = () => { if (pending) { clearTimeout(pending.fail); clearTimeout(pending.expire); pending = null; } };
+  const listen = event => {
+    const now = pending;
+    if (!now || event.origin !== win.location.origin || event.source !== now.target || event.data?.token !== token) return;
+    if (event.data.type === REQUEST) event.source.postMessage({ type: REPLY, token, ...now.payload }, win.location.origin);
+    else if (event.data.type === ACK) { clear(); now.onDone?.(); }
   };
-  win.addEventListener('message', answer);
-  return () => win.removeEventListener('message', answer);
+  win.addEventListener('message', listen);
+  return {
+    // target: the window just opened. onFail: no acknowledgement within `wait` (it may still arrive and call onDone).
+    start(target, payload, { onFail, onDone } = {}) {
+      clear();
+      pending = { target, payload, onDone };
+      pending.fail = setTimeout(() => onFail?.(), wait);
+      pending.expire = setTimeout(clear, ttl);
+    },
+    stop() { clear(); win.removeEventListener('message', listen); },
+  };
 }
-// Resolves once the embed answered (or after `wait` ms, or at once without an opener): nothing is ever sent by this.
+// The full page's side: resolves once the embed answered (or after `wait` ms, or at once without an opener). Nothing is sent.
 export function receiveHandoff(win, token, storage, wait = 1500) {
   if (!win.opener) return Promise.resolve(false);
   return new Promise(done => {
     const finish = got => { win.removeEventListener('message', take); clearTimeout(timer); done(got); };
     const take = event => {
-      if (event.origin !== win.location.origin || event.data?.type !== REPLY || event.data.token !== token) return;
+      if (event.origin !== win.location.origin || event.source !== win.opener || event.data?.type !== REPLY || event.data.token !== token) return;
       const { draft, chatDraft, target } = event.data;
       if (draft?.state) saveGuestDraft(() => storage, token, draft.base_version, draft.state);
       if (chatDraft) signInForAsk(token, chatDraft, storage, undefined, target);
+      try { win.opener.postMessage({ type: ACK, token }, win.location.origin); } catch { /* the embed shows its own retry */ }
       finish(true);
     };
     const timer = setTimeout(() => finish(false), wait);
