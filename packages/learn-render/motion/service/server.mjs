@@ -37,7 +37,7 @@ import { createServer } from 'node:http';
 import { tmpdir, totalmem } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { RENDER_SCHEMA, validateRenderRequest } from '../contracts.js';
+import { RENDER_SCHEMA, stageOf, validateRenderRequest } from '../contracts.js';
 import { rendererGate } from '../renderers.mjs';
 import { LIMITS as DEFAULT_RESOURCE_LIMITS, detect, limitsFromEnv, limitsSetting } from './resource-control.mjs';
 
@@ -297,7 +297,7 @@ export function motionRenderService({
     catch (error) { return send(res, error.status || 400, error.status ? { error: 'too_large', detail: `a render request must fit within ${LIMITS.body_max_bytes} bytes` } : { error: 'malformed', detail: 'the body is not JSON' }); }
     const errors = validateRenderRequest(body);
     // M7B: the request names its renderer; that renderer's static gate runs before anything is written.
-    if (!errors.length) errors.push(...rendererGate(body.renderer).staticErrors(body.composition.source, { durationSeconds: body.brief.duration.seconds, compositionId: body.composition.composition_id }));
+    if (!errors.length) errors.push(...rendererGate(body.renderer).staticErrors(body.composition.source, { durationSeconds: body.brief.duration.seconds, compositionId: body.composition.composition_id, stage: stageOf(body.brief) }));
     if (errors.length) return send(res, 400, { error: 'invalid_job', schema: RENDER_SCHEMA, errors: errors.slice(0, 50) });
     // A repeated key is the same job: answer with it in whatever state it is (a repeat is a retry, never a second render).
     // Checked before busy and degraded, so a repeat during its own render is not a 429. The render is gone but the key is kept: 410, never a re-render.

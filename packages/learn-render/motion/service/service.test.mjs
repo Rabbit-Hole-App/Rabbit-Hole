@@ -8,6 +8,7 @@ import { existsSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MOTION_RATIOS, buildFixture } from '../validation-fixtures.js';
 import { motionRenderService } from './server.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -72,6 +73,16 @@ test('validation: malformed, unknown fields, unsafe paths, wrong renderer, banne
   await bad({ ...job(), renderer: 'hyperframes' }, 400, /root: exactly one element with data-composition-id/);
   await bad({ ...job(), composition: { ...job().composition, source: job().composition.source.replace('export default', "fetch('https://example.com');\nexport default") } }, 400, /fetch/);
   await bad({ ...job(), composition: { ...job().composition, source: `${job().composition.source}\n// ${'x'.repeat(600 * 1024)}` } }, 413, /too_large/);
+});
+
+test('validation: the static gate checks the stage of the own ratio of the brief, so every ratio is accepted (D02 to D09 were refused as invalid_job)', async t => {
+  const { post, until } = await start(t, 'ready');
+  for (const ratio of MOTION_RATIOS) {
+    const res = await post(buildFixture({ scene: 'simple', ratio, seconds: 5 }).request);
+    const body = await res.json();
+    assert.equal(res.status, 202, `${ratio}: ${JSON.stringify(body)}`);
+    await until(body.render_id);
+  }
 });
 
 test('a preview job (M6) delivers only preview.mp4 and the contact sheet; a final job must deliver final.mp4', async t => {
