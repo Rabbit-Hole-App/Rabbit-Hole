@@ -362,6 +362,7 @@ await check('4 the project\'s Share window: Share is the project link only, Canv
   await library();
   const again = await shareProject(libraryCard('repository', NAME2));
   await again.getByRole('tab', { name: 'Canvases' }).click();
+  await canvasRows(again).nth(2).waitFor({ timeout: 30000 }); // the breakdown loads after the tab opens: Main canvas and both canvases
   assert.equal(await again.locator('[data-canvas-published]').count(), 2, 'both canvases say Published on Explore; the project row does not');
   assert.equal(await rowOf(again, 'Main canvas').locator('[data-canvas-published]').count(), 0);
   await closeShare();

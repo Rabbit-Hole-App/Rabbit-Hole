@@ -192,7 +192,8 @@ await step('Copy puts the line on the clipboard', async () => {
 
 await step('opening and Copy send nothing and leave the Chat box alone; there is no chat icon', async () => {
   const before = posts.length + refused.length;
-  await composerOf(page).fill('');
+  // Not fill(''): filling focuses the Chat box, and focus leaving the popover closes it (Tab away), so Copy would be gone. Read it instead.
+  assert.equal(await composerOf(page).inputValue(), '', 'the Chat box starts empty');
   await rowOf(page).locator('[data-card-prompt-copy]').click();
   assert.equal(await rowOf(page).locator('[data-card-prompt-chat], [aria-label="Put prompt in chat"]').count(), 0, 'the earlier chat icon is gone');
   await page.waitForTimeout(800);

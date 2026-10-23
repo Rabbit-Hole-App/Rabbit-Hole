@@ -19,7 +19,8 @@ const SHOTS = process.argv[2] || null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
-const HANDLE = `hdrown_${run}`;
+// Short enough to fit the 112px phone cap whatever letters the run id has (run 40034100760: 16 characters measured 114px and were clipped).
+const HANDLE = `hdr_${run}`;
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, ...(handle !== undefined ? { handle } : {}) }) })).json()).session;
 const owner = { session: await sessionFor(`hdr-owner-${run}@example.com`, HANDLE) }, viewer = { session: await sessionFor(`hdr-viewer-${run}@example.org`) };
 const api = (who, path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${who.session}`, 'content-type': 'application/json', ...(init.headers || {}) } }).then(r => r.json());
