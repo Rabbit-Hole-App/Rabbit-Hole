@@ -44,7 +44,11 @@ export async function uploadBody(req, { cap, sniffBytes = 0 }) {
   const body = req.body || new Response(new Uint8Array(0)).body;
   if (declared !== null) {
     const length = Number(declared);
-    if (!(Number.isInteger(length) && length >= 0 && length <= cap)) { await body.cancel().catch(() => {}); return { refused: 'over' }; }
+    // Refused unread, not cancelled. Measured on workerd under `wrangler dev` (wrangler 4.150.0, 2026-10-23): a Worker that
+    // cancels the request body of a 50 MiB + 1 byte PUT and then returns a JSON 413 lost that answer (reset, or a chunked
+    // 413 with an empty body) in 37 of 500 sends; the same Worker returning without the cancel lost 0 of 650. The runtime
+    // discards an unread body itself once the response is sent.
+    if (!(Number.isInteger(length) && length >= 0 && length <= cap)) return { refused: 'over' };
     if (typeof FixedLengthStream === 'function') {
       let stream = body, head = new Uint8Array(0);
       if (sniffBytes) { const [peek, rest] = stream.tee(); head = await readHead(peek, sniffBytes); stream = rest; }
