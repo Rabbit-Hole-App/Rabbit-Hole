@@ -20,7 +20,7 @@ const viewer = { session: await sessionFor(`thumbs-viewer-${run}@example.org`, `
 const call = async (who, path, init = {}) => {
   const r = await fetch(`${BASE}${path}`, { ...init, headers: { ...(who ? { cookie: `small_session=${who.session}` } : {}), 'content-type': 'application/json', ...(init.headers || {}) } });
   const type = r.headers.get('content-type') || '';
-  return { status: r.status, source: r.headers.get('x-thumbnail-source'), type, body: type.includes('json') ? await r.json() : null };
+  return { status: r.status, source: r.headers.get('x-thumbnail-source'), etag: r.headers.get('etag'), type, body: type.includes('json') ? await r.json() : null };
 };
 
 // Four canvases: two drawn from what the browser saves (one seeded in this browser, one on the server), one that gets a
@@ -266,9 +266,24 @@ await check('9 a signed-in other person cannot fetch a private or unlisted canva
   assert.equal((await call(viewer, `/api/learn/boards/published/${view}/thumbnail`)).status, 404, 'an unlisted link is not Explore');
   assert.equal((await call(viewer, `/api/learn/boards/shared/${view}`)).status, 200, 'while the link itself opens');
 });
-await check('10 a published canvas\'s picture shows on Explore, to anyone; unpublished, it is gone', async () => {
+// Owner decision 2026-10-22 (public-safe thumbnails): anyone else gets only the owner's custom picture. The snapshot is drawn
+// from the owner's own view of the canvas, so Explore and a public view link serve none (204) until the owner chooses a cover.
+const putCover = name => fetch(`${BASE}${own(name)}/custom`, { method: 'PUT', headers: { cookie: `small_session=${owner.session}`, 'content-type': 'image/png' }, body: Buffer.from(cover, 'base64') });
+const publicPicture = (who, path, headers = {}) => call(who, path, { headers });
+const viewLinks = {};
+await check('10 a published canvas\'s custom picture shows on Explore, to anyone; a snapshot-only canvas shows none; unpublished, it is gone', async () => {
   for (const c of [bread, gradient, refraction]) tokens[c.name] = (await call(owner, `/api/apps/${c.name}/publish`, { method: 'POST' })).body.publication_token;
   assert.ok(Object.values(tokens).every(Boolean));
+  for (const c of [bread, refraction]) viewLinks[c.name] = (await call(owner, `/api/learn/boards/${c.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true }) })).body.sharing.view;
+  // Snapshot only (bread, refraction): the owner has one, nobody else gets an image, on either endpoint, signed out or in.
+  assert.equal((await call(owner, own(bread.name))).source, 'snapshot', 'the owner has a snapshot');
+  for (const c of [bread, refraction]) for (const who of [null, viewer]) {
+    assert.equal((await publicPicture(who, `/api/learn/boards/published/${tokens[c.name]}/thumbnail`)).status, 204, `Explore serves no snapshot (${c.title})`);
+    assert.equal((await publicPicture(who, `/api/learn/boards/shared/${viewLinks[c.name]}/thumbnail`)).status, 204, `a public view link serves no snapshot (${c.title})`);
+  }
+  // The owner chooses a cover: now there is a picture to share.
+  for (const c of [bread, refraction]) assert.equal((await putCover(c.name)).status, 200);
+  for (const c of [bread, refraction]) assert.equal((await publicPicture(null, `/api/learn/boards/shared/${viewLinks[c.name]}/thumbnail`)).source, 'custom', 'by view link');
   assert.equal((await call(null, `/api/learn/boards/published/${tokens[bread.name]}/thumbnail`)).status, 200, 'signed out too');
   assert.equal((await call(viewer, `/api/learn/boards/published/${tokens[gradient.name]}/thumbnail`)).source, 'custom', 'the owner\'s picture wins there too');
 });
@@ -290,9 +305,18 @@ await check('11 Explore: the other person sees the published pictures on the rig
 });
 await shot(other.page, SHOTS, '05-explore-viewer');
 await check('12 removed from Explore: the picture is gone for others at once; still the owner\'s', async () => {
+  const published = `/api/learn/boards/published/${tokens[refraction.name]}/thumbnail`, shared = `/api/learn/boards/shared/${viewLinks[refraction.name]}/thumbnail`;
+  const [etagPublished, etagShared] = [(await call(viewer, published)).etag, (await call(viewer, shared)).etag];
+  assert.ok(etagPublished && etagShared, 'a cover has an ETag');
+  assert.equal((await publicPicture(viewer, published, { 'if-none-match': etagPublished })).status, 304, 'while published, a revalidation is cheap');
   await call(owner, `/api/apps/${refraction.name}/unpublish`, { method: 'POST' });
-  assert.equal((await call(viewer, `/api/learn/boards/published/${tokens[refraction.name]}/thumbnail`)).status, 404);
+  assert.equal((await call(viewer, published)).status, 404);
+  assert.equal((await publicPicture(viewer, published, { 'if-none-match': etagPublished })).status, 404, 'a conditional request after unpublishing is 404, never 304');
   assert.equal((await call(owner, own(refraction.name))).status, 200);
+  // The same for the view link: switched off, even a request that holds the current ETag is refused.
+  assert.equal((await publicPicture(viewer, shared, { 'if-none-match': etagShared })).status, 304);
+  await call(owner, `/api/learn/boards/${refraction.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: false }) });
+  assert.equal((await publicPicture(viewer, shared, { 'if-none-match': etagShared })).status, 404, 'a revoked view link answers 404 on a conditional request');
 });
 
 // 13: a phone: the picture above the text, full width, the same 2:1; every card one size.
