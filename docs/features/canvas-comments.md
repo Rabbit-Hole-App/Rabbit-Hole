@@ -443,7 +443,10 @@ comments, the pin goes. The thread stays in the list as "This comment was delete
 - **Shown on:** the pin, the row, the Comments tab count, the header button, and Library and Home cards ("2 new comments",
   owned and Shared with you).
 - **Freshness (Q16):**
-  - The open panel refetches every 30 s while the tab is visible, and on focus.
+  - The open panel refetches its list every 30 s while the tab is visible, and on focus.
+  - An open thread syncs on its own (section 10, Sync protocol, 2026-10-23): every 10 s while the panel shows and the tab
+    is visible, on focus, when the browser comes back online, and after the reader's own actions. Replies, edits,
+    deletions, resolution, colour and the reader's permissions arrive without Back and reopen.
   - The header count and the Library fetch `GET /api/learn/comments/unread` on load, on visibility or focus, and every 60 s
     while visible; polling pauses while hidden.
   - Returning from a canvas remounts the Library, so a thread read there clears its line.
@@ -917,7 +920,8 @@ thread, and `thread_id` for a comment.
 | `GET /api/learn/c/:boardId/board`, `/assets/:key` | member | the board read for `/c/` |
 | `GET …/threads?status=&audience=&cursor=` | owner, member | 30 per page: `{id, audience, anchor, status, author, preview, replies, unread, last_activity_at, hidden_from_public}` |
 | `POST …/threads` `{id, anchor, body, mentions, audience}` | per section 3 (`public` only while Open and not blocked) | 201 / 200 / 409 `id_conflict`; `{thread, accepted_mentions}` |
-| `GET …/threads/:id?before=` | per section 3 | 50 messages: `{id, author, segments, created_at, edited, deleted, mine, can: {edit, delete}}` |
+| `GET …/threads/:id?before=` | per section 3 | 50 messages: `{id, author, segments, created_at, edited, deleted, mine, can: {edit, delete}}`; `cursor` |
+| `GET …/threads/:id?since=<cursor>` | per section 3 | the Sync protocol below: `{thread, messages (changed only), since: true, cursor}` or a full read with `reset: true` |
 | `POST …/threads/:id/comments` `{id, body, mentions}` | per section 3 | 201 / 200 / 409 `id_conflict` / 409 `thread_full` |
 | `PATCH …/comments/:id` `{body, mentions}` | the author, per section 3 | the edited message; mentions replaced |
 | `DELETE …/comments/:id` | the author (Q23) or the owner | soft delete |
@@ -932,6 +936,35 @@ thread, and `thread_id` for a comment.
 | `GET …/blocks` | owner | `[{block_id, person: {name, handle?, avatar_url?}, blocked_at}]`; a person without a handle shows as their name or "Rabbit Hole user" |
 | `POST …/blocks` `{comment_id, remove_comments}` | owner | blocks the **author of that public comment**, by its stored `author_id`; no handle needed. `remove_comments` soft-deletes their public comments on this canvas. Never touches membership |
 | `DELETE …/blocks/:block_id` | owner | unblock |
+
+### Sync protocol (owner brief 2026-10-23, Comments v2 item 1)
+
+Bug fixed: an open thread read its messages once (ThreadView's mount), so another person's reply, edit, delete or resolve
+showed only after Back and reopen; and any action after **Earlier replies** dropped the older replies loaded. The shared
+contract is `packages/web/src/comments/comment-sync.js`, imported by the server and the panel.
+
+- **Cursor.** Every `GET …/threads/:id` answers `cursor`: the server's time (ISO) when that read began.
+- **Since-read.** `GET …/threads/:id?since=<cursor>` re-runs the same access checks as a full read, then answers
+  `{thread, messages, since: true, cursor}`: the thread as it now is (status, colour, counts, `can`) and every message
+  created, edited or deleted after the cursor less `SYNC_OVERLAP_MS` (60 s), oldest first. A deleted message comes as
+  its tombstone (`deleted`, no segments). A malformed cursor is a full read. `since` is ignored beside `before`.
+- **Overlap, no duplicates.** The 60 s reach-back covers a write stamped just before a read began but committed after it,
+  and clock differences between isolates. The reader merges by message id (`mergeMessages`), so the repeats, a retried
+  sync and a replayed cursor after a reconnect never show a message twice.
+- **Too many changes.** More than one page (50) of changes answers a full read with `reset: true`; the reader replaces
+  what it shows with it (older replies it had loaded go; Earlier replies loads them again).
+- **What the reader keeps.** Drafts (the composer is never remounted), the older replies it loaded (a change to a
+  message older than those stays out until they are loaded), and its scroll position. Scrolled up, new replies from
+  others show **New replies** above the composer, which scrolls to them; at the bottom they scroll into view and the
+  thread is marked read.
+- **Lost access.** A sync answered 404 or 401 (thread deleted, object deleted, membership removed, publication off)
+  drops the shown messages and says why; the unsent reply stays visible to copy. Other failures (offline, 5xx) keep what
+  is shown and try again on the next tick, on focus or on `online`, from the same cursor.
+- **When.** Every 10 s (`SYNC_MS`) while the panel shows and the tab is visible; on focus; on `online`; after the
+  reader's own post, edit, delete, resolve or colour. No new infrastructure: live push (a Durable Object per board) is
+  a later decision; it would only say "thread X changed" and the reader would run the same since-read.
+- **Not synced here:** reactions and attachments do not exist yet; the list, pins and unread counts keep the panel's
+  30 s list poll, and the open thread's sync refreshes the list when it brings someone else's reply.
 
 **Invitation family and the whole `members` subtree** (control plane, H1 and C4). The app Worker's `/api/learn/c/` router
 falls through for `…/members…`, and production forwards it unchanged. These routes take a session only (`sessionOf` with
