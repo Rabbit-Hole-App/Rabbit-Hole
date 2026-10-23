@@ -56,7 +56,7 @@ const EMPTY_EXCHANGES = Object.freeze([]);
 // Coming from an embed (?from=embed), the full page first takes the visitor's local copy and unsent draft from the embed.
 export default function SharedBoardPage(props) {
   const [waiting, setWaiting] = useState(() => !props.embed && new URLSearchParams(window.location.search).get('from') === 'embed' && !!window.opener);
-  useEffect(() => { if (waiting) receiveHandoff(window, props.token, window.sessionStorage).then(() => setWaiting(false), () => setWaiting(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (waiting) receiveHandoff(window, props.token, (() => { try { return window.sessionStorage; } catch { return null; } })()).then(() => setWaiting(false), () => setWaiting(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (waiting) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board</main>;
   return <SharedBoard {...props} />;
 }

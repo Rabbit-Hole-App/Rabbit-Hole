@@ -20,7 +20,7 @@ export const sectionOf = (a, org, email) => {
 };
 
 // Appearance (Settings modal): 'system' | 'light' | 'dark', persisted locally.
-export const getTheme = () => localStorage.getItem('small.theme') || 'system';
+export const getTheme = () => { try { return localStorage.getItem('small.theme') || 'system'; } catch { return 'system'; } }; // blocked storage reads as the default
 export function applyTheme(t) {
   const dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('dark', dark);
@@ -47,7 +47,7 @@ export function goBack(fallback) {
 
 // Active workspace: '' = the email-domain one; custom slugs (w-*) ride a header
 // on every call and the server only honours them for members.
-export const getWs = () => localStorage.getItem('small.ws') || '';
+export const getWs = () => { try { return localStorage.getItem('small.ws') || ''; } catch { return ''; } };
 export function setWs(slug) {
   if (slug) localStorage.setItem('small.ws', slug);
   else localStorage.removeItem('small.ws');

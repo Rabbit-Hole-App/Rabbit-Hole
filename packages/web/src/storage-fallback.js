@@ -17,7 +17,7 @@ export const memoryStorage = () => {
 };
 
 export const blockedStorage = [];
-for (const name of ['localStorage', 'sessionStorage']) {
+for (const name of typeof window === 'undefined' ? [] : ['localStorage', 'sessionStorage']) {
   try { void window[name]; } catch {
     blockedStorage.push(name);
     try { Object.defineProperty(window, name, { configurable: true, value: memoryStorage() }); } catch { /* the readers' own guards stay */ }
