@@ -46,7 +46,7 @@ for (const p of [page, guestPage]) p.on('pageerror', error => errors.push(error.
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async (p, name, clip = null) => { await p.waitForTimeout(400); const box = clip ? await clip.boundingBox() : null; await p.screenshot({ path: `${SHOTS}/${name}.png`, ...(box ? { clip: { x: Math.max(0, box.x - 8), y: Math.max(0, box.y - 8), width: box.width + 16, height: box.height + 16 } } : {}) }); console.log('shot', name); };
-const share = () => page.locator('[role="dialog"][aria-label="Share this board"]');
+const share = () => page.locator('[role="dialog"][aria-label="Share canvas"]');
 let inviteUrl;
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -56,12 +56,14 @@ await page.waitForTimeout(1200);
 await check('1 Share → People with access: invite by email; pending with its expiry; no link anywhere on the page', async () => {
   await page.locator('[data-share-button]').click();
   await share().locator('[data-people-with-access]').waitFor();
+  await share().getByRole('button', { name: 'Invite people' }).click(); // collapsed first (owner brief 2026-10-22)
   await share().getByRole('textbox', { name: 'Add people by email' }).fill(guest.email.toUpperCase());
   const [response] = await Promise.all([page.waitForResponse(r => r.url().endsWith(`/api/learn/c/${boardId}/members`) && r.request().method() === 'POST'), share().locator('[data-invite-button]').click()]);
   const made = await response.json();
   assert.equal(made.invited[0].email_status, 'sent');
   inviteUrl = made.invited[0].test_invite_url;
   assert.match(inviteUrl, /^\/i#[A-Za-z0-9_-]{20,}$/, 'the test echo (SMALL_ENV=test only)');
+  await share().getByRole('button', { name: /^People with access/ }).click();
   await share().locator('[data-member-row="pending"]').waitFor();
   assert.match(await share().locator('[data-member-row="pending"]').innerText(), new RegExp(`${guest.email}[\\s\\S]*Invited · expires`));
   assert.doesNotMatch(await page.content(), /\/i#/, 'the owner never sees an invitation link');
@@ -139,6 +141,7 @@ await check('6 Library → Shared with you lists the canvas for the member', asy
 
 await check('7 Remove access: the member\'s page answers that the canvas is not available', async () => {
   await page.locator('[data-share-button]').click();
+  await share().getByRole('button', { name: /^People with access/ }).click();
   await share().locator('[data-member-row="active"]').waitFor();
   assert.match(await share().locator('[data-member-row="active"]').innerText(), new RegExp(`@${guest.handle}[\\s\\S]*verified ${guest.email}`));
   await shot(page, '07-share-member', share());

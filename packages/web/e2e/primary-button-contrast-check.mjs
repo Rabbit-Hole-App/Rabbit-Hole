@@ -197,7 +197,8 @@ for (const theme of ['light', 'dark']) {
   await check(`${theme}: Publish to Explore (Share) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {
     await openCanvas(page);
     await page.locator('[data-share-button]').click();
-    const panel = page.getByRole('dialog', { name: 'Share this board' });
+    const panel = page.getByRole('dialog', { name: 'Share canvas' });
+    await panel.getByRole('tab', { name: 'Explore' }).click();
     await states(page, panel.locator('[data-publish]'), 'Publish to Explore', theme, PRIMARY);
   }, page);
 

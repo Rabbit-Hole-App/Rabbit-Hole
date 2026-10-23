@@ -56,10 +56,10 @@ const owner = await ownerContext.newPage();
 await owner.goto(`${BASE}/apps/${APP}?tab=learn&board=${BOARD}`);
 await started(owner);
 await owner.getByRole('button', { name: 'Share', exact: true }).click();
-const dialog = owner.getByRole('dialog', { name: 'Share this board' });
-await dialog.getByRole('switch', { name: 'Share this board' }).click();
-await dialog.getByRole('textbox', { name: 'View link URL' }).waitFor({ timeout: 10000 });
-const viewLink = await dialog.getByRole('textbox', { name: 'View link URL' }).inputValue();
+const dialog = owner.getByRole('dialog', { name: 'Share canvas' });
+await dialog.getByLabel('Who can open this?').selectOption('signin');
+await dialog.getByRole('textbox', { name: 'Share link URL' }).waitFor({ timeout: 10000 });
+const viewLink = await dialog.getByRole('textbox', { name: 'Share link URL' }).inputValue();
 const stored = async () => owner.evaluate(async ([app, board, id]) => {
   const response = await fetch(`/api/learn/boards/${app}/${board}/assets/${encodeURIComponent(`notebook:${id}`)}`);
   return response.ok ? Object.keys(await response.json()).sort() : [];

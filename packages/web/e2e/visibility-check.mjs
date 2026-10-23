@@ -127,11 +127,11 @@ await check('10 Share / Manage link opens the Share panel as a popup over the Li
   const at = page.url();
   await menuOf(TITLE);
   await button('Share / Manage link').click();
-  const panel = page.locator('[data-share-dialog]').getByRole('dialog', { name: 'Share this board' });
+  const panel = page.locator('[data-share-dialog]').getByRole('dialog', { name: 'Share canvas' });
   await panel.waitFor({ timeout: 60000 });
   assert.equal(page.url(), at, 'still the Library');
   assert.equal(await page.locator('[data-library-card]').filter({ hasText: TITLE }).count(), 1, 'the Library is under the popup');
-  await panel.getByRole('switch', { name: 'Share this board' }).waitFor();
+  await panel.getByLabel('Who can open this?').waitFor();
   await shot('05-share-panel');
   await page.keyboard.press('Escape');
   await page.locator('[data-share-dialog]').waitFor({ state: 'detached' });
