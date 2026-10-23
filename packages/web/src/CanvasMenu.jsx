@@ -3,7 +3,7 @@ import {
   ArrowDown, ArrowDownToLine, ArrowUp, BookOpen, BoxSelect, BringToFront, Circle, CircleCheck, ClipboardPaste, Copy, CopyPlus, Download,
   ExternalLink, Eye, Group, Link2, Lock, LockOpen, MessageCircle, MessageSquarePlus, NotebookPen, PaintRoller, Paperclip, Pencil, PencilLine,
   Pipette, Play, Scan, Scissors, ScrollText, SendToBack, Trash2, UnfoldVertical, Ungroup, Unlink, Wand, ZoomIn, Check,
-  Maximize, Palette, Rotate3d, RotateCcw, Sigma, StickyNote, Type,
+  Maximize, Palette, Pin, Rotate3d, RotateCcw, Sigma, StickyNote, Type,
 } from 'lucide-react';
 import { MenuItem } from './ui.jsx';
 
@@ -18,7 +18,7 @@ export const ICONS = {
   ArrowDown, ArrowDownToLine, ArrowUp, BookOpen, BoxSelect, BringToFront, Circle, CircleCheck, ClipboardPaste, Copy, CopyPlus, Download,
   ExternalLink, Eye, Group, Link2, Lock, LockOpen, MessageCircle, MessageSquarePlus, NotebookPen, PaintRoller, Paperclip, Pencil, PencilLine,
   Pipette, Play, Scan, Scissors, ScrollText, SendToBack, Trash2, UnfoldVertical, Ungroup, Unlink, Wand, ZoomIn,
-  Maximize, Palette, Rotate3d, RotateCcw, Sigma, StickyNote, Type,
+  Maximize, Palette, Pin, Rotate3d, RotateCcw, Sigma, StickyNote, Type,
 };
 const MenuRow = props => <MenuItem type="button" role="menuitem" {...props} />;
 
