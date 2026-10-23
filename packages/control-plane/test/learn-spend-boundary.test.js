@@ -472,7 +472,7 @@ function inlinePaidRoute(path) {
 }
 for (const path of ['/api/learn/image', '/api/learn/tts', '/api/learn/transcribe']) test(`${path} actual route refuses caps after authorization/configuration`, async t => {
   const { LEARN_DB } = ledger(t);
-  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', FISH_AUDIO_API_KEY: 'fixture' });
+  const env = platform({ LEARN_DB, OPENAI_API_KEY: 'fixture', FISH_AUDIO_API_KEY: 'fixture', LEGACY_IMAGE_GENERATION: 'true' }); // the image route runs only with the flag on (test below)
   let calls = 0;
   const transport = async () => { calls++; return Response.json({}); };
   const invoke = (settings, auth = async () => ({ email: 'fixture' })) => {
@@ -488,6 +488,21 @@ for (const path of ['/api/learn/image', '/api/learn/tts', '/api/learn/transcribe
   await admitSpend(LEARN_DB, env, { opId: 'full', userId: 'fixture', org: 'platform', category: 'fixture', reservedUsd: 1 });
   assert.equal((await (await invoke(env)).json()).code, 'daily_cap_reached');
   assert.equal(calls, 0);
+});
+
+// Owner 2026-10-23: legacy image generation is off unless the flag is exactly the string 'true'. Off, the actual route answers before
+// it reads the session, checks a cap, reads the ledger or calls the provider: every collaborator below fails the test if touched.
+test('/api/learn/image actual route is unavailable unless LEGACY_IMAGE_GENERATION is exactly true: nothing is touched', async () => {
+  const untouched = name => (...args) => assert.fail(`${name} was called`);
+  const LEARN_DB = new Proxy({}, { get: (_, key) => untouched(`LEARN_DB.${String(key)}`) });
+  for (const flag of [undefined, '', 'false', 'TRUE', 'True', '1', 'yes', ' true', 'true ']) {
+    const env = { LEARN_DB, OPENAI_API_KEY: 'fixture', USAGE_PLATFORM_DAY_USD: '10', AI_MONTHLY_ALLOWANCE_USD: '50', ...(flag === undefined ? {} : { LEGACY_IMAGE_GENERATION: flag }) };
+    const request = new Request('https://synthetic.test/api/learn/image', { method: 'POST', body: JSON.stringify({ app: 'fixture', prompt: 'Synthetic image', confirmed: true }) });
+    const response = await inlinePaidRoute('/api/learn/image')(request, env, '/api/learn/image', untouched('authorizedBoardApp'), untouched('paidRefusal'), untouched('paidSubmissionRefusal'),
+      untouched('fishSpendTransport'), untouched('isPaidSpendReply'), untouched('fetch'));
+    assert.equal(response.status, 503, JSON.stringify(flag));
+    assert.deepEqual(await response.json(), { error: 'Generating images is not available right now. You can still search for a photo.', code: 'image_generation_unavailable' });
+  }
 });
 
 test('a configured cap never authorizes unbounded delegated or FAL submissions', async t => {
