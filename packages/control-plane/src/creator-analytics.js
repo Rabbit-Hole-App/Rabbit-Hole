@@ -7,10 +7,12 @@ import { FORK_COUNT } from './canvases.js';
 import { PUBLISHED } from './learn-boards.js';
 import { repositoryIdentity } from './repositories.js';
 import { RANGES, dashboard } from '../../web/src/creator-analytics-shape.js';
+import { toCsv } from '../../web/src/creator-analytics-csv.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
-export const creatorAnalyticsRoute = path => path === '/api/analytics/creator';
+// The JSON the screen reads, and Export CSV built from that same payload (same owner check, same privacy).
+export const creatorAnalyticsRoute = path => path === '/api/analytics/creator' || path === '/api/analytics/creator.csv';
 
 export async function creatorAnalyticsFetch(req, env, { now = Date.now } = {}) {
   if (req.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
@@ -26,5 +28,8 @@ export async function creatorAnalyticsFetch(req, env, { now = Date.now } = {}) {
     .bind(user.email).all();
   // Someone else's, private, unlisted, archived, trashed or unknown: one answer, so existence is not revealed.
   if (canvas && !results.some(r => r.canvas === canvas)) return json({ error: 'No public canvas of yours by that name' }, 404);
-  return json(dashboard({ range, canvas, canvases: results.map(r => ({ canvas: r.canvas, title: r.title, fork_count: r.fork_count })), now: now(), compare: compare === '1' }));
+  const payload = dashboard({ range, canvas, canvases: results.map(r => ({ canvas: r.canvas, title: r.title, fork_count: r.fork_count })), now: now(), compare: compare === '1' });
+  if (!url.pathname.endsWith('.csv')) return json(payload);
+  const name = `creator-analytics-${canvas || 'all'}-${range}${compare ? '-compared' : ''}-${payload.range.to}.csv`;
+  return new Response(toCsv(payload), { headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}"`, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 }

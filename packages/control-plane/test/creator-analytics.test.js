@@ -125,3 +125,26 @@ test('creator analytics: the server\'s cohort rule returns null and not_enough_l
   }
   assert.deepEqual(suppress(COHORT_MIN, 0.73), { state: STATE.READY, value: 0.73 });
 });
+
+test('creator analytics CSV: the same owner check and filters, built from the same payload, aggregate only', async t => {
+  const { f, tides, bridges } = await world(t);
+  const csv = async (query, as = 'ana') => {
+    const res = await creatorAnalyticsFetch(new Request(`https://app.test/api/analytics/creator.csv${query}`, { headers: as ? { cookie: `small_session=${as}` } : {} }), f.env, { now: () => NOW });
+    return { status: res.status, type: res.headers.get('content-type'), disposition: res.headers.get('content-disposition'), text: await res.text() };
+  };
+  assert.equal(creatorAnalyticsRoute('/api/analytics/creator.csv'), true);
+  assert.equal((await csv('', null)).status, 401);
+  assert.equal((await csv(`?canvas=${bridges.name}`)).status, 404, 'another creator\'s canvas');
+  assert.equal((await csv('?range=90d')).status, 400);
+  const one = await csv(`?range=7d&canvas=${tides.name}&compare=1`);
+  assert.equal(one.status, 200);
+  assert.equal(one.type, 'text/csv; charset=utf-8');
+  assert.equal(one.disposition, `attachment; filename="creator-analytics-${tides.name}-7d-compared-2026-10-22.csv"`);
+  const lines = one.text.split('\r\n');
+  assert.match(lines[0], /^section,item,metric,label,value,unit,period,from,to,timezone,state,reason,previous_value,/);
+  assert.ok(lines.some(l => l.startsWith('about,,canvas_scope,Canvas scope,Tides,')));
+  assert.ok(lines.some(l => l.startsWith('overview,,forks,Forks,2,count,all_time,')));
+  assert.ok(lines.some(l => l.startsWith('overview,,active_learners,Active learners,,count,selected,2026-10-16,2026-10-22,UTC,not_collected,')), 'empty value with its reason, never 0');
+  assert.ok(!one.text.includes('Volcanoes'), 'the selected canvas only');
+  for (const email of ['ana@test', 'ben@test', 'cara@test']) assert.ok(!one.text.includes(email));
+});
