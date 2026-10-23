@@ -37,8 +37,9 @@ export const versionStatus = ref => (ref && (String(ref.version || '') !== '' ||
 
 // Whether the pinned source may still be read, checked when Add pinned reference is pressed. { ok: true } or { ok: false, reason }.
 // PDF: the same bytes route SourceReader opens (pdf-source.js pdfBytesUrl, as the learner's own session). Text or Explanation:
-// the shell's cardExists(cardId), as the card is the source. fetchImpl is injectable for tests.
-export async function authorizePinnedSource(pin, { fetchImpl = fetch, app, cardExists } = {}) {
+// the shell's cardExists(cardId), as the card is the source. headers: the page's workspace headers (api.js wsHeaders), which the
+// reader's own request carries, so a team canvas is checked in its own workspace. fetchImpl is injectable for tests.
+export async function authorizePinnedSource(pin, { fetchImpl = fetch, app, cardExists, headers = {} } = {}) {
   const no = reason => ({ ok: false, reason });
   if (!pin?.ref || typeof pin.ref.sourceId !== 'string') return no('missing');
   if (pin.kind !== 'pdf') return cardExists?.(pin.cardId) === true ? { ok: true } : no('card-missing');
@@ -46,8 +47,8 @@ export async function authorizePinnedSource(pin, { fetchImpl = fetch, app, cardE
   if (!url) return no('missing');
   const control = new AbortController();
   try {
-    let response = await fetchImpl(url, { method: 'HEAD', signal: control.signal });
-    if (response.status === 405 || response.status === 501) response = await fetchImpl(url, { method: 'GET', signal: control.signal });
+    let response = await fetchImpl(url, { method: 'HEAD', headers, signal: control.signal });
+    if (response.status === 405 || response.status === 501) response = await fetchImpl(url, { method: 'GET', headers, signal: control.signal });
     control.abort(); // headers are enough: the body is never read
     return response.ok ? { ok: true } : no(`status-${response.status}`);
   } catch {

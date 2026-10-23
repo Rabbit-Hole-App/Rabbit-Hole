@@ -12,6 +12,7 @@ import { pdfRef } from './pdf-source.js';
 import { objectName } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
 import { authorizePinnedSource } from './study-attach.js';
+import { wsHeaders } from './api.js';
 import { SWITCH_ROW, pinRef, pinnedAttachRef, studyOffsets, versionLine } from './study-ref.js';
 import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, studyStatusText, writeStudy } from './study-state.js';
 
@@ -64,6 +65,10 @@ export function useStudy(canvasKey, board, canvasApi) {
     }, 400);
   };
   const api = () => canvasApi.current;
+  // The canvas surface clips (overflow hidden) yet a browser focus or reveal can still scroll it, sliding every card under a
+  // camera that never moved (AdaptiveCanvas turns only the document caret's scroll into a camera move). Each Study camera move
+  // (Notebook, Canvas, Locate) puts it back to 0 first, so the framed card is where the camera put it.
+  const unslide = () => { const surface = document.querySelector('[aria-label="Lesson canvas"] [data-canvas-surface]'); if (surface) { surface.scrollTop = 0; surface.scrollLeft = 0; } };
   const pinCardRef = useRef(null);
   useEffect(() => {
     setStudyReaderPin({ target: sourceId => readerPinTarget(api()?.blocks?.() || [], sourceId, pdfRef), pin: id => pinCardRef.current?.(id) });
@@ -90,23 +95,26 @@ export function useStudy(canvasKey, board, canvasApi) {
       if (!canvas || !canvas.block?.(id)) return;
       if (!nav.current) nav.current = canvas.captureNavigation?.() || null;
       apply([{ type: 'saveCamera', view: nav.current?.view || canvas.getView?.() || null }, { type: 'setWork', work: 'notebook', notebookId: id }]);
+      unslide();
       canvas.focusBlock(id);
     },
     // Canvas: the camera, selection and card scroll the learner left (this visit), else the camera saved with the arrangement.
     showCanvas: () => {
       const canvas = api(), saved = nav.current;
       nav.current = null;
+      unslide();
       const back = saved && canvas?.restoreNavigation?.(saved);
       if (!back?.found && live.current.value.canvasView) canvas?.setView?.(live.current.value.canvasView);
       apply([{ type: 'setWork', work: 'canvas' }]);
     },
     // Entering Study with the notebook as the work: frame it again from where the learner is now.
-    reframe: id => { const canvas = api(); if (!canvas?.block?.(id)) return false; nav.current = canvas.captureNavigation?.() || null; canvas.focusBlock(id); return true; },
+    reframe: id => { const canvas = api(); if (!canvas?.block?.(id)) return false; nav.current = canvas.captureNavigation?.() || null; unslide(); canvas.focusBlock(id); return true; },
     locate: () => {
       const canvas = api(), id = live.current.value.pin?.cardId;
       if (!canvas || !id) return;
       nav.current = null;
       if (live.current.value.work !== 'canvas') apply([{ type: 'setWork', work: 'canvas' }]);
+      unslide();
       canvas.focusObject?.(id);
     },
   };
@@ -192,12 +200,12 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   const addPinned = async () => {
     const at = pin;
     setAttach({ cardId: at.cardId, busy: true });
-    const auth = await authorizePinnedSource(at, { app: chat?.canvas, cardExists: id => !!objectOf(canvasApi.current, id) });
+    const auth = await authorizePinnedSource(at, { app: chat?.canvas, headers: wsHeaders(), cardExists: id => !!objectOf(canvasApi.current, id) });
     // The card as it is now (an edited note or Explanation sends only its current text); the stored pin names the card.
     const ref = auth.ok ? pinnedAttachRef({ pin: at, object: objectOf(canvasApi.current, at.cardId), reader: study.reader(),
       excerpt: at.kind === 'pdf' && selectionHere() ? selected.current : null, unavailable: refused === at.cardId }) : null;
     if (ref && chat) chat.addToChat(ref, {});
-    setAttach(ref && chat ? null : { cardId: at.cardId, refused: true });
+    setAttach(ref && chat ? null : { cardId: at.cardId, refused: true, reason: auth.ok ? 'no-reference' : auth.reason });
   };
   const attachRefused = attach?.refused && attach.cardId === pin?.cardId;
   const notebooks = notebooksOf(api);
@@ -253,7 +261,7 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
           <button type="button" data-study-attach className={button} disabled={!canAttach || !chat || (attach?.busy && attach.cardId === pin.cardId)} onMouseDown={event => event.preventDefault()} onClick={addPinned}>
             <MessageSquarePlus size={13} aria-hidden="true" />Add pinned reference</button>
         </div>}
-        {pin && attachRefused && <p data-study-attach-refused role="alert" className="text-xs text-red-700">Reference unavailable</p>}
+        {pin && attachRefused && <p data-study-attach-refused data-reason={attach.reason} role="alert" className="text-xs text-red-700">Reference unavailable</p>}
       </div>
       {!pin || choosing ? chooser : unavailable ? <div data-study-unavailable role="status" className="space-y-2 p-3 text-sm">
         <p className="font-medium">Reference unavailable</p>

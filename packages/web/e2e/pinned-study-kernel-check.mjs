@@ -60,7 +60,7 @@ const work = option => page.locator(`[data-study-work-option="${option}"]`);
 const shownPart = selector => page.evaluate(sel => { const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect(); if (!r || !f) return null; const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom); return right - left > 8 && bottom - top > 8 ? { x: (left + right) / 2, y: (top + bottom) / 2 } : null; }, selector);
 const press = async (selector, button = 'left') => {
   let at = await shownPart(selector);
-  if (!at) { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitem', { name: 'Fit canvas', exact: true }).click(); await closeMenus(page); await until(async () => !!(at = await shownPart(selector)), `${selector} is on screen`, 10000); }
+  if (!at) { const panel = await openMenu(page, 'View'); await panel.locator('[data-menu-item="Fit canvas"]').click(); /* its accessible name carries the Shift 1 hint */ await closeMenus(page); await until(async () => !!(at = await shownPart(selector)), `${selector} is on screen`, 10000); }
   await page.mouse.click(at.x, at.y, { button });
 };
 

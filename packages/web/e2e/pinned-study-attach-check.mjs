@@ -124,7 +124,8 @@ await context.addInitScript(([key, seed]) => { try { if (!localStorage.getItem(k
 await context.route('**/*', router);
 const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
-const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
+// what: a message, or a function that builds it when the wait fails (so it reports the state then, not before the wait).
+const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(typeof what === 'function' ? await what() : what); await page.waitForTimeout(150); } };
 const addButton = () => page.getByRole(SEL.add.role, { name: SEL.add.name, exact: true });
 // Every chip in Chat, and the page chips of this document. A new upload is switched on as canvas context (control-plane
 // learn-context-docs.js: attached while under the limit), so Chat already shows the whole document's own chip (range null)
@@ -133,19 +134,26 @@ const allChips = () => page.locator(SEL.chip).evaluateAll(items => items.map(ite
   text: item.innerText.replace(/\s+/g, ' ').trim(), key: item.getAttribute('data-ref-key'), remove: item.querySelector('button[aria-label^="Remove "]')?.getAttribute('aria-label') || null })));
 const pageKey = n => `${KEY}|${JSON.stringify({ page: n })}`;
 const chips = async () => (await allChips()).filter(chip => /^\{"page":\d+\}$/.test(String(chip.key).slice(KEY.length + 1)) && String(chip.key).startsWith(`${KEY}|`));
-// A chip's own remove button, found by its ref key (two chips of one document share a name); exactly one such chip.
+// A chip's own remove button, found by its ref key (two chips of one document share a name; the key holds quotes and braces,
+// so it is matched in the page, not put in a selector); exactly one such chip.
 const removeChip = async key => {
-  const button = page.locator(`${SEL.chip}[data-ref-key="${key}"] button[aria-label^="Remove "]`);
-  assert.equal(await button.count(), 1, `one chip for ${key}`);
-  await button.click();
+  const at = (await allChips()).map((chip, index) => (chip.key === key ? index : -1)).filter(index => index >= 0);
+  assert.equal(at.length, 1, `one chip for ${key}: ${JSON.stringify(await allChips())}`);
+  await page.locator(SEL.chip).nth(at[0]).locator('button[aria-label^="Remove "]').click();
 };
+const keysOf = list => list.map(chip => chip.key).sort();
+// When an Add shows no chip: the chips there are, and whether the pane refused it (Reference unavailable, its reason).
+const why = async label => `${label}: chips ${JSON.stringify(keysOf(await allChips()))}; refused ${await page.locator('[data-study-attach-refused]').getAttribute('data-reason').catch(() => 'no')}; Add ${await addButton().isDisabled().catch(() => null) ? 'disabled' : 'enabled'}`;
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator(SEL.canvas).waitFor({ timeout: 60000 });
 await page.locator(SEL.chat).waitFor({ state: 'visible', timeout: 30000 });
 await page.locator(`${SEL.canvas} ${SEL.card}`).first().waitFor({ timeout: 30000 });
-await page.waitForTimeout(1500);
-const baseline = await allChips(); // the canvas context chips, before anything is pinned
+// The canvas context chip of the new upload arrives with the context list: wait for it (it may not come when the canvas holds
+// more than the attach limit), then the chips are the baseline Pin for study must leave as they are.
+await waitFor(async () => (await allChips()).some(chip => chip.key === `${KEY}|null`), 15000).catch(() => {});
+await page.waitForTimeout(1000);
+const baseline = keysOf(await allChips()); // the canvas context chips, before anything is pinned
 
 // Pin the PDF card from its own menu: the shared Pin for study row (right-click and Card options come from one registry).
 await page.locator(`${SEL.card} [data-drag-zone]`).last().click({ button: 'right', position: { x: 30, y: 10 } });
@@ -155,11 +163,12 @@ await addButton().waitFor({ timeout: 30000 });
 await page.locator(SEL.reader).first().waitFor({ timeout: 30000 });
 
 await check('1. Add pinned reference adds one removable chip for the pinned PDF at page 1, in Ask, and keeps the typed draft', async () => {
-  assert.deepEqual(await allChips(), baseline, 'Pin for study attaches nothing');
+  // Keys only: a chip of the selected card's own source is marked selected while that card is selected (ContextChips).
+  assert.deepEqual(keysOf(await allChips()), baseline, 'Pin for study attaches nothing');
   assert.deepEqual(await chips(), [], 'no page chip yet');
   await page.locator(SEL.draft).fill('my unsent question');
   await addButton().click();
-  await waitFor(async () => (await chips()).length === 1, 8000, `${(await chips()).length} chips after one Add`);
+  await waitFor(async () => (await chips()).length === 1, 8000, () => why('after one Add'));
   const [chip] = await chips();
   assert.equal(chip.key, pageKey(1));
   assert.ok(chip.text.includes(NAME) && chip.text.includes('p. 1'), `chip text: ${chip.text}`);
@@ -188,8 +197,8 @@ await check('3. turning the page and scrolling the reader leaves the attached ch
 
 await check('4. a second Add at page 2 adds a second chip, a repeat Add at page 2 adds none', async () => {
   await addButton().click();
-  await waitFor(async () => (await chips()).length === 2, 8000, `${(await chips()).length} chips after the second Add`);
-  assert.deepEqual((await chips()).map(chip => chip.key).sort(), [pageKey(1), pageKey(2)].sort());
+  await waitFor(async () => (await chips()).some(chip => chip.key === pageKey(2)), 8000, () => why('after the Add at page 2'));
+  assert.deepEqual(keysOf(await chips()), [pageKey(1), pageKey(2)].sort());
   await addButton().click();
   await page.waitForTimeout(1200);
   assert.equal((await chips()).length, 2, 'the same page is one chip');
@@ -197,8 +206,8 @@ await check('4. a second Add at page 2 adds a second chip, a repeat Add at page 
 
 await check('5. removing one chip removes only that chip', async () => {
   await removeChip(pageKey(2));
-  await waitFor(async () => (await chips()).length === 1, 8000, 'the chip was not removed');
-  assert.deepEqual((await chips()).map(chip => chip.key), [pageKey(1)]);
+  await waitFor(async () => (await chips()).length === 1, 8000, () => why('the chip was not removed'));
+  assert.deepEqual(keysOf(await chips()), [pageKey(1)]);
 });
 
 await check('6. an unreadable source refuses Add pinned reference with Reference unavailable and no chip; readable again, it adds the chip', async () => {
@@ -210,14 +219,14 @@ await check('6. an unreadable source refuses Add pinned reference with Reference
   assert.deepEqual(await chips(), before, 'no chip was added');
   sourceGone = false;
   await addButton().click();
-  await waitFor(async () => (await chips()).length === before.length + 1, 8000, 'the readable source did not add its chip');
+  await waitFor(async () => (await chips()).length === before.length + 1, 8000, () => why('the readable source did not add its chip'));
   assert.ok((await chips()).some(chip => chip.key === pageKey(2)), 'the page 2 chip is back');
   await removeChip(pageKey(2));
-  await waitFor(async () => (await chips()).length === before.length, 8000, 'the chip was not removed');
+  await waitFor(async () => (await chips()).length === before.length, 8000, () => why('the chip was not removed'));
 });
 
 await check('7. the Chat draft, mode and chips survive Canvas -> Study -> Canvas', async () => {
-  const state = async () => ({ chips: await allChips(), draft: await page.locator(SEL.draft).inputValue(), mode: await page.locator(SEL.mode).first().getAttribute('data-chat-mode') });
+  const state = async () => ({ chips: keysOf(await allChips()), draft: await page.locator(SEL.draft).inputValue(), mode: await page.locator(SEL.mode).first().getAttribute('data-chat-mode') });
   const before = await state();
   assert.equal(before.draft, 'my unsent question');
   for (const view of ['Canvas', 'Study']) {

@@ -130,7 +130,7 @@ const visiblePart = selector => page.evaluate(sel => {
   const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom);
   return right - left > 8 && bottom - top > 8 ? { x: r.left, y: r.top, left, right, top, bottom } : null;
 }, selector);
-const fitCanvas = async () => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitem', { name: 'Fit canvas', exact: true }).click(); await closeMenus(page); };
+const fitCanvas = async () => { const panel = await openMenu(page, 'View'); await panel.locator('[data-menu-item="Fit canvas"]').click(); /* its accessible name carries the Shift 1 hint */ await closeMenus(page); };
 const press = async (selector, { button = 'left', x = null, y = null, double = false } = {}) => {
   let at = await visiblePart(selector);
   if (!at) { await fitCanvas(); await until(async () => !!(at = await visiblePart(selector)), `${selector} is on screen`); }
@@ -145,9 +145,15 @@ const switchClear = async label => {
   const clash = await page.evaluate(() => {
     const row = document.querySelector('[data-study-work]')?.getBoundingClientRect(), frame = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect();
     if (!row || !frame) return 'no row or no canvas';
-    const hit = r => r.width && r.height && r.left < row.right - 0.5 && r.right > row.left + 0.5 && r.top < row.bottom - 0.5 && r.bottom > row.top + 0.5;
+    // A card, note or the notebook is drawn inside the canvas surface, which clips it (overflow hidden): its box beyond the
+    // surface is not on screen, so only the part inside the surface (and the canvas) can cover anything.
+    const surface = document.querySelector('[aria-label="Lesson canvas"] [data-canvas-surface]')?.getBoundingClientRect();
+    const clip = (r, by) => (by ? { left: Math.max(r.left, by.left), right: Math.min(r.right, by.right), top: Math.max(r.top, by.top), bottom: Math.min(r.bottom, by.bottom) } : r);
+    const shown = node => clip(clip(node.getBoundingClientRect(), node.closest('[data-canvas-surface]') ? surface : null), frame);
+    const hit = r => r.right - r.left > 0.5 && r.bottom - r.top > 0.5 && r.left < row.right - 0.5 && r.right > row.left + 0.5 && r.top < row.bottom - 0.5 && r.bottom > row.top + 0.5;
+    if (surface && surface.top < row.bottom - 1) return `the canvas surface starts at ${surface.top}, above the row's bottom ${row.bottom}`;
     const over = [...document.querySelectorAll('[data-block-id], [data-item-id], [data-notebook-frame], [data-canvas-surface] [role="toolbar"], [data-canvas-minimap], [data-zoom]')]
-      .filter(node => hit(node.getBoundingClientRect())).map(node => node.dataset.blockId || node.dataset.itemId || node.getAttribute('role') || [...node.attributes].map(a => a.name).find(n => n.startsWith('data-')) || node.tagName);
+      .filter(node => hit(shown(node))).map(node => node.dataset.blockId || node.dataset.itemId || node.getAttribute('role') || [...node.attributes].map(a => a.name).find(n => n.startsWith('data-')) || node.tagName);
     if (over.length) return `the row covers ${over.join(', ')}`;
     return frame.top >= row.bottom - 1 ? null : `the canvas starts at ${frame.top}, above the row's bottom ${row.bottom}`;
   });
@@ -164,7 +170,8 @@ await page.locator('[data-block-id="ex"]').waitFor({ timeout: 60000 });
 await page.locator('[data-notebook-frame]').waitFor({ timeout: 30000 });
 await until(async () => loads.length === 1, 'the stub notebook loaded');
 await page.evaluate(mark => { document.querySelector('[data-notebook-frame]').__mark = mark; }, MARK);
-await frameEl().locator('#draft').fill('unsaved 42');
+// Set in the frame directly: locator.fill would first scroll the clipped canvas surface to the notebook (see press below).
+await frameEl().locator('#draft').evaluate(node => { node.value = 'unsaved 42'; });
 await draft().fill('my unsent question');
 first = await frameState();
 await settle();
@@ -202,7 +209,6 @@ await check('2 choosing the Explanation pins it: Pinned reference shows its titl
 await check('3 Notebook frames the existing notebook card in the same canvas; Canvas restores the zoom and selection the learner left', async () => {
   await press('[data-block-id="ex"]');
   await until(async () => (await selectedIds()).join() === 'ex', 'ex selected');
-  assert.deepEqual(await surfaceScroll(), [0, 0], 'the canvas surface is not scrolled');
   await settle();
   const before = counts(), z = await zoom(), shape = await geometry();
   await work('notebook').click();
@@ -385,7 +391,7 @@ await check('12 a reload restores Study: the same pin, split and working view, s
   await page.locator('[data-notebook-frame]').waitFor();
   await until(async () => loads.length === 2, 'the reload loads the notebook once');
   await page.evaluate(mark => { document.querySelector('[data-notebook-frame]').__mark = mark; }, MARK);
-  await frameEl().locator('#draft').fill('unsaved 42');
+  await frameEl().locator('#draft').evaluate(node => { node.value = 'unsaved 42'; });
   first = await frameState();
   await settle();
 });

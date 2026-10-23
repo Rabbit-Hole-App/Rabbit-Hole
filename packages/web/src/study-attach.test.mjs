@@ -110,7 +110,7 @@ test('versionStatus: a ref with its own version or an excerpt identity is availa
 
 const recorder = (answer) => {
   const calls = [];
-  const fetchImpl = async (url, init) => { calls.push({ url, method: init.method, signal: init.signal }); const out = answer(init.method); if (out instanceof Error) throw out; return out; };
+  const fetchImpl = async (url, init) => { calls.push({ url, method: init.method, headers: init.headers, signal: init.signal }); const out = answer(init.method); if (out instanceof Error) throw out; return out; };
   return { calls, fetchImpl };
 };
 
@@ -138,6 +138,16 @@ test('authorizePinnedSource: when HEAD is not allowed it falls back to a GET tha
   assert.deepEqual(await authorizePinnedSource(pdfPin(DOC), { fetchImpl, app: 'a' }), { ok: true });
   assert.deepEqual(calls.map(call => call.method), ['HEAD', 'GET']);
   assert.equal(calls[1].signal.aborted, true);
+});
+
+// A team canvas is read in its own workspace: both requests carry the page's workspace headers, as the reader's own GET does.
+test('authorizePinnedSource: the HEAD and its GET fallback carry the workspace headers the reader sends', async () => {
+  const { calls, fetchImpl } = recorder(method => (method === 'HEAD' ? { ok: false, status: 405 } : { ok: true, status: 200 }));
+  await authorizePinnedSource(pdfPin(DOC), { fetchImpl, app: 'a', headers: { 'X-Small-Workspace': 'team-1' } });
+  assert.deepEqual(calls.map(call => call.headers), [{ 'X-Small-Workspace': 'team-1' }, { 'X-Small-Workspace': 'team-1' }]);
+  const plain = recorder(() => ({ ok: true, status: 200 }));
+  await authorizePinnedSource(pdfPin(DOC), { fetchImpl: plain.fetchImpl, app: 'a' });
+  assert.deepEqual(plain.calls[0].headers, {}, 'no workspace: no headers');
 });
 
 test('authorizePinnedSource: a source that cannot be addressed is refused without a request', async () => {
