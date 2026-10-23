@@ -109,13 +109,13 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 // A project's window (owner brief 2026-10-22 items 4-5, home/CardMenu.jsx): `project` = { canvases: <the Canvases tab>, publicBlocked }.
 // Its Share tab is the project link only (the Main canvas board's) and its Explore and Embed tabs are not shown: a project
 // itself is never on Explore, only its canvases are, and the Canvases tab shows each one's own access and publication.
-// `privateUrl`: the card's own address, offered as a private link only while the link is off (copying never turns it on).
-export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null, title = '', project = null, privateUrl = '' }) {
+// `startTab`: the tab it opens on (the Varies by canvas badge opens a project on Canvases). `privateUrl`: the card's own address, offered as a private link only while the link is off (copying never turns it on).
+export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null, title = '', project = null, privateUrl = '', startTab = 'share' }) {
   const panel = useRef(null);
   const accessSelect = useRef(null);
   const seq = useRef(0);
   const uid = useId();
-  const [tab, setTab] = useState('share');
+  const [tab, setTab] = useState(startTab);
   const [pendingMode, setPendingMode] = useState(null);
   const [focusAccess, setFocusAccess] = useState(0);
   useEffect(() => {

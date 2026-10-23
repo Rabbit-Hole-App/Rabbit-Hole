@@ -4,8 +4,9 @@
 //   - one menu for canvases and projects, on their cards (project management lives in Home and the Library: owner brief
 //     2026-10-16 item 2; the open project's canvas header names the project as plain text and has no project menu);
 //   - Rename from the project card: it stays on reload, the repository stays the subtitle, and the header follows;
-//   - Visibility for the whole project: confirm with the count, every canvas set, Mixed, a new canvas inheriting, a private
-//     repository never Public; the project link working signed out and never listing a private canvas;
+//   - the project's Share window (owner brief 2026-10-22): the project link apart from the canvases, the per-canvas breakdown,
+//     Varies by canvas, Apply to all canvases with its count and a partial failure, a new canvas inheriting, a private
+//     repository never opening without sign-in; the project link working signed out and never listing a private canvas;
 //   - the cards: the picture's inset above equals its inset below, and the footer ends on the picture's bottom edge;
 //   - every menu on screen (owner bug, 2026-10-16): inside the window with an 8px margin and every row answering a press at
 //     its centre - card menus at each window edge, and the header's canvas selector and repository dropdown on minGPT's
@@ -111,10 +112,13 @@ let canvasMenu, projectMenu;
 await check('1 one menu: the canvas ⋮ and the project ⋮ show the same shared rows in the same order, the type-only rows in their slots', async () => {
   await open(libraryCard('canvas', 'Attention heads')); canvasMenu = await labels(); await shot(page, REVIEW, 'project-menu-01-canvas-menu'); await close();
   await open(libraryCard('repository', `acme/attention-${run}`.split('/')[1])); projectMenu = await labels(); await shot(page, REVIEW, 'project-menu-02-project-menu'); await close();
-  const ONLY = { canvas: ['Edit description', 'Duplicate', 'Archive'], project: ['Learn', 'Explore codebase', 'Pin', 'Unpin', 'New canvas in project'] };
+  const ONLY = { canvas: ['Edit description', 'Duplicate'], project: ['Explore codebase', 'New canvas in project'] };
   const shared = (list, only) => list.filter(l => !only.includes(l));
   assert.deepEqual(shared(canvasMenu, ONLY.canvas), shared(projectMenu, ONLY.project), `${canvasMenu} | ${projectMenu}`);
-  assert.deepEqual(shared(canvasMenu, ONLY.canvas), ['Open', 'Rename', 'Visibility', 'Share / Manage link', 'Copy link', 'Change thumbnail', 'Move to Trash']);
+  // Owner brief 2026-10-22: Open | Pin, Rename, Move to folder, Change cover | Share | Move to Trash, on canvases and projects alike.
+  assert.deepEqual(shared(canvasMenu, ONLY.canvas), ['Open', 'Pin', 'Rename', 'Move to folder', 'Change cover', 'Share', 'Move to Trash']);
+  assert.deepEqual(canvasMenu, ['Open', 'Pin', 'Rename', 'Edit description', 'Duplicate', 'Move to folder', 'Change cover', 'Share', 'Move to Trash']);
+  assert.deepEqual(projectMenu, ['Open', 'Explore codebase', 'New canvas in project', 'Pin', 'Rename', 'Move to folder', 'Change cover', 'Share', 'Move to Trash']);
 });
 await part('1b card ⋮ menus near each window edge open inside it: the leftmost and rightmost card, and a phone\'s top and bottom', async () => {
   const cards = page.locator('[data-library-card]');
@@ -298,48 +302,130 @@ await check('14 Home is its own button at the far left and goes Home; the canvas
   await page.locator('[data-learn-home]').click();
   await page.waitForURL(url => new URL(url).pathname === '/apps', { timeout: 15000 });
 });
-const visibility = async (card, to) => { await open(card); await page.locator('[data-menu-visibility]').click(); await page.locator(`[data-access="${to}"]`).click(); };
-await check('4 Visibility on the project: "Make 3 canvases public?", then every canvas and the project are Public', async () => {
+// Owner brief 2026-10-22: a project's access is managed in its Share window (Card options -> Share), never in a Visibility submenu.
+// Its Share tab is the project link only; its Canvases tab lists the Main canvas and every canvas with its own link access and
+// Explore publication, and "Apply to all canvases" is the one explicit bulk change. "Mixed" is replaced by "Varies by canvas".
+const shareProject = async card => {
+  await open(card);
+  await page.locator('[data-menu-share]').click();
+  const dialog = page.getByRole('dialog', { name: 'Share project' });
+  await dialog.waitFor({ timeout: 60000 });
+  await dialog.getByLabel('Who can open this?').waitFor();
+  await page.waitForFunction(() => !document.querySelector('[data-share-dialog] select')?.disabled, null, { timeout: 60000 });
+  return dialog;
+};
+const closeShare = async () => { await page.keyboard.press('Escape'); await page.locator('[data-share-dialog]').waitFor({ state: 'detached', timeout: 10000 }); };
+const canvasRows = dialog => dialog.locator('[data-project-canvas]');
+const rowOf = (dialog, title) => canvasRows(dialog).filter({ hasText: title });
+const shareOf = async name => (await api(owner, `/api/learn/boards/${name}/main`)).body.sharing;
+const publishViaApi = async c => { await api(owner, `/api/learn/boards/${c.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true }) }); await api(owner, `/api/apps/${c.name}/publish`, { method: 'POST' }); };
+await check('4 the project\'s Share window: Share is the project link only, Canvases lists the Main canvas and each canvas, Apply to all canvases asks with the count and changes link access only', async () => {
   await library();
-  await visibility(libraryCard('repository', NAME2), 'public');
-  const dialog = page.getByRole('dialog');
-  await dialog.waitFor({ timeout: 5000 });
-  assert.match(await dialog.innerText(), /Make 3 canvases public\?/);
-  await shot(page, REVIEW, 'project-menu-04-confirm-public');
-  await dialog.getByRole('button', { name: 'Make public' }).click();
-  await page.waitForTimeout(2500);
+  const dialog = await shareProject(libraryCard('repository', NAME2));
+  assert.deepEqual(await dialog.getByRole('tab').allInnerTexts(), ['Share', 'Canvases'], 'no Explore or Embed tab: a project is never published, only its canvases are');
+  assert.match(await dialog.locator('[data-project-link-note]').innerText(), /This is the project link only\. The project itself is never listed on Explore/);
+  // The project link, on its own: no canvas follows it.
+  await dialog.getByLabel('Who can open this?').selectOption('public');
+  await page.waitForFunction(() => !document.querySelector('[data-share-dialog] select')?.disabled, null, { timeout: 30000 });
+  assert.equal((await shareOf(PUB)).public_view, true, 'the project link opens signed out');
+  for (const c of [heads, masks]) assert.equal((await shareOf(c.name)).shared, false, `${c.title} did not follow the project link`);
+  await dialog.getByRole('tab', { name: 'Canvases' }).click();
+  assert.equal(await canvasRows(dialog).count(), 3, 'the Main canvas and two canvases');
+  const titles = (await canvasRows(dialog).locator('span.truncate').allInnerTexts()).map(t => t.trim());
+  assert.equal(titles[0], 'Main canvas', 'the Main canvas first');
+  assert.deepEqual(titles.slice(1).sort(), ['Attention heads', 'Causal masks']);
+  assert.match(await rowOf(dialog, 'Main canvas').innerText(), /Project link: Anyone with the link · no sign-in/);
+  assert.match(await rowOf(dialog, 'Attention heads').innerText(), /Link: Invited people only/);
+  assert.doesNotMatch(await dialog.innerText(), /only you/i, 'invited access is never "Only you"');
+  assert.equal(await dialog.locator('[data-project-canvases]').getAttribute('data-project-canvases'), 'varies');
+  await shot(page, REVIEW, 'project-menu-04a-canvases-varies');
+  // Apply to all canvases: the count, then a confirmation; Cancel changes nothing.
+  await dialog.locator('#apply-all-mode').selectOption('public');
+  const apply = dialog.locator('[data-apply-all]');
+  assert.match(await apply.innerText(), /Apply to all canvases \(2\)/);
+  await apply.click();
+  const group = dialog.getByRole('group', { name: 'Apply to all canvases' });
+  assert.match(await group.innerText(), /Change link access to .Anyone with the link · no sign-in. on 2 canvases\? Each of them replaces its own link setting\./);
+  await shot(page, REVIEW, 'project-menu-04b-apply-confirm');
+  await group.getByRole('button', { name: 'Cancel' }).click();
+  assert.equal((await shareOf(heads.name)).shared, false, 'Cancel changed nothing');
+  await apply.click();
+  await group.locator('[data-confirm-apply]').click();
+  await rowOf(dialog, 'Attention heads').getByText('Link: Anyone with the link · no sign-in').waitFor({ timeout: 30000 });
+  await rowOf(dialog, 'Causal masks').getByText('Link: Anyone with the link · no sign-in').waitFor({ timeout: 30000 });
+  for (const c of [heads, masks]) { const s = await shareOf(c.name); assert.ok(s.shared && s.public_view && !s.published, `${c.title} has the link, and is not on Explore`); }
+  assert.equal(await dialog.locator('[data-project-canvases]').getAttribute('data-project-canvases'), 'varies', 'still varies: Explore publication is separate');
+  await closeShare();
+  // Explore publication is each canvas's own (here through the API; the canvas dialog's Explore tab is share-dialog-check's).
+  for (const c of [heads, masks]) await publishViaApi(c);
+  await library();
+  const again = await shareProject(libraryCard('repository', NAME2));
+  await again.getByRole('tab', { name: 'Canvases' }).click();
+  assert.equal(await again.locator('[data-canvas-published]').count(), 2, 'both canvases say Published on Explore; the project row does not');
+  assert.equal(await rowOf(again, 'Main canvas').locator('[data-canvas-published]').count(), 0);
+  await closeShare();
   for (const c of [heads, masks]) assert.equal((await row(c.name)).access, 'public', c.title);
   assert.equal((await row(PUB)).access, 'public');
-  assert.equal(await libraryCard('repository', NAME2).locator('[data-card-visibility]').getAttribute('data-card-visibility'), 'public');
+  assert.equal(await libraryCard('repository', NAME2).locator('[data-card-visibility]').getAttribute('data-card-visibility'), 'public', 'a uniform project shows its common status');
+  assert.equal(await page.locator('[data-library-card="canvas"] [data-card-visibility="mixed"]').count(), 0, 'a canvas never says Varies by canvas');
 });
-await check('5 one canvas changed on its own: the project reads Mixed, none checked', async () => {
-  await visibility(libraryCard('canvas', 'Causal masks'), 'unlisted');
-  await page.waitForTimeout(2000);
+await check('5 one canvas changed on its own: the project says Varies by canvas, and its badge opens the Share window on the Canvases breakdown', async () => {
+  await api(owner, `/api/apps/${masks.name}/unpublish`, { method: 'POST' });
   assert.equal((await row(PUB)).access, 'mixed');
-  await open(libraryCard('repository', NAME2)); await page.locator('[data-menu-visibility]').click();
-  await page.locator('[data-access-mixed]').waitFor({ timeout: 5000 });
-  assert.deepEqual(await page.locator('[data-access]').evaluateAll(els => els.map(el => el.getAttribute('aria-checked'))), ['false', 'false', 'false']);
-  await shot(page, REVIEW, 'project-menu-05-mixed');
-  await close();
+  await library();
+  const badge = libraryCard('repository', NAME2).locator('[data-card-visibility="mixed"]');
+  assert.equal((await badge.innerText()).trim(), 'Varies by canvas');
+  assert.equal(await badge.getAttribute('title'), 'Canvases in this project have different access settings.');
+  assert.equal(await badge.evaluate(el => el.tagName), 'BUTTON');
+  await shot(page, REVIEW, 'project-menu-05a-badge');
+  await badge.click();
+  const dialog = page.getByRole('dialog', { name: 'Share project' });
+  await dialog.waitFor({ timeout: 60000 });
+  assert.equal(await dialog.getByRole('tab', { name: 'Canvases' }).getAttribute('aria-selected'), 'true', 'opens on the breakdown');
+  await dialog.locator('[data-project-canvases]').waitFor({ timeout: 30000 });
+  assert.match(await dialog.innerText(), /Canvases in this project have different access settings\./);
+  assert.equal(await dialog.locator('[data-canvas-published]').count(), 1, 'only Attention heads is published now');
+  assert.match(await rowOf(dialog, 'Causal masks').innerText(), /Link: Anyone with the link · no sign-in/);
+  assert.doesNotMatch(await rowOf(dialog, 'Causal masks').innerText(), /Published on Explore/);
+  await shot(page, REVIEW, 'project-menu-05b-breakdown');
+  await closeShare();
+});
+await part('5b a partial failure of Apply to all canvases lists the canvas that failed, never claims all changed, and shows the saved states', async () => {
+  const dialog = await shareProject(libraryCard('repository', NAME2));
+  await dialog.getByRole('tab', { name: 'Canvases' }).click();
+  await page.route(`**/api/learn/boards/${masks.name}/main/share`, route => (route.request().method() === 'POST' ? route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Could not save' }) }) : route.continue()));
+  await dialog.locator('#apply-all-mode').selectOption('invited');
+  await dialog.locator('[data-apply-all]').click();
+  await dialog.locator('[data-confirm-apply]').click();
+  const failed = dialog.locator('[data-apply-failed]');
+  await failed.waitFor({ timeout: 30000 });
+  assert.match(await failed.innerText(), /1 of 2 canvases could not be changed, so they keep their previous access/);
+  assert.match(await failed.innerText(), /Causal masks: Could not save/);
+  assert.doesNotMatch(await failed.innerText(), /Attention heads/, 'the canvas that changed is not listed as failed');
+  assert.match(await rowOf(dialog, 'Attention heads').innerText(), /Link: Invited people only/, 'the reloaded state of the one that changed');
+  assert.match(await rowOf(dialog, 'Causal masks').innerText(), /Link: Anyone with the link · no sign-in/, 'the one that failed keeps its access');
+  await shot(page, REVIEW, 'project-menu-05c-partial-failure');
+  await page.unroute(`**/api/learn/boards/${masks.name}/main/share`);
+  await closeShare();
+  await api(owner, `/api/learn/boards/${heads.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true }) });
 });
 let third;
 await check('6 a canvas added later takes the project\'s visibility (Public again), and a mixed project adds one private', async () => {
-  await visibility(libraryCard('repository', NAME2), 'public');
-  await page.getByRole('dialog').getByRole('button', { name: 'Make public' }).click();
-  await page.waitForTimeout(2500);
+  for (const c of [heads, masks]) await publishViaApi(c);
   third = await canvasIn('Positional encodings');
   assert.equal((await row(third.name)).access, 'public');
   await api(owner, `/api/apps/${third.name}/unpublish`, { method: 'POST' });
   assert.equal((await canvasIn('Loose notes')).access, 'private', 'mixed: private');
 });
-await check('7 a project on a private repository is never Public: the row is disabled and says why', async () => {
+await check('7 a project on a private repository cannot be opened without signing in: the no-sign-in options are disabled and the Share window says why', async () => {
   await library();
-  await open(libraryCard('repository', `secret-${run}`)); await page.locator('[data-menu-visibility]').click();
-  const pub = page.locator('[data-access="public"]');
-  assert.equal(await pub.isDisabled(), true);
-  assert.match(await pub.innerText(), /Private repository: can't be public/);
+  const dialog = await shareProject(libraryCard('repository', `secret-${run}`));
+  assert.equal(await dialog.getByLabel('Who can open this?').locator('option[value="public"]').evaluate(o => o.disabled), true);
+  assert.match(await dialog.innerText(), /Private repository: the link cannot be opened without signing in\./);
+  await dialog.getByRole('tab', { name: 'Canvases' }).click();
+  if (await dialog.locator('#apply-all-mode').count()) assert.equal(await dialog.locator('#apply-all-mode option[value="public"]').evaluate(o => o.disabled), true);
   await shot(page, REVIEW, 'project-menu-06-private-repository');
-  await close();
+  await closeShare();
 });
 await check('8 the project link opens signed out, names the project and lists only the canvases a viewer may open', async () => {
   // A private canvas in the same project: never listed.

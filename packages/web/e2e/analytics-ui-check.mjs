@@ -63,17 +63,16 @@ const page = await contextFor(owner);
 await page.goto(`${BASE}/library?type=canvases`);
 await card(page, T.kv).waitFor({ timeout: 60000 });
 await page.waitForTimeout(500);
-await check('1 ⋮ → Analytics: on the owner\'s public canvas, after the link and thumbnail rows; never on a private one', async () => {
+await check('1 ⋮ → Analytics: on the owner\'s public canvas, after Change cover and Share; never on a private one', async () => {
   await menuOf(page, T.draft);
   assert.equal(await page.locator('[data-menu-analytics]').count(), 0, 'private');
   await page.keyboard.press('Escape');
   await menuOf(page, T.kv);
   const labels = (await page.locator('.shadow-pop button, [role="menu"] button').allInnerTexts()).map(l => l.trim());
-  // The unified r35 menu puts thumbnail actions after the links (visibility-menu.md).
-  // This fresh canvas has no custom thumbnail, so no Use canvas snapshot row appears.
-  const linkStart = labels.indexOf('Share / Manage link');
-  assert.ok(linkStart >= 0, 'the link group remains present');
-  assert.deepEqual(labels.slice(linkStart, linkStart + 4), ['Share / Manage link', 'Copy link', 'Change thumbnail', 'Analytics']);
+  // Owner brief 2026-10-22: Change cover closes the organization group, then Share and Analytics, then Move to Trash last.
+  const coverAt = labels.indexOf('Change cover');
+  assert.ok(coverAt >= 0, 'Change cover is present');
+  assert.deepEqual(labels.slice(coverAt, coverAt + 4), ['Change cover', 'Share', 'Analytics', 'Move to Trash']);
   assert.equal(await page.locator('[data-menu-analytics]').count(), 1, 'one Analytics entry');
   assert.equal(await page.locator('[data-menu-analytics]').isVisible(), true, 'Analytics remains visible');
 });

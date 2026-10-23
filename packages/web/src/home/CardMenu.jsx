@@ -117,7 +117,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
     duplicate,
     // New canvas in project: the switcher's New canvas (RepositoryPage.jsx CanvasSwitcher), from the card; opened once made.
     new_canvas: (a) => setDialog({ kind: 'new-canvas', a, value: newCanvasTitle(projectCanvases(a.name, apps)) }),
-    share: (a) => setDialog({ kind: 'share', a, state: local(a) }),
+    share: (a, tab = 'share') => setDialog({ kind: 'share', a, state: local(a), tab }),
     thumbnail: (a) => setDialog({ kind: 'cover', a }),
     analytics: (a) => setDialog({ kind: 'analytics', a }),
     trash: (a) => setDialog({ kind: 'trash', a }),
@@ -146,12 +146,12 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
     <Menu portal anchor={menu?.anchor} open={!!menu} onClose={() => setMenu(null)} style={{ top: menu?.top, bottom: menu?.bottom, left: menu?.left }} className="w-56 max-w-[calc(100vw-1rem)]">
       {/* One menu for canvases and projects (card-menu-items.js): the same rows, labels and icons in the same order; a row
           for one type keeps its slot and is hidden on the other. */}
-      <div data-card-menu role="menu" aria-label="Card options" onKeyDown={menuKeys}>
+      <div data-card-menu role="group" aria-label="Card options" onKeyDown={menuKeys}>
         {menu && menuRows(menu.a, rowShown(menu.a)).map((item, i) => {
           if (item.separator) return <div key={`separator-${i}`} role="separator" className="my-1 border-t border-line" />;
           if (item.id === 'folder') return <div key="folder" data-menu-item="folder">{folderRows}</div>;
           const on = item.id === 'pin' && pinnedNow, Icon = ICONS[on ? item.alt.icon : item.icon];
-          return <MenuItem key={item.id} role="menuitem" icon={Icon} data-menu-item={item.id} {...(DATA[item.id] ? { [DATA[item.id]]: '' } : {})} className="pointer-coarse:h-10" onClick={() => pick(run[item.id])}>{on ? item.alt.label : item.label}</MenuItem>;
+          return <MenuItem key={item.id} icon={Icon} data-menu-item={item.id} {...(DATA[item.id] ? { [DATA[item.id]]: '' } : {})} className="pointer-coarse:h-10" onClick={() => pick(run[item.id])}>{on ? item.alt.label : item.label}</MenuItem>;
         })}
       </div>
     </Menu>
@@ -197,7 +197,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
     )}
     {dialog?.kind === 'analytics' && <ExplainerAnalytics a={dialog.a} onClose={() => setDialog(null)} />}
     {dialog?.kind === 'share' && (
-      <ShareDialog a={dialog.a} state={dialog.state} canvases={dialog.a.kind === 'repository' ? projectCanvasesOf(dialog.a) : []} stateOf={(x) => local(x)}
+      <ShareDialog a={dialog.a} state={dialog.state} tab={dialog.tab} canvases={dialog.a.kind === 'repository' ? projectCanvasesOf(dialog.a) : []} stateOf={(x) => local(x)}
         onClose={() => setDialog(null)} onChanged={() => ctx.onForked?.()} onManage={(x) => setDialog({ kind: 'share', a: x, state: local(x) })} />
     )}
     {dialog?.kind === 'trash' && (
@@ -208,7 +208,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
   </>;
   // A project whose canvases differ in access wears Varies by canvas; its badge opens this project's Share window (owner brief
   // 2026-10-22 item 4). Never a canvas, never a project you do not own.
-  const onVaries = (a) => (a.kind === 'repository' && a.canEdit && a.access === 'mixed' ? () => guard(a, () => run.share(a))() : null);
+  const onVaries = (a) => (a.kind === 'repository' && a.canEdit && a.access === 'mixed' ? () => guard(a, () => run.share(a, 'canvases'))() : null);
   return { onMore, onVaries, element };
 }
 
@@ -218,7 +218,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
 // A project's window is the same dialog with two tabs: Share (the project link, the Main canvas board's) and Canvases (the
 // access of every canvas, with Apply to all canvases). Its changes touch the project link only, except that explicit action.
 // ponytail: a choose-a-handle refusal on Publish shows as the panel's error here; the canvas page asks for one in place.
-function ShareDialog({ a, state, canvases, stateOf, onClose, onChanged, onManage }) {
+function ShareDialog({ a, state, tab, canvases, stateOf, onClose, onChanged, onManage }) {
   const base = `/api/learn/boards/${a.name}/main`;
   const project = a.kind === 'repository';
   const [sharing, setSharing] = useState(null);
@@ -250,7 +250,7 @@ function ShareDialog({ a, state, canvases, stateOf, onClose, onChanged, onManage
     <div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 animate-[fade-in_100ms_ease-out]">
       <SharePanel place="relative mt-[26vh] max-w-[90vw]" key={a.name} title={titleOf(a)} sharing={sharing} busy={busy || !sharing} error={error} onClose={onClose}
         onChange={run((next) => post(`${base}/share`, { ...next, ...(state ? { state } : {}) }))}
-        privateUrl={`${window.location.origin}/apps/${a.name}`}
+        privateUrl={`${window.location.origin}/apps/${a.name}`} startTab={tab}
         project={project ? { publicBlocked: !a.repo_public, canvases: <ProjectCanvases rows={rows || []} loading={!rows} publicBlocked={!a.repo_public} result={result} pending={applying} onApply={apply} onManage={(row) => onManage(canvases.find((x) => x.name === row.name))} /> } : null}
         // A project itself is never in Explore (its canvases are, one by one: the Canvases tab); a canvas publishes from its own tab.
         onPublish={project ? null : run(async (publish) => {

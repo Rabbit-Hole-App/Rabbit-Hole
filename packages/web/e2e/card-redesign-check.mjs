@@ -229,7 +229,7 @@ await check('8 the truthful browser states stay on older board-less canvases: Co
   const note = (await titled(lib, '[data-library-card="canvas"]', T.away).locator('[data-card-note]').innerText()).trim();
   assert.ok(note.startsWith('On another device') && note.includes('stored only in the browser that created it'), note);
 });
-await check('9 the owned ⋮ is the visibility menu as built, on the new card; it opens upward when the window has no room below', async () => {
+await check('9 the owned Card options menu on the new card: no Visibility or Copy link row, Copy link inside Share; it opens upward when the window has no room below', async () => {
   const card = titled(lib, '[data-library-card="canvas"]', T.tides);
   await openMenu(card);
   const low = await lib.locator('[data-menu-trash]').evaluate(n => n.getBoundingClientRect().bottom <= window.innerHeight);
@@ -237,30 +237,33 @@ await check('9 the owned ⋮ is the visibility menu as built, on the new card; i
   await lib.keyboard.press('Escape');
   await card.scrollIntoViewIfNeeded();
   await openMenu(card);
-  await lib.locator('[data-menu-visibility]').click();
-  assert.equal(await lib.locator('[data-access="private"]').getAttribute('aria-checked'), 'true');
-  // Copy link (owner, 2026-10-08): the link that matches what the card is, said on the row itself, then the menu closes.
+  // Owner brief 2026-10-22: no Visibility dropdown and no Copy link row in the menu; access and links live in Share.
+  assert.equal(await lib.locator('[data-menu-visibility], [data-menu-copy-link]').count(), 0, 'no Visibility or Copy link row');
   await lib.keyboard.press('Escape');
+  // Copy link, inside Share beside the link (owner brief 2026-10-22): a private canvas offers its private address, named as one
+  // recipients cannot open; a published canvas copies its Explore link from the Explore tab. The clipboard holds exactly that.
   await lib.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
-  const copyFrom = async (title) => {
+  const dialog = lib.locator('[data-share-dialog]').getByRole('dialog', { name: 'Share canvas' });
+  const copyFrom = async (title, tab) => {
     await openMenu(titled(lib, '[data-library-card="canvas"]', title));
-    await lib.locator('[data-menu-copy-link]').click();
-    await lib.locator('[data-menu-copy-link]', { hasText: /copied/ }).waitFor({ timeout: 5000 });
-    const said = (await lib.locator('[data-menu-copy-link]').innerText()).trim(), copied = await lib.evaluate(() => navigator.clipboard.readText());
-    await lib.locator('[data-menu-copy-link]').waitFor({ state: 'detached', timeout: 5000 });
-    return [said, copied];
+    await lib.locator('[data-menu-share]').click();
+    await dialog.waitFor({ timeout: 60000 });
+    if (tab) await dialog.getByRole('tab', { name: tab }).click();
+    await dialog.getByRole('button', { name: 'Copy link' }).click();
+    await dialog.getByRole('button', { name: 'Copied' }).waitFor({ timeout: 5000 });
+    const copied = await lib.evaluate(() => navigator.clipboard.readText());
+    const private_ = await dialog.locator('[data-private-link]').count();
+    await lib.keyboard.press('Escape');
+    await lib.locator('[data-share-dialog]').waitFor({ state: 'detached', timeout: 5000 });
+    return [copied, private_];
   };
-  assert.deepEqual(await copyFrom(T.tides), ['Private link copied, opens only for you', `${BASE}/apps/${tides.name}`]);
-  const [said, copied] = await copyFrom(T.bridges);
-  assert.equal(said, 'Public link copied');
+  assert.deepEqual(await copyFrom(T.tides, null), [`${BASE}/apps/${tides.name}`, 1]);
+  const [copied, isPrivate] = await copyFrom(T.bridges, 'Explore');
+  assert.equal(isPrivate, 0);
   assert.match(copied, new RegExp(`^${BASE}/e/[A-Za-z0-9_-]{20,64}$`));
   assert.equal(await lib.locator('[data-toast], [role="status"]').filter({ hasText: /copied/i }).count(), 0, 'no corner toast');
-  await openMenu(card);
-  await lib.locator('[data-menu-visibility]').click();
 });
-await shot(lib, '03-menu-visibility');
-await lib.keyboard.press('Escape');
-await lib.locator('[data-menu-visibility]').waitFor({ state: 'detached' });
+await shot(lib, '03-menu-card-options');
 for (const [row, name] of [['[data-menu-rename]', '04-rename'], ['[data-menu-describe]', '05-describe'], ['[data-menu-trash]', '06-trash-confirm']]) {
   await openMenu(titled(lib, '[data-library-card="canvas"]', T.tides));
   await lib.locator(row).click();
@@ -343,7 +346,8 @@ await check('13 Home Recent: the same card; the away canvas keeps On another dev
   // Recent cards carry the Library's own ⋮ (owner, 2026-10-08), opened in place.
   const recent = titled(home, '[data-recent-card]', T.bridges);
   await recent.getByTitle('Card options').click();
-  for (const row of ['[data-menu-rename]', '[data-menu-visibility]', '[data-menu-share]', '[data-menu-copy-link]', '[data-menu-trash]']) await home.locator(row).waitFor({ timeout: 5000 });
+  for (const row of ['[data-menu-rename]', '[data-menu-share]', '[data-menu-trash]']) await home.locator(row).waitFor({ timeout: 5000 });
+  assert.equal(await home.locator('[data-menu-visibility], [data-menu-copy-link]').count(), 0, "Home's menu is the Library's: no Visibility or Copy link row");
   assert.ok(await home.locator('[data-menu-trash]').evaluate(n => n.getBoundingClientRect().bottom <= window.innerHeight), 'the menu is inside the window');
   await home.keyboard.press('Escape');
   await home.locator('[data-menu-rename]').waitFor({ state: 'detached' });

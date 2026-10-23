@@ -600,8 +600,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.locator('table').count() === 0, 'Projects renders a table');
     for (const ops of ['Deployed', 'Last run', 'Watch']) must(!(await card.innerText()).includes(ops), `${ops} on a project card`);
     await card.getByTitle('Card options').click();
-    for (const name of ['Open', 'Explore codebase']) await page.getByRole('menuitem', { name, exact: true }).waitFor({ timeout: 5000 });
-    must(await page.getByRole('menuitem', { name: 'Learn', exact: true }).count() === 0, 'the redundant Learn shortcut is still in the menu');
+    for (const name of ['Open', 'Explore codebase']) await page.getByRole('button', { name, exact: true }).waitFor({ timeout: 5000 });
+    must(await page.getByRole('button', { name: 'Learn', exact: true }).count() === 0, 'the redundant Learn shortcut is still in the menu');
     await page.keyboard.press('Escape');
     await card.locator('[data-card-title]').click();
     await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });

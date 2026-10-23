@@ -76,14 +76,14 @@ test('the owned canvas menu, in the owner\'s order: Rename, Edit description, Du
   assert.deepEqual(order, ['Rename', 'Edit description', 'Duplicate', 'Change cover', 'Share', 'Move to Trash']);
   assert.doesNotMatch(menu, /data-menu-visibility|role="menuitemradio" aria-checked=\{a\.access === id\}|data-access-mixed|chooseAccess|visibilityRows/, 'no Visibility dropdown');
   // Share opens the canvas page's own Share dialog as a popup over the Library (owner, 2026-10-08), never the canvas.
-  assert.match(menu, /share: \(a\) => setDialog\(\{ kind: 'share', a, state: local\(a\) \}\),/);
+  assert.match(menu, /share: \(a, tab = 'share'\) => setDialog\(\{ kind: 'share', a, state: local\(a\), tab \}\),/);
   assert.doesNotMatch(menu, /\?share=1/, 'no trip into the canvas');
 });
 
 test('the Library\'s Share popup is the canvas page\'s SharePanel on the same routes; closing it leaves the Library as it was', () => {
   const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
   assert.match(library, /import SharePanel from '\.\.\/SharePanel\.jsx';/, 'the existing panel, not a new share UI');
-  assert.match(library, /\{dialog\?\.kind === 'share' && \(\s*<ShareDialog a=\{dialog\.a\} state=\{dialog\.state\} canvases=\{dialog\.a\.kind === 'repository' \? projectCanvasesOf\(dialog\.a\) : \[\]\} stateOf=\{\(x\) => local\(x\)\}\s*onClose=\{\(\) => setDialog\(null\)\} onChanged=\{\(\) => ctx\.onForked\?\.\(\)\} onManage=/);
+  assert.match(library, /\{dialog\?\.kind === 'share' && \(\s*<ShareDialog a=\{dialog\.a\} state=\{dialog\.state\} tab=\{dialog\.tab\} canvases=\{dialog\.a\.kind === 'repository' \? projectCanvasesOf\(dialog\.a\) : \[\]\} stateOf=\{\(x\) => local\(x\)\}\s*onClose=\{\(\) => setDialog\(null\)\} onChanged=\{\(\) => ctx\.onForked\?\.\(\)\} onManage=/);
   const share = library.slice(library.indexOf('function ShareDialog('));
   assert.match(share, /<div data-share-dialog className="fixed inset-0 z-50 flex items-start justify-center bg-black\/20/, 'a modal popup over the Library');
   assert.match(share, /<SharePanel place="relative mt-\[26vh\] max-w-\[90vw\]"/);

@@ -117,7 +117,7 @@ test('the badge: Varies by canvas for a project only, a button that opens its Sh
   assert.match(card, /<IconBtn title="Card options" aria-label="Card options" aria-haspopup="menu" onClick=\{stop\(onMore\)\}><MoreHorizontal /);
   assert.doesNotMatch(card, /ChevronDown/);
   assert.match(menu, /const onVaries = \(a\) => \(a\.kind === 'repository' && a\.canEdit && a\.access === 'mixed' \?/, 'an owned project that varies');
-  assert.match(menu, /role="menu" aria-label="Card options" onKeyDown=\{menuKeys\}/);
+  assert.match(menu, /role="group" aria-label="Card options" onKeyDown=\{menuKeys\}/);
   assert.match(menu, /if \(e\.key === 'Escape'\) \{ menu\.anchor\?\.focus\?\.\(\{ preventScroll: true \}\); return; \}/, 'Escape returns focus to the button');
   assert.match(menu, /thumbnail: \(a\) => setDialog\(\{ kind: 'cover', a \}\)/);
   assert.match(menu, /Reset to canvas snapshot/);
