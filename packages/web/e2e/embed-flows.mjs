@@ -39,6 +39,7 @@ export async function runEmbed(engine) {
   const pub = await makeCanvas(owner, TITLE);
   const path = embedPath('b', pub.view, '?chat=1'), plain = embedPath('b', pub.view);
   const host = await startHost();
+  const SITE_A = new URL(hostUrl(host, 'a', '/x')).hostname, SITE_B = new URL(hostUrl(host, 'b', '/x')).hostname;
   const APP = host.app; // what the browser sees: the app behind https (the stack itself is http, BASE)
   const DRAFT = `Why does attention scale by sqrt(d) ${engine} ${run}?`;
   const ANSWER = 'The scale keeps the dot products from growing with the head size.';
@@ -49,7 +50,11 @@ export async function runEmbed(engine) {
     context.on('request', r => s.requests.push({ method: r.method(), url: r.url() }));
     // The browser's own word on its cookie: the init answers created:true when the request it sent carried no valid rh_embed and
     // created:false when it carried one (a real round trip through the browser's jar, no script involved).
-    context.on('response', async r => { if (/\/api\/learn\/boards\/embed-session$/.test(new URL(r.url()).pathname)) s.inits.push((await r.json().catch(() => ({}))).created); });
+    context.on('response', async r => {
+      if (!/\/api\/learn\/boards\/embed-session$/.test(new URL(r.url()).pathname)) return;
+      const site = new URL(r.request().frame().page().mainFrame().url()).hostname;
+      s.inits.push({ site, created: (await r.json().catch(() => ({}))).created });
+    });
     const allowance = jar => { const used = s.used.get(jar)?.size ?? 0; return { limit: 10, used, remaining: 10 - used }; };
     const json = text => { try { return JSON.parse(text); } catch { return null; } };
     await context.route(url => /^\/api\/learn\/boards\/shared\/[^/]+\/ask$/.test(url.pathname) && url.origin === APP, async route => {
@@ -151,20 +156,21 @@ export async function runEmbed(engine) {
     check(`${tag} the browser holds one rh_embed cookie: HttpOnly, Secure (partitioned where the driver reports the partition)`, jar.length === 1 && jar[0].httpOnly && jar[0].secure && (jar[0].partitionKey === undefined || !!jar[0].partitionKey), JSON.stringify(jar.map(c => ({ ...c, value: '' }))));
     check(`${tag} no rh_guest and no account cookie was set by the embed`, !(await context.cookies()).some(c => c.name === 'rh_guest' || c.name === 'small_session'));
     for (let i = 1; i <= 10; i++) await send(fl, `${DRAFT} ${i}`);
-    check(`${tag} messages 1 to 10 are accepted and each is answered`, net.sends.filter(s => s.status === 200).length === 10 && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && await left(fl, 0));
+    check(`${tag} messages 1 to 10 are accepted and each is answered`, net.sends.filter(s => s.status === 200).length === 10 && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && await left(fl, 0), JSON.stringify({ sends: net.sends.map(s => s.status), answers: await fl.locator('[data-shared-chat] [data-answer]').count(), remaining: await fl.locator('[data-guest-remaining]').allInnerTexts() }));
     const field = fl.locator('[data-shared-ask] [data-chat-composer] textarea');
     await field.fill('The eleventh question'); await field.press('Enter');
     await fl.locator('[data-guest-spent]').waitFor({ timeout: 20000 });
-    check(`${tag} message 11 is refused with its draft kept, no new answer and no extra count`, net.sends.at(-1).status === 429 && await field.inputValue() === 'The eleventh question' && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && await left(fl, 0));
+    check(`${tag} message 11 is refused with its draft kept, no new answer and no extra count`, net.sends.at(-1).status === 429 && await field.inputValue() === 'The eleventh question' && await fl.locator('[data-shared-chat] [data-answer]').count() === 10 && await left(fl, 0), JSON.stringify({ last: net.sends.at(-1), answers: await fl.locator('[data-shared-chat] [data-answer]').count(), field: await field.inputValue(), remaining: await fl.locator('[data-guest-remaining]').allInnerTexts() }));
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-spent-${engine}.png` });
     await page.reload();
     fl = await embedOf(page); await openChat(fl);
-    check(`${tag} a reload keeps the count (no fresh trial): the browser sent its cookie back (init created:false), still 0 of 10 left, still one cookie`, await left(fl, 0) && net.inits[0] === true && net.inits.at(-1) === false && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 1, JSON.stringify(net.inits));
+    check(`${tag} a reload keeps the count (no fresh trial): the browser sent its cookie back (init created:false), still 0 of 10 left, still one cookie`, await left(fl, 0) && net.inits.filter(i => i.site === SITE_A)[0]?.created === true && net.inits.filter(i => i.site === SITE_A).at(-1)?.created === false && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 1, JSON.stringify({ inits: net.inits, posts: net.requests.filter(r => /embed-session$/.test(r.url)).length }));
 
     const siteB = await context.newPage();
     await siteB.goto(hostUrl(host, 'b', path, '&lazy=0'));
     const flB = await embedOf(siteB); await openChat(flB);
-    check(`${tag} another embedding site gets its own session and its own 10 messages (partitioned storage)`, await left(flB, 10) && (await context.cookies()).filter(c => c.name === 'rh_embed').length === 2, `jars: ${(await context.cookies()).filter(c => c.name === 'rh_embed').length}`);
+    const initB = net.inits.find(i => i.site === SITE_B);
+    check(`${tag} another embedding site gets its own session (its first init created:true although site A already holds one) and its own 10 messages: partitioned storage`, await left(flB, 10) && initB?.created === true, JSON.stringify(net.inits));
     const retried = await frameOf(siteB).evaluate(async () => {
       const init = { method: 'POST', headers: { 'content-type': 'application/json', 'X-RH-Embed': '1', 'X-RH-Action-Key': 'retry-key-0001' }, body: JSON.stringify({ message: 'retry me', history: [] }) };
       const token = location.pathname.split('/').pop();
