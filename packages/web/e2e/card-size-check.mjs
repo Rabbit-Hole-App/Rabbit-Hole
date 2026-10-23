@@ -297,9 +297,11 @@ const cardLook = (page, selector) => page.locator(selector).first().evaluate((ca
   const box = card.getBoundingClientRect();
   return { surface, edge: css(card, 'borderTopColor'), width: css(card, 'borderTopWidth'), shadow: css(card, 'boxShadow'), thumb: thumb && css(thumb, 'borderTopColor'), secondary, page: css(main, 'backgroundColor'), dots: css(main, 'backgroundImage'), left: box.left, right: box.right };
 });
-const assertLight = (look, where) => {
+// dots false: Explore is a page, not a workspace, so it has no dot grid (owner brief 2026-10-23; Home.jsx bg-none!).
+const assertLight = (look, where, dots = true) => {
   assert.equal(look.page, LIGHT.page, `${where}: the page is the subtle grey`);
-  assert.ok(look.dots.includes(LIGHT.dots) && !look.dots.includes('rgb(233, 233, 231)'), `${where}: the page dots are the quiet browse dots (${look.dots})`);
+  if (dots) assert.ok(look.dots.includes(LIGHT.dots) && !look.dots.includes('rgb(233, 233, 231)'), `${where}: the page dots are the quiet browse dots (${look.dots})`);
+  else assert.equal(look.dots, 'none', `${where}: no dot grid`);
   assert.equal(look.surface, LIGHT.surface, `${where}: the card surface is opaque white`);
   assert.equal(look.edge, LIGHT.edge, `${where}: the card edge`);
   assert.equal(look.width, '1px', `${where}: the card edge is 1px`);
@@ -349,7 +351,7 @@ await check('light: Home (Continue learning, Recent) and Explore use the same pa
   await page.goto(`${BASE}/explore`);
   await slider(page).waitFor({ timeout: 60000 });
   assert.equal(await page.locator('main').first().evaluate((m) => getComputedStyle(m).backgroundColor), LIGHT.page, 'Explore: the page is the subtle grey');
-  if (await page.locator('[data-explore-card]').count()) assertLight(await cardLook(page, '[data-explore-card]'), 'Explore');
+  if (await page.locator('[data-explore-card]').count()) assertLight(await cardLook(page, '[data-explore-card]'), 'Explore', false);
   await page.screenshot({ path: `${SHOTS}/contrast-explore-light.png` });
   await page.context().close();
 });

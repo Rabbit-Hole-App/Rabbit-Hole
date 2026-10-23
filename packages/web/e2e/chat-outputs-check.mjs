@@ -116,6 +116,7 @@ const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; wh
 const browser = await chromium.launch();
 const open = async () => {
   const context = await browser.newContext({ viewport: { width: 1500, height: 1000 }, colorScheme: THEME });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(theme => { try { localStorage.setItem('small.theme', theme); } catch { /* storage off */ } }, THEME);
   await context.route('**/*', router);
@@ -130,7 +131,11 @@ const open = async () => {
 const pane = page => page.locator('[data-chat-pane]');
 const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const send = async (page, text) => { const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
-const bubble = (page, text) => pane(page).locator('div.rounded-lg.bg-hover', { hasText: text });
+// A sent message shows its command as a read-only pill and then the words, never the printed /cad (UI-16, owner 2026-10-21).
+const bubble = (page, line) => {
+  const [, name, words] = line.match(/^\/(\w+) (.+)$/);
+  return pane(page).locator('div.rounded-lg.bg-hover', { hasText: words }).filter({ has: page.locator(`[data-command-pill="${name}"]`) });
+};
 const card = (page, id) => page.locator(`[data-block-id="${id}"]`);
 const indicator = (page, id) => pane(page).locator(`[data-gen-indicator="${id}"]`);
 const output = (page, id) => pane(page).locator(`[data-chat-output="${id}"]`);
@@ -147,15 +152,31 @@ const settledIndicator = async (page, id, phase) => {
 
 let context;
 ({ context, page } = await open());
-// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Show prompt (the card's own reveal).
+// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Prompt (the same control and popover as the
+// cards'): hidden at rest, drawn on hover or focus in the row, the popover (portalled to the page) holds the words after /cad and
+// Copy writes the whole original line; the status words, Go to card and the cad pill stay visible throughout.
 const statusPrompt = async (page, id) => {
-  const line = indicator(page, id).locator('[data-gen-prompt]');
+  const line = indicator(page, id).locator('[data-gen-prompt]'), button = line.locator('[data-card-prompt-button]'), popover = page.locator('[data-card-prompt]');
   assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad');
   assert.ok(!/\/cad|educational/.test(await line.innerText()), 'at rest the status shows neither the slash nor the prompt');
-  await line.locator('[data-card-prompt-show]').click();
-  assert.equal(await line.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
-  await line.locator('[data-card-prompt-hide]').click();
-  await line.locator('[data-card-prompt-show]').waitFor();
+  // The pointer left on Generate (or on the old row) sits over the status row, which draws Prompt on hover: rest means it is away.
+  await page.mouse.move(5, 5);
+  await until(async () => (await button.count()) === 0, 'at rest there is no Prompt control either (owner review 2026-10-23): it appears on hover, focus or a tap');
+  await indicator(page, id).hover();
+  assert.equal(await button.innerText(), 'Prompt', 'the same wording as the cards');
+  await button.click();
+  assert.equal(await popover.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(300);
+  assert.equal(await popover.count(), 1, 'the popover stays open when the pointer leaves');
+  assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad', 'the cad pill stays visible');
+  assert.equal(await indicator(page, id).locator('[data-gen-open]').innerText(), 'Go to card', 'and so does Go to card');
+  await page.evaluate(() => navigator.clipboard.writeText('before'));
+  await popover.locator('[data-card-prompt-copy]').click();
+  await page.waitForFunction(expected => navigator.clipboard.readText().then(text => text === expected), CAD_LINE);
+  assert.equal(await popover.getByRole('status').innerText(), 'Copied');
+  await page.keyboard.press('Escape');
+  await popover.waitFor({ state: 'detached' });
 };
 let cadId = null;
 await step('a /cad line shows as the message at once, and the confirmation shows a cad pill and that prompt', async () => {
@@ -322,7 +343,9 @@ const pillSend = async (page, name, words = WORDS) => {
   await box.fill(words); await page.waitForTimeout(150); await box.press('Enter');
 };
 const idle = page => until(async () => (await pane(page).locator('[data-chat-composer] button[aria-label="Stop"]').count()) === 0, 'the chat stays busy');
-const composerClear = async page => { assert.equal(await composerOf(page).inputValue(), ''); assert.equal(await pane(page).locator('[data-command-pill]').count(), 0); };
+// The composer's own pill: a sent message keeps its read-only pill in the history (UI-16).
+const composerPills = page => pane(page).locator('[data-chat-composer] [data-command-pill]');
+const composerClear = async page => { assert.equal(await composerOf(page).inputValue(), ''); assert.equal(await composerPills(page).count(), 0); };
 const askMode = async page => {
   if ((await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode')) === 'ask') return;
   await pane(page).locator('[data-chat-mode]').click();
@@ -340,7 +363,7 @@ await step('the removed prompt commands, typed in Auto and in Ask, say they are 
     for (const name of ['simplify', 'deeper', 'example', 'ask', 'teach']) {
       await send(page, `/${name} ${WORDS}`);
       await pane(page).locator('[data-slash-result]', { hasText: unavailableCommand(name) }).waitFor();
-      assert.equal(await pane(page).locator('[data-command-pill]').count(), 0, `${mode}: /${name} makes no pill`);
+      assert.equal(await composerPills(page).count(), 0, `${mode}: /${name} makes no pill`);
     }
   }
   await idle(page);
@@ -353,9 +376,10 @@ await step('a pill line sent while another command runs stays in the composer an
   artifactHold = new Promise(done => { release = done; });
   try {
     await askMode(page);
+    const requested = artifacts.length; // step 10's /explain is already in the list: wait for this one's own request
     await send(page, '/explain softmax as a ratio');
     await pane(page).locator('[data-slash-result]', { hasText: 'Working on /explain' }).waitFor();
-    await until(async () => artifacts.at(-1)?.command === 'explain', '/explain made no request');
+    await until(async () => artifacts.length === requested + 1 && artifacts.at(-1)?.command === 'explain', '/explain made no request');
     // A retained card command as the pill (owner, 2026-10-20, L7: the prompt commands this step used are removed).
     const before = artifacts.length, asked = asks.length;
     await pillSend(page, 'quiz', 'while it works');
