@@ -101,7 +101,7 @@ try {
 
   await check('1 the real kernel runs a cell and keeps an unsaved edit before any switch', async () => {
     await runCell(0);
-    await until(async () => /\[1\]/.test(await prompt(0)), 'cell a ran once');
+    await until(async () => /\[1\]/.test(await prompt(0)), 'cell a ran once', 150000); // the first run of a cell starts the Python kernel and loads its packages from the CDN: wait for that observable state, not 60 s (CI run on fafeff28 failed here at 149 s while the same check passed in 39 s on 0ea5e3ff)
     await cell(3).locator('.cm-content').first().click();
     await page.keyboard.type('unsaved = 42');
     await until(async () => (await cell(3).locator('.cm-content').first().innerText()).includes('unsaved = 42'), 'the edit is in the cell');
