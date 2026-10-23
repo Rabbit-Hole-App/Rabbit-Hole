@@ -1,71 +1,105 @@
-import { useEffect, useRef, useState } from 'react';
-import { Copy, MessageSquarePlus } from 'lucide-react';
+import { createContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Copy } from 'lucide-react';
 import { copyAnswer } from './AnswerFooter.jsx';
-import { useChatWorkspace } from './chat-workspace.jsx';
 
-const icon = 'flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink';
-const control = 'pointer-events-auto cursor-pointer rounded-md px-1.5 py-0.5 text-xs text-ink-2 select-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent';
-
-// The one prompt reveal (docs/features/card-prompt.md; owner brief 2026-10-23): the words typed to make something stay hidden
-// until asked for. Closed, only a small Show prompt button (when `visible`); open, the words, Copy, the chat icon and Hide,
-// and it stays open until Hide or Escape - the pointer leaving never closes it. Copy writes `copy` (default `text`), complete.
-// The chat icon puts the words in the Chat box (the draft rules: a written draft is kept), never sends, and is absent off a
-// Learn canvas (a shared board has no Chat box). Hiding returns focus to the Show prompt button.
-export function PromptReveal({ text, copy = text, visible = true, className = '', buttonClassName = '' }) {
-  const button = useRef(null), panel = useRef(null);
-  const chat = useChatWorkspace();
-  const [open, setOpen] = useState(false);
-  const [back, setBack] = useState(false); // focus is returning to the button, so it stays drawn until it has the focus
-  const [status, setStatus] = useState(null);
-  useEffect(() => { if (back) button.current?.focus(); }, [back, open]);
-  useEffect(() => { if (open) panel.current?.focus(); }, [open]); // the opened panel takes focus, so Escape and Tab work from the keyboard
-  useEffect(() => { if (!status) return undefined; const timer = setTimeout(() => setStatus(null), 1800); return () => clearTimeout(timer); }, [status]);
-  if (!text) return null;
-  const hide = () => { setOpen(false); setBack(true); };
-  const copyText = async () => { try { await copyAnswer({ text: copy }); setStatus('Copied'); } catch { setStatus('Copy failed'); } };
-  if (!open) {
-    if (!visible && !back) return null;
-    return <button ref={button} type="button" data-card-prompt-show aria-expanded="false" onBlur={() => setBack(false)}
-      onPointerDown={event => event.stopPropagation()} onClick={() => { setBack(false); setOpen(true); }}
-      className={`${control} border border-line bg-white shadow-sm ${buttonClassName}`}>Show prompt</button>;
+// Where the prompt popover goes (docs/features/card-prompt.md): beside its card, to the right when the whole popover fits there,
+// else to the left, else over the card's edge kept inside the window; always clamped so it stays visible vertically.
+// anchor: { left, right, top } in window pixels (the card's sides, the control's top); size: the popover's own; view: the window.
+export function placePrompt(anchor, size, view, gap = 8, margin = 8) {
+  let left = anchor.right + gap, side = 'right';
+  if (left + size.w > view.w - margin) {
+    if (anchor.left - gap - size.w >= margin) { left = anchor.left - gap - size.w; side = 'left'; }
+    else { left = Math.max(margin, view.w - margin - size.w); side = 'over'; }
   }
+  return { left, top: Math.max(margin, Math.min(anchor.top, view.h - margin - size.h)), side };
+}
+
+const rect = element => element?.getBoundingClientRect?.() ?? { left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0 };
+const pill = 'pointer-events-auto cursor-pointer rounded-full bg-ink text-white select-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+
+// The one Prompt control (owner brief 2026-10-23, replacing the earlier two-step reveal): drawn only while `active` (hover,
+// keyboard focus or touch selection of what it belongs to), and while its popover is open. Clicking it opens the popover with the
+// exact stored words and Copy; the popover is portalled to the document body, so the canvas zoom and clipping never touch it, and
+// it stays open when the pointer leaves, until an outside press, Escape, Tab away, or a wheel or resize that moves the canvas.
+// Opening and Copy only read: nothing is generated, changed or sent to the Chat. `copy` (default `text`) is what Copy writes.
+// `anchor` returns the element the popover sits beside (the card); without it, the control itself.
+export function PromptControl({ text, copy = text, active = false, anchor = null, compact = true }) {
+  const button = useRef(null), popup = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [back, setBack] = useState(false); // focus is returning to the control, so it stays drawn until it has the focus
+  const [status, setStatus] = useState(null);
+  const [place, setPlace] = useState(null);
+  useEffect(() => { if (back && !open) button.current?.focus(); }, [back, open]);
+  useEffect(() => { if (open) popup.current?.focus(); }, [open]); // the opened popover takes focus, so Escape and Tab work from the keyboard
+  useEffect(() => { if (!status) return undefined; const timer = setTimeout(() => setStatus(null), 1800); return () => clearTimeout(timer); }, [status]);
+  useLayoutEffect(() => {
+    if (!open) { setPlace(null); return; }
+    const card = rect(anchor?.() || button.current), control = rect(button.current), size = rect(popup.current);
+    setPlace(placePrompt({ left: card.left, right: card.right, top: control.height ? control.top : card.top }, { w: size.width, h: size.height }, { w: window.innerWidth || 1024, h: window.innerHeight || 768 }));
+  }, [open, text]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => setOpen(false);
+    const outside = event => { if (!popup.current?.contains(event.target) && !button.current?.contains(event.target)) close(); };
+    const wheel = event => { if (!popup.current?.contains(event.target)) close(); };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('wheel', wheel, { capture: true, passive: true });
+    window.addEventListener('resize', close);
+    return () => { document.removeEventListener('pointerdown', outside, true); document.removeEventListener('wheel', wheel, true); window.removeEventListener('resize', close); };
+  }, [open]);
+  if (!text) return null;
+  const copyText = async () => { try { await copyAnswer({ text: copy }); setStatus('Copied'); } catch { setStatus('Copy failed'); } };
+  const stop = event => event.stopPropagation(); // a portal's events bubble through React to the card: never select, drag or open it
   return (
-    <div ref={panel} tabIndex={-1} data-card-prompt className={`pointer-events-auto outline-none rounded-lg border border-line bg-white shadow-md ${className}`}
-      onPointerDown={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); hide(); } }}>
-      <div className="flex items-center gap-1 px-1.5 py-0.5">
-        <span className="flex-1 px-1.5 text-xs text-ink-2">Prompt</span>
-        {status && <span role="status" className={`text-xs ${status === 'Copied' ? 'text-ink-2' : 'text-danger'}`}>{status}</span>}
-        <button type="button" aria-label="Copy prompt" title="Copy prompt" data-card-prompt-copy className={icon} onClick={copyText}><Copy size={13} /></button>
-        {chat && <button type="button" aria-label="Put prompt in chat" title="Put this prompt in the chat box to edit and send" data-card-prompt-chat className={icon}
-          onClick={() => chat.composer.prepare({ text: copy })}><MessageSquarePlus size={13} /></button>}
-        <button type="button" data-card-prompt-hide aria-expanded="true" onClick={hide} className={control}>Hide</button>
-      </div>
-      {/* A long prompt scrolls inside the panel (data-scroll: the wheel scrolls it, not the canvas). */}
-      <p data-card-prompt-text data-scroll className="max-h-40 overflow-y-auto border-t border-line px-3 py-2 text-xs whitespace-pre-wrap break-words text-ink">{text}</p>
-    </div>
+    <>
+      {(active || open || back) && <button ref={button} type="button" data-card-prompt-button aria-haspopup="dialog" aria-expanded={open}
+        onPointerDown={stop} onBlur={() => setBack(false)} onClick={() => { setBack(false); setOpen(value => !value); }}
+        className={`${pill} ${compact ? 'px-2 py-px text-[10px]' : 'h-5 px-2 text-xs'}`}>Prompt</button>}
+      {open && createPortal(
+        <div ref={popup} role="dialog" aria-label="Prompt" tabIndex={-1} data-card-prompt data-card-prompt-side={place?.side}
+          style={{ position: 'fixed', left: place?.left ?? 0, top: place?.top ?? 0, visibility: place ? 'visible' : 'hidden' }}
+          onPointerDown={stop} onPointerUp={stop} onClick={stop} onDoubleClick={stop} onContextMenu={stop}
+          onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== button.current) setOpen(false); }}
+          onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); setOpen(false); setBack(true); } }}
+          className="z-[100] w-72 max-w-[calc(100vw-16px)] rounded-lg border border-line bg-white text-ink shadow-lg outline-none">
+          {/* A long prompt scrolls inside the popover (data-scroll: the wheel scrolls it, never the canvas). */}
+          <p data-card-prompt-text data-scroll className="max-h-48 overflow-y-auto px-3 py-2 text-xs whitespace-pre-wrap break-words select-text">{text}</p>
+          <div className="flex items-center gap-2 border-t border-line px-2 py-1">
+            <button type="button" data-card-prompt-copy onClick={copyText}
+              className="flex h-6 cursor-pointer items-center gap-1 rounded-md px-1.5 text-xs text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><Copy size={12} aria-hidden="true" />Copy</button>
+            <span role="status" data-card-prompt-status className={`text-xs ${status === 'Copy failed' ? 'text-danger' : 'text-ink-2'}`}>{status}</span>
+          </div>
+        </div>, document.body)}
+    </>
   );
 }
 
-// A generated card's prompt: nothing at rest and no reserved height. Hovering the card (or focusing into it, or selecting it:
-// touch has no hover) draws a small Show prompt button over the card's foot, bottom left, clear of the resize corner; opened, the panel overlays the foot and stays until
-// dismissed. The card is the parent element (CanvasNode: positioned, focusable). A view-only board's cards take no pointer, so
-// there the selected card shows the button; the button and panel take the pointer back (pointer-events-auto).
-export default function CardPrompt({ text, selected = false }) {
-  const root = useRef(null);
-  const [hover, setHover] = useState(false);
-  const [focus, setFocus] = useState(false);
+// The Prompt control of one card: active while the pointer is over the card, focus is inside it, or it is selected (touch has no
+// hover). The card is the nearest [data-block] (CanvasNode: positioned, focusable). A view-only board's cards take no pointer, so
+// there the selected card shows it; the control itself takes the pointer back. `className` positions it (the wrapper is empty at rest).
+export function CardPromptControl({ text, selected = false, className = '' }) {
+  const host = useRef(null);
+  const [hover, setHover] = useState(false), [focus, setFocus] = useState(false);
   useEffect(() => {
-    const card = root.current?.parentElement;
+    const card = host.current?.closest('[data-block]');
     if (!card) return undefined;
-    const on = [['pointerenter', () => setHover(true)], ['pointerleave', () => setHover(false)], ['focusin', () => setFocus(true)],
+    const on = [['pointerenter', event => { if (event.pointerType !== 'touch') setHover(true); }], ['pointerleave', () => setHover(false)], ['focusin', () => setFocus(true)],
       ['focusout', event => { if (!card.contains(event.relatedTarget)) setFocus(false); }]];
     for (const [name, handler] of on) card.addEventListener(name, handler);
     return () => { for (const [name, handler] of on) card.removeEventListener(name, handler); };
   }, []);
   if (!text) return null;
-  return (
-    <div ref={root} data-card-prompt-host className="pointer-events-none absolute right-2 bottom-2 left-2 z-20 flex flex-col items-start">
-      <PromptReveal text={text} visible={hover || focus || selected} className="w-full" />
-    </div>
-  );
+  return <span ref={host} data-card-prompt-host className={className}><PromptControl text={text} active={hover || focus || selected} anchor={() => host.current?.closest('[data-block]')} /></span>;
+}
+
+// A card that draws its own top-right pill (Kicker, LearningBlocks.jsx) gives the Prompt control that slot through this context and
+// claims it, so the card-level fallback below is not drawn twice. Value: { text, selected, claim }.
+export const PromptSlot = createContext(null);
+
+// The fallback for a card with no pill: the same control in the top-right of the card's drag strip. Drawn by the card (a chat card, a
+// CAD card, an animation) only while its prompt exists; with no stored prompt nothing is drawn, so no empty control.
+export default function CardPrompt({ text, selected = false }) {
+  if (!text) return null;
+  return <CardPromptControl text={text} selected={selected} className="absolute top-[3px] right-3 z-20" />;
 }

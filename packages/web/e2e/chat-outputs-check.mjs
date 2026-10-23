@@ -116,6 +116,7 @@ const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; wh
 const browser = await chromium.launch();
 const open = async () => {
   const context = await browser.newContext({ viewport: { width: 1500, height: 1000 }, colorScheme: THEME });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(theme => { try { localStorage.setItem('small.theme', theme); } catch { /* storage off */ } }, THEME);
   await context.route('**/*', router);
@@ -147,15 +148,29 @@ const settledIndicator = async (page, id, phase) => {
 
 let context;
 ({ context, page } = await open());
-// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Show prompt (the card's own reveal).
+// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Prompt (the same control and popover as the
+// cards'): hidden at rest, drawn on hover or focus in the row, the popover (portalled to the page) holds the words after /cad and
+// Copy writes the whole original line; the status words, Go to card and the cad pill stay visible throughout.
 const statusPrompt = async (page, id) => {
-  const line = indicator(page, id).locator('[data-gen-prompt]');
+  const line = indicator(page, id).locator('[data-gen-prompt]'), button = line.locator('[data-card-prompt-button]'), popover = page.locator('[data-card-prompt]');
   assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad');
   assert.ok(!/\/cad|educational/.test(await line.innerText()), 'at rest the status shows neither the slash nor the prompt');
-  await line.locator('[data-card-prompt-show]').click();
-  assert.equal(await line.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
-  await line.locator('[data-card-prompt-hide]').click();
-  await line.locator('[data-card-prompt-show]').waitFor();
+  assert.equal(await button.count(), 0, 'at rest there is no Prompt control either (owner review 2026-10-23): it appears on hover, focus or a tap');
+  await indicator(page, id).hover();
+  assert.equal(await button.innerText(), 'Prompt', 'the same wording as the cards');
+  await button.click();
+  assert.equal(await popover.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(300);
+  assert.equal(await popover.count(), 1, 'the popover stays open when the pointer leaves');
+  assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad', 'the cad pill stays visible');
+  assert.equal(await indicator(page, id).locator('[data-gen-open]').innerText(), 'Go to card', 'and so does Go to card');
+  await page.evaluate(() => navigator.clipboard.writeText('before'));
+  await popover.locator('[data-card-prompt-copy]').click();
+  await page.waitForFunction(expected => navigator.clipboard.readText().then(text => text === expected), CAD_LINE);
+  assert.equal(await popover.getByRole('status').innerText(), 'Copied');
+  await page.keyboard.press('Escape');
+  await popover.waitFor({ state: 'detached' });
 };
 let cadId = null;
 await step('a /cad line shows as the message at once, and the confirmation shows a cad pill and that prompt', async () => {
