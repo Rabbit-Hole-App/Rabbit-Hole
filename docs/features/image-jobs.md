@@ -37,7 +37,7 @@ confirmed.
 | submitting | before the request leaves, with `leaseUntil` and a recovery alarm at +180 s | held |
 | stored | after the output is in R2 at `file-sources/<sourceId>/original/<sha256>` (customMetadata `imageJob`) | held |
 | recorded | after the `file_sources` row is inserted and read back (owner = canvas owner, family image, status stored) | held |
-| ready | then settled: measured cost if the provider reported priceable usage, else cost NULL (reservation kept as unknown cost) | settled |
+| ready | then settled at the measured cost, else at the estimated upper bound (labelled so), else cost NULL (reservation kept as unknown cost); see section 6, Cost | settled |
 
 ## 3. Job API (what the shared confirmation flow calls)
 
@@ -59,7 +59,7 @@ id IS the generation id and another person's lookup reaches an empty object (404
     (409 `proposal_used` / `proposal_stale` / `proposal_canvas`) -> job created (201 `{ job }`).
   - Nothing is reserved in this request and no provider is contacted in it; the object's alarm does both.
 - `GET /api/learn/image-jobs/:id` -> `{ job }`: `id, stage, reason, message (refused: the allowance text), provider, model,
-  estimate_credits, artifact {sourceId, sha256, mimeType, bytes} (ready only), cost (measured|estimated|unknown|null),
+  estimate_credits, artifact {sourceId, sha256, mimeType, bytes} (ready only), cost (measured|estimated_upper_bound|unknown|null),
   saveRetryable, createdAt, updatedAt`.
 - `GET /api/learn/image-jobs/:id/inspect` -> the full record without bytes: settings, prompt, reference ids and hashes, quote,
   proposal id and version, output, provider model, usage, provider timing and status, settlement, retries, last error.
@@ -131,14 +131,37 @@ logs carry job id, step, stage, provider, model, error code, timing and usage, n
 | Model | Endpoint | Unverified |
 |---|---|---|
 | `gpt-image-2.5-sunburst`, `gpt-image-2.5-flare` | `POST /v1/images/generations` (JSON) and `/v1/images/edits` (multipart, `image[]`), `output_format png`, size from (aspect ratio, resolution) on OpenAI's common-size list | multi-image field name (the guide's curl uses `image[]`); maximum references (4 enforced, the guide says 16); output tokens per quality/size, so NO OpenAI option has a price and none can start; sizes above 2560x1440 are marked experimental by OpenAI and are never quoted (`experimental_size`); whether the 2.5 models return `usage`. A 4xx keeps its stable reason code (OpenAI `error.code`, e.g. `moderation_blocked`; Google `error.status`) as `providerCode` on the failed job (never the message, which can echo the prompt); the job stays failed at unknown cost |
-| `gemini-nano-banana-2.1`, `gemini-3-pro-image` | `POST https://generativelanguage.googleapis.com/v1beta/interactions`, `x-goog-api-key`, `input` text + inline images, `response_format {type:'image', mime_type:'image/jpeg', aspect_ratio, image_size}`: a live request for `image/png` was refused (400, supported `image/jpeg`, 2026-10-23), so Google images are JPEG while OpenAI stays PNG; the stored type (R2 content type, `file_sources.media_type`/`declared_type`, `.jpg` name, artifact) is the one the file signature shows, never the requested one; whether `gemini-3-pro-image` accepts `image/jpeg` is first shown by run D | the live response (shapes are from the API reference, not yet seen); input image limits; background/retrieval support for image models. Read as documented: the LAST image block of the `model_output` steps (what the SDK's `output_image` returns; that property is SDK-only); `status` honoured (absent or `completed` is read, `failed`/`cancelled` are definite failures, `incomplete`/`in_progress`/`requires_action` are an unknown outcome and are never resubmitted); `usage` kept on the job and priced when `output_tokens_by_modality` adds up to `total_output_tokens` (input at the input rate, image tokens at the image rate, other output and `total_thought_tokens` at the text rate), otherwise cost stays `estimated`. `store:false` is sent: the API otherwise retains interactions (prompts and reference images) 55 days on the paid tier; the docs list only background execution and `previous_interaction_id` as incompatible, and whether image output works with it is first shown by a live call (acceptance run C) |
+| `gemini-nano-banana-2.1`, `gemini-3-pro-image` | `POST https://generativelanguage.googleapis.com/v1beta/interactions`, `x-goog-api-key`, `input` text + inline images, `response_format {type:'image', mime_type:'image/jpeg', aspect_ratio, image_size}`: a live request for `image/png` was refused (400, supported `image/jpeg`, 2026-10-23), so Google images are JPEG while OpenAI stays PNG; the stored type (R2 content type, `file_sources.media_type`/`declared_type`, `.jpg` name, artifact) is the one the file signature shows, never the requested one; whether `gemini-3-pro-image` accepts `image/jpeg` is first shown by run D | the live response (shapes are from the API reference, not yet seen); input image limits; background/retrieval support for image models. Read as documented: the LAST image block of the `model_output` steps (what the SDK's `output_image` returns; that property is SDK-only); `status` honoured (absent or `completed` is read, `failed`/`cancelled` are definite failures, `incomplete`/`in_progress`/`requires_action` are an unknown outcome and are never resubmitted); `usage` kept on the job and priced as measured only when it reconciles exactly, otherwise as an estimated upper bound (see Cost below). `store:false` is sent: the API otherwise retains interactions (prompts and reference images) 55 days on the paid tier; the docs list only background execution and `previous_interaction_id` as incompatible, and whether image output works with it is first shown by a live call (acceptance run C) |
 
 Quote (`imageQuote`): published per-image output price + references + prompt bytes x text rate (bytes bound tokens from above);
 `unknown` (blocks Generate) when the price is unverified (all OpenAI; Nano Banana 2.1 at 4K, whose published $0.113 contradicts its
 own token math; Nano Banana 2.1 with references, whose per-image input cost is not stated), when `IMAGE_GENERATE_RESERVED_USD` is
 unset, or when the bound is below the estimate. The estimate excludes thinking tokens (billed, count not published), so it is shown
-as an estimate; the ledger holds the full reservation and settles below it only on measured usage. Cost on the job: `measured`
-(provider-reported tokens x verified rates, OpenAI or Google), `estimated` (the quote; the allowance still holds the reservation as unknown), `unknown`.
+as an estimate (it is the quote shown before approval, not a cost).
+
+Cost (owner 2026-10-23): three values are kept apart on the job (`job.cost`, shown by inspect as `costs`), in the closed log line, and in the
+settlement; the public status shows only the state, `measured` | `estimated_upper_bound` | `unknown`.
+- `measuredUsd`: only when the provider usage reconciles exactly and the rates are verified. OpenAI: `input_tokens` equals its text + image
+  details and there are no text output tokens (no text-output rate is published). Google: `output_tokens_by_modality` and
+  `input_tokens_by_modality` add up to `total_output_tokens` / `total_input_tokens`, thought tokens are reported (billed at the text
+  rate, apart from `total_output_tokens`) and no tool-use tokens exist.
+- `estimatedUpperBoundUsd`: input tokens at the input rate by modality (unattributed or unknown-modality input at the highest input
+  rate) + max(`total_output_tokens`, the sum of every reported output component: modality tokens + thought + tool-use) x the model's HIGHEST
+  output rate (the image rate). Assumption: no reported token costs more than that rate. It exists because real Gemini payloads do not
+  reconcile: `total_output_tokens` is not image + thought and thought tokens can exceed what it leaves over (runs C, D, E). The same
+  `total_tokens` = input + output + thought held on all three, so a tighter estimate is possible, but it is not used.
+- `reservedMaxUsd`: what the job held (the quote's reserve).
+Settlement charges the ledger (`usage_operations.cost_usd`, `usage_attempts.cost_micros`, state `settled`, so the learner's balance) the
+measured cost, else the upper bound, never clipped to the reservation; no usable usage keeps the reservation as unknown cost. The ledger
+has no basis column: an upper-bound settlement is marked `usage_operations.error = cost_estimated_upper_bound`, and an amount above the
+reservation is flagged `spend_bound_exceeded` by `settleSpend` and recorded on the job as `overrun { exceeded, amountUsd }`. Note the
+existing platform guard (`admitSpend`) refuses further platform admissions for a day while a `spend_bound_exceeded` row exists.
+Rates (verified on the pages read 2026-10-23: Google https://ai.google.dev/gemini-api/docs/pricing, OpenAI
+https://developers.openai.com/api/pricing; `RATES` in image-providers.js): Nano Banana 2.1 input $1.5/M, text and thinking out $7.5/M, image
+out $30/M; Pro input $2/M, text and thinking $12/M, image $120/M; GPT Image 2.5 text in $5/M, image in $8/M, image out $30/M. The per-image
+quote table (`PRICES`) is separate and unchanged. Real-payload bounds: C (Nano Banana 2.1, 14 text in, out 1439, image 1120, thought
+1000) $0.063621; D (Pro, 14 in, out 1218, image 1120, thought 80) $0.146188; E (Nano Banana 2.1, 14 text + 1120 image in, out 1407, image
+1120, thought 497) $0.050211; OpenAI A $0.005975 and B $0.010171 are measured.
 
 ## 7. Configuration and migration
 

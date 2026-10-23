@@ -150,10 +150,11 @@ test('the job is persisted before any provider contact and completes from alarms
   assert.equal(done.output.mimeType, 'image/jpeg');
   assert.equal(source.sha256, await hex(h.bucket.objects.get(source.r2_key).bytes));
   assert.equal(ops(h)[0].status, 'settled');
-  // Google reports no usage this adapter can price: the reservation stays held as unknown cost, never zero.
+  // This fixture carries no usage: the reservation stays held as unknown cost, never zero, and the job says unknown.
   assert.equal(attempts(h)[0].cost_state, 'unknown');
   assert.equal(attempts(h)[0].reserved_micros, RESERVE * 1e6);
-  assert.equal(done.cost.state, 'estimated');
+  assert.equal(done.cost.state, 'unknown');
+  assert.deepEqual([done.cost.measuredUsd, done.cost.estimatedUpperBoundUsd, done.cost.reservedMaxUsd, done.cost.settledUsd], [null, null, RESERVE, null]);
   assert.equal(done.settlement.done, true);
   const status = await (await h.get(generationId)).json();
   assert.equal(status.job.stage, 'ready');
@@ -602,25 +603,58 @@ test('a Gemini 200 that is not completed: failed is a failure at unknown cost, i
   }
 });
 
-test('Gemini usage is priced into the job: measured when the modality split adds up, estimated (reservation held) when it does not', async t => {
-  const usage = { total_input_tokens: 12, total_output_tokens: 1130, output_tokens_by_modality: [{ modality: 'text', tokens: 10 }, { modality: 'image', tokens: 1120 }], total_thought_tokens: 300, total_tool_use_tokens: 0, total_tokens: 1442 };
-  const image = [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }];
+// The real usage payloads of the 2026-10-23 live runs C, D and E (receipts img-C-4, img-D-1, img-E-1): total_output_tokens is NOT image + thought.
+const USAGE_C = { total_tokens: 2453, total_input_tokens: 14, input_tokens_by_modality: [{ modality: 'text', tokens: 14 }], total_cached_tokens: 0, total_output_tokens: 1439, output_tokens_by_modality: [{ modality: 'image', tokens: 1120 }], total_tool_use_tokens: 0, total_thought_tokens: 1000 };
+const USAGE_D = { total_tokens: 1312, total_input_tokens: 14, input_tokens_by_modality: [{ modality: 'text', tokens: 14 }], total_cached_tokens: 0, total_output_tokens: 1218, output_tokens_by_modality: [{ modality: 'image', tokens: 1120 }], total_tool_use_tokens: 0, total_thought_tokens: 80 };
+const IMAGE_STEPS = [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG }] }];
+
+test('three cost values stay apart: an unreconciled Gemini usage settles at the estimated upper bound, labelled so, with an overrun recorded rather than clipped', async t => {
+  // C: bound = 14 x $1.5/M + max(1439, 1120 + 1000) x $30/M = $0.063621; reservation $0.06 -> overrun $0.003621.
+  const c = harness(t, { IMAGE_GENERATE_RESERVED_USD: '0.06' });
+  c.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_C }));
+  const a = await c.create();
+  await c.alarm(a.generationId);
+  assert.deepEqual(c.job(a.generationId).cost, { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.063621, reservedMaxUsd: 0.06, settledUsd: 0.063621, overrun: { exceeded: true, amountUsd: 0.003621 } });
+  assert.equal(ops(c)[0].cost_usd, 0.063621, 'settled at the bound, not clipped to the reservation');
+  assert.equal(ops(c)[0].error, 'spend_bound_exceeded', 'the ledger flags the overrun');
+  assert.equal(attempts(c)[0].cost_micros, 63621); assert.equal(attempts(c)[0].reserved_micros, 60000);
+  assert.equal(attempts(c)[0].input_tokens, 14); assert.equal(attempts(c)[0].output_tokens, 1439);
+  assert.equal((await (await c.get(a.generationId)).json()).job.cost, 'estimated_upper_bound');
+  const inspected = (await (await c.get(a.generationId, '/inspect')).json()).job;
+  assert.equal(inspected.costs.measuredUsd, null); assert.equal(inspected.costs.estimatedUpperBoundUsd, 0.063621); assert.equal(inspected.costs.reservedMaxUsd, 0.06); assert.equal(inspected.costs.overrun.exceeded, true);
+  const closed = c.logs.map(line => JSON.parse(line)).find(line => line.step === 'closed');
+  assert.deepEqual([closed.costState, closed.measuredUsd, closed.estimatedUpperBoundUsd, closed.reservedMaxUsd, closed.overrun.exceeded], ['estimated_upper_bound', null, 0.063621, 0.06, true]);
+  // D (Pro): bound = 14 x $2/M + max(1218, 1120 + 80) x $120/M = $0.146188, inside its $0.27 reservation: no overrun, marked as an upper bound.
+  const d = harness(t, { IMAGE_GENERATE_RESERVED_USD: '0.27' });
+  d.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: USAGE_D }));
+  const b = await d.create(undefined, d.proposal({ settings: { model: 'gemini-3-pro-image' } }));
+  await d.alarm(b.generationId);
+  assert.deepEqual(d.job(b.generationId).cost, { state: 'estimated_upper_bound', measuredUsd: null, estimatedUpperBoundUsd: 0.146188, reservedMaxUsd: 0.27, settledUsd: 0.146188, overrun: { exceeded: false, amountUsd: 0 } });
+  assert.equal(ops(d)[0].cost_usd, 0.146188); assert.equal(ops(d)[0].error, 'cost_estimated_upper_bound');
+  assert.equal(attempts(d)[0].cost_micros, 146188);
+});
+
+test('a Gemini usage that reconciles exactly is measured; usage that cannot be bounded stays unknown with the reservation held', async t => {
+  const usage = { total_input_tokens: 12, input_tokens_by_modality: [{ modality: 'text', tokens: 12 }], total_output_tokens: 1130, output_tokens_by_modality: [{ modality: 'text', tokens: 10 }, { modality: 'image', tokens: 1120 }], total_thought_tokens: 300, total_tool_use_tokens: 0, total_tokens: 1442 };
   const h = harness(t);
-  h.setReply(async () => Response.json({ status: 'completed', steps: image, usage }));
+  h.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage }));
   const a = await h.create();
   await h.alarm(a.generationId);
   const expected = Number(((12 * 1.5 + 1120 * 30 + 310 * 7.5) / 1e6).toFixed(6));
-  assert.deepEqual(h.job(a.generationId).cost, { state: 'measured', usd: expected });
-  assert.equal(ops(h)[0].cost_usd, expected);
+  assert.equal(h.job(a.generationId).cost.state, 'measured');
+  assert.equal(h.job(a.generationId).cost.measuredUsd, expected);
+  assert.equal(h.job(a.generationId).cost.settledUsd, expected);
+  assert.ok(h.job(a.generationId).cost.estimatedUpperBoundUsd >= expected, 'the bound is kept beside the measurement');
+  assert.equal(ops(h)[0].cost_usd, expected); assert.equal(ops(h)[0].error, null);
   assert.equal(attempts(h)[0].cost_state, 'settled');
   assert.equal(attempts(h)[0].input_tokens, 12); assert.equal(attempts(h)[0].output_tokens, 1130);
-  const unsplit = harness(t);
-  unsplit.setReply(async () => Response.json({ status: 'completed', steps: image, usage: { ...usage, output_tokens_by_modality: undefined } }));
-  const b = await unsplit.create();
-  await unsplit.alarm(b.generationId);
-  assert.equal(unsplit.job(b.generationId).cost.state, 'estimated');
-  assert.equal(attempts(unsplit)[0].cost_state, 'unknown');
-  assert.equal(ops(unsplit)[0].cost_usd, RESERVE);
+  const none = harness(t);
+  none.setReply(async () => Response.json({ status: 'completed', steps: IMAGE_STEPS, usage: { total_tokens: 5 } }));
+  const b = await none.create();
+  await none.alarm(b.generationId);
+  assert.equal(none.job(b.generationId).cost.state, 'unknown');
+  assert.equal(attempts(none)[0].cost_state, 'unknown');
+  assert.equal(ops(none)[0].cost_usd, RESERVE);
 });
 
 test('an output over 20 MiB and a provider body over 30 MiB are failed as invalid_output at unknown cost, stored nowhere', async t => {

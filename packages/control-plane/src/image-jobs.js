@@ -16,7 +16,7 @@ import { learnMedia } from './learn-storage.js';
 import { withUsage, noteUsageIdentity, settleAttempt, finishActionOf, toMicros } from './learn-usage.js';
 import { verifyImageProposal, consumeProposal } from './generation-proposal.js';
 import { imageReadiness } from './image-settings.js';
-import { IMAGE_MODELS, imageSettings, imageQuote, imageAdapter, providerConfigured, measuredCostUsd } from './image-providers.js';
+import { IMAGE_MODELS, imageSettings, imageQuote, imageAdapter, providerConfigured, imageCost } from './image-providers.js';
 
 const GEN = /^[A-Za-z0-9_-]{16,64}$/, SOURCE = /^fs_[a-f0-9]{24}$/, HEX = /^[a-f0-9]{64}$/;
 const LEASE_MS = 180000, RETRY_MS = 30000, MAX_RETRIES = 20, MAX_OUTPUT = 20 * 1024 * 1024;
@@ -143,7 +143,7 @@ const publicJob = job => ({
 });
 // Everything the job knows except bytes, which it never keeps, and the requester's identity beyond its org.
 const inspectJob = job => ({ ...publicJob(job), opId: job.opId, settings: job.request.settings, prompt: job.request.prompt, references: job.request.references.map(r => ({ id: r.id, sha256: r.sha256, bytes: r.bytes, mimeType: r.mimeType })),
-  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null,
+  quote: job.request.quote, proposal: job.request.proposal, output: job.output || null, providerModel: job.providerModel || null, usage: job.usage || null, providerMs: job.providerMs ?? null, providerStatus: job.providerStatus ?? null, providerCode: job.providerCode ?? null, costs: job.cost || null,
   settlement: job.settlement || null, retries: job.retries || 0, lastError: job.lastError || null, recoveredFrom: job.recoveredFrom || null, submittedAt: job.submittedAt || null, endedAt: job.endedAt || null });
 
 const payerEnv = (env, requester) => {
@@ -224,8 +224,11 @@ export class ImageJobs {
       case 'submitting': return this.recoverSubmission(job);
       case 'stored': return this.record(job);
       case 'recorded': {
-        const costUsd = measuredCostUsd(job.request.model, job.usage);
-        return this.close({ ...job, cost: costUsd != null ? { state: 'measured', usd: costUsd } : { state: 'estimated', usd: job.request.quote.estimateUsd } }, 'ready', null, { status: 'settled', calls: 1, costUsd });
+        // Three separate values: measured (usage reconciles), estimatedUpperBoundUsd, reservedMaxUsd. The ledger and the learner are
+        // charged the measured cost, else the upper bound (labelled estimated_upper_bound, never measured), else the reservation is
+        // kept as unknown cost. An amount above the reservation is recorded as an overrun, not clipped.
+        const cost = imageCost(job.request.model, job.usage, job.request.quote.reserveUsd);
+        return this.close({ ...job, cost }, 'ready', null, { status: 'settled', calls: 1, costUsd: cost.settledUsd });
       }
       default: return null;
     }
@@ -322,8 +325,10 @@ export class ImageJobs {
   // Every end goes through here: the terminal stage and its ledger outcome are saved first, then settled (boundary 5).
   // ledger: null (nothing was reserved), or { status, calls, costUsd } where costUsd null keeps the reservation as unknown cost.
   async close(job, stage, reason, ledger) {
-    const closed = await this.save({ ...job, stage, reason, endedAt: Date.now(), settlement: ledger ? { ...ledger, done: false } : null });
-    this.log(closed, 'closed', { ms: closed.providerMs ?? null, providerCode: closed.providerCode ?? null });
+    // A finished call whose cost is unknown still says so, with the reservation it keeps held.
+    const cost = job.cost || (ledger && ledger.costUsd === null ? { state: 'unknown', measuredUsd: null, estimatedUpperBoundUsd: null, reservedMaxUsd: job.request.quote.reserveUsd, settledUsd: null, overrun: { exceeded: false, amountUsd: 0 } } : undefined);
+    const closed = await this.save({ ...job, ...(cost ? { cost } : {}), stage, reason, endedAt: Date.now(), settlement: ledger ? { ...ledger, done: false } : null });
+    this.log(closed, 'closed', { ms: closed.providerMs ?? null, providerCode: closed.providerCode ?? null, ...(closed.cost ? { costState: closed.cost.state, measuredUsd: closed.cost.measuredUsd, estimatedUpperBoundUsd: closed.cost.estimatedUpperBoundUsd, reservedMaxUsd: closed.cost.reservedMaxUsd, overrun: closed.cost.overrun } : {}) });
     if (ledger) await this.settleLedger(closed);
     return true;
   }
@@ -331,7 +336,9 @@ export class ImageJobs {
   // a settle, is a no-op. The attempt row is read back because settleAttempt reports nothing.
   async settleLedger(job) {
     const s = job.settlement, db = this.env.LEARN_DB;
-    await settleSpend(db, job.opId, { status: s.status, calls: s.calls, costUsd: s.costUsd, provider: job.request.provider, model: job.providerModel || job.request.model, error: job.reason || null });
+    await settleSpend(db, job.opId, { status: s.status, calls: s.calls, costUsd: s.costUsd, provider: job.request.provider, model: job.providerModel || job.request.model,
+      // usage_operations has no basis column: the marker says the amount settled is an upper bound, not a measurement (an overrun overwrites it with spend_bound_exceeded in settleSpend).
+      error: job.reason || (job.cost?.state === 'estimated_upper_bound' ? 'cost_estimated_upper_bound' : null) });
     await settleAttempt(this.env, job.opId, { status: s.status, costMicros: toMicros(s.costUsd), model: job.providerModel || null, inputTokens: job.usage?.input_tokens ?? job.usage?.total_input_tokens ?? null, outputTokens: job.usage?.output_tokens ?? job.usage?.total_output_tokens ?? null });
     const attempt = await db.prepare('SELECT status FROM usage_attempts WHERE attempt_id = ?').bind(job.opId).first();
     if (attempt?.status === 'running') throw new Error('attempt not settled');
