@@ -20,7 +20,7 @@ if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const HANDLE = `hdrown_${run}`;
-const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, ...(handle ? { handle } : {}) }) })).json()).session;
+const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, ...(handle !== undefined ? { handle } : {}) }) })).json()).session;
 const owner = { session: await sessionFor(`hdr-owner-${run}@example.com`, HANDLE) }, viewer = { session: await sessionFor(`hdr-viewer-${run}@example.org`) };
 const api = (who, path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${who.session}`, 'content-type': 'application/json', ...(init.headers || {}) } }).then(r => r.json());
 const canvases = who => api(who, '/api/canvases').then(d => d.canvases);
@@ -242,7 +242,7 @@ for (const [width, full] of [[1424, true], [1280, false]]) {
       && (label !== 'desktop' || Math.abs(long.forkRight - desktopForkRight) <= 1), long.detail);
     await context.close();
   }
-  const plain = { session: await sessionFor(`hdr-plain-${run}@example.org`) }; // no handle
+  const plain = { session: await sessionFor(`hdr-plain-${run}@example.org`, null) }; // handle: null keeps none (a bare /test/session invents one)
   const plainSource = await api(plain, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `No handle ${run}` }) });
   const plainShared = await api(plain, `/api/learn/boards/${plainSource.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: SEED }) });
   const { context, page } = await contextFor(null);
