@@ -1,11 +1,11 @@
-// Motion V1 duration (spec §2.2, owner decision 2026-10-04): any stated duration,
-// fractional allowed, rounded to the nearest whole second (.5 up), clamped to 5..30,
-// default 10. Every normalization is a visible decision line, never a silent change.
+// Motion V1 duration (spec §2.2, owner decision 2026-10-04, max raised 30 -> 60 by the owner brief of 2026-10-23): any stated
+// duration, fractional allowed, rounded to the nearest whole second (.5 up), clamped to 5..60, default 10. The Motion form offers
+// exactly the twelve steps of 5 seconds (control-plane motion-settings.js); a typed duration keeps this rounding. Every normalization is a visible decision line, never a silent change.
 // Reading the stated duration is shared with the Learner Intent Resolver (one parser).
 import { parseDuration } from '../../control-plane/src/request-duration.js';
 
 export { parseDuration };
-export const DURATION = Object.freeze({ min: 5, max: 30, default: 10 });
+export const DURATION = Object.freeze({ min: 5, max: 60, default: 10 });
 
 export function normalizeSeconds(asked) {
   return Math.min(DURATION.max, Math.max(DURATION.min, Math.round(asked)));

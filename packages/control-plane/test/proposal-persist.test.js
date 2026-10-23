@@ -12,7 +12,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { devWorker } from './worker-import.js';
 import { liveDb, liveRuns, memoryBucket } from './live-storage-spy.js';
 import { LearnVideos } from '../src/learn-video.js';
-import { signProposal, verifyProposal } from '../src/generation-proposal.js';
+import { approvedProposal, signProposal, verifyProposal } from '../src/generation-proposal.js';
 import { madeFrom, proposalActive, proposalBlock } from '../../web/src/generation-proposal-chat.js';
 
 const worker = (await devWorker()).default;
@@ -84,8 +84,8 @@ function stack(t) {
 }
 
 // The chat turn that proposes: a /motion line, the model calls propose_generation, the answer keeps the signed card.
-async function propose(s) {
-  s.model.replies.push({ content: [{ type: 'tool_use', id: 'tu1', name: 'propose_generation', input: { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings: { duration_seconds: 10, audio: false } } }], stop_reason: 'tool_use' },
+async function propose(s, settings = { duration_seconds: 10, audio: false }) {
+  s.model.replies.push({ content: [{ type: 'tool_use', id: 'tu1', name: 'propose_generation', input: { command: 'motion', title: 'Water cycle: evaporation to rain', description: WATER, settings } }], stop_reason: 'tool_use' },
     'Here is a 10-second video proposal.\n<answer_meta>{}</answer_meta>');
   const res = await s.send('POST', '/api/learn/ask', { scope: { app: CANVAS }, message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: { concept: 'Weather' } } });
   assert.equal(res.status, 200, 'the chat turn streams');
@@ -121,7 +121,7 @@ test('case a: a proposal saved on its chat message, revised by PUT, comes back f
   // The card's settings change: the next version, saved over the message's meta.
   const revised = await s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { duration_seconds: 20, audio: false }, expected_version: 1 });
   assert.equal(revised.status, 200);
-  assert.deepEqual([revised.body.proposal.proposal_id, revised.body.proposal.version, revised.body.proposal.settings], [first.proposal_id, 2, { duration_seconds: 20, audio: false }]);
+  assert.deepEqual([revised.body.proposal.proposal_id, revised.body.proposal.version, revised.body.proposal.settings], [first.proposal_id, 2, { duration_seconds: 20, aspect_ratio: '16:9', audio: false }]);
   const again = await s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { duration_seconds: 25, audio: false }, expected_version: 2 });
   assert.equal(again.body.proposal.version, 3, 'each change is the next version of the stored one');
   // Reload: nothing of the browser survives; the thread is read back through the worker.
@@ -135,10 +135,38 @@ test('case a: a proposal saved on its chat message, revised by PUT, comes back f
   const started = await generate(s, press(proposal));
   assert.equal(started.status, 202);
   assert.equal(s.orchestrator.jobs.length, 1);
-  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 25, description: WATER });
+  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 25, aspect_ratio: '16:9', description: WATER });
   assert.deepEqual(s.reservations(), [{ reserved_micros: 2_000_000, cost_state: 'reserved', status: 'running' }], 'one hold, admitted before the job');
   assert.equal((await untilReady(s, started.body.placementId)).status, 'ready');
   assert.deepEqual(s.model.calls.length, 2, 'the proposal and its reply: the revisions and Generate made no model call');
+});
+
+test('duration and aspect ratio: proposed, revised on the card, restored after a reload, and handed to the orchestrator exactly as saved', async t => {
+  const s = stack(t);
+  const { threadId, messageId, proposal: first } = await propose(s, { duration_seconds: 45, aspect_ratio: '9:16', audio: false });
+  assert.deepEqual(first.settings, { duration_seconds: 45, aspect_ratio: '9:16', audio: false });
+  // The card changes only the ratio: the duration it already holds is kept.
+  const revised = await s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { ...first.settings, aspect_ratio: '4:3' }, expected_version: 1 });
+  assert.equal(revised.status, 200);
+  // A value outside the lists is refused on the server, with the reason, and nothing is saved.
+  const bad = await s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { duration_seconds: 65, aspect_ratio: '4:3', audio: false }, expected_version: 2 });
+  assert.deepEqual([bad.status, /one of 5, 10/.test(bad.body.error)], [400, true]);
+  const badRatio = await s.read('PUT', `/api/learn/chat/messages/${messageId}/proposal`, { settings: { duration_seconds: 45, aspect_ratio: '2:1', audio: false }, expected_version: 2 });
+  assert.deepEqual([badRatio.status, /aspect_ratio/.test(badRatio.body.error)], [400, true]);
+  s.restart();
+  const { proposal } = await restore(s, threadId, messageId);
+  assert.deepEqual([proposal.version, proposal.settings], [2, { duration_seconds: 45, aspect_ratio: '4:3', audio: false }], 'the reload shows what was saved');
+  const started = await generate(s, press(proposal));
+  assert.equal(started.status, 202);
+  assert.deepEqual(s.orchestrator.jobs[0].body.approved_proposal, { title: 'Water cycle: evaporation to rain', duration_seconds: 45, aspect_ratio: '4:3', description: WATER }, 'the orchestrator is told the saved selection');
+});
+
+test('an old proposal without an aspect ratio still generates, as 16:9', async t => {
+  const s = stack(t);
+  const { proposal: v1 } = await propose(s);
+  const old = await signProposal(s.env, { ...v1, settings: { duration_seconds: 10, audio: false }, input: v1.input }, OWNER, { id: v1.proposal_id, version: 1 });
+  assert.equal(await verifyProposal(s.env, old, OWNER), null, 'a proposal signed before the setting existed is still valid');
+  assert.equal(approvedProposal(old).aspect_ratio, '16:9');
 });
 
 test('case b: a generated proposal and its canvas card restored after a reload: every further Generate is refused or reused server-side, no second job or reservation', async t => {
@@ -233,7 +261,7 @@ test('MOT-22 two tabs: a settings change and a chat refinement, out-of-order and
   const late = await putSettings(s, first, 30, 2);
   assert.deepEqual([late.status, late.body.code, late.body.current], [409, 'proposal_stale', v3], 'the current revision comes back with the refusal');
   // Both tabs change the current card at once, each from v3: exactly one save lands; the others conflict and change nothing.
-  const saves = await Promise.all([putSettings(s, second, 10, 3), putSettings(s, second, 12, 3), putSettings(s, second, 14, 3)]);
+  const saves = await Promise.all([putSettings(s, second, 10, 3), putSettings(s, second, 15, 3), putSettings(s, second, 35, 3)]);
   const won = saves.filter(r => r.status === 200).map(r => r.body.proposal);
   assert.equal(won.length, 1, 'one save from v3 lands');
   for (const r of saves.filter(r => r.status !== 200)) assert.deepEqual([r.status, r.body.code], [409, 'proposal_stale']);
@@ -383,12 +411,12 @@ test('MOT-22 delayed and out-of-order settings saves from an old revision: 409 w
   assert.deepEqual((await restore(s, threadId, messageId)).proposal, v2, 'not overwritten');
   // Out of order: a refinement makes v3 on a new answer; a save on the old card, even from v2, is refused.
   const { messageId: second, proposal: v3 } = await refine(s, threadId, v2);
-  const old = await putSettings(s, messageId, 12, 2);
+  const old = await putSettings(s, messageId, 15, 2);
   assert.deepEqual([old.status, old.body.code, old.body.current], [409, 'proposal_stale', v3]);
   // A save with no expected revision is refused outright.
-  assert.equal((await s.read('PUT', `/api/learn/chat/messages/${second}/proposal`, { settings: { duration_seconds: 12, audio: false } })).status, 400);
+  assert.equal((await s.read('PUT', `/api/learn/chat/messages/${second}/proposal`, { settings: { duration_seconds: 15, audio: false } })).status, 400);
   // A save on a card that is not the root (the refinement's) lands through the root's state, from v3.
-  const v4 = (await putSettings(s, second, 18, 3)).body.proposal;
+  const v4 = (await putSettings(s, second, 35, 3)).body.proposal;
   assert.equal(v4.version, 4);
   assert.deepEqual((await restore(s, threadId, second)).proposal, v4);
   for (const stale of [v1, v2, v3]) assert.equal((await generate(s, press(stale))).body.code, 'proposal_stale');
@@ -396,7 +424,7 @@ test('MOT-22 delayed and out-of-order settings saves from an old revision: 409 w
   const started = await generate(s, press(v4));
   assert.equal(started.status, 202);
   await untilReady(s, started.body.placementId);
-  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length, s.orchestrator.jobs[0].body.approved_proposal.duration_seconds], [1, 1, 18]);
-  const after = await putSettings(s, second, 22, 4);
+  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length, s.orchestrator.jobs[0].body.approved_proposal.duration_seconds], [1, 1, 35]);
+  const after = await putSettings(s, second, 40, 4);
   assert.deepEqual([after.status, after.body.code], [409, 'proposal_used']);
 });

@@ -4,8 +4,9 @@
 // objects (data-object) and the text a viewer can actually see, with the font each text renders in.
 // Self-contained (no imports, no closures) so it can be serialized into a page. originRect is the
 // stage's top-left: Remotion parks its page off-screen; HyperFrames passes null (the composition root).
-export function probeDom(frame, originRect) {
-  const STAGE_W = 1920, STAGE_H = 1080;
+// stage {width, height}: the brief's stage size (contracts.js stageOf); the original 1920x1080 when omitted.
+export function probeDom(frame, originRect, stage) {
+  const STAGE_W = stage?.width ?? 1920, STAGE_H = stage?.height ?? 1080;
   const opacity = el => { let o = 1; for (let e = el; e && e.nodeType === 1; e = e.parentElement) { const s = getComputedStyle(e); if (s.display === 'none' || s.visibility === 'hidden') return 0; o *= Number(s.opacity); } return o; };
   const squash = s => s.replace(/\s+/g, ' ').trim();
   const o = originRect || document.querySelector('[data-composition-id]').getBoundingClientRect();

@@ -4,6 +4,7 @@
 // server, and one Generate. No Cancel: an unanswered proposal starts nothing. A superseded version ("Updated below") is inert.
 import { useId, useRef, useState } from 'react';
 import { proposalFields } from './proposal-capabilities.js';
+import AspectRatioSelect from './AspectRatioSelect.jsx';
 import { Button, Tip, cn } from './ui.jsx';
 
 // The card's fields come from the capability's declaration (CR-1's CHAT_CAPABILITIES settings via proposal-capabilities.js, MOT-20b): no capability has a
@@ -38,6 +39,11 @@ function SecondsField({ f, value, disabled, onChange }) {
   );
 }
 
+// A saved proposal without the setting is the original 16:9 (the field's declared default).
+function RatioField({ f, value, disabled, onChange }) {
+  return <div data-proposal-field={f.key}><AspectRatioSelect label={f.label} options={f.options} value={value ?? f.default} disabled={disabled} onChange={onChange} data-proposal-aspect-ratio /></div>;
+}
+
 function ToggleField({ f, value, disabled, onChange }) {
   const labelId = useId(); // unique per card: earlier versions stay in the chat history
   const on = value === true;
@@ -58,7 +64,7 @@ function ToggleField({ f, value, disabled, onChange }) {
   );
 }
 
-const FIELDS = { integer: SecondsField, boolean: ToggleField };
+const FIELDS = { integer: SecondsField, aspect_ratio: RatioField, boolean: ToggleField };
 function Settings({ command, settings, disabled, onChange }) {
   const fields = proposalFields(command).filter(f => FIELDS[f.type]);
   if (!fields.length) return null;

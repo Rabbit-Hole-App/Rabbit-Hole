@@ -42,7 +42,7 @@ export const approvesJob = p => p?.command === 'explain' && typeof p.input?.job 
 export function settingsConflict(problem, draft, messageId) {
   const current = problem?.status === 409 ? problem.data?.current : null;
   if (!current) return null;
-  const used = problem.data.code === 'proposal_used', seconds = s => `${s?.duration_seconds} seconds`;
+  const used = problem.data.code === 'proposal_used', seconds = s => `${s?.duration_seconds} seconds${s?.aspect_ratio ? `, ${s.aspect_ratio}` : ''}`;
   return { draft, current, here: String(problem.data.current_message_id) === String(messageId), retryable: !used,
     message: used ? `Not saved: this proposal already made a video. Your choice was ${seconds(draft)}.` : `Not saved: this proposal changed meanwhile. Latest: ${seconds(current.settings)} (version ${current.version}). Yours: ${seconds(draft)}.` };
 }

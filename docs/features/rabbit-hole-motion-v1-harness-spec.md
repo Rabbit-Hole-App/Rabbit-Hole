@@ -66,7 +66,7 @@ existing LEARN_MEDIA / LearnVideos storage
 existing `type: "video"` block via insertBlock
 ```
 
-**Duration:** any whole number of seconds from 5 to 30. Default 10 seconds when the learner gives none. See §2.2.
+**Duration:** any whole number of seconds from 5 to 60 (owner brief 2026-10-23; it was 30). The Motion form offers exactly 5, 10, 15 ... 60. Default 10 seconds when the learner gives none. See §2.2. **Aspect ratio:** the nine shared ratios (§2.2a), default 16:9.
 
 **Renderers** (owner decision 2026-10-04, locked): Motion V1 needs BOTH.
 
@@ -174,7 +174,7 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 
 ## 2.2 Duration
 
-**Motion V1 output is 5–30 seconds.** Internally every duration is a whole number of seconds from 5 to 30. Longer videos are the future long-form tier in [learn-video-motion-generation.md](learn-video-motion-generation.md), not V1.
+**Motion V1 output is 5–60 seconds** (owner brief 2026-10-23, replacing 5–30). Internally every duration is a whole number of seconds from 5 to 60. The proposal card offers exactly 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55 and 60 and the control plane refuses any other `duration_seconds`; a typed duration still takes the rounding below. Longer videos are the future long-form tier in [learn-video-motion-generation.md](learn-video-motion-generation.md), not V1.
 
 **Default:** 10 seconds when the learner supplies no duration.
 
@@ -183,7 +183,7 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 **Normalization** (owner decision, 2026-10-04):
 
 1. Round to the nearest whole second; `.5` rounds up (12.4s → 12s, 12.5s → 13s).
-2. Clamp to 5..30.
+2. Clamp to 5..60.
 3. Print the decision line whenever the used value differs from what was asked.
 
 | Learner wrote | Duration used | Decision line |
@@ -191,8 +191,9 @@ Every `/motion` run prints what it decided, one line per decision, so a wrong gu
 | (nothing) | 10s | `✓ duration: 10s (default)` |
 | `12 seconds` | 12s | `✓ duration: 12s` |
 | `25 sec` | 25s | `✓ duration: 25s` |
-| `45 sec` | 30s | `✓ duration: 30s (asked 45s; Motion V1 max is 30s)` |
-| `1 minute` | 30s | `✓ duration: 30s (asked 60s; Motion V1 max is 30s)` |
+| `45 sec` | 45s | `✓ duration: 45s` |
+| `1 minute` | 60s | `✓ duration: 60s` |
+| `90 sec` | 60s | `✓ duration: 60s (asked 90s; Motion V1 max is 60s)` |
 | `3 sec` | 5s | `✓ duration: 5s (asked 3s; Motion V1 min is 5s)` |
 | `12.4s` | 12s | `✓ duration: 12s (asked 12.4s)` |
 | `12.5s` | 13s | `✓ duration: 13s (asked 12.5s)` |
@@ -224,6 +225,14 @@ Complexity guide for the Director when choosing scope inside the duration:
 ```
 
 If a request cannot be taught coherently even in 30 seconds, narrow the objective or ask the learner what to focus on. Do not silently compress a whole chapter into an incoherent 30-second animation.
+
+## 2.2a Aspect ratio (owner brief 2026-10-23)
+
+The Motion form (the shared proposal card) offers the nine ratios of the shared table (`packages/web/src/aspect-ratios.js`, the same dropdown the image form uses): 9:16 portrait, 1:1 square, 16:9 landscape, 3:4 portrait, 4:3, 2:3, 3:2, 4:5, 5:4. The setting is `aspect_ratio` next to `duration_seconds` in the proposal's signed settings; a proposal or card saved without one is 16:9 and renders as before.
+
+Each ratio has one output size (`packages/learn-render/motion/stage-sizes.js`, 30 fps, never larger in area than 1920x1080, whole even dimensions at the 0.45 preview scale): 16:9 1920x1080, 9:16 1080x1920, 1:1 1080x1080, 4:3 1440x1080, 3:4 1080x1440, 3:2 1560x1040, 2:3 1040x1560, 5:4 1400x1120, 4:5 1120x1400. The control plane accepts a ratio only when it has a size there. The brief carries `aspect_ratio` and the matching `output_requirements`; the Author is told the stage, the static checks demand it as literals, and the final, preview, poster and RenderResult are checked against it, so a render at another size fails instead of being accepted as the selection.
+
+Limits that apply to the longer durations (unchanged by this brief): the render service stops a job at 420 s (its limits section), the final is at most 25 MB, a storyboard has 2 to 8 beats, and the hold and credit estimate are one flat figure per job. See the lane report for what is unmeasured.
 
 ## 2.3 Teaching mode hints
 

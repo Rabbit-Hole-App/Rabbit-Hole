@@ -99,13 +99,24 @@ test('the usage line: server credits on one line, never dollars', () => {
   assert.doesNotMatch(html(), /\$/);
 });
 
-test('the duration options are 5 to 30 seconds, the proposal\'s value selected', () => {
+test('the duration options are exactly 5, 10 ... 60 seconds, the value selected', () => {
   const out = html({ proposal: proposal({ settings: { duration_seconds: 20, audio: false } }) });
   const values = [...out.matchAll(/<option value="(\d+)"/g)].map(m => Number(m[1]));
-  assert.deepEqual(values, [5, 10, 15, 20, 25, 30]);
+  assert.deepEqual(values, [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]);
   assert.match(out, /<option value="20" selected="">20 seconds<\/option>/);
-  assert.deepEqual(B.durationOptions(12), [5, 10, 12, 15, 20, 25, 30], 'a whole second the server allowed stays selectable');
-  assert.ok(B.durationOptions(10).every(s => s >= 5 && s <= 30));
+  assert.match(out, /<option value="60">60 seconds<\/option>/);
+  // A proposal saved before the exact list may hold another whole second; its value stays visible instead of showing a wrong one.
+  assert.deepEqual(B.durationOptions(12), [5, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]);
+  assert.deepEqual(B.durationOptions(10), [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]);
+});
+
+test('the aspect ratio field lists the nine Motion ratios with the shared labels, 16:9 for a proposal saved without one', () => {
+  const out = html({ proposal: proposal({ settings: { duration_seconds: 10, audio: false } }) });
+  assert.match(out, /data-proposal-field="aspect_ratio"/);
+  assert.deepEqual([...out.matchAll(/<option value="(\d+:\d+)"/g)].map(m => m[1]), ['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4']);
+  assert.match(out, /<option value="16:9" selected="">16:9 landscape<\/option>/, 'no stored ratio is the original 16:9');
+  assert.match(html({ proposal: proposal({ settings: { duration_seconds: 10, aspect_ratio: '9:16', audio: false } }) }), /<option value="9:16" selected="">9:16 portrait<\/option>/);
+  assert.match(html({ active: false }), /<select[^>]*data-aspect-ratio-select[^>]*disabled=""/, 'a superseded card is inert');
 });
 
 test('a duration change sends the whole Motion settings with audio false', () => {
@@ -121,6 +132,19 @@ test('a duration change sends the whole Motion settings with audio false', () =>
   open(settings);
   select.props.onChange({ target: { value: '25' } });
   assert.deepEqual(changes, [{ duration_seconds: 25, audio: false }]);
+});
+
+test('an aspect ratio change keeps the duration and audio in the settings it sends', () => {
+  let el = null;
+  const changes = [];
+  const Probe = () => { const tree = B.Card({ proposal: proposal({ settings: { duration_seconds: 45, audio: false } }), onGenerate: () => {}, onSettingsChange: s => changes.push(s) }); el = tree; return tree; };
+  B.renderToStaticMarkup(B.createElement(Probe));
+  const settings = find(el, n => typeof n.type === 'function' && n.props?.settings);
+  let fields = null;
+  const Inner = () => { fields = settings.type(settings.props); return fields; };
+  B.renderToStaticMarkup(B.createElement(Inner));
+  find(fields, n => n.props?.f?.key === 'aspect_ratio').props.onChange('9:16');
+  assert.deepEqual(changes, [{ duration_seconds: 45, audio: false, aspect_ratio: '9:16' }]);
 });
 
 // MOT-20b: the fields are the capability's declaration (CHAT_CAPABILITIES settings), never a card of its own per capability.

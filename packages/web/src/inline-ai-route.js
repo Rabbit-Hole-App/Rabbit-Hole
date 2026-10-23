@@ -142,10 +142,12 @@ export const CHAT_ROUTE_PROTOCOL_VERSION = 'chat-route-c1';
 export const CHAT_ANSWER = Object.freeze({ intent: 'Reply in the chat: a question, an explanation, a definition, advice, or a question about a video, a picture, a feature or a tool (for example "can Motion make audio?" or "why is this video wrong?"), and any request that declines a format (for example "explain this, but don\'t make a video").' });
 export const CHAT_CAPABILITIES = Object.freeze({
   motion: { flow: 'proposal', intent: 'A new animated explainer video made for the learner, asked for as the output: for example "make this into a video" or "create a short animated explanation of X".',
-    // The shared card's fields, in key order: integer (min..max in steps of step, plus the proposal's own value) or boolean;
+    // The shared card's fields, in key order: integer (min..max in steps of step, plus the proposal's own value), aspect_ratio (options) or boolean;
     // available: false shows the control disabled with `unavailable` as the reason.
     settings: Object.freeze({
-      duration_seconds: Object.freeze({ type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 }),
+      duration_seconds: Object.freeze({ type: 'integer', label: 'Duration', min: 5, max: 60, step: 5 }),
+      // The ratios Motion's renderer produces (control-plane motion-settings.js MOTION_STAGE_SIZES; a test keeps the two equal).
+      aspect_ratio: Object.freeze({ type: 'aspect_ratio', label: 'Aspect ratio', options: Object.freeze(['9:16', '1:1', '16:9', '3:4', '4:3', '2:3', '3:2', '4:5', '5:4']), default: '16:9' }),
       audio: Object.freeze({ type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' }),
     }) },
   video: { flow: 'direct', intent: 'A new generated realistic video clip of a real-world scene or footage, not an explainer of an idea.' },

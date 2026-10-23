@@ -15,6 +15,7 @@ import { MotionRequestProvider, motionReservationMicros } from './motion-provide
 import { CHAT_CAPABILITIES, chatCapability } from '../../web/src/inline-ai-route.js';
 import { hmacHex } from './token.js';
 import { explainReservation } from './explain-policy.js';
+import { MOTION_DEFAULT_RATIO, MOTION_DURATIONS, MOTION_RATIOS, validateMotionVideoSettings } from './motion-settings.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
@@ -29,19 +30,18 @@ export const WIRED = Object.freeze(Object.keys(CHAT_CAPABILITIES).filter(reviewR
 // The chat model is offered only WIRED; /explain joins it when its capability is declared (Lane B, CHAT_CAPABILITIES).
 export const SIGNABLE = Object.freeze([...new Set([...WIRED, 'explain'])]);
 
-// Motion's settings (learn-render motion/duration.js DURATION). Audio On stays unavailable until narration works.
-// The bounds are the declaration's Duration field: one definition with the card.
-export const MOTION_DURATION = Object.freeze({ min: CHAT_CAPABILITIES.motion.settings.duration_seconds.min, max: CHAT_CAPABILITIES.motion.settings.duration_seconds.max });
+// Motion's settings (motion-settings.js: duration_seconds, aspect_ratio; learn-render motion/duration.js DURATION). Audio On stays
+// unavailable until narration works.
+export const MOTION_DURATION = Object.freeze({ min: MOTION_DURATIONS[0], max: MOTION_DURATIONS.at(-1) });
 const SETTINGS = {
   motion(value) {
-    if (!plain(value)) return { error: 'settings must be {duration_seconds, audio}' };
-    const extra = Object.keys(value).find(k => !['duration_seconds', 'audio'].includes(k));
+    if (!plain(value)) return { error: 'settings must be {duration_seconds, aspect_ratio, audio}' };
+    const extra = Object.keys(value).find(k => !['duration_seconds', 'aspect_ratio', 'audio'].includes(k));
     if (extra) return { error: `settings.${extra} is not a Motion setting` };
     if (value.audio === true) return { error: 'narration audio is not available yet; propose the video without it' };
     if (value.audio !== undefined && value.audio !== false) return { error: 'settings.audio must be false' };
-    const seconds = value.duration_seconds;
-    if (!Number.isInteger(seconds) || seconds < MOTION_DURATION.min || seconds > MOTION_DURATION.max) return { error: `settings.duration_seconds must be a whole number from ${MOTION_DURATION.min} to ${MOTION_DURATION.max}` };
-    return { value: { duration_seconds: seconds, audio: false } };
+    const checked = validateMotionVideoSettings(value);
+    return checked.error ? checked : { value: { ...checked.value, audio: false } };
   },
   // /explain (EXP-T12 slice 3): an optional presentation (plan section 1.2); no Duration or Audio, which belong to Motion.
   explain(value) {
@@ -71,7 +71,7 @@ export const PROPOSAL_TOOL = {
       command: { type: 'string', enum: WIRED, description: 'motion: a short animated explainer video.' },
       title: { type: 'string', description: 'A short, specific title, at most 80 characters.' },
       description: { type: 'string', description: 'What the result will contain, in order: 3 to 10 complete sentences, normally 3 or 4. For a video it is the brief of what it shows, not its narration. No labels, lists, ids or code names.' },
-      settings: { type: 'object', description: `motion: {duration_seconds: what the learner asked for, else 10 to 20 (${MOTION_DURATION.min} to ${MOTION_DURATION.max}), audio: false}.` },
+      settings: { type: 'object', description: `motion: {duration_seconds: the closest of ${MOTION_DURATIONS.join(', ')} to what the learner asked for, else 10 to 20; aspect_ratio: one of ${MOTION_RATIOS.join(', ')}, as the learner asked for, else ${MOTION_DEFAULT_RATIO}; audio: false}.` },
       source_ref_ids: { type: 'array', items: { type: 'string' }, description: 'The sourceIds of attached materials it is about; empty when none.' },
     },
   },
@@ -258,4 +258,5 @@ export async function currentRevision(db, user, app, p) {
 }
 
 // What the orchestrator's Director takes as binding input (orchestrator.mjs approved_proposal).
-export const approvedProposal = p => ({ title: p.title, duration_seconds: p.settings.duration_seconds, description: p.description });
+// aspect_ratio: a proposal saved before the setting existed has none, which is the original 16:9.
+export const approvedProposal = p => ({ title: p.title, duration_seconds: p.settings.duration_seconds, aspect_ratio: p.settings.aspect_ratio ?? MOTION_DEFAULT_RATIO, description: p.description });

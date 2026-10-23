@@ -40,7 +40,7 @@ test('generic: only declared capabilities are proposed; fields and the Generate 
   const { CHAT_CAPABILITIES } = await import('./inline-ai-route.js');
   assert.deepEqual(Object.keys(CHAT_CAPABILITIES).filter(reviewRequired), ['motion']);
   assert.deepEqual(['motion', 'search', 'dive', 'notebook', 'whiteboard', 'explain', 'video', 'flashcards'].map(reviewRequired), [true, false, false, false, false, false, false, false], 'search, navigation and blank inserts stay direct; nothing else is enabled');
-  assert.deepEqual(proposalFields('motion').map(f => [f.key, f.type, f.available ?? true]), [['duration_seconds', 'integer', true], ['audio', 'boolean', false]]);
+  assert.deepEqual(proposalFields('motion').map(f => [f.key, f.type, f.available ?? true]), [['duration_seconds', 'integer', true], ['aspect_ratio', 'aspect_ratio', true], ['audio', 'boolean', false]]);
   assert.deepEqual(proposalFields('flashcards'), [], 'no duration or audio where a capability does not declare them');
   assert.equal(proposalBlock(p('gp-x', 1, { command: 'flashcards' })), null, 'no adapter: no card to add');
   assert.equal(proposalBlock(p('gp-y', 1)).operation.op, 'motion_request');
@@ -177,6 +177,8 @@ test('a refused settings save keeps the draft beside the latest; a lost chat ref
   const same = settingsConflict(refusal('proposal_stale', '40'), draft, 40);
   assert.deepEqual([same.here, same.retryable, same.draft, same.current], [true, true, draft, v2], 'this card shows the latest; Use mine saves the draft from it');
   assert.equal(same.message, 'Not saved: this proposal changed meanwhile. Latest: 20 seconds (version 2). Yours: 30 seconds.');
+  const withRatio = settingsConflict(refusal('proposal_stale', '40'), { duration_seconds: 45, aspect_ratio: '9:16', audio: false }, 40);
+  assert.equal(withRatio.message, 'Not saved: this proposal changed meanwhile. Latest: 20 seconds (version 2). Yours: 45 seconds, 9:16.', 'a saved ratio is named too');
   assert.equal(settingsConflict(refusal('proposal_stale', '41'), draft, 40).here, false, 'the latest is on another answer');
   const used = settingsConflict(refusal('proposal_used', '40'), draft, 40);
   assert.deepEqual([used.retryable, used.message], [false, 'Not saved: this proposal already made a video. Your choice was 30 seconds.']);

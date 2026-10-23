@@ -10,7 +10,7 @@
 // duration_over_max, corrupt_output and renderer_failure are the harness's own checks.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ADVISORY_CATEGORIES, MODEL_ROLES, STAGE, afterMalformed, validateFinding } from './contracts.js';
+import { ADVISORY_CATEGORIES, MODEL_ROLES, STAGE, afterMalformed, stageOf, validateFinding } from './contracts.js';
 import { callRecord } from './director.js';
 import { resolveRole } from './model-config.js';
 import { readMessage } from './stream-message.js';
@@ -108,7 +108,7 @@ export function reviewRequest(reviewer, brief, frames, dir, { effort = 'high', m
     tools: [reviewTool(reviewer)],
     tool_choice: { type: 'auto' },
     messages: [{ role: 'user', content: [
-      { type: 'text', text: `Review this ${brief.duration.seconds}-second explainer (${STAGE.width}x${STAGE.height}, ${STAGE.fps} fps).\n\ninput = ${JSON.stringify(reviewContext(reviewer, brief))}\n\nThe ${frames.length} frames below are sampled in time order: the first frame, every beat start and middle, the keyframes and the last frame.` },
+      { type: 'text', text: `Review this ${brief.duration.seconds}-second explainer (${stageOf(brief).width}x${stageOf(brief).height}, ${STAGE.fps} fps).\n\ninput = ${JSON.stringify(reviewContext(reviewer, brief))}\n\nThe ${frames.length} frames below are sampled in time order: the first frame, every beat start and middle, the keyframes and the last frame.` },
       ...images,
     ] }],
   };

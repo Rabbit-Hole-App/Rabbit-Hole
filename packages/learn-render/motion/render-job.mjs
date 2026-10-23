@@ -13,7 +13,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { PNG } from 'pngjs';
-import { DEFAULT_RENDERER, RENDER_ARTIFACTS, RENDER_RESULT_SCHEMA, RENDER_SCHEMA, STAGE, validateRenderRequest, validateRenderResult } from './contracts.js';
+import { DEFAULT_RENDERER, RENDER_ARTIFACTS, RENDER_RESULT_SCHEMA, RENDER_SCHEMA, STAGE, stageOf, validateRenderRequest, validateRenderResult } from './contracts.js';
 import { coverageErrors, coverageFrames, determinismFrames, nonblankFrames } from './render-coverage.js';
 import { FONT_PINS, NONBLANK_MIN_LUMA_STDDEV, OUTPUT_MAX_BYTES, beatAt, contactFrames, decodeFrames, lumaStddev, nonblankCheck, probe, validateFinalVideo } from './renderer-common.mjs';
 import { rendererGate } from './renderers.mjs';
@@ -62,7 +62,7 @@ export async function localService({ timeoutMs, log = () => {} } = {}) {
 }
 
 export function previewChecks({ v, size }, brief) {
-  const scale = brief.output_requirements.preview_scale, w = Math.round(STAGE.width * scale), h = Math.round(STAGE.height * scale), frames = brief.duration.seconds * STAGE.fps;
+  const stage = stageOf(brief), scale = brief.output_requirements.preview_scale, w = Math.round(stage.width * scale), h = Math.round(stage.height * scale), frames = brief.duration.seconds * STAGE.fps;
   return [
     ['frame count', Number(v.nb_read_frames) === frames, `${v.nb_read_frames} (want ${frames})`],
     ['fps', v.r_frame_rate === `${STAGE.fps}/1`, v.r_frame_rate],
@@ -88,7 +88,8 @@ export async function validateArtifacts({ dir, brief, storyboard, record }) {
   catch (error) { row('preview.mp4', 'decodes', false, firstLine(error)); }
   const png = (name, fn) => { let img; try { img = PNG.sync.read(readFileSync(join(dir, name))); } catch (error) { return row(name, 'decodes', false, firstLine(error)); } fn(img); };
   png('poster.png', img => {
-    row('poster.png', 'resolution', img.width === STAGE.width && img.height === STAGE.height, `${img.width}x${img.height}`);
+    const stage = stageOf(brief);
+    row('poster.png', 'resolution', img.width === stage.width && img.height === stage.height, `${img.width}x${img.height} (want ${stage.width}x${stage.height})`);
     row('poster.png', 'nonblank', lumaStddev(img) > 2, `luma stddev ${lumaStddev(img).toFixed(2)}`);
     const last = record.determinism?.frames?.at(-1);
     row('poster.png', 'last frame', last?.frame === brief.duration.seconds * STAGE.fps - 1 && sha256(img.data) === last?.hashes?.[0], `#${last?.frame}: pixels ${sha256(img.data).slice(0, 12)} vs determinism ${String(last?.hashes?.[0]).slice(0, 12)}`);
@@ -101,7 +102,7 @@ export async function validateArtifacts({ dir, brief, storyboard, record }) {
 // One tile per contact frame at preview scale (remotion-renderer.mjs contactSheet), not blank.
 function contactSheetRows(img, brief, storyboard, record) {
   const n = contactFrames(brief, storyboard).length, scale = brief.output_requirements.preview_scale;
-  const w = Math.round(STAGE.width * scale), h = Math.round(STAGE.height * scale), rows4 = Math.ceil(n / 4);
+  const stage = stageOf(brief), w = Math.round(stage.width * scale), h = Math.round(stage.height * scale), rows4 = Math.ceil(n / 4);
   const want = [4 * w + 5 * 16, rows4 * (h + 44) + (rows4 + 1) * 16];
   return [
     ['tiles', img.width === want[0] && img.height === want[1] && record.contact_sheet?.length === n, `${img.width}x${img.height}, ${record.contact_sheet?.length} tiles (want ${want.join('x')}, ${n} tiles)`],
@@ -137,7 +138,7 @@ function gate(brief, storyboard, author, renderer = DEFAULT_RENDERER) {
   const source = String(request.composition.source || '');
   const checks = rendererGate(renderer);
   const contract = checks.contract(source, brief, storyboard);
-  const errors = [...validateRenderRequest(request), ...checks.staticErrors(source, { durationSeconds: brief.duration.seconds, compositionId: request.composition.composition_id }), ...contract.errors];
+  const errors = [...validateRenderRequest(request), ...checks.staticErrors(source, { durationSeconds: brief.duration.seconds, compositionId: request.composition.composition_id, stage: stageOf(brief) }), ...contract.errors];
   return errors.length ? { reason: 'invalid_job', errors } : { request, source, contract };
 }
 
@@ -189,7 +190,7 @@ export async function renderComposition({ brief, storyboard, author, service, di
   const done = (status, failure) => {
     Object.assign(result, { status }, failure ? { failure } : {});
     result.timings.total_s = secs(now() - t0);
-    const errors = validateRenderResult(result);
+    const errors = validateRenderResult(result, brief);
     if (errors.length) throw new Error(`render-job built an invalid RenderResult: ${errors.join('; ')}`);
     return { submitted: true, result };
   };

@@ -42,10 +42,12 @@ const secs = ms => +(ms / 1000).toFixed(1);
 // with its review state (unreviewed | blocking | accepted), that review's verbatim findings and its preview's keyframes.
 export const CAUSES = Object.freeze(['renderer', 'content', 'missing_context', 'model', 'limit', 'stopped']);
 
-// What a brief must keep of the approved proposal (MOT-20): its exact title and its duration.
+// What a brief must keep of the approved proposal (MOT-20): its exact title, its duration and its aspect ratio.
 export const approvedErrors = (brief, approved) => (!approved ? [] : [
   ...(brief.title === approved.title ? [] : [`title ${JSON.stringify(brief.title)} is not the approved ${JSON.stringify(approved.title)}`]),
   ...(brief.duration?.seconds === approved.duration_seconds ? [] : [`duration ${brief.duration?.seconds}s is not the approved ${approved.duration_seconds}s`]),
+  // An approval without a ratio (made before the setting existed) is the original 16:9.
+  ...(brief.aspect_ratio === (approved.aspect_ratio ?? '16:9') ? [] : [`aspect ratio ${brief.aspect_ratio} is not the approved ${approved.aspect_ratio ?? '16:9'}`]),
 ]);
 
 // context: motion_request.context (control-plane motion-context.js), the learner's selected card.

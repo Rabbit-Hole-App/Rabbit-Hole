@@ -2,9 +2,16 @@
 // that return error strings ([] = valid); no schema library, no I/O, no dependencies, so the
 // render harness here and the future orchestrator (M2-M7, Node or Worker) import the same file.
 import { DURATION, normalizeSeconds } from './duration.js';
+import { MOTION_DEFAULT_RATIO, MOTION_RATIOS, MOTION_STAGE_SIZES } from './stage-sizes.js';
 
 export const PROMPT_SPEC_VERSION = 'motion-v1.0';
+// The original (16:9) stage. A brief's own stage is stageFor(brief.aspect_ratio): Motion renders the ratios in
+// stage-sizes.js MOTION_STAGE_SIZES, each at this frame rate.
 export const STAGE = Object.freeze({ width: 1920, height: 1080, fps: 30 });
+export const stageFor = (ratio = MOTION_DEFAULT_RATIO) => Object.freeze({ ...MOTION_STAGE_SIZES[ratio], fps: STAGE.fps });
+// The stage a brief (or any record that carries aspect_ratio) is rendered at; an old one without a ratio is 16:9.
+export const stageOf = brief => stageFor(brief?.aspect_ratio ?? MOTION_DEFAULT_RATIO);
+export { MOTION_RATIOS };
 // M7B: two render backends behind one contract. The brief and storyboard never name one; the Author
 // gets an explicit target, and Remotion stays the default until M8 compares them.
 export const RENDERERS = Object.freeze(['remotion', 'hyperframes']);
@@ -164,21 +171,23 @@ export function validateBrief(b) {
     if (typeof c?.required !== 'boolean') e.push(`${at}.required: boolean`);
   });
 
-  // Duration: whole seconds 5..30, and exactly what the parser decided (never silently changed).
+  // Duration: whole seconds 5..60, and exactly what the parser decided (never silently changed).
   const d = b.duration;
   if (!d || !int(d.seconds) || d.seconds < DURATION.min || d.seconds > DURATION.max) e.push(`brief.duration.seconds: integer ${DURATION.min}..${DURATION.max}`);
   else if (d.requested_seconds === undefined ? d.seconds !== DURATION.default : d.seconds !== normalizeSeconds(d.requested_seconds)) e.push(`brief.duration.seconds: ${d.seconds} is not the normalized request (the Director never lengthens or silently changes it)`);
   else if (d.requested_seconds !== undefined && d.seconds !== d.requested_seconds && !str(d.normalization)) e.push('brief.duration.normalization: the decision line is required when seconds differ from the request');
 
-  if (b.aspect_ratio !== '16:9') e.push('brief.aspect_ratio: "16:9" in V1');
+  if (!MOTION_RATIOS.includes(b.aspect_ratio)) e.push(`brief.aspect_ratio: one of ${MOTION_RATIOS.join(' | ')}`);
   if (!TEACHING_MODES.includes(b.teaching_mode)) e.push(`brief.teaching_mode: one of ${TEACHING_MODES.join(' | ')}`);
   if (b.teaching_mode === 'intuition_first' && (!arr(b.analogy_map) || !b.analogy_map.length || b.analogy_map.some(a => !str(a?.analogy_element) || !str(a?.real_concept) || !str(a?.limit)))) e.push('brief.analogy_map: intuition_first needs {analogy_element, real_concept, limit} entries');
   for (const k of ['must_show', 'must_not_claim']) if (!arr(b[k]) || !b[k].length || b[k].some(x => !str(x))) e.push(`brief.${k}: non-empty list of strings`);
   if (!NARRATION_POLICIES.includes(b.narration_policy)) e.push(`brief.narration_policy: one of ${NARRATION_POLICIES.join(' | ')}`);
   const o = b.output_requirements;
-  if (!o || o.stage_width !== STAGE.width || o.stage_height !== STAGE.height || o.fps !== STAGE.fps || o.poster !== true || !(o.preview_scale > 0 && o.preview_scale < 1)) e.push('brief.output_requirements: {stage_width: 1920, stage_height: 1080, fps: 30, preview_scale in (0, 1), poster: true}');
+  // The stage is the aspect ratio's size (stageFor), never a size the brief chooses: nothing renders at a size the ratio does not name.
+  const stage = MOTION_RATIOS.includes(b.aspect_ratio) ? stageFor(b.aspect_ratio) : STAGE;
+  if (!o || o.stage_width !== stage.width || o.stage_height !== stage.height || o.fps !== stage.fps || o.poster !== true || !(o.preview_scale > 0 && o.preview_scale < 1)) e.push(`brief.output_requirements: {stage_width: ${stage.width}, stage_height: ${stage.height} (for ${b.aspect_ratio}), fps: 30, preview_scale in (0, 1), poster: true}`);
   // Remotion needs whole, even output dimensions: 0.45 -> 864x486 (the ~854x480 preview), 0.5 -> 960x540.
-  else if ([STAGE.width, STAGE.height].some(n => !Number.isInteger(n * o.preview_scale) || (n * o.preview_scale) % 2)) e.push(`brief.output_requirements.preview_scale: ${o.preview_scale} must give whole, even preview dimensions (e.g. 0.45 -> 864x486)`);
+  else if ([stage.width, stage.height].some(n => !Number.isInteger(n * o.preview_scale) || (n * o.preview_scale) % 2)) e.push(`brief.output_requirements.preview_scale: ${o.preview_scale} must give whole, even preview dimensions (e.g. 0.45 -> 864x486)`);
   const q = b.qa_requirements;
   if (!q || !arr(q.blocking_categories) || !q.blocking_categories.length || q.blocking_categories.some(c => !BLOCKING_CATEGORIES.includes(c))) e.push('brief.qa_requirements.blocking_categories: non-empty subset of the §13.1 categories');
   if (q?.keyframe_times && (!arr(q.keyframe_times) || q.keyframe_times.some(t => typeof t !== 'number' || t < 0 || t > (d?.seconds ?? 0)))) e.push('brief.qa_requirements.keyframe_times: seconds inside the video');
@@ -305,7 +314,8 @@ export const RENDER_ORIGINS = Object.freeze({ storyboard: ['model_generated', 'f
 const RESULT_KEYS = ['schema', 'status', 'render_id', 'composition_id', 'renderer', 'duration_seconds', 'fps', 'width', 'height', 'artifacts', 'hashes', 'validation', 'resources', 'timings', 'provenance', 'failure'];
 const PROVENANCE_KEYS = ['motion_job_id', 'prompt_spec_version', 'brief_sha256', 'storyboard_sha256', 'composition_sha256', 'source_bytes', 'source_chars', 'storyboard_origin', 'composition_origin', 'fonts'];
 const SHA256 = /^[0-9a-f]{64}$/;
-export function validateRenderResult(r) {
+// brief: the job's brief when the caller has it, so a ready result must be at ITS stage; without it, any supported stage.
+export function validateRenderResult(r, brief = null) {
   if (!r || typeof r !== 'object' || Array.isArray(r)) return ['render_result: not an object'];
   const e = [];
   for (const k of Object.keys(r)) if (!RESULT_KEYS.includes(k)) e.push(`render_result.${k}: unknown field`);
@@ -331,7 +341,8 @@ export function validateRenderResult(r) {
     for (const k of Object.keys(RENDER_ARTIFACTS)) if (!r.artifacts?.[k]) e.push(`render_result.artifacts.${k}: required when ready`);
     if (r.validation?.ok !== true) e.push('render_result.validation.ok: ready needs every check to pass');
     for (const k of ['final', 'artifacts', 'coverage', 'determinism', 'preview_final']) if (r.validation?.[k]?.ok !== true) e.push(`render_result.validation.${k}.ok: ready needs it`);
-    if (r.fps !== STAGE.fps || r.width !== STAGE.width || r.height !== STAGE.height) e.push(`render_result: ready is ${STAGE.width}x${STAGE.height} at ${STAGE.fps} fps`);
+    const sizes = brief ? [stageOf(brief)] : MOTION_RATIOS.map(stageFor);
+    if (r.fps !== STAGE.fps || !sizes.some(s => s.width === r.width && s.height === r.height)) e.push(`render_result: ready is ${sizes.map(s => `${s.width}x${s.height}`).join(' or ')} at ${STAGE.fps} fps (got ${r.width}x${r.height})`);
     if (!(r.duration_seconds > 0)) e.push('render_result.duration_seconds: required when ready');
   } else if (!/^[a-z0-9_]+$/.test(r.failure?.category || '') || typeof r.failure?.detail !== 'string') e.push('render_result.failure: {category, detail} when not ready');
   // The learner's own words never travel with a render (the brief keeps them; hashes stand in).

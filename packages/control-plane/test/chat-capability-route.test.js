@@ -36,8 +36,8 @@ test('every declared chat capability is a Learn command; proposal flow exactly w
   // so the router never offers it unless the server enables /explain v2.
   assert.deepEqual([CHAT_CAPABILITIES.explain.flow, CHAT_CAPABILITIES.explain.guarded], ['direct', true]);
   assert.equal(CHAT_ROUTES.explain, undefined, 'not a plain-words route by default');
-  assert.deepEqual(Object.keys(chatCapability('motion').settings), ['duration_seconds', 'audio'], 'card field order');
-  assert.deepEqual(chatCapability('motion').settings.duration_seconds, { type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 });
+  assert.deepEqual(Object.keys(chatCapability('motion').settings), ['duration_seconds', 'aspect_ratio', 'audio'], 'card field order');
+  assert.deepEqual(chatCapability('motion').settings.duration_seconds, { type: 'integer', label: 'Duration', min: 5, max: 60, step: 5 });
   assert.deepEqual(chatCapability('motion').settings.audio, { type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' });
   assert.equal(chatCapability('youtube').settings, null, 'search gets no generation card fields');
 });
