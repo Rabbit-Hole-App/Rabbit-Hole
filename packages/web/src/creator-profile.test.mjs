@@ -201,7 +201,7 @@ test('Explore and the Library render the same Filters control with the same Type
   assert.match(home, /import \{ ActiveFilters, LibraryFilters \} from '\.\/LibraryViews\.jsx';/);
   assert.match(explore, /\{tab === 'explainers' && <LibraryFilters type=\{type\} path="\/explore" types=\{EXPLORE_TYPES\} \/>\}\n\s+\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'beside Sort, as in the Library');
   assert.match(explore, /<ActiveFilters type=\{type\} path="\/explore" \/>/, 'the same active-filter chip');
-  assert.match(read('./App.jsx'), /<LibraryFilters type=\{type\} section=\{section\} archived=\{archived\} \/>/, 'the Library\'s');
+  assert.match(read('./App.jsx'), /<LibraryFilters type=\{type\} section=\{section\} archived=\{archived\} menuClass=\{[^\n]*\} \/>/, 'the Library\'s (its menu opens left when the search is hidden; owner brief 2026-10-23)');
   const views = read('./LibraryViews.jsx'), control = views.slice(views.indexOf('export function LibraryFilters'), views.indexOf('export function ActiveFilters'));
   assert.match(control, /\{types\.map\(\(k\) => item\(TYPES\[k\]\.label, /, 'one row per type, its Library label');
   for (const own of ["{library && item('Archived canvas'", "{library && heading('Ownership')}", '{library && Object.entries(SCOPES)']) assert.ok(control.includes(own), `the Library's alone: ${own}`);

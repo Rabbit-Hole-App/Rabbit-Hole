@@ -195,13 +195,13 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
 
 // The sort control (§17-18): one neutral button and a menu with the current choice checked, the Filters pattern. `size`:
 // the Library's sits beside Filters at its height (md); Explore's stays sm.
-export function SortMenu({ options, value, onChange, size = 'sm' }) {
+export function SortMenu({ options, value, onChange, size = 'sm', menuClass = 'top-9 right-0 w-52' }) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.id === value) || options[0];
   return (
     <div className="relative">
       <Button variant="secondary" size={size} data-sort-control={current.id} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ArrowDownUp size={13} /> Sort: {current.label}</Button>
-      <Menu open={open} onClose={() => setOpen(false)} className="top-9 right-0 w-52">
+      <Menu open={open} onClose={() => setOpen(false)} className={menuClass}>
         <div className="px-2 pb-1 pt-2 text-xs text-ink-3">Sort by</div>
         {options.map((o) => (
           <MenuItem key={o.id} role="menuitemradio" aria-checked={o.id === current.id} data-sort-option={o.id} onClick={() => { setOpen(false); onChange(o.id); }}>

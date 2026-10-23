@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, FolderPlus, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ArrowUpDown, ArrowUpRight, Calendar, ChevronDown, ChevronRight, Circle, Clock, Eye, EyeOff, Folder as FolderIcon, FolderPlus, Inbox, Link as LinkIcon, ListFilter, Loader2, Lock, MoreHorizontal, PanelRight, Play, Plus, Search, Settings2, Square, Type, Users, X } from 'lucide-react';
 import { ago, api, cronHuman, cronList, fmtTime, navigate, sectionOf, wsName } from './api.js';
 import Panel from './Panel.jsx';
 import Shell from './Shell.jsx';
@@ -232,12 +232,18 @@ function AppContent({ data, load }) {
             <span className="px-1">/</span> <span className="text-ink">{title}</span>
           </div>}
           {openFolder && <FolderCrumb folder={openFolder} onDropOut={lib.unfile} />}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5"><h1 className="min-w-0 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{openFolder ? <FolderTitle folder={openFolder} /> : title}</h1>{learnPreview && <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2">{!archived && type !== 'apps' && <div className="w-48 max-md:w-32"><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} /></div>}<LibraryFilters type={type} section={section} archived={archived} />{!archived && type !== 'apps' && <SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} />}{!archived && type !== 'apps' && <CardSize />}
+          {/* Library header (owner brief 2026-10-23): title row = Library, New folder, Start a rabbit hole; controls row = Search by name + Filters, then Sort and Size at the far right. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5"><h1 className="min-w-0 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{openFolder ? <FolderTitle folder={openFolder} /> : title}</h1>{learnPreview && <div data-library-actions className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-3">
             {/* New folder beside the filters (library-folders.md); inside a folder, its ⋮ (Rename, Colour, Delete) takes the spot. */}
             {!archived && type !== 'apps' && data && !data.error && (openFolder
               ? <IconBtn title="Folder options" aria-label={`Options for ${openFolder.name}`} data-folder-more className="h-8 w-8 rounded-lg border border-line-strong bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]" onClick={lib.onMore(openFolder)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>
-              : <Button variant="secondary" data-new-folder onClick={() => lib.newFolder()}><FolderPlus size={14} /><span className="max-md:hidden">New folder</span></Button>)}
-            <Button variant="primary" onClick={startRabbitHole}>Start a rabbit hole</Button></div>}</div>
+              : <Button variant="secondary" data-new-folder onClick={() => lib.newFolder()}><FolderPlus size={14} />New folder</Button>)}
+            <Button variant="primary" onClick={startRabbitHole}><Plus size={14} />Start a rabbit hole</Button></div>}</div>
+          {learnPreview && <div data-library-controls className="flex flex-wrap items-center gap-x-3 gap-y-3 pb-5">
+            <div className="flex min-w-0 items-center gap-2 max-md:w-full md:flex-1 md:basis-72">
+              {!archived && type !== 'apps' && <label className="relative block min-w-0 flex-1"><Search size={15} strokeWidth={1.75} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" /><Input type="search" data-library-search aria-label="Search by name" placeholder="Search by name" value={find} onChange={(e) => setFind(e.target.value)} className="pl-9" /></label>}
+              <LibraryFilters type={type} section={section} archived={archived} menuClass={!archived && type !== 'apps' ? undefined : 'top-10 left-0 w-56'} /></div>
+            {!archived && type !== 'apps' && <div data-library-view className="ml-auto flex items-center gap-3 max-md:w-full max-md:justify-between"><SortMenu size="md" options={LIBRARY_SORTS} value={cardSort} onChange={chooseSort} menuClass="top-9 right-0 w-52 max-md:right-auto max-md:left-0" /><CardSize /></div>}</div>}
           {learnPreview && <ActiveFilters type={type} section={section} archived={archived} />}
           {/* The preview sidebar has no Apps section, so an AWS catalog error shows here instead. */}
           {learnPreview && data?.awsError && <p role="alert" className="pb-4 text-xs text-danger">{data.awsError}</p>}
