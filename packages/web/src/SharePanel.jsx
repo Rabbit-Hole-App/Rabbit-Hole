@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, CircleAlert, Compass, Copy, Eye, Globe } from 'lucide-react';
+import { Check, CircleAlert, Code2, Compass, Copy, Eye, Globe } from 'lucide-react';
+import EmbedPanel from './EmbedPanel.jsx';
+import { embedSources } from './embed-api.js';
 
 // The Share popover for a Learn board (docs/features/canvas-sharing.md): one
 // switch shares or stops sharing; the view link can be public (no sign-in).
@@ -79,10 +81,26 @@ function ExploreRow({ published, token, busy, onPublish }) {
   );
 }
 
+// Embed (SHARE-04): the standalone EmbedPanel in a collapsed row, only when the canvas has a public source to embed.
+function EmbedRow({ sharing, title, onChangeAccess }) {
+  const [open, setOpen] = useState(false);
+  const sources = embedSources(sharing, window.location.origin);
+  if (!sources.some(source => source.available)) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-line p-2.5">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="flex w-full items-center gap-2 text-left">
+        <Code2 size={14} className="shrink-0 text-ink-2" />
+        <span className="min-w-0 flex-1"><span className="block text-sm text-ink">Embed</span><span className="block text-xs text-ink-3">Put this canvas in a website or an email</span></span>
+      </button>
+      {open && <div className="mt-2"><EmbedPanel canvasTitle={title} sources={sources} onChangeAccess={onChangeAccess} /></div>}
+    </div>
+  );
+}
+
 // onPublish(publish): Publish to Explore / Remove from Explore - only for a top-level canvas.
 // `place`: where it sits - under the canvas top bar's Share button, or the Library's popup (LibraryViews.jsx).
 // comments: the canvas's comment settings (docs/features/canvas-comments.md section 4), rendered by the page that owns them.
-export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null }) {
+export default function SharePanel({ sharing, busy, error, onChange, onPublish = null, onClose, place = 'absolute top-full right-0 mt-2', comments = null, title = '' }) {
   const panel = useRef(null);
   useEffect(() => {
     const away = event => { if (!panel.current?.contains(event.target) && !event.target.closest?.('[data-share-button]')) onClose(); };
@@ -134,6 +152,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onPublish =
       )}
       {onPublish && <ExploreRow published={!!current.published} token={current.publication} busy={busy} onPublish={onPublish} />}
       {comments}
+      <EmbedRow sharing={sharing} title={title} onChangeAccess={() => panel.current?.querySelector('[role="switch"]')?.focus()} />
       {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
     </div>
   );
