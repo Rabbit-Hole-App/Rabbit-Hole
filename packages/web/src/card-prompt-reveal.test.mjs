@@ -47,6 +47,8 @@ async function mount(element) {
 test.after(async () => { if (root) await B.act(async () => root.unmount()); }); // the running status ticks every second
 const card = () => document.getElementById('card');
 const fire = (target, type) => B.act(async () => { target.dispatchEvent(new window.Event(type, { bubbles: type !== 'pointerenter' && type !== 'pointerleave' })); });
+// A touch tap: React reads pointerType from the pointerdown event itself.
+const touch = target => B.act(async () => { const event = new window.Event('pointerdown', { bubbles: true }); event.pointerType = 'touch'; target.dispatchEvent(event); });
 const query = selector => document.querySelector(selector);
 const click = element => B.act(async () => { element.click(); });
 const mountCard = (props = { text: 'a 100 mm cube' }) => mount(B.createElement('div', { id: 'card', tabIndex: 0 }, B.createElement(B.CardPrompt, props)));
@@ -129,6 +131,8 @@ test('the generation status shows a cad pill, hides the prompt by default and ke
   assert.equal(pill.textContent, 'cad');
   assert.equal(pill.getAttribute('aria-label'), 'cad command');
   assert.doesNotMatch(status(), /\/cad|a 100 mm cube/, 'no slash, no prompt at rest');
+  assert.equal(query('[data-card-prompt-show]'), null, 'at rest there is no Show prompt button either (owner review 2026-10-23)');
+  await fire(query('[data-gen-indicator]'), 'pointerover');
   await click(query('[data-card-prompt-show]'));
   assert.equal(query('[data-card-prompt-text]').textContent, 'a 100 mm cube');
   assert.doesNotMatch(status().replace('/cad a 100 mm cube', ''), /\/cad/);
@@ -143,8 +147,35 @@ test('a status for another command hides its line the same way, without a cad pi
   await mount(B.createElement(B.GenerationIndicator, { entries: [entry('/explain softmax')], ops: {}, onDismiss() {} }));
   assert.equal(query('[data-command-pill]'), null);
   assert.doesNotMatch(status(), /softmax/);
+  assert.equal(query('[data-card-prompt-show]'), null, 'no button at rest');
+  assert.equal(query('[data-gen-prompt]').children.length, 0, 'and no empty prompt line takes room');
+  await fire(query('[data-gen-indicator]'), 'pointerover');
   await click(query('[data-card-prompt-show]'));
   assert.equal(query('[data-card-prompt-text]').textContent, '/explain softmax');
+});
+
+test('the status shows Show prompt on hover, on focus inside the row and after a tap, never at rest; an opened prompt survives the pointer leaving; settled states behave the same', async () => {
+  for (const gen of [{ active: true, phase: 'running', label: 'Building geometry' }, { active: false, phase: 'done', label: '' }]) {
+    await mount(B.createElement(B.GenerationIndicator, { entries: [entry('/cad a 100 mm cube', gen)], ops: {}, onDismiss() {} }));
+    const row = query('[data-gen-indicator]');
+    assert.ok(query('[data-command-pill="cad"]'), 'the cad pill is always drawn');
+    assert.equal(query('[data-card-prompt-show]'), null, 'rest');
+    await fire(row, 'pointerover');
+    assert.ok(query('[data-card-prompt-show]'), 'hover');
+    await fire(row, 'pointerout');
+    assert.equal(query('[data-card-prompt-show]'), null, 'leaving hides it');
+    await fire(row, 'focusin');
+    assert.ok(query('[data-card-prompt-show]'), 'keyboard focus inside the row');
+    await fire(row, 'focusout');
+    assert.equal(query('[data-card-prompt-show]'), null);
+    await touch(row);
+    assert.ok(query('[data-card-prompt-show]'), 'a tap on a touch screen');
+    await click(query('[data-card-prompt-show]'));
+    await fire(row, 'pointerout');
+    await touch(row);
+    assert.ok(query('[data-card-prompt-text]'), 'an opened prompt stays open when the pointer leaves or the tap toggles off');
+    await click(query('[data-card-prompt-hide]'));
+  }
 });
 
 test('only generated-card prompts use the reveal: CardPrompt is drawn from promptUsed and a chat card question alone', () => {

@@ -152,6 +152,8 @@ const statusPrompt = async (page, id) => {
   const line = indicator(page, id).locator('[data-gen-prompt]');
   assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad');
   assert.ok(!/\/cad|educational/.test(await line.innerText()), 'at rest the status shows neither the slash nor the prompt');
+  assert.equal(await line.locator('[data-card-prompt-show]').count(), 0, 'at rest there is no Show prompt button either (owner review 2026-10-23): it appears on hover, focus or a tap');
+  await indicator(page, id).hover();
   await line.locator('[data-card-prompt-show]').click();
   assert.equal(await line.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
   await line.locator('[data-card-prompt-hide]').click();

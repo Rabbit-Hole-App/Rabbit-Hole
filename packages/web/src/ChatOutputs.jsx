@@ -75,8 +75,14 @@ function GenerationRow({ entry, onOpen, onDismiss }) {
   const cad = String(prompt || '').match(CAD_LINE);
   const seconds = useSeconds(output.startedAt, gen.active);
   const Icon = gen.phase === 'done' ? Check : gen.phase === 'cancelled' ? Ban : CircleAlert;
+  // Show prompt is drawn on hover, on keyboard focus inside the row, or after a tap on a touch screen (no hover there); an opened
+  // prompt stays open on its own (PromptReveal), and the status words and the cad pill never wait for any of this.
+  const [hover, setHover] = useState(false), [focus, setFocus] = useState(false), [tapped, setTapped] = useState(false);
   return (
     <div data-gen-indicator={output.cardId} data-gen-active={gen.active ? 'true' : 'false'} data-gen-phase={gen.phase} role="status" aria-live="polite"
+      onPointerEnter={event => { if (event.pointerType !== 'touch') setHover(true); }} onPointerLeave={() => setHover(false)}
+      onPointerDown={event => { if (event.pointerType === 'touch') setTapped(value => !value); }}
+      onFocus={() => setFocus(true)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocus(false); }}
       className="mb-1.5 flex w-full items-start gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
       {gen.active ? <Loader2 size={15} aria-hidden="true" className="mt-0.5 shrink-0 animate-spin text-ink-2 motion-reduce:animate-none" /> : <Icon size={15} aria-hidden="true" className={`mt-0.5 shrink-0 ${gen.phase === 'failed' ? 'text-fail' : 'text-ink-2'}`} />}
       <div className="min-w-0 flex-1">
@@ -86,9 +92,9 @@ function GenerationRow({ entry, onOpen, onDismiss }) {
           {gen.active && seconds != null && <span data-gen-elapsed className="text-xs text-ink-2">{seconds}s</span>}
         </p>
         {/* The line is hidden until asked for (CardPrompt.jsx PromptReveal, owner brief 2026-10-23); a /cad line shows its command as the cad pill. */}
-        <div data-gen-prompt className="mt-1 flex flex-wrap items-center gap-1.5">
+        <div data-gen-prompt className="mt-1 flex flex-wrap items-center gap-1.5 empty:hidden">
           {cad && <CommandPill name="cad" text="cad" ariaLabel="cad command" className="h-5 rounded-md px-1.5 text-xs" />}
-          <PromptReveal text={cad ? cad[1] : prompt} copy={prompt} className="w-full" buttonClassName="shadow-none" />
+          <PromptReveal text={cad ? cad[1] : prompt} copy={prompt} visible={hover || focus || tapped} className="w-full" buttonClassName="shadow-none" />
         </div>
       </div>
       <button type="button" data-gen-open onClick={() => onOpen(output)} className="h-7 shrink-0 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">Go to card</button>
