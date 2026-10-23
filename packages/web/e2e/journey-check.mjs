@@ -7,8 +7,8 @@
 // no JEV key its free-text rung answers status 'error' without a call, and a keyed probe option is graded server-side.
 // Since LP1 Task 12 every typed turn on a journey canvas is the Tutor's (useTutor.turn, resolver first): none may reach
 // /api/learn/ask. Since Task 11b (owner fourteenth message, fix B1: routing is never keyword-based) so is every typed turn on a
-// plain canvas, and a learning path starts only from the Tutor-offered Start a learning path chip (startViaTutor below) or from
-// Home's Agent Bar (J8); the old keyword start from the composer, and the Learn chat answering a plain canvas, are gone.
+// plain canvas, and a learning path starts only from the Tutor-offered Start a learning path chip (startViaTutor below); Home's Agent Bar start was
+// removed with the bar (owner, 2026-10-22: J8 pins the absence). The old keyword start from the composer is gone too.
 //   node e2e/journey-check.mjs --base http://127.0.0.1:8868 --cp http://127.0.0.1:8869 --vars <stack cp/.dev.vars> [--app-vars <stack app/.dev.vars>] --out <dir>
 // --vars is the control plane's vars file and --app-vars the app worker's (default: app/.dev.vars beside the control plane's folder).
 // The run drives a real browser, so it is refused before any request unless the stack is keyless by the strict guard shared with
@@ -417,27 +417,23 @@ await group('J7', async () => {
 });
 await current.close();
 
-// ---- J8: Home's Agent Bar starts the journey and opens Learn on its tray ----
+// ---- J8: Home has no composer, so a learning path no longer starts from typed text there ----
+// Owner, 2026-10-22: "Remove the composer completely from Home, Library and Explore". The typed start (REQUEST into Home's Agent
+// Bar -> a canvas titled by the request, opened on Learn's intake tray) is gone with the bar; a path still starts from the
+// Tutor-offered chip on a canvas (J1-J7). J8 now pins that Home offers no typed start and asks no model.
 current = await learnerPage('J8');
 await group('J8', async () => {
   const { page, calls } = current;
-  await page.goto(`${BASE}/apps`);
-  await page.waitForTimeout(3000);
-  const bar = page.locator('textarea').last();
-  await bar.fill(REQUEST);
-  await bar.press('Enter');
-  await page.waitForURL(url => /^\/apps\/canvas-[a-f0-9]{8}$/.test(url.pathname) && url.searchParams.get('tab') === 'learn', { timeout: 30000 });
-  const name = new URL(page.url()).pathname.split('/').pop();
-  await waitTray(page, 'intent_intake');
-  await page.waitForTimeout(1000);
-  const title = await page.getByRole('textbox', { name: 'Canvas title' }).inputValue().catch(() => null);
-  const { journey } = await journeyOf(name);
-  check('J8 Learn with the tray', true, 'arrives on Learn with the intake tray open');
-  check('J8 canvas title', title === 'Logistic regression', 'the canvas is titled Logistic regression', `title is ${JSON.stringify(title)}`);
-  check('J8 exact request', journey?.request?.raw_user_message === REQUEST, 'journey.request.raw_user_message is the typed request', 'raw_user_message differs from the typed request');
-  check('J8 no home-ask or ask', !calls('/api/learn/home-ask').length && !calls('/api/learn/ask').length, 'Home asked no model (no /api/learn/home-ask) and Learn no /api/learn/ask',
+  for (const path of ['/apps', '/library', '/explore']) {
+    await page.goto(`${BASE}${path}`);
+    await page.locator('main').first().waitFor({ timeout: 30000 });
+    await page.waitForTimeout(1500);
+    const composers = await page.locator('[data-agent-bar], main textarea, main [data-chat-composer]').count();
+    check(`J8 no composer on ${path}`, composers === 0, `${path} shows no composer or Agent Bar`, `${composers} composer elements on ${path}`);
+  }
+  check('J8 no home-ask or ask', !calls('/api/learn/home-ask').length && !calls('/api/learn/ask').length, 'Home, Library and Explore asked no model (no /api/learn/home-ask or /api/learn/ask)',
     `${calls('/api/learn/home-ask').length} home-ask, ${calls('/api/learn/ask').length} ask requests`);
-  await shot(page, 'J8-home-to-learn');
+  await shot(page, 'J8-home-no-composer');
 });
 await current.close();
 await browser.close();

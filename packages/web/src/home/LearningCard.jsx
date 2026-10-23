@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
-import { pickCard, pickedKey, useSurface } from '../agent/surface.js';
 import { ACCESS } from '../canvas-visibility.js';
 import { Button, IconBtn, KindIcon, Menu, MenuItem } from '../ui.jsx';
 import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
@@ -18,8 +17,9 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 //   actions                          (Start Rabbit Hole and [Fork | N] on others' cards)
 //   [fork] N forks · Updated 2h ago                  Open →   (one footer line; Continue → on Home instead of Open)
 // with the canvas's picture beside it on the right (card-thumbnails.md), above it on a phone.
-// A click on the card selects it, never opens it (owner, 2026-10-08): the title link, the Open button and Enter on the
-// selected card open it, Open showing on hover or selection (always on touch). N forks is read-only and only when someone
+// A click on the card's body opens nothing (owner, 2026-10-08): the title link, the Open button and Enter on the
+// focused card open it, Open showing on hover or focus (always on touch). The Home, Library and Explore composer is gone
+// (owner, 2026-10-22), so the body no longer picks the card as its context. N forks is read-only and only when someone
 // forked it; Fork itself lives in actions.
 // Blue is navigation and the primary action only (§13): the title, the repository link, the owner badge, Start Rabbit
 // Hole. Everything else - description, times, forks, visibility, ⋮, secondary buttons - stays neutral.
@@ -27,9 +27,9 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 // Two columns on a typical desktop (the 1150px pages leave ~958px: two ~471px cards), one on a phone; three only on a
 // page genuinely wider than today's. Shared with you's small cards keep it.
 export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,380px),1fr))] gap-4';
-// The learning cards, one per row (owner, 2026-10-08: "you can show one card per row", distill.pub's list): two per row
+// The learning cards (card size, home/card-size.js: one per row at Large, more per row as the owner picks Small), one per row by default (owner, 2026-10-08: "you can show one card per row", distill.pub's list): two per row
 // left their picture about 180 x 90, too small to make out; one per row shows it about 350 x 175.
-export const CARD_ROWS = 'grid grid-cols-1 gap-4';
+export const CARD_ROWS = 'card-grid grid gap-4';
 // Every card the same size (owner, 2026-10-08: "each card should be same size but also allow enough space to show an
 // image that can be seen"). From md the text column and the picture are one fixed height, so the picture's inset above
 // equals its inset below and the footer (N canvases, Updated, Open) ends on the picture's bottom edge (owner, 2026-10-09);
@@ -128,17 +128,13 @@ const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leadin
 // browser's content state. `actions`: the surface's buttons, in their own row. `cta`: a small text link at the footer's end
 // (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
 // (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface. `thumbnail`:
-// the picture's address (card-thumbnail.js); a canvas or project without one shows the placeholder. `pick`: what a click
-// on the card makes the dock composer's pill and context (surface.js pickCard); it stays selected while it is the pill.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null, pick = null }) {
-  const surface = useSurface();
-  const picked = !!pick && pickedKey(surface) === `${pick.kind}:${pick.slug}`;
+// the picture's address (card-thumbnail.js); a canvas or project without one shows the placeholder.
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null }) {
   const learning = kind === 'repository' || kind === 'canvas';
   const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
-      onClick={pick ? () => pickCard(pick) : undefined} data-card-selected={picked ? '' : undefined}
       className={`group select-card flex min-w-0 gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
       {learning && <CardThumbnail kind={kind} src={thumbnail} />}
       <div data-card-text className={`flex min-h-0 min-w-0 flex-1 flex-col *:shrink-0 ${CARD_BODY_H} ${CARD_TEXT_PHONE}`}>

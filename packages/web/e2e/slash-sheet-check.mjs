@@ -161,20 +161,13 @@ ok('Use example: the composer holds the Add explanation pill and the words, edit
 await page.screenshot({ path: `${SHOTS}/use-example-draft.png` });
 await chatComposer.fill('how merge sort works');
 ok('the drafted words can be edited before sending', await chatComposer.inputValue() === 'how merge sort works' && paid.length === posted);
-// The Agent Bar on the Library has no slash commands left (owner, 2026-10-20): no Auto picker or / commands sheet, and a typed
-// removed command says it is unavailable. Library, so nothing here asks a model.
+// The Library has no Agent Bar at all (owner, 2026-10-22: the composer is removed from Home, Library and Explore), so no / commands
+// sheet, Auto picker or removed-command note can show there. Library, so nothing here asks a model.
 await page.goto(`${BASE}/library`);
-const barInput = page.locator('[data-agent-bar] textarea');
-await barInput.waitFor({ timeout: 60000 });
-await barInput.fill('/');
-await page.waitForTimeout(300);
-ok('the bar opens no picker, has no Auto button and no / commands sheet', await page.locator('[data-agent-bar] [role="listbox"]').count() === 0 && await page.locator('[data-bar-slash-help]').count() === 0
-  && await page.locator('[data-agent-bar]').getByRole('button', { name: 'Auto', exact: true }).count() === 0);
-await barInput.fill('/find nanoGPT');
-await barInput.press('Enter');
-const barNote = page.locator('[data-result-sheet]').getByText('/find is no longer available.', { exact: false }).first();
-ok('a removed bar command says it is unavailable', await barNote.waitFor({ timeout: 10000 }).then(() => true).catch(() => false));
-await page.screenshot({ path: `${SHOTS}/bar-removed-command.png` });
+await page.locator('main').first().waitFor({ timeout: 60000 });
+await page.waitForTimeout(500);
+ok('the Library has no bar: no composer, picker, Auto button or / commands sheet', await page.locator('[data-agent-bar], main textarea, main [data-chat-composer], [role="listbox"], [data-bar-slash-help]').count() === 0);
+await page.screenshot({ path: `${SHOTS}/library-no-bar.png` });
 ok('no page errors and no paid request', errors.length === 0 && paid.length === 0, `${errors.join(' | ')} ${paid.join(' ')}`);
 await browser.close();
 process.exit(failed ? 1 : 0);

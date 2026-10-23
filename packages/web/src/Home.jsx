@@ -8,7 +8,7 @@ import { cardThumbnail, subscribeThumbnails, thumbnailBumps } from './card-thumb
 import PublicCards, { CreatorCards, ProjectCards, ProjectFilter, Recommended, useExploreFind } from './home/PublicCards.jsx';
 import { useCardMenu } from './home/CardMenu.jsx';
 import { useLibraryFolders } from './LibraryFolders.jsx';
-import { appPick } from './agent/surface.js';
+import CardSize from './home/CardSize.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
@@ -60,9 +60,9 @@ function HomeContent({ data, load }) {
         )}
         {/* Start sits top right, the page's one header action (owner, 2026-10-08), as in the Library. */}
         {ready && (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4 max-md:flex-wrap">
             {!cont && !items.length ? <p className="text-sm text-ink-2">Start from a repository or a blank canvas.</p> : <span />}
-            {startButton}
+            <div className="flex flex-wrap items-center gap-3 max-md:w-full">{(cont || items.length > 0) && <CardSize />}{startButton}</div>
           </div>
         )}
         {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
@@ -94,7 +94,7 @@ function Continue({ item, app, email }) {
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_ROWS}>
-        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)} pick={appPick(a, cardModel(a).title)}
+        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)}
           mine={isMine(a, email)} access={a.kind === 'canvas' || a.kind === 'repository' ? a.access || null : null}
           note={(
             <>
@@ -122,7 +122,7 @@ function RecentCard({ app, card, email, onMore, onVaries }) {
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';
   return (
-    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} pick={appPick(app, cardModel(app).title)}
+    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
       mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} onVaries={onVaries} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}
@@ -191,13 +191,14 @@ function Explore() {
         <Tabs value={tab} onValueChange={choose}>
           <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
-        <div className="flex items-center gap-3 pb-6">
-          <label className="relative block min-w-0 flex-1">
+        <div className="flex items-center gap-3 pb-6 max-md:flex-wrap">
+          <label className="relative block min-w-0 flex-1 max-md:basis-full">
             <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
           </label>
           {tab === 'explainers' && <LibraryFilters type={type} path="/explore" types={EXPLORE_TYPES} />}
           {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+          {tab === 'explainers' && <CardSize />}
         </div>
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators">

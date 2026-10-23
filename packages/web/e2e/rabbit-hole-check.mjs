@@ -140,16 +140,7 @@ const openStart = async (page, path, at = '/apps') => {
   await startDialog(page).waitFor({ timeout: 10000 });
 };
 const barOf = (page) => page.locator('[data-agent-bar]');
-const barInput = (page) => barOf(page).locator('[data-chat-composer] :is(input, textarea)');
-// A Home question is answered in place by POST /api/learn/home-ask (home-ask.md), a model call: stubbed here with a
-// scripted answer, so a check that sends one on Home calls no model. Returns the bodies it received.
-const HOME_ANSWER = 'Scripted Home answer (no model).';
-const stubHomeAsk = async (page) => {
-  const seen = [];
-  await page.route('**/api/learn/home-ask', (route) => { seen.push(JSON.parse(route.request().postData() || '{}')); return route.fulfill({ json: { answer: HOME_ANSWER, references: [] } }); });
-  return seen;
-};
-
+const barInput = (page) => barOf(page).locator('[data-chat-composer] :is(input, textarea)'); // an app page's bar (the Home, Library and Explore bar is gone)
 // T12: the browser must run the bundle just built. A new version serves 15-20 s after
 // wrangler returns, so poll for a minute before calling it stale.
 await check('build: the browser runs the dist-dev entry script', async () => {
@@ -410,12 +401,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await loaded(page, '/explore');
     await leak(page, 'Explore');
     await loaded(page, '/apps');
-    await barInput(page).fill('What is a Project?');
-    await barInput(page).press('Enter');
-    const sheet = page.locator('[data-result-sheet]');
-    await sheet.getByText('is the learning hub around a codebase or topic', { exact: false }).waitFor({ timeout: 10000 });
-    await sheet.getByText('Rabbit Hole', { exact: true }).waitFor();
-    await leak(page, 'the result sheet');
+    // (the Home composer's result sheet is gone with the composer, owner 2026-10-22)
     await page.keyboard.press('Control+Backslash');
     await aside.getByRole('button', { name: railTile, exact: true }).waitFor({ timeout: 5000 });
     await leak(page, 'the rail');
@@ -486,12 +472,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('sh-legacy: Ctrl+O focuses the bar and keeps the URL; Filters -> Apps and Mine replace the Apps and Private sections', async () => {
+  await check('sh-legacy: Ctrl+O keeps the URL (there is no bar to focus); Filters -> Apps and Mine replace the Apps and Private sections', async () => {
     const page = await open();
     await loaded(page, '/library');
-    await barOf(page).waitFor({ timeout: 20000 });
+    await page.locator('main').first().waitFor({ timeout: 20000 });
     await page.keyboard.press('Control+o');
-    must(await barInput(page).evaluate((el) => el === document.activeElement), 'Ctrl+O did not focus the bar');
+    must(await barOf(page).count() === 0, 'Ctrl+O has a bar to focus');
     must(new URL(page.url()).pathname === '/library', `Ctrl+O went to ${page.url()}`);
     await filterBy(page, 'Apps');
     await page.waitForURL(/[?&]type=apps/);
@@ -715,7 +701,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('library: one Filters control, no permanent tabs; the popover, View all and the Agent Bar set the same state', async () => {
+  await check('library: one Filters control, no permanent tabs; the popover and View all set the same state (the Agent Bar typed filter went with the composer, owner 2026-10-22)', async () => {
     const page = await open();
     await loaded(page, '/library');
     await page.getByRole('region', { name: 'Projects', exact: true }).waitFor({ timeout: 20000 });
@@ -724,105 +710,12 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.waitForURL(/[?&]type=canvases/);
     await filterBy(page, 'Mine');
     await page.waitForURL(/[?&]s=private/);
-    const viaFilters = new URL(page.url()).search;
     await page.getByRole('button', { name: 'Remove filter Canvas' }).click();
     await page.waitForURL((u) => !u.searchParams.has('type'));
     await loaded(page, '/library');
     await page.getByRole('region', { name: 'Projects', exact: true }).getByRole('button', { name: /^View all/ }).click();
     await page.waitForURL(/[?&]type=projects/);
-    await loaded(page, '/library');
-    await barInput(page).fill('Show my canvases');
-    await barInput(page).press('Enter');
-    await page.waitForURL((u) => u.search === viaFilters, { timeout: 10000 });
     await page.context().close();
-  });
-
-  await check('bar: the dock is 64-76px on desktop and 56-68px on a phone, with no separator; on a phone it hides neither Start nor the cards', async () => {
-    const page = await open();
-    await loaded(page, '/apps');
-    const composer = barOf(page).locator('[data-chat-composer]');
-    const h = (await composer.boundingBox()).height;
-    must(h >= 64 && h <= 76, `desktop dock ${h}px`);
-    must(await barOf(page).evaluate((n) => getComputedStyle(n).borderTopWidth) === '0px', 'the separator line is back');
-    await page.context().close();
-    const phone = await open({ width: 390, height: 844 });
-    await loaded(phone, '/apps');
-    await phone.evaluate((names) => localStorage.setItem('small.recent', JSON.stringify(names)), apps.slice(0, 5).map((a) => a.name));
-    await phone.reload();
-    await shStart(phone).waitFor({ timeout: 20000 });
-    const ph = (await barOf(phone).locator('[data-chat-composer]').boundingBox()).height;
-    must(ph >= 56 && ph <= 68, `phone dock ${ph}px`);
-    await phone.locator('[data-shell-sidebar] ~ main').evaluate((m) => m.scrollTo(0, m.scrollHeight));
-    await phone.waitForTimeout(300);
-    const top = (await barOf(phone).boundingBox()).y;
-    const start = await shStart(phone).boundingBox();
-    must(start.y + start.height <= top, `Start (${start.y + start.height}) is under the bar (${top})`);
-    await phone.context().close();
-  });
-
-  if (repo) await check('bar-words: find my nanoGPT project, show canvases about attention, open the project I worked on recently, start a rabbit hole from owner/repo', async () => {
-    const page = await open();
-    await loaded(page, '/library');
-    const c = await shCanvas(page, 'rabbit-hole-check attention words');
-    try {
-      await page.evaluate((name) => localStorage.setItem('small.recent', JSON.stringify([name])), repo.name);
-      await page.reload();
-      await page.locator('aside').getByText(wsLabel, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 }); // the catalog is in before Find runs
-      await barOf(page).waitFor({ timeout: 20000 });
-      const sheet = page.locator('[data-result-sheet]');
-      const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
-      await say('Find my nanoGPT project');
-      await sheet.getByRole('button', { name: `${repo.repo} · Project` }).waitFor({ timeout: 10000 });
-      await say('Show canvases about attention');
-      await sheet.getByRole('button', { name: 'rabbit-hole-check attention words · Canvas' }).waitFor({ timeout: 10000 });
-      await page.keyboard.press('Escape');
-      await say('Open the project I worked on recently');
-      await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
-      await loaded(page, '/library');
-      let posts = 0;
-      page.on('request', (r) => { if (r.method() === 'POST' && /[/]api[/]repositories$/.test(new URL(r.url()).pathname)) posts++; });
-      await page.route('**/api/repositories/branches**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ repo: 'rabbit-hole-e2e/demo', defaultBranch: 'main', branches: ['main'], hasMore: false, page: 1 }) }));
-      await page.route(/[/]api[/]repositories$/, (route) => (route.request().method() === 'POST' ? route.abort() : route.continue()));
-      await say('Start a rabbit hole from rabbit-hole-e2e/demo');
-      const card = page.locator('[data-confirm-card="pending"]');
-      await card.getByText('rabbit-hole-e2e/demo', { exact: false }).first().waitFor({ timeout: 15000 });
-      await card.getByRole('button', { name: 'Cancel' }).click();
-      must(posts === 0, `${posts} repository creates`);
-    } finally {
-      await shDrop(page, c.name);
-      await page.context().close();
-    }
-  });
-
-  await check('bar-states: every send ends visibly - a built-in answer, a clarification, an unknown command, an unsupported request', async () => {
-    const page = await open();
-    await loaded(page, '/library');
-    const made = [await shCanvas(page, 'Attention masks check'), await shCanvas(page, 'Attention heads check')];
-    try {
-      await page.reload();
-      await barOf(page).waitFor({ timeout: 20000 });
-      const sheet = page.locator('[data-result-sheet]');
-      const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
-      // First send in a fresh page: a one-line result is a compact card, not an empty chat window.
-      await say('/foobar');
-      await sheet.getByText('Unknown command /foobar. Type what you want in your own words.', { exact: false }).waitFor({ timeout: 10000 });
-      const short = (await sheet.boundingBox()).height;
-      must(short < 200, `a one-line result fills a ${short}px sheet`);
-      await say('What is a Project?');
-      await sheet.getByText('is the learning hub around a codebase or topic', { exact: false }).waitFor({ timeout: 10000 });
-      await say('Open attention');
-      await sheet.getByText('Which one do you mean?').waitFor({ timeout: 10000 });
-      for (const title of ['Attention masks check · Canvas', 'Attention heads check · Canvas']) await sheet.getByRole('button', { name: title }).waitFor();
-      must((await sheet.boundingBox()).height <= page.viewportSize().height * 0.5, 'the sheet grew past half the screen');
-      if (!(await import('../src/flags.js')).askLiveOnPreview) {
-        await say('Book me a flight to Lisbon');
-        // The bar names no commands (owner, 2026-10-20: /find, /open and /new are removed); it suggests plain words.
-        await sheet.getByText('Type what you want, for example find nanoGPT, or open a project to ask about its code.', { exact: false }).waitFor({ timeout: 10000 });
-      }
-    } finally {
-      for (const c of made) await shDrop(page, c.name);
-      await page.context().close();
-    }
   });
 
   // ── shell-home checks end: later shell-home tasks insert above this line ──
@@ -1197,95 +1090,42 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 }
 
 {
-  // ── agent-ui (T02 §6): the Agent Bar frame. Nothing here reaches /api/ask: a workspace
-  // or app ask would write live chat history. Project asks are the 'bar-page:' checks. ──
-  const barOpen = async (path = '/apps', viewport) => {
-    const page = await open(viewport);
-    await page.goto(`${base}${path}`);
-    await barOf(page).waitFor({ timeout: 20000 });
-    return page;
-  };
+  // ── no composer on Home, Library or Explore (owner, 2026-10-22: "Remove the composer completely from Home, Library and Explore,
+  // including its bottom bar and reserved space. Chat remains inside canvases."). This block replaces the Agent Bar frame checks
+  // (one bar, placeholder, padding, draft across pages, find, Ctrl+J, toasts above the bar, a Home question, the workspace-switch
+  // warning, the pixel shots) and the bar commands, multiline, + and dock chrome checks, which all drove the removed bar. ──
   const barH = (page) => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--agent-bar-h').trim());
-
-  await check('bar: one bar on Home, no chip, workspace placeholder, its height padding the page, following the sidebar', async () => {
-    const page = await barOpen();
-    const bar = barOf(page);
-    await page.locator('[data-shell-sidebar] ~ main').waitFor({ timeout: 20000 }); // Home is a lazy chunk
-    must(await page.locator('[data-agent-bar]').count() === 1, 'more than one bar');
-    must(await page.locator('[data-scope-chip]').count() === 0, 'a chip on Home');
-    must(await barInput(page).getAttribute('placeholder') === 'Start, open, ask, or paste a link', 'not the workspace placeholder');
-    const { x, height } = await bar.boundingBox();
-    const pad = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('[data-shell-sidebar] ~ main')).paddingBottom));
-    must(Math.abs(parseFloat(await barH(page)) - height) < 1 && Math.abs(pad - height) < 1, `bar ${height}, --agent-bar-h ${await barH(page)}, main padding ${pad}`);
-    must(Math.abs(x - (await page.locator('[data-shell-sidebar]').boundingBox()).width) < 2, 'not aligned with the sidebar');
-    await page.keyboard.press('Control+Backslash');
-    await page.waitForTimeout(400);
-    const rail = (await page.locator('[data-shell-sidebar]').boundingBox()).width;
-    must(rail >= 48 && rail <= 56 && Math.abs((await bar.boundingBox()).x - rail) < 2, `did not follow the sidebar collapse to the ${rail}px rail`);
-    await page.keyboard.press('Control+Backslash');
+  await check('no composer: Home, Library and Explore show no Agent Bar, no composer and no reserved bottom space; Ctrl+J and Ctrl+O focus nothing', async () => {
+    const page = await open();
+    for (const to of ['/apps', '/library', '/explore', '/apps?s=shared']) {
+      await loaded(page, to);
+      await page.locator('main').first().waitFor({ timeout: 20000 });
+      await page.waitForTimeout(500);
+      must(await barOf(page).count() === 0, `${to}: an Agent Bar is mounted`);
+      must(await page.locator('main textarea, main [data-chat-composer]').count() === 0, `${to}: a composer shows`);
+      must(['', '0px'].includes(await barH(page)), `${to}: --agent-bar-h is ${await barH(page)}`);
+      must(parseFloat(await page.locator('main').first().evaluate((n) => getComputedStyle(n).paddingBottom)) === 0, `${to}: main reserves bottom space`);
+      await page.keyboard.press('Control+j');
+      await page.keyboard.press('Control+o');
+      must(await page.evaluate(() => !document.activeElement?.closest?.('[data-chat-composer]')), `${to}: a shortcut focused a composer`);
+    }
     await page.context().close();
   });
 
-  await check('bar: one bar survives Home → Library → Explore → /apps?s=shared with its draft, no chip on any', async () => {
-    const page = await barOpen();
-    const node = await barOf(page).elementHandle();
-    await barInput(page).fill('kept across pages');
+  await check('no composer: nothing is left of the bar when moving Home, Library, Explore and back (in-app navigation)', async () => {
+    const page = await open();
+    await loaded(page, '/apps');
     for (const to of ['/library', '/explore', '/apps?s=shared', '/apps']) {
       await spa(page, to);
-      await page.locator('[data-shell-sidebar] ~ main').waitFor({ timeout: 20000 });
-      must(await page.locator('[data-agent-bar]').count() === 1, `${to}: not exactly one bar`);
-      must(await node.evaluate((n) => n.isConnected), `${to}: the bar was remounted`);
-      must(await page.locator('[data-scope-chip]').count() === 0, `${to}: a chip`);
-      must(await barInput(page).inputValue() === 'kept across pages', `${to}: the draft was lost`);
+      await page.waitForTimeout(400);
+      must(await barOf(page).count() === 0, `${to}: an Agent Bar appeared`);
     }
     await page.context().close();
   });
 
-  await check('bar: works on Home, Library and Explore: a find with no match answers in the sheet', async () => {
-    const page = await barOpen();
-    for (const to of ['/apps', '/library', '/explore']) {
-      await spa(page, to);
-      await barInput(page).fill(`find zz-no-such-thing ${to}`);
-      await barInput(page).press('Enter');
-      await page.locator('[data-result-sheet]').getByRole('button', { name: 'Ask instead' }).last().waitFor({ timeout: 10000 });
-      await page.keyboard.press('Escape');
-      await page.locator('[data-result-sheet]').waitFor({ state: 'detached', timeout: 3000 });
-    }
-    await page.context().close();
-  });
-
-  await check('bar: Ctrl+J focuses the bar', async () => {
-    const page = await barOpen('/library');
-    await page.keyboard.press('Control+j');
-    must(await barInput(page).evaluate((el) => el === document.activeElement), 'the input is not focused');
-    await page.context().close();
-  });
-
-  // WP6 closeout (user option A, 2026-09-29): one bottom-right column, errors above info, above the bar.
-  await check('bar: toasts stack bottom-right above the bar, errors over info, never overlapping, at desktop and phone width', async () => {
-    for (const viewport of [undefined, { width: 390, height: 844 }]) {
-      const page = await barOpen('/apps', viewport);
-      const top = (await barOf(page).boundingBox()).y;
-      const width = page.viewportSize().width;
-      await page.evaluate(() => {
-        dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui info toast' } }));
-        dispatchEvent(new CustomEvent('small:toast', { detail: { message: 'agent-ui error toast', tone: 'error' } }));
-      });
-      const info = await page.getByText('agent-ui info toast').boundingBox();
-      const error = await page.locator('[data-toast-error]').boundingBox();
-      const where = `${width}px`;
-      for (const [label, box] of [['info', info], ['error', error]]) {
-        must(box.y + box.height <= top, `${where}: ${label} toast overlaps the bar`);
-        must(width - (box.x + box.width) >= 8 && width - (box.x + box.width) < 40 && box.x >= 8, `${where}: ${label} toast is not on the right, inside the edge`);
-      }
-      must(error.y + error.height <= info.y, `${where}: the error toast is not above the info toast, or they overlap`);
-      // ponytail: the phone safe area is env(safe-area-inset-bottom), 0 in this browser; the CSS max() covers devices that have one.
-      await page.context().close();
-    }
-  });
-
-  await check('bar: hidden on Learn, a canvas and a run subpage (T02 §6.1; the preview has no /chat, wp7-d7-chrome); back on the Library', async () => {
-    const page = await barOpen();
+  await check('bar: hidden on a canvas, a run subpage and project Learn, as on Home (T02 §6.1; the preview has no /chat, wp7-d7-chrome)', async () => {
+    const page = await open();
+    await loaded(page, '/library');
     const hides = [['a canvas', '/apps/canvas-00000000'], ...(repo ? [['project Learn', `/apps/${repo.name}?tab=learn`]] : []), ...(plain ? [['a run subpage', `/apps/${plain.name}/runs/r-check`]] : [])];
     for (const [label, to] of hides) {
       await spa(page, to);
@@ -1293,7 +1133,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       must(await barH(page) === '0px', `--agent-bar-h is ${await barH(page)} on ${label}`);
     }
     await spa(page, '/library');
-    await barOf(page).waitFor({ timeout: 10000 });
+    await page.locator('main').first().waitFor({ timeout: 10000 });
+    must(await barOf(page).count() === 0, 'the bar is back on the Library');
     await page.context().close();
   });
 
@@ -1306,263 +1147,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.locator('[data-chat-composer]').count() === 1, `${await page.locator('[data-chat-composer]').count()} composers on Learn`);
     await page.context().close();
   });
-
-  // A Home question is answered in place from the user's own library (home-ask.md, since 2026-10-03), never by the old
-  // apps agent: its route is stubbed here (stubHomeAsk), so no model is called.
-  await check('bar: a Home question is answered in place by /api/learn/home-ask (stubbed, no model); nothing reaches /api/ask', async () => {
-    const page = await barOpen('/library');
-    let asks = 0;
-    page.on('request', (r) => { if (new URL(r.url()).pathname === '/api/ask') asks++; });
-    const home = await stubHomeAsk(page);
-    await barInput(page).fill('what does this workspace run?');
-    await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText(HOME_ANSWER).waitFor({ timeout: 10000 });
-    must(home.length === 1 && home[0].message === 'what does this workspace run?', `home-ask: ${JSON.stringify(home)}`);
-    must(asks === 0, `${asks} requests to /api/ask`);
-    await page.context().close();
-  });
-
-  await check('bar: a workspace switch warns while a draft waits', async () => {
-    const page = await barOpen();
-    await barInput(page).click();
-    await barInput(page).fill('unsent question');
-    const dialog = page.waitForEvent('dialog', { timeout: 5000 });
-    page.evaluate(() => location.assign('/apps')).catch(() => {});
-    const d = await dialog;
-    must(d.type() === 'beforeunload', `dialog ${d.type()}`);
-    await d.dismiss();
-    await page.context().close();
-  });
-
-  await check('bar: Stay at the workspace-switch warning keeps this workspace; Leave switches', async () => {
-    const page = await barOpen();
-    const before = await page.evaluate(() => localStorage.getItem('small.ws'));
-    // A second workspace the person owns (solo v1 lists only their own), so the menu offers a switch; the answer is canned, nothing is created.
-    await page.route('**/api/workspaces', (route) => (route.request().method() === 'GET'
-      ? route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ active: data.org, workspaces: [{ slug: data.org, kind: 'domain', name: wsLabel }, { slug: 'rabbit-hole-e2e-other', kind: 'team', role: 'owner', name: 'Other check workspace' }] }) })
-      : route.abort()));
-    await barInput(page).fill('unsent question');
-    const pick = async () => {
-      await page.locator('aside').getByText(wsLabel, { exact: true }).first().click();
-      await page.getByRole('button', { name: /Other check workspace/ }).click();
-    };
-    // The handler is set before the click: the click itself waits while the dialog is up.
-    const answered = [];
-    page.once('dialog', (d) => { answered.push(d.type()); d.dismiss(); });
-    await pick();
-    await page.waitForTimeout(500);
-    must(answered.join() === 'beforeunload', `dialog ${answered}`);
-    must(await page.evaluate(() => localStorage.getItem('small.ws')) === before, 'Stay still switched the workspace for every later request');
-    page.once('dialog', (d) => d.accept());
-    await pick();
-    await page.waitForURL((u) => u.pathname === '/apps' && !u.searchParams.has('ws'), { timeout: 20000 });
-    must(await page.evaluate(() => localStorage.getItem('small.ws')) === 'rabbit-hole-e2e-other', 'Leave did not switch the workspace');
-    await page.context().close();
-  });
-
-  await check('bar: screenshots for pixel review (light, dark, narrow)', async () => {
-    for (const [name, viewport, scheme] of [['light', undefined, 'light'], ['dark', undefined, 'dark'], ['narrow', { width: 390, height: 844 }, 'light']]) {
-      const page = await open(viewport);
-      await page.emulateMedia({ colorScheme: scheme });
-      await loaded(page, '/apps');
-      await barOf(page).waitFor({ timeout: 20000 });
-      await page.waitForLoadState('networkidle');
-      await page.screenshot({ path: `e2e/shots/agent-bar-${name}.png` });
-      await page.context().close();
-    }
-  });
-}
-
-{
-  await check('bar-multiline: Shift+Enter adds a line and Enter sends the whole message (T02 §6.2)', async () => {
-    const page = await open();
-    await loaded(page);
-    const input = barInput(page);
-    await input.click();
-    await page.keyboard.type('first line');
-    await page.keyboard.press('Shift+Enter');
-    await page.keyboard.type('second line');
-    const value = await input.inputValue();
-    must(value === 'first line\nsecond line', `value was ${JSON.stringify(value)}`);
-    const home = await stubHomeAsk(page);
-    await page.keyboard.press('Enter');
-    // On Home the question is answered in place (stubbed home-ask): the whole two-line message was sent.
-    await page.getByText(HOME_ANSWER).first().waitFor({ timeout: 10000 });
-    must(home[0]?.message === 'first line\nsecond line', `sent ${JSON.stringify(home[0]?.message)}`);
-    await page.context().close();
-  });
-}
-
-{
-  // ── agent-ui (T02 §6.4-§7.3): commands, cards and modes from the bar, all on /library.
-  // Every send is a command or a refused workspace ask; none reaches /api/ask. ──
-  const { askLiveOnPreview } = await import('../src/flags.js');
-  const { openedNotice } = await import('../src/connections.js');
-  const FIXTURE = 'rabbit-hole-e2e/demo'; // never connected here: the Connect card, not open_resource
-  console.log(`agent-ui bar-cmd: connect fixture ${FIXTURE}`);
-  // After the workspace load: commands resolve names against the catalog Shell publishes.
-  const barOpen = async (path = '/library') => {
-    const page = await open();
-    await loaded(page, path);
-    await barOf(page).waitFor({ timeout: 20000 });
-    return page;
-  };
-
-  await check('bar-cmd: find with no match shows the empty state with Ask instead, and clears the draft', async () => {
-    const page = await barOpen();
-    await barInput(page).fill('find zz-no-such-thing-agent-ui');
-    await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByRole('button', { name: 'Ask instead' }).waitFor({ timeout: 10000 });
-    must(await barInput(page).inputValue() === '', 'the draft stayed after a finished command');
-    await page.context().close();
-  });
-
-  if (repo) await check('bar-cmd: open <project> navigates through open_resource', async () => {
-    const page = await barOpen();
-    await barInput(page).fill(`open ${repo.name}`);
-    await barInput(page).press('Enter');
-    await page.waitForURL(`**/apps/${repo.name}`, { timeout: 10000 });
-    await page.context().close();
-  });
-
-  await check('bar-cmd: connect Google Slides opens Settings, says it is planned and connects nothing (T02 §11)', async () => {
-    const page = await barOpen();
-    await barInput(page).fill('connect google slides');
-    await barInput(page).press('Enter');
-    await settings(page).waitFor({ timeout: 10000 });
-    await barOf(page).getByText(openedNotice('connections', 'google-slides')).waitFor({ timeout: 10000 });
-    await page.context().close();
-  });
-
-  // Solo v1: sharing with a person is no command, so it is never a card; on /library it is a Home question, answered in
-  // place (home-ask, stubbed here: no model).
-  await check('bar-cmd: share <app> with <email> is no command in solo v1 - no card, no /api/ask call, a Home question answered in place', async () => {
-    const page = await barOpen();
-    let calls = 0;
-    page.on('request', (r) => { if (r.method() !== 'GET' && /^[/]api[/]ask([/]|$)/.test(new URL(r.url()).pathname)) calls++; });
-    const home = await stubHomeAsk(page);
-    const text = `share ${plain?.name || 'counter'} with bar-check@example.com as view`;
-    await barInput(page).fill(text);
-    await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText(HOME_ANSWER).first().waitFor({ timeout: 10000 });
-    must(home.length === 1 && home[0].message === text, `home-ask: ${JSON.stringify(home)}`);
-    must(await page.locator('[data-confirm-card]').count() === 0, 'share still becomes a card');
-    must(calls === 0, `${calls} /api/ask calls`);
-    await page.context().close();
-  });
-
-  await check('bar-cmd: a GitHub URL resolves its branch into a Confirm card that is not Blocked (T02 §16); Cancel sends nothing', async () => {
-    must(!apps.some((a) => (a.repo || '').toLowerCase() === FIXTURE), `${FIXTURE} is connected here; the check needs an unconnected repository`);
-    const page = await barOpen();
-    let posts = 0;
-    page.on('request', (r) => { if (r.method() === 'POST' && /\/api\/(repositories|ask\/reject)(\?|$)/.test(new URL(r.url()).pathname)) posts++; });
-    // A canned lookup, and a create is aborted in the browser even if something clicks Confirm.
-    await page.route('**/api/repositories/branches**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ repo: FIXTURE, defaultBranch: 'main', branches: ['main'], hasMore: false, page: 1 }) }));
-    await page.route(/[/]api[/]repositories$/, (route) => (route.request().method() === 'POST' ? route.abort() : route.continue()));
-    await barInput(page).fill(`https://github.com/${FIXTURE}`);
-    await barInput(page).press('Enter');
-    const card = page.locator('[data-confirm-card="pending"]');
-    await card.waitFor({ timeout: 20000 });
-    must(!(await card.getByRole('button', { name: 'Confirm' }).isDisabled()), 'connect_repository is blocked');
-    await card.getByText('branch', { exact: false }).first().waitFor();
-    await card.getByRole('button', { name: 'Cancel' }).click();
-    await page.locator('[data-confirm-card="cancelled"]').waitFor({ timeout: 3000 });
-    must(posts === 0, `${posts} POSTs from a cancelled connect card`);
-    await page.context().close();
-  });
-
-  await check('bar-cmd: a question about an unconnected repository offers Connect and runs nothing by itself', async () => {
-    const page = await barOpen();
-    let posts = 0;
-    page.on('request', (r) => { if (r.method() === 'POST' && /\/api\/(repositories|ask)(\?|$)/.test(new URL(r.url()).pathname)) posts++; });
-    await barInput(page).fill(`what is https://github.com/${FIXTURE} about?`);
-    await barInput(page).press('Enter');
-    const sheet = page.locator('[data-result-sheet]');
-    await sheet.getByText(`${FIXTURE} isn't connected, so answers can't read its code yet.`).waitFor({ timeout: 10000 });
-    await sheet.getByRole('button', { name: `Connect ${FIXTURE}` }).waitFor();
-    must(posts === 0, `${posts} POSTs before the user chose Connect`);
-    await page.context().close();
-  });
-
-  await check('bar-cmd: new canvas stays on the page with Canvas created · Undo, and Undo removes it (T02 §8.4)', async () => {
-    const page = await barOpen();
-    const title = `agent-ui check ${Date.now()}`;
-    const sheet = page.locator('[data-result-sheet]');
-    await barInput(page).fill(`new canvas called ${title}`);
-    await barInput(page).press('Enter');
-    await sheet.getByText(`Canvas created · ${title}`).waitFor({ timeout: 15000 });
-    must(new URL(page.url()).pathname === '/library', 'the bar navigated away');
-    await sheet.getByRole('button', { name: 'Undo' }).click();
-    await sheet.getByText(`Canvas created · ${title} · Undone`).waitFor({ timeout: 15000 });
-    const { apps: after } = await (await fetch(`${base}/api/apps`, { headers: { ...UA, Cookie: `small_session=${session}` } })).json();
-    must(!after.some((a) => a.kind === 'canvas' && a.title === title), 'the canvas is still in the catalog');
-    await page.context().close();
-  });
-
-  // Owner, 2026-10-20: the bar has no slash commands left (/ask, /teach, /research, /do, /find, /open, /new, /connect and /run are
-  // removed): no picker, no Auto button, no mode pill; a typed removed command says it is unavailable and runs nothing.
-  await check('bar-cmd: "/" opens no picker and there is no Auto button; a typed /teach says it is unavailable', async () => {
-    const page = await barOpen();
-    const bar = barOf(page);
-    await barInput(page).fill('/');
-    await page.waitForTimeout(300);
-    must(await bar.getByRole('option').count() === 0 && await bar.getByRole('listbox').count() === 0, 'a picker opened');
-    must(await bar.getByRole('button', { name: 'Auto', exact: true }).count() === 0, 'the bar still shows Auto');
-    must(await bar.locator('[data-command-pill]').count() === 0, 'a command pill shows');
-    await barInput(page).fill('/teach attention');
-    await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText('/teach is no longer available.', { exact: false }).first().waitFor({ timeout: 10000 });
-    must(new URL(page.url()).pathname === '/library', 'a removed command navigated');
-    await page.context().close();
-  });
-  // ── WP5 batch 1: the composer chrome and the Home/Library shortcuts ──
-  // Owner, 2026-10-08 ("when in Home/library/Explore, the main chat composer has a + icon. hide it"): no + there; the page's own
-  // Start a rabbit hole and /new still open Start. The + and its Start paths on a project's Map: workspace-check dock §13.
-  await check('bar-wp5: Home, Library and Explore show no + in the composer; /new is removed and opens nothing', async () => {
-    const page = await barOpen();
-    for (const path of ['/apps', '/library', '/explore']) {
-      await loaded(page, path);
-      await barOf(page).waitFor({ timeout: 20000 });
-      await barOf(page).locator('[data-chat-composer]').waitFor({ timeout: 20000 });
-      must(await barOf(page).getByRole('button', { name: 'Add', exact: true }).count() === 0, `${path}: the composer shows a +`);
-    }
-    await barInput(page).fill('/new canvas');
-    await barInput(page).press('Enter');
-    await page.locator('[data-result-sheet]').getByText('/new is no longer available.', { exact: false }).first().waitFor({ timeout: 10000 });
-    must(await startDialog(page).count() === 0, '/new opened Start');
-    await page.context().close();
-  });
-
-  await check('bar-slash: /new, /find and /run are removed and run nothing; the same words still find; /share is an unknown command (solo v1)', async () => {
-    const page = await barOpen();
-    const say = async (text) => { await barInput(page).fill(text); await barInput(page).press('Enter'); };
-    for (const [line, name] of [['/new question', 'new'], ['/find nanoGPT', 'find'], ['/run', 'run']]) {
-      await say(line);
-      await page.locator('[data-result-sheet]').getByText(`/${name} is no longer available.`, { exact: false }).first().waitFor({ timeout: 10000 });
-      await page.keyboard.press('Escape');
-    }
-    must(await startDialog(page).count() === 0 && !/[?&]type=apps/.test(page.url()), 'a removed command still ran');
-    if (repo) {
-      await say('find nanoGPT');
-      await page.locator('[data-result-sheet]').getByRole('button', { name: `${repo.repo} · Project` }).waitFor({ timeout: 10000 });
-      await page.keyboard.press('Escape');
-    }
-    await say('/share');
-    await page.locator('[data-result-sheet]').getByText('Unknown command /share.', { exact: false }).first().waitFor({ timeout: 10000 });
-    await page.context().close();
-  });
-
-  await check('bar-dock: the workspace dock is chrome (owner, 2026-10-06, workspace-dock.md) - a hairline input shadow, an opaque strip with a top divider, no fade, no frosted glass, no review switch', async () => {
-    const page = await open();
-    await loaded(page, '/apps?dock=integrated');
-    const composer = barOf(page).locator('[data-chat-composer]');
-    must((await composer.evaluate((n) => getComputedStyle(n).boxShadow)).split('rgba').length === 2, 'the composer still floats (popover shadow)');
-    must(await barOf(page).evaluate((n) => getComputedStyle(n).backdropFilter) === 'none', 'frosted glass on the strip');
-    must(await barOf(page).evaluate((n) => getComputedStyle(n).backgroundImage) === 'none', 'a fade behind the dock');
-    must(await barOf(page).evaluate((n) => getComputedStyle(n).borderTopWidth) === '1px', 'no top divider on the dock');
-    await page.context().close();
-  });
-
 }
 
 {
@@ -1581,13 +1165,13 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   };
   console.log(`agent-ui bar-page: project ${ready?.repo || 'none, project checks skipped'}`);
 
-  if (ready) await check('bar-page: a project canvas names its repository in Chat\'s placeholder and shows no Agent Bar; back on the Library the bar carries no project chip', async () => {
+  if (ready) await check('bar-page: a project canvas names its repository in Chat\'s placeholder and shows no Agent Bar; back on the Library there is no bar at all', async () => {
     const page = await canvasAt(`/apps/${ready.name}`);
     must(await chatInput(page).getAttribute('placeholder') === `Ask about ${ready.repo}`, 'Chat\'s placeholder does not name the ready project');
     must(await barOf(page).count() === 0, 'the Agent Bar shows on the project canvas');
     await spa(page, '/library');
-    await barOf(page).waitFor({ timeout: 10000 });
-    must(await barOf(page).locator('[data-scope-chip]').count() === 0, 'a stale chip on the Library');
+    await page.locator('main').first().waitFor({ timeout: 10000 });
+    must(await barOf(page).count() === 0, 'a bar on the Library (owner, 2026-10-22: no composer on Home, Library or Explore)');
     await page.context().close();
   });
 
@@ -2029,7 +1613,7 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     await page.context().close();
   });
 
-  await check('wp6-composer-parity: the Learn composer is the Mothership shell - same height, radius, border, Send and + size (the dock is flat at rest since 2026-10-06, so the resting shadow differs); canvas controls never overlap it; no canvas slug or sample course title; on a phone it sits fully on screen', async () => {
+  await check('wp6-composer-learn: the Learn composer has a + and a placeholder, canvas controls never overlap it, (the Mothership dock it was measured against is gone from Home since 2026-10-22); no canvas slug or sample course title; on a phone it sits fully on screen', async () => {
     // Measured in the same focus state on both sides: blurred, then focused (Learn autofocuses its composer).
     const shell = async (form, focused = false) => form.evaluate((n, focused) => {
       if (focused) n.querySelector('textarea, input:not([type="file"]):not([type="hidden"])')?.focus(); else document.activeElement?.blur(); // the text field, not Learn's hidden file input
@@ -2042,8 +1626,6 @@ await check('build: the browser runs the dist-dev entry script', async () => {
       const page = await open(viewport);
       await noAsks(page);
       await loaded(page, '/apps');
-      const bar = await shell(barOf(page).locator('[data-chat-composer]'));
-      const barFocused = await shell(barOf(page).locator('[data-chat-composer]'), true);
       const c = await canvas6(page, { title: 'wp6 parity canvas' });
       try {
         await loaded(page, `/apps/${c.name}`);
@@ -2052,13 +1634,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
         await page.waitForTimeout(1000);
         const learn = await shell(form);
         const where = `${viewport.width}px`;
-        // Home's composer has no + (owner, 2026-10-08), so only Learn's is measured; the Map's keeps the same COMPOSER_ADD.
-        for (const k of ['radius', 'border', 'send']) must(learn[k] === bar[k], `${where}: Learn ${k} ${learn[k]} vs Mothership ${bar[k]}`);
-        must(bar.add === null && learn.add > 0, `${where}: Home + ${bar.add}, Learn + ${learn.add}`);
-        const learnFocused = await shell(form, true);
-        for (const k of ['border', 'shadow']) must(learnFocused[k] === barFocused[k], `${where}, focused: Learn ${k} ${learnFocused[k]} vs Mothership ${barFocused[k]}`);
-        must(Math.abs(learn.h - bar.h) <= 2, `${where}: Learn height ${learn.h} vs Mothership ${bar.h}`);
-        must(Math.abs(learn.gap - bar.gap) <= 2, `${where}: Learn sits ${learn.gap}px above the bottom edge, the Mothership ${bar.gap}px (the shared DOCK_PAD footprint and safe area)`);
+        // Owner, 2026-10-22: Home has no composer to measure against; Learn's own + (COMPOSER_ADD) is still checked.
+        must(learn.add > 0, `${where}: Learn + ${learn.add}`);
         const zoom = await page.getByRole('button', { name: 'Add section' }).first().boundingBox().catch(() => null);
         must(!overlaps(learn.box, zoom && { top: zoom.y, bottom: zoom.y + zoom.height, left: zoom.x, right: zoom.x + zoom.width }), `${where}: the zoom bar overlaps the Learn composer`);
         must(learn.box.top >= 0 && learn.box.bottom <= viewport.height, `${where}: the Learn composer is off screen (${learn.box.top}-${learn.box.bottom})`);
