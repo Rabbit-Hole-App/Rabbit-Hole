@@ -255,3 +255,35 @@ test('copy style carries No stroke, and a pasted colour brings the outline back'
   assert.equal(shown.color, '#2383e2');
   assert.equal(pasteStyle({ id: 'l', kind: 'line', color: '#37352f' }, hidden).noStroke, undefined, 'a line cannot have none');
 });
+
+test('sloppiness shows for shapes, arrows and connectors, armed or selected, and for nothing with words or ink', () => {
+  for (const tool of ['rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star', 'line', 'arrow', 'curve', 'elbow']) assert.equal(panelFor({ tool, selection: [] }).sloppy, true, tool);
+  for (const tool of ['pen', 'highlighter', 'text', 'sticky', 'select', 'hand', 'eraser']) assert.equal(panelFor({ tool, selection: [] }).sloppy, false, tool);
+  assert.equal(panelFor({ tool: 'select', selection: ['s1'], shapes: [shape('s1')] }).sloppy, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['s1', 'l1'], shapes: [shape('s1', 'arrow')], links: [{ id: 'l1' }] }).sloppy, true, 'a connector and an arrow together');
+  assert.equal(panelFor({ tool: 'select', selection: ['l1'], links: [{ id: 'l1' }] }).sloppy, true);
+  assert.equal(panelFor({ tool: 'select', selection: ['s1', 't1'], shapes: [shape('s1')], items: [text('t1')] }).sloppy, false, 'a text box in the pick hides it, as it hides the widths');
+  assert.equal(panelFor({ tool: 'select', selection: ['n1'], items: [sticky('n1')] }).sloppy, false);
+  assert.equal(panelFor({ tool: 'select', selection: ['s1'], shapes: [shape('s1')], locked: ['s1'] }).sloppy, false, 'a locked shape is never a target');
+  assert.deepEqual(panelFor({ tool: 'select', selection: ['s1', 's2'], shapes: [shape('s1'), shape('s2')], locked: ['s2'] }).targets, ['s1']);
+});
+
+test('copy style carries sloppiness (Clean too) and paste style keeps the destination seed', () => {
+  const sketchy = { id: 'src', kind: 'rect', color: '#b42318', roughness: 2, seed: 111 };
+  assert.equal(copyStyle(sketchy).roughness, 2);
+  assert.equal(copyStyle(sketchy).seed, undefined, 'the wobble belongs to the object, not to its style');
+  assert.equal(copyStyle({ id: 'old', kind: 'rect', color: '#b42318' }).roughness, 0, 'an old object copies as Clean');
+  const onto = pasteStyle({ id: 'dst', kind: 'ellipse', seed: 222, roughness: 0 }, copyStyle(sketchy));
+  assert.equal(onto.roughness, 2);
+  assert.equal(onto.seed, 222);
+  const fresh = pasteStyle({ id: 'dst2', kind: 'arrow' }, copyStyle(sketchy));
+  assert.equal(fresh.roughness, 2);
+  assert.equal(typeof fresh.seed, 'number', 'a seed is stored the first time, so a duplicate of it looks the same');
+  assert.notEqual(fresh.seed, 111);
+  const clean = pasteStyle({ id: 'dst3', kind: 'rect', roughness: 2, seed: 5 }, copyStyle({ id: 'old', kind: 'rect' }));
+  assert.equal(clean.roughness, 0);
+  assert.equal(clean.seed, 5);
+  const link = pasteStyle({ id: 'l', from: 'a', to: 'b' }, copyStyle(sketchy), true);
+  assert.equal(link.roughness, 2);
+  assert.equal(pasteStyle({ id: 't', kind: 'text', text: 'hi' }, copyStyle(sketchy)).roughness, undefined, 'text stays crisp');
+});

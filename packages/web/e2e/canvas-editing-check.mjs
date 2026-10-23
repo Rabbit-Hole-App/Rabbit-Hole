@@ -19,8 +19,8 @@ const browser = await chromium.launch();
 const errors = [];
 
 // One fresh page per scenario, seeded with a board.
-async function open(name, board, { readonly = false, localcopy = false, viewport = { width: 1500, height: 950 } } = {}) {
-  const context = await browser.newContext({ viewport });
+async function open(name, board, { readonly = false, localcopy = false, viewport = { width: 1500, height: 950 }, hasTouch = false } = {}) {
+  const context = await browser.newContext({ viewport, hasTouch });
   const page = await context.newPage();
   page.on('pageerror', error => errors.push(`${name}: ${error.message}`));
   page.on('console', message => { if (message.type() === 'error' && !/Failed to load resource|favicon/.test(message.text())) errors.push(`${name}: ${message.text()}`); });
@@ -1288,6 +1288,288 @@ await run('no stroke', async () => {
   await page.mouse.move(from.x, from.y); await page.mouse.down(); await page.mouse.move(to.x, to.y, { steps: 6 }); await page.mouse.up();
   const drew = (await saved()).shapes.find(entry => !['a', 'b', 'l'].includes(entry.id));
   check('the next rectangle drawn has no outline', drew && drew.kind === 'rect' && drew.noStroke === true, JSON.stringify(drew));
+  await context.close();
+});
+
+// UI-34 (owner brief 2026-10-23): Sloppiness - Clean, Sketchy, Rough - in the style panel, for shapes, arrows and connectors.
+// The stroke is redrawn by hand (canvas-sloppy.js) and nothing else changes: geometry, fills, dashes, words and bindings stay.
+const sloppyD = (page, id) => page.locator(`[data-shape-id="${id}"] g[data-sloppy] path`).evaluateAll(nodes => nodes.map(node => node.getAttribute('d')));
+const numbersOf = d => d.match(/-?\d+(?:\.\d+)?/g).map(Number);
+const endsOf = d => { const n = numbersOf(d); return { from: [n[0], n[1]], to: [n[n.length - 2], n[n.length - 1]] }; };
+const same = (pair, x, y) => Math.abs(pair[0] - x) < 0.02 && Math.abs(pair[1] - y) < 0.02;
+const clickOn = (page, screen) => async (x, y, modifiers = []) => { const at = await screen(x, y); for (const key of modifiers) await page.keyboard.down(key); await page.mouse.click(at.x, at.y); for (const key of modifiers) await page.keyboard.up(key); };
+const dragOn = (page, screen) => async (x1, y1, x2, y2) => { const a = await screen(x1, y1), b = await screen(x2, y2); await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(b.x, b.y, { steps: 6 }); await page.mouse.up(); };
+const LEVELS = ['Clean', 'Sketchy', 'Rough'];
+const sloppiness = page => {
+  const panel = page.locator('[data-style-panel]');
+  const level = name => panel.getByRole('button', { name: `Sloppiness: ${name}`, exact: true });
+  return { panel, level, row: panel.locator('xpath=.//span[normalize-space()="Sloppiness"]/../..'), pressed: async () => JSON.stringify(await Promise.all(LEVELS.map(name => level(name).getAttribute('aria-pressed')))) };
+};
+
+await run('sloppiness', async () => {
+  const rect = { id: 'r1', kind: 'rect', x1: 100, y1: 100, x2: 300, y2: 200, ...style, width: 3.5, dash: 'dashed', fill: '#2383e2', text: 'Hello shapes' };
+  const oval = { id: 'e1', kind: 'ellipse', x1: 400, y1: 100, x2: 560, y2: 200, ...style, seed: 999 };
+  const tri = { id: 't1', kind: 'triangle', x1: 100, y1: 260, x2: 220, y2: 360, ...style, color: '#b42318', dash: 'dotted' };
+  const tiny = { id: 'tn', kind: 'rect', x1: 700, y1: 300, x2: 706, y2: 306, ...style };
+  const { page, context, saved, screen, shot } = await open('sloppiness', { shapes: [rect, oval, tri, tiny] });
+  const click = clickOn(page, screen), drag = dragOn(page, screen);
+  const { panel, level, row, pressed } = sloppiness(page);
+  const known = new Set(['r1', 'e1', 't1', 'tn']);
+  const added = async () => (await saved()).shapes.filter(shape => !known.has(shape.id));
+
+  // Armed: the choice sets the style of the next object.
+  await page.keyboard.press('r');
+  check('with a shape tool armed the panel offers Clean, Sketchy and Rough, each named and with a tooltip', (await row.count()) === 1
+    && (await Promise.all(LEVELS.map(async name => (await level(name).count()) === 1 && (await level(name).getAttribute('title')).startsWith(`${name}: `)))).every(Boolean));
+  const widthRow = panel.locator('xpath=.//span[normalize-space()="Stroke width"]/../..');
+  const [rowBox, widthBox] = [await row.boundingBox(), await widthRow.boundingBox()];
+  check('the row sits below the stroke width and style controls', rowBox.y > widthBox.y + widthBox.height - 1, JSON.stringify([rowBox.y, widthBox.y, widthBox.height]));
+  check('Clean is the default and is pressed', (await pressed()) === '["true","false","false"]', await pressed());
+  await level('Sketchy').click();
+  check('picking Sketchy presses it alone', (await pressed()) === '["false","true","false"]', await pressed());
+  await drag(850, 300, 1000, 380);
+  let [made] = await added();
+  check('the next rectangle is drawn Sketchy, with a seed of its own', made && made.kind === 'rect' && made.roughness === 1 && Number.isInteger(made.seed), JSON.stringify(made));
+  check('it is drawn by hand: one wobbled closed path instead of a plain rect', (await sloppyD(page, made.id)).length === 1 && (await page.locator(`[data-shape-id="${made.id}"] rect:not([data-thumbnail-hide])`).count()) === 0);
+  check('the drawn shape stays selected and the panel shows Sketchy', (await pressed()) === '["false","true","false"]', await pressed());
+  known.add(made.id);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('a');
+  check('the armed level is remembered for the next arrow', (await pressed()) === '["false","true","false"]', await pressed());
+  await level('Rough').click();
+  await drag(850, 450, 1050, 500);
+  [made] = await added();
+  const arrowDs = made ? await sloppyD(page, made.id) : [];
+  check('an arrow drawn Rough has two strokes, a seed and its head, and both strokes keep its ends', made && made.kind === 'arrow' && made.roughness === 2 && Number.isInteger(made.seed) && arrowDs.length === 2
+    && arrowDs.every(d => same(endsOf(d).from, made.x1, made.y1) && same(endsOf(d).to, made.x2, made.y2)) && (await page.locator(`[data-shape-id="${made.id}"] [data-head="arrow"]`).count()) === 1, JSON.stringify(made));
+  known.add(made.id);
+
+  // Selected: it applies at once, to the stroke only.
+  await page.keyboard.press('Escape');
+  await click(200, 150);
+  const before = (await saved()).shapes.find(shape => shape.id === 'r1');
+  check('a selected shape shows its own level: Clean', (await pressed()) === '["true","false","false"]', await pressed());
+  await level('Rough').click();
+  let r1 = (await saved()).shapes.find(shape => shape.id === 'r1');
+  check('Rough applies to the selection at once and stores a level and a seed', r1.roughness === 2 && Number.isInteger(r1.seed), JSON.stringify([r1.roughness, r1.seed]));
+  check('it changes the stroke only: geometry, fill, width, dash, colour, opacity and words stay', ['x1', 'y1', 'x2', 'y2', 'fill', 'width', 'dash', 'color', 'opacity', 'round', 'text'].every(key => r1[key] === before[key]), JSON.stringify(r1));
+  const paths = await sloppyD(page, 'r1');
+  const paint = await page.locator('[data-shape-id="r1"] g[data-sloppy] path').evaluateAll(nodes => nodes.map(node => { const css = getComputedStyle(node); return { fill: css.fill, width: css.strokeWidth, dash: css.strokeDasharray }; }));
+  check('Rough is two strokes; the fill, the width and the dashes are still there', paths.length === 2 && paint[0].fill === 'rgb(35, 131, 226)' && paint[1].fill === 'none' && paint.every(entry => entry.width === '3.5px' && entry.dash !== 'none'), JSON.stringify(paint));
+  check('the words in the shape stay crisp text', (await page.locator('[data-shape-id="r1"] [data-shape-text]').innerText()).startsWith('Hello') && (await page.locator('[data-shape-id="r1"] g[data-sloppy] [data-shape-text]').count()) === 0);
+  await shot('sloppiness-1-rough-rectangle');
+  await page.keyboard.press('Control+z');
+  r1 = (await saved()).shapes.find(shape => shape.id === 'r1');
+  check('one undo puts the rectangle back to Clean, drawn as the plain rect again', !r1.roughness && (await sloppyD(page, 'r1')).length === 0 && (await page.locator('[data-shape-id="r1"] rect:not([data-thumbnail-hide])').count()) === 1, JSON.stringify(r1));
+  await page.keyboard.press('Control+y');
+  r1 = (await saved()).shapes.find(shape => shape.id === 'r1');
+  check('redo brings back the very same strokes', r1.roughness === 2 && JSON.stringify(await sloppyD(page, 'r1')) === JSON.stringify(paths));
+  const seed = r1.seed;
+
+  // Resizing keeps the level and the seed.
+  await click(200, 150);
+  const grip = await page.locator('[data-shape-id="r1"] [data-handle="11"]').boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2); await page.mouse.down(); await page.mouse.move(grip.x + grip.width / 2 + 40, grip.y + grip.height / 2 + 30, { steps: 5 }); await page.mouse.up();
+  r1 = (await saved()).shapes.find(shape => shape.id === 'r1');
+  check('resizing keeps the level and the seed, and the shape stays sketched', r1.x2 > 300 && r1.roughness === 2 && r1.seed === seed && (await sloppyD(page, 'r1')).length === 2, JSON.stringify(r1));
+
+  // Duplicate: the copy starts identical (the seed is copied).
+  const ids = new Set((await saved()).shapes.map(shape => shape.id));
+  await page.keyboard.press('Control+d');
+  const copy = (await saved()).shapes.find(shape => !ids.has(shape.id));
+  const [dx, dy] = copy ? [copy.x1 - r1.x1, copy.y1 - r1.y1] : [0, 0];
+  const original = (await sloppyD(page, 'r1'))[0], twin = copy ? (await sloppyD(page, copy.id))[0] : '';
+  check('a duplicate carries the level and the seed, so it looks the same as its source', copy && copy.roughness === 2 && copy.seed === seed
+    && numbersOf(original).length === numbersOf(twin).length && numbersOf(twin).every((value, index) => Math.abs(value - numbersOf(original)[index] - (index % 2 ? dy : dx)) < 0.02), JSON.stringify(copy));
+  await page.keyboard.press('Delete');
+
+  // Paste style: the level comes across, the destination keeps its own seed.
+  await page.keyboard.press('Escape');
+  await click(200, 150);
+  await page.keyboard.press('Control+Alt+c');
+  await click(480, 150);
+  await page.keyboard.press('Control+Alt+v');
+  let e1 = (await saved()).shapes.find(shape => shape.id === 'e1');
+  check('paste style gives the ellipse the level but keeps its own seed', e1.roughness === 2 && e1.seed === 999 && e1.x2 === 560, JSON.stringify(e1));
+  await page.keyboard.press('Escape');
+  await click(160, 330);
+  await page.keyboard.press('Control+Alt+c');
+  await click(480, 150);
+  await page.keyboard.press('Control+Alt+v');
+  e1 = (await saved()).shapes.find(shape => shape.id === 'e1');
+  check('pasting the style of a Clean shape makes the target Clean again, seed untouched', !e1.roughness && e1.seed === 999 && (await sloppyD(page, 'e1')).length === 0, JSON.stringify(e1));
+
+  // Mixed: r1 is Rough, e1 is Clean.
+  await page.keyboard.press('Escape');
+  await click(200, 150);
+  await click(480, 150, ['Shift']);
+  check('when the levels differ the row says Mixed and presses nothing', (await row.locator('span[data-mixed]').count()) === 1 && !(await pressed()).includes('"true"'), await pressed());
+  await level('Sketchy').click();
+  let two = (await saved()).shapes.filter(shape => ['r1', 'e1'].includes(shape.id));
+  check('one press applies to every selected shape and keeps each seed', two.every(shape => shape.roughness === 1) && two.find(shape => shape.id === 'e1').seed === 999 && two.find(shape => shape.id === 'r1').seed === seed, JSON.stringify(two.map(shape => [shape.id, shape.roughness, shape.seed])));
+  await page.keyboard.press('Control+z');
+  two = (await saved()).shapes.filter(shape => ['r1', 'e1'].includes(shape.id));
+  check('and one undo takes it back for both', two.find(shape => shape.id === 'r1').roughness === 2 && !two.find(shape => shape.id === 'e1').roughness, JSON.stringify(two.map(shape => [shape.id, shape.roughness])));
+
+  // Tiny and dotted objects.
+  await page.keyboard.press('Escape');
+  await drag(670, 270, 740, 340);
+  await level('Rough').click();
+  const small = (await sloppyD(page, 'tn')).flatMap(numbersOf);
+  check('a tiny shape wobbles in proportion: every point stays within two pixels of its box', small.length > 0 && small.every((value, index) => (index % 2 ? value >= 298 && value <= 308 : value >= 698 && value <= 708)), JSON.stringify(small.slice(0, 8)));
+  await page.keyboard.press('Escape');
+  await click(160, 330);
+  await level('Sketchy').click();
+  const dotted = await page.locator('[data-shape-id="t1"] g[data-sloppy] path').first().evaluate(node => getComputedStyle(node).strokeDasharray);
+  check('a dotted polygon keeps its dots and is drawn as one closed path, not a polygon', /^0(px)?[ ,]+4(px)?$/.test(dotted) && (await page.locator('[data-shape-id="t1"] polygon').count()) === 0 && (await sloppyD(page, 't1'))[0].endsWith('Z'), dotted);
+
+  // Keyboard: the buttons are real buttons.
+  await page.keyboard.press('Escape');
+  await click(480, 150);
+  await level('Rough').focus();
+  await page.keyboard.press('Enter');
+  e1 = (await saved()).shapes.find(shape => shape.id === 'e1');
+  check('the keyboard works: focus a level and press Enter', e1.roughness === 2 && (await level('Rough').getAttribute('aria-pressed')) === 'true', JSON.stringify(e1));
+  await shot('sloppiness-2-panel');
+  await context.close();
+});
+
+await run('sloppiness arrows and connectors', async () => {
+  const lines = [
+    { id: 'ar', kind: 'arrow', x1: 100, y1: 100, x2: 300, y2: 160, ...style },
+    { id: 'cu', kind: 'curve', x1: 100, y1: 220, x2: 300, y2: 300, ...style },
+    { id: 'el', kind: 'elbow', x1: 100, y1: 360, x2: 300, y2: 440, ...style },
+    { id: 'ln', kind: 'line', x1: 100, y1: 500, x2: 300, y2: 500, ...style, dash: 'dashed' },
+  ];
+  const a = { id: 'a', kind: 'rect', x1: 500, y1: 100, x2: 580, y2: 160, ...style };
+  const b = { id: 'b', kind: 'rect', x1: 700, y1: 100, x2: 780, y2: 160, ...style };
+  const link = { id: 'k', from: 'a', fromSide: 'right', to: 'b', toSide: 'left', color: '#37352f', route: 'straight', head: true };
+  const bent = { id: 'k2', from: 'a', fromSide: 'bottom', to: 'b', toSide: 'bottom', color: '#37352f', route: 'elbow', head: true };
+  const { page, context, saved, screen, shot } = await open('sloppiness-lines', { shapes: [...lines, a, b], links: [link, bent] });
+  const click = clickOn(page, screen), drag = dragOn(page, screen);
+  const { level, row } = sloppiness(page);
+  await drag(40, 60, 340, 540);
+  check('a straight, a curved and an elbow arrow and a line selected together offer Sloppiness', (await row.count()) === 1);
+  for (const [name, count] of [['Sketchy', 1], ['Rough', 2]]) {
+    await level(name).click();
+    const board = await saved();
+    const results = [];
+    for (const shape of board.shapes.filter(entry => lines.some(line => line.id === entry.id))) {
+      const drawn = await sloppyD(page, shape.id), head = page.locator(`[data-shape-id="${shape.id}"] [data-head="arrow"]`);
+      const tip = (await head.count()) ? numbersOf(await head.first().getAttribute('d')).slice(2, 4) : null;
+      results.push(shape.kind === 'line' ? !tip : tip && same(tip, shape.x2, shape.y2));
+      results.push(shape.roughness === (name === 'Sketchy' ? 1 : 2) && drawn.length === count && drawn.every(d => same(endsOf(d).from, shape.x1, shape.y1) && same(endsOf(d).to, shape.x2, shape.y2)));
+    }
+    check(`${name}: every arrow and line is hand drawn, keeps both ends, and its arrowhead tip stays on the end`, results.length === 8 && results.every(Boolean), JSON.stringify(results));
+  }
+  const dashed = await page.locator('[data-shape-id="ln"] g[data-sloppy] path').first().evaluate(node => getComputedStyle(node).strokeDasharray);
+  check('a dashed line keeps its dashes', dashed !== 'none', dashed);
+  await shot('sloppiness-3-arrows');
+  await page.keyboard.press('Control+z');
+  check('one undo steps all four back to Sketchy together', (await saved()).shapes.filter(shape => lines.some(line => line.id === shape.id)).every(shape => shape.roughness === 1));
+
+  // Connectors: the route is the real one, the line is drawn by hand, the ends stay on the ports.
+  await page.keyboard.press('Escape');
+  await click(640, 130);
+  check('a selected connector offers Sloppiness', (await row.count()) === 1);
+  await level('Rough').click();
+  const links = (await saved()).links;
+  check('Rough on a connector stores the level and a seed and keeps its bindings and route', links.find(entry => entry.id === 'k').roughness === 2 && Number.isInteger(links.find(entry => entry.id === 'k').seed)
+    && links.find(entry => entry.id === 'k').from === 'a' && links.find(entry => entry.id === 'k').to === 'b' && links.find(entry => entry.id === 'k').route === 'straight' && !links.find(entry => entry.id === 'k2').roughness, JSON.stringify(links));
+  const clean = async id => endsOf(await page.locator(`[data-connection="${id}"] path[stroke="transparent"]`).getAttribute('d'));
+  const attached = async id => {
+    const drawn = await page.locator(`[data-connection="${id}"] path[data-sloppy]`).evaluateAll(nodes => nodes.map(node => node.getAttribute('d')));
+    const real = await clean(id);
+    const head = page.locator(`[data-connection="${id}"] [data-head]`);
+    const tip = (await head.count()) ? numbersOf(await head.first().getAttribute('d')).slice(2, 4) : null;
+    return { count: drawn.length, ends: drawn.every(d => same(endsOf(d).from, ...real.from) && same(endsOf(d).to, ...real.to)), tip: !!tip && same(tip, ...real.to) };
+  };
+  check('the connector is two hand drawn strokes whose ends are exactly on its real route, and its arrowhead tip is on the port', JSON.stringify(await attached('k')) === '{"count":2,"ends":true,"tip":true}', JSON.stringify(await attached('k')));
+  await level('Sketchy').click();
+  await page.keyboard.press('Escape');
+  await click(740, 130);
+  await page.keyboard.press('Shift+ArrowDown');
+  const moved = (await saved()).links.find(entry => entry.id === 'k');
+  check('moving the shape it is bound to keeps the binding, the level, and the stroke on the port', moved.to === 'b' && moved.roughness === 1 && JSON.stringify(await attached('k')) === '{"count":1,"ends":true,"tip":true}', JSON.stringify(await attached('k')));
+  await page.keyboard.press('Escape');
+  const onElbow = await page.locator('[data-connection="k2"] path[stroke="transparent"]').evaluate(node => { const p = node.getPointAtLength(node.getTotalLength() / 2), m = node.getScreenCTM(); return { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f }; });
+  await page.mouse.click(onElbow.x, onElbow.y);
+  await level('Sketchy').click();
+  check('an elbow connector is drawn by hand too, with its ends and head on the ports', JSON.stringify(await attached('k2')) === '{"count":1,"ends":true,"tip":true}', JSON.stringify(await attached('k2')));
+  await shot('sloppiness-4-connectors');
+  await context.close();
+});
+
+await run('sloppiness locked and mixed selections', async () => {
+  const free = { id: 'fr', kind: 'rect', x1: 100, y1: 100, x2: 260, y2: 180, ...style };
+  const locked = { id: 'lk', kind: 'rect', x1: 400, y1: 100, x2: 560, y2: 180, ...style, locked: true };
+  const { page, context, saved, screen } = await open('sloppiness-locked', { shapes: [free, locked], items: [textItem('tx', 100, 320)] });
+  const click = clickOn(page, screen), drag = dragOn(page, screen);
+  const { level, row } = sloppiness(page);
+  await click(480, 140);
+  check('a locked shape alone offers no Sloppiness, only the Locked note', (await row.count()) === 0 && await page.locator('[data-locked-note]').isVisible());
+  await page.keyboard.press('Escape');
+  await drag(40, 60, 620, 220);
+  await level('Sketchy').click();
+  const board = (await saved()).shapes;
+  check('a locked shape keeps its look: only the free one changes', board.find(shape => shape.id === 'fr').roughness === 1 && !board.find(shape => shape.id === 'lk').roughness && (await sloppyD(page, 'lk')).length === 0 && (await sloppyD(page, 'fr')).length === 1);
+  await page.keyboard.press('Escape');
+  await click(180, 140);
+  await page.locator('[data-item-id="tx"]').click({ modifiers: ['Shift'], position: { x: 20, y: 8 } });
+  check('a text box in the selection hides Sloppiness: text is never sketched', (await row.count()) === 0);
+  await context.close();
+});
+
+await run('sloppiness view', async () => {
+  const rect = { id: 'r1', kind: 'rect', x1: 100, y1: 100, x2: 300, y2: 200, ...style, fill: '#2383e2', roughness: 2, seed: 7, text: 'kept' };
+  const arrow = { id: 'ar', kind: 'arrow', x1: 100, y1: 300, x2: 300, y2: 360, ...style, roughness: 1, seed: 3 };
+  const a = { id: 'a', kind: 'rect', x1: 500, y1: 100, x2: 580, y2: 160, ...style };
+  const b = { id: 'b', kind: 'rect', x1: 700, y1: 100, x2: 780, y2: 160, ...style };
+  const link = { id: 'k', from: 'a', fromSide: 'right', to: 'b', toSide: 'left', color: '#37352f', route: 'straight', head: true, roughness: 2, seed: 5 };
+  const board = { shapes: [rect, arrow, a, b], links: [link] };
+  const { page, context, saved, reload, screen, shot } = await open('sloppiness-view', board);
+  const click = clickOn(page, screen);
+  const look = async target => JSON.stringify([await sloppyD(target, 'r1'), await sloppyD(target, 'ar'), await target.locator('[data-connection="k"] path[data-sloppy]').evaluateAll(nodes => nodes.map(node => node.getAttribute('d')))]);
+  const first = await look(page);
+  check('objects saved with a level and a seed are drawn by hand on load', JSON.parse(first)[0].length === 2 && JSON.parse(first)[1].length === 1 && JSON.parse(first)[2].length === 2);
+  await page.evaluate(() => document.documentElement.classList.add('dark'));
+  const dark = await look(page);
+  await shot('sloppiness-5-dark');
+  await page.evaluate(() => document.documentElement.classList.remove('dark'));
+  check('a theme change redraws nothing: the strokes are the same in both themes', dark === first);
+  await page.mouse.move(700, 500);
+  await page.keyboard.down('Control'); await page.mouse.wheel(0, -200); await page.keyboard.up('Control');
+  check('zooming does not redraw the strokes (they live in canvas units, not pixels)', !/scale\(1\)$/.test(await viewOf(page)) && (await look(page)) === first, await viewOf(page));
+  await page.keyboard.down('Control'); await page.mouse.wheel(0, 200); await page.keyboard.up('Control');
+  await click(200, 150);
+  const x1 = (await shapeOf(saved, 'r1')).x1;
+  await page.keyboard.press('ArrowRight');
+  const nudged = await shapeOf(saved, 'r1');
+  const moved = JSON.parse(await look(page))[0][0];
+  check('moving a shape keeps its seed and moves the same strokes with it', nudged.x1 === x1 + 1 && nudged.seed === 7 && numbersOf(moved).every((value, index) => Math.abs(value - numbersOf(JSON.parse(first)[0][0])[index] - (index % 2 ? 0 : 1)) < 0.02));
+  await page.keyboard.press('ArrowLeft');
+  await reload();
+  check('after a reload the strokes are exactly the same', (await look(page)) === first);
+  for (const [name, options] of [['readonly', { readonly: true }], ['localcopy', { localcopy: true }]]) {
+    const other = await open(`sloppiness-view-${name}`, board, options);
+    check(`a ${name} view of the board draws the same strokes`, (await look(other.page)) === first);
+    await other.context.close();
+  }
+  await context.close();
+});
+
+await run('sloppiness touch and narrow panel', async () => {
+  const box = { id: 'r1', kind: 'rect', x1: 40, y1: 100, x2: 240, y2: 200, ...style };
+  const { page, context, saved, screen } = await open('sloppiness-touch', { shapes: [box] }, { hasTouch: true, viewport: { width: 560, height: 900 } });
+  const at = await screen(140, 150);
+  await page.mouse.click(at.x, at.y);
+  const { panel, level, row } = sloppiness(page);
+  await row.waitFor({ state: 'visible' });
+  const inside = await panel.boundingBox();
+  const boxes = await Promise.all(LEVELS.map(name => level(name).boundingBox()));
+  check('on a narrow panel all three levels are fully inside it and the panel does not scroll sideways', boxes.every(entry => entry && entry.x >= inside.x - 0.5 && entry.x + entry.width <= inside.x + inside.width + 0.5) && await panel.evaluate(node => node.scrollWidth <= node.clientWidth + 1), JSON.stringify([inside, boxes]));
+  await level('Sketchy').tap();
+  check('a tap picks a level', (await shapeOf(saved, 'r1')).roughness === 1 && (await level('Sketchy').getAttribute('aria-pressed')) === 'true');
   await context.close();
 });
 

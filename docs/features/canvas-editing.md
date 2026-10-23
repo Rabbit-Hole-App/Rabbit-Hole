@@ -169,6 +169,22 @@ next shape drawn, and copies and pastes with the style. Exports draw no outline 
 shape; the group picture, `learn-group-shot.js`, skips the stroke). Text boxes have no outline of their own, so they
 have none to hide, and a note's Note row is its paper colour, so neither is offered it.
 
+**Sloppiness** (owner brief UI-34, 2026-10-23) is a row of three buttons under Stroke width: Clean, Sketchy, Rough, each
+with a stroke sample, a tooltip and an accessible name (`Sloppiness: Clean`). It applies to shapes, straight, curved and
+elbow arrows, lines and connectors; text, notes and the pen stay as they are. With a drawing tool armed it is the
+style of the next object; with objects selected it applies at once to the unlocked ones (one undo step for the whole
+selection) and says Mixed when they differ. An object stores `roughness` (0 Clean, 1 Sketchy, 2 Rough; absent is Clean,
+so old canvases look exactly as before) and `seed`, written the first time it goes sketchy. `canvas-sloppy.js` redraws
+only the visible stroke from the real geometry with a seeded noise (Rough adds a second stroke); the hit area, the
+selection, the handles, the labels, the fill, the dashes and the connector bindings are the real ones, and the free
+ends of an open path never move, so arrowheads stay attached (their arms wobble, their tips do not). The same object
+always gets the same strokes, on every rerender, move, zoom, theme change, reload, share and fork. A duplicate copies
+the seed (it looks identical); paste style copies the level and keeps the destination's own seed. The level is armed
+like the other panel values and is not saved beyond the session. The group picture (`learn-group-shot.js`) draws Sketchy
+and Rough rectangles, ellipses and lines the same way. Checks: `canvas-sloppy.test.mjs`, `learn-style-panel.test.mjs`,
+the `sloppiness` steps of `e2e/canvas-editing-check.mjs`, and the Rough rectangle in `e2e/canvas-forking-check.mjs`
+(shared view and fork draw the same strokes).
+
 Arrowheads are stored as `startHead` / `endHead` on shapes and links. Without them, a drawn arrow, curve, elbow or
 diagram connector ends in the open arrow it always had.
 

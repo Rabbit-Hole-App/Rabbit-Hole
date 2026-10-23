@@ -22,6 +22,7 @@ import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorder
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
 const CodeBoxEditor = lazyFeature(() => import('./CodeBoxEditor.jsx'), 'The code editor');
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
+import { jitterPoint, roughnessOf, roughnessPatch, seedOf, sloppyLink, sloppyShape } from './canvas-sloppy.js';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
@@ -1281,14 +1282,16 @@ const inkPath = (stroke, index) => (stroke.tool === 'pen'
   : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />);
 
 // An arrowhead (learn-style-panel.js HEADS) at `tip`, pointing away from `from`: open arrow, filled triangle, dot or bar.
-const headMark = (kind, tip, from, stroke, key = undefined) => {
+// sloppy: { roughness, seed } of a hand-drawn line - the head's arms wobble with it, the tip stays on the line's end.
+const headMark = (kind, tip, from, stroke, key = undefined, sloppy = null) => {
   if (!kind || kind === 'none' || !tip || !from) return null;
   const angle = Math.atan2(tip.y - from.y, tip.x - from.x), size = 8 + stroke.strokeWidth * 2;
-  const at = (turn, reach) => `${tip.x - reach * Math.cos(angle + turn)} ${tip.y - reach * Math.sin(angle + turn)}`;
+  const arm = (x, y, salt) => { const p = sloppy ? jitterPoint({ x, y }, sloppy.roughness, sloppy.seed + salt) : { x, y }; return `${p.x} ${p.y}`; };
+  const at = (turn, reach) => arm(tip.x - reach * Math.cos(angle + turn), tip.y - reach * Math.sin(angle + turn), turn < 0 ? 31 : 37);
   const solid = { stroke: stroke.stroke, strokeWidth: stroke.strokeWidth, opacity: stroke.opacity, strokeLinecap: 'round', strokeLinejoin: 'round' };
   if (kind === 'triangle') return <path key={key} data-head="triangle" d={`M${at(-0.42, size)} L${tip.x} ${tip.y} L${at(0.42, size)} Z`} {...solid} fill={stroke.stroke} />;
   if (kind === 'dot') { const r = 2.5 + stroke.strokeWidth; return <circle key={key} data-head="dot" cx={tip.x - r * Math.cos(angle)} cy={tip.y - r * Math.sin(angle)} r={r} {...solid} fill={stroke.stroke} />; }
-  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${tip.x + half * Math.sin(angle)} ${tip.y - half * Math.cos(angle)} L${tip.x - half * Math.sin(angle)} ${tip.y + half * Math.cos(angle)}`} {...solid} fill="none" />; }
+  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${arm(tip.x + half * Math.sin(angle), tip.y - half * Math.cos(angle), 31)} L${arm(tip.x - half * Math.sin(angle), tip.y + half * Math.cos(angle), 37)}`} {...solid} fill="none" />; }
   return <path key={key} data-head="arrow" d={`M${at(-0.45, size)} L${tip.x} ${tip.y} L${at(0.45, size)}`} {...solid} fill="none" />;
 };
 
@@ -1353,6 +1356,10 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   const elbow = kind === 'elbow' ? freeElbow(shape) : null;
   const middle = kind === 'curve' ? { x: 0.25 * x1 + 0.5 * control.x + 0.25 * x2, y: 0.25 * y1 + 0.5 * control.y + 0.25 * y2 } : elbow ? polylineMid(elbow) : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
   const heads = headsOf(shape);
+  // Sloppiness (canvas-sloppy.js): Sketchy and Rough redraw only the visible outline; Clean renders the elements below untouched.
+  const roughness = roughnessOf(shape);
+  const sloppy = roughness ? sloppyShape(shape, { polygon: POLYGONS[kind], control, elbow }) : null;
+  const sloppyHead = roughness ? { roughness, seed: seedOf(shape) } : null;
   const textBox = TEXT_BOX[kind];
   const textRef = useRef(null);
   const base = textBox ? shapeBase(shape) : null;
@@ -1399,19 +1406,26 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
         if (textBox && onEdit) onEdit(shape.id, { x: event.clientX, y: event.clientY });
         else if (linear && onLabel) onLabel(shape.id);
       }}>
-      {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
-      {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
-      {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
-      {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
-      {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
-      {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
+      {sloppy ? (
+        // One group carries the opacity so Rough's two overlapping strokes do not darken where they cross; the second stroke has no fill.
+        <g data-sloppy={roughness} opacity={opacity}>
+          {sloppy.map((d, index) => (index && shape.noStroke ? null : <path key={index} d={d} {...stroke} opacity={undefined} fill={index || linear ? 'none' : stroke.fill} fillOpacity={index || linear ? undefined : stroke.fillOpacity} />))}
+        </g>
+      ) : <>
+        {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
+        {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
+        {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
+        {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
+        {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
+        {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
+      </>}
       {/* A 2px line is a 2px target. This invisible band gives lines, arrows
           and curves the same easy grab a filled shape's interior has. */}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {elbow && <path d={pathOf(elbow)} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinejoin="round" />}
-      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end')}
-      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start')}
+      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end', sloppyHead)}
+      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start', sloppyHead)}
       {linear && <LineLabel at={middle} entry={shape} editing={labelEditing} pickable={selected && tool === 'select' && !locked} onPick={() => onLabel?.(shape.id)} onDone={(runs, how) => onLabelDone(shape.id, runs, how)} onApi={onEditorApi} />}
       {linear && selected && tool === 'select' && !locked && !labelEditing && !shape.label && onLabel && <LabelHandle at={middle} zoom={zoom} onPick={() => onLabel(shape.id)} />}
       {/* Text in the middle of a closed shape: it wraps inside the outline and
@@ -1579,6 +1593,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState('solid');
+  // Sloppiness armed for the next shape, arrow or connector (0 Clean, 1 Sketchy, 2 Rough; canvas-sloppy.js).
+  const [rough, setRough] = useState(0);
   const [fill, setFill] = useState(null);
   const [noStroke, setNoStroke] = useState(false);
   const [opacity, setOpacity] = useState(1);
@@ -4155,7 +4171,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (!to || to === from || present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) return;
       const diagram = fromShape || shapesRef.current.some(shape => shape.id === to);
       snapshot();
-      setLinks(previous => [...previous, { id: crypto.randomUUID(), from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}) }]);
+      const id = crypto.randomUUID();
+      setLinks(previous => [...previous, { id, from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}), ...(diagram && rough ? roughnessPatch({ id }, rough) : {}) }]);
     };
     trace(event);
     const move = e => trace(e);
@@ -4356,7 +4373,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       event.preventDefault();
       const start = store.local(event);
       const linear = tool === 'line' || tool === 'arrow' || tool === 'curve' || tool === 'elbow';
-      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round,
+      const draftId = crypto.randomUUID();
+      const draft = { id: draftId, kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round, ...(rough ? roughnessPatch({ id: draftId }, rough) : {}),
         ...(TEXT_BOX[tool] && fill ? { fillOpacity } : {}), ...(TEXT_BOX[tool] && noStroke ? { noStroke: true } : {}), ...(linear && heads.start ? { startHead: heads.start } : {}), ...(linear && heads.end ? { endHead: heads.end } : {}) };
       // Shift squares the box or snaps the line to 45 degrees; Alt draws from the centre. Pressing or letting go of
       // either mid-drag redraws the preview at once, and the shape saved is the preview's (learn-draw-modifiers.js).
@@ -5069,6 +5087,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const closed = entry => !!TEXT_BOX[entry.kind];
   const linear = entry => isLink(entry) || ['line', 'arrow', 'curve', 'elbow'].includes(entry.kind);
+  const sloppyCapable = entry => closed(entry) || linear(entry);
   const panelValues = {
     color: pick(entry => entry.color || COLORS[0], color),
     stroke: pick(entry => strokeOf(entry, COLORS[0]), panel.noStroke && noStroke ? null : color),
@@ -5076,6 +5095,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     fillOpacity: pick(entry => entry.fillOpacity ?? 0.25, fillOpacity, closed),
     width: pick(entry => entry.width ?? WIDTHS[0], width, entry => !isLink(entry)),
     dash: pick(entry => dashStyle(entry.dash), dash, entry => !isLink(entry)),
+    rough: pick(roughnessOf, rough, sloppyCapable),
     opacity: pick(entry => entry.opacity ?? 1, opacity, entry => !isLink(entry)),
     round: pick(entry => !!entry.round, round, entry => entry.kind === 'rect'),
     startHead: pick(entry => headsOf(entry).start, heads.start || 'none', linear),
@@ -5131,6 +5151,16 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     opacity: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); },
     opacitySlide: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets, true); },
     round: value => { setRound(value); applyStyle({ round: value }, panel.targets); },
+    // One press is one undo step, on every selected shape, arrow and connector that is not locked (panel.targets).
+    sloppiness: value => {
+      setRough(value);
+      const ids = panel.targets.filter(id => { const entry = entryOf(id); return entry && sloppyCapable(entry) && roughnessOf(entry) !== value; });
+      if (!ids.length) return;
+      if (!editorRef.current || editorRef.current.state().code) snapshot();
+      const apply = entry => (ids.includes(entry.id) ? { ...entry, ...roughnessPatch(entry, value) } : entry);
+      markLists().setShapes(previous => previous.map(apply));
+      if (!drawTarget) setLinks(previous => previous.map(apply));
+    },
     head: (end, kind) => { setHeads(previous => ({ ...previous, [end]: kind })); applyStyle({ [`${end}Head`]: kind }, panel.targets.filter(id => linear(entryOf(id) || {}))); },
     route: value => {
       setConnectorRoute(value);
@@ -5525,11 +5555,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const path = linkRoute(link);
             if (!path || connecting?.hide === link.id) return null;
             const ink = inkAware(link.color);
+            // Sloppiness (canvas-sloppy.js): the drawn line is redrawn by hand; the hit path below stays the real route.
+            const roughness = roughnessOf(link), sloppy = roughness ? sloppyLink(path.d, link) : null, sloppyHead = roughness ? { roughness, seed: seedOf(link) } : null;
             return (
               <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
-                <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />
-                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
-                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
+                {(sloppy || [path.d]).map((d, index) => <path key={index} data-sloppy={sloppy ? roughness : undefined} d={d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />)}
+                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end', sloppyHead)}
+                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start', sloppyHead)}
                 {/* A view-only board edits no connection, so its hit path takes no press: a press on a card a connection crosses
                     selects the card (r38: answers about a selected card are linked chat cards, so connections cross cards). */}
                 <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: readOnly ? 'none' : 'stroke', cursor: 'pointer' }}
