@@ -72,7 +72,7 @@ test('every @handle links to its creator\'s profile: every card, fork provenance
   assert.match(read('./home/PublicCards.jsx'), /creatorHref=\{card\.creator\?\.handle \? `\/@\$\{card\.creator\.handle\}` : null\}/);
   assert.match(read('./home/Provenance.jsx'), /\{f\.creatorUrl\n\s+\? <a data-forked-from-creator href=\{f\.creatorUrl\}/);
   const shared = read('./SharedBoardPage.jsx');
-  assert.match(shared, /\{shared\.creator\.handle\n\s+\? <a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a share link\'s header links too');
+  assert.match(shared, /\{shared\.creator\?\.handle && <span data-shared-creator[^\n]*\n\s+<a data-creator-link href=\{`\/@\$\{shared\.creator\.handle\}`\}/, 'a share link\'s header links too');
 });
 
 // Owner, 2026-10-08: Explore is two tabs, Learning Boards (default, with Sort; "Explainers" until 2026-10-09) and Creators; the search applies to the active tab

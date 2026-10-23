@@ -77,13 +77,3 @@ export function CommentsToggle({ panel, comments }) {
     </button>
   );
 }
-
-// The account area: signed in, the viewer's own canvases (an initial, never an email: the shared page shows no address,
-// handle-check). Signed out there is no Sign in button in the header: Fork carries the sign-in (owner, 2026-10-22).
-export function ViewerAccount({ viewer }) {
-  if (!viewer) return null;
-  return (
-    <a data-viewer-account href="/apps" title="Your canvases" aria-label="Your canvases"
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-hover text-sm font-semibold text-ink no-underline hover:bg-active">{viewer.slice(0, 1).toUpperCase()}</a>
-  );
-}

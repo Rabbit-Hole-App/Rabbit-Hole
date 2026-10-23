@@ -355,7 +355,7 @@ const visit = async session => {
 
 await check('11 /e signed in as anyone: Add comment on a card posts a Public thread with a pin', async () => {
   const tab = await visit(visitor.session);
-  await tab.locator('[data-comments-header]').waitFor();
+  await tab.locator('[data-panel-tab="comments"]:not([aria-disabled="true"])').waitFor(); // owner brief 2026-10-23: the shared header has no Comments icon; the panel's Comments tab is the entry
   const box = await tab.locator('[data-block-id="k-exp"]').boundingBox();
   await tab.mouse.click(box.x + 80, box.y + 40, { button: 'right' });
   const items = await tab.locator('[data-canvas-menu] [role="menuitem"]').evaluateAll(rowNames);
@@ -379,7 +379,7 @@ await check('11 /e signed in as anyone: Add comment on a card posts a Public thr
 // draft and its anchor come back after sign-in, never sent by themselves.
 await check('12 /e signed out: the public thread reads; Add comment drafts, and posting goes through sign-in with the draft kept', async () => {
   const tab = await visit(null);
-  await tab.locator('[data-comments-header]').click();
+  await tab.locator('[data-panel-tab="comments"]:not([aria-disabled="true"])').click();
   const side = tab.locator('[data-shared-comments]');
   await side.locator('[data-comment-thread]').first().click();
   await expect(side.locator('[data-comment-sign-in]')).toHaveText('Sign in to post');
@@ -427,7 +427,7 @@ await check('14 Closed: the published page keeps the thread readable and says co
   const base = `/api/learn/c/${boardId}`;
   assert.equal((await api(`${base}/comment-settings`, { method: 'PUT', body: JSON.stringify({ public_mode: 'closed' }) })).body.public_mode, 'closed');
   const tab = await visit(visitor.session);
-  await tab.locator('[data-comments-header]').click();
+  await tab.locator('[data-panel-tab="comments"]:not([aria-disabled="true"])').click();
   const side = tab.locator('[data-shared-comments]');
   await side.locator('[data-comment-thread]').first().click();
   await side.getByText('Comments are closed. Existing comments stay visible.').waitFor();

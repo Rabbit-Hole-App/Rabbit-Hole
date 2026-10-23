@@ -3,8 +3,8 @@
 //   app:           npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8848
 //   control plane: npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8849
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/shared-header-check.mjs [shotsDir]
-// Covers: the three areas and the centred title group (panel open and closed), the transparent logo per theme, "by @handle" and the
-// public profile signed out, one Fork (no count at zero, the real count above it), the exact note beneath Fork, the removed Sign in /
+// Covers: the three areas and the centred title group (panel open and closed), the transparent logo per theme, the blue @handle under
+// the title's left edge (owner brief 2026-10-23: no account circle, no Comments icon in the header) and the public profile signed out, one Fork (no count at zero, the real count above it), the exact note beneath Fork, the removed Sign in /
 // Start Rabbit Hole / usage meter, a long title, keyboard order and focus, the compact menu and 44px targets on a phone, nothing
 // blocking the canvas, an owner's view without the note, and a lost fork reply retried without a second fork. The sign-in resume,
 // the draft and the cancelled sign-in are in canvas-forking-check; the card-menu Rabbit Hole in shared-rabbit-hole-check.
@@ -85,11 +85,12 @@ for (const theme of ['light', 'dark']) {
   const creator = page.locator('[data-shared-creator]');
   const link = creator.locator('[data-creator-link]');
   const colours = await creator.evaluate(node => [getComputedStyle(node).color, getComputedStyle(node.querySelector('[data-creator-link]')).color]);
-  check(`${theme}: under the title, muted "by" and a blue @handle linking to the public profile; no old attribution`, (await creator.innerText()).trim() === `by @${HANDLE}` && (await link.getAttribute('href')) === `/@${HANDLE}`
-    && colours[0] !== colours[1] && !/Published by|Shared by/.test(await p.header.innerText()) && (await box(creator)).y >= (await box(p.title)).bottom - 1, colours.join(' vs '));
+  const [creatorBox, titleBox] = await Promise.all([box(creator), box(p.title)]);
+  check(`${theme}: directly below the title, flush with its left edge, the blue @handle alone linking to the public profile; no old attribution`, (await creator.innerText()).trim() === `@${HANDLE}` && (await link.getAttribute('href')) === `/@${HANDLE}`
+    && colours[0] !== colours[1] && !/Published by|Shared by/.test(await p.header.innerText()) && creatorBox.y >= titleBox.bottom - 1 && creatorBox.y - titleBox.bottom < 16 && Math.abs(creatorBox.x - titleBox.x) <= 1, `${colours.join(' vs ')} ${JSON.stringify({ creatorBox, titleBox })}`);
   check(`${theme}: one Fork button at zero forks - no 0, badge or separator - and no Sign in, Start Rabbit Hole or usage meter in the header`,
     (await p.fork.innerText()).trim() === 'Fork' && await p.fork.locator('[data-fork-count-value]').count() === 0 && (await p.fork.getAttribute('aria-label')) === null
-    && await p.header.locator('[data-sign-in], [data-start-rabbit-hole], [data-usage-gauge]').count() === 0 && !/Sign in|Start Rabbit Hole/.test(await p.header.innerText()));
+    && await p.header.locator('[data-sign-in], [data-start-rabbit-hole], [data-usage-gauge], [data-viewer-account], [data-comments-header]').count() === 0 && !/Sign in|Start Rabbit Hole/.test(await p.header.innerText()));
   const [noteBox, forkNow] = await Promise.all([box(p.note), box(p.fork)]); // measured together, in one layout
   check(`${theme}: the exact note sits directly beneath Fork`, (await p.note.innerText()).trim() === "Changes aren't saved. Fork to keep them" && noteBox.y >= forkNow.bottom - 1 && noteBox.y - forkNow.bottom < 16
     && noteBox.x + noteBox.w > forkNow.x - 1 && noteBox.x < forkNow.right + 1 && !/\.\.\.|…/.test(await p.header.innerText()),
@@ -191,6 +192,7 @@ for (const [width, full] of [[1424, true], [1280, false]]) {
   await open(page);
   const p = parts(page);
   check('an owner\'s view of their own link keeps the view-only state and shows no unsaved-changes note', await page.locator('[data-view-only]').count() === 1 && await p.note.count() === 0 && await p.header.locator('[data-sign-in], [data-start-rabbit-hole]').count() === 0);
+  check('signed in, the header has no account circle and no Comments icon (owner brief 2026-10-23)', await p.header.locator('[data-viewer-account], [data-comments-header]').count() === 0);
   await context.close();
 }
 

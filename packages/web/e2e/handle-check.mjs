@@ -82,15 +82,16 @@ const shared = await api(people.owner, `/api/learn/boards/${source.name}/main/sh
 const link = `${BASE}/b/${shared.sharing.view}`;
 await viewerPage.goto(link);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
-// Owner header brief, 2026-10-22: "by @handle" under the title (replaces "Shared by @handle"), the @handle linking to the public profile.
-check('the shared header names the creator by @handle', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `by @${H.owner}`
-  && await viewerPage.locator('[data-shared-creator] [data-creator-link]').getAttribute('href') === `/@${H.owner}`);
+// Owner brief 2026-10-23: the @handle alone under the title (was "by @handle"), linking to the public profile; no account circle or Comments icon in the header.
+check('the shared header names the creator by @handle', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `@${H.owner}`
+  && await viewerPage.locator('[data-shared-creator] [data-creator-link]').getAttribute('href') === `/@${H.owner}`
+  && await viewerPage.locator('[data-canvas-header] [data-viewer-account], [data-canvas-header] [data-comments-header]').count() === 0);
 check('no email anywhere on the shared page', await noEmail(viewerPage));
 await shot(viewerPage, '05-shared-header-handle');
 await api(people.owner, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Ada Owner' }) });
 await viewerPage.reload();
 await viewerPage.locator('[data-shared-creator]').waitFor({ timeout: 60000 });
-check('with a display name the line stays "by @handle"; the name is on hover (owner header brief, 2026-10-22)', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `by @${H.owner}`
+check('with a display name the line stays "@handle"; the name is on hover (owner brief 2026-10-23)', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `@${H.owner}`
   && await viewerPage.locator('[data-shared-creator] [data-creator-link]').getAttribute('title') === `Ada Owner · @${H.owner}`);
 await shot(viewerPage, '06-shared-header-name-handle');
 
