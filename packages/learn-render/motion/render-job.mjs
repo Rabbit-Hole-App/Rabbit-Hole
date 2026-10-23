@@ -48,6 +48,8 @@ export function serviceClient({ url, token, fetchImpl = fetch }) {
     // key: the render-job id. The same key again is the same render on the service (no second one starts), so a proxy retry or a resend is harmless.
     submit: (request, key) => call('/render', { method: 'POST', headers: { 'content-type': 'application/json', ...(key ? { 'idempotency-key': key } : {}) }, body: JSON.stringify(request) }),
     cancel: id => call(`/render/${id}`, { method: 'DELETE' }),
+    // Is this job key known to the service, and what became of it? 404 -> null. Read-only: asked before a submit of unknown outcome is ever judged.
+    byKey: key => call(`/render/by-key/${encodeURIComponent(key)}`).then(r => (r.status === 404 ? null : r.json())),
     status: id => call(`/render/${id}`).then(r => r.json()),
     artifact: (id, name) => call(`/render/${id}/artifacts/${name}`),
   };

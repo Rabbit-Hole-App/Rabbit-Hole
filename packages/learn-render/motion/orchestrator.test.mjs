@@ -503,3 +503,81 @@ test('approved_proposal terms: renderer_config and allowed_complexity have their
   const accepted = await req('/jobs', { method: 'POST', body: job({ approved_proposal: { ...ok, renderer_config: 'r1' } }) });
   assert.equal(accepted.status, 202);
 });
+
+// Owner correction 2026-10-23 (motion/harness, gaps in the orchestrator): stable Idempotency-Keys, Stop that stops the compute, and a submit
+// of unknown outcome that is reconciled by its key and never sent again.
+const renderService = (over = {}) => {
+  const f = { posts: [], keys: [], cancels: [], byKeyAsked: [], statuses: new Map(), n: 0,
+    health: async () => LINUX,
+    submit: async (request, key) => { f.posts.push(request); f.keys.push(key); const render_id = (++f.n).toString(16).padStart(32, '0'); return Response.json({ render_id, status: 'rendering' }, { status: 202 }); },
+    status: async id => ({ render_id: id, status: f.statuses.get(id) ?? 'rendering' }),
+    cancel: async id => { f.cancels.push(id); return new Response('{}', { status: 202 }); },
+    byKey: async key => { f.byKeyAsked.push(key); return null; }, ...over };
+  return f;
+};
+const finishedJob = { status: 'failed', failure_reason: 'x', cause: 'content' };
+
+test('render keys are stable: the Motion job id, the stage and an attempt that only a different request for the stage advances; never random', async t => {
+  const svc = renderService();
+  let jobId;
+  const { req, view } = await start(t, { service: svc, run: async ({ service }) => {
+    await service.submit({ stage: 'preview', v: 1 });
+    await service.submit({ stage: 'preview', v: 1 }, 'a-random-key-from-the-caller'); // a resend of the same request: the same key
+    await service.submit({ stage: 'preview', v: 2 }); // the Author's recorded repair: the next attempt
+    await service.submit({ stage: 'final', v: 2 });
+    return finishedJob;
+  } });
+  jobId = (await (await req('/jobs', { method: 'POST', body: job() })).json()).job_id;
+  await until(async () => (await view(jobId)).status === 'failed', 'the job ended');
+  assert.deepEqual(svc.keys, [`${jobId}-preview-0`, `${jobId}-preview-0`, `${jobId}-preview-1`, `${jobId}-final-0`]);
+  assert.ok(svc.keys.every(k => /^[0-9a-f]{32}-(preview|final)-\d$/.test(k)), 'derived from the job id, never random');
+});
+
+test('Stop and the job timeout call DELETE /render/<id> for every render still running, and for none that finished', async t => {
+  const svc = renderService();
+  let release;
+  const { req, view } = await start(t, { service: svc, run: async ({ service, signal }) => {
+    const done = await (await service.submit({ stage: 'preview' })).json();
+    const running = await (await service.submit({ stage: 'final' })).json();
+    svc.statuses.set(done.render_id, 'ready');
+    await service.status(done.render_id); // the orchestrator learns the preview finished
+    await new Promise(r => { release = r; signal.addEventListener('abort', r, { once: true }); });
+    return { status: 'cancelled', failure_reason: 'stopped', cause: 'stopped', _running: running.render_id };
+  } });
+  const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => svc.posts.length === 2, 'both renders submitted');
+  assert.equal((await req(`/jobs/${job_id}/cancel`, { method: 'POST' })).status, 202);
+  await until(async () => (await view(job_id)).status !== 'running', 'the job stopped');
+  assert.deepEqual(svc.cancels, [(2).toString(16).padStart(32, '0')], 'only the render still running is stopped on the service');
+  release?.();
+});
+
+test('a Stop that lands while a render POST is in flight stops that render as soon as its id is known', async t => {
+  let answer;
+  const svc = renderService({ submit: async () => { await new Promise(r => { answer = r; }); return Response.json({ render_id: 'c'.repeat(32), status: 'rendering' }, { status: 202 }); } });
+  const { req, view } = await start(t, { service: svc, run: async ({ service, signal }) => { await service.submit({ stage: 'final' }).catch(() => {}); return { status: 'cancelled', failure_reason: 'stopped', cause: 'stopped' }; } });
+  const { job_id } = await (await req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => !!answer, 'the POST is in flight');
+  await req(`/jobs/${job_id}/cancel`, { method: 'POST' });
+  answer();
+  await until(async () => svc.cancels.length === 1, 'the late render is stopped');
+  assert.deepEqual(svc.cancels, ['c'.repeat(32)]);
+  await until(async () => (await view(job_id)).status !== 'running', 'the job ended');
+});
+
+test('a submit of unknown outcome is reconciled by GET /render/by-key and never resubmitted; unknown to the service it fails as unreachable, not resent', async t => {
+  const known = renderService({ submit: async (request, key) => { known.posts.push(request); known.keys.push(key); throw new Error('socket hang up'); }, byKey: async key => { known.byKeyAsked.push(key); return { render_id: 'd'.repeat(32), status: 'rendering' }; } });
+  let seen;
+  const first = await start(t, { service: known, run: async ({ service }) => { seen = await (await service.submit({ stage: 'final' })).json(); return finishedJob; } });
+  const a = await (await first.req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => (await first.view(a.job_id)).status === 'failed', 'the job ended');
+  assert.deepEqual([known.posts.length, known.byKeyAsked, seen.render_id, seen.reconciled], [1, [`${a.job_id}-final-0`], 'd'.repeat(32), true], 'one POST; the key was asked; the service\'s render is carried on with');
+  const lost = renderService({ submit: async (request, key) => { lost.posts.push(request); lost.keys.push(key); throw new Error('socket hang up'); } });
+  let error;
+  const second = await start(t, { service: lost, run: async ({ service }) => { error = await service.submit({ stage: 'final' }).catch(e => e); return finishedJob; } });
+  const b = await (await second.req('/jobs', { method: 'POST', body: job() })).json();
+  await until(async () => (await second.view(b.job_id)).status === 'failed', 'the second job ended');
+  assert.match(error.message, /socket hang up/);
+  assert.deepEqual([lost.posts.length, lost.byKeyAsked], [1, [`${b.job_id}-final-0`]], 'never sent again, under any key');
+  assert.deepEqual((await second.view(b.job_id)).render_states, ['unknown'], 'the render is recorded as outcome unknown');
+});

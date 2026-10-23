@@ -352,14 +352,39 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
       return Promise.race([sending, new Promise((_, fail) => controller.signal.addEventListener('abort', () => fail(new MotionCancelled()), { once: true }))]);
     };
     // Each render the service is asked for is platform-funded compute the worker records apart (feature render).
+    // Owner correction 2026-10-23 (motion/harness): every submit carries a STABLE Idempotency-Key, never a random one: the Motion job id, the
+    // stage and an attempt number. The same job and stage with the same render request is the same key (the service returns the same render);
+    // a different request for that stage (the Author's one recorded repair) is the next attempt. A submit whose outcome is unknown is
+    // reconciled by that key (GET /render/by-key) and is never sent again under a new key.
+    const renderKey = request => {
+      const stage = request.stage || 'final', hash = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+      const same = job.renders.find(r => r.stage === stage && r.hash === hash);
+      return { stage, hash, key: same?.key ?? `${id}-${stage}-${new Set(job.renders.filter(r => r.stage === stage).map(r => r.hash)).size}` };
+    };
+    const FINISHED = ['ready', 'failed', 'invalid', 'cancelled'];
+    // Stop (and the job timeout) stops the compute: every render still running on the service is cancelled, DELETE /render/<id>.
+    const stopRenders = () => { for (const r of job.renders) if (r.id && !FINISHED.includes(r.status)) { r.cancelRequested = true; Promise.resolve(service.cancel?.(r.id)).catch(() => {}); } };
+    controller.signal.addEventListener('abort', stopRenders, { once: true });
     const counted = {
       ...service,
-      submit: async request => {
-        const render = { id: null, status: 'submitted' };
+      submit: async request => { // the caller's own key (random per call) is not used: the job's is stable
+        const { stage, hash, key } = renderKey(request);
+        const render = { id: null, status: 'submitted', stage, hash, key };
         job.renders.push(render);
-        const response = await service.submit(request);
+        let response;
+        try { response = await service.submit(request, render.key); }
+        catch (error) {
+          // The POST may have reached the service: ask for its key. Known: carry on with that render. Unknown: fail as unreachable; no resend.
+          render.status = 'unknown';
+          const known = await Promise.resolve(service.byKey?.(render.key)).catch(() => null);
+          if (!known?.render_id) throw error;
+          Object.assign(render, { id: known.render_id, status: known.status === 'rendering' ? 'submitted' : known.status });
+          if (controller.signal.aborted) stopRenders();
+          return new Response(JSON.stringify({ render_id: known.render_id, status: known.status, poll: `/render/${known.render_id}`, reconciled: true }), { status: 202, headers: { 'content-type': 'application/json' } });
+        }
         try { render.id = (await response.clone().json()).render_id ?? null; } catch { /* unreadable: stays unknown */ }
         if (response.status !== 202) render.status = 'failed'; // refused before anything ran
+        else if (controller.signal.aborted) stopRenders(); // Stop landed while the POST was in flight
         return response;
       },
       status: async id => {
