@@ -14,7 +14,7 @@
 //     cross-site frame and only returns a profile in which context.cookies() really holds nothing.
 import http from 'node:http';
 import https from 'node:https';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -106,7 +106,12 @@ async function profile(kind, prefs) {
   mkdirSync(join(dir, 'Default'), { recursive: true });
   writeFileSync(join(dir, 'Default', 'Preferences'), JSON.stringify(prefs));
   const context = await chromium.launchPersistentContext(dir, { headless: true, ignoreHTTPSErrors: true });
-  return { context, dir, kind, close: async () => { await context.close(); rmSync(dir, { recursive: true, force: true }); } };
+  return { context, dir, kind, close: async () => {
+    await context.close();
+    // Evidence for a recipe that did not block: what the browser left in the profile's Preferences (were ours read or rewritten?).
+    try { const left = JSON.parse(readFileSync(join(dir, 'Default', 'Preferences'), 'utf8')); console.log(`profile ${kind}: Preferences after the run: ${JSON.stringify({ default_content_setting_values: left.profile?.default_content_setting_values, exceptions: left.profile?.content_settings?.exceptions?.cookies, cookie_controls_mode: left.profile?.cookie_controls_mode, block_third_party_cookies: left.profile?.block_third_party_cookies })}`); } catch (error) { console.log(`profile ${kind}: no readable Preferences afterwards (${error.code || error.message})`); }
+    rmSync(dir, { recursive: true, force: true });
+  } };
 }
 // Does a cross-site frame keep a Secure; SameSite=None; Partitioned cookie in this context? The canary is served on the app's
 // own host (host server /canary), framed under the cross-site host page; the answer is read two ways: what the browser sends
@@ -144,7 +149,6 @@ export async function blockedProfile(host) {
 }
 
 // ---- the stack's sessions and canvases (the same helpers share-revocation-check uses) ----
-import { readFileSync } from 'node:fs';
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 export const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
 export const run = Date.now().toString(36);

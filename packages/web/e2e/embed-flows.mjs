@@ -310,8 +310,19 @@ export async function runEmbed(engine) {
     check(`${tag} the canary is neither returned nor stored here (verified, not assumed)`, await crossSiteCookieKept(host, ctx) === false);
     const net = await wire(ctx);
     const page = await ctx.newPage();
+    const logged = [];
+    page.on('console', m => { if (m.type() === 'error' && logged.length < 6) logged.push(m.text().slice(0, 200)); });
+    page.on('pageerror', e => { if (logged.length < 6) logged.push(`pageerror: ${String(e.message).slice(0, 200)}`); });
     await page.goto(hostUrl(host, 'a', path, '&lazy=0&h=480'));
-    let fl = await embedOf(page);
+    let fl;
+    try { fl = await embedOf(page); } catch {
+      // The embed never mounted in a frame whose storage is refused: evidence for the report, then the flow stops.
+      const inside = await frameOf(page)?.evaluate(() => ({ text: document.body.innerText.slice(0, 300), html: document.documentElement.outerHTML.length, storage: (() => { try { sessionStorage.getItem('x'); localStorage.getItem('x'); return 'ok'; } catch (e) { return String(e.name); } })() })).catch(e => String(e));
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/blocked-${engine}-${how}-no-embed.png` });
+      check(`${tag} the embed still renders the canvas read-only`, false, JSON.stringify({ frame: frameOf(page)?.url(), inside, logged }));
+      await page.close();
+      return;
+    }
     check(`${tag} the embed still renders the canvas read-only`, (await fl.locator('[data-embed-title]').innerText()).trim() === TITLE);
     await openChat(fl);
     await fl.locator('[data-embed-chat-fallback]').waitFor({ timeout: 30000 });
