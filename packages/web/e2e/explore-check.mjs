@@ -193,7 +193,9 @@ await owner.page.locator('[data-confirm-unpublish]').click();
 await owner.page.getByRole('dialog', { name: 'Share canvas' }).locator('[data-explore-publish="private"]').waitFor({ timeout: 30000 });
 await shot(owner.page, '07-unpublished', owner.page.getByRole('dialog', { name: 'Share canvas' }));
 await viewer.page.goto(`${BASE}/e/${token}`);
-await viewer.page.getByText('could not be opened', { exact: false }).or(viewer.page.getByText('not shared any more', { exact: false })).first().waitFor({ timeout: 30000 });
+// Owner decision 2026-10-22 (permanent link): a removed publication's token no longer exists, so it keeps the old
+// "never was" message; only a share link that is switched off (its token kept) answers "You don't have access to this canvas.".
+await viewer.page.getByText('This link is not shared any more, or never was.').waitFor({ timeout: 30000 });
 const share = await api(who.viewer, `/api/learn/boards/shared/${shareToken}`);
 check('removed: /e no longer opens, Explore drops it, the share link still opens', !(await explore(who.viewer)).some(c => c.title === TITLE) && share.status === 200);
 await shot(viewer.page, '08-unpublished-link');

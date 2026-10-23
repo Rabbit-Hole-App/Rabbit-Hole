@@ -81,7 +81,10 @@ await check('3 deleting a hole kills its link', async () => {
   dead = await share(h);
   assert.equal(await status(null, sharedBoard(dead)), 200);
   assert.equal((await api(owner, `/api/canvases/dives/${h}`, { method: 'DELETE' })).status, 200);
-  assert.equal(await status(null, sharedBoard(dead)), 404, 'the hole\'s link is dead');
+  const gone = await api(null, sharedBoard(dead));
+  assert.equal(gone.status, 404, 'the hole\'s link is dead');
+  // Owner decision 2026-10-22: a deleted canvas's token no longer exists, so it keeps the old "never was" answer.
+  assert.equal(gone.body.error, 'This link is not shared any more, or never was.');
   assert.equal(await status(null, sharedBoard(token)), 200, 'the parent\'s link lives');
   await forkIntact('after the hole delete');
 });
@@ -91,6 +94,8 @@ await check('4 a trashed parent suspends a nested hole\'s link; Restore brings t
   assert.equal(await status(null, sharedBoard(nested)), 200);
   assert.equal((await post(owner, `/api/apps/${parent.name}/trash`)).status, 200);
   assert.deepEqual([await status(null, sharedBoard(nested)), await status(null, sharedBoard(token))], [404, 404], 'the hole sleeps with its parent');
+  // The tokens are kept, so the answer is "no access" (owner decision 2026-10-22), not "never was".
+  assert.equal((await api(null, sharedBoard(token))).body.error, "You don't have access to this canvas.");
   await forkIntact('while the parent is in Trash');
   assert.equal((await post(owner, `/api/apps/${parent.name}/untrash`)).status, 200);
   assert.deepEqual([await status(null, sharedBoard(nested)), await status(null, sharedBoard(token))], [200, 200], 'the same tokens again');
@@ -98,6 +103,26 @@ await check('4 a trashed parent suspends a nested hole\'s link; Restore brings t
 await check('5 the friend\'s fork is intact throughout, and the owner\'s removed file never reached it', async () => {
   await forkIntact('at the end');
   assert.equal(await status(friend, `/api/learn/boards/${fork.name}/main/assets/${encodeURIComponent('drop:b')}`), 404);
+});
+
+await check('6 one permanent link (owner decision 2026-10-22): off answers "no access" on every route, a never-issued token keeps "never was", and on again restores the SAME token', async () => {
+  const off = await post(owner, `${board}/share`, { shared: false });
+  assert.equal(off.status, 200);
+  assert.equal(off.body.sharing.shared, false);
+  assert.equal(off.body.sharing.view, token, 'the token is kept while sharing is off');
+  for (const path of [sharedBoard(token), sharedAsset(token, 'drop:a')]) {
+    const read = await api(null, path);
+    assert.equal(read.status, 404, path);
+    assert.equal(read.body.error, "You don't have access to this canvas.", path);
+  }
+  const never = await api(null, sharedBoard('N'.repeat(32)));
+  assert.equal(never.status, 404);
+  assert.equal(never.body.error, 'This link is not shared any more, or never was.');
+  const on = await post(owner, `${board}/share`, { shared: true, view: true, public_view: true });
+  assert.equal(on.body.sharing.view, token, 'switched on again: the same token string');
+  assert.equal(await status(null, sharedBoard(token)), 200, 'the same link works again, signed out');
+  assert.equal(await status(null, sharedAsset(token, 'drop:a')), 200);
+  await forkIntact('after off and on');
 });
 
 // Screenshots: the dead hole link signed out (desktop and phone), and the friend's fork open.
@@ -121,5 +146,5 @@ await shot('storage-dead-hole-link-390', 390, 844, `/b/${dead}`, null, deadLink)
 await shot('storage-fork-intact-1440', 1440, 900, `/apps/${fork.name}?tab=learn`, friend, page => page.locator('[data-block-id="a"] img').waitFor({ timeout: 60000 }));
 await browser.close();
 assert.deepEqual(errors, [], 'no page errors');
-console.log(`${results.length}/5 checks passed`);
-process.exit(results.length === 5 ? 0 : 1);
+console.log(`${results.length}/6 checks passed`);
+process.exit(results.length === 6 ? 0 : 1);
