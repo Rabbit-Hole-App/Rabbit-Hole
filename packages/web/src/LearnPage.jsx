@@ -2067,7 +2067,27 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const startBusy = useRef(false);
   startBusy.current = imports.length > 0 || !!pdfAdd || !!docImport.dialog; // a window is still asking how a file is added
   const startPlace = useRef(null);
+  // A card made from Start is never added to Chat's context by being placed (owner decisions 2026-10-23: canvas only is a card
+  // without context; context is the document or note the job stored). The drop and Search roads each register what they place as
+  // a source the next question rides, so whatever this item registered is switched off again, and the reader context it set cleared.
+  const detachStartSources = added => {
+    const gone = new Set(added);
+    setSources(previous => previous.map(entry => (gone.has(entry.id) ? { ...entry, attached: false } : entry)));
+    setPaperContext(current => (current && gone.has(String(current.id).startsWith('upload:') ? current.id : `paper:${current.id}`) ? null : current));
+    setWikiContext(current => (current && gone.has(`wiki:${current.blockId}`) ? null : current));
+    setVideoContext(current => (current && gone.has(`video:${current.blockId}`) ? null : current));
+    setImageContext(current => (current && gone.has(`image:${current.blockId}`) ? null : current));
+  };
   startPlace.current = async item => {
+    const before = new Set(sourcesRef.current.map(entry => entry.id));
+    try { return await placeStartItem(item); }
+    finally {
+      await new Promise(resolve => setTimeout(resolve, 80)); // the page registers the source a render after the card
+      const added = sourcesRef.current.filter(entry => !before.has(entry.id)).map(entry => entry.id);
+      if (added.length) detachStartSources(added);
+    }
+  };
+  const placeStartItem = async item => {
     const waitFor = async (check, ms) => { for (const end = Date.now() + ms; ; await new Promise(resolve => setTimeout(resolve, 100))) { const value = check(); if (value || Date.now() > end) return value; } };
     if (!await waitFor(() => canvasApi.current, 20000)) throw new Error('The canvas did not open. Start again to retry.');
     if (item.kind === 'file') {
@@ -2103,7 +2123,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       if (!blockId) throw new Error('This page could not be added to the canvas.');
       const card = await waitFor(() => { const found = canvasApi.current?.blocks?.().find(block => block.id === blockId); return found && (!found.pending || ['inconclusive', 'error'].includes(found.pending.status)) ? found : null; }, 90000);
       if (!card) return { warning: 'This page is still being read. The card on the canvas shows how it goes.' };
-      if (card.failure || card.pending) return { label: card.title, warning: card.failure?.reason || card.pending?.reason || 'This page could not be read.' };
+      if (card.failure || card.pending) return { warning: card.failure?.reason || card.pending?.reason || 'This page could not be read.' };
       return { label: card.title };
     }
     const from = { arxiv: 'arxiv', wikipedia: 'wikipedia', youtube: 'youtube' }[type];

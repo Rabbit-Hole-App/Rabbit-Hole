@@ -42,3 +42,11 @@ test('Home and Library open the neutral dialog; only the Repository menu item an
   const dialog = read('StartDialog.jsx');
   assert.match(dialog, /useState\(initial === 'repository' \? 'repository' : null\)/);
 });
+
+test('a card placed from Start is not added to Chat: what its road registered as a source is switched off again', () => {
+  const page = read('LearnPage.jsx');
+  assert.match(page, /const detachStartSources = added => \{/);
+  assert.match(page, /setSources\(previous => previous\.map\(entry => \(gone\.has\(entry\.id\) \? \{ \.\.\.entry, attached: false \} : entry\)\)\);/);
+  for (const state of ['Paper', 'Wiki', 'Video', 'Image']) assert.ok(page.includes(`set${state}Context(current => (current && gone.has(`), state);
+  assert.match(page, /try \{ return await placeStartItem\(item\); \}/);
+});

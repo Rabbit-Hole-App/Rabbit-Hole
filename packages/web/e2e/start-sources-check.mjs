@@ -115,7 +115,7 @@ const router = async route => {
   }
   if (path === '/api/learn/context/link' && failLink > 0) { failLink -= 1; return route.fulfill({ status: 502, json: { error: 'This link could not be read: the check made it fail' } }); }
   if (/^\/api\/learn\/chat\/(threads|messages)\//.test(path)) return route.fulfill({ json: { ok: true } });
-  if (MODEL.test(path)) { refused.push(`${method} ${path}`); return route.abort(); }
+  if (MODEL.test(path) && !['GET', 'HEAD', 'OPTIONS'].includes(method)) { refused.push(`${method} ${path}`); return route.abort(); } // a page read of the journey is not a model call
   return route.fallback();
 };
 
@@ -202,7 +202,7 @@ const send = async text => {
   const n = captured.length;
   await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
   await waitFor(() => captured.length > n, 20000, 'no question was sent');
-  return captured[n].body.context_refs || [];
+  return captured[n].body;
 };
 const chipNames = () => pane().evaluate(() => [...document.querySelectorAll('[data-chat-pane] [data-context-chip] button[title^="Open "]')].map(b => b.title.slice(5)).sort());
 const settledOk = (what) => waitFor(async () => (await draftGone()) && !(await chip().count()), 90000, `${what}: Start did not finish`);
@@ -253,7 +253,7 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   // Two rows need another try: the cancelled window (no card), and the page whose capture the check made unavailable (its card stays).
   await waitFor(async () => /2 sources need another try/.test(await chipText()), 60000, 'the chip did not report the cancelled window and the unavailable page');
   assert.match(await chipText(), /tool-.*[.]py: No card was added/);
-  assert.match(await chipText(), /both-.*: This page could not be captured/);
+  assert.match(await chipText(), /example[.]com: This page could not be captured/);
   // Cards: the .md from its one stored source, the PDF from its context document, the webpage and the paper from their links.
   const board = await waitFor(async () => { const b = await blocks(slugB); return b.some(x => x.type === 'paper') && b.some(x => x.type === 'webpage') && b.some(x => x.type === 'pdf') && b.some(x => x.type === 'file') ? b : null; }, 60000, 'the cards did not all land');
   assert.equal(board.filter(b => b.type === 'file' && b.kind === 'markdown').length, 1, 'one Markdown card');
@@ -274,7 +274,9 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   assert.equal(sinceCount(mark, 'POST', r => r.path === '/api/learn/context/link'), 2, 'two link notes');
   assert.equal(sinceCount(mark, 'POST', r => r.path === '/api/canvases'), 1);
   // What Chat can use: the context_refs of a question and the chips. The .py and the arXiv card are not in it.
-  const refs = await send('What did I add?');
+  const asked = await send('What did I add?');
+  const refs = asked.context_refs || [];
+  assert.ok(!asked.paper_context && !asked.wiki_context && !asked.video_context && !asked.image_context, 'a canvas-only paper card is not what the question is about');
   const refNames = refs.filter(r => r.kind === 'doc').map(r => r.name).sort();
   assert.deepEqual(refNames, docs, 'the question carries every context document and nothing else');
   assert.deepEqual(await chipNames(), docs, 'the chips show the same');
@@ -332,14 +334,14 @@ await check('D an existing repository, a .md that keeps its context beside it, a
   await start();
   await onCanvas(REPO);
   await settledOk('D');
-  const board = await blocks(REPO);
+  const board = await waitFor(async () => { const b = await blocks(REPO); return b.some(x => x.type === 'repo-graph') && b.some(x => x.type === 'file') ? b : null; }, 30000, 'the overview and the file card were not saved on the project board');
   assert.equal(board.filter(b => b.type === 'repo-graph').length, 1, 'one overview card, never a card per file');
   assert.equal(board.find(b => b.type === 'repo-graph').scope, 'whole');
   assert.equal(board.filter(b => b.type === 'file' && b.kind === 'markdown').length, 1);
   const docs = await names(REPO);
   assert.ok(docs.includes(F.md2.name) && docs.some(d => d.includes(run)), `the repository project holds its context: ${docs.join(' | ')}`);
   assert.equal(sinceCount(mark, 'POST', r => r.path === '/api/repositories'), 0, 'a connected repository is opened, never connected twice');
-  const refs = await send('Where is the loss?');
+  const refs = (await send('Where is the loss?')).context_refs || [];
   assert.ok(refs.some(r => r.kind === 'doc' && r.name === F.md2.name), 'the question carries the document');
 });
 
