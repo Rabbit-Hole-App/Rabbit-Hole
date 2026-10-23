@@ -83,8 +83,6 @@ import { CARD_GONE, cardParam, withoutCardParam } from './canvas-refs-model.js';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { badgeText, useCanvasComments } from './comments/useCanvasComments.js';
 import { memberBase } from './comments/comments-api.js';
-import CommentSettings from './comments/CommentSettings.jsx';
-import PeopleWithAccess from './comments/PeopleWithAccess.jsx';
 import { readPanelPin, savePanelPin } from './canvas-find.js';
 import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
@@ -1609,11 +1607,17 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const unsavedRef = useRef(boardUnsaved), durableRef = useRef(boardDurable);
   unsavedRef.current = boardUnsaved; durableRef.current = boardDurable;
   useEffect(() => { editorOpened(boardPath, () => unsavedRef.current(), () => durableRef.current()); return () => editorClosed(boardPath); }, [boardPath]);
+  // A response for a canvas the page has since left (canvas switching) is dropped: it never writes this canvas's sharing.
+  const shareFor = useRef(boardPath);
+  shareFor.current = boardPath;
+  useEffect(() => { setShareBusy(false); setShareError(null); }, [boardPath]);
   const changeSharing = async next => {
+    const path = boardPath;
     setShareBusy(true);
     setShareError(null);
     try {
-      const data = await api(`${boardPath}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
+      const data = await api(`${path}/share`, { method: 'POST', body: JSON.stringify({ ...next, state: boardSnapshot() }) });
+      if (shareFor.current !== path) return;
       boardVersion.current = data.version; setCanvasVersion(data.version);
       setSharing(data.sharing);
       // Sharing on: the server gets this browser's board as it is now, through the board push queue (review round 2), so
@@ -1623,14 +1627,15 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         await syncAssets();
         requestWorkspaceExports();
       }
-    } catch (error) { setShareError(error.message); }
-    finally { setShareBusy(false); }
+    } catch (error) { if (shareFor.current === path) setShareError(error.message); }
+    finally { if (shareFor.current === path) setShareBusy(false); }
   };
   // Publish to Explore / Remove from Explore (docs/features/explore-publish.md). A publication shows the live board, so the
   // server first gets this browser's board as it is now, through the push queue, as sharing does. With no @handle yet
   // the server refuses (409 needsHandle): the person chooses one in place and the same Publish carries on.
   const [choosingHandle, setChoosingHandle] = useState(false);
   const changePublication = async publish => {
+    const path = boardPath;
     setShareBusy(true);
     setShareError(null);
     try {
@@ -1639,11 +1644,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         await syncAssets();
       }
       const made = await api(`/api/apps/${app.name}/${publish ? 'publish' : 'unpublish'}`, { method: 'POST', body: '{}' });
-      setSharing(current => ({ ...current, published: made.published || undefined, publication: made.publication_token || undefined }));
+      if (shareFor.current === path) setSharing(current => ({ ...current, published: made.published || undefined, publication: made.publication_token || undefined }));
     } catch (error) {
+      if (shareFor.current !== path) return;
       if (error.status === 409 && error.data?.needsHandle) setChoosingHandle(true);
       else setShareError(error.message);
-    } finally { setShareBusy(false); }
+    } finally { if (shareFor.current === path) setShareBusy(false); }
   };
   // Challenge blocks ask the tutor to judge a committed answer. Jev grades the
   // same attempt side by side (docs/features/jev-grading.md). The learner only
@@ -2257,8 +2263,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
                 disabled={!!sharing?.unavailable} onClick={() => setShareOpen(open => !open)}
                 className={`flex h-8 w-8 items-center justify-center rounded-lg disabled:opacity-40 ${sharing?.shared ? 'text-[#2383e2]' : 'text-ink-2'} ${shareOpen ? 'bg-hover' : 'hover:bg-hover hover:text-ink'}`}>
                 <Share2 size={15} strokeWidth={1.8} /></button>
-              {shareOpen && <SharePanel sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)}
-                comments={comments.active ? <><PeopleWithAccess base={memberBase(commentBoard)} /><CommentSettings base={memberBase(commentBoard)} published={!!sharing?.published} /></> : null} />}
+              {shareOpen && <SharePanel key={boardPath} title={canvasTitle || fallbackTitle} sharing={sharing} busy={shareBusy} error={shareError} onChange={changeSharing} onPublish={isCanvas && !hole && !board ? changePublication : null} onClose={() => setShareOpen(false)}
+                comments={comments.active ? { base: memberBase(commentBoard) } : null} />}
               {choosingHandle && <div className="fixed inset-0 z-[70] overflow-y-auto bg-white"><ChooseHandle onDone={() => { setChoosingHandle(false); changePublication(true); }} /></div>}
             </span>
             {/* Comments (docs/features/canvas-comments.md): toggles the right panel on its Comments tab, as Progress toggles its pane; the badge

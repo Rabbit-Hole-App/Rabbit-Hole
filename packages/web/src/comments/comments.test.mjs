@@ -173,10 +173,16 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
 
 test('increment 2 seams: Share carries the comment settings; the published page reads the public family; view-only menus open for commenters', () => {
   const share = read('../SharePanel.jsx'), page = read('../LearnPage.jsx'), shared = read('../SharedBoardPage.jsx'), canvas = read('../AdaptiveCanvas.jsx'), settings = read('./CommentSettings.jsx');
-  assert.match(share, /\{onPublish && <ExploreRow [^\n]*\/>\}\n\s+\{comments\}/, 'one slot, under Publish to Explore');
-  assert.match(page, /comments=\{comments\.active \? <><PeopleWithAccess base=\{memberBase\(commentBoard\)\} \/><CommentSettings base=\{memberBase\(commentBoard\)\} published=\{!!sharing\?\.published\} \/><\/> : null\}/);
-  assert.match(settings, /<Switch on=\{enabled\} label="Allow comments"/, 'labelled exactly Allow comments');
-  assert.match(settings, /disabled=\{busy \|\| !enabled\}/, 'the public setting is disabled while comments are off');
+  // Owner brief 2026-10-22: the dialog owns the rows; the page passes only the comment base. Share tab: the two real
+  // comments_enabled states; Explore tab: the three real public_mode states, disabled while comments are off.
+  assert.match(share, /\{comments && <div className="mt-2"><PeopleWithAccess base=\{comments\.base\} \/><ShareCommentSetting cs=\{cs\} \/><\/div>\}/, 'the Share tab');
+  assert.match(share, /<ExploreCommentSetting cs=\{cs\} \/>/, 'the Explore tab, under its link');
+  assert.match(page, /comments=\{comments\.active \? \{ base: memberBase\(commentBoard\) \} : null\}/);
+  assert.match(settings, /const SHARE = \[\[false, 'View only'\], \[true, 'Allow comments'\]\];/);
+  assert.match(settings, /const EXPLORE = \[\['off', 'Hidden'\], \['closed', 'View only'\], \['open', 'Allow comments'\]\];/);
+  assert.match(settings, /disabled=\{cs\.saving \|\| !cs\.value\.comments_enabled\}/, 'the public setting is disabled while comments are off');
+  assert.match(settings, /\{mode === 'open' && <p className="text-xs text-ink-3">\{SIGN_IN\}<\/p>\}/, 'Sign in to post a comment. when posting is allowed');
+  assert.match(settings, /if \(mine === seq\.current\) setSettings\(next\)/, 'a failed or superseded save never replaces the server value shown');
   // Add comment for those the server lets post, and (SHARE-02) a signed-out visitor where signing in would let them: they draft, and post through sign-in.
   assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post \|\| guestMayDraft,/);
   assert.match(shared, /const guestMayDraft = !!commentsInfo && !commentsInfo\.signed_in && commentsInfo\.public_mode === 'open' && !!commentsInfo\.comments_enabled;/);
@@ -280,7 +286,7 @@ test('links, pages and moderation: ?thread= opens a thread, Copy link, Load more
   assert.match(panel, /data-earlier-replies/);
   assert.match(panel, /data-copy-thread-link/);
   assert.match(panel, /\['Block and remove their comments', \(\) => act\(\(\) => client\.block\(message\.id, true\)\)\]/);
-  assert.match(settings, /data-unblock onClick=\{\(\) => unblock\(block\.block_id\)\}/);
+  assert.match(settings, /data-unblock onClick=\{\(\) => cs\.unblock\(block\.block_id\)\}/);
 });
 
 test('an object pin stays at the card top centre at every zoom (owner, 2026-10-21)', () => {

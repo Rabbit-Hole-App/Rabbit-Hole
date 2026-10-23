@@ -25,14 +25,23 @@ test('a board published to Explore keeps its server copy live, as a shared one d
   assert.equal(sharingOf(null), 'unknown');
 });
 
-test('the Share panel: Publish to Explore is its own action, says it is public and live, and has its own /e link', () => {
+// Owner brief 2026-10-22 (Share dialog redesign): Explore is its own tab, live ("Your saved changes appear here
+// automatically", never a snapshot), and Remove from Explore asks first and never touches the share link.
+test('the Share dialog: Publish to Explore is its own tab and action, says it is live, has its own /e link, and Remove asks first', () => {
   const panel = read('./SharePanel.jsx');
-  const row = panel.slice(panel.indexOf('function ExploreRow('), panel.indexOf('export default function SharePanel'));
+  const row = panel.slice(panel.indexOf('function ExploreTab('), panel.indexOf('// PLACEHOLDER'));
   assert.match(row, /const url = token \? `\$\{window\.location\.origin\}\/e\/\$\{token\}` : '';/);
-  assert.match(row, /data-publish[^>]*onClick=\{\(\) => onPublish\(true\)\}[^>]*>Publish to Explore</);
-  assert.match(row, /data-unpublish[^>]*onClick=\{\(\) => onPublish\(false\)\}[^>]*>Remove from Explore</);
-  assert.match(row, /as it is now and with your later edits - until you remove it/);
-  assert.match(panel, /\{onPublish && <ExploreRow published=\{!!current\.published\} token=\{current\.publication\}/, 'outside the share switch: publishing never needs a share link');
+  assert.match(row, /data-publish disabled=\{disabled\} onClick=\{\(\) => run\(true\)\}[^>]*>Publish to Explore</);
+  assert.match(row, /Published on Explore/);
+  assert.match(row, /Your saved changes appear here automatically\./);
+  assert.doesNotMatch(row, /snapshot|as it is now|excluded/i, 'Explore is live: no snapshot wording');
+  assert.match(row, /data-unpublish disabled=\{disabled\} onClick=\{\(\) => setConfirming\(true\)\}[^>]*>Remove from Explore</, 'the first click only asks');
+  assert.match(row, /data-confirm-unpublish disabled=\{disabled\} onClick=\{\(\) => run\(false\)\}/, 'only the confirmation unpublishes');
+  assert.match(row, /Your canvas and your share link are not changed\./);
+  assert.match(panel, /onPublish \? \[\['explore', 'Explore'\]\] : \[\]/, 'outside the share dropdown: publishing never needs a share link');
+  assert.match(panel, /tab === 'explore' && onPublish && <div \{\.\.\.panelProps\('explore'\)\}><ExploreTab /);
+  assert.ok(!panel.includes(String.fromCharCode(8230)), 'no ellipsis character');
+  assert.doesNotMatch(panel, />[^<>{}]*\.\.\.[^<>{}]*<|'[^']*\w\.\.\.[^']*'/, 'no ellipsis in the dialog copy (owner, 2026-10-21)');
 });
 
 test('Publish pushes the board first, only for a top-level canvas, and a missing handle asks for one and carries on', () => {
@@ -87,5 +96,5 @@ test('a published board keeps its files and notebook workspaces live too, not on
 test('dark mode keeps white text white on the hex blue: Publish to Explore and the canvas question bubble', () => {
   const css = readFileSync(new URL('./index.css', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(css, /\.dark \[class\*='bg-accent'\],\n\.dark \[class\*='bg-primary-fill'\],\n\.dark \[class\*='bg-\[#2383e2\]'\],\n\.dark \[class\*='bg-\(--action-blue\)'\],\n\.dark \[class\*='bg-danger'\] \{\n\s+--color-white: #ffffff;/);
-  assert.match(readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8'), /data-publish disabled=\{busy\} onClick=\{\(\) => onPublish\(true\)\} className="[^"]*bg-primary-fill[^"]*text-white/);
+  assert.match(readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8'), /data-publish disabled=\{disabled\} onClick=\{\(\) => run\(true\)\} className="[^"]*bg-primary-fill[^"]*text-white/);
 });

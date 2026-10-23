@@ -274,7 +274,7 @@ await check('8 comments never touch the board: same version; a reload keeps thre
 // Increment 2: the owner's Share settings and the published page (/e).
 const visitor = { session: await sessionFor(`comments-visitor-${run}@example.com`, `visitor_${run}`) };
 let token;
-const share = () => page.locator('[role="dialog"][aria-label="Share this board"]');
+const share = () => page.locator('[role="dialog"][aria-label="Share canvas"]');
 // Owner 2026-10-21: View > Comments is a switch like Minimap; off hides the pins, on brings them back, remembered on this device.
 await check('8b View > Comments: a switch, on by default; off hides the pins and survives a reload; on shows them again', async () => {
   const bar = page.getByRole('menubar', { name: 'Canvas menu' });
@@ -298,24 +298,36 @@ await check('8b View > Comments: a switch, on by default; off hides the pins and
   await page.waitForFunction(() => document.querySelectorAll('[data-comment-pin]').length === 1, null, { timeout: 15000 });
 });
 
-await check('10 Share: Allow comments (on by default); published, Public comments Off / Open / Closed, disabled while comments are off', async () => {
+// Owner brief 2026-10-22: Share tab = View only / Allow comments (comments_enabled); Explore tab = Hidden / View only / Allow comments
+// (public_mode off / closed / open), disabled while comments are off. "Sign in to post a comment." shows when posting is allowed.
+await check('10 Share: Allow comments (on by default); published, Public comments Hidden / View only / Allow comments, disabled while comments are off', async () => {
   token = (await api(`/api/apps/${canvas.name}/publish`, { method: 'POST', body: '{}' })).body.publication_token;
   assert.ok(token, 'published');
   await page.reload();
   await card('k-exp').waitFor({ timeout: 60000 });
   await page.locator('[data-share-button]').click();
   await share().locator('[data-comment-settings]').waitFor();
-  const allow = share().getByRole('switch', { name: 'Allow comments' });
-  assert.equal(await allow.getAttribute('aria-checked'), 'true');
-  assert.equal(await share().getByRole('radio', { name: 'Off' }).getAttribute('aria-checked'), 'true', 'public comments start Off');
-  await share().getByRole('radio', { name: 'Open' }).click();
-  await share().getByText('Anyone signed in to Rabbit Hole can comment.').waitFor();
-  await allow.click();
-  await share().getByText('Only you can comment. Existing comments stay visible.').waitFor();
-  assert.equal(await share().getByRole('radio', { name: 'Closed' }).isDisabled(), true, 'the public setting is disabled while comments are off');
+  const allow = share().locator('[data-comment-settings]').getByRole('radio', { name: 'Allow comments' });
+  const viewOnly = share().locator('[data-comment-settings]').getByRole('radio', { name: 'View only' });
+  assert.equal(await allow.isChecked(), true);
+  await share().getByRole('tabpanel').getByText('Sign in to post a comment.').waitFor();
+  await share().getByRole('tab', { name: 'Explore' }).click();
+  const publicComments = share().locator('[data-public-comments]');
+  assert.equal(await publicComments.getByRole('radio', { name: 'Hidden' }).isChecked(), true, 'public comments start Hidden');
+  await publicComments.getByRole('radio', { name: 'Allow comments' }).click();
+  await share().getByRole('tabpanel').getByText('Anyone signed in to Rabbit Hole can comment.').waitFor();
+  await share().getByRole('tabpanel').getByText('Sign in to post a comment.').waitFor();
+  await share().getByRole('tab', { name: 'Share' }).click();
+  await viewOnly.click();
+  await share().getByRole('tabpanel').getByText('People you invite see existing comments but cannot post. Only you can.').waitFor();
+  assert.equal(await share().getByRole('tabpanel').getByText('Sign in to post a comment.').isVisible(), false, 'no sign-in line while posting is off');
+  await share().getByRole('tab', { name: 'Explore' }).click();
+  assert.equal(await publicComments.getByRole('radio', { name: 'View only' }).isDisabled(), true, 'the public setting is disabled while comments are off');
   await shot('10-share-comments-off', share());
+  await share().getByRole('tab', { name: 'Share' }).click();
   await allow.click();
-  await share().getByText('Anyone signed in to Rabbit Hole can comment.').waitFor();
+  await share().getByRole('tab', { name: 'Explore' }).click();
+  await share().getByRole('tabpanel').getByText('Anyone signed in to Rabbit Hole can comment.').waitFor();
   await shot('10b-share-comments-open', share());
   await page.keyboard.press('Escape');
 });

@@ -3,6 +3,7 @@ import { MoreHorizontal, ShieldCheck, UserPlus } from 'lucide-react';
 import { api } from '../api.js';
 import { CommentAvatar } from './CommentsPanel.jsx';
 import { displayName } from './comments-api.js';
+import Disclosure from './Disclosure.jsx';
 
 // Share → People with access (docs/features/canvas-comments.md section 5, board 6): the owner invites by email; each member
 // is a person (never an email of theirs), each pending invitation shows the address the owner typed. No invitation link is
@@ -34,8 +35,8 @@ export default function PeopleWithAccess({ base }) {
   };
   const verbs = list?.comments_enabled === false ? 'They can view.' : 'They can view and comment.';
   return (
-    <div data-people-with-access className="mt-3 rounded-lg border border-line p-2.5">
-      <div className="mb-2 text-sm text-ink">People with access</div>
+    <div data-people-with-access>
+      <Disclosure label="Invite people">
       <form onSubmit={invite} className="flex items-center gap-1.5">
         <input aria-label="Add people by email" placeholder="Add people by email" value={emails} onChange={event => setEmails(event.target.value)}
           className="h-8 min-w-0 flex-1 rounded-md border border-line px-2 text-sm outline-none focus:border-line-strong" />
@@ -43,7 +44,9 @@ export default function PeopleWithAccess({ base }) {
       </form>
       <p className="mt-1.5 text-xs text-ink-3">{verbs} They can't edit. They'll confirm this email address before joining.</p>
       {notes.map(text => <p key={text} role="alert" className="mt-1 text-xs text-red-700">{text}</p>)}
-      <ul className="mt-2 space-y-1">
+      </Disclosure>
+      <Disclosure label={`People with access${list ? ` · ${list.members.length + 1}` : ''}`}>
+      <ul className="space-y-1">
         <li className="flex items-center gap-2 text-xs text-ink-2"><span className="flex-1">You</span><span>Owner</span></li>
         {list?.members.map(member => (
           <li key={member.id} data-member-row={member.status} className="flex items-center gap-2">
@@ -73,6 +76,7 @@ export default function PeopleWithAccess({ base }) {
           </li>
         ))}
       </ul>
+      </Disclosure>
     </div>
   );
 }

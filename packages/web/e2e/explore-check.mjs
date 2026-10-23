@@ -52,18 +52,24 @@ const owner = await contextFor(who.owner, { fn: ([k, seed]) => { if (!localStora
 await owner.page.goto(`${BASE}/apps/${mine.name}`);
 await owner.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 await owner.page.locator('[data-share-button]').click();
-const panel = owner.page.getByRole('dialog', { name: 'Share this board' });
-await panel.locator('[data-explore-publish]').waitFor({ timeout: 15000 });
-check('PRIVATE: the panel says only the owner sees it, and offers Publish to Explore', (await panel.innerText()).includes('Only you can see this board.') && await panel.locator('[data-publish]').count() === 1);
+// Owner brief 2026-10-22: one dialog with Share / Explore / Embed tabs; link access is a dropdown, Explore is its own tab.
+const panel = owner.page.getByRole('dialog', { name: 'Share canvas' });
+const tab = name => panel.getByRole('tab', { name });
+await panel.getByLabel('Who can open this?').waitFor({ timeout: 15000 });
+check('PRIVATE: the Share tab says only invited people can open it, shows no link, and the Explore tab offers Publish to Explore', (await panel.innerText()).includes('Only people you invite can open this canvas.') && await panel.locator('input[aria-label="Share link URL"]').count() === 0
+  && await tab('Explore').click().then(() => panel.locator('[data-explore-publish="private"] [data-publish]').count()) === 1);
 await shot(owner.page, '01-private', panel);
-await panel.getByRole('switch', { name: 'Share this board' }).click();
-await panel.locator('input[aria-label="View link URL"]').waitFor({ timeout: 15000 });
-const shareToken = (await panel.locator('input[aria-label="View link URL"]').inputValue()).split('/b/')[1];
+await tab('Share').click();
+await panel.getByLabel('Who can open this?').selectOption('signin');
+await panel.locator('input[aria-label="Share link URL"]').waitFor({ timeout: 15000 });
+const shareToken = (await panel.locator('input[aria-label="Share link URL"]').inputValue()).split('/b/')[1];
+await tab('Explore').click();
 const explore = async p => (await api(p, '/api/learn/boards/published')).body.canvases;
 check('UNLISTED: a share link exists, and the canvas is still not in Explore', !!shareToken && !(await explore(who.viewer)).some(c => c.title === TITLE) && await panel.locator('[data-publish]').count() === 1);
 await shot(owner.page, '02-unlisted', panel);
 await panel.locator('[data-publish]').click();
 await panel.locator('[data-explore-publish="published"]').waitFor({ timeout: 30000 });
+check('PUBLIC: live wording, no snapshot wording', (await panel.innerText()).includes('Your saved changes appear here automatically.') && !/snapshot|excluded/i.test(await panel.innerText()));
 const eUrl = await panel.locator('input[aria-label="Explore link URL"]').inputValue();
 const token = eUrl.split('/e/')[1];
 check('PUBLIC: Published to Explore, its own /e link (never the share link), and Remove from Explore', !!token && token !== shareToken && await panel.locator('[data-unpublish]').count() === 1);
@@ -179,8 +185,14 @@ check('a fork counts once; the hole never', (await explore(who.viewer)).find(c =
 
 // ---- Remove from Explore: /e and the listing go, the share link stays ----
 await owner.page.locator('[data-unpublish]').click();
-await owner.page.getByRole('dialog', { name: 'Share this board' }).locator('[data-explore-publish="private"]').waitFor({ timeout: 30000 });
-await shot(owner.page, '07-unpublished', owner.page.getByRole('dialog', { name: 'Share this board' }));
+// Removing asks first: nothing changes until the confirmation, and Cancel leaves it published.
+await owner.page.getByRole('group', { name: 'Remove from Explore' }).waitFor({ timeout: 15000 });
+check('Remove from Explore asks first and leaves it published until confirmed', (await explore(who.viewer)).some(c => c.title === TITLE));
+await owner.page.getByRole('group', { name: 'Remove from Explore' }).getByRole('button', { name: 'Cancel' }).click();
+await owner.page.locator('[data-explore-publish="published"] [data-unpublish]').click();
+await owner.page.locator('[data-confirm-unpublish]').click();
+await owner.page.getByRole('dialog', { name: 'Share canvas' }).locator('[data-explore-publish="private"]').waitFor({ timeout: 30000 });
+await shot(owner.page, '07-unpublished', owner.page.getByRole('dialog', { name: 'Share canvas' }));
 await viewer.page.goto(`${BASE}/e/${token}`);
 await viewer.page.getByText('could not be opened', { exact: false }).or(viewer.page.getByText('not shared any more', { exact: false })).first().waitFor({ timeout: 30000 });
 const share = await api(who.viewer, `/api/learn/boards/shared/${shareToken}`);
