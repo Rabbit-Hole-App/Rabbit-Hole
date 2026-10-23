@@ -215,6 +215,18 @@ test('differingFrames names the frames whose hashes differ between two contexts'
   assert.deepEqual(differingFrames([0, 60], [still('a'), still('b')], [still('a'), still('b')]), []);
 });
 
+// Validation D01/D10/D13 (2026-10-23): the medium fixture (translucent layers under text) was nondeterministic between pages on Linux while the
+// layer-free scene was not. The stage painted its content in a fallback font and repainted after the font swap; the repaint's timing
+// changed the pixels. No browser here: this pins the structure that removes the repaint (a real render confirms the pixels).
+test('the Remotion stage mounts the composition only after its fonts are in, and releases the render after that commit', () => {
+  const src = f => readFileSync(join(HERE, '..', 'src', 'motion', f), 'utf8');
+  const index = src('index.jsx'), fonts = src('fonts.jsx');
+  assert.match(index, /useMotionFonts\(\) \? <><Motion \/>/, 'content is rendered only when the fonts are ready');
+  assert.equal(index.split('<Motion />').length, 2, 'the composition has no other, ungated mount');
+  assert.match(fonts, /useEffect\(\(\) => \{ if \(ready\) continueRender\(handle\); \}, \[ready, handle\]\)/, 'the render continues from an effect after the ready commit');
+  assert.equal(fonts.split('continueRender(').length, 2, 'continueRender is called once, not from the font promise');
+});
+
 test('provenance: canonical hashes of brief, storyboard and source; origins; fonts; no learner words', () => {
   assert.equal(canonical({ b: 1, a: [{ d: 2, c: 3 }] }), canonical({ a: [{ c: 3, d: 2 }], b: 1 }));
   for (const name of ['softmax', 'softmax-m4', 'generate', 'reference']) {

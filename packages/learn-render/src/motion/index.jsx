@@ -11,8 +11,7 @@ import { Probe } from './probe.jsx';
 // `probe` (an input prop, off unless the Author proof asks) logs what is visible in each
 // rendered frame (motion/author-proof.mjs); it draws nothing.
 const Stage = ({ probe }) => {
-  useMotionFonts();
-  return <><Motion />{probe ? <Probe /> : null}</>;
+  return useMotionFonts() ? <><Motion />{probe ? <Probe /> : null}</> : null;
 };
 
 registerRoot(() => <Composition id="motion" component={Stage} defaultProps={{ probe: false }} {...stage} />);
