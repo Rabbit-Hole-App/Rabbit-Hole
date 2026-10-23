@@ -103,6 +103,29 @@ test('clicks: a generation action prepares command, subject and refs only; noteb
   assert.deepEqual(prepare.calls[2], [{ text: 'What would LFU change here?' }]);
 });
 
+// Owner report 2026-10-23: a saved answer's suggestion "Compare ..." (an answer from before the 2026-10-20 slash cleanup,
+// whose meta still names compare) put the Compare ideas pill in the composer, and its Send answered "/compare is no longer
+// available". The path as the Chat runs it: the click's prepare, the composer's Send line (commandLine) and LearnSlash's run.
+test('a saved answer from before the 2026-10-20 cleanup never offers a removed command: every drawn action runs on Send', async () => {
+  const { commandLine, runLearnCommand } = await import('./learn-slash.js');
+  const stale = (id, capabilityId, subject) => ({ id, capabilityId, label: `Make ${capabilityId}`, sourceMessageId: '812', contextRefs: [], args: { subject }, generationRequired: true, paid: false });
+  const meta = { actions: [
+    stale('a1', 'compare', 'Side-by-side comparison of mingpt/model.py, mingpt/trainer.py, mingpt/bpe.py and mingpt/utils.py: what each owns, what it imports, and what a learner must know before reading it'),
+    stale('a2', 'animate', 'attention weights shifting over a sentence'), stale('a3', 'walkthrough', 'a training step'), stale('a4', 'diagram', 'the trainer loop'),
+  ], followUps: [] };
+  const prepare = spy();
+  const tree = C.AnswerSuggestions({ message: msg({ meta }), latest: true, threadId: 'canvaschat-1', prepare, insertNotebook: spy() });
+  for (const button of find(tree, p => p['data-answer-action'] !== undefined)) button.onClick();
+  assert.ok(prepare.calls.length > 0, 'the current capability is still offered');
+  const canvas = { insertBlock: () => 'b1', reserve: () => 'slot', release: () => {} };
+  const post = async () => ({ result: 'artifact', primitive: 'flow_diagram', block: { type: 'flow', title: 'Trainer loop' } });
+  for (const [{ command, text }] of prepare.calls) {
+    const out = await runLearnCommand(commandLine(text, { command }), { app: 'mingpt', canvas, post, openSearch: () => {} });
+    assert.doesNotMatch(out.notice?.text || '', /no longer available|not a Learn command/, `/${command} was offered, then refused on Send`);
+  }
+  assert.deepEqual(prepare.calls.map(([call]) => call.command), ['diagram']);
+});
+
 test('older-answer toggle state is keyed by thread and message: opening one never opens another chat or message', () => {
   const shown = (threadId, messageId = '812') => find(C.AnswerSuggestions({ message: msg({ messageId }), latest: false, threadId, prepare: spy(), insertNotebook: spy() }), p => p['data-answer-action'] !== undefined).length;
   const [toggle] = find(C.AnswerSuggestions({ message: msg(), latest: false, threadId: 'canvaschat-1', prepare: spy(), insertNotebook: spy() }), p => p['data-answer-suggestions-toggle']);
