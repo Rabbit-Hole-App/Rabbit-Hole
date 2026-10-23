@@ -47,7 +47,6 @@ import { isPdf } from './upload-destination.js';
 import { isContextCanvas, uploadContextDoc } from './context-docs.js';
 // Lazy: it draws real cards, so it brings the card components with it.
 const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
-import FilesPanel from './FilesPanel.jsx';
 import FileImportDialog from './FileImportDialog.jsx';
 import { useDocImport } from './DocImport.jsx';
 import PdfAddDialog from './PdfAddDialog.jsx';
