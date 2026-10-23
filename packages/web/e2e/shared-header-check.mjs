@@ -90,7 +90,8 @@ for (const theme of ['light', 'dark']) {
     && await p.header.locator('[data-sign-in], [data-start-rabbit-hole], [data-usage-gauge]').count() === 0 && !/Sign in|Start Rabbit Hole/.test(await p.header.innerText()));
   const noteBox = await box(p.note);
   check(`${theme}: the exact note sits directly beneath Fork`, (await p.note.innerText()).trim() === "Changes aren't saved. Fork to keep them" && noteBox.y >= forkBox.bottom - 1 && noteBox.y - forkBox.bottom < 16
-    && noteBox.x + noteBox.w > forkBox.x - 1 && noteBox.x < forkBox.right + 1 && !/\.\.\.|…/.test(await p.header.innerText()));
+    && noteBox.x + noteBox.w > forkBox.x - 1 && noteBox.x < forkBox.right + 1 && !/\.\.\.|…/.test(await p.header.innerText()),
+    JSON.stringify({ note: (await p.note.innerText()).trim(), noteBox, forkBox, ellipsis: (await p.header.innerText()).match(/.{0,20}(\.\.\.|…).{0,20}/)?.[0] ?? null }));
   const titleFacts = await p.title.evaluate(node => ({ full: node.getAttribute('title'), text: node.textContent, clipped: node.scrollWidth > node.clientWidth }));
   check(`${theme}: a long title truncates but stays whole in its tooltip, and nothing scrolls sideways or overlaps`, titleFacts.full === TITLE && titleFacts.text === TITLE && titleFacts.clipped
     && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth) && (await noOverlaps(page)).length === 0, JSON.stringify(await noOverlaps(page)));
