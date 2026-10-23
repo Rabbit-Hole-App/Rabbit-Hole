@@ -31,7 +31,10 @@ export function PromptControl({ text, copy = text, active = false, anchor = null
   const [status, setStatus] = useState(null);
   const [place, setPlace] = useState(null);
   useEffect(() => { if (back && !open) button.current?.focus(); }, [back, open]);
-  useEffect(() => { if (open) popup.current?.focus(); }, [open]); // the opened popover takes focus, so Escape and Tab work from the keyboard
+  // The opened popover takes focus, so Escape and Tab work from the keyboard. Only once it is placed: until then it is visibility:hidden,
+  // which a browser cannot focus (focus() does nothing), and Escape would go to the control and leave the popover open.
+  const placed = place !== null;
+  useEffect(() => { if (open && placed) popup.current?.focus(); }, [open, placed]);
   useEffect(() => { if (!status) return undefined; const timer = setTimeout(() => setStatus(null), 1800); return () => clearTimeout(timer); }, [status]);
   useLayoutEffect(() => {
     if (!open) { setPlace(null); return; }

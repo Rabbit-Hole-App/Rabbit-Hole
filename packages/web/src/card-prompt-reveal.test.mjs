@@ -131,6 +131,19 @@ test('an outside press, Escape, a wheel elsewhere and a second click on Prompt c
   assert.equal(refocused, true, 'focus returns to Prompt');
 });
 
+// A browser cannot focus a visibility:hidden element (focus() does nothing), and the popover is hidden until it is placed: focusing it
+// before then left Escape going to the Prompt control, so the popover stayed open (primary-button-contrast-check, fast-e2e 2026-10-23).
+test('the opened popover is given focus only once it is visible, so Escape from the keyboard reaches it', async () => {
+  const seen = [], original = window.HTMLElement.prototype.focus;
+  window.HTMLElement.prototype.focus = function (...args) { if (this.hasAttribute('data-card-prompt')) seen.push(/visibility:\s*hidden/.test(this.getAttribute('style') || '')); return original.apply(this, args); };
+  try {
+    await mountCard({ text: 'a 100 mm cube', selected: true });
+    await click(button());
+    assert.ok(seen.length > 0, 'the popover takes focus when it opens');
+    assert.ok(seen.every(hidden => !hidden), 'never while it is still visibility:hidden');
+  } finally { window.HTMLElement.prototype.focus = original; }
+});
+
 test('opening and a press inside the popover never select, drag or open the card, and reach no network', async () => {
   requests.length = 0; reached.select = 0; reached.open = 0;
   await mountCard({ text: 'a 100 mm cube', selected: true });
