@@ -503,6 +503,30 @@ await check('15 Arrange and View submenus: Align stays greyed with nothing selec
   await quiet(page, 'submenus', before);
 });
 
+// Pinned Study (UI-27 Release 1, approved spec 2026-10-22: Canvas and Study live inside View, no extra top row).
+await check('16 View has Canvas and Study radios above Workspace (Canvas checked); Study opens the reference pane, Canvas closes it, the Workspace choice is untouched, and neither asks anything', async () => {
+  const before = counts();
+  const radios = async () => { const view = await openMenu(page, 'View'); const out = await view.getByRole('menuitemradio').evaluateAll(rows => rows.filter(row => !row.parentElement.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out; };
+  assert.deepEqual(await radios(), [['Canvas', 'true'], ['Study', 'false']]);
+  const rows = await (await openMenu(page, 'View')).evaluate(menu => [...menu.querySelectorAll(':scope [role^="menuitem"]')].filter(row => row.closest('[role="menu"]') === menu).map(row => row.textContent.trim()));
+  await closeMenus(page);
+  assert.ok(rows.indexOf('Study') > rows.indexOf('Fit selection') && rows.indexOf('Study') < rows.indexOf('Workspace'), `Canvas and Study sit above Workspace: ${rows.join(', ')}`);
+  const view = await openMenu(page, 'View');
+  await view.getByRole('menuitemradio', { name: 'Study', exact: true }).click();
+  await closeMenus(page);
+  await page.locator('[data-study-pane]').waitFor({ timeout: 10000 });
+  assert.deepEqual(await radios(), [['Canvas', 'false'], ['Study', 'true']]);
+  await shot(page, 'view-16-study');
+  await (await openMenu(page, 'View')).getByRole('menuitemradio', { name: 'Canvas', exact: true }).click();
+  await closeMenus(page);
+  await page.locator('[data-study-pane]').waitFor({ state: 'detached', timeout: 10000 });
+  assert.deepEqual(await radios(), [['Canvas', 'true'], ['Study', 'false']]);
+  const workspace = await openMenu(page, 'View', 'Workspace');
+  assert.deepEqual(await workspace.getByRole('menuitemradio').allInnerTexts(), ['Canvas', 'Editor'], 'Workspace keeps its own Canvas / Editor');
+  await closeMenus(page);
+  await quiet(page, 'Canvas / Study', before);
+});
+
 await check('13 no model-capable request was let through, and hook sets came only after learner turns with Curious shown or the empty state request', async () => {
   assert.deepEqual(model, []);
   // The no-request windows themselves are asserted in 4-10; here only the totals: three shown turns and the one click asked.
@@ -513,6 +537,6 @@ await check('13 no model-capable request was let through, and hook sets came onl
 await browser.close();
 const fatal = errors.filter(e => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
-const total = 18;
+const total = 19;
 console.log(`${results.length}/${total} view menu checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
 if (results.length !== total) process.exitCode = 1;
