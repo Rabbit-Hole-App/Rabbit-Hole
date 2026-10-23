@@ -11,6 +11,7 @@ import { settleSpend } from '../src/learn-spend-ledger.js';
 import { settleAttempt } from '../src/learn-usage.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
+const JPG = btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xdb, 0, 4, 0, 0, 0xff, 0xd9)); // Google answers JPEG (the API refused image/png)
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 const OWNER = { org: 'org-1', email: 'owner@example.test', userId: 'u-owner' };
 const RESERVE = 0.5;
@@ -66,7 +67,7 @@ function doState() {
 function harness(t, envPatch = {}) {
   const { sqlite, db } = d1(t), bucket = r2(), states = new Map(), objects = new Map(), calls = [];
   // The fixture transport: the provider's documented response shape, one tiny PNG, every request counted.
-  let reply = async (url) => url.includes('googleapis') ? Response.json({ model: 'gemini-nano-banana-2.1', steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }] })
+  let reply = async (url) => url.includes('googleapis') ? Response.json({ model: 'gemini-nano-banana-2.1', steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG }] }] })
     : Response.json({ data: [{ b64_json: PNG }], usage: { input_tokens: 20, output_tokens: 1000, input_tokens_details: { text_tokens: 20, image_tokens: 0 } } });
   const transport = async (url, init) => { calls.push({ url, init }); return reply(url, init); };
   const logs = [];
@@ -140,6 +141,11 @@ test('the job is persisted before any provider contact and completes from alarms
   assert.equal(source.id, done.output.sourceId);
   assert.equal(source.org, OWNER.org); assert.equal(source.owner_email, OWNER.email); assert.equal(source.board_id, 'board-1');
   assert.equal(source.family, 'image'); assert.equal(source.status, 'stored');
+  // Google's JPEG is stored as JPEG everywhere: object type, row media/declared type and name, artifact, request.
+  assert.equal(JSON.parse(h.calls[0].init.body).response_format.mime_type, 'image/jpeg');
+  assert.equal(h.bucket.objects.get(source.r2_key).httpMetadata.contentType, 'image/jpeg');
+  assert.equal(source.media_type, 'image/jpeg'); assert.equal(source.declared_type, 'image/jpeg'); assert.equal(source.name, 'generated-image.jpg');
+  assert.equal(done.output.mimeType, 'image/jpeg');
   assert.equal(source.sha256, await hex(h.bucket.objects.get(source.r2_key).bytes));
   assert.equal(ops(h)[0].status, 'settled');
   // Google reports no usage this adapter can price: the reservation stays held as unknown cost, never zero.
@@ -150,6 +156,7 @@ test('the job is persisted before any provider contact and completes from alarms
   const status = await (await h.get(generationId)).json();
   assert.equal(status.job.stage, 'ready');
   assert.equal(status.job.artifact.sourceId, source.id);
+  assert.equal(status.job.artifact.mimeType, 'image/jpeg');
   // Logs carry ids, stage, provider, model, code and timing; never the key or image bytes.
   assert.ok(h.logs.length > 0);
   for (const line of h.logs) { assert.doesNotMatch(line, /fixture-gemini-not-a-key|fixture-openai-not-a-key/); assert.ok(!line.includes(PNG)); }

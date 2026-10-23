@@ -82,22 +82,22 @@ test('OpenAI edits: reference images go as multipart to the edits endpoint', asy
 });
 
 // Shapes from the Interactions API reference (https://ai.google.dev/api/interactions-api): status, steps[model_output].content[], usage.
-const PNG2 = btoa(String.fromCharCode(0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4));
-const interaction = (patch = {}) => ({ id: 'v1_fixture', status: 'completed', model: 'gemini-nano-banana-2.1', steps: [{ type: 'thought' }, { type: 'model_output', content: [{ type: 'text', text: 'ok' }, { type: 'image', mime_type: 'image/png', data: PNG }] }],
+const JPG = btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xdb, 0, 4, 0, 0, 0xff, 0xd9)), JPG2 = btoa(String.fromCharCode(0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 0xff, 0xd9));
+const interaction = (patch = {}) => ({ id: 'v1_fixture', status: 'completed', model: 'gemini-nano-banana-2.1', steps: [{ type: 'thought' }, { type: 'model_output', content: [{ type: 'text', text: 'ok' }, { type: 'image', mime_type: 'image/jpeg', data: JPG }] }],
   usage: { total_input_tokens: 12, input_tokens_by_modality: [{ modality: 'text', tokens: 12 }], total_cached_tokens: 0, total_output_tokens: 1130, output_tokens_by_modality: [{ modality: 'text', tokens: 10 }, { modality: 'image', tokens: 1120 }], total_thought_tokens: 300, total_tool_use_tokens: 0, total_tokens: 1442 }, ...patch });
 
 test('Gemini Interactions: text and inline images in, store:false, the LAST image of the REST steps out, usage kept', async () => {
-  const two = interaction({ steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG }] }, { type: 'model_output', content: [{ type: 'image', mime_type: 'image/png', data: PNG2 }] }] });
+  const two = interaction({ steps: [{ type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG }] }, { type: 'model_output', content: [{ type: 'image', mime_type: 'image/jpeg', data: JPG2 }] }] });
   const { calls, transport } = recorder(async () => Response.json(two));
   const out = await geminiImageAdapter({ apiKey: KEY, transport }).edit(gen('gemini-3-pro-image', { aspect_ratio: '16:9', resolution: '2K' }, [ref]));
   assert.equal(calls[0].url, 'https://generativelanguage.googleapis.com/v1beta/interactions');
   assert.equal(calls[0].init.headers['x-goog-api-key'], KEY);
   const body = JSON.parse(calls[0].init.body);
-  assert.deepEqual(body.response_format, { type: 'image', mime_type: 'image/png', aspect_ratio: '16:9', image_size: '2K' });
+  assert.deepEqual(body.response_format, { type: 'image', mime_type: 'image/jpeg', aspect_ratio: '16:9', image_size: '2K' }); // image/png is refused by the API
   assert.deepEqual(body.input, [{ type: 'text', text: 'A lighthouse at dusk.' }, { type: 'image', mime_type: 'image/png', data: PNG }]);
   assert.equal(body.store, false); assert.equal(body.background, undefined); assert.equal(body.previous_interaction_id, undefined);
-  assert.equal(out.mimeType, 'image/png');
-  assert.equal(btoa(String.fromCharCode(...out.bytes)), PNG2, 'the last image, as the SDK output_image documents');
+  assert.equal(out.mimeType, 'image/jpeg', 'the real type, from the signature');
+  assert.equal(btoa(String.fromCharCode(...out.bytes)), JPG2, 'the last image, as the SDK output_image documents');
   assert.equal(out.usage.total_output_tokens, 1130);
   // output_image is an SDK property, not a REST field: it is not read.
   await assert.rejects(geminiImageAdapter({ apiKey: KEY, transport: async () => Response.json({ status: 'completed', output_image: { data: PNG } }) }).generate(gen('gemini-3-pro-image', { aspect_ratio: '1:1', resolution: '1K' })), e => e.code === 'invalid_output');
@@ -107,7 +107,7 @@ test('Gemini status: failed and cancelled are definite failures; incomplete and 
   const run = status => geminiImageAdapter({ apiKey: KEY, transport: async () => Response.json(interaction({ status })) }).generate(gen('gemini-nano-banana-2.1', { aspect_ratio: '1:1', resolution: '1K' }));
   for (const status of ['failed', 'cancelled']) await assert.rejects(run(status), e => e.code === 'provider_failed' && e.providerRequestStarted && e.definiteResponse);
   for (const status of ['incomplete', 'in_progress', 'requires_action', 'new_status']) await assert.rejects(run(status), e => e.code === 'incomplete' && e.providerRequestStarted && !e.definiteResponse, status);
-  assert.equal((await run('completed')).mimeType, 'image/png');
+  assert.equal((await run('completed')).mimeType, 'image/jpeg');
 });
 
 test('Gemini cost from usage: priced only when the modality split adds up; thinking at the text rate; estimated otherwise', () => {

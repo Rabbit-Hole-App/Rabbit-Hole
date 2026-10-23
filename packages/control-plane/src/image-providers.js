@@ -178,6 +178,8 @@ export function openaiImageAdapter({ apiKey, transport = fetch } = {}) {
 // property is SDK-only, so the REST steps are read. store:false: the API retains interactions (prompts and reference images)
 // 55 days by default; the docs list only background execution and previous_interaction_id as incompatible with it, and this
 // adapter uses neither. Whether image output works with store:false is first shown by a live call.
+// mime_type: the docs' REST example asks for image/jpeg and a live request for image/png was refused (400, 2026-10-23: supported
+// 'image/jpeg'), so Google images are JPEG. The stored type is the one the file signature shows (imageOf), never the one requested.
 // status (Interaction resource): absent or completed is read; failed and cancelled are definite failures; incomplete, in_progress,
 // requires_action or anything else is an unknown outcome (a partial result may have been billed). Nothing is ever resubmitted.
 export function geminiImageAdapter({ apiKey, transport = fetch } = {}) {
@@ -186,7 +188,7 @@ export function geminiImageAdapter({ apiKey, transport = fetch } = {}) {
     if (edit ? !input.references?.length : input.references?.length) throw failure('invalid_input');
     const parts = [{ type: 'text', text: input.prompt }, ...(input.references || []).map(ref => ({ type: 'image', mime_type: ref.mimeType, data: base64(ref.bytes) }))];
     const body = await post(transport, 'https://generativelanguage.googleapis.com/v1beta/interactions', { headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: input.model, input: parts, store: false, response_format: { type: 'image', mime_type: 'image/png', aspect_ratio: input.settings.aspect_ratio, image_size: input.settings.resolution } }) }, input);
+      body: JSON.stringify({ model: input.model, input: parts, store: false, response_format: { type: 'image', mime_type: 'image/jpeg', aspect_ratio: input.settings.aspect_ratio, image_size: input.settings.resolution } }) }, input);
     if (body?.status != null && body.status !== 'completed') throw body.status === 'failed' || body.status === 'cancelled' ? failure('provider_failed', { started: true, definite: true }) : failure('incomplete', { started: true });
     const block = (body?.steps || []).filter(step => step?.type === 'model_output').flatMap(step => step.content || []).filter(part => part?.type === 'image').at(-1);
     return { ...imageOf(block?.data, true), providerModel: typeof body?.model === 'string' ? body.model : input.model, usage: body?.usage && typeof body.usage === 'object' ? body.usage : null };
