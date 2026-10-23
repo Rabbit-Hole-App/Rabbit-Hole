@@ -1188,7 +1188,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   commentBoardRef.current = commentBoard;
   const openComments = useCallback(() => { setPanelOpen(true); setPanelTab('comments'); }, []);
   const commentsShown = panelOpen && panelTab === 'comments';
-  const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, shown: panelOpen && panelTab === 'comments' });
+  const comments = useCanvasComments({ base: commentBoard && memberBase(commentBoard), enabled: isCanvas && !hole && boardName === 'main', openPanel: openComments, canvasApi, link: commentBoard && `/c/${commentBoard}`, editor: true, shown: panelOpen && panelTab === 'comments' });
   useEffect(() => { if (!comments.active && panelTab === 'comments') setPanelTab('chat'); }, [comments.active, panelTab]); // eslint-disable-line react-hooks/exhaustive-deps
   // Canvas references (C:/s/spec/references-plan.md): the board's links feed Search's Links results and the cards' chips; the
   // picker opens from a card's menu ({ blockId }), the empty canvas ({ point }) or Insert ({}). Same-tab link
@@ -1517,6 +1517,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       boardVersion.current = saved.version; setCanvasVersion(saved.version);
       if (saved.board_id) setCommentBoard(saved.board_id);
       boardSynced.current = text;
+      // The comments follow the saved board (owner decision 2026-10-23): useCanvasComments knows the server now has it.
+      window.dispatchEvent(new Event('rh:board-saved'));
       recoveries.current = 0;
       thumbs.current?.saved(text);
       try { localStorage.setItem(versionKey, String(saved.version)); } catch { /* the next open re-checks */ }

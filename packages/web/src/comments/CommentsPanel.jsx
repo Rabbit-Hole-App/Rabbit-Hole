@@ -26,18 +26,25 @@ const Audience = ({ audience }) => (
 const storage = () => sessionStorage;
 const POLL_MS = 30_000;
 
-export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraftDone, selected = null, onSelect, onThreads, objectLive = () => true, onFocusAnchor, threadLink = null, stamp = 0 }) {
+// visible(threads, filter): what the reader sees of a list (useCanvasComments visibleThreads: a deleted object's threads leave
+// it at once, owner decision 2026-10-23); beforePost: the owner's board saved before an object comment goes up.
+export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraftDone, selected = null, onSelect, onThreads, objectLive = () => true, visible = threads => threads, beforePost = null, onFocusAnchor, threadLink = null, stamp = 0 }) {
   const client = useMemo(() => commentsApi(base), [base]);
   const [about, setAbout] = useState(null);
   const [status, setStatus] = useState('open');
   const [audience, setAudience] = useState('all');
   const [list, setList] = useState(null);
   const [failed, setFailed] = useState(null);
+  // Only the newest request's answer lands (owner decision 2026-10-23: a late answer never undoes a newer one); when it was
+  // asked and its filter go with it to the pins, so a thread kept through an unsaved Undo joins only a list it belongs to.
+  const latest = useRef(0);
   const refresh = useCallback(async () => {
+    const seq = ++latest.current, asked = performance.now();
     try {
       const [info, page] = await Promise.all([client.about(), client.threads(status, audience)]);
-      setAbout(info); setList(page); setFailed(null);
-    } catch (error) { setFailed(error.status === 404 ? "This canvas isn't available to you." : error.message); }
+      if (seq !== latest.current) return;
+      setAbout(info); setList({ ...page, asked, shape: { status, audience } }); setFailed(null);
+    } catch (error) { if (seq === latest.current) setFailed(error.status === 404 ? "This canvas isn't available to you." : error.message); }
   }, [client, status, audience]);
   useEffect(() => { refresh(); }, [refresh, stamp]); // stamp: a pin was recoloured or deleted on the canvas
   // Freshness (Q16): every 30 s while the panel shows and the tab is visible, and on focus.
@@ -50,18 +57,18 @@ export default function CommentsPanel({ base, hidden, draftAnchor = null, onDraf
   }, [hidden, refresh]);
   // Only a loaded list goes to the pins: a panel that opens (a pin's click on a page whose panel was closed) keeps the
   // pins it had until its list arrives, so the picked pin stays.
-  useEffect(() => { if (list) onThreads?.(list.threads, list.open_count); }, [list, onThreads]);
+  useEffect(() => { if (list) onThreads?.(list.threads, list.open_count, list.asked, list.shape); }, [list, onThreads]);
   // 30 per page; Load more appends the next page. A refresh starts again from the first.
   const more = async () => {
-    try { const page = await client.threads(status, audience, list.cursor); setList(current => ({ ...page, threads: [...current.threads, ...page.threads] })); } catch (error) { setFailed(error.message); }
+    try { const page = await client.threads(status, audience, list.cursor); setList(current => ({ ...current, ...page, threads: [...current.threads, ...page.threads] })); } catch (error) { setFailed(error.message); }
   };
 
   const body = failed ? <p className="text-sm text-ink-2">{failed}</p>
     : !about || !list ? <p className="text-sm text-ink-2">Loading comments</p>
-    : draftAnchor ? <NewThread client={client} about={about} anchor={draftAnchor} live={objectLive(draftAnchor)} onCancel={() => onDraftDone?.(null)}
+    : draftAnchor ? <NewThread client={client} about={about} anchor={draftAnchor} live={objectLive(draftAnchor)} beforePost={beforePost} onCancel={() => onDraftDone?.(null)}
         onPosted={thread => { onDraftDone?.(thread.id); refresh(); }} />
     : selected ? <ThreadView key={selected} client={client} about={about} id={selected} objectLive={objectLive} onFocusAnchor={onFocusAnchor} onBack={() => onSelect?.(null)} onChange={refresh} threadLink={threadLink} />
-    : <ThreadList list={list} about={about} status={status} setStatus={setStatus} audience={audience} setAudience={setAudience} objectLive={objectLive} onOpen={id => onSelect?.(id)} onMore={more} />;
+    : <ThreadList list={{ ...list, threads: visible(list.threads, list.shape) }} about={about} status={status} setStatus={setStatus} audience={audience} setAudience={setAudience} objectLive={objectLive} onOpen={id => onSelect?.(id)} onMore={more} />;
   return <div role="tabpanel" aria-label="Comments" data-comments-panel className={`${hidden ? 'hidden' : 'flex'} min-h-0 flex-1 flex-col`}>{body}</div>;
 }
 
@@ -112,6 +119,8 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
 
 // Who may post here, else the one line saying why not (section 11). Signed out, it is the way in, back to this page.
 const SIGN_IN = 'Sign in to comment.';
+// A draft whose object was deleted (owner decision 2026-10-23): no new comment on it; its words stay for an Undo.
+const DELETED = 'Deleted. Undo to comment on it.';
 function blockedLine(about, can) {
   if (can) return null;
   if (!about.signed_in) return SIGN_IN;
@@ -121,7 +130,7 @@ function blockedLine(about, can) {
   return "You can't comment here.";
 }
 
-function NewThread({ client, about, anchor, live, onCancel, onPosted }) {
+function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted }) {
   const fixed = about.role === 'viewer' ? 'public' : null;
   const [audience, setAudience] = useState(fixed || 'members');
   const canPost = audience === 'public' ? about.can.post_public : about.can.post;
@@ -151,9 +160,12 @@ function NewThread({ client, about, anchor, live, onCancel, onPosted }) {
           </div>
         )}
       </div>
-      <CommentComposer people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={blockedLine(about, canPost)}
+      <CommentComposer people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={live ? blockedLine(about, canPost) : DELETED}
         resume={`?${COMMENT_RESUME}=${encodeURIComponent(JSON.stringify(anchor))}`}
-        onSend={draft => sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(made => onPosted(made.thread))} />
+        onSend={async draft => {
+          if (anchor.kind === 'object') await beforePost?.();
+          return sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(made => onPosted(made.thread));
+        }} />
     </div>
   );
 }

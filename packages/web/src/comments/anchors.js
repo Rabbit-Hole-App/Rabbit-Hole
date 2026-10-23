@@ -3,7 +3,7 @@
 
 // The world-space top-left of an object on the board: a measured card (blocks and chat exchanges), a text or
 // sticky item, a drawn shape's box, or a group's members together (groups: group id -> member ids), so a group's pin
-// follows the group. null when the object is gone - the thread is then detached.
+// follows the group. null when the object is gone - its threads are then hidden (owner decision 2026-10-23).
 export function objectOrigin(id, board) {
   const { bounds = {}, items = [], shapes = [], groups = {} } = board;
   if (bounds[id]) return { x: bounds[id].x, y: bounds[id].y };
@@ -15,7 +15,7 @@ export function objectOrigin(id, board) {
   return origins.length ? { x: Math.min(...origins.map(o => o.x)), y: Math.min(...origins.map(o => o.y)) } : null;
 }
 
-// Where a pin sits, or null for a detached thread (no pin; still readable, repliable and resolvable).
+// Where a pin sits, or null when its object is gone (no pin).
 export function pinPoint(anchor, board) {
   if (anchor?.kind === 'point') return { x: anchor.x, y: anchor.y };
   if (anchor?.kind !== 'object') return null;

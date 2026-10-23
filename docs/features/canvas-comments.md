@@ -88,7 +88,7 @@ otherwise.
 | Q10 | A removed member's comments | Stay, attributed | Deleted with the membership |
 | Q11 | Invitation limits | 50 members per canvas, 20 invitations per owner per day, 14-day expiry, all configurable | Other values |
 | Q12 | Comment limits | Section 9: 5,000 characters, configurable per-person limits and owner moderation; no per-canvas total; the aggregate newcomer cap deferred (manager recommendation) | Add the newcomer cap; a per-canvas total cap |
-| Q13 | Card deleted | Keep the thread detached; reattach on restore | Pin at the last known point |
+| Q13 | Object deleted | Owner decision 2026-10-23 (replaces "keep the thread detached"): its threads and replies leave the canvas, the Comments panel and every count at once, for everyone; Undo brings them back as they were; Ungroup moves a group's threads onto the canvas (section 8) | Detached thread; pin at the last known point |
 | Q14 | Keyboard | `C`, guarded for typing and embedded editors | No shortcut |
 | Q16 | Freshness | Poll while visible and on focus; immediate after one's own actions | Live updates (new infrastructure) |
 | Q17 | Email sender | The existing sender, if Home confirms it suits | A separate notifications sender |
@@ -379,7 +379,8 @@ panel or a sketch.
 **The ghost shows only while its New comment panel shows (owner, 2026-10-13).** Cancel, Esc and Send take it away; so
 does hiding the right panel, switching it to another tab, or closing Comments on `/c` and `/e`: the draft (its anchor and
 words) stays, and the ghost returns with it when Comments shows again. A deleted target takes the ghost away too (no slot;
-the panel says "Card deleted"); undo brings it back.
+the panel says "Card deleted" and "Deleted. Undo to comment on it." in place of the composer, owner decision 2026-10-23);
+undo brings it back with its words.
 
 ### Pins
 
@@ -820,11 +821,30 @@ There is no notifications table: unread is a query over threads, mentions and re
 - **Shapes:** `{kind: 'object', object_id, object_kind: 'block'|'exchange'|'item'|'shape'|'group', dx, dy, label}` or
   `{kind: 'point', x, y}` in world units. `label` (120 characters) is the object's title when the thread starts.
 - **Moves:** the pin resolves at render time from the live board plus `dx, dy`, so it follows every move without a write.
-  A group's origin is its members' top left, so its pin follows the group; ungrouping detaches it ("Group removed").
-- **Delete (Q13):** a thread whose object is gone is detached: "Card deleted · [label]", no pin, still readable, repliable
-  and resolvable. Undo or a restored board brings the same id and the pin back.
-- **Stale page:** the server checks a new thread's `object_id` against the current `state_json`; an object deleted meanwhile
-  is accepted as detached.
+  A group's origin is its members' top left, so its pin follows the group. A group lives while an object carries its
+  `groupId` (`state.groups` keeps a group whose members were all deleted).
+- **Delete (Q13, owner decision 2026-10-23):** deleting a commentable object (card, chat card, shape, arrow, text, sticky,
+  image, notebook, group) takes its threads and replies off the canvas, the Comments panel and the counts at once, with no
+  refresh. Deleting a group with its members does this for the group and every deleted member; deleting some members keeps
+  the group's threads and the survivors'. The server derives it from the saved board (`canvas-comments.js` `liveObjects`):
+  every list, `open_count`, `has_public`, read, reply, resolve, colour, read mark, Library unread and Shared with you leaves
+  out a thread whose object the saved board lacks, for the owner, members and the public alike. Nothing is destroyed:
+  Undo (the same id) and Redo are one step with the object, and the threads come back with their replies, resolved state
+  and anchor. Until the server has the Undo's save, this page keeps showing the threads it had (`useCanvasComments` kept
+  threads); only the newest list answer lands, so a late answer never re-shows or drops one. The rows are purged when the
+  canvas itself is deleted for good (`canvases.js` `purgeCommentRows`: every row of the seven `canvas_comment*` tables, so
+  its unread and Shared with you counts are zero); Trash keeps them. Comments have no attachments: a message is text and
+  mentions only (no attachment column, table or code), so there is nothing else to purge. A canvas thread is never hidden.
+- **Ungroup (owner decision 2026-10-23):** not a delete. The members keep their threads; the group's threads (resolved
+  too) move to a canvas point at the group's top centre before the group goes (`POST …/anchors`, the owner's only); a
+  refused move keeps the group and says so. The Ungroup's Undo moves each back to the group; Redo moves them again.
+  Every move is one D1 batch (all or nothing) and idempotent: a moved thread keeps its group anchor under `ungrouped`, so a
+  retry, a resend after a lost answer or a double press ends in the same state, and Regroup restores exactly that anchor.
+  A failed or lost Ungroup sends Regroup and keeps the group; a board save that fails after a move converges on its retry.
+- **No comment on a deleted object:** the server checks a new thread's object against the saved board for everyone,
+  the owner included (409 `object_not_on_canvas`). The owner's page saves its board before posting an object comment,
+  so an object drawn a moment ago is there. Hidden threads stay in D1 while the canvas lives: their retention is an open
+  owner decision: purging them earlier needs a recorded first-hidden time, a new LEARN_DB column.
 
 ## 9. Limits (Q11, Q12; all configurable, the `SHARED_ASK_LIMITS` pattern)
 
@@ -903,6 +923,7 @@ thread, and `thread_id` for a comment.
 | `DELETE …/comments/:id` | the author (Q23) or the owner | soft delete |
 | `PUT …/threads/:id/color` `{color}` | whoever may resolve the thread | one of the six palette colours; `{thread}` |
 | `DELETE …/threads/:id` | the owner; the starter while every live message is theirs | the whole thread, permanently; `{deleted}` |
+| `POST /api/learn/c/:boardId/anchors` `{ungroup: [{id, x, y}]}` or `{regroup: [id]}` | owner | Ungroup and its Undo (section 8): one atomic, idempotent batch over those groups' threads, never the board; `{threads: [{id, anchor}]}` as they now are |
 | `POST …/threads/:id/resolve` · `/reopen` | per section 3 | |
 | `POST …/threads/:id/read` | anyone who can read the thread (Closed and blocked included) | mark read |
 | `GET …/people?audience=members\|public&q=` | anyone who can post in that audience | up to 8 `{name, handle, avatar_url}` from that audience's suggestion set; for a **new thread** (no thread id yet) |
@@ -972,7 +993,7 @@ thread → board, comment → thread, asset → board. Each case is a server tes
 | Public comments Off | No Comments button or pins on the published page |
 | Signed out on `/e/` | Readable; "Sign in to comment", resuming to the thread |
 | Message or thread deleted meanwhile | "This comment was deleted" / "This thread isn't available" |
-| Card deleted | Detached thread (section 8) |
+| Object deleted | Its threads leave the canvas, the panel and the counts; Undo brings them back (section 8) |
 | Invitation states | Section 6, screens a-k (including f′, the invitation lock), with `retry_after` rendered, never a fixed duration |
 | Invitation email failed (owner) | "Email wasn't sent · Resend" |
 | Edits | Separate rows; the last edit wins and shows "edited" |

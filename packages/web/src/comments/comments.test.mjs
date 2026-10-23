@@ -259,7 +259,7 @@ test('toolbar Comments badge (owner, 2026-10-21): counts the open threads the Co
   assert.equal(openCount([{ status: 'resolved' }], 4), 4, 'a Resolved list keeps the open count');
   assert.equal(badgeText(openCount([], 140)), '99+');
   const panelSource = read('./CommentsPanel.jsx');
-  assert.match(panelSource, /onThreads\?\.\(list\.threads, list\.open_count\)/, 'the panel hands up the server count');
+  assert.match(panelSource, /onThreads\?\.\(list\.threads, list\.open_count, list\.asked, list\.shape\)/, 'the panel hands up the server count, with when it was asked and its filter');
   assert.equal(badgeText(7), '7');
   assert.equal(badgeText(99), '99');
   assert.equal(badgeText(100), '99+');
@@ -318,4 +318,117 @@ test('an object pin stays at the card top centre at every zoom (owner, 2026-10-2
   assert.ok(canvas.includes(`['top', 'bottom'].filter(side => side !== 'top' || !edit.hasPin?.(id)).map(side => <button key={side} type="button" data-port={side}`), 'a card hides its top port under a pin');
   assert.ok(canvas.includes(`SIDES.filter(side => side !== 'top' || !canvasEdit.hasPin?.(shape.id)).map(`), 'a shape hides its top port under a pin');
   assert.ok(canvas.includes('<CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin,'), 'the canvas shares which objects have pins');
+});
+
+// Owner decision 2026-10-23 (canvas-comments.md Q13): deleting an object takes its threads off the canvas, the Comments panel and
+// the counts at once; Undo brings them back, and a late or out-of-order list never re-shows a deleted one or drops a restored one.
+test('a deleted object hides its threads here at once; Undo shows them again before the server copy has the object back', async () => {
+  const { liveOf, visibleThreads, afterList, afterLive, pinsOf } = await import('./useCanvasComments.js');
+  const on = (id, kind = 'block') => ({ kind: 'object', object_id: id, object_kind: kind, dx: 0, dy: 0, label: '' });
+  const t1 = { id: 't1', anchor: on('b1'), status: 'open', audience: 'members', created_at: '1', comments: 2 };
+  const t2 = { id: 't2', anchor: on('b1'), status: 'resolved', audience: 'members', created_at: '2', comments: 1 };
+  const t3 = { id: 't3', anchor: on('g1', 'group'), status: 'open', audience: 'public', created_at: '3', comments: 1 };
+  const t4 = { id: 't4', anchor: { kind: 'point', x: 1, y: 2 }, status: 'open', audience: 'members', created_at: '4', comments: 1 };
+  const all = [t1, t2, t3, t4], ids = list => list.map(thread => thread.id);
+  const board = (objects, groups = []) => liveOf({ ids: new Set(objects), groups: new Set(groups) });
+  assert.deepEqual(ids(visibleThreads(all, new Map(), liveOf(null))), ['t1', 't2', 't3', 't4'], 'before the canvas reports, nothing is hidden');
+  const full = board(['b1', 'x'], ['g1']);
+  assert.deepEqual(ids(visibleThreads(all, new Map(), full)), ['t1', 't2', 't3', 't4']);
+  // Delete b1 and the group's members: its threads, resolved too, leave the list and the pins in the same render.
+  const gone = board(['x']);
+  let kept = afterLive(new Map(), all, gone, 10);
+  assert.deepEqual([...kept.keys()], ['t1', 't2', 't3'], 'the deleted objects\' threads are kept, not dropped');
+  assert.deepEqual(ids(visibleThreads(all, kept, gone)), ['t4'], 'only the canvas thread shows');
+  assert.deepEqual(ids(pinsOf(visibleThreads(all, kept, gone), null, null, false)), ['t4'], 'and only its pin');
+  assert.equal(board(['ga'], [])(on('g1', 'group')), false, 'a group is live only while it has members');
+  // A list asked before the delete was saved lands after it and still carries them: they stay hidden, and stay kept.
+  kept = afterList(kept, all, 15, -1, gone);
+  assert.deepEqual([...kept.keys()], ['t1', 't2', 't3']);
+  assert.deepEqual(ids(visibleThreads(all, kept, gone)), ['t4'], 'a late list never re-shows them');
+  // The delete is saved (20); a list asked after it (30) leaves them out: they stay kept, still hidden.
+  kept = afterList(kept, [t4], 30, 20, gone);
+  assert.deepEqual([...kept.keys()], ['t1', 't2', 't3']);
+  assert.deepEqual(ids(visibleThreads([t4], kept, gone)), ['t4']);
+  // Undo at 40: every thread is back at once, though the server list (asked at 45, before the Undo's save) still lacks them.
+  kept = afterLive(kept, [t4], full, 40);
+  kept = afterList(kept, [t4], 45, 20, full);
+  assert.deepEqual(ids(visibleThreads([t4], kept, full)).sort(), ['t1', 't2', 't3', 't4'], 'a list asked before the Undo was saved never drops them');
+  assert.deepEqual(ids(visibleThreads([t4], kept, full, { status: 'open', audience: 'all' })).sort(), ['t1', 't3', 't4'], 'a kept thread joins only a list it belongs to');
+  assert.deepEqual(ids(visibleThreads([], kept, full, { status: 'resolved' })), ['t2']);
+  assert.deepEqual(ids(visibleThreads([], kept, full, { status: 'all', audience: 'public' })), ['t3']);
+  // The Undo is saved (50): a list that carries them makes them the server's again.
+  assert.deepEqual([...afterList(kept, all, 60, 50, full).keys()], [], 'listed again: no longer kept');
+  // A list asked after that save that still lacks one: it went for real (deleted elsewhere).
+  assert.deepEqual([...afterList(kept, [t1, t2, t4], 60, 50, full).keys()], [], 't3 is gone for real');
+  assert.deepEqual([...afterList(kept, [t1, t2, t4], 48, 50, full).keys()], ['t3'], 'but not on a list asked before that save');
+});
+
+// Owner addition 2026-10-23: the hide comes from the live canvas, before any board save and with no list request; Undo brings
+// back the very same threads, again with no request.
+test('the hide is the canvas state, not a save or a refresh: delete then Undo with no list in between shows the same threads', async () => {
+  const { liveOf, visibleThreads, afterLive } = await import('./useCanvasComments.js');
+  const on = id => ({ kind: 'object', object_id: id, object_kind: 'block', dx: 0, dy: 0, label: '' });
+  const listed = [{ id: 't1', anchor: on('b1'), status: 'open', replies: 2 }, { id: 't2', anchor: on('b2'), status: 'resolved' }];
+  const full = liveOf({ ids: new Set(['b1', 'b2']), groups: new Set() }), gone = liveOf({ ids: new Set(['b2']), groups: new Set() });
+  const deleted = afterLive(new Map(), listed, gone, 1);
+  assert.deepEqual(visibleThreads(listed, deleted, gone).map(thread => thread.id), ['t2'], 'hidden from the same list, nothing asked');
+  const undone = afterLive(deleted, listed, full, 2);
+  const shown = visibleThreads(listed, undone, full);
+  assert.deepEqual(shown.map(thread => thread.id), ['t1', 't2']);
+  assert.equal(shown[0], listed[0], 'the very thread object, replies and all, with no request');
+  // The canvas reports its objects in an effect of the render that changed them, keyed on their ids; the board's browser save
+  // is a 400 ms timer and its server push 1.5 s after that, so the report always comes first.
+  const canvas = read('../AdaptiveCanvas.jsx');
+  const report = canvas.indexOf('const commentKey = onCommentObjects ?'), effect = canvas.indexOf('}, [commentKey, onCommentObjects]);');
+  assert.ok(report > 0 && effect > report && !canvas.slice(report, effect).includes('setTimeout'), 'reported at once, never on a timer');
+  assert.match(canvas, /const timer = setTimeout\(\(\) => \{\n\s+if \(retired\.current\) return;[\s\S]{0,1600}\}, 400\);/, 'the board save waits 400 ms');
+});
+
+test('Ungroup moves (owner addition 2026-10-23): a failure or lost answer puts back what moved and keeps the group; Undo and Redo run in order and resend safely', async () => {
+  const { ungroupMoves } = await import('./useCanvasComments.js');
+  const group = { kind: 'object', object_id: 'g1', object_kind: 'group', dx: 0, dy: 0, label: 'Beakers' };
+  const point = { kind: 'point', x: 120, y: -40, ungrouped: group };
+  const fake = (...answers) => { const sent = []; return { sent, send: async body => { sent.push(JSON.stringify(body)); const next = answers.shift(); if (next instanceof Error) throw next; return next; } }; };
+  const spots = [{ id: 'g1', x: 120.4, y: -39.6 }], UNGROUP = JSON.stringify({ ungroup: [{ id: 'g1', x: 120, y: -40 }] }), REGROUP = JSON.stringify({ regroup: ['g1'] });
+  // The answer is lost (the move may have landed): Regroup goes out, the error comes back, so the canvas keeps the group.
+  const lost = fake(new TypeError('Failed to fetch'), { threads: [{ id: 't1', anchor: group }] });
+  await assert.rejects(ungroupMoves(lost.send, spots, () => assert.fail('nothing shows as moved')), /Failed to fetch/);
+  assert.deepEqual(lost.sent, [UNGROUP, REGROUP]);
+  // Even the Regroup fails: still only the error; the next Ungroup converges on the server's idempotent move.
+  const both = fake(new Error('down'), new Error('down'));
+  await assert.rejects(ungroupMoves(both.send, spots, () => {}), /down/);
+  // Nothing on the group: no undo step for comments.
+  assert.equal(await ungroupMoves(fake({ threads: [] }).send, spots, () => {}), null);
+  // Moved: shown at once; Undo shows the group anchor before its answer, Redo the point, sent in the order pressed.
+  const shown = [], ok = fake({ threads: [{ id: 't1', anchor: point }] }, { threads: [{ id: 't1', anchor: group }] }, { threads: [{ id: 't1', anchor: point }] }, new Error('lost'), { threads: [{ id: 't1', anchor: point }] });
+  const steps = await ungroupMoves(ok.send, spots, (threads, keep) => shown.push([threads[0].anchor.kind, !!keep]));
+  assert.deepEqual(shown, [['point', false]]);
+  const undo = steps.undo(), redo = steps.redo();
+  assert.deepEqual(shown.slice(1, 3), [['object', true], ['point', true]], 'both show at once, the Undo kept until the server board has the group');
+  await undo; await redo;
+  assert.deepEqual(ok.sent, [UNGROUP, REGROUP, UNGROUP], 'Undo is Regroup, Redo the same Ungroup, in order');
+  // A failed step rejects (the canvas says so) and the next one still goes: the same request again, which the server takes as is.
+  await assert.rejects(steps.undo(), /lost/);
+  await steps.redo();
+  assert.deepEqual(ok.sent.slice(3), [REGROUP, UNGROUP]);
+});
+
+test('the wiring: the canvas reports its objects, the panel shows the visible list, the owner page saves before an object comment, Ungroup moves its comments in one undo step', () => {
+  const hook = read('./useCanvasComments.js'), panel = read('./CommentsPanel.jsx'), canvas = read('../AdaptiveCanvas.jsx'), page = read('../LearnPage.jsx'), client = read('./comments-api.js');
+  assert.match(canvas, /onCommentObjects\(\{ ids, groups: gids \}\);/, 'the canvas reports its commentable objects');
+  assert.match(canvas, /JSON\.stringify\(\[\[\.\.\.blocks, \.\.\.items, \.\.\.shapes, \.\.\.exchanges\]\.map\(entry => entry\.id\), Object\.keys\(groupMembers\)\]\)/, 'cards, chat cards, text, shapes and groups with members');
+  assert.match(hook, /onCommentObjects: setLive, onUngroupComments: editor \? ungroupComments : null/);
+  assert.doesNotMatch(hook, /document\.querySelector/, 'liveness is the board model, not the DOM');
+  assert.match(panel, /<ThreadList list=\{\{ \.\.\.list, threads: visible\(list\.threads, list\.shape\) \}\}/);
+  assert.match(panel, /if \(seq !== latest\.current\) return;/, 'only the newest list answer lands');
+  assert.match(panel, /blocked=\{live \? blockedLine\(about, canPost\) : DELETED\}/, 'no new comment on a deleted object');
+  assert.match(panel, /if \(anchor\.kind === 'object'\) await beforePost\?\.\(\);/);
+  assert.match(hook, /beforePost: editor \? \(\) => canvasApi\.current\?\.persist\?\.\(\) : null/);
+  assert.match(page, /editor: true, shown: panelOpen/, 'the owner\'s page is the editor');
+  assert.match(page, /window\.dispatchEvent\(new Event\('rh:board-saved'\)\);/);
+  assert.match(client, /moveAnchors: body => send\(`\$\{base\}\/anchors`, body\)/);
+  assert.match(canvas, /if \(!members\.length\) return; \/\/ a second press/, 'a double press ungroups once');
+  assert.match(canvas, /try \{ comments = await onUngroupCommentsRef\.current\(spots\); \} catch \(problem\) \{ toast\(`Not ungrouped: /, 'a refused move keeps the group');
+  assert.match(canvas, /if \(comments\) step\.comments = comments;/, 'the move rides in the Ungroup step');
+  assert.match(canvas, /if\(next\.comments\)\{before\.comments=next\.comments;\(from===history\?next\.comments\.undo:next\.comments\.redo\)\(\)/, 'Undo moves them back, Redo again');
 });
