@@ -1,19 +1,21 @@
-// A generated card's Prompt row (docs/features/card-prompt.md), against the LOCAL stack only. The board save is REAL: what a
+// A generated card's prompt reveal (docs/features/card-prompt.md; owner brief 2026-10-23: hidden at rest, a Show prompt button on hover,
+// focus or selection, the opened prompt stays until Hide), against the LOCAL stack only. The board save is REAL: what a
 // fresh browser and a share link show is what the server stored. Only /api/learn/artifact and the CAD job routes are answered
 // in the browser; every other model-capable request is aborted and counted, so no model is ever called.
-//   1. /explain from the Chat box makes a card with a Prompt row, closed;
-//   2. opened, it shows the typed line exactly;
+//   1. /explain from the Chat box makes a card that shows no prompt at rest; hovering it shows Show prompt;
+//   2. opened, it shows the typed line exactly, stays when the pointer leaves, and Hide / Enter / Escape work from the keyboard;
 //   3. Copy puts the line on the clipboard;
 //   4. the chat icon puts the line in the Chat box and sends nothing;
-//   5. /cad (Generate) makes a CAD card whose row holds its typed line, kept while the job is polled;
+//   5. /cad (Generate) makes a CAD card whose prompt holds its typed line, kept while the job is polled;
 //   6. a CAD edit that is rejected leaves the line; an accepted edit's words replace it;
 //   7. the same through the CAD card's own Accept and Reject, and an Accept after a reload: the words come from the server's
 //      Accept answer (as the real service: status and list never carry them), and the board never holds a pending edit's;
-//   8. a corner resize keeps the height the card had at release (the rows under the body are not added twice);
-//   9. the server's board holds both prompts; a card made before this (no prompt) has no row; a chat card's row is its question;
-//  10. a fresh browser shows both rows again, closed;
-//  11. a share-link viewer sees the row with Copy and no chat icon, and only the accepted CAD prompt while an edit waits.
-// Before this change step 1 fails: no card has a Prompt row.
+//   8. a corner resize keeps the height the card had at release;
+//   9. the server's board holds both prompts; a card made before this (no prompt) has no control; a chat card's prompt is its question;
+//  10. a fresh browser shows no prompt at rest and the same two prompts when asked;
+//  11. a share-link viewer (no hover on a view-only board: the selected card shows the button) sees Copy and no chat icon, and only the
+//      accepted CAD prompt while an edit waits.
+// Before this change step 1 fails: no card has a Show prompt button.
 // Usage: BASE=http://127.0.0.1:9121 SMALL_CP=http://127.0.0.1:9123 VARS=<cp .dev.vars> node e2e/card-prompt-check.mjs [shotsDir]
 //   or CLONE=1 BASE=https://rabbit-hole-web-dev-card-prompt.tryrabbithole.workers.dev SMALL_CP=https://rabbit-hole-cp-dev.tryrabbithole.workers.dev VARS=<file with the dev TEST_BYPASS_SECRET>
 import { chromium } from '@playwright/test';
@@ -115,6 +117,18 @@ const open = async ({ signedIn = true, path = `/apps/${canvas.name}` } = {}) => 
   return { context, page };
 };
 const rowOf = (page, id) => page.locator(`[data-block-id="${id}"] [data-card-prompt]`);
+const cardOf = (page, id) => page.locator(`[data-block-id="${id}"]`);
+const showOf = (page, id) => cardOf(page, id).locator('[data-card-prompt-show]');
+// Opens a card's prompt the way a person does: hover, then Show prompt. A view-only board has no hover, so there the click selects
+// the card and the selected card shows the button.
+const reveal = async (page, id) => {
+  if (await rowOf(page, id).count()) return;
+  await cardOf(page, id).hover();
+  await showOf(page, id).waitFor({ timeout: 1500 }).catch(async () => { const box = await cardOf(page, id).boundingBox(); await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2); });
+  await showOf(page, id).click();
+  await rowOf(page, id).waitFor();
+};
+const hide = async (page, id) => { if (await rowOf(page, id).count()) await rowOf(page, id).locator('[data-card-prompt-hide]').click(); };
 const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
 const send = async (page, text) => { const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
 const newCardId = async page => {
@@ -125,18 +139,34 @@ const newCardId = async page => {
 let first = await open(), page = first.page, explainId = null;
 await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });
 
-await step('/explain makes a card with a Prompt row, closed', async () => {
+await step('/explain makes a card that shows no prompt at rest; hovering it shows Show prompt', async () => {
   await send(page, EXPLAIN_LINE);
-  await until(async () => !!(explainId = await newCardId(page)) && (await rowOf(page, explainId).count()) === 1, 'no Prompt row on the new card');
-  assert.equal(await rowOf(page, explainId).locator('[data-card-prompt-toggle]').getAttribute('aria-expanded'), 'false');
-  assert.equal(await rowOf(page, explainId).locator('[data-card-prompt-text]').count(), 0, 'closed: the prompt text is not shown');
+  await until(async () => !!(explainId = await newCardId(page)), 'no new card');
+  await page.mouse.move(2, 2);
+  await until(async () => (await showOf(page, explainId).count()) === 0, 'a button shows at rest');
+  assert.equal(await rowOf(page, explainId).count(), 0, 'at rest: no prompt, no Copy, no footer');
+  await cardOf(page, explainId).hover();
+  await showOf(page, explainId).waitFor();
+  assert.equal(await showOf(page, explainId).innerText(), 'Show prompt');
+  assert.equal(await rowOf(page, explainId).count(), 0, 'the words wait for a click');
   assert.equal(posts.length, 1);
   await page.screenshot({ path: `${OUT}/1-closed.png` });
 });
 
-await step('opened, the row shows the typed line exactly', async () => {
-  await rowOf(page, explainId).locator('[data-card-prompt-toggle]').click();
+await step('opened, it shows the typed line exactly, stays open when the pointer leaves, and Hide, Enter and Escape work', async () => {
+  await reveal(page, explainId);
   assert.equal(await rowOf(page, explainId).locator('[data-card-prompt-text]').innerText(), EXPLAIN_LINE);
+  await page.mouse.move(2, 2);
+  await page.waitForTimeout(500);
+  assert.equal(await rowOf(page, explainId).count(), 1, 'the opened prompt stays after the pointer leaves');
+  await rowOf(page, explainId).locator('[data-card-prompt-hide]').click();
+  await until(async () => (await rowOf(page, explainId).count()) === 0, 'Hide did not close it');
+  assert.equal(await page.evaluate(() => document.activeElement?.hasAttribute('data-card-prompt-show')), true, 'focus returns to Show prompt');
+  await page.keyboard.press('Enter');
+  await rowOf(page, explainId).waitFor();
+  await page.keyboard.press('Escape');
+  await until(async () => (await rowOf(page, explainId).count()) === 0, 'Escape did not close it');
+  await reveal(page, explainId);
   await page.screenshot({ path: `${OUT}/2-open.png` });
 });
 
@@ -157,19 +187,19 @@ await step('the chat icon puts the line in the Chat box and sends nothing', asyn
   await composerOf(page).fill('');
 });
 
-await step('/cad makes a CAD card whose row holds its typed line, kept while the job is polled', async () => {
+await step('/cad makes a CAD card whose prompt holds its typed line, kept while the job is polled', async () => {
   await send(page, CAD_LINE);
   await page.locator('[data-chat-pane] [data-paid-generate]').click();
-  await rowOf(page, cadBlock.id).waitFor();
+  await cardOf(page, cadBlock.id).waitFor();
   assert.equal(cadStarts.find(c => c.path === '/api/learn/cad/jobs')?.prompt, 'a 40 mm mounting bracket with two holes', 'the job gets the words after the command');
-  await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  await reveal(page, cadBlock.id);
   assert.equal(await rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), CAD_LINE);
   await page.waitForTimeout(6000); // the card polls its job (2.5 s); a polled block carries no prompt
   assert.equal(await rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), CAD_LINE);
   await page.screenshot({ path: `${OUT}/5-cad.png` });
 });
 
-const cadText = () => rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText();
+const cadText = async () => { await reveal(page, cadBlock.id); return rowOf(page, cadBlock.id).locator('[data-card-prompt-text]').innerText(); };
 const editCad = async words => {
   const editor = page.locator('[data-inline-ai]');
   // No Edit button on the card any more (UI changes brief section 4): select it, Ctrl+K, Edit mode.
@@ -186,7 +216,7 @@ await step('a rejected CAD edit leaves the typed line; an accepted edit replaces
   cadReady();
   await page.reload(); // as cad-check: the ready job reaches the card through the page's own job list
   await page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-state="ready"]`).waitFor();
-  await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  await reveal(page, cadBlock.id);
   let editor = await editCad(REJECTED_WORDS);
   await editor.locator('[data-inline-reject]').click();
   await until(async () => !cadBlock.proposedRevisionId, 'the edit was not rejected');
@@ -200,7 +230,7 @@ await step('a rejected CAD edit leaves the typed line; an accepted edit replaces
 
 const cadAction = name => page.locator(`[data-block-id="${cadBlock.id}"] [data-cad-action="${name}"]`);
 const closeEditor = async () => { await page.locator('[data-inline-ai] [data-inline-close]').click(); await until(async () => (await page.locator('[data-inline-ai]').count()) === 0, 'the editor stayed open'); };
-const awaiting = () => until(async () => !!cadBlock.proposedRevisionId && (await cadAction('accept').isVisible()), 'the card never offered Accept');
+const awaiting = async () => { await until(async () => !!cadBlock.proposedRevisionId && (await cadAction('accept').isVisible()), 'the card never offered Accept'); await hide(page, cadBlock.id); }; // the opened prompt overlays the card foot
 await step('the card Accept, an Accept after a reload and the card Reject: the accepted revision words, from the server', async () => {
   await editCad(CARD_WORDS);
   await closeEditor();
@@ -212,7 +242,6 @@ await step('the card Accept, an Accept after a reload and the card Reject: the a
   await page.waitForTimeout(2500); // the board saves; it must not hold a pending edit's words
   assert.ok(!JSON.stringify(await board()).includes(RELOAD_WORDS), 'the board holds no pending edit words');
   await page.reload();
-  await rowOf(page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
   assert.equal(await cadText(), CARD_WORDS, 'after a reload the card still shows the accepted prompt');
   await awaiting();
   await cadAction('accept').click();
@@ -228,6 +257,7 @@ await step('the card Accept, an Accept after a reload and the card Reject: the a
 });
 
 await step('a corner resize keeps the height the card had at release', async () => {
+  await hide(page, explainId); // the opened prompt overlays the card foot
   const card = page.locator(`[data-block-id="${explainId}"]`);
   await card.hover();
   const handle = card.getByRole('button', { name: 'Resize chat block' });
@@ -242,26 +272,26 @@ await step('a corner resize keeps the height the card had at release', async () 
   assert.ok(Math.abs(after - held) <= 2, `height at release ${held}, after ${after}`);
 });
 
-await step('the server board holds both prompts; the older card has no row; the chat card row is its question', async () => {
+await step('the server board holds both prompts; the older card has no control; the chat card prompt is its question', async () => {
   await until(async () => { const state = await board(); return state.blocks.find(b => b.id === explainId)?.promptUsed === EXPLAIN_LINE && state.blocks.find(b => b.id === cadBlock.id)?.promptUsed === RELOAD_WORDS; }, 'the saved board lacks the prompts', 20000);
   assert.ok(!Object.hasOwn((await board()).blocks.find(b => b.id === OLD.id), 'promptUsed'));
   assert.equal(await rowOf(page, OLD.id).count(), 0);
-  const chatRow = page.locator(`[data-block-id="${CHAT.id}"] [data-card-prompt]`);
-  await chatRow.locator('[data-card-prompt-toggle]').click();
+  await cardOf(page, OLD.id).hover();
+  await page.waitForTimeout(300);
+  assert.equal(await showOf(page, OLD.id).count(), 0, 'a card with no stored prompt has no Show prompt');
+  await reveal(page, CHAT.id);
+  const chatRow = rowOf(page, CHAT.id);
   assert.equal(await chatRow.locator('[data-card-prompt-text]').innerText(), CHAT.question);
 });
 await first.context.close();
 
 const second = await open();
-await step('a fresh browser shows both rows again, closed', async () => {
-  await rowOf(second.page, explainId).waitFor({ timeout: 60000 });
-  for (const id of [explainId, cadBlock.id]) {
-    assert.equal(await rowOf(second.page, id).locator('[data-card-prompt-toggle]').getAttribute('aria-expanded'), 'false', id);
-    assert.equal(await rowOf(second.page, id).locator('[data-card-prompt-text]').count(), 0, id);
-  }
-  await rowOf(second.page, explainId).locator('[data-card-prompt-toggle]').click();
+await step('a fresh browser shows no prompt at rest and the same two prompts when asked', async () => {
+  await cardOf(second.page, explainId).waitFor({ timeout: 60000 });
+  for (const id of [explainId, cadBlock.id]) assert.equal(await rowOf(second.page, id).count(), 0, `${id}: closed on every load`);
+  await reveal(second.page, explainId);
   assert.equal(await rowOf(second.page, explainId).locator('[data-card-prompt-text]').innerText(), EXPLAIN_LINE);
-  await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  await reveal(second.page, cadBlock.id);
   assert.equal(await rowOf(second.page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), RELOAD_WORDS);
   // An edit left waiting for Accept while the canvas is shared next.
   page = second.page;
@@ -273,13 +303,14 @@ await step('a fresh browser shows both rows again, closed', async () => {
 
 const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: await board() }) });
 const viewer = await open({ signedIn: false, path: `/b/${shared.sharing.view}` });
-await step('a share-link viewer sees the row with Copy and no chat icon, and only the accepted CAD prompt', async () => {
-  await rowOf(viewer.page, explainId).waitFor({ timeout: 60000 });
+await step('a share-link viewer, by selecting the card, sees Copy and no chat icon, and only the accepted CAD prompt', async () => {
+  await cardOf(viewer.page, explainId).waitFor({ timeout: 60000 });
+  assert.equal(await rowOf(viewer.page, explainId).count(), 0, 'closed at rest for a viewer too');
+  await reveal(viewer.page, explainId);
   assert.equal(await rowOf(viewer.page, explainId).locator('[data-card-prompt-copy]').count(), 1);
   assert.equal(await rowOf(viewer.page, explainId).locator('[data-card-prompt-chat]').count(), 0);
-  await rowOf(viewer.page, explainId).locator('[data-card-prompt-toggle]').click();
   assert.equal(await rowOf(viewer.page, explainId).locator('[data-card-prompt-text]').innerText(), EXPLAIN_LINE);
-  await rowOf(viewer.page, cadBlock.id).locator('[data-card-prompt-toggle]').click();
+  await reveal(viewer.page, cadBlock.id);
   assert.equal(await rowOf(viewer.page, cadBlock.id).locator('[data-card-prompt-text]').innerText(), RELOAD_WORDS, 'the viewer sees the accepted CAD prompt');
   const seen = JSON.stringify(await board()) + await viewer.page.content();
   for (const words of [PENDING_WORDS, CARD_REJECT, REJECTED_WORDS]) assert.ok(!seen.includes(words), `"${words}" (never accepted) reaches neither the board nor the viewer`);

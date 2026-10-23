@@ -1,3 +1,4 @@
+import { CAD_LINE } from './card-prompt.js';
 import CommandPill from './CommandPill.jsx';
 import { Button } from './ui.jsx';
 
@@ -7,8 +8,6 @@ import { Button } from './ui.jsx';
 // A /cad line shows as a read-only `cad` pill and the prompt (owner brief 2026-10-23: never the printed /cad); data-paid-command keeps
 // the exact line, and the pill has no action, so showing it can never start generation. Other commands keep the raw line.
 // Colours are semantic tokens only (secondary / inverse Button variants); ui-colour-literals.test.mjs keeps hex out.
-const CAD_LINE = /^\/cad\s+([\s\S]+)$/i;
-
 export default function PaidConfirm({ onGenerate, onCancel, message = 'This uses paid generation.', prompt }) {
   const cad = typeof prompt === 'string' ? prompt.match(CAD_LINE) : null;
   return (

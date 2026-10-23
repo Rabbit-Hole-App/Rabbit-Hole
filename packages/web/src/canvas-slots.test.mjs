@@ -52,7 +52,7 @@ test('a slot is the coming card\'s size: exact when the type fixes it, its typic
   assert.deepEqual(slotSize('wiki', types), { w: 560, h: 640 });
   assert.deepEqual(slotSize('videoMoment', types), { w: 560, h: 420 });
   assert.deepEqual(slotSize(null, types), GENERIC_SLOT);
-  assert.deepEqual(slotSize('graph', types, [], 42), { w: 560, h: 562 }, 'a fixed-height card holds its Prompt row (card-prompt.md)');
+  assert.deepEqual(slotSize('graph', types, [], 42), { w: 560, h: 562 }, 'a fixed-height card holds the rows it grows by');
   assert.deepEqual(slotSize('explanation', types, [], 42), { w: 440, h: 330 }, 'a measured height already leaves room');
 });
 

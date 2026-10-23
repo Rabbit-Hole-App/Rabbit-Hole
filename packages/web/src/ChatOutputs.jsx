@@ -6,6 +6,9 @@ import { apiFetch } from './api.js';
 import { cadReadUrl } from './CadCard.jsx';
 import { openOutput, saveOutputs, watchOutputs, withOutputUpdates } from './chat-output-refs.js';
 import { SETTLED_TEXT } from './generation-state.js';
+import CommandPill from './CommandPill.jsx';
+import { PromptReveal } from './CardPrompt.jsx';
+import { CAD_LINE } from './card-prompt.js';
 
 const KIND = { cad: 'CAD model', video: 'Video', image: 'Image', notebook: 'Notebook', whiteboard: 'Whiteboard', paper: 'Paper', wiki: 'Article', explanation: 'Explanation', quiz: 'Quiz', flashcards: 'Flashcards', table: 'Table', flow: 'Diagram', mermaid: 'Diagram', graph: 'Graph', plot: 'Plot', snippet: 'Code', walkthrough: 'Walkthrough', scene: '3D scene' };
 const kindName = kind => KIND[kind] || String(kind).replace(/^./, c => c.toUpperCase());
@@ -69,6 +72,7 @@ function useSeconds(startedAt, active) {
 // progress) and a shimmer; settled (done, failed, cancelled): a still icon and the stable line, dismissible.
 function GenerationRow({ entry, onOpen, onDismiss }) {
   const { gen, output, prompt } = entry;
+  const cad = String(prompt || '').match(CAD_LINE);
   const seconds = useSeconds(output.startedAt, gen.active);
   const Icon = gen.phase === 'done' ? Check : gen.phase === 'cancelled' ? Ban : CircleAlert;
   return (
@@ -81,7 +85,11 @@ function GenerationRow({ entry, onOpen, onDismiss }) {
           {gen.label && gen.active && <span data-gen-stage className="text-xs text-ink-2">{gen.label}</span>}
           {gen.active && seconds != null && <span data-gen-elapsed className="text-xs text-ink-2">{seconds}s</span>}
         </p>
-        <p data-gen-prompt title={prompt} className="truncate text-xs text-ink-2">{prompt}</p>
+        {/* The line is hidden until asked for (CardPrompt.jsx PromptReveal, owner brief 2026-10-23); a /cad line shows its command as the cad pill. */}
+        <div data-gen-prompt className="mt-1 flex flex-wrap items-center gap-1.5">
+          {cad && <CommandPill name="cad" text="cad" ariaLabel="cad command" className="h-5 rounded-md px-1.5 text-xs" />}
+          <PromptReveal text={cad ? cad[1] : prompt} copy={prompt} className="w-full" buttonClassName="shadow-none" />
+        </div>
       </div>
       <button type="button" data-gen-open onClick={() => onOpen(output)} className="h-7 shrink-0 rounded-md px-2 text-xs font-medium text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent">Go to card</button>
       {!gen.active && <button type="button" data-gen-dismiss aria-label="Dismiss" title="Dismiss" onClick={() => onDismiss(entry.key)} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-ink-3 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"><X size={13} /></button>}

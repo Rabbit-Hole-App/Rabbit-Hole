@@ -218,7 +218,7 @@ export async function runLearnCommand(text, { app, target = null, attachedImage 
   // sized as the command's first card; anything but a card (a question, a proposal, an error, a request
   // that never answers) gives it up. A skeleton means a card is committed: a command that can end in a paid
   // proposal holds no place until the learner confirms it (generate, below).
-  const hold = () => canvas.reserve?.({ label: `Creating /${name}`, card: cardsFor(name)[0]?.card ?? null, ...(String(promptUsed ?? '').trim() ? { prompt: true } : {}) });
+  const hold = () => canvas.reserve?.({ label: `Creating /${name}`, card: cardsFor(name)[0]?.card ?? null });
   // /explain with an image: the target's own (a region crop or an image card, uploaded) first, else the composer's attached
   // image, as ask.jsx picks one for a question. The words say what to show; an image alone asks. A crop whose upload has not
   // landed is waited for, never dropped.

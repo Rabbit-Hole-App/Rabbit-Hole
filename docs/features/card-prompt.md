@@ -1,4 +1,4 @@
-# Card prompt row
+# Card prompt (Show prompt)
 
 Owner request, 2026-10-20: every generated card gets a small toggle that shows the prompt used, a copy button and a
 small Add to chat icon. Owner decisions:
@@ -9,25 +9,29 @@ small Add to chat icon. Owner decisions:
 - Anyone who can see the card can see the prompt (share links, forks and Explore), the same as chat questions.
 - Copy copies the prompt.
 - The chat icon puts the prompt in the Chat box to edit and send again. It never sends.
-- The row sits at the foot of the card and is closed on every load.
+- The prompt is hidden until asked for (owner brief, 2026-10-23, replacing the always-visible Prompt row): no row, no Copy
+  icon and no reserved height at rest.
 
 ## What it does
 
-A generated card has a row at its foot: "Prompt" with a chevron, a Copy icon and a chat icon (`CardPrompt.jsx`).
+`CardPrompt.jsx` draws nothing at rest. Hovering a card, focusing into it or selecting it (touch has no hover) shows a small
+**Show prompt** button over the card's foot, bottom left. It overlays the card, so the card never changes size.
 
-- **Closed:** the default on every load. Nothing else on the card moves.
-- **Opened:** shows the typed words, wrapped. A long prompt scrolls inside the row, at most 160 px. The card's frame grows
-  by the row's measured height, as it does for Sources & evidence.
-- **Size:** a fixed-height card's skeleton holds the closed row (`PROMPT_ROW_H`, 42 px), so the card fills its slot
-  exactly. The Ctrl+K ghost draws the row too, so Accept lands on the ghost's size. A corner resize sizes the body, so
-  releasing never adds the rows under it a second time. That was already true for Sources & evidence.
-- **Copy:** writes the prompt to the clipboard and says Copied or Copy failed beside the icon.
+- **Show prompt** opens a panel over the card's foot with the typed words (complete; a long prompt scrolls inside, at most
+  160 px), Copy, the chat icon and **Hide**. It stays open until Hide or Escape: the pointer leaving never closes it.
+  The panel takes focus when it opens; Hide returns focus to Show prompt. It is closed on every load.
+- **Copy:** writes the complete prompt to the clipboard and says Copied or Copy failed beside the icon.
 - **Chat icon:** calls the Chat workspace's `composer.prepare({ text })`. Chat opens, and an empty draft becomes the
   prompt. A written draft is kept, and the prompt follows it after a blank line, as for every prepare. Nothing is sent.
   A line that starts with `/` runs as that command when the person sends it.
 - **View-only boards:** a share-link page has no Chat workspace, so it shows Copy only. The canvas pans with the hand
-  there and its cards take no pointer, so the row takes the pointer back (`pointer-events-auto`) and a viewer can still
-  open and copy it.
+  there and its cards take no pointer, so the viewer selects the card (a click) to get the button, which takes the
+  pointer back (`pointer-events-auto`).
+- **No stored prompt:** no control at all.
+- **Chat status:** the "Generating on the canvas" line above the Chat uses the same reveal (`PromptReveal`). A `/cad`
+  line shows the lowercase `cad` pill (no slash) and hides the words until Show prompt; Copy keeps the original
+  `/cad <prompt>` line. The CAD confirmation (`PaidConfirm`) shows the `cad` pill and the visible prompt: it is what the
+  person approves. `/cad` stays unchanged internally.
 
 ## Where the prompt comes from
 
@@ -57,7 +61,11 @@ A copied, duplicated or Alt-dragged card keeps its prompt. A fork keeps it.
 - **CAD recovery:** a CAD card rebuilt from the job list (the card was missing from the board) has no prompt. Only an
   Accept answer carries one.
 
-## Verification (2026-10-20)
+## Verification (2026-10-20; reveal 2026-10-23)
+
+- Unit: `card-prompt-reveal.test.mjs` (rest, hover/focus/selected, open, stays open, Hide and Escape, full Copy, no prompt, the Chat
+  status and its `cad` pill) and `paid-confirm.test.mjs`. Browser (run by the owner, not by Claude): `card-prompt-check.mjs` and
+  `chat-outputs-check.mjs`, edited for the reveal.
 
 - Unit: `learn-slash.test.mjs` covers:
   - the typed line on a command card;

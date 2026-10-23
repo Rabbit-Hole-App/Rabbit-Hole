@@ -147,6 +147,16 @@ const settledIndicator = async (page, id, phase) => {
 
 let context;
 ({ context, page } = await open());
+// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Show prompt (the card's own reveal).
+const statusPrompt = async (page, id) => {
+  const line = indicator(page, id).locator('[data-gen-prompt]');
+  assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad');
+  assert.ok(!/\/cad|educational/.test(await line.innerText()), 'at rest the status shows neither the slash nor the prompt');
+  await line.locator('[data-card-prompt-show]').click();
+  assert.equal(await line.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
+  await line.locator('[data-card-prompt-hide]').click();
+  await line.locator('[data-card-prompt-show]').waitFor();
+};
 let cadId = null;
 await step('a /cad line shows as the message at once, and the confirmation shows a cad pill and that prompt', async () => {
   await send(page, CAD_LINE);
@@ -174,7 +184,7 @@ await step('after Generate the card and the indicator are active together, with 
   await card(page, cadId).waitFor();
   await until(async () => (await indicator(page, cadId).getAttribute('data-gen-active')) === 'true', 'the indicator is not active');
   assert.match(await card(page, cadId).locator('[data-cad-card]').getAttribute('data-cad-state'), /queued|building/);
-  assert.equal(await indicator(page, cadId).locator('[data-gen-prompt]').innerText(), CAD_LINE);
+  await statusPrompt(page, cadId);
   assert.equal(await indicator(page, cadId).locator('.animate-spin').count(), 1);
   assert.equal(await indicator(page, cadId).locator('[data-gen-text].shimmer').innerText(), 'Generating on the canvas');
   assert.equal(await indicator(page, cadId).locator('[data-progress]').count(), 0, 'no invented progress bar');
@@ -189,7 +199,7 @@ await step('after a reload the line is still there and the running job shows its
   await card(page, cadId).waitFor({ timeout: 60000 });
   await bubble(page, CAD_LINE).waitFor();
   await until(async () => (await indicator(page, cadId).getAttribute('data-gen-active')) === 'true', 'no indicator after reload', 20000);
-  assert.equal(await indicator(page, cadId).locator('[data-gen-prompt]').innerText(), CAD_LINE);
+  await statusPrompt(page, cadId);
 });
 
 await step('the job finishes: card and indicator leave the active state together; the message holds a thumbnail', async () => {
