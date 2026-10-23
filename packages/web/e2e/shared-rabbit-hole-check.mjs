@@ -189,12 +189,14 @@ await check('4 a selected card is the origin (flashcards, on another shared canv
 });
 await page.locator('[data-dive-navigator]').waitFor({ timeout: 15000 });
 await shot('04-card-hole');
-await check('14 the same implementation on two unrelated sources (root on one, a card on the other)', async () => {
+// Owner decision 2026-10-22 (header redesign): the shared header has no Start Rabbit Hole button, so step 3 starts the first hole from a card
+// (k-exp) instead of the canvas root; the same implementation still serves both unrelated sources.
+await check('14 the same implementation on two unrelated sources (a card on each)', async () => {
   assert.notEqual(rootHole, cardHole);
   const [a, b] = [(await tree(viewer, rootHole)).body, (await tree(viewer, cardHole)).body];
   assert.deepEqual([a.dive.created_by, b.dive.created_by], ['shared_start', 'shared_start']);
   assert.deepEqual([a.dive.source.title, b.dive.source.title], ['Kitchen chemistry', 'Bridge loads']);
-  assert.deepEqual([a.dive.origin.origin_block_id, b.dive.origin.origin_block_id], [':root', 'b-cards']);
+  assert.deepEqual([a.dive.origin.origin_block_id, b.dive.origin.origin_block_id], ['k-exp', 'b-cards']);
 });
 
 // ---- 8, 9: reload; the source's version survives the source changing ----
