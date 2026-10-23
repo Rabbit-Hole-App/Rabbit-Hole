@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { setup, BOARD } from './shared-canvas-fixture.js';
 import { canvasCommentsRoute, can, anchorOf, BODY_MAX, PIN_COLORS } from '../src/canvas-comments.js';
+import { applySync } from '../../web/src/comments/comment-sync.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../learn-migrations/0011-canvas-comments.sql', import.meta.url), 'utf8');
@@ -482,7 +483,7 @@ test('a deleted object hides its threads, replies and counts everywhere; restori
   const ids = async (as, path = `${base}/threads?status=all`) => (await comments(f, 'GET', path, { as })).body.threads.map(x => x.id).sort();
   const everything = [open, resolved, publicOne, onShape, onChat, onPoint].sort();
   assert.deepEqual(await ids('ana'), everything);
-  const before = (await comments(f, 'GET', `${base}/threads/${open}`, { as: 'ana' })).body;
+  const { cursor: asked, ...before } = (await comments(f, 'GET', `${base}/threads/${open}`, { as: 'ana' })).body; // the cursor is the read's time
   const badge = async as => (await comments(f, 'GET', `${base}/threads`, { as })).body.open_count;
   assert.equal(await badge('ben'), 5);
   const unread = async () => (await comments(f, 'GET', '/api/learn/comments/unread', { as: 'ana' })).body.owned[name];
@@ -511,7 +512,9 @@ test('a deleted object hides its threads, replies and counts everywhere; restori
   // Undo: the same ids saved again. Every thread is back with its replies, resolved status and anchor.
   assert.equal((await f.call('PUT', `/api/learn/boards/${name}/main`, { as: 'ana', body: { state: BOARD } })).status, 200);
   assert.deepEqual(await ids('ana'), everything);
-  assert.deepEqual((await comments(f, 'GET', `${base}/threads/${open}`, { as: 'ana' })).body, before, 'the same thread, reply and anchor');
+  const { cursor: again, ...after } = (await comments(f, 'GET', `${base}/threads/${open}`, { as: 'ana' })).body;
+  assert.deepEqual(after, before, 'the same thread, reply and anchor');
+  assert.ok(again > asked, 'a later read, a later cursor');
   assert.equal((await comments(f, 'GET', `${base}/threads/${resolved}`, { as: 'ana' })).body.thread.status, 'resolved');
   assert.deepEqual([await badge('ben'), await unread(), await memberUnread()], [5, 5, 3]);
 });
@@ -658,4 +661,57 @@ test('a canvas deleted for good takes every comment row and count; comments have
   assert.equal((await f.call('DELETE', `/api/apps/${name}`, { as: 'ana' })).status, 200);
   assert.deepEqual(rows(), Object.fromEntries(tables.map(table => [table, 0])), 'no comment row of any table remains');
   assert.deepEqual(await counts(), [0, 0], 'the Library, Home and Shared with you count nothing for it');
+});
+
+test('sync (Comments v2 item 1): an open thread sees a second session reply, edit, delete, resolve and colour from its cursor, never twice, and loses access when membership ends', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const made = await start(f, base, 'ana', 'Which scale?');
+  const id = made.body.thread.id, url = `${base}/threads/${id}`;
+  const reply = (as, body) => comments(f, 'POST', `${url}/comments`, { as, body: { id: crypto.randomUUID(), body } });
+  const old = (await reply('ben', 'sqrt(d_k), I think')).body.comment.id;
+  // What was written before the readers opened the thread is older than the overlap, so a since-read leaves it out.
+  f.sqlite.prepare("UPDATE canvas_comments SET created_at = CASE id WHEN ? THEN '2026-01-01T00:00:00.000Z' ELSE '2026-01-01T00:00:01.000Z' END WHERE thread_id = ?").run(made.body.comment.id, id);
+  const read = async (as, since) => (await comments(f, 'GET', `${url}${since ? `?since=${encodeURIComponent(since)}` : ''}`, { as }));
+  const full = await read('ana');
+  assert.equal(full.status, 200);
+  assert.match(full.body.cursor, /^\d{4}-\d{2}-\d{2}T/, 'every read answers a cursor');
+  assert.equal(full.body.since, undefined, 'a first read is a full read');
+  let ana = applySync(null, full.body), ben = applySync(null, (await read('ben')).body);
+  const first = ana.cursor;
+  const sync = async (as, data) => { const answer = await read(as, data.cursor); assert.equal(answer.status, 200, JSON.stringify(answer.body)); return { answer: answer.body, data: applySync(data, answer.body) }; };
+
+  const fresh = (await reply('ben', 'Or is it d_model?')).body.comment.id;
+  let step = await sync('ana', ana);
+  assert.deepEqual([step.answer.since, step.answer.messages.map(m => m.id)], [true, [fresh]], 'only what changed since the cursor');
+  ana = step.data;
+  assert.deepEqual(ana.messages.map(m => m.segments[0]?.text), ['Which scale?', 'sqrt(d_k), I think', 'Or is it d_model?']);
+  assert.equal(ana.thread.replies, 2, 'the thread as it now is');
+
+  assert.equal((await comments(f, 'PATCH', `${base}/comments/${old}`, { as: 'ben', body: { body: 'sqrt(d_k), surely' } })).status, 200);
+  assert.equal((await comments(f, 'DELETE', `${base}/comments/${fresh}`, { as: 'ben' })).status, 200);
+  ana = (await sync('ana', ana)).data;
+  assert.deepEqual(ana.messages.map(m => [m.segments[0]?.text ?? null, m.edited, m.deleted]), [['Which scale?', false, null], ['sqrt(d_k), surely', true, null], [null, false, 'author']], 'the edit in place, the delete as its tombstone, nothing twice');
+
+  assert.equal((await comments(f, 'POST', `${url}/resolve`, { as: 'ana' })).status, 200);
+  assert.equal((await comments(f, 'PUT', `${url}/color`, { as: 'ana', body: { color: PIN_COLORS[1] } })).status, 200);
+  step = await sync('ben', ben);
+  assert.deepEqual([step.data.thread.status, step.data.thread.color, step.data.thread.can.resolve], ['resolved', PIN_COLORS[1], false], 'the other reader sees the resolve and the colour');
+  assert.equal(step.data.messages.length, 3);
+
+  // A reconnect replays an old cursor: the overlap repeats rows; the merge shows each once.
+  const replay = await read('ana', first);
+  assert.ok(replay.body.messages.length >= 2, 'the replay carries the changes again');
+  assert.deepEqual(applySync(ana, replay.body).messages.map(m => m.id), ana.messages.map(m => m.id));
+  assert.equal((await read('ana', 'not-a-cursor')).body.since, undefined, 'a malformed cursor is a full read');
+
+  // More than one page changed (a long disconnect): a full read the reader takes in place of what it has.
+  const insert = f.sqlite.prepare("INSERT INTO canvas_comments (id, thread_id, author_id, author_email, body, create_hash, created_at) VALUES (?, ?, 'u-ben-9a2b', 'ben@test', ?, 'h', ?)");
+  for (let i = 0; i < 51; i += 1) insert.run(crypto.randomUUID(), id, `bulk ${i}`, new Date(Date.now() + i).toISOString());
+  const reset = await read('ana', ana.cursor);
+  assert.deepEqual([reset.body.reset, reset.body.since, reset.body.messages.length, !!reset.body.before], [true, undefined, 50, true]);
+
+  // Membership ends mid-session: the next sync is refused, so the open view drops the thread.
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE id = 'm1'").run();
+  assert.equal((await read('ben', ben.cursor)).status, 404, 'a removed member reads nothing more');
 });

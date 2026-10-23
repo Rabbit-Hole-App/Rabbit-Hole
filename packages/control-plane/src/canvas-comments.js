@@ -14,6 +14,7 @@ import { sha256Hex } from './learn-grade-jev.js';
 import { boardAsset } from './learn-boards.js';
 import { redactRepositoryCards } from './repository-cards.js';
 import { isEmbed } from './learn-shared-ask.js';
+import { changesFrom } from '../../web/src/comments/comment-sync.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
@@ -361,17 +362,29 @@ async function listThreads(env, ctx, params) {
   });
 }
 
+// A full read, or with ?since=<cursor> only what changed (section 10, Sync protocol; comment-sync.js): the same access checks
+// either way, and every answer carries the cursor for the next since-read.
 async function readThread(env, ctx, id, params) {
+  const cursor = new Date().toISOString();
   const thread = await threadIn(env, ctx, id);
   if (!thread) return missingThread();
   const before = /^([^|]{1,40})\|([0-9a-f-]{36})$/i.exec(params.get('before') || '');
+  const from = before ? null : changesFrom(params.get('since'));
+  if (from) {
+    const { results } = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ?1
+        AND (m.created_at > ?2 OR m.edited_at > ?2 OR m.deleted_at > ?2) ORDER BY m.created_at, m.id LIMIT ${MESSAGES + 1}`).bind(thread.id, from).all();
+    if (results.length <= MESSAGES) {
+      const mentions = await mentionsFor(env, results.map(row => row.id));
+      return json({ thread: threadShape(ctx, thread), messages: results.map(row => messageShape(ctx, thread.audience, row, mentions.get(row.id))), since: true, cursor });
+    }
+  }
   const { results } = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ?1
       ${before ? 'AND (m.created_at < ?2 OR (m.created_at = ?2 AND m.id < ?3))' : ''} ORDER BY m.created_at DESC, m.id DESC LIMIT ${MESSAGES + 1}`)
     .bind(thread.id, ...(before ? [before[1], before[2]] : [])).all();
   const page = results.slice(0, MESSAGES).reverse();
   const mentions = await mentionsFor(env, page.map(row => row.id));
   return json({ thread: threadShape(ctx, thread), messages: page.map(row => messageShape(ctx, thread.audience, row, mentions.get(row.id))),
-    before: results.length > MESSAGES ? `${page[0].created_at}|${page[0].id}` : null });
+    before: results.length > MESSAGES ? `${page[0].created_at}|${page[0].id}` : null, cursor, ...(from ? { reset: true } : {}) });
 }
 
 const hashOf = parts => sha256Hex(JSON.stringify(parts));
