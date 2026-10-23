@@ -54,9 +54,30 @@ const EMPTY_EXCHANGES = Object.freeze([]);
 // Coming from an embed (?from=embed), the full page first takes the visitor's local copy and unsent draft from the embed.
 export default function SharedBoardPage(props) {
   const [waiting, setWaiting] = useState(() => !props.embed && new URLSearchParams(window.location.search).get('from') === 'embed' && !!window.opener);
-  useEffect(() => { if (waiting) receiveHandoff(window, props.token, (() => { try { return window.sessionStorage; } catch { return null; } })()).then(() => setWaiting(false), () => setWaiting(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [refused, setRefused] = useState(null); // 'storage' | 'unanswered': the hand-off did not arrive, so this page neither forks nor continues
+  const receive = useCallback(() => {
+    setRefused(null);
+    receiveHandoff(window, props.token, (() => { try { return window.sessionStorage; } catch { return null; } })()).then(got => (got.ok ? setWaiting(false) : setRefused(got.reason)), () => setRefused('unanswered'));
+  }, [props.token]);
+  useEffect(() => { if (waiting) receive(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (waiting && refused) return <HandoffRefused reason={refused} onRetry={receive} />;
   if (waiting) return <SharedCanvasLoading />;
   return <SharedBoard {...props} />;
+}
+
+// The visitor's copy never reached this tab: say so, offer Retry, and fork nothing. The original is an explicit choice (a plain link, no flags).
+function HandoffRefused({ reason, onRetry }) {
+  const button = 'rounded-md border border-line bg-white px-3 py-1.5 text-ink hover:bg-active';
+  return (
+    <main data-handoff-refused role="alert" className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-3 px-4 text-sm text-ink-2">
+      <h1 className="text-base font-medium text-ink">Your changes did not arrive</h1>
+      <p>{reason === 'storage' ? 'This browser would not let this tab keep them: its storage is blocked or full. Nothing was copied or forked.' : 'The page you came from did not answer. Nothing was copied or forked.'} Your changes are still on that page.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" data-handoff-retry onClick={onRetry} className={button}>Retry</button>
+        <a data-handoff-original href={window.location.pathname} className={button}>Open the original canvas</a>
+      </div>
+    </main>
+  );
 }
 
 function SharedBoard({ token, embed = null }) {
@@ -122,7 +143,7 @@ function SharedBoard({ token, embed = null }) {
   // An embed's Chat panel (closed until the visitor asks) and its hand-off of local state to the full site in a new tab.
   const [chatOpen, setChatOpen] = useState(false);
   const host = useRef(null);
-  const [handoffFailed, setHandoffFailed] = useState(null); // { intent, extra }: the full site never acknowledged the hand-off
+  const [handoffFailed, setHandoffFailed] = useState(null); // { intent, extra, edits, id, reason }: the full site refused the hand-off or never acknowledged it
   // Ask in Chat, Explain in Chat and Ask about selection (agent/scope.js askDraft) open Chat; SharedChat puts the words in.
   useEffect(() => {
     const open = () => (embed ? embed.chat && setChatOpen(true) : show('chat'));
@@ -158,13 +179,14 @@ function SharedBoard({ token, embed = null }) {
   // The embed answers only the tab it opened for Fork or Open Chat in Rabbit Hole, with the local copy and the unsent draft, and
   // keeps both until that tab acknowledges (embed-api.js handoffHost). The window keeps its opener; the URL carries only flags.
   useEffect(() => { if (!embed) return undefined; host.current = handoffHost(window, token); return () => host.current.stop(); }, [embed, token]);
-  const openFull = useCallback((intent, extra = {}) => {
+  // id names this Fork or Open Chat action: Retry reuses it, so the full site stores nothing twice and one fork results.
+  const openFull = useCallback((intent, extra = {}, id = crypto.randomUUID()) => {
     const draft = guestRef.current.forDraft();
     const carries = !!(draft || extra.draft || extra.target);
     const tab = window.open(fullHref(window.location.origin, embed.kind, token, { intent, handoff: carries }), '_blank');
     if (!carries || !tab) return;
     setHandoffFailed(null);
-    host.current.start(tab, { draft, chatDraft: extra.draft || '', target: extra.target || null }, { onFail: () => setHandoffFailed({ intent, extra, edits: !!draft }), onDone: () => setHandoffFailed(null) });
+    host.current.start(tab, { id, draft, chatDraft: extra.draft || '', target: extra.target || null }, { onFail: reason => setHandoffFailed({ intent, extra, edits: !!draft, id, reason }), onDone: () => setHandoffFailed(null) });
   }, [embed, token]);
   // Comments name only what is on the canvas itself, never an object of the visitor's copy (the server refuses it too).
   const sourceIds = useMemo(() => new Set(['blocks', 'exchanges', 'items', 'shapes', 'groups'].flatMap(key => (shared?.state?.[key] || []).map(entry => entry?.id))), [shared]);
@@ -272,8 +294,8 @@ function SharedBoard({ token, embed = null }) {
         </header>
         {handoffFailed && (
           <div data-embed-handoff-failed role="alert" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-hover px-3 py-1.5 text-xs text-ink-2">
-            <span className="mr-auto">{handoffFailed.edits ? 'Your changes' : 'Your draft'} did not reach Rabbit Hole. They are still here.</span>
-            <button type="button" data-embed-handoff-retry onClick={() => openFull(handoffFailed.intent, handoffFailed.extra)} className="rounded-md border border-line bg-white px-2 py-1 text-ink hover:bg-active">Retry</button>
+            <span className="mr-auto">{handoffFailed.edits ? 'Your changes' : 'Your draft'} did not reach Rabbit Hole{handoffFailed.reason === 'storage' ? ': the new tab could not store them, so nothing was copied or forked' : ''}. They are still here.</span>
+            <button type="button" data-embed-handoff-retry onClick={() => openFull(handoffFailed.intent, handoffFailed.extra, handoffFailed.id)} className="rounded-md border border-line bg-white px-2 py-1 text-ink hover:bg-active">Retry</button>
             {handoffFailed.intent === 'fork' && <button type="button" data-embed-handoff-original onClick={() => { setHandoffFailed(null); window.open(fullHref(window.location.origin, embed.kind, token, { intent: 'fork' }), '_blank'); }} className="rounded-md border border-line bg-white px-2 py-1 text-ink hover:bg-active">Fork original instead</button>}
             <button type="button" aria-label="Dismiss" onClick={() => setHandoffFailed(null)} className="rounded-md px-1.5 py-1 text-ink-3 hover:bg-active hover:text-ink">Dismiss</button>
           </div>

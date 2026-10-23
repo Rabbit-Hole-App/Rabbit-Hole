@@ -26,7 +26,7 @@
 import { mkdirSync } from 'node:fs';
 import { contextOptions, startHost, launchEngine, forcedBlocked, crossSiteCookieKept, sessionFor, run, api, makeCanvas, reporter, hostUrl, embedPath } from './embed-harness.mjs';
 
-const AVAILABLE = 26, BLOCKED = 11; // checks per flow; bump with the checks below (the flow fails if the number that ran differs)
+const AVAILABLE = 29, BLOCKED = 11; // checks per flow; bump with the checks below (the flow fails if the number that ran differs)
 const sse = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
 export async function runEmbed(engine) {
@@ -283,8 +283,37 @@ export async function runEmbed(engine) {
       check(`${tag} Fork original instead is an explicit choice: it opens the original canvas to fork, with no hand-off flag and nothing of the edits in the URL`, new URL(original.url()).pathname === `/b/${pub.view}` && !/from=embed/.test(original.url()) && /fork=1/.test(original.url()), original.url());
       await original.close();
 
+      // A hand-off the new tab cannot store (owner finding 2026-10-23): its sessionStorage is full, then blocked (a cookie only this
+      // check sets, read by an init script in the top-level full-site tab). Nothing is acknowledged, forked or lost; the embed keeps
+      // the edits and says why; Retry once storage works stores everything and forks nothing the visitor did not ask for.
+      await context.addInitScript(() => {
+        if (window.top !== window || !location.search.includes('from=embed')) return;
+        const mode = (document.cookie.match(/(?:^|; )rh-test-storage=(\w+)/) || [])[1];
+        if (mode === 'blocked') Object.defineProperty(window, 'sessionStorage', { get() { throw new DOMException('Access is denied', 'SecurityError'); }, configurable: true });
+        if (mode === 'full') { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (this === window.sessionStorage) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); return set.call(this, key, value); }; }
+      });
+      const forks = [];
+      context.on('request', r => { if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/learn/boards/fork') forks.push(r.url()); });
+      const source = () => context.request.get(`${APP}/api/learn/boards/shared/${pub.view}`).then(r => r.json()).then(b => JSON.stringify({ version: b.version, state: b.state }), e => String(e));
+      const original0 = await source();
+      for (const mode of ['full', 'blocked']) {
+        await context.addCookies([{ name: 'rh-test-storage', value: mode, url: APP }]);
+        const [refused] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-fork]').click()]);
+        await refused.locator('[data-handoff-refused]').waitFor({ timeout: 60000 });
+        await fl.locator('[data-embed-handoff-failed]').waitFor({ timeout: 40000 });
+        const note = await fl.locator('[data-embed-handoff-failed]').innerText();
+        check(`${tag} storage ${mode} in the new tab: it says the changes did not arrive and offers Retry and the original; the embed says so at once, keeps the edits and offers Retry; nothing was forked`, await refused.locator('[data-handoff-retry]').isVisible() && await refused.locator('[data-handoff-original]').isVisible() && await refused.locator('[data-fork-button]').count() === 0 && /could not store/.test(note) && await fl.locator('[data-embed-handoff-retry]').isVisible() && await fl.locator('[data-guest-draft-notice]').count() === 1 && forks.length === 0, JSON.stringify({ note, forks: forks.length }));
+        await refused.close();
+      }
+      await context.clearCookies({ name: 'rh-test-storage' });
+      const [again] = await Promise.all([context.waitForEvent('page'), fl.locator('[data-embed-handoff-retry]').click()]);
+      await again.locator('[data-fork-button]').waitFor({ timeout: 60000 });
+      await fl.locator('[data-embed-handoff-failed]').waitFor({ state: 'hidden', timeout: 30000 });
+      check(`${tag} Retry once storage works: the new tab stores the edits and is acknowledged, the failure notice goes, at most one fork request was made, and the original canvas is unchanged`, forks.length <= 1 && await source() === original0, JSON.stringify({ forks: forks.length }));
+      await again.close();
+
     } else {
-      for (const what of ['when the new tab never acknowledges the embed says so after about 15 s, offers Retry and Fork original instead, and keeps the edits', 'a forged request or acknowledgement from the embedding page is ignored', 'Retry opens a new tab that acknowledges and the failure notice goes', 'Fork original instead is an explicit choice']) check(`${tag} ${what}`, false, `the rectangle drag raised no unsaved-changes notice, so there was nothing to hand off (guest-draft keys in the frame: ${JSON.stringify(stored)}, cards ${await fl.locator('[data-block-id]').count()}, canvas ${JSON.stringify(await fl.locator('[data-canvas-surface]').boundingBox())}, iframe ${JSON.stringify(await page.locator('iframe').boundingBox())})`);
+      for (const what of ['when the new tab never acknowledges the embed says so after about 15 s, offers Retry and Fork original instead, and keeps the edits', 'a forged request or acknowledgement from the embedding page is ignored', 'Retry opens a new tab that acknowledges and the failure notice goes', 'Fork original instead is an explicit choice', 'storage full in the new tab: refusal on both sides, nothing forked', 'storage blocked in the new tab: refusal on both sides, nothing forked', 'Retry once storage works: one hand-off, at most one fork, original unchanged']) check(`${tag} ${what}`, false, `the rectangle drag raised no unsaved-changes notice, so there was nothing to hand off (guest-draft keys in the frame: ${JSON.stringify(stored)}, cards ${await fl.locator('[data-block-id]').count()}, canvas ${JSON.stringify(await fl.locator('[data-canvas-surface]').boundingBox())}, iframe ${JSON.stringify(await page.locator('iframe').boundingBox())})`);
     }
 
     // Wheel: plain wheel over the embed scrolls the host page, never the canvas; ctrl+wheel zooms the canvas only.
