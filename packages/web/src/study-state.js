@@ -5,7 +5,9 @@
 export const SPLIT_MIN = 0.25, SPLIT_MAX = 0.65, SPLIT_DEFAULT = 0.40;
 const KINDS = ['pdf', 'text', 'explanation'];
 
-export const studyKey = canvasKey => `${canvasKey}:study`;
+// The canvas's key (LearnPage canvasKey: org, the viewer's email and the canvas name) plus the review board, as chatKey has it.
+export const studyScope = (canvasKey, board = null) => `${canvasKey}${board ? `:${board}` : ''}`;
+export const studyKey = scope => `${scope}:study`;
 export const defaultStudy = () => ({ v: 1, mode: 'canvas', work: 'canvas', pin: null, notebookId: null, split: SPLIT_DEFAULT, reader: null, canvasView: null });
 
 const num = value => (typeof value === 'number' && Number.isFinite(value) ? value : null);
@@ -51,18 +53,27 @@ export function normalize(value) {
   };
 }
 
-export function readStudy(storage, canvasKey) {
-  try { return normalize(JSON.parse(storage.getItem(studyKey(canvasKey)) || 'null')); } catch { return defaultStudy(); }
+export function readStudy(storage, scope) {
+  try { return normalize(JSON.parse(storage.getItem(studyKey(scope)) || 'null')); } catch { return defaultStudy(); }
 }
 
-export function writeStudy(storage, canvasKey, state) {
+export function writeStudy(storage, scope, state) {
   try {
     if (!storage) throw new Error('No browser storage');
-    storage.setItem(studyKey(canvasKey), JSON.stringify(normalize(state)));
+    storage.setItem(studyKey(scope), JSON.stringify(normalize(state)));
     return { ok: true };
   } catch (error) {
     return { ok: false, error: String(error?.message || error) };
   }
+}
+
+// Where the reference pane goes in the space left beside the right panels (the section's own size, never the window's width):
+// beside the work when both keep their minimum widths, otherwise stacked above it. size: the reference pane's width or height.
+export const STUDY_MIN = Object.freeze({ reference: 300, work: 400, stackedReference: 180, stackedWork: 240 });
+export function studyLayout({ width, height, split }) {
+  const share = clampSplit(split), fit = (value, low, high) => Math.round(Math.min(Math.max(value, low), Math.max(low, high)));
+  if (width >= STUDY_MIN.reference + STUDY_MIN.work) return { stacked: false, size: fit(width * share, STUDY_MIN.reference, width - STUDY_MIN.work) };
+  return { stacked: true, size: fit(height * share, STUDY_MIN.stackedReference, height - STUDY_MIN.stackedWork) };
 }
 
 // Actions: pin { cardId, kind, ref } (Pin for study, Change reference), unpin, setMode { mode }, setWork { work, notebookId? },

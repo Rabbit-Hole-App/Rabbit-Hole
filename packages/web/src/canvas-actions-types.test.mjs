@@ -298,3 +298,23 @@ test('a text excerpt copies its verbatim quotation; labels never throw before ap
   const blank = { kind: 'canvas', family: null, type: null, id: null, object: null, ids: [], part: null, point: { x: 0, y: 0 } };
   for (const entry of TYPE_ACTIONS) if (typeof entry.label === 'function') assert.equal(typeof entry.label(blank, ctx), 'string', entry.id);
 });
+
+// Pinned Study (UI-27 Release 1 contract): Pin for study on a PDF, an Explanation and a text or sticky note, only where the page
+// supplies pinForStudy (the owner's canvas); never on a webpage, notebook, video, code, a code box or a quiz.
+test('Pin for study: PDF, Explanation, text and sticky notes on the owner canvas; nothing else, and nowhere without pinForStudy', () => {
+  const withPin = () => { const ctx = context(); ctx.canvas.pinForStudy = (...args) => { ctx.calls.push(['pinForStudy', ...args]); return true; }; return ctx; };
+  const byIdOf = id => TARGETS().find(target => target.id === id);
+  for (const id of ['d1', 'e1', 'tx', 'st']) {
+    const ctx = withPin();
+    assert.ok(labels(byIdOf(id), ctx).includes('Pin for study'), id);
+    assert.deepEqual(run(byIdOf(id), ctx, 'Pin for study'), ['pinForStudy', id], `${id}: the clicked card, by id`);
+  }
+  for (const id of ['wp', 'n1', 'y1', 'x1', 'c1', 'r1', 'cb', 's1', 'w1', 'p1', 'eq', 'sh']) assert.ok(!labels(byIdOf(id), withPin()).includes('Pin for study'), `${id} has no Pin for study`);
+  for (const id of ['d1', 'e1', 'tx', 'st']) assert.ok(!labels(byIdOf(id), context()).includes('Pin for study'), `${id}: hidden without pinForStudy (a shared canvas)`);
+  const row = byId('study.pin');
+  assert.equal(row.data, 'data-menu-pin-study');
+  assert.equal(row.group, 'primary');
+  const ctx = withPin();
+  for (const target of TARGETS()) actionsFor(target, ctx);
+  assert.deepEqual(ctx.calls, [], 'opening a menu pins nothing');
+});

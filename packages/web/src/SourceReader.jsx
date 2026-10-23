@@ -55,7 +55,7 @@ function TextView({ text, quote, position, save }) {
 
 // A canvas context document (doc:<id>), read once through GET /api/learn/context/<id> (A4a's route): a PDF opens in the paper
 // view at its page from those same bytes, a .txt or .md as text. Anything else, or a failed read, says it can't preview here.
-function DocReader({ app, sourceRef, position, save, startPage, startZoom, startRotation, plainChat }) {
+function DocReader({ app, sourceRef, position, save, startPage, startZoom, startRotation, plainChat, unavailable }) {
   const [doc, setDoc] = useState(null);
   const id = sourceRef.sourceId.slice('doc:'.length);
   useEffect(() => {
@@ -63,12 +63,12 @@ function DocReader({ app, sourceRef, position, save, startPage, startZoom, start
     let url = null;
     fetch(docUrl(app, id), { headers: wsHeaders(), signal: controller.signal })
       .then(async response => {
-        if (!response.ok) { if (!controller.signal.aborted) setDoc({ refused: true }); return; }
+        if (!response.ok) { if (!controller.signal.aborted) { setDoc({ refused: true }); unavailable.current?.(); } return; }
         const type = response.ok ? response.headers.get('content-type') || '' : '';
         const next = /pdf/.test(type) ? { pdf: (url = URL.createObjectURL(await response.blob())) } : /^text\//.test(type) ? { text: await response.text() } : {};
         if (!controller.signal.aborted) setDoc(next);
       })
-      .catch(() => { if (!controller.signal.aborted) setDoc({}); });
+      .catch(() => { if (!controller.signal.aborted) { setDoc({}); unavailable.current?.(); } });
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
   }, [app, id]);
   const range = sourceRef.range || {};
@@ -78,13 +78,14 @@ function DocReader({ app, sourceRef, position, save, startPage, startZoom, start
   return doc.text == null ? <Unavailable sourceRef={sourceRef} refused={!!doc.refused} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
 }
 
-function Reader({ sourceRef, position, onPosition, chat }) {
+function Reader({ sourceRef, position, onPosition, onUnavailable, chat }) {
   const app = chat?.canvas, reader = readerFor(sourceRef), range = sourceRef.range || {};
   // Where the reader is now; every report also goes to the session position store (chat-sources.js).
   // The memoized reader below outlives renders, so it reaches the latest workspace and onPosition through refs.
   // An excerpt's Open source opens its own page, never the reader's last one.
   const here = useRef({ page: range.page || 1, ...position, ...(range.excerpt?.page?.index ? { page: range.excerpt.page.index } : {}) }), report = useRef(onPosition), live = useRef(chat);
   report.current = onPosition; live.current = chat;
+  const unavailable = useRef(onUnavailable); unavailable.current = onUnavailable;
   const save = useCallback(next => { here.current = { ...here.current, ...next }; report.current?.(next); }, []);
   const [passage, setPassage] = useState(null);
   const box = useRef(null);
@@ -119,7 +120,7 @@ function Reader({ sourceRef, position, onPosition, chat }) {
         companion={{ key, home: key ? sourceRef.home || app : null, anchor: range.excerpt || null, plainChat }} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
-    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} />;
+    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} unavailable={unavailable} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
       const code = codeSource(sourceRef), owned = /^[\w.-]+\/[\w.-]+$/.test(code.repo);
@@ -151,8 +152,9 @@ function PaperReader({ app, id, home = null, src = null, title, startPage, start
 }
 
 // One reader per ref: another source, or another range of the same one (a new citation), starts a fresh reader.
-export default function SourceReader({ sourceRef, position, onPosition }) {
+// onUnavailable (Pinned Study): called when a document's bytes are refused to this learner or cannot be read.
+export default function SourceReader({ sourceRef, position, onPosition, onUnavailable }) {
   const chat = useChatWorkspace();
   if (!sourceRef) return null;
-  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} chat={chat} />;
+  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} onUnavailable={onUnavailable} chat={chat} />;
 }

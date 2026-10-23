@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPLIT_DEFAULT, defaultStudy, eligible, readStudy, studyKey, studyReducer, writeStudy } from './study-state.js';
+import { SPLIT_DEFAULT, defaultStudy, eligible, readStudy, studyKey, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
 
 const KEY = 'small.adaptive-canvas:org:me@example.com:app';
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), map }; };
@@ -93,4 +93,32 @@ test('eligible: PDF, text and sticky notes, Explanation; nothing else', () => {
   assert.equal(eligible({ kind: 'sticky', text: 'a note' }), 'text');
   for (const other of [{ type: 'webpage' }, { type: 'video' }, { type: 'notebook' }, { type: 'repo-code' }, { type: 'code' }, { type: 'quiz' }, { type: 'slide' }, { kind: 'text', mode: 'code' }, { kind: 'rect' }, null, undefined, 'pdf'])
     assert.equal(eligible(other), null, JSON.stringify(other));
+});
+
+test('isolation: two canvases, two viewers and two review boards never read each other; the board suffix is chatKey-shaped', () => {
+  const storage = memory();
+  const key = (email, app) => `small.adaptive-canvas:org:${email}:${app}`;
+  const a = key('ann@example.com', 'canvas-1'), b = key('bob@example.com', 'canvas-1'), c = key('ann@example.com', 'canvas-2');
+  assert.equal(studyScope(a, null), a);
+  assert.equal(studyKey(studyScope(a, 'tides')), `${a}:tides:study`);
+  const pinned = studyReducer(defaultStudy(), { type: 'pin', cardId: 'pdf1', kind: 'pdf', ref: PDF_REF });
+  assert.equal(writeStudy(storage, studyScope(a), pinned).ok, true);
+  for (const other of [studyScope(b), studyScope(c), studyScope(a, 'tides')]) assert.deepEqual(readStudy(storage, other), defaultStudy(), other);
+  assert.deepEqual(readStudy(storage, studyScope(a)), pinned);
+});
+
+test('a pin keeps the ref it was given, version included (no version is invented or checked here)', () => {
+  const s = studyReducer(defaultStudy(), { type: 'pin', cardId: 'pdf1', kind: 'pdf', ref: { ...PDF_REF, version: '' } });
+  assert.equal(s.pin.ref.version, '');
+  assert.equal(studyReducer(defaultStudy(), { type: 'pin', cardId: 'p', kind: 'pdf', ref: { ...PDF_REF, version: 'v7' } }).pin.ref.version, 'v7');
+});
+
+test('studyLayout: beside the work while both keep their minimum, stacked from the real width, split clamped to the minimums', () => {
+  assert.deepEqual(studyLayout({ width: 1000, height: 800, split: 0.4 }), { stacked: false, size: 400 });
+  assert.deepEqual(studyLayout({ width: 1000, height: 800, split: 0.65 }), { stacked: false, size: 600 });
+  assert.deepEqual(studyLayout({ width: 720, height: 800, split: 0.25 }), { stacked: false, size: 300 }, 'never below the reference minimum');
+  assert.deepEqual(studyLayout({ width: 720, height: 800, split: 0.65 }), { stacked: false, size: 320 }, 'the work keeps its minimum');
+  assert.equal(studyLayout({ width: 699, height: 800, split: 0.4 }).stacked, true);
+  assert.deepEqual(studyLayout({ width: 500, height: 800, split: 0.4 }), { stacked: true, size: 320 });
+  assert.deepEqual(studyLayout({ width: 500, height: 300, split: 0.65 }), { stacked: true, size: 180 }, 'a short space keeps the reference minimum');
 });
