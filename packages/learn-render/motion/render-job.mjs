@@ -45,7 +45,9 @@ export function serviceClient({ url, token, fetchImpl = fetch }) {
   return {
     url,
     health: () => fetchImpl(`${url}/health`, { signal: AbortSignal.timeout(10000) }).then(r => r.json()), // admission awaits it: bounded
-    submit: request => call('/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request) }),
+    // key: the render-job id. The same key again is the same render on the service (no second one starts), so a proxy retry or a resend is harmless.
+    submit: (request, key) => call('/render', { method: 'POST', headers: { 'content-type': 'application/json', ...(key ? { 'idempotency-key': key } : {}) }, body: JSON.stringify(request) }),
+    cancel: id => call(`/render/${id}`, { method: 'DELETE' }),
     status: id => call(`/render/${id}`).then(r => r.json()),
     artifact: (id, name) => call(`/render/${id}/artifacts/${name}`),
   };
@@ -143,16 +145,24 @@ function gate(brief, storyboard, author, renderer = DEFAULT_RENDERER) {
 }
 
 // Submit, then poll until the service finishes: {render_id, record} or {render_id, failure}.
-async function runOnService(service, request, { pollMs, waitMs, sleep, now }) {
+// One POST, never retried here; GET polls only. key: a stable id for this render (the same id never starts a second render on the service);
+// without one a fresh key per call still makes a proxy resend of this one request harmless. At the deadline the render is stopped on the service.
+export async function runOnService(service, request, { pollMs, waitMs, sleep, now, jobId }) {
   let res;
-  try { res = await service.submit(request); } catch (error) { return { render_id: null, failure: ['unreachable', firstLine(error)] }; }
+  const key = `${jobId || randomBytes(12).toString('hex')}${jobId ? `-${request.stage || 'final'}` : ''}`;
+  try { res = await service.submit(request, key); } catch (error) { return { render_id: null, failure: ['unreachable', firstLine(error)] }; }
   const accepted = await res.json().catch(() => ({}));
   // Refused before anything ran: invalid_job, busy, degraded, unauthorized, too_large.
   if (res.status !== 202) return { render_id: null, failure: [accepted.error || `http_${res.status}`, accepted.detail || (accepted.errors || []).slice(0, 3).join('; ') || `HTTP ${res.status}`, accepted.errors] };
+  // A deployment with a longer per-job deadline says so; polling outlasts it by a minute (today 420 s service limit, 480 s here).
+  const wait = Math.max(waitMs, accepted.deadline_seconds ? (accepted.deadline_seconds + 60) * 1000 : 0);
   for (const start = now(); ; await sleep(pollMs)) {
     const record = await service.status(accepted.render_id).catch(() => null); // a dropped poll is retried until the deadline
     if (record && record.status !== 'rendering') return { render_id: accepted.render_id, record };
-    if (now() - start > waitMs) return { render_id: accepted.render_id, failure: ['timeout', `the render did not finish within ${secs(waitMs)}s of polling`] };
+    if (now() - start > wait) {
+      await service.cancel?.(accepted.render_id).catch(() => {}); // give up on the render, and free the single slot
+      return { render_id: accepted.render_id, failure: ['timeout', `the render did not finish within ${secs(wait)}s of polling`] };
+    }
   }
 }
 
@@ -172,10 +182,10 @@ async function download(service, id, dir, artifacts) {
   return { files, hashes, missing };
 }
 
-const POLLING = { pollMs: 2000, waitMs: 8 * 60 * 1000, sleep: ms => new Promise(r => setTimeout(r, ms)), now: () => Date.now() };
+export const POLLING = { pollMs: 2000, waitMs: 8 * 60 * 1000, sleep: ms => new Promise(r => setTimeout(r, ms)), now: () => Date.now() };
 
 export async function renderComposition({ brief, storyboard, author, service, dir: where, origin, renderer = DEFAULT_RENDERER, ...options }) {
-  const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
+  const { pollMs, waitMs, sleep, now, jobId } = { ...POLLING, ...options };
   const dir = resolve(where); // ffmpeg and ffprobe run from their own directory
   const g = gate(brief, storyboard, author, renderer);
   if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
@@ -196,7 +206,7 @@ export async function renderComposition({ brief, storyboard, author, service, di
   };
   const fail = (status, category, detail, errors) => done(status, { category, detail: String(detail || ''), ...(errors?.length ? { errors: errors.slice(0, 50) } : {}) });
 
-  const run = await runOnService(service, request, { pollMs, waitMs, sleep, now });
+  const run = await runOnService(service, request, { pollMs, waitMs, sleep, now, jobId });
   result.render_id = run.render_id;
   if (run.failure) return fail('render_failed', ...run.failure);
   const { record } = run;
@@ -255,7 +265,7 @@ const ARTIFACT_CATEGORY = { 'preview.mp4': 'preview_invalid', 'poster.png': 'pos
 // the M5 beat and transition judgment of the preview's probe (M7A).
 export const PREVIEW_ARTIFACTS = Object.freeze({ preview_mp4: 'preview.mp4', contact_sheet: 'contact-sheet.png' });
 export async function renderPreview({ brief, storyboard, author, service, dir: where, origin, renderer = DEFAULT_RENDERER, ...options }) {
-  const { pollMs, waitMs, sleep, now } = { ...POLLING, ...options };
+  const { pollMs, waitMs, sleep, now, jobId } = { ...POLLING, ...options };
   const dir = resolve(where); // ffmpeg and ffprobe run from their own directory
   const g = gate(brief, storyboard, author, renderer);
   if (!g.request) return { submitted: false, reason: g.reason, ...(g.errors ? { errors: g.errors } : {}) };
@@ -268,7 +278,7 @@ export async function renderPreview({ brief, storyboard, author, service, dir: w
   const done = (status, failure) => { Object.assign(result, { status }, failure ? { failure } : {}); result.timings.total_s = secs(now() - t0); return { submitted: true, result }; };
   const fail = (status, category, detail, errors) => done(status, { category, detail: String(detail || ''), ...(errors?.length ? { errors: errors.slice(0, 50) } : {}) });
 
-  const run = await runOnService(service, { ...g.request, stage: 'preview' }, { pollMs, waitMs, sleep, now });
+  const run = await runOnService(service, { ...g.request, stage: 'preview' }, { pollMs, waitMs, sleep, now, jobId });
   result.render_id = run.render_id;
   if (run.failure) return fail('render_failed', ...run.failure);
   const { record } = run;
