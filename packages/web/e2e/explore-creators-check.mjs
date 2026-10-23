@@ -56,8 +56,8 @@ const REPO = { full: `${STEM}-ecfull`, a: `${STEM}-eca`, b: `${STEM}-ecb` };
 const seed = [['full', REPO.full], ['long', REPO.a], ['long', REPO.b]].map(([k, name]) => `INSERT INTO repository_apps(org,name,owner_email,repo,branch,commit_sha,status) VALUES('${org[k].org}','${name}','${org[k].email}','acme/${name}','main','${SHA}','ready'); INSERT INTO repository_visibility(app_id, visibility) SELECT id, 'public' FROM repository_apps WHERE name = '${name}';`).join(' ');
 execFileSync(`npx wrangler d1 execute rabbit-hole-learn-dev --local --persist-to ${PERSIST} -c packages/web/wrangler.dev.jsonc --command "${seed}"`, { cwd: ROOT, shell: true, stdio: 'ignore' });
 
-// ---- canvases: a canvas added to a public project is published with it (canvases.js inherit); a standalone one is
-// published here. Private, unlisted and archived ones must never count. ----
+// ---- canvases: each public one is published through the API (a canvas added to a seeded project starts private: its
+// project has no public canvas yet, repositories.js projectAccess). Private, unlisted and archived ones must never count. ----
 const STATE = text => ({ strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [{ id: 'c1', type: 'explanation', dx: 0, dy: 0, title: text, body: `${text}, explained.` }] });
 const canvas = async (k, title, project) => {
   const c = (await post(k, '/api/canvases', { title, ...(project ? { project } : {}) })).body;
@@ -65,12 +65,12 @@ const canvas = async (k, title, project) => {
   return c;
 };
 const publish = async (k, c) => (await post(k, `/api/apps/${c.name}/publish`)).status;
-await canvas('full', `Paged attention ${run}`, REPO.full);
+await publish('full', await canvas('full', `Paged attention ${run}`, REPO.full));
 await publish('full', await canvas('full', `KV cache ${run}`));
 await publish('bare', await canvas('bare', `Gradient descent ${run}`));
 await canvas('bare', `SECRET private ${run}`);
-await canvas('long', `Tiling ${run}`, REPO.a);
-await canvas('long', `Roofline ${run}`, REPO.b);
+await publish('long', await canvas('long', `Tiling ${run}`, REPO.a));
+await publish('long', await canvas('long', `Roofline ${run}`, REPO.b));
 await publish('long', await canvas('long', `Flash attention ${run}`));
 const unlisted = await canvas('long', `SECRET unlisted ${run}`);
 await post('long', `/api/learn/boards/${unlisted.name}/main/share`, { shared: true, view: true, state: STATE('u') });
@@ -159,7 +159,7 @@ check('the row is not a link: two separate links, the @handle (blue) and View pr
 }, blue) && await full.locator('[data-creator-handle]').getAttribute('href') === `/@${H.full}`);
 const clampOk = (r, mustClamp = false) => r.locator('[data-creator-description]').evaluate((d, must) => {
   const s = getComputedStyle(d), lh = parseFloat(s.lineHeight);
-  return s.webkitLineClamp === '2' && d.getBoundingClientRect().height <= 2 * lh + 1 && (!must || d.scrollHeight > d.clientHeight + 1);
+  return s.webkitLineClamp === '2' && d.getBoundingClientRect().height - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom) <= 2 * lh + 1 && (!must || d.scrollHeight > d.clientHeight + 1);
 }, mustClamp);
 check('a long name stays on one line and a long description within two lines, with no overflow', await clampOk(long)
   && await long.locator('[data-creator-name]').evaluate(n => getComputedStyle(n).textOverflow === 'ellipsis' && n.getBoundingClientRect().height <= parseFloat(getComputedStyle(n).lineHeight) + 1)
