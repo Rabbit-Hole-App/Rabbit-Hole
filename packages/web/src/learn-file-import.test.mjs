@@ -113,7 +113,9 @@ test('every drop and every upload of a .ipynb or .py opens the one Add to canvas
   const page = read('./LearnPage.jsx'), canvas = read('./AdaptiveCanvas.jsx'), dialog = read('./FileImportDialog.jsx');
   assert.match(page, /if \(importKind\(file\.name\)\) \{\n\s+const \{ kind, error \} = checkImport\(file\);\n\s+if \(error\) toast\(error, \{ tone: 'error' \}\); else asked\.push\(\{ id: crypto\.randomUUID\(\), file, kind, at \}\);/);
   // The picker's list is the capability registry's (file-capabilities.test.mjs proves it holds .ipynb, .py and the rest).
-  assert.match(page, /type="file" multiple accept=\{acceptList\(\)\}[^>]*\n\s+onChange=\{event => \{ takeDrop\(/, 'Insert > Upload a file offers them and goes through the same takeDrop');
+  // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the same takeDrop.
+  assert.match(page, /type="file" multiple accept=\{acceptList\(\)\}[^>]*\n\s+onChange=\{event => \{ const files = \[\.\.\.\(event\.target\.files \|\| \[\]\)\]; event\.target\.value = ''; if \(files\.length\) setUploadAsk\(files\);/, 'Insert > Upload a file offers them and asks where they go');
+  assert.match(page, /if \(choice === 'canvas'\) \{ await takeDrop\(files\); return; \}/, 'Add to canvas goes through the same takeDrop');
   assert.match(page, /<FileImportDialog key=\{imports\[0\]\.id\} file=\{imports\[0\]\.file\} kind=\{imports\[0\]\.kind\}[^>]*onCancel=\{nextImport\} onConfirm=\{addImport\} \/>/);
   // A dropped folder's files are read first (model-drop.js droppedFiles, file-imports Lane 4); the drop point is taken at the drop.
   assert.match(canvas, /const at = local\(event\); droppedFiles\(event\.dataTransfer\)\.then\(files => onDropFiles\(files, at\)/, 'the drop point rides with the files');

@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRe
 import CanvasMenubar from './CanvasMenubar.jsx';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
 import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
+import { typingIn } from './canvas-equation.js';
 import { can } from './canvas-permissions.js';
 import { CommentsToggle, PanelToggle, SharedPanel, ViewerAccount, useSharedPanel } from './SharedCanvasShell.jsx';
 import logoBlack from './assets/rabbit-hole-black.png';
@@ -102,6 +103,18 @@ function SharedBoard({ token, embed = null }) {
   // The canvas's document (docs/features/blocknote-canvas.md), read-only here: View > Mode shows it, the canvas first.
   const [docView, setDocView] = useState('canvas');
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
+  useEffect(() => {
+    const key = event => {
+      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return;
+      const active = window.document.activeElement;
+      if (typingIn(active) || active?.tagName === 'SELECT') return;
+      event.preventDefault();
+      setShortcutsOpen(open => !open);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   // The guest Chat allowance SharedChat reports (SHARE-03): ctx.guestChat.remaining in the permission model.
   const [guestRemaining, setGuestRemaining] = useState(null);
   const canvasApi = useRef(null);
@@ -227,7 +240,7 @@ function SharedBoard({ token, embed = null }) {
   // editable here. No Files: a shared canvas's Materials are not shareable (panel.files).
   const menus = [
     ...(editable && can('canvas.local-edit', permissions).allowed ? [{ title: 'Insert', items: localInsertItems(canvas) }] : []),
-    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true) })
+    ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, drawing: editable })
       .filter(menu => editable || menu.title === 'View'),
   ];
   // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.

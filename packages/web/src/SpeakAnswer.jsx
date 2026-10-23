@@ -48,7 +48,7 @@ export default function SpeakAnswer({ appName, onText, disabled }) {
         className={`flex h-8 w-9 shrink-0 items-center justify-center rounded-lg border ${recording ? 'border-red-600 bg-red-50 text-red-600' : 'border-line hover:bg-hover'} disabled:opacity-40`}>
         {working ? <Loader2 size={14} className="animate-spin" /> : recording ? <Square size={13} fill="currentColor" /> : <Mic size={14} />}
       </button>
-      {(recording || error) && <p data-speak-status className={`mt-1 basis-full text-xs ${error ? 'text-red-700' : 'text-ink-2'}`}>{error || 'Listening… click the square when you are done.'}</p>}
+      {(recording || error) && <p data-speak-status className={`mt-1 basis-full text-xs ${error ? 'text-red-700' : 'text-ink-2'}`}>{error || 'Listening. Click the square when you are done.'}</p>}
     </>
   );
 }

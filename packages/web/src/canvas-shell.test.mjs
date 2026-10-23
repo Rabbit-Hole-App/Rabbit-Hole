@@ -161,16 +161,20 @@ test('the Rabbit Hole navigator sits at the top of the tools gutter on either si
   assert.match(page, /gutterTop=\{dive\.tree \? <DiveNavigator \{\.\.\.dive\.navigator\} \/> : null\}/);
 });
 
-// Owner brief 2026-10-21 item 3: View lists Minimap, Rabbit Hole Map and Curious as three identical switch rows (one shape, one
-// switch component), each saved on this device (ui-prefs.js) through the canvas's showWidget; the browser run is
+// Owner brief 2026-10-21 item 3, replaced by the 2026-10-22 canvas-menu redesign (item 6): View > Show / hide lists Toolbar, Right panel,
+// Minimap, Rabbit Hole Map, Comment pins and Learning suggestions as labelled checked rows, each driving the state that already shows
+// or hides the thing, and the widgets remembered on this device (ui-prefs.js) through the canvas's showWidget; the browser run is
 // e2e/view-menu-check.mjs.
-test('View: three identical switch rows for the minimap, the Rabbit Hole Map and Curious, remembered on this device', () => {
-  const rows = [...read('canvas-menus.js').matchAll(/\{ label: '([^']+)', icon: \w+, toggle: canvasState\.(\w+), onToggle: on => canvas\(\)\?\.showWidget\('(\w+)', on\) \}/g)];
-  assert.deepEqual(rows.map(row => [row[1], row[2], row[3]]), [['Minimap', 'minimap', 'minimap'], ['Rabbit Hole Map', 'holeMap', 'holeMap'], ['Curious', 'curious', 'curious']]);
+test('View > Show / hide: checked rows for the toolbar, minimap, Rabbit Hole Map and Learning suggestions, remembered on this device', () => {
+  const menus = read('canvas-menus.js');
+  const rows = [...menus.matchAll(/checkRow\('([^']+)', .+?, (?:widget\('(\w+)'\)|([\w.]+))\)/g)];
+  assert.deepEqual(rows.map(row => [row[1], row[2] || row[3]]), [['Toolbar', 'toolbar'], ['Right panel', 'panel.setOpen'], ['Minimap', 'minimap'], ['Rabbit Hole Map', 'holeMap'], ['Comment pins', 'comments.setPins'], ['Learning suggestions', 'curious']]);
+  assert.ok(menus.includes('const widget = name => on => canvas()?.showWidget(name, on);'));
   const bar = read('CanvasMenubar.jsx');
-  assert.match(bar, /<Toggle on=\{item\.toggle\} onChange=\{item\.onToggle\} aria-label=\{item\.label\} \/>/);
-  assert.doesNotMatch(bar.slice(bar.indexOf('item.toggle !== undefined'), bar.indexOf('item.choice ?')), /setOpen\(null\)/, 'a switch keeps the menu open');
+  assert.ok(bar.includes("if (kind === 'menuitemcheckbox') { item.onToggle(!item.check); return; }"), 'a check row flips in place and keeps the menu open');
   assert.match(canvas, /const \[minimap, setMinimap\] = useState\(\(\) => uiPrefs\(\)\.minimap\);\n\s+const \[holeMap, setHoleMap\] = useState\(\(\) => uiPrefs\(\)\.holeMap\);\n\s+const \[curious, setCurious\] = useState\(\(\) => uiPrefs\(\)\.curious\);/);
+  assert.ok(canvas.includes('const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);'));
+  assert.ok(canvas.includes('{!readOnly && toolbar && <div ref={toolbarRef} role="toolbar"'), 'the toolbar draws only while it is on');
   assert.match(canvas, /try \{ saveUiPref\(name, on\); \}/);
 });
 

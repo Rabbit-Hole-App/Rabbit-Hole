@@ -58,7 +58,7 @@ const ACTIONS = {
   'Insert → Section': menu('Section'),
   'Insert → Text box': menu('Text box'),
   'Insert → Sticky note': menu('Sticky note'),
-  'Insert → Divider line': menu('Divider line'),
+  'Insert → Divider': menu('Divider'),
   'Insert → Notebook': menu('Notebook'),
   '/whiteboard': type('/whiteboard Attention'),
   '/explain (stubbed)': type('/explain softmax'),

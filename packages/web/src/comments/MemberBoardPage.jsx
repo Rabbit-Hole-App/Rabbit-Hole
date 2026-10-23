@@ -3,6 +3,7 @@ import { Eye } from 'lucide-react';
 import CanvasMenubar from '../CanvasMenubar.jsx';
 import ShortcutsSheet from '../ShortcutsSheet.jsx';
 import { canvasEditMenus } from '../canvas-menus.js';
+import { typingIn } from '../canvas-equation.js';
 import { CommentsToggle, PanelToggle, SharedPanel, useSharedPanel } from '../SharedCanvasShell.jsx';
 import { useCanvasSearch } from '../use-canvas-search.jsx';
 import { SearchContentProvider } from '../canvas-search-content.jsx';
@@ -36,6 +37,18 @@ export default function MemberBoardPage({ boardId }) {
   const [docView, setDocView] = useState('canvas');
   const [canvasState, setCanvasState] = useState({ minimap: true, holeMap: true, curious: true, outline: [] });
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  // ? opens the shortcuts (the menubar no longer lists them): not while typing, in a field, or with a modifier held.
+  useEffect(() => {
+    const key = event => {
+      if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return;
+      const active = window.document.activeElement;
+      if (typingIn(active) || active?.tagName === 'SELECT') return;
+      event.preventDefault();
+      setShortcutsOpen(open => !open);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, []);
   const [about, setAbout] = useState(null);
   const canvasApi = useRef(null);
   // Canvas references, read-only here (C:/s/spec/references-plan.md, lead answer C): chips resolved by the server's
@@ -95,7 +108,7 @@ export default function MemberBoardPage({ boardId }) {
   const owner = board.owner;
   // A member's role in the one permission model (canvas-permissions.js): commenter, view-only.
   const permissions = { role: 'commenter', shared: true, comments: about ? { read: true, post: !!about.can?.post } : null };
-  const menus = canvasEditMenus({ canvas: () => canvasApi.current, canvasState, comments, docView: state.doc && !docIsEmpty(state.doc) ? docView : 'canvas', setDocView, onShortcuts: () => setShortcutsOpen(true) }).filter(menu => menu.title === 'View');
+  const menus = canvasEditMenus({ canvas: () => canvasApi.current, canvasState, comments, docView: state.doc && !docIsEmpty(state.doc) ? docView : 'canvas', setDocView, drawing: false }).filter(menu => menu.title === 'View');
   return (
     <main data-member-board className="flex h-screen flex-col bg-white max-lg:overflow-y-auto">
       <header data-canvas-header className="flex shrink-0 flex-wrap items-center gap-2 gap-y-2 px-4 py-2">

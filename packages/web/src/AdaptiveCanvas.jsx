@@ -1849,8 +1849,10 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [minimap, setMinimap] = useState(() => uiPrefs().minimap);
   const [holeMap, setHoleMap] = useState(() => uiPrefs().holeMap);
   const [curious, setCurious] = useState(() => uiPrefs().curious);
+  // View > Show / hide > Toolbar (owner brief 2026-10-22): the drawing toolbar; this person's choice on this device, never the canvas.
+  const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);
   const showWidget = (name, on) => {
-    ({ minimap: setMinimap, holeMap: setHoleMap, curious: setCurious })[name](on);
+    ({ minimap: setMinimap, holeMap: setHoleMap, curious: setCurious, toolbar: setToolbar })[name](on);
     try { saveUiPref(name, on); } catch { /* storage refused: the choice holds in this page until a reload */ }
   };
   const [pages, setPages] = useState(false);
@@ -1882,7 +1884,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const slot = bar.parentElement.querySelector('[data-gutter-top]');
     if (slot) observer.observe(slot);
     return () => observer.disconnect();
-  }, [presenting, !!gutterTop]);
+  }, [presenting, !!gutterTop, toolbar]);
   const itemsLayer = useRef(null);
   const worldRef = useRef(null); // the camera layer, which the card thumbnail draws
   const [level, setLevel] = useState('body');
@@ -2041,6 +2043,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         return true;
       },
       undo, redo, selectAll, deleteSelection, zoomFit, present: startPresenting,
+      // View > Fit selection: the framing the card menu uses; nothing selected, nothing moves.
+      zoomToSelection: () => zoomToSelection(),
+      // Insert > Equation: an empty equation opens for typing at the view's centre, as the Equation tool does where it is clicked.
+      insertEquation: () => { if (readOnlyRef.current || localCopyRef.current) return; snapshot(); setEquationDraft(newEquation(viewCenter())); },
+      // Insert > Webpage: asks for the address, then makes the capture a pasted link makes.
+      insertWebpage: () => { if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); },
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null) => openInline(performance.now(), false, mode), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
@@ -2572,6 +2580,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // handler it stays a text paste.
   // Add webpage card (WebpageCard.jsx): placed where the learner is looking, capturing; the card makes the one capture request.
   const [urlPaste, setUrlPaste] = useState(null);
+  const [webpageAsk, setWebpageAsk] = useState(null);
   const addWebpage = url => {
     if (readOnlyRef.current || localCopyRef.current || !isWebUrl(url)) return null;
     let host = url;
@@ -2959,7 +2968,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: viewing, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: viewing, card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -5414,6 +5423,19 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
           <button type="button" autoFocus data-paste-url-choice="text" onClick={() => choosePaste('text')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Type size={14} className="shrink-0 text-ink-2" />Paste as text</button>
           <button type="button" data-paste-url-choice="card" onClick={() => choosePaste('card')} className="flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-[13px] text-ink hover:bg-hover focus-visible:bg-hover focus-visible:outline-2 focus-visible:outline-accent/35"><Globe size={14} className="shrink-0 text-ink-2" />Add webpage card</button>
         </div>}
+        {/* Insert > Webpage: the address, then the capture a pasted link makes. Esc places nothing. */}
+        {webpageAsk !== null && <form role="dialog" aria-label="Add a webpage" data-webpage-ask data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
+          onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setWebpageAsk(null); } }}
+          onSubmit={event => { event.preventDefault(); const url = webpageAsk.trim(); if (!isWebUrl(url)) return; setWebpageAsk(null); addWebpage(url); }}
+          className="absolute top-1/3 left-1/2 z-40 flex w-80 max-w-[calc(100%-2rem)] -translate-x-1/2 flex-col gap-2 rounded-lg border border-line bg-white p-2 shadow-pop">
+          <label className="px-1 text-xs text-ink-2" htmlFor="webpage-ask-url">Webpage address</label>
+          <input id="webpage-ask-url" autoFocus value={webpageAsk} onChange={event => setWebpageAsk(event.target.value)} placeholder="https://example.com" inputMode="url"
+            className="h-8 rounded-md border border-line bg-white px-2 text-sm text-ink outline-none focus:border-ink-3" />
+          <div className="flex justify-end gap-1">
+            <button type="button" onClick={() => setWebpageAsk(null)} className="h-7 rounded-md px-2 text-xs text-ink-2 hover:bg-hover">Cancel</button>
+            <button type="submit" disabled={!isWebUrl(webpageAsk.trim())} className="h-7 rounded-md bg-accent px-2 text-xs text-white disabled:opacity-40">Add webpage</button>
+          </div>
+        </form>}
         {inline && inlineAi && <Suspense fallback={null}><InlineAiEditor key={inline.n} target={inline.target} opened={inline.opened} cold={inline.cold} initialMode={inline.mode}
           canvas={inlineCanvas} config={inlineAi} view={view} readOnly={readOnly} onClose={closeInline} /></Suspense>}
         {inlineHint > 0 && <div role="status" data-inline-hint className="pointer-events-none absolute top-[calc(var(--canvas-top,0px)+0.75rem)] left-1/2 z-40 -translate-x-1/2 rounded-full border border-line bg-white px-3 py-1 text-xs text-ink-2 shadow-md">Select something to edit or explain</div>}
@@ -5707,7 +5729,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             {insertOpen && <BlockMenu className={`top-0 ${toolSide === 'left' ? 'left-10' : 'right-10'}`} filter={insertFilter} onFilter={setInsertFilter} onPick={type => (type === 'notebook' ? (snapshot(), insertAtView(newNotebookBlock()), setInsertOpen(false)) : type === 'youtube' ? (setInsertOpen(false), onSearch?.('youtube')) : insertBlock(type))} />}
           </div>
         )}
-        {!readOnly && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
+        {!readOnly && toolbar && <div ref={toolbarRef} role="toolbar" aria-label="Canvas tools" data-draw-target={drawTarget ? 'sketch' : 'canvas'}
           style={toolDrag ? { position: 'absolute', left: toolDrag.x, top: toolDrag.y } : toolCap != null ? { maxHeight: toolCap } : undefined}
           className={`z-20 grid max-h-full shrink-0 grid-cols-2 gap-0.5 overflow-y-auto rounded-xl border border-line bg-white p-1 shadow-md`}>
           {/* The handle: drag the palette and it parks on whichever edge you let

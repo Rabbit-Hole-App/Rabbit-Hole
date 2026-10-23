@@ -1,3 +1,4 @@
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { DEV_CP } from './dev-cp.mjs';
@@ -39,8 +40,7 @@ page.on('request', request => { if (request.method() === 'POST' && /\/api\/learn
 const canvasName = LOCAL && (await (await fetch(`${BASE}/api/canvases`, { method: 'POST', headers: { 'Content-Type': 'application/json', cookie: `small_session=${session}` }, body: JSON.stringify({ title: 'Slash sheet check' }) })).json()).name;
 await page.goto(LOCAL ? `${BASE}/apps/${canvasName}` : `${BASE}/apps/repo-06745f10-nanogpt?tab=learn&board=sheet-${Date.now().toString(36)}`);
 await page.getByRole('menubar', { name: 'Canvas menu' }).waitFor({ timeout: 60000 });
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
 const sheet = page.getByRole('dialog', { name: 'Slash commands' });
 await sheet.waitFor();
 // The search: focused on open; a leading / is ignored; Enter takes the first match; Esc clears it before it closes the sheet.
@@ -144,8 +144,7 @@ await page.keyboard.press('Escape');
 ok('Esc with an empty search closes the sheet', await sheet.waitFor({ state: 'detached', timeout: 5000 }).then(() => true).catch(() => false));
 // Use example (owner, 2026-10-20): the example becomes an editable draft - the command's pill and its words - in the Chat
 // composer, and nothing is sent.
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
 await sheet.waitFor();
 await sheet.locator('[data-slash-help="explain"]').click();
 const posted = paid.length;

@@ -1,3 +1,4 @@
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
@@ -64,8 +65,7 @@ ok('scrolling to the bottom opens it too', await more.getAttribute('aria-expande
 await input.fill('');
 
 // 2. View > Slash commands.
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
 const sheet = page.getByRole('dialog', { name: 'Slash commands' });
 await sheet.waitFor();
 const rows = await sheet.locator('[data-slash-help]').count();
