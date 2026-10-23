@@ -55,3 +55,46 @@ export async function authorizePinnedSource(pin, { fetchImpl = fetch, app, cardE
     return no('network');
   }
 }
+
+// One Add pinned reference press is one operation on one immutable snapshot, taken when the button is pressed: the pin, the ref
+// at the reader's page or selection, the canvas scope and the destination Chat. The delayed authorization applies to that
+// snapshot only. When it returns the operation is checked again (attachStillCurrent) and then attaches exactly that ref once, or is
+// abandoned and says why; nothing is rebuilt from what the reader shows by then. A newer press for the same destination
+// supersedes the older one (the older attaches nothing and reports nothing). A refusal attaches nothing.
+const freeze = value => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
+export function attachSnapshot({ pin, ref, scope, destination }) {
+  if (!pin?.cardId || !ref) return null;
+  return freeze(JSON.parse(JSON.stringify({ pin, ref, scope, destination })));
+}
+const destinationKey = d => `${d?.canvas}|${d?.board}`;
+
+// null when the operation may still land, else why not. live: { alive, scope, destination, pinCardId, cardExists }.
+// A new chat has no thread id yet and gets one on its first turn, so only a thread the snapshot named must still be the open one.
+export function attachStillCurrent(snap, live) {
+  if (!live?.alive) return 'closed';
+  if (live.scope !== snap.scope) return 'canvas-changed';
+  if (destinationKey(live.destination) !== destinationKey(snap.destination)) return 'chat-changed';
+  if (snap.destination.thread && live.destination.thread !== snap.destination.thread) return 'chat-changed';
+  if (live.pinCardId !== snap.pin.cardId) return 'pin-changed';
+  return live.cardExists ? null : 'card-deleted';
+}
+
+// run(snap, { authorize(pin), current(snap), attach(ref) }) -> { id, status: 'attached' | 'refused' | 'abandoned' | 'superseded', reason? }.
+// shortcut: a superseded authorization is not aborted (one status-only read), only its result is ignored.
+export function createPinnedAttacher() {
+  let seq = 0;
+  const latest = new Map();
+  return async function run(snap, { authorize, current, attach }) {
+    const id = ++seq, key = destinationKey(snap.destination);
+    latest.set(key, id);
+    const done = result => { if (latest.get(key) === id) latest.delete(key); return { id, ...result }; };
+    let auth;
+    try { auth = await authorize(snap.pin); } catch { auth = { ok: false, reason: 'network' }; }
+    if (latest.get(key) !== id) return { id, status: 'superseded' };
+    if (!auth?.ok) return done({ status: 'refused', reason: auth?.reason || 'refused' });
+    const why = current(snap);
+    if (why) return done({ status: 'abandoned', reason: why });
+    attach(JSON.parse(JSON.stringify(snap.ref)));
+    return done({ status: 'attached' });
+  };
+}

@@ -14,8 +14,10 @@
 //   5 removing one chip removes only that chip;
 //   6 when the pinned source is no longer readable (its bytes route answers 404), Add pinned reference is refused with a visible
 //     Reference unavailable and no chip is added; readable again, it adds the chip;
-//   7 the Chat draft, mode and chips survive Canvas -> Study -> Canvas;
-//   8 no model-capable request was made, none was sent, no page error.
+//   7 the delayed-authorization race: the source check is held (route-delayed HEAD) while the reader turns the page; the chip is the
+//     page pressed, never the page shown when the check returns, and a double press during the hold adds one chip;
+//   8 the Chat draft, mode and chips survive Canvas -> Study -> Canvas;
+//   9 no model-capable request was made, none was sent, no page error.
 // Prints `ok <label>` per step, counts and ids only (no cookies, no secrets); `N/total passed`; exits 1 on any failure.
 // Usage: BASE=http://127.0.0.1:8901 SMALL_CP=http://127.0.0.1:8903 VARS=<cp .dev.vars> OUT=<dir> node e2e/pinned-study-attach-check.mjs
 import { chromium } from '@playwright/test';
@@ -24,7 +26,7 @@ import assert from 'node:assert/strict';
 import { chatRouteAnswer } from './dev-cp.mjs';
 import { closeMenus, openMenu } from './canvas-menu-helpers.mjs';
 
-const total = 8; // the number of check() steps below; keep it equal
+const total = 9; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8901';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8903';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pinned-study-attach-check runs against the local stack only');
@@ -85,12 +87,14 @@ const SEED = { strokes: [], shapes: [], links: [], groups: [], areas: [], exchan
 // ---------------------------------------------------------------- routes: capture and canned answers
 const captured = [], refused = [], outside = [], errors = [];
 let sourceGone = false; // step 6: the pinned document's bytes route answers 404, as after a revoked or deleted source
+let hold = null; // step 7: { seen, release, promise }; the authorizer's status-only HEAD of the bytes route waits for release()
 const frame = (event, data) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(artifact|assess|grade|home-ask|image|inline\/|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore))/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE) { outside.push(url.hostname); return route.abort(); }
   if (sourceGone && ['GET', 'HEAD'].includes(request.method()) && url.pathname === `/api/learn/context/${encodeURIComponent(doc.id)}`) return route.fulfill({ status: 404, json: { error: 'not found' } });
+  if (hold && request.method() === 'HEAD' && url.pathname === `/api/learn/context/${encodeURIComponent(doc.id)}`) { hold.seen++; await hold.promise; return route.fallback(); }
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method())) return route.fallback();
   const path = url.pathname;
   let body = {};
@@ -225,7 +229,34 @@ await check('6. an unreadable source refuses Add pinned reference with Reference
   await waitFor(async () => (await chips()).length === before.length, 8000, () => why('the chip was not removed'));
 });
 
-await check('7. the Chat draft, mode and chips survive Canvas -> Study -> Canvas', async () => {
+await check('7. a page turn while the source check is held does not change the chip: the pressed page lands, and a double press adds one chip', async () => {
+  const before = await chips();
+  let release;
+  hold = { seen: 0, promise: new Promise(resolve => { release = resolve; }), release: () => release() };
+  await addButton().click(); // at page 2 (step 3 turned to it)
+  await waitFor(async () => hold.seen === 1, 8000, () => `the source check was not held (${hold.seen} HEADs)`);
+  await page.getByRole(SEL.nextPage.role, { name: SEL.nextPage.name }).first().click(); // the reader moves to page 3 during the check
+  await page.waitForTimeout(600);
+  assert.deepEqual(await chips(), before, 'nothing is attached while the check is pending');
+  hold.release();
+  await waitFor(async () => (await chips()).length === before.length + 1, 8000, () => why('the pressed page did not land'));
+  assert.deepEqual(keysOf(await chips()), [...keysOf(before), pageKey(2)].sort(), 'page 2 (pressed), not page 3 (shown after the check)');
+  hold = null;
+  hold = { seen: 0, promise: new Promise(resolve => { release = resolve; }), release: () => release() };
+  await addButton().dblclick(); // at page 3: two presses; the older is superseded
+  await waitFor(async () => hold.seen >= 1, 8000, () => 'the second source check was not held');
+  hold.release();
+  await waitFor(async () => (await chips()).some(chip => chip.key === pageKey(3)), 8000, () => why('the double press did not land'));
+  await page.waitForTimeout(800);
+  assert.equal((await chips()).filter(chip => chip.key === pageKey(3)).length, 1, 'one chip for page 3');
+  assert.equal((await chips()).length, before.length + 2);
+  hold = null;
+  await removeChip(pageKey(3));
+  await removeChip(pageKey(2));
+  await waitFor(async () => (await chips()).length === before.length, 8000, () => why('the race chips were not removed'));
+});
+
+await check('8. the Chat draft, mode and chips survive Canvas -> Study -> Canvas', async () => {
   const state = async () => ({ chips: keysOf(await allChips()), draft: await page.locator(SEL.draft).inputValue(), mode: await page.locator(SEL.mode).first().getAttribute('data-chat-mode') });
   const before = await state();
   assert.equal(before.draft, 'my unsent question');
@@ -239,7 +270,7 @@ await check('7. the Chat draft, mode and chips survive Canvas -> Study -> Canvas
   await page.screenshot({ path: `${OUT}/6-after-switch.png` });
 });
 
-await check('8. no model-capable request, no turn sent, no page error', async () => {
+await check('9. no model-capable request, no turn sent, no page error', async () => {
   assert.deepEqual(captured, []);
   assert.deepEqual(refused, [], `model-capable routes: ${refused.join(', ')}`);
   assert.deepEqual(errors, [], `page errors: ${errors.join(' | ')}`);
