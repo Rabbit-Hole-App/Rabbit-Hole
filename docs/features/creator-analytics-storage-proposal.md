@@ -204,6 +204,13 @@ become estimates. No paid model call anywhere in collection or reading.
   offered on the canvas, no free text, no mining of private answers or Tutor conversations, opt-in per canvas, shown
   separately from Topics explored next.
 - **A creator-chosen reporting timezone:** needs hourly buckets.
+- **Publication health history:** health checks run on demand and store nothing (contract "Publication health"), so
+  they need no table. Scheduled re-checks, "first seen" dates or a findings history would need a
+  `publication_health_findings` table and a scheduler; not proposed in V1.
+- **Compare with previous period and Export CSV** read the same session rows as the screen; they add no table. Coverage
+  (`since`, `through`, `partial`) comes from `publication_analytics_since` and the latest processed `last_seen_at`;
+  an ingest outage would be recorded as a `partial` entry, which needs a small `publication_coverage_gaps (from, to,
+  reason)` table if the owner wants outages marked (recommended, three columns, no personal data).
 
 ## 10. Decisions for the owner
 

@@ -220,9 +220,15 @@ request. A period overlapping a `partial` entry, starting before `since` or endi
 - "Export CSV" in the header: `GET /api/analytics/creator.csv` with the same `range`, `canvas` and `compare` parameters,
   owner-only exactly as the JSON route, built server-side from the **same payload** by the pure `toCsv(payload)`
   (`web/src/creator-analytics-csv.js`).
-- Rows: `section, metric, label, value, unit, period, from, to, timezone, state, reason`, plus comparison columns when
-  Compare is on, then a header block of the canvas scope, the collection start, `coverage`, and each metric's
-  definition. Aggregate only: never a learner row.
+- Columns: `section, item, metric, label, value, unit, period, from, to, timezone, state, reason`, plus `previous_value,
+  previous_from, previous_to, change_abs, change_pct, change_pp, change_state, change_reason` when Compare is on. One
+  rectangular table: `about` rows first (canvas scope, range, comparison, collection start, data available since,
+  updated through, partial periods, the cohort, and each metric's definition), then every metric cell of the payload
+  (overview, audience, each series day, topics, support, canvas comparison, traffic with its denominator, campaigns,
+  the one-canvas conversion, most-used resources), and one row with the reason for each section that has nothing to
+  list. Units: `count`, `seconds`, `ratio` (0 to 1). A current or all-time total has no dates of its own. Built in
+  `control-plane/src/creator-analytics.js`; file name `creator-analytics-<canvas|all>-<range>[-compared]-<to>.csv`.
+  Aggregate only: never a learner row.
 - A hidden or unavailable value is an **empty cell with its reason**, never 0. RFC 4180 quoting (commas, quotes, CR, LF);
   a cell beginning with `=`, `+`, `-`, `@`, tab or CR is prefixed with `'` and quoted (formula injection).
 
