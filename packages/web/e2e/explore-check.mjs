@@ -208,7 +208,8 @@ await people.page.goto(`${BASE}/explore?tab=creators`);
 const otherCard = people.page.locator(`[data-explore-creators] [data-creator-card="${H.other}"]`);
 await otherCard.waitFor({ timeout: 30000 });
 // View profile sits below the row's text on a phone, beside it above.
-const viewBelow = async () => { const [t, v] = [await otherCard.locator('[data-creator-handle]').boundingBox(), await otherCard.locator('[data-creator-view]').boundingBox()]; return v.y >= t.y + t.height; };
+// View profile is below the text only when it starts under the last text line (handle, description, counts). A row centres the button on the text block, so on a desktop row it can start below the handle yet still sits beside the text (owner brief 2026-10-23).
+const viewBelow = async () => { const v = await otherCard.locator('[data-creator-view]').boundingBox(); let bottom = 0; for (const sel of ['[data-creator-handle]', '[data-creator-description]', '[data-creator-counts]']) { const box = await otherCard.locator(sel).first().boundingBox().catch(() => null); if (box) bottom = Math.max(bottom, box.y + box.height); } return v.y >= bottom - 1; };
 const about = otherCard.locator('[data-creator-description]');
 const counts = (await otherCard.locator('[data-creator-counts]').innerText()).trim();
 check('a creator row shows the description as text (never HTML) and only the non-zero count of published canvases, View profile beside the text',
