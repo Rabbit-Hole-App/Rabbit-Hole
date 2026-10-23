@@ -69,6 +69,15 @@ test('the small card: a size container, a 22rem header breakpoint and a 40rem st
   assert.doesNotMatch(card.match(/Show full title[^\n]*/g).join('\n'), /\.\.\.|\u2026/, 'no ellipsis in the new copy');
 });
 
+// CI run 40037110708: a 77-character unbroken title overlapped the visibility pill and Card options at Large. Tailwind emits .break-words
+// (overflow-wrap: break-word) AFTER [overflow-wrap:anywhere], so with both classes break-word won and the title's min-content stayed the
+// whole word: its box was as wide as the word and ran under the header's buttons. anywhere alone lets the box shrink to the column.
+test('the card title wraps with overflow-wrap anywhere alone, because break-words would override it', () => {
+  const title = read('LearningCard.jsx').match(/^const TITLE = '([^']*)';/m)[1];
+  assert.match(title, /\[overflow-wrap:anywhere\]/);
+  assert.doesNotMatch(title, /break-words|break-all/);
+});
+
 test('Home, Library and Explore have no composer: the Agent Bar is hidden there and the card grid is the only thing that resizes', () => {
   const routes = read('../routes.js');
   assert.match(routes, /barHidden: \['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore'\]\.includes\(place\)/);

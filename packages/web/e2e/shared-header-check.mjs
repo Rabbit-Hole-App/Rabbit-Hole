@@ -18,7 +18,7 @@ const SHOTS = process.argv[2] || null;
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
-const HANDLE = `hdrown_${run}`;
+const HANDLE = `hdr_${run.slice(-4)}`; // short: the full base36 timestamp made a 15-character handle whose width varied with the digits
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, ...(handle ? { handle } : {}) }) })).json()).session;
 const owner = { session: await sessionFor(`hdr-owner-${run}@example.com`, HANDLE) }, viewer = { session: await sessionFor(`hdr-viewer-${run}@example.org`) };
 const api = (who, path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${who.session}`, 'content-type': 'application/json', ...(init.headers || {}) } }).then(r => r.json());
@@ -73,7 +73,10 @@ for (const theme of ['light', 'dark']) {
     && (await p.brand.innerText()).trim() === '' && (await p.brand.getAttribute('href')) === '/' && /home/i.test(await p.brand.getAttribute('aria-label')) && !/Rabbit Hole/.test(await p.header.innerText()), JSON.stringify(visibleLogos));
   const [headerBox, brandBox, centreBox, forkBox, toggleBox] = await Promise.all([box(p.header), box(p.brand), box(p.centre), box(p.fork), box(p.toggle)]);
   check(`${theme}: three areas - logo left, the title group in the middle, Fork then the panel toggle at the far right`, brandBox.right < centreBox.x && centreBox.right < forkBox.x && forkBox.right <= toggleBox.x + 1 && headerBox.right - toggleBox.right < 24 && brandBox.x - headerBox.x < 24);
-  const centred = async () => { const h = await box(p.header), c = await box(p.centre); return Math.abs((c.x + c.w / 2) - (h.x + h.w / 2)); };
+  // The header re-lays out when the panel opens or closes, after aria-pressed flips (CI run 40037110708 read 0 / 76.875 on the light theme only): wait up to 5s for the
+  // centred state, one frame at a time, then read it, so a header that never centres still fails with its real offset.
+  const offsetOf = async () => { const h = await box(p.header), c = await box(p.centre); return Math.abs((c.x + c.w / 2) - (h.x + h.w / 2)); };
+  const centred = async () => { const end = Date.now() + 5000; let offset = await offsetOf(); while (offset > 2 && Date.now() < end) { await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => resolve()))); offset = await offsetOf(); } return offset; };
   const openOffset = await centred();
   await p.toggle.click();
   await page.waitForFunction(() => document.querySelector('[data-panel-toggle]').getAttribute('aria-pressed') === 'false');

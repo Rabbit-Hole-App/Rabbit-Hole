@@ -126,7 +126,8 @@ export function menuAt(button, width, room = 360) {
 
 // A plain click opens in place; a modified one (new tab, new window) stays the browser's.
 const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
-const TITLE = 'line-clamp-2 break-words text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
+// overflow-wrap:anywhere alone: Tailwind emits break-words after it, so both classes would leave break-word, whose min-content is the whole word (card-size.test.mjs).
+const TITLE = 'line-clamp-2 text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
 
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
 // `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
