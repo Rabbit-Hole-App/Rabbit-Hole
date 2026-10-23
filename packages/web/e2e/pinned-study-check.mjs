@@ -136,7 +136,20 @@ const press = async (selector, { button = 'left', x = null, y = null, double = f
   if (!at) { await fitCanvas(); await until(async () => !!(at = await visiblePart(selector)), `${selector} is on screen`); }
   const px = x == null ? (at.left + at.right) / 2 : Math.min(at.right - 2, Math.max(at.left + 2, at.x + x));
   const py = y == null ? (at.top + at.bottom) / 2 : Math.min(at.bottom - 2, Math.max(at.top + 2, at.y + y));
-  if (double) await page.mouse.dblclick(px, py); else await page.mouse.click(px, py, { button });
+  // The point must hit the object itself: its lower part can sit under the minimap, the zoom, the tools or the selection bar, and a
+  // press there is theirs. The wanted point first, then a grid over the part the canvas shows; none: the cover is named.
+  const hit = await page.evaluate(([sel, wx, wy, part]) => {
+    const node = document.querySelector(sel), on = (a, b) => { const top = document.elementFromPoint(a, b); return !!top && node.contains(top); };
+    if (on(wx, wy)) return { x: wx, y: wy };
+    for (let r = 0; r <= 12; r++) for (let c = 0; c <= 12; c++) {
+      const a = part.left + 2 + (part.right - part.left - 4) * c / 12, b = part.top + 2 + (part.bottom - part.top - 4) * r / 12;
+      if (on(a, b)) return { x: a, y: b };
+    }
+    const top = document.elementFromPoint(wx, wy);
+    return { covered: top ? `${top.tagName} ${[...top.attributes].map(a => a.name).filter(n => n.startsWith('data-')).join(' ')}` : 'nothing' };
+  }, [selector, px, py, at]);
+  assert.ok(!hit.covered, `${selector} is covered at (${Math.round(px)}, ${Math.round(py)}) by ${hit.covered}`);
+  if (double) await page.mouse.dblclick(hit.x, hit.y); else await page.mouse.click(hit.x, hit.y, { button });
 };
 const surfaceScroll = () => page.evaluate(() => { const s = document.querySelector('[data-canvas-surface]'); return s ? [s.scrollLeft, s.scrollTop] : null; });
 // The Notebook / Canvas row has its own strip: it covers no card, the notebook, the toolbar, the minimap or the zoom, and the

@@ -61,7 +61,17 @@ const shownPart = selector => page.evaluate(sel => { const r = document.querySel
 const press = async (selector, button = 'left') => {
   let at = await shownPart(selector);
   if (!at) { const panel = await openMenu(page, 'View'); await panel.locator('[data-menu-item="Fit canvas"]').click(); /* its accessible name carries the Shift 1 hint */ await closeMenus(page); await until(async () => !!(at = await shownPart(selector)), `${selector} is on screen`, 10000); }
-  await page.mouse.click(at.x, at.y, { button });
+  // The centre may sit under the minimap, the zoom, the tools or the selection bar: the press must hit the card itself.
+  const hit = await page.evaluate(([sel, wx, wy]) => {
+    const node = document.querySelector(sel), r = node.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"]').getBoundingClientRect();
+    const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom);
+    const on = (a, b) => { const over = document.elementFromPoint(a, b); return !!over && node.contains(over); };
+    if (on(wx, wy)) return { x: wx, y: wy };
+    for (let i = 0; i <= 12; i++) for (let j = 0; j <= 12; j++) { const a = left + 2 + (right - left - 4) * j / 12, b = top + 2 + (bottom - top - 4) * i / 12; if (on(a, b)) return { x: a, y: b }; }
+    return null;
+  }, [selector, at.x, at.y]);
+  assert.ok(hit, `${selector} is covered where it shows`);
+  await page.mouse.click(hit.x, hit.y, { button });
 };
 
 try {
