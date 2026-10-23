@@ -122,9 +122,9 @@ test('nobody but the owner reads a private board, no link reaches it, and Trash 
   assert.deepEqual((await f.call('GET', f.board(c.name), { as: 'ana' })).body.state, BOARD, 'the owner keeps the board');
 });
 
-// Share-token remediation (owner, 2026-10-16 token inventory): saving the link while it is on keeps its token, so only
-// switching it off and on again replaces it, and the old token stops opening the board for good.
-test('switching a share link off and on replaces its token and the old one stays dead', async t => {
+// One permanent share link (owner decision 2026-10-22, replacing the 2026-10-16 rotation): the token is made once and never
+// cleared or replaced; whether it opens the board is the share flag and the access mode, checked on every request.
+test('switching a share link off and on keeps its token: denied while off, the same URL again when on', async t => {
   const f = setup(t);
   const c = await f.create('ana', 'Rotate');
   await f.call('PUT', f.board(c.name), { as: 'ana', body: { state: BOARD, version: 0 } });
@@ -134,13 +134,26 @@ test('switching a share link off and on replaces its token and the old one stays
   assert.equal(await opens(first), 200);
   assert.equal(await share({ shared: true, view: true }), first, 'saving it again while on keeps the same token');
   assert.equal(await share({ shared: true, view: true, public_view: true }), first, 'changing who may view keeps it too');
-  assert.equal(await share({ shared: false }), null);
-  assert.equal(await opens(first), 404, 'off: the old token is dead');
-  const second = await share({ shared: true, view: true });
-  assert.ok(second && second !== first, 'on again: a new token');
-  assert.equal(await opens(second), 200);
-  assert.equal(await opens(first), 404, 'the old token stays dead after the new link exists');
-  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM learn_boards WHERE view_token = ? OR edit_token = ?').get(first, first).n, 0, 'nothing stores it');
+  assert.equal(await share({ shared: false }), first, 'off: the board still holds the one token');
+  assert.equal(await opens(first), 404, 'off: the old link is denied');
+  const denied = await f.call('GET', `/api/learn/boards/shared/${first}`, { as: 'ben' });
+  assert.equal(denied.body.error, "You don't have access to this canvas.");
+  assert.equal(await share({ shared: true, view: true }), first, 'on again: the identical URL');
+  assert.equal(await opens(first), 200);
+  // Public, sign-in required and invited-only (off), in every order and repeatedly, never move it.
+  for (const body of [{ shared: true, view: true, public_view: true }, { shared: true, view: true }, { shared: false }, { shared: true, view: true, public_view: true }, { shared: true, view: false }, { shared: true, view: true }]) {
+    assert.equal(await share(body), first, JSON.stringify(body));
+  }
+  assert.equal(await opens(first), 200);
+  // Concurrent toggles leave it unchanged.
+  const bodies = Array.from({ length: 12 }, (_, i) => (i % 3 === 0 ? { shared: false } : { shared: true, view: true, public_view: i % 2 === 0 }));
+  assert.deepEqual([...new Set(await Promise.all(bodies.map(share)))], [first]);
+  assert.equal(f.sqlite.prepare('SELECT view_token FROM learn_boards WHERE app = ?').get(c.name).view_token, first);
+  assert.equal(await share({ shared: true, view: true }), first);
+  assert.equal(await opens(first), 200, 'whatever the last toggle was, the next one decides');
+  // A canvas that is gone takes its link with it.
+  await f.call('DELETE', `/api/apps/${c.name}`, { as: 'ana' });
+  assert.equal(await opens(first), 404);
 });
 
 // Saved at creation (owner, 2026-10-08): a canvas made from the Library had no board until it was opened once, so

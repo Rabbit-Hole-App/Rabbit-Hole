@@ -5,11 +5,30 @@ A learner shares a canvas board by link. Dev only, like the rest of Learn.
 ## Behaviour
 
 - **Share** (menubar) opens a panel:
-  - **Share this board**: on or off. Off means every link stops working.
+  - **Share this board**: on or off. Off means the link is denied ("You don't have access to this canvas."); nothing is deleted.
   - **View link**: on or off, with its URL and Copy. People who sign in can
     view. **Public** makes the view link work without signing in.
-  - Turning a link off revokes it; turning it on again makes a new one, pinned again to the
-    repository's current commit (a link keeps its pin through the owner's refreshes).
+  - **One permanent link** (owner decision, 2026-10-22, replacing the earlier "off revokes, on makes a new one"): the view
+    token is made the first time the link is switched on and never changes or clears after that, whatever the access
+    mode (invited only = off, sign-in required, public), however often it is toggled, and whatever else is saved. The
+    token is an identifier, not proof of sharing: every route that takes it (shared page, Chat, assets, thumbnail,
+    next steps, holes, card source, fork, Rabbit Hole, comments, embed) checks the share flag, the public setting,
+    Trash and the canvas's existence on each request, and a conditional request (304) is checked first. A disabled link
+    answers `404 {"error":"You don't have access to this canvas."}` and the page shows that text; a token the
+    server never issued, or whose canvas is deleted, answers "This link is not shared any more, or never was.". Links
+    already handed out work again when sharing resumes, with the same repository pin, the same per-link question
+    limits (the limit key is derived from the token, which does not change) and the same guest allowances (those are
+    keyed by the browser's cookie). Named invitations and Explore publication are separate permissions: switching the
+    link off removes neither. The Share panel receives the token (`sharing.view`) even while the link is off; whether
+    it works is `sharing.shared` and `sharing.public_view`.
+  - **Comments on the link** (owner decision, 2026-10-22): Hidden (the default, and what link visitors always had),
+    View only, or Allow comments, set by the owner (`PUT /api/learn/c/<board id>/comment-settings`
+    `{ link_comments: "hidden" | "view" | "allow" }`). Stored as a second `canvas_comment_settings` row keyed
+    `link:<canvas>`, apart from Explore's setting, so no migration. Visitors read and post through the public comment family
+    on the link's token (`/api/learn/boards/shared/<token>/comments/...`); Hidden answers 404 to every visitor route, and
+    the shared GET carries no comment field. Hiding deletes nothing; the owner and members keep reading through their own
+    session (never through an embed, which is always the public's). Allow comments follows the existing sign-in, block and
+    rate rules.
   - No private repository switch (owner decision, 2026-10-16): a share link grants the canvas, never a
     private repository. Its name, commit and code reach only the repository's original importer; every
     other viewer gets no repository and questions use only the canvas's cards, notes and sources. See

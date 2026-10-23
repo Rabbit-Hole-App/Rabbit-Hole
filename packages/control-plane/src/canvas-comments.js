@@ -13,9 +13,11 @@ import { NOT_TRASHED } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { boardAsset } from './learn-boards.js';
 import { redactRepositoryCards } from './repository-cards.js';
+import { isEmbed } from './learn-shared-ask.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
+export const NO_ACCESS = "You don't have access to this canvas.";
 const notFound = () => refuse("This canvas isn't available to you.", 'not_found', 404);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BOARD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -69,14 +71,16 @@ export function person(row, p = '') {
 
 // A top-level canvas's main board (Q5): never a nested Rabbit Hole, never a project board. Archive changes nothing
 // here; Trash suspends everyone but the owner; a publication counts while the canvas is live.
-const BOARD_ROW = `SELECT b.id, b.org, b.app AS canvas, b.owner_email, c.title, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed,
+const BOARD_ROW = `SELECT b.id, b.org, b.app AS canvas, b.owner_email, c.title, b.public_view = 1 AS public_view_open, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed,
     (c.archived_at IS NULL AND EXISTS (SELECT 1 FROM canvas_publications pub WHERE pub.org = c.org AND pub.canvas = c.name)) AS published,
-    COALESCE(s.comments_enabled, 1) AS comments_enabled, COALESCE(s.public_mode, 'off') AS public_mode, ${PERSON('c.owner_email', 'owner_')}
+    COALESCE(s.comments_enabled, 1) AS comments_enabled, COALESCE(s.public_mode, 'off') AS public_mode, COALESCE(l.public_mode, 'off') AS link_mode, ${PERSON('c.owner_email', 'owner_')}
   FROM learn_boards b JOIN canvases c ON c.org = b.org AND c.name = b.app AND c.owner_email = b.owner_email
   LEFT JOIN canvas_comment_settings s ON s.org = c.org AND s.canvas = c.name
+  LEFT JOIN canvas_comment_settings l ON l.org = c.org AND l.canvas = 'link:' || c.name
   WHERE b.board = 'main' AND c.name NOT IN (SELECT d.child FROM canvas_dives d WHERE d.org = c.org AND d.parent_app NOT LIKE 'share:%')`;
 
 async function viewerOf(req, env) {
+  if (isEmbed(req)) return null; // an embed is the public's, the owner's own page or not (SHARE-04)
   const viewer = await repositoryIdentity(req, env);
   return viewer instanceof Response ? null : viewer;
 }
@@ -101,12 +105,24 @@ export async function memberContext(req, env, boardId) {
   return { family: 'member', board, actor, ...settingsOf(board) };
 }
 
+// The link's comment setting (owner decision 2026-10-22, Hidden / View only / Allow comments): a second settings row keyed
+// 'link:<canvas>' beside Explore's, same vocabulary (off, closed, open), so no migration; no row is Hidden.
+const LINK_MODES = { hidden: 'off', view: 'closed', allow: 'open' };
+const linkName = mode => Object.keys(LINK_MODES).find(name => LINK_MODES[name] === mode) || 'hidden';
+
 async function publicContext(req, env, token) {
   if (!TOKEN.test(token)) return notFound();
-  const board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org', 'c.name')}
+  let board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org', 'c.name')}
     AND EXISTS (SELECT 1 FROM canvas_publications pub WHERE pub.org = c.org AND pub.canvas = c.name AND pub.token = ?)`).bind(token).first();
-  if (!board) return notFound();
-  const actor = await actorOn(env, board, await viewerOf(req, env));
+  const viewer = await viewerOf(req, env);
+  if (!board) {
+    // A share link's token (/b/): only while the link is on, and for a signed-out visitor only when it is public. The retained
+    // token alone proves nothing (permanent link, owner decision 2026-10-22). Its mode is the link's, not Explore's.
+    board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND b.shared = 1 AND b.view_token = ? AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(token).first();
+    if (!board || !(board.public_view_open || viewer)) return (await env.LEARN_DB.prepare('SELECT 1 FROM learn_boards WHERE view_token = ?').bind(token).first()) ? refuse(NO_ACCESS, 'not_found', 404) : notFound();
+    board = { ...board, published: 1, public_mode: board.link_mode };
+  }
+  const actor = await actorOn(env, board, viewer);
   const settings = settingsOf(board);
   if (settings.mode === 'off' && !actor.owner && !actor.member) return notFound();
   return { family: 'public', board, actor, ...settings };
@@ -519,15 +535,22 @@ async function markRead(env, ctx, id) {
 async function saveSettings(req, env, ctx) {
   if (!ctx.actor.owner) return refuse('Only the owner changes comment settings.', 'forbidden', 403);
   const input = await readJson(req);
-  const enabled = input?.comments_enabled, mode = input?.public_mode;
+  const enabled = input?.comments_enabled, mode = input?.public_mode, link = input?.link_comments;
   if (enabled !== undefined && typeof enabled !== 'boolean') return refuse('comments_enabled must be true or false.', 'bad_setting', 400);
   if (mode !== undefined && !MODES.includes(mode)) return refuse('public_mode is off, open or closed.', 'bad_setting', 400);
   if (mode !== undefined && !ctx.board.published) return refuse('Publish this canvas to Explore first.', 'not_published', 409);
+  if (link !== undefined && !Object.hasOwn(LINK_MODES, link)) return refuse('link_comments is hidden, view or allow.', 'bad_setting', 400);
   const next = { enabled: enabled === undefined ? !!ctx.board.comments_enabled : enabled, mode: mode === undefined ? ctx.board.public_mode : mode };
   await env.LEARN_DB.prepare(`INSERT INTO canvas_comment_settings (org, canvas, comments_enabled, public_mode, updated_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT (org, canvas) DO UPDATE SET comments_enabled = excluded.comments_enabled, public_mode = excluded.public_mode, updated_at = excluded.updated_at`)
     .bind(ctx.board.org, ctx.board.canvas, next.enabled ? 1 : 0, next.mode, new Date().toISOString()).run();
-  return json({ comments_enabled: next.enabled, public_mode: next.mode, published: !!ctx.board.published });
+  if (link !== undefined) {
+    await env.LEARN_DB.prepare(`INSERT INTO canvas_comment_settings (org, canvas, comments_enabled, public_mode, updated_at) VALUES (?, ?, 1, ?, ?)
+      ON CONFLICT (org, canvas) DO UPDATE SET public_mode = excluded.public_mode, updated_at = excluded.updated_at`)
+      .bind(ctx.board.org, `link:${ctx.board.canvas}`, LINK_MODES[link], new Date().toISOString()).run();
+    ctx.board.link_mode = LINK_MODES[link];
+  }
+  return json({ comments_enabled: next.enabled, public_mode: next.mode, ...(link !== undefined ? { link_comments: linkName(ctx.board.link_mode) } : {}), published: !!ctx.board.published });
 }
 
 // Blocks (section 3): the author of one public comment, by its stored account id; never membership.
@@ -591,7 +614,7 @@ function about(ctx) {
   const audience = ctx.family === 'public' ? 'public' : 'members';
   return json({
     role: owner ? 'owner' : member ? 'member' : 'viewer', title: ctx.board.title, owner: person(ctx.board, 'owner_'),
-    comments_enabled: ctx.enabled, public_mode: ctx.board.published ? ctx.board.public_mode : 'off', published: !!ctx.board.published, signed_in: signedIn,
+    comments_enabled: ctx.enabled, public_mode: ctx.board.published ? ctx.board.public_mode : 'off', ...(owner ? { link_comments: linkName(ctx.board.link_mode) } : {}), published: !!ctx.board.published, signed_in: signedIn,
     can: { post: allowed(ctx, 'post', audience), post_public: allowed(ctx, 'post', 'public'), settings: owner, blocked: ctx.actor.blocked },
   });
 }

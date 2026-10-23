@@ -24,6 +24,7 @@ import { linkAccess, sharedState } from './shared-privacy.js';
 import { fileRefSources, fileRefStatements, inheritFileRefs } from './file-refs.js';
 import { clientMismatch, uploadBody } from './upload-body.js';
 import { redactRepositoryCards, restoreRedactedCards, sharedCardSource } from './repository-cards.js';
+import { NO_ACCESS } from './canvas-comments.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const BOARD = /^[A-Za-z0-9 _.-]{1,100}$/;
@@ -199,7 +200,8 @@ async function publishedThumbnail(req, env, token) {
 async function sharedThumbnail(req, env, token) {
   if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'Method not allowed' }, 405);
   const found = await sharedRow(env, token);
-  if (!found || found.publication || !found.row.public_view || found.row.board !== 'main') return json({ error: 'This link is not shared publicly any more, or never was.' }, 404);
+  if (!found) return noLink(env, token);
+  if (found.publication || !found.row.public_view || found.row.board !== 'main') return json({ error: NO_ACCESS }, 404);
   return serveThumbnail(req, env, found.row.id, ['custom']);
 }
 
@@ -264,8 +266,10 @@ async function saveOwn(env, owner, app, board, body) {
   return json({ version: row.version + 1, board_id: row.id, sharing: sharingOf(row) });
 }
 
-// Turn sharing and each link on or off. A link switched back on gets a new
-// token, so an old copy of it stays dead.
+// Turn sharing and the link on or off. One permanent link (owner decision 2026-10-22): the view token is made the first time the
+// link is switched on and never changes or clears after that, whatever the access mode and however often it is toggled. What
+// makes it work is `shared` (and public_view for a signed-out visitor): every route that takes the token checks them, so an old copy
+// is denied while the link is off and works again, unchanged, when it is back on.
 // Nothing saved on it yet (no row, or a canvas's empty version 0): this browser's copy goes first when it sent one;
 // otherwise it is shared empty, a canvas made before boards came with their rows getting its board now (2026-10-08).
 async function share(env, owner, app, board, body) {
@@ -279,15 +283,15 @@ async function share(env, owner, app, board, body) {
     await emptyBoard(env.LEARN_DB, owner.org, owner.email, app, board).run();
     row = await ownerRow(env, owner, app, board);
   }
-  const shared = !!body?.shared;
-  const view = shared && !!body.view ? (row.view_token || newToken()) : null;
+  const shared = !!body?.shared && !!body.view;
+  const view = shared ? (row.view_token || newToken()) : row.view_token;
   const edit = null; // links are view-only (edit_token stays for older rows only)
-  const publicView = shared && !!body.view && !!body.public_view ? 1 : 0;
+  const publicView = shared && !!body.public_view ? 1 : 0;
   await env.LEARN_DB.prepare('UPDATE learn_boards SET shared = ?, view_token = ?, edit_token = ?, public_view = ? WHERE id = ?')
     .bind(shared ? 1 : 0, view, edit, publicView, row.id).run();
   // A new link pins the repository commit it answers from (docs/features/shared-canvas-ask.md); the same link keeps its pin.
   const updated = { ...row, shared: shared ? 1 : 0, view_token: view, edit_token: edit, public_view: publicView };
-  if (view) await sharePin(env.LEARN_DB, updated);
+  if (shared) await sharePin(env.LEARN_DB, updated);
   return json({ version: row.version, sharing: await ownerSharing(env, updated) });
 }
 
@@ -324,6 +328,12 @@ async function sharedRow(env, token) {
     JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' WHERE p.token = ? AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(token).first();
   return published ? { row: published, role: 'view', publication: true } : null;
 }
+// A token no live link answers to: one a board still holds (the link is off, or its canvas is in Trash) is "no access"; one the
+// server never issued, or whose canvas is gone, is not shared at all.
+async function noLink(env, token) {
+  const kept = TOKEN.test(token) && await env.LEARN_DB.prepare(`SELECT 1 FROM learn_boards b WHERE b.view_token = ? AND ${CANVAS_EXISTS}`).bind(token).first();
+  return json({ error: kept ? NO_ACCESS : 'This link is not shared any more, or never was.' }, 404);
+}
 // Where a link opens in the browser: /e/ for a publication, /b/ for a share.
 const linkPath = (found, token) => `${found.publication ? '/e/' : '/b/'}${token}`;
 
@@ -358,7 +368,7 @@ const viewerOf = (req, env, found) => found.viewer || (isEmbed(req) ? new Respon
 // ask), or the refusal.
 export async function sharedAccess(req, env, token) {
   const found = await sharedRow(env, token);
-  if (!found) return json({ error: 'This link is not shared any more, or never was.' }, 404);
+  if (!found) return noLink(env, token);
   if (!(found.role === 'view' && (found.row.public_view || found.publication))) {
     // An embed is public or nothing: it never asks who is signed in, and never offers sign-in (SHARE-04).
     if (isEmbed(req)) return json({ error: 'This canvas is not public, so it cannot be embedded.', code: 'embed_not_public' }, 403);
