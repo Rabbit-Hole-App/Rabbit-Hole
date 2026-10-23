@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPLIT_DEFAULT, defaultStudy, eligible, readStudy, studyKey, readerPinTarget, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
+import { NOT_SAVED, studyStatusText, SPLIT_DEFAULT, defaultStudy, eligible, readStudy, studyKey, readerPinTarget, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
 
 const KEY = 'small.adaptive-canvas:org:me@example.com:app';
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), map }; };
@@ -37,7 +37,7 @@ test('readStudy: bad fields fall back one by one; split is clamped to 0.25..0.65
 test('writeStudy then readStudy round-trips; each canvas keeps its own state', () => {
   const storage = memory();
   const pinned = studyReducer(defaultStudy(), { type: 'pin', cardId: 'pdf1', kind: 'pdf', ref: PDF_REF });
-  assert.deepEqual(writeStudy(storage, KEY, pinned), { ok: true });
+  assert.deepEqual(writeStudy(storage, KEY, pinned), { ok: true, durable: true });
   assert.deepEqual(readStudy(storage, KEY), pinned);
   assert.deepEqual(readStudy(storage, `${KEY}2`), defaultStudy(), 'another canvas is untouched');
   assert.deepEqual([...storage.map.keys()], [`${KEY}:study`]);
@@ -131,4 +131,28 @@ test('readerPinTarget: the one PDF card of the source read; none when absent or 
   assert.equal(readerPinTarget(blocks, 'doc:3', refOf), null, 'only a PDF card');
   assert.equal(readerPinTarget(blocks, 'doc:9', refOf), null);
   assert.equal(readerPinTarget(null, 'doc:1', refOf), null);
+});
+
+// Owner 2026-10-23 (honest persistence): only a store that outlives the page is Saved; a blocked browser's in-memory stand-in
+// (storage-fallback.js memoryStorage) accepts the write and loses it on reload, so it is Not saved.
+test('persistence status: durable storage is Saved; blocked, throwing or memory-backed storage is Not saved, and memory loses it on reload', async () => {
+  const { memoryStorage } = await import('./storage-fallback.js');
+  const pinned = studyReducer(defaultStudy(), { type: 'pin', cardId: 'pdf1', kind: 'pdf', ref: PDF_REF });
+  const durable = writeStudy(memory(), KEY, pinned);
+  assert.deepEqual(durable, { ok: true, durable: true });
+  assert.equal(studyStatusText(durable.ok ? 'saved' : 'error'), 'Saved on this browser');
+  for (const storage of [null, { getItem: () => null, setItem: () => { throw Error('SecurityError'); } }]) {
+    const result = writeStudy(storage, KEY, pinned);
+    assert.equal(result.ok, false);
+    assert.equal(result.durable, false);
+  }
+  const page = memoryStorage();
+  const kept = writeStudy(page, KEY, pinned);
+  assert.equal(kept.ok, false, 'memory-backed storage is never reported as saved');
+  assert.equal(kept.durable, false);
+  assert.deepEqual(readStudy(page, KEY), pinned, 'the arrangement still applies on this page');
+  assert.deepEqual(readStudy(memoryStorage(), KEY), defaultStudy(), 'a reload starts a new memory store: it is gone');
+  assert.equal(studyStatusText('error'), NOT_SAVED);
+  assert.equal(NOT_SAVED, 'Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.');
+  assert.equal(studyStatusText(null), '');
 });

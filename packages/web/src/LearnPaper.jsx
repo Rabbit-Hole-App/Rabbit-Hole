@@ -32,7 +32,9 @@ const arrows = event => { // Up/Down move between a menu's items
 // source key (doc:ctx:... / pdf:upload:...), or null for a paper with no stored bytes (arXiv); `home` the canvas its bytes
 // are stored on; `anchor` an excerpt to return to; `plainChat(text)` attaches a passage as a quote when there is no excerpt
 // identity, returning an error message or null. With it come the selection toolbar, Select region, the author's saved
-// highlights, Rotate page and page labels; without it (the canvas paper card) the reader is unchanged.
+// highlights, Rotate page and page labels; without it (the canvas paper card) the reader is unchanged. Optional, for the Pinned
+// Study pane: `onUnavailable()` when the bytes are refused or the file cannot be opened, `onSelection(draft | null)` with the
+// selected text as the excerpt draft the toolbar's Add to chat would send (one part only).
 // `zoomStart` / `onZoom`, `rotationStart` / `onRotation`: the zoom and Rotate page turn to open at, and a report of each change
 // (SourceReader keeps both across Open source).
 export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1, onZoom = null, rotationStart = 0, onRotation = null,
@@ -83,7 +85,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
       const pdf = await task.promise;
       const pageLabels = companion ? await pdf.getPageLabels().catch(() => null) : null;
       if (!controller.signal.aborted) { setLabels(pageLabels); setDocument(pdf); }
-    })().catch(error => { if (!controller.signal.aborted) setError(error.message); });
+    })().catch(error => { if (!controller.signal.aborted) { setError(error.message); companion?.onUnavailable?.(); } });
     return () => { controller.abort(); task?.destroy(); };
   }, [app, paper.id, paper.home, src]);
   useEffect(() => {
@@ -277,6 +279,11 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
       : { text: `Couldn’t save the highlight. ${error.message}`, retry: () => saveHighlights(failed.map(f => f.entry)) });
   };
   const done = () => { window.getSelection?.()?.removeAllRanges(); setBar(null); };
+  useEffect(() => {
+    if (!companion?.onSelection) return;
+    const parts = bar && ready && !plain ? textParts(bar.anchor) : null;
+    companion.onSelection(parts?.length === 1 ? draftOf('text', parts[0].rects, parts[0].quote) : null);
+  }, [bar, ready, plain]); // eslint-disable-line react-hooks/exhaustive-deps
   const textAction = (action, anchor, split = false) => {
     if (plain) { const problem = companion.plainChat?.(anchor.exact); setNotice(problem ? { text: problem } : null); if (!problem) done(); return; }
     if (!ready) return;

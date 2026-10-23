@@ -9,27 +9,17 @@ import SourceReader from './SourceReader.jsx';
 import { LearningBlockBody } from './LearningBlocks.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { pdfRef } from './pdf-source.js';
-import { objectName, selectionRef } from './selection-ref.js';
+import { objectName } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
-import { authorizePinnedSource, pinnedChatRef } from './study-attach.js';
-import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
+import { authorizePinnedSource } from './study-attach.js';
+import { SWITCH_ROW, pinRef, pinnedAttachRef, studyOffsets, versionLine } from './study-ref.js';
+import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, studyStatusText, writeStudy } from './study-state.js';
 
 const TYPE_LABELS = { pdf: 'PDF', text: 'Note', explanation: 'Explanation' };
 const STEP = 0.05;
 
 // A canvas object by id: a card, else a text or sticky note.
 const objectOf = (api, id) => api?.block?.(id) || api?.boardNow?.().items?.find(item => item.id === id) || null;
-const textOf = (object, kind) => (kind === 'explanation'
-  ? [object.title, object.body, ...(object.more || []).map(section => section.text)].filter(Boolean).join('\n\n')
-  : String(object.text || ''));
-// The ref the reader opens: a PDF's document ref (pdf-source.js pdfRef, the one Add to chat sends), or the card itself with its
-// text, as the card's own Add to chat makes it (selection-ref.js). The version is whatever the ref carries; none is invented.
-export function pinRef(object) {
-  const kind = eligible(object);
-  if (kind === 'pdf') return pdfRef(object);
-  if (!kind) return null;
-  return { ...selectionRef({ ids: [object.id], kind: 'card', name: objectName(object), content: textOf(object, kind) }) };
-}
 // Everything on this canvas that can be pinned, in canvas order; nothing is seeded.
 function eligibleCards(api) {
   if (!api) return [];
@@ -42,7 +32,13 @@ const notebooksOf = api => (api?.blocks?.() || []).filter(block => block.type ==
 // scrolling a reference never re-renders the page; it is written a moment later, to the canvas it was made for.
 export function useStudy(canvasKey, board, canvasApi) {
   const scope = studyScope(canvasKey, board);
-  const read = at => { let stored = false; try { stored = browserStorage()?.getItem(studyKey(at)) != null; } catch { /* blocked reads as unsaved */ } return { scope: at, value: readStudy(browserStorage(), at), status: stored ? 'saved' : null }; };
+  // A value read back from a store that outlives the page is saved; one read from the blocked browser's in-memory stand-in is not.
+  const read = at => {
+    const storage = browserStorage();
+    let stored = false;
+    try { stored = storage?.getItem(studyKey(at)) != null; } catch { /* blocked reads as unsaved */ }
+    return { scope: at, value: readStudy(storage, at), status: stored ? (storage.memory === true ? 'error' : 'saved') : null };
+  };
   const [held, setHeld] = useState(() => read(scope));
   const live = useRef(held), timer = useRef(null), nav = useRef(null);
   let current = held;
@@ -131,8 +127,9 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   void canvasState; // the canvas's cards changed: read the pin and the lists again (this render)
 
   // The space beside the right panels: the host's own size (a ResizeObserver, never the window's width), the frame's top, and
-  // the floating header's bottom where it lies over the canvas.
-  useLayoutEffect(() => {
+  // the floating header's bottom where it lies over the canvas. A passive effect: on a reload in Study the pane mounts in the
+  // same commit as the frame after it, whose ref is attached only after this earlier sibling's layout effects have run.
+  useEffect(() => {
     const host = box.current?.parentElement, frame = canvasFrame.current;
     if (!host || !frame) return undefined;
     const measure = () => {
@@ -154,12 +151,13 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
 
   const layout = geo ? studyLayout({ width: geo.width, height: geo.height, split: drag ?? state.split }) : null;
   const top = geo ? Math.max(geo.frameTop, geo.headerBottom) : 0;
+  const place = layout ? studyOffsets({ layout, frameTop: geo.frameTop, top }) : null;
   useLayoutEffect(() => {
     const frame = canvasFrame.current;
-    if (!frame || !layout) return;
-    frame.style.marginLeft = layout.stacked ? '' : `${layout.size}px`;
-    frame.style.marginTop = layout.stacked ? `${layout.size + top - geo.frameTop}px` : '';
-  }, [layout?.stacked, layout?.size, top]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!frame || !place) return;
+    frame.style.marginLeft = place.marginLeft ? `${place.marginLeft}px` : '';
+    frame.style.marginTop = `${place.marginTop}px`;
+  }, [place?.marginLeft, place?.marginTop]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; } }, [canvasFrame]);
 
   // Study opened with the notebook as the work: frame it once the canvas has its cards. Only for the work the pane opened
@@ -178,15 +176,26 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   const liveRef = card ? pinRef(card) : pin?.ref;
   const sourceRef = useStableRef(pin && liveRef ? { ...liveRef, opened: pin.cardId } : null);
   const canAttach = !!pin && !!card && !unavailable;
-  // Add pinned reference (lane 2, study-attach.js): authorize the source again, then the ref at the reader's page, then Chat.
-  // A refusal says Reference unavailable and adds no chip. ponytail: a PDF text selection is not passed as the excerpt yet,
-  // so a selection attaches its page.
+  const version = pin ? versionLine(liveRef) : null;
+  // The text selected in the pinned PDF (LearnPaper's selection, an excerpt draft): kept while that selection is still on the
+  // page inside this pane, so pressing Add pinned reference (which closes the reader's own toolbar) still attaches it.
+  const selected = useRef(null);
+  const selectionHere = () => {
+    const range = window.getSelection?.(), node = range?.anchorNode, element = node?.nodeType === 1 ? node : node?.parentElement;
+    return !!selected.current && !!range && !range.isCollapsed && !!box.current?.contains(element) && !!element?.closest('.textLayer');
+  };
+  useEffect(() => { selected.current = null; }, [pin?.cardId]);
+  // Add pinned reference (lane 2, study-attach.js): authorize the source again, then the current card's ref at the reader's page
+  // (or the PDF text still selected in this pane), then Chat. A refusal says Reference unavailable and adds no chip.
+  // ponytail: a region (picture) selection attaches its page; attaching the picture needs addToChat's fileRef path.
   const [attach, setAttach] = useState(null);
   const addPinned = async () => {
     const at = pin;
     setAttach({ cardId: at.cardId, busy: true });
     const auth = await authorizePinnedSource(at, { app: chat?.canvas, cardExists: id => !!objectOf(canvasApi.current, id) });
-    const ref = auth.ok ? pinnedChatRef(at, { page: study.reader()?.page, unavailable: refused === at.cardId }) : null;
+    // The card as it is now (an edited note or Explanation sends only its current text); the stored pin names the card.
+    const ref = auth.ok ? pinnedAttachRef({ pin: at, object: objectOf(canvasApi.current, at.cardId), reader: study.reader(),
+      excerpt: at.kind === 'pdf' && selectionHere() ? selected.current : null, unavailable: refused === at.cardId }) : null;
     if (ref && chat) chat.addToChat(ref, {});
     setAttach(ref && chat ? null : { cardId: at.cardId, refused: true });
   };
@@ -215,7 +224,8 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   };
   if (!layout) return <div ref={box} hidden />;
   const paneStyle = layout.stacked ? { top, left: 0, right: 0, height: layout.size } : { top, left: 0, width: layout.size, height: Math.max(0, geo.frameTop + geo.frameHeight - top) };
-  const switchStyle = layout.stacked ? { top: top + layout.size + 8, right: 12 } : { top: top + 8, right: 12 };
+  // The working-view row: its own strip above the canvas (the frame starts below it), never over a card or a control.
+  const switchStyle = { top: place.switchTop, left: place.switchLeft, right: 0, height: SWITCH_ROW };
   const button = 'flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:pointer-events-none disabled:opacity-40';
   const list = eligibleCards(api);
   const chooser = <div data-study-choose className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -235,11 +245,12 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
         {pin && <div className="flex min-w-0 items-center gap-2">
           <span data-study-title title={pin.ref.name} className="min-w-0 flex-1 truncate text-sm font-medium">{(card && objectName(card)) || pin.ref.name}</span>
           <span className="shrink-0 text-xs text-ink-3">{TYPE_LABELS[pin.kind]}</span></div>}
+        {pin && version && <p data-study-version className="text-[11px] text-ink-3">{version}</p>}
         {pin && <div className="flex flex-wrap items-center gap-0.5">
           <button type="button" data-study-change className={button} aria-pressed={choosing} onClick={() => setChoosing(open => !open)}><Replace size={13} aria-hidden="true" />Change reference</button>
           <button type="button" data-study-locate className={button} disabled={!card} onClick={study.locate}><LocateFixed size={13} aria-hidden="true" />Locate on canvas</button>
           <button type="button" data-study-unpin className={button} onClick={study.unpin}><PinOff size={13} aria-hidden="true" />Unpin</button>
-          <button type="button" data-study-attach className={button} disabled={!canAttach || !chat || (attach?.busy && attach.cardId === pin.cardId)} onClick={addPinned}>
+          <button type="button" data-study-attach className={button} disabled={!canAttach || !chat || (attach?.busy && attach.cardId === pin.cardId)} onMouseDown={event => event.preventDefault()} onClick={addPinned}>
             <MessageSquarePlus size={13} aria-hidden="true" />Add pinned reference</button>
         </div>}
         {pin && attachRefused && <p data-study-attach-refused role="alert" className="text-xs text-red-700">Reference unavailable</p>}
@@ -253,10 +264,10 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
       </div> : <div data-study-reader className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {pin.kind === 'explanation' && card
           ? <ExplanationReader block={card} position={study.reader()} onPosition={study.readerAt} />
-          : <SourceReader sourceRef={sourceRef} position={study.reader()} onPosition={study.readerAt} onUnavailable={() => setRefused(pin.cardId)} />}
+          : <SourceReader sourceRef={sourceRef} position={study.reader()} onPosition={study.readerAt} onUnavailable={() => setRefused(pin.cardId)} onSelection={draft => { if (draft) selected.current = draft; }} />}
       </div>}
       <p data-study-status data-state={study.status || 'none'} role="status" className={`shrink-0 border-t border-line px-3 py-1 text-[11px] ${study.status === 'error' ? 'text-red-700' : 'text-ink-3'}`}>
-        {study.status === 'error' ? 'Not saved: this browser is not allowing Rabbit Hole to store this' : study.status === 'saved' ? 'Saved on this browser' : ''}</p>
+        {studyStatusText(study.status)}</p>
       <div role="separator" tabIndex={0} aria-label="Resize pinned reference" aria-orientation={layout.stacked ? 'horizontal' : 'vertical'}
         aria-valuemin={25} aria-valuemax={65} aria-valuenow={Math.round(share * 100)} data-study-divider onKeyDown={keys}
         onPointerDown={event => { event.preventDefault(); event.currentTarget.setPointerCapture(event.pointerId); setDrag(state.split); }}
@@ -264,11 +275,11 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
         onPointerUp={() => { if (drag != null) study.setSplit(drag); setDrag(null); }} onPointerCancel={() => setDrag(null)}
         className={`absolute z-10 touch-none bg-transparent hover:bg-accent/30 focus-visible:bg-accent/40 focus-visible:outline-none ${layout.stacked ? '-bottom-1 left-0 h-2 w-full cursor-row-resize' : 'top-0 -right-1 h-full w-2 cursor-col-resize'}`} />
     </aside>
-    <div role="group" aria-label="Working view" data-study-work={state.work} className="absolute z-30 flex items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-sm" style={switchStyle}>
+    <div role="group" aria-label="Working view" data-study-work={state.work} className={`absolute z-20 flex items-center justify-end gap-0.5 border-b border-line bg-white px-2 ${layout.stacked ? '' : 'border-l'}`} style={switchStyle}>
       {[['notebook', 'Notebook'], ['canvas', 'Canvas']].map(([work, label]) => <button key={work} type="button" data-study-work-option={work} aria-pressed={state.work === work}
         disabled={work === 'notebook' && !notebooks.length} onClick={() => pickWork(work)}
         className={`h-6 rounded-md px-2 text-xs disabled:opacity-40 ${state.work === work ? 'bg-hover font-medium text-ink' : 'text-ink-2 hover:text-ink'}`}>{label}</button>)}
-      {pickNotebook && notebooks.length > 1 && <div role="menu" aria-label="Notebooks" className="absolute top-8 right-0 w-56 rounded-lg border border-line bg-white p-1 shadow-md">
+      {pickNotebook && notebooks.length > 1 && <div role="menu" aria-label="Notebooks" className="absolute top-full right-2 z-30 w-56 rounded-lg border border-line bg-white p-1 shadow-md">
         {notebooks.map(block => <button key={block.id} type="button" role="menuitem" data-study-notebook={block.id} onClick={() => { setPickNotebook(false); study.showNotebook(block.id); }}
           className="block w-full truncate rounded-md px-2 py-1.5 text-left text-sm hover:bg-hover">{objectName(block)}</button>)}
       </div>}

@@ -126,15 +126,26 @@ const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
 const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(what); await page.waitForTimeout(150); } };
 const addButton = () => page.getByRole(SEL.add.role, { name: SEL.add.name, exact: true });
-const chips = () => page.locator(SEL.chip).evaluateAll(items => items.map(item => ({
+// Every chip in Chat, and the page chips of this document. A new upload is switched on as canvas context (control-plane
+// learn-context-docs.js: attached while under the limit), so Chat already shows the whole document's own chip (range null)
+// before anything is pinned; this check is about the page chips Add pinned reference makes, and that the rest never change.
+const allChips = () => page.locator(SEL.chip).evaluateAll(items => items.map(item => ({
   text: item.innerText.replace(/\s+/g, ' ').trim(), key: item.getAttribute('data-ref-key'), remove: item.querySelector('button[aria-label^="Remove "]')?.getAttribute('aria-label') || null })));
 const pageKey = n => `${KEY}|${JSON.stringify({ page: n })}`;
+const chips = async () => (await allChips()).filter(chip => /^\{"page":\d+\}$/.test(String(chip.key).slice(KEY.length + 1)) && String(chip.key).startsWith(`${KEY}|`));
+// A chip's own remove button, found by its ref key (two chips of one document share a name); exactly one such chip.
+const removeChip = async key => {
+  const button = page.locator(`${SEL.chip}[data-ref-key="${key}"] button[aria-label^="Remove "]`);
+  assert.equal(await button.count(), 1, `one chip for ${key}`);
+  await button.click();
+};
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator(SEL.canvas).waitFor({ timeout: 60000 });
 await page.locator(SEL.chat).waitFor({ state: 'visible', timeout: 30000 });
 await page.locator(`${SEL.canvas} ${SEL.card}`).first().waitFor({ timeout: 30000 });
 await page.waitForTimeout(1500);
+const baseline = await allChips(); // the canvas context chips, before anything is pinned
 
 // Pin the PDF card from its own menu: the shared Pin for study row (right-click and Card options come from one registry).
 await page.locator(`${SEL.card} [data-drag-zone]`).last().click({ button: 'right', position: { x: 30, y: 10 } });
@@ -144,7 +155,8 @@ await addButton().waitFor({ timeout: 30000 });
 await page.locator(SEL.reader).first().waitFor({ timeout: 30000 });
 
 await check('1. Add pinned reference adds one removable chip for the pinned PDF at page 1, in Ask, and keeps the typed draft', async () => {
-  assert.deepEqual(await chips(), [], 'Pin for study attaches nothing');
+  assert.deepEqual(await allChips(), baseline, 'Pin for study attaches nothing');
+  assert.deepEqual(await chips(), [], 'no page chip yet');
   await page.locator(SEL.draft).fill('my unsent question');
   await addButton().click();
   await waitFor(async () => (await chips()).length === 1, 8000, `${(await chips()).length} chips after one Add`);
@@ -184,8 +196,7 @@ await check('4. a second Add at page 2 adds a second chip, a repeat Add at page 
 });
 
 await check('5. removing one chip removes only that chip', async () => {
-  const second = (await chips()).find(chip => chip.key === pageKey(2));
-  await page.locator(SEL.chat).getByRole('button', { name: second.remove, exact: true }).click();
+  await removeChip(pageKey(2));
   await waitFor(async () => (await chips()).length === 1, 8000, 'the chip was not removed');
   assert.deepEqual((await chips()).map(chip => chip.key), [pageKey(1)]);
 });
@@ -200,13 +211,13 @@ await check('6. an unreadable source refuses Add pinned reference with Reference
   sourceGone = false;
   await addButton().click();
   await waitFor(async () => (await chips()).length === before.length + 1, 8000, 'the readable source did not add its chip');
-  const second = (await chips()).find(chip => chip.key === pageKey(2));
-  await page.locator(SEL.chat).getByRole('button', { name: second.remove, exact: true }).click();
+  assert.ok((await chips()).some(chip => chip.key === pageKey(2)), 'the page 2 chip is back');
+  await removeChip(pageKey(2));
   await waitFor(async () => (await chips()).length === before.length, 8000, 'the chip was not removed');
 });
 
 await check('7. the Chat draft, mode and chips survive Canvas -> Study -> Canvas', async () => {
-  const state = async () => ({ chips: await chips(), draft: await page.locator(SEL.draft).inputValue(), mode: await page.locator(SEL.mode).first().getAttribute('data-chat-mode') });
+  const state = async () => ({ chips: await allChips(), draft: await page.locator(SEL.draft).inputValue(), mode: await page.locator(SEL.mode).first().getAttribute('data-chat-mode') });
   const before = await state();
   assert.equal(before.draft, 'my unsent question');
   for (const view of ['Canvas', 'Study']) {

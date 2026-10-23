@@ -57,15 +57,20 @@ export function readStudy(storage, scope) {
   try { return normalize(JSON.parse(storage.getItem(studyKey(scope)) || 'null')); } catch { return defaultStudy(); }
 }
 
+// ok: kept in this browser across a reload. A blocked browser's stand-in (storage-fallback.js memoryStorage, memory: true)
+// accepts the write but loses it on reload, so it is never reported as saved.
 export function writeStudy(storage, scope, state) {
   try {
     if (!storage) throw new Error('No browser storage');
     storage.setItem(studyKey(scope), JSON.stringify(normalize(state)));
-    return { ok: true };
+    return storage.memory === true ? { ok: false, durable: false, error: 'This browser keeps it only until you reload' } : { ok: true, durable: true };
   } catch (error) {
-    return { ok: false, error: String(error?.message || error) };
+    return { ok: false, durable: false, error: String(error?.message || error) };
   }
 }
+// The pane's status line for the last write (or the value read at open): saved only when the browser keeps it.
+export const NOT_SAVED = 'Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.';
+export const studyStatusText = status => (status === 'saved' ? 'Saved on this browser' : status === 'error' ? NOT_SAVED : '');
 
 // The reader's Pin for study (the Context reader): the one PDF card on this canvas whose ref is the source being read.
 // Two cards of one source are ambiguous, so neither is guessed: null, and the reader offers no pin.

@@ -55,6 +55,14 @@ const sameFrame = async label => {
 };
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
+// A canvas card is pressed with the mouse where it shows (locator.click's scroll-into-view would scroll the clipped canvas
+// surface); off screen, View > Fit canvas brings it in first.
+const shownPart = selector => page.evaluate(sel => { const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect(); if (!r || !f) return null; const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom); return right - left > 8 && bottom - top > 8 ? { x: (left + right) / 2, y: (top + bottom) / 2 } : null; }, selector);
+const press = async (selector, button = 'left') => {
+  let at = await shownPart(selector);
+  if (!at) { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitem', { name: 'Fit canvas', exact: true }).click(); await closeMenus(page); await until(async () => !!(at = await shownPart(selector)), `${selector} is on screen`, 10000); }
+  await page.mouse.click(at.x, at.y, { button });
+};
 
 try {
   const auth = await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `pinned-kernel-${run}@example.com`, secret }) });
@@ -95,7 +103,7 @@ try {
   });
 
   await check('3 Pin for study, Notebook, Canvas, the divider, Study -> Canvas -> Study and the right panel: the same iframe, no reload, the cell still running', async () => {
-    await page.locator('[data-block-id="ex"] [data-drag-zone]').last().click({ button: 'right', position: { x: 30, y: 8 } });
+    await press('[data-block-id="ex"]', 'right');
     await page.locator('[data-canvas-menu] [data-menu-pin-study]').click();
     await page.locator('[data-study-pane][data-pin="ex"]').waitFor({ timeout: 10000 });
     await sameFrame('Canvas -> Study');

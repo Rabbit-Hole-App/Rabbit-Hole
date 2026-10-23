@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { closeMenus, menubar, openMenu } from './canvas-menu-helpers.mjs';
 
-const total = 15; // the number of check() steps below; keep it equal
+const total = 16; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pinned-study-check runs against the local stack only');
@@ -68,7 +68,8 @@ const router = route => {
   if (url.origin !== BASE && url.pathname.endsWith('/lab/index.html')) { if (url.searchParams.get('workspace') !== 'warmup') loads.push(url.search); return route.fulfill({ status: 200, contentType: 'text/html', body: STUB }); }
   if (url.origin !== BASE) return route.abort();
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && MODEL.test(url.pathname)) { model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && url.pathname.startsWith('/api/learn/boards/')) saves.push(url.pathname);
+  // A save of the board itself (PUT /api/learn/boards/<canvas>/<board>); its first thumbnail after opening is a picture, not a save.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && /^\/api\/learn\/boards\/[^/]+\/[^/]+$/.test(url.pathname)) saves.push(url.pathname);
   return route.fallback();
 };
 
@@ -120,7 +121,40 @@ const counts = () => [model.length, saves.length];
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const viewChecked = async () => { const panel = await openMenu(page, 'View'); const out = await panel.locator(':scope > [role="menuitemradio"], :scope [role="menuitemradio"]').evaluateAll(rows => rows.filter(row => !row.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out.filter(([name]) => name === 'Canvas' || name === 'Study'); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
-const where = id => page.evaluate(sel => { const round = r => r && [r.left, r.top, r.right, r.bottom].map(Math.round); return { card: round(document.querySelector(sel)?.getBoundingClientRect()), frame: round(document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect()), zoom: document.querySelector('[data-zoom] button[title="Reset zoom"]')?.textContent || null }; }, `[data-block-id="${id}"]`);
+// Canvas objects are pressed with the mouse at a point on screen, never through locator.click: its scroll-into-view scrolls the
+// canvas surface (overflow hidden), which slides the whole world under a camera that never moved. An object off screen is first
+// brought into view with View > Fit canvas.
+const visiblePart = selector => page.evaluate(sel => {
+  const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect();
+  if (!r || !f) return null;
+  const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom);
+  return right - left > 8 && bottom - top > 8 ? { x: r.left, y: r.top, left, right, top, bottom } : null;
+}, selector);
+const fitCanvas = async () => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitem', { name: 'Fit canvas', exact: true }).click(); await closeMenus(page); };
+const press = async (selector, { button = 'left', x = null, y = null, double = false } = {}) => {
+  let at = await visiblePart(selector);
+  if (!at) { await fitCanvas(); await until(async () => !!(at = await visiblePart(selector)), `${selector} is on screen`); }
+  const px = x == null ? (at.left + at.right) / 2 : Math.min(at.right - 2, Math.max(at.left + 2, at.x + x));
+  const py = y == null ? (at.top + at.bottom) / 2 : Math.min(at.bottom - 2, Math.max(at.top + 2, at.y + y));
+  if (double) await page.mouse.dblclick(px, py); else await page.mouse.click(px, py, { button });
+};
+const surfaceScroll = () => page.evaluate(() => { const s = document.querySelector('[data-canvas-surface]'); return s ? [s.scrollLeft, s.scrollTop] : null; });
+// The Notebook / Canvas row has its own strip: it covers no card, the notebook, the toolbar, the minimap or the zoom, and the
+// canvas starts below it.
+const switchClear = async label => {
+  const clash = await page.evaluate(() => {
+    const row = document.querySelector('[data-study-work]')?.getBoundingClientRect(), frame = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect();
+    if (!row || !frame) return 'no row or no canvas';
+    const hit = r => r.width && r.height && r.left < row.right - 0.5 && r.right > row.left + 0.5 && r.top < row.bottom - 0.5 && r.bottom > row.top + 0.5;
+    const over = [...document.querySelectorAll('[data-block-id], [data-item-id], [data-notebook-frame], [data-canvas-surface] [role="toolbar"], [data-canvas-minimap], [data-zoom]')]
+      .filter(node => hit(node.getBoundingClientRect())).map(node => node.dataset.blockId || node.dataset.itemId || node.getAttribute('role') || [...node.attributes].map(a => a.name).find(n => n.startsWith('data-')) || node.tagName);
+    if (over.length) return `the row covers ${over.join(', ')}`;
+    return frame.top >= row.bottom - 1 ? null : `the canvas starts at ${frame.top}, above the row's bottom ${row.bottom}`;
+  });
+  assert.equal(clash, null, `${label}: ${clash}`);
+};
+
+const where = id => page.evaluate(sel => { const round = r => r && [r.left, r.top, r.right, r.bottom].map(Math.round), surface = document.querySelector('[data-canvas-surface]'); return { card: round(document.querySelector(sel)?.getBoundingClientRect()), frame: round(document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect()), zoom: document.querySelector('[data-zoom] button[title="Reset zoom"]')?.textContent || null, surfaceScroll: surface ? [surface.scrollLeft, surface.scrollTop] : null }; }, `[data-block-id="${id}"]`);
 const inView = async id => { const { card, frame } = await where(id); return !!card && !!frame && card[2] > frame[0] && card[0] < frame[2] && card[3] > frame[1] && card[1] < frame[3]; };
 // A card brought into the working pane, or a failure that says where the card and the pane were.
 const shown = async (id, what) => { try { await until(() => inView(id), what); } catch { throw Error(`${what}: ${JSON.stringify(await where(id))}`); } };
@@ -157,6 +191,7 @@ await check('2 choosing the Explanation pins it: Pinned reference shows its titl
   await page.locator('[data-study-explanation]').getByText('The moon pulls the near ocean', { exact: false }).first().waitFor();
   const ref = await box('[data-study-pane]'), frame = await box('[aria-label="Lesson canvas"]');
   assert.ok(Math.abs(frame.x - ref.right) <= 2, `the canvas starts at the pane's edge: ${ref.right} / ${frame.x}`);
+  await switchClear('wide');
   assert.equal(await page.locator('[data-block-id="ex"]').count(), 1, 'the source card stays on the canvas');
   assert.equal(await geometry(), shape, 'no card moved, resized or changed id');
   await sameFrame('pin');
@@ -165,8 +200,9 @@ await check('2 choosing the Explanation pins it: Pinned reference shows its titl
 });
 
 await check('3 Notebook frames the existing notebook card in the same canvas; Canvas restores the zoom and selection the learner left', async () => {
-  await page.locator('[data-block-id="ex"] [data-drag-zone]').last().click({ position: { x: 12, y: 8 } });
+  await press('[data-block-id="ex"]');
   await until(async () => (await selectedIds()).join() === 'ex', 'ex selected');
+  assert.deepEqual(await surfaceScroll(), [0, 0], 'the canvas surface is not scrolled');
   await settle();
   const before = counts(), z = await zoom(), shape = await geometry();
   await work('notebook').click();
@@ -228,8 +264,8 @@ await check('5 the divider is a labelled separator: keyboard Arrow, Home and End
 
 await check('6 Change reference replaces the pin only when chosen; selecting another card never retargets it', async () => {
   const before = counts();
-  await page.locator('[data-block-id="qz"]').click({ position: { x: 20, y: 10 } });
-  await page.waitForTimeout(300);
+  await press('[data-block-id="qz"]', { x: 20, y: 10 });
+  await until(async () => (await selectedIds()).join() === 'qz', 'the quiz is selected');
   assert.equal(await pane().getAttribute('data-pin'), 'ex', 'a selection is not a pin');
   await page.getByRole('button', { name: 'Change reference', exact: true }).click();
   await page.locator('[data-study-choice="st1"]').click();
@@ -255,13 +291,13 @@ await check('7 the reader keeps its scroll through Notebook and Canvas inside St
 
 await check('8 Pin for study from the right-click menu: on the Explanation, from that card, not on the quiz or the notebook; Locate on canvas reveals the actual pinned card', async () => {
   const before = counts();
-  await page.locator('[data-block-id="qz"]').click({ button: 'right', position: { x: 20, y: 10 } }); await menu().waitFor();
+  await press('[data-block-id="qz"]', { button: 'right', x: 20, y: 10 }); await menu().waitFor();
   assert.equal(await menu().locator('[data-menu-pin-study]').count(), 0, 'no Pin for study on a quiz');
   await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
-  await page.locator('[data-block-id="nb"] [data-notebook-header]').click({ button: 'right', position: { x: 20, y: 8 } }); await menu().waitFor();
+  await press('[data-block-id="nb"] [data-notebook-header]', { button: 'right', x: 20, y: 8 }); await menu().waitFor();
   assert.equal(await menu().locator('[data-menu-pin-study]').count(), 0, 'no Pin for study on a notebook');
   await page.keyboard.press('Escape'); await menu().waitFor({ state: 'detached' });
-  await page.locator('[data-block-id="ex"] [data-drag-zone]').last().click({ button: 'right', position: { x: 30, y: 8 } }); await menu().waitFor();
+  await press('[data-block-id="ex"]', { button: 'right' }); await menu().waitFor();
   await menu().locator('[data-menu-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'ex', 'the right-clicked card is pinned');
   await work('notebook').click();
@@ -276,14 +312,15 @@ await check('8 Pin for study from the right-click menu: on the Explanation, from
 
 await check('8b the Context reader of the PDF offers Pin for study, which pins that same card; the reader opens the PDF in the pane', async () => {
   const before = counts();
-  await page.locator('[data-block-id="pdf1"] [data-drag-zone]').last().click({ button: 'right', position: { x: 30, y: 8 } }); await menu().waitFor();
+  await press('[data-block-id="pdf1"]', { button: 'right', x: 40, y: 40 }); await menu().waitFor();
   await menu().locator('[data-menu-open]').click();
   await page.locator('[data-reader-pin-study]').waitFor({ timeout: 15000 });
   await page.locator('[data-reader-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'pdf1', 'the reader pinned its own card');
   await page.locator('[data-study-pane] [data-source-reader]').waitFor({ timeout: 15000 });
+  assert.equal((await page.locator('[data-study-version]').innerText()).trim(), 'Version verification unavailable', 'a PDF says its version is not verified');
   await sameFrame('reader pin');
-  await page.locator('[data-block-id="ex"] [data-drag-zone]').last().click({ button: 'right', position: { x: 30, y: 8 } }); await menu().waitFor();
+  await press('[data-block-id="ex"]', { button: 'right' }); await menu().waitFor();
   await menu().locator('[data-menu-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'ex', 'back to the Explanation');
   assert.deepEqual(model, [], 'no model call');
@@ -308,6 +345,7 @@ await check('10 a narrow space stacks the reference above the work, from the rea
   await until(async () => (await pane().getAttribute('data-layout')) === 'stacked', 'stacked when the space beside the panel is narrow');
   const ref = await box('[data-study-pane]'), frame = await box('[aria-label="Lesson canvas"]');
   assert.ok(frame.y >= ref.bottom - 2, `the work sits below the reference: ${ref.bottom} / ${frame.y}`);
+  await switchClear('stacked');
   await shot('10-stacked');
   await sameFrame('stacked');
   await page.setViewportSize({ width: 1600, height: 950 });
@@ -322,7 +360,7 @@ await check('11 a failed preference save says Not saved, never Saved; the arrang
   await page.evaluate(() => { const real = Storage.prototype.setItem; window.__realSet = real; Storage.prototype.setItem = function (key, value) { if (String(key).endsWith(':study')) throw new DOMException('blocked', 'QuotaExceededError'); return real.call(this, key, value); }; });
   await page.getByRole('separator', { name: 'Resize pinned reference' }).focus();
   await page.keyboard.press('ArrowLeft');
-  await page.getByText('Not saved: this browser is not allowing Rabbit Hole to store this', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByText('Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.', { exact: true }).waitFor({ timeout: 5000 });
   assert.equal(await page.getByText('Saved on this browser', { exact: true }).count(), 0, 'never reported as saved');
   await page.evaluate(() => { Storage.prototype.setItem = window.__realSet; });
   await page.keyboard.press('ArrowRight');
@@ -352,11 +390,33 @@ await check('12 a reload restores Study: the same pin, split and working view, s
   await settle();
 });
 
-await check('13 a pinned card that is deleted shows Reference unavailable with Choose another reference and Unpin; the working pane stays usable', async () => {
-  await page.locator('[data-item-id="st2"]').click({ button: 'right', position: { x: 30, y: 30 } }); await menu().waitFor();
+// Owner 2026-10-23 item 1: Add pinned reference attaches the card as it is now, never the text it had when it was pinned.
+await check('12b a pinned note edited after pinning attaches only its edited text', async () => {
+  await press('[data-item-id="st2"]', { button: 'right', x: 30, y: 30 }); await menu().waitFor();
   await menu().locator('[data-menu-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'st2', 'st2 is pinned');
-  await page.locator('[data-item-id="st2"]').click({ button: 'right', position: { x: 30, y: 30 } }); await menu().waitFor();
+  await press('[data-item-id="st2"]', { double: true, x: 30, y: 30 });
+  const body = page.locator('[data-item-id="st2"] [contenteditable="true"]');
+  await body.waitFor({ timeout: 5000 });
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('Neap tides');
+  await page.keyboard.press('Escape');
+  await until(async () => (await page.locator('[data-item-id="st2"]').innerText()).includes('Neap tides'), 'the note is edited');
+  await page.locator('[data-study-pane] [data-source-text-view]').getByText('Neap tides').waitFor({ timeout: 5000 });
+  await page.getByRole('button', { name: 'Add pinned reference', exact: true }).click();
+  const chips = () => page.locator('[data-chat-pane] [data-context-chip]').allInnerTexts();
+  await until(async () => (await chips()).some(text => text.includes('Neap tides')), 'the edited note is attached');
+  assert.ok(!(await chips()).some(text => text.includes('Spring tides')), 'nothing of the text it was pinned with');
+  assert.deepEqual(model, [], 'attaching asks no model');
+});
+
+await check('13 a pinned card that is deleted shows Reference unavailable with Choose another reference and Unpin; the working pane stays usable', async () => {
+  if ((await pane().getAttribute('data-pin')) !== 'st2') {
+    await press('[data-item-id="st2"]', { button: 'right', x: 30, y: 30 }); await menu().waitFor();
+    await menu().locator('[data-menu-pin-study]').click();
+    await until(async () => (await pane().getAttribute('data-pin')) === 'st2', 'st2 is pinned');
+  }
+  await press('[data-item-id="st2"]', { button: 'right', x: 30, y: 30 }); await menu().waitFor();
   await menu().getByRole('menuitem', { name: 'Delete', exact: true }).click();
   await page.locator('[data-study-unavailable]').getByText('Reference unavailable', { exact: true }).waitFor({ timeout: 10000 });
   for (const name of ['Choose another reference', 'Unpin']) assert.ok(await page.locator('[data-study-pane]').getByRole('button', { name, exact: true }).first().isVisible(), name);

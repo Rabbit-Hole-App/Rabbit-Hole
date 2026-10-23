@@ -3468,11 +3468,12 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Cards take the keyboard on any board (docs/features/canvas-card-selection.md): Space selects the focused card;
       // Enter opens it - or the one selected card while nothing else holds the focus. Presenting keeps both keys.
       const focusedCard = document.activeElement?.matches?.('[data-block-id]') ? document.activeElement.dataset.blockId : null;
-      // Typing somewhere, an embedded editor or widget (focus inside a card), a dialog, a menu or the composer: the
-      // canvas's own letter, Space and arrow keys stand down there.
+      // Typing somewhere, an embedded editor or widget (focus inside a card), a dialog, a menu, the composer or the Pinned Study
+      // pane and its working-view row (its divider's arrows resize the pane, never nudge a card): the canvas's own letter, Space
+      // and arrow keys stand down there.
       const held = document.activeElement;
       const busy = held && held !== document.body && (held.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'IFRAME'].includes(held.tagName) || typingIn(held)
-        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[role="dialog"],[role="menu"]'));
+        || (!!held.closest?.('[data-block-id]') && !held.matches('[data-block-id]')) || !!held.closest?.('[data-chat-composer],[data-toc-composer],[data-comments-panel],[data-study-pane],[data-study-work],[role="dialog"],[role="menu"]'));
       const plain = !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey;
       // Shift+F10 or the menu key (UI-25): on a focused card the browser sends the card a contextmenu event, which the
       // surface handles; with the focus elsewhere and the canvas holding the keyboard, the selection's (or canvas's) menu.
