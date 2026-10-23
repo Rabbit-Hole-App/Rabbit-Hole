@@ -32,7 +32,7 @@ function page(url) {
   const srcs = url.searchParams.getAll('src').map(p => BASE + p).concat(url.searchParams.getAll('abs')), height = Number(url.searchParams.get('h')) || 320;
   const frames = srcs.map((s, i) => `<iframe id="f${i}" src="${esc(s)}" title="Embedded canvas ${i + 1}" ${url.searchParams.get('lazy') === '0' ? '' : 'loading="lazy"'} style="display:block;width:100%;height:${height}px;border:1px solid #ccc"></iframe>`).join('\n');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Host page</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;font:16px sans-serif"><div id="above" style="height:900px">A blog post above the embed.</div>${frames}<div id="below" style="height:1400px">The rest of the blog post.</div></body></html>`;
+<body style="margin:0;font:16px sans-serif"><script>window.__messages = []; addEventListener('message', e => window.__messages.push(typeof e.data === 'string' ? e.data : JSON.stringify(e.data)));</script><div id="above" style="height:900px">A blog post above the embed.</div>${frames}<div id="below" style="height:1400px">The rest of the blog post.</div></body></html>`;
 }
 export async function startHost() {
   const server = http.createServer((req, res) => {
