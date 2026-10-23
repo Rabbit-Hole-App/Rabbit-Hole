@@ -133,7 +133,8 @@ test('LearnPage: canvasVersion, graded, no /ask or /teach, the repository detach
 
 test('SharedBoardPage: the shared hooks start the private hole with the step; stale restarts without it; signed out it waits for this link and hook', () => {
   assert.match(shared, /function SharedNextSteps\(\{ token, card, version, signedIn, startRef \}\) \{\n(\s+\/\/[^\n]*\n){2}\s+const \[curious\] = useState\(\(\) => uiPrefs\(\)\.curious\);\n\s+const steps = useSharedNextSteps\(\{ token: curious \? token : null, card, version, signedIn \}\);\n\s+return <NextStepsCard steps=\{steps\} onPick=\{\(step, hook\) => startRef\.current\?\.\(card, step, hook\.id\)\} \/>;/);
-  assert.match(shared, /hooks=\{<SharedNextSteps token=\{token\} card=\{card\?\.id \|\| null\} version=\{shared\.version\} signedIn=\{!!shared\.viewer\} startRef=\{rabbitStart\} \/>\}/);
+  // SHARE-04: an embed asks for no Next Steps (a model call) until the visitor acts; the page and every other viewer keep them.
+  assert.match(shared, /hooks=\{embed \? undefined : <SharedNextSteps token=\{token\} card=\{card\?\.id \|\| null\} version=\{shared\.version\} signedIn=\{!!shared\.viewer\} startRef=\{rabbitStart\} \/>\}/);
   assert.match(shared, /let made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\), step \}\);\n\s+if \(made\.stale\) made = await requestRabbitHole\(token, origin, \{ headers: wsHeaders\(\) \}\);/);
   assert.match(shared, /if \(made\.signIn\) \{\n\s+if \(step\) keepPendingStep\(sessionStorage, token, step\);\n\s+window\.location\.href = resumeHref\(window\.location\.pathname, cardId, step \? hookId : null\);/);
   assert.match(shared, /if \(made\.next_step\) carryStep\(sessionStorage, made\.name, made\.next_step\);\n\s+markGuidedEntry\(sessionStorage, made\.name\);[^\n]*\n\s+window\.location\.href = made\.url;/);

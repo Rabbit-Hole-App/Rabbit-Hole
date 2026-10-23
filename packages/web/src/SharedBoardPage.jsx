@@ -7,7 +7,7 @@ import { CommentsToggle, PanelToggle, SharedPanel, ViewerAccount, useSharedPanel
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { docIsEmpty } from './canvas-doc.js';
-import { ArrowDownToLine, ChevronDown, Eye, Loader2, Shapes } from 'lucide-react';
+import { ArrowDownToLine, ChevronDown, ExternalLink, Eye, GitFork, Loader2, MessageCircle, Shapes } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
@@ -35,6 +35,8 @@ import { holeRows } from './dive.js';
 import { TitleHoles } from './TitleHoles.jsx';
 import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
+import { canvasOwnsWheel, fullHref, receiveHandoff, serveHandoff, sharedRole } from './embed-api.js';
+import { forkNumber } from './home/provenance.js';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -47,26 +49,37 @@ const EMPTY_EXCHANGES = Object.freeze([]);
 // its confirm-and-rename dialog; signed out, it goes through sign-in and comes
 // back here, where the dialog opens again (?fork=1).
 // Chat in the right panel asks about this canvas (docs/features/shared-canvas-ask.md; SharedChat.jsx, guest Chat SHARE-03).
-export default function SharedBoardPage({ token }) {
+// /embed/b|e/<token> (SHARE-04, embed-api.js) is this same page with `embed` set: a compact header, every viewer a public guest,
+// Chat behind a button when the host asked for it, and no call that is not the canvas itself until the visitor acts.
+// Coming from an embed (?from=embed), the full page first takes the visitor's local copy and unsent draft from the embed.
+export default function SharedBoardPage(props) {
+  const [waiting, setWaiting] = useState(() => !props.embed && new URLSearchParams(window.location.search).get('from') === 'embed' && !!window.opener);
+  useEffect(() => { if (waiting) receiveHandoff(window, props.token, window.sessionStorage).then(() => setWaiting(false), () => setWaiting(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (waiting) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board</main>;
+  return <SharedBoard {...props} />;
+}
+
+function SharedBoard({ token, embed = null }) {
   const [shared, setShared] = useState(null);
-  // A share link and a publication alike (C:/s/spec/hdr-provenance.md C2), signed out too.
-  const provenance = useProvenance(`/api/learn/provenance/link/${encodeURIComponent(token)}`);
+  // A share link and a publication alike (C:/s/spec/hdr-provenance.md C2), signed out too. Not in an embed.
+  const provenance = useProvenance(embed ? null : `/api/learn/provenance/link/${encodeURIComponent(token)}`);
   const [problem, setProblem] = useState(null);
   // Read once and dropped from the address, so Back to this page never forks a second time.
   const [forkRequested] = useState(() => {
+    if (embed) return false;
     const asked = new URLSearchParams(window.location.search).get('fork') === '1';
     if (asked) window.history.replaceState(null, '', window.location.pathname);
     return asked;
   });
   // Back from signing in to send (?ask=1): the kept draft and its card return to Chat, unsent, and the flag leaves the address.
   const [askBack] = useState(() => {
-    if (new URLSearchParams(window.location.search).get('ask') !== '1') return null;
+    if (embed || new URLSearchParams(window.location.search).get('ask') !== '1') return null;
     window.history.replaceState(null, '', window.location.pathname);
     return { draft: takeDraft(token), target: takeTarget(token) };
   });
   // Back from signing in to start a Rabbit Hole (?rabbit=<card | root>): it finishes from the same origin, with the hook clicked
   // signed out (&hook=<id>, Professor Next Steps contract §1.4) when one came back: { origin, hook }.
-  const [rabbitRequested] = useState(() => takeResume(window.location, window.history, { hook: true }));
+  const [rabbitRequested] = useState(() => (embed ? undefined : takeResume(window.location, window.history, { hook: true })));
   // The canvas's state as AdaptiveCanvas reports it: the selected card (where Start Rabbit Hole begins), the outline the
   // Table of contents shows, and the View menu's switches.
   const [canvasState, setCanvasState] = useState({ minimap: true, holeMap: true, curious: true, outline: [], selected: 0, units: 0 });
@@ -93,16 +106,19 @@ export default function SharedBoardPage({ token }) {
   const canvasApi = useRef(null);
   const canvas = () => canvasApi.current;
   const openComments = useCallback(() => show('comments'), [show]);
+  // An embed's Chat panel (closed until the visitor asks) and its hand-off of local state to the full site in a new tab.
+  const [chatOpen, setChatOpen] = useState(false);
+  const handoff = useRef({});
   // Ask in Chat, Explain in Chat and Ask about selection (agent/scope.js askDraft) open Chat; SharedChat puts the words in.
   useEffect(() => {
-    const open = () => show('chat');
+    const open = () => (embed ? embed.chat && setChatOpen(true) : show('chat'));
     window.addEventListener('small:ask-focus', open);
     return () => window.removeEventListener('small:ask-focus', open);
-  }, [show]);
+  }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
   const memberBoard = shared?.member_board_id || null;
   const commentsBase = memberBoard ? memberBase(memberBoard) : shared?.published ? publicBase(token) : null;
   useEffect(() => {
-    if (!commentsBase) return undefined;
+    if (!commentsBase || embed) return undefined; // an embed reads no comments
     let live = true;
     fetch(commentsBase, { headers: { 'Content-Type': 'application/json' } }).then(response => (response.ok ? response.json() : null)).then(info => { if (live) setCommentsInfo(info); }, () => {});
     return () => { live = false; };
@@ -112,14 +128,22 @@ export default function SharedBoardPage({ token }) {
   const guestMayDraft = !!commentsInfo && !commentsInfo.signed_in && commentsInfo.public_mode === 'open' && !!commentsInfo.comments_enabled;
   const comments = useCanvasComments({ base: commentsInfo && commentsBase, canAdd: !!commentsInfo?.can.post || guestMayDraft, openPanel: openComments, canvasApi, link: memberBoard ? `/c/${memberBoard}` : `/e/${token}`, shown: panel.open && panel.tab === 'comments' });
   // The one permission model (canvas-permissions.js; contract-permissions.md): the server's role for this visitor on this link.
-  const permissions = useMemo(() => ({ role: shared?.access?.role || (shared?.viewer ? 'viewer' : 'guest'), shared: true, shareable: shared?.access?.shareable || null,
+  // An embed never takes the account's role: every viewer there is a public guest (embed-api.js sharedRole).
+  const viewer = embed ? null : shared?.viewer || null;
+  const permissions = useMemo(() => ({ role: sharedRole({ embed: !!embed, access: shared?.access, viewer: shared?.viewer }), shared: true, shareable: shared?.access?.shareable || null,
     comments: commentsInfo ? { read: true, post: !!commentsInfo.can?.post } : null, guestChat: guestRemaining === null ? null : { remaining: guestRemaining } }),
-  [shared?.access, shared?.viewer, commentsInfo, guestRemaining]);
+  [embed, shared?.access, shared?.viewer, commentsInfo, guestRemaining]);
   // The visitor's temporary copy (SHARE-02, C:/s/spec/share/contract-guest-draft.md): anyone who may not write the source edits
   // a copy kept in this tab; Fork carries it into their own canvas. An owner or editor gets the view-only canvas here.
   const localCopy = !!shared && !can('source.write', permissions).allowed && can('canvas.local-edit', permissions).allowed;
   const editable = localCopy;
   const guest = useGuestDraft(token, shared?.version, { enabled: localCopy });
+  const guestRef = useRef(guest);
+  guestRef.current = guest;
+  // The embed answers the full site's request (a new tab opened by Fork or Open Chat in Rabbit Hole) with the local copy and draft.
+  useEffect(() => embed ? serveHandoff(window, token, () => ({ draft: guestRef.current.forDraft(), chatDraft: handoff.current.draft || '', target: handoff.current.target || null })) : undefined, [embed, token]);
+  // The full site in a new tab. The window keeps its opener: the hand-off above needs it, and the URL carries only a flag.
+  const openFull = useCallback((intent, extra = {}) => { handoff.current = extra; window.open(fullHref(window.location.origin, embed.kind, token, intent), '_blank'); }, [embed, token]);
   // Comments name only what is on the canvas itself, never an object of the visitor's copy (the server refuses it too).
   const sourceIds = useMemo(() => new Set(['blocks', 'exchanges', 'items', 'shapes', 'groups'].flatMap(key => (shared?.state?.[key] || []).map(entry => entry?.id))), [shared]);
   const addComment = comments.canvasProps.onAddComment;
@@ -154,16 +178,17 @@ export default function SharedBoardPage({ token }) {
   const [holes, setHoles] = useState(null);
   useEffect(() => {
     if (!shared) return;
+    if (embed) return;
     fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/holes`).then(response => (response.ok ? response.json() : null))
       .then(map => setHoles(sharedTree(map)), () => setHoles(null));
   }, [token, !!shared]); // eslint-disable-line react-hooks/exhaustive-deps
   // Code and graph cards read through this link (follow-up R3 item 5), signed out too; their reads are kept apart per link,
   // viewer and board version (use-card-source.js).
-  const cardScope = useMemo(() => ({ token, viewer: shared?.viewer || null, version: shared?.version ?? null }), [token, shared?.viewer, shared?.version]);
+  const cardScope = useMemo(() => ({ token, viewer, version: shared?.version ?? null }), [token, viewer, shared?.version]);
   const goTo = href => window.location.assign(href);
 
   const searchChildren = useMemo(() => Object.entries(holes?.portals || {}).map(([origin_block_id, child]) => ({ ...child, origin_block_id })), [holes]);
-  const search = useCanvasSearch({ scopeKey: `shared:${token}:${shared?.viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: panel.open && panel.tab === 'find',
+  const search = useCanvasSearch({ scopeKey: `shared:${token}:${viewer || 'anonymous'}`, canvasApi, epoch: !!shared, shown: panel.open && panel.tab === 'find',
     commentsBase: commentsInfo ? commentsBase : null, children: searchChildren,
     onComment: result => { panel.setReturnToSearch(true); comments.openPin(result.target.id); }, revealDocument: () => setDocView('editor') });
   const openSearchAction = (result, action) => {
@@ -171,17 +196,21 @@ export default function SharedBoardPage({ token }) {
     else toast('This source cannot be opened from this shared view.');
   };
 
+  const openHref = embed ? fullHref(window.location.origin, embed.kind, token) : null;
+  // The fallback is always there, even when the canvas cannot be shown (embed): the full site is one click away.
+  const openLink = openHref && <a data-embed-open href={openHref} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-md px-1 text-sm text-ink underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">Open in Rabbit Hole<ExternalLink size={12} aria-hidden /></a>;
   if (problem) {
     return (
-      <main className="grid h-screen place-items-center bg-white p-6">
+      <main {...(embed ? { 'data-embed-root': '' } : {})} className="grid h-screen place-items-center bg-white p-6">
         <div className="max-w-sm text-center">
           <h1 className="text-lg font-semibold text-ink">Shared board</h1>
           <p className="mt-2 text-sm text-ink-2">{problem}</p>
+          {openLink && <p className="mt-3">{openLink}</p>}
         </div>
       </main>
     );
   }
-  if (!shared) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board</main>;
+  if (!shared) return <main {...(embed ? { 'data-embed-root': '' } : {})} className="grid h-screen place-items-center bg-white text-sm text-ink-2">{embed ? <span className="flex flex-col items-center gap-2">Opening the board{openLink}</span> : 'Opening the board'}</main>;
   const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
   const hasDoc = !!board.doc && !docIsEmpty(board.doc);
   // The normal canvas's menubar (canvas-menus.js): View always; Insert's local rows, Edit and Arrange once the canvas is
@@ -191,6 +220,45 @@ export default function SharedBoardPage({ token }) {
     ...canvasEditMenus({ canvas, canvasState, comments, docView, setDocView, onShortcuts: () => setShortcutsOpen(true) })
       .filter(menu => editable || menu.title === 'View'),
   ];
+  // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.
+  const canvasEl = (
+    <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
+      <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
+        {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}
+        gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
+        hooks={embed ? undefined : <SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
+        onAskTarget={setTarget} askTargetId={target?.id ?? null} />
+    </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
+  );
+  const title = shared.title || (shared.board === 'main' ? shared.app : shared.board);
+  if (embed) {
+    const count = shared.fork_count;
+    const button = 'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 text-sm text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
+    return (
+      <main data-embed-root data-embed-kind={embed.kind} className="relative flex h-screen min-h-0 flex-col bg-white">
+        <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line px-3 py-1.5">
+          <span data-embed-title title={title} className="min-w-24 flex-1 truncate text-sm font-semibold text-ink">{title}</span>
+          {guest.edited && <span data-guest-draft-notice role="status" className="shrink-0 text-xs text-ink-2 max-sm:hidden">Changes aren't saved. Fork to keep them.</span>}
+          {embed.chat && <button type="button" data-embed-chat-button aria-pressed={chatOpen} onClick={() => setChatOpen(open => !open)} className={`${button} ${chatOpen ? 'bg-hover' : ''}`}><MessageCircle size={13} strokeWidth={1.8} aria-hidden />Chat</button>}
+          <button type="button" data-embed-fork title="Fork: make your own editable copy in Rabbit Hole" onClick={() => openFull('fork')} className={button}
+            aria-label={typeof count === 'number' ? `Fork, ${count} ${count === 1 ? 'fork' : 'forks'}` : undefined}>
+            <GitFork size={13} strokeWidth={1.8} aria-hidden />Fork
+            {typeof count === 'number' && <span data-fork-count-value className="ml-0.5 border-l border-line pl-2 tabular-nums text-ink-2">{forkNumber(count)}</span>}
+          </button>
+          {openLink}
+        </header>
+        <div className="relative flex min-h-0 flex-1">
+          <EmbedCanvasFrame>{canvasEl}</EmbedCanvasFrame>
+          {embed.chat && chatOpen && (
+            <aside data-embed-chat-panel aria-label="Chat" className="flex min-w-0 shrink-0 flex-col border-l border-line bg-white px-4 pt-3 pb-4 max-md:absolute max-md:inset-0 max-md:z-30 md:w-[340px]">
+              <SharedChat token={token} viewer={null} context={shared.context} target={target} onClearTarget={() => { setTarget(null); canvasApi.current?.deselect(); }} onAllowance={setGuestRemaining}
+                embed={{ openFull: ({ draft, target: card } = {}) => openFull('ask', { draft, target: card }) }} />
+            </aside>
+          )}
+        </div>
+      </main>
+    );
+  }
   // Below lg the panel stacks under the canvas and the page scrolls, as the owner's canvas does (LearnPage): the canvas keeps a real
   // working height (75dvh), so the tools column and the minimap fit inside it instead of spilling over the header.
   return (
@@ -203,7 +271,7 @@ export default function SharedBoardPage({ token }) {
           <span className="text-sm font-semibold text-ink">{PRODUCT}</span>
         </a>
         {/* One line, the full title on hover; with holes, the chevron opens their tree, each level its own link (owner r35). */}
-        <span data-shared-title title={shared.title || (shared.board === 'main' ? shared.app : shared.board)} className="min-w-16 truncate text-sm font-semibold text-ink">{shared.title || (shared.board === 'main' ? shared.app : shared.board)}</span>
+        <span data-shared-title title={title} className="min-w-16 truncate text-sm font-semibold text-ink">{title}</span>
         {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
         {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
         {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2"><Eye size={11} />View only</span>}
@@ -227,13 +295,7 @@ export default function SharedBoardPage({ token }) {
         <ProvenanceRow provenance={provenance} />
       </header>
       <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
-        <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
-          <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={startFromCard}
-            {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}
-            gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
-            hooks={<SharedNextSteps token={token} card={card?.id || null} version={shared.version} signedIn={!!shared.viewer} startRef={rabbitStart} />}
-            onAskTarget={setTarget} askTargetId={target?.id ?? null} />
-        </DivePortals.Provider></CardSourceScope.Provider></SearchContentProvider></Suspense>
+        {canvasEl}
       </div>
       </section>
       <SharedPanel panel={panel} permissions={permissions} search={search} onOpenAction={openSearchAction} comments={comments} commentsAttr="data-shared-comments"
@@ -325,4 +387,32 @@ function ProjectCanvases({ list }) {
       </Menu>
     </div>
   );
+}
+
+// The embed's canvas, where the article keeps its wheel: a plain wheel never pans or zooms the canvas (nothing is cancelled, so
+// the host page scrolls), and ctrl/cmd+wheel or a pinch zooms it only after the visitor has clicked or tabbed into it. Unfocused,
+// ctrl+wheel is left to the browser alone, so the page and the canvas never zoom together.
+function EmbedCanvasFrame({ children }) {
+  const frame = useRef(null);
+  useEffect(() => {
+    const element = frame.current;
+    let focused = false;
+    const focus = () => { focused = true; };
+    const blur = event => { if (!event.relatedTarget || !element.contains(event.relatedTarget)) focused = false; };
+    const wheel = event => { if (!canvasOwnsWheel(event, focused)) event.stopPropagation(); };
+    const leave = () => { focused = false; };
+    element.addEventListener('pointerdown', focus, true);
+    element.addEventListener('focusin', focus);
+    element.addEventListener('focusout', blur);
+    element.addEventListener('wheel', wheel, { capture: true, passive: true });
+    window.addEventListener('blur', leave);
+    return () => {
+      element.removeEventListener('pointerdown', focus, true);
+      element.removeEventListener('focusin', focus);
+      element.removeEventListener('focusout', blur);
+      element.removeEventListener('wheel', wheel, { capture: true });
+      window.removeEventListener('blur', leave);
+    };
+  }, []);
+  return <div ref={frame} data-embed-canvas role="region" aria-label="Lesson canvas" className="relative min-h-0 min-w-0 flex-1">{children}</div>;
 }
