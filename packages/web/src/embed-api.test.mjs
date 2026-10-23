@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { canvasOwnsWheel, clampHeight, clampWidth, embedFetch, embedHref, embedRoute, embedSnippet, embedSources, emailSnippet, linkSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
+import { canvasOwnsWheel, clampHeight, focusAfter, clampWidth, embedFetch, embedHref, embedRoute, embedSnippet, embedSources, emailSnippet, linkSnippet, fullHref, handoffHost, receiveHandoff, sharedRole, startEmbedSession, thumbnailUrl } from './embed-api.js';
 import { loadGuestDraft } from './guest-draft.js';
 import { takeDraft, takeTarget } from './shared-ask.js';
 
@@ -86,6 +86,18 @@ test('wheel: a plain wheel belongs to the article; ctrl/cmd+wheel zooms only a f
   assert.equal(canvasOwnsWheel({ ctrlKey: true }, false), false, 'unfocused: the canvas never zooms with the page');
   assert.equal(canvasOwnsWheel({ ctrlKey: true }, true), true);
   assert.equal(canvasOwnsWheel({ metaKey: true }, true), true);
+});
+
+test('canvas focus survives the focusout a press causes, and ends only when the frame loses focus or a press lands outside', () => {
+  let focused = focusAfter(false, 'pointerdown', true);
+  assert.equal(focused, true, 'a press on the canvas focuses it');
+  focused = focusAfter(focused, 'focusout', false); // the browser moves focus off the previous control right after the press
+  assert.equal(focused, true, 'focusout changes nothing (it cleared focus before and the ctrl+wheel went to the host page)');
+  assert.equal(focusAfter(focused, 'pointerdown', false), false, 'a press on the header or Chat panel');
+  assert.equal(focusAfter(focused, 'blur', false), false, 'the frame lost the window focus');
+  assert.equal(focusAfter(false, 'focusin', true), true, 'keyboard focus into the canvas');
+  assert.equal(focusAfter(true, 'focusin', false), true);
+  assert.equal(canvasOwnsWheel({ ctrlKey: true }, focused), true);
 });
 
 test('every same-origin API request of an embed carries X-RH-Embed; nothing else is touched', async () => {

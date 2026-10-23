@@ -68,6 +68,10 @@ export const sharedRole = ({ embed = false, access = null, viewer = null } = {})
 // Plain wheel belongs to the article; ctrl/cmd+wheel (a pinch too) belongs to the canvas only once it has focus.
 export const canvasOwnsWheel = (event, focused) => focused && !!(event.ctrlKey || event.metaKey);
 
+// Whether the canvas has focus after an event: a press or focus inside it sets it; a press elsewhere in the frame or the frame
+// losing the window's focus clears it. focusout and other types change nothing.
+export const focusAfter = (focused, type, inside) => (type === 'pointerdown' ? inside : type === 'focusin' ? inside || focused : type === 'blur' ? false : focused);
+
 // Marks every same-origin API request of this page as an embed request (the server then ignores the account session).
 export function embedFetch(original, origin) {
   return (input, init = {}) => {
