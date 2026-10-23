@@ -16,6 +16,7 @@ import GenerationProposalCard from './GenerationProposalCard.jsx';
 import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
+import { retryImageSave, runImageJob } from './generate-image.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
@@ -63,7 +64,20 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
     window.addEventListener(PROPOSAL_REFUSED_EVENT, refused);
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
   }, [p.proposal_id]);
+  // IMG-01: Generate on an image proposal starts the job and follows it here (generate-image.js); a failed or unknown outcome is said in
+  // words and is never sent again. The same press after a reload reaches the same job.
+  const [image, setImage] = useState(null);
+  const generateImage = () => {
+    if (pressed) return;
+    setPressed(true); setError(null); setImage({ tone: 'working', text: 'Making your image.', retry: false });
+    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId) ops.locate?.(job.cardId); }).catch(failure => {
+      const why = problemOf(failure);
+      if (why.kind !== 'used') setPressed(false);
+      setProblem(why); setImage(null); setError(why.kind === 'references' ? null : why.message);
+    });
+  };
   const onGenerate = () => {
+    if (p.command === 'generate-image') { generateImage(); return; }
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
     if (approvesJob(p)) {
       if (pressed || !ops.approveExplain) return;
@@ -86,6 +100,12 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
       <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
         onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
+      {image && (
+        <p role="status" data-image-job-status={image.tone} className={cn('mt-1 text-xs', image.tone === 'failed' ? 'text-danger' : 'text-ink-2')}>
+          {image.text}
+          {image.retry && <button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="ml-2 rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button>}
+        </p>
+      )}
       {problem?.kind === 'invalid' && problem.errors?.length > 0 && <ul role="alert" data-proposal-save-errors className="mt-1 text-xs text-danger">{problem.errors.map((e, k) => <li key={k}>{e.message}</li>)}</ul>}
       {conflict && (
         <div role="alert" data-proposal-settings-conflict className="mt-1 flex flex-wrap items-center gap-2 text-xs text-danger">

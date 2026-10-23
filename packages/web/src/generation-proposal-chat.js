@@ -3,6 +3,7 @@
 // which version is live, what a chat turn sends so the server can propose (and revise the live one), and the card Generate adds.
 import { motionContext } from './learn-slash.js';
 import { commandDefinition, fieldsFor } from './generation-confirmation-schema.js';
+import { imageGenerationOn } from './generate-image.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -39,7 +40,8 @@ export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 export const approvesJob = p => p?.command === 'explain' && typeof p.input?.job === 'string' && !proposalBlock(p);
 // How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
 // ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
-export const startAdapter = (p, ops) => (proposalBlock(p) ? (ops?.insertCard ? 'output' : null) : approvesJob(p) ? (ops?.approveExplain ? 'job' : null) : null);
+// 'image' (IMG-01, generate-image.js): the image job is started and followed from the card, behind the web flag.
+export const startAdapter = (p, ops) => (proposalBlock(p) ? (ops?.insertCard ? 'output' : null) : approvesJob(p) ? (ops?.approveExplain ? 'job' : null) : p?.command === 'generate-image' ? (imageGenerationOn() && ops?.insertCard ? 'image' : null) : null);
 // MOT-22: a settings save the server refused because the proposal changed: the learner's choice (draft) beside the latest
 // (current). here: the latest is this answer's card, so it shows it and Use mine saves the draft from it; retryable: not generated.
 // -> null for any other failure.
