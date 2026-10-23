@@ -85,6 +85,25 @@ test('auth, one job at a time, the render service must be idle, and only final.m
   assert.equal((await busy.req('/jobs', { method: 'POST', body: job() })).status, 429, 'a render still finishing blocks a new job');
 });
 
+test('a renderer that requires its durable job store but reports it unmounted or unwritable starts no job, before any model call', async t => {
+  let runs = 0;
+  const run = async () => { runs++; return { status: 'ready' }; };
+  const store = over => ({ dir: '/data/motion-jobs', mounted: true, writable: true, records: 0, required: true, accepting: true, ...over });
+  for (const [job_store, code] of [[store({ mounted: false }), 'job_store_not_mounted'], [store({ writable: false }), 'job_store_unwritable']]) {
+    const { req } = await start(t, { run, health: async () => ({ ...LINUX, job_store }) });
+    const r = await req('/jobs', { method: 'POST', body: job() });
+    const body = await r.json();
+    assert.deepEqual([r.status, body.error], [503, code]);
+    assert.match(body.detail, /nothing was started/);
+  }
+  assert.equal(runs, 0);
+  // Mounted and writable, or not required at all (production, today's volume-less dev): admitted as before.
+  for (const job_store of [store(), store({ required: false, mounted: false })]) {
+    const { req } = await start(t, { run, health: async () => ({ ...LINUX, job_store }) });
+    assert.equal((await req('/jobs', { method: 'POST', body: job() })).status, 202);
+  }
+});
+
 test('the sandboxed renderer is required: unreachable, unsandboxed or degraded refuses the job and runs nothing (F3)', async t => {
   let runs = 0;
   const run = async () => { runs++; return { status: 'ready' }; };

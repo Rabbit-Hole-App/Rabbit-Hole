@@ -10,6 +10,18 @@ primary_region = "iad"
 [env]
   PORT = "8080"
   MOTION_SANDBOX = "linux"
+# DEV ONLY (never in fly.prod.toml): job records survive restart, auto-stop and redeploy on the volume below, and the
+# service refuses every new job (503 job_store_not_mounted) unless that directory really is a separate, writable mount.
+  MOTION_JOB_STORE_DIR = "/data/motion-jobs"
+  MOTION_JOB_STORE_REQUIRE_MOUNT = "1"
+
+# One Fly volume, machine-local: it attaches to exactly one machine (this app runs one). Create it BEFORE the deploy
+# (RUNBOOK: `fly volumes create motion_jobs ...`). Billed per provisioned GB-month even while the machine is stopped.
+[mounts]
+  source = "motion_jobs"
+  destination = "/data/motion-jobs"
+  initial_size = "1gb"
+  snapshot_retention = 1
 
 [http_service]
   internal_port = 8080

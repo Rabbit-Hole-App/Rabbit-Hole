@@ -263,7 +263,8 @@ test('a job created with overridden limits gets exactly those limits on cgroup v
 
 test('production keeps the defaults: no deployed config sets the limit variables, and the launcher reads them only from the job directory', () => {
   const here = dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
-  for (const f of ['fly.prod.toml', 'fly.dev.toml', 'Dockerfile']) assert.doesNotMatch(readFileSync(join(here, f), 'utf8'), /MOTION_(CPU_QUOTA|MEMORY_GIB|DEADLINE|JOB_STORE)/, f);
+  // The dev config alone may set the job store (owner 2026-10-23: a dev volume, see deploy-config.test.mjs); production sets none of it.
+  for (const f of ['fly.prod.toml', 'fly.dev.toml', 'Dockerfile']) assert.doesNotMatch(readFileSync(join(here, f), 'utf8'), f === 'fly.dev.toml' ? /MOTION_(CPU_QUOTA|MEMORY_GIB|DEADLINE)/ : /MOTION_(CPU_QUOTA|MEMORY_GIB|DEADLINE|JOB_STORE)/, f);
   const launcher = readFileSync(join(here, 'motion-sandbox'), 'utf8');
   assert.match(launcher, /^LIMIT=420$/m);
   assert.match(launcher, /"\$\(\(LIMIT \+ 5\)\)s"/);

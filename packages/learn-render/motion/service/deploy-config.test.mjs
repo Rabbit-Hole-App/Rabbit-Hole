@@ -11,7 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const read = f => readFileSync(new URL(f, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const dockerfile = read('./Dockerfile'), sudoers = read('./sudoers'), init = read('./sandbox-init'), server = read('./server.mjs');
+const dockerfile = read('./Dockerfile'), entrypoint = read('./entrypoint.sh'), sudoers = read('./sudoers'), init = read('./sandbox-init'), server = read('./server.mjs');
 const useradd = name => dockerfile.match(new RegExp(`useradd [^\\n&]* ${name}\\b`))?.[0] ?? '';
 
 test('motion-svc and motion-render: distinct uids, the same primary group motion, no supplementary groups', () => {
@@ -23,8 +23,25 @@ test('motion-svc and motion-render: distinct uids, the same primary group motion
   }
   const uid = user => useradd(user).match(/-u (\d+)/)[1];
   assert.notEqual(uid('motion-svc'), uid('motion-render'));
-  assert.match(dockerfile, /^USER motion-svc$/m);
-  assert.doesNotMatch(dockerfile, /^USER root$/m);
+  // The image starts root only in the entrypoint, which drops to motion-svc with its primary group alone (as Fly started the old USER).
+  assert.doesNotMatch(dockerfile, /^USER /m);
+  assert.match(dockerfile, /^ENTRYPOINT \["\/usr\/local\/sbin\/motion-entrypoint"\]$/m);
+  assert.match(dockerfile, /install -m 0755 -o root -g root \/app\/packages\/learn-render\/motion\/service\/entrypoint\.sh \/usr\/local\/sbin\/motion-entrypoint/);
+  assert.match(entrypoint, /^exec setpriv --reuid=motion-svc --regid=motion --clear-groups -- env HOME=\/var\/motion "\$@"$/m);
+});
+
+test('the dev job store: a volume mounted at the same path as MOTION_JOB_STORE_DIR, required, owned by motion-svc 0700; production has none of it', () => {
+  const dev = read('./fly.dev.toml'), prod = read('./fly.prod.toml');
+  const dir = dev.match(/^\s*MOTION_JOB_STORE_DIR = "([^"]+)"$/m)?.[1];
+  assert.equal(dir, '/data/motion-jobs');
+  assert.match(dev, /^\[mounts\]\n\s+source = "motion_jobs"$/m);
+  assert.equal(dev.match(/^\s*destination = "([^"]+)"$/m)?.[1], dir, 'the mount destination is the store directory');
+  assert.match(dev, /^\s*initial_size = "1gb"$/m);
+  assert.match(dev, /^\s*snapshot_retention = 1$/m);
+  assert.match(dev, /^\s*MOTION_JOB_STORE_REQUIRE_MOUNT = "1"$/m);
+  assert.doesNotMatch(prod, /MOTION_JOB_STORE|\[+mounts\]+/, 'production keeps its unset defaults and no volume');
+  // Fly mounts the volume root-owned: the root entrypoint hands it to motion-svc, owner-only, so the render user (same group) cannot read it.
+  assert.match(entrypoint, /chown motion-svc:motion "\$DIR" && chmod 0700 "\$DIR"/);
 });
 
 test('the job tree is motion-svc:motion 2770 (setgid) and the service writes 2770 directories and a 0640 job input', () => {
@@ -142,7 +159,8 @@ test('the generated Docker context boots the Motion service: every shared file i
 // The production configs (prepared, not deployed): the renderer is the proven dev service under its production name, with
 // the same image, sandbox, limits and single machine; the orchestrator has no volume (the worker holds the durable record).
 test('the production renderer config is the dev config under its production name; the orchestrator config has no volume', () => {
-  const body = f => read(f).split('\n').filter(l => !l.startsWith('#') && !l.startsWith('app =')).join('\n');
+  // The dev-only job store (its env lines and the [mounts] block, asserted absent from prod above) is the one difference.
+  const body = f => read(f).replace(/^\[mounts\]\n(?:[ \t]+.*\n|#.*\n)*/m, '').split('\n').filter(l => !l.startsWith('#') && !l.startsWith('app =') && !/MOTION_JOB_STORE/.test(l)).join('\n').replace(/\n{3,}/g, '\n\n');
   assert.match(read('./fly.prod.toml'), /^app = "rabbit-hole-motion-renderer"$/m);
   assert.equal(body('./fly.prod.toml'), body('./fly.dev.toml'));
   const orchestrator = read('./fly.orchestrator.toml');

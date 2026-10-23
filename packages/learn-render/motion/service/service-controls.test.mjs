@@ -3,12 +3,13 @@
 // record states. The child is stub-child.mjs (the same job-directory protocol, no rendering); nothing here renders or spends.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import * as realFs from 'node:fs';
 import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { LIMITS, canonical, deadlineFromEnv, deadlineSeconds, motionRenderService } from './server.mjs';
+import { LIMITS, canonical, deadlineFromEnv, deadlineSeconds, jobStoreStatus, motionRenderService } from './server.mjs';
 import { resolveLimits } from './resource-control.mjs';
 import { POLLING, runOnService } from '../render-job.mjs';
 
@@ -311,4 +312,71 @@ test('acceptance that cannot be made durable refuses the job: nothing runs unrec
   assert.equal(svc.svc.renders.size, 0);
   assert.equal(readdirSync(svc.jobsDir).length, 0);
   assert.equal((await svc.health()).counters.started, 0);
+});
+
+// ---- the dev job store must be a real, writable mount (MOTION_JOB_STORE_REQUIRE_MOUNT) ----
+
+// A file system whose store directory is on device 2 (a volume) and everything else, root included, on device 1; `broken` fails the probe write.
+const volumeFs = (dir, { broken = false } = {}) => ({ ...realFs, statSync: (p, ...a) => (p === dir ? { ...realFs.statSync(p, ...a), dev: 2 } : p === '/' ? { dev: 1 } : realFs.statSync(p, ...a)),
+  ...(broken ? { openSync: p => { if (String(p).includes('.probe-')) throw Object.assign(new Error('EROFS'), { code: 'EROFS' }); return realFs.openSync(p); } } : {}) });
+
+test('jobStoreStatus: mounted only on another device than root; writable only when the probe writes; records counted; a missing directory is neither', t => {
+  const dir = tmp(t, 'motion-store-status-');
+  writeFileSync(join(dir, 'a.json'), '{}');
+  assert.deepEqual(jobStoreStatus(dir, { fs: volumeFs(dir) }), { dir, mounted: true, writable: true, records: 1 });
+  assert.deepEqual(jobStoreStatus(dir, { fs: { ...realFs, statSync: () => ({ dev: 1 }) } }), { dir, mounted: false, writable: true, records: 1 }); // the image's own disk
+  assert.deepEqual(jobStoreStatus(dir, { fs: volumeFs(dir, { broken: true }) }), { dir, mounted: true, writable: false, records: 1 });
+  const none = join(dir, 'missing');
+  assert.deepEqual(jobStoreStatus(none), { dir: none, mounted: false, writable: false, records: 0 });
+  assert.deepEqual(readdirSync(dir), ['a.json'], 'the probe file is removed');
+});
+
+test('a required job store that is not a separate mount refuses every new job (503 job_store_not_mounted) and says so in /health; nothing starts', async t => {
+  const store = tmp(t, 'motion-store-unmounted-');
+  const svc = await start(t, 'sleep', { storeDir: store, requireMount: true, storeFs: { ...realFs, statSync: () => ({ dev: 1 }) } });
+  const h = (await svc.health()).job_store;
+  assert.deepEqual([h.dir, h.mounted, h.writable, h.required, h.accepting, h.refusing], [store, false, true, true, false, 'job_store_not_mounted']);
+  for (const key of ['job-M', undefined]) {
+    const res = await svc.post(job(), key);
+    assert.equal(res.status, 503);
+    assert.equal((await res.json()).error, 'job_store_not_mounted');
+  }
+  assert.deepEqual([svc.svc.renders.size, svc.svc.state.active, readdirSync(svc.jobsDir).length, readdirSync(store).length], [0, null, 0, 0]);
+  assert.equal((await svc.health()).counters.started, 0);
+  // No store configured at all while one is required: the same refusal.
+  const bare = await start(t, 'sleep', { requireMount: true });
+  assert.equal((await bare.post(job(), 'job-N')).status, 503);
+  assert.equal((await bare.health()).job_store.dir, null);
+});
+
+test('a required job store that is mounted but unwritable refuses with job_store_unwritable', async t => {
+  const store = tmp(t, 'motion-store-ro-');
+  const svc = await start(t, 'sleep', { storeDir: store, requireMount: true, storeFs: volumeFs(store, { broken: true }) });
+  const res = await svc.post(job(), 'job-W');
+  assert.deepEqual([res.status, (await res.json()).error], [503, 'job_store_unwritable']);
+  assert.equal(svc.svc.renders.size, 0);
+});
+
+test('a required job store that is a writable mount accepts; /health and the record carry job_store; a redeploy (new boot_id) keeps records, answers 410 for the unfinished and 409 for other input', async t => {
+  const store = tmp(t, 'motion-store-mounted-');
+  const storeFs = volumeFs(store);
+  const one = await start(t, 'ready', { storeDir: store, requireMount: true, storeFs });
+  const { render_id } = await (await one.post(job(), 'job-F')).json();
+  const done = await one.until(render_id);
+  assert.deepEqual([done.status, done.job_store.mounted, done.job_store.boot_id], ['ready', true, done.boot_id]);
+  const h1 = (await one.health()).job_store;
+  assert.deepEqual([h1.mounted, h1.writable, h1.records, h1.accepting, h1.boot_id], [true, true, 1, true, done.boot_id]);
+  // An accepted job whose outcome was never written (the machine died mid-compute), beside the finished one.
+  writeFileSync(join(store, `${createHash('sha256').update('job-U').digest('hex').slice(0, 32)}.json`), JSON.stringify({ key: 'job-U', render_id: 'b'.repeat(32), hash: hashOf(otherJob()), state: 'accepted', error: null }));
+  one.svc.stop();
+  const two = await start(t, 'ready', { storeDir: store, requireMount: true, storeFs });
+  const h2 = (await two.health()).job_store;
+  assert.notEqual(h2.boot_id, h1.boot_id);
+  assert.deepEqual([h2.mounted, h2.records, h2.accepting], [true, 2, true]);
+  const found = await (await two.call('/render/by-key/job-F')).json();
+  assert.deepEqual([found.status, found.render_id, found.durable, found.input_sha256, found.job_store.boot_id], ['ready', render_id, true, hashOf(job()), h2.boot_id]);
+  assert.equal((await two.post(otherJob(), 'job-F')).status, 409);
+  const unknown = await two.post(otherJob(), 'job-U');
+  assert.deepEqual([unknown.status, (await unknown.json()).error], [410, 'unknown_outcome']);
+  assert.deepEqual([(await two.health()).counters.started, two.svc.state.active], [0, null]); // nothing restarted
 });

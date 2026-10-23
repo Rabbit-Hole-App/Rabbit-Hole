@@ -24,11 +24,14 @@
 //   MOTION_CPU_QUOTA        render job CPU quota in CPUs, 0.5 to 16 (default 1.5)
 //   MOTION_MEMORY_GIB       render job memory limit in GiB, 1 to 64 (default 3), below the machine's memory
 //   MOTION_JOB_STORE_DIR    a DURABLE directory for the idempotency keys (needs a volume; unset on today's volume-less apps, where nothing survives a restart)
+//   MOTION_JOB_STORE_REQUIRE_MOUNT  1 (dev, fly.dev.toml): refuse every new job (503 job_store_not_mounted) unless the store directory is
+//                           a separate mount (another device than /) and writable, so paid work never starts on a store a restart would lose
 //   MOTION_DEADLINE_FORMULA 1 turns on the PROVISIONAL per-job deadline
 //                           ceil(margin x (fixed + per_second x duration)), never below 420 s, at most MAX; needs
 //   MOTION_DEADLINE_FIXED_S, MOTION_DEADLINE_PER_SECOND_S; optional MOTION_DEADLINE_MARGIN (1.3), MOTION_DEADLINE_MAX_S (600, up to 900)
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import * as nodeFs from 'node:fs';
 import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir, totalmem } from 'node:os';
@@ -86,6 +89,21 @@ export function serviceVersion() {
   return `motion-renderer-1-${h.digest('hex').slice(0, 12)}/remotion@${remotion}+hyperframes@${hyperframes}${build && build !== 'unknown' ? `+${build.slice(0, 12)}` : ''}`;
 }
 
+// What the durable store is, measured now: `mounted` is true only when the directory is on another device than the root
+// filesystem (a Fly volume; on the image's own disk a restart rebuilds it), `writable` is a probe file written, fsynced and
+// removed, `records` the key files in it. `fs` and `rootDir` are injectable for tests.
+export function jobStoreStatus(dir, { fs = nodeFs, rootDir = '/' } = {}) {
+  const out = { dir, mounted: false, writable: false, records: 0 };
+  try { out.mounted = fs.statSync(dir).dev !== fs.statSync(rootDir).dev; } catch { /* a missing directory is not a mount */ }
+  try {
+    const fd = fs.openSync(join(dir, `.probe-${process.pid}`), 'w');
+    try { fs.writeSync(fd, 'ok'); fs.fsyncSync(fd); } finally { fs.closeSync(fd); fs.unlinkSync(join(dir, `.probe-${process.pid}`)); }
+    out.writable = true;
+  } catch { /* reported as writable: false */ }
+  try { out.records = fs.readdirSync(dir).filter(n => n.endsWith('.json')).length; } catch { /* reported as 0 */ }
+  return out;
+}
+
 const send = (res, status, body) => {
   const data = Buffer.from(JSON.stringify(body));
   res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': data.length, 'Cache-Control': 'no-store' });
@@ -136,6 +154,7 @@ export function motionRenderService({
   token, sandbox = 'linux', jobsDir, timeoutMs = LIMITS.timeout_seconds * 1000, outputMaxBytes = LIMITS.output_max_bytes,
   childScript = join(HERE, 'child.mjs'), childArgs = [], version = serviceVersion(), log = () => {},
   limits = DEFAULT_RESOURCE_LIMITS, deadline = null, shortenMs = Infinity, revision = process.env.MOTION_RENDERER_BUILD || 'unknown', storeDir = null,
+  requireMount = false, storeFs = nodeFs, rootDir = '/',
 } = {}) {
   if (typeof token !== 'string' || token.length < 32) throw new Error('MOTION_RENDERER_TOKEN must be set (at least 32 characters)');
   if (!['linux', 'none'].includes(sandbox)) throw new Error('MOTION_SANDBOX is linux or none');
@@ -164,6 +183,12 @@ export function motionRenderService({
   const boot_id = randomBytes(8).toString('hex');
   // What this process has seen since it started: a receipt compares its own POST count with posts, so a proxy that resent a POST shows.
   const counters = { posts: 0, started: 0, replayed: 0 };
+  // Measured on every call (a mount can appear or fail after boot). Required and not a writable separate mount: no job is accepted.
+  const jobStore = () => {
+    const s = storeDir ? jobStoreStatus(storeDir, { fs: storeFs, rootDir }) : { dir: null, mounted: false, writable: false, records: 0 };
+    const refusal = !requireMount ? null : !s.mounted ? 'job_store_not_mounted' : !s.writable ? 'job_store_unwritable' : null;
+    return { ...s, required: requireMount, accepting: !refusal, ...(refusal ? { refusing: refusal } : {}), boot_id };
+  };
   const keyFile = key => join(storeDir, `${createHash('sha256').update(key).digest('hex').slice(0, 32)}.json`);
   const saveKey = (key, entry) => { try { if (storeDir) writeFileSync(keyFile(key), JSON.stringify({ key, ...entry })); } catch (error) { log(`idempotency store write failed: ${error.message}`); } };
   if (storeDir) {
@@ -285,12 +310,14 @@ export function motionRenderService({
       counters.replayed++;
       return send(res, 202, { render_id: prior.render_id, status: prior.status, poll: `/render/${prior.render_id}`, deadline_seconds: prior.deadline_seconds, replayed: true });
     }
+    const store = jobStore();
+    if (store.refusing) return send(res, 503, { error: store.refusing, detail: `${store.refusing === 'job_store_unwritable' ? 'the durable job store cannot be written' : 'the durable job store is not a separate mount (no volume)'}, so a restart would lose accepted jobs; nothing was started`, job_store: store });
     if (state.degraded) return send(res, 503, { error: 'degraded', detail: `${state.degraded}; the machine must be restarted` });
     if (state.active) return send(res, 429, { error: 'busy', detail: 'one render at a time; retry when the current render has finished', render_id: state.active.render_id });
     const id = randomBytes(16).toString('hex');
     const dir = join(jobsDir, id);
     const limitMs = jobTimeoutMs(body.brief.duration.seconds);
-    const record = { render_id: id, status: 'rendering', stage: body.stage || 'final', renderer: body.renderer, motion_job_id: body.brief.id, created_at: new Date().toISOString(), deadline_seconds: limitMs / 1000, settings, boot_id, ...(key ? { idempotency_key: key } : {}) };
+    const record = { render_id: id, status: 'rendering', stage: body.stage || 'final', renderer: body.renderer, motion_job_id: body.brief.id, created_at: new Date().toISOString(), deadline_seconds: limitMs / 1000, settings, boot_id, job_store: store, ...(key ? { idempotency_key: key } : {}) };
     state.active = record;
     try {
       // 2770 + the setgid parent: the render user writes here and the service can remove it afterwards.
@@ -325,7 +352,7 @@ export function motionRenderService({
       // The resource backend this kernel offers (names only, no host paths).
       const rc = sandbox === 'linux' ? detect() : { backend: 'none', controllers: [] };
       return send(res, 200, {
-        ok: !state.degraded, service: SERVICE, version, sandbox, busy: !!state.active, boot_id, counters, limits: LIMITS, settings,
+        ok: !state.degraded, service: SERVICE, version, sandbox, busy: !!state.active, boot_id, job_store: jobStore(), counters, limits: LIMITS, settings,
         resource_backend: rc.backend || 'unavailable', resource_controllers: rc.controllers || [], ...(rc.backend ? {} : { resource_reason: rc.reason }),
         ...(state.degraded ? { degraded: state.degraded } : {}),
       });
@@ -342,7 +369,7 @@ export function motionRenderService({
       const k = keys.get(byKey[1]);
       if (!k) return send(res, 404, { error: 'unknown_job', detail: 'this service has no record of this key (never submitted, or the service restarted without a durable store)', boot_id });
       const live = renders.get(k.render_id);
-      return send(res, 200, { render_id: k.render_id, status: live ? live.status : k.state, input_sha256: k.hash, live: !!live, durable: !!storeDir, boot_id });
+      return send(res, 200, { render_id: k.render_id, status: live ? live.status : k.state, input_sha256: k.hash, live: !!live, durable: !!storeDir, boot_id, job_store: jobStore() });
     }
     // Only a 32-hex id and a fixed artifact name: nothing in a URL ever becomes a file path.
     const m = path.match(/^\/render\/([0-9a-f]{32})(?:\/artifacts\/([a-z0-9.-]+))?$/);
@@ -365,7 +392,7 @@ export function motionRenderService({
     res.end(data);
   });
   const stop = () => { for (const c of state.children) killChild(c, sandbox); };
-  return { server, state, renders, stop, version, sandbox, settings };
+  return { server, state, renders, stop, version, sandbox, settings, jobStore };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
@@ -379,8 +406,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const timeoutMs = Math.min(LIMITS.timeout_seconds * 1000, shortenMs);
   let limits, deadline;
   try { limits = limitsFromEnv(process.env); deadline = deadlineFromEnv(process.env); } catch (error) { console.error(`✗ ${error.message}`); process.exit(1); }
-  const svc = motionRenderService({ token: process.env.MOTION_RENDERER_TOKEN, sandbox, timeoutMs, shortenMs, limits, deadline, storeDir: process.env.MOTION_JOB_STORE_DIR || null, log: line => console.log(line) });
+  const svc = motionRenderService({ token: process.env.MOTION_RENDERER_TOKEN, sandbox, timeoutMs, shortenMs, limits, deadline, storeDir: process.env.MOTION_JOB_STORE_DIR || null, requireMount: process.env.MOTION_JOB_STORE_REQUIRE_MOUNT === '1', log: line => console.log(line) });
   const port = Number(process.env.PORT || 8080);
+  const js = svc.jobStore();
+  console.log(`job store ${JSON.stringify(js)}${js.refusing ? ` (REFUSING new jobs: ${js.refusing})` : ''}`);
   svc.server.listen(port, '0.0.0.0', () => console.log(`✓ ${SERVICE} ${svc.version} on :${port} (sandbox ${sandbox}; ${JSON.stringify(svc.settings)})`));
   for (const sig of ['SIGTERM', 'SIGINT']) process.on(sig, () => { svc.stop(); svc.server.close(); setTimeout(() => process.exit(0), 3000).unref(); });
 }

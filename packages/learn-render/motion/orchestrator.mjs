@@ -428,6 +428,10 @@ export function motionOrchestrator({ token, service, call, env = {}, outDir, run
     const health = await service.health().catch(() => null);
     if (!health) return [503, { error: 'renderer_unavailable', detail: 'the Motion renderer is unavailable; nothing was started' }];
     if (health.sandbox !== 'linux' || health.ok === false) return [503, { error: 'renderer_unavailable', detail: `the Motion renderer is not the sandboxed Linux service (sandbox ${health.sandbox ?? 'unknown'}${health.ok === false ? ', degraded' : ''}); nothing was started` }];
+    // A service that requires its durable job store (dev) and does not have it as a writable separate mount would lose accepted jobs in a restart:
+    // refused here, before any model call or hold, with a stable code.
+    const store = health.job_store;
+    if (store?.required && (!store.mounted || !store.writable)) return [503, { error: store.mounted ? 'job_store_unwritable' : 'job_store_not_mounted', detail: `the Motion renderer requires its durable job store and it is ${store.mounted ? 'not writable' : 'not a separate mount'}; nothing was started` }];
     const reported = /^motion-renderer-1-([0-9a-f]{12})\//.exec(health.version || '')?.[1] ?? 'unknown';
     if (rendererHashes && !rendererHashes.includes(reported)) return [503, { error: 'renderer_unavailable', detail: `the Motion renderer runs other contract code (renderer ${reported}, this service ${rendererHashes[0]}); nothing was started` }];
     if (health.busy) return [429, { error: 'busy', detail: 'the render service is still finishing a render' }];
