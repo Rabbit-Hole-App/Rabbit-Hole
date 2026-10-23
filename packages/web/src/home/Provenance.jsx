@@ -73,5 +73,5 @@ export function ForkedFrom({ m, onOpen, className = '' }) {
 
 export function Forks({ m }) {
   if (!m.forks) return null;
-  return <span data-fork-count className="inline-flex shrink-0 items-center gap-1 text-xs text-ink-3"><GitFork size={12} strokeWidth={1.5} />{m.forks}</span>;
+  return <span data-fork-count className="inline-flex shrink-0 items-center gap-1 text-xs text-(color:--browse-meta)"><GitFork size={12} strokeWidth={1.5} />{m.forks}</span>;
 }

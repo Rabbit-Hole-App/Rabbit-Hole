@@ -52,7 +52,7 @@ function HomeContent({ data, load }) {
   const cardMenu = useCardMenu({ org: data?.org, email: data?.email, apps, onChanged: load, folders });
   const startButton = <Button variant="primary" onClick={start}>Start a rabbit hole</Button>;
   return (
-    <main className="flex-1 overflow-y-auto">
+    <main className="browse-page flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] space-y-8 px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         {!data && [2, 3, 1].map((rows, i) => <SkeletonRows key={i} rows={rows} />)}
         {data?.error && (
@@ -184,7 +184,7 @@ function Explore() {
   }, [tab, q]);
   const searchLabel = tab === 'creators' ? 'Search creators' : 'Search learning boards';
   return (
-    <main className="flex-1 overflow-y-auto">
+    <main className="browse-page flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-6 pt-1 text-sm text-ink-2">Discover rabbit holes, projects, and learning resources shared beyond your library.</p>
