@@ -203,18 +203,6 @@ async function sharedThumbnail(req, env, token) {
   return serveThumbnail(req, env, found.row.id, ['custom']);
 }
 
-// A public view link's thumbnail (SHARE-04 embed, C:/s/spec/embed/e-s-report.md item T): authorized again on every request, so a
-// link switched off, made restricted, or whose canvas is trashed or gone answers 404 at once and the revalidating cache
-// headers (private, no-cache) let no shared cache keep it. Only the owner's chosen cover: the snapshot is drawn in the owner's
-// browser from their own view of the canvas (answers, attempts and marks included, card-thumbnail.js) and outlives edits, so it
-// is not known to hold only what a public viewer sees. A publication token has its own route above (publishedThumbnail).
-async function sharedThumbnail(req, env, token) {
-  if (req.method !== 'GET' && req.method !== 'HEAD') return json({ error: 'Method not allowed' }, 405);
-  const found = await sharedRow(env, token);
-  if (!found || found.publication || !found.row.public_view || found.row.board !== 'main') return json({ error: 'This link is not shared publicly any more, or never was.' }, 404);
-  return serveThumbnail(req, env, found.row.id, ['custom']);
-}
-
 export const newToken = () => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
 const sharingOf = row => (row ? { shared: !!row.shared, view: row.view_token || null, edit: row.edit_token || null, public_view: !!row.public_view } : { shared: false, view: null, edit: null, public_view: false });
