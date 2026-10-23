@@ -1,5 +1,6 @@
-// The canvas View menu's widget switches (owner brief 2026-10-21 item 3; src/CanvasMenubar.jsx, LearnPage.jsx, AdaptiveCanvas.jsx,
-// ui-prefs.js): Minimap, Rabbit Hole Map and Curious are three identical switch rows, all on by default, each remembered on this
+// The canvas View menu's Show / hide rows (owner brief 2026-10-21 item 3, redesigned by the 2026-10-22 canvas-menu brief items 6 and 9;
+// src/CanvasMenubar.jsx, canvas-menus.js, LearnPage.jsx, AdaptiveCanvas.jsx, ui-prefs.js): Toolbar, Right panel, Minimap, Rabbit Hole Map,
+// Comment pins and Learning suggestions (formerly Curious) are identical labelled checked rows under View > Show / hide, all on by default, each remembered on this
 // device across a reload. Off hides the widget and frees its room without resetting it; Curious on still shows only what
 // Tutor allows (Off, or paused, shows nothing). Toggling makes no request a model could answer. Against the LOCAL keyless
 // stack only (toc-up.sh: JOURNEY_MODEL_STUB=fixtures, no model key): the hook planner answers from its fixtures, the one
@@ -9,6 +10,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { usageFeature } from '../../control-plane/src/learn-usage.js';
+import { closeMenus, menubar, openMenu, openShowHide, showHideRow, topMenu } from './canvas-menu-helpers.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9631';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9633';
@@ -43,8 +45,8 @@ const errors = [], model = [], hooksAsked = [], turns = [];
 // Reading the Chat pane's threads (GET /api/ask/threads...) is not a question: it passes.
 const modelRoute = (method, path) => (/^\/api\/ask(\/|$)/.test(path) && !(method === 'GET' && path.startsWith('/api/ask/threads'))) || !!usageFeature(method, path);
 const REPLY = 'Yeast makes gas and the gluten traps it.';
-const fresh = async (viewport = { width: 1600, height: 900 }) => {
-  const context = await browser.newContext({ viewport });
+const fresh = async (viewport = { width: 1600, height: 900 }, extra = {}) => {
+  const context = await browser.newContext({ viewport, ...extra });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(entries => { for (const [key, value] of Object.entries(entries)) if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); }, seed);
   await context.route('**/api/**', route => {
@@ -69,21 +71,21 @@ const waitBox = (page, selector, shown) => page.waitForFunction(([sel, on]) => {
 const quiet = async (page, label, before) => { await page.waitForTimeout(2500); assert.deepEqual([model.length, hooksAsked.length], before, `${label}: model ${model.slice(before[0]).join()} hooks ${hooksAsked.length - before[1]}`); };
 const counts = () => [model.length, hooksAsked.length];
 
-const menubar = page => page.locator('[role="menubar"][aria-label="Canvas menu"]');
-const viewButton = page => menubar(page).getByRole('menuitem', { name: 'View', exact: true });
-const NAMES = ['Minimap', 'Rabbit Hole Map', 'Curious'];
-const KEYS = { Minimap: 'minimap', 'Rabbit Hole Map': 'holeMap', Curious: 'curious' };
-const sw = (page, name) => menubar(page).getByRole('switch', { name, exact: true });
-const openView = async page => { if (!(await sw(page, 'Minimap').count())) await viewButton(page).click(); await sw(page, 'Minimap').waitFor({ timeout: 5000 }); };
-const closeView = async page => { if (await sw(page, 'Minimap').count()) await page.keyboard.press('Escape'); await sw(page, 'Minimap').waitFor({ state: 'detached', timeout: 5000 }); };
+const viewButton = page => topMenu(page, 'View');
+const NAMES = ['Minimap', 'Rabbit Hole Map', 'Learning suggestions'];
+const KEYS = { Minimap: 'minimap', 'Rabbit Hole Map': 'holeMap', 'Learning suggestions': 'curious' };
+// Owner brief 2026-10-22: the switches are checked rows (menuitemcheckbox) under View > Show / hide; Escape closes the submenu, then the menu
+const sw = (page, name) => showHideRow(page, name);
+const openView = async page => { await openShowHide(page); await sw(page, 'Minimap').waitFor({ timeout: 5000 }); };
+const closeView = async page => { await closeMenus(page); await sw(page, 'Minimap').waitFor({ state: 'detached', timeout: 5000 }); };
 const states = async page => { await openView(page); const out = []; for (const name of NAMES) out.push(await sw(page, name).getAttribute('aria-checked')); return out; };
-// Sets one switch by clicking its row's label text (the switch takes the click), the menu staying open.
+// Sets one row by clicking it (the menu stays open).
 const setSwitch = async (page, name, on) => {
   await openView(page);
-  if ((await sw(page, name).getAttribute('aria-checked')) !== String(on)) await menubar(page).locator('[data-menu-switch]', { hasText: name }).locator('span', { hasText: name }).click();
+  if ((await sw(page, name).getAttribute('aria-checked')) !== String(on)) await sw(page, name).click();
   await checked(page, name, on);
 };
-const checked = (page, name, on) => page.waitForFunction(([n, v]) => [...document.querySelectorAll('[role="menubar"] [role="switch"]')].find(e => e.getAttribute('aria-label') === n)?.getAttribute('aria-checked') === v, [name, String(on)], { timeout: 5000 });
+const checked = (page, name, on) => page.waitForFunction(([n, v]) => [...document.querySelectorAll('[role="menubar"] [role="menuitemcheckbox"]')].find(e => e.textContent.trim() === n)?.getAttribute('aria-checked') === v, [name, String(on)], { timeout: 5000 });
 const saved = page => page.evaluate(() => { try { return JSON.parse(localStorage.getItem('rh.ui-prefs') || '{}'); } catch { return {}; } });
 const MINIMAP = '[data-canvas-minimap] [aria-label="Canvas overview"]', MAP = '[data-dive-navigator]', HOOKS = '[data-hooks-slot] section[data-next-steps]';
 const open = async page => {
@@ -107,7 +109,7 @@ const turn = async (page, question) => {
 const hookTexts = page => page.locator('[data-hooks-slot] [data-next-step]').allInnerTexts();
 
 const page = await fresh();
-await check('1 defaults: View lists Minimap, Rabbit Hole Map and Curious as switches, all on, the three widgets shown; opening makes no model request', async () => {
+await check('1 defaults: View > Show / hide lists Minimap, Rabbit Hole Map and Learning suggestions as checked rows, all on, the three widgets shown; opening makes no model request', async () => {
   const before = counts();
   await open(page);
   assert.deepEqual(await states(page), ['true', 'true', 'true']);
@@ -118,14 +120,17 @@ await check('1 defaults: View lists Minimap, Rabbit Hole Map and Curious as swit
   await quiet(page, 'open', before);
 });
 
-await check('2 the three rows are identical: one height, one switch size, switches and labels on one edge', async () => {
+await check('2 the Show / hide rows are identical: one height, one width, labels on one edge, the check in one column', async () => {
   await openView(page);
-  const rows = await menubar(page).locator('[data-menu-switch]').evaluateAll(els => els.map(el => {
-    const r = el.getBoundingClientRect(), s = el.querySelector('[role="switch"]').getBoundingClientRect(), t = [...el.querySelectorAll('span')].find(e => e.textContent.trim()).getBoundingClientRect();
-    return { name: el.textContent.trim(), h: r.height, w: r.width, sw: s.width, sh: s.height, sr: Math.round(r.right - s.right), tx: Math.round(t.left - r.left), cls: el.className };
+  const rows = await menubar(page).getByRole('menu', { name: 'Show / hide', exact: true }).getByRole('menuitemcheckbox').evaluateAll(els => els.map(el => {
+    const r = el.getBoundingClientRect(), t = [...el.querySelectorAll('span')].find(e => e.textContent.trim()).getBoundingClientRect();
+    return { name: el.textContent.trim(), h: r.height, w: r.width, tx: Math.round(t.left - r.left), cls: el.className };
   }));
-  assert.deepEqual(rows.map(row => row.name), NAMES);
-  for (const row of rows.slice(1)) for (const key of ['h', 'w', 'sw', 'sh', 'sr', 'tx', 'cls']) assert.equal(row[key], rows[0][key], `${row.name} ${key} differs from Minimap`);
+  const names = rows.map(row => row.name);
+  assert.deepEqual(NAMES.filter(name => names.includes(name)), NAMES, 'the three widgets are listed');
+  for (const wanted of ['Toolbar', 'Right panel', 'Minimap', 'Rabbit Hole Map', 'Learning suggestions']) assert.ok(names.includes(wanted), wanted + ' is listed: ' + names.join());
+  for (const row of rows.slice(1)) for (const key of ['h', 'w', 'tx', 'cls']) assert.equal(row[key], rows[0][key], row.name + ' ' + key + ' differs from ' + rows[0].name);
+  assert.ok(!names.includes('Curious'), 'Curious is Learning suggestions now');
   await closeView(page);
 });
 
@@ -188,26 +193,26 @@ await check('6 Curious off alone: the card leaves and its corner is free; on aga
   const hooks = await hookTexts(page);
   await page.locator('[data-next-steps-minimize]').click();
   await page.locator('[data-hooks-slot] [data-next-steps-minimized]').waitFor({ timeout: 5000 });
-  await setSwitch(page, 'Curious', false);
+  await setSwitch(page, 'Learning suggestions', false);
   assert.deepEqual(await states(page), ['true', 'true', 'false']);
   await waitBox(page, '[data-hooks-slot]', false);
   assert.equal(await page.locator('[data-canvas-lower-right]').evaluate(el => [...el.querySelectorAll('*')].filter(e => { const r = e.getBoundingClientRect(); return r.width && r.height; }).length), 0, 'something still takes the lower-right corner');
   assert.ok(await box(page, MINIMAP) && await box(page, MAP), 'the others stay shown');
   await shot(page, 'view-06-curious-off');
-  await setSwitch(page, 'Curious', true);
+  await setSwitch(page, 'Learning suggestions', true);
   await page.locator('[data-hooks-slot] [data-next-steps-minimized]').waitFor({ timeout: 5000 });
   await closeView(page);
   await page.locator('[data-next-steps-restore]').click();
   await page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 5000 });
   assert.deepEqual(await hookTexts(page), hooks, 'the suggestions changed');
-  await quiet(page, 'Curious', before);
+  await quiet(page, 'Learning suggestions', before);
 });
 
 await check('7 the choices are remembered: Minimap and Curious off survive a reload (this device), then all on again', async () => {
   const before = counts();
   await setSwitch(page, 'Minimap', false);
-  await setSwitch(page, 'Curious', false);
-  assert.deepEqual(await saved(page), { textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: false, holeMap: true, curious: false });
+  await setSwitch(page, 'Learning suggestions', false);
+  assert.deepEqual(await saved(page), { textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: false, holeMap: true, curious: false, comments: true, toolbar: true });
   await page.reload();
   await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
   await page.locator(MAP).first().waitFor({ timeout: 30000 });
@@ -215,37 +220,53 @@ await check('7 the choices are remembered: Minimap and Curious off survive a rel
   assert.equal(await box(page, '[data-canvas-minimap]'), null, 'the minimap came back');
   await shot(page, 'view-07-reloaded');
   for (const name of NAMES) await setSwitch(page, name, true);
-  assert.deepEqual(await saved(page), { textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true });
+  assert.deepEqual(await saved(page), { textSize: 'default', reduceMotion: false, chatSend: 'enter', minimap: true, holeMap: true, curious: true, comments: true, toolbar: true });
   await waitBox(page, MINIMAP, true);
   await closeView(page);
   await quiet(page, 'reload', before);
 });
 
-await check('8 keyboard: Tab reaches the Minimap switch with a visible focus, Space and Enter flip it with the menu open, Tab moves on, Escape closes', async () => {
+await check('8 keyboard: Enter opens View on its first row, Arrow keys walk it, Right opens Show / hide, Space and Enter flip rows with the menu open, Left and Escape close the submenu to its row, Escape closes the menu to View', async () => {
   const before = counts();
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute('data-menu-item') ?? document.activeElement?.textContent?.trim());
+  const walkTo = async name => { for (let i = 0; i < 14 && (await focused()) !== name; i++) await page.keyboard.press('ArrowDown'); assert.equal(await focused(), name, 'Arrow Down reaches ' + name); };
   await viewButton(page).focus();
   await page.keyboard.press('Enter');
-  await sw(page, 'Minimap').waitFor({ timeout: 5000 });
-  for (let i = 0; i < 12 && !(await sw(page, 'Minimap').evaluate(el => el === document.activeElement)); i++) await page.keyboard.press('Tab');
-  assert.ok(await sw(page, 'Minimap').evaluate(el => el === document.activeElement && el.matches(':focus-visible')), 'Minimap switch focused, focus visible');
+  await menubar(page).getByRole('menu', { name: 'View', exact: true }).waitFor({ timeout: 5000 });
+  assert.equal(await focused(), 'Zoom in', 'the first row takes focus');
+  await walkTo('Show / hide');
+  await page.keyboard.press('ArrowRight');
+  await menubar(page).getByRole('menu', { name: 'Show / hide', exact: true }).waitFor({ timeout: 5000 });
+  assert.equal(await focused(), 'Toolbar', 'Right opens the submenu on its first row');
+  await walkTo('Minimap');
+  assert.ok(await sw(page, 'Minimap').evaluate(el => el === document.activeElement && el.matches(':focus-visible')), 'Minimap row focused, focus visible');
   await shot(page, 'view-08-keyboard-focus');
   await page.keyboard.press('Space');
   await checked(page, 'Minimap', false);
   await waitBox(page, '[data-canvas-minimap]', false);
   await page.keyboard.press('Enter');
   await checked(page, 'Minimap', true);
-  await page.keyboard.press('Tab');
-  assert.ok(await sw(page, 'Rabbit Hole Map').evaluate(el => el === document.activeElement), 'Tab moves to Rabbit Hole Map');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await focused(), 'Rabbit Hole Map', 'Arrow Down moves to Rabbit Hole Map');
   await page.keyboard.press('Space');
   await checked(page, 'Rabbit Hole Map', false);
   await waitBox(page, MAP, false);
   await page.keyboard.press('Space');
   await checked(page, 'Rabbit Hole Map', true);
   await waitBox(page, MAP, true);
-  await page.keyboard.press('Tab');
-  assert.ok(await sw(page, 'Curious').evaluate(el => el === document.activeElement), 'Tab moves to Curious');
+  await walkTo('Learning suggestions');
+  await page.keyboard.press('ArrowLeft');
+  await menubar(page).getByRole('menu', { name: 'Show / hide', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(await focused(), 'Show / hide', 'Left closes the submenu and returns to its row');
+  await page.keyboard.press('ArrowRight');
+  await menubar(page).getByRole('menu', { name: 'Show / hide', exact: true }).waitFor({ timeout: 5000 });
   await page.keyboard.press('Escape');
-  await sw(page, 'Minimap').waitFor({ state: 'detached', timeout: 5000 });
+  await menubar(page).getByRole('menu', { name: 'Show / hide', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(await focused(), 'Show / hide', 'Escape closes the submenu and keeps the menu open on its row');
+  assert.equal(await menubar(page).getByRole('menu', { name: 'View', exact: true }).count(), 1, 'the View menu is still open');
+  await page.keyboard.press('Escape');
+  await menubar(page).getByRole('menu', { name: 'View', exact: true }).waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent?.trim()), 'View', 'focus returns to the View button');
   await waitBox(page, MINIMAP, true);
   await quiet(page, 'keyboard', before);
 });
@@ -256,12 +277,12 @@ await check('8a Curious hidden: learner turns ask for no set; shown again: the s
   const hooks = await hookTexts(page);
   assert.equal(hooks.length, 3);
   const before = counts();
-  await setSwitch(page, 'Curious', false);
+  await setSwitch(page, 'Learning suggestions', false);
   await closeView(page);
   await ask(page, 'Does salt slow the yeast?');
   await ask(page, 'Why does dough need to rest?');
   await quiet(page, 'hidden turns', before);
-  await setSwitch(page, 'Curious', true);
+  await setSwitch(page, 'Learning suggestions', true);
   await closeView(page);
   await page.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 5000 });
   assert.deepEqual(await hookTexts(page), hooks, 'not the saved set');
@@ -276,7 +297,7 @@ await check('8b nothing saved: hidden from the start, a turn, then shown: a comp
   const before = counts();
   await ask(empty, 'How warm should the proofing spot be?');
   await quiet(empty, 'hidden turn on a fresh page', before);
-  await setSwitch(empty, 'Curious', true);
+  await setSwitch(empty, 'Learning suggestions', true);
   await closeView(empty);
   const state = empty.locator('[data-hooks-slot] section[data-next-steps="empty"]');
   await state.waitFor({ timeout: 5000 });
@@ -287,8 +308,8 @@ await check('8b nothing saved: hidden from the start, a turn, then shown: a comp
   await empty.locator('[data-hooks-slot] section[data-next-steps="ready"]').waitFor({ timeout: 60000 });
   await empty.waitForTimeout(2500); // a second request would come within the debounce
   assert.deepEqual([model.length - before[0], hooksAsked.length - before[1]], [0, 1], 'exactly one hook request, on the click');
-  await setSwitch(empty, 'Curious', false); // leave this device's choice as found
-  await setSwitch(empty, 'Curious', true);
+  await setSwitch(empty, 'Learning suggestions', false); // leave this device's choice as found
+  await setSwitch(empty, 'Learning suggestions', true);
   await empty.context().close();
 });
 
@@ -300,14 +321,14 @@ await check('8c at rest, nothing saved: Curious on shows the empty state, off hi
   const before = counts();
   const state = rest.locator('[data-hooks-slot] section[data-next-steps="empty"]');
   await state.waitFor({ timeout: 30000 });
-  await setSwitch(rest, 'Curious', false);
+  await setSwitch(rest, 'Learning suggestions', false);
   await state.waitFor({ state: 'hidden', timeout: 5000 });
   await closeView(rest);
   await rest.reload(); await rest.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
   assert.equal((await saved(rest)).curious, false);
-  await openView(rest); await checked(rest, 'Curious', false);
+  await openView(rest); await checked(rest, 'Learning suggestions', false);
   assert.equal(await state.isVisible(), false, 'off after a reload: no Curious');
-  await setSwitch(rest, 'Curious', true);
+  await setSwitch(rest, 'Learning suggestions', true);
   await state.waitFor({ timeout: 5000 });
   await closeView(rest);
   await rest.reload(); await rest.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
@@ -321,8 +342,8 @@ await check('9 Tutor Off: the set leaves; Curious off and on again shows nothing
   await page.locator('[data-chat-pane]').getByRole('switch', { name: 'Proactive Tutor suggestions' }).click();
   await page.locator('[data-chat-pane] [data-tutor-switch="off"]').waitFor({ timeout: 10000 });
   await page.locator(HOOKS).waitFor({ state: 'detached', timeout: 10000 });
-  await setSwitch(page, 'Curious', false);
-  await setSwitch(page, 'Curious', true);
+  await setSwitch(page, 'Learning suggestions', false);
+  await setSwitch(page, 'Learning suggestions', true);
   await closeView(page);
   assert.equal(await page.locator('[data-next-steps]').count(), 0, 'Curious on brought back a set Tutor Off hides');
   await shot(page, 'view-09-tutor-off');
@@ -339,8 +360,8 @@ await check('10 suggestions paused: a new set leaves when Tutor is paused; Curio
   await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
   await page.locator('[data-tutor-status="resume"]').waitFor({ timeout: 10000 });
   await page.locator(HOOKS).waitFor({ state: 'detached', timeout: 10000 });
-  await setSwitch(page, 'Curious', false);
-  await setSwitch(page, 'Curious', true);
+  await setSwitch(page, 'Learning suggestions', false);
+  await setSwitch(page, 'Learning suggestions', true);
   await closeView(page);
   assert.equal(await page.locator('[data-next-steps]').count(), 0, 'Curious on brought back a set paused suggestions hide');
   await shot(page, 'view-10-paused');
@@ -348,26 +369,25 @@ await check('10 suggestions paused: a new set leaves when Tutor is paused; Curio
   await control({ type: 'resume' });
 });
 
-// The switch's track and knob read on the menu in both themes: on is the accent, off is not, the knob differs from both.
-const colours = page => menubar(page).locator('[data-menu-switch]').evaluateAll(els => els.map(el => {
-  const s = el.querySelector('[role="switch"]'), k = s.querySelector('span'), menu = el.parentElement;
-  return { on: s.getAttribute('aria-checked'), track: getComputedStyle(s).backgroundColor, knob: getComputedStyle(k).backgroundColor, menu: getComputedStyle(menu).backgroundColor, text: getComputedStyle(el).color };
+// A checked row reads on the menu in both themes: the label differs from the menu, a checked row carries a tick the unchecked one lacks.
+const colours = page => menubar(page).getByRole('menu', { name: 'Show / hide', exact: true }).getByRole('menuitemcheckbox').evaluateAll(els => els.map(el => {
+  const tick = el.querySelector('svg'), menu = el.closest('[role="menu"]').parentElement;
+  return { on: el.getAttribute('aria-checked'), tick: !!tick, tickColour: tick ? getComputedStyle(tick).color : null, menu: getComputedStyle(menu).backgroundColor, text: getComputedStyle(el).color };
 }));
-await check('11 light and dark: on and off tracks differ, the knob stands out on both, the label reads on the menu', async () => {
+await check('11 light and dark: the checked rows show a tick, the unchecked ones none, and the label reads on the menu', async () => {
   for (const theme of ['light', 'dark']) {
     const themed = await fresh();
     await themed.addInitScript(t => localStorage.setItem('small.theme', t), theme);
     await open(themed);
     assert.equal(await themed.evaluate(() => document.documentElement.classList.contains('dark')), theme === 'dark');
     await setSwitch(themed, 'Rabbit Hole Map', false);
-    // The track eases between colours (Toggle: transition-colors): wait for the off track to settle before reading.
-    await themed.waitForFunction(() => { const s = [...document.querySelectorAll('[role="menubar"] [data-menu-switch] [role="switch"]')]; const on = s.find(e => e.getAttribute('aria-checked') === 'true'), off = s.find(e => e.getAttribute('aria-checked') === 'false'); return on && off && getComputedStyle(on).backgroundColor !== getComputedStyle(off).backgroundColor; }, null, { timeout: 5000 }).catch(() => {});
     const rows = await colours(themed);
-    const on = rows.find(row => row.on === 'true'), off = rows.find(row => row.on === 'false');
-    assert.notEqual(on.track, off.track, `${theme}: on and off tracks look the same`);
-    for (const row of rows) { assert.notEqual(row.knob, row.track, `${theme}: knob on track`); assert.notEqual(row.text, row.menu, `${theme}: label on menu`); }
-    assert.notEqual(off.track, off.menu, `${theme}: the off track vanishes into the menu`);
-    await shot(themed, `view-11-menu-${theme}`);
+    const on = rows.filter(row => row.on === 'true'), off = rows.filter(row => row.on === 'false');
+    assert.ok(on.length > 0 && off.length > 0, theme + ': a checked and an unchecked row');
+    assert.ok(on.every(row => row.tick) && off.every(row => !row.tick), theme + ': the tick marks exactly the checked rows');
+    for (const row of rows) assert.notEqual(row.text, row.menu, theme + ': label on menu');
+    for (const row of on) assert.notEqual(row.tickColour, row.menu, theme + ': the tick vanishes into the menu');
+    await shot(themed, 'view-11-menu-' + theme);
     await setSwitch(themed, 'Rabbit Hole Map', true);
     await themed.context().close();
   }
@@ -413,6 +433,76 @@ await check('12 narrow panel (1200 wide, Chat open): the map sits atop the tools
   await phone.context().close();
 });
 
+// Owner brief 2026-10-22: items 6 and 9 - Toolbar: hide, restore from View, remembered on this device, nothing shared
+await check('14 Toolbar: Show / hide hides the drawing toolbar, View stays to restore it, the choice is kept across a reload on this device and never touches the canvas or another viewer', async () => {
+  const before = counts();
+  const bar = p => p.getByRole('toolbar', { name: 'Canvas tools' });
+  const BOARD_KEY = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
+  const board = () => page.evaluate(key => localStorage.getItem(key), BOARD_KEY);
+  await bar(page).waitFor({ timeout: 10000 });
+  const boardBefore = await board();
+  await setSwitch(page, 'Toolbar', false);
+  await closeView(page);
+  await bar(page).waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal((await saved(page)).toolbar, false, 'saved as a personal preference');
+  assert.equal(await board(), boardBefore, 'the canvas itself is untouched');
+  assert.equal(await viewButton(page).count(), 1, 'View is still in the menubar');
+  await openView(page);
+  assert.equal(await sw(page, 'Toolbar').getAttribute('aria-checked'), 'false', 'Toolbar reads off');
+  await closeView(page);
+  await page.reload();
+  await page.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
+  assert.equal(await bar(page).count(), 0, 'still hidden after a reload');
+  const other = await fresh();
+  await open(other);
+  await bar(other).waitFor({ timeout: 10000 });
+  await other.context().close();
+  await setSwitch(page, 'Toolbar', true);
+  await closeView(page);
+  await bar(page).waitFor({ timeout: 5000 });
+  assert.equal((await saved(page)).toolbar, true, 'restored and saved');
+  await quiet(page, 'toolbar', before);
+});
+
+await check('15 Arrange and View submenus: Align stays greyed with nothing selected, Fit selection frames the selected card, a phone opens submenus by touch inside the screen, opening menus asks nothing', async () => {
+  const before = counts();
+  const align = await openMenu(page, 'Arrange', 'Align');
+  assert.ok(await align.getByRole('menuitem', { name: 'Left', exact: true }).isDisabled(), 'Align > Left is greyed with nothing selected');
+  assert.equal(await align.getByRole('menuitem').count(), 6, 'six alignments');
+  await closeMenus(page);
+  const view = await openMenu(page, 'View');
+  assert.ok(await view.getByRole('menuitem', { name: 'Fit selection', exact: true }).isDisabled(), 'Fit selection is greyed with nothing selected');
+  await closeMenus(page);
+  await page.locator('[data-block-id="c-2"]').click({ position: { x: 20, y: 20 } });
+  const fit = (await openMenu(page, 'View')).getByRole('menuitem', { name: 'Fit selection', exact: true });
+  await fit.waitFor();
+  assert.ok(await fit.isEnabled(), 'Fit selection is available with a card selected');
+  await fit.click();
+  await page.waitForFunction(() => {
+    const surface = document.querySelector('[data-canvas-surface]')?.getBoundingClientRect(), card = document.querySelector('[data-block-id="c-2"]')?.getBoundingClientRect();
+    return !!surface && !!card && card.left >= surface.left - 1 && card.right <= surface.right + 1 && card.top >= surface.top - 1 && card.bottom <= surface.bottom + 1;
+  }, null, { timeout: 5000 });
+  const touch = await fresh({ width: 390, height: 844 }, { hasTouch: true, isMobile: true });
+  await touch.goto(BASE + '/apps/' + canvas.name);
+  await touch.locator('[data-block-id="c-1"]').waitFor({ timeout: 60000 });
+  await topMenu(touch, 'View').tap();
+  const show = menubar(touch).getByRole('menuitem', { name: 'Show / hide', exact: true });
+  await show.tap();
+  const inner = menubar(touch).getByRole('menu', { name: 'Show / hide', exact: true });
+  await inner.waitFor({ timeout: 5000 });
+  const where = await inner.evaluate(el => { const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, width: innerWidth }; });
+  assert.ok(where.left >= 0 && where.right <= where.width, 'the submenu is inside the phone screen: ' + JSON.stringify(where));
+  const row = showHideRow(touch, 'Minimap');
+  await row.tap();
+  await checked(touch, 'Minimap', false);
+  assert.equal(await inner.count(), 1, 'a tap on a check row leaves the submenu open');
+  await row.tap();
+  await checked(touch, 'Minimap', true);
+  await touch.context().close();
+  await shot(page, 'view-15-submenus');
+  await quiet(page, 'submenus', before);
+});
+
 await check('13 no model-capable request was let through, and hook sets came only after learner turns with Curious shown or the empty state request', async () => {
   assert.deepEqual(model, []);
   // The no-request windows themselves are asserted in 4-10; here only the totals: three shown turns and the one click asked.
@@ -423,6 +513,6 @@ await check('13 no model-capable request was let through, and hook sets came onl
 await browser.close();
 const fatal = errors.filter(e => !/ResizeObserver/.test(e));
 if (fatal.length) { console.log(`page errors:\n${fatal.join('\n')}`); process.exitCode = 1; }
-const total = 16;
+const total = 18;
 console.log(`${results.length}/${total} view menu checks passed${failures.length ? `; failed: ${failures.join(' | ')}` : ''}`);
 if (results.length !== total) process.exitCode = 1;

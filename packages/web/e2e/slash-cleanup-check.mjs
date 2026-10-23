@@ -14,6 +14,7 @@
 //   7. the Library bar has no slash commands: no picker, no Auto, a removed one says so;
 //   8. (light only, last) typed /dive <topic> opens a Rabbit Hole about it.
 // Usage: BASE=http://127.0.0.1:9231 SMALL_CP=http://127.0.0.1:9233 VARS=C:/s/toc-uislash/.dev.vars node e2e/slash-cleanup-check.mjs [shotsDir]
+import { openSlashHelp } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { PRIMITIVES } from '../../control-plane/src/learn-primitives.js';
@@ -224,8 +225,7 @@ async function pass(theme) {
   await page.keyboard.press('Escape');
 
   // 5. The Slash commands window.
-  await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: 'View' }).click();
-  await page.getByRole('menuitem', { name: 'Slash commands' }).click();
+  await openSlashHelp(page); // // Owner brief 2026-10-22: Slash commands left View for the chat composer's slash palette
   const sheet = page.getByRole('dialog', { name: 'Slash commands' });
   await sheet.waitFor();
   const listed = await sheet.locator('[data-slash-help]').evaluateAll(nodes => nodes.map(node => node.dataset.slashHelp));

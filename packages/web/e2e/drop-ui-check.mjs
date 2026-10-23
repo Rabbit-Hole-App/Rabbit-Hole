@@ -97,7 +97,7 @@ ok('and the panel stays open', (await page.locator('[aria-label="Learn agent cha
 ok('Add section is off the zoom pill', (await page.locator('[data-zoom]').getByText('Add section').count()) === 0);
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
 await page.waitForTimeout(250);
-ok('Insert offers the divider line', (await page.getByRole('menuitem', { name: 'Divider line' }).count()) === 1);
+ok('Insert offers the divider', (await page.getByRole('menuitem', { name: 'Divider', exact: true }).count()) === 1); // Owner brief 2026-10-22: Divider line is Divider
 await page.keyboard.press('Escape');
 
 const box0 = await surface.boundingBox();
@@ -143,22 +143,23 @@ await page.waitForTimeout(1500);
 const withImage = asks.find(body => body.image_context);
 ok('the next question carries image_context', withImage?.image_context?.id === 'media:0123456789ab');
 
-// --- Files panel: switches and Upload (deep coverage in search-files-check) ---
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-const firstSwitch = page.getByRole('switch').first();
-ok('a source row is a switch, on by default', (await firstSwitch.count()) >= 1 && (await firstSwitch.getAttribute('aria-checked')) === 'true');
-await firstSwitch.click();
-await page.waitForTimeout(150);
-ok('the switch flips off in place, panel still open', (await page.getByRole('switch').first().getAttribute('aria-checked')) === 'false');
-await page.getByRole('switch').first().click();
-ok('Upload lives in Insert, not Files', (await page.getByRole('menuitem', { name: /Upload/ }).count()) === 0);
-ok('no trailing dots anywhere in the panel', !(await page.locator('[role="menubar"]').innerText()).includes('\u2026'));
+// --- no Files menu (owner brief 2026-10-22 item 1: the right panel's Context and Search do that work); Upload a file is in Insert ---
+ok('the menubar has no Files menu', (await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).count()) === 0);
+ok('the menubar reads Insert, Edit, Arrange, View', (await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem').allInnerTexts()).map(text => text.trim()).join(',') === 'Insert,Edit,Arrange,View');
+ok('no trailing dots anywhere in the menubar', !(await page.locator('[role="menubar"]').innerText()).includes('\u2026'));
 await page.keyboard.press('Escape');
 await page.mouse.click(box0.x + 40, box0.y + 700);
 await page.waitForTimeout(200);
 const imagesBefore = await canvas.locator('img[alt="diagram.png"]').count();
 await page.locator('input[type="file"][multiple]').setInputFiles({ name: 'uploaded.png', mimeType: 'image/png', buffer: Buffer.from(PNG) });
+// Owner brief 2026-10-22 item 3: after choosing the file, Add to canvas / Use as AI context / Both; an image can only go to the canvas
+// (the Context panel takes PDF, .txt and .md), so the other two stay, greyed. Nothing is added to AI context unasked.
+const destination = page.locator('[data-upload-destination]');
+await destination.waitFor({ timeout: 5000 });
+ok('the upload asks where it goes: Add to canvas, Use as AI context, Both', (await destination.getByRole('button').allInnerTexts()).map(text => text.trim()).join(',') === 'Add to canvas,Use as AI context,Both,Cancel');
+ok('an image can only be added to the canvas: the context choices are greyed', !(await destination.getByRole('button', { name: 'Add to canvas' }).isDisabled()) && (await destination.getByRole('button', { name: 'Use as AI context' }).isDisabled()) && (await destination.getByRole('button', { name: 'Both' }).isDisabled()));
+ok('nothing was added to the canvas or the context while the question is open', (await canvas.locator('img[alt="diagram.png"]').count()) === imagesBefore);
+await page.locator('[data-upload-destination] [data-upload-choice="canvas"]').click(); // Owner brief 2026-10-22 item 3: the picker asks where the file goes first; Add to canvas is the drop road
 await page.waitForTimeout(1200);
 // The stubbed media route titles everything diagram.png, so count, not name.
 ok('Upload lands a card through the same route as a drop', (await canvas.locator('img[alt="diagram.png"]').count()) === imagesBefore + 1 && mediaPosts.length === 2);

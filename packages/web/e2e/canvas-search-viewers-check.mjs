@@ -2,6 +2,7 @@
 // BASE and SMALL_CP must be the existing local stack. VARS reads TEST_BYPASS_SECRET only.
 // Real invite/accept and publication fixtures follow comments-check.mjs; no permission route is mocked.
 // Usage: BASE=http://127.0.0.1:5441 SMALL_CP=http://127.0.0.1:9093 VARS=<file> OUT=<dir> node e2e/canvas-search-viewers-check.mjs
+import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -166,8 +167,7 @@ try {
       assert.equal(await page.locator('[data-canvas-doc-editor] [contenteditable="true"]').count(), 0);
       await expect(panel).toBeVisible();
       // Back to Canvas through the normal canvas's View menu (SHARE-01: no separate Show document button).
-      await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^View/ }).click();
-      await page.locator('[role="menu"] select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) }).selectOption({ label: 'Canvas' });
+      await chooseWorkspace(page, 'Canvas'); // // Owner brief 2026-10-22: View > Workspace > Canvas
       await expect(page.locator('[data-canvas-doc]')).toHaveCount(0);
     });
     await check(`${audience}: open, resolved and orphan threads retain Search state and never resolve on opening`, async () => {

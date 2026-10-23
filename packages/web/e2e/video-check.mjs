@@ -55,7 +55,7 @@ await page.waitForTimeout(3000);
 
 // --- picking one (Insert > Search YouTube; Release B removed the top-bar Search control) ---
 await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Insert/ }).click();
-await page.getByRole('menuitem', { name: 'Search YouTube', exact: true }).click();
+await page.getByRole('menuitem', { name: 'Search sources', exact: true }).click(); // // Owner brief 2026-10-22: one Search sources row; YouTube is chosen inside
 await page.waitForTimeout(300);
 const box = page.getByRole('dialog', { name: 'Search' });
 await box.getByRole('combobox', { name: 'Search in' }).selectOption('youtube');
@@ -91,16 +91,9 @@ await page.waitForTimeout(1500);
 const sent = asks.at(-1)?.video_context;
 ok('a question carries the video and where the learner is in it', sent?.videoId === 'Ilg3gGewQ5U' && sent?.start > 0, JSON.stringify(sent));
 
-// --- detaching stops it ---
-await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-await page.getByRole('switch', { name: /Tutor reads Backpropagation, intuitively/ }).click();
-await page.waitForTimeout(300);
-await page.keyboard.press('Escape');
-await page.getByPlaceholder(/Ask about/).first().fill('and now?');
-await page.keyboard.press('Enter');
-await page.waitForTimeout(1500);
-ok('detaching the source stops video_context riding', asks.at(-1)?.video_context === undefined, JSON.stringify(asks.at(-1)?.video_context));
+// --- no Files menu (owner brief 2026-10-22 item 1) ---
+// The Tutor reads switch lived in the Files menu; a source's attachment is now managed in the right panel's Context.
+ok('the menubar has no Files menu', (await page.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^Files/ }).count()) === 0);
 
 // --- a card with a moment window, restored from storage ---
 // Written the way a phase-2 show_video would write it: the block carries the

@@ -9,6 +9,7 @@
 // Prints `ok <label>` per check, ids and counts only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json (facts, the captured document parts of canvas_context) and *.png.
 // Usage: BASE=http://127.0.0.1:8931 SMALL_CP=http://127.0.0.1:8933 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-doc-check.mjs
+import { chooseWorkspace, workspaceValue } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -147,16 +148,13 @@ const pane = () => page.locator('[data-chat-pane]');
 // The app's Menu panel has no role, so look inside the menubar it opens in.
 const menubar = () => page.locator('[role="menubar"][aria-label="Canvas menu"]');
 const viewMenu = () => menubar().getByRole('menuitem', { name: 'View', exact: true });
-const viewChoice = () => menubar().locator('select').filter({ has: page.locator('option', { hasText: /^Editor$/ }) });
 const setView = async value => {
-  await viewMenu().click();
-  await viewChoice().waitFor({ timeout: 5000 }).catch(() => { throw Error('the View menu has no choice with an "Editor" option'); });
-  await viewChoice().selectOption({ label: value });
+  await chooseWorkspace(page, value); // // Owner brief 2026-10-22: View > Workspace > Canvas | Editor
   await page.waitForTimeout(300);
   if (value === 'Editor') await waitFor(async () => (await paper().getAttribute('data-doc-state').catch(() => null)) === 'ready', 20000, `[data-canvas-doc] is not data-doc-state="ready" (${await paper().getAttribute('data-doc-state').catch(() => 'absent')})`);
   else await waitFor(async () => (await paper().count()) === 0, 5000, '[data-canvas-doc] is still in the DOM in Canvas view');
 };
-const viewValue = async () => { await viewMenu().click(); const value = await viewChoice().evaluate(s => s.selectedOptions[0]?.textContent); await page.keyboard.press('Escape'); await page.waitForTimeout(150); return value; };
+const viewValue = () => workspaceValue(page);
 const surfaceSpacePan = () => page.evaluate(() => document.querySelector('[data-canvas-surface]')?.hasAttribute('data-space-pan') || false);
 const goToStart = async () => { await viewMenu().click(); await menubar().getByRole('menuitem', { name: 'Go to document start', exact: true }).click(); await page.waitForTimeout(700); };
 // The camera: the world layer's translate/scale (AdaptiveCanvas worldRef), and the surface it sits in.

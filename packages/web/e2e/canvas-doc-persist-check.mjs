@@ -12,6 +12,7 @@
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Evidence goes to OUT: results.json and *.png.
 // Usage: BASE=http://127.0.0.1:8901 SMALL_CP=http://127.0.0.1:8903 VARS=<cp .dev.vars> OUT=<dir> node e2e/canvas-doc-persist-check.mjs
+import { chooseWorkspace } from './canvas-menu-helpers.mjs';
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
@@ -123,14 +124,9 @@ const openCanvas = async (p, name, { path = `/apps/${name}` } = {}) => {
 };
 const inApp = (p, to) => p.evaluate(to => { window.history.pushState({}, '', to); window.dispatchEvent(new PopStateEvent('popstate')); }, to);
 const ready = p => p.locator('[data-canvas-doc][data-doc-state="ready"]').waitFor({ timeout: 30000 });
-// The View menu's Canvas / Editor choice: a select (CanvasMenubar's `choice`) or two items.
+// The View menu's Canvas / Editor choice: View > Workspace.
 const setView = async (p, label) => {
-  await p.getByRole('menubar', { name: 'Canvas menu' }).getByRole('menuitem', { name: /^View/ }).click();
-  const select = p.locator('[role="menu"] select, [role="menubar"] select').filter({ has: p.locator('option', { hasText: /^Editor$/ }) });
-  const item = p.getByRole('menuitem', { name: label, exact: true });
-  if (await select.count()) await select.first().selectOption({ label });
-  else if (await item.count()) await item.click();
-  else { await p.keyboard.press('Escape'); throw Error(`the View menu has no ${label} choice`); }
+  await chooseWorkspace(p, label); // Owner brief 2026-10-22: View > Workspace > Canvas | Editor (two radio rows)
   if (label === 'Editor') await ready(p);
   else await until(async () => (await paper(p).count()) === 0, 8000, 'the paper is still in the DOM in Canvas view');
 };

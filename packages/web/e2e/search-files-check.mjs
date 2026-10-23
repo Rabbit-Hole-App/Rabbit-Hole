@@ -56,7 +56,8 @@ const ok = (name, condition, extra = '') => { if (!condition) failed += 1; conso
 const canvas = page.locator('[aria-label="Lesson canvas"]');
 const menubar = page.getByRole('menubar', { name: 'Canvas menu' });
 const bar = page.getByRole('dialog', { name: 'Search' });
-const openSearch = async (label = 'Search YouTube') => { await menubar.getByRole('menuitem', { name: /^Insert/ }).click(); await page.waitForTimeout(200); await page.getByRole('menuitem', { name: label, exact: true }).click(); await page.waitForTimeout(250); };
+// // Owner brief 2026-10-22: one Search sources row; a source (YouTube, arXiv, Wikipedia) is chosen inside the finder, or left on its remembered default.
+const openSearch = async (source = null) => { await menubar.getByRole('menuitem', { name: 'Insert', exact: true }).click(); await page.waitForTimeout(200); await page.getByRole('menuitem', { name: 'Search sources', exact: true }).click(); await page.waitForTimeout(250); if (source) await bar.getByRole('combobox', { name: 'Search in' }).selectOption(source); };
 
 await page.goto('http://localhost:5189/apps/nanogpt?tab=learn&board=search-files-1');
 await page.waitForSelector('[aria-label="Lesson canvas"]', { timeout: 30000 });
@@ -64,30 +65,25 @@ await page.waitForTimeout(2500);
 
 // --- the menubar ---
 const labels = await menubar.getByRole('menuitem').allInnerTexts();
-ok('the menubar reads Files, Insert, Edit, Arrange, View', labels.map(label => label.trim()).join(',') === 'Files,Insert,Edit,Arrange,View', labels.join(','));
+ok('the menubar reads Insert, Edit, Arrange, View (no Files)', labels.map(label => label.trim()).join(',') === 'Insert,Edit,Arrange,View', labels.join(','));
 for (const title of ['Insert', 'Edit', 'Arrange', 'View']) {
-  await menubar.getByRole('menuitem', { name: new RegExp(`^${title}`) }).click();
+  await menubar.getByRole('menuitem', { name: title, exact: true }).click();
   await page.waitForTimeout(200);
-  const rows = page.locator('[role="menubar"] [class*="top-9"] button[role="menuitem"]');
-  const count = await rows.count();
-  // A lucide icon, or the product mark's img for an AI action (owner 2026-10-13: never lucide Sparkles).
-  const withIcon = await rows.evaluateAll(buttons => buttons.filter(button => button.querySelector('svg.lucide, :scope > img')).length);
-  ok(`every ${title} row has an icon`, count > 0 && withIcon === count, `${withIcon}/${count}`);
+  // The menu's own rows (a submenu's choices are text only, and Page guides is a label with a selector): a lucide icon each.
+  const rows = menubar.locator('button[data-menu-item]');
+  const icons = await rows.evaluateAll(buttons => buttons.filter(button => button.closest('[role="menu"]').parentElement.className.includes('top-9')).map(button => !!button.querySelector('svg.lucide')));
+  ok(`every ${title} row has an icon`, icons.length > 0 && icons.every(Boolean), `${icons.filter(Boolean).length}/${icons.length}`);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
 }
-await menubar.getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-const filesText = await page.locator('[role="menubar"]').innerText();
-ok('Files has no search rows and no Google Slides until it exists', !/arXiv paper|Wikipedia article|YouTube video|Google Slides/.test(filesText));
-ok('the repository is listed with its switch, and cannot be removed', (await page.getByRole('switch', { name: /Tutor reads karpathy\/nanoGPT/ }).count()) === 1 && (await page.getByRole('button', { name: /Remove karpathy/ }).count()) === 0);
-await page.keyboard.press('Escape');
+// // Owner brief 2026-10-22: no Files menu: the right panel's Context manages AI materials and its Search locates canvas items
+ok('there is no Files menu', (await menubar.getByRole('menuitem', { name: /^Files/ }).count()) === 0);
 await page.mouse.click(700, 700);
 
 // --- every way out ---
 await openSearch();
 ok('no top-bar Search control', (await page.getByRole('button', { name: 'Search YouTube, arXiv and Wikipedia' }).count()) === 0);
-ok('Insert > Search YouTube opens one bar, on YouTube', (await bar.count()) === 1 && (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'youtube');
+ok('Insert > Search sources opens one bar, on YouTube by default', (await bar.count()) === 1 && (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'youtube');
 const rect = await bar.boundingBox();
 ok('centered horizontally, in the upper part of the page', Math.abs(rect.x + rect.width / 2 - 750) < 4 && rect.y < 950 / 3, `x-center ${Math.round(rect.x + rect.width / 2)}, top ${Math.round(rect.y)}`);
 await page.keyboard.press('Escape');
@@ -141,8 +137,8 @@ await page.waitForTimeout(800);
 ok('Add to canvas adds the highlighted result and closes the bar', (await bar.count()) === 0 && (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
 
 // --- Insert > Search arXiv; exact match; preview, then Add to canvas ---
-await openSearch('Search arXiv');
-ok('Insert > Search arXiv opens the bar on arXiv', (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'arxiv');
+await openSearch('arxiv');
+ok('Insert > Search sources, then the arXiv choice, searches arXiv', (await bar.getByRole('combobox', { name: 'Search in' }).inputValue()) === 'arxiv');
 await bar.getByRole('textbox').fill('1706.03762');
 await page.keyboard.press('Enter');
 await page.waitForTimeout(700);
@@ -191,23 +187,8 @@ await bar.getByRole('listbox').getByRole('option').first().click();
 await page.waitForTimeout(1500);
 ok('picking an article puts its card on the canvas', (await canvas.locator('.wiki-article').count()) >= 1);
 
-// --- Files panel: switch, show, remove ---
-await menubar.getByRole('menuitem', { name: /^Files/ }).click();
-await page.waitForTimeout(250);
-const videoSwitch = page.getByRole('switch', { name: /Tutor reads Backpropagation In Depth/ });
-ok('each canvas source has a switch', (await videoSwitch.count()) === 1 && (await videoSwitch.getAttribute('aria-checked')) === 'true');
-await videoSwitch.click();
-await page.waitForTimeout(150);
-ok('switching off keeps the card, the row says the tutor ignores it', (await videoSwitch.getAttribute('aria-checked')) === 'false' && (await page.getByText('YouTube - the tutor ignores it').count()) === 1 && (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
-await page.getByRole('button', { name: 'Remove Backpropagation In Depth' }).click({ force: true });
-await page.waitForTimeout(400);
-ok('remove takes the card off the canvas', (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 0);
-ok('and the row out of the list', (await page.getByRole('switch', { name: /Tutor reads Backpropagation In Depth/ }).count()) === 0);
-await page.keyboard.press('Escape');
-await page.mouse.click(700, 700);
-await page.keyboard.press('Control+z');
-await page.waitForTimeout(400);
-ok('undo brings the card back', (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
+// --- Files panel (switch, show, remove) is gone with the Files menu (// Owner brief 2026-10-22: item 1); the card stays on the canvas ---
+ok('the video card is on the canvas', (await canvas.locator('iframe[src*="RyKrG8rTGUY"]').count()) === 1);
 
 // --- insert where you are looking ---
 const surface = canvas.locator('div.touch-none').first();
@@ -216,14 +197,15 @@ for (let at = 0; at < 8; at++) { await page.mouse.move(view.x + 700, view.y + 40
 await page.waitForTimeout(400);
 await menubar.getByRole('menuitem', { name: /^Insert/ }).click();
 await page.waitForTimeout(200);
-await page.getByRole('menuitem', { name: 'Divider line' }).click();
+await page.getByRole('menuitem', { name: 'Divider', exact: true }).click(); // Owner brief 2026-10-22: Divider line is Divider
 await page.waitForTimeout(300);
 const rule = await canvas.locator('[data-section]').last().boundingBox();
 ok('a divider lands on the screen being looked at', rule && rule.y > view.y && rule.y < view.y + view.height, rule && `y ${Math.round(rule.y)}`);
 ok('and is a wide plain rule, no title', rule && rule.width > 900 && (await canvas.locator('[data-section]').last().innerText()).trim() === '', rule && `width ${Math.round(rule.width)}`);
 await menubar.getByRole('menuitem', { name: /^Insert/ }).click();
 await page.waitForTimeout(200);
-await page.getByRole('menuitem', { name: 'Section', exact: true }).click();
+await menubar.locator('[data-menu-item="Section"][data-submenu]').click(); // Owner brief 2026-10-22: Section is a submenu
+await menubar.getByRole('menu', { name: 'Section', exact: true }).getByRole('menuitem', { name: 'Section', exact: true }).click();
 await page.waitForTimeout(700);
 const heading = await canvas.locator('[data-block-id]').filter({ has: page.locator('[contenteditable]') }).last().boundingBox();
 ok('a section heading lands on the screen being looked at', heading && heading.y + heading.height > view.y && heading.y < view.y + view.height, heading && `y ${Math.round(heading.y)}`);
