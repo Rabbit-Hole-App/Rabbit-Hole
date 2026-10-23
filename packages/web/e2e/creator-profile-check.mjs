@@ -235,7 +235,9 @@ await check('6 a profile explainer opens its canonical /e route, whose header li
   await viewer.waitForURL(`${BASE}/e/${tokens.flash}`);
   const by = viewer.locator('[data-shared-creator]');
   await by.waitFor({ timeout: 60000 });
-  assert.equal((await by.innerText()).trim(), `@${H.full}`, 'owner brief 2026-10-23: the blue @handle alone under the title');
+  assert.equal((await by.innerText()).trim(), `@${H.full}`, 'owner decision 2026-10-23: the blue @handle alone, beside Fork');
+  const beside = await viewer.evaluate(() => { const c = document.querySelector('[data-shared-creator]').getBoundingClientRect(), f = document.querySelector('[data-canvas-header] [data-fork-button]').getBoundingClientRect(); return { left: c.right <= f.left, centred: Math.abs((c.top + c.height / 2) - (f.top + f.height / 2)) <= 1, gap: f.left - c.right }; });
+  assert.ok(beside.left && beside.centred && Math.abs(beside.gap - 8) <= 1.5, 'owner decision 2026-10-23: immediately left of Fork, centred with it ' + JSON.stringify(beside));
   assert.equal(await by.locator('[data-creator-link]').getAttribute('title'), `Mayank · @${H.full}`);
   assert.equal(await by.locator('[data-creator-link]').getAttribute('href'), `/@${H.full}`);
   await by.locator('[data-creator-link]').click();

@@ -3,8 +3,9 @@
 //   app:           npx wrangler dev -c packages/web/wrangler.dev.jsonc -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8848
 //   control plane: npx wrangler dev -c packages/control-plane/wrangler.rabbit-hole-dev.jsonc --local --persist-to .small/fork-local --port 8849
 // Usage: BASE=http://127.0.0.1:8848 SMALL_CP=http://127.0.0.1:8849 node e2e/shared-header-check.mjs [shotsDir]
-// Covers: the three areas and the centred title group (panel open and closed), the transparent logo per theme, the blue @handle under
-// the title's left edge (owner brief 2026-10-23: no account circle, no Comments icon in the header) and the public profile signed out, one Fork (no count at zero, the real count above it), the exact note beneath Fork, the removed Sign in /
+// Covers: the three areas and the centred title group (panel open and closed), the transparent logo per theme, the blue @handle beside Fork
+// (owner decision 2026-10-23, replacing the line under the title; no account circle, no Comments icon in the header) with real overlap and click-target
+// assertions, cut when long without moving Fork, at 390px, signed in and out, and the public profile signed out, one Fork (no count at zero, the real count above it), the exact note beneath Fork, the removed Sign in /
 // Start Rabbit Hole / usage meter, a long title, keyboard order and focus, the compact menu and 44px targets on a phone, nothing
 // blocking the canvas, an owner's view without the note, and a lost fork reply retried without a second fork. The sign-in resume,
 // the draft and the cancelled sign-in are in canvas-forking-check; the card-menu Rabbit Hole in shared-rabbit-hole-check.
@@ -40,6 +41,27 @@ const shot = async (page, name) => { if (!SHOTS) return; await page.waitForTimeo
 const box = locator => locator.evaluate(node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, right: r.right, bottom: r.bottom }; });
 const overlap = (a, b) => a.x < b.right - 0.5 && b.x < a.right - 0.5 && a.y < b.bottom - 0.5 && b.y < a.bottom - 0.5;
 
+// The creator's @handle beside Fork (owner decision 2026-10-23, replacing "directly below the title"): a blue link to the public profile, immediately left of
+// Fork (centres within 1px, right edge about 8px from Fork's left edge), never intersecting Fork, the panel toggle or the title group, never under the title,
+// and the topmost element at the handle, Fork and the toggle is each of them (nothing covers a click target). maxW: the handle's width cap at this width.
+const besideFork = async (page, handle, maxW) => {
+  const p = parts(page);
+  const creator = page.locator('[data-shared-creator]'), link = creator.locator('[data-creator-link]');
+  const [c, l, f, t, ti, ce, h] = await Promise.all([box(creator), box(link), box(p.fork), box(p.toggle), box(p.title), box(p.centre), box(p.header)]);
+  const colours = await creator.evaluate(node => [getComputedStyle(node).color, getComputedStyle(node.querySelector('[data-creator-link]')).color]);
+  const [r, g, b] = (colours[1].match(/[\d.]+/g) || []).map(Number);
+  const top = await page.evaluate(([lk, fk, tg, gap]) => { const at = ([x, y], selector) => !!document.elementFromPoint(x, y)?.closest(selector);
+    return { link: at(lk, '[data-creator-link]'), fork: at(fk, '[data-fork-button]'), toggle: at(tg, '[data-panel-toggle]'), gap: at(gap, '[data-creator-link], [data-fork-button], [data-panel-toggle]') }; },
+    [[c.x + c.w / 2, c.y + c.h / 2], [f.x + f.w / 2, f.y + f.h / 2], [t.x + t.w / 2, t.y + t.h / 2], [(c.right + f.x) / 2, c.y + c.h / 2]]);
+  const facts = { text: (await creator.innerText()).trim() === `@${handle}`, href: (await link.getAttribute('href')) === `/@${handle}`, blue: colours[0] !== colours[1] && b > r && b > g,
+    notUnderTitle: await page.locator('[data-header-center] [data-shared-creator]').count() === 0 && !overlap(c, ce) && c.y < ti.bottom,
+    leftOfFork: c.right <= f.x && c.x >= h.x, centred: Math.abs((c.y + c.h / 2) - (f.y + f.h / 2)) <= 1, gap8: Math.abs(f.x - c.right - 8) <= 1.5,
+    noIntersect: !overlap(c, f) && !overlap(c, t) && !overlap(c, ti) && !overlap(f, t), capped: c.w <= maxW + 1, forkAtToggle: Math.abs(t.x - f.right - 8) <= 1.5, top };
+  const ok = facts.text && facts.href && facts.blue && facts.notUnderTitle && facts.leftOfFork && facts.centred && facts.gap8 && facts.noIntersect && facts.capped && facts.forkAtToggle
+    && top.link && top.fork && top.toggle && !top.gap && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  return { ok, forkRight: f.right, clipped: c.w < l.w - 0.5, detail: JSON.stringify({ facts, c, l, f, t, ti, colours }) };
+};
+
 // ---- one public share link with a long title, owned by a person with a handle ----
 const TITLE = `Why attention heads route information between distant tokens in a deep transformer stack (${run})`;
 const source = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: TITLE }) });
@@ -62,6 +84,7 @@ const noOverlaps = async page => {
 };
 
 // ---- desktop, both themes, signed out: layout, logo, creator, Fork, note, removed controls, long title, focus ----
+let desktopForkRight = null;
 for (const theme of ['light', 'dark']) {
   const { context, page } = await contextFor(null, { theme });
   await open(page);
@@ -82,12 +105,10 @@ for (const theme of ['light', 'dark']) {
   await p.toggle.click();
   await page.waitForFunction(() => document.querySelector('[data-panel-toggle]').getAttribute('aria-pressed') === 'true'); // the panel is back before anything below is measured
   await page.waitForTimeout(400);
-  const creator = page.locator('[data-shared-creator]');
-  const link = creator.locator('[data-creator-link]');
-  const colours = await creator.evaluate(node => [getComputedStyle(node).color, getComputedStyle(node.querySelector('[data-creator-link]')).color]);
-  const [creatorBox, titleBox] = await Promise.all([box(creator), box(p.title)]);
-  check(`${theme}: directly below the title, flush with its left edge, the blue @handle alone linking to the public profile; no old attribution`, (await creator.innerText()).trim() === `@${HANDLE}` && (await link.getAttribute('href')) === `/@${HANDLE}`
-    && colours[0] !== colours[1] && !/Published by|Shared by/.test(await p.header.innerText()) && creatorBox.y >= titleBox.bottom - 1 && creatorBox.y - titleBox.bottom < 16 && Math.abs(creatorBox.x - titleBox.x) <= 1, `${colours.join(' vs ')} ${JSON.stringify({ creatorBox, titleBox })}`);
+  const beside = await besideFork(page, HANDLE, 160);
+  if (theme === 'light') desktopForkRight = beside.forkRight;
+  check(`${theme}: the blue @handle is immediately left of Fork (8px gap, centres within 1px), a link to the public profile, not under the title, never intersecting Fork, the toggle or the title, each the topmost element at its centre; no old attribution`,
+    beside.ok && !/Published by|Shared by/.test(await p.header.innerText()), beside.detail);
   check(`${theme}: one Fork button at zero forks - no 0, badge or separator - and no Sign in, Start Rabbit Hole or usage meter in the header`,
     (await p.fork.innerText()).trim() === 'Fork' && await p.fork.locator('[data-fork-count-value]').count() === 0 && (await p.fork.getAttribute('aria-label')) === null
     && await p.header.locator('[data-sign-in], [data-start-rabbit-hole], [data-usage-gauge], [data-viewer-account], [data-comments-header]').count() === 0 && !/Sign in|Start Rabbit Hole/.test(await p.header.innerText()));
@@ -143,6 +164,8 @@ for (const [width, full] of [[1424, true], [1280, false]]) {
   check('phone: logo, menu, Fork and the panel toggle are at least 44px to touch', Object.values(targets).every(t => t.w >= 43.5 && t.h >= 43.5), JSON.stringify(targets));
   check('phone: title, creator and the note stay readable, nothing overlaps or scrolls sideways', (await box(p.title)).w > 40 && await page.locator('[data-shared-creator] [data-creator-link]').isVisible() && (await p.note.innerText()).trim() === "Changes aren't saved. Fork to keep them"
     && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth) && (await noOverlaps(page)).length === 0, JSON.stringify(await noOverlaps(page)));
+  const phoneBeside = await besideFork(page, HANDLE, 112);
+  check('phone, 390px: the @handle is immediately left of Fork, centred with it, 8px away, whole (not clipped) and clear of Fork, the toggle and the title, each the topmost element at its centre', phoneBeside.ok && !phoneBeside.clipped, phoneBeside.detail);
   await compact.click();
   const view = page.getByRole('menuitem', { name: 'View' });
   await view.waitFor({ timeout: 5000 });
@@ -193,6 +216,39 @@ for (const [width, full] of [[1424, true], [1280, false]]) {
   const p = parts(page);
   check('an owner\'s view of their own link keeps the view-only state and shows no unsaved-changes note', await page.locator('[data-view-only]').count() === 1 && await p.note.count() === 0 && await p.header.locator('[data-sign-in], [data-start-rabbit-hole]').count() === 0);
   check('signed in, the header has no account circle and no Comments icon (owner brief 2026-10-23)', await p.header.locator('[data-viewer-account], [data-comments-header]').count() === 0);
+  const ownerBeside = await besideFork(page, HANDLE, 160);
+  check('signed in as the owner, the @handle is beside Fork as signed out: left of it, centred, 8px away, no intersection, nothing covering a click target', ownerBeside.ok, ownerBeside.detail);
+  await context.close();
+}
+{
+  const { context, page } = await contextFor(viewer);
+  await open(page);
+  const viewerBeside = await besideFork(page, HANDLE, 160);
+  check('signed in as a visitor, the @handle is beside Fork: left of it, centred, 8px away, no intersection, nothing covering a click target', viewerBeside.ok, viewerBeside.detail);
+  await context.close();
+}
+
+// ---- a long handle (30 characters) truncates before it can move Fork or the toggle; no handle draws nothing and the space collapses ----
+{
+  const LONG = `lh${run}`.padEnd(30, 'x');
+  const longOwner = { session: await sessionFor(`hdr-long-${run}@example.com`, LONG) };
+  const longSource = await api(longOwner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Long handle ${run}` }) });
+  const longShared = await api(longOwner, `/api/learn/boards/${longSource.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: SEED }) });
+  for (const [label, size, maxW] of [['desktop', {}, 160], ['phone, 390px', { width: 390, height: 844 }, 112]]) {
+    const { context, page } = await contextFor(null, size);
+    await open(page, `${BASE}/b/${longShared.sharing.view}`);
+    const long = await besideFork(page, LONG, maxW);
+    check(`${label}: a 30 character handle is cut with CSS truncate (full text and profile link kept) and Fork and the toggle stay put, no overlap, no sideways scroll`, long.ok && long.clipped
+      && (label !== 'desktop' || Math.abs(long.forkRight - desktopForkRight) <= 1), long.detail);
+    await context.close();
+  }
+  const plain = { session: await sessionFor(`hdr-plain-${run}@example.org`) }; // no handle
+  const plainSource = await api(plain, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `No handle ${run}` }) });
+  const plainShared = await api(plain, `/api/learn/boards/${plainSource.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: SEED }) });
+  const { context, page } = await contextFor(null);
+  await open(page, `${BASE}/b/${plainShared.sharing.view}`);
+  const [f, t] = await Promise.all([box(parts(page).fork), box(parts(page).toggle)]);
+  check('no handle: no @handle or creator link is drawn anywhere in the header, and Fork still ends 8px before the toggle', await page.locator('[data-shared-creator], [data-creator-link]').count() === 0 && Math.abs(t.x - f.right - 8) <= 1.5 && Math.abs(f.right - desktopForkRight) <= 1, JSON.stringify({ f, t, desktopForkRight }));
   await context.close();
 }
 

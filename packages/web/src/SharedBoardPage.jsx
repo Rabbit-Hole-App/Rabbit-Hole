@@ -36,7 +36,7 @@ import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
 import { canvasOwnsWheel, focusAfter, leftoverZoom, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
 import { forkNumber } from './home/provenance.js';
-import { CanvasChromeLoading, EMBED_BODY, EMBED_CANVAS, EMBED_HEADER, EMBED_MAIN, EmbedCanvasLoading, EmbedOpenLink, GUEST_NOTE, GUEST_NOTE_BOX, SHARED_HEADER, SHARED_HEADER_CENTER, SHARED_HEADER_LEFT, SHARED_HEADER_RIGHT, SHARED_MAIN, SHARED_SECTION, SHARED_TITLE_BLOCK, SHARED_TITLE_ROW, SharedBrand, SharedCanvasLoading, VIEWER_CANVAS } from './CanvasLoading.jsx';
+import { CanvasChromeLoading, EMBED_BODY, EMBED_CANVAS, EMBED_HEADER, EMBED_MAIN, EmbedCanvasLoading, EmbedOpenLink, GUEST_NOTE, GUEST_NOTE_BOX, SHARED_HEADER, SHARED_HEADER_CENTER, SHARED_HEADER_LEFT, SHARED_HEADER_RIGHT, SHARED_MAIN, SHARED_FORK_COLUMN, SHARED_FORK_ROW, SHARED_SECTION, SHARED_TITLE_ROW, SharedBrand, SharedCanvasLoading, VIEWER_CANVAS } from './CanvasLoading.jsx';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -296,35 +296,35 @@ function SharedBoard({ token, embed = null }) {
     <main className={SHARED_MAIN}>
       <section aria-label="Shared canvas" className={SHARED_SECTION}>
       {/* Three areas (owner header brief, 2026-10-22; owner brief 2026-10-23: no account circle or Comments button here, the Comments
-          tab is in the panel): the logo; the title with its menus and creator, centred on the header; Fork with its note, then the panel toggle. Equal side columns keep the centre put whatever the right side holds. */}
+          tab is in the panel): the logo; the title with its menus, centred on the header; the creator's @handle beside Fork, Fork with its note, then the panel toggle. Equal side columns keep the centre put whatever the right side holds. */}
       <header data-canvas-header className={SHARED_HEADER}>
         <div className={SHARED_HEADER_LEFT}>
           <SharedBrand data-shared-brand />
         </div>
         <div data-header-center className={SHARED_HEADER_CENTER}>
-          <div className={SHARED_TITLE_BLOCK}>
-            <div className={SHARED_TITLE_ROW}>
-              {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
-              <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
-              {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
-              {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
-              {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2 max-lg:hidden"><Eye size={11} />View only</span>}
-              <HeaderMenus menus={menus} />
-              {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
-              {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here. */}
-              <ProvenanceRow provenance={provenance} end={false} />
-            </div>
-            {/* The creator (docs/features/user-handles.md; owner brief 2026-10-23): the blue @handle on its own line below the title, at the
-                title's left edge, a link to the creator's public profile on a publication and a share link alike. No handle: no line. */}
-            {shared.creator?.handle && <span data-shared-creator className="max-w-full truncate text-xs text-ink-3">
-              <a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className="rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">@{shared.creator.handle}</a></span>}
+          <div className={SHARED_TITLE_ROW}>
+            {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
+            <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
+            {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
+            {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
+            {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2 max-lg:hidden"><Eye size={11} />View only</span>}
+            <HeaderMenus menus={menus} />
+            {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
+            {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here. */}
+            <ProvenanceRow provenance={provenance} end={false} />
           </div>
         </div>
         <div className={SHARED_HEADER_RIGHT}>
           {/* Fork, the one primary action; signed out it goes through sign-in and forks on return. The note sits directly beneath it
               in the temporary-edit experience only, never for an owner's saved editing view. */}
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="min-h-11 @5xl:min-h-8" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
+          <div className={SHARED_FORK_COLUMN}>
+            <div className={SHARED_FORK_ROW}>
+              {/* The creator (docs/features/user-handles.md; owner decision 2026-10-23): the blue @handle immediately left of Fork, a link to the
+                  creator's public profile on a publication and a share link alike. It truncates before Fork or the toggle move. No handle: nothing drawn. */}
+              {shared.creator?.handle && <span data-shared-creator className="min-w-0 max-w-28 truncate text-xs text-ink-3 @5xl:max-w-40">
+                <a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className="rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">@{shared.creator.handle}</a></span>}
+              <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="min-h-11 @5xl:min-h-8" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
+            </div>
             {localCopy && <span data-guest-draft-notice role="note" className={`${GUEST_NOTE_BOX} text-ink-2`}>{GUEST_NOTE}</span>}
           </div>
           <PanelToggle panel={panel} />

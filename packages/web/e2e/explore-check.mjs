@@ -131,8 +131,9 @@ await card.locator('[data-card-title]').click();
 await viewer.page.waitForURL(new RegExp(`/e/${token}$`), { timeout: 30000 });
 await viewer.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 const header = viewer.page.locator('header');
-// Owner brief 2026-10-23: the @handle alone under the title (was "by @handle"), no header Start Rabbit Hole button, and Fork with no count at zero.
-check('Explore -> the published canvas: @handle linking to the public profile, no Start Rabbit Hole button, [Fork] with no 0', (await viewer.page.locator('[data-shared-creator]').innerText()).trim() === `@${H.owner}`
+// Owner decision 2026-10-23: the @handle alone immediately left of Fork (was under the title, before that "by @handle"), no header Start Rabbit Hole button, and Fork with no count at zero.
+const handleBesideFork = await viewer.page.evaluate(() => { const c = document.querySelector('[data-shared-creator]').getBoundingClientRect(), f = document.querySelector('[data-canvas-header] [data-fork-button]').getBoundingClientRect(); return c.right <= f.left && Math.abs((c.top + c.height / 2) - (f.top + f.height / 2)) <= 1 && Math.abs(f.left - c.right - 8) <= 1.5; });
+check('Explore -> the published canvas: @handle beside Fork linking to the public profile, no Start Rabbit Hole button, [Fork] with no 0', handleBesideFork && (await viewer.page.locator('[data-shared-creator]').innerText()).trim() === `@${H.owner}`
   && await viewer.page.locator('[data-shared-creator] [data-creator-link]').getAttribute('href') === `/@${H.owner}`
   && !(await header.innerText()).includes('View only') && await viewer.page.locator('[data-start-rabbit-hole]').count() === 0
   && await viewer.page.locator('[data-sign-in]').count() === 0 && await viewer.page.locator('[data-fork-button] [data-fork-count-value]').count() === 0

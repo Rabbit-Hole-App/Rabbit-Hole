@@ -82,8 +82,9 @@ const shared = await api(people.owner, `/api/learn/boards/${source.name}/main/sh
 const link = `${BASE}/b/${shared.sharing.view}`;
 await viewerPage.goto(link);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
-// Owner brief 2026-10-23: the @handle alone under the title (was "by @handle"), linking to the public profile; no account circle or Comments icon in the header.
-check('the shared header names the creator by @handle', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `@${H.owner}`
+// Owner decision 2026-10-23: the @handle alone, immediately left of Fork (was under the title, before that "by @handle"), linking to the public profile; no account circle or Comments icon in the header.
+const handleBeside = async () => { const [c, f] = await Promise.all(['[data-shared-creator]', '[data-canvas-header] [data-fork-button]'].map(s => viewerPage.locator(s).evaluate(n => { const r = n.getBoundingClientRect(); return { right: r.right, left: r.left, mid: r.top + r.height / 2 }; }))); return c.right <= f.left && Math.abs(c.mid - f.mid) <= 1 && Math.abs(f.left - c.right - 8) <= 1.5; };
+check('the shared header names the creator by @handle, beside Fork', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `@${H.owner}` && await handleBeside()
   && await viewerPage.locator('[data-shared-creator] [data-creator-link]').getAttribute('href') === `/@${H.owner}`
   && await viewerPage.locator('[data-canvas-header] [data-viewer-account], [data-canvas-header] [data-comments-header]').count() === 0);
 check('no email anywhere on the shared page', await noEmail(viewerPage));
