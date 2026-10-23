@@ -180,7 +180,7 @@ function SaveState({ state, onRetry }) {
   </div>;
   const percent = state?.total ? Math.floor((100 * (state.sent || 0)) / state.total) : 0;
   const line = !state ? (canWrite() ? 'Saving to your account' : 'Not saved yet: the upload from the browser that added this file has not finished.')
-    : state.stage === 'uploading' ? `Saving to your account… ${percent}%` : state.stage === 'hashing' ? 'Preparing to save' : 'Saving to your account';
+    : state.stage === 'uploading' ? `Saving to your account, ${percent}%` : state.stage === 'hashing' ? 'Preparing to save' : 'Saving to your account';
   return <p role="status" data-file-doc-save={state?.stage || 'waiting'} className="flex shrink-0 items-center gap-1.5 border-b border-line px-3 py-1 text-[11px] text-ink-2"><CloudUpload size={13} aria-hidden />{line}</p>;
 }
 

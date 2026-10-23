@@ -818,7 +818,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
           // While words stream in, the box keeps one height and scrolls: the composer never grows per chunk.
           <div data-inline-preview="note" data-scroll className={`mt-2 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-sm leading-5 whitespace-pre-wrap ${status === 'streaming' ? 'h-40' : 'max-h-40'}`}>
             {status === 'streaming' || !preview ? streamText : preview.text}
-            <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing… (not on the canvas until you accept)' : target.creation ? 'Adds an editable note at the insertion point.' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
+            <p className="mt-1 text-[11px] text-ink-3">{status === 'streaming' ? 'Writing. Not on the canvas until you accept.' : target.creation ? 'Adds an editable note at the insertion point.' : `Adds an editable note${target.ids.length === 1 ? ' with an arrow' : ''} beside the selection.`}</p>
           </div>
         ) : null}
         {preview?.extraction&&<div data-inline-extraction className="mt-2 rounded-lg border border-line p-2 text-xs">
@@ -841,7 +841,7 @@ export default function InlineAiEditor({ target, canvas, config, view, readOnly 
         {(state.stream?.edits && busy(status)) && (
           <div data-inline-preview="edit-stream" data-scroll className="mt-2 h-40 overflow-y-auto rounded-lg bg-hover/60 px-2 py-1.5 text-xs">
             {Object.entries(state.stream.edits).map(([id, text]) => <pre key={id} className="whitespace-pre-wrap font-mono text-[12px] text-[#1a7f37]">{text}</pre>)}
-            <p className="mt-1 text-[11px] text-ink-3">Writing… (checked before you can accept)</p>
+            <p className="mt-1 text-[11px] text-ink-3">Writing. Checked before you can accept.</p>
           </div>
         )}
         {['edit','annotations'].includes(preview?.kind) && !busy(status) && (

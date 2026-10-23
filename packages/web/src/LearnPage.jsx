@@ -42,6 +42,9 @@ import { httpTransport } from './inline-ai-transport.js';
 import { EXPLICIT_ROUTES, ROUTES as INLINE_ROUTES } from './inline-ai-route.js';
 import { warmLearnTools } from './learn-warmup.js';
 import ShortcutsSheet from './ShortcutsSheet.jsx';
+import UploadDestinationDialog from './UploadDestinationDialog.jsx';
+import { isPdf } from './upload-destination.js';
+import { isContextCanvas, uploadContextDoc } from './context-docs.js';
 // Lazy: it draws real cards, so it brings the card components with it.
 const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
 import FilesPanel from './FilesPanel.jsx';
@@ -580,6 +583,22 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // triggered from the Sources menu, so there is no dialog to dismiss.
   // Insert > Upload a file: same router as a drop, one picker for all kinds.
   const filePicker = useRef(null);
+  // Insert > Upload a file asks where the file goes (owner brief 2026-10-22 item 3): the canvas, the AI context, or both. Add to
+  // canvas is the drop road (takeDrop) unchanged; context is the Context panel's own upload (uploadContextDoc); Both stores the file
+  // once as a context document, and a PDF is then added from that stored copy (the Sources road, small:pdf-to-canvas), never
+  // uploaded a second time. Nothing reaches AI context unless it is chosen here.
+  const [uploadAsk, setUploadAsk] = useState(null);
+  const placeUpload = async (files, choice) => {
+    setUploadAsk(null);
+    if (choice === 'canvas') { await takeDrop(files); return; }
+    for (const file of files) {
+      let doc;
+      try { doc = await uploadContextDoc(app.name, file); } catch (problem) { toast(`${file.name}: ${problem.message}`, { tone: 'error' }); continue; }
+      if (choice !== 'both') continue;
+      if (isPdf(file) && doc?.id) window.dispatchEvent(new CustomEvent('small:pdf-to-canvas', { detail: { sourceId: `doc:${doc.id}`, kind: 'doc', name: doc.name || file.name } }));
+      else await takeDrop([file]);
+    }
+  };
   // Add to canvas for a PDF (docs/features/pdf-to-canvas.md), one flow for an upload or drop (takePdf) and for a PDF already in
   // Sources (small:pdf-to-canvas): the dialog's one PDF card, or chosen pages drawn as page images. `place(choice, progress)`
   // does the road's own work; Cancel or Escape (also while drawing) adds nothing, and a second press is never taken.
@@ -2323,7 +2342,8 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         autoFocus={!!globalThis.matchMedia?.('(min-width: 1024px)').matches} />
     </ResizableSidePanel>
     <input ref={filePicker} type="file" multiple accept={acceptList()} className="hidden"
-      onChange={event => { takeDrop([...(event.target.files || [])]); event.target.value = ''; }} />
+      onChange={event => { const files = [...(event.target.files || [])]; event.target.value = ''; if (files.length) setUploadAsk(files); }} />
+    {uploadAsk && <UploadDestinationDialog files={uploadAsk} contextCanvas={isContextCanvas(app.name)} onChoose={choice => placeUpload(uploadAsk, choice)} onCancel={() => setUploadAsk(null)} />}
     {docImport.dialog}
     {imports[0] && <FileImportDialog key={imports[0].id} file={imports[0].file} kind={imports[0].kind} files={imports[0].files} error={importState.error} busy={importState.busy}
       onCancel={nextImport} onConfirm={addImport} />}
