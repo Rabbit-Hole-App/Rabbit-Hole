@@ -52,8 +52,7 @@ const SLOW = 'The Motion service was too slow to answer. Nothing was started; ge
 // is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
 export { MOTION_PAUSED };
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
-const ABSORBED = ['renderer_capacity', 'renderer_timeout', 'infrastructure'];
-const ABSORBED_TEXT = { renderer_capacity: 'The video renderer was busy. You were not charged. Try again in a few minutes.', renderer_timeout: 'The video took longer to render than the renderer allows. You were not charged.', infrastructure: 'Our video service had a problem. You were not charged. Try again in a few minutes.' };
+const STORAGE_FAILED = 'Our video service could not save the finished video. You were not charged. Try again in a few minutes.';
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
 // Recovery (owner message 38). Each attempt's artifacts (the orchestrator's sealed checkpoint, cause, actions, verbatim findings
 // and keyframes) are copied to LEARN_MEDIA as they appear and when the attempt ends; the job keeps a pointer (job.recovery). A
@@ -411,23 +410,17 @@ export class LearnVideos {
     if (!spend?.admitted || spend.settled || spend.settling) return;
     spend.settling = true;
     const cost = view?.spend?.cost_usd, known = Number.isFinite(cost) && cost >= 0 ? Math.ceil(Number((cost * 1e6).toFixed(6))) : null;
-    // Owner correction 2026-10-23 (C): a renderer capacity or timeout failure, or our own infrastructure failure, charges the learner nothing
-    // and releases the whole reservation. What the provider really charged is recorded internally (job.absorbed and the ledger row's error),
-    // never shown. An unknown cost is recorded as unknown; the learner is charged zero either way.
-    const absorbed = ABSORBED.includes(view?.failure_class) ? view.failure_class : null;
-    job.absorbed = absorbed ? { class: absorbed, costMicros: known } : undefined;
     const bound = Number.isFinite(view?.spend?.bound_usd) ? Math.ceil(Number((view.spend.bound_usd * 1e6).toFixed(6))) : spend.micros;
-    const charged = absorbed ? 0 : known;
-    const calls = view?.spend?.calls || 0, status = calls === 0 && charged === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
+    const calls = view?.spend?.calls || 0, status = calls === 0 && known === 0 ? 'cancelled' : view?.status === 'ready' ? 'settled' : 'failed';
     if (spendEnforced(this.env)) try {
-      await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: charged == null ? null : charged / 1e6, provider: 'anthropic', error: absorbed ? `absorbed:${absorbed}:${known ?? 'unknown'}` : status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
-      await settleAttempt(this.env, spend.attemptId, { costMicros: charged, status });
-      await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, charged));
+      await settleSpend(this.env.LEARN_DB, spend.opId, { status, calls, costUsd: known == null ? null : known / 1e6, provider: 'anthropic', error: status === 'failed' ? `motion_${view?.status || 'lost'}` : null });
+      await settleAttempt(this.env, spend.attemptId, { costMicros: known, status });
+      await finishActionOf(this.env, spend.attemptId, motionOutcome(job, view, known));
     } catch (error) { spend.settling = false; throw error; } // a failed ledger write is asked again, as before
-    job.consumedMicros = (job.consumedMicros || 0) + Math.min(charged ?? bound, spend.micros);
-    job.usedMicros = (job.usedMicros || 0) + (charged ?? 0);
-    if (charged == null) job.usageUnknown = true;
-    Object.assign(spend, { settled: true, settling: false, costMicros: charged });
+    job.consumedMicros = (job.consumedMicros || 0) + Math.min(known ?? bound, spend.micros);
+    job.usedMicros = (job.usedMicros || 0) + (known ?? 0);
+    if (known == null) job.usageUnknown = true;
+    Object.assign(spend, { settled: true, settling: false, costMicros: known });
     await this.stopLanded(job);
     await this.state.storage.put(`job:${job.key}`, job);
     await this.recordRenders(job, view);
@@ -500,14 +493,13 @@ export class LearnVideos {
       } catch (error) {
         if (error.final) { await this.settleMotion(job, ended); throw error; } // the clip itself is unusable: not our infrastructure, settled as before
         if (!late) throw error;
-        await this.settleMotion(job, { ...ended, failure_class: 'infrastructure' });
-        Object.assign(job, { status: 'failed', error: ABSORBED_TEXT.infrastructure, uncertain: false });
+        await this.settleMotion(job, { ...ended, status: 'failed', cause: 'infra' }); // our storage failed: the zero-credit class
+        Object.assign(job, { status: 'failed', error: STORAGE_FAILED, uncertain: false });
         return;
       }
     }
     await this.settleMotion(job, ended);
     if (job.status !== 'generating') return;
-    if (job.absorbed && ended?.status !== 'ready') { Object.assign(job, { status: 'failed', error: ABSORBED_TEXT[job.absorbed.class], uncertain: false }); return; }
     if (!view || view.status === 'running') {
       Object.assign(job, view ? { status: 'failed', uncertain: true, error: `Generation has not completed within ${maxWait(job) / 60000} minutes. Check provider history before generating again.` }
         : { status: 'failed', error: 'The Motion service restarted while this video was being made. Generate it again; the interrupted attempt\'s cost stays counted.' });

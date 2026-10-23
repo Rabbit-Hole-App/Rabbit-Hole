@@ -41,15 +41,6 @@ const secs = ms => +(ms / 1000).toFixed(1);
 // for the learner), model (a model call failed: continue from the saved work), limit (the job's call or spend bound) and
 // stopped. Recovery reuses result.checkpoint: the request, the validated brief and storyboard, the latest valid composition
 // with its review state (unreviewed | blocking | accepted), that review's verbatim findings and its preview's keyframes.
-// Owner correction 2026-10-23 (C): a failure that is the platform's, not the learner's request, is named so the worker charges nothing:
-// the render service was busy or degraded (capacity), a render ran past its limit (timeout), or the service could not be reached (infrastructure).
-// Read from the render failure the stage reports ("final: render_failed: timeout: ..."); anything else has no class and is settled as before.
-export const FAILURE_CLASSES = Object.freeze(['renderer_capacity', 'renderer_timeout', 'infrastructure']);
-export function failureClassOf(reason) {
-  const m = /: (timeout|busy|degraded|unreachable):/.exec(String(reason ?? ''));
-  const failure_class = m && { timeout: 'renderer_timeout', busy: 'renderer_capacity', degraded: 'renderer_capacity', unreachable: 'infrastructure' }[m[1]];
-  return failure_class ? { failure_class } : {};
-}
 export const CAUSES = Object.freeze(['renderer', 'content', 'missing_context', 'model', 'limit', 'stopped']);
 
 // What a brief must keep of the approved proposal (MOT-20): its exact title, its duration and its aspect ratio.
@@ -93,7 +84,7 @@ export async function runMotionRequest({
     onStage(status, out);
     return out;
   };
-  const fail = (reason, cause = 'model') => end('failed', { failure_reason: reason, cause, ...failureClassOf(reason) });
+  const fail = (reason, cause = 'model') => end('failed', { failure_reason: reason, cause });
   // Before anything renders: the generated composition against the stable limit table and the complexity classes the readiness policy covers.
   const overLimits = (source, brief) => {
     if (typeof source !== 'string') return null;
