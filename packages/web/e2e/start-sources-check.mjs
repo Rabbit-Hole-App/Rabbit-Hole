@@ -140,9 +140,14 @@ let page = null;
 const check = async (label, fn) => {
   try { page = await context.newPage(); page.on('pageerror', error => errors.push(error.message.slice(0, 160))); await fn(); results.push({ label, ok: true }); console.log(`ok ${label}`); }
   catch (error) {
-    const message = String(error?.message || error).split('\n')[0].slice(0, 400);
+    const message = String(error?.message || error).replace(/\s+/g, ' ').slice(0, 700);
+    const seen = await page.evaluate(() => {
+      let rows = [];
+      try { rows = (JSON.parse(sessionStorage.getItem('small.start.draft') || 'null')?.draft?.rows || []).map(r => `${r.label}:${r.status}${r.reason ? `(${r.reason})` : ''}`); } catch { rows = ['unreadable']; }
+      return { path: location.pathname, rows, chip: document.querySelector('[data-start-chip]')?.innerText?.replace(/\s+/g, ' ') || null, dialogs: [...document.querySelectorAll('[role="dialog"], [data-file-import-dialog]')].map(d => d.getAttribute('aria-label') || d.getAttribute('aria-labelledby') || d.tagName) };
+    }).catch(() => null);
     results.push({ label, ok: false, error: message });
-    console.log(`FAIL ${label} - ${message}`);
+    console.log(`FAIL ${label} - ${message} | page ${JSON.stringify(seen)} | refused ${JSON.stringify(refused)} errors ${JSON.stringify(errors)}`);
     await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
   } finally { await page.close().catch(() => {}); }
 };
@@ -187,6 +192,12 @@ const send = async text => {
   const tab = page.locator('[data-panel-tab="chat"]');
   if (await tab.count() && await tab.getAttribute('aria-selected') !== 'true') await tab.click();
   await pane().waitFor({ state: 'visible', timeout: 30000 });
+  // Ask mode, as repo-canvas-cards-check sends: Auto may hand the question to the Tutor, which this check refuses.
+  if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') !== 'ask') {
+    await pane().getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.locator('[data-chat-mode-option="ask"]').click();
+    await page.waitForTimeout(200);
+  }
   await pane().locator('[data-chat-composer] textarea').first().fill(text);
   const n = captured.length;
   await pane().locator('[data-chat-composer] button[aria-label="Send"]').click();
@@ -236,7 +247,7 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   await page.locator('[aria-label="Lesson canvas"]').waitFor({ timeout: 60000 });
   // The .py opens the existing choice window; cancelling it adds no card and fails that row alone.
   const choice = page.locator('[data-file-import-dialog]');
-  await choice.waitFor({ timeout: 60000 });
+  await choice.getByRole('button', { name: 'Cancel' }).waitFor({ timeout: 60000 }); // the wrapper has no box of its own
   assert.match(await choice.innerText(), new RegExp(F.py.name.replace('.', '[.]')));
   await choice.getByRole('button', { name: 'Cancel' }).click();
   // Two rows need another try: the cancelled window (no card), and the page whose capture the check made unavailable (its card stays).
@@ -270,7 +281,7 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   // Retry takes only the cancelled window again (the page's card is already on the canvas): nothing is sent or stored a second time.
   const before = requests.length;
   await chip().getByRole('button', { name: 'Retry' }).click();
-  await choice.waitFor({ timeout: 30000 });
+  await choice.getByRole('button', { name: 'Cancel' }).waitFor({ timeout: 30000 });
   await choice.locator('[data-import-choice="code"]').click();
   await choice.getByRole('button', { name: 'Add to canvas' }).click();
   await settledOk('B retry');
