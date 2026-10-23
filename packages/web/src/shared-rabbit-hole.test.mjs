@@ -98,12 +98,12 @@ test('Blank rides the same start: its body names no card or step, and ?rabbit=bl
   assert.deepEqual([startHref('/e/tok', BLANK), startHref('/e/tok', null)], ['/e/tok?rabbit=blank', '/e/tok?rabbit=root']);
 });
 
-test('every Start Rabbit Hole on someone else\'s canvas opens the choice first: the header, Explore cards, the card menu', () => {
+test('every Start Rabbit Hole on someone else\'s canvas opens the choice first: the card menu, Explore cards, hooks (no header button since 2026-10-22)', () => {
   const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const page = read('./SharedBoardPage.jsx'), cards = read('./home/PublicCards.jsx'), choice = read('./RabbitHoleChoice.jsx');
   assert.match(choice, /<ConfirmDialog title="Start a Rabbit Hole" confirmLabel="From this canvas" confirmVariant="primary" altLabel="Blank"\n\s+onConfirm=\{\(\) => onPick\(card\?\.id \|\| null\)\} onAlt=\{\(\) => onPick\(BLANK\)\} onCancel=\{onCancel\}/);
   assert.match(choice, /"\{title\} notes", linked back to this one\. Nothing is copied\./);
-  assert.match(page, /onClick=\{\(\) => ask\(card\?\.id \|\| null\)\}/, 'the header asks');
+  assert.doesNotMatch(page, /data-start-rabbit-hole|>Start Rabbit Hole</, 'no header button (owner header brief, 2026-10-22)');
   assert.match(page, /const startFromCard = useCallback\(cardId => rabbitAsk\.current\?\.\(cardId\), \[\]\);/, 'the card menu asks');
   assert.match(page, /onPick=\{\(origin\) => \{ setAsking\(null\); run\(origin\); \}\}/);
   assert.match(page, /useEffect\(\(\) => \{ if \(resume !== undefined\) run\(resume\.origin/, 'back from sign-in, the choice already made starts');

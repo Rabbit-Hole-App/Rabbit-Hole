@@ -82,13 +82,16 @@ const shared = await api(people.owner, `/api/learn/boards/${source.name}/main/sh
 const link = `${BASE}/b/${shared.sharing.view}`;
 await viewerPage.goto(link);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
-check('the shared header names the creator by @handle', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `Shared by @${H.owner}`);
+// Owner header brief, 2026-10-22: "by @handle" under the title (replaces "Shared by @handle"), the @handle linking to the public profile.
+check('the shared header names the creator by @handle', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `by @${H.owner}`
+  && await viewerPage.locator('[data-shared-creator] [data-creator-link]').getAttribute('href') === `/@${H.owner}`);
 check('no email anywhere on the shared page', await noEmail(viewerPage));
 await shot(viewerPage, '05-shared-header-handle');
 await api(people.owner, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Ada Owner' }) });
 await viewerPage.reload();
 await viewerPage.locator('[data-shared-creator]').waitFor({ timeout: 60000 });
-check('with a display name: Display Name · @handle', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `Shared by Ada Owner · @${H.owner}`);
+check('with a display name the line stays "by @handle"; the name is on hover (owner header brief, 2026-10-22)', (await viewerPage.locator('[data-shared-creator]').innerText()).trim() === `by @${H.owner}`
+  && await viewerPage.locator('[data-shared-creator] [data-creator-link]').getAttribute('title') === `Ada Owner · @${H.owner}`);
 await shot(viewerPage, '06-shared-header-name-handle');
 
 // ---- a deep link resumes through the step: share -> choose handle -> the fork it asked for ----
@@ -100,11 +103,7 @@ check('a deep link with ?fork=1 meets the step first, and nothing forks yet', be
 await shot(newbiePage, '07-deeplink-setup');
 await newbiePage.getByRole('textbox', { name: 'Handle' }).fill(H.newbie);
 await newbiePage.getByRole('button', { name: 'Continue' }).click();
-// The resumed fork asks first, as every Fork does (owner, 2026-10-08): "Fork this canvas", then Fork.
-const resumed = newbiePage.getByRole('dialog', { name: 'Fork this canvas' });
-await resumed.waitFor({ timeout: 30000 });
-check('claimed, the page reopens the Fork dialog it was asked for, and nothing forks before Fork', (await api(people.owner, '/api/canvases')).canvases.find(c => c.name === source.name)?.fork_count === 0);
-await resumed.getByRole('button', { name: 'Fork', exact: true }).click();
+// Owner header brief, 2026-10-22: back from sign-in the fork resumes at once - no dialog, no second press.
 await newbiePage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 60000 });
 const forkName = new URL(newbiePage.url()).pathname.split('/').pop();
 check('claimed, the page resumes the fork it was asked for', (await api(people.newbie, '/api/canvases')).canvases.some(c => c.name === forkName && c.owner_email === EMAIL.newbie)

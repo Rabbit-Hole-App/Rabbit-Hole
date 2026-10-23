@@ -56,11 +56,13 @@ const viewerPage = await pageFor(viewer);
 await viewerPage.goto(`${BASE}/b/${shared.sharing.view}`);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 // The header's one Fork control carries the count (owner, 2026-10-06): [fork icon  Fork  N], no separate label.
+// Zero forks: Fork alone - no count element, no count in the accessible name, no separator or reserved space.
+const zeroHeader = async page => { const button = page.locator('header [data-fork-button]'); return (await button.locator('[data-fork-count-value]').count()) === 0 && (await button.getAttribute('aria-label')) === null && (await button.innerText()).trim() === 'Fork' && await page.locator('header [data-fork-count]').count() === 0; };
 const headerCount = async page => ({ value: (await page.locator('header [data-fork-button] [data-fork-count-value]').innerText()).trim(), label: await page.locator('header [data-fork-button]').getAttribute('aria-label') });
 const ownerCount = async () => (await canvases(owner)).find(c => c.name === source.name)?.fork_count;
-let seen = await headerCount(viewerPage);
-check('the shared board shows its title and one Fork control carrying its direct fork count, 0', await viewerPage.getByText(TITLE).count() >= 1 && await viewerPage.locator('[data-fork-button]').count() === 1
-  && seen.value === '0' && seen.label === 'Fork, 0 forks' && await viewerPage.locator('header [data-fork-count]').count() === 0, JSON.stringify(seen));
+let seen;
+check('the shared board shows its title and one Fork control; at zero forks no 0, badge or separator (owner, 2026-10-22)', await viewerPage.getByText(TITLE).count() >= 1 && await viewerPage.locator('[data-fork-button]').count() === 1
+  && await zeroHeader(viewerPage), await viewerPage.locator('header [data-fork-button]').evaluate(button => button.outerHTML));
 await shot(viewerPage, '02-shared-board');
 // Fork opens "Fork this canvas" (owner, 2026-10-08): the name prefilled with the source title, Cancel and Fork.
 const dialog = page => page.getByRole('dialog', { name: 'Fork this canvas' });
@@ -153,8 +155,7 @@ const zero = await api(owner, '/api/canvases', { method: 'POST', body: JSON.stri
 const zeroShare = await api(owner, `/api/learn/boards/${zero.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state: { ...SEED, shapes: [{ ...SEED.shapes[0], id: 'zero-rect', text: 'Truss' }] } }) });
 await linkPage.goto(`${BASE}/b/${zeroShare.sharing.view}`);
 await linkPage.locator('[data-shape-id="zero-rect"]').waitFor({ timeout: 60000 });
-seen = await headerCount(linkPage);
-check('an unrelated shared canvas with no forks shows Fork 0', seen.value === '0' && seen.label === 'Fork, 0 forks' && (await canvases(owner)).find(c => c.name === zero.name)?.fork_count === 0, JSON.stringify(seen));
+check('an unrelated shared canvas with no forks shows Fork alone, no 0', await zeroHeader(linkPage) && (await canvases(owner)).find(c => c.name === zero.name)?.fork_count === 0);
 await shot(linkPage, '07b-shared-header-0-forks');
 await ownerPage.goto(`${BASE}/library?type=canvases`);
 await card(ownerPage, 'Bridge loads (fork check)').waitFor({ timeout: 30000 });
@@ -198,7 +199,11 @@ guestPage.on('request', request => {
 await guestPage.goto(`${BASE}/b/${guestShare.sharing.view}`);
 await guestPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 await guestPage.waitForTimeout(800);
-check('signed out, no unsaved notice before an edit', await guestPage.locator('[data-guest-draft-notice]').count() === 0);
+// Owner header brief, 2026-10-22 item 5: the note belongs directly beneath Fork in the temporary-edit experience, from the first moment.
+const noteBox = await guestPage.locator('[data-guest-draft-notice]').boundingBox(), forkBox = await guestPage.locator('header [data-fork-button]').boundingBox();
+check('signed out, the note sits directly beneath Fork before any edit, and there is no Sign in button', (await guestPage.locator('[data-guest-draft-notice]').innerText()).trim() === "Changes aren't saved. Fork to keep them"
+  && noteBox.y >= forkBox.y + forkBox.height - 1 && noteBox.y - (forkBox.y + forkBox.height) < 16 && noteBox.x + noteBox.width > forkBox.x - 1 && noteBox.x < forkBox.x + forkBox.width + 1
+  && await guestPage.locator('[data-canvas-header] [data-guest-draft-notice]').count() === 1 && await guestPage.locator('[data-sign-in]').count() === 0);
 const toScreen = (x, y) => guestPage.evaluate(([x, y]) => {
   const world = document.querySelector('[data-canvas-surface] > div[style*="scale"]'), m = new DOMMatrix(getComputedStyle(world).transform), box = world.parentElement.getBoundingClientRect();
   return { x: box.left + m.e + x * m.a, y: box.top + m.f + y * m.d };
@@ -208,23 +213,25 @@ const from = await toScreen(420, 360), to = await toScreen(560, 440);
 await guestPage.mouse.move(from.x, from.y); await guestPage.mouse.down(); await guestPage.mouse.move(to.x, to.y, { steps: 6 }); await guestPage.mouse.up();
 await guestPage.keyboard.press('Escape');
 await guestPage.locator('[data-guest-draft-notice]').waitFor({ timeout: 10000 });
-check('after the first edit: "Changes aren\'t saved. Fork to keep them."', (await guestPage.locator('[data-guest-draft-notice]').innerText()).trim() === "Changes aren't saved. Fork to keep them.");
+check('after the first edit the same exact note stays', (await guestPage.locator('[data-guest-draft-notice]').innerText()).trim() === "Changes aren't saved. Fork to keep them");
 await guestPage.waitForTimeout(800);
 check('the guest\'s edit never reaches the source', await ownerShapes() === 1 && writes.length === 0, writes.join(', '));
 await shot(guestPage, '08-guest-draft-notice');
 const guestCount = async () => (await canvases(owner)).find(c => c.name === guestSource.name)?.fork_count;
+// Owner header brief, 2026-10-22 item 4: signed out, Fork is the sign-in step - no dialog first, no Sign in button.
 await guestPage.locator('[data-fork-button]').click();
-await dialog(guestPage).getByRole('button', { name: 'Fork', exact: true }).click();
 await guestPage.waitForURL(/\/login\?next=/, { timeout: 20000 });
 const next = new URL(guestPage.url()).searchParams.get('next');
-check('signed out, Fork goes through sign-in and back to this link', next === `/b/${guestShare.sharing.view}?fork=1` && await guestCount() === 0, next);
-// Back from sign-in in the same tab (the session set as the sign-in page would): the copy is still there, the dialog opens again.
+check('signed out, Fork goes straight through sign-in (no dialog) and back to this link', next === `/b/${guestShare.sharing.view}?fork=1` && await guestCount() === 0, next);
+// Cancelling the sign-in: back on the link without ?fork, the shared canvas is usable, the draft is kept and nothing was forked.
+await guestPage.goto(`${BASE}/b/${guestShare.sharing.view}`);
+await guestPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
+check('a cancelled sign-in keeps the temporary copy and its note, and forks nothing', await guestPage.locator('[data-guest-draft-notice]').count() === 1 && await guestPage.locator('[data-shape-id]').count() === 2 && await guestCount() === 0
+  && await guestPage.getByRole('dialog').count() === 0);
+// Back from sign-in in the same tab (the session set as the sign-in page would): the fork resumes with no second press.
 await guestContext.addCookies([{ name: 'small_session', value: viewer.session, url: BASE }]);
 await guestPage.goto(`${BASE}${next}`);
-await dialog(guestPage).waitFor({ timeout: 60000 });
-check('back from sign-in: the copy and its notice are kept, the Fork dialog is open', await guestPage.locator('[data-guest-draft-notice]').count() === 1 && await guestPage.locator('[data-shape-id]').count() === 2);
-await dialog(guestPage).getByRole('button', { name: 'Fork', exact: true }).dblclick();
-await guestPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
+await guestPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 60000 });
 const guestFork = new URL(guestPage.url()).pathname.split('/').pop();
 const forkShapes = (await api(viewer, `/api/learn/boards/${guestFork}/main`)).state?.shapes || [];
 check('the fork holds the visitor\'s edit beside the source content', forkShapes.length === 2 && forkShapes.some(shape => shape.id === 'seed-rect'), String(forkShapes.length));

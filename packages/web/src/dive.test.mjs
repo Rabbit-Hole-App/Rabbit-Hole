@@ -231,6 +231,6 @@ test('the title menu: a chevron only with holes, rows on one line with the full 
   assert.match(learn, /<input aria-label="Canvas title" title=\{canvasTitle \|\| fallbackTitle\}/, 'the full title on hover');
   const shared = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8');
   // A minimum width, so a narrow header cuts the title short instead of shrinking it away (phone, 2026-10-09).
-  assert.match(shared, /data-shared-title title=\{[^\n]+\} className="min-w-16 truncate /);
+  assert.match(shared, /data-shared-title title=\{[^\n]+\} className="min-w-0 truncate /);
   assert.match(shared, /\{holes && <TitleHoles rows=\{holeRows\(holes\.tree\)\} onPick=\{row => goTo\(row\.app\)\} \/>\}/);
 });

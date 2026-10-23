@@ -211,12 +211,14 @@ for (const theme of ['light', 'dark']) {
   }, page);
 
   const guest = await contextFor(null, theme);
-  await check(`${theme}: Sign in (a view link, signed out) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {
+  // Owner header brief, 2026-10-22: the header has no Sign in button; Fork is the primary there and carries the sign-in.
+  await check(`${theme}: Fork (a view link, signed out) clears 4.5:1 at rest, hovered, focused and pressed, with a focus ring`, async () => {
     await guest.page.goto(`${BASE}/b/${view}`);
     await themed(guest.page, theme);
-    await states(guest.page, guest.page.locator('[data-sign-in]'), 'Sign in', theme, PRIMARY);
+    await guest.page.locator('header [data-fork-button]').waitFor({ timeout: 30000 });
+    await states(guest.page, guest.page.locator('header [data-fork-button]'), 'Fork', theme, PRIMARY);
     await new Promise(resolve => setTimeout(resolve, 500));
-    assert.equal(new URL(guest.page.url()).pathname, `/b/${view}`, 'the press released off Sign in did not sign in');
+    assert.equal(new URL(guest.page.url()).pathname, `/b/${view}`, 'the press released off Fork did not start a fork');
   }, guest.page);
   await guest.context.close();
   await context.close();

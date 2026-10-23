@@ -54,20 +54,22 @@ test('postFork never sends a null state; a real copy still travels', async t => 
   ]);
 });
 
-test('the shared canvas page shows the product top left: the aperture mark and the name, linking home (owner, 2026-10-04)', async () => {
+// Owner header brief, 2026-10-22: the logo only on the left, no wordmark, no black square, a transparent variant per theme, linked home.
+test('the shared canvas page shows the transparent logo top left: no wordmark, a variant per theme, linking home (owner, 2026-10-22)', async () => {
   const { readFileSync } = await import('node:fs');
   const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(page, /<header[^>]*>\n\s+\{\/\* The product, top left[^\n]*\n\s+<a href="\/" data-shared-brand[^>]*>\n\s+<img src="\/landing\/favicon-32-v1\.png"[^>]*\/>\n\s+<span[^>]*>\{PRODUCT\}<\/span>/);
+  assert.match(page, /<a href="\/" data-shared-brand[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>\n\s+<img src=\{logoBlack\}[^>]*dark:hidden[^>]*\/>\n\s+<img src=\{logoWhite\}[^>]*hidden[^>]*dark:block[^>]*\/>\n\s+<\/a>/);
+  assert.doesNotMatch(page, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
 });
 
 // The shared header (owner, 2026-10-06): one GitHub-style control, [fork icon  Fork  N], with the same lucide GitFork the
 // Library/Home cards draw; no separate "N forks" label beside it. The number is the server's: shared.fork_count, and after a
 // fork the reply's source_fork_count - never a local +1, so a failed fork leaves it untouched.
-test('the shared header shows one Fork control carrying the canonical count, zero included', async () => {
+test('the shared header shows one Fork control carrying the canonical count, none at zero', async () => {
   const { readFileSync } = await import('node:fs');
   const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   const page = read('./SharedBoardPage.jsx'), button = read('./ForkButton.jsx'), cards = read('./home/Provenance.jsx');
-  assert.match(page, /<ForkButton source=\{\{ token \}\}[^\n]* count=\{shared\.fork_count\} \/>/);
+  assert.match(page, /<ForkButton source=\{\{ token \}\}[^\n]* count=\{shared\.fork_count > 0 \? shared\.fork_count : null\} \/>/, 'the header passes no count at zero (owner, 2026-10-22)');
   assert.doesNotMatch(page, /<Forks\b|forkLabel/, 'no second fork-count label in the header');
   assert.match(button, /import \{ Check, GitFork, Loader2 \} from 'lucide-react';/);
   assert.match(cards, /<GitFork size=\{12\}[^>]*\/>\{m\.forks\}/, 'the cards draw the same icon');
@@ -106,14 +108,16 @@ test('Fork opens "Fork this canvas": Cancel or Escape forks nothing, Fork sends 
   const { readFileSync } = await import('node:fs');
   const button = readFileSync(new URL('./ForkButton.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
   assert.match(button, /onClick=\{event => \{ event\.stopPropagation\(\); ask\(\); \}\}/, 'a press only opens the dialog');
-  assert.match(button, /const ask = \(\) => \{ if \(!busy\.current\) setNaming\(title \|\| ''\); \};/, 'prefilled with the source title');
-  assert.match(button, /<ConfirmDialog title="Fork this canvas" confirmLabel="Fork" confirmVariant="primary" onCancel=\{\(\) => setNaming\(null\)\} onConfirm=\{run\}/);
+  assert.match(button, /const ask = \(\) => \{ if \(busy\.current\) return; if \(signedIn === false\) toSignIn\(\); else setNaming\(title \|\| ''\); \};/, 'prefilled with the source title; signed out goes straight to sign-in');
+  assert.match(button, /<ConfirmDialog title="Fork this canvas" confirmLabel="Fork" confirmVariant="primary" onCancel=\{\(\) => setNaming\(null\)\} onConfirm=\{\(\) => run\(\)\}/);
   assert.match(button, /<Input autoFocus aria-label="Name" maxLength=\{120\} value=\{naming\}/);
   assert.match(button, /await fork\.current\(\{ source, title: name\.trim\(\), draft: draft\?\.\(\) \|\| null \}\)/, 'the typed name (blank is the server\'s fallback) and a visitor\'s temporary copy (SHARE-02)');
   assert.equal(button.match(/fork\.current\(/g).length, 1, 'run, from the dialog, is the only fork');
-  assert.match(button, /useEffect\(\(\) => \{ if \(auto\) ask\(\); \}, \[auto\]\)/, 'back from sign-in: the dialog again, never a silent fork');
+  assert.match(button, /useEffect\(\(\) => \{ if \(auto\) run\(''\); \}, \[auto\]\)/, 'back from sign-in: the fork resumes at once, no second press (owner, 2026-10-22)');
+  assert.match(button, /error\.status === 401 && error\.data\?\.signIn && !auto/, 'a refused resume does not loop through sign-in');
+  assert.match(button, /rh\.fork-key:\$\{source\.token\}/, 'the pending fork key survives a reload, so a retry replays rather than forks twice');
   assert.match(button, /\$\{resume \|\| window\.location\.pathname\}\?fork=1/);
   assert.match(button, /createPortal\(/, 'above a hovered card\'s lift transform');
-  assert.match(read('./SharedBoardPage.jsx'), /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\}/, 'the header prefills the title it shows');
+  assert.match(read('./SharedBoardPage.jsx'), /<ForkButton source=\{\{ token \}\} title=\{shared\.title\} auto=\{forkRequested\} signedIn=\{!!shared\.viewer\}/, 'the header prefills the title it shows');
   function read(file) { return readFileSync(new URL(file, import.meta.url), 'utf8'); }
 });

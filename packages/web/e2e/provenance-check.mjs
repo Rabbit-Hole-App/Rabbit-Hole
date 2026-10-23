@@ -334,8 +334,10 @@ const layout = async (header, wraps) => {
 };
 // The canvas page's header is one centred group (step 15); here the shared and member pages' E2 rows.
 const LAYOUTS = [
-  { name: 'shared', path: `/b/${token}`, header: 'header', signedIn: false, wraps: false },
-  { name: 'shared-narrow', path: `/b/${token}`, header: 'header', signedIn: false, width: 390, height: 844, wraps: true },
+  // Owner header brief, 2026-10-22: the shared header is logo | title, menus and creator | Fork and panel toggle, so its group sits in the
+  // centre block beside the title (as the owned page's centred group) instead of at the row's right edge: `centred`.
+  { name: 'shared', path: `/b/${token}`, header: 'header', signedIn: false, wraps: false, centred: true },
+  { name: 'shared-narrow', path: `/b/${token}`, header: 'header', signedIn: false, width: 390, height: 844, wraps: true, centred: true },
   { name: 'member', path: `/c/${MEMBER}`, header: 'header', wraps: false },
   { name: 'member-narrow', path: `/c/${MEMBER}`, header: 'header', width: 390, height: 844, wraps: true },
 ];
@@ -351,8 +353,11 @@ await check('13 layout (E2): on the shared and member pages the group ends at it
     }
     const at = await layout(each.header, each.wraps);
     const where = `${each.name} (${theme})`;
-    assert.ok(Math.abs(at.gap) <= 1, `${where}: the group ends ${at.gap}px from the row's right edge`);
-    assert.equal(at.wrapped, each.wraps, each.wraps ? `${where}: the header wraps here, and the group is on the next row` : `${where}: everything fits, so the group ends the first row`);
+    if (each.centred) assert.equal(await page.locator('[data-header-center] [data-provenance-row]').count(), 1, `${where}: the group sits in the header's centre block`);
+    else {
+      assert.ok(Math.abs(at.gap) <= 1, `${where}: the group ends ${at.gap}px from the row's right edge`);
+      assert.equal(at.wrapped, each.wraps, each.wraps ? `${where}: the header wraps here, and the group is on the next row` : `${where}: everything fits, so the group ends the first row`);
+    }
     assert.ok(at.page[0] <= at.page[1], `${where}: the page scrolls sideways (${at.page})`);
     assert.ok(at.header[0] <= at.header[1], `${where}: the header scrolls sideways (${at.header})`);
     await clear(each.header);
