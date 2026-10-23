@@ -67,6 +67,19 @@ export function writeStudy(storage, scope, state) {
   }
 }
 
+// The reader's Pin for study (the Context reader): the one PDF card on this canvas whose ref is the source being read.
+// Two cards of one source are ambiguous, so neither is guessed: null, and the reader offers no pin.
+export function readerPinTarget(objects, sourceId, refOf) {
+  const matches = (objects || []).filter(object => eligible(object) === 'pdf' && refOf(object)?.sourceId === sourceId);
+  return matches.length === 1 ? matches[0].id : null;
+}
+
+// The one slot through which the Context reader (SourcesPane) reaches the owner's Study (StudyPane useStudy sets it while
+// mounted, null elsewhere, so a shared canvas's reader offers no pin). Kept here so the reader never imports the Study pane.
+let readerPin = null;
+export const setStudyReaderPin = value => { readerPin = value; };
+export const studyReaderPin = () => readerPin;
+
 // Where the reference pane goes in the space left beside the right panels (the section's own size, never the window's width):
 // beside the work when both keep their minimum widths, otherwise stacked above it. size: the reference pane's width or height.
 export const STUDY_MIN = Object.freeze({ reference: 300, work: 400, stackedReference: 180, stackedWork: 240 });

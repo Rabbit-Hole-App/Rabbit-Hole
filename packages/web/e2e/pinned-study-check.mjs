@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { closeMenus, menubar, openMenu } from './canvas-menu-helpers.mjs';
 
-const total = 14; // the number of check() steps below; keep it equal
+const total = 15; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pinned-study-check runs against the local stack only');
@@ -25,14 +25,31 @@ const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init,
 const LONG = Array.from({ length: 60 }, (_, n) => `Line ${n + 1}: the moon pulls the near ocean more than the Earth.`).join('\n');
 const NOTEBOOK = { id: 'nb', type: 'notebook', notebook_id: crypto.randomUUID(), dx: 0, dy: 0, language: 'python', active_path: 'notebook.ipynb', ipynb_path: 'notebook.ipynb', files: ['notebook.ipynb'],
   ipynb: { nbformat: 4, nbformat_minor: 5, metadata: { kernelspec: { name: 'python', display_name: 'Python (Pyodide)', language: 'python' } }, cells: [{ id: 'a', cell_type: 'code', source: 'x = 1', metadata: {}, execution_count: null, outputs: [] }] } };
+// One PDF context document and its card, for the Context reader's Pin for study (step 8b).
+function onePagePdf() {
+  const NL = String.fromCharCode(10), stream = 'BT /F1 48 Tf 60 400 Td (Pinned page) Tj ET';
+  const objects = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [4 0 R] /Count 1 >>', '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents 5 0 R >>', `<< /Length ${stream.length} >>${NL}stream${NL}${stream}${NL}endstream`];
+  let out = `%PDF-1.4${NL}`;
+  const offsets = objects.map((body, i) => { const at = out.length; out += `${i + 1} 0 obj${NL}${body}${NL}endobj${NL}`; return at; });
+  const xref = out.length;
+  out += `xref${NL}0 ${objects.length + 1}${NL}0000000000 65535 f ${NL}${offsets.map(o => `${String(o).padStart(10, '0')} 00000 n ${NL}`).join('')}trailer${NL}<< /Size ${objects.length + 1} /Root 1 0 R >>${NL}startxref${NL}${xref}${NL}%%EOF${NL}`;
+  return Buffer.from(out, 'latin1');
+}
+const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Pinned study ${run}` }) });
+const form = new FormData();
+form.append('app', canvas.name);
+form.append('file', new Blob([onePagePdf()], { type: 'application/pdf' }), 'pinned.pdf');
+const doc = (await (await fetch(`${BASE}/api/learn/context`, { method: 'POST', body: form, headers: { cookie: `small_session=${session}` } })).json()).document;
+if (!doc?.id) throw Error('the context document was not stored');
 const BLOCKS = [
+  { id: 'pdf1', type: 'pdf', assetKey: `doc:${doc.id}`, label: 'pinned.pdf', dx: 0, dy: 0 },
   { id: 'ex', type: 'explanation', dx: 0, dy: 0, title: 'Why tides rise', body: 'The moon pulls the near ocean more than the Earth, so the water bulges toward it.' },
   { id: 'qz', type: 'quiz', dx: 0, dy: 0, question: 'How many tidal bulges?', options: [{ key: 'A', text: 'Two', correct: true }, { key: 'B', text: 'One' }], why: 'One faces the moon.' },
   NOTEBOOK,
 ];
 const ITEMS = [{ id: 'st1', kind: 'sticky', x: 1060, y: 140, text: LONG, color: 'yellow' }, { id: 'st2', kind: 'sticky', x: 1060, y: 520, text: 'Spring tides', color: 'blue' }];
 const STATE = { strokes: [], shapes: [], items: ITEMS, links: [], groups: [], areas: [], exchanges: [], blocks: BLOCKS };
-const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Pinned study ${run}` }) });
 const catalog = await api('/api/apps');
 const INK = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
 const STUDY = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:study`;
@@ -120,7 +137,7 @@ await check('1 View lists Canvas and Study as radios (Canvas checked); View > St
   await pane().waitFor({ timeout: 10000 });
   await page.getByText('Choose a reference', { exact: true }).waitFor();
   const choices = await page.locator('[data-study-choice]').evaluateAll(rows => rows.map(row => row.getAttribute('data-study-choice')));
-  assert.deepEqual(choices.sort(), ['ex', 'st1', 'st2'], `eligible only: ${choices.join()}`);
+  assert.deepEqual(choices.sort(), ['ex', 'pdf1', 'st1', 'st2'], `eligible only: ${choices.join()}`);
   assert.deepEqual(await viewChecked(), [['Canvas', 'false'], ['Study', 'true']]);
   await sameFrame('Canvas -> Study');
   await shot('01-choose-a-reference');
@@ -250,6 +267,22 @@ await check('8 Pin for study from the right-click menu: on the Explanation, from
   await sameFrame('pin from menu and locate');
   await shot('08-locate');
   await quiet('menu pin and locate', before);
+});
+
+await check('8b the Context reader of the PDF offers Pin for study, which pins that same card; the reader opens the PDF in the pane', async () => {
+  const before = counts();
+  await page.locator('[data-block-id="pdf1"] [data-drag-zone]').last().click({ button: 'right', position: { x: 30, y: 8 } }); await menu().waitFor();
+  await menu().locator('[data-menu-open]').click();
+  await page.locator('[data-reader-pin-study]').waitFor({ timeout: 15000 });
+  await page.locator('[data-reader-pin-study]').click();
+  await until(async () => (await pane().getAttribute('data-pin')) === 'pdf1', 'the reader pinned its own card');
+  await page.locator('[data-study-pane] [data-source-reader]').waitFor({ timeout: 15000 });
+  await sameFrame('reader pin');
+  await page.locator('[data-block-id="ex"] [data-drag-zone]').last().click({ button: 'right', position: { x: 30, y: 8 } }); await menu().waitFor();
+  await menu().locator('[data-menu-pin-study]').click();
+  await until(async () => (await pane().getAttribute('data-pin')) === 'ex', 'back to the Explanation');
+  assert.deepEqual(model, [], 'no model call');
+  void before; // opening the reader may read the document; the board itself is untouched
 });
 
 await check('9 opening and closing the right panel resizes the panes from the space left beside it, never the window width; the notebook is untouched', async () => {

@@ -12,7 +12,7 @@ import { pdfRef } from './pdf-source.js';
 import { objectName, selectionRef } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
 import { authorizePinnedSource, pinnedChatRef } from './study-attach.js';
-import { eligible, readStudy, studyKey, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
+import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
 
 const TYPE_LABELS = { pdf: 'PDF', text: 'Note', explanation: 'Explanation' };
 const STEP = 0.05;
@@ -68,6 +68,11 @@ export function useStudy(canvasKey, board, canvasApi) {
     }, 400);
   };
   const api = () => canvasApi.current;
+  const pinCardRef = useRef(null);
+  useEffect(() => {
+    setStudyReaderPin({ target: sourceId => readerPinTarget(api()?.blocks?.() || [], sourceId, pdfRef), pin: id => pinCardRef.current?.(id) });
+    return () => setStudyReaderPin(null);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const state = current.value;
   const study = {
     state, mode: state.mode, open: state.mode === 'study', status: current.status, scope,
@@ -109,6 +114,7 @@ export function useStudy(canvasKey, board, canvasApi) {
       canvas.focusObject?.(id);
     },
   };
+  pinCardRef.current = study.pinCard;
   return study;
 }
 

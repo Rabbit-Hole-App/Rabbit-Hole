@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SPLIT_DEFAULT, defaultStudy, eligible, readStudy, studyKey, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
+import { SPLIT_DEFAULT, defaultStudy, eligible, readStudy, studyKey, readerPinTarget, studyLayout, studyReducer, studyScope, writeStudy } from './study-state.js';
 
 const KEY = 'small.adaptive-canvas:org:me@example.com:app';
 const memory = () => { const map = new Map(); return { getItem: k => (map.has(k) ? map.get(k) : null), setItem: (k, v) => map.set(k, String(v)), map }; };
@@ -121,4 +121,14 @@ test('studyLayout: beside the work while both keep their minimum, stacked from t
   assert.equal(studyLayout({ width: 699, height: 800, split: 0.4 }).stacked, true);
   assert.deepEqual(studyLayout({ width: 500, height: 800, split: 0.4 }), { stacked: true, size: 320 });
   assert.deepEqual(studyLayout({ width: 500, height: 300, split: 0.65 }), { stacked: true, size: 180 }, 'a short space keeps the reference minimum');
+});
+
+test('readerPinTarget: the one PDF card of the source read; none when absent or ambiguous, never another type', () => {
+  const refOf = object => ({ sourceId: object.assetKey });
+  const blocks = [{ id: 'a', type: 'pdf', assetKey: 'doc:1' }, { id: 'b', type: 'pdf', assetKey: 'doc:2' }, { id: 'c', type: 'pdf', assetKey: 'doc:2' }, { id: 'e', type: 'explanation', assetKey: 'doc:3' }];
+  assert.equal(readerPinTarget(blocks, 'doc:1', refOf), 'a');
+  assert.equal(readerPinTarget(blocks, 'doc:2', refOf), null, 'two cards of one source: no guess');
+  assert.equal(readerPinTarget(blocks, 'doc:3', refOf), null, 'only a PDF card');
+  assert.equal(readerPinTarget(blocks, 'doc:9', refOf), null);
+  assert.equal(readerPinTarget(null, 'doc:1', refOf), null);
 });
