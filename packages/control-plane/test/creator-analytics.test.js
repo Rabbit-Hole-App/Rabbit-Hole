@@ -66,6 +66,11 @@ test('creator analytics: range and canvas are validated with a one-line fix', as
     assert.deepEqual([r.status, r.body.error], [400, 'Use range=7d, 30d or all'], q);
   }
   for (const q of ['?canvas=', '?canvas=repo-0a1b2c3d-nanogpt', "?canvas=canvas-1' OR 1=1", '?canvas=CANVAS-0A1B2C3D']) assert.equal((await get(f, q)).status, 400, q);
+  for (const q of ['?compare=0', '?compare=true', '?compare=']) assert.deepEqual([(await get(f, q)).status, (await get(f, q)).body.error], [400, 'Use compare=1 to compare with the previous period'], q);
+  const cmp = (await get(f, '?range=7d&compare=1')).body;
+  assert.deepEqual([cmp.compare.periods.current, cmp.compare.periods.previous], [{ from: '2026-10-16', to: '2026-10-22', complete: false }, { from: '2026-10-09', to: '2026-10-15', complete: false }]);
+  assert.deepEqual([cmp.overview.metrics.active_learners.change.state, cmp.overview.metrics.forks.change.state], ['unavailable', 'not_applicable']);
+  assert.equal((await get(f, '?range=all&compare=1')).body.compare.state, 'not_applicable');
   for (const [q, from] of [['', '2026-09-24'], ['?range=7d', '2026-10-17'], ['?range=all', null]]) {
     const { body } = await get(f, q);
     assert.deepEqual(body.range, { id: q ? q.slice(7) : '30d', from, to: '2026-10-23', timezone: 'UTC' }, q || 'default 30d');

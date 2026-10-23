@@ -3,7 +3,7 @@
 // from a production view: creator-analytics-shape.test.mjs fails if any non-test source under src/ imports it.
 // One fixture per state; `mixed` puts every state on one screen. Built with the shape's own constructors, so a fixture
 // can never hold a suppressed raw value.
-import { COHORT_MIN, PERIOD, STATE, TRAFFIC_SOURCES, dashboard, metric, suppress } from './creator-analytics-shape.js';
+import { COHORT_MIN, HEALTH, PERIOD, STATE, TRAFFIC_SOURCES, dashboard, finding, healthReport, metric, periodsOf, suppress, withComparison } from './creator-analytics-shape.js';
 
 const LABEL = 'DEVELOPMENT FIXTURE - sample numbers, not real data';
 const NOW = Date.parse('2026-10-23T12:00:00Z');
@@ -21,6 +21,7 @@ function ready() {
   const d = base();
   const active = 140, visits = 410;
   d.collected_since = '2026-09-01';
+  d.coverage = { since: '2026-09-01', through: '2026-10-23T11:45:00Z', partial: [{ from: '2026-10-23', to: '2026-10-23', reason: 'Today is still being recorded.' }], source: 'publication_sessions (development fixture)', message: null };
   d.overview = { state: STATE.READY, reason: null, message: null, metrics: {
     active_learners: suppress(active, active, sel), avg_active_seconds: suppress(active, 312, sel),
     rabbit_holes_started: metric(STATE.READY, 37, sel), forks: d.overview.metrics.forks,
@@ -87,6 +88,36 @@ function notEnough() {
   return d;
 }
 
+// Compare with previous period: the previous 30 days had fewer learners; one side of some cells is suppressed, one baseline is 0.
+function compared() {
+  const cur = ready(), prev = ready();
+  prev.overview.metrics.active_learners = suppress(118, 118, sel);
+  prev.overview.metrics.avg_active_seconds = suppress(118, 290, sel);
+  prev.overview.metrics.rabbit_holes_started = metric(STATE.READY, 0, sel); // a zero baseline: no percentage
+  prev.overview.metrics.returning_learners = suppress(6, 2, { ...sel, share: null }); // suppressed previous side
+  prev.overview.metrics.visit_to_learning = suppress(380, 0.29, sel);
+  prev.audience.metrics = { visits: suppress(380, 380, sel), unique_visitors: suppress(231, 231, sel) };
+  prev.series.points = prev.series.points.map((p, i) => (i < 3 ? { ...p, visits: metric(STATE.NOT_COLLECTED), unique_visitors: metric(STATE.NOT_COLLECTED), active_learners: metric(STATE.NOT_COLLECTED) } : p));
+  return { ...withComparison(cur, prev, periodsOf('30d', NOW, { ...cur.coverage, since: '2026-08-01', partial: [] })), fixture: LABEL };
+}
+
+const AT = '2026-10-23T11:50:00Z';
+const target = (canvas, card) => ({ canvas, card_id: card, href: `/apps/${canvas}?card=${card}` });
+const HEALTH_FIXTURES = {
+  health_issues: healthReport({ checked_at: AT, groups: [
+    { canvas: CANVASES[0].canvas, title: CANVASES[0].title, checked: 9, unchecked: 2, findings: [
+      finding({ canvas: CANVASES[0].canvas, kind: 'resource', item_id: 'file:dev-fixture-notes.pdf', title: 'Lecture notes (PDF)', problem: 'A signed-out visitor gets 403 for this PDF; you can open it because you own it.', status: HEALTH.CONFIRMED, checked_at: AT, target: target(CANVASES[0].canvas, 'b-pdf') }),
+      finding({ canvas: CANVASES[0].canvas, kind: 'resource', item_id: 'paper:1706.03762', title: 'Attention Is All You Need', problem: 'The paper source answered 503.', status: HEALTH.TEMPORARY, checked_at: AT, target: target(CANVASES[0].canvas, 'b-paper') }),
+    ] },
+    { canvas: CANVASES[2].canvas, title: CANVASES[2].title, checked: 4, unchecked: 1, findings: [
+      finding({ canvas: CANVASES[2].canvas, kind: 'card', item_id: 'b-repo', title: 'Tokenizer source', problem: 'This card shows a private repository that public visitors cannot open.', status: HEALTH.CONFIRMED, checked_at: AT, target: target(CANVASES[2].canvas, 'b-repo') }),
+    ] },
+    { canvas: CANVASES[1].canvas, title: CANVASES[1].title, checked: 6, unchecked: 0, findings: [] },
+  ] }),
+  health_clean: healthReport({ checked_at: AT, groups: [{ canvas: CANVASES[1].canvas, title: CANVASES[1].title, checked: 6, unchecked: 3, findings: [] }], canvas: CANVASES[1].canvas }),
+  health_unchecked: healthReport({ checked_at: AT, groups: [{ canvas: CANVASES[1].canvas, title: CANVASES[1].title, checked: 0, unchecked: 2, findings: [] }], canvas: CANVASES[1].canvas }),
+};
+
 export const FIXTURES = Object.freeze({
   loading: { state: STATE.LOADING, fixture: LABEL },
   failed: { state: STATE.FAILED, error: 'Could not load analytics', fixture: LABEL },
@@ -96,5 +127,9 @@ export const FIXTURES = Object.freeze({
   not_enough_learners: notEnough(),
   measured_zero: zero(),
   ready: ready(),
+  compare_previous_period: compared(),
+  compare_today: { ...dashboard({ range: '7d', canvases: CANVASES, now: NOW, compare: true }), fixture: LABEL }, // what the server returns today
+  compare_all_time: { ...dashboard({ range: 'all', canvases: CANVASES, now: NOW, compare: true }), fixture: LABEL },
+  ...Object.fromEntries(Object.entries(HEALTH_FIXTURES).map(([k, v]) => [k, { ...v, fixture: LABEL }])),
   mixed: (() => { const d = ready(); d.audience = base().audience; d.support = base().support; d.campaigns = { ...d.campaigns, state: STATE.FAILED, rows: [] }; return d; })(),
 });

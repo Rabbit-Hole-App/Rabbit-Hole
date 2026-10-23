@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COHORT_MIN, DEFINITIONS, PERIOD, STATE, TRAFFIC_SOURCES, dashboard, metric, rangeOf, sortRows, suppress } from './creator-analytics-shape.js';
+import { CHANGE, COHORT_MIN, DEFINITIONS, HEALTH, NO_COVERAGE, NO_ISSUES, PERIOD, STATE, TRAFFIC_SOURCES, comparePeriods, dashboard, finding, healthReport, metric, periodsOf, rangeOf, round1, sortRows, suppress, withComparison } from './creator-analytics-shape.js';
 import { FIXTURES } from './creator-analytics-fixtures.dev.js';
 
 const CANVASES = [{ canvas: 'a', title: 'A', fork_count: 4 }, { canvas: 'b', title: 'B', fork_count: 0 }];
@@ -98,4 +98,91 @@ test('analytics fixtures: labelled development data, one per state, and no suppr
   const files = dir => readdirSync(dir).flatMap(f => (statSync(join(dir, f)).isDirectory() ? files(join(dir, f)) : [join(dir, f)]));
   const importers = files(src).filter(f => /\.(jsx?|mjs)$/.test(f) && !/\.test\.mjs$|fixtures\.dev\.js$/.test(f) && /(from|import\()\s*['"][^'"]*creator-analytics-fixtures\.dev/.test(readFileSync(f, 'utf8')));
   assert.deepEqual(importers, []);
+});
+
+// Compare with previous period (owner extension 2026-10-23).
+const NOW_C = Date.parse('2026-10-23T12:00:00Z');
+const COVERED = { since: '2026-01-01', through: '2026-10-23T11:00:00Z', partial: [] };
+const P = periodsOf('7d', NOW_C, COVERED);
+const days = p => (Date.parse(p.to) - Date.parse(p.from)) / 86400000 + 1;
+
+test('compare: equal-length periods of whole days, the current one ending yesterday, contiguous; All time has none', () => {
+  assert.deepEqual(P, { current: { from: '2026-10-16', to: '2026-10-22', complete: true }, previous: { from: '2026-10-09', to: '2026-10-15', complete: true }, tz: 'UTC' });
+  const m = periodsOf('30d', NOW_C, COVERED);
+  assert.deepEqual([days(m.current), days(m.previous)], [30, 30]);
+  assert.equal(Date.parse(m.current.from) - Date.parse(m.previous.to), 86400000);
+  assert.equal(periodsOf('all', NOW_C, COVERED), null);
+  assert.equal(comparePeriods(metric(STATE.READY, 5), metric(STATE.READY, 4), 'count', null).state, CHANGE.NOT_APPLICABLE);
+});
+
+test('compare: absolute change and percentage, rounded half away from zero to one decimal', () => {
+  assert.deepEqual(comparePeriods(metric(STATE.READY, 148), metric(STATE.READY, 126), 'count', P), { state: 'ready', current: 148, previous: 126, abs: 22, pct: 17.5, pp: null, reason: null, periods: P });
+  assert.equal(comparePeriods(metric(STATE.READY, 100), metric(STATE.READY, 120), 'count', P).pct, -16.7);
+  assert.equal(comparePeriods(metric(STATE.READY, 50), metric(STATE.READY, 50), 'count', P).pct, 0);
+  assert.deepEqual([round1(17.45), round1(-17.45), round1(0.05), round1(2.25)], [17.5, -17.5, 0.1, 2.3]);
+  assert.equal(comparePeriods(metric(STATE.READY, 312.6), metric(STATE.READY, 290.2), 'seconds', P).abs, 22);
+});
+
+test('compare: a conversion rate changes in percentage points, never a percentage, even from a 0% baseline', () => {
+  const r = comparePeriods(metric(STATE.READY, 0.341), metric(STATE.READY, 0.29), 'rate', P);
+  assert.deepEqual([r.state, r.pp, r.pct, r.abs], ['ready', 5.1, null, null]);
+  const z = comparePeriods(metric(STATE.READY, 0.2), metric(STATE.ZERO, 0), 'rate', P);
+  assert.deepEqual([z.state, z.pp, z.pct], ['ready', 20, null]);
+});
+
+test('compare: a zero baseline gives the absolute change and no percentage', () => {
+  const z = comparePeriods(metric(STATE.READY, 37), metric(STATE.READY, 0), 'count', P);
+  assert.deepEqual([z.state, z.abs, z.pct], [CHANGE.NO_BASELINE, 37, null]);
+  assert.match(z.reason, /No baseline/);
+});
+
+test('compare: suppression on either side, a missing side, or a partial period explain instead of a change', () => {
+  for (const [c, p] of [[suppress(4, 3), metric(STATE.READY, 20)], [metric(STATE.READY, 20), suppress(9, 9)]]) {
+    const x = comparePeriods(c, p, 'count', P);
+    assert.deepEqual([x.state, x.abs, x.pct, x.current, x.previous], [CHANGE.NOT_ENOUGH, null, null, null, null], 'no value of either side travels');
+  }
+  for (const s of [STATE.NOT_COLLECTED, STATE.FAILED, STATE.LOADING]) assert.equal(comparePeriods(metric(STATE.READY, 5), metric(s), 'count', P).state, CHANGE.UNAVAILABLE, s);
+  // Collection started inside the previous period, yesterday not processed through, a marked gap, or no coverage: partial.
+  for (const cov of [{ ...COVERED, since: '2026-10-12' }, { ...COVERED, through: '2026-10-22T23:00:00Z' }, { ...COVERED, partial: [{ from: '2026-10-10', to: '2026-10-10', reason: 'ingest outage' }] }, null]) {
+    const x = comparePeriods(metric(STATE.READY, 9), metric(STATE.READY, 3), 'count', periodsOf('7d', NOW_C, cov));
+    assert.deepEqual([x.state, x.abs], [CHANGE.PARTIAL, null], JSON.stringify(cov));
+  }
+  assert.equal(comparePeriods(metric(STATE.READY, 5), metric(STATE.READY, 4), 'total', P).state, CHANGE.NOT_APPLICABLE, 'an all-time total is not compared');
+});
+
+test('compare: the payload carries a change beneath each headline metric, the previous series by day index, both ranges', () => {
+  const d = dashboard({ range: '7d', compare: true, canvases: CANVASES, now: NOW_C });
+  assert.deepEqual(d.range, { id: '7d', from: '2026-10-16', to: '2026-10-22', timezone: 'UTC' });
+  assert.equal(d.compare.state, CHANGE.PARTIAL, 'nothing is collected, so neither period is covered');
+  assert.deepEqual(d.compare.periods.previous, { from: '2026-10-09', to: '2026-10-15', complete: false });
+  assert.equal(d.overview.metrics.active_learners.change.state, CHANGE.UNAVAILABLE);
+  assert.equal(d.overview.metrics.forks.change.state, CHANGE.NOT_APPLICABLE);
+  assert.equal(d.audience.metrics.visits.change.state, CHANGE.UNAVAILABLE);
+  assert.deepEqual([d.series.previous.label, d.series.previous.points], ['Previous period', []]);
+  const all = dashboard({ range: 'all', compare: true, canvases: CANVASES, now: NOW_C });
+  assert.deepEqual([all.compare.state, all.series.previous, all.overview.metrics.active_learners.change.state], ['not_applicable', null, 'not_applicable']);
+  assert.equal(dashboard({ canvases: CANVASES }).overview.metrics.active_learners.change, undefined, 'off unless asked');
+  const prev = structuredClone(d); prev.series.points = [{ day: '2026-10-09', visits: suppress(12) }];
+  const cur = structuredClone(d); cur.series.points = [{ day: '2026-10-16', visits: suppress(15) }];
+  const w = withComparison(cur, prev, P);
+  assert.deepEqual([w.series.points[0].index, w.series.previous.points[0].index, w.series.previous.points[0].day], [0, 0, '2026-10-09']);
+});
+
+test('coverage: null with an explanation while nothing is collected, never the fetch time', () => {
+  const d = dashboard({ canvases: CANVASES, now: NOW_C });
+  assert.deepEqual(d.coverage, NO_COVERAGE);
+  assert.deepEqual([d.coverage.since, d.coverage.through, d.coverage.partial], [null, null, []]);
+  assert.match(d.coverage.message, /Nothing is collected yet/);
+});
+
+test('health: four statuses only, the honest summary line, and an unchecked count', () => {
+  assert.throws(() => finding({ status: 'ok' }));
+  const r = healthReport({ checked_at: 'T', groups: [
+    { canvas: 'a', title: 'A', checked: 3, unchecked: 2, findings: [] },
+    { canvas: 'b', title: 'B', checked: 0, unchecked: 1, findings: [] },
+    { canvas: 'c', title: 'C', checked: 2, unchecked: 0, findings: [finding({ canvas: 'c', kind: 'resource', item_id: 'x', title: 'X', problem: 'p', status: HEALTH.CONFIRMED, checked_at: 'T', target: null })] },
+  ] });
+  assert.deepEqual(r.totals, { checked: 5, unchecked: 3, findings: 1 });
+  assert.deepEqual(r.groups.map(g => g.message), [NO_ISSUES, 'Nothing on this canvas could be checked.', null]);
+  assert.equal(NO_ISSUES, 'No issues found in checked items');
 });

@@ -86,6 +86,74 @@ export function rangeOf(id, now = Date.now(), collectedSince = null) {
   return { id, from: days ? isoDay(now - (days - 1) * DAY) : collectedSince, to: isoDay(now), timezone: TIMEZONE };
 }
 
+// Compare with previous period (owner extension 2026-10-23). Both periods are whole reporting days of equal length: the
+// current one ends on the last complete day (yesterday), so a day still being counted never makes a change look like a
+// drop. All time has none. `coverage` (below) marks a period partial when collection or processing does not span it.
+export function periodsOf(id, now = Date.now(), coverage = null) {
+  const days = RANGE_DAYS[id];
+  if (!days) return null;
+  const end = now - DAY, cur = { from: isoDay(end - (days - 1) * DAY), to: isoDay(end) };
+  const prev = { from: isoDay(end - (2 * days - 1) * DAY), to: isoDay(end - days * DAY) };
+  const covered = p => !!(coverage?.since && coverage?.through && coverage.since <= p.from && coverage.through.slice(0, 10) > p.to
+    && !(coverage.partial || []).some(x => x.from <= p.to && x.to >= p.from));
+  return { current: { ...cur, complete: covered(cur) }, previous: { ...prev, complete: covered(prev) }, tz: TIMEZONE };
+}
+
+export const CHANGE = Object.freeze({
+  READY: 'ready', // abs, and pct (count, seconds) or pp (rate)
+  NO_BASELINE: 'no_baseline', // the previous value is 0: abs only, never a percentage
+  PARTIAL: 'partial', // a period is not fully collected or not yet complete
+  NOT_ENOUGH: 'not_enough_learners', // either side is suppressed
+  UNAVAILABLE: 'unavailable', // either side is not collected, failed or loading
+  NOT_APPLICABLE: 'not_applicable', // All time, or a current / all-time counter
+});
+const CHANGE_REASON = {
+  no_baseline: 'No baseline: the previous period was 0, so there is no percentage change.',
+  partial: 'One of the two periods is not fully recorded yet, so no change is shown.',
+  not_enough_learners: `One of the two periods has fewer than ${COHORT_MIN} learners, so no change is shown.`,
+  unavailable: 'One of the two periods has no data for this metric.',
+  not_applicable: 'Not compared: this is a current or all-time total.',
+};
+// Half away from zero, to one decimal, without float noise (17.45 -> 17.5, -17.45 -> -17.5).
+export const round1 = x => Math.sign(x) * Math.round(Math.abs(x) * 10 + 1e-9) / 10;
+
+// One metric's change. `kind`: 'count' | 'seconds' (abs and %), 'rate' (0..1, change in percentage points, never %),
+// 'total' (a current or all-time counter: not compared). `periods` is periodsOf(); null means All time.
+export function comparePeriods(current, previous, kind, periods = null) {
+  const out = (state, extra = {}) => ({ state, current: null, previous: null, abs: null, pct: null, pp: null, reason: CHANGE_REASON[state] ?? null, periods, ...extra });
+  if (!periods || kind === 'total') return out(CHANGE.NOT_APPLICABLE);
+  const has = c => c && (c.state === STATE.READY || c.state === STATE.ZERO);
+  if ([current, previous].some(c => c?.state === STATE.NOT_ENOUGH)) return out(CHANGE.NOT_ENOUGH);
+  if (!has(current) || !has(previous)) return out(CHANGE.UNAVAILABLE);
+  if (!periods.current.complete || !periods.previous.complete) return out(CHANGE.PARTIAL);
+  const c = current.value, p = previous.value, values = { current: c, previous: p };
+  if (kind === 'rate') return out(CHANGE.READY, { ...values, pp: round1((c - p) * 100), reason: null });
+  const abs = kind === 'seconds' ? Math.round(c - p) : c - p;
+  if (p === 0) return out(CHANGE.NO_BASELINE, { ...values, abs });
+  return out(CHANGE.READY, { ...values, abs, pct: round1(((c - p) / p) * 100), reason: null });
+}
+
+// Data coverage ("About these metrics"): what collection and processing actually cover, never the fetch time.
+// since: first recorded day; through: last processed instant; partial: gaps or incomplete periods with a reason.
+export const NO_COVERAGE = Object.freeze({ since: null, through: null, partial: [], source: null,
+  message: 'Nothing is collected yet, so there is no coverage. Public canvases and forks are read live from your canvases.' });
+
+// Publication health (owner extension 2026-10-23): problems a SIGNED-OUT public viewer meets, checked on demand.
+export const HEALTH = Object.freeze({ CONFIRMED: 'confirmed', TEMPORARY: 'temporary_failure', INCONCLUSIVE: 'inconclusive', UNCHECKED: 'unchecked' });
+export const NO_ISSUES = 'No issues found in checked items';
+// One finding: the canvas, the card or resource, what was observed, when, and where to open it.
+export const finding = ({ canvas, kind, item_id, title, problem, status, checked_at, target }) => {
+  if (!Object.values(HEALTH).includes(status)) throw new Error(`Unknown health status ${status}`);
+  return { canvas, kind, item_id, title: title ?? null, problem, status, checked_at, target };
+};
+// A report: per canvas, its findings (unchecked items are counted, not listed) and the honest summary line.
+export function healthReport({ groups, checked_at, canvas = null }) {
+  const sum = k => groups.reduce((n, g) => n + g[k], 0);
+  const message = g => (g.findings.length ? null : g.checked ? NO_ISSUES : 'Nothing on this canvas could be checked.');
+  return { checked_at, canvas, on_demand: true, totals: { checked: sum('checked'), unchecked: sum('unchecked'), findings: groups.reduce((n, g) => n + g.findings.length, 0) },
+    groups: groups.map(g => ({ ...g, message: message(g) })) };
+}
+
 // Comparison sort: rows whose cell has no value (not collected, not enough learners) always sort last, in either direction.
 export function sortRows(rows, key, dir = 'desc') {
   const val = r => (key === 'title' ? r.title : r[key]?.value);
@@ -102,16 +170,18 @@ const notCollected = (period = PERIOD.SELECTED, extra = {}) => metric(STATE.NOT_
 // The payload GET /api/analytics/creator returns today. `canvases` are the session's own live public canvases
 // ({ canvas, title, fork_count }); `canvas` is the selected one or null (all). Real numbers only for what exists: the
 // public-canvas count and canonical forks. Everything else is not_collected with one section reason, never a zero.
-export function dashboard({ range = '30d', canvas = null, canvases, now = Date.now() }) {
+export function dashboard({ range = '30d', canvas = null, canvases, now = Date.now(), compare = false }) {
   const scope = canvas ? canvases.filter(c => c.canvas === canvas) : canvases;
   const forks = scope.reduce((n, c) => n + c.fork_count, 0);
   const forkCell = c => counter(c.fork_count, PERIOD.ALL_TIME);
-  return {
+  const d = {
     version: 1,
     range: rangeOf(range, now),
     timezone: TIMEZONE,
     threshold: COHORT_MIN,
     collected_since: null,
+    coverage: NO_COVERAGE,
+    compare: { enabled: false, state: CHANGE.NOT_APPLICABLE, periods: null },
     canvas: canvas ? { canvas, title: scope[0]?.title ?? null } : null,
     canvases: canvases.map(c => ({ canvas: c.canvas, title: c.title })),
     overview: section('storage_not_approved', {
@@ -147,4 +217,28 @@ export function dashboard({ range = '30d', canvas = null, canvases, now = Date.n
     },
     definitions: DEFINITIONS,
   };
+  // Today nothing is collected for any previous period either, so every compared change is `unavailable`.
+  return compare ? withComparison(d, dashboard({ range, canvas, canvases, now }), periodsOf(range, now, d.coverage)) : d;
+}
+
+// The change kind of each compared metric (comparePeriods); a metric not listed is not compared.
+export const CHANGE_KIND = Object.freeze({
+  active_learners: 'count', avg_active_seconds: 'seconds', rabbit_holes_started: 'count', forks: 'total', returning_learners: 'count',
+  visit_to_learning: 'rate', public_canvases: 'total', visits: 'count', unique_visitors: 'count', rabbit_hole_start_rate: 'rate', fork_rate: 'rate',
+});
+// Attach Compare with previous period to a payload `d`, given the same payload for the previous period `prev`: a `change`
+// beneath every headline metric (overview, audience, the one-canvas conversion), `series.previous` aligned by day index,
+// and the current range narrowed to the compared period, so the headline value is `change.current`. All time: none.
+export function withComparison(d, prev, periods) {
+  const out = structuredClone(d);
+  out.compare = { enabled: true, state: !periods ? CHANGE.NOT_APPLICABLE : periods.current.complete && periods.previous.complete ? CHANGE.READY : CHANGE.PARTIAL, periods };
+  if (periods) out.range = { id: d.range.id, from: periods.current.from, to: periods.current.to, timezone: periods.tz };
+  const each = (cells, prevCells) => { for (const [k, cell] of Object.entries(cells || {})) if (CHANGE_KIND[k]) cell.change = comparePeriods(cell, prevCells?.[k], CHANGE_KIND[k], periods); };
+  each(out.overview.metrics, prev.overview.metrics);
+  each(out.audience.metrics, prev.audience.metrics);
+  if (out.canvas_detail) each(out.canvas_detail.conversion.metrics, prev.canvas_detail?.conversion.metrics);
+  out.series.previous = periods ? { label: 'Previous period', from: periods.previous.from, to: periods.previous.to, state: prev.series.state, reason: prev.series.reason,
+    points: prev.series.points.map((p, index) => ({ ...p, index })) } : null;
+  out.series.points = out.series.points.map((p, index) => ({ ...p, index }));
+  return out;
 }

@@ -140,12 +140,90 @@ email clients usually strip the referrer, so an untagged newsletter click is Dir
 
 ### Sections of the payload
 
-`version, range {id, from, to, timezone}, timezone, threshold, collected_since, canvas, canvases, overview, audience,
+`version, range {id, from, to, timezone}, timezone, threshold, collected_since, coverage, compare, canvas, canvases, overview, audience,
 series, topics, support, comparison, traffic, campaigns, canvas_detail, tools, definitions`. Each section is
 `{ state, reason, message, ... }`; metric cells are `{ state, value, period?, share? }`. `canvas_detail` is present
 only with a `canvas` filter: concept exploration, Rabbit Hole and fork conversion, supported Next Steps, outbound
 resources and revision comparisons (the per-explainer metrics of "Derived metrics", same suppression). `definitions`
 carries each metric's label, one-line definition, period and protected flag for the tooltips.
+
+### Compare with previous period (owner extension 2026-10-23)
+
+- A "Compare with previous period" toggle beside the date controls: `compare=1`. Applies to the creator-wide overview
+  and to one canvas alike, with the same canvas filter and timezone. Separate from the revision before/after comparison.
+- **Periods:** equal lengths of whole reporting days (`periodsOf`). 7 days compares the last 7 complete days with the 7
+  before them; 30 days likewise. **Decision:** with Compare on, the current period ends on the last complete day
+  (yesterday), not today, so a day still being counted never shows as a drop; the payload's `range` becomes that period
+  and `compare.periods` carries both ranges for the header. All time has no comparison (`not_applicable`).
+- **Change object** beneath each headline metric (`overview`, `audience`, and the one-canvas `conversion` metrics):
+  `change: { state, current, previous, abs, pct, pp, reason, periods: { current: {from, to, complete}, previous: {from,
+  to, complete}, tz } }`, built by the pure `comparePeriods(current, previous, kind, periods)`.
+
+| Change state | When | Values |
+|---|---|---|
+| `ready` | both sides measured and both periods fully covered | counts and seconds: `abs` and `pct`; rates: `pp` (percentage points) only |
+| `no_baseline` | the previous value is 0 (count or seconds) | `abs` only; never a percentage from a zero baseline |
+| `partial` | either period not fully collected or processed (`coverage.since` after its start, `coverage.through` not past its end, or a marked gap) | none |
+| `not_enough_learners` | either side suppressed | none, and neither side's value |
+| `unavailable` | either side not collected, failed or loading | none |
+| `not_applicable` | All time, or a current or all-time total (public canvases, forks) | none |
+
+- Kinds (`CHANGE_KIND`): counts (active learners, visits, unique visitors, returning learners, Rabbit Holes started),
+  seconds (average active time), rates in percentage points (visits that became active learning, start and fork rates),
+  totals not compared (forks · all time, public canvases).
+- Rounding: `pct` and `pp` to one decimal, half away from zero (`round1`); `abs` of seconds to whole seconds. Example
+  "148 active learners · +22 (+17.5%)"; a rate "34.1% · +5.1 pts".
+- **Series:** `series.previous = { label: 'Previous period', from, to, state, reason, points }`, each point with the
+  same `index` (day 0, 1, ...) as the current series, null cells where unavailable or suppressed.
+- Today every compared change is `unavailable` (nothing is collected) or `not_applicable` (the canonical totals).
+
+### Data coverage ("About these metrics")
+
+`coverage: { since, through, partial: [{ from, to, reason }], source, message }`: "Data available since <since>" and
+"Updated through <through>". They describe what collection and processing actually cover, never the time of the
+request. A period overlapping a `partial` entry, starting before `since` or ending after `through` is partial. Today:
+`since` and `through` are null with the message "Nothing is collected yet ... Public canvases and forks are read live".
+
+### Publication health (owner extension 2026-10-23)
+
+- Findings about what a **public, signed-out viewer** meets on the creator's public canvases. The owner being able to
+  open something proves nothing, so every check goes through the public path: `sharedAccess` with a signed-out request
+  and the publication token, the shared board state exactly as a visitor gets it (`sharedState` and
+  `redactRepositoryCards` with no viewer), and `authorizeFileSource` through the token for imported files.
+- **Decision: on demand, not stored.** The owner presses Check; `GET /api/analytics/health[?canvas=<name>]` runs the
+  checks then and returns them with `checked_at` = the time of the check. Nothing is written, so no storage approval is
+  needed. Owner-only (401 signed out, 404 for a canvas that is not the owner's live public one), at most one run per
+  owner every 30 seconds per worker instance (429), and at most 40 checks per run (the rest count as unchecked).
+- Read-only: never changes sharing or permissions, never executes notebooks, generates content or calls a paid or
+  model service. External links are checked with one bounded `GET` each (5 s timeout) to the public page.
+
+| Item | Check | Finding |
+|---|---|---|
+| The publication itself | `sharedAccess` signed out | the link does not open for a visitor: `confirmed` |
+| Imported file card (PDF, slides, sheets; `fileRef`) | `authorizeFileSource` through the token, signed out | refused while the file is stored: `confirmed` ("opens for you, not for visitors"); no longer stored: `confirmed` |
+| Uploaded PDF on a paper card (`upload:` id) | the paper route serves uploads to the uploader only (`learn-paper.js`) | `confirmed` |
+| Repository card | redacted for a signed-out viewer (`redactRepositoryCards`) | `confirmed` (repository not public) |
+| arXiv paper, Wikipedia article, YouTube video | public page or oEmbed | 404 / 410 (video 401 / 403): `confirmed`; 5xx, 429 or timeout: `temporary_failure`; network error: `inconclusive` |
+| Any other linked resource (webpage, image or other URL), and items past the cap | not checked | counted in `unchecked`, not listed |
+
+- Finding: `{ canvas, kind, item_id, title, problem, status, checked_at, target: { canvas, card_id, href } }`, status one
+  of `confirmed | temporary_failure | inconclusive | unchecked`; `href` opens the canvas at the card
+  (`/apps/<canvas>?card=<id>`, the existing `card=` focus; a project canvas uses its project address).
+- Report: `{ checked_at, canvas, on_demand: true, totals: { checked, unchecked, findings }, groups: [{ canvas, title,
+  checked, unchecked, findings, message }] }`; the overview groups by canvas, one canvas shows only itself. A group
+  with no finding says "No issues found in checked items", never that the canvas has no problems.
+- A stored history of checks (scheduled re-checks, "first seen") would need storage: not proposed in V1.
+
+### Export CSV (owner extension 2026-10-23)
+
+- "Export CSV" in the header: `GET /api/analytics/creator.csv` with the same `range`, `canvas` and `compare` parameters,
+  owner-only exactly as the JSON route, built server-side from the **same payload** by the pure `toCsv(payload)`
+  (`web/src/creator-analytics-csv.js`).
+- Rows: `section, metric, label, value, unit, period, from, to, timezone, state, reason`, plus comparison columns when
+  Compare is on, then a header block of the canvas scope, the collection start, `coverage`, and each metric's
+  definition. Aggregate only: never a learner row.
+- A hidden or unavailable value is an **empty cell with its reason**, never 0. RFC 4180 quoting (commas, quotes, CR, LF);
+  a cell beginning with `=`, `+`, `-`, `@`, tab or CR is prefixed with `'` and quoted (formula injection).
 
 ### What has real data today, and what each missing part needs
 
