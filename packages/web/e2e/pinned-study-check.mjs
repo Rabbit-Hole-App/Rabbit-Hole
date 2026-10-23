@@ -15,7 +15,8 @@ const total = 15; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('pinned-study-check runs against the local stack only');
-const SHOTS = process.argv[2] || 'pinned-study-shots';
+// In CI the shots go beside the run's logs (PERSIST is <out>/stack/local there), which the job uploads.
+const SHOTS = process.argv[2] || (process.env.PERSIST ? `${process.env.PERSIST}/../../pinned-study-shots` : 'pinned-study-shots');
 mkdirSync(SHOTS, { recursive: true });
 const secret = readFileSync(process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
@@ -63,7 +64,8 @@ const loads = [], model = [], saves = [], errors = [];
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|artifact|assess|grade|home-ask|image|inline\/|journey|scene|transcribe|tts|voice\/|tutor\/|dive|explore|next-steps|selection|plan|course))/;
 const router = route => {
   const request = route.request(), url = new URL(request.url());
-  if (url.origin !== BASE && url.pathname.endsWith('/lab/index.html')) { loads.push(url.origin); return route.fulfill({ status: 200, contentType: 'text/html', body: STUB }); }
+  // The page also warms the notebook site in a hidden frame of its own (learn-notebook.js, workspace=warmup): served, not counted.
+  if (url.origin !== BASE && url.pathname.endsWith('/lab/index.html')) { if (url.searchParams.get('workspace') !== 'warmup') loads.push(url.search); return route.fulfill({ status: 200, contentType: 'text/html', body: STUB }); }
   if (url.origin !== BASE) return route.abort();
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && MODEL.test(url.pathname)) { model.push(`${request.method()} ${url.pathname}`); return route.abort(); }
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) && url.pathname.startsWith('/api/learn/boards/')) saves.push(url.pathname);
@@ -118,7 +120,10 @@ const counts = () => [model.length, saves.length];
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const viewChecked = async () => { const panel = await openMenu(page, 'View'); const out = await panel.locator(':scope > [role="menuitemradio"], :scope [role="menuitemradio"]').evaluateAll(rows => rows.filter(row => !row.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out.filter(([name]) => name === 'Canvas' || name === 'Study'); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
-const inView = id => page.evaluate(sel => { const card = document.querySelector(sel)?.getBoundingClientRect(), frame = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect(); return !!card && !!frame && card.right > frame.left && card.left < frame.right && card.bottom > frame.top && card.top < frame.bottom; }, `[data-block-id="${id}"]`);
+const where = id => page.evaluate(sel => { const round = r => r && [r.left, r.top, r.right, r.bottom].map(Math.round); return { card: round(document.querySelector(sel)?.getBoundingClientRect()), frame: round(document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect()), zoom: document.querySelector('[data-zoom] button[title="Reset zoom"]')?.textContent || null }; }, `[data-block-id="${id}"]`);
+const inView = async id => { const { card, frame } = await where(id); return !!card && !!frame && card[2] > frame[0] && card[0] < frame[2] && card[3] > frame[1] && card[1] < frame[3]; };
+// A card brought into the working pane, or a failure that says where the card and the pane were.
+const shown = async (id, what) => { try { await until(() => inView(id), what); } catch { throw Error(`${what}: ${JSON.stringify(await where(id))}`); } };
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
 await page.locator('[data-block-id="ex"]').waitFor({ timeout: 60000 });
@@ -166,7 +171,7 @@ await check('3 Notebook frames the existing notebook card in the same canvas; Ca
   const before = counts(), z = await zoom(), shape = await geometry();
   await work('notebook').click();
   await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'notebook', 'Notebook is the work');
-  await until(() => inView('nb'), 'the notebook card is in the working pane');
+  await shown('nb', 'the notebook card is in the working pane');
   assert.equal(await page.locator('[data-notebook-frame]').count(), 1, 'one notebook, never a second host');
   await sameFrame('Canvas -> Notebook');
   await shot('03-notebook');
@@ -240,7 +245,7 @@ await check('7 the reader keeps its scroll through Notebook and Canvas inside St
   const at = await reader.evaluate(node => node.scrollTop);
   assert.ok(at > 100, `the note scrolls (${at})`);
   await work('notebook').click();
-  await until(() => inView('nb'), 'the notebook is framed');
+  await shown('nb', 'the notebook is framed');
   await work('canvas').click();
   await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'canvas', 'Canvas is the work');
   assert.equal(await reader.evaluate(node => node.scrollTop), at, 'the reader is where it was');
@@ -260,7 +265,7 @@ await check('8 Pin for study from the right-click menu: on the Explanation, from
   await menu().locator('[data-menu-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'ex', 'the right-clicked card is pinned');
   await work('notebook').click();
-  await until(() => inView('nb'), 'the notebook is framed');
+  await shown('nb', 'the notebook is framed');
   await page.getByRole('button', { name: 'Locate on canvas', exact: true }).click();
   await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'canvas', 'Locate switches the work to Canvas');
   await until(async () => (await selectedIds()).join() === 'ex' && await inView('ex'), 'the pinned card is selected and shown');
@@ -357,7 +362,7 @@ await check('13 a pinned card that is deleted shows Reference unavailable with C
   for (const name of ['Choose another reference', 'Unpin']) assert.ok(await page.locator('[data-study-pane]').getByRole('button', { name, exact: true }).first().isVisible(), name);
   assert.ok(await page.getByRole('button', { name: 'Add pinned reference', exact: true }).isDisabled(), 'nothing to attach');
   await work('notebook').click();
-  await until(() => inView('nb'), 'the notebook still works beside an unavailable reference');
+  await shown('nb', 'the notebook still works beside an unavailable reference');
   await work('canvas').click();
   await sameFrame('unavailable');
   await page.locator('[data-study-unavailable]').getByRole('button', { name: 'Choose another reference', exact: true }).click();

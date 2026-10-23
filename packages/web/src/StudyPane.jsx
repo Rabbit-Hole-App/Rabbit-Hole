@@ -162,10 +162,11 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   }, [layout?.stacked, layout?.size, top]); // eslint-disable-line react-hooks/exhaustive-deps
   useLayoutEffect(() => () => { const frame = canvasFrame.current; if (frame) { frame.style.marginLeft = ''; frame.style.marginTop = ''; } }, [canvasFrame]);
 
-  // Study opened with the notebook as the work: frame it once the canvas has its cards.
-  const framed = useRef(false);
+  // Study opened with the notebook as the work: frame it once the canvas has its cards. Only for the work the pane opened
+  // with, so a Notebook press inside Study never captures the camera a second time.
+  const framed = useRef(state.work !== 'notebook' || !state.notebookId);
   useEffect(() => {
-    if (framed.current || !ready || state.work !== 'notebook' || !state.notebookId) return;
+    if (framed.current || !ready) return;
     if (study.reframe(state.notebookId)) framed.current = true;
   }, [ready, canvasState]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRefused(null); setChoosing(false); }, [pin?.cardId]);
