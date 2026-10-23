@@ -2,7 +2,8 @@
 // (the app's api()), so the breakdown, the bulk change and its partial failures are tested without a page.
 //
 // Three link modes are the share route's own fields: shared, view (the link's token) and public_view. Invited people only is
-// shared: false. The Explore publication is a separate row the share route never touches.
+// shared: false, which blocks access through the link (the link itself is permanent). The Explore publication is a separate row the
+// share route never touches.
 export const MODES = [
   ['invited', 'Invited people only'],
   ['signin', 'Anyone with the link · sign-in required'],

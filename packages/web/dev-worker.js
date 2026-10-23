@@ -72,6 +72,8 @@ import { imageEstimate, TRANSCRIBE_ESTIMATE } from '../control-plane/src/learn-u
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
+import { isEmbed } from '../control-plane/src/learn-shared-ask.js';
+import { EMBED_SHELL, withFraming } from '../control-plane/src/framing-headers.js';
 export { LearnVideos } from '../control-plane/src/learn-video.js';
 
 // Authentication/app actions use the live backend. Dev Learn reuses the Ask handler
@@ -85,22 +87,26 @@ export default {
     const { consumeIndexQueue } = await import('../control-plane/src/learn-moment-index.js');
     await consumeIndexQueue(batch, env);
   },
-  async fetch(req, env, ctx) {
-    env = guardControlPlane(env);
-    // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
-    // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
-    // monthly allowance and the platform guard; a stream passes through byte for byte.
-    const feature = usageFeature(req.method, new URL(req.url).pathname);
-    if (!feature) return routes.fetch(req, env, ctx);
-    const usageEnv = withUsage(env, { feature, req, resolveUser: () => devIdentity(req, env) });
-    // A streaming route answers an allowance with nothing available before it starts streaming (owner L12 2026-10-20).
-    if (STREAMING.has(feature)) { const refused = await allowanceFirst(usageEnv); if (refused) return refused; }
-    let response;
-    try { response = boundaryReply(usageEnv, await routes.fetch(req, usageEnv, ctx)); }
-    catch (error) { await finishAction(usageEnv, { status: 'failed', result: 'none' }); throw error; }
-    return finishWithResponse(usageEnv, response);
-  },
+  // Every response passes the framing wrapper (framing-headers.js), whatever route or early return made it.
+  fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };
+
+async function respond(req, env, ctx) {
+  env = guardControlPlane(env);
+  // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
+  // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
+  // monthly allowance and the platform guard; a stream passes through byte for byte.
+  const feature = usageFeature(req.method, new URL(req.url).pathname);
+  if (!feature) return routes.fetch(req, env, ctx);
+  // An embed's Chat is the public guest's whatever session cookie rides along: the platform pays, never the signed-in visitor (SHARE-04).
+  const usageEnv = withUsage(env, { feature, req, resolveUser: feature === 'shared_ask' && isEmbed(req) ? async () => null : () => devIdentity(req, env) });
+  // A streaming route answers an allowance with nothing available before it starts streaming (owner L12 2026-10-20).
+  if (STREAMING.has(feature)) { const refused = await allowanceFirst(usageEnv); if (refused) return refused; }
+  let response;
+  try { response = boundaryReply(usageEnv, await routes.fetch(req, usageEnv, ctx)); }
+  catch (error) { await finishAction(usageEnv, { status: 'failed', result: 'none' }); throw error; }
+  return finishWithResponse(usageEnv, response);
+}
 
 // The paid routes that answer in a stream (event stream or NDJSON), so a refusal inside would come after a 200.
 const STREAMING = new Set(['ask', 'board', 'inline_generate', 'shared_ask', 'tutor']);
@@ -353,7 +359,7 @@ const routes = {
     }
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
     // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

@@ -95,8 +95,8 @@ if (!(await owner.getByRole('dialog', { name: 'Share canvas' }).isVisible())) aw
 await owner.getByRole('dialog', { name: 'Share canvas' }).getByLabel('Who can open this?').selectOption('invited');
 await owner.waitForTimeout(1500);
 await friend.goto(viewLink);
-await friend.getByText('This link is not shared any more').waitFor({ timeout: 15000 }).catch(() => {});
-check('turning sharing off stops the links', await friend.getByText('This link is not shared any more', { exact: false }).count() === 1);
+await friend.getByText("You don't have access to this canvas.").waitFor({ timeout: 15000 }).catch(() => {});
+check('turning sharing off stops the links', await friend.getByText("You don't have access to this canvas.", { exact: false }).count() === 1);
 
 console.log('board', BOARD);
 await browser.close();

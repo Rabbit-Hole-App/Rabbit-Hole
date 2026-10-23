@@ -49,7 +49,8 @@ const RULES = {
 
   // Chat (S3 owns the guest allowance): Ask in Chat, Explain in Chat and Ask about selection are one capability. A guest asks
   // while ctx.guestChat.remaining is unknown or above zero; the server refuses message 11 whatever the client shows.
-  'chat.ask': (role, ctx) => (role !== 'guest' || !(ctx.guestChat?.remaining <= 0) ? ok : signIn('Sign in to continue')),
+  // An embed without ?chat=1 (ctx.chat === false) has no Chat, so no entry point to it.
+  'chat.ask': (role, ctx) => (ctx.chat === false ? hide : role !== 'guest' || !(ctx.guestChat?.remaining <= 0) ? ok : signIn('Sign in to continue')),
 
   // Comments: reading follows the canvas's comments being on (ctx.comments.read); anyone may draft; posting needs an account
   // and the canvas's permission (ctx.comments.post, the server's `can.post`).

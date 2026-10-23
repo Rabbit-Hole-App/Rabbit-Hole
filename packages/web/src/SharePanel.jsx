@@ -20,13 +20,16 @@ export function Switch({ on, label, disabled = false, onChange }) {
 }
 
 // The dropdown's three options are the server's own fields (home/project-access.js MODES, PATCH, accessMode): shared, view
-// (the link's token) and public_view. Invited people only is shared: false, which turns the link off; their invitations and
-// the Explore publication are other rows the share route never touches.
+// (the link's token) and public_view. Invited people only is shared: false, which blocks access through the link; their
+// invitations and the Explore publication are other rows the share route never touches. The link is permanent (owner
+// decision 2026-10-22): no option rotates its token, so turning sharing back on restores the same URL, which is not shown
+// as working while sharing is off.
 const EXPLAIN = {
-  invited: 'Only people you invite can open this canvas. The share link is off.',
+  invited: 'Only people you invite can open this canvas. The share link does not work while this is selected.',
   signin: 'Anyone with the link can view this canvas after signing in. They cannot edit it.',
   public: 'Anyone with the link can view this canvas without signing in. They cannot edit it.',
 };
+const LINK_RULE = 'Turning sharing off blocks access through this link. Turning it back on restores access using the same link.';
 export { accessMode };
 
 // A read-only URL on one line (the field scrolls, and the whole URL is its title) with a blue Copy link. Copied shows only
@@ -190,6 +193,7 @@ export default function SharePanel({ sharing, busy, error, onChange, onPublish =
             {MODES.map(([value, label]) => <option key={value} value={value} disabled={project?.publicBlocked && value === 'public'}>{label}</option>)}
           </select>
           <p className="mt-1.5 text-xs text-ink-3">{project ? EXPLAIN[mode].replace('this canvas', 'this project').replace('share link', 'project link') : EXPLAIN[mode]}</p>
+          <p data-link-rule className="text-xs text-ink-3">{LINK_RULE}</p>
           {pendingMode && <p role="status" className="text-xs text-ink-3">Saving</p>}
           {shareUrl && <CopyLink url={shareUrl} fieldLabel="Share link URL" />}
           {project && <p data-project-link-note className="mt-2 text-xs text-ink-3">This is the project link only. The project itself is never listed on Explore, and each canvas keeps its own access: see the Canvases tab.</p>}

@@ -5,20 +5,24 @@
 import worker from './dev-worker.js';
 import { ownControlPlane } from '../control-plane/src/dev-forwarding.js';
 import { cadJobDiagnostic } from '../control-plane/src/cad-job-diagnostic.js';
+import { withFraming } from '../control-plane/src/framing-headers.js';
 export { RepositoryImports, LearnScenes, LearnVideos, CadJobs, ExplainJobs } from './dev-worker.js';
 
 export default {
   queue: (batch, env) => worker.queue(batch, ownControlPlane(env)),
-  fetch(req, env, ctx) {
-    const url = new URL(req.url);
-    if (url.pathname === '/internal/cad-job-diagnostic') return cadJobDiagnostic(req, env);
-    // Fixed recipient and dedicated bearer are validated by the private control plane.
-    if (url.pathname === '/internal/cad-budget-alert') return env.CONTROL_PLANE.fetch(req);
-    // Auth errors, sign-out and the app's 401 handler all land on /login, the control plane's legacy page.
-    if (url.pathname === '/login' && ['GET', 'HEAD'].includes(req.method)) { url.pathname = '/sign-in'; return Response.redirect(url, 302); }
-    // No hosted apps here: an app's JS on this origin would be same-origin with the session and could call /api/*.
-    // If they return, it is on a separate site (docs/features/rabbit-hole-production.md), never through this Worker.
-    if (/^\/a(?:\/|$)/.test(url.pathname)) return new Response(req.method === 'HEAD' ? null : 'Not found', { status: 404, headers: { 'Content-Type': 'text/plain;charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
-    return worker.fetch(req, ownControlPlane(env), ctx);
-  },
+  // Every response, these early ones too, passes the framing wrapper (framing-headers.js): the dev worker applies it to what it routes.
+  fetch: async (req, env, ctx) => withFraming(req, await respond(req, env, ctx)),
 };
+
+function respond(req, env, ctx) {
+  const url = new URL(req.url);
+  if (url.pathname === '/internal/cad-job-diagnostic') return cadJobDiagnostic(req, env);
+  // Fixed recipient and dedicated bearer are validated by the private control plane.
+  if (url.pathname === '/internal/cad-budget-alert') return env.CONTROL_PLANE.fetch(req);
+  // Auth errors, sign-out and the app's 401 handler all land on /login, the control plane's legacy page.
+  if (url.pathname === '/login' && ['GET', 'HEAD'].includes(req.method)) { url.pathname = '/sign-in'; return Response.redirect(url, 302); }
+  // No hosted apps here: an app's JS on this origin would be same-origin with the session and could call /api/*.
+  // If they return, it is on a separate site (docs/features/rabbit-hole-production.md), never through this Worker.
+  if (/^\/a(?:\/|$)/.test(url.pathname)) return new Response(req.method === 'HEAD' ? null : 'Not found', { status: 404, headers: { 'Content-Type': 'text/plain;charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
+  return worker.fetch(req, ownControlPlane(env), ctx);
+}
