@@ -2,7 +2,8 @@
 import { useSyncExternalStore } from 'react';
 import { executeCommand } from './agent/commands.js';
 import { api, navigate } from './api.js';
-import { uploadContextDoc } from './context-docs.js';
+import { uploadContextDoc, uploadContextLink, uploadContextSource } from './context-docs.js';
+import { uploadSource } from './file-source-client.js';
 import { toast } from './ui.jsx';
 import { createJob } from './start-job.js';
 
@@ -11,6 +12,9 @@ export const startJob = createJob({
   storage: storage(),
   command: executeCommand,
   uploadContextDoc,
+  uploadSource,
+  contextFromSource: uploadContextSource,
+  contextLink: uploadContextLink,
   repository: (slug) => api(`/api/repositories/${encodeURIComponent(slug)}`),
   navigate,
   here: () => window.location.pathname,

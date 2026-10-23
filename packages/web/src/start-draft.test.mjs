@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COPY, STATES, canBlank, canMove, canStart, capabilities, classifyFile, classifyLink, clearDraft, createDraft, destinationKind,
-  editable, effective, blankPlan, loadDraft, needs, planStart, problems, reduce, restore, saveDraft, serialize, statusText, summary, summaryText,
+  COPY, STATES, canBlank, canMove, canStart, capabilities, classifyFile, classifyLink, clearDraft, contextNote, createDraft, destinationKind,
+  editable, effective, excluded, blankPlan, loadDraft, needs, planStart, problems, reduce, restore, saveDraft, serialize, statusText, summary, summaryText,
 } from './start-draft.js';
 
 const file = (name, size = 1000, extra = {}) => ({ name, size, type: '', lastModified: 1, ...extra });
@@ -76,15 +76,26 @@ test('a file the context road cannot keep defaults to canvas only and its contex
   assert.deepEqual(problems(d), []);
 });
 
-test('link rows: both on; context follows the card, so it is unavailable while the canvas option is off', () => {
+test('link rows: both on, and the two options are independent: context never waits for a card, a card never carries context', () => {
   let d = reduce(createDraft(), { type: 'add-link', text: 'https://en.wikipedia.org/wiki/Transformer' });
   assert.deepEqual([d.rows[0].context, d.rows[0].canvas], [true, true]);
   d = reduce(d, { type: 'set-option', id: 's1', option: 'canvas', value: false });
-  assert.deepEqual(capabilities(d.rows[0], d), { context: false, canvas: true });
-  assert.deepEqual(effective(d.rows[0], d), { context: false, canvas: false });
-  assert.deepEqual(problems(d).map((p) => [p.id, p.message]), [['s1', 'Choose context, canvas, or both.']]);
+  assert.deepEqual(capabilities(d.rows[0], d), { context: true, canvas: true });
+  assert.deepEqual(effective(d.rows[0], d), { context: true, canvas: false }); // owner decisions 2026-10-23: context-only links
+  assert.deepEqual(needs(d.rows[0], d), { context: true, canvas: false });
   d = reduce(d, { type: 'set-option', id: 's1', option: 'canvas', value: true });
-  assert.deepEqual(effective(d.rows[0], d), { context: true, canvas: true }); // the stored choice came back
+  d = reduce(d, { type: 'set-option', id: 's1', option: 'context', value: false });
+  assert.deepEqual(effective(d.rows[0], d), { context: false, canvas: true });
+  d = reduce(d, { type: 'set-option', id: 's1', option: 'canvas', value: false });
+  assert.equal(excluded(d.rows[0], d), true);
+});
+
+test('what Chat gets from a link or an unsupported file is said beside the control', () => {
+  const links = ['https://arxiv.org/abs/1706.03762', 'https://en.wikipedia.org/wiki/Transformer', 'https://youtu.be/dQw4w9WgXcQ', 'https://example.com/post']
+    .map((text) => contextNote(reduce(createDraft(), { type: 'add-link', text }).rows[0]));
+  assert.deepEqual(links, ['Chat gets the title and abstract.', 'Chat gets the article introduction.', 'Chat gets the video name and address only.', 'Chat gets the name and address only.']);
+  const d = files(file('a.pdf'), file('b.docx'))(createDraft());
+  assert.deepEqual([contextNote(d.rows[0]), contextNote(d.rows[1])], ['', 'Context takes PDF, text and Markdown files only.']);
 });
 
 test('webpage rows say they are resolved when you start; typed links show their type at once; duplicates are named', () => {
@@ -100,12 +111,13 @@ test('webpage rows say they are resolved when you start; typed links show their 
   assert.equal(d.rows.length, 2);
 });
 
-test('repository: one only, context on and overview off, files lose context while it is in the list and get it back after', () => {
+test('repository: one only, context on and overview off; supported files keep their context beside it, unsupported ones keep the limit', () => {
   let d = pipe(createDraft(), files(file('a.pdf'), file('b.docx')), repo);
   const r = d.rows[2];
   assert.deepEqual([r.kind, r.context, r.canvas, r.label], ['repository', true, false, 'karpathy/nanoGPT']);
-  assert.deepEqual(capabilities(d.rows[0], d), { context: false, canvas: true });
-  assert.deepEqual(effective(d.rows[0], d), { context: false, canvas: true });
+  // owner decisions 2026-10-23: being in a repository project does not by itself disable a supported file's context
+  assert.deepEqual(effective(d.rows[0], d), { context: true, canvas: true });
+  assert.deepEqual(effective(d.rows[1], d), { context: false, canvas: true });
   assert.equal(destinationKind(d), 'repository');
   d = repo(d, { url: 'https://github.com/a/b', repo: 'a/b' });
   assert.equal(d.rows.length, 3);
@@ -115,16 +127,22 @@ test('repository: one only, context on and overview off, files lose context whil
   assert.equal(destinationKind(d), 'canvas');
 });
 
-test('a repository row alone with both options off asks for a destination', () => {
+test('a source with neither option is left out and says so; Start goes on with the rest and drops it', () => {
   let d = repo(createDraft());
   d = reduce(d, { type: 'set-option', id: 's1', option: 'context', value: false });
-  assert.equal(canStart(d), false);
-  assert.deepEqual(problems(d).map((p) => p.message), [COPY.choose]);
+  assert.equal(excluded(d.rows[0], d), true);
+  assert.equal(canStart(d), false, 'nothing left to add');
+  assert.equal(summaryText(d), '0 context sources, 0 canvas cards, 1 not added');
+  d = pipe(d, files(file('a.txt')));
+  assert.equal(canStart(d), true, 'the file can start without the repository');
+  const begun = reduce(d, { type: 'begin' });
+  assert.deepEqual(begun.rows.map((r) => r.label), ['a.txt'], 'the left-out source is not submitted');
+  assert.equal(destinationKind(begun), 'canvas');
   d = reduce(d, { type: 'set-option', id: 's1', option: 'canvas', value: true });
-  assert.equal(canStart(d), true);
+  assert.equal(excluded(d.rows[0], d), false);
 });
 
-test('Start needs a source, no row without a destination, and at most ten files as context', () => {
+test('Start needs a source, and at most ten files as context', () => {
   assert.equal(canStart(createDraft()), false);
   assert.equal(canBlank(createDraft()), true);
   assert.equal(summaryText(createDraft()), 'No sources added.');
@@ -137,8 +155,8 @@ test('Start needs a source, no row without a destination, and at most ten files 
 
 test('the summary counts context sources and canvas cards from the effective options', () => {
   const d = pipe(createDraft(), files(file('a.pdf'), file('b.docx')), (x) => reduce(x, { type: 'add-link', text: 'https://example.com/p' }), repo);
-  assert.deepEqual(summary(d), { context: 2, cards: 3, sources: 4 }); // repository context + link context ride; the pdf lost context to the repository
-  assert.equal(summaryText(d), '2 context sources, 3 canvas cards');
+  assert.deepEqual(summary(d), { context: 3, cards: 3, sources: 4 }); // the pdf, the link note and the repository; the docx has no context road
+  assert.equal(summaryText(d), '3 context sources, 3 canvas cards');
   const o = reduce(d, { type: 'set-option', id: 's4', option: 'canvas', value: true });
   assert.equal(summary(o).cards, 4); // the overview is one card, never a card per file
   assert.equal(summaryText(files(file('a.pdf'))(createDraft())), '1 context source, 1 canvas card');

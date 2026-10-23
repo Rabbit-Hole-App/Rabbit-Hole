@@ -20,6 +20,9 @@ function world(over = {}) {
       return { href: path, data: { name: 'repo-1a2b3c4d-nanogpt' } };
     },
     uploadContextDoc: async (slug, f) => { log.push(['context', slug, f.name]); if (over.upload) return over.upload(f); return { id: `d-${f.name}`, name: f.name }; },
+    uploadSource: async (f, o) => { log.push(['source', o.app, f.name]); return { source: { id: `fs_${f.name}`, rev: `rev-${f.name}`, name: f.name, type: 'text/plain', size: f.size, family: o.family } }; },
+    contextFromSource: async (slug, source) => { log.push(['fromSource', slug, source.id]); if (over.fromSource) return over.fromSource(source); return { id: `d-${source.name}`, name: source.name }; },
+    contextLink: async (slug, url) => { log.push(['link', slug, url]); if (over.link) return over.link(url); return { id: `d-${url}`, name: url }; },
     repository: async (slug) => { log.push(['repository', slug]); return over.project ? over.project() : { repo: 'karpathy/nanoGPT', commit_sha: 'abc123', status: 'ready' }; },
     navigate: (href) => { log.push(['navigate', href]); path = href; },
     here: () => path,
@@ -98,23 +101,51 @@ test('a duplicate Start while one runs does nothing, and the destination is crea
   assert.equal(w.kinds('command').length, 1);
 });
 
-test('a failed upload fails only that row; Start again retries only it, on the same destination, storing nothing twice', async () => {
+test('a failed copy into the context fails only that row; Start again retries only it, on the same destination, sending nothing twice', async () => {
   let attempts = 0;
-  const w = world({ upload: (f) => { if (f.name === 'b.txt' && ++attempts === 1) throw Error('The upload stopped.'); return { id: `d-${f.name}`, name: f.name }; } });
-  w.job.addFiles([file('a.pdf'), file('b.txt')]);
+  const w = world({ fromSource: (source) => { if (++attempts === 1) throw Error('The context list is full.'); return { id: `d-${source.name}`, name: source.name }; } });
+  w.job.addFiles([file('a.pdf'), file('b.md')]);
   const placed = [];
   const run = w.job.start({});
   placeAll(w.job, 'canvas-1a2b3c4d', placed);
   await run;
-  assert.deepEqual(statuses(w.job), ['a.pdf:ready', 'b.txt:failed']);
+  assert.deepEqual(statuses(w.job), ['a.pdf:ready', 'b.md:failed']);
   assert.equal(w.job.getDraft().phase, 'partial');
-  assert.equal(w.job.getDraft().rows[1].reason, 'The upload stopped.');
+  assert.equal(w.job.getDraft().rows[1].reason, 'The context list is full.');
   assert.deepEqual(placed.map((p) => p.file.name), ['a.pdf']);
   await w.job.start({});
-  assert.deepEqual(w.kinds('context').map((c) => c[2]), ['a.pdf', 'b.txt', 'b.txt']); // a.pdf once; b.txt failed, then stored
+  assert.deepEqual(w.kinds('context').map((c) => c[2]), ['a.pdf']); // a.pdf stored once
+  assert.deepEqual(w.kinds('source').map((c) => c[2]), ['b.md']); // b.md sent once: the retry reuses the stored source
+  assert.equal(w.kinds('fromSource').length, 2); // failed once, then copied
   assert.deepEqual(w.kinds('command').map((c) => c[1]), ['create_canvas']); // never a second canvas
-  assert.deepEqual(placed.map((p) => p.file.name), ['a.pdf', 'b.txt']);
+  assert.deepEqual(placed.map((p) => p.file.name), ['a.pdf', 'b.md']);
   assert.equal(w.job.getDraft().rows.length, 0); // done: cleared
+});
+
+test('a .txt or .md for both: one upload as a file source, copied into the context by the server, the card made from that source', async () => {
+  const w = world();
+  w.job.addFiles([file('notes.md')]);
+  const placed = [];
+  const run = w.job.start({});
+  placeAll(w.job, 'canvas-1a2b3c4d', placed);
+  await run;
+  assert.deepEqual(w.kinds('source'), [['source', 'canvas-1a2b3c4d', 'notes.md']]);
+  assert.deepEqual(w.kinds('fromSource'), [['fromSource', 'canvas-1a2b3c4d', 'fs_notes.md']]);
+  assert.equal(w.kinds('context').length, 0, 'no second upload');
+  assert.deepEqual([placed[0].source.id, placed[0].doc.id], ['fs_notes.md', 'd-notes.md']);
+});
+
+test('context only: a .md is stored once as a context document, no card is handed over; canvas only: no source, no context', async () => {
+  const w = world();
+  w.job.addFiles([file('a.md'), file('b.docx')]);
+  w.job.dispatch({ type: 'set-option', id: 's1', option: 'canvas', value: false });
+  const placed = [];
+  const run = w.job.start({});
+  placeAll(w.job, 'canvas-1a2b3c4d', placed);
+  await run;
+  assert.deepEqual(w.kinds('context').map((c) => c[2]), ['a.md']);
+  assert.equal(w.kinds('source').length + w.kinds('fromSource').length, 0);
+  assert.deepEqual(placed.map((p) => [p.file.name, p.doc, p.source]), [['b.docx', null, null]]);
 });
 
 test('a page that fails to place a card fails its row with the reason; the other card still lands', async () => {
@@ -169,7 +200,7 @@ test('no page within the wait fails the queued cards instead of waiting forever'
   assert.deepEqual(job.getDraft().rows.map((r) => [r.status, r.reason]), [['failed', 'The canvas did not open. Start again to retry.']]);
 });
 
-test('a link gets its card from the page and takes the title it resolved to', async () => {
+test('a link for both: its context note is kept once and its card comes from the page', async () => {
   const w = world();
   w.job.dispatch({ type: 'add-link', text: 'https://example.com/post' });
   const run = w.job.start({});
@@ -177,7 +208,31 @@ test('a link gets its card from the page and takes the title it resolved to', as
   placeAll(w.job, 'canvas-1a2b3c4d', placed);
   await run;
   assert.equal(placed[0].link.url, 'https://example.com/post');
-  assert.equal(w.kinds('context').length, 0); // a link's context is its card
+  assert.deepEqual(w.kinds('link'), [['link', 'canvas-1a2b3c4d', 'https://example.com/post']]);
+});
+
+test('a link for context only needs no card and no page at all', async () => {
+  const w = world();
+  w.job.dispatch({ type: 'add-link', text: 'https://arxiv.org/abs/1706.03762' });
+  w.job.dispatch({ type: 'set-option', id: 's1', option: 'canvas', value: false });
+  await w.job.start({}); // no page ever attaches: nothing waits for one
+  assert.deepEqual(w.kinds('link').map((c) => c[2]), ['https://arxiv.org/abs/1706.03762']);
+  assert.equal(w.job.getDraft().rows.length, 0);
+  assert.equal(w.kinds('timer').length, 0);
+});
+
+test('a link whose context could not be read fails that row; Start again does not repeat what worked', async () => {
+  let attempts = 0;
+  const w = world({ link: () => { if (++attempts === 1) throw Error('This link could not be read: arXiv metadata unavailable (503)'); return { id: 'd1', name: 'n' }; } });
+  w.job.dispatch({ type: 'add-link', text: 'https://arxiv.org/abs/1706.03762' });
+  w.job.dispatch({ type: 'add-link', text: 'https://example.com/post' });
+  w.job.dispatch({ type: 'set-option', id: 's1', option: 'canvas', value: false });
+  w.job.dispatch({ type: 'set-option', id: 's2', option: 'canvas', value: false });
+  await w.job.start({});
+  assert.deepEqual(statuses(w.job), ['arXiv 1706.03762:failed', 'example.com/post:ready']);
+  assert.match(w.job.getDraft().rows[0].reason, /arXiv metadata unavailable/);
+  await w.job.start({});
+  assert.deepEqual(w.kinds('link').map((c) => c[2]), ['https://arxiv.org/abs/1706.03762', 'https://example.com/post', 'https://arxiv.org/abs/1706.03762']);
 });
 
 test('a link whose page could not be read says why on its row and keeps the card the page made', async () => {
@@ -187,10 +242,10 @@ test('a link whose page could not be read says why on its row and keeps the card
   w.job.attach('canvas-1a2b3c4d', async () => ({ warning: 'This page could not be captured.' }));
   await run;
   const row = w.job.getDraft().rows[0];
-  assert.deepEqual([row.status, row.reason, row.done.canvas], ['failed', 'This page could not be captured.', true]);
+  assert.deepEqual([row.status, row.reason, row.done.canvas, row.done.context], ['failed', 'This page could not be captured.', true, true]);
 });
 
-test('repository: connected once, its project is the destination, files attach to it as cards only, the overview waits for the index', async () => {
+test('repository: connected once, its project is the destination, a supported file keeps its context and gets its card, the overview waits for the index', async () => {
   let polls = 0;
   const w = world({ project: () => (++polls < 3 ? { status: 'indexing' } : { repo: 'karpathy/nanoGPT', commit_sha: 'abc123', status: 'ready' }) });
   w.job.dispatch(repoAction);
@@ -201,8 +256,9 @@ test('repository: connected once, its project is the destination, files attach t
   placeAll(w.job, 'repo-1a2b3c4d-nanogpt', placed);
   await run;
   assert.deepEqual(w.kinds('command').map((c) => c[1]), ['connect_repository']);
-  assert.deepEqual(w.kinds('context'), []); // files on a repository project have no context
-  assert.deepEqual(placed.map((p) => [p.kind, p.doc]), [['file', null], ['overview', undefined]].map(([k, d]) => [k, d === undefined ? undefined : d]));
+  assert.deepEqual(w.kinds('context'), [['context', 'repo-1a2b3c4d-nanogpt', 'a.pdf']]); // owner decisions 2026-10-23: files supplement the repository
+  assert.deepEqual(placed.map((p) => p.kind), ['file', 'overview']);
+  assert.deepEqual(placed[0].doc, { id: 'd-a.pdf', name: 'a.pdf' });
   assert.deepEqual(placed[1].repository, { app: 'repo-1a2b3c4d-nanogpt', repo: 'karpathy/nanoGPT', commit: 'abc123' });
   assert.equal(polls, 3);
 });
@@ -296,4 +352,49 @@ test('timers are called plainly, as a browser requires: setTimeout throws Illega
   job.attach('canvas-1a2b3c4d', async () => {}); // a page arrives: clears it, drains
   await run;
   assert.equal(job.getDraft().rows.length, 0);
+});
+
+test('Stop: what is queued fails as stopped, nothing further starts, successes stay, and Start again continues', async () => {
+  const w = world();
+  w.job.addFiles([file('a.docx'), file('b.docx'), file('c.docx')]);
+  const placed = [];
+  const run = w.job.start({});
+  await new Promise((r) => setImmediate(r)); // all three queued, no page yet
+  w.job.stop();
+  await run;
+  assert.deepEqual(statuses(w.job), ['a.docx:failed', 'b.docx:failed', 'c.docx:failed']);
+  assert.equal(w.job.getDraft().rows[0].reason, 'Stopped. Start again to continue.');
+  assert.equal(w.job.getDraft().phase, 'partial');
+  const again = w.job.start({});
+  placeAll(w.job, 'canvas-1a2b3c4d', placed);
+  await again;
+  assert.deepEqual(placed.map((p) => p.file.name), ['a.docx', 'b.docx', 'c.docx']);
+  assert.equal(w.kinds('command').length, 1, 'the same canvas');
+});
+
+test('a source with neither option is not submitted: nothing is stored or placed for it', async () => {
+  const w = world();
+  w.job.addFiles([file('a.md'), file('b.docx')]);
+  w.job.dispatch({ type: 'set-option', id: 's1', option: 'context', value: false });
+  w.job.dispatch({ type: 'set-option', id: 's1', option: 'canvas', value: false });
+  const placed = [];
+  const run = w.job.start({});
+  placeAll(w.job, 'canvas-1a2b3c4d', placed);
+  await run;
+  assert.deepEqual(placed.map((p) => p.file.name), ['b.docx']);
+  assert.equal(w.kinds('context').length + w.kinds('source').length, 0);
+});
+
+test('a board that is still saving is waited for, then the .md goes once', async () => {
+  let tries = 0;
+  const w = world();
+  const fine = w.deps.uploadSource;
+  const job = createJob({ ...w.deps, uploadSource: async (f, o) => { if (++tries < 3) throw Object.assign(Error('This canvas is still saving.'), { boardNotSaved: true }); return fine(f, o); } });
+  job.addFiles([file('late.md')]);
+  const run = job.start({});
+  job.attach('canvas-1a2b3c4d', async () => {});
+  await run;
+  assert.equal(tries, 3);
+  assert.equal(job.getDraft().rows.length, 0);
+  assert.equal(w.kinds('source').length, 1);
 });

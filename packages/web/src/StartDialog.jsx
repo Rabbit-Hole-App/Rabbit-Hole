@@ -4,7 +4,7 @@ import { BookOpen, CircleAlert, Check, File, FileText, FolderGit2, Globe, Link2,
 import { moreBranches, prepareCommand, withBranch } from './agent/commands.js';
 import { acceptList } from './file-capabilities.js';
 import { repositoryDecision } from './start.js';
-import { COPY, capabilities, canBlank, canStart, effective, editable, problems, statusText, summaryText } from './start-draft.js';
+import { COPY, capabilities, canBlank, canStart, contextNote, effective, editable, excluded, problems, statusText, summaryText } from './start-draft.js';
 import { startJob, useStartDraft } from './start-run.js';
 import { Button, cn, IconBtn, Input, Select } from './ui.jsx';
 
@@ -194,7 +194,7 @@ export default function StartDialog({ ctx, initial, onClose }) {
               <p className="text-xs text-ink-2">{COPY.explainContext}</p>
               <p className="pb-2 text-xs text-ink-2">{COPY.explainCanvas}</p>
               <ul data-start-list className="space-y-2">
-                {draft.rows.map((row) => <Row key={row.id} row={row} draft={draft} problem={list.find((p) => p.id === row.id)} />)}
+                {draft.rows.map((row) => <Row key={row.id} row={row} draft={draft} problem={list.find((p) => p.id === row.id)?.message || (excluded(row, draft) ? `${COPY.choose} ${COPY.excluded}` : '')} />)}
               </ul>
             </div>
           )}
@@ -219,6 +219,7 @@ function Row({ row, draft, problem }) {
   const Icon = rowIcon(row), can = capabilities(row, draft), on = effective(row, draft), free = editable(row, draft);
   const status = statusText(row), working = ['checking', 'uploading', 'importing'].includes(row.status);
   const set = (option) => (e) => startJob.dispatch({ type: 'set-option', id: row.id, option, value: e.target.checked });
+  const note = contextNote(row);
   const option = (key, label) => (
     <label className={cn('inline-flex min-h-8 items-center gap-2 text-sm', !(can[key] && free) && 'opacity-50')}>
       <input type="checkbox" data-start-option={key} className="h-4 w-4 accent-ink" checked={on[key]} disabled={!can[key] || !free} onChange={set(key)} aria-describedby={problem ? `${row.id}-problem` : undefined} />
@@ -242,10 +243,11 @@ function Row({ row, draft, problem }) {
         {row.status !== 'ready' && <Button size="sm" variant="ghost" className="shrink-0" aria-label={`Remove ${row.label}`} disabled={!free} onClick={() => startJob.dispatch({ type: 'remove', id: row.id })}>{COPY.remove}</Button>}
       </div>
       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0 pl-6">
-        {option('context', COPY.context)}
+        {option('context', row.kind === 'repository' ? COPY.connectContext : COPY.context)}
         {option('canvas', row.kind === 'repository' ? COPY.overview : COPY.canvas)}
       </div>
-      {problem && <p id={`${row.id}-problem`} data-start-problem className="pl-6 pt-1 text-xs text-danger">{problem.message}</p>}
+      {note && <p data-start-context-note className="pl-6 text-xs text-ink-2">{note}</p>}
+      {problem && <p id={`${row.id}-problem`} data-start-problem className="pl-6 pt-1 text-xs text-danger">{problem}</p>}
     </li>
   );
 }

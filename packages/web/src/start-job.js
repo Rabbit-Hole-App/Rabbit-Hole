@@ -8,9 +8,11 @@ import { blankPlan, canBlank, canStart, clearDraft, createDraft, fileKey, loadDr
 const message = (error, fallback = 'This could not be added.') => String(error?.message || error || fallback);
 export const WAIT_FOR_PAGE = 30_000; // how long queued cards wait for the destination page to attach
 export const WAIT_FOR_INDEX = 10 * 60_000;
+export const STOPPED = 'Stopped. Start again to continue.';
 
-// deps: storage, command(name, args, ctx), uploadContextDoc(slug, file), repository(slug) -> the project row, navigate(href),
-// here() -> pathname, wait(ms), notify(text), setTimer/clearTimer.
+// deps: storage, command(name, args, ctx), uploadContextDoc(slug, file), uploadSource(file, { app, board, family }) -> { source },
+// contextFromSource(slug, source), contextLink(slug, url), repository(slug) -> the project row, navigate(href), here() -> pathname,
+// wait(ms), notify(text), setTimer/clearTimer.
 export function createJob(deps) {
   const files = new Map(); // fileKey -> File: held for the life of the tab, never stored
   const lanes = new Map(); // slug -> { place, queue: [{ item, resolve }], busy, timer }
@@ -19,6 +21,7 @@ export function createJob(deps) {
   const timers = { set: (...args) => (deps.setTimer || setTimeout)(...args), clear: (...args) => (deps.clearTimer || clearTimeout)(...args) };
   let draft = loadDraft(deps.storage) || createDraft();
   let running = null;
+  let stopped = false; // Stop: nothing further starts, what is in flight finishes, the rest fails as stopped
 
   const commit = (next) => {
     if (next === draft) return;
@@ -43,12 +46,12 @@ export function createJob(deps) {
     if (!lane.place || lane.busy) return;
     lane.busy = true;
     timers.clear(lane.timer);
-    while (lane.queue.length && lane.place) {
+    while (lane.queue.length && lane.place && !stopped) {
       const { item, resolve } = lane.queue.shift();
       move(item.rowId, { status: 'importing', reason: '' });
       try {
         const out = (await lane.place(item)) || {};
-        move(item.rowId, { done: { canvas: true, ...(item.kind === 'link' ? { context: true } : {}) }, ...(out.label ? { label: out.label } : {}), ...(out.detail ? { detail: out.detail } : {}), ...(out.meta ? { meta: out.meta } : {}) });
+        move(item.rowId, { done: { canvas: true }, ...(out.label ? { label: out.label } : {}), ...(out.detail ? { detail: out.detail } : {}), ...(out.meta ? { meta: out.meta } : {}) });
         if (out.warning) fail(item.rowId, out.warning); else settle(item.rowId);
       } catch (error) { fail(item.rowId, message(error)); }
       resolve();
@@ -108,27 +111,54 @@ export function createJob(deps) {
   }
 
   // ---- one source ----------------------------------------------------------------------------------------------
+  // A board that is still saving answers 'save this board first': wait a moment and send again, a few times, then say so.
+  async function sendSource(file, slug, family) {
+    for (let attempt = 0; ; attempt++) {
+      try { return await deps.uploadSource(file, { app: slug, board: 'main', family }); }
+      catch (error) { if (!error?.boardNotSaved || attempt >= 4) throw error; await deps.wait(1500); }
+    }
+  }
+  const asDoc = (doc, file) => (doc ? { id: doc.id, name: doc.name || file?.name || 'Document' } : null);
+  const asSource = (source) => (source ? { id: source.id, rev: source.rev, name: source.name, type: source.type, size: source.size, family: source.family } : null);
+  // A file: a PDF, .txt or .md for context is stored once as a context document. A .txt or .md wanted as both is sent once, as a
+  // file source the card reads; the server copies it into the context list inside itself (never a second upload). A PDF for both
+  // places its card from the stored context document. Anything else, and a canvas-only file, takes the drop road on the page.
   async function fileStep(row, needs, slug, pending) {
     const file = files.get(row.key);
     if (!file) { fail(row.id, 'Add this file again.'); return; }
-    let doc = row.meta.doc || null;
-    if (needs.context) {
-      move(row.id, { status: 'uploading' });
-      try { doc = await deps.uploadContextDoc(slug, file); } catch (error) { fail(row.id, message(error)); return; }
-      move(row.id, { done: { context: true }, meta: { doc: doc ? { id: doc.id, name: doc.name || file.name } : null } });
-    }
-    if (needs.canvas) pending.push(enqueue(slug, { rowId: row.id, kind: 'file', file, doc: doc ? { id: doc.id, name: doc.name || file.name } : null }));
+    let doc = row.meta.doc || null, source = row.meta.source || null;
+    const text = !row.meta.pdf && /[.](txt|md|markdown)$/i.test(row.meta.name);
+    try {
+      if (needs.context && needs.canvas && text) {
+        move(row.id, { status: 'uploading' });
+        source ||= asSource((await sendSource(file, slug, row.meta.family)).source);
+        move(row.id, { meta: { source } });
+        doc ||= asDoc(await deps.contextFromSource(slug, source), file);
+        move(row.id, { done: { context: true }, meta: { doc } });
+      } else if (needs.context) {
+        move(row.id, { status: 'uploading' });
+        doc = asDoc(await deps.uploadContextDoc(slug, file), file);
+        move(row.id, { done: { context: true }, meta: { doc } });
+      }
+    } catch (error) { fail(row.id, message(error)); return; }
+    if (needs.canvas) pending.push(enqueue(slug, { rowId: row.id, kind: 'file', file, doc, source }));
     else settle(row.id);
   }
-  function linkStep(row, slug, pending) {
-    // A link's context is its card, so a placed card completes both choices (drain).
-    pending.push(enqueue(slug, { rowId: row.id, kind: 'link', link: { ...row.meta } }));
+  // A link: context is a note the server keeps (no card needed); the card is the live reader, added when canvas is on.
+  async function linkStep(row, needs, slug, pending) {
+    if (needs.context) {
+      move(row.id, { status: 'checking' });
+      try { const doc = await deps.contextLink(slug, row.meta.url); move(row.id, { done: { context: true }, meta: { doc: asDoc(doc) } }); } catch (error) { fail(row.id, message(error)); return; }
+    }
+    if (needs.canvas) pending.push(enqueue(slug, { rowId: row.id, kind: 'link', link: { ...row.meta } }));
+    else settle(row.id);
   }
   async function overviewStep(row, slug) {
     move(row.id, { status: 'importing', waiting: 'index' });
     const until = Date.now() + WAIT_FOR_INDEX;
     let project = null;
     while (Date.now() < until) {
+      if (stopped) { fail(row.id, STOPPED); return; }
       try { project = await deps.repository(slug); } catch (error) { fail(row.id, message(error)); return; }
       if (project?.commit_sha) break;
       if (project?.status === 'failed') { fail(row.id, project.error || 'The repository could not be indexed.'); return; }
@@ -147,10 +177,11 @@ export function createJob(deps) {
     for (const step of plan.steps) {
       const row = rowOf(step.id);
       if (!row || row.status === 'ready') continue;
+      if (stopped) { fail(row.id, STOPPED); continue; }
       if (row.kind === 'repository') {
         if (step.needs.canvas) pending.push(overviewStep(row, slug)); else settle(row.id);
       } else if (row.kind === 'file') await fileStep(row, step.needs, slug, pending);
-      else linkStep(row, slug, pending);
+      else await linkStep(row, step.needs, slug, pending);
     }
     await Promise.all(pending);
     dispatch({ type: 'finish' });
@@ -162,11 +193,19 @@ export function createJob(deps) {
     if (running || !canStart(draft)) return false;
     dispatch({ type: 'begin' });
     if (draft.phase !== 'starting') return false;
+    stopped = false;
     running = execute(ctx)
       .catch((error) => dispatch({ type: 'finish', error: message(error, 'Start did not finish.') }))
       .finally(() => { running = null; });
     await running;
     return true;
+  }
+
+  // Stop: nothing further starts; what is in flight finishes; every other source fails as stopped and Start again picks them up.
+  function stop() {
+    if (!running) return;
+    stopped = true;
+    for (const lane of lanes.values()) drop(lane, STOPPED);
   }
 
   // Start with a blank canvas: imports nothing from the list; reuses a destination a failed start already made.
@@ -196,7 +235,7 @@ export function createJob(deps) {
       for (const file of picked) files.set(fileKey(file), file);
       dispatch({ type: 'add-files', files: picked.map(({ name, size, type, lastModified }) => ({ name, size, type, lastModified })) });
     },
-    start, blank, attach, reset,
+    start, blank, stop, attach, reset,
     isRunning: () => !!running,
   };
 }

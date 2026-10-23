@@ -46,6 +46,7 @@ import UploadDestinationDialog from './UploadDestinationDialog.jsx';
 import { isPdf } from './upload-destination.js';
 import { isContextCanvas, uploadContextDoc } from './context-docs.js';
 import { graphCardBlock, sameGraphCard } from './graph-card.js';
+import { fileCardFromSource, sameFileCard } from './file-to-canvas.js';
 // Lazy: it draws real cards, so it brings the card components with it.
 const SlashCommandsSheet = lazyFeature(() => import('./SlashCommandsSheet.jsx'), 'The slash commands');
 import FileImportDialog from './FileImportDialog.jsx';
@@ -93,7 +94,7 @@ import { cacheAsset, cachedAsset } from './learn-asset-cache.js';
 import { classifyDrop } from './learn-drop.js';
 import { isModelDrop } from './model-drop.js';
 import { mediaFamilyOf } from './media-family.js';
-import { acceptList, boardFileLimit, formatBytes } from './file-capabilities.js';
+import { acceptList, boardFileLimit, familyOf, formatBytes } from './file-capabilities.js';
 import { captureNotePage, notesScope, readNotes, writeNote, deleteNote } from './learn-notes.js';
 import { gradeAnswer, parseVerdict, recordBaseline, shadowGrade } from './learn-grade.js';
 import { architectureLesson, sampleCourse } from './learn-preview.js';
@@ -2070,6 +2071,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
     const waitFor = async (check, ms) => { for (const end = Date.now() + ms; ; await new Promise(resolve => setTimeout(resolve, 100))) { const value = check(); if (value || Date.now() > end) return value; } };
     if (!await waitFor(() => canvasApi.current, 20000)) throw new Error('The canvas did not open. Start again to retry.');
     if (item.kind === 'file') {
+      // Stored once as a file source (a .txt or .md wanted as context too): the card reads that source, nothing is sent again.
+      if (item.source) {
+        const ops = chat?.canvasOps, card = fileCardFromSource(item.source, familyOf({ name: item.source.name }));
+        if (!card || !ops?.insertCard) throw new Error('This file cannot be added to the canvas yet.');
+        ops.insertCard(card, { same: sameFileCard(item.source.id, item.source.rev) });
+        return {};
+      }
       if (item.doc && isPdf(item.file)) {
         await placePdf({ file: item.file, source: `doc:${item.doc.id}`, label: item.doc.name || item.file.name }, { mode: 'pdf' }, () => {});
         return {};

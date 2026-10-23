@@ -5,6 +5,7 @@
 import { familyOf, formatBytes, BOARD_FILE_LIMIT } from './file-capabilities.js';
 import { isPdf, takesContext } from './upload-destination.js';
 import { ATTACHED_LIMIT } from './context-docs.js';
+import { classifyLink } from './link-kind.js';
 
 // Every string the owner wrote (brief 2026-10-23) lives here once, so the dialog and its tests cannot drift.
 export const COPY = {
@@ -21,6 +22,9 @@ export const COPY = {
   blank: 'Start with a blank canvas',
   start: 'Start rabbit hole',
   choose: 'Choose context, canvas, or both.',
+  excluded: 'This source will not be added.',
+  connectContext: 'Connect repository as context',
+  fileLimit: 'Context takes PDF, text and Markdown files only.',
   remove: 'Remove',
   oneRepository: 'A rabbit hole can have one repository. Remove it to connect another.',
 };
@@ -41,39 +45,8 @@ export const canMove = (from, to) => (NEXT[from] || []).includes(to);
 export const CONTEXT_LIMIT = ATTACHED_LIMIT; // switched-on context documents per canvas (learn-context-docs.js)
 export const STATUS_TEXT = { checking: 'Checking', uploading: 'Uploading', importing: 'Adding', ready: 'Ready' };
 
-// ---------------------------------------------------------------------------------------------------------------
-// Links: recognised by pattern on the client, no request. The type and identifier show at once; an article is only
-// resolved after the destination exists, so its title is filled in later (retitle) and its idle status says so.
-
+export { classifyLink };
 const clean = (value) => String(value || '').trim();
-export function classifyLink(text) {
-  const raw = clean(text);
-  if (!raw) return { ok: false, error: 'Paste a link.' };
-  if (/\s/.test(raw)) return { ok: false, error: 'Add one link at a time.' };
-  let url;
-  try { url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`); } catch { return { ok: false, error: 'That is not a link.' }; }
-  if (!/^https?:$/.test(url.protocol)) return { ok: false, error: 'Only web links can be added.' };
-  if (url.username || url.password) return { ok: false, error: 'Links with a sign-in in them cannot be added.' };
-  const host = url.hostname.toLowerCase().replace(/^www\./, '');
-  if (!host.includes('.') || /^[\d.]+$/.test(host) || host.includes(':')) return { ok: false, error: 'That is not a public web link.' };
-  url.hash = '';
-  const path = url.pathname.replace(/\/+$/, '');
-
-  const arxiv = host === 'arxiv.org' && path.match(/^\/(?:abs|pdf)\/(\d{4}\.\d{4,5}|[a-z-]+(?:\.[A-Za-z]{2})?\/\d{7})(v\d+)?(?:\.pdf)?$/i);
-  if (arxiv) return { ok: true, type: 'arxiv', id: arxiv[1], url: `https://arxiv.org/abs/${arxiv[1]}${arxiv[2] || ''}`, key: `arxiv:${arxiv[1].toLowerCase()}`, label: `arXiv ${arxiv[1]}`, detail: 'arXiv paper' };
-  const tube = (host === 'youtu.be' && path.match(/^\/([\w-]{11})$/))
-    || (/^(?:m\.|music\.)?youtube\.com$/.test(host) && (path === '/watch' ? [0, url.searchParams.get('v')] : path.match(/^\/(?:shorts|embed|live)\/([\w-]{11})$/)));
-  if (tube && /^[\w-]{11}$/.test(tube[1] || '')) return { ok: true, type: 'youtube', id: tube[1], url: `https://www.youtube.com/watch?v=${tube[1]}`, key: `youtube:${tube[1]}`, label: `YouTube video ${tube[1]}`, detail: 'YouTube video' };
-  const wiki = host.match(/^([a-z-]{2,12})\.wikipedia\.org$/) && path.match(/^\/wiki\/([^/:]+)$/);
-  if (wiki) {
-    let title = wiki[1];
-    try { title = decodeURIComponent(title); } catch { /* keep the raw title */ }
-    const lang = host.split('.')[0];
-    return { ok: true, type: 'wikipedia', id: title, url: `https://${host}/wiki/${wiki[1]}`, key: `wikipedia:${lang}:${title.toLowerCase()}`, label: title.replace(/_/g, ' '), detail: 'Wikipedia article' };
-  }
-  const shown = `${host}${path}`;
-  return { ok: true, type: 'webpage', id: null, url: `${url.protocol}//${host}${path}${url.search}`, key: `url:${host}${path}${url.search}`, label: shown, detail: 'Web page' };
-}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Files: the families the canvas imports (file-capabilities.js). A model's loose parts and its multi-file packages
@@ -102,24 +75,33 @@ const rowOf = (draft, id) => draft.rows.find((row) => row.id === id);
 const repositoryRow = (draft) => draft.rows.find((row) => row.kind === 'repository');
 const isFile = (row) => row.kind === 'file';
 
-// What each option can do for a row. An unavailable option is shown disabled and greyed with its name, and counts
-// as off (its stored choice is kept, so removing the repository gives a file its context back).
-//  file: context only for what the context road keeps (PDF, .txt, .md/.markdown) and never on a repository project,
-//        whose chat does not read context documents (owner decision 1, brief 2026-10-23).
-//  link: its card is what the Tutor can attach, so context follows the card (see "Limitations" in the feature doc).
-//  repository: the project is always connected when the row runs; context is the chat reading it.
-export function capabilities(row, draft) {
-  if (row.kind === 'file') {
-    const kept = takesContext({ name: row.meta.name });
-    return { context: kept && !repositoryRow(draft), canvas: true };
-  }
-  if (row.kind === 'link') return { context: row.canvas, canvas: true };
+// What each option can do for a row. An unavailable option is shown disabled and greyed with its name, says why beside it, and
+// counts as off (its stored choice is kept).
+//  file: context only for what the context road keeps (PDF, .txt, .md/.markdown). A repository in the draft changes nothing:
+//        its project chat reads context documents too (owner decisions 2026-10-23).
+//  link: context is a note the server keeps about the link (learn-context-link.js), so it never depends on a card.
+//  repository: context is connecting the project (its chat reads it); the overview card is the separate canvas choice.
+export function capabilities(row) {
+  if (row.kind === 'file') return { context: takesContext({ name: row.meta.name }), canvas: true };
   return { context: true, canvas: true };
 }
 export function effective(row, draft) {
   const can = capabilities(row, draft);
   return { context: row.context && can.context, canvas: row.canvas && can.canvas };
 }
+// What Chat gets from a row, said beside its context control so the dialog never claims more than the context holds.
+const CONTEXT_NOTES = {
+  arxiv: 'Chat gets the title and abstract.',
+  wikipedia: 'Chat gets the article introduction.',
+  youtube: 'Chat gets the video name and address only.',
+  webpage: 'Chat gets the name and address only.',
+};
+export function contextNote(row) {
+  if (row.kind === 'file') return capabilities(row).context ? '' : COPY.fileLimit;
+  return row.kind === 'link' ? CONTEXT_NOTES[row.meta.type] || '' : '';
+}
+// A row with neither option on is left out of Start, and says so.
+export const excluded = (row, draft) => row.status !== 'ready' && !row.needsFile && !effective(row, draft).context && !effective(row, draft).canvas;
 // A row may be changed until it is ready, and not while a start is running.
 export const editable = (row, draft) => draft.phase !== 'starting' && row.status !== 'ready';
 
@@ -188,7 +170,8 @@ export function reduce(draft, action) {
     case 'dismiss-notices': return draft.notices.length ? withNotices(draft, []) : draft;
     case 'begin': {
       if (starting || !canStart(draft)) return draft;
-      const rows = draft.rows.map((row) => (row.status === 'failed' && !row.needsFile ? { ...row, status: 'idle', reason: '' } : row));
+      // Rows with neither option are left out here; failed rows start over from what is already done.
+      const rows = draft.rows.filter((row) => !excluded(row, draft)).map((row) => (row.status === 'failed' && !row.needsFile ? { ...row, status: 'idle', reason: '' } : row));
       return { ...draft, rows, phase: 'starting', attempt: draft.attempt + 1, error: '', notices: [] };
     }
     case 'destination': {
@@ -224,15 +207,12 @@ export function reduce(draft, action) {
 // ---------------------------------------------------------------------------------------------------------------
 // Validation, summary, plans.
 
-// Anything that stops Start. A row with neither option effective names the instruction; a file lost to a reload
-// asks for the file again. Ready rows are done and never block.
+// Anything that stops Start: a file lost to a reload asks for the file again, and more than ten files as context. A row with
+// neither option is not a problem: it is left out (excluded) and says so.
 export function problems(draft) {
   const list = [];
   for (const row of draft.rows) {
-    if (row.status === 'ready') continue;
-    const on = effective(row, draft);
-    if (row.needsFile) list.push({ id: row.id, code: 'file-needed', message: 'Add this file again.' });
-    else if (!on.context && !on.canvas) list.push({ id: row.id, code: 'no-destination', message: COPY.choose });
+    if (row.status !== 'ready' && row.needsFile) list.push({ id: row.id, code: 'file-needed', message: 'Add this file again.' });
   }
   const contextFiles = draft.rows.filter((row) => isFile(row) && effective(row, draft).context).length;
   if (contextFiles > CONTEXT_LIMIT) list.push({ id: null, code: 'context-limit', message: `Up to ${CONTEXT_LIMIT} files can be used as context. Turn some off or remove them.` });
@@ -240,8 +220,8 @@ export function problems(draft) {
 }
 export const problemOf = (draft, id) => problems(draft).find((p) => p.id === id) || null;
 
-export const canStart = (draft) => draft.phase !== 'starting' && draft.rows.length > 0 && problems(draft).length === 0
-  && draft.rows.some((row) => row.status !== 'ready');
+export const canStart = (draft) => draft.phase !== 'starting' && problems(draft).length === 0
+  && draft.rows.some((row) => row.status !== 'ready' && !excluded(row, draft));
 // The blank shortcut needs no sources and is always there, except while a start is running.
 export const canBlank = (draft) => draft.phase !== 'starting';
 
@@ -259,8 +239,8 @@ export function summary(draft) {
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 export function summaryText(draft) {
   if (!draft.rows.length) return 'No sources added.';
-  const s = summary(draft);
-  return `${plural(s.context, 'context source', 'context sources')}, ${plural(s.cards, 'canvas card', 'canvas cards')}`;
+  const s = summary(draft), left = draft.rows.filter((row) => excluded(row, draft)).length;
+  return `${plural(s.context, 'context source', 'context sources')}, ${plural(s.cards, 'canvas card', 'canvas cards')}${left ? `, ${left} not added` : ''}`;
 }
 
 // What the status line of a row says: the state, a reason when it failed, the index wait for an overview card.

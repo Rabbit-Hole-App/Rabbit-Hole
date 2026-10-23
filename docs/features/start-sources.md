@@ -24,32 +24,45 @@ repository goes back to the URL field with the URL kept; on an empty input it hi
 closes the dialog (the draft stays, in this tab). Above the list, once: "Context lets Chat and Tutor use a source." "Canvas shows it as a card in your workspace."
 Above the footer: a compact summary ("2 context sources, 3 canvas cards"). Footer: **Start with a blank canvas** (left, a
 text action) and **Start rabbit hole** (right, primary). A row with both options off shows "Choose context, canvas, or
-both." and Start is disabled. One source record serves both destinations: unchecking one never removes the other.
+both. This source will not be added." and is left out of Start (owner decisions 2026-10-23: excluded with clear feedback);
+Start is disabled only when nothing else is left to add. One source record serves both destinations: unchecking one never
+removes the other, and a source on both is imported once and reused.
 
 Blank creates an empty canvas and imports nothing from the list; with no sources it is simply available. After a failed
 start has already created a destination, Blank opens that destination instead of creating a second one.
 
 Nothing here generates a course, explanation or path. Later generation uses the existing generation Edit/Confirm flow.
 
-## Owner decisions this build assumes
+## Owner decisions
 
-Recommended defaults from the lane brief; the owner has not objected. Change one by editing this list and the named code.
+Binding decisions of 2026-10-23 (the integrator's message), on top of the layout brief.
 
-1. **Repository plus files.** Files are added to the project's Main board as cards. Their **Use as context** is shown
-   disabled (name kept, greyed, no explanation) because context documents are canvas-only today and repository chat does
-   not read them (`learn-context-docs.js` `CANVAS`, `repository-chat.js`). Extending context documents to repository
-   projects is a separate later server change. Without a repository both checkboxes work as specified. The stored choice
-   is kept, so removing the repository gives the file its context back (`capabilities`, `effective`).
-2. **Repository overview** is the existing `repo-graph` card with scope `whole` (`graph-card.js graphCardBlock`), added
-   only after the index is ready; the row says "Waiting for the index" until then. One card, never a card per file.
-3. **Context keeps today's meaning.** A context document (PDF, `.txt`, `.md`) rides a turn in full when switched on; long
-   PDFs are read by relevant pages. The dialog never claims retrieval. Copy stays as the owner wrote it.
-4. **Idempotency is client side.** A start job holds an in-flight lock and the created destination id in the draft, so a
-   retry attaches to the same destination. No migration, no new route.
-5. **Link preview is by pattern.** arXiv, YouTube and Wikipedia links show their type and identifier at once. Other
-   articles show "Will be resolved when you start" and take their title after creation. If a page cannot be read the row
-   says why and offers upload or paste. A webpage card gives the Tutor the name and URL only until the learner selects
-   text; the dialog implies nothing more.
+1. **Files, links and one repository together.** Use as context and Add to canvas are independent for every supported source:
+   context only is available to Chat with no visible card; canvas only is a card that is not added to Chat's context; both
+   reuse one imported source; neither leaves the source out with feedback.
+2. **Context-only links need no card.** The server resolves the link into a small note and stores it as an ordinary context
+   document (`POST /api/learn/context/link`, `learn-context-link.js`): the title, authors and abstract for arXiv, the
+   introduction for Wikipedia, and only the name and address for a YouTube link or any other page, said in the note and beside
+   the control ("Chat gets the name and address only."). A webpage card gives the Tutor the name and URL until the learner
+   selects text.
+3. **A .txt or .md is sent once.** It is stored as a file source (`/api/learn/files`, which the card reads); the server copies it
+   into the context list inside itself (`POST /api/learn/context` with `source_id`/`source_rev`). Never a second upload. A PDF
+   is stored once as a context document and its card is placed from that document (the pdf-to-canvas recipe). The same name and
+   size already in the context answers as itself, so a retry never adds a second copy.
+4. **One repository per rabbit hole.** Its context control reads **Connect repository as context**; the overview card is the
+   separate **Add overview to canvas** choice: the existing `repo-graph` card with scope `whole`, added only after the index is
+   ready (the row says "Waiting for the index"). One card, never a card per file.
+5. **Supported files keep their context beside a repository.** Context documents are accepted on a repository project's Main
+   canvas and ride its chat (`learn-context-docs.js`, `repositories.js` `repositoryAsk`). Files the context road cannot take
+   (anything but PDF, text and Markdown) stay greyed with the name kept, and "Context takes PDF, text and Markdown files only."
+   beside the control; they are added to the canvas only.
+6. **The canvas is titled "Untitled canvas"** (renamed with the existing rename action). After the destination exists the
+   dialog steps aside and a chip shows ongoing work (with **Stop**), failures with their reasons, **Retry** and **Review**.
+   Successful imports are kept when another source fails.
+7. **Context keeps today's meaning.** A context document rides a turn in full when switched on; long PDFs are read by relevant
+   pages. The dialog never claims retrieval.
+8. **Idempotency is client side.** A start job holds an in-flight lock and the created destination id in the draft, so a retry
+   attaches to the same destination. No migration.
 
 ## The draft (`start-draft.js`)
 
@@ -62,8 +75,8 @@ row = { id, kind: file|link|repository, key, label, detail, context, canvas,
 ```
 
 - `context` and `canvas` are the person's choices. `effective(row, draft)` is what runs: a choice an option cannot honour
-  counts as off. File context needs a PDF, `.txt`, `.md` or `.markdown` and no repository in the draft. A link's context
-  follows its card (the card is what the Tutor attaches), so it is unavailable while the link's canvas option is off.
+  counts as off. File context needs a PDF, `.txt`, `.md` or `.markdown`; a repository in the draft changes nothing. A link's
+  context is independent of its card. A row with neither option is `excluded`: shown with feedback and dropped when Start begins.
 - `done` records each destination separately. Retries do only what is missing, so nothing is stored or placed twice.
   A repository's `done.context` is "project connected"; its `done.canvas` is "overview card placed".
 - One repository per draft (a second says "A rabbit hole can have one repository. Remove it to connect another."),
@@ -136,9 +149,8 @@ card half of a start runs on the destination page:
   cancelled. Links resolve through the Search lookup (`/api/learn/search`) and `pickResult`, or a webpage card
   (`canvasApi.insertWebpage(url)`); the row takes the resolved title. A repository overview is the whole-repository graph card
   (`graphCardBlock`, `sameGraphCard`), added once `GET /api/repositories/<project>` reports a commit.
-- A `.txt` or `.md` with both options on is stored as a context document and as the card's own file: two stores, one row.
-  A card made from a context document exists only for PDFs today. Not the LearnPage "Both" path, but the same duplication.
-  Needs a server or card change to avoid (see NEEDS DECISION in the lane report).
+- A `.txt` or `.md` with both options on is sent once as a file source; the card is made from that source (`fileCardFromSource`,
+  revealed rather than duplicated by `sameFileCard`) and the server copies it into the context list. See Owner decisions 3.
 - File bytes are held by the job in memory for the life of the tab (a File cannot go to storage).
 
 ## Reload recovery
@@ -151,15 +163,18 @@ dialog keeps working and says nothing misleading. The record is cleared when nav
 
 ## Limitations and deferred
 
-- Repository chat does not read context documents, so files on a repository project are cards only (decision 1).
-- A link's context follows its card; a context-only link has no road today (no listing for retained link sources).
-- Other file families (Word, Excel, images, code, notebooks) have no context-document road; their context is the card
-  attached to a chat turn, so their **Use as context** is unavailable and **Add to canvas** is the only destination.
+- A `.txt` or `.md` wanted as both is kept by the server under two records (the file source the card reads, and its copy in the
+  context list); the browser sends it once. Dropping the second record needs a context document that can point at a file source.
+- The Text and Markdown cards made for a file on both are placed without the Text card / File attachment choice window.
+  A canvas-only file still opens the existing choice window (Cancel adds nothing and fails that row, Retry asks again).
+- A link's context note is as good as what the server can read without a page fetch: arXiv metadata and the Wikipedia
+  introduction are fetched on the server; a YouTube link and any other page keep only the name and address.
+- Other file families (Word, Excel, images, code, notebooks) have no context-document road; their **Use as context** is
+  unavailable and says so, and **Add to canvas** is the only destination.
 - A README or overview text card is a new card type and is not built; the overview is the whole-repo graph card.
 - No multi-repository support, private repositories, new import formats, automatic generation or code execution.
 - Cross-tab or lost-response duplicates are possible until the server takes an idempotency key (needs a migration:
   `canvases.start_key`, `repository_apps.start_key`; not built).
-- Extending context documents to repository projects (server) is a later change.
 
 ## Checks
 
@@ -168,6 +183,12 @@ dialog keeps working and says nothing misleading. The record is cleared when nav
 - `start-job.test.mjs`: the job against fakes (blank, one destination, context stored once, cards through the page, partial
   failure and retry, page detach and timeout, repository connect and the index wait, an existing project, reload mid start).
 - `start-wiring.test.mjs`, `start-connect-card.test.mjs`: the hand-off and dialog wiring that only a browser could otherwise reach.
+- Control plane: `learn-context-docs.test.js` (link note, source copy, repository project names), `repositories.test.js` (a context
+  document on the project's Main canvas rides its chat as a Chat turn names it).
+- Browser (fork CI): `start-sources-check.mjs` drives the real dialog against the real context, file and board routes with the
+  nanoGPT project seeded: a blank canvas, files + a stored PDF + links with a cancelled choice window and a retry, a partial
+  failure with a reload and a retry that repeats nothing, an existing repository with the overview card, and the list rules.
+  It reads the Chat context from the captured question's `context_refs` and the context chips.
 - Browser: `card-size-check.mjs` (fork runner) opens the dialog, lists files and links, checks the defaults, the blank shortcut and
   the "Choose context, canvas, or both." block, and asserts nothing is written; `rabbit-hole-check.mjs` (Windows only) keeps the
   repository flows (lookup in flight, Branch select, connected project, stale list).

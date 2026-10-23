@@ -314,15 +314,20 @@ await check('Start a rabbit hole keeps one list: files and links are added, neve
   await dialog.getByRole('button', { name: 'Connect repository', exact: true }).click();
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.equal(await rows.count(), 4, 'cancelling the repository input kept the list');
-  // Both choices off on one source: it is named, Start is disabled, and the other sources are untouched.
+  // Both choices off on one source (owner decisions 2026-10-23): it is named and left out, the other sources can still start.
   await box(rows.nth(0), 'Use as context').uncheck();
   await box(rows.nth(0), 'Add to canvas').uncheck();
-  assert.equal(await rows.nth(0).getByText('Choose context, canvas, or both.').count(), 1, 'the source with no destination is named');
-  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isDisabled(), true, 'Start is blocked');
+  assert.equal(await rows.nth(0).getByText('Choose context, canvas, or both. This source will not be added.').count(), 1, 'the source with no destination is named and left out');
+  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isEnabled(), true, 'the other sources can start without it');
   assert.equal(await dialog.getByRole('button', { name: 'Start with a blank canvas', exact: true }).isEnabled(), true, 'the blank shortcut stays available');
   await box(rows.nth(0), 'Add to canvas').check();
   assert.equal(await box(rows.nth(0), 'Use as context').isChecked(), false, 'checking one option left the other as it was');
-  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isEnabled(), true, 'Start is available again');
+  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isEnabled(), true, 'Start is available');
+  // A link's two options are independent: its card choice leaves its context as it was, and the other way round.
+  await box(rows.nth(3), 'Add to canvas').uncheck();
+  assert.equal(await box(rows.nth(3), 'Use as context').isEnabled(), true, 'a link keeps its context when its card is off');
+  assert.equal(await box(rows.nth(3), 'Use as context').isChecked(), true);
+  await box(rows.nth(3), 'Add to canvas').check();
   await rows.nth(3).getByRole('button', { name: /^Remove / }).click();
   assert.equal(await rows.count(), 3, 'Remove takes the source out of the list');
   assert.deepEqual(writes, [], `listing sources created or stored something: ${writes}`);

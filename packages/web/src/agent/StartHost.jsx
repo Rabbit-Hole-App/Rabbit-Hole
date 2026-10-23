@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import StartDialog from '../StartDialog.jsx';
 import { ctxOf } from './commands.js';
 import { useSurface } from './surface.js';
-import { useStartDraft } from '../start-run.js';
+import { startJob, useStartDraft } from '../start-run.js';
 import { Loader2 } from 'lucide-react';
 import { Button } from '../ui.jsx';
 
@@ -34,8 +34,19 @@ export default function StartHost({ takeEarly = () => null }) {
       {chip && (
         <div role="status" data-start-chip className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl border border-line bg-white p-3 text-sm shadow-pop">
           {draft.phase === 'starting'
-            ? <><Loader2 size={14} className="animate-spin" aria-hidden="true" />Adding sources, {waiting} to go</>
-            : <>{failed === 1 ? '1 source needs another try.' : `${failed} sources need another try.`}<Button size="sm" variant="secondary" onClick={() => setPath('review')}>Review</Button></>}
+            ? <><Loader2 size={14} className="animate-spin" aria-hidden="true" />Adding sources, {waiting} to go<Button size="sm" variant="secondary" onClick={() => startJob.stop()}>Stop</Button></>
+            : (
+              <div className="min-w-0">
+                <p>{failed === 1 ? '1 source needs another try.' : `${failed} sources need another try.`}</p>
+                <ul data-start-chip-failures className="max-w-[320px] pt-1 text-xs text-ink-2">
+                  {draft.rows.filter((row) => row.status === 'failed').slice(0, 3).map((row) => <li key={row.id} className="break-words">{row.label}: {row.reason}</li>)}
+                </ul>
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" variant="primary" onClick={() => startJob.start(ctxOf(surface))}>Retry</Button>
+                  <Button size="sm" variant="secondary" onClick={() => setPath('review')}>Review</Button>
+                </div>
+              </div>
+            )}
         </div>
       )}
     </>
