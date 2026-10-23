@@ -354,7 +354,8 @@ await check('4 the project\'s Share window: Share is the project link only, Canv
   await rowOf(dialog, 'Attention heads').getByText('Link: Anyone with the link · no sign-in').waitFor({ timeout: 30000 });
   await rowOf(dialog, 'Causal masks').getByText('Link: Anyone with the link · no sign-in').waitFor({ timeout: 30000 });
   for (const c of [heads, masks]) { const s = await shareOf(c.name); assert.ok(s.shared && s.public_view && !s.published, `${c.title} has the link, and is not on Explore`); }
-  assert.equal(await dialog.locator('[data-project-canvases]').getAttribute('data-project-canvases'), 'varies', 'still varies: Explore publication is separate');
+  assert.equal(await dialog.locator('[data-project-canvases]').getAttribute('data-project-canvases'), 'same', 'the Main canvas and both canvases now share one link access');
+  assert.equal(await dialog.locator('[data-canvas-published]').count(), 0, 'applying link access published nothing to Explore');
   await closeShare();
   // Explore publication is each canvas's own (here through the API; the canvas dialog's Explore tab is share-dialog-check's).
   for (const c of [heads, masks]) await publishViaApi(c);

@@ -252,7 +252,7 @@ await check('9 the owned Card options menu on the new card: no Visibility or Cop
     await dialog.getByRole('button', { name: 'Copy link' }).click();
     await dialog.getByRole('button', { name: 'Copied' }).waitFor({ timeout: 5000 });
     const copied = await lib.evaluate(() => navigator.clipboard.readText());
-    const private_ = await dialog.locator('[data-private-link]').count();
+    const private_ = (await dialog.locator('[data-private-link]').isVisible()) ? 1 : 0; // the Share tab's, hidden behind Explore
     await lib.keyboard.press('Escape');
     await lib.locator('[data-share-dialog]').waitFor({ state: 'detached', timeout: 5000 });
     return [copied, private_];

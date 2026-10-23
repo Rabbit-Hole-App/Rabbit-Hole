@@ -78,6 +78,26 @@ await check('1 the owned canvas Card options menu is the owner\'s menu, in order
 });
 await shot('01-menu');
 await page.keyboard.press('Escape');
+await check('1b Card options by keyboard: Enter opens it with focus on the first row, the arrows move, Escape closes it and returns focus to the button; opening it does not open the card', async () => {
+  const at = page.url();
+  const button = card(TITLE).getByTitle('Card options');
+  assert.equal(await button.getAttribute('aria-label'), 'Card options');
+  await button.focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[data-card-menu]').waitFor();
+  const focused = () => page.evaluate(() => document.activeElement?.getAttribute('data-menu-item'));
+  await until(async () => (await focused()) === 'open', 'focus is on the first row');
+  await page.keyboard.press('ArrowDown');
+  assert.equal(await focused(), 'pin');
+  await page.keyboard.press('End');
+  assert.equal(await focused(), 'trash');
+  await page.keyboard.press('Home');
+  assert.equal(await focused(), 'open');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-card-menu]').waitFor({ state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'Card options', 'focus is back on the button');
+  assert.equal(page.url(), at, 'opening the menu did not open the card');
+});
 await check('2 Share shows a private canvas as Invited people only, never "Only you", and no working link', async () => {
   await openShare(TITLE);
   assert.equal(await shareDialog.getByLabel('Who can open this?').inputValue(), 'invited');
@@ -209,5 +229,5 @@ await check('12 an unlisted canvas in Trash suspends its link; Restore reactivat
 
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/13 checks passed`);
-process.exit(results.length === 13 ? 0 : 1);
+console.log(`${results.length}/14 checks passed`);
+process.exit(results.length === 14 ? 0 : 1);
