@@ -203,7 +203,9 @@ test('the picture leaves out every piece of chrome by the canvas\'s own attribut
   for (const attr of CHROME.match(/data-[a-z-]+/g)) assert.ok(canvas.includes(attr), `${attr} is a real attribute of the canvas`);
   // The selected card's pill rows (Explain, Continue, and the selection actions - SelectionActions.jsx hides its own bar), the text ladder
   // and the resize handles had none.
-  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 4);
+  // A card's Open and its tools are one row (CanvasNode, owner finding 2026-10-23): the row is the chrome, three other rows remain.
+  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 3);
+  assert.match(canvas, /<div data-card-chrome-row data-thumbnail-hide /);
   assert.match(read('./SelectionActions.jsx'), /data-selection-bar=\{mode\} data-thumbnail-hide/);
   assert.match(canvas, /aria-label=\{label\} data-keep-focus data-thumbnail-hide/); // the text ladder and the equation's size ladder
   assert.equal(canvas.match(/<button type="button" data-thumbnail-hide aria-label=/g).length, 2);
