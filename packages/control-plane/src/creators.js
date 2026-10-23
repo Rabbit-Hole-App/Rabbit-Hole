@@ -52,7 +52,9 @@ async function creators(env, q) {
   const exact = term ? `h.handle = ?2 DESC, h.handle LIKE ?3 ESCAPE '\\' DESC,` : '';
   const { results } = await env.LEARN_DB.prepare(`SELECT ${IDENTITY}, ${COUNTS}, max(p.published_at) AS latest ${PUBLISHED} ${where}
     GROUP BY h.handle ORDER BY ${exact} latest DESC, max(p.rowid) DESC LIMIT ${DISCOVER}`).bind(...(term ? [likeOf(term), term.toLowerCase(), `${likeOf(term).slice(1)}`] : [])).all();
-  return json({ creators: results.map(creator) });
+  // `total`: every matching creator, past the DISCOVER cap - Explore shows the matching count (owner brief 2026-10-23).
+  const { n } = await env.LEARN_DB.prepare(`SELECT count(DISTINCT h.handle) AS n ${PUBLISHED} ${where}`).bind(...(term ? [likeOf(term)] : [])).first();
+  return json({ creators: results.map(creator), total: n });
 }
 
 // Creator chips for these handles, in their order (Explore's AI find, explore-find.js): only people with a live publication,

@@ -250,7 +250,8 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     page.on('request', (r) => { const u = new URL(r.url()); if (u.pathname.startsWith('/api/') && r.method() !== 'GET') writes.push(`${r.method()} ${u.pathname}`); });
     await page.goto(`${base}/explore`);
     await shH1(page, 'Explore').waitFor({ timeout: 20000 });
-    must(await page.getByText('Discover rabbit holes, projects, and learning resources shared beyond your library.', { exact: true }).count() === 1, 'Explore has no purpose sentence');
+    // The subtitle of the owner brief 2026-10-23.
+    must(await page.getByText('Discover canvases and the people behind them.', { exact: true }).count() === 1, 'Explore has no purpose sentence');
     // Nothing is shared publicly yet: no demo cards that open nothing, and no empty-state message (owner, 2026-10-08).
     must(await page.locator('[data-explore-empty]').count() === 0, 'Explore shows no empty-state message');
     must(await page.locator('[data-explore-card]').count() === 0, 'no demo cards on Explore');

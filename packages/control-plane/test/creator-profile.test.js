@@ -138,6 +138,8 @@ test('Explore search: creators by @handle or display name (an exact @handle firs
   const list = (await get(f, '/api/learn/creators')).body.creators;
   assert.deepEqual(list.map(c => [c.handle, c.explainer_count, c.url]), [['benny', 1, '/@benny'], ['ana_b', 1, '/@ana_b'], ['ana', 1, '/@ana']], 'discovery: newest publication first');
   assert.equal((await get(f, '/api/learn/creators?q=')).body.creators.length, 3, 'an empty search is discovery');
+  // The matching creator count Explore shows (owner brief 2026-10-23).
+  assert.deepEqual([(await get(f, '/api/learn/creators')).body.total, (await get(f, '/api/learn/creators?q=%40ana')).body.total, (await get(f, '/api/learn/creators?q=zzz')).body.total], [3, 2, 0]);
 });
 
 test('the creator routes are read-only and public', async t => {
