@@ -240,7 +240,8 @@ const newGuestId = () => btoa(String.fromCharCode(...crypto.getRandomValues(new 
 // trial is keyed by rh_embed, a Partitioned cookie (one jar per embedding site, so 10 messages per site). embedOf never mints:
 // a missing or invalid cookie is null and the Send is refused, so no Send ever starts a fresh trial. Only embedSession mints.
 const EMBED_COOKIE = 'rh_embed';
-export const isEmbed = req => req.headers.get('x-rh-embed') === '1';
+// Also `?embed=1`: an <img> or a frame URL cannot carry a header, and its asset must be answered as the public's too.
+export const isEmbed = req => req.headers.get('x-rh-embed') === '1' || new URL(req.url).searchParams.get('embed') === '1';
 export function embedOf(req) {
   const found = cookieOf(req, EMBED_COOKIE);
   return GUEST_ID.test(found) ? { id: found, fresh: false, key: req.headers.get('x-rh-action-key') || '', embed: true } : null;

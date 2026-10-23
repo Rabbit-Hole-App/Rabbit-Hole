@@ -241,3 +241,33 @@ test('through the dev worker an embed Send is platform-paid even with a signed-i
   assert.deepEqual(actions().map(a => [a.user_id, a.payer]), [[null, 'platform'], ['u-ben-9a2b', 'user']]);
   assert.equal(sent.length, 2);
 });
+
+test('an asset or PDF request marked ?embed=1 is answered as the public\'s too: no account is read, a restricted link is refused even to its owner', async t => {
+  const f = setup(t), accounts = [];
+  const read = f.env.CONTROL_PLANE.fetch;
+  f.env.CONTROL_PLANE.fetch = async request => { accounts.push(new URL(request.url).pathname); return read(request); };
+  const pub = await f.shareProject(), restricted = await f.shareProject({ publicView: false }), tab = jar(f);
+  accounts.length = 0;
+  const asset = (token, as, query = '?embed=1') => tab.call('GET', `/api/learn/boards/shared/${token}/assets/key${query}`, { as, marker: false });
+  assert.equal((await asset(pub.token, 'ana')).status, 404, 'a public link: the file is simply not on this board');
+  assert.deepEqual(accounts, [], 'no /api/me for an embedded asset');
+  for (const as of ['ana', 'ben']) {
+    const refused = await asset(restricted.token, as);
+    assert.deepEqual([refused.status, refused.body.code], [403, 'embed_not_public'], as);
+  }
+  assert.equal((await asset(restricted.token, 'ana', '')).status, 404, 'the ordinary page still reads the account: a signed-in owner is in');
+  assert.equal((await asset(restricted.token, null, '')).status, 401);
+  assert.equal((await tab.call('GET', `/api/learn/boards/shared/${restricted.token}?embed=1`, { as: 'ana', marker: false })).body.code, 'embed_not_public');
+});
+
+test('a draft message is never stored: not in any table, only the usage row\'s hashes', async t => {
+  const f = setup(t); scriptModel(t);
+  const { token } = await f.shareProject(), tab = jar(f);
+  await tab.init();
+  const draft = 'DRAFT-7f3a-never-store-this';
+  assert.equal((await tab.ask(token, { message: draft, history: [{ role: 'user', content: 'DRAFT-HISTORY-9c1e' }, { role: 'assistant', content: 'earlier answer' }] })).status, 200);
+  const tables = f.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name);
+  const dump = JSON.stringify(tables.map(name => f.sqlite.prepare(`SELECT * FROM "${name}"`).all()));
+  assert.ok(!dump.includes('DRAFT-7f3a') && !dump.includes('DRAFT-HISTORY'), 'no table holds the message or the history');
+  assert.ok(!f.statements.some(sql => sql.includes('DRAFT')), 'and none was ever in a statement text');
+});

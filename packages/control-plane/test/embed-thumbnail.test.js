@@ -87,14 +87,16 @@ test('revocation is immediate: a conditional request with the right ETag still g
   assert.equal((await f.raw('GET', view('short'))).status, 404);
 });
 
-test('a publication token and a non-main board are not served here; the Explore thumbnail route is unchanged', async t => {
+test('a publication token and a non-main board are not served here; the Explore route serves the custom cover only, too', async t => {
   const f = fixture(t);
   const { canvas, token } = await f.shareProject();
   const pub = (await f.call('POST', `/api/apps/${canvas.name}/publish`, { as: 'ana' })).body.publication_token;
   await f.raw('PUT', own(canvas.name), { as: 'ana', body: PNG });
   assert.equal((await f.raw('GET', view(pub))).status, 404, 'a publication has its own route');
   const published = await f.raw('GET', `/api/learn/boards/published/${pub}/thumbnail`);
-  assert.deepEqual([published.status, published.headers.get('x-thumbnail-source'), published.bytes], [200, 'snapshot', PNG], 'Explore still serves its snapshot (reported separately)');
+  assert.deepEqual([published.status, published.bytes.length], [204, 0], 'Explore no longer serves the snapshot');
+  await f.raw('PUT', `${own(canvas.name)}/custom`, { as: 'ana', body: JPEG });
+  assert.deepEqual((await f.raw('GET', `/api/learn/boards/published/${pub}/thumbnail`)).bytes, JPEG);
   assert.equal((await f.raw('GET', `/api/learn/boards/published/${token}/thumbnail`)).status, 404, 'a share token is not a publication');
   // Only a main board has one.
   f.sqlite.prepare("UPDATE learn_boards SET board = 'notes' WHERE view_token = ?").run(token);
