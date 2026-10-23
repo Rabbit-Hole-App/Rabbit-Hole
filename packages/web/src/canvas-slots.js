@@ -51,7 +51,7 @@ export function fillSlot(slots, id, cardId) {
 // its auto-height cap. The cards drawn outside BLOCK_TYPES (a video moment, a Wikipedia article) at the size they
 // open at. `samples`: the cards it can be (the Tutor's authored ones): their middle size, each sized by its scene
 // (sizeFor) plus the rows a card grows by below it (typicalRows). Unknown: a plain card. rows: what a fixed-height card
-// grows by below its body (its Prompt row, card-prompt.js); a measured or capped height already leaves room.
+// grows by below its body; a measured or capped height already leaves room.
 export const GENERIC_SLOT = { w: 380, h: 420 };
 export const OWN_SIZES = { videoMoment: { w: 560, h: 420 }, wiki: { w: 560, h: 640 } };
 export function slotSize(card, types, samples = [], rows = 0) {

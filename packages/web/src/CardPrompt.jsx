@@ -1,46 +1,71 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight, Copy, MessageSquarePlus } from 'lucide-react';
+import { Copy, MessageSquarePlus } from 'lucide-react';
 import { copyAnswer } from './AnswerFooter.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 
 const icon = 'flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink';
+const control = 'pointer-events-auto cursor-pointer rounded-md px-1.5 py-0.5 text-xs text-ink-2 select-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent';
 
-// A generated card's Prompt row (docs/features/card-prompt.md): closed on every load; open, it shows the words typed to
-// make the card. Copy copies them; the chat icon puts them in the Chat box (the draft rules: a written draft is kept),
-// never sends. Off a Learn canvas (a shared board) there is no Chat box, so only Copy shows.
-// onHeight: the card's frame grows by this row, as with SourcesDisclosure. A view-only board pans with the hand, so its cards
-// take no pointer; this row takes it back (pointer-events-auto) so a viewer can open and copy the prompt.
-export default function CardPrompt({ text, onHeight = null, className = 'px-4 pb-3' }) {
-  const root = useRef(null);
+// The one prompt reveal (docs/features/card-prompt.md; owner brief 2026-10-23): the words typed to make something stay hidden
+// until asked for. Closed, only a small Show prompt button (when `visible`); open, the words, Copy, the chat icon and Hide,
+// and it stays open until Hide or Escape - the pointer leaving never closes it. Copy writes `copy` (default `text`), complete.
+// The chat icon puts the words in the Chat box (the draft rules: a written draft is kept), never sends, and is absent off a
+// Learn canvas (a shared board has no Chat box). Hiding returns focus to the Show prompt button.
+export function PromptReveal({ text, copy = text, visible = true, className = '', buttonClassName = '' }) {
+  const button = useRef(null), panel = useRef(null);
   const chat = useChatWorkspace();
   const [open, setOpen] = useState(false);
+  const [back, setBack] = useState(false); // focus is returning to the button, so it stays drawn until it has the focus
   const [status, setStatus] = useState(null);
-  useEffect(() => {
-    if (!onHeight || !root.current) return undefined;
-    const observer = new ResizeObserver(() => onHeight(root.current ? root.current.offsetHeight : 0));
-    observer.observe(root.current);
-    return () => { observer.disconnect(); onHeight(0); };
-  }, [onHeight]);
+  useEffect(() => { if (back) button.current?.focus(); }, [back, open]);
+  useEffect(() => { if (open) panel.current?.focus(); }, [open]); // the opened panel takes focus, so Escape and Tab work from the keyboard
   useEffect(() => { if (!status) return undefined; const timer = setTimeout(() => setStatus(null), 1800); return () => clearTimeout(timer); }, [status]);
   if (!text) return null;
-  const copy = async () => { try { await copyAnswer({ text }); setStatus('Copied'); } catch { setStatus('Copy failed'); } };
+  const hide = () => { setOpen(false); setBack(true); };
+  const copyText = async () => { try { await copyAnswer({ text: copy }); setStatus('Copied'); } catch { setStatus('Copy failed'); } };
+  if (!open) {
+    if (!visible && !back) return null;
+    return <button ref={button} type="button" data-card-prompt-show aria-expanded="false" onBlur={() => setBack(false)}
+      onPointerDown={event => event.stopPropagation()} onClick={() => { setBack(false); setOpen(true); }}
+      className={`${control} border border-line bg-white shadow-sm ${buttonClassName}`}>Show prompt</button>;
+  }
   return (
-    <div ref={root} data-card-prompt className={`pointer-events-auto shrink-0 ${className}`} onPointerDown={event => event.stopPropagation()}>
-      <div className="rounded-lg border border-line bg-white">
-        <div className="flex items-center gap-1 px-1.5 py-0.5">
-          <button type="button" aria-expanded={open} data-card-prompt-toggle onClick={() => setOpen(value => !value)}
-            className="flex flex-1 cursor-pointer items-center gap-1.5 px-1.5 py-1 text-left text-xs text-ink-2 select-none hover:text-ink">
-            <ChevronRight size={13} aria-hidden="true" className={`transition-transform motion-reduce:transition-none ${open ? 'rotate-90' : ''}`} />
-            Prompt
-          </button>
-          {status && <span role="status" className={`text-xs ${status === 'Copied' ? 'text-ink-2' : 'text-danger'}`}>{status}</span>}
-          <button type="button" aria-label="Copy prompt" title="Copy prompt" data-card-prompt-copy className={icon} onClick={copy}><Copy size={13} /></button>
-          {chat && <button type="button" aria-label="Put prompt in chat" title="Put this prompt in the chat box to edit and send" data-card-prompt-chat className={icon}
-            onClick={() => chat.composer.prepare({ text })}><MessageSquarePlus size={13} /></button>}
-        </div>
-        {/* A long prompt scrolls inside the row (data-scroll: the wheel scrolls it, not the canvas), so the card stays near its size. */}
-        {open && <p data-card-prompt-text data-scroll className="max-h-40 overflow-y-auto border-t border-line px-3 py-2 text-xs whitespace-pre-wrap break-words text-ink">{text}</p>}
+    <div ref={panel} tabIndex={-1} data-card-prompt className={`pointer-events-auto outline-none rounded-lg border border-line bg-white shadow-md ${className}`}
+      onPointerDown={event => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); hide(); } }}>
+      <div className="flex items-center gap-1 px-1.5 py-0.5">
+        <span className="flex-1 px-1.5 text-xs text-ink-2">Prompt</span>
+        {status && <span role="status" className={`text-xs ${status === 'Copied' ? 'text-ink-2' : 'text-danger'}`}>{status}</span>}
+        <button type="button" aria-label="Copy prompt" title="Copy prompt" data-card-prompt-copy className={icon} onClick={copyText}><Copy size={13} /></button>
+        {chat && <button type="button" aria-label="Put prompt in chat" title="Put this prompt in the chat box to edit and send" data-card-prompt-chat className={icon}
+          onClick={() => chat.composer.prepare({ text: copy })}><MessageSquarePlus size={13} /></button>}
+        <button type="button" data-card-prompt-hide aria-expanded="true" onClick={hide} className={control}>Hide</button>
       </div>
+      {/* A long prompt scrolls inside the panel (data-scroll: the wheel scrolls it, not the canvas). */}
+      <p data-card-prompt-text data-scroll className="max-h-40 overflow-y-auto border-t border-line px-3 py-2 text-xs whitespace-pre-wrap break-words text-ink">{text}</p>
+    </div>
+  );
+}
+
+// A generated card's prompt: nothing at rest and no reserved height. Hovering the card (or focusing into it, or selecting it:
+// touch has no hover) draws a small Show prompt button over the card's foot, bottom left, clear of the resize corner; opened, the panel overlays the foot and stays until
+// dismissed. The card is the parent element (CanvasNode: positioned, focusable). A view-only board's cards take no pointer, so
+// there the selected card shows the button; the button and panel take the pointer back (pointer-events-auto).
+export default function CardPrompt({ text, selected = false }) {
+  const root = useRef(null);
+  const [hover, setHover] = useState(false);
+  const [focus, setFocus] = useState(false);
+  useEffect(() => {
+    const card = root.current?.parentElement;
+    if (!card) return undefined;
+    const on = [['pointerenter', () => setHover(true)], ['pointerleave', () => setHover(false)], ['focusin', () => setFocus(true)],
+      ['focusout', event => { if (!card.contains(event.relatedTarget)) setFocus(false); }]];
+    for (const [name, handler] of on) card.addEventListener(name, handler);
+    return () => { for (const [name, handler] of on) card.removeEventListener(name, handler); };
+  }, []);
+  if (!text) return null;
+  return (
+    <div ref={root} data-card-prompt-host className="pointer-events-none absolute right-2 bottom-2 left-2 z-20 flex flex-col items-start">
+      <PromptReveal text={text} visible={hover || focus || selected} className="w-full" />
     </div>
   );
 }

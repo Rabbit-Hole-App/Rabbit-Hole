@@ -22,7 +22,7 @@ const render = props => B.renderToStaticMarkup(B.createElement(B.PaidConfirm, { 
 const classOf = (html, attr) => html.match(new RegExp(`<button[^>]*${attr}[^>]*>`))?.[0].match(/class="([^"]*)"/)?.[1].split(' ') || [];
 
 test('a prompt is shown exactly, above the message; none without one', () => {
-  const prompt = '/cad a 40 mm bracket\n  with <two> holes & "slots"';
+  const prompt = '/3d a 40 mm bracket\n  with <two> holes & "slots"';
   const html = render({ prompt, message: 'Generate this CAD model?' });
   const shown = html.match(/<p data-paid-prompt[^>]*>([\s\S]*?)<\/p>/);
   assert.ok(shown, 'data-paid-prompt is rendered');
@@ -33,6 +33,25 @@ test('a prompt is shown exactly, above the message; none without one', () => {
   assert.ok(html.indexOf('data-paid-prompt') < html.indexOf('Generate this CAD model?'));
   assert.doesNotMatch(render({}), /data-paid-prompt/);
   assert.doesNotMatch(render({ prompt: '' }), /data-paid-prompt/);
+});
+
+// Owner brief 2026-10-23: the CAD confirmation shows a compact `cad` pill and the prompt, not the printed /cad.
+test('a /cad line shows as a display-only cad pill plus the prompt; the line is kept and nothing generates', () => {
+  let generated = 0;
+  const line = '/cad a 100 mm cube';
+  const html = render({ prompt: line, message: 'Generate this CAD model?', onGenerate: () => { generated++; } });
+  const pill = html.match(/<span data-command-pill="cad"[^>]*>([\s\S]*?)<\/span><\/span>/);
+  assert.ok(pill, 'a cad pill is rendered');
+  assert.match(pill[0], /aria-label="cad command"/);
+  assert.equal(pill[1].replace(/<[^>]+>/g, ''), 'cad'); // lowercase, no slash, no brackets
+  assert.match(html, /<span data-paid-prompt-text="true">a 100 mm cube<\/span>/);
+  assert.ok(html.indexOf('data-command-pill') < html.indexOf('data-paid-prompt-text'), 'pill, then the prompt, inline');
+  assert.doesNotMatch(html.replace(/<[^>]+>/g, ' '), /\/cad/); // no literal /cad visible
+  assert.match(html, /data-paid-command="\/cad a 100 mm cube"/); // the command line is kept
+  const promptBox = html.match(/<p data-paid-prompt[\s\S]*?<\/p>/)[0];
+  assert.doesNotMatch(promptBox, /<button|tabindex|onclick/i); // display only: no action, no tab stop
+  assert.equal(generated, 0);
+  assert.equal(render({ prompt: '/cad' }).includes('data-command-pill'), false); // only a /cad line with a prompt
 });
 
 test('Cancel and Generate are the secondary and inverse Buttons: token classes, never white-on-something', () => {

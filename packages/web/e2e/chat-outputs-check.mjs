@@ -3,7 +3,7 @@
 // (POST /api/learn/chat/threads/<id>/messages, PUT /api/learn/chat/messages/<id>/outputs, GET /api/ask/threads/<id>), and the board
 // save is real. Only /api/learn/artifact, the CAD job routes and one CAD thumbnail are answered in the browser; every other
 // model-capable request is aborted and counted, so no model, executor or paid call is ever made.
-//   1. a /cad line shows as the learner's message at once, and its confirmation shows that exact line   (brief items 1, 3)
+//   1. a /cad line shows as the learner's message at once, and its confirmation shows a cad pill and that prompt   (brief items 1, 3)
 //   2. the line is saved as a user message with its command before Generate                               (item 2)
 //   3. after Generate the card and the indicator above the composer are both active; the indicator shows the line, a spinner and
 //      a shimmer, and the message keeps showing                                                            (items 1, 4)
@@ -147,13 +147,28 @@ const settledIndicator = async (page, id, phase) => {
 
 let context;
 ({ context, page } = await open());
+// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Show prompt (the card's own reveal).
+const statusPrompt = async (page, id) => {
+  const line = indicator(page, id).locator('[data-gen-prompt]');
+  assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad');
+  assert.ok(!/\/cad|educational/.test(await line.innerText()), 'at rest the status shows neither the slash nor the prompt');
+  await line.locator('[data-card-prompt-show]').click();
+  assert.equal(await line.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
+  await line.locator('[data-card-prompt-hide]').click();
+  await line.locator('[data-card-prompt-show]').waitFor();
+};
 let cadId = null;
-await step('a /cad line shows as the message at once, and the confirmation shows that exact line', async () => {
+await step('a /cad line shows as the message at once, and the confirmation shows a cad pill and that prompt', async () => {
   await send(page, CAD_LINE);
   await bubble(page, CAD_LINE).waitFor();
   const prompt = pane(page).locator('[data-paid-confirm] [data-paid-prompt]');
   await prompt.waitFor();
-  assert.equal(await prompt.innerText(), CAD_LINE);
+  // Owner brief 2026-10-23: the confirmation shows a read-only `cad` pill and the prompt, never the printed /cad; the line itself is kept.
+  assert.equal(await prompt.getAttribute('data-paid-command'), CAD_LINE);
+  assert.equal(await prompt.locator('[data-command-pill="cad"]').innerText(), 'cad');
+  assert.equal(await prompt.locator('[data-paid-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
+  assert.ok(!(await prompt.innerText()).includes('/cad'), 'no printed /cad');
+  assert.equal(await prompt.locator('button').count(), 0, 'the pill is display only');
   assert.equal(startsFor(), 0, 'nothing starts before Generate');
   await page.screenshot({ path: `${OUT}/1-confirm-${THEME}.png` });
 });
@@ -169,7 +184,7 @@ await step('after Generate the card and the indicator are active together, with 
   await card(page, cadId).waitFor();
   await until(async () => (await indicator(page, cadId).getAttribute('data-gen-active')) === 'true', 'the indicator is not active');
   assert.match(await card(page, cadId).locator('[data-cad-card]').getAttribute('data-cad-state'), /queued|building/);
-  assert.equal(await indicator(page, cadId).locator('[data-gen-prompt]').innerText(), CAD_LINE);
+  await statusPrompt(page, cadId);
   assert.equal(await indicator(page, cadId).locator('.animate-spin').count(), 1);
   assert.equal(await indicator(page, cadId).locator('[data-gen-text].shimmer').innerText(), 'Generating on the canvas');
   assert.equal(await indicator(page, cadId).locator('[data-progress]').count(), 0, 'no invented progress bar');
@@ -184,7 +199,7 @@ await step('after a reload the line is still there and the running job shows its
   await card(page, cadId).waitFor({ timeout: 60000 });
   await bubble(page, CAD_LINE).waitFor();
   await until(async () => (await indicator(page, cadId).getAttribute('data-gen-active')) === 'true', 'no indicator after reload', 20000);
-  assert.equal(await indicator(page, cadId).locator('[data-gen-prompt]').innerText(), CAD_LINE);
+  await statusPrompt(page, cadId);
 });
 
 await step('the job finishes: card and indicator leave the active state together; the message holds a thumbnail', async () => {
@@ -233,7 +248,7 @@ await step('repeated restore clicks add no second card; with the card there they
 let failId = null, cancelId = null;
 await step('a failed job and a cancelled job each stop the spinner and shimmer and show a stable line', async () => {
   await send(page, FAIL_LINE);
-  await pane(page).locator('[data-paid-prompt]', { hasText: FAIL_LINE }).waitFor();
+  await pane(page).locator(`[data-paid-prompt][data-paid-command="${FAIL_LINE}"]`).waitFor();
   await pane(page).locator('[data-paid-generate]').click();
   await until(async () => startsFor() === 2, 'the second job did not start');
   failId = jobs.get('job-2').cardId;
@@ -243,7 +258,7 @@ await step('a failed job and a cancelled job each stop the spinner and shimmer a
   assert.equal(await indicator(page, failId).locator('[data-gen-text]').innerText(), 'Generation failed');
   await page.screenshot({ path: `${OUT}/9-failed-${THEME}.png` });
   await send(page, CANCEL_LINE);
-  await pane(page).locator('[data-paid-prompt]', { hasText: CANCEL_LINE }).waitFor();
+  await pane(page).locator(`[data-paid-prompt][data-paid-command="${CANCEL_LINE}"]`).waitFor();
   await pane(page).locator('[data-paid-generate]').click();
   await until(async () => startsFor() === 3, 'the third job did not start');
   cancelId = jobs.get('job-3').cardId;
