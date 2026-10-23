@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MessageCircle, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import PanelHeader, { CanvasSearchPanel } from './PanelHeader.jsx';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
+import { SHARED_PANEL } from './CanvasLoading.jsx';
 import TableOfContents from './TableOfContents.jsx';
 import CommentsPanel from './comments/CommentsPanel.jsx';
 import { slashOpensFind } from './source-finder.js';
@@ -39,7 +40,7 @@ export function SharedPanel({ panel, permissions, chat = null, search, onOpenAct
   const label = { chat: 'Chat', find: 'Search', toc: 'Table of contents', comments: 'Comments' }[panel.tab];
   const commentsShown = panel.open && panel.tab === 'comments' && comments.active;
   return (
-    <ResizableSidePanel collapsed={!panel.open} phoneHeight="max-lg:h-[50dvh] max-lg:min-h-64" storageKey="rh.viewer.panel.width" defaultWidth={400} aria-label={label} className="px-5 pt-3 pb-4">
+    <ResizableSidePanel collapsed={!panel.open} {...SHARED_PANEL} aria-label={label}>
       <PanelHeader tab={panel.tab} tabs={tabs} commentsOn={comments.active} commentsUnread={comments.unread} onClose={() => panel.setOpen(false)}
         onTab={(id, clicked) => { panel.show(id); if (clicked) panel.setReturnToSearch(false); }} />
       {chat && <div role="tabpanel" aria-label="Chat" data-shared-chat-panel className={`${panel.tab === 'chat' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col`}>{chat}</div>}

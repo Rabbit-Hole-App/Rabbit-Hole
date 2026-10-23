@@ -3,9 +3,10 @@
 // composer (Lane A's composer.prepare, contract A6) or inserts the answer's own notebook code: rendering never sends, never
 // generates and never fetches. Actions make artifacts, questions continue the talk, so the two are drawn apart.
 import { useState } from 'react';
-import { ChartLine, ChevronDown, CircleHelp, Clapperboard, Code, Columns2, CornerDownRight, Film, Image, NotebookPen, PencilLine, Video, Workflow } from 'lucide-react';
+import { ChartLine, ChevronDown, CircleHelp, Code, CornerDownRight, Film, Image, NotebookPen, PencilLine, Video, Workflow } from 'lucide-react';
+import { isLearnCommand } from './learn-slash.js';
 
-const ICON = { diagram: Workflow, graph: ChartLine, animate: Clapperboard, video: Video, image: Image, notebook: NotebookPen, code: Code, compare: Columns2, practice: PencilLine, quiz: CircleHelp, motion: Film };
+const ICON = { diagram: Workflow, graph: ChartLine, video: Video, image: Image, notebook: NotebookPen, code: Code, practice: PencilLine, quiz: CircleHelp, motion: Film };
 
 export default function AnswerSuggestions({ message, latest, threadId, prepare, insertNotebook }) {
   // Opened on an older answer by key, so a reused instance never carries it to another chat or message.
@@ -14,7 +15,9 @@ export default function AnswerSuggestions({ message, latest, threadId, prepare, 
   if (message?.role !== 'assistant' || message.status !== 'done' || !message.meta) return null;
   // Only records that can be drawn and run: a malformed one (an object label, no subject, no code) is skipped, never thrown.
   const text = value => typeof value === 'string' && value.trim() !== '';
-  const actions = (Array.isArray(message.meta.actions) ? message.meta.actions : []).filter(a => a && text(a.label) && (a.generationRequired ? text(a.args?.subject) : Array.isArray(a.args?.code?.cells)));
+  // A saved answer keeps the actions it was validated with: one from before the 2026-10-20 cleanup can name a removed command
+  // (compare, animate), whose Send only says it is no longer available, so only a command the composer can run is offered.
+  const actions = (Array.isArray(message.meta.actions) ? message.meta.actions : []).filter(a => a && isLearnCommand(a.capabilityId) && text(a.label) && (a.generationRequired ? text(a.args?.subject) : Array.isArray(a.args?.code?.cells)));
   const followUps = (Array.isArray(message.meta.followUps) ? message.meta.followUps : []).filter(f => f && text(f.text));
   if (!actions.length && !followUps.length) return null;
   const open = latest || openKey === key;

@@ -60,6 +60,7 @@ import LessonPlanPreview from './LessonPlanPreview.jsx';
 import NanoLessonReading, { useNanoProgress } from './NanoLessonReading.jsx';
 import { nanoLesson, nanoSourceVersion } from './nanogpt-lesson.js';
 import ResizableSidePanel from './ResizableSidePanel.jsx';
+import { CanvasChromeLoading, CHAT_PANEL, OWNER_CANVAS, OWNER_HEADER, OWNER_HEADER_GROUP, OWNER_HEADER_OVER, OWNER_MAIN, phoneCanvasHeight as phoneHeightFor } from './CanvasLoading.jsx';
 import { RepositoryBadge } from './repository-canvas.jsx';
 import { clearSelection } from './repo-context.js';
 import { releaseCodeRef } from './graph-card.js';
@@ -1244,15 +1245,12 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // floor), and the page still scrolls to the contents underneath.
   const canvasFrame = useRef(null);
   const [phoneCanvasHeight, setPhoneCanvasHeight] = useState(null);
-  useEffect(() => {
+  // A layout effect: the height is set before the first paint, so the canvas never paints at the 75dvh fallback first (owner brief
+  // 2026-10-23: no canvas resize as the loading skeleton, which sizes itself the same way, hands over).
+  useLayoutEffect(() => {
     const frame = canvasFrame.current;
     if (!frame) return;
-    const fit = () => {
-      if (window.innerWidth >= 1024) { setPhoneCanvasHeight(null); return; }
-      const screen = window.visualViewport?.height || window.innerHeight;
-      const top = frame.getBoundingClientRect().top + (frame.closest('main')?.scrollTop || 0);
-      setPhoneCanvasHeight(Math.round(Math.max(screen * 0.45, screen - top)));
-    };
+    const fit = () => setPhoneCanvasHeight(phoneHeightFor(frame));
     fit();
     const observer = new ResizeObserver(fit);
     observer.observe(frame.parentElement);
@@ -2115,7 +2113,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   // The lesson canvas fills its workspace up to the page's top edge (owner, 2026-10-22): the header floats over it, with no
   // band of its own, unless a lesson heading, an error or the review-board note sits between them.
   const headerOver = !courseView && learningView === 'lesson' && !((!isRepository && !isCanvas) || progress) && !graphError && !(reviewTools && board && !BOARDS[board]);
-  return <main className="relative flex min-w-0 flex-1 overflow-hidden max-lg:flex-col max-lg:overflow-y-auto">
+  return <main className={OWNER_MAIN}>
     {/* Below lg the panel stacks under the lesson and the page scrolls: the
         lesson canvas keeps a real working height (see below) instead of being
         squeezed into what the panel leaves. */}
@@ -2137,13 +2135,13 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
             canvas area's centre (owner header correction, 2026-10-16). */}
         {/* Over the canvas (headerOver) it takes no pointer itself: only its controls do, so the canvas under the rest of the row
             pans, draws and selects (owner, 2026-10-22: no full-width band). */}
-        {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? 'pointer-events-none absolute inset-x-0 top-0 z-40 [&>*]:pointer-events-auto' : 'relative shrink-0'} flex items-center justify-center-safe px-12 pt-3 pb-1 max-md:px-2 max-md:pt-2`}>
+        {!canvasState.presenting && <div data-canvas-header className={`${headerOver ? OWNER_HEADER_OVER : 'relative shrink-0'} ${OWNER_HEADER}`}>
           {/* The page's top-left corner goes back (owner 2026-10-04: Back, not a jump to Home): to the page the learner
               came from, or Home when the canvas was opened directly. The navigator climbs holes; recentring is Shift 0. */}
           <button type="button" data-learn-home aria-label="Back" title="Back"
             onClick={() => goBack('/apps')}
             className="absolute top-3 left-3 flex h-8 w-8 items-center justify-center rounded-xl border border-line bg-white text-ink-2 shadow-md hover:text-ink max-md:hidden"><House size={15} strokeWidth={1.7} /></button>
-          <div data-header-group className="flex max-w-full min-w-0 flex-wrap items-center justify-center-safe gap-1 gap-y-0.5">
+          <div data-header-group className={OWNER_HEADER_GROUP}>
           {/* One line, never wrapped (owner r35): in a project, [project] › [canvas selector]. The project name is plain text
               (owner brief 2026-10-16 item 2: project management lives in Home and the Library, which rename it); the name is
               the one its card shows (cardModel), never the repository's own. A canvas outside a project keeps its editable
@@ -2256,7 +2254,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
         {/* The adaptive canvas: a plain React whiteboard where chat exchanges
             land as movable blocks. Lesson playback stays parked. */}
         {reviewTools && board && !BOARDS[board] && <div className="border-b border-line bg-hover px-4 py-2 text-sm text-ink-2">No review board is registered as <span className="font-medium text-ink">{board}</span> - this is an empty scratch board. Registered boards live in BOARDS in demo-scenes.js.</div>}
-        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className="relative min-h-0 flex-1 max-lg:h-[var(--phone-canvas-h,75dvh)] max-lg:flex-none" style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={null}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
+        <div ref={canvasFrame} aria-label="Lesson canvas" onPointerDownCapture={openPaperReference} onClickCapture={openPaperReference} className={OWNER_CANVAS} style={phoneCanvasHeight ? { "--phone-canvas-h": `${phoneCanvasHeight}px` } : undefined}><Suspense fallback={<CanvasChromeLoading feedback top={48} />}><SearchContentProvider key={searchScope} registry={canvasSearch.registry}><DivePortals.Provider value={dive.portals}><NextStepsHost on={nextStepsHere} coaching={hooksCoaching} tutor={tutor} journey={journey} canvasApi={canvasApi} canvasState={canvasState} record={dive.tree?.dive || null} access={askScope} title={app.title || ''} graded={graded} canvasVersion={canvasVersion} board={boardName} describe={describeBlock} repositoryCommit={repository?.commit || null} shown={canvasState.curious !== false}>{steps => <AdaptiveCanvas key={canvasEpoch} {...comments.canvasProps} leftRail={voiceOn ? <TutorCaption caption={voice.caption} state={voice.state} extras={tutor.extras} /> : null}
           hooks={steps ? <NextStepsCard steps={steps} onPick={(step, hook) => (step.section ? journey?.nextSection?.() : (chatRef.current?.panels.openChat(), nextStepSend.current?.(step, hook.hook)))} /> : null} gutterTop={dive.tree ? <DiveNavigator {...dive.navigator} /> : null} onSave={pushBoard} refLinks={refLinks} onLinkCanvas={setRefPick} docView={docView} docReady={restoredBoard === boardPath} docError={restoredBoard === boardPath && sharing?.unavailable ? sharing.unavailable : null} onDocRetry={() => setBoardLoad(load => load + 1)} onDocDirty={() => setSaveState(previous => (previous?.state === 'error' ? previous : { state: 'saving' }))} inlineAi={inlineAi} bottomLeft={<FeedbackButton app={app.name} board={board} />} onSearch={source => openSourceFinder({ source })} exchanges={exchanges} onMove={moveExchange} onDelete={deleteExchange} onRestore={setExchanges} onAskTarget={setAskTarget} askTargetId={askTarget?.id ?? null} onOpenFile={openCanvasFile} onAdd={copies => setExchanges(previous => [...previous, ...copies])} onGrade={gradeCanvasAnswer} onResize={resizeExchange} onReply={replyToExchange} appName={app.name} apiRef={canvasApi} onWiki={trackWiki} onWatch={watchVideo} onDropFiles={takeDrop} onPasteCode={pasteCode} onPaper={trackPaper} onCardAction={cardAction} attachedIds={sources.filter(source => source.attached).map(source => source.id)} onGroupShot={takeGroupShot} onAreaShot={takeAreaShot} onState={onCanvasState} edgeInset={journey.path ? 52 : (!panelOpen && canvasOutline.length ? 52 : 0)} storageKey={boardStorageKey} seedBlocks={reviewTools && board ? (BOARDS[board]?.() ?? []) : null} renderBlockComposer={(app.hosting !== 'aws' || app.app_chat) ? (exchange, onExchange, target) => <AskPanel compact composerOnly canvasSeed={{ question: exchange.question, answer: exchange.answer, target }} onExchange={onExchange} tutor={tutor.active ? tutor : null} scope={askScope} appName={app.name} chatConfig={app.app_chat} repositoryContext={!repoAttached ? null : nanoActive ? { commit: nanoSourceVersion } : repositoryContext} onClearRepository={onClearRepository} conversation="learn" placeholder="Follow up in this block" autoFocus /> : null} />}</NextStepsHost></DivePortals.Provider></SearchContentProvider></Suspense>{/* The journey's Adaptive Contents Rail (§8, D5): inside the canvas frame, so it stays beside the Learn agent chat panel; pinned open while the path is reviewed. A materialized section frames its heading, any other entry opens its purpose. */}{journey.path && <ContentsRail placement="canvas" entries={pathEntries(journey.path, journey.prevPath).map(entry => ({ ...entry, open: entry.id === openEntry }))} pinned={journey.journey?.state === 'path_review'} empty={canvasEmpty(canvasState, exchanges)} onOpen={entry => (entry.heading_block_id ? canvasApi.current?.showSection(entry.heading_block_id) : setOpenEntry(id => (id === entry.id ? null : entry.id)))} />}{dive.emptyHint}{dive.suggestionCard && !tutor.active && <div className="pointer-events-none absolute inset-x-0 bottom-28 z-30 flex justify-center px-4"><div className="pointer-events-auto">{dive.suggestionCard}</div></div>}{dive.confirmDialog}{refPick && <CanvasRefPicker exclude={commentBoard} onClose={() => setRefPick(null)}
             linked={refPick.blockId ? ((canvasApi.current?.liveRefs?.() || []).find(entry => entry.blockId === refPick.blockId)?.refs || []).map(ref => ref.target) : []}
             returnFocus={() => (refPick.blockId ? document.querySelector(`[data-block-id="${CSS.escape(refPick.blockId)}"]`) : null)}
@@ -2311,7 +2309,7 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
       {files && shown.current.has('files') && <div role="tabpanel" aria-label="Repository files" data-learn-files className={`${companionView === 'files' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{files}</div>}
       {graph && shown.current.has('graph') && <div role="tabpanel" aria-label="Repository graph" data-learn-graph className={`${companionView === 'graph' ? 'flex' : 'hidden'} min-h-0 flex-1 flex-col px-4 pt-2 pb-4`}>{graph}</div>}
     </ResizableSidePanel>
-    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" defaultWidth={420} storageKey="rh.chat.width" collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference} className="px-5 pt-3 pb-4">
+    <ResizableSidePanel aria-label="Learn agent chat" resizeLabel="Resize Learn panel" {...CHAT_PANEL} collapsed={!panelOpen} reserve={panelOpen && companion.open ? companionWidth : 0} narrowHidden={companion.open} onWidth={setChatWidth} onClickCapture={openPaperReference}>
       <PanelHeader tab={panelTab} commentsOn={comments.active} commentsUnread={comments.unread} tocPending={proposal && canEditCanvas ? 1 : 0} companion={{ views: companionViews, open: panelOpen && companion.open, onToggle: companion.toggle }} pinned={panelPinned} onPin={pinPanel} onClose={() => setPanelOpen(false)}
         onTab={(tab, clicked) => { setPanelTab(tab); if (clicked && tab === 'find') requestAnimationFrame(() => findInput.current?.focus()); }} />
       <CanvasSearchPanel hidden={panelTab !== 'find'} inputRef={findInput} {...canvasSearch.panel} onOpenAction={openSearchAction} />

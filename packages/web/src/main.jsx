@@ -30,7 +30,8 @@ import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 import { editorOpen, reloadForNewBuild } from './chunk-reload.js';
 import { installAiRefusalHook } from './ai-refusal.js';
-import { embedRoute, installEmbedFetch } from './embed-api.js';
+import { embedRoute, fullHref, installEmbedFetch } from './embed-api.js';
+import { EmbedCanvasLoading, MemberCanvasLoading, SharedCanvasLoading } from './CanvasLoading.jsx';
 
 // Every refused AI request, from any entry point, explains itself the same way (owner D4 section 4, L12).
 installAiRefusalHook();
@@ -120,18 +121,20 @@ const MEMBER_BOARD = /^\/c\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
 
 function Root() {
   // The embed is the shared page in embed mode and nothing else: no handle gate, no account chrome.
-  if (embedded) return <Suspense fallback={null}><SharedBoardPage token={embedded.token} embed={embedded} /><Toasts /></Suspense>;
+  // While a canvas page's code loads, its own shell shows (CanvasLoading.jsx, owner brief 2026-10-23), never a blank page.
+  if (embedded) return <Suspense fallback={<EmbedCanvasLoading embed={embedded} href={fullHref(window.location.origin, embedded.kind, embedded.token)} />}><SharedBoardPage token={embedded.token} embed={embedded} /><Toasts /></Suspense>;
   const sharedBoard = window.location.pathname.match(SHARED_BOARD);
   const creator = CreatorProfilePage && window.location.pathname.match(CREATOR);
   const memberBoard = MemberBoardPage && window.location.pathname.match(MEMBER_BOARD);
   const invitation = InvitePage && window.location.pathname === '/i';
-  const page = sharedBoard ? <Suspense fallback={null}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>
-    : memberBoard ? <Suspense fallback={null}><MemberBoardPage boardId={memberBoard[1]} /><Toasts /></Suspense>
+  const loading = sharedBoard ? <SharedCanvasLoading /> : memberBoard ? <MemberCanvasLoading /> : null;
+  const page = sharedBoard ? <Suspense fallback={loading}><SharedBoardPage token={sharedBoard[1]} /><Toasts /></Suspense>
+    : memberBoard ? <Suspense fallback={loading}><MemberBoardPage boardId={memberBoard[1]} /><Toasts /></Suspense>
     : invitation ? <Suspense fallback={null}><InvitePage /></Suspense>
     : creator ? <Suspense fallback={null}><CreatorProfilePage handle={creator[1]} /></Suspense> : <AppRoot />;
   // Rabbit Hole: a signed-in person without a public @handle chooses one first, in place (HandleGate,
   // docs/features/user-handles.md), and then this same URL carries on.
-  return learnPreview ? <HandleGate>{page}</HandleGate> : page;
+  return learnPreview ? <HandleGate fallback={loading}>{page}</HandleGate> : page;
 }
 
 function AppRoot() {

@@ -240,11 +240,13 @@ test('hand-off: no opener means nothing to wait for', async () => {
 
 test('copy rules: no ellipsis in the embed surfaces; Open in Rabbit Hole and the Embed controls are present', () => {
   const read = name => readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  const panel = read('./EmbedPanel.jsx'), share = read('./SharePanel.jsx'), chat = read('./SharedChat.jsx'), page = read('./SharedBoardPage.jsx');
+  const panel = read('./EmbedPanel.jsx'), share = read('./SharePanel.jsx'), chat = read('./SharedChat.jsx'), page = read('./SharedBoardPage.jsx'), loading = read('./CanvasLoading.jsx');
   const spread = /\.\.\.(?=[\w({[])/g;
-  for (const text of [read('./embed-api.js'), panel, share.slice(share.indexOf('function EmbedRow('), share.indexOf('// onPublish(publish)')), chat.slice(chat.indexOf('embed (SHARE-04')), page.slice(page.indexOf('if (embed) {'))]) assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, '').replace(spread, ''), /\.\.\.|…/);
+  for (const text of [read('./embed-api.js'), panel, share.slice(share.indexOf('function EmbedRow('), share.indexOf('// onPublish(publish)')), chat.slice(chat.indexOf('embed (SHARE-04')), page.slice(page.indexOf('if (embed) {')), loading]) assert.doesNotMatch(text.replace(/^\s*\/\/.*$/gm, '').replace(spread, ''), /\.\.\.|…/);
   for (const attribute of ['data-embed-section', 'data-embed-source', 'data-embed-height', 'data-embed-show-chat', 'data-embed-copy', 'data-embed-code', 'data-embed-preview', 'data-embed-email-image', 'data-embed-change-access']) assert.ok(panel.includes(attribute), attribute);
-  for (const attribute of ['data-embed-root', 'data-embed-title', 'data-embed-open', 'data-embed-fork', 'data-embed-chat-button']) assert.ok(page.includes(attribute), attribute);
+  for (const attribute of ['data-embed-root', 'data-embed-title', 'data-embed-fork', 'data-embed-chat-button']) assert.ok(page.includes(attribute), attribute);
+  // Open in Rabbit Hole is EmbedOpenLink (CanvasLoading.jsx), the same link in the loaded embed and its loading shell (owner brief 2026-10-23).
+  assert.ok(page.includes('const openLink = openHref && <EmbedOpenLink href={openHref} />;') && loading.includes('<a data-embed-open href={href}') && loading.includes('>Open in Rabbit Hole<'), 'data-embed-open');
   assert.ok(chat.includes('data-embed-chat-fallback') && chat.includes('Open Chat in Rabbit Hole'));
   assert.match(panel, /loading="lazy"/, 'the preview iframe is lazy');
   assert.match(panel, /Sending an email newsletter\?/);

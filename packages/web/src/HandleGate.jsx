@@ -8,15 +8,15 @@ import { Button } from './ui.jsx';
 // it here, in place, before anything else: the URL stays as it is, so whatever they came for - a shared canvas, a
 // fork or a Rabbit Hole resumed after sign-in, a canvas of their own - carries on as soon as it is claimed. Signed out,
 // or with no profile service, the page renders as before. The server is the authority on the handle; the rules shown
-// here are the same module's.
-export default function HandleGate({ children }) {
+// here are the same module's. fallback: what shows while the profile is checked (a canvas route's loading shell).
+export default function HandleGate({ children, fallback = null }) {
   const [state, setState] = useState('checking'); // checking | needed | ok
   useEffect(() => {
     let live = true;
     loadProfile().then(profile => { if (live) setState(gateFor(profile)); });
     return () => { live = false; };
   }, []);
-  if (state === 'checking') return null;
+  if (state === 'checking') return fallback;
   return state === 'needed' ? <ChooseHandle onDone={() => setState('ok')} /> : children;
 }
 

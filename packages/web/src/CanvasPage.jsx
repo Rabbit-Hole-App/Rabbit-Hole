@@ -9,6 +9,7 @@ import { titleOf } from './agent/catalog.js';
 import { canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
 import { CodeRefs } from './code-refs.js';
 import { useRepositoryCanvas } from './repository-canvas.jsx';
+import { CANVAS_PAGE_COLUMN, OwnerCanvasLoading } from './CanvasLoading.jsx';
 
 // ponytail: T02 §8.3 [New canvas here] and [About local-only storage] are left out; add them when asked.
 // canvasProps: a repository-attached canvas's Files, Graph and repository context (repository-canvas.jsx), spread into LearnPage.
@@ -22,7 +23,7 @@ export function CanvasLearn({ app, project, switcher = null, canvasProps = null 
     api(`/api/learn/boards/${encodeURIComponent(app.name)}/main`).then(data => data.exists !== false, () => false).then(found => { if (live) setHere(found); });
     return () => { live = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  if (here === null) return <main className="min-w-0 flex-1" />;
+  if (here === null) return <OwnerCanvasLoading />; // the canvas's shell, not an empty page, while the server is asked
   // Inside its project (RepositoryPage, which gives the switcher) the title names the project too; CanvasPage has its own row.
   if (here) return <LearnPage app={app} switcher={switcher} project={switcher ? project : null} {...canvasProps} />;
   return <main data-canvas-gate className="min-w-0 flex-1 overflow-auto"><div className="mx-auto max-w-md px-6 pt-[18vh] text-center">
@@ -38,7 +39,7 @@ export function CanvasLearn({ app, project, switcher = null, canvasProps = null 
 // A canvas in a repository project gets that repository's Files and Graph here too (the association, not the route).
 export default function CanvasPage({ app, project }) {
   const wired = useRepositoryCanvas(project);
-  return <CodeRefs.Provider value={wired?.codeRefs || null}><div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:pt-(--shell-top-h)">
+  return <CodeRefs.Provider value={wired?.codeRefs || null}><div className={CANVAS_PAGE_COLUMN}>
     {project && <div data-canvas-parent className="flex shrink-0 items-center gap-2 pt-5 pr-8 pl-14 text-xs text-ink-2 max-md:px-4 max-md:pt-3">
       <button type="button" className="cursor-pointer hover:text-ink hover:underline" onClick={() => navigate(`/apps/${project.name}`)}>In {titleOf(project)} →</button>
     </div>}

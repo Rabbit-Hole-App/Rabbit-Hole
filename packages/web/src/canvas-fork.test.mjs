@@ -58,8 +58,13 @@ test('postFork never sends a null state; a real copy still travels', async t => 
 test('the shared canvas page shows the transparent logo top left: no wordmark, a variant per theme, linking home (owner, 2026-10-22)', async () => {
   const { readFileSync } = await import('node:fs');
   const page = readFileSync(new URL('./SharedBoardPage.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-  assert.match(page, /<a href="\/" data-shared-brand[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>\n\s+<img src=\{logoBlack\}[^>]*dark:hidden[^>]*\/>\n\s+<img src=\{logoWhite\}[^>]*hidden[^>]*dark:block[^>]*\/>\n\s+<\/a>/);
+  // The logo link is SharedBrand (CanvasLoading.jsx), shared with the page's loading skeleton (owner brief 2026-10-23).
+  const loading = readFileSync(new URL('./CanvasLoading.jsx', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const brand = loading.slice(loading.indexOf('export function SharedBrand('), loading.indexOf('export function MemberBrand('));
+  assert.match(page, /<SharedBrand data-shared-brand \/>/);
+  assert.match(brand, /<a href="\/" \{\.\.\.props\}[^>]*aria-label=\{`\$\{PRODUCT\} home`\}>\n\s+<img src=\{logoBlack\}[^>]*dark:hidden[^>]*\/>\n\s+<img src=\{logoWhite\}[^>]*hidden[^>]*dark:block[^>]*\/>\n\s+<\/a>/);
   assert.doesNotMatch(page, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
+  assert.doesNotMatch(brand, /favicon-32-v1|\{PRODUCT\}<\/span>/, 'no black square, no wordmark');
 });
 
 // The shared header (owner, 2026-10-06): one GitHub-style control, [fork icon  Fork  N], with the same lucide GitFork the
