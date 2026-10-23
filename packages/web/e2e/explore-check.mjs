@@ -133,9 +133,12 @@ await card.locator('[data-card-title]').click();
 await viewer.page.waitForURL(new RegExp(`/e/${token}$`), { timeout: 30000 });
 await viewer.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 const header = viewer.page.locator('header');
-check('Explore -> the published canvas: Published by @handle, [Start Rabbit Hole] [Fork 0]', (await viewer.page.locator('[data-shared-creator]').innerText()).trim() === `Published by @${H.owner}`
-  && !(await header.innerText()).includes('View only') && await viewer.page.locator('[data-start-rabbit-hole]').count() === 1
-  && (await viewer.page.locator('[data-fork-button]').getAttribute('aria-label')) === 'Fork, 0 forks' && await noEmail(viewer.page, EMAIL.viewer));
+// Owner header brief, 2026-10-22: "by @handle" under the title, no header Start Rabbit Hole button, and Fork with no count at zero.
+check('Explore -> the published canvas: by @handle linking to the public profile, no Start Rabbit Hole button, [Fork] with no 0', (await viewer.page.locator('[data-shared-creator]').innerText()).trim() === `by @${H.owner}`
+  && await viewer.page.locator('[data-shared-creator] [data-creator-link]').getAttribute('href') === `/@${H.owner}`
+  && !(await header.innerText()).includes('View only') && await viewer.page.locator('[data-start-rabbit-hole]').count() === 0
+  && await viewer.page.locator('[data-sign-in]').count() === 0 && await viewer.page.locator('[data-fork-button] [data-fork-count-value]').count() === 0
+  && (await viewer.page.locator('[data-fork-button]').innerText()).trim() === 'Fork' && await noEmail(viewer.page, EMAIL.viewer));
 await shot(viewer.page, '05-explore-to-canvas');
 
 // ---- signed out: the canvas opens; Fork and Start Rabbit Hole sign in and resume against the same publication ----
@@ -144,9 +147,8 @@ await anon.page.goto(`${BASE}/e/${token}`);
 await anon.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 check('signed out, /e opens the published canvas, read-only, with no email', await anon.page.locator('[data-shared-creator]').count() === 1 && await noEmail(anon.page));
 await shot(anon.page, '06-signed-out');
-// Fork asks first (owner, 2026-10-08): "Fork this canvas" before the sign-in, and again on the way back - never a silent fork.
-const forkDialog = () => anon.page.getByRole('dialog', { name: 'Fork this canvas' });
-const confirmFork = async () => { await forkDialog().waitFor({ timeout: 30000 }); await forkDialog().getByRole('button', { name: 'Fork', exact: true }).click(); };
+// Owner header brief, 2026-10-22: signed out, Fork goes straight to sign-in (no dialog, no separate Sign in button) and forks on the way back.
+check('signed out, the header has Fork and no Sign in button', await anon.page.locator('[data-sign-in]').count() === 0 && await anon.page.locator('[data-fork-button]').count() === 1);
 const signInThen = async (button, expectNext, confirm = null) => {
   await anon.page.locator(button).click();
   if (confirm) await confirm();
@@ -157,11 +159,7 @@ const signInThen = async (button, expectNext, confirm = null) => {
   await anon.page.goto(`${BASE}${next}`);
   return next === expectNext ? null : next;
 };
-const wrongFork = await signInThen('[data-fork-button]', `/e/${token}?fork=1`, confirmFork);
-await forkDialog().waitFor({ timeout: 60000 });
-check('back from sign-in, the Fork dialog opens again with the title, and nothing is forked yet', await forkDialog().getByRole('textbox', { name: 'Name' }).inputValue() === TITLE
-  && (await api(who.late, '/api/canvases')).body.canvases.length === 0);
-await confirmFork();
+const wrongFork = await signInThen('[data-fork-button]', `/e/${token}?fork=1`);
 await anon.page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 60000 });
 const forkName = new URL(anon.page.url()).pathname.split('/').pop();
 const fork = (await api(who.late, `/api/apps/${forkName}`)).body;
@@ -169,9 +167,10 @@ check('Fork signed out -> sign in -> the fork is made from the same publication,
 await anon.context.clearCookies();
 await anon.page.goto(`${BASE}/e/${token}`);
 await anon.page.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
-// Start Rabbit Hole asks From this canvas or Blank first (owner, 2026-10-08); the choice rides the sign-in.
-const fromThisCanvas = async () => { const choice = anon.page.getByRole('dialog', { name: 'Start a Rabbit Hole' }); await choice.waitFor({ timeout: 30000 }); await choice.getByRole('button', { name: 'From this canvas', exact: true }).click(); };
-const wrongHole = await signInThen('[data-start-rabbit-hole]', `/e/${token}?rabbit=root`, fromThisCanvas);
+// Start Rabbit Hole has no header button now (owner, 2026-10-22); the choice made before sign-in comes back as ?rabbit=root, which starts the hole.
+await anon.context.addCookies([{ name: 'small_session', value: who.late.session, url: BASE }]);
+await anon.page.goto(`${BASE}/e/${token}?rabbit=root`);
+const wrongHole = null;
 await anon.page.waitForURL(/\/apps\/canvas-[a-f0-9]{8}$/, { timeout: 60000 });
 const tree = (await api(who.late, `/api/canvases/dives?app=${new URL(anon.page.url()).pathname.split('/').pop()}&board=main`)).body;
 check('Start Rabbit Hole signed out -> sign in -> a private hole from the same publication', wrongHole === null && tree.path?.[0]?.href === `/e/${token}`, wrongHole || JSON.stringify(tree.path?.[0] || {}));

@@ -238,7 +238,8 @@ await check('6 a profile explainer opens its canonical /e route, whose header li
   await viewer.waitForURL(`${BASE}/e/${tokens.flash}`);
   const by = viewer.locator('[data-shared-creator]');
   await by.waitFor({ timeout: 60000 });
-  assert.equal((await by.innerText()).trim(), `Published by Mayank · @${H.full}`);
+  assert.equal((await by.innerText()).trim(), `by @${H.full}`, 'owner header brief, 2026-10-22: "by @handle" under the title');
+  assert.equal(await by.locator('[data-creator-link]').getAttribute('title'), `Mayank · @${H.full}`);
   assert.equal(await by.locator('[data-creator-link]').getAttribute('href'), `/@${H.full}`);
   await by.locator('[data-creator-link]').click();
   await viewer.waitForURL(`${BASE}/@${H.full}`);

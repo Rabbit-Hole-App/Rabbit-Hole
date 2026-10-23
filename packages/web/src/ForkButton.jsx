@@ -9,21 +9,34 @@ import { Button, ConfirmDialog, Input, toast } from './ui.jsx';
 // Explore cards. Your own canvas has no Fork; Duplicate in its ⋮ copies it (owner, 2026-10-08). `source` is { token };
 // `title` is the source's, which the dialog prefills; `onForked(fork)` says where to go next. A press opens a small
 // dialog, "Fork this canvas": Cancel or Escape forks nothing, Fork forks with the name as typed (blank: the source's).
-// `auto` (back from sign-in, ?fork=1) opens the same dialog; `resume` is the page that finishes it (default: this one).
-// `count` is the source's canonical direct-fork count, inside the button the GitHub way, [Fork | N], 0 included;
+// `auto` (back from sign-in, ?fork=1) forks at once, with the source's name and no second press (owner, 2026-10-22); a failure
+// leaves the page and the kept draft as they were. `signedIn` false: a press goes straight to sign-in, which returns here and
+// forks (no dialog before a sign-in). `resume` is the page that finishes it (default: this one).
+// `count` is the source's canonical direct-fork count, inside the button the GitHub way, [Fork | N]; a page passes null at zero
+// (the shared header shows no 0, owner 2026-10-22);
 // after a fork the button takes the server's new count from the reply, never a guess, so a failed fork
 // leaves it as it was. The result shows on the button itself, never in a far corner.
 // `draft`: () => a visitor's temporary copy of this shared canvas (guest-draft.js forDraft) or null; the fork copies it.
-export default function ForkButton({ source, title = '', resume = null, onForked, auto = false, count = null, draft = null, variant = 'secondary', size, className = '' }) {
+// A shared link's pending fork key survives a reload, so a fork whose reply was lost comes back instead of a second one.
+const keyName = source => (source?.token ? `rh.fork-key:${source.token}` : null);
+const pendingKey = name => {
+  const fresh = crypto.randomUUID();
+  if (!name) return fresh;
+  try { const kept = sessionStorage.getItem(name); if (kept) return kept; sessionStorage.setItem(name, fresh); } catch { /* blocked storage: a key for this press only */ }
+  return fresh;
+};
+const dropKey = name => { try { if (name) sessionStorage.removeItem(name); } catch { /* blocked storage */ } };
+
+export default function ForkButton({ source, title = '', resume = null, onForked, auto = false, signedIn, count = null, draft = null, variant = 'secondary', size, className = '' }) {
   const fork = useRef(null);
-  fork.current ||= forkAction();
+  fork.current ||= forkAction(undefined, () => pendingKey(keyName(source)));
+  const toSignIn = () => { window.location.href = `/login?next=${encodeURIComponent(`${resume || window.location.pathname}?fork=1`)}`; };
   const busy = useRef(false);
   const [phase, setPhase] = useState('idle'); // idle | busy | done
   const [counted, setCounted] = useState(null);
   const [naming, setNaming] = useState(null); // the dialog's name while it is open
-  const ask = () => { if (!busy.current) setNaming(title || ''); };
-  const run = async () => {
-    const name = naming;
+  const ask = () => { if (busy.current) return; if (signedIn === false) toSignIn(); else setNaming(title || ''); };
+  const run = async (name = naming) => {
     setNaming(null);
     if (busy.current) return; // a double click is one action
     busy.current = true;
@@ -31,16 +44,17 @@ export default function ForkButton({ source, title = '', resume = null, onForked
     try {
       const made = await fork.current({ source, title: name.trim(), draft: draft?.() || null });
       if (typeof made.source_fork_count === 'number') setCounted(made.source_fork_count);
+      dropKey(keyName(source));
       setPhase('done');
       setTimeout(() => setPhase('idle'), 1600);
       onForked?.(made);
     } catch (error) {
       setPhase('idle');
-      if (error.status === 401 && error.data?.signIn) { window.location.href = `/login?next=${encodeURIComponent(`${resume || window.location.pathname}?fork=1`)}`; return; }
+      if (error.status === 401 && error.data?.signIn && !auto) { toSignIn(); return; } // back from sign-in and still refused: no loop
       toast(error.message, { tone: 'error' });
     } finally { busy.current = false; }
   };
-  useEffect(() => { if (auto) ask(); }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (auto) run(''); }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
   const Icon = phase === 'busy' ? Loader2 : phase === 'done' ? Check : GitFork;
   const tip = phase === 'done' ? 'Forked: your copy is in your Library' : 'Fork: make your own editable copy in your Library';
   const label = phase === 'busy' ? 'Forking' : phase === 'done' ? 'Forked' : 'Fork';
@@ -50,11 +64,11 @@ export default function ForkButton({ source, title = '', resume = null, onForked
     <Button type="button" data-fork-button variant={variant} size={size} title={tip} aria-busy={phase === 'busy'} onClick={event => { event.stopPropagation(); ask(); }} className={className}
       aria-label={counts ? `${label}, ${forkLabel(n) || '0 forks'}` : undefined}>
       <Icon size={13} strokeWidth={1.8} className={phase === 'busy' ? 'animate-spin' : ''} />{label}
-      {counts && <span data-fork-count-value className="ml-0.5 border-l border-line pl-2 tabular-nums text-ink-2">{forkNumber(n)}</span>}
+      {counts && <span data-fork-count-value className={`ml-0.5 border-l pl-2 tabular-nums ${variant === 'primary' ? 'border-white/40 text-white' : 'border-line text-ink-2'}`}>{forkNumber(n)}</span>}
     </Button>
     {/* Portaled: a hovered card's lift transform would trap a fixed overlay inside the card. */}
     {naming !== null && createPortal(
-      <ConfirmDialog title="Fork this canvas" confirmLabel="Fork" confirmVariant="primary" onCancel={() => setNaming(null)} onConfirm={run}
+      <ConfirmDialog title="Fork this canvas" confirmLabel="Fork" confirmVariant="primary" onCancel={() => setNaming(null)} onConfirm={() => run()}
         body={<Input autoFocus aria-label="Name" maxLength={120} value={naming} onChange={event => setNaming(event.target.value)}
           onKeyDown={event => { if (event.key === 'Enter') run(); }} />} />, document.body)}
   </>;

@@ -271,14 +271,15 @@ await check('15 on a shared view-only canvas a click selects a card and shows it
   const desktop = page;
   page = guest.page;
   await page.goto(`${BASE}/b/${shared.sharing.view}`);
-  await page.locator('[data-start-rabbit-hole]').waitFor({ timeout: 30000 });
+  await page.locator('[data-shared-title]').waitFor({ timeout: 30000 });
   await page.waitForTimeout(1000);
   const box = await card('k-exp').boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + Math.min(40, box.height / 2));
   await page.waitForTimeout(300);
   // SHARE-02: a visitor selects on their temporary copy as on any canvas.
   assert.equal(await page.locator('[data-block-id="k-exp"][aria-current="true"]').count(), 1, 'the selected card');
-  assert.equal(await page.locator('[data-start-rabbit-hole]').getAttribute('data-origin'), 'k-exp', 'Start Rabbit Hole begins at the selected card');
+  // Owner header brief, 2026-10-22: no header Start Rabbit Hole button; the selection arms the card menu and the composer pill (below).
+  assert.equal(await page.locator('[data-start-rabbit-hole]').count(), 0, 'no header Start Rabbit Hole button');
   // Owner, 2026-10-08: the selected card's pill above the composer on a shared canvas too (selected-pill-check.mjs).
   assert.equal(await page.locator('[data-shared-ask] [data-selected-card]').getAttribute('data-selected-card'), 'k-exp', 'the card strip above the shared composer');
   const after = JSON.stringify((await api(owner, `/api/learn/boards/${A.name}/main`)).body?.state);

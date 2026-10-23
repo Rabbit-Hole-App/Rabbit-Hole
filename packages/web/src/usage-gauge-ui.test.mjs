@@ -149,9 +149,9 @@ test('the popover stays on screen: right-aligned under the gauge, slid inside a 
   assert.match(read('UsageGauge.jsx'), /style=\{shift \? \{ right: -shift \} : undefined\}/);
 });
 
-test('every canvas top bar carries the gauge; shared and member canvases show the viewer\'s own, and View usage reaches Settings', () => {
+test('the owner and member canvas top bars carry the gauge, the shared header does not (owner, 2026-10-22), and View usage reaches Settings', () => {
   assert.match(read('LearnPage.jsx'), /\{learnPreview && <UsageGauge \/>\}/);
-  assert.match(read('SharedBoardPage.jsx'), /\{learnPreview && <UsageGauge signedIn=\{!!shared\.viewer\} onViewUsage=\{goToUsageSettings\} \/>\}/);
+  assert.doesNotMatch(read('SharedBoardPage.jsx'), /UsageGauge/, 'no usage meter in the shared header');
   assert.match(read('comments/MemberBoardPage.jsx'), /<UsageGauge onViewUsage=\{goToUsageSettings\} \/>/);
   const gaugeSource = read('UsageGauge.jsx');
   assert.match(gaugeSource, /new CustomEvent\('small:settings', \{ detail: \{ tab: 'usage' \} \}\)/);
