@@ -12,7 +12,7 @@
 // requests the worker receives are logged too (route and basis), so a wrong trigger or a request loop shows in the counts.
 import { fixtureModel } from '../../control-plane/src/learn-journey-fixtures.js';
 
-export const PROVIDER_HOSTS = ['api.anthropic.com', 'api.openai.com', 'api.typesafe.ai', 'api.fish.audio', 'api.elevenlabs.io', 'api.heygen.com', 'api.exa.ai'];
+export const PROVIDER_HOSTS = ['api.anthropic.com', 'api.openai.com', 'api.typesafe.ai', 'api.fish.audio', 'api.elevenlabs.io', 'api.heygen.com', 'api.exa.ai', 'generativelanguage.googleapis.com'];
 export const FIXTURE_TOOLS = ['suggest_next_steps'];
 const hits = [], fixtures = [], hooks = [];
 const original = globalThis.fetch;

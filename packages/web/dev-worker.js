@@ -21,6 +21,8 @@ export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
 import { cadRoute } from '../control-plane/src/cad-jobs.js';
 export { ExplainJobs } from '../control-plane/src/explain-job.js';
+export { ImageJobs } from '../control-plane/src/image-jobs.js';
+import { imageJobsRoute } from '../control-plane/src/image-jobs.js';
 import { explainRoute } from '../control-plane/src/explain-job.js';
 import { fileJobsRoute } from '../control-plane/src/file-jobs.js';
 import SHELL from './dist-dev/index.html';
@@ -322,6 +324,8 @@ const routes = {
     // /explain v2 jobs (explain-job.js): 404 unless EXPLAIN_V2_ENABLED is 'true'.
     if (path.startsWith('/api/learn/explain/')) { const explained = await explainRoute(path, req, env); if (explained) return explained; }
     if (path.startsWith('/api/learn/code-runs')) { const codeRun = await inlineCodeRoute(path, req, env); if (codeRun) return codeRun; }
+    // IMG-01 durable image generation jobs (image-jobs.js): no new job unless IMAGE_GENERATE_ENABLED is 'true'.
+    if (path.startsWith('/api/learn/image-jobs')) { const imageGen = await imageJobsRoute(path, req, env); if (imageGen) return imageGen; }
     if (path.startsWith('/api/learn/files/image-edits')) { const imageJobs = await inlineImageJobsRoute(path, req, env); if (imageJobs) return imageJobs; }
     if (path.startsWith('/api/learn/files/')) { const jobs = await fileJobsRoute(path, req, env); if (jobs) return jobs; }
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
