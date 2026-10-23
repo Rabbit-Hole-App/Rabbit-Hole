@@ -307,9 +307,17 @@ await check('10 Share: Allow comments (on by default); published, Public comment
   await card('k-exp').waitFor({ timeout: 60000 });
   await page.locator('[data-share-button]').click();
   await share().locator('[data-comment-settings]').waitFor();
-  const allow = share().locator('[data-comment-settings]').getByRole('radio', { name: 'Allow comments' });
-  const viewOnly = share().locator('[data-comment-settings]').getByRole('radio', { name: 'View only' });
+  const invited = share().getByRole('radiogroup', { name: 'Invited people comments' });
+  const allow = invited.getByRole('radio', { name: 'Allow comments' });
+  const viewOnly = invited.getByRole('radio', { name: 'View only' });
   assert.equal(await allow.isChecked(), true);
+  // Owner decision 2026-10-22: the share link has its own Hidden / View only / Allow comments, Hidden by default, enforced by the server.
+  const linkGroup = share().getByRole('radiogroup', { name: 'Link comments' });
+  assert.equal(await linkGroup.getByRole('radio', { name: 'Hidden' }).isChecked(), true, 'link comments start Hidden');
+  await linkGroup.getByRole('radio', { name: 'View only' }).click();
+  await share().getByRole('tabpanel').getByText('Visitors with the share link see existing comments but cannot post.').waitFor();
+  await linkGroup.getByRole('radio', { name: 'Hidden' }).click();
+  await share().getByRole('tabpanel').getByText('Visitors with the share link see no comments.').waitFor();
   await share().getByRole('tabpanel').getByText('Sign in to post a comment.').waitFor();
   await share().getByRole('tab', { name: 'Explore' }).click();
   const publicComments = share().locator('[data-public-comments]');
