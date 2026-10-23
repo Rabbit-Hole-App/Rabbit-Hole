@@ -4,7 +4,8 @@ import ExplainEditBar from './ExplainEditBar.jsx';
 import { cadContext } from './cad-client.js';
 import { dropView, publishView } from './cad-viewer-store.js';
 import { holdViewerGestures } from './content-gestures.js';
-import { createContext, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { CardPromptControl, PromptSlot } from './CardPrompt.jsx';
 import { Check, ChevronLeft, ChevronRight, Code, Loader2, PenLine, Play, RotateCcw, Search, Volume2, X } from 'lucide-react';
 import { Md } from './ask.jsx';
 import { api, wsHeaders } from './api.js';
@@ -889,13 +890,20 @@ function Progress({ seconds, expected, label }) {
   );
 }
 
-function Kicker({ author = 'course', action = null, children }) {
+// The card header: its type label on the left; on the right the card's actions, the Prompt control (a card with a stored prompt:
+// hidden at rest, drawn on hover, focus or touch selection in a slot reserved beside the actions so nothing jumps) and, only for
+// a card with a real source badge (tutor, learner, PDF), that badge on hover as before. The generic "course" pill is gone
+// (owner correction 2026-10-23): a card by default has no top-right label at all.
+function Kicker({ author = null, action = null, children }) {
+  const slot = useContext(PromptSlot);
+  useLayoutEffect(() => { slot?.claim(true); return () => slot?.claim(false); }, [slot?.claim]);
   return (
     <div data-drag-zone className="-mx-4 -mt-3 mb-2 flex cursor-grab items-center justify-between px-4 pt-3 pb-1 active:cursor-grabbing">
       <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><span className="h-1.5 w-1.5 rounded-full bg-ink" />{children}</span>
       <span className="flex items-center gap-1">
         {action}
-        <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>
+        {slot?.text && <span className="relative inline-block h-[17px] w-[3.25rem]"><CardPromptControl text={slot.text} selected={slot.selected} className="absolute top-1/2 right-0 -translate-y-1/2" /></span>}
+        {author && <span className="rounded-full bg-ink px-2 py-px text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100">{author}</span>}
       </span>
     </div>
   );

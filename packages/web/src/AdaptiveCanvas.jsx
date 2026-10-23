@@ -1,7 +1,7 @@
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
-import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -41,7 +41,7 @@ import { objectKind, objectName, selectionName, selectionRef } from './selection
 import LearnWiki from './LearnWiki.jsx';
 import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
-import CardPrompt from './CardPrompt.jsx';
+import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -864,6 +864,9 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A practice section and the INTERACT row grow it the same way, by their
   // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
+  // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
+  const [slotted, setSlotted] = useState(false);
+  const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
   const [practiceHeight, setPracticeHeight] = useState(0);
   const [controlsHeight, setControlsHeight] = useState(0);
   // A YouTube moment (videoId) gets its own card; a hosted or generated clip
@@ -904,11 +907,11 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
           <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
         </div>
       )}
-      <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
+      <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
-      </PerfContext.Provider>
+      </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.promptUsed && <CardPrompt text={block.promptUsed} selected={selected} />}
+      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
     </CanvasNode>
   );
 }

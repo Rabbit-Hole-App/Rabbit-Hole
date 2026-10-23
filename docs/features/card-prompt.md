@@ -1,37 +1,48 @@
-# Card prompt (Show prompt)
+# Card prompt (the Prompt control)
 
-Owner request, 2026-10-20: every generated card gets a small toggle that shows the prompt used, a copy button and a
-small Add to chat icon. Owner decisions:
+Owner request, 2026-10-20: every generated card keeps the prompt used and lets the person copy it. Owner decisions:
 
 - The prompt is the words the person typed, never a system prompt or the full model request.
 - It covers every AI-generated card.
-- Cards made before this have no prompt, and their row is hidden.
+- Cards made before this have no prompt and show no control.
 - Anyone who can see the card can see the prompt (share links, forks and Explore), the same as chat questions.
 - Copy copies the prompt.
-- The chat icon puts the prompt in the Chat box to edit and send again. It never sends.
-- The prompt is hidden until asked for (owner brief, 2026-10-23, replacing the always-visible Prompt row): no row, no Copy
-  icon and no reserved height at rest.
+- Owner brief 2026-10-23 replaced the always-visible Prompt row, then the separate Show prompt button under the card, with one
+  control in the card's top-right slot (below). Owner correction 2026-10-23: the generic "course" label and pill are gone from
+  every card; nothing is drawn in that slot at rest.
 
 ## What it does
 
-`CardPrompt.jsx` draws nothing at rest. Hovering a card, focusing into it or selecting it (touch has no hover) shows a small
-**Show prompt** button over the card's foot, bottom left. It overlays the card, so the card never changes size.
+One shared component, `PromptControl` in `CardPrompt.jsx`, for cards and the Chat status alike.
 
-- **Show prompt** opens a panel over the card's foot with the typed words (complete; a long prompt scrolls inside, at most
-  160 px), Copy, the chat icon and **Hide**. It stays open until Hide or Escape: the pointer leaving never closes it.
-  The panel takes focus when it opens; Hide returns focus to Show prompt. It is closed on every load.
-- **Copy:** writes the complete prompt to the clipboard and says Copied or Copy failed beside the icon.
-- **Chat icon:** calls the Chat workspace's `composer.prepare({ text })`. Chat opens, and an empty draft becomes the
-  prompt. A written draft is kept, and the prompt follows it after a blank line, as for every prepare. Nothing is sent.
-  A line that starts with `/` runs as that command when the person sends it.
-- **View-only boards:** a share-link page has no Chat workspace, so it shows Copy only. The canvas pans with the hand
-  there and its cards take no pointer, so the viewer selects the card (a click) to get the button, which takes the
-  pointer back (`pointer-events-auto`).
+- **At rest:** nothing. No row, no button, no reserved height, and no "course" pill.
+- **Prompt control:** a small pill labelled **Prompt** in the card's top-right slot. It is drawn while the pointer is over the
+  card, while keyboard focus is inside the card (the card is reachable by Tab; Tab from it reaches Prompt), and while the card is
+  selected (touch has no hover). It never replaces a real badge: the tutor, learner and PDF source badges (a card the Tutor made,
+  a Whiteboard, a PDF excerpt) stay as they were, shown on hover, and Prompt sits beside them.
+- **Placement:** a card that draws a header (`Kicker` in `LearningBlocks.jsx`) gives Prompt a slot there, beside the card's
+  own actions, reserved so nothing moves when it appears. A card with no header (a chat card, CAD, an animation) gets the same
+  control at the right of its top drag strip (`CardPrompt`, default export). `PromptSlot` context lets the header claim the slot
+  so the control is drawn once.
+- **Click Prompt:** opens a small popover to the right of the card with the exact stored words and a **Copy** button. Near the
+  window's right edge it flips to the left of the card, and when neither side fits it overlays the card's edge kept inside the
+  window; it is always clamped vertically so it stays visible (`placePrompt`, a pure function). A long prompt scrolls inside it
+  (`data-scroll`, so the wheel scrolls the popover, not the canvas).
+- **Stays open** when the pointer leaves the card, so the words can be read, selected and copied. It closes on an outside press,
+  Escape (focus returns to Prompt), Tab out of it, or a wheel or window resize elsewhere (the canvas pans or zooms, so a popover
+  left behind would be detached). It is closed on every load.
+- **Canvas zoom and clipping:** the popover is portalled to `document.body` and positioned from `getBoundingClientRect`, so the
+  zoom-scaled, overflow-clipped canvas never distorts or hides it. Its pointer events do not reach the card (no select, drag or
+  open).
+- **Copy:** writes the complete prompt, unchanged, and says **Copied**; if the clipboard refuses it says **Copy failed**.
+- **Read only:** opening and Copy generate nothing, change nothing on the card and do not open or fill the Chat. There is no
+  "put in chat" action. A share-link viewer sees the same Prompt and Copy.
 - **No stored prompt:** no control at all.
-- **Chat status:** the "Generating on the canvas" line above the Chat uses the same reveal (`PromptReveal`). A `/cad`
-  line shows the lowercase `cad` pill (no slash) and hides the words until Show prompt; Copy keeps the original
-  `/cad <prompt>` line. The CAD confirmation (`PaidConfirm`) shows the `cad` pill and the visible prompt: it is what the
-  person approves. `/cad` stays unchanged internally.
+- **Chat status:** the "Generating on the canvas" line above the Chat uses the same control, with the same wording and
+  popover. It is hidden at rest and drawn on hover, keyboard focus in the row or a tap on touch; the job status words, elapsed
+  time, Go to card and the lowercase `cad` pill stay visible always. A `/cad` line shows the `cad` pill and the popover
+  holds the words after `/cad`; Copy writes the original `/cad <prompt>` line. The CAD confirmation (`PaidConfirm`) shows the
+  `cad` pill and the visible prompt: it is what the person approves. `/cad` stays unchanged internally.
 
 ## Where the prompt comes from
 
@@ -61,23 +72,16 @@ A copied, duplicated or Alt-dragged card keeps its prompt. A fork keeps it.
 - **CAD recovery:** a CAD card rebuilt from the job list (the card was missing from the board) has no prompt. Only an
   Accept answer carries one.
 
-## Verification (2026-10-20; reveal 2026-10-23)
+## Verification (2026-10-20; Prompt control 2026-10-23)
 
-- Unit: `card-prompt-reveal.test.mjs` (rest, hover/focus/selected, open, stays open, Hide and Escape, full Copy, no prompt, the Chat
-  status and its `cad` pill) and `paid-confirm.test.mjs`. Browser (run by the owner, not by Claude): `card-prompt-check.mjs` and
-  `chat-outputs-check.mjs`, edited for the reveal.
-
-- Unit: `learn-slash.test.mjs` covers:
-  - the typed line on a command card;
-  - the learner's words on Tutor cards, and none on a hook click;
-  - the line handed to `/cad`.
-
-  `inline-ai-apply.test.mjs` covers the Ctrl+K card, and `learn-journey-materialize.test.mjs` covers journey steps and
-  a paid proposal.
-- Browser: `e2e/card-prompt-check.mjs`, 10 steps on the local stack with the board save real. It covers:
-  - `/explain` and `/cad` (polled);
-  - a CAD edit that is rejected, then one that is accepted;
-  - opening the row, Copy, and putting the prompt in chat without sending;
-  - a corner resize with no jump at release;
-  - the server copy, a fresh browser and a share-link viewer.
-  No model is called: the artifact and CAD routes are answered in the browser.
+- Unit: `card-prompt-reveal.test.mjs`: rest, hover/focus/touch selection, the popover (portalled, exact text, stays open, outside
+  press, Escape, wheel), no event reaches the card and no request is made, full Copy and Copy failed, no prompt means no control,
+  `placePrompt` right/left/over/vertical clamps and the measured placement, the real card bodies (explanation, table, challenge,
+  quiz, flashcards) with no "course" pill and the tutor badge kept, and the Chat status with its `cad` pill. Also
+  `paid-confirm.test.mjs`, `learn-slash.test.mjs`, `inline-ai-apply.test.mjs` and `learn-journey-materialize.test.mjs`.
+- Browser (run by the owner, not by Claude): `e2e/card-prompt-check.mjs` (12 steps, local stack, board save real): `/explain` and
+  `/cad` cards, rejected and accepted CAD edits, Prompt on hover and by keyboard, the popover beside the card, Copy, nothing sent,
+  a corner resize, the server copy, a fresh browser and a share-link viewer; `e2e/chat-outputs-check.mjs`: the Chat status control and
+  popover; `e2e/primary-button-contrast-check.mjs` (fork runner, both themes): Prompt on explanation, table, quiz and chat cards by
+  hover, Tab and a touch tap, 4.5:1 for the control and the popover text. No model is called.
+- Unverified in a browser by Claude: real hover, layout, the popover's position at the window edges, and the canvas zoom.

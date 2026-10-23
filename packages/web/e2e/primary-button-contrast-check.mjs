@@ -8,6 +8,10 @@
 // Not here (no route in the keyless stack reaches them; primary-button.test.mjs pins their classes and the fill's ratio):
 // chat Run (an agent proposal), Search's Add to canvas, Check answer and Play Lesson 1 (lesson plan preview), and Invite
 // (Share's People with access needs the comments worker, comments-invite-check).
+// Prompt control (owner brief and correction 2026-10-23, docs/features/card-prompt.md): on an explanation, a table, a quiz and a chat card
+// that each hold a stored prompt, in both themes: nothing at rest (and no "course" word), Prompt drawn by hover and by keyboard focus (Tab
+// from the focused card reaches it, with a focus ring), 4.5:1 for the control and for the popover text, the popover holds the exact
+// prompt inside the window, and a touch tap that selects the card draws it. Escape closes the popover. Nothing is generated.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<cp .dev.vars>] node e2e/primary-button-contrast-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -41,6 +45,20 @@ const view = (await post(owner, `/api/learn/boards/${mine.name}/main/share`, { s
 const theirs = await post(other, '/api/canvases', { title: TITLE.theirs });
 await api(other, `/api/learn/boards/${theirs.name}/main`, { method: 'PUT', body: JSON.stringify({ state: STATE('Ellipses') }) });
 await post(other, `/api/apps/${theirs.name}/publish`);
+// One saved canvas per card family, each card holding its stored prompt (the board is real; no model is called).
+const PROMPT_CARDS = [
+  ['explanation', { id: 'pc-explain', type: 'explanation', title: 'Why softmax', body: 'It turns scores into probabilities.', dx: 0, dy: 0, promptUsed: '/explain why softmax uses an exponential' }],
+  ['table', { id: 'pc-table', type: 'table', title: 'Sigmoid vs tanh', columns: ['', 'Sigmoid', 'Tanh'], rows: [['Range', '(0, 1)', '(-1, 1)']], dx: 0, dy: 0, promptUsed: '/compare sigmoid vs tanh' }],
+  ['quiz', { id: 'pc-quiz', type: 'quiz', question: 'What does softmax return?', options: [{ key: 'a', text: 'Probabilities', correct: true }, { key: 'b', text: 'Logits' }], dx: 0, dy: 0, promptUsed: '/quiz softmax in one question' }],
+  ['chat', { id: 'pc-chat', question: 'What does softmax do to scores?', answer: 'It turns them into probabilities.', status: 'done', linkFrom: null, dx: 0, dy: 0 }],
+];
+const promptBoards = {};
+for (const [family, card] of PROMPT_CARDS) {
+  const canvas = await post(owner, '/api/canvases', { title: `Prompt ${family} ${run}` });
+  const chat = family === 'chat';
+  await api(owner, `/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: chat ? [card] : [], blocks: chat ? [] : [card] } }) });
+  promptBoards[family] = { name: canvas.name, id: card.id, text: chat ? card.question : card.promptUsed };
+}
 const goalsOf = async () => (await api(owner, `/api/learn/coaching?app=${mine.name}&board=main`)).state.goals.filter(goal => goal.lifecycle !== 'archived');
 
 const PRIMARY = 'rgb(27, 111, 194)', HOVER = 'rgb(22, 92, 163)';
@@ -50,8 +68,8 @@ const modelRoute = (path, method) => path === '/api/learn/ask' || path === '/api
   || path === '/api/learn/home-ask' || path === '/api/ask' || path.startsWith('/api/learn/inline') || (path === '/api/learn/journey' && method === 'POST');
 // A press released off the button must not click it: a publish or a fork would be the proof that it did.
 const clickRoute = (path, method) => method !== 'GET' && (/^\/api\/apps\/[^/]+\/publish$/.test(path) || path === '/api/learn/boards/fork');
-const contextFor = async (who, theme) => {
-  const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
+const contextFor = async (who, theme, extra = {}) => {
+  const context = await browser.newContext({ viewport: { width: 1600, height: 900 }, ...extra });
   if (who) await context.addCookies([{ name: 'small_session', value: who.session, url: BASE }]);
   await context.addInitScript(t => localStorage.setItem('small.theme', t), theme);
   await context.route('**/api/**', route => {
@@ -65,7 +83,7 @@ const contextFor = async (who, theme) => {
   return { context, page };
 };
 
-const total = 11;
+const total = 21;
 const results = [];
 const check = async (label, fn, page) => {
   try { await fn(); results.push({ label, ok: true }); console.log(`ok ${label}`); }
@@ -209,6 +227,60 @@ for (const theme of ['light', 'dark']) {
     await themed(page, theme);
     await states(page, card.locator('[data-card-start-rabbit-hole]'), 'Start Rabbit Hole', theme, PRIMARY);
   }, page);
+
+  for (const [family, board] of Object.entries(promptBoards)) {
+    await check(`${theme}: the ${family} card's Prompt control is hidden at rest, drawn by hover and by Tab from the focused card, clears 4.5:1, and opens the exact prompt inside the window`, async () => {
+      await page.goto(`${BASE}/apps/${board.name}`);
+      const card = page.locator(`[data-block-id="${board.id}"]`), button = card.locator('[data-card-prompt-button]'), popover = page.locator('[data-card-prompt]');
+      await card.waitFor({ timeout: 60000 });
+      await themed(page, theme);
+      await page.mouse.move(1, 1);
+      assert.equal(await button.count(), 0, 'hidden at rest');
+      assert.doesNotMatch(await card.innerText(), /course/i, 'no course word on the card');
+      await card.hover();
+      await button.waitFor();
+      assert.equal(await button.innerText(), 'Prompt');
+      assert.doesNotMatch(await card.innerText(), /course/i, 'hovered, the slot holds Prompt and not course');
+      const hovered = await settled(button);
+      assert.ok(hovered.ratio >= 4.5, `${theme} ${family} Prompt: ${hovered.ratio.toFixed(2)}:1 (${hovered.fg} on ${hovered.bg})`);
+      await page.mouse.move(1, 1);
+      await until(async () => (await button.count()) === 0, 'Prompt leaves with the pointer');
+      await card.focus(); // the card is reachable by Tab; focus inside it draws Prompt, one Tab further reaches it
+      await button.waitFor();
+      let reached = false;
+      for (let n = 0; n < 12 && !reached; n++) { await page.keyboard.press('Tab'); reached = await page.evaluate(() => document.activeElement?.hasAttribute('data-card-prompt-button')); }
+      assert.ok(reached, 'Tab reaches Prompt');
+      const focused = await settled(button);
+      assert.ok(focused.outline.style !== 'none' && focused.outline.width >= 1 && focused.outline.color > 0, `a visible focus ring (${JSON.stringify(focused.outline)})`);
+      await page.keyboard.press('Enter');
+      await popover.waitFor();
+      assert.equal(await popover.locator('[data-card-prompt-text]').innerText(), board.text);
+      const box = await popover.boundingBox(), view = page.viewportSize();
+      assert.ok(box.x >= 0 && box.y >= 0 && box.x + box.width <= view.width && box.y + box.height <= view.height, 'inside the window');
+      const text = await settled(popover.locator('[data-card-prompt-text]'));
+      assert.ok(text.ratio >= 4.5, `${theme} ${family} popover text: ${text.ratio.toFixed(2)}:1`);
+      await page.keyboard.press('Escape');
+      await popover.waitFor({ state: 'detached' });
+      if (SHOTS) await page.screenshot({ path: `${SHOTS}/${theme}-prompt-${family}.png` }).catch(() => {});
+    }, page);
+  }
+
+  const touch = await contextFor(owner, theme, { hasTouch: true });
+  await check(`${theme}: on a touch screen a tap that selects the card draws Prompt, and a second tap opens the exact prompt`, async () => {
+    const board = promptBoards.explanation;
+    await touch.page.goto(`${BASE}/apps/${board.name}`);
+    const card = touch.page.locator(`[data-block-id="${board.id}"]`), button = card.locator('[data-card-prompt-button]');
+    await card.waitFor({ timeout: 60000 });
+    assert.equal(await button.count(), 0, 'hidden at rest');
+    const box = await card.boundingBox();
+    await touch.page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await button.waitFor();
+    const target = await button.boundingBox();
+    await touch.page.touchscreen.tap(target.x + target.width / 2, target.y + target.height / 2);
+    await touch.page.locator('[data-card-prompt] [data-card-prompt-text]').waitFor();
+    assert.equal(await touch.page.locator('[data-card-prompt] [data-card-prompt-text]').innerText(), board.text);
+  }, touch.page);
+  await touch.context.close();
 
   const guest = await contextFor(null, theme);
   // Owner header brief, 2026-10-22: the header has no Sign in button; Fork is the primary there and carries the sign-in.
