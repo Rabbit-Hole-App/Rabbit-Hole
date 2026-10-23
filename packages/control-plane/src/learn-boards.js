@@ -129,7 +129,7 @@ export const THUMBNAIL_LIMIT = 1024 * 1024;
 const thumbnailObject = (boardId, source) => `learn-thumbnails/${boardId}/${source}`;
 const THUMBNAIL_HEADERS = { 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff' };
 
-// The custom picture, else the snapshot (`sources`: a public view link serves the custom one only). 204 when there is none, so a card's <img> quietly keeps its placeholder;
+// The custom picture, else the snapshot (`sources`: a public view link or Explore serves the custom one only). 204 when there is none, so a card's <img> quietly keeps its placeholder;
 // 304 when the browser's copy is current (ETag).
 async function serveThumbnail(req, env, boardId, sources = ['custom', 'snapshot']) {
   const media = learnMedia(env);
