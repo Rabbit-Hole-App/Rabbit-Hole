@@ -214,7 +214,9 @@ test('/i keeps the token out of the address: fragment to session storage, then t
 
 test('increment 3 seams: /i and /c routes, served no-referrer and no-store; the invitation page never puts the token anywhere else', () => {
   const main = read('../main.jsx'), worker = read('../../dev-worker.js'), invite = read('./InvitePage.jsx');
-  assert.match(main, /: memberBoard \? <Suspense fallback=\{null\}><MemberBoardPage boardId=\{memberBoard\[1\]\} \/>/);
+  // While its code loads, a member's canvas shows its own loading shell (CanvasLoading.jsx, owner brief 2026-10-23).
+  assert.match(main, /const loading = sharedBoard \? <SharedCanvasLoading \/> : memberBoard \? <MemberCanvasLoading \/> : null;/);
+  assert.match(main, /: memberBoard \? <Suspense fallback=\{loading\}><MemberBoardPage boardId=\{memberBoard\[1\]\} \/>/);
   assert.match(main, /: invitation \? <Suspense fallback=\{null\}><InvitePage \/><\/Suspense>/);
   assert.match(worker, /if \(path === '\/i' \|\| [^\n]+\{\n\s+return new Response\(SHELL, \{ headers: \{ 'Content-Type': 'text\/html;charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' \} \}\);/);
   assert.match(invite, /history\.replaceState\(null, '', '\/i'\)/);

@@ -5,12 +5,10 @@ import { canvasEditMenus, localInsertItems } from './canvas-menus.js';
 import { typingIn } from './canvas-equation.js';
 import { can } from './canvas-permissions.js';
 import { CommentsToggle, PanelToggle, SharedPanel, ViewerAccount, useSharedPanel } from './SharedCanvasShell.jsx';
-import logoBlack from './assets/rabbit-hole-black.png';
-import logoWhite from './assets/rabbit-hole-white.png';
 import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { docIsEmpty } from './canvas-doc.js';
-import { ChevronDown, ExternalLink, Eye, GitFork, Menu as MenuIcon, MessageCircle, Shapes } from 'lucide-react';
+import { ChevronDown, Eye, GitFork, Menu as MenuIcon, MessageCircle, Shapes } from 'lucide-react';
 import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
@@ -24,7 +22,6 @@ import { carryStep, keepPendingStep, takePendingStep } from './learn-next-steps.
 import { markGuidedEntry } from './learn-opening.js';
 import { useSharedNextSteps } from './LearnNextSteps.jsx';
 import { describeBlock } from './LearningBlocks.jsx';
-import { PRODUCT } from './flags.js';
 import { creatorLabel } from './home/provenance.js';
 import { NextStepsCard } from './ask.jsx';
 import SharedChat from './SharedChat.jsx';
@@ -39,6 +36,7 @@ import { uiPrefs } from './ui-prefs.js';
 import { useGuestDraft } from './guest-draft.js';
 import { canvasOwnsWheel, focusAfter, leftoverZoom, fullHref, handoffHost, receiveHandoff, sharedRole } from './embed-api.js';
 import { forkNumber } from './home/provenance.js';
+import { CanvasChromeLoading, EMBED_BODY, EMBED_CANVAS, EMBED_HEADER, EMBED_MAIN, EmbedCanvasLoading, EmbedOpenLink, GUEST_NOTE, GUEST_NOTE_BOX, SHARED_HEADER, SHARED_HEADER_CENTER, SHARED_HEADER_LEFT, SHARED_HEADER_RIGHT, SHARED_MAIN, SHARED_SECTION, SHARED_TITLE_ROW, SharedBrand, SharedCanvasLoading, VIEWER_CANVAS } from './CanvasLoading.jsx';
 
 const AdaptiveCanvas = lazy(() => import('./AdaptiveCanvas.jsx'));
 // Missing exchanges are valid in older/shared boards. Keep the Search subscription input stable.
@@ -57,7 +55,7 @@ const EMPTY_EXCHANGES = Object.freeze([]);
 export default function SharedBoardPage(props) {
   const [waiting, setWaiting] = useState(() => !props.embed && new URLSearchParams(window.location.search).get('from') === 'embed' && !!window.opener);
   useEffect(() => { if (waiting) receiveHandoff(window, props.token, (() => { try { return window.sessionStorage; } catch { return null; } })()).then(() => setWaiting(false), () => setWaiting(false)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  if (waiting) return <main className="grid h-screen place-items-center bg-white text-sm text-ink-2">Opening the board</main>;
+  if (waiting) return <SharedCanvasLoading />;
   return <SharedBoard {...props} />;
 }
 
@@ -222,7 +220,7 @@ function SharedBoard({ token, embed = null }) {
 
   const openHref = embed ? fullHref(window.location.origin, embed.kind, token) : null;
   // The fallback is always there, even when the canvas cannot be shown (embed): the full site is one click away.
-  const openLink = openHref && <a data-embed-open href={openHref} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-md px-1 text-sm text-ink underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">Open in Rabbit Hole<ExternalLink size={12} aria-hidden /></a>;
+  const openLink = openHref && <EmbedOpenLink href={openHref} />;
   if (problem) {
     return (
       <main {...(embed ? { 'data-embed-root': '' } : {})} className="grid h-screen place-items-center bg-white p-6">
@@ -234,7 +232,8 @@ function SharedBoard({ token, embed = null }) {
       </main>
     );
   }
-  if (!shared) return <main {...(embed ? { 'data-embed-root': '' } : {})} className="grid h-screen place-items-center bg-white text-sm text-ink-2">{embed ? <span className="flex flex-col items-center gap-2">Opening the board{openLink}</span> : 'Opening the board'}</main>;
+  // Loading: the surface's own shell (CanvasLoading.jsx, owner brief 2026-10-23), the embed's compact one with Open in Rabbit Hole.
+  if (!shared) return embed ? <EmbedCanvasLoading embed={embed} href={openHref} /> : <SharedCanvasLoading />;
   const { exchanges = EMPTY_EXCHANGES, ...board } = shared.state || {};
   const hasDoc = !!board.doc && !docIsEmpty(board.doc);
   // The normal canvas's menubar (canvas-menus.js): View always; Insert's local rows, Edit and Arrange once the canvas is
@@ -246,7 +245,7 @@ function SharedBoard({ token, embed = null }) {
   ];
   // An embed has no Start Rabbit Hole, no Next Steps (a model call) and no map; its Ask in Chat target is only used when Chat is on.
   const canvasEl = (
-    <Suspense fallback={null}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
+    <Suspense fallback={<CanvasChromeLoading tools={localCopy} />}><SearchContentProvider key={search.scopeKey} registry={search.registry}><CardSourceScope.Provider value={cardScope}><DivePortals.Provider value={holes ? { portals: holes.portals, enter: goTo } : null}>
       <AdaptiveCanvas {...commentProps} permissions={permissions} apiRef={canvasApi} exchanges={exchanges} onMove={() => {}} appName={shared.app} docView={hasDoc ? docView : 'canvas'} onState={onCanvasState} onStartRabbitHole={embed ? undefined : startFromCard}
         {...(localCopy ? { localCopy: true, boardState: guest.state || board, onSave: guest.save } : { readOnly: true, boardState: board })}
         gutterTop={holes ? <DiveNavigator tree={holes.tree} climb={index => goTo(holes.tree.path[index].href)} enter={goTo} /> : null}
@@ -259,8 +258,8 @@ function SharedBoard({ token, embed = null }) {
     const count = shared.fork_count;
     const button = 'inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-line bg-white px-2.5 text-sm text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-accent/60';
     return (
-      <main data-embed-root data-embed-kind={embed.kind} className="relative flex h-screen min-h-0 flex-col bg-white">
-        <header className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line px-3 py-1.5">
+      <main data-embed-root data-embed-kind={embed.kind} className={EMBED_MAIN}>
+        <header className={EMBED_HEADER}>
           <span data-embed-title title={title} className="min-w-24 flex-1 truncate text-sm font-semibold text-ink">{title}</span>
           {guest.edited && <span data-guest-draft-notice role="status" className="shrink-0 text-xs text-ink-2 max-sm:hidden">Changes aren't saved. Fork to keep them.</span>}
           {embed.chat && <button type="button" data-embed-chat-button aria-pressed={chatOpen} onClick={() => setChatOpen(open => !open)} className={`${button} ${chatOpen ? 'bg-hover' : ''}`}><MessageCircle size={13} strokeWidth={1.8} aria-hidden />Chat</button>}
@@ -279,7 +278,7 @@ function SharedBoard({ token, embed = null }) {
             <button type="button" aria-label="Dismiss" onClick={() => setHandoffFailed(null)} className="rounded-md px-1.5 py-1 text-ink-3 hover:bg-active hover:text-ink">Dismiss</button>
           </div>
         )}
-        <div className="relative flex min-h-0 flex-1">
+        <div className={EMBED_BODY}>
           <EmbedCanvasFrame>{canvasEl}</EmbedCanvasFrame>
           {embed.chat && chatOpen && (
             <aside data-embed-chat-panel aria-label="Chat" className="flex min-w-0 shrink-0 flex-col border-l border-line bg-white px-4 pt-3 pb-4 max-md:absolute max-md:inset-0 max-md:z-30 md:w-[340px]">
@@ -294,19 +293,16 @@ function SharedBoard({ token, embed = null }) {
   // Below lg the panel stacks under the canvas and the page scrolls, as the owner's canvas does (LearnPage): the canvas keeps a real
   // working height (75dvh), so the tools column and the minimap fit inside it instead of spilling over the header.
   return (
-    <main className="flex h-screen bg-white max-lg:flex-col max-lg:overflow-y-auto">
-      <section aria-label="Shared canvas" className="@container flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
+    <main className={SHARED_MAIN}>
+      <section aria-label="Shared canvas" className={SHARED_SECTION}>
       {/* Three areas (owner header brief, 2026-10-22): the logo; the title with its menus and creator, centred on the header; Fork
           with its note, then the panel toggle. Equal side columns keep the centre put whatever the right side holds. */}
-      <header data-canvas-header className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-x-2 gap-y-1 px-3 py-2 @5xl:grid-cols-[minmax(17rem,1fr)_minmax(0,auto)_minmax(17rem,1fr)] @5xl:gap-x-3 @5xl:px-4">
-        <div className="col-start-1 row-start-1 flex min-w-0 items-center @5xl:col-auto @5xl:row-auto">
-          <a href="/" data-shared-brand className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 h-11 w-11 justify-center @5xl:h-8 @5xl:w-8 @5xl:justify-start" aria-label={`${PRODUCT} home`}>
-            <img src={logoBlack} alt="" width="32" height="32" className="h-8 w-8 dark:hidden" />
-            <img src={logoWhite} alt="" width="32" height="32" className="hidden h-8 w-8 dark:block" />
-          </a>
+      <header data-canvas-header className={SHARED_HEADER}>
+        <div className={SHARED_HEADER_LEFT}>
+          <SharedBrand data-shared-brand />
         </div>
-        <div data-header-center className="col-span-3 row-start-2 flex min-w-0 flex-col items-center @5xl:col-span-1 @5xl:col-auto @5xl:row-auto">
-          <div className="flex min-w-0 max-w-full items-center gap-2">
+        <div data-header-center className={SHARED_HEADER_CENTER}>
+          <div className={SHARED_TITLE_ROW}>
             {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
             <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
             {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
@@ -324,13 +320,13 @@ function SharedBoard({ token, embed = null }) {
               ? <a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className="rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60">@{shared.creator.handle}</a>
               : creatorLabel(shared.creator)}</span>}
         </div>
-        <div className="col-start-3 row-start-1 flex min-w-0 items-start justify-end gap-2 @5xl:col-auto @5xl:row-auto [&_[data-comments-header]]:h-11 [&_[data-comments-header]]:w-11 [&_[data-panel-toggle]]:h-11 [&_[data-panel-toggle]]:w-11 @5xl:[&_[data-comments-header]]:h-8 @5xl:[&_[data-comments-header]]:w-8 @5xl:[&_[data-panel-toggle]]:h-8 @5xl:[&_[data-panel-toggle]]:w-8">
+        <div className={SHARED_HEADER_RIGHT}>
           <ViewerAccount viewer={shared.viewer} />
           {/* Fork, the one primary action; signed out it goes through sign-in and forks on return. The note sits directly beneath it
               in the temporary-edit experience only, never for an owner's saved editing view. */}
           <div className="flex shrink-0 flex-col items-end gap-1">
             <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="min-h-11 @5xl:min-h-8" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
-            {localCopy && <span data-guest-draft-notice role="note" className="max-w-36 text-right text-xs leading-tight text-ink-2">Changes aren't saved. Fork to keep them</span>}
+            {localCopy && <span data-guest-draft-notice role="note" className={`${GUEST_NOTE_BOX} text-ink-2`}>{GUEST_NOTE}</span>}
           </div>
           <CommentsToggle panel={panel} comments={comments} />
           <PanelToggle panel={panel} />
@@ -339,7 +335,7 @@ function SharedBoard({ token, embed = null }) {
       {/* Start Rabbit Hole has no header button (owner header brief, 2026-10-22): its choice dialog and one-start guard serve the card
           menu, the selection and Next Steps hooks, and the return from sign-in. */}
       <StartRabbitHole token={token} state={shared.state} title={shared.title || shared.board} resume={rabbitRequested} startRef={rabbitStart} askRef={rabbitAsk} />
-      <div className="relative min-h-0 min-w-0 flex-1 max-lg:h-[75dvh] max-lg:flex-none" aria-label="Lesson canvas">
+      <div className={VIEWER_CANVAS} aria-label="Lesson canvas">
         {canvasEl}
       </div>
       </section>
@@ -495,5 +491,5 @@ function EmbedCanvasFrame({ children }) {
       window.removeEventListener('blur', leave);
     };
   }, []);
-  return <div ref={frame} data-embed-canvas role="region" aria-label="Lesson canvas" className="relative min-h-0 min-w-0 flex-1">{children}</div>;
+  return <div ref={frame} data-embed-canvas role="region" aria-label="Lesson canvas" className={EMBED_CANVAS}>{children}</div>;
 }

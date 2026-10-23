@@ -18,47 +18,7 @@ import { RunForm, RunPeek, RunsDb, RunView } from './run.jsx';
 import Shell from './Shell.jsx';
 import { Avatar, Button, Chk, ConfirmDialog, EmptyState, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Pill, Select, ShareInput, SkeletonRows, Tabs, TabsContent, TabsList, TabsTrigger, Tip, cn, toast } from './ui.jsx';
 import { personLabel } from './session-display.js';
-
-// Refreshing into Learn must not flash the app-page row skeleton.
-function LearnLoading() {
-  return (
-    <main role="status" aria-label="Loading Learn" className="flex min-w-0 flex-1 overflow-hidden max-lg:flex-col">
-      <section className="min-h-0 min-w-0 flex-1">
-        <div className="mx-auto flex h-full w-full min-h-0 flex-col px-8 py-6">
-          <div className="flex items-baseline gap-3 pt-1 pb-4">
-            <h1 className="text-2xl font-semibold">Learn</h1>
-            <i className="block h-4 w-40 rounded-xs bg-hover" />
-          </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden">
-            <div className="mx-auto mt-10 w-full max-w-[380px] space-y-5">
-              {[0, 1].map(row => (
-                <div key={row} className="rounded-xl border border-line bg-white p-4 shadow-sm">
-                  <div className="mb-3 flex justify-end"><i className="block h-6 w-40 rounded-xl bg-hover" /></div>
-                  <div className="space-y-2 border-t border-line pt-3">
-                    <i className="block h-3 w-full rounded-xs bg-hover" />
-                    <i className="block h-3 w-5/6 rounded-xs bg-hover" />
-                    <i className="block h-3 w-2/3 rounded-xs bg-hover" />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="absolute top-1/2 right-2 flex -translate-y-1/2 flex-col gap-1 rounded-xl border border-line bg-white p-1 shadow-md">
-              {Array.from({ length: 6 }, (_, i) => <i key={i} className="block h-8 w-8 rounded-lg bg-hover" />)}
-            </div>
-          </div>
-          <div className="relative min-h-11 shrink-0 pt-3">
-            <i className="absolute bottom-0 left-0 block h-8 w-28 rounded-lg bg-hover" />
-            <div className="mx-auto h-10 w-full max-w-[504px] rounded-xl border border-line bg-white shadow-sm" />
-          </div>
-        </div>
-      </section>
-      <aside className="w-[480px] shrink-0 border-l border-line px-5 pt-6 max-lg:hidden">
-        <i className="mb-3 block h-1.5 w-full rounded-full bg-hover" />
-        <i className="block h-7 w-56 rounded-full bg-hover" />
-      </aside>
-    </main>
-  );
-}
+import { CanvasPageLoading } from './CanvasLoading.jsx';
 
 const Runbook = lazy(() => import('./RunbookEditor.jsx'));
 // Preview-only project page. A static import would keep the top-level code of its Agent Bar imports (agent/bar.js,
@@ -614,15 +574,15 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
       </div>
     </>
   );
-  // Refreshing straight into Learn showed the app-page row skeleton for a
-  // beat; wait on a canvas-shaped placeholder instead.
-  if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <LearnLoading />;
+  // Refreshing straight into a canvas showed the app-page row skeleton for a beat; wait on the canvas's own shell instead
+  // (CanvasLoading.jsx, owner brief 2026-10-23: never the retired Learn page).
+  if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <CanvasPageLoading />;
   if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} onCatalog={reloadShell} /></Suspense>;
   // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
   // would reach apiAsk on the live D1, so the preview never mounts Learn for them, and the dev worker
   // refuses them (canvases.js refuseLiveLearnAsk).
   // A canvas opens Learn directly, behind its not-in-this-browser gate (WP6).
-  if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <Suspense fallback={<LearnLoading />}><CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} /></Suspense>;
+  if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <Suspense fallback={<CanvasPageLoading />}><CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} /></Suspense>;
   return (
     <main className={cn('flex-1', graphFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left;
