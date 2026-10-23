@@ -2,6 +2,7 @@
 // meta (answer_meta live, the saved meta on reload) and GenerationProposalCard draws it under that answer. Pure helpers here:
 // which version is live, what a chat turn sends so the server can propose (and revise the live one), and the card Generate adds.
 import { motionContext } from './learn-slash.js';
+import { commandDefinition, fieldsFor } from './generation-confirmation-schema.js';
 
 const proposalOf = m => (m?.role === 'assistant' && m.meta?.proposal?.proposal_id ? m.meta.proposal : null);
 // Each proposal's newest version in the conversation: a refinement in chat is a later message with the same id.
@@ -36,15 +37,24 @@ const ADAPTERS = {
 export const proposalBlock = p => ADAPTERS[p?.command]?.(p) ?? null;
 // /explain (EXP-T20, Lane C): no card to add, because the job's card already waits on its canvas; Generate approves that job.
 export const approvesJob = p => p?.command === 'explain' && typeof p.input?.job === 'string' && !proposalBlock(p);
+// How a proposal starts, by its command's adapter: 'output' (add the output card, needs ops.insertCard), 'job' (approve the existing job, needs
+// ops.approveExplain) or null (this build cannot start it). Generate is enabled by THIS, never by one command's adapter.
+export const startAdapter = (p, ops) => (proposalBlock(p) ? (ops?.insertCard ? 'output' : null) : approvesJob(p) ? (ops?.approveExplain ? 'job' : null) : null);
 // MOT-22: a settings save the server refused because the proposal changed: the learner's choice (draft) beside the latest
 // (current). here: the latest is this answer's card, so it shows it and Use mine saves the draft from it; retryable: not generated.
 // -> null for any other failure.
 export function settingsConflict(problem, draft, messageId) {
   const current = problem?.status === 409 ? problem.data?.current : null;
   if (!current) return null;
-  const used = problem.data.code === 'proposal_used', seconds = s => `${s?.duration_seconds} seconds`;
+  const used = problem.data.code === 'proposal_used', say = s => settingsText(current.command, s);
+  const noun = commandDefinition(current.command)?.noun || 'result';
   return { draft, current, here: String(problem.data.current_message_id) === String(messageId), retryable: !used,
-    message: used ? `Not saved: this proposal already made a video. Your choice was ${seconds(draft)}.` : `Not saved: this proposal changed meanwhile. Latest: ${seconds(current.settings)} (version ${current.version}). Yours: ${seconds(draft)}.` };
+    message: used ? `Not saved: this proposal already made ${/^[aeiou]/.test(noun) ? 'an' : 'a'} ${noun}. Your choice was ${say(draft)}.` : `Not saved: this proposal changed meanwhile. Latest: ${say(current.settings)} (version ${current.version}). Yours: ${say(draft)}.` };
+}
+// A command's settings in words, from the schema (each field that applies and is available, by its option label or value and unit).
+export function settingsText(command, settings) {
+  return fieldsFor(command, settings || {}).filter(f => f.available !== false && settings?.[f.key] !== undefined && settings[f.key] !== null && f.type !== 'parameter_group')
+    .map(f => { const v = settings[f.key]; return f.options?.find(o => o.value === v)?.label ?? (f.type === 'boolean' ? (v ? 'on' : 'off') : `${v}${f.unit ? ` ${f.unit}` : ''}`); }).join(', ');
 }
 // A chat refinement that lost to another revision: its text, kept with the answer, beside the current one.
 export const refinementConflictText = c => `Not applied: the proposal changed meanwhile. Your version: ${c.draft.title}. ${c.draft.description}`;

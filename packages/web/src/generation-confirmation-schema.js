@@ -76,12 +76,12 @@ export function imageSize(settings) {
 
 export const GENERATION_COMMANDS = Object.freeze({
   // Motion: a signed proposal; every request is reviewed. Duration is the renderer's exact 5-second steps to a minute. Audio
-  // stays disabled until narration works. Aspect ratio is declared and disabled until feat/motion-settings reports the ratios the
-  // renderer really supports: it then replaces `available: false` with `options` taken from aspect-ratios.js (one edit here).
+  // stays disabled until narration works. Aspect ratio is declared but hidden and unavailable until feat/motion-settings reports the
+  // ratios the renderer really supports: it then replaces `available: false, hidden: true` with `options` from aspect-ratios.js (one edit here).
   motion: define({
     label: 'Motion video', noun: 'video', review_policy: 'always', settings_noun: 'a Motion setting', cancel: false,
     settings: [
-      field('aspect_ratio', 'Aspect ratio', 'select', { available: false, unavailable_reason: 'Coming soon' }),
+      field('aspect_ratio', 'Aspect ratio', 'select', { available: false, hidden: true, unavailable_reason: 'Coming soon' }),
       field('duration_seconds', 'Duration', 'select', { required: true, unit: 'seconds', options: seconds, default: 10 }),
       field('audio', 'Audio', 'boolean', { default: false, available: false, unavailable_reason: 'Narration coming soon', unavailable_error: 'narration audio is not available yet; propose the video without it' }),
     ],
@@ -157,7 +157,7 @@ export const optionsOf = (f, resolved = {}, settings = {}) => (f.by_model ? f.by
 export const appliesTo = (f, settings = {}) => !f.by_model || !!f.by_model[settings.model];
 export const isAvailable = (f, resolved = {}, settings = {}) => f.available !== false && appliesTo(f, settings) && !(f.options_from === 'server' && !optionsOf(f, resolved, settings).length);
 // The fields to draw for these settings, each with its options resolved: only what the selected model supports.
-export const fieldsFor = (command, settings = {}, resolved = {}) => settingsOf(command).filter(f => appliesTo(f, settings)).map(f => (f.type === 'select' ? { ...f, options: optionsOf(f, resolved, settings) } : f));
+export const fieldsFor = (command, settings = {}, resolved = {}) => settingsOf(command).filter(f => !f.hidden && appliesTo(f, settings)).map(f => (f.type === 'select' ? { ...f, options: optionsOf(f, resolved, settings) } : f));
 // The reference rules for a command and its settings: null where it declares none.
 export const referenceRules = (command, settings = {}) => commandDefinition(command)?.reference_rules?.(settings) ?? null;
 // Reference problems, never a silent drop: too many for the model, or a kind it cannot take. -> [{ path, message }]

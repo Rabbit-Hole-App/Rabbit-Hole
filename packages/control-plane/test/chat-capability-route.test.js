@@ -36,10 +36,13 @@ test('every declared chat capability is a Learn command; proposal flow exactly w
   // so the router never offers it unless the server enables /explain v2.
   assert.deepEqual([CHAT_CAPABILITIES.explain.flow, CHAT_CAPABILITIES.explain.guarded], ['direct', true]);
   assert.equal(CHAT_ROUTES.explain, undefined, 'not a plain-words route by default');
-  assert.deepEqual(Object.keys(chatCapability('motion').settings), ['duration_seconds', 'audio'], 'card field order');
-  assert.deepEqual(chatCapability('motion').settings.duration_seconds, { type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 });
-  assert.deepEqual(chatCapability('motion').settings.audio, { type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' });
-  assert.equal(chatCapability('youtube').settings, null, 'search gets no generation card fields');
+  // UI-15.1 (owner schema spec 2026-10-23): the fields are the canonical schema's FieldDefinitions, not a copy declared here.
+  assert.deepEqual(chatCapability('motion').settings.map(f => f.key), ['aspect_ratio', 'duration_seconds', 'audio'], 'card field order');
+  const duration = chatCapability('motion').settings.find(f => f.key === 'duration_seconds');
+  assert.deepEqual([duration.type, duration.label, duration.unit, duration.options.map(o => o.value)], ['select', 'Duration', 'seconds', [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]]);
+  const audio = chatCapability('motion').settings.find(f => f.key === 'audio');
+  assert.deepEqual([audio.type, audio.label, audio.available, audio.unavailable_reason], ['boolean', 'Audio', false, 'Narration coming soon']);
+  assert.deepEqual(chatCapability('youtube').settings, [], 'search gets no generation card fields');
 });
 
 test('explicit commands, picker and suggestion ids, Tutor mode and plain explain make zero router calls', async t => {
@@ -47,7 +50,7 @@ test('explicit commands, picker and suggestion ids, Tutor mode and plain explain
   const ask = counted(jev('motion', 0.99));
   const motion = await decideWith(ask, '/motion 15s explain photosynthesis');
   assert.deepEqual([motion.route, motion.via, motion.flow, motion.args, motion.paid], ['capability:motion', 'command', 'proposal', '15s explain photosynthesis', true]);
-  assert.ok(motion.token && motion.settings.duration_seconds);
+  assert.ok(motion.token && motion.settings.some(f => f.key === 'duration_seconds'));
   const picked = await decideWith(ask, 'photosynthesis', { capability: 'youtube' });
   assert.deepEqual([picked.route, picked.via, picked.flow, picked.args, picked.paid], ['capability:youtube', 'capability', 'direct', 'photosynthesis', false]);
   assert.equal((await decideWith(ask, 'tell me more', { capability: 'answer' })).route, 'answer');

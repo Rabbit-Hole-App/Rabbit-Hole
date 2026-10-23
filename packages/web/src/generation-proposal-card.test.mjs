@@ -9,10 +9,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
+import { settingsOf } from './generation-confirmation-schema.js';
 
 const dir = mkdtempSync(join(tmpdir(), 'proposal-card-')), outfile = join(dir, 'card.cjs');
 await esbuild.build({
-  stdin: { contents: "export { default as Card, usageLine, durationOptions } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
+  stdin: { contents: "export { default as Card, usageLine, selectOptions } from './GenerationProposalCard.jsx'; export { createElement } from 'react'; export { renderToStaticMarkup } from 'react-dom/server';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'jsx' },
   bundle: true, outfile, format: 'cjs', platform: 'node', jsx: 'automatic', logLevel: 'silent', loader: { '.png': 'empty', '.svg': 'empty', '.css': 'empty' },
 });
 const B = createRequire(import.meta.url)(outfile);
@@ -99,13 +100,16 @@ test('the usage line: server credits on one line, never dollars', () => {
   assert.doesNotMatch(html(), /\$/);
 });
 
-test('the duration options are 5 to 30 seconds, the proposal\'s value selected', () => {
+// Owner schema spec 2026-10-23: Motion's duration is a select of exactly 5, 10, ... 60 seconds (generation-confirmation-schema.js).
+test('the duration options are 5 to 60 seconds in fives, the proposal\'s value selected', () => {
   const out = html({ proposal: proposal({ settings: { duration_seconds: 20, audio: false } }) });
   const values = [...out.matchAll(/<option value="(\d+)"/g)].map(m => Number(m[1]));
-  assert.deepEqual(values, [5, 10, 15, 20, 25, 30]);
+  assert.deepEqual(values, [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60]);
   assert.match(out, /<option value="20" selected="">20 seconds<\/option>/);
-  assert.deepEqual(B.durationOptions(12), [5, 10, 12, 15, 20, 25, 30], 'a whole second the server allowed stays selectable');
-  assert.ok(B.durationOptions(10).every(s => s >= 5 && s <= 30));
+  const duration = settingsOf('motion').find(f => f.key === 'duration_seconds');
+  assert.deepEqual(B.selectOptions(duration, 12).map(o => o.value), [5, 10, 12, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], 'a value a proposal was made with stays selectable');
+  assert.deepEqual(B.selectOptions(duration, 12).find(o => o.value === 12).label, '12 seconds', 'its unit comes from the schema');
+  assert.ok(B.selectOptions(duration, 10).every(o => o.value >= 5 && o.value <= 60));
 });
 
 test('a duration change sends the whole Motion settings with audio false', () => {
@@ -117,7 +121,7 @@ test('a duration change sends the whole Motion settings with audio false', () =>
   // The settings and each declared field are component elements (MOT-20b: fields from the capability declaration): render each as a
   // probe in turn to reach the duration select.
   let select = null;
-  const open = element => { const Inner = () => { const t = element.type(element.props); select ||= find(t, n => n.props?.['data-proposal-duration']); if (!select) { const field = find(t, n => typeof n.type === 'function' && n.props?.f?.type === 'integer'); if (field) open(field); } return t; }; B.renderToStaticMarkup(B.createElement(Inner)); };
+  const open = element => { const Inner = () => { const t = element.type(element.props); select ||= find(t, n => n.props?.['data-proposal-duration']); if (!select) { const field = find(t, n => typeof n.type === 'function' && n.props?.f?.key === 'duration_seconds'); if (field) open(field); } return t; }; B.renderToStaticMarkup(B.createElement(Inner)); };
   open(settings);
   select.props.onChange({ target: { value: '25' } });
   assert.deepEqual(changes, [{ duration_seconds: 25, audio: false }]);

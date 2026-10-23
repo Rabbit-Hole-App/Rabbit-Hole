@@ -10,6 +10,7 @@
 //    outcome: the direct note (the approved fallback, never an expensive generator, and said so) or one focused question.
 // No keyword matching: "video" in a request decides nothing here; only JEV reads the request.
 import { SLASH, unavailableCommand } from './agent/slash.js';
+import { settingsOf } from './generation-confirmation-schema.js';
 
 export const ROUTE_PROTOCOL_VERSION = 'inline-route-r2';
 // Every inline Explain capability: note (the direct path, no specialized tool - it still writes an explanation) and the
@@ -133,7 +134,7 @@ export function readRoute(body, routes = ROUTES, meta = META) {
 // What a plain chat line may ask for, declared over the command registry (agent/slash.js gives label, kind, action, needs):
 //   intent: the JEV Choice criterion (no phrase matching anywhere); flow: 'proposal' (a signed proposal card through the
 //   chat turn) or 'direct' (the command's existing handler, with its own
-//   confirmation or finder); settings: the shared proposal card's capability-specific fields (null: none). The Generate
+//   confirmation or finder); settings: [] here; the shared card's fields are the canonical schema's (generation-confirmation-schema.js settingsOf). The Generate
 //   adapter stays web code (generation-proposal-chat.js). generation-proposal.js reads flow and settings from here.
 // Adding a capability is one entry here (plus, for a proposal, its settings validator and Generate adapter).
 // Not declared, so explicit only: /explain (not wired, owner), navigation and empty inserts (dive, notebook, whiteboard),
@@ -141,13 +142,7 @@ export function readRoute(body, routes = ROUTES, meta = META) {
 export const CHAT_ROUTE_PROTOCOL_VERSION = 'chat-route-c1';
 export const CHAT_ANSWER = Object.freeze({ intent: 'Reply in the chat: a question, an explanation, a definition, advice, or a question about a video, a picture, a feature or a tool (for example "can Motion make audio?" or "why is this video wrong?"), and any request that declines a format (for example "explain this, but don\'t make a video").' });
 export const CHAT_CAPABILITIES = Object.freeze({
-  motion: { flow: 'proposal', intent: 'A new animated explainer video made for the learner, asked for as the output: for example "make this into a video" or "create a short animated explanation of X".',
-    // The shared card's fields, in key order: integer (min..max in steps of step, plus the proposal's own value) or boolean;
-    // available: false shows the control disabled with `unavailable` as the reason.
-    settings: Object.freeze({
-      duration_seconds: Object.freeze({ type: 'integer', label: 'Duration', min: 5, max: 30, step: 5 }),
-      audio: Object.freeze({ type: 'boolean', label: 'Audio', available: false, unavailable: 'Narration coming soon' }),
-    }) },
+  motion: { flow: 'proposal', intent: 'A new animated explainer video made for the learner, asked for as the output: for example "make this into a video" or "create a short animated explanation of X".' },
   video: { flow: 'direct', intent: 'A new generated realistic video clip of a real-world scene or footage, not an explainer of an idea.' },
   'generate-image': { flow: 'direct', intent: 'A new AI-generated picture or illustration (made, not found).' },
   '3d': { flow: 'direct', intent: 'A new 3D model or 3D scene.' },
@@ -179,7 +174,7 @@ export const chatRoutesWith = (offered = []) => Object.freeze({ ...CHAT_ROUTES, 
 // One capability's whole declaration: the registry entry's label, kind, action and needs with the chat fields.
 export const chatCapability = id => {
   const entry = SLASH.find(command => command.name === id), chat = CHAT_CAPABILITIES[id];
-  return chat && entry ? { id, label: entry.label || (typeof entry.desc === 'string' ? entry.desc : id), kind: entry.kind, action: entry.action || null, needs: entry.needs || null, settings: null, ...chat } : null;
+  return chat && entry ? { id, label: entry.label || (typeof entry.desc === 'string' ? entry.desc : id), kind: entry.kind, action: entry.action || null, needs: entry.needs || null, ...chat, settings: settingsOf(id) } : null;
 };
 // The JEV request: one Choice question over the chat routes. State is compact text: never the canvas package or an image.
 export function chatRouteRequest({ text, selection = null, sourceRefs = null }, model, routes = CHAT_ROUTES) {
