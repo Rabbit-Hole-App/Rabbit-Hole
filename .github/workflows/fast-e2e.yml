@@ -83,6 +83,7 @@ jobs:
           node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(`Part ${s.part}: ${s.checks.length} checks (baseline ${s.baseline.slice(0,8)})\n\nNot covered in this tier (release gate only): ${s.notCovered.join(", ")||"none"}`)' "$sel" >> "$GITHUB_STEP_SUMMARY"
           node -e 'const s=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));if(s.unmapped.length){const m=`No mapping for ${s.unmapped.join(", ")}: ran the conservative default set. Add it to scripts/ci/check-map.json.`;console.log(`::warning title=Unmapped path::${m}`);require("fs").appendFileSync(process.env.GITHUB_STEP_SUMMARY,"\n\n**"+m+"**\n")}' "$sel"
           echo "n=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).checks.length' "$sel")" >> "$GITHUB_OUTPUT"
+          echo "engines=$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).engines.join(" ")' "$sel")" >> "$GITHUB_OUTPUT"
       # Caches are restored and saved by hand, only for a part that has checks: the combined action saves at the end of a
       # successful job only (a red run would never warm the next one), and an empty part would save an empty cache under the real key.
       - name: Restore npm cache (a miss only makes the install slower)
@@ -119,6 +120,15 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # Owner 2026-10-23: WebKit's missing libraries are a runner dependency, not a flake (runs 39986263086, 39990352203: apt stalled
+      # inside the check, which then failed after 426 s on "Host system is missing dependencies"). After the cache save, so the cache
+      # stays Chromium only; before the build, so a part that cannot launch its engine fails here and names the missing packages.
+      - name: Engine libraries and browser (Firefox or WebKit; bounded apt attempts, then a preflight)
+        if: steps.sel.outputs.n != '0' && steps.sel.outputs.engines != ''
+        timeout-minutes: 12
+        env:
+          ENGINES: ${{ steps.sel.outputs.engines }}
+        run: bash scripts/ci/engine-deps.sh $ENGINES
       - name: Build both bundles (dist is served by the stack's control plane, dist-dev by the app and the page checks)
         if: steps.sel.outputs.n != '0'
         working-directory: packages/web
