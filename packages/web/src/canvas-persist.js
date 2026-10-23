@@ -29,7 +29,8 @@ export async function persistBoard({ state, storageKey, storage, onSave }) {
 // discarded, and conflicting work is preserved, never silently dropped). Per board key, against the board the canvas
 // mounted with: objects added (by id, or for an object without one - pen ink - by its exact content), objects changed (by
 // id: this page's version and the one it started from) and objects removed (by id).
-const WORK_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas'];
+// toc: the Table of contents' own list (owner brief 2026-10-23), so a 409 keeps its edits too.
+const WORK_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'toc'];
 const keyOf = entry => (entry?.id != null ? `id:${entry.id}` : `json:${JSON.stringify(entry)}`);
 // The same object: `fresh` is the canvas's own marker for a just-landed item, never part of what was saved.
 const same = (a, b) => JSON.stringify(a, (key, value) => (key === 'fresh' ? undefined : value)) === JSON.stringify(b, (key, value) => (key === 'fresh' ? undefined : value));
@@ -98,12 +99,14 @@ export const sharingOf = sharing => (!sharing || sharing.unavailable ? 'unknown'
 // not (a Rabbit Hole's anchor-only board), and the two must compare equal, or merely opening a board would save it
 // again and move its updated_at.
 // doc: the canvas's one document (docs/features/blocknote-canvas.md), an object; a board without one reads as [] like any key.
-const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources', 'doc'];
-export const boardText = state => JSON.stringify(BOARD_KEYS.map(key => state?.[key] ?? []));
-// The board a boardText holds (a missing document, read as [], is none).
+// toc: the Table of contents' own list (owner brief 2026-10-23), last so a boardText written before it reads back the same.
+// A board without one reads as null, never [], because an empty list (every entry removed) is not "read the headings".
+const BOARD_KEYS = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'sources', 'doc', 'toc'];
+export const boardText = state => JSON.stringify(BOARD_KEYS.map(key => state?.[key] ?? (key === 'toc' ? null : [])));
+// The board a boardText holds (a missing document, read as [], is none; a missing toc, null, is none).
 export function boardFromText(text) {
   const values = JSON.parse(text);
-  return Object.fromEntries(BOARD_KEYS.map((key, i) => [key, values[i]]).filter(([key, value]) => key !== 'doc' || !Array.isArray(value)));
+  return Object.fromEntries(BOARD_KEYS.map((key, i) => [key, values[i]]).filter(([key, value]) => (key === 'doc' ? !Array.isArray(value) : key !== 'toc' || Array.isArray(value))));
 }
 // A 409 (owner 2026-10-22: a conflicting save never loses either device's edits): the board text the server held when this
 // browser last saved or loaded, kept in this browser beside its copy, so the edits made since go onto the server's newer

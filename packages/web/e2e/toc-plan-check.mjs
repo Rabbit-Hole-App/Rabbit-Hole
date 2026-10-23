@@ -11,7 +11,8 @@
 //   4 a TOC planning request renames the heading: the badge keeps the criterion's name and the goal line stays the accepted
 //     goal record (acceptance 52);
 //   5 a Tutor proposal made before the learner's own rename is stale: Apply changes nothing, the learner's edit wins;
-//   6 removing the current step's heading keeps its cards and the saved task (Section removed), and it is never redrawn;
+//   6 removing the current step's entry from the contents keeps its canvas heading, its cards and the saved task (Section
+//     removed), and it is never redrawn (owner brief 2026-10-23: contents actions never change a canvas object);
 //   7 Start/Resume follows the controls rule: in Auto it changes no control; in paused Tutor it clears the pause.
 // Every model-capable request is aborted and counted; there must be none. The TOC turns are answered here with canned SSE.
 // Prints `ok <label>` per check and counts only; no secrets.
@@ -66,6 +67,8 @@ const [s1, ...later] = j.path.sections;
 const s1Criterion = goal.criteria.find(c => c.skillKey === s1.expected_evidence[0].claim);
 assert.ok(s1Criterion, 'the first step\'s claim is an agreed criterion');
 const board = async () => (await api(`/api/learn/boards/${APP}/main`)).state?.blocks || [];
+// Owner brief 2026-10-23: the contents as saved - the board's own `toc` list once edited, else its headings.
+const contentsSaved = async () => { const state = (await api(`/api/learn/boards/${APP}/main`)).state || {}; return Array.isArray(state.toc) ? state.toc : (state.blocks || []).filter(b => b.type === 'heading'); };
 const progressOf = async () => (await api(`/api/learn/progress?app=${APP}&board=main&goalId=${goalId}`)).progress;
 
 // ---------------------------------------------------------------- browser: count every write, answer the TOC turns
@@ -182,12 +185,13 @@ await check('3 a saved assessment is the linked criterion\'s personal badge; the
   assert.equal(await entry(h1).locator('input[type="checkbox"]').isChecked(), false, 'an assessment never ticks the box');
   const counts = writes.length;
   await entry(h1).locator('input[type="checkbox"]').check();
-  await waitFor(async () => (await board()).find(b => b.id === h1)?.done === true);
+  await waitFor(async () => (await contentsSaved()).find(b => b.id === h1)?.done === true);
+  assert.equal((await board()).find(b => b.id === h1)?.done ?? false, false, 'owner brief 2026-10-23: the tick is the contents\' own, the canvas heading is unchanged');
   assert.equal(await badge.innerText(), `${label}: practising`, 'the tick leaves the badge');
   const again = await progressOf();
   assert.deepEqual([again.summaryRevision, again.criteria.find(c => c.criterionId === s1Criterion.criterionId).status], [read.summaryRevision, 'practising'], 'and Progress');
   assert.equal(writes.length, counts, 'a tick sends no coaching, attempt or journey write');
-  const shared = JSON.stringify(await board());
+  const shared = JSON.stringify([await board(), await contentsSaved()]);
   for (const secretish of ['practising', 'demonstrated', s1Criterion.criterionId, goalId, activity.activityId]) assert.ok(!shared.includes(secretish), `the board holds no ${secretish}`);
   await shot('03-evidence-badge');
   await badge.click();
@@ -203,8 +207,11 @@ await check('4 a TOC rename request changes the title only: the badge keeps the 
   await waitFor(async () => (await titleOf(h1).innerText()) === 'KNN');
   assert.equal(await entry(h1).locator('[data-toc-evidence]').innerText(), `${label}: practising`, 'never relabelled as KNN');
   assert.equal((await contents().locator('[data-toc-goal]').innerText()).replace(/\s+/g, ' ').trim(), goalLine, 'a planning message never replaces the goal');
-  const saved = await waitFor(async () => { const b = (await board()).find(x => x.id === h1); return b?.text === 'KNN' && b; });
-  assert.deepEqual([saved.journey_section_id, saved.journey_id], [s1.id, j.journey.id], 'the step stays linked by id');
+  const saved = await waitFor(async () => { const b = (await contentsSaved()).find(x => x.id === h1); return b?.text === 'KNN' && b; });
+  assert.equal(saved.heading, h1, 'the entry stays linked to the step heading by id');
+  // Owner brief 2026-10-23: the rename is the contents' own; the canvas heading keeps its title and its journey stamps.
+  const drawn = (await board()).find(x => x.id === h1);
+  assert.deepEqual([drawn.text, drawn.journey_section_id, drawn.journey_id], [s1.title, s1.id, j.journey.id], 'the step stays linked by id');
   await shot('04-renamed');
 });
 
@@ -228,18 +235,20 @@ await check('5 a Tutor proposal made before the learner\'s own rename is stale: 
   assert.equal(await contents().locator('[data-toc-entry]', { hasText: 'Distance scaling' }).count(), 0, 'no part of the proposal applied');
   await shot('05-stale-proposal');
   await card.getByRole('button', { name: 'Discard', exact: true }).click();
-  await waitFor(async () => (await board()).find(b => b.id === h1)?.text === 'My threshold notes');
-  assert.ok(!(await board()).some(b => b.text === 'Distance scaling' || b.text === 'Tutor title'));
+  await waitFor(async () => (await contentsSaved()).find(b => b.id === h1)?.text === 'My threshold notes');
+  assert.ok(!(await contentsSaved()).some(b => b.text === 'Distance scaling' || b.text === 'Tutor title'));
+  assert.ok(!(await board()).some(b => b.text === 'Distance scaling' || b.text === 'Tutor title' || b.text === 'My threshold notes'), 'the canvas gets none of it');
 });
 
-await check('6 removing the current step\'s heading keeps its cards and the saved task (Section removed) and never redraws it', async () => {
+await check('6 removing the current step\'s entry keeps its canvas heading, its cards and the saved task (Section removed) and never redraws it', async () => {
   const cards = (await board()).filter(b => b.journey?.section_id === s1.id).map(b => b.id);
   assert.ok(cards.length >= 1, 'the step has cards');
   const before = await coaching(), counts = writes.length;
   await entry(h1).getByRole('button', { name: 'Remove heading My threshold notes' }).click();
-  await waitFor(async () => !(await board()).some(b => b.id === h1));
+  await waitFor(async () => !(await contentsSaved()).some(b => b.id === h1));
   const left = (await board()).map(b => b.id);
   assert.ok(cards.every(id => left.includes(id)), 'every card of the section stays');
+  assert.ok(left.includes(h1), 'owner brief 2026-10-23: the canvas heading stays; only the contents entry went');
   const removed = contents().locator(`[data-toc-step="${s1.id}"][data-state="removed"]`);
   await removed.waitFor({ timeout: 10000 });
   assert.match(await removed.innerText(), /Section removed: its cards and your saved work are kept/);
@@ -252,7 +261,8 @@ await check('6 removing the current step\'s heading keeps its cards and the save
   await shot('06-section-removed');
   await open();
   await page.waitForTimeout(5000);
-  assert.equal((await board()).filter(b => b.type === 'heading' && b.journey_section_id === s1.id).length, 0, 'the heading is not drawn again');
+  assert.equal((await board()).filter(b => b.type === 'heading' && b.journey_section_id === s1.id).length, 1, 'the heading is not drawn again: still the one');
+  assert.equal(await entry(h1).count(), 0, 'and it does not come back into the contents');
   assert.equal(writes.length, counts, 'no journey, coaching or attempt write');
 });
 

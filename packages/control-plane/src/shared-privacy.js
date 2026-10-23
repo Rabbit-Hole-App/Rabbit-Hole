@@ -7,7 +7,8 @@
 // answers, attempts, marks and highlights. The cards themselves, chat cards included, stay: they were placed on the canvas.
 import { roleFor } from '../../web/src/canvas-permissions.js';
 
-const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges'];
+// toc: the Table of contents' own list (owner brief 2026-10-23), shown and forked without the creator's ticks.
+const CONTENT = ['strokes', 'shapes', 'items', 'links', 'blocks', 'groups', 'areas', 'exchanges', 'toc'];
 // The learner's state on a card, by card type (LearningBlocks.jsx bodies; scene-activity.js for every interactive card).
 const LEARNER = {
   challenge: ['answer', 'attemptId', 'verdict', 'grading', 'sketch', 'sketchOpen', 'sketchSubmitted'],
@@ -33,6 +34,7 @@ export function sharedState(state) {
   for (const key of CONTENT) if (Array.isArray(state?.[key])) out[key] = state[key];
   if (state?.doc && typeof state.doc === 'object' && !Array.isArray(state.doc)) out.doc = state.doc;
   if (out.blocks) out.blocks = out.blocks.map(sharedBlock);
+  if (out.toc) out.toc = out.toc.map(entry => { if (!entry || typeof entry !== 'object' || !('done' in entry)) return entry; const { done: _done, ...copy } = entry; return copy; });
   return out;
 }
 

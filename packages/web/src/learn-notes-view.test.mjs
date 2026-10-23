@@ -51,5 +51,7 @@ test('the side panel is a Table of contents: no My notes link, no trophy bar, ad
   assert.ok(toc.includes('>Table of contents</h2>'));
   assert.ok(toc.includes("const SECTION_LEVELS = [[1, 'Section', Heading1], [2, 'Sub-section', Heading2], [3, 'Sub-sub-section', Heading3]];"));
   assert.ok(toc.includes('canvasApi.current?.moveSection(drag, drop)'));
-  assert.ok(toc.includes('onClick={() => canvasApi.current?.removeBlock(entry.id)}'));
+  // Owner brief 2026-10-23: removing an entry changes the contents only, never the canvas heading.
+  assert.ok(toc.includes('onClick={() => canvasApi.current?.removeSection(entry.id)}'));
+  assert.ok(!toc.includes('removeBlock'));
 });
