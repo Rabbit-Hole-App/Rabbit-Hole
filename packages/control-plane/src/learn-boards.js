@@ -284,11 +284,13 @@ async function share(env, owner, app, board, body) {
     row = await ownerRow(env, owner, app, board);
   }
   const shared = !!body?.shared && !!body.view;
-  const view = shared ? (row.view_token || newToken()) : row.view_token;
+  const wanted = shared && !row.view_token ? newToken() : null;
   const edit = null; // links are view-only (edit_token stays for older rows only)
   const publicView = shared && !!body.public_view ? 1 : 0;
-  await env.LEARN_DB.prepare('UPDATE learn_boards SET shared = ?, view_token = ?, edit_token = ?, public_view = ? WHERE id = ?')
-    .bind(shared ? 1 : 0, view, edit, publicView, row.id).run();
+  // COALESCE: two first switch-ons at once cannot make two tokens; the stored one is the link.
+  await env.LEARN_DB.prepare('UPDATE learn_boards SET shared = ?, view_token = COALESCE(view_token, ?), edit_token = ?, public_view = ? WHERE id = ?')
+    .bind(shared ? 1 : 0, wanted, edit, publicView, row.id).run();
+  const view = (await env.LEARN_DB.prepare('SELECT view_token FROM learn_boards WHERE id = ?').bind(row.id).first()).view_token;
   // A new link pins the repository commit it answers from (docs/features/shared-canvas-ask.md); the same link keeps its pin.
   const updated = { ...row, shared: shared ? 1 : 0, view_token: view, edit_token: edit, public_view: publicView };
   if (shared) await sharePin(env.LEARN_DB, updated);
