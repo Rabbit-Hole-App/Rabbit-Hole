@@ -10,14 +10,20 @@ import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
 
-// A permanently deleted canvas takes its comment threads and replies (owner decision 2026-10-23, canvas-comments.md Q13);
-// Trash keeps them. Here, not in canvas-comments.js, which imports this module.
+// A permanently deleted canvas takes every comment row (owner decision 2026-10-23, canvas-comments.md Q13): the seven
+// canvas_comment* tables of learn-migrations 0011 and 0014 - threads, messages, mentions, read marks, colours, its comment
+// settings (the canvas's and its link's) and its blocks. Trash keeps them. Comments have no attachments: a message is text
+// and mentions only (no attachment column or table, and no attachment code in canvas-comments.js), so there is none to
+// purge. Unread and Shared with you count from these rows, so they count nothing for it after. Here, not in
+// canvas-comments.js, which imports this module.
 const purgeCommentRows = (db, org, canvas) => {
   const threads = 'SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ?';
   return [
     db.prepare(`DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id IN (${threads}))`).bind(org, canvas),
     ...['canvas_comment_reads', 'canvas_comment_colors', 'canvas_comments'].map(table => db.prepare(`DELETE FROM ${table} WHERE thread_id IN (${threads})`).bind(org, canvas)),
     db.prepare('DELETE FROM canvas_comment_threads WHERE org = ? AND canvas = ?').bind(org, canvas),
+    db.prepare('DELETE FROM canvas_comment_settings WHERE org = ? AND canvas IN (?, ?)').bind(org, canvas, `link:${canvas}`),
+    db.prepare('DELETE FROM canvas_comment_blocks WHERE org = ? AND canvas = ?').bind(org, canvas),
   ];
 };
 

@@ -112,6 +112,11 @@ const releaseLists = async () => {
   await page.unroute(/\/api\/learn\/c\/[^/]+\/threads\?/);
   await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
 };
+// The board's server save, held until released: what the page shows meanwhile comes from the canvas alone (owner addition
+// 2026-10-23: the hide happens before the board save fires and without a refresh).
+const parked = [], SAVE = new RegExp(`/api/learn/boards/${canvas.name}/main$`);
+const holdSaves = () => page.route(SAVE, route => (route.request().method() === 'PUT' ? parked.push(route) : route.continue()));
+const releaseSaves = async () => { await page.unroute(SAVE); for (const route of parked.splice(0)) await route.continue(); };
 const askList = async () => { const asked = page.waitForRequest(request => /\/threads\?/.test(request.url())); await page.evaluate(() => window.dispatchEvent(new Event('focus'))); await asked; await expect.poll(() => held.length, { timeout: 10000 }).toBeGreaterThan(0); };
 
 await page.goto(`${BASE}/apps/${canvas.name}`);
@@ -125,13 +130,16 @@ await check('1 deleting a card takes its threads - replied, resolved and public 
   await expect(badge()).toHaveText('5');
   await holdLists();
   await askList(); // fetched now, with the card's threads in it
+  await holdSaves();
   await select(card('d-card'));
   await canvasKey('Delete');
   await expect(card('d-card')).toHaveCount(0);
   await gone(CARD);
   await expect(badge()).toHaveText('3');
   await shown([...GROUP, T.point]);
+  assert.ok((await ids()).includes(T.replied), 'hidden while the server, its save held, still serves them: the canvas did it, no save, no refresh');
   await releaseLists();
+  await releaseSaves();
   await gone(CARD);
   await expect(badge()).toHaveText('3');
   await page.screenshot({ path: `${SHOTS}/01-card-deleted.png` });
@@ -152,12 +160,15 @@ await check('2 once saved, no server answer carries them: the owner\'s list, the
 
 await check('3 Undo brings the card and its threads back at once with the same ids, reply and resolved state, even while a list answered before the Undo was saved lands; Redo removes them again', async () => {
   await holdLists();
+  await holdSaves();
   await canvasKey('Control+z');
   await card('d-card').waitFor();
   await shown(CARD);
   await expect(badge()).toHaveText('5');
+  assert.equal((await ids()).includes(T.replied), false, 'back while the server, its save held, still leaves them out: no save, no refresh');
   await askList(); // fetched before the Undo reaches the server: the card's threads are not in it
   await releaseLists();
+  await releaseSaves();
   await shown(CARD);
   await expect(badge()).toHaveText('5');
   await serverHas(CARD, true);

@@ -2645,6 +2645,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       try { comments = await onUngroupCommentsRef.current(spots); } catch (problem) { toast(`Not ungrouped: ${problem?.data?.error || problem.message}`, { tone: 'error' }); return; }
     }
     const members = everything().filter(entry => gids.has(entry.groupId)).map(entry => entry.id);
+    if (!members.length) return; // a second press while the first moved the comments: that one ungrouped already
     const step = snapshot(exchangesRef.current.some(exchange => gids.has(exchange.groupId)));
     if (comments) step.comments = comments;
     setGroupIds(members, null);

@@ -535,50 +535,127 @@ test('groups: a group lives while an object carries its groupId; deleting some m
 });
 
 // Ungroup is not a delete (owner decision 2026-10-23): the members keep their threads, and the group's threads become canvas
-// threads at its former place - the owner's page moves them before the group goes; the Ungroup's undo moves each back.
-test('anchors: the owner moves a group\'s threads to the canvas and back; members, others and the public cannot', async t => {
+// threads at its former place - the owner's page moves them before the group goes; the Ungroup's Undo moves them back. Every
+// move is one batch (all or nothing) and idempotent: a retry, a resend after a lost answer or a concurrent duplicate ends in
+// the same state.
+const grouped = { ...BOARD, shapes: [{ id: 'ga', groupId: 'g1' }, { id: 'gb', groupId: 'g1' }, { id: 'gc', groupId: 'g2' }], groups: [{ id: 'g1', label: 'Beakers' }, { id: 'g2', label: 'Flasks' }] };
+const onGroup = (id, label) => ({ ...ON_CARD, object_id: id, object_kind: 'group', label });
+async function groupCanvas(f) {
+  const made = await canvas(f);
+  await f.call('PUT', `/api/learn/boards/${made.name}/main`, { as: 'ana', body: { state: grouped } });
+  const ids = {
+    g1: (await start(f, made.base, 'ben', 'On the group', { anchor: onGroup('g1', 'Beakers') })).body.thread.id,
+    g1resolved: (await start(f, made.base, 'ana', 'Resolved on the group', { anchor: onGroup('g1', 'Beakers') })).body.thread.id,
+    g2: (await start(f, made.base, 'ben', 'On the other group', { anchor: onGroup('g2', 'Flasks') })).body.thread.id,
+    member: (await start(f, made.base, 'ben', 'On a member', { anchor: { ...ON_CARD, object_id: 'ga', object_kind: 'shape' } })).body.thread.id,
+  };
+  await comments(f, 'POST', `${made.base}/threads/${ids.g1resolved}/resolve`, { as: 'ana' });
+  const move = (as, body) => comments(f, 'POST', `${made.base}/anchors`, { as, body });
+  const anchors = () => Object.fromEntries(f.sqlite.prepare('SELECT id, anchor_json FROM canvas_comment_threads').all().map(row => [row.id, JSON.parse(row.anchor_json)]));
+  return { ...made, ids, move, anchors };
+}
+const SPOT = { id: 'g1', x: 120, y: -40 };
+const POINT = { kind: 'point', x: 120, y: -40 };
+
+test('anchors: the owner moves a group\'s threads, resolved too, to the canvas and back; members, others and the public cannot', async t => {
   const f = setup(t);
-  const { name, base } = await canvas(f);
-  const group = { ...BOARD, shapes: [{ id: 'ga', groupId: 'g1' }, { id: 'gb', groupId: 'g1' }], groups: [{ id: 'g1', label: 'Beakers' }] };
-  await f.call('PUT', `/api/learn/boards/${name}/main`, { as: 'ana', body: { state: group } });
-  const anchor = { ...ON_CARD, object_id: 'g1', object_kind: 'group', label: 'Beakers' };
-  const onGroup = (await start(f, base, 'ben', 'On the group', { anchor })).body.thread.id;
-  const resolvedOne = (await start(f, base, 'ana', 'Resolved on the group', { anchor })).body.thread.id;
-  await comments(f, 'POST', `${base}/threads/${resolvedOne}/resolve`, { as: 'ana' });
-  const onMember = (await start(f, base, 'ben', 'On a member', { anchor: { ...ON_CARD, object_id: 'ga', object_kind: 'shape' } })).body.thread.id;
-  const point = { kind: 'point', x: 120, y: -40 };
-  const move = (as, body) => comments(f, 'POST', `${base}/anchors`, { as, body });
-  assert.equal((await move('ben', { moves: [{ object_id: 'g1', anchor: point }] })).status, 403, 'a member may comment, never move comments');
-  assert.equal((await move('cara', { moves: [{ object_id: 'g1', anchor: point }] })).status, 404);
-  assert.equal((await move(undefined, { moves: [{ object_id: 'g1', anchor: point }] })).status, 401);
-  assert.equal((await move('ana', { moves: [{ object_id: 'g1', anchor: { kind: 'html' } }] })).status, 400);
-  assert.equal((await move('ana', { moves: [] })).status, 400);
-  const moved = await move('ana', { moves: [{ object_id: 'g1', anchor: point }] });
+  const { name, base, ids, move, anchors } = await groupCanvas(f);
+  for (const [as, status] of [['ben', 403], ['cara', 404], [undefined, 401]]) assert.equal((await move(as, { ungroup: [SPOT] })).status, status, `${as} may not move comments`);
+  for (const bad of [{}, { ungroup: [] }, { ungroup: [{ id: 'g1', x: 'a', y: 1 }] }, { ungroup: [{ id: 'has space', x: 1, y: 1 }] }, { regroup: [7] }, { moves: [{ object_id: 'g1', anchor: POINT }] }]) {
+    assert.equal((await move('ana', bad)).status, 400, JSON.stringify(bad));
+  }
+  const before = anchors();
+  const moved = await move('ana', { ungroup: [SPOT] });
   assert.equal(moved.status, 200);
-  assert.deepEqual(moved.body.moved.map(x => [x.id, x.anchor]).sort(), [[onGroup, anchor], [resolvedOne, anchor]].sort(), 'every thread on the group, resolved too, with the anchor it had');
-  // The ungrouped board saved: the members keep their thread, the group's threads stay as canvas threads.
-  await f.call('PUT', `/api/learn/boards/${name}/main`, { as: 'ana', body: { state: { ...BOARD, shapes: [{ id: 'ga' }, { id: 'gb' }], groups: [] } } });
+  const expected = [ids.g1, ids.g1resolved].sort().map(id => ({ id, anchor: { ...POINT, ungrouped: before[id] } }));
+  assert.deepEqual(moved.body.threads, expected, 'both threads on the group, each keeping the anchor it had');
+  assert.deepEqual([anchors()[ids.g2], anchors()[ids.member]], [before[ids.g2], before[ids.member]], 'another group and the members are untouched');
+  // The ungrouped board saved: the member keeps its thread, the group's stay as canvas threads, resolved still resolved.
+  await f.call('PUT', `/api/learn/boards/${name}/main`, { as: 'ana', body: { state: { ...grouped, shapes: [{ id: 'ga' }, { id: 'gb' }, { id: 'gc', groupId: 'g2' }], groups: [grouped.groups[1]] } } });
   const list = (await comments(f, 'GET', `${base}/threads?status=all`, { as: 'ben' })).body.threads;
-  assert.deepEqual(list.map(x => [x.id, x.anchor.kind]).sort(), [[onGroup, 'point'], [resolvedOne, 'point'], [onMember, 'object']].sort());
-  assert.equal(list.find(x => x.id === resolvedOne).status, 'resolved');
-  // Undo of the Ungroup: each back to the anchor it had; with the group saved again, all on the group.
-  assert.equal((await move('ana', { moves: moved.body.moved.map(x => ({ id: x.id, anchor: x.anchor })) })).status, 200);
-  await f.call('PUT', `/api/learn/boards/${name}/main`, { as: 'ana', body: { state: group } });
-  assert.deepEqual((await comments(f, 'GET', `${base}/threads?status=all`, { as: 'ben' })).body.threads.filter(x => x.id !== onMember).map(x => x.anchor), [anchor, anchor]);
-  assert.equal((await move('ana', { moves: [{ id: crypto.randomUUID(), anchor: point }] })).body.moved.length, 0, 'another board\'s or no thread moves nothing');
+  assert.deepEqual(list.map(x => [x.id, x.anchor.kind]).sort(), [[ids.g1, 'point'], [ids.g1resolved, 'point'], [ids.g2, 'object'], [ids.member, 'object']].sort());
+  assert.equal(list.find(x => x.id === ids.g1resolved).status, 'resolved');
+  // Undo: Regroup puts each back exactly; Redo moves them again.
+  const back = await move('ana', { regroup: ['g1'] });
+  assert.deepEqual(back.body.threads, [ids.g1, ids.g1resolved].sort().map(id => ({ id, anchor: before[id] })));
+  assert.deepEqual(anchors(), before, 'every anchor as it was');
+  assert.deepEqual((await move('ana', { ungroup: [SPOT] })).body, moved.body, 'Redo: the same move again');
+  assert.equal((await move('ana', { regroup: ['no-such-group'] })).body.threads.length, 0, 'an unknown group moves nothing');
 });
 
-test('a canvas deleted for good takes its comment threads, replies, marks and colours; Trash keeps them', async t => {
+test('anchors are idempotent: a retry, a resend after a lost answer and a concurrent duplicate end in one state; Undo and Redo too', async t => {
   const f = setup(t);
-  const { name, base } = await canvas(f, { member: false });
-  const made = (await start(f, base, 'ana', 'Before the delete')).body.thread.id;
-  await comments(f, 'POST', `${base}/threads/${made}/read`, { as: 'ana' });
+  const { ids, move, anchors } = await groupCanvas(f);
+  const before = anchors();
+  const first = await move('ana', { ungroup: [SPOT] });
+  const moved = anchors();
+  // The answer was lost: the page sends the same request again.
+  assert.deepEqual((await move('ana', { ungroup: [SPOT] })).body, first.body, 'the resend answers as the first did');
+  assert.deepEqual(anchors(), moved, 'and moves nothing twice: the original group anchor is kept, never nested');
+  assert.equal(anchors()[ids.g1].ungrouped.ungrouped, undefined);
+  // A double press: two identical requests at once.
+  const [a, b] = await Promise.all([move('ana', { ungroup: [SPOT] }), move('ana', { ungroup: [SPOT] })]);
+  assert.deepEqual([a.status, b.status, a.body, b.body], [200, 200, first.body, first.body]);
+  assert.deepEqual(anchors(), moved);
+  // A retry to another place (the group moved meanwhile) converges on the newest place, still keeping the group anchor.
+  const elsewhere = await move('ana', { ungroup: [{ id: 'g1', x: 300, y: 10 }] });
+  assert.deepEqual(elsewhere.body.threads.map(x => [x.anchor.x, x.anchor.y, x.anchor.ungrouped]), [ids.g1, ids.g1resolved].sort().map(id => [300, 10, before[id]]));
+  // Undo twice, and at once twice: the same restored state, no error.
+  for (const answer of [await move('ana', { regroup: ['g1'] }), await move('ana', { regroup: ['g1'] }), ...(await Promise.all([move('ana', { regroup: ['g1'] }), move('ana', { regroup: ['g1'] })]))]) assert.equal(answer.status, 200);
+  assert.deepEqual(anchors(), before);
+  // Redo twice: moved once.
+  await move('ana', { ungroup: [SPOT] }); await move('ana', { ungroup: [SPOT] });
+  assert.deepEqual(anchors(), moved);
+});
+
+test('anchors are atomic: one request is one batch, and a failure part-way moves nothing of any group in it', async t => {
+  const f = setup(t);
+  const { ids, move, anchors } = await groupCanvas(f);
+  const before = anchors();
+  const batches = () => f.statements.filter(sql => sql === 'BATCH').length;
+  // The last thread's update fails (as a D1 write can): the batch rolls back, the other group's and its sibling's included.
+  f.sqlite.exec(`CREATE TRIGGER fail_move BEFORE UPDATE ON canvas_comment_threads WHEN NEW.id = '${ids.g2}' BEGIN SELECT RAISE(ABORT, 'write failed'); END;`);
+  const calls = batches();
+  const failed = await move('ana', { ungroup: [SPOT, { id: 'g2', x: 400, y: 0 }] });
+  assert.deepEqual([failed.status, failed.body.code], [500, 'server_error']);
+  assert.equal(batches(), calls + 1, 'one batch for the whole request');
+  assert.deepEqual(anchors(), before, 'no thread half-moved');
+  // The page puts back what a lost answer may have moved (Regroup), then the retry, once the write works, moves them all.
+  assert.equal((await move('ana', { regroup: ['g1', 'g2'] })).status, 200);
+  assert.deepEqual(anchors(), before);
+  f.sqlite.exec('DROP TRIGGER fail_move');
+  const retried = await move('ana', { ungroup: [SPOT, { id: 'g2', x: 400, y: 0 }] });
+  assert.deepEqual(retried.body.threads.map(x => x.id), [ids.g1, ids.g1resolved, ids.g2].sort());
+  assert.ok(retried.body.threads.every(x => x.anchor.kind === 'point'));
+});
+
+test('a canvas deleted for good takes every comment row and count; comments have no attachments; Trash keeps them', async t => {
+  const f = setup(t);
+  const { name, base } = await canvas(f);
+  await f.call('POST', `/api/learn/boards/${name}/main/share`, { as: 'ana', body: { shared: true, view: true, public_view: true, state: BOARD } });
+  const token = (await f.call('POST', `/api/apps/${name}/publish`, { as: 'ana' })).body.publication_token;
+  await comments(f, 'PUT', `${base}/comment-settings`, { as: 'ana', body: { public_mode: 'open', link_comments: 'allow' } });
+  const made = (await start(f, base, 'ana', 'Before the delete @ben', { mentions: [{ pos: 18, len: 4, handle: 'ben' }] })).body.thread.id;
+  const reply = (await comments(f, 'POST', `${base}/threads/${made}/comments`, { as: 'ben', body: { id: crypto.randomUUID(), body: 'A reply' } })).body.comment.id;
+  const caraThread = (await start(f, base, 'ben', 'Public one', { audience: 'public' })).body.thread.id;
+  const pub = (await comments(f, 'POST', `/api/learn/boards/shared/${token}/comments/threads/${caraThread}/comments`, { as: 'cara', body: { id: crypto.randomUUID(), body: 'From cara' } })).body.comment.id;
+  await comments(f, 'POST', `${base}/blocks`, { as: 'ana', body: { comment_id: pub } });
+  await comments(f, 'POST', `${base}/threads/${made}/read`, { as: 'ben' });
   await comments(f, 'PUT', `${base}/threads/${made}/color`, { as: 'ana', body: { color: PIN_COLORS[2] } });
-  const rows = () => ['canvas_comment_threads', 'canvas_comments', 'canvas_comment_reads', 'canvas_comment_colors'].map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n);
-  assert.deepEqual(rows(), [1, 1, 1, 1]);
+  assert.ok(reply);
+  // The comment tables, read from the schema, not listed by hand: any new one fails this test until the purge covers it.
+  const tables = f.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'canvas_comment%' ORDER BY name").all().map(row => row.name);
+  assert.deepEqual(tables, ['canvas_comment_blocks', 'canvas_comment_colors', 'canvas_comment_mentions', 'canvas_comment_reads', 'canvas_comment_settings', 'canvas_comment_threads', 'canvas_comments']);
+  // No attachment: a message row is text and mentions, nothing else.
+  assert.deepEqual(f.sqlite.prepare('SELECT name FROM pragma_table_info(?) ORDER BY cid').all('canvas_comments').map(row => row.name), ['id', 'thread_id', 'author_id', 'author_email', 'body', 'create_hash', 'created_at', 'edited_at', 'deleted_at', 'deleted_by']);
+  const rows = () => Object.fromEntries(tables.map(table => [table, f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n]));
+  assert.ok(Object.values(rows()).every(n => n > 0), `every comment table has a row first: ${JSON.stringify(rows())}`);
+  const counts = async () => [(await comments(f, 'GET', '/api/learn/comments/unread', { as: 'ana' })).body.owned[name] ?? 0, (await comments(f, 'GET', '/api/learn/c/shared-with-me', { as: 'ben' })).body.canvases.length];
+  assert.deepEqual(await counts(), [2, 1], 'ana has news on her canvas; it is shared with ben');
   assert.equal((await f.call('POST', `/api/apps/${name}/trash`, { as: 'ana' })).status, 200);
   assert.equal((await f.call('POST', `/api/apps/${name}/untrash`, { as: 'ana' })).status, 200);
-  assert.deepEqual(rows(), [1, 1, 1, 1], 'Trash and Restore keep them');
+  assert.ok(Object.values(rows()).every(n => n > 0), 'Trash and Restore keep them');
   assert.equal((await f.call('DELETE', `/api/apps/${name}`, { as: 'ana' })).status, 200);
-  assert.deepEqual(rows(), [0, 0, 0, 0]);
+  assert.deepEqual(rows(), Object.fromEntries(tables.map(table => [table, 0])), 'no comment row of any table remains');
+  assert.deepEqual(await counts(), [0, 0], 'the Library, Home and Shared with you count nothing for it');
 });

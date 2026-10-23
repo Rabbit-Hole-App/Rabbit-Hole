@@ -51,6 +51,30 @@ export function afterLive(kept, threads, isLive, now) {
   return next;
 }
 
+// Ungroup's comment moves (owner decision 2026-10-23), apart from React so they can be tested. send: POST …/anchors; spots:
+// [{ id: group id, x, y }], each group's former top centre; show(threads, keep): their anchors on the page at once.
+// The server's moves are atomic and idempotent, so this never needs to know how far a request got: a failure or a lost answer
+// sends Regroup (putting back whatever did move) and throws, so the canvas keeps the group; if that fails too, the next Ungroup
+// or Undo converges. Undo is Regroup and Redo the same Ungroup again, one after another in the order pressed.
+export async function ungroupMoves(send, spots, show) {
+  const ungroup = { ungroup: spots.map(spot => ({ id: spot.id, x: Math.round(spot.x), y: Math.round(spot.y) })) }, regroup = { regroup: spots.map(spot => spot.id) };
+  let moved;
+  try { moved = (await send(ungroup))?.threads || []; } catch (error) { await send(regroup).catch(() => {}); throw error; }
+  if (!moved.length) return null;
+  show(moved);
+  let queue = Promise.resolve();
+  const run = (local, body) => {
+    show(local, true);
+    const step = queue.then(() => send(body));
+    queue = step.catch(() => {});
+    return step.then(answer => { if (answer?.threads) show(answer.threads, true); });
+  };
+  return {
+    undo: () => run(moved.map(thread => ({ id: thread.id, anchor: thread.anchor.ungrouped || thread.anchor })), regroup),
+    redo: () => run(moved, ungroup),
+  };
+}
+
 // `shown`: the page shows its Comments panel (open, on the Comments tab); a draft left behind a closed panel keeps its words
 // but draws no ghost until the panel shows again. `editor`: the owner's own canvas page - it saves its board before an object
 // comment is posted (the server refuses an object it does not have) and carries a group's comments through Ungroup.
@@ -114,33 +138,24 @@ export function useCanvasComments({ base, enabled = true, canAdd = true, openPan
     setStamp(n => n + 1);
     return null;
   }, [client]);
-  // Ungroup (owner decision 2026-10-23): spots [{ id: group id, x, y }], the groups' former places. Their threads move to the
-  // canvas there before the group goes (a refusal throws, and the canvas keeps the group); the answer is the Ungroup step's
-  // undo and redo, which move them back and again. Moves run one after another, and each shows here at once.
-  const moving = useRef(Promise.resolve());
+  // Ungroup (ungroupMoves): a thread's new anchor shows here at once; `keep` holds it until the server's board catches up (an
+  // Undo's group is not saved yet, so the server leaves its threads out meanwhile).
+  const showMoved = useCallback((list, keep = false) => {
+    const by = new Map(list.map(thread => [thread.id, thread.anchor]));
+    setListed(current => current.map(thread => (by.has(thread.id) ? { ...thread, anchor: by.get(thread.id) } : thread)));
+    setKept(current => {
+      const next = new Map(current);
+      for (const thread of [...listedRef.current, ...[...current.values()].map(entry => entry.thread)]) {
+        if (by.has(thread.id) && (keep || current.has(thread.id))) next.set(thread.id, { thread: { ...thread, anchor: by.get(thread.id) }, back: performance.now() });
+      }
+      return next;
+    });
+  }, []);
   const ungroupComments = useCallback(async spots => {
-    const moves = spots.map(spot => ({ object_id: spot.id, anchor: { kind: 'point', x: Math.round(spot.x), y: Math.round(spot.y) } }));
-    const place = (ids, anchorOf) => {
-      setListed(list => list.map(thread => (ids.has(thread.id) ? { ...thread, anchor: anchorOf(thread) } : thread)));
-      setKept(current => new Map([...current].map(([id, entry]) => [id, ids.has(id) ? { thread: { ...entry.thread, anchor: anchorOf(entry.thread) }, back: performance.now() } : entry])));
-    };
-    const toPoints = moved => { const by = new Map(moved.map(entry => [entry.id, moves.find(move => move.object_id === entry.anchor?.object_id)?.anchor]).filter(([, anchor]) => anchor)); place(new Set(by.keys()), thread => by.get(thread.id)); };
-    const run = step => { moving.current = moving.current.then(step, step); return moving.current.finally(() => setStamp(n => n + 1)); };
-    let moved = (await client.moveAnchors(moves))?.moved || [];
-    if (!moved.length) return null;
-    toPoints(moved);
-    setStamp(n => n + 1);
-    return {
-      undo: () => {
-        const back = new Map(moved.map(entry => [entry.id, entry.anchor]));
-        // Shown on the group again now, and kept until the server's board has the group back.
-        setKept(current => { const next = new Map(current); for (const thread of listedRef.current) if (back.has(thread.id)) next.set(thread.id, { thread: { ...thread, anchor: back.get(thread.id) }, back: performance.now() }); return next; });
-        place(new Set(back.keys()), thread => back.get(thread.id));
-        return run(() => client.moveAnchors(moved.map(entry => ({ id: entry.id, anchor: entry.anchor }))));
-      },
-      redo: () => run(async () => { moved = (await client.moveAnchors(moves))?.moved || []; toPoints(moved); }),
-    };
-  }, [client]);
+    const refresh = () => setStamp(n => n + 1);
+    const steps = await ungroupMoves(client.moveAnchors, spots, showMoved).finally(refresh);
+    return steps && { undo: () => steps.undo().finally(refresh), redo: () => steps.redo().finally(refresh) };
+  }, [client, showMoved]);
   // View → Show comments hides every pin (and the draft's ghost) until it is turned back on.
   const pins = useMemo(() => (active && showPins ? pinsOf(threads, selected, draft, shown) : null), [active, showPins, threads, selected, draft, shown]);
   return {

@@ -832,10 +832,15 @@ There is no notifications table: unread is a query over threads, mentions and re
   Undo (the same id) and Redo are one step with the object, and the threads come back with their replies, resolved state
   and anchor. Until the server has the Undo's save, this page keeps showing the threads it had (`useCanvasComments` kept
   threads); only the newest list answer lands, so a late answer never re-shows or drops one. The rows are purged when the
-  canvas itself is deleted for good (`canvases.js` `purgeCommentRows`); Trash keeps them. A canvas thread is never hidden.
+  canvas itself is deleted for good (`canvases.js` `purgeCommentRows`: every row of the seven `canvas_comment*` tables, so
+  its unread and Shared with you counts are zero); Trash keeps them. Comments have no attachments: a message is text and
+  mentions only (no attachment column, table or code), so there is nothing else to purge. A canvas thread is never hidden.
 - **Ungroup (owner decision 2026-10-23):** not a delete. The members keep their threads; the group's threads (resolved
   too) move to a canvas point at the group's top centre before the group goes (`POST …/anchors`, the owner's only); a
   refused move keeps the group and says so. The Ungroup's Undo moves each back to the group; Redo moves them again.
+  Every move is one D1 batch (all or nothing) and idempotent: a moved thread keeps its group anchor under `ungrouped`, so a
+  retry, a resend after a lost answer or a double press ends in the same state, and Regroup restores exactly that anchor.
+  A failed or lost Ungroup sends Regroup and keeps the group; a board save that fails after a move converges on its retry.
 - **No comment on a deleted object:** the server checks a new thread's object against the saved board for everyone,
   the owner included (409 `object_not_on_canvas`). The owner's page saves its board before posting an object comment,
   so an object drawn a moment ago is there. Hidden threads stay in D1 while the canvas lives: their retention is an open
@@ -918,7 +923,7 @@ thread, and `thread_id` for a comment.
 | `DELETE …/comments/:id` | the author (Q23) or the owner | soft delete |
 | `PUT …/threads/:id/color` `{color}` | whoever may resolve the thread | one of the six palette colours; `{thread}` |
 | `DELETE …/threads/:id` | the owner; the starter while every live message is theirs | the whole thread, permanently; `{deleted}` |
-| `POST /api/learn/c/:boardId/anchors` `{moves: [{object_id | id, anchor}]}` | owner | Ungroup and its undo (section 8): moves those threads, never the board; `{moved: [{id, anchor}]}` with the anchors they had |
+| `POST /api/learn/c/:boardId/anchors` `{ungroup: [{id, x, y}]}` or `{regroup: [id]}` | owner | Ungroup and its Undo (section 8): one atomic, idempotent batch over those groups' threads, never the board; `{threads: [{id, anchor}]}` as they now are |
 | `POST …/threads/:id/resolve` · `/reopen` | per section 3 | |
 | `POST …/threads/:id/read` | anyone who can read the thread (Closed and blocked included) | mark read |
 | `GET …/people?audience=members\|public&q=` | anyone who can post in that audience | up to 8 `{name, handle, avatar_url}` from that audience's suggestion set; for a **new thread** (no thread id yet) |

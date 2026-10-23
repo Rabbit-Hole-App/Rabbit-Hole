@@ -573,28 +573,33 @@ async function markRead(env, ctx, id) {
 }
 
 // Ungroup (owner decision 2026-10-23): a group's threads become canvas threads at its former place before the group goes, and
-// the Ungroup's undo puts each back as it was. moves: [{object_id | id, anchor}]. The owner's only - moving a comment with
-// the canvas is an edit of the canvas, never a commenter's right. An object target is not checked against the saved board:
-// the undo's group reaches it with the next save, and until then the thread is hidden, as any thread of a missing object.
+// the Ungroup's Undo puts them back. The owner's only - moving comments with the canvas is an edit of the canvas, never a
+// commenter's right. { ungroup: [{ id: group id, x, y }] } or { regroup: [group id] }; the answer is { threads: [{ id, anchor }] },
+// every thread of those groups as it now is.
+// Atomic: every update of one request is one D1 batch (one transaction), so a failure moves nothing. Idempotent by target: a
+// moved thread keeps the group anchor it had under `ungrouped` - a retry, a lost answer's resend or a concurrent duplicate
+// finds it there and writes the same place again, and Regroup restores exactly that anchor, so no thread is ever moved twice
+// or left half-moved. An object target is not checked against the saved board: the Undo's group reaches it with the next
+// save, and until then the thread is hidden, as any thread of a missing object.
+const OBJECT_ID = /^[!-~]{1,100}$/;
 async function moveAnchors(req, env, ctx) {
   if (!ctx.actor.owner) return refuse('Only the owner moves comments.', 'forbidden', 403);
   const input = await readJson(req);
-  const moves = Array.isArray(input?.moves) ? input.moves.slice(0, 100) : [];
-  if (!moves.length) return refuse('Nothing to move.', 'bad_move', 400);
-  const db = env.LEARN_DB, moved = [], statements = [];
-  for (const move of moves) {
-    const anchor = anchorOf(move?.anchor);
-    if (!anchor) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
-    const { results } = typeof move.object_id === 'string'
-      ? await db.prepare(`${OBJECT_THREADS} AND json_extract(anchor_json, '$.object_id') = ?`).bind(ctx.board.id, move.object_id).all()
-      : await db.prepare('SELECT id, anchor_json FROM canvas_comment_threads WHERE board_id = ? AND id = ?').bind(ctx.board.id, String(move?.id || '')).all();
-    for (const row of results) {
-      moved.push({ id: row.id, anchor: JSON.parse(row.anchor_json) });
-      statements.push(db.prepare('UPDATE canvas_comment_threads SET anchor_json = ? WHERE id = ?').bind(JSON.stringify(anchor), row.id));
-    }
-  }
-  if (statements.length) await db.batch(statements);
-  return json({ moved });
+  const ungroup = Array.isArray(input?.ungroup) ? input.ungroup.slice(0, 100) : null;
+  const regroup = Array.isArray(input?.regroup) ? input.regroup.slice(0, 100) : null;
+  const gids = ungroup ? ungroup.map(spot => spot?.id) : regroup || [];
+  if (!gids.length || !gids.every(id => typeof id === 'string' && OBJECT_ID.test(id))) return refuse('Nothing to move.', 'bad_move', 400);
+  const points = ungroup?.map(spot => anchorOf({ kind: 'point', x: spot.x, y: spot.y }));
+  if (points?.some(point => !point)) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
+  const db = env.LEARN_DB, was = "json_extract(anchor_json, '$.ungrouped.object_id') = ?2 AND json_extract(anchor_json, '$.kind') = 'point'";
+  await db.batch(gids.flatMap((gid, i) => (ungroup ? [
+    db.prepare(`UPDATE canvas_comment_threads SET anchor_json = json_set(anchor_json, '$.x', ?3, '$.y', ?4) WHERE board_id = ?1 AND ${was}`).bind(ctx.board.id, gid, points[i].x, points[i].y),
+    db.prepare(`UPDATE canvas_comment_threads SET anchor_json = json_object('kind', 'point', 'x', ?3, 'y', ?4, 'ungrouped', json(anchor_json))
+      WHERE board_id = ?1 AND json_extract(anchor_json, '$.kind') = 'object' AND json_extract(anchor_json, '$.object_kind') = 'group' AND json_extract(anchor_json, '$.object_id') = ?2`).bind(ctx.board.id, gid, points[i].x, points[i].y),
+  ] : [db.prepare(`UPDATE canvas_comment_threads SET anchor_json = json_extract(anchor_json, '$.ungrouped') WHERE board_id = ?1 AND ${was}`).bind(ctx.board.id, gid)])));
+  const { results } = await db.prepare(`SELECT id, anchor_json FROM canvas_comment_threads WHERE board_id = ?1 AND (json_extract(anchor_json, '$.ungrouped.object_id') IN (SELECT value FROM json_each(?2))
+    OR (json_extract(anchor_json, '$.object_kind') = 'group' AND json_extract(anchor_json, '$.object_id') IN (SELECT value FROM json_each(?2)))) ORDER BY id`).bind(ctx.board.id, JSON.stringify(gids)).all();
+  return json({ threads: results.map(row => ({ id: row.id, anchor: JSON.parse(row.anchor_json) })) });
 }
 
 // Allow comments and the public setting (section 4): the owner's; the public setting only on a published canvas.
