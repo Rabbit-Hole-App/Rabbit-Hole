@@ -75,13 +75,15 @@ test('one URL for a Library state: the Filters control, View all and the Agent B
 });
 
 // Owner, 2026-10-08: "put sort and filter next to each other", "put a search near filter and sort to search by
-// project/canvas name". Ordered controls beside the title, wrapping at narrow widths: Search, Filters, Sort, then Start; Sort and Search only on card views.
-test('the Library title row: Search by name, Filters and Sort side by side; the search narrows the cards by title', async () => {
+// project/canvas name". Owner brief 2026-10-23 replaces the one row: the title row holds New folder and Start a rabbit hole;
+// the controls row beneath holds Search by name then Filters on the left, Sort then Size on the right. Sort, Size and Search only on card views.
+test('the Library header: Start in the title row; Search by name, Filters, Sort and Size in the controls row; the search narrows the cards by title', async () => {
   const { readFileSync } = await import('node:fs');
   const app = readFileSync(new URL('./App.jsx', import.meta.url), 'utf8');
-  const row = app.slice(app.indexOf('{learnPreview && <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2">'), app.indexOf('Start a rabbit hole</Button></div>}'));
-  const order = ['data-library-search', '<LibraryFilters', '<SortMenu size="md"', 'onClick={startRabbitHole}'].map((x) => row.indexOf(x));
+  const row = app.slice(app.indexOf('data-library-actions'), app.indexOf('<CardSize /></div>}</div>}'));
+  const order = ['data-new-folder', 'onClick={startRabbitHole}', 'data-library-controls', 'data-library-search', '<LibraryFilters', '<SortMenu size="md"'].map((x) => row.indexOf(x));
   assert.ok(order.every((at, i) => at > 0 && (i === 0 || at > order[i - 1])), `order ${order}`);
+  for (const [name, icon] of [['Start a rabbit hole', 'Plus'], ['New folder', 'FolderPlus']]) assert.ok(row.includes(`<${icon} size={14} />${name}</Button>`), `${name} has its ${icon} icon`);
   assert.match(app, /const found = needle \? withFixtures\.filter\(\(a\) => \[a\.title, titleOf\(a\)\]\.some\(\(t\) => t\?\.toLowerCase\(\)\.includes\(needle\)\)\) : withFixtures;/);
   assert.match(app, /<LibraryViews apps=\{found\} type=\{type\} data=\{data\} sort=\{cardSort\}/);
   assert.doesNotMatch(readFileSync(new URL('./LibraryViews.jsx', import.meta.url), 'utf8'), /<SortMenu/, 'one Sort, beside Filters');

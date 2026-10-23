@@ -72,7 +72,7 @@ const setFilter = (key, value, path) => navigate(chipHref(window.location.search
 const FILTER_ICONS = { projects: FolderGit2, canvases: Shapes, apps: AppWindow };
 // `path` and `types`: the page and the Type rows it shows - Explore passes /explore and its two types (library-filter.js
 // EXPLORE_TYPES); Archived and Ownership are the Library's alone.
-export function LibraryFilters({ type, section, archived, path = '/library', types = Object.keys(TYPES) }) {
+export function LibraryFilters({ type, section, archived, path = '/library', types = Object.keys(TYPES), menuClass = 'top-10 right-0 w-56' }) {
   const [open, setOpen] = useState(false);
   const library = path === '/library';
   const count = [type, section].filter(Boolean).length;
@@ -85,7 +85,7 @@ export function LibraryFilters({ type, section, archived, path = '/library', typ
   return (
     <div className="relative">
       <Button variant="secondary" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ListFilter size={14} /> Filters{count > 0 && ` · ${count}`}</Button>
-      <Menu open={open} onClose={() => setOpen(false)} className="top-10 right-0 w-56">
+      <Menu open={open} onClose={() => setOpen(false)} className={menuClass}>
         {heading('Type')}
         {types.map((k) => item(TYPES[k].label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k, path), FILTER_ICONS[k]))}
         {library && item('Archived canvas', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ d: q.get('d'), f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}

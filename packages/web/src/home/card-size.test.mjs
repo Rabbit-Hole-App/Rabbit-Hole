@@ -32,11 +32,11 @@ test('a chosen size is stored, survives a reload (a fresh read), and a blocked s
 test('the slider, its placement on all three pages, and the grid rule that makes smaller cards fit more columns', () => {
   const control = read('CardSize.jsx');
   assert.match(control, /type="range"[^>]*min=\{0\} max=\{CARD_SIZES\.length - 1\} step=\{1\} value=\{size\} aria-label="Card size" aria-valuetext=\{CARD_SIZES\[size\]\}/);
-  assert.match(control, />Card size</);
-  assert.match(control, />Small</);
-  assert.match(control, />Large</);
-  assert.match(control, /max-md:w-full/, 'on a phone it takes its own row');
-  assert.match(read('../App.jsx'), /<LibraryFilters type=\{type\}[^\n]*<SortMenu size="md"[^\n]*\/>\}\{!archived && type !== 'apps' && <CardSize \/>\}/, 'the Library: after Filters and Sort');
+  // Owner brief 2026-10-23: the visible label is "Size", with no Small or Large end labels; assistive tech keeps "Card size".
+  assert.match(control, />Size<\/span>/);
+  assert.doesNotMatch(control, />Card size<|>Small<|>Large</, 'no visible Card size, Small or Large text');
+  assert.doesNotMatch(control, /max-md:w-full/, 'compact: it sits inline with Sort on a phone');
+  assert.match(read('../App.jsx'), /<SortMenu size="md"[^\n]*\/><CardSize \/><\/div>\}/, 'the Library: Sort, then Size at the far right of the controls row');
   const home = read('../Home.jsx');
   assert.equal((home.match(/<CardSize \/>/g) || []).length, 2, 'Home (beside Start a rabbit hole) and Explore (beside Filters and Sort)');
   const css = read('../index.css');

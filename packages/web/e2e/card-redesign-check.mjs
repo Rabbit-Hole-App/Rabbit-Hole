@@ -295,9 +295,10 @@ await check('10 Library sort: Last updated by default, then Created, Name and Mo
   await titled(lib, '[data-library-card]', T.tides).waitFor({ timeout: 60000 });
   assert.equal(await lib.locator('[data-sort-control]').getAttribute('data-sort-control'), 'forks');
   assert.deepEqual(await titlesIn(lib, '[data-library-card]', ours), order('forks'));
-  // Sort sits beside Filters (owner, 2026-10-08), at its height.
+  // Sort is in the controls row at Filters' height (owner, 2026-10-08); since the owner brief of 2026-10-23 it is in the right
+  // group, after the left group (Search by name, Filters), no longer touching Filters.
   const [s] = await boxes(lib.locator('[data-sort-control]')), [fl] = await boxes(lib.getByRole('button', { name: /^Filters/ }));
-  assert.ok(Math.abs(s.y - fl.y) <= 1 && s.h === fl.h && s.x > fl.x && s.x - (fl.x + fl.w) <= 12, `sort ${JSON.stringify(s)} filters ${JSON.stringify(fl)}`);
+  assert.ok(Math.abs(s.y - fl.y) <= 1 && s.h === fl.h && s.x > fl.x + fl.w, `sort ${JSON.stringify(s)} filters ${JSON.stringify(fl)}`);
   // Search by name sits just before Filters (owner, 2026-10-08) and narrows the cards by title.
   const search = lib.locator('[data-library-search]');
   const [sr] = await boxes(search);
