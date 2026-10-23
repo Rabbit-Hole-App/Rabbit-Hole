@@ -115,7 +115,18 @@ for (const theme of ['light', 'dark']) {
   await context.close();
 }
 
-// ---- a phone: the menus collapse into one compact menu; logo, Fork and the panel toggle stay usable at 44px ----
+// ---- the narrowest width that keeps the full menubar (1024): the title truncates, the centre holds, nothing overlaps ----
+{
+  const { context, page } = await contextFor(null, { width: 1024, height: 800 });
+  await open(page);
+  const p = parts(page);
+  const [h, c] = await Promise.all([box(p.header), box(p.centre)]);
+  check('1024 wide: the full menubar, a centred group, the long title cut short, nothing overlapping or scrolling sideways', await page.locator('[role="menubar"]').count() === 1 && await page.locator('[data-compact-menu]').count() === 0
+    && Math.abs((c.x + c.w / 2) - (h.x + h.w / 2)) <= 2 && await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth) && (await noOverlaps(page)).length === 0, JSON.stringify(await noOverlaps(page)));
+  await context.close();
+}
+
+// ---- a phone (and anything under 1024): the menus collapse into one compact menu; logo, Fork and the panel toggle stay usable at 44px ----
 {
   const { context, page } = await contextFor(null, { width: 390, height: 844 });
   await open(page);

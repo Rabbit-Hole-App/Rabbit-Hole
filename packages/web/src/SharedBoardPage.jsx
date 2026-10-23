@@ -200,20 +200,20 @@ export default function SharedBoardPage({ token }) {
       <section aria-label="Shared canvas" className="flex min-h-0 min-w-0 flex-1 flex-col max-lg:flex-none">
       {/* Three areas (owner header brief, 2026-10-22): the logo; the title with its menus and creator, centred on the header; Fork
           with its note, then the panel toggle. Equal side columns keep the centre put whatever the right side holds. */}
-      <header data-canvas-header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-x-3 px-4 py-2 max-md:gap-x-2 max-md:px-3">
+      <header data-canvas-header className="grid shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 px-4 py-2 max-lg:gap-x-2 max-lg:px-3 lg:grid-cols-[minmax(17rem,1fr)_minmax(0,auto)_minmax(17rem,1fr)]">
         <div className="flex min-w-0 items-center">
-          <a href="/" data-shared-brand className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 max-md:h-11 max-md:w-11 max-md:justify-center" aria-label={`${PRODUCT} home`}>
+          <a href="/" data-shared-brand className="flex shrink-0 items-center rounded-lg no-underline outline-none focus-visible:ring-2 focus-visible:ring-accent/60 max-lg:h-11 max-lg:w-11 max-lg:justify-center" aria-label={`${PRODUCT} home`}>
             <img src={logoBlack} alt="" width="32" height="32" className="h-8 w-8 dark:hidden" />
             <img src={logoWhite} alt="" width="32" height="32" className="hidden h-8 w-8 dark:block" />
           </a>
         </div>
-        <div data-header-center className="flex min-w-0 max-w-[60vw] flex-col items-center max-md:max-w-[44vw]">
+        <div data-header-center className="flex min-w-0 flex-col items-center">
           <div className="flex min-w-0 max-w-full items-center gap-2">
             {/* One line, the full title on hover and to a screen reader; with holes, the chevron opens their tree, each level its own link (owner r35). */}
             <span data-shared-title title={title} className="min-w-0 truncate text-sm font-semibold text-ink">{title}</span>
             {holes && <TitleHoles rows={holeRows(holes.tree)} onPick={row => goTo(row.app)} />}
             {/* Only where the visitor cannot edit a copy (an owner or editor on their own link): a visitor's tools edit their temporary copy. */}
-            {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2 max-md:hidden"><Eye size={11} />View only</span>}
+            {!localCopy && <span data-view-only className="flex shrink-0 items-center gap-1 rounded-full bg-hover px-2 py-0.5 text-xs text-ink-2 max-lg:hidden"><Eye size={11} />View only</span>}
             <HeaderMenus menus={menus} />
             {shared.project_canvases?.length > 0 && <ProjectCanvases list={shared.project_canvases} />}
             {/* The canvas's repository and fork origin as this link's viewer may see them (decisions 1A-3A): no details menu here. */}
@@ -231,7 +231,7 @@ export default function SharedBoardPage({ token }) {
           {/* Fork, the one primary action; signed out it goes through sign-in and forks on return. The note sits directly beneath it
               in the temporary-edit experience only, never for an owner's saved editing view. */}
           <div className="flex shrink-0 flex-col items-end gap-1">
-            <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="max-md:min-h-11" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
+            <ForkButton source={{ token }} title={shared.title} auto={forkRequested} signedIn={!!shared.viewer} variant="primary" className="max-lg:min-h-11" draft={guest.forDraft} onForked={fork => { guest.clear(); window.location.href = fork.url; }} count={shared.fork_count > 0 ? shared.fork_count : null} />
             {localCopy && <span data-guest-draft-notice role="note" className="max-w-36 text-right text-xs leading-tight text-ink-2">Changes aren't saved. Fork to keep them</span>}
           </div>
           <CommentsToggle panel={panel} comments={comments} />
@@ -337,9 +337,9 @@ function ProjectCanvases({ list }) {
   );
 }
 
-// Wide: the menubar in the header. Below md (768px) the menus collapse into one Menu button whose panel holds the same menubar,
+// Wide: the menubar in the header. Below lg (1024px) the menus collapse into one Menu button whose panel holds the same menubar,
 // so a phone keeps readable labels instead of a squeezed row (owner header brief, 2026-10-22, item 7).
-const NARROW = '(max-width: 767px)';
+const NARROW = '(max-width: 1023px)';
 function HeaderMenus({ menus }) {
   const [narrow, setNarrow] = useState(() => window.matchMedia?.(NARROW).matches ?? false);
   const [open, setOpen] = useState(false);
