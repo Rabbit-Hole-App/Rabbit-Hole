@@ -70,7 +70,7 @@ import { useCanvasSearch } from './use-canvas-search.jsx';
 import { SearchContentProvider } from './canvas-search-content.jsx';
 import { sourceTarget } from './card-sources.js';
 import TocConversation from './TocConversation.jsx';
-import { outlinePlan, planRevisionOf } from './learn-outline-model.js';
+import { linkedHeadings, outlinePlan, planRevisionOf } from './learn-outline-model.js';
 import SourcesPane, { ContextUpload } from './SourcesPane.jsx';
 import CanvasRefPicker from './CanvasRefPicker.jsx';
 import { useCanvasLinks } from './LinksPanel.jsx';
@@ -1206,10 +1206,11 @@ function LearnSurface({ app, onBack, repository = null, repositoryContext = null
   const coachingState = chat?.coaching?.state;
   const tocGoal = coachingState?.goals?.find(goal => goal.goalId === coachingState.activeGoalId)?.label || null;
   // Task 11: the accepted plan beside the outline (learn-outline-model.js outlinePlan), all of it this learner's own: their
-  // journey, its goal's criteria, and the canvas headings read for their journey stamps only. A proposal carries the plan
+  // journey, its goal's criteria, and the canvas headings the contents still link (linkedHeadings), read for their journey
+  // stamps only. A proposal carries the plan
   // revision it was asked on (boardContext.planRevision) and applies only while it still holds.
   const journeyGoal = journey.journey?.id ? coachingState?.goals?.find(goal => goal.journeyId === journey.journey.id) || null : null;
-  const tocPlan = outlinePlan({ headings: (canvasApi.current?.blocks?.() || []).filter(block => block.type === 'heading'), journey: journey.journey, path: journey.path, goal: journeyGoal });
+  const tocPlan = outlinePlan({ headings: linkedHeadings(canvasApi.current?.blocks?.(), canvasApi.current?.toc?.()), journey: journey.journey, path: journey.path, goal: journeyGoal });
   const planRevision = planRevisionOf(journey.journey, journey.path);
   const planRevisionRef = useRef(planRevision);
   planRevisionRef.current = planRevision;

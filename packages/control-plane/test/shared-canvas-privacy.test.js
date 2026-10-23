@@ -105,3 +105,14 @@ test('sharedState: the cards keep their content; only learner fields go; a board
   assert.deepEqual(sharedState(BOARD), BOARD);
   assert.deepEqual(sharedState(null), {});
 });
+
+// Owner brief 2026-10-23: the Table of contents' own list (board state `toc`) is placed content, so a shared viewer and a
+// link visitor's fork (forkable = sharedState) keep it; the creator's ticks on it stay private, as on headings.
+test('a shared canvas keeps its Table of contents list without the creator ticks', () => {
+  const toc = [{ id: 'h2', level: 2, text: 'Masking', done: true, heading: 'h2' }, { id: 'n1', level: 1, text: 'Proofing', description: 'Why dough rests.', done: false }];
+  const state = sharedState({ ...SAVED, toc });
+  assert.deepEqual(state.toc, [{ id: 'h2', level: 2, text: 'Masking', heading: 'h2' }, { id: 'n1', level: 1, text: 'Proofing', description: 'Why dough rests.' }]);
+  assert.equal(toc[0].done, true, 'the saved board is not changed');
+  assert.equal('toc' in sharedState(SAVED), false, 'a board without a list still reads its headings');
+  assert.deepEqual(sharedState({ toc: [] }).toc, [], 'an emptied list stays empty');
+});

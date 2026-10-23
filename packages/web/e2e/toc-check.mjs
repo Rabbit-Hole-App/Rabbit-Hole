@@ -3,14 +3,16 @@
 // completion controls that only complete, titles that only navigate, editing a title and description, drag to reorder
 // (never from a circle), narrow and wide panels, light and dark, persistence across a reload, the active-section marker,
 // and a Tutor proposal: it marks the tab without switching to it, shows each add under its parent, applies once as an
-// uncompleted entry, and a second copy made against the old headings is refused as stale. Against the LOCAL
+// uncompleted entry, and a second copy made against the old headings is refused as stale. Owner brief 2026-10-23: every
+// one of those actions, and adding a section or sub-section, changes the contents' own list only (board state `toc`): the
+// canvas objects and their content stay exactly as seeded, and the contents survive a reload. Against the LOCAL
 // stack only: local D1 and fresh browser profiles. No model is called: /api/learn/ask is answered here for every request
 // and any other model route fails the run. Prints no secrets.
 // Usage: BASE=http://127.0.0.1:8888 SMALL_CP=http://127.0.0.1:8889 node e2e/toc-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { outlineFrom, outlineRevision } from '../src/learn-outline-model.js';
+import { outlineFrom, outlineRevision, tocOf } from '../src/learn-outline-model.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8888';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8889';
@@ -48,11 +50,21 @@ const canvas = (await api('/api/canvases', { method: 'POST', body: JSON.stringif
 const seededBoard = await api(`/api/learn/boards/${canvas.name}/main`, { method: 'PUT', body: JSON.stringify({ state: STATE }) });
 if (seededBoard.status !== 200) throw Error(`seeding the board failed: ${seededBoard.status}`);
 // The local D1 now and then answers a read with a 500; retry those, never a 4xx.
-const serverBlocks = async () => { for (let i = 0; i < 4; i += 1) { const r = await api(`/api/learn/boards/${canvas.name}/main`); if (r.status < 500) return r.body?.state?.blocks || []; } return []; };
-// Wait for the canvas's debounced save to reach the server: the asserted state, polled, never a fixed sleep.
+const serverState = async () => { for (let i = 0; i < 4; i += 1) { const r = await api(`/api/learn/boards/${canvas.name}/main`); if (r.status < 500) return r.body?.state || {}; } return {}; };
+const serverBlocks = async () => (await serverState()).blocks || [];
+// Wait for the canvas's debounced save to reach the server: the asserted state, polled, never a fixed sleep. The test reads
+// the contents as saved (owner brief 2026-10-23: the board's own `toc` list once edited, else its headings).
 const saved = async (label, test) => {
-  for (const until = Date.now() + 20000; Date.now() < until;) { if (test((await serverBlocks()).filter(block => block.type === 'heading'))) return; await new Promise(go => setTimeout(go, 250)); }
+  for (const until = Date.now() + 20000; Date.now() < until;) { const state = await serverState(); if (test(tocOf(state.blocks, state.toc))) return; await new Promise(go => setTimeout(go, 250)); }
   throw Error(`the server never saved: ${label}`);
+};
+// Owner brief 2026-10-23: no Table of contents action creates, changes or moves a canvas object. The canvas as saved and as
+// drawn, compared with the seed by what each object holds.
+const held = list => list.map(block => [block.id, block.type, block.level ?? null, block.text ?? block.title ?? null, block.description ?? null, !!block.done]);
+const canvasUntouched = async label => {
+  assert.deepEqual(held(await serverBlocks()), held(BLOCKS), `${label}: the saved canvas objects are the seeded ones, in order, unchanged`);
+  const drawn = await page.locator('[data-block-id]').evaluateAll(nodes => nodes.map(node => node.getAttribute('data-block-id')));
+  assert.deepEqual([...new Set(drawn)].sort(), BLOCKS.map(block => block.id).sort(), `${label}: the canvas draws the seeded objects only`);
 };
 
 const browser = await chromium.launch();
@@ -200,7 +212,8 @@ await check('4 a title only navigates: the canvas frames the section and no comp
   assert.deepEqual(await done(), before[1], 'navigation never completes');
 });
 
-await check('5 a title and description edit in place, together, and the canvas heading follows; Escape keeps both', async () => {
+// Owner brief 2026-10-23 replaces "the canvas heading follows": the edit changes the contents only.
+await check('5 a title and description edit in place, together, and the canvas heading stays as it was; Escape keeps both', async () => {
   await entry('s12').hover();
   await entry('s12').getByRole('button', { name: 'Edit Acids and proteins' }).click();
   const editor = toc().locator('[data-toc-editor]');
@@ -210,7 +223,7 @@ await check('5 a title and description edit in place, together, and the canvas h
   await editor.getByRole('textbox', { name: 'Description of Acids and proteins' }).press('Enter');
   await editor.waitFor({ state: 'detached' });
   assert.equal((await entry('s12').innerText()).replace(/\s+/g, ' ').trim(), '1.2 Acids and egg proteins Why lemon juice firms an egg white without heat.');
-  assert.equal(await page.locator('[data-block-id="s12"]').innerText().then(text => text.includes('Acids and egg proteins')), true, 'the canvas heading follows');
+  assert.equal(await page.locator('[data-block-id="s12"]').innerText().then(text => text.includes('Acids and proteins') && !text.includes('egg')), true, 'the canvas heading stays as it was');
   // Escape leaves everything as it was.
   await entry('t3').hover();
   await entry('t3').getByRole('button', { name: 'Edit Baking' }).click();
@@ -237,6 +250,9 @@ await check('6 a drag moves a section with its sub-sections and renumbers; compl
   const before = await order();
   await circle('t2').dragTo(entry('t3'), { targetPosition: { x: 40, y: 4 } });
   assert.deepEqual(await order(), before, 'the circle never starts a drag');
+  // Owner brief 2026-10-23: the drag reorders the contents only; the canvas keeps its order and content.
+  await saved('the step 6 order', entries => entries[0]?.id === 't3');
+  await canvasUntouched('after the edit, the ticks and the drag');
 });
 
 await check('7 reload: completion, the edit and the order are what the learner left', async () => {
@@ -294,7 +310,7 @@ await check('11 an outline request in the Table of contents conversation applies
   await circle('t3').click(); // Baking done: a new sub-section under it must still start open
   await page.waitForFunction(() => document.querySelector('[data-toc-entry="t3"]')?.hasAttribute('data-done'));
   await saved('Baking done', headings => headings.find(block => block.id === 't3')?.done === true);
-  const base = outlineRevision(outlineFrom(await serverBlocks()));
+  const server = await serverState(), base = outlineRevision(outlineFrom(server.blocks, server.toc));
   const proposal = { base, ops: [{ op: 'add', text: 'Proofing', level: 2, parent: 't3', description: 'Why dough rests before it bakes.' }] };
   reply = tutorTurn(proposal);
   await send('Where would proofing fit?');
@@ -311,6 +327,8 @@ await check('11 an outline request in the Table of contents conversation applies
   assert.equal((await added.innerText()).replace(/\s+/g, ' ').trim(), '1.11 Proofing Why dough rests before it bakes.', 'the end of the Baking section');
   assert.equal(await tocTab().getAttribute('aria-label'), 'Table of contents', 'the marker clears once applied');
   await saved('the applied proposal', headings => headings.some(block => block.text === 'Proofing' && block.description === 'Why dough rests before it bakes.' && !block.done));
+  // Owner brief 2026-10-23: applied to the contents only, never as a canvas heading.
+  await canvasUntouched('after the applied proposal');
   lastProposal = proposal;
 });
 
@@ -344,10 +362,34 @@ await check('13 the same proposal again (a retry) was made against the old headi
   await card.getByRole('button', { name: 'Apply' }).click();
   assert.equal(await card.locator('[role="alert"]').innerText(), 'The contents changed since this proposal. Ask the Tutor again.');
   assert.equal(await toc().locator('[data-toc-entry]', { hasText: 'Proofing' }).count(), 1, 'Apply on a stale proposal changes nothing');
+  await card.getByRole('button', { name: 'Apply' }).click();
+  assert.equal(await toc().locator('[data-toc-entry]', { hasText: 'Proofing' }).count(), 1, 'a repeated Apply changes nothing either');
+  await canvasUntouched('after repeated Apply');
   await shot('10-proposal-stale', card);
   await card.getByRole('button', { name: 'Discard' }).click();
   await card.waitFor({ state: 'detached' });
   assert.equal(await tocTab().getAttribute('aria-label'), 'Table of contents');
+});
+
+// Owner brief 2026-10-23: adding a section or a sub-section updates the contents only; both survive a reload and the canvas
+// still holds exactly the seeded objects.
+await check('14 adding a section and a sub-section changes the contents only; they survive a reload; the canvas is unchanged', async () => {
+  const add = async (label, text) => {
+    await toc().getByRole('button', { name: `Add a ${label}`, exact: true }).click();
+    await toc().getByRole('textbox', { name: `New ${label} title`, exact: true }).fill(text);
+    await page.keyboard.press('Enter');
+    await toc().locator('[data-toc-entry]', { hasText: text }).waitFor();
+  };
+  await add('section', 'Fermentation');
+  await add('sub-section', 'Sourdough starters');
+  const rows = await toc().locator('[data-toc-entry]').evaluateAll(nodes => nodes.slice(-2).map(node => [node.getAttribute('data-level'), node.innerText.replace(/\s+/g, ' ').trim()]));
+  assert.deepEqual(rows, [['1', '4 Fermentation'], ['2', '4.1 Sourdough starters']]);
+  await saved('the added section and sub-section', entries => entries.at(-2)?.text === 'Fermentation' && entries.at(-1)?.text === 'Sourdough starters');
+  await canvasUntouched('after adding a section and a sub-section');
+  await open();
+  assert.equal(await toc().locator('[data-toc-entry]', { hasText: 'Sourdough starters' }).count(), 1, 'the reload keeps them');
+  assert.equal(await toc().locator('[data-toc-entry]', { hasText: 'Proofing' }).count(), 1, 'and the applied proposal');
+  await canvasUntouched('after the reload');
 });
 
 await context.close();

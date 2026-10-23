@@ -7,8 +7,10 @@
 // (36), nothing proposed or applied; 3 a syllabus that fits the room left (36 headings) adopts into the existing contents,
 // existing headings kept, and a chat turn sends all 120; 4 a 121st heading added by hand in the panel lands (manual editing is
 // never capped), and the next chat turn sends outlineOmitted { count: 121 } with no outline and no outlineRevision, and still
-// answers; 5 navigation from the panel still frames a section at 121; 6 no model route was reached and the page raised no error.
-// The headings are read from the canvas's saved blocks (localStorage), so the check does not depend on the panel's markup.
+// answers; 5 at 121 entries the panel lists every entry, and pressing one with no canvas heading moves and marks nothing
+// (owner brief 2026-10-23); 6 no model route was reached and the page raised no error.
+// The contents are read from the canvas's saved board (localStorage), so the check does not depend on the panel's markup:
+// owner brief 2026-10-23, the board's own `toc` list once edited, else its headings; no step adds a canvas heading.
 // Prints `ok <label>` per check, counts and ids only (no cookies, no secrets); exits 1 on any failure.
 // Usage: BASE=http://127.0.0.1:8931 SMALL_CP=http://127.0.0.1:8933 VARS=<cp .dev.vars> OUT=<dir> node e2e/toc-cap-check.mjs
 import { chromium } from '@playwright/test';
@@ -95,8 +97,11 @@ const pane = () => page.locator('[data-chat-pane]');
 const tab = name => page.getByRole('tab', { name: name === 'Table of contents' ? /^Table of contents(, \d+ proposals? to review)?$/ : name, exact: name !== 'Table of contents' });
 const contents = () => page.getByRole('tabpanel', { name: 'Table of contents' });
 const apply = () => contents().getByRole('button', { name: 'Apply', exact: true });
-const headings = () => page.evaluate(key => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).filter(b => b.type === 'heading')
-  .map(b => ({ id: b.id, level: b.level, text: b.text })), inkKey);
+const headings = () => page.evaluate(key => { const s = JSON.parse(localStorage.getItem(key) || '{}'); return (Array.isArray(s.toc) ? s.toc : (s.blocks || []).filter(b => b.type === 'heading')); }, inkKey)
+  .then(list => list.map(b => ({ id: b.id, level: b.level, text: b.text })));
+// Owner brief 2026-10-23: the canvas objects as saved, which no Table of contents action creates or changes.
+const canvasBlocks = () => page.evaluate(key => (JSON.parse(localStorage.getItem(key) || '{}').blocks || []).map(b => [b.id, b.type, b.title, b.body]), inkKey);
+const seeded = seed.blocks.map(b => [b.id, b.type, b.title, b.body]);
 const setMode = async mode => {
   if (await pane().locator('[data-chat-mode]').getAttribute('data-chat-mode') === mode) return;
   await pane().getByRole('button', { name: 'Mode', exact: true }).click();
@@ -172,6 +177,7 @@ await check('4 a 121st heading added by hand lands; the next chat turn sends out
   await page.keyboard.press('Enter');
   after121 = await waitFor(async () => { const h = await headings(); return h.length === 121 && h; });
   assert.equal(after121.at(-1).text, 'My own notes');
+  assert.deepEqual(await canvasBlocks(), seeded, 'owner brief 2026-10-23: 121 contents entries and the canvas still holds only its card');
   for (const mode of ['ask', 'tutor']) {
     const body = await turn(mode === 'tutor' ? 'add a section on revision' : 'what is attention?', {}, mode);
     assert.deepEqual(body.outlineOmitted, { count: 121 }, mode);
@@ -182,11 +188,19 @@ await check('4 a 121st heading added by hand lands; the next chat turn sends out
   await pane().screenshot({ path: `${OUT}/4-chat-at-121.png` });
 });
 
-await check('5 at 121 headings the panel still navigates: a section pressed is framed and marked active', async () => {
+// Owner brief 2026-10-23 replaces "a section pressed is framed and marked active": these entries live in the contents only,
+// so there is no canvas heading to frame; pressing one leaves the camera where it is and marks nothing.
+await check('5 at 121 entries the panel still lists every entry; pressing one with no canvas heading moves nothing and marks nothing', async () => {
   await tab('Table of contents').click();
+  assert.equal(await contents().locator('[data-toc-entry]').count(), 121);
   const target = after121[90];
-  await contents().locator(`[data-toc-entry="${target.id}"] button[aria-current], [data-toc-entry="${target.id}"] button[title="Double-click to edit"]`).first().click();
-  await contents().locator(`[data-toc-entry="${target.id}"][data-active]`).waitFor({ timeout: 5000 });
+  const camera = () => page.evaluate(() => document.querySelector('[data-canvas-surface] div[style*="scale("]')?.style.transform || '');
+  const before = await camera();
+  await contents().locator(`[data-toc-entry="${target.id}"] button[title="Double-click to edit"]`).first().click();
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))); // a frame would have started its move
+  assert.equal(await camera(), before, 'no canvas heading, so nothing to frame');
+  assert.equal(await contents().locator('[data-toc-entry][data-active]').count(), 0, 'no entry is marked active');
+  assert.deepEqual(await canvasBlocks(), seeded, 'the canvas still holds only its card');
   await contents().screenshot({ path: `${OUT}/5-panel-at-121.png` });
 });
 

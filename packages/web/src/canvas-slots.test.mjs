@@ -62,9 +62,10 @@ test('a slot is the coming card\'s size: exact when the type fixes it, its typic
 test('slots never reach the save, the undo snapshot or the content count', async () => {
   const { readFileSync } = await import('node:fs');
   const source = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
-  assert.match(source, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(doc \? \{ doc \} : \{\}\) \};/);
-  // UI-25: undo steps also carry groups (Undo after Ungroup brings the group back); still no slots.
-  assert.match(source, /present\.current = \{ strokes, shapes, items, links, blocks, groups \};/);
+  assert.match(source, /const state = \{ strokes, shapes, items, links, blocks: light, groups, areas, \.\.\.\(toc \? \{ toc \} : \{\}\), \.\.\.\(doc \? \{ doc \} : \{\}\) \};/);
+  // UI-25: undo steps also carry groups (Undo after Ungroup brings the group back), and the Table of contents' own list
+  // (owner brief 2026-10-23); still no slots.
+  assert.match(source, /present\.current = \{ strokes, shapes, items, links, blocks, groups, toc \};/);
   assert.match(source, /content = canvasObjects\(\{ blocks, exchanges, strokes, shapes, items, areas \}\);/);
   assert.match(source, /const \[slots, setSlots\] = useState\(\[\]\);/, 'component state, never read from storage or boardState');
   assert.doesNotMatch(source, /setBlocks\([^)]*slot:/);

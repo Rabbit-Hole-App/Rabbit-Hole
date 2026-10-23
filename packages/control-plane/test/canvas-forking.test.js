@@ -586,3 +586,10 @@ test('fork with a guest draft is one fork per action, and a malformed draft fork
   assert.equal((await f.library('ben')).length, 1);
   assert.equal((await f.call('GET', `/api/learn/boards/shared/${link}`, { as: 'cara' })).body.fork_count, 1);
 });
+
+// Owner brief 2026-10-23: a fork or duplicate copies the Table of contents' own list with the board content.
+test('forkState keeps the Table of contents list', () => {
+  const toc = [{ id: 'h1', level: 1, text: 'Tides', done: true, heading: 'h1' }, { id: 'n1', level: 2, text: 'Neap tides', done: false }];
+  assert.deepEqual(forkState({ blocks: [{ id: 'h1', type: 'heading', text: 'Tides' }], toc }), { blocks: [{ id: 'h1', type: 'heading', text: 'Tides' }], toc });
+  assert.equal('toc' in forkState({ blocks: [] }), false);
+});
