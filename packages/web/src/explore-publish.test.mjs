@@ -98,3 +98,12 @@ test('dark mode keeps white text white on the hex blue: Publish to Explore and t
   assert.match(css, /\.dark \[class\*='bg-accent'\],\n\.dark \[class\*='bg-primary-fill'\],\n\.dark \[class\*='bg-\[#2383e2\]'\],\n\.dark \[class\*='bg-\(--action-blue\)'\],\n\.dark \[class\*='bg-danger'\] \{\n\s+--color-white: #ffffff;/);
   assert.match(readFileSync(new URL('./SharePanel.jsx', import.meta.url), 'utf8'), /data-publish disabled=\{disabled\} onClick=\{\(\) => run\(true\)\} className="[^"]*bg-primary-fill[^"]*text-white/);
 });
+
+// Owner decision 2026-10-22 (one permanent share link): sharing off blocks the link, on restores the same link; the dialog
+// says exactly that, never promises or warns of a new link, and does not show the URL as working while sharing is off.
+test('the Share dialog states the permanent-link rule and hides the URL while sharing is off', () => {
+  const panel = read('./SharePanel.jsx');
+  assert.match(panel, /const LINK_RULE = 'Turning sharing off blocks access through this link\. Turning it back on restores access using the same link\.';/);
+  assert.match(panel, /const shareUrl = mode === 'invited' \? '' :/);
+  assert.doesNotMatch(panel, /new link|makes a new|new token/i);
+});

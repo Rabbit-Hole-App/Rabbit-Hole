@@ -179,10 +179,14 @@ test('increment 2 seams: Share carries the comment settings; the published page 
   assert.match(share, /<ExploreCommentSetting cs=\{cs\} \/>/, 'the Explore tab, under its link');
   assert.match(page, /comments=\{comments\.active \? \{ base: memberBase\(commentBoard\) \} : null\}/);
   assert.match(settings, /const SHARE = \[\[false, 'View only'\], \[true, 'Allow comments'\]\];/);
+  // Owner decision 2026-10-22: the Share tab also offers all three states for the share link, enforced by the server (link_comments).
+  assert.match(settings, /const LINK = \[\['hidden', 'Hidden'\], \['view', 'View only'\], \['allow', 'Allow comments'\]\];/);
+  assert.match(settings, /const linkPatch = mode => \(\{ link_comments: mode \}\);/, 'the server field name lives in one place');
+  assert.match(settings, /\(allowed \|\| link === 'allow'\) && <p className="text-xs text-ink-3">\{SIGN_IN\}<\/p>/);
   assert.match(settings, /const EXPLORE = \[\['off', 'Hidden'\], \['closed', 'View only'\], \['open', 'Allow comments'\]\];/);
   assert.match(settings, /disabled=\{cs\.saving \|\| !cs\.value\.comments_enabled\}/, 'the public setting is disabled while comments are off');
   assert.match(settings, /\{mode === 'open' && <p className="text-xs text-ink-3">\{SIGN_IN\}<\/p>\}/, 'Sign in to post a comment. when posting is allowed');
-  assert.match(settings, /if \(mine === seq\.current\) setSettings\(next\)/, 'a failed or superseded save never replaces the server value shown');
+  assert.match(settings, /if \(mine === seq\.current\) setSettings\(previous => /, 'a failed or superseded save never replaces the server value shown');
   // Add comment for those the server lets post, and (SHARE-02) a signed-out visitor where signing in would let them: they draft, and post through sign-in.
   assert.match(shared, /useCanvasComments\(\{ base: commentsInfo && commentsBase, canAdd: !!commentsInfo\?\.can\.post \|\| guestMayDraft,/);
   assert.match(shared, /const guestMayDraft = !!commentsInfo && !commentsInfo\.signed_in && commentsInfo\.public_mode === 'open' && !!commentsInfo\.comments_enabled;/);

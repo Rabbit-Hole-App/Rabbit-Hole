@@ -82,6 +82,8 @@ await check('3 invited only: the dropdown says so, no link is shown as working',
   assert.equal(await access.inputValue(), 'invited');
   assert.equal(await dialog.locator('input[aria-label="Share link URL"]').count(), 0);
   await dialog.getByText('Only people you invite can open this canvas.').waitFor();
+  // Owner decision 2026-10-22 (permanent share link): the rule is shown exactly, with no mention of a new link.
+  await dialog.getByText('Turning sharing off blocks access through this link. Turning it back on restores access using the same link.', { exact: true }).waitFor();
   assert.deepEqual(await access.locator('option').allInnerTexts(), ['Invited people only', 'Anyone with the link · sign-in required', 'Anyone with the link · no sign-in']);
 });
 await check('4 a failed save reverts the dropdown to what the server holds and says so', async () => {
@@ -137,9 +139,14 @@ await check('8 Explore is independent of the link: publish, then invited only ke
   await dialog.getByText('Only people you invite can open this canvas.').waitFor();
   let now = await sharing();
   assert.ok(now.shared === false && now.published === true && now.publication === publication, `invited only keeps the publication: ${JSON.stringify(now)}`);
+  // One permanent link: sharing off keeps the token on the server, shows no URL as working, and turning it back on restores the same URL.
+  assert.equal(now.view, viewToken, 'the token is kept while sharing is off');
+  assert.equal(await dialog.locator('input[aria-label="Share link URL"]').count(), 0, 'no URL shown while sharing is off');
   await access.selectOption('signin');
   await dialog.locator('input[aria-label="Share link URL"]').waitFor();
   const link = (await sharing()).view;
+  assert.equal(link, viewToken, 'the same link comes back');
+  assert.equal((await dialog.locator('input[aria-label="Share link URL"]').inputValue()).split('/b/')[1], viewToken);
   await tab('Explore').click();
   await dialog.locator('[data-unpublish]').click();
   await dialog.getByRole('group', { name: 'Remove from Explore' }).waitFor();
