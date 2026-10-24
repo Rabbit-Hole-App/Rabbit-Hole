@@ -45,9 +45,9 @@ const open = async ({ study = null } = {}) => {
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(([entries]) => {
     try { for (const [key, value] of entries) if (value != null && !localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(value)); } catch { /* a sandboxed frame */ }
-    // Whether a minimap was ever put on the page: a hidden-by-default map must not flash in and then go.
+    // Whether a minimap (or its loading placeholder) was ever put on the page: a hidden-by-default map must not flash in and then go.
     window.__minimapSeen = false;
-    new MutationObserver(() => { if (document.querySelector('[data-canvas-minimap]')) window.__minimapSeen = true; }).observe(document, { childList: true, subtree: true });
+    new MutationObserver(() => { if (document.querySelector('[data-canvas-minimap], [data-loading-minimap]')) window.__minimapSeen = true; }).observe(document, { childList: true, subtree: true });
   }, [[[INK, STATE], [STUDY, study]]]);
   await context.route('**/*', route => {
     const request = route.request(), url = new URL(request.url());
@@ -162,7 +162,7 @@ await check('6 A Canvas toggle is a Canvas preference only: it never writes the 
 
 await check('7 An older saved Study arrangement with no maps field opens with both maps hidden and no map ever painted; leaving it keeps the Canvas maps', async () => {
   await open({ study: OLDER });
-  assert.equal(await page.evaluate(() => window.__minimapSeen), false, 'the minimap never flashed in on load');
+  assert.equal(await page.evaluate(() => window.__minimapSeen), false, 'neither the minimap nor its loading placeholder flashed in on load');
   await page.locator('[data-study-pane]').waitFor({ timeout: 10000 });
   await expectMaps('older arrangement', { minimap: false, holeMap: false });
   assert.equal(await stored(PREFS), null, 'restoring it wrote no Canvas preference');

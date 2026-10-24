@@ -21,3 +21,11 @@ test('LearnPage hands the Study object to the canvas and useStudy exposes setMap
   assert.match(read('./LearnPage.jsx'), /onPinForStudy=\{study\.pinCard\} study=\{study\}/);
   assert.match(read('./StudyPane.jsx'), /setMap: \(name, on\) => apply\(\[\{ type: 'setMap', name, on \}\]\),/);
 });
+
+test('the canvas loading placeholder applies the same effective visibility, from the Study object LearnPage already read', () => {
+  const loading = read('./CanvasLoading.jsx');
+  assert.match(loading, /import \{ effectiveWidgets \} from '\.\/widget-visibility\.js';/);
+  assert.match(loading, /export function CanvasChromeLoading\(\{ tools = true, feedback = false, top = 0, study = null \}\)/);
+  assert.match(loading, /const prefs = effectiveWidgets\(\{ mode: study\?\.mode === 'study' \? 'study' : 'canvas', canvas: uiPrefs\(\), study: study\?\.state\?\.maps \}\);/);
+  assert.match(read('./LearnPage.jsx'), /<CanvasChromeLoading feedback top=\{48\} study=\{study\} \/>/);
+});

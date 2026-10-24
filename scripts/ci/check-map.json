@@ -221,7 +221,9 @@
     "packages/web/src/curious-context.js",
     "packages/web/src/learn-opening.js",
     "packages/web/src/selection-*.js",
-    "packages/web/src/shortcut-owner.js"
+    "packages/web/src/shortcut-owner.js",
+    "packages/web/src/canvas-sloppy.js",
+    "packages/web/src/focus-controller.js"
   ],
   "defaultChecks": [
     "sidebar-check.mjs",
@@ -636,6 +638,7 @@
     "packages/web/e2e/static-app-review-shots.mjs",
     "packages/web/e2e/subcard-captures.mjs",
     "packages/web/e2e/tutor-bench-driver.mjs",
+    "packages/web/src/fake-react-hooks.mjs",
     "packages/web/e2e/tutor-bench-gates.mjs",
     "packages/web/e2e/tutor-bench-report.mjs",
     "packages/web/e2e/tutor-bench-rescore-report.mjs",
@@ -721,6 +724,7 @@
     "packages/web/e2e/static-app-review-shots.mjs": "manual capture or benchmark script; no check imports or spawns it",
     "packages/web/e2e/subcard-captures.mjs": "manual capture or benchmark script; no check imports or spawns it",
     "packages/web/e2e/tutor-bench-driver.mjs": "manual capture or benchmark script; no check imports or spawns it",
+    "packages/web/src/fake-react-hooks.mjs": "React stand-in for hook unit tests (chat-persist.test.mjs, chat-restore-draft.test.mjs); only tests import it, the bundle does not",
     "packages/web/e2e/tutor-bench-gates.mjs": "manual capture or benchmark script; no check imports or spawns it",
     "packages/web/e2e/tutor-bench-report.mjs": "manual capture or benchmark script; no check imports or spawns it",
     "packages/web/e2e/tutor-bench-rescore-report.mjs": "manual capture or benchmark script; no check imports or spawns it",
