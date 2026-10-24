@@ -240,6 +240,20 @@ await viewer.locator('[data-explore-search]').fill('');
 await viewer.locator('[data-explore-list] [data-explore-card]').first().waitFor({ timeout: 30000 });
 check('the Canvases tab keeps its card grid and card size control', await viewer.locator('[data-explore-list] [data-explore-card]').count() > 0 && await viewer.locator('[data-card-size-slider]').count() === 1);
 check('the Canvases tab is not narrowed: its toolbar is wider than the 760px Creators column', await viewer.locator('[data-explore-search]').evaluate(i => i.closest('div').getBoundingClientRect().width > 900));
+// Weekly Top 5 brief §3 (owner, 2026-10-23): Search, Filters, Sort and Size are adjacent on one row, the search is about 280px
+// (360px at most), the gaps are 10-12px and every control is about 36px tall with its centre on the row's.
+const bar = await viewer.evaluate(() => {
+  const r = el => { const b = el.getBoundingClientRect(); return { x: b.left, right: b.right, width: b.width, height: b.height, cy: b.top + b.height / 2 }; };
+  const toolbar = document.querySelector('[data-explore-toolbar]');
+  return { toolbar: r(toolbar), search: r(document.querySelector('[data-explore-search]')), filters: r([...toolbar.querySelectorAll('button')].find(b => /^Filters/.test(b.textContent.trim()))),
+    sort: r(toolbar.querySelector('[data-sort-control]')), size: r(toolbar.querySelector('[data-card-size-control]')), justify: getComputedStyle(toolbar).justifyContent, wrap: getComputedStyle(toolbar).flexWrap };
+});
+const barParts = [bar.search, bar.filters, bar.sort, bar.size];
+check('Canvases toolbar: Search, Filters, Sort, Size in that order on one row, no wrap, not spread (no justify-between)',
+  barParts.every((b, i) => i === 0 || b.x >= barParts[i - 1].right) && barParts.every(b => Math.abs(b.cy - bar.search.cy) <= 1.5) && bar.wrap === 'nowrap' && !/between|around|evenly/.test(bar.justify), JSON.stringify(bar));
+check('Canvases toolbar: the search is about 280px (at most 360px), the gaps 10-12px, every control about 36px tall',
+  bar.search.width >= 279 && bar.search.width <= 360.5 && barParts.every((b, i) => i === 0 || (b.x - barParts[i - 1].right >= 9.5 && b.x - barParts[i - 1].right <= 12.5))
+  && barParts.every(b => Math.abs(b.height - 36) <= 1), JSON.stringify(bar));
 await viewer.context().close();
 
 // ---- phone, 390 wide ----
@@ -259,6 +273,28 @@ check('phone: the long description clamps to two lines and the long name truncat
   && await p.long.locator('[data-creator-name]').evaluate(n => n.scrollWidth > n.clientWidth) && await noOverflow(phone));
 await shot(phone, '03-creators-phone');
 await phone.context().close();
+
+// Weekly Top 5 brief §3: on a narrow window the Canvases toolbar scrolls inside itself (the search about 180px), the page never scrolls
+// sideways, and the Sort menu opens in the page body, whole and on screen, not clipped by the scrolling row.
+const narrow = await pageFor({ k: 'none', width: 390 });
+await narrow.goto(`${BASE}/explore`);
+await narrow.locator('[data-explore-list] [data-explore-card]').first().waitFor({ timeout: 60000 });
+const narrowBar = await narrow.evaluate(() => { const t = document.querySelector('[data-explore-toolbar]'); return { scroll: t.scrollWidth, client: t.clientWidth, search: document.querySelector('[data-explore-search]').getBoundingClientRect().width, page: document.documentElement.scrollWidth, window: window.innerWidth, wrap: getComputedStyle(t).flexWrap }; });
+check('narrow screen: the toolbar scrolls inside itself with a 180px search, one row, and the page has no sideways scroll',
+  narrowBar.scroll > narrowBar.client && narrowBar.search >= 179 && narrowBar.search <= 182 && narrowBar.page <= narrowBar.window && narrowBar.wrap === 'nowrap', JSON.stringify(narrowBar));
+await narrow.locator('[data-sort-control]').click();
+const sortMenu = narrow.locator('[data-sort-option]').first();
+await sortMenu.waitFor();
+const menuBox = await narrow.evaluate(() => { const m = document.querySelector('[data-sort-option]').closest('.shadow-pop').getBoundingClientRect(); return { x: m.left, right: m.right, top: m.top, bottom: m.bottom, inToolbar: document.querySelector('[data-explore-toolbar]').contains(document.querySelector('[data-sort-option]')), width: window.innerWidth, height: window.innerHeight }; });
+check('narrow screen: the Sort menu opens whole and on screen, outside the scrolling toolbar',
+  !menuBox.inToolbar && menuBox.x >= 0 && menuBox.right <= menuBox.width && menuBox.top >= 0 && menuBox.bottom <= menuBox.height && await narrow.locator('[data-sort-option]').count() === 3, JSON.stringify(menuBox));
+await narrow.keyboard.press('Escape');
+await narrow.getByRole('button', { name: /^Filters/ }).click();
+const filterMenu = await narrow.evaluate(() => { const m = document.querySelector('[data-menu-button-open]').closest('.shadow-pop').getBoundingClientRect(); return { x: m.left, right: m.right, inToolbar: document.querySelector('[data-explore-toolbar]').contains(document.querySelector('[data-menu-button-open]')), width: window.innerWidth }; });
+check('narrow screen: the Filters menu opens whole and on screen, outside the scrolling toolbar', !filterMenu.inToolbar && filterMenu.x >= 0 && filterMenu.right <= filterMenu.width, JSON.stringify(filterMenu));
+await narrow.keyboard.press('Escape');
+await shot(narrow, '03a-canvases-narrow');
+await narrow.context().close();
 
 // ---- tablet, 768 wide: the content area (704px) is already narrower than the 760px cap, so the column shrinks to it ----
 const tablet = await pageFor({ k: 'none', width: 768 });
@@ -291,7 +327,7 @@ await dark.context().close();
 
 check('no page errors', errors.length === 0, errors.join(' | '));
 await browser.close();
-const total = 39;
+const total = 44;
 const passed = results.filter(Boolean).length;
 console.log(`${passed}/${total} checks passed`);
 process.exit(passed === total && results.length === total ? 0 : 1);
