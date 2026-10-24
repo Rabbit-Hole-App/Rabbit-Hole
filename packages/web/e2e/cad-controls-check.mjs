@@ -606,8 +606,10 @@ await step('the controls above a selected card are one row: Open, Interact, Fit 
         await view.mouse.move(grip.x + grip.width / 2 - (box.width - 280), grip.y + grip.height / 2, { steps: 8 }); await view.mouse.up();
         await until(async () => Math.abs((await card.boundingBox()).width - 280) < 2, `${c.name}: the card did not narrow to 280`);
       }
+      // Zoomed in, the tall card's top edge (its drag zone) leaves the window, so it is selected first; the selection survives the zoom.
+      if (c.zoom > 0) await select(view);
       for (let i = 0; i < Math.abs(c.zoom); i++) { await view.locator(c.zoom < 0 ? '[title="Zoom out"]' : '[title="Zoom in"]').click(); }
-      await select(view);
+      if (c.zoom <= 0) await select(view);
       for (const selector of Object.values(parts)) await card.locator(selector).first().waitFor();
       const read = () => view.evaluate(({ id, parts }) => {
         const card = document.querySelector(`[data-block-id="${id}"]`), rect = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, w: r.width, h: r.height }; };
