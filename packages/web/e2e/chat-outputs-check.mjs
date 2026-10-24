@@ -107,9 +107,24 @@ const router = async route => {
 const results = [];
 const total = 14;
 let page = null;
+// Diagnostics (owner, 2026-10-24): step start/end and the restore/send boundaries, in ms since the check began. Method, route
+// template and status only: never a message's text. Lines start with "diag", so run-part.sh's ok/FAIL count ignores them.
+const T0 = Date.now();
+const diag = text => console.log(`  diag +${Date.now() - T0}ms ${text}`);
+const TRACED = [['GET', /^\/api\/ask\/threads\/[^/]+$/, '/api/ask/threads/:id'], ['GET', /^\/api\/learn\/chat\/active$/, '/api/learn/chat/active'],
+  ['POST', /^\/api\/learn\/chat\/threads\/[^/]+\/messages$/, '/api/learn/chat/threads/:id/messages']];
+let pages = 0;
+const trace = (page, n) => page.on('response', response => {
+  const method = response.request().method(), path = new URL(response.url()).pathname;
+  const hit = TRACED.find(([m, re]) => m === method && re.test(path));
+  if (hit) diag(`page ${n} ${method} ${hit[2]} ${response.status()}`);
+});
 const step = async (name, fn) => {
+  const n = results.length + 1, began = Date.now() - T0;
+  diag(`step ${n} start`);
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); await page?.screenshot({ path: `${OUT}/fail-${results.length}-${THEME}.png` }).catch(() => {}); }
+  diag(`step ${n} end (${Date.now() - T0 - began}ms)`);
 };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 100)); } throw Error(label); };
 
@@ -123,14 +138,21 @@ const open = async () => {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on('pageerror', error => errors.push(error.message));
+  trace(page, ++pages);
   page.on('dialog', dialog => dialog.accept());
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });
+  diag(`page ${pages} board visible`);
   return { context, page };
 };
 const pane = page => page.locator('[data-chat-pane]');
 const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
-const send = async (page, text) => { const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
+// traced: log what the composer held at Enter (its length, never its text): a line lost before Enter reads 0.
+const send = async (page, text, traced = false) => {
+  const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150);
+  if (traced) diag(`Enter with ${await box.inputValue().then(value => value.length, () => '?')} composer characters`);
+  await box.press('Enter');
+};
 // A sent message shows its command as a read-only pill and then the words, never the printed /cad (UI-16, owner 2026-10-21).
 const bubble = (page, line) => {
   const [, name, words] = line.match(/^\/(\w+) (.+)$/);
@@ -355,17 +377,21 @@ const askMode = async page => {
 
 // Owner, 2026-10-20 (L7): the five commands that answered with a prompt are removed, so none reaches the chat as a turn.
 await step('the removed prompt commands, typed in Auto and in Ask, say they are unavailable and send no chat turn', async () => {
+  // Step 12 saved the CAD line to the server thread: say so plainly if it did not, rather than time out waiting for it below.
+  assert.ok((await thread())?.messages?.some(m => m.role === 'user' && m.content === CAD_LINE), 'the saved thread has no CAD line: step 12 left nothing to restore');
   ({ context, page } = await open());
-  // The saved thread restores after the board and replaces the composer's draft: a line typed before it lands is lost (fast-e2e
-  // 40048376786 e2e (6): no message, no notice, empty composer). Wait for it, as step 12 does, before typing.
+  // Likely restore race; historical timing not captured (fast-e2e 40048376786 e2e (6): no message, no notice, empty composer).
+  // The saved thread restores after the board and may replace the composer's draft: wait for it, as step 12 does, before typing.
   await bubble(page, CAD_LINE).waitFor();
+  diag(`page ${pages} restored thread shown`);
   const before = { asks: asks.length, plans: plans.length };
   assert.equal(await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'auto', 'Auto first');
   for (const mode of ['auto', 'ask']) {
     if (mode === 'ask') await askMode(page);
     for (const name of ['simplify', 'deeper', 'example', 'ask', 'teach']) {
-      await send(page, `/${name} ${WORDS}`);
+      await send(page, `/${name} ${WORDS}`, true);
       await pane(page).locator('[data-slash-result]', { hasText: unavailableCommand(name) }).waitFor();
+      diag(`${mode} /${name} unavailable notice shown`);
       assert.equal(await composerPills(page).count(), 0, `${mode}: /${name} makes no pill`);
     }
   }
