@@ -223,6 +223,7 @@
     "packages/web/src/selection-*.js",
     "packages/web/src/shortcut-owner.js",
     "packages/web/src/canvas-sloppy.js",
+    "packages/web/src/focus-adapter-notebook.js": ["pinned-study-kernel-check.mjs", "pinned-study-check.mjs", "focus-chrome-check.mjs"],
     "packages/web/src/focus-controller.js"
   ],
   "defaultChecks": [
