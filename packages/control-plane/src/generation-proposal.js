@@ -22,6 +22,7 @@ import { SCHEMA_VERSION, commandDefinition, firstReadOnly, settingsOf, validateS
 import { REVIEW_LISTS, escapeText, plainPrompt, reviewHash, reviewOf, validateReview } from '../../web/src/generation-review.js';
 import { imageQuote } from './image-providers.js';
 import { imageReadiness } from './image-settings.js';
+import { motionInputs, motionReadiness } from './motion-readiness.js';
 
 export const PROPOSAL_TTL_S = 24 * 60 * 60;
 const TITLE_MAX = 120, DESCRIPTION_MAX = 1500, REQUEST_MAX = 500, REFS_MAX = 8;
@@ -165,7 +166,8 @@ export function imageProposalQuote(env, r) {
   return quote.state === 'priced' ? { estimate_credits: quote.estimate_credits, reserve_credits: quote.reserve_credits } : null;
 }
 const quoteUsage = quote => ({ estimate_credits: quote?.estimate_credits ?? null, reserve_credits: quote?.reserve_credits ?? null });
-const readinessOf = p => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : {});
+// Motion likewise (motion-readiness.js): a duration the deployed orchestrator does not accept is shown as not ready, never clamped.
+const readinessOf = (p, env) => (p.command === 'generate-image' ? { readiness: imageReadiness(p.settings, p.references?.length ?? 0) } : p.command === 'motion' ? { readiness: motionReadiness(env, motionInputs(p.settings)) } : {});
 // The default verifier of image-jobs.js: only the v3 envelope carries the references and the quote an image is approved with.
 export async function verifyImageProposal(env, p, user) {
   if (p?.command === 'generate-image' && !v3sig(p.sig)) return 'This image proposal is out of date. Ask for it again.';
@@ -192,7 +194,7 @@ export async function signProposal(env, fields, user, { id = null, version = 1, 
     if (p.command === 'generate-image') r.quote = imageProposalQuote(env, r);
     Object.assign(p, { description: plainPrompt(r.prompt, r.references), schema_version: SCHEMA_VERSION, mode: r.mode, original_request: r.original_request, prompt: r.prompt, visual_constraints: r.visual_constraints,
       references: r.references, ...Object.fromEntries(REVIEW_LISTS.map(k => [k, r[k]])), destination: r.destination, quote: r.quote, review_hash: await reviewHash(r) });
-    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command), ...readinessOf(p) };
+    return { ...p, sig: await signature(env, p, user, 'v3'), usage: p.command === 'generate-image' ? quoteUsage(r.quote) : proposalUsage(env, p.command), ...readinessOf(p, env) };
   }
   return { ...p, sig: await signature(env, p, user, signingVersion(env)), usage: proposalUsage(env, p.command) };
 }
@@ -254,7 +256,7 @@ export async function reviseProposal(env, p, edit, user, bind = null) {
   let settings = p.settings;
   // The value's own problem is said first (audio on, an unknown setting); then whether this command lets it change.
   if (edit.settings !== undefined) {
-    const checked = validateCommandSettings(p.command, edit.settings, { references });
+    const checked = validateCommandSettings(p.command, edit.settings, { references, keep: p.settings });
     if (checked.error) return { error: checked.error, errors: [{ path: checked.path, message: checked.error }] };
     settings = checked.value;
   }
@@ -267,7 +269,7 @@ export async function reviseProposal(env, p, edit, user, bind = null) {
   for (const k of EDITABLE_LISTS) if (edit[k] !== undefined) fields[k] = edit[k];
   const next = destination ? validateReview(fields) : { value: fields };
   if (next.error) return { error: next.error, code: next.code, errors: [{ path: next.field || 'prompt', message: next.error }] };
-  const probs = validateCommandSettings(p.command, settings, { references: next.value.references });
+  const probs = validateCommandSettings(p.command, settings, { references: next.value.references, keep: p.settings });
   if (probs.error) return { error: probs.error, errors: [{ path: probs.path, message: probs.error }] };
   // Every save is the next revision, as it always was (a save of the same values included): the compare-and-swap decides which one lands.
   const r = next.value;

@@ -6,6 +6,7 @@ import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, mot
 import { MOTION_PAUSED, consumeProposal, motionPaused, verifyProposal } from './generation-proposal.js';
 import { blockedBody, resolveReferences } from './generation-review-refs.js';
 import { isReviewProposal } from '../../web/src/generation-review.js';
+import { MOTION_NOT_READY, motionInputs, motionReadiness } from './motion-readiness.js';
 import { paidRefusal } from './learn-paid.js';
 import { validateMathAnimation } from './learn-math-schema.js';
 import { byteRange, learnMedia } from './learn-storage.js';
@@ -254,6 +255,9 @@ export class LearnVideos {
         if (input.proposal && !provider.unavailable()) {
           const proposalRefused = await verifyProposal(this.env, input.proposal, proposer);
           if (proposalRefused) return json({ error: proposalRefused, code: 'proposal_refused' }, 409);
+          // Motion readiness (motion-readiness.js): a setting with no evidence is refused with its reason before anything is consumed or held.
+          const ready = input.proposal.command === 'motion' ? motionReadiness(this.env, motionInputs(input.proposal.settings)) : null;
+          if (ready && !ready.ready) return json({ error: ready.message, code: MOTION_NOT_READY, readiness: ready }, 409);
           // UI-15.1: Motion reads no reference's content yet, so a reference on its proposal is named unsupported before anything is consumed or held.
           if (isReviewProposal(input.proposal) && input.proposal.references.length) {
             const found = await resolveReferences(this.env, input.proposal, { req, user: null, app: null });
