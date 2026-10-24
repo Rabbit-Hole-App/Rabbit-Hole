@@ -1492,7 +1492,7 @@ Top 5 are taken) and are applied by the owner in production; a lane never applie
   marks, and read only as far as the reader's access goes NOW: my own canvases; canvases I am an active member of and that are not
   in Trash (a hole is in Trash with the canvas above it); and public threads elsewhere that I took part in or was mentioned in,
   while the canvas is published with public comments on and I am not blocked. A deleted comment, a deleted card's threads and a
-  deleted thread are gone from it. A public thread's link is the published page; any other is `/c/<board id>?thread=`.
+  deleted thread are gone from it. A public thread's link is the published page; any other is `/c/<board id>?thread=`. The app worker (`dev-worker.js`) hands every `/api/learn/comments/` path to the comments route; a route unit test calls the handler directly and cannot see a missing gate, so `canvas-comment-inbox.test.js` checks the gate against the routes the handler has (fast-e2e comments-delete step 14 found the inbox unrouted).
 - **Follow and mute.** `PUT …/threads/:id/follow` with `{ state: 'follow' | 'mute' | 'default' }` for whoever may read and is signed
   in; a thread read carries my `follow`. Stored in `canvas_comment_follows` (one row per thread and person, deleted with the
   thread). The Library lists the inbox above Shared with you; a thread has a Notifications control (default, follow, mute).
