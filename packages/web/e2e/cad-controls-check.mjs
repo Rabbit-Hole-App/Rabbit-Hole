@@ -606,8 +606,10 @@ await step('the controls above a selected card are one row: Open, Interact, Fit 
         await view.mouse.move(grip.x + grip.width / 2 - (box.width - 280), grip.y + grip.height / 2, { steps: 8 }); await view.mouse.up();
         await until(async () => Math.abs((await card.boundingBox()).width - 280) < 2, `${c.name}: the card did not narrow to 280`);
       }
+      // Zoomed in, the tall card's top edge (its drag zone) leaves the window, so it is selected first; the selection survives the zoom.
+      if (c.zoom > 0) await select(view);
       for (let i = 0; i < Math.abs(c.zoom); i++) { await view.locator(c.zoom < 0 ? '[title="Zoom out"]' : '[title="Zoom in"]').click(); }
-      await select(view);
+      if (c.zoom <= 0) await select(view);
       for (const selector of Object.values(parts)) await card.locator(selector).first().waitFor();
       const read = () => view.evaluate(({ id, parts }) => {
         const card = document.querySelector(`[data-block-id="${id}"]`), rect = el => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, right: r.right, bottom: r.bottom, w: r.width, h: r.height }; };
@@ -631,10 +633,21 @@ await step('the controls above a selected card are one row: Open, Interact, Fit 
         assert.ok(b.w > 0 && b.h > 0, `${c.name}: ${name} has a box`);
         assert.ok(b.x >= -1 && b.right <= c.width + 1, `${c.name}: ${name} stays inside the window`);
         assert.ok(b.x >= m.card.x - tol && b.right <= m.card.right + tol, `${c.name}: ${name} stays within the card's width ${JSON.stringify([b, m.card])}`);
-        assert.ok(b.bottom <= m.card.y - 2 * m.scale && m.card.y - b.bottom <= 60 * m.scale, `${c.name}: ${name} stands a few px above the card's outline ${JSON.stringify([b, m.card])}`);
+        assert.ok(b.bottom <= m.card.y - 2 * m.scale, `${c.name}: ${name} stands above the card's outline ${JSON.stringify([b, m.card])}`);
         assert.ok(m.hits[name], `${c.name}: a press at the centre of ${name} reaches it`);
         assert.ok(b.right <= m.port.x || b.x >= m.port.right || b.bottom <= m.port.y + 0.5, `${c.name}: ${name} does not cover the top connection handle`);
       }
+      // The row WRAPS (78d5a2cb): at the card's width a wider font (Linux CI) puts the controls on two or three rows. They must still
+      // form one stack that touches the card: the row nearest the card stands a few px above its outline, and each row above begins
+      // right on top of the one below (a row that floated away would leave a gap).
+      const rows = [];
+      for (const name of [...names].sort((a, b) => m.parts[b].bottom - m.parts[a].bottom)) {
+        const b = m.parts[name], row = rows.find(r => b.bottom > r.top + 0.5 && b.y < r.bottom - 0.5);
+        if (row) { row.top = Math.min(row.top, b.y); row.bottom = Math.max(row.bottom, b.bottom); } else rows.push({ top: b.y, bottom: b.bottom });
+      }
+      rows.sort((a, b) => b.bottom - a.bottom);
+      assert.ok(m.card.y - rows[0].bottom <= 60 * m.scale, `${c.name}: the nearest row stands a few px above the card's outline ${JSON.stringify([rows, m.card])}`);
+      for (let k = 1; k < rows.length; k++) assert.ok(rows[k - 1].top - rows[k].bottom <= 24 * m.scale, `${c.name}: a row floats away from the row below it ${JSON.stringify([rows, m.parts])}`);
       for (let i = 0; i < names.length; i++) for (let j = i + 1; j < names.length; j++) {
         const a = m.parts[names[i]], b = m.parts[names[j]];
         assert.ok(a.right <= b.x + 0.5 || b.right <= a.x + 0.5 || a.bottom <= b.y + 0.5 || b.bottom <= a.y + 0.5, `${c.name}: ${names[i]} and ${names[j]} meet ${JSON.stringify([a, b])}`);
@@ -642,7 +655,7 @@ await step('the controls above a selected card are one row: Open, Interact, Fit 
       const heights = Object.values(m.heights).filter(h => h);
       assert.ok(Math.max(...heights) - Math.min(...heights) <= 1 * Math.max(1, m.scale), `${c.name}: the three groups share one height ${JSON.stringify(m.heights)}`);
       await shot(view, `after-14-${c.name}`);
-    } finally { await context.close(); }
+    } catch (error) { await view.screenshot({ path: `${OUT}/fail-14-${c.name}.png` }).catch(() => {}); error.message = `${c.name}: ${error.message}`; throw error; } finally { await context.close(); }
   }
 });
 
