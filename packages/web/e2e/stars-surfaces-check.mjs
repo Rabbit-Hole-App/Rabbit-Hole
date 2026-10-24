@@ -3,7 +3,8 @@
 //   Library: an own canvas's card carries Star with its count at rest; a press stars it, persists across a reload and never opens the card.
 //   Explore: a published canvas's card carries Star; the starred state comes from the batched state route; a failed save restores the
 //   confirmed state and says so; Star is a keyboard control with a visible focus; a touch screen gets a 44px target and no sideways scroll.
-//   Signed out: Star goes through sign-in and back to Explore with ?star=<token>, which stars that card once and leaves the address.
+//   Signed out (on a public profile; Explore itself needs a sign-in): Star goes through sign-in and back with ?star=<token>, which stars that
+//   card once and leaves the address.
 //   Profile: the Stars tab is addressable (?tab=stars), counts and lists only public canvases, is the same for a signed-out visitor, and drops a
 //   canvas that stopped being public - and never shows a private canvas the person starred.
 //   Personal Stars: reachable from Home and the Library; lists my own, public and (after Remove from Explore) unavailable stars, the
@@ -127,25 +128,30 @@ const flat = await phone.evaluate(() => document.documentElement.scrollWidth <= 
 check('Explore on a phone: Star is at least 44px tall and wide and the page does not scroll sideways', phoneBox.height >= 43.5 && phoneBox.width >= 43.5 && flat, JSON.stringify([phoneBox, flat]));
 await shot(phone, '03-explore-phone');
 
-// ---- 3 signed out: sign-in and back, the card is starred once and the address is clean ----
+// ---- 3 signed out, on the owner's public profile (Explore itself needs a sign-in): sign-in and back, the card is starred once ----
+const profileCard = (page, item) => page.locator('[data-profile-card]').filter({ hasText: item.title });
 const guest = await pageFor(null);
-const guestCard = await openExplore(guest, '/explore', C);
-check('signed out: the card shows the public count, not starred', (await read(guestCard)).pressed === 'false' && (await read(guestCard)).count === '0');
+await guest.goto(`${BASE}/@${ownerHandle}`);
+const guestCard = profileCard(guest, C);
+await guestCard.waitFor({ timeout: 60000 });
+await settled(guestCard);
+check('signed out: the profile card shows the public count, not starred', (await read(guestCard)).pressed === 'false' && (await read(guestCard)).count === '0');
 await star(guestCard).click();
-await guest.waitForURL(/\/login\?next=/, { timeout: 20000 });
+await guest.waitForURL(url => url.pathname === '/login' && url.searchParams.has('next'), { timeout: 20000 });
 const next = new URL(guest.url()).searchParams.get('next');
-check('signed out, Star goes through sign-in and returns to Explore with the card\'s own token', next === `/explore?star=${C.token}`, next);
+check('signed out, Star goes through sign-in and returns to the profile with the token of that card', next === `/@${ownerHandle}?star=${C.token}`, next);
 check('nothing was written before sign-in', (await api(viewer, `/api/learn/boards/shared/${C.token}/star`)).body?.star_count === 0);
 const back = await pageFor(viewer);
-await back.goto(`${BASE}/explore?star=${C.token}`);
-await back.locator('[data-explore-search]').fill(`Stars surfaces ${run}`);
-const backCard = exploreCard(back, C);
+await back.goto(`${BASE}/@${ownerHandle}?star=${C.token}`);
+const backCard = profileCard(back, C);
 await backCard.waitFor({ timeout: 60000 });
 await backCard.locator('[data-star-button][aria-pressed="true"]').waitFor({ timeout: 15000 });
 await settled(backCard);
-check('back from sign-in it stars that card once, leaves the address, and the count is 1', (await read(backCard)).pressed === 'true' && (await read(backCard)).count === '1' && !new URL(back.url()).search.includes('star='), back.url());
+check('back from sign-in it stars that card once, leaves the address, and the count is 1', (await read(backCard)).count === '1' && !new URL(back.url()).search.includes('star='), back.url());
 await back.reload();
-const afterReload = await openExplore(back, '/explore', C);
+const afterReload = profileCard(back, C);
+await afterReload.waitFor({ timeout: 60000 });
+await settled(afterReload);
 check('a reload does not star again or undo it', (await read(afterReload)).pressed === 'true' && (await read(afterReload)).count === '1');
 
 // ---- 4 profile Stars tab: public only, addressable, the same signed out, follows visibility ----
