@@ -17,7 +17,7 @@
 // parse } }) and groupProblem(key, id, value) for parameter groups; Editor (the pill editor lane's component for the description).
 // An adapter may add: settingsMode, eyebrow, requestLabel, note, extraSections, compact (the review strip above the composer), isolate, and attrs(slot, arg) -> data
 // attributes for its own element names (the CAD review keeps its data-cad-review-* names this way).
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ChartColumnIncreasing, CircleAlert, FileCheck2, FileCode2, FileText, Film, Globe, Group, Image as ImageIcon, Shapes, StickyNote } from 'lucide-react';
 import CommandPill from './CommandPill.jsx';
 import { SECTIONS, changedKeys, commandDefinition, fieldsFor, isEditable, proposalView, visibleSections } from './generation-confirmation-schema.js';
@@ -228,7 +228,7 @@ export function buildEdit(view, draft, tokenized) {
 
 // made: this proposal already added its card (inactive, but not superseded).
 export default function GenerationProposalCard({ proposal = null, view: given = null, defaultEditing = false, settingsMode = 'live', active = true, onGenerate, onSave, onSettingsChange, onCancel, onOpenReference, busy = false, made = false, states = null, problem = null, groups = null,
-  groupProblem = null, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
+  groupProblem = null, released = 0, Editor = DefaultEditor, eyebrow = null, requestLabel = null, note = null, extraSections = [], compact = false, isolate = false, attrs: attrsFn = none }) {
   const view = given ?? proposalView(proposal, states ? { validation_errors: states.filter(s => s.state !== 'ok').map(s => ({ path: `references.${s.id}`, message: s.message })) } : {});
   const def = commandDefinition(view.command);
   const tokenized = proposal ? isReviewProposal(proposal) : false;
@@ -238,6 +238,8 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
   // One press, one job (owner message 37): the ref stops a double-click before React re-renders; state shows it disabled.
   const sent = useRef(null);
   const [sentKey, setSentKey] = useState(null);
+  // released: the owner of a start that is refused after Generate returned (MOT-22: the server refused it for its proposal) bumps it, and the press is given back.
+  useEffect(() => { sent.current = null; setSentKey(null); }, [released]);
   const [editing, setEditing] = useState(defaultEditing), [draft, setDraft] = useState(() => (defaultEditing ? startDraft(view, form) : null)), [saving, setSaving] = useState(false), [saveError, setSaveError] = useState(null);
   const usage = usageLine(view.usage);
   const working = busy || saving;

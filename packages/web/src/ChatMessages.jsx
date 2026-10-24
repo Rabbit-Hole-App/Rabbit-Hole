@@ -25,7 +25,7 @@ import { retryImageSave, runImageJob } from './generate-image.js';
 function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
   const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
-  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false);
+  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false), [released, setReleased] = useState(0);
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
   // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
@@ -61,7 +61,7 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const onSettingsChange = (settings, base = p) => onSave({ settings }, base).catch(() => {});
   // MOT-22: the server refused this proposal's Generate (its card is marked, not counted as made): live again, with the reason.
   useEffect(() => {
-    const refused = event => { if (event.detail?.proposalId === p.proposal_id) { setPressed(false); setError(event.detail.message); } };
+    const refused = event => { if (event.detail?.proposalId === p.proposal_id) { setPressed(false); setReleased(n => n + 1); setError(event.detail.message); } };
     window.addEventListener(PROPOSAL_REFUSED_EVENT, refused);
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
   }, [p.proposal_id]);
@@ -98,7 +98,7 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   };
   return (
     <div className="mt-2">
-      <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+      <GenerationProposalCard proposal={p} active={active} made={made} released={released} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
         onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
       {image && (

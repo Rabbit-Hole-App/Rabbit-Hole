@@ -162,6 +162,11 @@ Examples:
 /motion 30s intuition attention
 ```
 
+An explicit `/motion` command in Auto mode requests this Motion flow (the review card, then confirmation); it is never answered
+by the Tutor's plan route. Prose that merely mentions motion stays under normal Tutor routing, and missing information is asked
+for inside the Motion flow. Routing details: [rabbit-hole-commands.md](rabbit-hole-commands.md) "Routing in Auto mode" (owner,
+2026-10-24).
+
 The user should not need to know Remotion, React, SVG, Canvas, Three.js, Manim, Blender, ffmpeg, or rendering terminology.
 
 Every `/motion` run prints what it decided, one line per decision, so a wrong guess is visible at once:
