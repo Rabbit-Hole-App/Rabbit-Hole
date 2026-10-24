@@ -160,15 +160,15 @@ await page.locator(card('p1')).waitFor({ timeout: 60000 });
 await page.locator(`${card('p1')} canvas[aria-label="Paper PDF page"]`).waitFor({ timeout: 30000 });
 await settle();
 
-await check('1 Each supported kind, selected, shows its own labelled Focus control (a CAD card too, container Focus); a quiz shows none', async () => {
-  for (const [id, name] of [['p1', 'Focus PDF'], ['ex', 'Focus explanation'], ['tb', 'Focus table'], ['st1', 'Focus note'], ['im', 'Focus image'], ['sl', 'Focus page'], ['vd', 'Focus video'], ['cad', 'Focus CAD model']]) {
+await check('1 Each supported kind, selected, shows its own labelled Focus control; a quiz and a CAD card (deferred) show none', async () => {
+  for (const [id, name] of [['p1', 'Focus PDF'], ['ex', 'Focus explanation'], ['tb', 'Focus table'], ['st1', 'Focus note'], ['im', 'Focus image'], ['sl', 'Focus page'], ['vd', 'Focus video']]) {
     await select(id);
     await focusButton(name).waitFor({ timeout: 5000 });
     assert.ok(await focusButton(name).isVisible(), `${id}: ${name}`);
     const names = await page.getByRole('button', { name: /^Focus / }).evaluateAll(nodes => nodes.filter(node => node.offsetParent).map(node => node.getAttribute('aria-label') || node.textContent.trim()));
     assert.deepEqual([...new Set(names)], [name], `${id}: only its own Focus control (${names.join(', ')})`);
   }
-  for (const id of ['qz']) {
+  for (const id of ['qz', 'cad']) {
     await select(id);
     await page.waitForTimeout(300);
     assert.equal(await page.getByRole('button', { name: /^Focus / }).count(), 0, `no Focus control on ${id}`);
