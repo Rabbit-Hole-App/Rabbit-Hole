@@ -4,6 +4,9 @@ import ResizableSidePanel from './ResizableSidePanel.jsx';
 import { DOCK_PAD } from './ChatComposer.jsx';
 import { MINIMAP_SIZE } from './CanvasMinimap.jsx';
 import { uiPrefs } from './ui-prefs.js';
+import { effectiveWidgets } from './widget-visibility.js';
+import { savedStudy } from './study-loading.js';
+import { browserStorage } from './home/canvas-local.js';
 import { PRODUCT } from './flags.js';
 import logoBlack from './assets/rabbit-hole-black.png';
 import logoWhite from './assets/rabbit-hole-white.png';
@@ -93,8 +96,10 @@ const ZOOM_ROW_H = 30; // the zoom row: 28px IconBtns in a 1px border
 
 // The canvas's floating chrome inside its frame: the tools column at the left (shown as View > Toolbar says) and the bottom strip's
 // lower-left group, the minimap (as View > Minimap says) over the zoom row. Also the real pages' fallback while the canvas code loads.
-export function CanvasChromeLoading({ tools = true, feedback = false, top = 0 }) {
-  const prefs = uiPrefs();
+// study: the owner page's useStudy object, already read from this canvas's saved arrangement; in Study the placeholder draws the
+// minimap only when the learner chose it there, the same rule the canvas applies (widget-visibility.js). No study: Canvas.
+export function CanvasChromeLoading({ tools = true, feedback = false, top = 0, study = null }) {
+  const prefs = effectiveWidgets({ mode: study?.mode === 'study' ? 'study' : 'canvas', canvas: uiPrefs(), study: study?.state?.maps });
   const lowerLeft = (prefs.minimap ? MINIMAP_SIZE.h + 8 : 0) + ZOOM_ROW_H + 20;
   return (
     <div aria-hidden="true" data-loading-chrome className="pointer-events-none absolute inset-0">
@@ -137,7 +142,8 @@ function PanelLoading({ panel, tabs, tools, chat = true }) {
 
 // The owner's canvas, inside the Shell (SharePage, CanvasPage): Back at the top-left corner, then one centred group - the title,
 // the menubar (Insert, Edit, Arrange, View) and the one-press actions - over the canvas; Chat's panel at the right.
-export function OwnerCanvasLoading() {
+// study: the saved Study arrangement (study-loading.js), so a reload into Study draws no map placeholder Study hides.
+export function OwnerCanvasLoading({ study = null }) {
   const frame = useRef(null);
   const [phoneHeight, setPhoneHeight] = useState(null);
   useLayoutEffect(() => {
@@ -162,7 +168,7 @@ export function OwnerCanvasLoading() {
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
               <div ref={frame} data-loading-canvas className={OWNER_CANVAS} style={phoneHeight ? { '--phone-canvas-h': `${phoneHeight}px` } : undefined}>
-                <CanvasChromeLoading feedback top={48} />
+                <CanvasChromeLoading feedback top={48} study={study} />
               </div>
             </div>
           </div>
@@ -174,8 +180,8 @@ export function OwnerCanvasLoading() {
 }
 
 // The owner's canvas as CanvasPage places it (SharePage, before the canvas record or CanvasPage's code is here).
-export function CanvasPageLoading() {
-  return <div className={CANVAS_PAGE_COLUMN}><OwnerCanvasLoading /></div>;
+export function CanvasPageLoading({ app = null, name = null }) {
+  return <div className={CANVAS_PAGE_COLUMN}><OwnerCanvasLoading study={savedStudy(browserStorage(), { app, name })} /></div>;
 }
 
 // A share link (/b) or an Explore canvas (/e): logo; the title and menus centred; the creator's @handle beside Fork, Fork with its note, and the panel

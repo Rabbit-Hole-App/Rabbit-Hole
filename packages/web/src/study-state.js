@@ -8,7 +8,10 @@ const KINDS = ['pdf', 'text', 'explanation'];
 // The canvas's key (LearnPage canvasKey: org, the viewer's email and the canvas name) plus the review board, as chatKey has it.
 export const studyScope = (canvasKey, board = null) => `${canvasKey}${board ? `:${board}` : ''}`;
 export const studyKey = scope => `${scope}:study`;
-export const defaultStudy = () => ({ v: 1, mode: 'canvas', work: 'canvas', pin: null, notebookId: null, split: SPLIT_DEFAULT, reader: null, canvasView: null });
+// maps: the learner's explicit Study choice per map (focus-study.md); a map absent here is hidden in Study (widget-visibility.js).
+export const defaultStudy = () => ({ v: 1, mode: 'canvas', work: 'canvas', pin: null, notebookId: null, split: SPLIT_DEFAULT, reader: null, canvasView: null, maps: {} });
+// The maps Study keeps its own choice for; every other widget follows the Canvas preference (ui-prefs.js) in both modes.
+export const STUDY_MAPS = Object.freeze(['minimap', 'holeMap']);
 
 const num = value => (typeof value === 'number' && Number.isFinite(value) ? value : null);
 export const clampSplit = value => (num(value) == null ? SPLIT_DEFAULT : Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, value)));
@@ -33,6 +36,11 @@ function cleanReader(reader) {
   for (const field of ['page', 'zoom', 'rotation', 'scrollTop']) if (num(reader[field]) != null) out[field] = reader[field];
   return Object.keys(out).length ? out : null;
 }
+function cleanMaps(maps) {
+  const out = {};
+  if (maps && typeof maps === 'object') for (const name of STUDY_MAPS) if (typeof maps[name] === 'boolean') out[name] = maps[name];
+  return out;
+}
 function cleanView(view) {
   return view && num(view.x) != null && num(view.y) != null && num(view.z) != null ? { x: view.x, y: view.y, z: view.z } : null;
 }
@@ -50,6 +58,8 @@ export function normalize(value) {
     split: clampSplit(value.split),
     reader: cleanReader(value.reader),
     canvasView: cleanView(value.canvasView),
+    // Absent in an arrangement saved before Study map choices existed: {} (both hidden), still version 1.
+    maps: cleanMaps(value.maps),
   };
 }
 
@@ -95,7 +105,8 @@ export function studyLayout({ width, height, split }) {
 }
 
 // Actions: pin { cardId, kind, ref } (Pin for study, Change reference), unpin, setMode { mode }, setWork { work, notebookId? },
-// setSplit { split }, readerAt { reader }, saveCamera { view }. Selecting a card is not an action: only pin replaces the pin.
+// setSplit { split }, readerAt { reader }, saveCamera { view }, setMap { name, on } (an explicit View > Show / hide choice made
+// in Study; it never touches the Canvas preferences). Selecting a card is not an action: only pin replaces the pin.
 export function studyReducer(state, action) {
   const s = normalize(state);
   switch (action?.type) {
@@ -115,6 +126,7 @@ export function studyReducer(state, action) {
     case 'setSplit': return { ...s, split: clampSplit(action.split) };
     case 'readerAt': return { ...s, reader: cleanReader({ ...s.reader, ...action.reader }) };
     case 'saveCamera': return { ...s, canvasView: cleanView(action.view) };
+    case 'setMap': return STUDY_MAPS.includes(action.name) && typeof action.on === 'boolean' ? { ...s, maps: { ...s.maps, [action.name]: action.on } } : s;
     default: return s;
   }
 }

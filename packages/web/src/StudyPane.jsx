@@ -82,6 +82,8 @@ export function useStudy(canvasKey, board, canvasApi) {
     readerAt,
     setMode: mode => apply([{ type: 'setMode', mode }]),
     setSplit: split => apply([{ type: 'setSplit', split }]),
+    // View > Show / hide in Study: this canvas's Study choice, written like every other Study change (Not saved when storage refuses).
+    setMap: (name, on) => apply([{ type: 'setMap', name, on }]),
     unpin: () => { nav.current = null; apply([{ type: 'unpin' }]); },
     // Pin for study, Change reference and Choose a reference: the actual card clicked, never another of the same name.
     pinCard: id => {
