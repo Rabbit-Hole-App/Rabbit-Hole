@@ -26,13 +26,15 @@ export function SelectionActionsProvider({ sole, hidden = false, narrow = false,
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-function Action({ label, chord, Icon, onClick, mac, ...rest }) {
+// compact: in a card's controls row (host mode) the shortcut hint appears only where the card is at least 320 px wide; below that
+// the two actions with their hints are wider than the card (280 px minimum) and spill over its edge. The tooltip and aria keep the chord.
+function Action({ label, chord, Icon, onClick, mac, compact = false, ...rest }) {
   const hint = chordLabel(chord, mac);
   return (
     <button type="button" aria-label={label} aria-keyshortcuts={hint.replace('Cmd', 'Meta').replace('Ctrl', 'Control')} title={`${label} (${hint})`} onClick={onClick} {...rest}
       className="flex h-7 cursor-pointer items-center gap-1.5 rounded-md px-2 text-xs font-medium whitespace-nowrap text-ink hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
       <Icon size={13} strokeWidth={1.8} aria-hidden="true" />{label}
-      <kbd aria-hidden="true" className="rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3">{hint}</kbd>
+      <kbd aria-hidden="true" className={`rounded border border-line bg-hover px-1 font-sans text-[10px] font-normal text-ink-3${compact ? ' hidden @[320px]/chrome:inline' : ''}`}>{hint}</kbd>
     </button>
   );
 }
@@ -43,8 +45,8 @@ function Actions({ ctx, mode, className = '', style }) {
     <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={style}
       onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}
       className={`pointer-events-auto flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}>
-      {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} data-add-to-chat data-added={ctx.added || undefined} />}
-      {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={ctx.onQuickEdit} data-quick-edit />}
+      {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} compact={mode === 'host'} onClick={ctx.onAddToChat} data-add-to-chat data-added={ctx.added || undefined} />}
+      {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} compact={mode === 'host'} onClick={ctx.onQuickEdit} data-quick-edit />}
     </div>
   );
 }
