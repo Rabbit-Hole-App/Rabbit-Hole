@@ -4,6 +4,7 @@ import ResizableSidePanel from './ResizableSidePanel.jsx';
 import { DOCK_PAD } from './ChatComposer.jsx';
 import { MINIMAP_SIZE } from './CanvasMinimap.jsx';
 import { uiPrefs } from './ui-prefs.js';
+import { effectiveWidgets } from './widget-visibility.js';
 import { PRODUCT } from './flags.js';
 import logoBlack from './assets/rabbit-hole-black.png';
 import logoWhite from './assets/rabbit-hole-white.png';
@@ -93,8 +94,10 @@ const ZOOM_ROW_H = 30; // the zoom row: 28px IconBtns in a 1px border
 
 // The canvas's floating chrome inside its frame: the tools column at the left (shown as View > Toolbar says) and the bottom strip's
 // lower-left group, the minimap (as View > Minimap says) over the zoom row. Also the real pages' fallback while the canvas code loads.
-export function CanvasChromeLoading({ tools = true, feedback = false, top = 0 }) {
-  const prefs = uiPrefs();
+// study: the owner page's useStudy object, already read from this canvas's saved arrangement; in Study the placeholder draws the
+// minimap only when the learner chose it there, the same rule the canvas applies (widget-visibility.js). No study: Canvas.
+export function CanvasChromeLoading({ tools = true, feedback = false, top = 0, study = null }) {
+  const prefs = effectiveWidgets({ mode: study?.mode === 'study' ? 'study' : 'canvas', canvas: uiPrefs(), study: study?.state?.maps });
   const lowerLeft = (prefs.minimap ? MINIMAP_SIZE.h + 8 : 0) + ZOOM_ROW_H + 20;
   return (
     <div aria-hidden="true" data-loading-chrome className="pointer-events-none absolute inset-0">

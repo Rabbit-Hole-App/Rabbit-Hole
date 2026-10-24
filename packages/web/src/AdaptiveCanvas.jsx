@@ -10,6 +10,7 @@ import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-re
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
+import { effectiveWidgets, widgetToggle } from './widget-visibility.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
@@ -1545,7 +1546,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, permissions = null, onSignIn = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1880,13 +1881,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [grid, setGrid] = useState(false);
   // View > Minimap, Rabbit Hole Map, Curious (owner brief 2026-10-21 item 3): this device's choice (ui-prefs.js), on by default.
   // Hidden, the Rabbit Hole Map and Curious stay mounted (display: none), so their state is there when they come back.
-  const [minimap, setMinimap] = useState(() => uiPrefs().minimap);
-  const [holeMap, setHoleMap] = useState(() => uiPrefs().holeMap);
+  const [minimapPref, setMinimapPref] = useState(() => uiPrefs().minimap);
+  const [holeMapPref, setHoleMapPref] = useState(() => uiPrefs().holeMap);
   const [curious, setCurious] = useState(() => uiPrefs().curious);
   // View > Show / hide > Toolbar (owner brief 2026-10-22): the drawing toolbar; this person's choice on this device, never the canvas.
   const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);
+  // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
+  // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
+  const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
+  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
   const showWidget = (name, on) => {
-    ({ minimap: setMinimap, holeMap: setHoleMap, curious: setCurious, toolbar: setToolbar })[name](on);
+    const route = widgetToggle({ mode: widgetMode, name, on });
+    if (!route) return;
+    if (route.store === 'study') { study?.setMap(name, on); return; }
+    ({ minimap: setMinimapPref, holeMap: setHoleMapPref, curious: setCurious, toolbar: setToolbar })[name](on);
     try { saveUiPref(name, on); } catch { /* storage refused: the choice holds in this page until a reload */ }
   };
   const [pages, setPages] = useState(false);
