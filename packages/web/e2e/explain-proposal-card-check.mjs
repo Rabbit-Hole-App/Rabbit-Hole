@@ -136,7 +136,13 @@ const results = [];
 const total = 7;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
-  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n').slice(0, 4).join(' | ')}`); } // the locator a timeout waited for is on the following lines
+  catch (error) {
+    results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n').slice(0, 4).join(' | ')}`); // the locator a timeout waited for is on the following lines
+    // Failure evidence: the page as it was, and the Chat's proposal cards (bounded), so a missing or changed card is diagnosed from the artifact.
+    await page.screenshot({ path: `${OUT}/fail-${results.length}.png` }).catch(() => {});
+    const cards = await page.locator('[data-chat-pane] [data-generation-proposal]').evaluateAll(nodes => nodes.map(n => n.outerHTML.replace(/\s+class="[^"]*"/g, '').slice(0, 1500))).catch(() => []);
+    console.log(`   fail ${results.length} proposal cards (${cards.length}): ${cards.join(' || ').slice(0, 4000)}`);
+  }
 };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 150)); } throw Error(`timed out: ${label}`); };
 
@@ -153,8 +159,9 @@ await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ ti
 const dock = page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const send = async text => { const box = composer(); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
-// A brief's card by its request, which the card shows unchanged in every state (the title's h3 becomes an input while Edit details is open).
-const cardOf = request => dock.locator('[data-generation-proposal="explain"]').filter({ has: page.locator('[data-proposal-request]', { hasText: request }) }).last();
+// A brief's card by its request, which the card shows unchanged in every state (the title's h3 becomes an input while Edit details is
+// open). Each request is unique here, so the locator resolves to that one card; a second match is a strict-mode error, never a guess.
+const cardOf = request => dock.locator('[data-generation-proposal="explain"]').filter({ has: page.locator('[data-proposal-request]', { hasText: request }) });
 const slotAlert = card => card.locator('xpath=following-sibling::p[@role="alert"]');
 const approvesOf = job => approves.filter(a => a.jobId === job.id);
 // One /explain line -> its job and the brief card the thread shows once the job waits for approval.
