@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, ChevronsDown, ChevronsUp, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowDownUp, ArrowRight, ArrowUpRight, Check, FolderGit2, Globe, HardDrive, Layers, Link2, Lock, MonitorSmartphone, MoreHorizontal, Shapes } from 'lucide-react';
 import { ago } from '../api.js';
 import { ACCESS } from '../canvas-visibility.js';
 import { Button, IconBtn, KindIcon, Menu, MenuItem } from '../ui.jsx';
@@ -12,7 +12,7 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 //           From owner/repo                          (a published canvas in a project: Explore filtered to it)
 //           Forked from "…" · @alice
 //   github.com/owner/repo ↗          (a project only)
-//   Description, clamped to three lines
+//   Description (up to 340 characters when written): whole at Small and Medium small, three lines (two beside actions) larger
 //   this browser's content state     (only a canvas or project whose board is not on the server)
 //   actions                          (Start Rabbit Hole and [Fork | N] on others' cards)
 //   [fork] N forks · Updated 2h ago                  Open →   (one footer line; Continue → on Home instead of Open)
@@ -25,8 +25,8 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 // width, not the viewport's. Below 22rem of card content (a Small card is 220px, 186 of content; a Medium small one 266) the
 // header is a grid: icon and title on one row, the creator and the repository on a full-width row, then one row for the visibility
 // pill and the Card options button; below 40rem the picture stacks above the text, so the text column is never narrower than
-// 22rem beside it. A title or creator that wraps past its two lines gets a Show full title button (aria-expanded) that opens
-// the card to its full height (owner brief 2026-10-23, small-card layout).
+// 22rem beside it. Title and creator are never clipped and nothing has a disclosure button (owner brief 2026-10-23, card size
+// and description; it replaces the Show full title button); at Small and Medium small the card is as tall as its content.
 // Blue is navigation and the primary action only (§13): the title, the repository link, the owner badge, Start Rabbit
 // Hole. Everything else - description, times, forks, visibility, ⋮, secondary buttons - stays neutral.
 
@@ -37,13 +37,14 @@ export const CARD_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(min(100%,380px
 // left their picture about 180 x 90, too small to make out; one per row shows it about 350 x 175.
 export const CARD_ROWS = 'card-grid grid gap-4';
 // Every card the same size (owner, 2026-10-08: "each card should be same size but also allow enough space to show an
-// image that can be seen"). From md the text column and the picture are one fixed height, so the picture's inset above
+// image that can be seen"). From md the picture is a fixed height and the text column at least that high, so the picture's inset above
 // equals its inset below and the footer (N canvases, Updated, Open) ends on the picture's bottom edge (owner, 2026-10-09);
-// the card is that height plus its padding (224px). On a phone the picture is on top and the text below it has the fixed
-// height. Text clamps (title two lines, description three, two beside actions or a note); a description that still does
-// not fit is the one part that gives way, so the footer never moves.
+// the card is that height plus its padding (224px). On a phone the picture is on top and the text below it is at least 196px.
+// Title, creator and project are never clamped (owner, 2026-10-23): text longer than the minimum makes the column, and the card,
+// taller. The description keeps its clamp at Medium large and Large (their look is unchanged); at Small and Medium small
+// index.css shows it whole and drops the minimum, so the card is exactly as tall as its content.
 export const CARD_BODY_H = 'md:h-[190px]';
-const CARD_TEXT_PHONE = 'max-md:h-[196px] max-md:flex-none';
+const CARD_TEXT_MIN = 'md:min-h-[190px] max-md:min-h-[196px] max-md:flex-none';
 
 // Type icons (§14): one tile per kind, the same on every surface - a project its repository, a canvas its pen; never a
 // word and never a colour by topic. The tints stay off the primary blue, which belongs to navigation.
@@ -127,7 +128,7 @@ export function menuAt(button, width, room = 360) {
 // A plain click opens in place; a modified one (new tab, new window) stays the browser's.
 const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 // overflow-wrap:anywhere alone: Tailwind emits break-words after it, so both classes would leave break-word, whose min-content is the whole word (card-size.test.mjs).
-const TITLE = 'line-clamp-2 text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
+const TITLE = 'text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
 
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
 // `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
@@ -140,33 +141,18 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
   const learning = kind === 'repository' || kind === 'canvas';
   const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
-  // Whether the title or the creator is cut short (scrollHeight against clientHeight, width likewise): then, and only then,
-  // the Show full title button is there, so no clipped text is ever without a way to read it.
-  const head = useRef(null);
-  const [open, setOpen] = useState(false);
-  const [clamped, setClamped] = useState(false);
-  useLayoutEffect(() => {
-    const el = head.current;
-    if (!el || open) return undefined;
-    const measure = () => setClamped([...el.querySelectorAll('[data-clamp]')].some((n) => n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1));
-    measure();
-    const watch = new ResizeObserver(measure);
-    watch.observe(el);
-    return () => watch.disconnect();
-  }, [open, m.title, m.creator?.name]);
-  const toggle = clamped || open;
   return (
     <li {...attrs} tabIndex={onOpen ? 0 : undefined} onKeyDown={onOpen ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen(); } : undefined}
       className={`group select-card @container/card flex min-w-0 flex-wrap gap-4 overflow-hidden rounded-lg border border-line bg-white p-4 browse-card max-md:flex-col ${onOpen ? 'lift-card' : ''}`}>
       {learning && <CardThumbnail kind={kind} src={thumbnail} />}
-      <div data-card-text data-open={open || undefined} className={`flex min-h-0 min-w-0 flex-1 flex-col *:shrink-0 ${CARD_BODY_H} ${CARD_TEXT_PHONE}${open ? ' h-auto!' : ''}`}>
-        <div data-card-head ref={head} className="flex min-w-0 items-start gap-3">
+      <div data-card-text className={`flex min-w-0 flex-1 flex-col *:shrink-0 ${CARD_TEXT_MIN}`}>
+        <div data-card-head className="flex min-w-0 items-start gap-3">
           <TypeIcon kind={kind} schedule={schedule} />
           <div data-card-head-text className="flex min-w-0 flex-1 flex-col gap-0.5">
             <div data-card-heading className="flex min-w-0 flex-col">
-            {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} data-clamp className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
-              : onOpen ? <button type="button" data-card-title data-clamp onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
-              : <span data-card-title data-clamp className={`${TITLE} text-ink`}>{m.title}</span>}
+            {href && onOpen ? <a data-card-title href={href} onClick={(e) => { e.stopPropagation(); if (plain(e)) { e.preventDefault(); onOpen(); } }} className={`${TITLE} self-start text-accent hover:underline`}>{m.title}</a>
+              : onOpen ? <button type="button" data-card-title onClick={stop(onOpen)} className={`${TITLE} cursor-pointer self-start text-accent hover:underline`}>{m.title}</button>
+              : <span data-card-title className={`${TITLE} text-ink`}>{m.title}</span>}
             </div>
             {(m.creator || m.project || m.forkedFrom) && <div data-card-meta className="flex min-w-0 flex-col gap-0.5">
             {/* the badge sits beside the @handle, outside data-creator: the attribution line reads exactly @handle */}
@@ -176,29 +162,28 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
             {/* A published canvas's parent project (project-canvases.md): Explore filtered to that project's published canvases. */}
             {m.project && <a data-card-project href={m.project.href} title="Explore published canvases from this project" onClick={(e) => e.stopPropagation()}
               className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-ink-2 hover:text-ink hover:underline">
-              <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span data-clamp className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">From {m.project.label}</span></a>}
+              <FolderGit2 size={12} strokeWidth={1.75} className="shrink-0" /><span className="min-w-0 [overflow-wrap:anywhere]">From {m.project.label}</span></a>}
             <ForkedFrom m={m} onOpen={onForkedFromOpen} />
             </div>}
           </div>
-          {(access || onMore || toggle) && (
+          {(access || onMore) && (
             <div data-card-head-actions className="-mt-0.5 -mr-1.5 flex shrink-0 items-center gap-1">
               {access && <Visibility access={access} kind={kind} onVaries={onVaries} />}
               <span className="ml-auto flex items-center gap-1">
-                {toggle && <IconBtn data-card-title-toggle title={open ? 'Show less' : 'Show full title'} aria-label={open ? 'Show less' : 'Show full title'} aria-expanded={open} onClick={stop(() => setOpen((o) => !o))}>{open ? <ChevronsUp size={16} strokeWidth={1.5} aria-hidden="true" /> : <ChevronsDown size={16} strokeWidth={1.5} aria-hidden="true" />}</IconBtn>}
                 {onMore && <IconBtn title="Card options" aria-label="Card options" aria-haspopup="menu" onClick={stop(onMore)}><MoreHorizontal size={16} strokeWidth={1.5} aria-hidden="true" /></IconBtn>}
               </span>
             </div>
           )}
         </div>
         {(repo || m.description) && (
-          <div data-card-body className="flex min-h-0 min-w-0 shrink! flex-col gap-1 overflow-hidden pt-2">
+          <div data-card-body className="flex min-w-0 flex-col gap-1 pt-2">
             {repo && (
               <a data-source-link href={m.sourceUrl} target="_blank" rel="noreferrer" title="Open the repository on GitHub" onClick={(e) => e.stopPropagation()}
                 className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">
                 <span className="truncate">{m.source}</span><ArrowUpRight size={13} strokeWidth={1.75} className="shrink-0" />
               </a>
             )}
-            {m.description && <p data-card-description className={`${actions || note ? 'line-clamp-2' : 'line-clamp-3'} break-words text-[13px] leading-5 text-ink-2`}>{m.description}</p>}
+            {m.description && <p data-card-description className={`${actions || note ? 'line-clamp-2' : 'line-clamp-3'} text-[13px] leading-5 text-ink-2 [overflow-wrap:anywhere]`}>{m.description}</p>}
           </div>
         )}
         {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-(color:--browse-meta)">{note}</div>}
