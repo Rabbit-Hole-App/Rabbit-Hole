@@ -10,7 +10,8 @@ import { chatProposalFetch } from '../src/chat-proposal-route.js';
 import { LearnVideos } from '../src/learn-video.js';
 import { forwardUsagePayer } from '../src/learn-usage.js';
 import { validateJobRequest } from '../../learn-render/motion/orchestrator.mjs';
-import { settingsOf } from '../../web/src/generation-confirmation-schema.js';
+import { proposalView, settingsOf } from '../../web/src/generation-confirmation-schema.js';
+import { MOTION_NOT_READY, MOTION_READY_SECONDS, motionInputs, motionReadiness } from '../src/motion-readiness.js';
 
 const ALICE = 'alice@example.test';
 const env = { ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
@@ -47,9 +48,9 @@ for (const [label, sign] of [['v2', () => signProposal(env, base({ settings: { d
     assert.equal(await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-1'), null);
     assert.equal((await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-2')).code, 'proposal_used');
   });
-  // The edit route validates the proposal's UNCHANGED settings against the new schema (generation-proposal.js reviseProposal), so a title
-  // edit on a saved 12 second card answers 400 "in steps of 5" and the card cannot be saved. todo: fails today; proposals live 24 hours.
-  test(`a title edit on a saved ${label} Motion proposal of 12 seconds keeps its 12 seconds`, { todo: 'reviseProposal re-validates unchanged legacy settings against the 5-second-step schema' }, async t => {
+  // The edit route does not judge the proposal's UNCHANGED settings again under the 5-second-step schema (reviseProposal keep), but a
+  // changed duration is judged by the current rule.
+  test(`a title edit on a saved ${label} Motion proposal of 12 seconds keeps its 12 seconds; changing the duration follows the new rule`, async t => {
     const s = stack(t, await sign());
     const title = await s.put({ expected_version: 1, title: 'Water cycle, retitled' });
     const out = await title.json();
@@ -79,19 +80,50 @@ test('Generate on a Motion proposal that carries a reference answers 409 referen
   assert.equal((await proposalRecord(s.LEARN_DB, ALICE, 'canvas-1', p.proposal_id)).state.used, null, 'the proposal was not consumed');
 });
 
-// The deployed orchestrator validates approved_proposal as duration_seconds 5 to 30 (learn-render/motion/orchestrator.mjs). The schema
-// now offers 5 to 60 and signs it; docs/features/generation-review-contract.md says not to release 60 before lane feat/motion-settings
-// raises the renderer. todo: it runs and reports, and fails today for 35 to 60. It passes when the orchestrator accepts what the card offers.
-test('every Motion duration the card offers is accepted by the orchestrator\'s approved_proposal validation', { todo: 'schema offers 35 to 60 s; orchestrator validates 5 to 30 (feat/motion-settings not in this candidate)' }, async () => {
+// The deployed orchestrator validates approved_proposal as duration_seconds 5 to 30 (learn-render/motion/orchestrator.mjs). The schema keeps
+// 5 to 60 visible (owner 2026-10-23); readiness says which may be generated. Nothing is clamped or substituted.
+test('every Motion duration stays offered; the ones the orchestrator would 400 are not ready, with a reason, and Generate is blocked before any hold', async () => {
   const offered = settingsOf('motion').find(f => f.key === 'duration_seconds').options.map(o => o.value);
-  const refused = [];
+  assert.deepEqual(offered, [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60], 'the schema is not shrunk');
   for (const seconds of offered) {
     const p = await signProposal(env, base({ settings: { duration_seconds: seconds, audio: false } }), ALICE, { envelope: 'v3' });
     assert.equal(await verifyProposal(env, p, ALICE), null, `${seconds} s signs and verifies`);
-    const errors = validateJobRequest({ request: '/motion water cycle', location: { concept: 'Weather' }, idempotency_key: 'op-motion-1-key', approved_proposal: approvedProposal(p) }).filter(e => e.startsWith('approved_proposal'));
-    if (errors.length) refused.push(seconds);
+    assert.equal(p.settings.duration_seconds, seconds, 'never clamped');
+    const orchestrator = validateJobRequest({ request: '/motion water cycle', location: { concept: 'Weather' }, idempotency_key: 'op-motion-1-key', approved_proposal: approvedProposal(p) }).filter(e => e.startsWith('approved_proposal'));
+    const view = proposalView(p);
+    if (p.readiness.ready) {
+      assert.deepEqual(orchestrator, [], `${seconds} s is ready, so the orchestrator accepts it`);
+      assert.ok(view.allowed_actions.includes('generate'), `${seconds} s can be generated`);
+    } else {
+      assert.ok(seconds > MOTION_READY_SECONDS.max && p.readiness.code === MOTION_NOT_READY && p.readiness.message.includes(`${seconds} second`), `${seconds} s names its reason`);
+      assert.ok(view.validation_errors.some(e => e.path === 'readiness') && !view.allowed_actions.includes('generate'), `${seconds} s blocks Generate on the card`);
+      assert.ok(view.allowed_actions.includes('save'), 'and stays editable');
+    }
+    assert.equal(p.readiness.ready, seconds <= 30);
   }
-  assert.deepEqual(refused, [], 'durations the card offers and the orchestrator would 400 after the proposal is consumed and the hold taken');
+  assert.equal(motionReadiness(env, motionInputs({ duration_seconds: 12 })).ready, true, 'a saved whole-second duration inside the range is ready');
+});
+
+test('Generate on a Motion proposal of 45 seconds answers 409 motion_not_ready: not consumed, no job, no hold, no orchestrator call; 30 seconds is not refused by readiness', async t => {
+  const original = globalThis.fetch, calls = [];
+  globalThis.fetch = async url => { calls.push(String(url)); throw new Error(`unexpected network call: ${url}`); };
+  t.after(() => { globalThis.fetch = original; });
+  const run = async seconds => {
+    const p = await signProposal(env, base({ settings: { duration_seconds: seconds, audio: false } }), ALICE, { envelope: 'v3' });
+    const s = stack(t, p), stored = new Map();
+    const state = { id: 'video-a', storage: { get: async k => structuredClone(stored.get(k)), put: async (k, v) => stored.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...stored].filter(([k]) => k.startsWith(prefix))), setAlarm: async () => {} }, blockConcurrencyWhile: fn => fn() };
+    const actor = new LearnVideos(state, { ...env, SMALL_ENV: 'dev', LEARN_DB: s.LEARN_DB });
+    const operation = { op: 'motion_request', request: '/motion water cycle', location: { concept: 'Weather' }, proposal: p, request_id: 'press-0001' };
+    const res = await actor.fetch(forwardUsagePayer(new Request('https://dev.test/api/learn/video?app=canvas-1', { method: 'POST', body: JSON.stringify({ operation, lessonId: 'canvas', page: 'canvas', confirmed: true }) }), { userId: 'u-alice', email: ALICE }));
+    return { res, body: await res.json(), stored, used: (await proposalRecord(s.LEARN_DB, ALICE, 'canvas-1', p.proposal_id)).state.used };
+  };
+  const refused = await run(45);
+  assert.deepEqual([refused.res.status, refused.body.code, refused.body.readiness.ready], [409, 'motion_not_ready', false]);
+  assert.match(refused.body.error, /45 second video is not ready/);
+  assert.deepEqual([[...refused.stored.keys()], calls, refused.used], [[], [], null]);
+  // inside the range readiness does not refuse: whatever happens next is the unchanged path (no readiness code)
+  const fine = await run(30);
+  assert.notEqual(fine.body.code, 'motion_not_ready');
 });
 
 // A saved /explain brief proposal (v2, no references) that the learner edits becomes a v3 revision; Generate on it still approves the job

@@ -205,7 +205,9 @@ export function fieldProblem(f, value, path = `settings.${f.key}`, resolved = {}
 }
 // Every problem of a command's settings with its path (the proposal's validation_errors): a field the selected model does not support
 // is named when a value is present, an unavailable one likewise, and cross-field and reference rules follow. [] when valid.
-export function settingsProblems(command, values, { resolved = {}, groups = {}, references = [] } = {}) {
+// keep: the settings of the revision being edited; an available field whose value is unchanged from it is not judged again (a saved
+// proposal made under an older rule, such as a 12 second Motion duration, stays editable); a changed value is judged by the current rule.
+export function settingsProblems(command, values, { resolved = {}, groups = {}, references = [], keep = null } = {}) {
   const def = commandDefinition(command);
   if (!def) return [{ path: 'settings', message: 'These settings cannot be changed here.' }];
   const fields = def.settings, shape = `settings must be {${fields.map(f => f.key).join(', ')}}`;
@@ -219,7 +221,7 @@ export function settingsProblems(command, values, { resolved = {}, groups = {}, 
     const path = `settings.${f.key}`;
     if (!appliesTo(f, given)) { if (given[f.key] !== undefined && given[f.key] !== null) out.push({ path, message: `${path} is not supported by ${modelName(given.model)}` }); continue; }
     const problem = fieldProblem(f, given[f.key], path, resolved, given) ?? (f.type === 'parameter_group' && given[f.key] !== undefined && groups[f.group] ? groups[f.group](given[f.key]) : null);
-    if (problem) out.push({ path, message: problem });
+    if (problem && !(keep && f.available !== false && keep[f.key] !== undefined && JSON.stringify(keep[f.key]) === JSON.stringify(given[f.key]))) out.push({ path, message: problem });
   }
   if (!out.length && def.cross) out.push(...def.cross(given));
   out.push(...referenceProblems(command, given, references));
