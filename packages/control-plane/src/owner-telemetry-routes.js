@@ -33,8 +33,17 @@ export async function ownerTelemetryRoute(path, req, env, deps = {}) {
   if (!configured) return json({ configured: false, environment, reason: !db ? 'TELEMETRY_DB is not bound on this deployment.' : 'TELEMETRY_ENVIRONMENT is not set on this deployment.' });
   if (route === 'project') {
     if (!env.LEARN_DB) return json({ error: 'LEARN_DB is not bound on this deployment.' }, 503);
-    try { return json(await projectAccounting(env.LEARN_DB, db, { limit: 500 })); }
-    catch (error) { return json({ error: 'The projection pass failed; nothing was half-applied.', detail: String(error?.message || error).slice(0, 200) }, 503); }
+    // Each pass is also a delivery-health row (source 'projection'): rows copied, or one failure.
+    const health = (delivered, failed, pending) => db.prepare('INSERT OR IGNORE INTO telemetry_delivery_health (source, observed_at, delivered, failed, pending) VALUES (?, ?, ?, ?, ?)')
+      .bind('projection', Date.now(), delivered, failed, pending).run().catch(() => {});
+    try {
+      const pass = await projectAccounting(env.LEARN_DB, db, { limit: 500 });
+      await health(Object.values(pass.copied).reduce((sum, n) => sum + (n || 0), 0), 0, pass.done ? 0 : 1);
+      return json(pass);
+    } catch (error) {
+      await health(0, 1, null);
+      return json({ error: 'The projection pass failed; nothing was half-applied.', detail: String(error?.message || error).slice(0, 200) }, 503);
+    }
   }
   if (route === 'health') return json({ configured, environment,
     delivery: await rows(db.prepare('SELECT * FROM telemetry_delivery_health ORDER BY observed_at DESC LIMIT 50')),
