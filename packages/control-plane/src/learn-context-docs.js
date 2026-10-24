@@ -4,6 +4,7 @@
 import { sha256, randomHex, base64 } from './token.js';
 import { learnMedia } from './learn-storage.js';
 import { NOT_YOURS } from './learn-paper.js';
+import { linkNote } from './learn-context-link.js';
 import { WHOLE_PDF_BYTES, PDF_UPLOAD_LIMIT, SEND_CHARS, readPageTexts, putPageTexts, putPagesError, readPageMeta, readPages, pdfStatus, pagesDocument } from './pdf-pages.js';
 
 export const TEXT_LIMIT = 1024 * 1024;
@@ -32,7 +33,8 @@ function budgetRefusal(on, doc) {
   return null;
 }
 const ID = /^ctx:[0-9a-f]{12}$/;
-const CANVAS = /^canvas-[a-f0-9]{8}$/;
+// A canvas, or a repository project's Main canvas (Start a rabbit hole: files supplement a repository's context, owner 2026-10-23).
+const CANVAS = /^(?:canvas-[a-f0-9]{8}|repo-[a-f0-9]{8}-[a-z0-9-]{1,64})$/;
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
 // The canvas identity from canvasAccess: its org and name, and the signed-in owner's email.
@@ -90,7 +92,27 @@ export async function readOwnDocument(env, app, id) {
 
 // The browser encodes the id's colon (ctx%3A...), so match the decoded path.
 const decodedPath = url => { try { return decodeURIComponent(url.pathname); } catch { return url.pathname; } };
-export const contextDocsRoute = url => url.pathname === '/api/learn/context' || /^\/api\/learn\/context\/ctx:[0-9a-f]{12}(\/pages)?$/.test(decodedPath(url));
+export const contextDocsRoute = url => url.pathname === '/api/learn/context' || url.pathname === '/api/learn/context/link' || /^\/api\/learn\/context\/ctx:[0-9a-f]{12}(\/pages)?$/.test(decodedPath(url));
+
+// A text document from bytes the server already holds (a link note, a stored file source). `reuse`: the same name and size already on
+// the canvas answers as itself, so a retry of the same step never adds a second copy.
+async function storeText(env, who, name, bytes, { reuse = false } = {}) {
+  const current = await list(env, who);
+  const clean = documentName(name);
+  const same = reuse && current.find(d => d.kind === 'text' && d.name === clean && d.size === bytes.length);
+  if (same) return json({ document: same, documents: current, reused: true });
+  if (current.length >= DOCUMENTS_PER_CANVAS) return json({ error: `A canvas holds at most ${DOCUMENTS_PER_CANVAS} context documents` }, 409);
+  const upload = readUpload(/[.](txt|md|markdown)$/i.test(clean) ? clean : `${clean}.txt`, bytes);
+  if (upload.error) return json({ error: upload.error }, 400);
+  const doc = { id: `ctx:${randomHex(6)}`, name: clean, kind: 'text', size: upload.bytes.length };
+  await learnMedia(env).put(await objectKey(who, doc.id), upload.bytes, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } });
+  Object.assign(doc, await withStatus(env, who, doc));
+  const on = current.filter(d => d.attached);
+  doc.attached = on.length < ATTACHED_LIMIT && !budgetRefusal(on, doc);
+  await env.LEARN_DB.prepare('INSERT INTO canvas_context_documents (org, owner_email, app, id, name, kind, size, attached) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(who.org, who.email, who.app, doc.id, doc.name, doc.kind, doc.size, doc.attached ? 1 : 0).run();
+  return json({ document: doc, documents: await list(env, who) });
+}
 
 export async function contextDocsFetch(req, env, deps = {}) {
   const url = new URL(req.url);
@@ -100,9 +122,10 @@ export async function contextDocsFetch(req, env, deps = {}) {
   const pagesRoute = decodedPath(url).endsWith('/pages');
   const id = decodedPath(url).split('/').at(pagesRoute ? -2 : -1);
   let form = null, body = null;
-  if (req.method === 'POST') { try { form = await req.formData(); } catch { return json({ error: 'Send the file as a form upload' }, 400); } }
+  const linkRoute = url.pathname === '/api/learn/context/link';
+  if (req.method === 'POST' && !linkRoute) { try { form = await req.formData(); } catch { return json({ error: 'Send the file as a form upload' }, 400); } }
   if (pagesRoute !== (req.method === 'PUT')) return json({ error: 'Method not allowed' }, 405);
-  if (req.method === 'PATCH' || req.method === 'PUT') { try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); } }
+  if (req.method === 'PATCH' || req.method === 'PUT' || linkRoute) { try { body = await req.json(); } catch { return json({ error: 'Invalid JSON' }, 400); } }
   const appName = form ? form.get('app') : body ? body.app : url.searchParams.get('app');
   if (typeof appName !== 'string' || !CANVAS.test(appName)) return json({ error: 'A canvas is required' }, 400);
   // learn-board.js imports index.js, which imports this module: load it here, not at the top.
@@ -111,9 +134,25 @@ export async function contextDocsFetch(req, env, deps = {}) {
   if (app instanceof Response) return app;
   const who = owner(app);
 
+  // A link kept as context without a card: resolved into a small text note (learn-context-link.js), stored like any text file.
+  if (linkRoute) {
+    if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    let note;
+    try { note = await (deps.linkNote || linkNote)(body.url); } catch (error) { return json({ error: `This link could not be read: ${error.message}` }, 502); }
+    return storeText(env, who, `${note.name}`, new TextEncoder().encode(note.text), { reuse: true });
+  }
   if (url.pathname === '/api/learn/context') {
     if (req.method === 'GET') return json({ documents: await list(env, who), removed: await removedIds(db, who) });
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    // A stored file source made context without sending its bytes again: Start a rabbit hole stores a .txt or .md once as a
+    // file source for its card and copies it here inside the server. Owner only, by the revision the card names.
+    if (form.get('source_id')) {
+      const row = await db.prepare("SELECT * FROM file_sources WHERE id = ? AND org = ? AND owner_email = ? AND sha256 = ? AND status = 'stored'")
+        .bind(String(form.get('source_id')), who.org, who.email, String(form.get('source_rev') || '')).first();
+      const object = row && await learnMedia(env).get(row.r2_key);
+      if (!object) return json({ error: 'That stored file is not available' }, 404);
+      return storeText(env, who, row.name, new Uint8Array(await object.arrayBuffer()), { reuse: true });
+    }
     const file = form.get('file');
     if (!file || typeof file.arrayBuffer !== 'function') return json({ error: 'Choose a file' }, 400);
     const current = await list(env, who);

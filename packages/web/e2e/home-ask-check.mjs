@@ -52,5 +52,7 @@ await shot('4-start-dialog');
 assert.deepEqual(asked, [], 'no Home ask is made');
 assert.deepEqual(oldAgent, [], 'the old apps agent is never asked');
 assert.deepEqual(errors, []);
+results.push(['/apps', 'Start a rabbit hole opens its dialog and creates nothing']);
 console.log(JSON.stringify({ ok: true, results, created: created.map(c => c.title) }));
+console.log(`${results.length}/${results.length} checks passed`); // every step above asserts and throws on a miss
 await browser.close();

@@ -12,6 +12,7 @@ import { menuAt } from './LearningCard.jsx';
 import { ConfirmDialog, Input, Menu, MenuItem, toast } from '../ui.jsx';
 import { menuRows } from './card-menu-items.js';
 import { cardModel } from './provenance.js';
+import { DESCRIPTION_MAX, descriptionLength } from '../../../control-plane/src/canvas-description.js';
 import ProjectCanvases from './ProjectCanvases.jsx';
 import { affected, applyToAll, loadRows } from './project-access.js';
 import { ExplainerAnalytics } from '../CreatorAnalytics.jsx';
@@ -83,6 +84,8 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
   const kindWord = (a) => (a.kind === 'repository' ? 'project' : 'canvas');
   // A typed title is kept exactly (canvas-naming.md); a repeat only earns a quiet note.
   const sameTitle = dialog?.kind === 'rename' && apps.some((x) => x.kind === 'canvas' && x.name !== dialog.a.name && x.title === dialog.value.trim());
+  // Over the limit and changed: an older description over 340 is shown whole and may be saved unchanged, never edited longer.
+  const tooLong = dialog?.kind === 'describe' && descriptionLength(dialog.value.trim()) > DESCRIPTION_MAX && dialog.value.trim() !== (dialog.a.description || '');
   // The sidebar has no Apps tree in the preview, so projects and canvases are pinned from here.
   const pinnedNow = menu && ctx.email && readPinned(localStorage, ctx.org, ctx.email).includes(menu.a.name);
   // Library folders (docs/features/library-folders.md), your own canvas or project in the Library only: Move to folder lists
@@ -156,7 +159,7 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
       </div>
     </Menu>
     {(dialog?.kind === 'rename' || dialog?.kind === 'describe') && (
-      <ConfirmDialog title={dialog.kind === 'rename' ? 'Rename' : 'Edit description'} confirmLabel="Save" confirmVariant="primary"
+      <ConfirmDialog title={dialog.kind === 'rename' ? 'Rename' : 'Edit description'} confirmLabel="Save" confirmVariant="primary" confirmDisabled={tooLong}
         onCancel={() => setDialog(null)}
         onConfirm={() => { const { a, value, kind } = dialog; setDialog(null); patch(a, kind === 'rename' ? { title: value } : { description: value }); }}
         body={dialog.kind === 'rename' ? (
@@ -166,10 +169,12 @@ export function useCardMenu({ org, email, apps = [], onChanged, folders = null }
           </span>
         ) : (
           <span className="block">
-            <textarea autoFocus aria-label="Description" maxLength={500} rows={4} value={dialog.value} onChange={(e) => setDialog({ ...dialog, value: e.target.value })}
+            <textarea autoFocus aria-label="Description" rows={4} value={dialog.value} onChange={(e) => setDialog({ ...dialog, value: e.target.value })}
               placeholder="What this canvas is about, in a sentence or two."
               className="w-full resize-none rounded-sm border border-transparent bg-code px-2 py-1.5 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-line-strong" />
-            <span className="mt-1 block text-right text-xs text-ink-3">{dialog.value.length}/500</span>
+            <span data-description-count className={`mt-1 block text-right text-xs ${tooLong ? 'text-danger' : 'text-ink-3'}`}>
+              {tooLong && <span data-description-too-long className="mr-2">Use a description of up to {DESCRIPTION_MAX} characters.</span>}{descriptionLength(dialog.value)}/{DESCRIPTION_MAX}
+            </span>
           </span>
         )} />
     )}

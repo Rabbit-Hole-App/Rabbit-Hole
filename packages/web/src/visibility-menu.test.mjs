@@ -110,12 +110,15 @@ test('Move to Trash confirms with the owner\'s words; projects get it too; nothi
   assert.deepEqual(menuRows({ kind: 'repository', canEdit: true }).at(-1), { id: 'trash', label: 'Move to Trash', icon: 'Trash2', types: ['canvas', 'repository'], owner: true }, 'projects get it too');
 });
 
-test('a typed title is kept: a repeat only earns a quiet note; the description is capped at 500', () => {
+test('a typed title is kept: a repeat only earns a quiet note; the description is capped at 340 (owner, 2026-10-23), counted by code point', () => {
   const library = read('./home/CardMenu.jsx'); // the card menu the Library and Home share (owner, 2026-10-08)
   assert.match(library, /You already have another canvas with this name\./);
   assert.match(library, /patch\(a, kind === 'rename' \? \{ title: value \} : \{ description: value \}\)/);
-  assert.match(library, /maxLength=\{500\}/);
-  assert.match(library, /\{dialog\.value\.length\}\/500/);
+  assert.doesNotMatch(library, /maxLength=\{500\}|\/500/);
+  assert.match(library, /import \{ DESCRIPTION_MAX, descriptionLength \} from '\.\.\/\.\.\/\.\.\/control-plane\/src\/canvas-description\.js';/, 'the one shared limit');
+  assert.match(library, /\{descriptionLength\(dialog\.value\)\}\/\{DESCRIPTION_MAX\}/);
+  assert.match(library, /confirmDisabled=\{tooLong\}/, 'Save is off while a changed description is over the limit');
+  assert.match(library, /dialog\.value\.trim\(\) !== \(dialog\.a\.description \|\| ''\)/, 'an older long description may be saved unchanged');
 });
 
 test('Trash restores canvases and projects from the Library\'s own list; Share opens the panel once', () => {

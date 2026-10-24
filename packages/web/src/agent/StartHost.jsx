@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import StartDialog from '../StartDialog.jsx';
 import { ctxOf } from './commands.js';
 import { useSurface } from './surface.js';
+import { startJob, useStartDraft } from '../start-run.js';
+import { Loader2 } from 'lucide-react';
+import { Button } from '../ui.jsx';
 
 // T02 §3.3, §5: the one Start dialog host. Home's [Start a rabbit hole], Library
 // and Settings dispatch 'small:start' {path}. Mounted once in Root (dev), so the
@@ -9,6 +12,11 @@ import { useSurface } from './surface.js';
 export default function StartHost({ takeEarly = () => null }) {
   const surface = useSurface(); // a fresh ctx once Shell publishes the workspace identity
   const [path, setPath] = useState(null);
+  const draft = useStartDraft();
+  // Once the destination exists the dialog steps aside, so the canvas and its own choice windows are usable; the job goes on
+  // (start-job.js) and the chip below says where it stands. A source that needs another try brings the list back with Review.
+  const away = draft.phase === 'starting' && !!draft.destination;
+  useEffect(() => { if (away && path) setPath(null); }, [away, path]);
   useEffect(() => {
     const open = (e) => { takeEarly(); setPath(e.detail?.path || 'repository'); };
     window.addEventListener('small:start', open);
@@ -17,5 +25,31 @@ export default function StartHost({ takeEarly = () => null }) {
     if (early) setPath(early);
     return () => window.removeEventListener('small:start', open);
   }, []);
-  return path && <StartDialog ctx={ctxOf(surface)} initial={path} onClose={() => setPath(null)} />;
+  const waiting = draft.rows.filter((row) => row.status !== 'ready' && row.status !== 'failed').length;
+  const failed = draft.rows.filter((row) => row.status === 'failed').length;
+  const chip = !path && draft.destination && (draft.phase === 'starting' || draft.phase === 'partial');
+  return (
+    <>
+      {path && !away && <StartDialog ctx={ctxOf(surface)} initial={path} onClose={() => setPath(null)} />}
+      {chip && (
+        <div role="status" data-start-chip className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border border-line bg-white p-3 text-sm shadow-pop">
+          {draft.phase === 'starting'
+            ? <><Loader2 size={14} className="animate-spin" aria-hidden="true" />Adding sources, {waiting} to go<Button size="sm" variant="secondary" onClick={() => startJob.stop()}>Stop</Button></>
+            : (
+              <div className="min-w-0">
+                <p>{failed === 1 ? '1 source needs another try.' : `${failed} sources need another try.`}</p>
+                <ul data-start-chip-failures className="max-w-[320px] pt-1 text-xs text-ink-2">
+                  {draft.rows.filter((row) => row.status === 'failed').slice(0, 3).map((row) => <li key={row.id} className="break-words">{row.label}: {row.reason}</li>)}
+                </ul>
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" variant="primary" onClick={() => startJob.start(ctxOf(surface))}>Retry</Button>
+                  <Button size="sm" variant="secondary" onClick={() => setPath('review')}>Review</Button>
+                  <Button size="sm" variant="ghost" onClick={() => startJob.reset()}>Dismiss</Button>
+                </div>
+              </div>
+            )}
+        </div>
+      )}
+    </>
+  );
 }

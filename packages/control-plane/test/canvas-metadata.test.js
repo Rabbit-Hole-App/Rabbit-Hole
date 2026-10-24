@@ -90,15 +90,35 @@ test('a rename and a description edit are meaningful changes; the same title aga
   assert.equal((await f.patch('ana', c.name, { description: '' })).body.description, null, 'an empty description clears it');
 });
 
-test('a description is plain text up to 500 characters, edited by its owner only', async t => {
+test('a description is plain text up to 340 characters (owner, 2026-10-23), counted by code point, edited by its owner only', async t => {
   const f = setup(t);
   const c = await f.create('ana', 'Limits');
-  assert.equal((await f.patch('ana', c.name, { description: 'x'.repeat(500) })).body.description.length, 500);
-  const long = await f.patch('ana', c.name, { description: 'x'.repeat(501) });
+  assert.equal((await f.patch('ana', c.name, { description: 'x'.repeat(340) })).body.description.length, 340);
+  const long = await f.patch('ana', c.name, { description: 'x'.repeat(341) });
   assert.equal(long.status, 400);
-  assert.match(long.body.error, /500 characters/);
+  assert.match(long.body.error, /340 characters/);
+  assert.equal((await f.patch('ana', c.name, { description: 'x'.repeat(500) })).status, 400, 'the old 500 no longer fits');
+  // An emoji is one character on the server and in the dialog's counter (canvas-description.js), not two.
+  assert.equal((await f.patch('ana', c.name, { description: '\u{1F600}'.repeat(340) })).status, 200);
+  assert.equal((await f.patch('ana', c.name, { description: '\u{1F600}'.repeat(341) })).status, 400);
   assert.equal((await f.patch('ana', c.name, { description: 42 })).status, 400);
   assert.equal((await f.patch('ben', c.name, { description: 'mine now' })).status, 404, 'another workspace never edits it');
+});
+
+test('a description saved over 340 before the limit is kept whole: a rename or an unchanged save passes, a longer edit does not', async t => {
+  const f = setup(t);
+  const c = await f.create('ana', 'Legacy');
+  await f.patch('ana', c.name, { description: 'short' });
+  const legacy = 'y'.repeat(450);
+  f.sqlite.prepare('UPDATE canvas_metadata SET description = ? WHERE canvas = ?').run(legacy, c.name);
+  assert.equal((await f.app('ana', c.name)).description, legacy, 'listed whole');
+  const renamed = await f.patch('ana', c.name, { title: 'Legacy, renamed' });
+  assert.equal(renamed.status, 200);
+  assert.equal(renamed.body.description, legacy, 'a title edit never touches it');
+  assert.equal((await f.patch('ana', c.name, { description: `  ${legacy}  ` })).status, 200, 'saving it unchanged is not an edit');
+  assert.equal((await f.patch('ana', c.name, { description: `${legacy}z` })).status, 400, 'a longer text is a new description over the limit');
+  assert.equal((await f.patch('ana', c.name, { description: 'y'.repeat(340) })).body.description.length, 340, 'shortened to the limit');
+  assert.equal((await f.app('ana', c.name)).description.length, 340);
 });
 
 test('a change to the saved content bumps; its first server copy and a save of the same content do not', async t => {

@@ -80,6 +80,7 @@ assert.equal(stop.stale, false, 'no stale audio after Stop');
 result.streamedStop = { stopToPauseMs: Math.round(stop.stopToPause * 10) / 10, playheadFrozenFor2500ms: !stop.stale };
 result.savedMs = result.buffered.requestToFirstAudio.mean - result.streamed.requestToFirstAudio.mean;
 assert.ok(result.savedMs > 0, 'streaming starts sooner');
+console.log('4/4 checks passed'); // the four assertions above; each throws on a miss
 console.log(JSON.stringify({ pace: { FIRST_BYTE_MS, BODY_MS, bytes: mp3.length }, ...result }, null, 1));
 await browser.close();
 server.close();
