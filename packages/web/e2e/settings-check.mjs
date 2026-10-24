@@ -327,9 +327,9 @@ await check('12 AI usage still shows the server allowance, used, remaining, rese
   await open(page);
   await viaEvent(page, { tab: 'usage' });
   const usage = pane(page, 'usage').locator('[data-usage-settings]');
-  await usage.getByText('Monthly allowance').waitFor({ timeout: 20000 });
+  await usage.getByText('Monthly credits').waitFor({ timeout: 20000 });
   const text = await usage.innerText();
-  for (const line of ['Used', 'Remaining', 'Next reset']) assert.ok(text.includes(line), `missing ${line}`);
+  for (const line of ['Used', 'Remaining', 'Renewal', 'AI credits every month']) assert.ok(text.includes(line), `missing ${line}`);
   // The tracking-only disclosure stays exactly while the server says the allowance is not enforced (L12 enforces it).
   const { enforced } = (await api('/api/learn/usage')).body;
   assert.equal(text.includes('Tracking only - limits are not enforced yet.'), enforced !== true, `enforced ${enforced} but the disclosure disagrees`);

@@ -34,14 +34,14 @@ const ready = over => ({ status: 'ready', usage: { allowance: 50_000_000, used: 
 
 test('the gauge: green with a balance, its words in the tooltip and the accessible name, a gauge icon, keyboard button', async () => {
   const html = gauge(await storeOf(200, body()));
-  assert.match(html, /<button type="button" data-usage-gauge="true" data-state="ok" title="AI allowance: 3,260 credits remaining\. Tracking only - limits are not enforced yet\." aria-label="AI allowance: 3,260 credits remaining\. Tracking only - limits are not enforced yet\." aria-haspopup="dialog" aria-expanded="false"/);
+  assert.match(html, /<button type="button" data-usage-gauge="true" data-state="ok" title="AI credits: 3,260 credits remaining\. Tracking only - limits are not enforced yet\." aria-label="AI credits: 3,260 credits remaining\. Tracking only - limits are not enforced yet\." aria-haspopup="dialog" aria-expanded="false"/);
   assert.match(html, /lucide-gauge[^"]*text-pass/);
   assert.doesNotMatch(html, /lucide-sparkles|data-usage-popover/);
 });
 
 test('the gauge: red only for remaining 0 from the server', async () => {
   const html = gauge(await storeOf(200, body({ usedMicros: 50_000_000, remainingMicros: 0 })));
-  assert.match(html, /data-state="empty" title="No AI allowance remaining\. Tracking only - limits are not enforced yet\."/);
+  assert.match(html, /data-state="empty" title="No AI credits remaining\. Tracking only - limits are not enforced yet\."/);
   assert.match(html, /lucide-gauge[^"]*text-fail/);
 });
 
@@ -50,9 +50,9 @@ test('the gauge: neutral while loading, when unavailable, on a failure and for a
     ['loading', await storeOf(0), {}, 'Loading AI usage'],
     ['config', await storeOf(200, { enforced: false, unavailable: 'config' }), {}, 'AI usage unavailable'],
     ['accounting', await storeOf(503, { unavailable: 'accounting' }), {}, 'AI usage unavailable'],
-    ['401', await storeOf(401, {}), {}, 'Sign in to see your AI allowance'],
+    ['401', await storeOf(401, {}), {}, 'Sign in to see your AI credits'],
     // A signed-out link viewer gets no personal allowance even when the store holds numbers from earlier.
-    ['signed out', await storeOf(200, body()), { signedIn: false }, 'Sign in to see your AI allowance'],
+    ['signed out', await storeOf(200, body()), { signedIn: false }, 'Sign in to see your AI credits'],
   ];
   for (const [name, store, props, label] of cases) {
     const html = gauge(store, props);
@@ -64,28 +64,29 @@ test('the gauge: neutral while loading, when unavailable, on a failure and for a
 
 test('the popover: allowance heading, remaining prominently, used of total, reset date, bar, the not-enforced note, View usage', () => {
   const html = details(ready());
-  assert.match(html, /Monthly AI allowance/);
+  assert.match(html, />AI credits</);
   assert.match(html, /data-usage-remaining="true" class="[^"]*text-2xl[^"]*text-ink">3,260 credits <span[^>]*>remaining<\/span>/);
-  assert.match(html, /data-usage-used[^>]*>1,740 credits used of 5,000</);
-  assert.match(html, /data-usage-reset[^>]*>Resets November 1 \(00:00 UTC\)</, 'the UTC date, and it says UTC');
-  assert.match(html, /role="meter" aria-label="AI allowance used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-valuetext="1,740 credits of 5,000 credits used"/);
+  assert.match(html, /data-usage-every[^>]*>5,000 AI credits every month</);
+  assert.match(html, /data-usage-used[^>]*>1,740 credits used</);
+  assert.match(html, /data-usage-reset[^>]*>Renews on November 1 \(00:00 UTC\)</, 'the UTC date, and it says UTC');
+  assert.match(html, /role="meter" aria-label="AI credits used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-valuetext="1,740 credits of 5,000 credits used"/);
   assert.doesNotMatch(html, /\$/, 'credits only, never dollars (owner messages 32-33)');
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
   assert.match(html, /<button type="button" data-view-usage[^>]*>View usage<\/button>/);
-  assert.doesNotMatch(html, /Reserved for processing|data-usage-bar-reserved/, 'no reserved line at zero');
+  assert.doesNotMatch(html, /Temporarily reserved|data-usage-bar-reserved/, 'no reserved line at zero');
   assert.doesNotMatch(html, /Upgrade|Buy|Subscribe|checkout/i, 'no purchase controls');
 });
 
 test('the popover: reserved shown apart, exhausted in words, enforced hides the note, allowance from the server', () => {
   const reserved = details(ready({ reserved: 500_000, remaining: 32_100_000 }));
-  assert.match(reserved, /data-usage-reserved[^>]*>Reserved for processing: 50 credits</);
+  assert.match(reserved, /data-usage-reserved[^>]*>Temporarily reserved: 50 credits</);
   assert.match(reserved, /data-usage-bar-reserved/);
-  assert.match(reserved, /aria-valuetext="1,740 credits of 5,000 credits used, 50 credits reserved for processing"/);
+  assert.match(reserved, /aria-valuetext="1,740 credits of 5,000 credits used, 50 credits temporarily reserved"/);
   const empty = details(ready({ used: 50_000_000, remaining: 0 }));
   assert.match(empty, /text-fail">0 credits <span/);
-  assert.match(empty, /No AI allowance remaining\./);
+  assert.match(empty, /No AI credits remaining\./);
   assert.doesNotMatch(details(ready({ enforced: true })), /data-usage-note/);
-  assert.match(details(ready({ allowance: 80_000_000, remaining: 62_600_000 })), />1,740 credits used of 8,000</);
+  assert.match(details(ready({ allowance: 80_000_000, remaining: 62_600_000 })), />8,000 AI credits every month</);
 });
 
 test('requests with cost not yet known: one quiet line in the popover and Settings, a count and never $0, absent at 0 or missing', async () => {
@@ -106,7 +107,7 @@ test('the popover: unavailable says so with no numbers; signed out has no number
   assert.match(unavailable, /data-view-usage/);
   assert.doesNotMatch(unavailable, /\$\d|\d credit/);
   const out = details({ status: 'signed_out' });
-  assert.match(out, />Sign in to see your AI allowance</);
+  assert.match(out, />Sign in to see your AI credits</);
   assert.doesNotMatch(out, /\$\d|\d credit|data-view-usage/);
 });
 
@@ -116,11 +117,11 @@ test('Settings > AI usage: allowance, used, remaining, next reset and the bar; r
   assert.match(html, />AI usage</);
   assert.match(html, /across all your canvases/);
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
-  for (const [row, value] of [['Monthly allowance', '5,000 credits'], ['Used', '1,740 credits'], ['Remaining', '3,260 credits'], ['Next reset', 'November 1, 2026']])
+  for (const [row, value] of [['Monthly credits', '5,000 AI credits every month'], ['Used', '1,740 credits'], ['Remaining', '3,260 credits'], ['Renewal', 'Renews on November 1']])
     assert.match(html, new RegExp(`>${row}</div>[\\s\\S]*?>${value}</span>`), row);
   assert.match(html, /role="meter"/);
-  assert.doesNotMatch(html, /Reserved for processing/);
-  assert.match(settings(await storeOf(200, body({ reservedMicros: 1_250_000, remainingMicros: 31_350_000 }))), />Reserved for processing<\/div>[\s\S]*?>125 credits<\/span>/);
+  assert.doesNotMatch(html, /Temporarily reserved/);
+  assert.match(settings(await storeOf(200, body({ reservedMicros: 1_250_000, remainingMicros: 31_350_000 }))), />Temporarily reserved<\/div>[\s\S]*?>125 credits<\/span>/);
   assert.doesNotMatch(html, /\$/, 'credits only, never dollars (owner messages 32-33)');
   const down = settings(await storeOf(503, { unavailable: 'accounting' }));
   assert.match(down, /role="status"[^>]*>AI usage unavailable</);
@@ -135,7 +136,7 @@ test('the popover wiring: opens from the button, refreshes on open, Escape and o
   assert.match(source, /const outside = event => \{ if \(!box\.current\?\.contains\(event\.target\)\) close\(false\); \};/);
   assert.match(source, /if \(event\.key === 'Escape'\) \{ event\.stopPropagation\(\); close\(true\); \}/);
   assert.match(source, /const close = useCallback\(restore => \{ setOpen\(false\); if \(restore\) trigger\.current\?\.focus\(\); \}, \[\]\);/);
-  assert.match(source, /role="dialog" aria-label="Monthly AI allowance" tabIndex=\{-1\}/);
+  assert.match(source, /role="dialog" aria-label="AI credits" tabIndex=\{-1\}/);
   assert.match(source, /absolute top-full right-0 z-50 mt-2 w-72 max-w-\[calc\(100vw-1\.5rem\)\] rounded-xl border border-line bg-white p-3 shadow-pop/, 'the top bar popover styling, narrow-screen safe');
   // Settings refreshes on open, once: not a second request on top of the first load the hook has just started.
   assert.match(source, /useEffect\(\(\) => \{ if \(store\.getSnapshot\(\)\.status !== 'loading'\) store\.refresh\(\); \}, \[store\]\);/);

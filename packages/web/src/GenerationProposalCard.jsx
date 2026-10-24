@@ -18,10 +18,10 @@ export function durationOptions(current, f = MOTION_SECONDS) {
 
 const fmt = n => Number(n).toLocaleString('en-US');
 // Server-provided credits only (owner messages 30-33: never dollars). The reservation stays internal: the line is the estimate
-// alone (owner, 2026-10-21: "About 100 credits"). -> '' without an estimate.
+// alone (owner, 2026-10-23: "Estimated cost: 12 AI credits"). -> '' without an estimate.
 export function usageLine(usage) {
   const e = usage?.estimate_credits;
-  return e != null ? `About ${fmt(e)} credits` : '';
+  return e != null ? `Estimated cost: ${fmt(e)} AI credits` : '';
 }
 
 const control = 'h-7 rounded-md border border-line bg-surface px-2 text-[13px] text-ink focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-50';
