@@ -576,13 +576,13 @@ function AppPage({ slug, runId, catalog, reloadShell }) {
   );
   // Refreshing straight into a canvas showed the app-page row skeleton for a beat; wait on the canvas's own shell instead
   // (CanvasLoading.jsx, owner brief 2026-10-23: never the retired Learn page).
-  if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <CanvasPageLoading />;
+  if (learnPreview && (tab === 'learn' || /^canvas-[a-f0-9]{8}$/.test(slug)) && !app && !error) return <CanvasPageLoading name={slug} />;
   if (learnPreview && app?.kind === 'repository' && !error) return <Suspense fallback={null}><RepositoryPage key={app.name} app={app} catalog={catalog?.apps} onCatalog={reloadShell} /></Suspense>;
   // D7: only a canvas asks through LEARN_DB (dev-worker.js canvasAskSeam). A job or server's Learn asks
   // would reach apiAsk on the live D1, so the preview never mounts Learn for them, and the dev worker
   // refuses them (canvases.js refuseLiveLearnAsk).
   // A canvas opens Learn directly, behind its not-in-this-browser gate (WP6).
-  if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <Suspense fallback={<CanvasPageLoading />}><CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} /></Suspense>;
+  if (learnPreview && app?.kind === 'canvas' && !error && !runId) return <Suspense fallback={<CanvasPageLoading app={app} />}><CanvasPage key={JSON.stringify([app.email, app.org, app.name])} app={app} project={catalog?.apps?.find((p) => p.name === app.project)} /></Suspense>;
   return (
     <main className={cn('flex-1', graphFull ? 'overflow-hidden' : 'overflow-y-auto')}>
       {/* run pages carve out the fixed 400px chat panel and center in what's left;

@@ -127,7 +127,7 @@ test('UI-19: one vertical tools column at every width, one minimap, no overview 
   assert.doesNotMatch(canvas, /Show overview|Hide overview|setOverview|overviewOpen/, 'no separate overview toggle or state');
   assert.equal(canvas.match(/<CanvasMinimap /g).length, 1, 'one canvas minimap');
   assert.match(canvas, /<div className="flex min-h-0 flex-1">/, 'the canvas row never stacks the tools under the canvas');
-  assert.match(canvas, /const \[minimap, setMinimap\] = useState\(\(\) => uiPrefs\(\)\.minimap\);/, 'the View menu\'s persisted choice owns it');
+  assert.match(canvas, /const \[minimapPref, setMinimapPref\] = useState\(\(\) => uiPrefs\(\)\.minimap\);/, 'the View menu\'s persisted choice owns it (Study shows it through effectiveWidgets)');
 });
 
 // UI-19 follow-up (integrator, 2026-10-21: controls must not obstruct cards): now that the minimap shows at every width, it
@@ -174,7 +174,7 @@ test('View > Show / hide: checked rows for the toolbar, minimap, Rabbit Hole Map
   assert.ok(menus.includes('const widget = name => on => canvas()?.showWidget(name, on);'));
   const bar = read('CanvasMenubar.jsx');
   assert.ok(bar.includes("if (kind === 'menuitemcheckbox') { item.onToggle(!item.check); return; }"), 'a check row flips in place and keeps the menu open');
-  assert.match(canvas, /const \[minimap, setMinimap\] = useState\(\(\) => uiPrefs\(\)\.minimap\);\n\s+const \[holeMap, setHoleMap\] = useState\(\(\) => uiPrefs\(\)\.holeMap\);\n\s+const \[curious, setCurious\] = useState\(\(\) => uiPrefs\(\)\.curious\);/);
+  assert.match(canvas, /const \[minimapPref, setMinimapPref\] = useState\(\(\) => uiPrefs\(\)\.minimap\);\n\s+const \[holeMapPref, setHoleMapPref\] = useState\(\(\) => uiPrefs\(\)\.holeMap\);\n\s+const \[curious, setCurious\] = useState\(\(\) => uiPrefs\(\)\.curious\);/);
   assert.ok(canvas.includes('const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);'));
   assert.ok(canvas.includes('{!readOnly && toolbar && <div ref={toolbarRef} role="toolbar"'), 'the toolbar draws only while it is on');
   assert.match(canvas, /try \{ saveUiPref\(name, on\); \}/);
