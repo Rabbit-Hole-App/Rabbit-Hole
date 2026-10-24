@@ -65,7 +65,8 @@ page.on('pageerror', error => errors.push(error.message));
 const results = [];
 const check = async (label, fn) => { await fn(); results.push(label); console.log(`ok ${label}`); };
 const shot = async name => { await page.waitForTimeout(300); await page.screenshot({ path: `${SHOTS}/${name}.png` }); console.log('shot', name); };
-const resets = new Date(usage.resetsAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+// formatReset (account-usage.js): the reset instant in the browser's own zone, zone named; this check runs on the machine whose zone the browser uses.
+const resets = new Date(usage.resetsAt).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }).replace(' at ', ', ');
 
 const open = async () => {
   await page.goto(`${BASE}/apps/${canvas.name}`);

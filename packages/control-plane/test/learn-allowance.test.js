@@ -92,7 +92,7 @@ test('zero remaining allowance: zero provider calls, the exhausted reason and it
   const { calls, reply } = provider();
   const response = await spendTransport(as(env), body, MODEL, null, reply());
   assert.equal(response.status, 429);
-  assert.deepEqual(await response.json(), { error: `Not enough AI credits. Renews on ${new Date(periodReset(PERIOD)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' })}.`,
+  assert.deepEqual(await response.json(), { error: `Not enough AI credits. Renews on ${new Date(periodReset(PERIOD)).toLocaleString('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short', timeZone: 'UTC' }).replace(' at ', ', ')}.`,
     code: 'allowance_limited', reason: 'exhausted', period: PERIOD, resetsAt: periodReset(PERIOD) });
   assert.equal(calls.length, 0);
   assert.deepEqual(rows(sqlite, 'usage_operations'), [], 'nothing reserved on the platform ledger');

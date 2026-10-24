@@ -110,7 +110,13 @@ export const spendEnforced = env => env.SMALL_ENV !== 'test';
 
 // What the person is told when a paid call is refused. Their monthly allowance and the platform's daily limit read
 // differently (owner D3/D4): the allowance names its reset date; the platform limit is temporary and not theirs.
-const resetDate = period => new Date(periodReset(period)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
+// The same wording as the browser's formatReset (web/src/account-usage.js: "November 1, 12:00 AM UTC"); a server does not know the
+// person's zone, so it names UTC. The browser's refusal toast and usage screen rebuild it in the person's own zone from resetsAt.
+const resetDate = period => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short', timeZone: 'UTC' })
+    .formatToParts(new Date(periodReset(period))).map(p => [p.type, p.value]));
+  return `${parts.month} ${parts.day}, ${parts.hour}:${parts.minute} ${parts.dayPeriod} ${parts.timeZoneName}`;
+};
 export function spendMessage(reason, period = null) {
   const resets = period ? ` Renews on ${resetDate(period)}.` : '';
   switch (reason) {

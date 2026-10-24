@@ -3,6 +3,10 @@
 People see AI credits only. Accounting is integer micro-USD underneath: $1 = 100 credits, 1 credit = $0.01 = 10,000 micros.
 The monthly allowance is 25,000,000 micros = 2,500 credits, one per account, shared by every canvas, device and feature.
 
+## Product direction
+
+This page describes what is implemented now: one flat monthly allowance of 2,500 credits per account, nothing else. It is not a permanent product rule. The decided direction is a Free and a Plus plan, Pro removed, Teams later; subscription prices and the billing implementation are undecided, so none is built or specified here, and this document states no price.
+
 ## One entitlement
 
 `packages/control-plane/src/learn-entitlement.js` `allowanceFor(db, env, userId, period, { create })` is the only place an
@@ -26,6 +30,19 @@ is granted `AI_LEGACY_ALLOWANCE_USD` to an account with recorded usage, so **202
 **2,500-credit grants start with 2026-11, at 2026-11-01 00:00 UTC**. An account with no recorded usage, and every new account,
 gets 2,500 in every month (owner 2026-10-23: no account-creation plumbing; missing history is not proof that nothing happened,
 so usage and grants already made are never changed). Rows in `usage_grants` made before the cutover keep their amount.
+
+What each account is granted (six cases, each tested in `credits-2500.test.js`, "what each account is granted either side of the cutover"). Usage means chargeable AI work: a free action such as practice grading is recorded with the user id but does not count, so a new account that did one before its first AI request is still a new account. A grant already made and any recorded usage are never rewritten; the test snapshots them before the cutover and compares after.
+
+| # | Account | Month | Grant | `usage_grants.source` |
+| --- | --- | --- | --- | --- |
+| 1 | New account | 2026-10 | 2,500 credits | `default` |
+| 2 | Existing account with recorded usage | 2026-10 | 5,000 credits | `legacy_transition` |
+| 3 | Existing account with no usage history | 2026-10 | 2,500 credits | `default` |
+| 4 | New account | 2026-11 or later | 2,500 credits | `default` |
+| 5 | Existing account with usage | 2026-11 or later | 2,500 credits | `default` |
+| 6 | Existing account with no usage history | 2026-11 or later | 2,500 credits | `default` |
+
+**Renewal time.** The reset instant is the start of a UTC month: 2026-11-01 00:00 UTC, which is October 31, 5:00 PM Pacific (PDT). Every surface words it the same way, "Renews on October 31, 5:00 PM PDT": the usage popover and Settings > AI usage (`UsageGauge.jsx`) and the refusal toast (`ai-refusal.js`) all use `formatReset` in `web/src/account-usage.js`, which shows the viewer's own time zone with the zone named. A server-composed message (`spendMessage`, `learn-spend-ledger.js`) does not know the viewer's zone, so it uses the same wording in UTC: "Renews on November 1, 12:00 AM UTC." Both are pinned by tests at the cutover and at a month and year boundary.
 
 ## One price registry
 

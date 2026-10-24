@@ -9,7 +9,7 @@ import { PRICE_VERSION, priceUsage, anthropicQuantities, rateOf, unverifiedRows,
 import { allowanceFor } from '../src/learn-entitlement.js';
 import { admitSpend, spendMessage } from '../src/learn-spend-ledger.js';
 import { spendTransport } from '../src/learn-spend.js';
-import { beginAttempt, settleAttempt, refundAttempt, usageTotals, withUsage, noteUsageIdentity, periodOf, periodReset } from '../src/learn-usage.js';
+import { admissionPayer, beginAttempt, settleAttempt, refundAttempt, usageTotals, withUsage, noteUsageIdentity, periodOf, periodReset } from '../src/learn-usage.js';
 import { usageFetch } from '../src/learn-usage-route.js';
 import { costUsd } from '../src/learn-models.js';
 import { imageEstimate } from '../src/learn-usage-estimates.js';
@@ -213,7 +213,7 @@ test('exhaustion says Not enough AI credits and when they renew; a released rese
   assert.equal((await admit(env, 'u-x', 'op-a', 1)).refused, false);
   const second = await admit(env, 'u-x', 'op-b', 0.01);
   assert.equal(second.refused, true);
-  assert.equal(spendMessage('allowance_exhausted', periodOf(OCT)), 'Not enough AI credits. Renews on November 1.');
+  assert.equal(spendMessage('allowance_exhausted', periodOf(OCT)), 'Not enough AI credits. Renews on November 1, 12:00 AM UTC.');
   assert.match(spendMessage(second.reason, periodOf(OCT)), /AI credits/);
   // The job fails having cost nothing: the reservation is released and the person can spend again.
   await settleAttempt(as(env, 'u-x'), 'op-a', { status: 'failed', costMicros: 0 });
@@ -293,4 +293,37 @@ test('the cutover each environment ships: 2026-10 is the last 5,000-credit month
   // The boundary is the instant the month changes, in UTC.
   assert.equal(periodOf(at('2026-10-31T23:59:59Z')), '2026-10');
   assert.equal(periodOf(at('2026-11-01T00:00:00Z')), '2026-11');
+});
+
+test('what each account is granted either side of the cutover: six cases, each tested; grants and usage already made are never changed', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const env = config(LEARN_DB, TRANSITION);
+  const grant = user => sqlite.prepare('SELECT period, allowance_micros, source FROM usage_grants WHERE user_id = ? ORDER BY period').all(user).map(row => ({ ...row }));
+  const OCT_5000 = { period: '2026-10', allowance_micros: 50_000_000, source: 'legacy_transition' };
+  const OCT_2500 = { period: '2026-10', allowance_micros: 25_000_000, source: 'default' };
+  const NOV_2500 = { period: '2026-11', allowance_micros: 25_000_000, source: 'default' };
+  // 1. New account in October. Practice grading is free and is recorded with the user id: it must not make the account look used.
+  await admissionPayer(as(env, 'u-new-oct', { feature: 'grade' }), LEARN_DB);
+  assert.equal(rows(sqlite, 'usage_actions').filter(r => r.user_id === 'u-new-oct').length, 1, 'the free action was recorded for the account');
+  assert.equal((await admit(env, 'u-new-oct', 'op-1', 0.01)).refused, false);
+  assert.deepEqual(grant('u-new-oct'), [OCT_2500]);
+  // 2. Existing account with recorded usage: keeps 5,000 in October.
+  seedUsage(sqlite, 'u-used', '2026-09', 1_000);
+  assert.equal((await admit(env, 'u-used', 'op-2', 0.01)).refused, false);
+  assert.deepEqual(grant('u-used'), [OCT_5000]);
+  // 3. Existing account with no usage history (it has an earlier grant, nothing spent): 2,500 in October.
+  sqlite.prepare("INSERT INTO usage_grants (user_id, period, allowance_micros, source, granted_at) VALUES ('u-idle', '2026-09', 25000000, 'default', 1)").run();
+  assert.equal((await admit(env, 'u-idle', 'op-3', 0.01)).refused, false);
+  assert.deepEqual(grant('u-idle'), [{ period: '2026-09', allowance_micros: 25_000_000, source: 'default' }, OCT_2500]);
+  // Everything made so far is history. Snapshot it, cross the cutover, and prove none of it moved.
+  const history = { grants: rows(sqlite, 'usage_grants'), actions: rows(sqlite, 'usage_actions'), attempts: rows(sqlite, 'usage_attempts') };
+  // 4. New account in November. 5. Existing account with usage in November. 6. Existing account with no usage in November.
+  for (const [user, op] of [['u-new-nov', 'op-4'], ['u-used', 'op-5'], ['u-idle', 'op-6']]) assert.equal((await admit(env, user, op, 0.01, NOV)).refused, false, user);
+  assert.deepEqual(grant('u-new-nov'), [NOV_2500]);
+  assert.deepEqual(grant('u-used'), [OCT_5000, NOV_2500]);
+  assert.deepEqual(grant('u-idle').slice(1), [OCT_2500, NOV_2500]);
+  for (const [name, before] of Object.entries(history)) {
+    const now = rows(sqlite, `usage_${name}`).filter(row => before.some(old => old.rowid === undefined && JSON.stringify(old) === JSON.stringify(row)));
+    assert.equal(now.length, before.length, `${name} made before the cutover are unchanged`);
+  }
 });

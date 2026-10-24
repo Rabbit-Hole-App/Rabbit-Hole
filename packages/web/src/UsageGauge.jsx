@@ -59,7 +59,7 @@ export function UsageDetails({ state, onViewUsage }) {
           {usage.reserved > 0 && <p data-usage-reserved className="text-xs text-ink-2 tabular-nums">Temporarily reserved: {formatCredits(usage.reserved)}</p>}
           {unknownLine(usage.unknownAttempts) && <p data-usage-unknown className="text-xs text-ink-2">{unknownLine(usage.unknownAttempts)}</p>}
           <div className="mt-2"><UsageBar usage={usage} /></div>
-          <p data-usage-reset className="mt-2 text-xs text-ink-2">Renews on {formatReset(usage.resetsAt, { year: false })} (00:00 UTC)</p>
+          <p data-usage-reset className="mt-2 text-xs text-ink-2">Renews on {formatReset(usage.resetsAt)}</p>
           {view.note && <div className="mt-2"><Note>{view.note}</Note></div>}
         </>
       ) : <p role="status" className="mt-1 text-sm text-ink-2">{view.label}</p>}
@@ -141,8 +141,8 @@ export function UsageSettings({ Heading, store = usageStore }) {
           <SettingsRow title="Remaining" desc={view.tone === 'empty' ? 'No AI credits remaining.' : null}>
             <Amount className={view.tone === 'empty' ? 'text-fail' : ''}>{formatCredits(usage.remaining)}</Amount>
           </SettingsRow>
-          <SettingsRow title="Renewal" desc="At the start of each calendar month, 00:00 UTC. Unused credits do not carry over.">
-            <Amount>Renews on {formatReset(usage.resetsAt, { year: false })}</Amount>
+          <SettingsRow title="Renewal" desc="At the start of each calendar month in UTC, shown in your time. Unused credits do not carry over.">
+            <Amount>Renews on {formatReset(usage.resetsAt)}</Amount>
           </SettingsRow>
           {/* Recorded per feature by the same accounting (GET /api/learn/usage byFeature); absent from an older server. */}
           {usage.byFeature?.length > 0 && <>

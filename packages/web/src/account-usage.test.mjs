@@ -151,9 +151,13 @@ test('credits from integer micros (owner messages 32-33): 1 credit = $0.01, near
   assert.equal(formatCredits(1_234_567_890), '123,457 credits');
 });
 
-test('the reset date is the UTC start of the month, whatever the local zone', () => {
-  assert.equal(formatReset('2026-11-01T00:00:00.000Z'), 'November 1, 2026');
-  assert.equal(formatReset('2027-01-01T00:00:00Z', { year: false }), 'January 1');
+test('the reset instant is one wording everywhere, in the viewer zone with the zone named, pinned at the Nov 1 cutover and at a month and year boundary', () => {
+  const LA = { timeZone: 'America/Los_Angeles' };
+  assert.equal(formatReset('2026-11-01T00:00:00.000Z', LA), 'October 31, 5:00 PM PDT', 'the cutover');
+  assert.equal(formatReset('2026-12-01T00:00:00.000Z', LA), 'November 30, 4:00 PM PST', 'the next month, after daylight time ends');
+  assert.equal(formatReset('2027-01-01T00:00:00Z', LA), 'December 31, 4:00 PM PST', 'the year boundary');
+  assert.equal(formatReset('2026-11-01T00:00:00.000Z', { timeZone: 'UTC' }), 'November 1, 12:00 AM UTC');
+  assert.equal(formatReset('2026-11-01T00:00:00.000Z', { timeZone: 'Europe/London' }), 'November 1, 12:00 AM GMT');
 });
 
 test('the usage bar: used then reserved, in whole percents of the allowance, never past 100', () => {

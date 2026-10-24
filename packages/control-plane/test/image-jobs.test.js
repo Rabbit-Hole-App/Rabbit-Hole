@@ -22,7 +22,7 @@ const hex = async bytes => Buffer.from(await crypto.subtle.digest('SHA-256', byt
 function d1(t) {
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
-  for (const file of ['0016-usage-operations.sql', '0022-usage-accounting.sql', '0023-file-imports.sql']) sqlite.exec(sql(file));
+  for (const file of ['0016-usage-operations.sql', '0022-usage-accounting.sql', '0023-file-imports.sql', '0027-usage-grants.sql']) sqlite.exec(sql(file));
   const turn = () => new Promise(resolve => setImmediate(resolve));
   const db = { fail: () => false, prepare(text) {
     let args = [];

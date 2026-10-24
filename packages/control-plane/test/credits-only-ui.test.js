@@ -41,6 +41,6 @@ test('every refusal a person can read speaks credits: no dollars, no provider pr
     const text = [spendMessage(reason), spendMessage(reason, '2026-10'), refusalBody({ reason, period: '2026-10' }).error].join(' ');
     assert.doesNotMatch(text, /\$|dollar|\bUSD\b|per million|per MTok|1 credit =/i, reason);
   }
-  assert.equal(spendMessage('allowance_exhausted', '2026-10'), 'Not enough AI credits. Renews on November 1.');
-  assert.equal(spendMessage('allowance_exhausted', '2026-12'), 'Not enough AI credits. Renews on January 1.', 'year rollover');
+  assert.equal(spendMessage('allowance_exhausted', '2026-10'), 'Not enough AI credits. Renews on November 1, 12:00 AM UTC.');
+  assert.equal(spendMessage('allowance_exhausted', '2026-12'), 'Not enough AI credits. Renews on January 1, 12:00 AM UTC.', 'year rollover');
 });

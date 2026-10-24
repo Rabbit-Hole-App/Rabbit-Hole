@@ -3,6 +3,7 @@
 // renders its footer. Opening, Escape, outside presses and focus need a browser: that wiring is pinned in source here.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+process.env.TZ = 'America/Los_Angeles'; // the viewer's zone: 2026-11-01 00:00 UTC reads October 31, 5:00 PM PDT
 import { createRequire } from 'node:module';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -68,7 +69,7 @@ test('the popover: allowance heading, remaining prominently, used of total, rese
   assert.match(html, /data-usage-remaining="true" class="[^"]*text-2xl[^"]*text-ink">3,260 credits <span[^>]*>remaining<\/span>/);
   assert.match(html, /data-usage-every[^>]*>5,000 AI credits every month</);
   assert.match(html, /data-usage-used[^>]*>1,740 credits used</);
-  assert.match(html, /data-usage-reset[^>]*>Renews on November 1 \(00:00 UTC\)</, 'the UTC date, and it says UTC');
+  assert.match(html, /data-usage-reset[^>]*>Renews on October 31, 5:00 PM PDT</, 'the instant in the viewer own zone, zone named');
   assert.match(html, /role="meter" aria-label="AI credits used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="34" aria-valuetext="1,740 credits of 5,000 credits used"/);
   assert.doesNotMatch(html, /\$/, 'credits only, never dollars (owner messages 32-33)');
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
@@ -117,7 +118,7 @@ test('Settings > AI usage: allowance, used, remaining, next reset and the bar; r
   assert.match(html, />AI usage</);
   assert.match(html, /across all your canvases/);
   assert.match(html, /data-usage-note[^>]*>Tracking only - limits are not enforced yet\.</);
-  for (const [row, value] of [['Monthly credits', '5,000 AI credits every month'], ['Used', '1,740 credits'], ['Remaining', '3,260 credits'], ['Renewal', 'Renews on November 1']])
+  for (const [row, value] of [['Monthly credits', '5,000 AI credits every month'], ['Used', '1,740 credits'], ['Remaining', '3,260 credits'], ['Renewal', 'Renews on October 31, 5:00 PM PDT']])
     assert.match(html, new RegExp(`>${row}</div>[\\s\\S]*?>${value}</span>`), row);
   assert.match(html, /role="meter"/);
   assert.doesNotMatch(html, /Temporarily reserved/);

@@ -12,7 +12,7 @@ export const isAiRefusal = body => !!body && (body.code === 'allowance_limited' 
 // The person's sentence for a refusal: the allowance's four states each read differently, and never like the platform's.
 export function refusalMessage(body) {
   if (body?.code !== 'allowance_limited') return body?.error || 'AI is paused for now. Try again later.';
-  const renews = body.resetsAt && !Number.isNaN(Date.parse(body.resetsAt)) ? ` Renews on ${formatReset(body.resetsAt, { year: false })}.` : '';
+  const renews = body.resetsAt && !Number.isNaN(Date.parse(body.resetsAt)) ? ` Renews on ${formatReset(body.resetsAt)}.` : '';
   switch (body.reason) {
     case 'exhausted': return `Not enough AI credits.${renews}`;
     case 'insufficient': return `This needs more AI credits than you have left.${renews}`;

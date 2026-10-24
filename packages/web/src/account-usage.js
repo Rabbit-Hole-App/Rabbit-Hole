@@ -19,8 +19,14 @@ export function formatCredits(micros) {
   return `${credits.toLocaleString('en-US')} credit${credits === 1 ? '' : 's'}`;
 }
 
-// The reset instant is the start of a UTC month; its date is shown in UTC so it never reads as the last day of the month.
-export const formatReset = (iso, { year = true } = {}) => new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric', ...(year && { year: 'numeric' }), timeZone: 'UTC' });
+// The reset instant is the start of a UTC month (2026-11-01 00:00 UTC is October 31, 5:00 PM PDT). It is shown in the person's
+// own time zone, with the zone named, in one wording everywhere: "October 31, 5:00 PM PDT". Built from parts so the text does
+// not change with the ICU version. timeZone is for tests; unset means the viewer's.
+export const formatReset = (iso, { timeZone } = {}) => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short', ...(timeZone && { timeZone }) })
+    .formatToParts(new Date(iso)).map(p => [p.type, p.value]));
+  return `${parts.month} ${parts.day}, ${parts.hour}:${parts.minute} ${parts.dayPeriod} ${parts.timeZoneName}`;
+};
 
 // One response to one state. Anything but a well-formed 200 is neutral: a failed or odd request never shows red or a zero balance.
 export function readUsage(status, body) {

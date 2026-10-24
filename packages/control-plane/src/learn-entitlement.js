@@ -14,14 +14,15 @@
 // and every new account, gets the default in every month.
 // Owner decision 2026-10-23: no account-creation plumbing. An account with no usage recorded here gets the default even for the
 // month before the cutover; missing history is not proof that nothing happened before, so a grant already made, and any usage,
-// are never changed.
+// are never changed. Usage here means chargeable AI work: a free action (practice grading) is recorded with the user id but
+// is not usage, so a new account that did one before its first AI request still gets the default.
 import { allowanceCutoverPeriod, legacyAllowanceMicros, monthlyAllowanceMicros } from './learn-usage-config.js';
 
 async function firstGrant(db, env, userId, period) {
   const legacy = legacyAllowanceMicros(env), cutover = allowanceCutoverPeriod(env);
   const fresh = monthlyAllowanceMicros(env);
   if (legacy == null || cutover == null || period >= cutover) return { micros: fresh, source: 'default' };
-  const used = await db.prepare('SELECT 1 AS found FROM usage_actions WHERE user_id = ? LIMIT 1').bind(userId).first();
+  const used = await db.prepare("SELECT 1 AS found FROM usage_actions WHERE user_id = ? AND charge_class = 'would_charge' LIMIT 1").bind(userId).first();
   return used ? { micros: legacy, source: 'legacy_transition' } : { micros: fresh, source: 'default' };
 }
 
