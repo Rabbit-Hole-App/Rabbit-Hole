@@ -129,3 +129,5 @@ export async function weeklyTopFetch(req, env) {
   if (!env.LEARN_DB) return json({ error: 'Weekly Top 5 needs the Learn database on this worker.', code: 'weekly_top_unavailable' }, 503);
   try { return json(await weeklyTop(env.LEARN_DB)); } catch { return json({ error: 'Weekly Top 5 could not be read.', code: 'weekly_top_failed' }, 500); }
 }
+
+export const WEEKLY_SQL = { CANVAS_RANK, CREATOR_RANK }; // for the index-use test
