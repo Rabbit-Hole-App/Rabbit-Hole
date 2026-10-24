@@ -185,10 +185,20 @@ No response content is ever logged.
 ## Owner dashboard and access
 
 - Page: `/owner/telemetry` (production `https://digrabbithole.com/owner/telemetry`). API: `/api/owner/telemetry/*`.
+- The owner is `Yudhisteer.chin@gmail.com` (owner clarification, 2026-10-23). `yudhisteer.chin01@gmail.com` is a different
+  identity and never matches.
 - Guard (`owner-guard.js`, owner decision 4): a valid session from the trusted auth path (`devIdentity`, the control plane's
-  `/api/me`), a nonempty configured `SUBSCRIPTION_OWNER_EMAIL`, and an exact match. Anything else is a plain 404, so the
-  route's existence is not disclosed. Independent of `SUBSCRIPTION_ONLY`; no body, query or header can supply the identity.
-  The nav entry appears only after the same API answers 200; it is a convenience, never the protection.
+  `/api/me`), a configured `SUBSCRIPTION_OWNER_EMAIL` that is a valid address, and a match after the application's own
+  normalization (`loginEmail` in `auth.js`: trimmed, lowercased; only strings are accepted). The secret may therefore be typed in
+  any case. No dot, plus-tag or domain-alias folding is applied. Anything else is a plain 404, so the route's existence is not
+  disclosed. Independent of `SUBSCRIPTION_ONLY` and never uses `subscriptionOwnerRefusal`; no body, query, header or cookie
+  other than the session can supply the identity. The nav entry appears only after the same API answers 200; it is a
+  convenience, never the protection.
+- One entry: every owner route is an entry of `ROUTES` in `owner-telemetry-routes.js` and is reachable only through
+  `ownerTelemetryRoute`, whose first step is the guard. `OWNER_ROUTES` lists them (access, overview, actions, health, project,
+  client-errors, support). No export, diagnostic download, reconciliation upload or archive retrieval exists yet; each will be added
+  to the same table, and `test/owner-guard.test.js` enumerates the table and fails if a route is reachable unguarded, if a
+  handler is run from anywhere but the dispatcher, or if another module serves `/api/owner`.
 - Every owner API response is `Cache-Control: no-store` and each authorized read is written to `owner_access_log`.
 - Ordinary user APIs carry no dollar amounts from telemetry: the owner API is the only reader of `cost_micros` and
   `reserved_micros` outside Credits' own routes.
@@ -200,50 +210,247 @@ aggregates 395 (`TELEMETRY_AGGREGATES_RETENTION_DAYS`). The pruning jobs are inc
 `telemetry_events`, `telemetry_delivery_health` and archive prefixes; the projections are rebuilt from LEARN_DB, and LEARN_DB is
 never pruned by telemetry. Financial records follow Credits' accounting policy.
 
-## Deployment runbook (not run; each step needs the owner's GO)
+## Provisioning and configuration runbook (NOT RUN; every step is the owner's or the coordinator's, each needs its GO)
 
-Run from `packages/web`. Creating resources and production migrations need explicit approval (CLAUDE.md).
+Nothing below has been run. No session has touched a remote resource. Syntax was checked against the installed wrangler 4.150.0's own
+`--help`, and the config edits were dry-run locally (`wrangler deploy --dry-run` for both configs, plus the two config unit tests).
+A compact copy is `C:/s/spec/telemetry/provisioning-commands.md`.
 
-1. Create the databases and buckets (rabbit-hole account `c08d3dbdc53a3afd3cb09a536ac42318`):
-   ```bash
-   npx wrangler d1 create rabbit-hole-telemetry-dev
-   npx wrangler d1 create rabbit-hole-telemetry
-   npx wrangler r2 bucket create rabbit-hole-telemetry-archive-dev
-   npx wrangler r2 bucket create rabbit-hole-telemetry-archive
-   ```
-   Effect: two empty D1 databases (ids printed) and two private buckets. Verify: `npx wrangler d1 list | grep telemetry`,
-   `npx wrangler r2 bucket list | grep telemetry`. Do not enable public access or a custom domain on either bucket.
-2. Add the bindings, with the printed ids, to `wrangler.dev.jsonc` (dev) and `wrangler.rabbit-hole-prod.jsonc` (production):
-   ```jsonc
-   // d1_databases:
-   { "binding": "TELEMETRY_DB", "database_name": "rabbit-hole-telemetry-dev", "database_id": "<id>", "migrations_dir": "../control-plane/telemetry-migrations" },
-   // r2_buckets:
-   { "binding": "TELEMETRY_ARCHIVE", "bucket_name": "rabbit-hole-telemetry-archive-dev" },
-   // vars:
-   "TELEMETRY_ENVIRONMENT": "dev"
-   ```
-   Production: `rabbit-hole-telemetry`, `rabbit-hole-telemetry-archive`, `"TELEMETRY_ENVIRONMENT": "production"`. A binding
-   with no real id breaks the deploy, which is why the branch does not carry them before step 1.
-3. Apply the migration: `npx wrangler d1 migrations apply rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc`
-   (production: `rabbit-hole-telemetry --remote --config wrangler.rabbit-hole-prod.jsonc`, after its own GO). Effect: the
-   tables in `0001-telemetry.sql`; no other database is touched. Verify:
-   `npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc --command "SELECT name FROM sqlite_master WHERE type='table'"`.
-   If Credits' LEARN_DB migration 0027 is applied after the projection has run, rebuild once so earlier attempts pick up their
-   price detail: `POST /api/owner/telemetry/project` reads from the stored cursor, so reset it first with
-   `--command "DELETE FROM projection_cursors"` on the telemetry database (projections only; LEARN_DB is untouched).
-4. Owner identity on the serving worker: dev `wrangler.dev.jsonc` sets `SUBSCRIPTION_OWNER_EMAIL`; production sets none in
-   config. Verify with `npx wrangler secret list --config wrangler.rabbit-hole-prod.jsonc` (names only); if absent,
-   `npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --config wrangler.rabbit-hole-prod.jsonc` with the owner's sign-in
-   email. Setting it there does not turn on subscription mode (`SUBSCRIPTION_ONLY` stays unset).
-5. Deploy through the normal release path. Verify: signed in as the owner, `/owner/telemetry` loads and Health shows the
-   database as configured; signed out and as another account, `/api/owner/telemetry/overview` is 404.
-6. Browser errors need two owner-side settings that the code only reads:
-   - A hard bound on the public ingestion path: a Cloudflare rate limiting rule on `POST /api/telemetry/client` for the
-     digrabbithole.com zone (dashboard, Security, WAF, Rate limiting rules; for example 60 requests a minute per IP, action
-     Block). Without it the only bound is the per-isolate bucket. Verify by sending 70 requests from one address and seeing 429.
-   - The release on events: the release path (`scripts/prod-release.mjs`, `scripts/dev-deploy.mjs`) would need to set a
-     `RELEASE_SHA` var on the app worker and `VITE_RELEASE_SHA=<sha>` for the web build. Neither is wired (the release owner
-     decides how; deploys are never run by hand). Both are optional: events carry no release until they are set.
+**Names, exactly**
+
+| | Dev (worker `small-cp-dev` and every `rabbit-hole-web-dev-<session>` clone) | Production (worker `rabbit-hole-app`, digrabbithole.com) |
+|---|---|---|
+| D1 database | `rabbit-hole-telemetry-dev` | `rabbit-hole-telemetry` |
+| D1 binding | `TELEMETRY_DB` | `TELEMETRY_DB` |
+| R2 bucket (private) | `rabbit-hole-telemetry-archive-dev` | `rabbit-hole-telemetry-archive` |
+| R2 binding | `TELEMETRY_ARCHIVE` | `TELEMETRY_ARCHIVE` |
+| Environment label (var) | `TELEMETRY_ENVIRONMENT = "dev"` | `TELEMETRY_ENVIRONMENT = "production"` |
+| Owner identity | var `SUBSCRIPTION_OWNER_EMAIL` already in `wrangler.dev.jsonc` (`yudhisteer.chin@gmail.com`) | **secret** `SUBSCRIPTION_OWNER_EMAIL` on `rabbit-hole-app`, value typed by the owner |
+| Cloudflare account | `c08d3dbdc53a3afd3cb09a536ac42318` (both configs pin it) | same account |
+
+Dev and production live in the same Cloudflare account, so isolation is by separate databases, buckets and bindings: each
+deployment binds only its own pair and labels its own events, and the production config test refuses any `-dev` name.
+
+**Owner identity.** The owner is `Yudhisteer.chin@gmail.com`. `yudhisteer.chin01@gmail.com` is a different account and never matches.
+The guard compares both the configured value and the signed-in account through `loginEmail` (`auth.js`: trimmed, lowercased,
+validated), so the secret may be typed in any case. Nothing else is folded: no dot, plus-tag or domain-alias folding.
+
+**Files that change, and the ones that do not.** Only these two worker configs get bindings, because only the app worker serves
+`/api/learn/*`, `/api/telemetry/client`, `/api/owner/telemetry/*` and the Durable Object jobs:
+
+- `packages/web/wrangler.dev.jsonc`
+- `packages/web/wrangler.rabbit-hole-prod.jsonc`
+
+Not edited: `packages/control-plane/wrangler.*.jsonc` (no producer runs there), `packages/web/wrangler.parallel.jsonc` and the notebook
+configs (a clone without the binding records nothing and shows "not configured"), `scripts/ci/config/integ-local.jsonc` (the local
+CI stack must stay without telemetry storage; `client-telemetry-check.mjs` relies on that). The two config tests
+(`rabbit-hole-dev-config.test.js`, `rabbit-hole-prod-config.test.js`) already accept exactly these bindings and refuse any other
+name, any control-plane binding and a mismatched environment label, so the config edit needs only the database id.
+
+**Conventions.** Git Bash, `packages/web` as the working directory, the rabbit-hole `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+loaded for the session (from `small-deploy/.env`, by name; never printed, never sourced into the transcript). The owner runs each
+command as a `!` command. `--config` makes wrangler use the config's pinned `account_id`.
+
+### 0. Check the account first (read-only)
+
+```bash
+npx wrangler whoami
+```
+
+Expected: the account listed is `c08d3dbdc53a3afd3cb09a536ac42318` (rabbit-hole). Stop if it is any other account.
+
+### Dev
+
+**D1. Create the dev database**
+
+```bash
+npx wrangler d1 create rabbit-hole-telemetry-dev --config wrangler.dev.jsonc
+```
+
+Effect: one empty D1 database in the rabbit-hole account; the output prints its `database_id` (a UUID). Copy it. If wrangler offers to
+add a binding to a config, answer no (the edit is step D3). Verify: `npx wrangler d1 list | grep rabbit-hole-telemetry-dev` shows
+one row whose id equals the printed one.
+
+**D2. Create the dev archive bucket**
+
+```bash
+npx wrangler r2 bucket create rabbit-hole-telemetry-archive-dev --config wrangler.dev.jsonc
+```
+
+Effect: one empty private R2 bucket (R2 buckets are private unless a public URL or a custom domain is added; neither is added).
+Nothing writes to it yet: archive writes arrive with the retention work. Verify:
+
+```bash
+npx wrangler r2 bucket list | grep rabbit-hole-telemetry-archive-dev          # the bucket exists
+npx wrangler r2 bucket dev-url get rabbit-hole-telemetry-archive-dev           # expected: the public r2.dev URL is disabled
+npx wrangler r2 bucket domain list rabbit-hole-telemetry-archive-dev           # expected: no custom domain
+```
+
+**D3. Edit `packages/web/wrangler.dev.jsonc` (three places)**
+
+In `d1_databases`, after the `LEARN_DB` entry (add a comma after its closing brace):
+
+```jsonc
+    {
+      "binding": "TELEMETRY_DB",
+      "database_name": "rabbit-hole-telemetry-dev",
+      "database_id": "<DATABASE_ID PRINTED IN D1>",
+      "migrations_dir": "../control-plane/telemetry-migrations"
+    }
+```
+
+In `r2_buckets`, after the `LEARN_MEDIA` entry:
+
+```jsonc
+    {
+      "binding": "TELEMETRY_ARCHIVE",
+      "bucket_name": "rabbit-hole-telemetry-archive-dev"
+    }
+```
+
+In `vars`, after `SUBSCRIPTION_OWNER_EMAIL`:
+
+```jsonc
+    "TELEMETRY_ENVIRONMENT": "dev",
+```
+
+Verify (both local, nothing uploaded):
+
+```bash
+(cd ../control-plane && node --test test/rabbit-hole-dev-config.test.js test/rabbit-hole-prod-config.test.js)   # expected: all pass
+npx wrangler deploy --dry-run --config wrangler.dev.jsonc | grep TELEMETRY
+# expected lines: env.TELEMETRY_DB (rabbit-hole-telemetry-dev) D1 Database; env.TELEMETRY_ARCHIVE (rabbit-hole-telemetry-archive-dev) R2 Bucket;
+#                 env.TELEMETRY_ENVIRONMENT ("dev") Environment Variable
+```
+
+**D4. Apply the schema to the dev database**
+
+```bash
+npx wrangler d1 migrations apply rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc
+```
+
+Effect: wrangler lists `0001-telemetry.sql` and asks to confirm; on yes it creates the telemetry tables in the dev telemetry database only
+(plus wrangler's `d1_migrations` table). No other database is touched. Verify:
+
+```bash
+npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+# expected, at least: accounting_actions, accounting_attempts, accounting_grants, owner_access_log, projection_cursors, telemetry_delivery_health, telemetry_events
+```
+
+**D5. Deploy a dev clone** (the repo's own path; never a bare `wrangler deploy`):
+
+```bash
+npm run build -- --outDir dist-dev      # with the env flags of docs/features/parallel-dev-deploys.md
+npx wrangler deploy --config wrangler.dev.jsonc --name rabbit-hole-web-dev-telemetry
+```
+
+**D6. Dev owner check.** No dev secret is needed: `wrangler.dev.jsonc` already sets the owner var.
+`grep -n SUBSCRIPTION_OWNER_EMAIL wrangler.dev.jsonc` should show `yudhisteer.chin@gmail.com`. Signed in as
+`Yudhisteer.chin@gmail.com`, `https://rabbit-hole-web-dev-telemetry.tryrabbithole.workers.dev/owner/telemetry` loads and
+`GET /api/owner/telemetry/access` answers `200 {"owner":true,"configured":true,"environment":"dev"}`. Signed out, as
+`yudhisteer.chin01@gmail.com`, or as any other account, the same URL answers `404 Not found`.
+
+### Production (each step needs its own GO; D1 and the migration are production changes)
+
+**P1. Create the production database**
+
+```bash
+npx wrangler d1 create rabbit-hole-telemetry --config wrangler.rabbit-hole-prod.jsonc
+```
+
+Effect and verification as D1, with `grep rabbit-hole-telemetry` matching the name `rabbit-hole-telemetry` exactly (the dev database
+`rabbit-hole-telemetry-dev` also matches the prefix: check the name column, not the substring).
+
+**P2. Create the production archive bucket**
+
+```bash
+npx wrangler r2 bucket create rabbit-hole-telemetry-archive --config wrangler.rabbit-hole-prod.jsonc
+```
+
+Verify as D2 with the bucket name `rabbit-hole-telemetry-archive` (`bucket info`, `dev-url get` disabled, `domain list` empty).
+
+**P3. Edit `packages/web/wrangler.rabbit-hole-prod.jsonc` (three places)**
+
+In `d1_databases` (after `LEARN_DB`):
+
+```jsonc
+    { "binding": "TELEMETRY_DB", "database_name": "rabbit-hole-telemetry", "database_id": "<DATABASE_ID PRINTED IN P1>", "migrations_dir": "../control-plane/telemetry-migrations" }
+```
+
+In `r2_buckets` (after `REPOSITORY_SNAPSHOTS`):
+
+```jsonc
+    { "binding": "TELEMETRY_ARCHIVE", "bucket_name": "rabbit-hole-telemetry-archive" }
+```
+
+In `vars` (after `PUBLIC_ORIGIN`): `"TELEMETRY_ENVIRONMENT": "production",`. Do **not** put `SUBSCRIPTION_OWNER_EMAIL` in `vars`:
+the production config test refuses any var containing `SUBSCRIPTION`, which is why the owner is a secret here. Verify as D3
+(`wrangler deploy --dry-run --config wrangler.rabbit-hole-prod.jsonc | grep TELEMETRY` should show `rabbit-hole-telemetry`,
+`rabbit-hole-telemetry-archive` and `"production"`). This edit is a config change: it rides a normal candidate and needs the full gate.
+
+**P4. Apply the schema to the production telemetry database** (a production migration: the owner's explicit approval)
+
+```bash
+npx wrangler d1 migrations apply rabbit-hole-telemetry --remote --config wrangler.rabbit-hole-prod.jsonc
+npx wrangler d1 execute rabbit-hole-telemetry --remote --config wrangler.rabbit-hole-prod.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+```
+
+Effect and expected tables as D4. It touches only `rabbit-hole-telemetry`; `rabbit-hole-prod` and `rabbit-hole-learn-prod` are not named.
+
+**P5. Set the owner identity as a secret on `rabbit-hole-app`**
+
+```bash
+read -r -p 'Owner sign-in email: ' OWNER_EMAIL && printf '%s' "$OWNER_EMAIL" | npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --config wrangler.rabbit-hole-prod.jsonc; unset OWNER_EMAIL
+```
+
+The owner types `Yudhisteer.chin@gmail.com` at the prompt (any case works; the value never appears in a file, the transcript or
+shell history, and is not `yudhisteer.chin01@gmail.com`). Effect: the secret exists on `rabbit-hole-app` (the config's `name`),
+wrangler applies it to the deployed Worker as a settings change; it deploys no new code. It does not enable subscription mode: `SUBSCRIPTION_ONLY` is unset in production and
+the owner guard never reads it. Verify (names only, values are never shown):
+
+```bash
+npx wrangler secret list --config wrangler.rabbit-hole-prod.jsonc      # expected: SUBSCRIPTION_OWNER_EMAIL is listed
+```
+
+**P6. Release** through the normal path (`RELEASE <sha> <build>`, after the candidate with P3 has passed its checks). Telemetry code
+paths do nothing until P3 is deployed, so ordering P1 to P5 before the release is safe.
+
+**P7. Production owner check, after the release.** Signed in as `Yudhisteer.chin@gmail.com`:
+`https://digrabbithole.com/owner/telemetry` loads; `GET /api/owner/telemetry/access` answers
+`200 {"owner":true,"configured":true,"environment":"production"}`. Signed out, as `yudhisteer.chin01@gmail.com` and as any other
+account: `404 Not found` on that URL and on `/api/owner/telemetry/overview`. Ingestion is reachable and bounded:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://digrabbithole.com/api/telemetry/client -H 'content-type: application/json' -d '{"events":[]}'   # expected: 202
+```
+
+### Cloudflare rate limit on browser error ingestion (owner action, dashboard)
+
+Zone `digrabbithole.com`, Security, WAF, Rate limiting rules: match `POST` on path `/api/telemetry/client`, for example 60 requests a
+minute per IP, action Block. Without it the only bound is the per-isolate bucket. Verify: 70 quick requests from one address end in `429`.
+
+### Read-only checks for the coordinator (change nothing)
+
+```bash
+npx wrangler d1 list                                                                # both telemetry databases exist, ids match the configs
+npx wrangler r2 bucket list                                                         # both archive buckets exist
+npx wrangler r2 bucket dev-url get rabbit-hole-telemetry-archive                    # disabled (also the -dev bucket)
+npx wrangler secret list --config wrangler.rabbit-hole-prod.jsonc                   # SUBSCRIPTION_OWNER_EMAIL listed
+grep -n "TELEMETRY\|SUBSCRIPTION_OWNER_EMAIL" wrangler.dev.jsonc wrangler.rabbit-hole-prod.jsonc
+```
+
+### Rollback
+
+Producers do nothing without `TELEMETRY_DB`, so removing the binding (or setting `TELEMETRY_CLIENT_DISABLED` to `true` for browser
+ingestion) stops collection at once and loses nothing the product needs. The schema is additive. Deleting a telemetry database is
+destructive (it holds only telemetry and rebuildable projections) and is the owner's decision:
+`npx wrangler d1 delete rabbit-hole-telemetry-dev` (or `rabbit-hole-telemetry`).
+
+### Browser errors: optional release stamping
+
+The release path (`scripts/prod-release.mjs`, `scripts/dev-deploy.mjs`) would need to set a `RELEASE_SHA` var on the app worker and
+`VITE_RELEASE_SHA=<sha>` for the web build. Neither is wired (the release owner decides how; deploys are never run by hand). Events
+carry no release until they are.
 
 ## Ongoing cost (bounded estimate, not measured)
 

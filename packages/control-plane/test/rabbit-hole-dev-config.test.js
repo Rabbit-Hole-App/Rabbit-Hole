@@ -15,6 +15,22 @@ const DEV = {
   BYOC_DB: ['rabbit-hole-byoc-dev', 'cae839e6-6d58-4037-9e92-d47346356c2f'],
 };
 const BUCKETS = { LEARN_MEDIA: 'rabbit-hole-dev-learn-media', REPOSITORY_SNAPSHOTS: 'rabbit-hole-dev-repositories' };
+// Telemetry (docs/features/telemetry.md): once provisioned, wrangler.dev.jsonc alone (the dev Worker and every clone of it) binds
+// exactly this dev database and private archive bucket, together, and labels itself dev. No other dev config binds them; the dev
+// control plane binds neither. The production names never appear here (FORBIDDEN below).
+const TELEMETRY_DB = 'rabbit-hole-telemetry-dev', TELEMETRY_ARCHIVE = 'rabbit-hole-telemetry-archive-dev';
+function withoutTelemetry(path, c) {
+  const databases = d1(c), buckets = r2(c);
+  const on = 'TELEMETRY_DB' in databases || 'TELEMETRY_ARCHIVE' in buckets;
+  if (on) {
+    assert.ok(path.endsWith('/wrangler.dev.jsonc'), `${path}: only wrangler.dev.jsonc binds telemetry storage`);
+    assert.equal(databases.TELEMETRY_DB?.[0], TELEMETRY_DB, `${path} TELEMETRY_DB`);
+    assert.equal(buckets.TELEMETRY_ARCHIVE, TELEMETRY_ARCHIVE, `${path} TELEMETRY_ARCHIVE`);
+    assert.equal(c.vars?.TELEMETRY_ENVIRONMENT, 'dev', `${path} records as dev`);
+  }
+  const { TELEMETRY_DB: _db, ...rest } = databases; const { TELEMETRY_ARCHIVE: _archive, ...restBuckets } = buckets;
+  return { d1: rest, r2: restBuckets };
+}
 // Production and old personal-account identifiers that no dev config may name.
 const FORBIDDEN = [
   '3a9cc077-4dc8-4fbd-8bf7-8ed3b971af8b', // production small D1
@@ -54,8 +70,9 @@ test('dev workers bind the rabbit-hole dev databases, buckets and control plane,
   assert.deepEqual(workers.map(p => p.split('/').pop()).sort(), ['wrangler.dev.jsonc', 'wrangler.parallel.jsonc']);
   for (const path of workers) {
     const c = config(path);
-    assert.deepEqual(d1(c), DEV, path);
-    assert.deepEqual(r2(c), BUCKETS, path);
+    const bound = withoutTelemetry(path, c);
+    assert.deepEqual(bound.d1, DEV, path);
+    assert.deepEqual(bound.r2, BUCKETS, path);
     assert.deepEqual(c.services, [{ binding: 'CONTROL_PLANE', service: 'rabbit-hole-cp-dev' }], path);
     // Optional: every AI, MOMENTS and INDEX_QUEUE use is guarded (learn-moment-index.js).
     assert.equal(c.ai, undefined, path); assert.equal(c.vectorize, undefined, path); assert.equal(c.queues, undefined, path);

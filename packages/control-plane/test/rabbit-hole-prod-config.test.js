@@ -15,6 +15,16 @@ const APP = '../../web/wrangler.rabbit-hole-prod.jsonc', CP = '../wrangler.rabbi
 const RABBIT_HOLE = 'c08d3dbdc53a3afd3cb09a536ac42318';
 const D1 = { DB: 'rabbit-hole-prod', LEARN_DB: 'rabbit-hole-learn-prod' };
 const BUCKETS = { LEARN_MEDIA: 'rabbit-hole-prod-learn-media', REPOSITORY_SNAPSHOTS: 'rabbit-hole-prod-repositories' };
+// Telemetry (docs/features/telemetry.md): once provisioned, the app Worker alone binds exactly this database and private archive
+// bucket, together, and labels itself production. The control plane binds neither. Until then neither config names them.
+const TELEMETRY_D1 = { TELEMETRY_DB: 'rabbit-hole-telemetry' }, TELEMETRY_R2 = { TELEMETRY_ARCHIVE: 'rabbit-hole-telemetry-archive' };
+const expected = (c, path) => {
+  const on = 'TELEMETRY_DB' in d1(c) || 'TELEMETRY_ARCHIVE' in r2(c);
+  if (!on) return { d1: D1, r2: BUCKETS };
+  assert.equal(path, APP, 'only the app Worker binds telemetry storage');
+  assert.equal(c.vars?.TELEMETRY_ENVIRONMENT, 'production', `${path}: the production app Worker records as production`);
+  return { d1: { ...D1, ...TELEMETRY_D1 }, r2: { ...BUCKETS, ...TELEMETRY_R2 } };
+};
 // Dev, legacy production and personal-account identifiers that no production config may name.
 const FORBIDDEN = [
   '1ad18fef-ccf9-4a2c-86c7-dc7e87b268a2', '028f800f-ce8e-4461-adb2-827f417492eb', 'cae839e6-6d58-4037-9e92-d47346356c2f',
@@ -29,8 +39,9 @@ test('both production configs pin the rabbit-hole account and name no dev, legac
     // tryrabbithole.dev is legacy (redirect to digrabbithole.com later), never a production origin or comment target.
     assert.ok(!raw(path).includes('tryrabbithole'), `${path} names tryrabbithole`);
     for (const name of [c.name, ...Object.values(d1(c)), ...Object.values(r2(c)), ...(c.services || []).map(s => s.service)]) assert.doesNotMatch(name, /-dev\b/, `${path} names dev resource ${name}`);
-    assert.deepEqual(d1(c), D1, path);
-    assert.deepEqual(r2(c), BUCKETS, path);
+    const want = expected(c, path);
+    assert.deepEqual(d1(c), want.d1, path);
+    assert.deepEqual(r2(c), want.r2, path);
     assert.equal(c.triggers, undefined, `${path}: the legacy crons start Fly machines and send email`);
     assert.equal(c.preview_urls, false, path);
     assert.equal(c.ai, undefined, path); assert.equal(c.vectorize, undefined, path); assert.equal(c.queues, undefined, path);

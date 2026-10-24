@@ -25,51 +25,75 @@ const CLIENT_ERRORS = `SELECT json_extract(body, '$.payload.fingerprint') AS fin
 const REF = /^RH-[0-9A-HJKMNP-TV-Z]{4}-[0-9A-HJKMNP-TV-Z]{4}$/;
 const rows = async statement => (await statement.all()).results || [];
 
+// Every owner route is an entry of ROUTES and is reached only through ownerTelemetryRoute, whose first step is the owner guard. A
+// later route (an export, a diagnostic download, a reconciliation upload, an archive retrieval) is added here, and so is guarded
+// by construction; none of those exists yet. storage: true means the handler needs TELEMETRY_DB and an environment, and
+// otherwise answers { configured: false }.
+const ROUTES = {
+  access: { method: 'GET', run: ({ configured, environment }) => json({ owner: true, configured, environment }) },
+  actions: { method: 'GET', run: ({ env, id, configured }) => action(env, id, configured) },
+  support: { method: 'GET', run: ({ env, id, configured, environment }) => support(env, id, configured, environment) },
+  project: { method: 'POST', storage: true, run: ({ env, db }) => projection(env, db) },
+  health: { method: 'GET', storage: true, run: ({ db, configured, environment }) => health(db, configured, environment) },
+  'client-errors': { method: 'GET', storage: true, run: async ({ db, req, configured, environment }) => {
+    const { days, sinceMs } = span(req);
+    return json({ configured, environment, days, groups: await rows(db.prepare(CLIENT_ERRORS).bind(environment, sinceMs)) });
+  } },
+  overview: { method: 'GET', storage: true, run: async ({ db, req, configured, environment }) => {
+    const { days, sinceMs } = span(req);
+    return json({ configured, environment, days,
+      events: await rows(db.prepare('SELECT event_name, outcome, COUNT(*) AS n FROM telemetry_events WHERE environment = ? AND occurred_at >= ? GROUP BY event_name, outcome ORDER BY n DESC').bind(environment, sinceMs)),
+      // Each cost state on its own row: measured (settled), estimated, unknown exposure (its held reservation) and outstanding
+      // reservations (running). The dashboard shows them side by side and never adds them together.
+      attempts: await rows(db.prepare(`SELECT t.cost_state, a.charge_class, COUNT(*) AS attempts, SUM(t.cost_micros) AS cost_micros, SUM(t.reserved_micros) AS reserved_micros
+        FROM accounting_attempts t LEFT JOIN accounting_actions a ON a.action_id = t.action_id WHERE t.started_at >= ? GROUP BY t.cost_state, a.charge_class`).bind(Math.floor(sinceMs / 1000))),
+      projectedAt: (await db.prepare('SELECT MAX(updated_at) AS at FROM projection_cursors').first())?.at ?? null });
+  } },
+};
+// The registered routes and their methods, for tests: each one is asserted to be guarded.
+export const OWNER_ROUTES = Object.freeze(Object.fromEntries(Object.entries(ROUTES).map(([name, route]) => [name, route.method])));
+const span = req => {
+  const days = Math.min(30, Math.max(1, Number.parseInt(new URL(req.url).searchParams.get('days'), 10) || 1));
+  return { days, sinceMs: Date.now() - days * 86_400_000 };
+};
+
 export async function ownerTelemetryRoute(path, req, env, deps = {}) {
   if (!path.startsWith(PREFIX) && path !== PREFIX.slice(0, -1)) return null;
-  const owner = await ownerOnly(req, env, deps);
+  const owner = await ownerOnly(req, env, deps); // the one guard: nothing below runs for anyone else
   if (!owner) return ownerNotFound();
   const db = env.TELEMETRY_DB, environment = telemetryEnvironment(env);
-  const [route, id] = path.slice(PREFIX.length).split('/');
-  const known = { access: 'GET', overview: 'GET', actions: 'GET', health: 'GET', project: 'POST', 'client-errors': 'GET', support: 'GET' };
-  if (!Object.hasOwn(known, route)) return ownerNotFound();
-  if (req.method !== known[route]) return json({ error: `${known[route]} required` }, 405);
+  const [name, id] = path.slice(PREFIX.length).split('/');
+  if (!Object.hasOwn(ROUTES, name)) return ownerNotFound();
+  const route = ROUTES[name];
+  if (req.method !== route.method) return json({ error: `${route.method} required` }, 405);
   // Audit each authorized request, best effort (a refused one is never written: strangers cannot grow the table).
-  if (db) await db.prepare('INSERT INTO owner_access_log (at, user_ref, route, method) VALUES (?, ?, ?, ?)').bind(Date.now(), owner.userId, route, req.method).run().catch(() => {});
+  if (db) await db.prepare('INSERT INTO owner_access_log (at, user_ref, route, method) VALUES (?, ?, ?, ?)').bind(Date.now(), owner.userId, name, req.method).run().catch(() => {});
   const configured = !!db && !!environment;
-  if (route === 'access') return json({ owner: true, configured, environment });
-  if (route === 'actions') return action(env, id, configured);
-  if (route === 'support') return support(env, id, configured, environment);
-  if (!configured) return json({ configured: false, environment, reason: !db ? 'TELEMETRY_DB is not bound on this deployment.' : 'TELEMETRY_ENVIRONMENT is not set on this deployment.' });
-  if (route === 'project') {
-    if (!env.LEARN_DB) return json({ error: 'LEARN_DB is not bound on this deployment.' }, 503);
-    // Each pass is also a delivery-health row (source 'projection'): rows copied, or one failure.
-    const health = (delivered, failed, pending) => db.prepare('INSERT OR IGNORE INTO telemetry_delivery_health (source, observed_at, delivered, failed, pending) VALUES (?, ?, ?, ?, ?)')
-      .bind('projection', Date.now(), delivered, failed, pending).run().catch(() => {});
-    try {
-      const pass = await projectAccounting(env.LEARN_DB, db, { limit: 500 });
-      await health(Object.values(pass.copied).reduce((sum, n) => sum + (n || 0), 0), 0, pass.done ? 0 : 1);
-      return json(pass);
-    } catch (error) {
-      await health(0, 1, null);
-      return json({ error: 'The projection pass failed; nothing was half-applied.', detail: String(error?.message || error).slice(0, 200) }, 503);
-    }
+  if (route.storage && !configured) return json({ configured: false, environment, reason: !db ? 'TELEMETRY_DB is not bound on this deployment.' : 'TELEMETRY_ENVIRONMENT is not set on this deployment.' });
+  return route.run({ req, env, db, id, owner, configured, environment });
+}
+
+// One bounded accounting projection pass; each pass is also a delivery-health row (source 'projection').
+async function projection(env, db) {
+  if (!env.LEARN_DB) return json({ error: 'LEARN_DB is not bound on this deployment.' }, 503);
+  const record = (delivered, failed, pending) => db.prepare('INSERT OR IGNORE INTO telemetry_delivery_health (source, observed_at, delivered, failed, pending) VALUES (?, ?, ?, ?, ?)')
+    .bind('projection', Date.now(), delivered, failed, pending).run().catch(() => {});
+  try {
+    const pass = await projectAccounting(env.LEARN_DB, db, { limit: 500 });
+    await record(Object.values(pass.copied).reduce((sum, n) => sum + (n || 0), 0), 0, pass.done ? 0 : 1);
+    return json(pass);
+  } catch (error) {
+    await record(0, 1, null);
+    return json({ error: 'The projection pass failed; nothing was half-applied.', detail: String(error?.message || error).slice(0, 200) }, 503);
   }
-  if (route === 'health') return json({ configured, environment,
+}
+
+async function health(db, configured, environment) {
+  return json({ configured, environment,
     delivery: await rows(db.prepare('SELECT * FROM telemetry_delivery_health ORDER BY observed_at DESC LIMIT 50')),
     cursors: await rows(db.prepare('SELECT source, cursor, updated_at FROM projection_cursors')),
     lastIngestedAt: (await db.prepare('SELECT MAX(ingested_at) AS at FROM telemetry_events WHERE environment = ?').bind(environment).first())?.at ?? null,
     isolate: { ...deliveryCounts } });
-  const days = Math.min(30, Math.max(1, Number.parseInt(new URL(req.url).searchParams.get('days'), 10) || 1));
-  const sinceMs = Date.now() - days * 86_400_000;
-  if (route === 'client-errors') return json({ configured, environment, days, groups: await rows(db.prepare(CLIENT_ERRORS).bind(environment, sinceMs)) });
-  return json({ configured, environment, days,
-    events: await rows(db.prepare('SELECT event_name, outcome, COUNT(*) AS n FROM telemetry_events WHERE environment = ? AND occurred_at >= ? GROUP BY event_name, outcome ORDER BY n DESC').bind(environment, sinceMs)),
-    // Each cost state on its own row: measured (settled), estimated, unknown exposure (its held reservation) and outstanding
-    // reservations (running). The dashboard shows them side by side and never adds them together.
-    attempts: await rows(db.prepare(`SELECT t.cost_state, a.charge_class, COUNT(*) AS attempts, SUM(t.cost_micros) AS cost_micros, SUM(t.reserved_micros) AS reserved_micros
-      FROM accounting_attempts t LEFT JOIN accounting_actions a ON a.action_id = t.action_id WHERE t.started_at >= ? GROUP BY t.cost_state, a.charge_class`).bind(Math.floor(sinceMs / 1000))),
-    projectedAt: (await db.prepare('SELECT MAX(updated_at) AS at FROM projection_cursors').first())?.at ?? null });
 }
 
 // The action explorer reads the authoritative records, so its totals reconcile with accounting by construction.
