@@ -196,6 +196,13 @@ for (const theme of ['light', 'dark']) {
   // The composer's own pill: a sent message (and a restored thread) shows its own read-only command pill too.
   const pill = dock.locator('[data-chat-composer] [data-command-pill]');
   const notice = dock.locator('[data-slash-result]');
+  // Auto answers a typed turn through the Tutor (chat-route.js tutorTurn, plan route), so the command and routing turns this check mocks
+  // (/api/learn/chat/route, /api/learn/ask) are the Ask path's, as in chat-persistence-check: the Chat is put in Ask mode after each load.
+  const inAsk = async () => {
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+    const modeButton = dock.getByRole('button', { name: 'Mode', exact: true });
+    if (!/^Ask/.test((await modeButton.innerText()).trim())) { await modeButton.click(); await page.getByRole('menuitemradio', { name: /^Ask/ }).click(); }
+  };
   const videoPosts = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && !r.body.includes('"action"'));
   // MOT-20: a /motion line is a chat turn whose answer draws a proposal card; its Generate is enabled once the answer is saved.
   const proposalCards = dock.locator('[data-generation-proposal]');
@@ -288,6 +295,7 @@ for (const theme of ['light', 'dark']) {
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
   await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });
+  await inAsk();
 
   await step(`${theme}: discovery: /motion is under Create with "Create an animated explainer video"; no /animate`, async () => {
     const rows = await pickerRows();
@@ -470,6 +478,7 @@ for (const theme of ['light', 'dark']) {
     // The board is saved with the job's placement id before the reload.
     await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id)), 'the board saved with the placement id');
     await page.reload();
+    await inAsk();
     await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
     const mine = page.locator(`[data-block-id="${id}"]`);
     await mine.waitFor({ timeout: 30000 });
@@ -548,6 +557,7 @@ for (const theme of ['light', 'dark']) {
       await until(() => seen.some(r => r.method === 'PUT' && /\/api\/learn\/boards\/[^/]+\/main$/.test(r.path) && r.body.includes(stub.id) && r.body.includes('"failed"')), `the board saved with the ${kind} card`);
       const posts = videoPosts().length;
       await page.reload();
+      await inAsk();
       await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
       const mine = page.locator(`[data-block-id="${id}"]`);
       await mine.waitFor({ timeout: 30000 });
@@ -588,6 +598,7 @@ for (const theme of ['light', 'dark']) {
   await step(`${theme}: the window: opening it and choosing /motion sends nothing; the real Motion video plays, pauses and seeks`, async () => {
     // A fresh page, settled, so the earlier steps' board saves (debounced PUTs of the board and its thumbnail) are done first.
     await page.reload();
+    await inAsk();
     await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
     await page.waitForTimeout(4000);
     const before = seen.length;
@@ -659,7 +670,7 @@ for (const theme of ['light', 'dark']) {
     const r0 = routes.length, a0 = asks.length, before = await proposalCards.count();
     await composer().fill(NL); await composer().press('Enter');
     await until(async () => (await proposalCards.count()) > before, 'the routed proposal card');
-    assert.deepEqual([routes[r0]?.capability, routes[r0]?.text, routes[r0]?.mode], [null, NL, 'auto'], 'a plain line asks the router');
+    assert.deepEqual([routes[r0]?.capability, routes[r0]?.text, routes[r0]?.mode], [null, NL, 'ask'], 'a plain line asks the router');
     const turn = asks[a0];
     assert.deepEqual([turn?.message, turn?.command ?? null, turn?.route_token], [NL, null, `route-token-${r0 + 1}`], 'the ordinary turn with the signed route');
     assert.ok(turn.generation?.motion, 'the bound Motion fields ride the turn');
@@ -725,6 +736,7 @@ for (const theme of ['light', 'dark']) {
     const made = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Motion selection ${theme} ${run}` }) });
     await api(`/api/learn/boards/${made.name}/main`, { method: 'PUT', body: JSON.stringify({ state: { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [PHOTO] } }) });
     await page.goto(`${BASE}/apps/${made.name}`);
+    await inAsk();
     const photo = page.locator('[data-block-id="k-photo"]');
     await photo.waitFor({ timeout: 60000 });
     await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor({ timeout: 30000 });

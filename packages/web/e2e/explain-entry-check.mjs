@@ -177,6 +177,10 @@ await step('Use example only fills the composer; its Send makes one job', async 
 });
 
 await step('natural language the server routes to explain is the same job path', async () => {
+  // Auto answers a plain line through the Tutor (chat-route.js tutorTurn); the chat route (CR-1) is the Ask path's, as in
+  // chat-persistence-check, so the Chat is put in Ask mode for this line.
+  await page.locator('[data-chat-pane]').getByRole('button', { name: 'Mode', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /^Ask/ }).click();
   routeAnswer = { route: 'capability:explain', capability: 'explain', flow: 'direct', via: 'jev', args: 'draw how a heap swaps a new item up' };
   await send(page, 'draw how a heap swaps a new item up');
   const job = await newJob(4);
