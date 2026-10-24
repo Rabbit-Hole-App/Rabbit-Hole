@@ -120,7 +120,10 @@ card reflows (Finding 2), and `transform: translate(...) scale(1 / view.z)` from
 `offsetTop` places it on the frame. A press on a drag zone is stopped while focused (a drag would save a position). `exit`
 removes the attribute, the properties and the guard. The rule is generic: another adapter may reuse it. Study > Notebook
 calls `enterFocus`, Study > Canvas `exitFocus`; when Focus ends elsewhere (Back to canvas, Escape) the switch follows
-`onState().focus` back to Canvas. Kernel coverage: `pinned-study-kernel-check.mjs` steps 5a to 5c.
+`onState().focus` back to Canvas. The Focus Study started (work Notebook, on that notebook: `study-focus.js`) ends with Study's
+working view (coordinator ruling P7): Study > Canvas, Unpin, View > Canvas and Locate on canvas call `exitFocus` first; a
+Focus the learner started on another card is left alone. Locate's `focusObject` comes after the exit, whose restore is
+immediate, so Locate's camera stays (P6). Kernel coverage: `pinned-study-kernel-check.mjs` steps 5a to 5c and 6b.
 
 
 ## 5. Inventory (WP4)

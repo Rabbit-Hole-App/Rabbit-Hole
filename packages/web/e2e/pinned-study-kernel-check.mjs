@@ -15,7 +15,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { closeMenus, openMenu } from './canvas-menu-helpers.mjs';
 
-const total = 10; // the number of check() steps below; keep it equal
+const total = 11; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878', CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 const approvedDev = new Set(['https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']);
 for (const origin of [BASE, CP]) assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin) || approvedDev.has(origin) || /^https:\/\/rabbit-hole-web-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(origin), 'Only a dev clone or the local integration stack is allowed');
@@ -226,6 +226,12 @@ try {
     assert.equal(await frame().locator('.jp-CodeCell').count(), 4, 'no cell was added or removed');
     assert.ok((await cell(3).locator('.cm-content').first().innerText()).includes('unsaved = 42'));
     await page.screenshot({ path: `${SHOTS}/6-after-unpin.png` });
+  });
+
+  await check('6b Unpin ended the Focus Study > Notebook started (coordinator ruling P7): the plain canvas is not left in Focus; the same iframe', async () => {
+    await outOfFocus('Unpin');
+    assert.equal(await page.getByRole('button', { name: 'Back to canvas', exact: true }).count(), 0, 'no Focus frame is left');
+    await sameFrame('Unpin ended Focus');
   });
 
   await check('7 no model-capable request and no page error', async () => {

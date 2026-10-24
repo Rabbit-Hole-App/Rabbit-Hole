@@ -13,6 +13,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { pdfRef } from './pdf-source.js';
 import { objectName } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
+import { endStudyFocus } from './study-focus.js';
 import { attachStillCurrent, authorizePinnedSource, createPinnedAttacher } from './study-attach.js';
 import { wsHeaders } from './api.js';
 import { SWITCH_ROW, pinRef, pinnedAttachSnapshot, sourceOrigin, studyOffsets, versionLine } from './study-ref.js';
@@ -81,11 +82,12 @@ export function useStudy(canvasKey, board, canvasApi) {
     state, mode: state.mode, open: state.mode === 'study', status: current.status, scope,
     reader: () => live.current.value.reader,
     readerAt,
-    setMode: mode => apply([{ type: 'setMode', mode }]),
+    // Leaving Study (View > Canvas) ends the Focus Study > Notebook started; the remembered work brings it back on return.
+    setMode: mode => { if (mode !== 'study') endStudyFocus(api(), live.current.value); apply([{ type: 'setMode', mode }]); },
     setSplit: split => apply([{ type: 'setSplit', split }]),
     // View > Show / hide in Study: this canvas's Study choice, written like every other Study change (Not saved when storage refuses).
     setMap: (name, on) => apply([{ type: 'setMap', name, on }]),
-    unpin: () => apply([{ type: 'unpin' }]),
+    unpin: () => { endStudyFocus(api(), live.current.value); apply([{ type: 'unpin' }]); },
     // Pin for study, Change reference and Choose a reference: the actual card clicked, never another of the same name.
     pinCard: id => {
       const object = objectOf(api(), id), ref = object && pinRef(object);
@@ -105,10 +107,9 @@ export function useStudy(canvasKey, board, canvasApi) {
     // Canvas: leaving Focus puts back the camera, selection and card scroll the learner left (this visit); with no Focus held
     // (it ended elsewhere, or never began), the camera saved with the arrangement.
     showCanvas: () => {
-      const canvas = api(), focusing = !!canvas?.focusState?.();
+      const canvas = api();
       unslide();
-      if (focusing) canvas.exitFocus();
-      else if (live.current.value.canvasView) canvas?.setView?.(live.current.value.canvasView);
+      if (!endStudyFocus(canvas, live.current.value) && live.current.value.canvasView) canvas?.setView?.(live.current.value.canvasView);
       apply([{ type: 'setWork', work: 'canvas' }]);
     },
     // Focus ended by Back to canvas, Escape or another card's Focus: the switch says Canvas, the navigation is already back.
@@ -118,7 +119,8 @@ export function useStudy(canvasKey, board, canvasApi) {
     locate: () => {
       const canvas = api(), id = live.current.value.pin?.cardId;
       if (!canvas || !id) return;
-      if (live.current.value.work !== 'canvas') { canvas.exitFocus(); apply([{ type: 'setWork', work: 'canvas' }]); }
+      // Study's Focus ends first: exitFocus restores the camera at once, so the focusObject below is the camera that stays.
+      if (live.current.value.work !== 'canvas') { endStudyFocus(canvas, live.current.value); apply([{ type: 'setWork', work: 'canvas' }]); }
       unslide();
       canvas.focusObject?.(id);
     },
