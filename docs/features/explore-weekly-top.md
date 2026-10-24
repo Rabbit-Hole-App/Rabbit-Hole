@@ -5,7 +5,8 @@ response shape 6199db1a-7cc2-4acd-b6cd-ab267c3fbf76; deterministic queries, boun
 b08ce50b-c3ad-4e98-8a85-c7c672dc680d. Branch `feat/weekly-top5-api`, built on `feat/stars`. This file is the contract the UI lane
 codes against; `packages/web/src/home/weekly-top-fixture.js` is its machine-readable example (same shapes; import it in tests).
 
-Status: contract committed; queries and tests follow on the same branch. Nothing here is applied to a database or deployed.
+Status: contract, queries (`packages/control-plane/src/weekly-top.js`), route, migration 0029 and fixture tests are on the branch. UI is a separate
+lane. Nothing here is applied to a database or deployed.
 
 ## Endpoint
 
@@ -137,3 +138,19 @@ Definitions owned here. No search text, tokens, handles or personal data in any 
 | `weekly_top.request_failed` | The request failed or answered non-200. | `status` (HTTP status, `0` for a network failure), `code` (the error `code` or `network`), `duration_ms` |
 
 Latency is `duration_ms` on the two request-bearing events; there is no separate latency event.
+
+## Operations and tests
+
+Migration 0029 only adds two indexes and is safe to apply before or after the code (without it the queries are correct but scan more).
+Dev (announce first; the dev LEARN_DB is shared by all clones; 0028 must already be applied):
+
+`cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-dev --remote --config wrangler.rabbit-hole-dev.jsonc --file learn-migrations/0029-weekly-top.sql -y`
+
+Production (owner only, after 0028): the same file against `rabbit-hole-learn-prod` with `wrangler.rabbit-hole-prod.jsonc`.
+
+`packages/control-plane/test/weekly-top.test.js` (fixture, node:sqlite from `repository-schema.sql`): week boundaries including both daylight-saving
+weeks; migration shape and index use; ordering and the canonical-id tie; fewer than five, none and at most five; self-star, self-fork,
+repeated and re-added stars, unstarred stars, repeated forks, deleted and re-created forks, descendant forks, several canvases per
+creator; unpublish, Trash, archive, delete and a lost handle against a cached answer; the staleness window; no private data in any
+answer; the route's status codes and its key-for-key match with the committed UI fixture. Fixture limits: no deployed D1, no real
+query timing (the indexes are checked by query plan only), no browser.
