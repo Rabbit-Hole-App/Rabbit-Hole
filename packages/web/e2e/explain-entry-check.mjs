@@ -84,7 +84,10 @@ const router = async route => {
     if (board !== job.boardId) return route.fulfill({ status: 404, json: { error: 'Not available' } });
     return route.fulfill({ json: { job: view(job), ...(job.stage === 'ready' ? { block: { type: 'animation', id: job.cardId, title: SCENE_EXAMPLE.title, scene: SCENE_EXAMPLE, explain: job.identity } } : {}) } });
   }
-  if (path === '/api/learn/chat/route' && method === 'POST') return routeAnswer ? route.fulfill({ json: routeAnswer }) : route.fulfill({ status: 404, json: { error: 'Not found' } });
+  // The route answer carries every field the client reads (as motion-command-check's mock does), not only the decision.
+  if (path === '/api/learn/chat/route' && method === 'POST') return routeAnswer ? route.fulfill({ json: { clarification: null, message: null, settings: null, paid: false, retryable: false, code: null, token: null, ...routeAnswer } }) : route.fulfill({ status: 404, json: { error: 'Not found' } });
+  // The app plans a Tutor reply after a chat turn: answered here as chat-outputs-check does, so no model route is touched.
+  if (path === '/api/learn/tutor/plan') return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } });
   if (['/api/learn/tutor/next-steps', '/api/learn/next-steps'].includes(path)) return route.fulfill({ json: { options: [], suggestions: [], fingerprint: null } });
   if (MODEL.test(path) && method !== 'GET') { refused.push(path); return route.abort(); }
   return route.fallback();

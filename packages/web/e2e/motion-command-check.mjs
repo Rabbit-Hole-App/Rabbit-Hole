@@ -183,6 +183,8 @@ for (const theme of ['light', 'dark']) {
   page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
+  const failedRequests = []; // named in a missing-card failure: which request the chat turn lost, and why
+  page.on('requestfailed', request => failedRequests.push(`${request.method()} ${new URL(request.url()).pathname} ${request.failure()?.errorText}`));
   const shot = name => page.screenshot({ path: `${OUT}/${theme}-${OFF ? 'off-' : ''}${name}.png` });
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.waitForSelector('[data-tool-gutter]', { timeout: 60000 });
@@ -203,7 +205,7 @@ for (const theme of ['light', 'dark']) {
     // The failure names what was asked and what the chat shows, so a missing card is diagnosed from the log alone.
     try { await until(async () => (await proposalCards.count()) > before, `the proposal card for ${line}`); } catch (error) {
       const tail = await dock.evaluate(node => node.innerText.slice(-500)).catch(() => '');
-      throw new Error(`${error.message}; chat turns ${asks.length}, last ${JSON.stringify({ command: asks.at(-1)?.command, route_token: !!asks.at(-1)?.route_token, message: asks.at(-1)?.message }).slice(0, 200)}; page errors ${JSON.stringify(errors).slice(0, 300)}; chat tail ${JSON.stringify(tail)}`);
+      throw new Error(`${error.message}; chat turns ${asks.length}, last ${JSON.stringify({ command: asks.at(-1)?.command, route_token: !!asks.at(-1)?.route_token, message: asks.at(-1)?.message }).slice(0, 200)}; page errors ${JSON.stringify(errors).slice(0, 300)}; failed requests ${JSON.stringify(failedRequests.slice(-6))}; chat routes ${routes.length}; chat tail ${JSON.stringify(tail)}`);
     }
     const card = proposalCards.last();
     await card.locator('[data-proposal-generate]:not([disabled])').waitFor();
