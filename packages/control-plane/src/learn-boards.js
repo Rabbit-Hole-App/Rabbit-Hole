@@ -1029,6 +1029,8 @@ export async function learnBoardsRoute(path, req, env) {
   }
   // Explore's AI find (explore-find.js): a sentence-length search ranked by the small model over the published set only.
   if (path === '/api/learn/boards/published/find') return (await import('./explore-find.js')).exploreFindFetch(req, env);
+  // Explore's Weekly Top 5 canvases and creators (docs/features/explore-weekly-top.md): public, read-only, no model.
+  if (path === '/api/learn/boards/published/weekly-top') return (await import('./weekly-top.js')).weeklyTopFetch(req, env);
   // Explore: the published canvases (docs/features/explore-publish.md).
   if (path === '/api/learn/boards/published') { const p = new URL(req.url).searchParams; return req.method === 'GET' ? explore(env, p.get('sort') || 'newest', p.get('q'), p.get('project'), p.get('type')) : json({ error: 'Method not allowed' }, 405); }
   // A published canvas's card thumbnail, by the publication token its Explore card already links (card-thumbnails.md).

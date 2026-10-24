@@ -16,7 +16,7 @@ const SORTS = { newest: 'p.published_at DESC', forks: 'fork_count DESC, p.publis
 const DISCOVER = 8;
 // The avatar is served by its own URL, never inlined in a list: a picture is up to 200k characters (profile.js).
 // `v` changes when the profile does, so a new picture shows at once.
-const avatarUrl = r => (r.has_avatar ? `/api/learn/creators/${r.handle}/avatar?v=${encodeURIComponent(r.since || '')}` : null);
+export const avatarUrl = r => (r.has_avatar ? `/api/learn/creators/${r.handle}/avatar?v=${encodeURIComponent(r.since || '')}` : null);
 const IDENTITY = `h.handle, ${NAME_OF('h.email')} AS name, (SELECT up.avatar IS NOT NULL FROM user_profiles up WHERE up.email = h.email) AS has_avatar,
   (SELECT up.updated_at FROM user_profiles up WHERE up.email = h.email) AS since,
   (SELECT d.description FROM user_profile_descriptions d WHERE d.email = h.email) AS description`;
