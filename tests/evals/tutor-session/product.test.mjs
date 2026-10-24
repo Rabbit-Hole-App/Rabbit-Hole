@@ -42,7 +42,7 @@ test('only stub worlds select test mode: a real-provider world still refuses an 
   // Model a real-provider selection while every response remains offline.
   const { bundle, boundary } = await realSession({ answers: { ...stubAnswers(), kind: 'anthropic' } });
   assert.equal(bundle.simulator.stop_reason, 'error');
-  assert.match(bundle.simulator.error.message, /daily dollar cap is configured/);
+  assert.match(bundle.simulator.error.message, /platform spending limit is set/);
   assert.equal(boundary.requests.filter(entry => entry.provider === 'anthropic' && roleOf(entry.body) === 'tutor').length, 0);
 });
 
