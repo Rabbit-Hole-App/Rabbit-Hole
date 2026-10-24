@@ -43,6 +43,7 @@ export default function PeopleWithAccess({ base }) {
         <button type="submit" data-invite-button disabled={busy || !emails.trim()} className="flex h-8 items-center gap-1 rounded-md bg-primary-fill px-2.5 text-xs font-medium text-white hover:bg-primary-fill-hover disabled:opacity-40"><UserPlus size={13} />Invite</button>
       </form>
       <p className="mt-1.5 text-xs text-ink-3">{verbs} They can't edit. They'll confirm this email address before joining.</p>
+      {list?.nested && <p data-nested-note className="mt-1 text-xs text-ink-3">Only people invited here can see this Rabbit Hole's comments. Members of the canvas it is in are not included.</p>}
       {notes.map(text => <p key={text} role="alert" className="mt-1 text-xs text-red-700">{text}</p>)}
       </Disclosure>
       <Disclosure label={`People with access${list ? ` · ${list.members.length + 1}` : ''}`}>

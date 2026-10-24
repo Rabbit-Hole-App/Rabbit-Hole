@@ -7,7 +7,7 @@
 import { echoesLogin, loginEmail, sessionOf } from './auth.js';
 import { hmacHex, sha256 } from './token.js';
 import { HANDLE_OF, NAME_OF } from './canvases.js';
-import { NOT_TRASHED } from './library-trash.js';
+import { IN_TRASH_TREE } from './library-trash.js';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 const json = (body, status = 200, headers = {}) => Response.json(body, { status, headers: { ...NO_STORE, ...headers } });
@@ -114,11 +114,13 @@ async function personOf(db, email) {
 }
 const PROVIDERS = { google: 'Google', github: 'GitHub', email: 'email' };
 
-// A top-level canvas's main board (Q5), with its owner, title, Trash state and Allow comments.
-const BOARD = `SELECT b.id AS board_id, b.org, b.app AS canvas, c.owner_email, c.title, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed,
+// A canvas's main board - top-level, a project canvas or a nested Rabbit Hole (D2: each is invited on its own; a parent's
+// members are not the hole's) - with its owner, title, Trash state and Allow comments.
+const BOARD = `SELECT b.id AS board_id, b.org, b.app AS canvas, c.owner_email, c.title, ${IN_TRASH_TREE('c.org', 'c.name')} AS trashed,
+    EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name AND d.parent_app NOT LIKE 'share:%') AS nested,
     COALESCE((SELECT s.comments_enabled FROM canvas_comment_settings s WHERE s.org = c.org AND s.canvas = c.name), 1) AS comments_enabled
   FROM learn_boards b JOIN canvases c ON c.org = b.org AND c.name = b.app AND c.owner_email = b.owner_email
-  WHERE b.board = 'main' AND c.name NOT IN (SELECT d.child FROM canvas_dives d WHERE d.org = c.org AND d.parent_app NOT LIKE 'share:%')`;
+  WHERE b.board = 'main'`;
 
 async function readBody(req) {
   if (Number(req.headers.get('content-length') || 0) > 16 * 1024) return null;
@@ -136,7 +138,7 @@ async function listMembers(db, board) {
   // The owner sees the addresses they typed; a member's account appears by reference, never by its principal.
   return json({ members: results.map(row => ({ id: row.id, invited_email: row.invited_email, status: row.status, email_status: row.email_status,
     ...(row.status === 'active' ? { person: person(row) } : {}), invited_at: row.invited_at, expires_at: row.expires_at, expired: row.status === 'pending' && row.expires_at <= now(),
-    locked: row.failed_attempts >= INVITE_LOCK })), comments_enabled: !!board.comments_enabled });
+    locked: row.failed_attempts >= INVITE_LOCK })), comments_enabled: !!board.comments_enabled, ...(board.nested ? { nested: true } : {}) });
 }
 
 async function sendInvite(env, sendEmail, board, row, token, origin) {

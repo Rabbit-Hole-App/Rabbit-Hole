@@ -14,6 +14,7 @@ import { DRAG_TYPE, inView } from './library-folders.js';
 import { FolderEmpty, FolderTiles } from './LibraryFolders.jsx';
 import { Button, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
+import CommentInbox from './comments/CommentInbox.jsx';
 import { newComments, useCommentUnread } from './comments/unread.js';
 
 // The preview Library (T02 §4, user correction 2026-09-28): what you can return to, learn from
@@ -60,6 +61,7 @@ export default function LibraryViews({ apps: listed, type, data, sort, onType, o
           ))}
         </div>
       )}
+      {!type && <CommentInbox />}
       {!type && <SharedWithYou unread={unread.shared} />}
       {cardMenu.element}
     </>

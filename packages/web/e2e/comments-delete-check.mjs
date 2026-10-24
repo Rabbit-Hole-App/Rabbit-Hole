@@ -16,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 9; // the number of check() steps below; keep it equal
+const total = 15; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -313,6 +313,172 @@ await check('9 scrolled up, new replies show New replies and the reading place s
   for (const id of [...replies, later, away]) assert.ok(shown.includes(id), `${id} shown`);
   await expect(page.locator('[data-comments-panel] [data-comment-composer] textarea')).toHaveValue('Typed before going offline');
   assert.deepEqual([asks, stray], [[], []]);
+});
+
+// Comments v2 item 3 (migration 0030): a reaction from another session arrives on the open thread without Back or reload, the
+// owner reacts and un-reacts from the chip, and an edited comment's "edited" lists what the edit replaced (the owner may read it).
+await check('10 reactions and edit history: a reaction from another session arrives on the open thread; the owner toggles one from the picker and the chip; edited lists the replaced text', async () => {
+  const target = await reply('A visitor reply to react to');
+  await expect(message(target)).toHaveCount(1, SYNC);
+  assert.equal((await viewer(`${pub}/comments/${target}/reactions`, { method: 'PUT', body: JSON.stringify({ emoji: '\u{1F44D}', on: true }) })).status, 200);
+  await expect(message(target).getByRole('button', { name: 'Thumbs up, 1' })).toHaveAttribute('aria-pressed', 'false', SYNC);
+  await message(target).getByRole('button', { name: 'Add reaction' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Heart' }).click();
+  await expect(message(target).getByRole('button', { name: 'Heart, 1' })).toHaveAttribute('aria-pressed', 'true', SYNC);
+  await message(target).getByRole('button', { name: 'Heart, 1' }).click();
+  await expect(message(target).getByRole('button', { name: 'Heart, 1' })).toHaveCount(0, SYNC);
+  await expect(message(target).getByRole('button', { name: 'Thumbs up, 1' })).toHaveCount(1);
+  assert.equal((await viewer(`${pub}/comments/${target}`, { method: 'PATCH', body: JSON.stringify({ body: 'The visitor edited the reply to react to', mentions: [] }) })).status, 200);
+  await expect(message(target)).toContainText('The visitor edited the reply to react to', SYNC);
+  await message(target).locator('[data-edit-history]').click();
+  await expect(page.locator('[data-edit-history-list]')).toContainText('A visitor reply to react to');
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/10-reactions-history.png` });
+});
+
+// Comments v2 item 3, D3 (migration 0031): the owner attaches an image to a reply, it shows in the thread as a picture, another
+// session that may read the thread downloads it, and deleting the comment ends that access at once.
+const DOT = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+await check('11 attachments: an image attached to a reply shows as a picture; a reader of the thread downloads it; deleting the comment ends that at once and the picture goes', async () => {
+  const composer = page.locator('[data-comments-panel] [data-comment-composer]');
+  await composer.locator('[data-attach-input]').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: DOT });
+  await expect(composer.locator('[data-attachment-chip="ready"]')).toHaveCount(1, { timeout: 20000 });
+  await composer.locator('textarea').fill('A reply with a picture');
+  await page.keyboard.press('Enter');
+  const sent = page.locator('[data-comments-panel] [data-comment-message]').filter({ hasText: 'A reply with a picture' });
+  await expect(sent).toHaveCount(1, { timeout: 20000 });
+  const picture = sent.locator('[data-message-file] img');
+  await expect(picture).toBeVisible();
+  await expect.poll(() => picture.evaluate(image => image.complete && image.naturalWidth), { timeout: 10000 }).toBeGreaterThan(0);
+  const href = await sent.locator('[data-message-file] a').getAttribute('href');
+  const id = href.split('/').pop(), messageId = await sent.getAttribute('data-comment-message');
+  const raw = (session, path) => fetch(`${BASE}${path}`, { headers: session ? { cookie: `small_session=${session}` } : {} });
+  assert.equal((await raw(viewerSession, `${pub}/attachments/${id}`)).status, 200, 'a reader of the public thread downloads it');
+  assert.equal((await raw(null, `${base}/attachments/${id}`)).status, 401, 'signed out, the member route asks for a sign-in');
+  assert.equal((await api(`${base}/comments/${messageId}`, { method: 'DELETE' })).status, 200);
+  assert.equal((await raw(viewerSession, `${pub}/attachments/${id}`)).status, 404, 'the very next request');
+  assert.equal((await raw(ownerSession, `${base}/attachments/${id}`)).status, 404, 'even the owner');
+  await expect(sent.locator('[data-message-file]')).toHaveCount(0, SYNC);
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/11-attachment.png` });
+});
+
+// Comments v2 item 5: a thread that names a quoted text says so in the panel; when the card changes around the quote it says the
+// card changed, and when the quote is gone it says the text is gone. The board is changed through the API, then the page is reloaded.
+await check('12 an anchored thread reads with its quote; after the card changes it says so, and after the quote goes it says the text is gone', async () => {
+  const boardPath = `/api/learn/boards/${canvas.name}/main`;
+  const quote = 'Quartz is silicon dioxide.';
+  const card = body => ({ id: 'a-card', type: 'explanation', dx: 0, dy: 0, title: 'Anchor card', body });
+  const putCard = async body => {
+    const current = (await api(boardPath)).body;
+    const next = { ...current.state, blocks: [...current.state.blocks.filter(block => block.id !== 'a-card'), card(body)] };
+    const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: next, version: current.version }) });
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  };
+  await putCard(`${quote} It is the second most common mineral.`);
+  const made = await post(api, `${base}/threads`, { id: crypto.randomUUID(), anchor: { kind: 'object', object_id: 'a-card', object_kind: 'block', dx: 6, dy: 6, label: 'Anchor card', target: { kind: 'text', quote } }, body: 'Is this precise?', mentions: [] });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.thread.anchor_state, 'ok');
+  const id = made.body.thread.id;
+  const reopen = async () => { await page.goto(`${BASE}/apps/${canvas.name}`); await card_('a-card').waitFor({ timeout: 60000 }); await page.locator('[data-comments-header]').click(); await page.locator('[data-comments-panel]').waitFor(); await status().selectOption('all'); };
+  const card_ = id_ => page.locator(`[data-block-id="${id_}"]`);
+  await reopen();
+  await expect(row(id)).toContainText('Anchor card, \u201cQuartz is silicon dioxide.\u201d', { timeout: 20000 });
+  await expect(row(id)).not.toContainText('Card changed');
+  await putCard(`${quote} It is common in sand.`);
+  await reopen();
+  await expect(row(id)).toContainText('Card changed', { timeout: 20000 });
+  await row(id).click();
+  await expect(page.locator('[data-anchor-state="outdated"]')).toContainText('The card changed after this comment was made.');
+  await putCard('Granite is an igneous rock.');
+  await reopen();
+  await expect(row(id)).toContainText('Text gone', { timeout: 20000 });
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/12-anchor-state.png` });
+});
+
+// Owner decision D6 (2026-10-23): the author of a comment in a members thread offers some of their OWN words in a new public
+// thread; nothing else of the members thread goes with it, and the new thread does not point back.
+await check('13 (D6) some of my own words from a members thread become a new public thread; the private reply and the rest of the comment stay private', async () => {
+  const members = await start(api, base, { kind: 'point', x: 300, y: 700 }, 'Private budget note. Public idea: dye the water to see the layers.');
+  assert.equal((await post(api, `${base}/threads/${members}/comments`, { id: crypto.randomUUID(), body: 'A private reply nobody outside should see', mentions: [] })).status, 201);
+  await page.goto(`${BASE}/apps/${canvas.name}`);
+  await page.locator('[data-comments-header]').click();
+  await page.locator('[data-comments-panel]').waitFor();
+  await status().selectOption('all');
+  await row(members).click();
+  const mine = page.locator('[data-comments-panel] [data-comment-message]').filter({ hasText: 'Private budget note' });
+  await mine.hover();
+  await mine.getByRole('button', { name: 'Comment actions' }).click();
+  await page.getByRole('menuitem', { name: 'Share in a new public thread' }).click();
+  await page.locator('[data-public-copy] textarea').evaluate(field => { field.focus(); field.setSelectionRange(field.value.indexOf('Public idea'), field.value.length); });
+  await page.getByRole('button', { name: 'Start public thread' }).click();
+  const shown = page.locator('[data-comments-panel] [data-comment-message]');
+  await expect(shown).toHaveCount(1, { timeout: 20000 });
+  await expect(shown).toContainText('Public idea: dye the water to see the layers.');
+  await expect(shown).not.toContainText('budget');
+  await expect(page.locator('[data-comments-panel] [data-comment-audience="public"]')).toHaveCount(1);
+  const copy = (await api(`${base}/threads?status=all`)).body.threads.find(thread => thread.audience === 'public' && thread.preview?.startsWith('Public idea'));
+  assert.ok(copy, 'the new public thread exists');
+  const seen = await viewer(`${pub}/threads/${copy.id}`);
+  assert.equal(seen.status, 200);
+  assert.equal(JSON.stringify(seen.body).includes('budget'), false, 'only the chosen words are public');
+  assert.equal((await viewer(`${pub}/threads/${members}`)).status, 404, 'the members thread stays private');
+  assert.equal((await api(`${base}/threads/${members}`)).body.messages.length, 2, 'and keeps both of its messages');
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/13-public-copy.png` });
+});
+
+// Owner decision D4 (2026-10-23): in-app notifications first. The Library lists a thread with news for the owner and why; muting
+// the thread takes it out.
+await check('14 the Library lists a thread with news and its reason; a muted thread leaves it', async () => {
+  const tid = (await post(api, `${base}/threads`, { id: crypto.randomUUID(), anchor: { kind: 'point', x: 320, y: 760 }, body: 'The owner asks the public', audience: 'public', mentions: [] })).body.thread.id;
+  assert.equal((await post(viewer, `${pub}/threads/${tid}/comments`, { id: crypto.randomUUID(), body: 'A visitor answers', mentions: [] })).status, 201);
+  await page.goto(`${BASE}/library`);
+  await page.locator('h1').waitFor();
+  const item = page.locator(`[data-comment-inbox] [data-inbox-item="${tid}"]`);
+  await expect(item).toBeVisible({ timeout: 30000 });
+  await expect(item).toContainText('Replies to you');
+  await expect(item).toContainText('The owner asks the public');
+  assert.equal((await api(`${base}/threads/${tid}/follow`, { method: 'PUT', body: JSON.stringify({ state: 'mute' }) })).status, 200);
+  await page.reload();
+  await page.locator('h1').waitFor();
+  await expect(page.locator(`[data-inbox-item="${tid}"]`)).toHaveCount(0, { timeout: 30000 });
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/14-inbox.png` });
+});
+
+// Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. The owner comments in the hole through the app; a
+// person with no access to the hole (the visitor here, a stranger to both) gets 404 with no content; Share says the people are the hole's own.
+await check('15 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
+  const hole = `canvas-${run.replace(/[^a-f0-9]/g, '0').padEnd(8, '0').slice(0, 8)}`;
+  const made = await post(api, '/api/canvases/dives', { name: hole, title: `Inside ${run}`, parent: { app: canvas.name, board: 'main' }, origin_block_id: 'd-card', dive: { concept: 'ice' } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const board = await api(`/api/learn/boards/${hole}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...STATE, blocks: [{ id: 'h-card', type: 'explanation', dx: 0, dy: 0, title: 'Inside the hole', body: 'Only here.' }], shapes: [], groups: [] } }) });
+  assert.equal(board.status, 200);
+  const holeBase = `/api/learn/c/${board.body.board_id}`;
+  const own = await start(api, holeBase, on('h-card', 'block', 'Inside the hole'), 'A comment inside the hole');
+  assert.equal((await viewer(`${holeBase}/threads`)).status, 404, 'a person with no access to the hole');
+  assert.equal((await nobody(`${holeBase}/threads`)).status, 401);
+  assert.equal((await api(`${base}/threads/${own}`)).status, 404, 'the hole\'s thread is not the canvas\'s');
+  // The invitation routes belong to the control plane; this stack's app worker is dev-worker.js, whose barrier answers /members with 403
+  // (dev-forwarding.js; comments-invite-check runs app-worker.js for that reason). So the Share dialog's members read is answered with the
+  // stack's own control plane's answer for the hole, read here with the owner's session. It is read BEFORE the page loads: the app and the
+  // control plane are two processes on one local SQLite file, and a control-plane read while the page was working made the app answer
+  // 401 (database is locked) and sign the page out (run 40138756806).
+  const asked = await fetch(`${CP}${holeBase}/members`, { headers: { cookie: `small_session=${ownerSession}` } });
+  const members = { status: asked.status, body: await asked.json() };
+  assert.deepEqual([members.status, members.body.nested], [200, true], 'the control plane says the hole is nested');
+  await page.goto(`${BASE}/apps/${hole}`);
+  await card('h-card').waitFor({ timeout: 60000 });
+  await page.locator('[data-comments-header]').click();
+  await expect(row(own)).toHaveCount(1, { timeout: 20000 });
+  await expect(row(T.point)).toHaveCount(0);
+  await page.route(/\/api\/learn\/c\/[^/]+\/members$/, route => (route.request().method() === 'GET' ? route.fulfill({ status: members.status, contentType: 'application/json', body: JSON.stringify(members.body) }) : route.abort()));
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/15-nested-hole.png` });
 });
 
 await browser.close();

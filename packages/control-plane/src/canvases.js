@@ -6,23 +6,24 @@ import { CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
 import { CHAT_MODES, PROJECT_FIELDS, cardCodeRefs, projectAccess, repositoryApp, repositoryIdentity, repositorySnapshot, repositoryThreads } from './repositories.js';
 import { REPOSITORY_SYSTEM, REPOSITORY_TOOLS, repositoryTool, SELECTED_NOTE } from './repository-context.js';
 import { divesFetch, pendingHoleApp } from './dives.js';
+import { purgeCanvasAttachments } from './comment-attachments.js';
 import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
 import { noAccount, purgeStars, setStar, starActor, starsFor, surfaceFrom } from './canvas-stars.js';
 
-// A permanently deleted canvas takes every comment row (owner decision 2026-10-23, canvas-comments.md Q13): the seven
-// canvas_comment* tables of learn-migrations 0011 and 0014 - threads, messages, mentions, read marks, colours, its comment
-// settings (the canvas's and its link's) and its blocks. Trash keeps them. Comments have no attachments: a message is text
-// and mentions only (no attachment column or table, and no attachment code in canvas-comments.js), so there is none to
-// purge. Unread and Shared with you count from these rows, so they count nothing for it after. Here, not in
+// A permanently deleted canvas takes every comment row (owner decision 2026-10-23, canvas-comments.md Q13): the
+// canvas_comment* tables of learn-migrations 0011, 0014, 0030 and 0032 - threads, messages, mentions, read marks, colours, reactions,
+// edit history, its comment settings (the canvas's and its link's) and its blocks. Trash keeps them. Their attached files are purged by
+// comment-attachments.js (bucket objects and rows, migration 0031) before this batch runs. Unread and Shared with you count from these rows, so they count nothing for it after. Here, not in
 // canvas-comments.js, which imports this module.
-const purgeCommentRows = (db, org, canvas) => {
+export const purgeCommentRows = (db, org, canvas) => {
   const threads = 'SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ?';
   return [
     db.prepare(`DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id IN (${threads}))`).bind(org, canvas),
-    ...['canvas_comment_reads', 'canvas_comment_colors', 'canvas_comments'].map(table => db.prepare(`DELETE FROM ${table} WHERE thread_id IN (${threads})`).bind(org, canvas)),
+    ...['canvas_comment_reactions', 'canvas_comment_edits'].map(table => db.prepare(`DELETE FROM ${table} WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id IN (${threads}))`).bind(org, canvas)),
+    ...['canvas_comment_reads', 'canvas_comment_colors', 'canvas_comment_touches', 'canvas_comment_follows', 'canvas_comments'].map(table => db.prepare(`DELETE FROM ${table} WHERE thread_id IN (${threads})`).bind(org, canvas)),
     db.prepare('DELETE FROM canvas_comment_threads WHERE org = ? AND canvas = ?').bind(org, canvas),
     db.prepare('DELETE FROM canvas_comment_settings WHERE org = ? AND canvas IN (?, ?)').bind(org, canvas, `link:${canvas}`),
     db.prepare('DELETE FROM canvas_comment_blocks WHERE org = ? AND canvas = ?').bind(org, canvas),
@@ -490,6 +491,7 @@ export async function canvasesFetch(req, env) {
       // Undo only while untouched (section 8.4). One statement, so a thread started meanwhile keeps the canvas.
       const { meta } = await db.prepare('DELETE FROM canvases WHERE id=? AND NOT EXISTS (SELECT 1 FROM threads WHERE org=? AND scope_ref=?)').bind(app.id, user.org, name).run();
       if (meta.changes) {
+        await purgeCanvasAttachments(env, user.org, name); // the files leave the bucket first; a failure here stops the delete half-way, never after
         await db.batch([
           db.prepare('DELETE FROM canvas_publications WHERE org = ? AND canvas = ?').bind(user.org, name),
           dropRefs(db, user.org, user.email, name),

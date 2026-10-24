@@ -1048,3 +1048,71 @@ CREATE TABLE IF NOT EXISTS canvas_star_events (
 );
 CREATE INDEX IF NOT EXISTS canvas_star_events_canvas ON canvas_star_events (org, canvas, at);
 CREATE INDEX IF NOT EXISTS canvas_star_events_pending ON canvas_star_events (at) WHERE delivered_at IS NULL;
+
+-- learn-migrations/0030-canvas-comment-reactions-history.sql
+-- Comments v2 Stage 3 (docs/features/canvas-comments.md section 15): reactions, edit history and the touch row that lets a
+-- thread's since-read find a change that leaves no timestamp on canvas_comments (a reaction added or removed). A reaction is
+-- one emoji from the server's fixed set by one account; an edit keeps the text it replaced (the newest 20 per comment) for the
+-- author and the canvas owner. All three are deleted with their comment, thread or canvas. Additive and re-runnable; LEARN_DB
+-- only. Production: an owner command; never applied by a lane.
+CREATE TABLE IF NOT EXISTS canvas_comment_reactions (
+  comment_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  emoji TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (comment_id, user_id, emoji)
+);
+CREATE TABLE IF NOT EXISTS canvas_comment_edits (
+  id TEXT PRIMARY KEY,
+  comment_id TEXT NOT NULL,
+  body TEXT NOT NULL,
+  mentions_json TEXT NOT NULL DEFAULT '[]',
+  replaced_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_edits_comment ON canvas_comment_edits (comment_id, replaced_at);
+CREATE TABLE IF NOT EXISTS canvas_comment_touches (
+  comment_id TEXT PRIMARY KEY,
+  thread_id TEXT NOT NULL,
+  touched_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_touches_thread ON canvas_comment_touches (thread_id, touched_at);
+
+-- learn-migrations/0031-canvas-comment-attachments.sql
+-- Comments v2 Stage 3 (docs/features/canvas-comments.md section 15, owner decision D3): the files attached to comments. One row
+-- per file in the LEARN_MEDIA bucket (object_key); thread_id and comment_id are NULL while an upload waits to be attached.
+-- The per-file, per-comment and per-canvas caps are enforced by the reserving INSERT, not by this schema. purged_at marks a row
+-- whose access is gone and whose object is still to leave the bucket. Additive and re-runnable; LEARN_DB only. Production: an
+-- owner command; never applied by a lane.
+CREATE TABLE IF NOT EXISTS canvas_comment_attachments (
+  id TEXT PRIMARY KEY,
+  org TEXT NOT NULL,
+  canvas TEXT NOT NULL,
+  thread_id TEXT,
+  comment_id TEXT,
+  uploader_id TEXT NOT NULL,
+  object_key TEXT NOT NULL,
+  name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  bytes INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  purged_at TEXT
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_comment ON canvas_comment_attachments (comment_id);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_canvas ON canvas_comment_attachments (org, canvas, purged_at);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_uploader ON canvas_comment_attachments (uploader_id, created_at);
+CREATE INDEX IF NOT EXISTS canvas_comment_attachments_object ON canvas_comment_attachments (object_key);
+
+-- learn-migrations/0032-canvas-comment-follows.sql
+-- Comments v2 Stage 4 (docs/features/canvas-comments.md section 15, owner decision D4: in-app notifications first, no email now):
+-- a person's explicit choice about one thread - follow it (news appears in their inbox even if they have not posted or been
+-- mentioned) or mute it (no inbox entry, whatever happens). No row is the default: news reaches the inbox when they own the
+-- canvas, posted in the thread, or were mentioned in it. The inbox itself is computed from threads, mentions and read marks, not
+-- stored. Deleted with its thread. Additive and re-runnable; LEARN_DB only. Production: an owner command; never applied by a lane.
+CREATE TABLE IF NOT EXISTS canvas_comment_follows (
+  thread_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('follow', 'mute')),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (thread_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS canvas_comment_follows_user ON canvas_comment_follows (user_id, state);
