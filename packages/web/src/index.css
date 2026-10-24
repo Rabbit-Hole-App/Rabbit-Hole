@@ -503,6 +503,11 @@ main {
   background-size: 18px 18px;
 }
 
+/* The Choose your handle screen (HandleGate) is one solid column: no dot grid (owner brief 2026-10-23); the page colour is bg-white. */
+[data-handle-setup] {
+  background-image: none;
+}
+
 /* The browse pages (Home, Library, Explore) sit on the scoped grey with quieter dots; the canvas pages keep main's own. */
 .browse-page {
   background-color: var(--browse-bg);
