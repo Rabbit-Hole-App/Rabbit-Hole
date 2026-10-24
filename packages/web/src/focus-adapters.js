@@ -2,6 +2,13 @@
 // once. Each content lane adds ONE side-effect import line below for its adapter (registerFocusAdapter at import); a card no
 // adapter claims shows no Focus control. Adapter files are plain JS (no JSX), so this index stays importable by unit tests.
 import './focus-adapter-notebook.js';
+import './focus-adapter-pdf.js';
+import './focus-adapter-explanation.js';
+import './focus-adapter-table.js';
+import './focus-adapter-note.js';
+import './focus-adapter-image.js';
+import './focus-adapter-video.js';
+import './focus-adapter-model.js';
 import { exitNavigation, focusAdapters, focusFrame } from './focus-controller.js';
 
 // FocusFrame's header row (44 px) and the gap under it (8 px), taken off the top of the working rectangle.
