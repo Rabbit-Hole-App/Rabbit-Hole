@@ -223,6 +223,7 @@
     "packages/web/src/selection-*.js",
     "packages/web/src/shortcut-owner.js",
     "packages/web/src/canvas-sloppy.js",
+    "packages/web/src/study-loading.js",
     "packages/web/src/focus-controller.js"
   ],
   "defaultChecks": [
