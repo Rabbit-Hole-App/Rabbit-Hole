@@ -152,7 +152,27 @@ const reveal = async selector => {
     await page.waitForTimeout(200);
   }
 };
+// The canvas camera at rest. A side panel opening beside the canvas brings the one selected card back into view in a 200 ms glide
+// (AdaptiveCanvas keepRef), which starts a few frames after the surface width stops changing; a press made inside it lands where the
+// card was a frame ago (CI run 40138876511, step 8b: the right-click meant for ex hit pdf1 while ex slid under the pointer; the same
+// glide put the click on the empty canvas in runs 40136758889 and 40083649146). At rest = no transition running on the world, and
+// its width and transform unchanged for 15 frames: the glide began 6 frames after the last width change in the CI timeline, the product settles on two.
+const atRest = () => page.evaluate(frames => new Promise(resolve => {
+  const surface = document.querySelector('[aria-label="Lesson canvas"] [data-canvas-surface]'), world = document.querySelector('[data-canvas-world]');
+  const read = () => `${surface.clientWidth} ${getComputedStyle(world).transform}`;
+  let last = read(), still = 0, over = false;
+  const tick = () => {
+    if (over) return;
+    const now = read();
+    still = now === last && world.getAnimations().length === 0 ? still + 1 : 0;
+    last = now;
+    if (still >= frames) { over = true; resolve(true); } else requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  setTimeout(() => { over = true; resolve(false); }, 10000);
+}), 15);
 const press = async (selector, { button = 'left', x = null, y = null, double = false } = {}) => {
+  assert.ok(await atRest(), `${selector}: the canvas camera is still moving after 10 s`);
   let at = await visiblePart(selector);
   if (!at) { await reveal(selector); at = await visiblePart(selector); }
   assert.ok(at, `${selector} is on screen`);
