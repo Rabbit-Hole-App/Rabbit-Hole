@@ -302,12 +302,13 @@ check('Canvases toolbar: Search, Filters, Sort, Size in that order on one row, n
 check('Canvases toolbar: the search is about 280px (at most 360px), the gaps 10-12px, every control about 36px tall',
   bar.search.width >= 279 && bar.search.width <= 360.5 && barParts.every((b, i) => i === 0 || (b.x - barParts[i - 1].right >= 9.5 && b.x - barParts[i - 1].right <= 12.5))
   && barParts.every(b => Math.abs(b.height - 36) <= 1), JSON.stringify(bar));
+const events = (page, name) => page.evaluate(n => window.__weekly.filter(e => e.name === n), name);
 {
 // ---- Weekly Top 5 (owner brief 2026-10-23 sections 3-6, 9) against the contract fixture ----
 const weeklySection = page => page.locator('[data-weekly-top]');
 const weeklyRows = page => page.locator('[data-weekly-top] [data-weekly-row]');
-const events = (page, name) => page.evaluate(n => window.__weekly.filter(e => e.name === n), name);
 await weeklySection(viewer).waitFor({ timeout: 30000 });
+const requestsAtStart = viewer.weeklyRequests; // this page may have loaded Explore before this section; the claim is that nothing below asks again
 check('Canvases: "Top canvases this week", five rows ranked 1 to 5 in the fixture order, after the toolbar and before the results',
   (await weeklySection(viewer).locator('h2').innerText()).trim() === 'Top canvases this week' && await weeklySection(viewer).getAttribute('data-weekly-top') === 'canvases'
   && JSON.stringify(await weeklyRows(viewer).evaluateAll(rs => rs.map(r => r.dataset.weeklyRow))) === '["1","2","3","4","5"]'
@@ -358,6 +359,7 @@ const focusRing = await third.locator('[data-weekly-title]').evaluate(a => { con
 await viewer.keyboard.press('Tab');
 const tabbed1 = await viewer.evaluate(() => document.activeElement.getAttribute('href'));
 await viewer.keyboard.press('Tab');
+await viewer.waitForTimeout(400); // the action fades in over 150ms; read its opacity after the transition, as the hover step does
 const tabbed2 = await viewer.evaluate(() => [document.activeElement.getAttribute('aria-label'), getComputedStyle(document.activeElement).opacity]);
 check('keyboard: the title, then the @handle, then Open (named "Open <title>"), each with a visible focus ring, the action shown while the row has focus',
   focusRing && tabbed1 === '/@ana' && tabbed2[0] === 'Open Attention, drawn out' && tabbed2[1] === '1', JSON.stringify([focusRing, tabbed1, tabbed2]));
@@ -368,7 +370,7 @@ await weeklyRows(viewer).nth(3).locator('a[data-weekly-target="profile"]').click
 await weeklyRows(viewer).nth(0).locator('[data-weekly-action]').click();
 const [viewedEvents, openedEvents] = [await events(viewer, 'weekly_top.viewed'), await events(viewer, 'weekly_top.opened')];
 check('analytics: viewed once for Canvases with the week, version and entry count; opened carries tab, rank and target (a canvas row\'s @handle is a profile); no text, tokens or handles',
-  viewedEvents.filter(e => e.tab === 'canvases').length === 1 && viewedEvents[0].tab === 'canvases' && viewedEvents[0].week_start_local === '2026-10-19' && viewedEvents[0].ranking_version === 'weekly-top-v1' && viewedEvents[0].entry_count === 5 && viewedEvents[0].duration_ms >= 0
+  viewedEvents.filter(e => e.tab === 'canvases').length === 1 && viewedEvents.find(e => e.tab === 'canvases').tab === 'canvases' && viewedEvents.find(e => e.tab === 'canvases').week_start_local === '2026-10-19' && viewedEvents.find(e => e.tab === 'canvases').ranking_version === 'weekly-top-v1' && viewedEvents.find(e => e.tab === 'canvases').entry_count === 5 && viewedEvents.find(e => e.tab === 'canvases').duration_ms >= 0
   && JSON.stringify(openedEvents.map(e => [e.tab, e.rank, e.target])) === JSON.stringify([['canvases', 4, 'profile'], ['canvases', 1, 'canvas']]) && !/tok-|cara|ice floats|@/.test(JSON.stringify([viewedEvents, openedEvents])), JSON.stringify([viewedEvents, openedEvents]));
 // Search (4.5) and the regular controls (4.6).
 const titles = () => weeklyRows(viewer).locator('[data-weekly-title]').allInnerTexts();
@@ -379,14 +381,15 @@ await viewer.locator('[data-explore-search]').fill('   ');
 const whitespace = await weeklySection(viewer).count();
 await viewer.locator('[data-explore-search]').fill('');
 check('search hides the section at once, whitespace alone keeps it, clearing restores the same rows, and nothing counts as a second view or request',
-  hiddenAtOnce === 0 && whitespace === 1 && JSON.stringify(await titles()) === JSON.stringify(ranking) && (await events(viewer, 'weekly_top.viewed')).filter(e => e.tab === 'canvases').length === 1 && viewer.weeklyRequests === 1);
+  hiddenAtOnce === 0 && whitespace === 1 && JSON.stringify(await titles()) === JSON.stringify(ranking) && (await events(viewer, 'weekly_top.viewed')).filter(e => e.tab === 'canvases').length === 1 && viewer.weeklyRequests === requestsAtStart,
+  JSON.stringify([hiddenAtOnce, whitespace, await titles(), ranking, await events(viewer, 'weekly_top.viewed'), viewer.weeklyRequests, requestsAtStart]));
 await viewer.locator('[data-sort-control]').click();
 await viewer.locator('[data-sort-option="forks"]').click();
 await viewer.getByRole('button', { name: /^Filters/ }).click();
 await viewer.getByRole('button', { name: 'Canvas', exact: true }).click();
 await viewer.waitForURL(/type=canvases/);
 await viewer.locator('[data-card-size-slider]').fill('1');
-check('Filters, Sort and Size change the regular results only: the weekly rows and their order are the same and no second request is made', JSON.stringify(await titles()) === JSON.stringify(ranking) && viewer.weeklyRequests === 1);
+check('Filters, Sort and Size change the regular results only: the weekly rows and their order are the same and no second request is made', JSON.stringify(await titles()) === JSON.stringify(ranking) && viewer.weeklyRequests === requestsAtStart, JSON.stringify([await titles(), ranking, viewer.weeklyRequests, requestsAtStart]));
 await viewer.goto(`${BASE}/explore`);
 await weeklySection(viewer).waitFor({ timeout: 30000 });
 // The Creators tab.
