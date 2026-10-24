@@ -1885,7 +1885,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);
   // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
   // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
-  const widgetMode = 'canvas'; // DIAG ONLY
+  const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
   const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
   const showWidget = (name, on) => {
     const route = widgetToggle({ mode: widgetMode, name, on });
