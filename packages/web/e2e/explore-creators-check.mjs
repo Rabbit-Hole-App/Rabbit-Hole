@@ -66,9 +66,11 @@ const canvas = async (k, title, project) => {
   return c;
 };
 const publish = async (k, c) => (await post(k, `/api/apps/${c.name}/publish`)).status;
-await publish('full', await canvas('full', `Paged attention ${run}`, REPO.full));
+const paged = await canvas('full', `Paged attention ${run}`, REPO.full);
+await publish('full', paged);
 await publish('full', await canvas('full', `KV cache ${run}`));
-await publish('bare', await canvas('bare', `Gradient descent ${run}`));
+const gradient = await canvas('bare', `Gradient descent ${run}`);
+await publish('bare', gradient);
 await canvas('bare', `SECRET private ${run}`);
 await publish('long', await canvas('long', `Tiling ${run}`, REPO.a));
 await publish('long', await canvas('long', `Roofline ${run}`, REPO.b));
@@ -76,8 +78,41 @@ await publish('long', await canvas('long', `Flash attention ${run}`));
 const unlisted = await canvas('long', `SECRET unlisted ${run}`);
 await post('long', `/api/learn/boards/${unlisted.name}/main/share`, { shared: true, view: true, state: STATE('u') });
 const archived = await canvas('long', `SECRET archived ${run}`);
-await publish('long', archived);
+const archivedToken = (await post('long', `/api/apps/${archived.name}/publish`)).body.publication_token;
+// Weekly Top 5 against the REAL endpoint (docs/features/explore-weekly-top.md): stars and forks are made through the routes by six fans, so the
+// ranking is read from the server's own records. The fans star the canvas that is archived next, so it must not appear in the answer.
+const fans = [];
+for (let i = 0; i < 6; i++) fans.push((await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `ec-fan${i}-${run}@example.com`, secret }) })).json()).session);
+const asFan = (i, path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${fans[i]}`, 'content-type': 'application/json' } });
+const tokenOf = async (k, c) => (await post(k, `/api/apps/${c.name}/publish`)).body.publication_token;
+const pagedToken = await tokenOf('full', paged), gradientToken = await tokenOf('bare', gradient);
+const fanStars = [];
+for (let i = 0; i < 6; i++) fanStars.push((await asFan(i, `/api/learn/boards/shared/${pagedToken}/star`, { method: 'PUT' })).status);
+for (let i = 0; i < 3; i++) fanStars.push((await asFan(i, `/api/learn/boards/shared/${gradientToken}/star`, { method: 'PUT' })).status, (await asFan(i, `/api/learn/boards/shared/${archivedToken}/star`, { method: 'PUT' })).status);
+const fanForks = [];
+for (let i = 0; i < 2; i++) for (const key of ['a', 'b']) fanForks.push((await asFan(i, '/api/learn/boards/fork', { method: 'POST', body: JSON.stringify({ source: { token: gradientToken }, key: `ecw-${i}-${key}-${run}` }) })).status);
+await api('full', `/api/apps/${paged.name}/star`, { method: 'PUT' });
 await post('long', `/api/apps/${archived.name}/archive`);
+
+// The server may answer from a 60 second memory (explore-weekly-top.md), and another check on this stack may have filled it just before the
+// fans above were made: ask again until this run's six stars show, for at most 75 seconds.
+let weeklyRes, weekly;
+for (let tries = 0; tries < 16; tries++) {
+  weeklyRes = await fetch(`${BASE}/api/learn/boards/published/weekly-top`);
+  weekly = await weeklyRes.json();
+  if (weekly.canvases?.entries?.some(e => e.title === `Paged attention ${run}` && e.weekly_star_count === 6)) break;
+  await new Promise(resolve => setTimeout(resolve, 5000));
+}
+const entryOf = title => weekly.canvases.entries.find(e => e.title === title);
+check('weekly endpoint (real): six fans seeded through the star and fork routes; 200, no-store, one answer for both tabs',
+  fanStars.every(x => x === 200) && fanForks.every(x => x === 200) && weeklyRes.status === 200 && weeklyRes.headers.get('cache-control') === 'no-store' && weekly.ranking_version === 'weekly-top-v1' && weekly.timezone === 'America/Los_Angeles'
+  && Array.isArray(weekly.canvases.entries) && Array.isArray(weekly.creators.entries) && weekly.canvases.entries.length <= 5 && weekly.creators.entries.length <= 5, JSON.stringify([fanStars, fanForks, weeklyRes.status]));
+check('weekly endpoint (real): six distinct fans make 6 weekly stars, the owner own star adds none; repeated forks by one fan count once (2 forks from 2 fans); stars rank first, then forks',
+  entryOf(`Paged attention ${run}`)?.weekly_star_count === 6 && entryOf(`Paged attention ${run}`)?.weekly_fork_count === 0 && entryOf(`Gradient descent ${run}`)?.weekly_star_count === 3 && entryOf(`Gradient descent ${run}`)?.weekly_fork_count === 2
+  && weekly.canvases.entries.findIndex(e => e.title === `Paged attention ${run}`) < weekly.canvases.entries.findIndex(e => e.title === `Gradient descent ${run}`), JSON.stringify(weekly.canvases.entries.map(e => [e.rank, e.title, e.weekly_star_count, e.weekly_fork_count])));
+check('weekly endpoint (real): creators count distinct supporters (6 for the full profile, 3 starred and 2 forked for the bare one); an archived canvas, its title and its creator share are absent; no private data',
+  weekly.creators.entries.find(e => e.handle === H.full)?.weekly_star_supporter_count === 6 && weekly.creators.entries.find(e => e.handle === H.bare)?.weekly_star_supporter_count === 3 && weekly.creators.entries.find(e => e.handle === H.bare)?.weekly_fork_supporter_count === 2
+  && !weekly.creators.entries.some(e => e.handle === H.long) && !/SECRET|@example\.com|ec-fan/.test(JSON.stringify(weekly)) && !entryOf(`Flash attention ${run}`), JSON.stringify(weekly.creators.entries.map(e => [e.rank, e.handle, e.weekly_star_supporter_count, e.weekly_fork_supporter_count])));
 
 const listed = (await api(null, `/api/learn/creators?q=${run}`)).body;
 const counts = Object.fromEntries(listed.creators.map(c => [c.handle, [c.project_count, c.explainer_count]]));
@@ -97,6 +132,7 @@ const pageFor = async ({ k = null, width = 1440, dark = false } = {}) => {
   page.weeklyMode = 'full';
   await page.route('**/api/learn/boards/published/weekly-top', route => {
     page.weeklyRequests += 1;
+    if (page.weeklyMode === 'live') return route.continue();
     const [status, body] = page.weeklyMode === 'error' ? [500, weeklyTopErrorFixture] : [200, page.weeklyMode === 'empty' ? weeklyTopEmptyFixture : weeklyTopFixture];
     return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   });
@@ -372,6 +408,28 @@ check('switching tabs shows each tab\'s own list from the one answer of the page
 }
 await viewer.context().close();
 
+// ---- Weekly Top 5 in the page against the REAL endpoint (no fixture): the stars, forks and archived canvas seeded above ----
+const live = await pageFor({ k: 'none' });
+live.weeklyMode = 'live';
+await live.goto(`${BASE}/explore`);
+await live.locator('[data-weekly-list]').waitFor({ timeout: 60000 });
+const liveRow = live.locator('[data-weekly-row]', { hasText: `Paged attention ${run}` });
+await live.evaluate(() => document.addEventListener('click', e => { if (e.target.closest('[data-weekly-list]')) e.preventDefault(); }, true));
+await liveRow.locator('[data-weekly-title]').click();
+const liveSeen = await live.evaluate(() => window.__weekly);
+const liveRank = Number(await liveRow.getAttribute('data-weekly-row'));
+check('real endpoint in the page: the seeded canvas is a row with 6 new stars, a real /e/ link and its creator profile link; the archived canvas and every SECRET title are absent; viewed once, opened carries the row rank',
+  await liveRow.count() === 1 && /6 new stars this week/.test(await liveRow.textContent()) && await liveRow.locator('[data-weekly-title]').getAttribute('href') === `/e/${pagedToken}` && await liveRow.locator('a[data-weekly-target="profile"]').getAttribute('href') === `/@${H.full}`
+  && !/SECRET/.test(await live.locator('[data-weekly-top]').textContent())
+  && liveSeen.filter(e => e.name === 'weekly_top.viewed').length === 1 && liveSeen.find(e => e.name === 'weekly_top.viewed').ranking_version === 'weekly-top-v1' && liveSeen.find(e => e.name === 'weekly_top.viewed').entry_count === await live.locator('[data-weekly-row]').count()
+  && JSON.stringify(liveSeen.filter(e => e.name === 'weekly_top.opened').map(e => [e.tab, e.rank, e.target])) === JSON.stringify([['canvases', liveRank, 'canvas']]), JSON.stringify(liveSeen));
+await live.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
+await live.locator('[data-weekly-top="creators"]').waitFor({ timeout: 30000 });
+const liveCreator = live.locator('[data-weekly-row]', { hasText: `@${H.full}` });
+check('real endpoint in the page, Creators: the full profile shows 6 supporters who starred this week, its own link, and the creator whose only starred canvas is archived is absent',
+  await liveCreator.count() === 1 && /6 people starred this week/.test(await liveCreator.textContent()) && await liveCreator.locator('[data-weekly-action]').getAttribute('href') === `/@${H.full}` && await live.locator('[data-weekly-row]', { hasText: `@${H.long}` }).count() === 0);
+await live.context().close();
+
 // ---- Weekly Top 5: an empty week, a failed request, and a touch screen ----
 const quiet = await pageFor({ k: 'none' });
 quiet.weeklyMode = 'empty';
@@ -474,7 +532,7 @@ await dark.context().close();
 
 check('no page errors', errors.length === 0, errors.join(' | '));
 await browser.close();
-const total = 63;
+const total = 68;
 const passed = results.filter(Boolean).length;
 console.log(`${passed}/${total} checks passed`);
 process.exit(passed === total && results.length === total ? 0 : 1);
