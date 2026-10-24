@@ -32,7 +32,7 @@ export default function StartHost({ takeEarly = () => null }) {
     <>
       {path && !away && <StartDialog ctx={ctxOf(surface)} initial={path} onClose={() => setPath(null)} />}
       {chip && (
-        <div role="status" data-start-chip className="fixed bottom-4 right-4 z-40 flex max-w-[calc(100vw-2rem)] items-center gap-3 rounded-xl border border-line bg-white p-3 text-sm shadow-pop">
+        <div role="status" data-start-chip className="fixed bottom-4 left-1/2 z-40 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-xl border border-line bg-white p-3 text-sm shadow-pop">
           {draft.phase === 'starting'
             ? <><Loader2 size={14} className="animate-spin" aria-hidden="true" />Adding sources, {waiting} to go<Button size="sm" variant="secondary" onClick={() => startJob.stop()}>Stop</Button></>
             : (
@@ -44,6 +44,7 @@ export default function StartHost({ takeEarly = () => null }) {
                 <div className="flex gap-2 pt-2">
                   <Button size="sm" variant="primary" onClick={() => startJob.start(ctxOf(surface))}>Retry</Button>
                   <Button size="sm" variant="secondary" onClick={() => setPath('review')}>Review</Button>
+                  <Button size="sm" variant="ghost" onClick={() => startJob.reset()}>Dismiss</Button>
                 </div>
               </div>
             )}

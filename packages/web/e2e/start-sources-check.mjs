@@ -273,13 +273,6 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   assert.equal(sinceCount(mark, 'POST', r => r.path === '/api/learn/context' && r.source === true), 1, 'the .md was copied into the context from its stored source');
   assert.equal(sinceCount(mark, 'POST', r => r.path === '/api/learn/context/link'), 2, 'two link notes');
   assert.equal(sinceCount(mark, 'POST', r => r.path === '/api/canvases'), 1);
-  // What Chat can use: the context_refs of a question and the chips. The .py and the arXiv card are not in it.
-  const asked = await send('What did I add?');
-  const refs = asked.context_refs || [];
-  assert.ok(!asked.paper_context && !asked.wiki_context && !asked.video_context && !asked.image_context, 'a canvas-only paper card is not what the question is about');
-  const refNames = refs.filter(r => r.kind === 'doc').map(r => r.name).sort();
-  assert.deepEqual(refNames, docs, 'the question carries every context document and nothing else');
-  assert.deepEqual(await chipNames(), docs, 'the chips show the same');
   // Retry takes only the cancelled window again (the page's card is already on the canvas): nothing is sent or stored a second time.
   const before = requests.length;
   await chip().getByRole('button', { name: 'Retry' }).click();
@@ -289,6 +282,13 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   await settledOk('B retry');
   assert.equal((await blocks(slugB)).filter(b => b.type === 'repo-code').length, 1, 'the Code card landed once');
   assert.equal(requests.slice(before).filter(r => /^\/api\/learn\/(context|files)/.test(r.path)).length, 0, 'the retry stored nothing again');
+  // What Chat can use: the context_refs of a question and the chips. The .py and the arXiv card are not in it.
+  const asked = await send('What did I add?');
+  const refs = asked.context_refs || [];
+  assert.ok(!asked.paper_context && !asked.wiki_context && !asked.video_context && !asked.image_context, 'a canvas-only paper card is not what the question is about');
+  const refNames = refs.filter(r => r.kind === 'doc').map(r => r.name).sort();
+  assert.deepEqual(refNames, docs, 'the question carries every context document and nothing else');
+  assert.deepEqual(await chipNames(), docs, 'the chips show the same');
 });
 
 // ================================================================ C: partial failure, reload, retry
