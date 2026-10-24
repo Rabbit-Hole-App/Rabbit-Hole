@@ -266,15 +266,71 @@ await check('Start a rabbit hole still creates a canvas, which opens with its co
   await page.getByRole('button', { name: 'Start a rabbit hole' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Start a rabbit hole', exact: true });
   await dialog.waitFor({ timeout: 30000 });
-  assert.equal(await dialog.getByRole('tab', { name: 'Repository' }).count(), 1, 'the repository choice is still offered');
-  assert.equal(await dialog.getByRole('tab', { name: 'Blank canvas' }).count(), 1, 'the blank canvas choice is still offered');
-  await dialog.getByRole('tab', { name: 'Blank canvas' }).click();
-  await dialog.getByPlaceholder('Untitled canvas').fill(`Fresh from Start ${run}`);
-  await dialog.getByRole('button', { name: 'Create canvas' }).click();
+  // Combined sources (owner brief 2026-10-23): the three adds and the blank shortcut; Blank imports nothing and makes the canvas.
+  for (const name of ['Add files', 'Add link', 'Connect repository', 'Start with a blank canvas']) assert.equal(await dialog.getByRole('button', { name, exact: true }).count(), 1, `${name} is still offered`);
+  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isDisabled(), true, 'Start rabbit hole needs a source');
+  await dialog.getByRole('button', { name: 'Start with a blank canvas', exact: true }).click();
   await page.waitForURL((u) => /^\/apps\/canvas-[a-f0-9]{8}$/.test(u.pathname), { timeout: 60000 });
   await page.getByLabel('Lesson canvas').waitFor({ timeout: 60000 });
   await page.locator('[data-chat-composer]').first().waitFor({ timeout: 60000 });
   assert.equal(await page.locator('[data-agent-bar]').count(), 0, 'no workspace bar on a canvas');
+  await page.context().close();
+});
+
+await check('Start a rabbit hole keeps one list: files and links are added, never replaced; each source has its own Use as context and Add to canvas; a source with neither is named and blocks Start; nothing is written', async () => {
+  const page = await fresh();
+  const writes = [];
+  page.on('request', (r) => { const path = new URL(r.url()).pathname; if (r.method() !== 'GET' && /^[/]api[/](canvases|repositories|learn[/](context|files|webpages|paper|media))/.test(path)) writes.push(`${r.method()} ${path}`); });
+  await page.goto(`${BASE}/library?type=canvases`);
+  await page.getByRole('button', { name: 'Start a rabbit hole' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Start a rabbit hole', exact: true });
+  await dialog.waitFor({ timeout: 30000 });
+  const rows = dialog.locator('[data-start-row]');
+  const box = (row, name) => row.getByRole('checkbox', { name, exact: true });
+  await dialog.locator('[data-start-file-input]').setInputFiles([
+    { name: `notes-${run}.txt`, mimeType: 'text/plain', buffer: Buffer.from('hello') },
+    { name: `deck-${run}.docx`, mimeType: 'application/octet-stream', buffer: Buffer.from('not read here') },
+  ]);
+  await rows.nth(1).waitFor({ timeout: 10000 });
+  assert.equal(await rows.count(), 2, 'both files are listed');
+  assert.equal(await dialog.getByText('Context lets Chat and Tutor use a source.').count(), 1, 'the context line shows once');
+  assert.equal(await dialog.getByText('Canvas shows it as a card in your workspace.').count(), 1, 'the canvas line shows once');
+  // A text file defaults to both; a Word document has no context road, so that choice is greyed with its name kept.
+  assert.deepEqual([await box(rows.nth(0), 'Use as context').isChecked(), await box(rows.nth(0), 'Add to canvas').isChecked()], [true, true], 'a text file defaults to both');
+  assert.deepEqual([await box(rows.nth(1), 'Use as context').isDisabled(), await box(rows.nth(1), 'Add to canvas').isChecked()], [true, true], 'a Word document is canvas only');
+  assert.equal(await dialog.locator('[data-start-summary]').innerText(), '1 context source, 2 canvas cards');
+  // A link adds to the list; its type shows at once and an article says it is resolved at Start.
+  await dialog.getByRole('button', { name: 'Add link', exact: true }).click();
+  await dialog.getByPlaceholder('https://', { exact: true }).fill('https://arxiv.org/abs/1706.03762');
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  await rows.nth(2).waitFor({ timeout: 5000 });
+  assert.match(await rows.nth(2).innerText(), /arXiv paper/);
+  assert.equal(await rows.count(), 3, 'the link was added to the files, not instead of them');
+  await dialog.getByRole('button', { name: 'Add link', exact: true }).click();
+  await dialog.getByPlaceholder('https://', { exact: true }).fill('https://example.com/an-article');
+  await dialog.getByRole('button', { name: 'Add', exact: true }).click();
+  assert.match(await rows.nth(3).innerText(), /Will be resolved when you start/);
+  // Cancel on an input keeps the whole list.
+  await dialog.getByRole('button', { name: 'Connect repository', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.equal(await rows.count(), 4, 'cancelling the repository input kept the list');
+  // Both choices off on one source (owner decisions 2026-10-23): it is named and left out, the other sources can still start.
+  await box(rows.nth(0), 'Use as context').uncheck();
+  await box(rows.nth(0), 'Add to canvas').uncheck();
+  assert.equal(await rows.nth(0).getByText('Choose context, canvas, or both. This source will not be added.').count(), 1, 'the source with no destination is named and left out');
+  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isEnabled(), true, 'the other sources can start without it');
+  assert.equal(await dialog.getByRole('button', { name: 'Start with a blank canvas', exact: true }).isEnabled(), true, 'the blank shortcut stays available');
+  await box(rows.nth(0), 'Add to canvas').check();
+  assert.equal(await box(rows.nth(0), 'Use as context').isChecked(), false, 'checking one option left the other as it was');
+  assert.equal(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isEnabled(), true, 'Start is available');
+  // A link's two options are independent: its card choice leaves its context as it was, and the other way round.
+  await box(rows.nth(3), 'Add to canvas').uncheck();
+  assert.equal(await box(rows.nth(3), 'Use as context').isEnabled(), true, 'a link keeps its context when its card is off');
+  assert.equal(await box(rows.nth(3), 'Use as context').isChecked(), true);
+  await box(rows.nth(3), 'Add to canvas').check();
+  await rows.nth(3).getByRole('button', { name: /^Remove / }).click();
+  assert.equal(await rows.count(), 3, 'Remove takes the source out of the list');
+  assert.deepEqual(writes, [], `listing sources created or stored something: ${writes}`);
   await page.context().close();
 });
 
@@ -645,6 +701,6 @@ await check('a clamped title keeps its full text: Show full title is a button wi
 await browser.close();
 assert.deepEqual(asks, [], 'no ask request was made');
 assert.deepEqual(errors, [], 'no page errors');
-const TOTAL = 21;
+const TOTAL = 22;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);

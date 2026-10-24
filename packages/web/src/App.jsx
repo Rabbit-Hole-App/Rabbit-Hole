@@ -58,7 +58,7 @@ const FILTERS = {
 // Library chips (T02 §4, preview only): a pressed chip is the current filter. Notion's
 // filter chip: 28px, 4px radius, no border; the pressed one sits on the active surface.
 // The Start dialog lives once in main.jsx Root; the Library only asks for it.
-const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
+const startRabbitHole = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'start' } }));
 
 export default function App() {
   return <Shell>{(data, load) => <AppContent data={data} load={load} />}</Shell>;
