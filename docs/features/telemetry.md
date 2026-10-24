@@ -336,6 +336,17 @@ name, any control-plane binding and a mismatched environment label, so the confi
 loaded for the session (from `small-deploy/.env`, by name; never printed, never sourced into the transcript). The owner runs each
 command as a `!` command. `--config` makes wrangler use the config's pinned `account_id`.
 
+**Dark deploy and order (tested).** The Worker runs without `TELEMETRY_DB`, `TELEMETRY_ARCHIVE` and `TELEMETRY_ENVIRONMENT`;
+`test/telemetry-dark-deploy.test.js` calls every handler with those absent: browser and Tutor ingestion answer 204 to a signed-in
+caller (Tutor still 401 to a signed-out one), server events and `loggedModel` are no-ops that return the provider response
+untouched, the owner API stays 404 to everyone but the owner and answers the owner `configured: false` on every storage route,
+and no source reads `env.TELEMETRY_ARCHIVE` (the bucket is not yet a runtime dependency; nothing here archives). So the
+candidate may deploy before provisioning. Provisioning has an order, because wrangler does not apply migrations on deploy:
+create D1 and R2, apply the migrations (`telemetry-migrations/0001`, `0002`, a directory and database separate from the learn
+D1's `learn-migrations`, so no clash with 0027-0032), set the production owner secret, then deploy the commit that adds the
+bindings. A binding deployed before its migration degrades (writes fail and are counted as losses, ingestion answers 503; no
+user request fails), but the dashboard would show errors, so migrate first.
+
 ### 0. Check the account first (read-only)
 
 ```bash

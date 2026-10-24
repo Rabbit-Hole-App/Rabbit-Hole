@@ -12,9 +12,10 @@ import assert from 'node:assert/strict';
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('tutor-telemetry-check runs against the local stack only');
+const email = `tutortel-${Date.now().toString(36)}@example.com`;
 const vars = process.env.VARS || new URL('../../control-plane/.dev.vars', import.meta.url);
 const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
-const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `tutortel-${Date.now().toString(36)}@example.com`, secret }) })).json();
+const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json();
 
 const total = 3;
 const results = [];
@@ -38,6 +39,9 @@ page.on('pageerror', error => pageErrors.push(error.message));
 await page.goto(`${BASE}/apps`);
 const dialog = page.getByRole('dialog', { name: 'Settings', exact: true });
 await page.waitForFunction(() => window.fetch.clientTelemetryHook === true, null, { timeout: 60000 });
+// The hook is installed before React renders; the Shell's `small:settings` listener (Sidebar.jsx) registers only when the sidebar
+// mounts, and an earlier event is dropped, not queued. Wait for the signed-in sidebar first, as rabbit-hole-check.mjs does.
+await page.locator('aside').getByText(email, { exact: true }).first().waitFor({ state: 'attached', timeout: 20000 });
 
 await check('Settings, Privacy & security tells the learner what analytics record, scoped to analytics, with no ellipsis', async () => {
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('small:settings', { detail: { tab: 'privacy' } })));
