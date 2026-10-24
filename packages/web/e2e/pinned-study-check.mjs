@@ -125,17 +125,37 @@ const work = option => page.locator(`[data-study-work-option="${option}"]`);
 const option = async name => { await page.locator('[data-study-options]').click(); return page.getByRole('dialog', { name: 'Reference options' }).getByRole('button', { name, exact: true }); };
 // Canvas objects are pressed with the mouse at a point on screen, never through locator.click: its scroll-into-view scrolls the
 // canvas surface (overflow hidden), which slides the whole world under a camera that never moved. An object off screen is first
-// brought into view with View > Fit canvas.
+// brought to the middle of the canvas by the wheel over an empty point of it (a plain wheel pans the board at the learner's zoom).
+// Not View > Fit canvas: this board's long note fits only at about 23 %, where the notebook's header is under the 8 px
+// visiblePart needs (CI a000ac08 step 8).
 const visiblePart = selector => page.evaluate(sel => {
   const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect();
   if (!r || !f) return null;
   const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom);
   return right - left > 8 && bottom - top > 8 ? { x: r.left, y: r.top, left, right, top, bottom } : null;
 }, selector);
-const fitCanvas = async () => { const panel = await openMenu(page, 'View'); await panel.locator('[data-menu-item="Fit canvas"]').click(); /* its accessible name carries the Shift 1 hint */ await closeMenus(page); };
+const reveal = async selector => {
+  for (let i = 0; i < 5 && !(await visiblePart(selector)); i++) {
+    const move = await page.evaluate(sel => {
+      const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"] [data-canvas-surface]')?.getBoundingClientRect();
+      if (!r || !f) return null;
+      for (let gy = 2; gy < 18; gy++) for (let gx = 2; gx < 18; gx++) {
+        const x = f.left + f.width * gx / 20, y = f.top + f.height * gy / 20, hit = document.elementFromPoint(x, y);
+        if (hit?.closest('[data-canvas-surface]') && !hit.closest('[data-block-id],[data-item-id],[data-scroll],[data-canvas-bottom] *,button,a,input,textarea,[role="toolbar"],[role="menu"],[data-zoom],[data-canvas-minimap]'))
+          return { x, y, dx: Math.round(r.left + r.width / 2 - (f.left + f.width / 2)), dy: Math.round(r.top + Math.min(r.height, 24) / 2 - (f.top + f.height / 2)) };
+      }
+      return null;
+    }, selector);
+    assert.ok(move, `${selector}: no empty point of the canvas to pan from`);
+    await page.mouse.move(move.x, move.y);
+    await page.mouse.wheel(move.dx, move.dy);
+    await page.waitForTimeout(200);
+  }
+};
 const press = async (selector, { button = 'left', x = null, y = null, double = false } = {}) => {
   let at = await visiblePart(selector);
-  if (!at) { await fitCanvas(); await until(async () => !!(at = await visiblePart(selector)), `${selector} is on screen`); }
+  if (!at) { await reveal(selector); at = await visiblePart(selector); }
+  assert.ok(at, `${selector} is on screen`);
   const px = x == null ? (at.left + at.right) / 2 : Math.min(at.right - 2, Math.max(at.left + 2, at.x + x));
   const py = y == null ? (at.top + at.bottom) / 2 : Math.min(at.bottom - 2, Math.max(at.top + 2, at.y + y));
   // The point must hit the object itself: its lower part can sit under the minimap, the zoom, the tools or the selection bar, and a

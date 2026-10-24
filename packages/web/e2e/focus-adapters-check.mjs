@@ -12,7 +12,6 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { closeMenus, openMenu } from './canvas-menu-helpers.mjs';
 
 const total = 9; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -43,7 +42,7 @@ const PDF = twoPagePdf();
 // A 320 x 180 picture (16:9) as a data URL: no request.
 const PICTURE = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="#2383e2"/><circle cx="160" cy="90" r="60" fill="#ffffff"/></svg>').toString('base64')}`;
 const LONG = Array.from({ length: 40 }, (_, n) => `Paragraph ${n + 1}: the moon pulls the near ocean more than the Earth, so the water bulges toward it.`).join('\n\n');
-const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Focus adapters ${run}` }) });
+const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Adapters check ${run}` }) });
 const BLOCKS = [
   { id: 'p1', type: 'paper', dx: 0, dy: 0, title: 'Focus paper', paper: { id: `upload:focus-${run}`, title: 'Focus paper', page: 1 } },
   { id: 'ex', type: 'explanation', dx: 0, dy: 0, title: 'Why tides rise', body: LONG },
@@ -95,20 +94,41 @@ const settle = async () => { let last = -1, still = 0; while (still < 30) { if (
 const quiet = async (label, before) => { await page.waitForTimeout(2000); assert.deepEqual([model.length, saves.length], before, `${label}: model ${model.join()} saves ${saves.slice(before[1]).join()}`); };
 const counts = () => [model.length, saves.length];
 const focused = id => page.evaluate(sel => document.querySelector(sel)?.hasAttribute('data-focus-host') ?? null, card(id));
-const fitCanvas = async () => { const panel = await openMenu(page, 'View'); await panel.locator('[data-menu-item="Fit canvas"]').click(); await closeMenus(page); };
 // Canvas objects are pressed with the mouse at a point that hits them (never locator.click, whose scroll-into-view slides the
-// clipped canvas surface). An object off screen is first brought into view with View > Fit canvas.
+// clipped canvas surface). An object off screen is first brought into view by reveal() below.
 const visiblePart = selector => page.evaluate(sel => {
   const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[data-canvas-surface]')?.getBoundingClientRect();
   if (!r || !f) return null;
   const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom);
   return right - left > 8 && bottom - top > 8 ? { left, right, top, bottom } : null;
 }, selector);
+// An object off screen is brought to the middle of the canvas by the wheel over an empty point of it (a plain wheel pans the
+// board at the learner's zoom). Not View > Fit canvas: this board's long note fits only at about 27 %, where a 24 px strip is
+// under the 8 px visiblePart needs (CI a000ac08 steps 3 to 7).
+const reveal = async selector => {
+  for (let i = 0; i < 5 && !(await visiblePart(selector)); i++) {
+    const move = await page.evaluate(sel => {
+      const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[data-canvas-surface]')?.getBoundingClientRect();
+      if (!r || !f) return null;
+      for (let gy = 2; gy < 18; gy++) for (let gx = 2; gx < 18; gx++) {
+        const x = f.left + f.width * gx / 20, y = f.top + f.height * gy / 20, hit = document.elementFromPoint(x, y);
+        if (hit?.closest('[data-canvas-surface]') && !hit.closest('[data-block-id],[data-item-id],[data-scroll],[data-canvas-bottom] *,button,a,input,textarea,[role="toolbar"],[role="menu"],[data-zoom],[data-canvas-minimap]'))
+          return { x, y, dx: Math.round(r.left + r.width / 2 - (f.left + f.width / 2)), dy: Math.round(r.top + Math.min(r.height, 24) / 2 - (f.top + f.height / 2)) };
+      }
+      return null;
+    }, selector);
+    assert.ok(move, `${selector}: no empty point of the canvas to pan from`);
+    await page.mouse.move(move.x, move.y);
+    await page.mouse.wheel(move.dx, move.dy);
+    await page.waitForTimeout(200);
+  }
+};
 // Selects a card by its drag strip (the 24 px grip at its top) and a note by its middle, the presses a learner makes.
 const select = async id => {
   const target = NOTES.has(id) ? card(id) : `${card(id)} [data-drag-handle]`;
   let at = await visiblePart(target);
-  if (!at) { await fitCanvas(); await until(async () => !!(at = await visiblePart(target)), `${id} is on screen`); }
+  if (!at) { await reveal(target); at = await visiblePart(target); }
+  assert.ok(at, `${id} is on screen`);
   await page.mouse.click((at.left + at.right) / 2, (at.top + at.bottom) / 2);
   if (!NOTES.has(id)) await until(async () => (await page.getAttribute(card(id), 'aria-current')) === 'true', `${id} is selected`);
 };
