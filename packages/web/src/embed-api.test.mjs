@@ -159,7 +159,7 @@ test('hand-off: the tab gets the local copy and the unsent draft from its opener
   const storage = memory();
   let done = 0, failed = 0;
   host.start(tab, payload, { onDone: () => { done += 1; }, onFail: () => { failed += 1; } });
-  assert.equal(await receiveHandoff(tab, TOKEN, storage), true);
+  assert.deepEqual(await receiveHandoff(tab, TOKEN, storage), { ok: true });
   const kept = loadGuestDraft(() => storage, TOKEN);
   assert.deepEqual([kept.base_version, kept.state], [4, { blocks: [{ id: 'mine' }] }]);
   assert.equal(takeDraft(TOKEN, storage), 'Why is the sky blue', 'restored into the composer by the existing ?ask=1 path, unsent');
@@ -175,7 +175,7 @@ test('hand-off is single use: after the acknowledgement the embed answers nobody
   host.start(tab, payload);
   await receiveHandoff(tab, TOKEN, memory());
   const again = memory();
-  assert.equal(await receiveHandoff(tab, TOKEN, again, 30), false);
+  assert.deepEqual(await receiveHandoff(tab, TOKEN, again, 30), { ok: false, reason: 'unanswered' });
   assert.equal(again.map.size, 0);
   host.stop();
 });
@@ -186,7 +186,7 @@ test('hand-off is short lived: an offer that expired is not answered', async () 
   host.start(tab, payload);
   await new Promise(done => setTimeout(done, 40));
   const storage = memory();
-  assert.equal(await receiveHandoff(tab, TOKEN, storage, 30), false);
+  assert.deepEqual(await receiveHandoff(tab, TOKEN, storage, 30), { ok: false, reason: 'unanswered' });
   assert.equal(storage.map.size, 0);
   host.stop();
 });
@@ -198,7 +198,7 @@ test('hand-off: no acknowledgement reports the failure and keeps the offer open 
   host.start(tab, payload, { onFail: () => events.push('fail'), onDone: () => events.push('done') });
   await new Promise(done => setTimeout(done, 40));
   assert.deepEqual(events, ['fail']);
-  assert.equal(await receiveHandoff(tab, TOKEN, memory()), true);
+  assert.deepEqual(await receiveHandoff(tab, TOKEN, memory()), { ok: true });
   assert.deepEqual(events, ['fail', 'done']);
   host.stop();
 });
@@ -214,10 +214,10 @@ test('hand-off: a wrong window, a wrong origin, a wrong link and a stop are igno
   ask(tab, 'https://evil.example'); // right window, wrong origin
   assert.deepEqual(heard, [], 'another window gets nothing');
   const storage = memory();
-  assert.equal(await receiveHandoff(tab, 'other-token-other-token-0000', storage, 20), false, 'another link');
+  assert.deepEqual(await receiveHandoff(tab, 'other-token-other-token-0000', storage, 20), { ok: false, reason: 'unanswered' }, 'another link');
   assert.equal(storage.map.size, 0);
   host.stop();
-  assert.equal(await receiveHandoff(tab, TOKEN, storage, 20), false, 'stopped');
+  assert.deepEqual(await receiveHandoff(tab, TOKEN, storage, 20), { ok: false, reason: 'unanswered' }, 'stopped');
   assert.equal(storage.map.size, 0);
 });
 
@@ -228,14 +228,127 @@ test('hand-off: the full page ignores a reply that is not from its opener and a 
   const reply = { type: 'rh-embed-handoff', token: TOKEN, ...payload };
   listeners.get(tab).forEach(fn => fn({ data: reply, origin: ORIGIN, source: stranger }));
   listeners.get(tab).forEach(fn => fn({ data: reply, origin: 'https://evil.example', source: embed }));
-  assert.equal(await waiting, false);
+  assert.deepEqual(await waiting, { ok: false, reason: 'unanswered' });
   assert.equal(storage.map.size, 0);
 });
 
 test('hand-off: no opener means nothing to wait for', async () => {
   const { tab } = windows();
   tab.opener = null;
-  assert.equal(await receiveHandoff(tab, TOKEN, memory()), false);
+  assert.deepEqual(await receiveHandoff(tab, TOKEN, memory()), { ok: false, reason: 'unanswered' });
+});
+
+// Owner finding 2026-10-23: the full page acknowledged a hand-off whose storage writes failed, so the embed let go and the tab went
+// on (to an automatic Fork of the original) with nothing of the visitor's. The tab acknowledges only once every key is stored and
+// read back; otherwise it rolls back what it wrote and answers with a refusal, and the embed keeps its copy and offers Retry.
+const ID = 'handoff-0001-abcdefgh';
+const FORK_KEY = `rh.fork-key:${TOKEN}`;
+const quota = () => Object.assign(new Error('The quota has been exceeded.'), { name: 'QuotaExceededError' });
+const counted = () => { const s = memory(), set = s.setItem; s.writes = 0; s.setItem = (key, value) => { s.writes += 1; set(key, value); }; return s; };
+// Every access refused (third-party storage blocked): SecurityError on each call.
+const blockedStore = () => { const deny = () => { throw Object.assign(new Error('Access is denied for this document.'), { name: 'SecurityError' }); }; return { map: new Map(), getItem: deny, setItem: deny, removeItem: deny }; };
+// Room for `room` writes, then every write is QuotaExceededError (0: full; above 0: some keys write and later ones throw).
+const limited = room => { const s = memory(), set = s.setItem; s.setItem = (key, value) => { if (room <= 0) throw quota(); room -= 1; set(key, value); }; return s; };
+// The named keys refuse their write; the others store (partially writable).
+const refusing = test => { const s = memory(), set = s.setItem; s.setItem = (key, value) => { if (test(key)) throw quota(); set(key, value); }; return s; };
+async function handOff(storage, { tabs = windows(), id = ID, wait = 5000 } = {}) {
+  const host = handoffHost(tabs.embed, TOKEN, { wait });
+  const events = [];
+  host.start(tabs.tab, { ...payload, id }, { onDone: () => events.push('done'), onFail: reason => events.push(`fail:${reason || 'unanswered'}`) });
+  const result = await receiveHandoff(tabs.tab, TOKEN, storage, 200);
+  return { result, events, host, tabs };
+}
+const keepsNothing = (storage, label) => assert.deepEqual([...storage.map.keys()], [], `${label}: no half-state survives`);
+
+test('hand-off, healthy storage: edits, Chat draft, card and the fork key all arrive; then, and only then, the embed hears the acknowledgement', async () => {
+  const storage = memory();
+  const { result, events, host } = await handOff(storage);
+  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(events, ['done']);
+  assert.deepEqual(loadGuestDraft(() => storage, TOKEN).state, payload.draft.state);
+  assert.equal(takeDraft(TOKEN, storage), payload.chatDraft);
+  assert.equal(takeTarget(TOKEN, storage).id, 'c1');
+  assert.equal(storage.getItem(FORK_KEY), ID, 'the fork this tab makes carries the hand-off id as its key');
+  host.stop();
+});
+
+for (const [mode, make] of [['blocked (SecurityError on every call)', blockedStore], ['blocked, replaced by the in-page stand-in storage (memory: true)', () => Object.assign(memory(), { memory: true })], ['full (QuotaExceededError on the first write)', () => limited(0)], ['null (the storage accessor threw)', () => null],
+  ['writes that silently drop', () => ({ ...memory(), setItem: () => {} })]]) {
+  test(`hand-off, ${mode}: no acknowledgement, a refusal with its reason at once; the tab reports the failure`, async () => {
+    const storage = make();
+    const { result, events, host } = await handOff(storage);
+    assert.deepEqual(result, { ok: false, reason: 'storage' });
+    assert.deepEqual(events, ['fail:storage'], 'the embed keeps its copy and offers Retry without waiting for the timeout');
+    if (storage?.map && !mode.startsWith('blocked (')) keepsNothing(storage, mode);
+    host.stop();
+  });
+}
+
+test('hand-off, partially writable storage: whichever key throws, what was written is rolled back and nothing is acknowledged', async () => {
+  for (let room = 1; room <= 4; room++) {
+    const storage = limited(room);
+    const { result, events, host } = await handOff(storage);
+    assert.deepEqual(result, { ok: false, reason: 'storage' }, `room for ${room}`);
+    assert.deepEqual(events, ['fail:storage'], `room for ${room}`);
+    keepsNothing(storage, `room for ${room}`);
+    host.stop();
+  }
+  // The edits store, the Chat draft and the card do not (the owner's case): a value this tab held before comes back as it was.
+  const storage = refusing(key => key.startsWith('small.shared-ask'));
+  storage.map.set(`rh.guest-draft:${TOKEN}`, '{"base_version":1,"state":{"blocks":[]}}');
+  const { result, host } = await handOff(storage);
+  assert.equal(result.ok, false);
+  assert.deepEqual([...storage.map.entries()], [[`rh.guest-draft:${TOKEN}`, '{"base_version":1,"state":{"blocks":[]}}']], 'the earlier value is restored, nothing of the hand-off remains');
+  host.stop();
+});
+
+test('hand-off retry after a refusal: the offer stays open, the second attempt stores everything once and is acknowledged once', async () => {
+  const tabs = windows();
+  const first = await handOff(limited(1), { tabs });
+  assert.deepEqual(first.result, { ok: false, reason: 'storage' });
+  const storage = counted();
+  assert.deepEqual(await receiveHandoff(tabs.tab, TOKEN, storage, 200), { ok: true }, 'Retry in the tab asks the embed again and gets the same offer');
+  assert.deepEqual(first.events, ['fail:storage', 'done']);
+  assert.equal(storage.getItem(FORK_KEY), ID);
+  first.host.stop();
+});
+
+test('hand-off idempotence: the same hand-off delivered twice writes once; a used draft is never written back; retried tabs share one fork key', async () => {
+  const tabs = windows();
+  const storage = counted();
+  const { result, host } = await handOff(storage, { tabs });
+  assert.deepEqual(result, { ok: true });
+  const writes = storage.writes;
+  assert.equal(takeDraft(TOKEN, storage), payload.chatDraft); // the composer took it
+  host.start(tabs.tab, { ...payload, id: ID }); // the embed offers the same hand-off to this tab again (its Retry after a late reply)
+  const acks = [];
+  tabs.embed.postMessage = (deliver => message => { if (message.type === 'rh-embed-handoff-ack') acks.push(message.id); deliver(message, ORIGIN); })(tabs.embed.postMessage);
+  assert.deepEqual(await receiveHandoff(tabs.tab, TOKEN, storage, 200), { ok: true });
+  assert.equal(storage.writes, writes, 'nothing written the second time');
+  assert.equal(takeDraft(TOKEN, storage), '', 'the draft the composer took is not written back');
+  assert.deepEqual(acks, [ID]);
+  host.stop();
+  // Retry from the embed opens another tab with the same hand-off id: both tabs would fork with the same key, so the server
+  // (canvas_forks owner_email + fork_key) makes one fork.
+  const other = memory();
+  const again = await handOff(other, { id: ID });
+  assert.deepEqual(again.result, { ok: true });
+  assert.equal(other.getItem(FORK_KEY), storage.getItem(FORK_KEY));
+  again.host.stop();
+});
+
+test('hand-off, sign-in continuation: what the tab stored is what it reads back after the sign-in redirect; unanswered and no opener fail visibly', async () => {
+  const storage = memory();
+  const { host } = await handOff(storage);
+  host.stop();
+  // The redirect to sign-in and back is a new page load in the same tab: the stored hand-off is all there.
+  assert.deepEqual(loadGuestDraft(() => storage, TOKEN).state, payload.draft.state);
+  assert.equal(takeTarget(TOKEN, storage).id, 'c1');
+  assert.equal(storage.getItem(FORK_KEY), ID, 'the Fork that runs after sign-in uses the hand-off key');
+  const quiet = windows();
+  assert.deepEqual(await receiveHandoff(quiet.tab, TOKEN, memory(), 20), { ok: false, reason: 'unanswered' }, 'the embed never answered');
+  quiet.tab.opener = null;
+  assert.deepEqual(await receiveHandoff(quiet.tab, TOKEN, memory(), 20), { ok: false, reason: 'unanswered' }, 'no opener to ask');
 });
 
 test('copy rules: no ellipsis in the embed surfaces; Open in Rabbit Hole and the Embed controls are present', () => {

@@ -27,6 +27,18 @@ test('every mapped glob names checks that exist, and every windows-only check sa
   assert.deepEqual(Object.keys(map.checks).filter(c => map.checks[c].runner === 'windows-only' && !map.checks[c].why), []);
   assert.deepEqual(Object.keys(map.checks).filter(c => !['harness', 'fork', 'windows-only'].includes(map.checks[c].runner) || !(map.checks[c].seconds > 0)), []);
 });
+// fast-e2e installs an engine's system libraries only for a part whose checks declare it (engine-deps.sh): a check that
+// launches Firefox or WebKit without the field would be back to installing them inside its own time budget.
+test('every check that launches Firefox or WebKit declares that engine, and only those two are declared', () => {
+  const dir = new URL('../../packages/web/e2e/', import.meta.url);
+  const launches = readdirSync(dir).filter(f => f.endsWith('-check.mjs')).flatMap(f => {
+    const src = readFileSync(new URL(f, dir), 'utf8');
+    return ['firefox', 'webkit'].filter(e => new RegExp(`runEmbed\\('${e}'\\)|launchEngine\\('${e}'|\\b${e}\\.launch\\(`).test(src)).map(e => `${f} ${e}`);
+  }).sort();
+  assert.ok(launches.includes('embed-webkit-check.mjs webkit'), 'the detector still finds the WebKit embed check');
+  const declared = Object.entries(map.checks).filter(([, v]) => v.engine).map(([c, v]) => `${c} ${v.engine}`).sort();
+  assert.deepEqual(declared, launches);
+});
 test('every none glob has a reason, and no reason is orphaned', () => {
   assert.deepEqual(map.none.filter(g => !map.noneReasons[g]).sort(), []);
   assert.deepEqual(Object.keys(map.noneReasons).filter(g => !map.none.includes(g)).sort(), []);

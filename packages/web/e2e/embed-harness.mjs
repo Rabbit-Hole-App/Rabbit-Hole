@@ -198,16 +198,16 @@ export function reporter(name, total = 0) {
 }
 
 // ---- engines: Chromium, Firefox and WebKit (Playwright's WebKit build, never Safari) ----
-// The Browsers step of fast-e2e installs Chromium only. A check run for another engine installs it on first use (and, on Linux,
-// its system libraries) so no workflow edit is needed; with the engine already installed this launches at once.
+// fast-e2e installs Firefox or WebKit, and their system libraries, before the build of a part that runs them (check-map.json
+// "engine", scripts/ci/engine-deps.sh), so there this launches at once. Elsewhere (a local run) the engine installs on first use.
 const TYPES = { chromium, firefox, webkit };
 export async function launchEngine(engine, options = {}) {
   const type = TYPES[engine];
   try { return await type.launch(options); } catch (error) {
     if (engine === 'chromium') throw error;
     console.log(`installing ${engine}`);
-    // The apt step for WebKit's libraries alone can take over three minutes on a busy runner: the first attempt gets 7 minutes with the
-    // libraries, the second only the browser download (4 minutes), so both fit the 15 minute check budget.
+    // The first attempt gets 7 minutes with the libraries, the second only the browser download (4 minutes), so both fit the 15 minute
+    // check budget. Without the libraries the launch below fails on "Host system is missing dependencies" (see engine-deps.sh).
     for (const withDeps of [true, false]) {
       try { execFileSync('npx', ['--no-install', 'playwright', 'install', ...(withDeps && process.platform === 'linux' ? ['--with-deps'] : []), engine], { stdio: 'inherit', shell: process.platform === 'win32', timeout: withDeps ? 420000 : 240000 }); break; } catch (installError) { console.log(`install ${engine}${withDeps ? ' with libraries' : ''} failed: ${String(installError.message).split(String.fromCharCode(10))[0]}`); if (!withDeps) throw installError; }
     }

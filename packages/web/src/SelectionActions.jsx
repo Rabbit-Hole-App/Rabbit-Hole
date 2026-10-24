@@ -58,7 +58,9 @@ export function SelectionActionsHost({ id, className = '', style, divider = fals
   const register = ctx?.register;
   useLayoutEffect(() => (here ? register() : undefined), [here, register]);
   if (!here || ctx.hidden || (!ctx.onAddToChat && !ctx.onQuickEdit)) return null;
-  return <>{divider && <span aria-hidden="true" className="h-5 w-px shrink-0 bg-line-strong" />}<Actions ctx={ctx} mode="host" className={className} style={style} /></>;
+  const actions = <Actions ctx={ctx} mode="host" className={className} style={style} />;
+  // The rule and the segment stay together when the row they sit in wraps (CanvasNode's tools row).
+  return divider ? <div className="flex items-stretch gap-1.5"><span aria-hidden="true" className="h-5 w-px shrink-0 self-center bg-line-strong" />{actions}</div> : actions;
 }
 
 // True while a pointer is down on the canvas (a drag, a resize, a marquee, a pan) and while text is being typed in it.

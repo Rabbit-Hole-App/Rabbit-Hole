@@ -172,7 +172,8 @@ test('the card: the picture on the right from md, on top on a phone; one per row
   // column and the picture are one fixed height from md, the card that plus its padding.
   assert.match(card, /export const CARD_BODY_H = 'md:h-\[190px\]';/);
   assert.match(card, /aspect-\[2\/1\][^`]*md:order-last \$\{CARD_BODY_H\} md:w-\[min\(380px,42%\)\] md:aspect-auto/, 'right of the text from md, the body\'s height, 2:1 where the card is wide');
-  assert.match(card, /<div data-card-text className=\{`flex min-h-0 min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_BODY_H\} \$\{CARD_TEXT_PHONE\}`\}>/);
+  // Owner brief 2026-10-23 (small-card layout): an opened title (Show full title) lets that one card grow to its text, so the column carries data-open and h-auto then.
+  assert.match(card, /<div data-card-text data-open=\{open \|\| undefined\} className=\{`flex min-h-0 min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_BODY_H\} \$\{CARD_TEXT_PHONE\}\$\{open \? ' h-auto!' : ''\}`\}>/);
   assert.match(card, /<div data-card-body className="flex min-h-0 min-w-0 shrink! flex-col gap-1 overflow-hidden pt-2">/, 'only the description gives way');
   assert.doesNotMatch(card, /CARD_HEIGHT/, 'no fixed card height: the body sets it');
   assert.match(card, /max-md:flex-col/, 'a phone stacks it above the text');
@@ -203,7 +204,9 @@ test('the picture leaves out every piece of chrome by the canvas\'s own attribut
   for (const attr of CHROME.match(/data-[a-z-]+/g)) assert.ok(canvas.includes(attr), `${attr} is a real attribute of the canvas`);
   // The selected card's pill rows (Explain, Continue, and the selection actions - SelectionActions.jsx hides its own bar), the text ladder
   // and the resize handles had none.
-  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 4);
+  // A card's Open and its tools are one row (CanvasNode, owner finding 2026-10-23): the row is the chrome, three other rows remain.
+  assert.equal(canvas.match(/<div data-thumbnail-hide className="absolute -top-10 right-0 z-30/g).length, 3);
+  assert.match(canvas, /<div data-card-chrome-row data-thumbnail-hide /);
   assert.match(read('./SelectionActions.jsx'), /data-selection-bar=\{mode\} data-thumbnail-hide/);
   assert.match(canvas, /aria-label=\{label\} data-keep-focus data-thumbnail-hide/); // the text ladder and the equation's size ladder
   assert.equal(canvas.match(/<button type="button" data-thumbnail-hide aria-label=/g).length, 2);

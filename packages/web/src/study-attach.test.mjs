@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { authorizePinnedSource, pinnedChatRef, versionStatus } from './study-attach.js';
+import { attachStillCurrent, attachSnapshot, authorizePinnedSource, createPinnedAttacher, pinnedChatRef, versionStatus } from './study-attach.js';
 import { attachedReducer, sameRef } from './chat-context.js';
 import { excerptChatRef } from './pdf-excerpt.js';
 import { pdfRef } from './pdf-source.js';
@@ -172,4 +172,167 @@ test('study-attach.js reads only through an injected fetch: no write method, no 
   assert.doesNotMatch(source, /XMLHttpRequest|WebSocket|sendBeacon|EventSource|\/api\/|POST|PUT|PATCH|DELETE/);
   assert.deepEqual([...source.matchAll(/method: '(\w+)'/g)].map(m => m[1]).sort(), ['GET', 'HEAD']);
   assert.deepEqual([...source.matchAll(/^import .* from '([^']+)'/gm)].map(m => m[1]), ['./pdf-source.js', './pdf-excerpt.js']);
+});
+
+// ---- the delayed authorization race (UI-27.4): the operation is a snapshot, and only that snapshot lands -------------------------
+// A world the way StudyPane wires it: live state the learner can change while the authorizer is pending; the chips are the real
+// chat-context reducer; every authorization waits for the test to settle it.
+function world(over = {}) {
+  const live = { alive: true, scope: 'canvas-1:main:study', thread: 't1', pinCardId: 'c1', cards: new Set(['c1', 'c2']), page: 3, ...over };
+  const destination = () => ({ canvas: 'canvas-1', board: 'main', thread: live.thread });
+  const pending = [], chips = { list: [] }, adds = [];
+  const attacher = createPinnedAttacher();
+  const press = () => {
+    const pin = pdfPin(live.pinCardId === 'c2' ? { ...DOC, sourceId: 'doc:8' } : DOC);
+    pin.cardId = live.pinCardId;
+    const snap = attachSnapshot({ pin, ref: pinnedChatRef(pin, { page: live.page }), scope: live.scope, destination: destination() });
+    return attacher(snap, {
+      authorize: source => new Promise(resolve => pending.push({ source, settle: resolve })),
+      current: operation => attachStillCurrent(operation, { alive: live.alive, scope: live.scope, destination: destination(), pinCardId: live.pinCardId, cardExists: live.cards.has(operation.pin.cardId) }),
+      attach: ref => { adds.push(ref); chips.list = attachedReducer(chips.list, { type: 'attach', ref }); },
+    });
+  };
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  return { live, press, pending, chips, adds, tick };
+}
+const OK = { ok: true };
+
+test('the attached ref is the one at the press, whatever the reader shows when authorization returns', async () => {
+  const w = world();
+  const done = w.press();
+  w.live.page = 9; // the reader scrolled on while the source was being checked
+  w.pending[0].settle(OK);
+  assert.deepEqual(await done, { id: 1, status: 'attached' });
+  assert.deepEqual(w.chips.list.map(ref => [ref.sourceId, ref.range]), [['doc:7', { page: 3 }]], 'page 3, not 9');
+});
+
+test('mixed parts: source from one operation, page from another, never', async () => {
+  const w = world();
+  const first = w.press(); // doc:7 at page 3
+  w.live.pinCardId = 'c2'; w.live.page = 5; // the learner pins another reference and turns the page
+  const second = w.press(); // doc:8 at page 5
+  w.pending[0].settle(OK); w.pending[1].settle(OK);
+  assert.equal((await first).status, 'superseded');
+  assert.equal((await second).status, 'attached');
+  assert.deepEqual(w.chips.list.map(ref => [ref.sourceId, ref.range]), [['doc:8', { page: 5 }]]);
+});
+
+test('switching the reference mid-flight abandons the old operation and says why', async () => {
+  const w = world();
+  const done = w.press();
+  w.live.pinCardId = 'c2';
+  w.pending[0].settle(OK);
+  assert.deepEqual(await done, { id: 1, status: 'abandoned', reason: 'pin-changed' });
+  assert.deepEqual(w.adds, []);
+});
+
+test('switching only the page mid-flight still attaches the pressed page, once', async () => {
+  const w = world();
+  const done = w.press();
+  w.live.page = 4;
+  w.pending[0].settle(OK);
+  assert.equal((await done).status, 'attached');
+  assert.deepEqual(w.adds.map(ref => ref.range), [{ page: 3 }]);
+});
+
+test('navigation to another canvas or board mid-flight attaches nothing', async () => {
+  for (const scope of ['canvas-2:main:study', 'canvas-1:other:study']) {
+    const w = world();
+    const done = w.press();
+    w.live.scope = scope;
+    w.pending[0].settle(OK);
+    assert.deepEqual(await done, { id: 1, status: 'abandoned', reason: 'canvas-changed' }, scope);
+    assert.deepEqual(w.adds, []);
+  }
+  const w = world();
+  const done = w.press();
+  w.live.alive = false; // the pane closed
+  w.pending[0].settle(OK);
+  assert.equal((await done).reason, 'closed');
+  assert.deepEqual(w.adds, []);
+});
+
+test('the destination Chat changing mid-flight (another thread, New chat) attaches nothing', async () => {
+  const w = world();
+  const done = w.press();
+  w.live.thread = 't2';
+  w.pending[0].settle(OK);
+  assert.deepEqual(await done, { id: 1, status: 'abandoned', reason: 'chat-changed' });
+  assert.deepEqual(w.adds, []);
+  const fresh = world({ thread: null }); // a new chat that got its id on a first turn is still the same chat
+  const landed = fresh.press();
+  fresh.live.thread = 't9';
+  fresh.pending[0].settle(OK);
+  assert.equal((await landed).status, 'attached');
+});
+
+test('deleting the pinned card mid-flight attaches nothing', async () => {
+  const w = world();
+  const done = w.press();
+  w.live.cards.delete('c1');
+  w.pending[0].settle(OK);
+  assert.deepEqual(await done, { id: 1, status: 'abandoned', reason: 'card-deleted' });
+  assert.deepEqual(w.adds, []);
+});
+
+test('a refused source attaches nothing and reports why; a thrown authorizer is a refusal too', async () => {
+  const w = world();
+  const done = w.press();
+  w.pending[0].settle({ ok: false, reason: 'status-404' });
+  assert.deepEqual(await done, { id: 1, status: 'refused', reason: 'status-404' });
+  assert.deepEqual(w.adds, []);
+  const snap = attachSnapshot({ pin: pdfPin(DOC), ref: pinnedChatRef(pdfPin(DOC), { page: 1 }), scope: 's', destination: { canvas: 'a', board: 'main', thread: null } });
+  const out = await createPinnedAttacher()(snap, { authorize: () => Promise.reject(new Error('x')), current: () => null, attach: () => assert.fail('must not attach') });
+  assert.deepEqual(out, { id: 1, status: 'refused', reason: 'network' });
+});
+
+test('retry after a refusal is a new operation that attaches once', async () => {
+  const w = world();
+  const first = w.press();
+  w.pending[0].settle({ ok: false, reason: 'status-403' });
+  assert.equal((await first).status, 'refused');
+  const retry = w.press();
+  w.pending[1].settle(OK);
+  assert.deepEqual(await retry, { id: 2, status: 'attached' });
+  assert.equal(w.chips.list.length, 1);
+});
+
+test('two rapid presses make one chip: the older is superseded, whichever order authorization returns', async () => {
+  for (const order of [[0, 1], [1, 0]]) {
+    const w = world();
+    const a = w.press(), b = w.press();
+    for (const at of order) { w.pending[at].settle(OK); await w.tick(); }
+    assert.deepEqual([(await a).status, (await b).status], ['superseded', 'attached'], order.join());
+    assert.equal(w.adds.length, 1);
+    assert.equal(w.chips.list.length, 1);
+  }
+});
+
+test('the same ref attached by two operations is still one chip (chat-context sameRef)', async () => {
+  const w = world();
+  const a = w.press(); w.pending[0].settle(OK); await a;
+  const b = w.press(); w.pending[1].settle(OK); await b; // a later press for the same page: two operations, one chip
+  assert.equal(w.adds.length, 2);
+  assert.equal(w.chips.list.length, 1);
+  assert.ok(sameRef(w.chips.list[0], w.adds[1]));
+});
+
+test('the snapshot cannot be changed after the press, and what is attached is a copy', async () => {
+  const snap = attachSnapshot({ pin: pdfPin(DOC), ref: pinnedChatRef(pdfPin(DOC), { page: 2 }), scope: 's', destination: { canvas: 'a', board: 'main', thread: null } });
+  assert.throws(() => { snap.ref.range.page = 9; });
+  assert.throws(() => { snap.pin.cardId = 'other'; });
+  let sent;
+  await createPinnedAttacher()(snap, { authorize: async () => OK, current: () => null, attach: ref => { sent = ref; } });
+  sent.range.page = 7;
+  assert.equal(snap.ref.range.page, 2);
+  assert.equal(attachSnapshot({ pin: pdfPin(DOC), ref: null, scope: 's', destination: {} }), null, 'no ref, no operation');
+});
+
+test('StudyPane takes the snapshot at the press and lands only what attachStillCurrent approves', () => {
+  const pane = readFileSync(new URL('./StudyPane.jsx', import.meta.url), 'utf8');
+  assert.match(pane, /const snap = pinnedAttachSnapshot\(/);
+  assert.match(pane, /attacher\.current\(snap, \{/);
+  assert.match(pane, /current: operation => attachStillCurrent\(operation,/);
+  assert.match(pane, /attach: ref => now\.current\.chat\.addToChat\(ref, \{\}\)/);
+  assert.doesNotMatch(pane, /await authorizePinnedSource/, 'no authorization awaited outside the operation');
 });

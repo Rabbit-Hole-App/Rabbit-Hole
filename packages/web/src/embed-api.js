@@ -110,45 +110,78 @@ export async function startEmbedSession(token, fetcher = globalThis.fetch) {
 
 // Hand-off to the full site in a new tab (never the URL, never the host page). The embed opens the tab itself and answers only
 // that window, only on its own origin: the new tab asks its opener, the embed replies with the visitor's local copy and unsent
-// Chat draft, the tab stores them where its own sign-in and Fork flows already look and acknowledges. Until the acknowledgement
-// nothing is discarded (the embed keeps everything), the offer lives `ttl` ms, and an acknowledged hand-off is spent.
-const REQUEST = 'rh-embed-handoff-request', REPLY = 'rh-embed-handoff', ACK = 'rh-embed-handoff-ack';
+// Chat draft, the tab stores them where its own sign-in and Fork flows already look. The tab acknowledges only once everything is
+// stored and read back; if storage refuses (blocked, full, partly writable) it undoes what it wrote and answers with a refusal
+// and its reason. Until the acknowledgement nothing is discarded (the embed keeps everything and offers Retry), the offer lives
+// `ttl` ms, and an acknowledged hand-off is spent. payload.id names one Fork or Open Chat action: a retry reuses it, so the tab
+// stores nothing twice and every tab forks under the same fork key (the server makes one fork).
+const REQUEST = 'rh-embed-handoff-request', REPLY = 'rh-embed-handoff', ACK = 'rh-embed-handoff-ack', NACK = 'rh-embed-handoff-nack';
 export function handoffHost(win, token, { ttl = 60000, wait = 15000 } = {}) {
   let pending = null;
   const clear = () => { if (pending) { clearTimeout(pending.fail); clearTimeout(pending.expire); pending = null; } };
   const listen = event => {
     const now = pending;
     if (!now || event.origin !== win.location.origin || event.source !== now.target || event.data?.token !== token) return;
-    if (event.data.type === REQUEST) event.source.postMessage({ type: REPLY, token, ...now.payload }, win.location.origin);
-    else if (event.data.type === ACK) { clear(); now.onDone?.(); }
+    const { type, id } = event.data;
+    if (type === REQUEST) event.source.postMessage({ type: REPLY, token, ...now.payload }, win.location.origin);
+    else if (now.payload.id && id !== now.payload.id) return; // an answer about another hand-off
+    else if (type === ACK) { clear(); now.onDone?.(); }
+    else if (type === NACK) { clearTimeout(now.fail); now.onFail?.(typeof event.data.reason === 'string' ? event.data.reason.slice(0, 20) : 'storage'); } // the offer stays open for the tab's Retry
   };
   win.addEventListener('message', listen);
   return {
-    // target: the window just opened. onFail: no acknowledgement within `wait` (it may still arrive and call onDone).
+    // target: the window just opened. onFail(reason): the tab refused ('storage') or did not answer within `wait` ('unanswered', it
+    // may still answer later and call onDone).
     start(target, payload, { onFail, onDone } = {}) {
       clear();
-      pending = { target, payload, onDone };
-      pending.fail = setTimeout(() => onFail?.(), wait);
+      pending = { target, payload, onDone, onFail };
+      pending.fail = setTimeout(() => onFail?.('unanswered'), wait);
       pending.expire = setTimeout(clear, ttl);
     },
     stop() { clear(); win.removeEventListener('message', listen); },
   };
 }
-// The full page's side: resolves once the embed answered (or after `wait` ms, or at once without an opener). Nothing is sent.
+
+// Stores the whole hand-off in this tab's storage, or none of it. true: every key written and read back equal. false: storage is
+// null, blocked, full, silently dropping or partly writable; whatever was written is put back as it was (best effort).
+// A storage with memory: true is the in-page stand-in storage-fallback.js installs where the browser blocks the real one: it dies
+// with the page, so a hand-off kept there would be lost at the sign-in redirect and must not be acknowledged.
+const handoffId = id => (typeof id === 'string' && /^[\w-]{8,80}$/.test(id) ? id : null);
+function storeHandoff(storage, token, { draft, chatDraft, target, id }) {
+  if (!storage || storage.memory) return false;
+  const marker = `rh.handoff-done:${token}`;
+  try { if (id && storage.getItem(marker) === id) return true; } catch { return false; } // already stored: the composer may have taken the draft since
+  const undo = [], wrote = new Map();
+  let failed = false;
+  const tx = {
+    setItem(key, value) {
+      if (failed) return;
+      try { undo.push([key, storage.getItem(key)]); storage.setItem(key, value); wrote.set(key, String(value)); } catch { failed = true; }
+    },
+  };
+  if (draft?.state) saveGuestDraft(() => tx, token, draft.base_version, draft.state);
+  if (chatDraft) signInForAsk(token, chatDraft, tx, undefined, target);
+  if (id) { tx.setItem(`rh.fork-key:${token}`, id); tx.setItem(marker, id); } // the fork key ForkButton replays
+  const whole = !failed && [...wrote].every(([key, value]) => { try { return storage.getItem(key) === value; } catch { return false; } });
+  if (!whole) for (const [key, before] of undo.reverse()) { try { if (before === null) storage.removeItem(key); else storage.setItem(key, before); } catch { /* best effort */ } }
+  return whole;
+}
+// The full page's side: resolves once the embed answered (or after `wait` ms, or at once without an opener) with { ok: true } or
+// { ok: false, reason: 'storage' | 'unanswered' }. Nothing is sent but the acknowledgement or the refusal.
 export function receiveHandoff(win, token, storage, wait = 1500) {
-  if (!win.opener) return Promise.resolve(false);
+  const unanswered = { ok: false, reason: 'unanswered' };
+  if (!win.opener) return Promise.resolve(unanswered);
   return new Promise(done => {
     const finish = got => { win.removeEventListener('message', take); clearTimeout(timer); done(got); };
     const take = event => {
       if (event.origin !== win.location.origin || event.source !== win.opener || event.data?.type !== REPLY || event.data.token !== token) return;
-      const { draft, chatDraft, target } = event.data;
-      if (draft?.state) saveGuestDraft(() => storage, token, draft.base_version, draft.state);
-      if (chatDraft) signInForAsk(token, chatDraft, storage, undefined, target);
-      try { win.opener.postMessage({ type: ACK, token }, win.location.origin); } catch { /* the embed shows its own retry */ }
-      finish(true);
+      const { draft, chatDraft, target } = event.data, id = handoffId(event.data.id);
+      const stored = storeHandoff(storage, token, { draft, chatDraft, target, id });
+      try { win.opener.postMessage(stored ? { type: ACK, token, id } : { type: NACK, token, id, reason: 'storage' }, win.location.origin); } catch { /* the embed shows its own retry */ }
+      finish(stored ? { ok: true } : { ok: false, reason: 'storage' });
     };
-    const timer = setTimeout(() => finish(false), wait);
+    const timer = setTimeout(() => finish(unanswered), wait);
     win.addEventListener('message', take);
-    try { win.opener.postMessage({ type: REQUEST, token }, win.location.origin); } catch { finish(false); }
+    try { win.opener.postMessage({ type: REQUEST, token }, win.location.origin); } catch { finish(unanswered); }
   });
 }

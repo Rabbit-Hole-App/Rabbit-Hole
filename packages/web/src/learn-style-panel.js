@@ -4,10 +4,14 @@
 // way otherwise. The toolbar keeps a swatch button so the controls are never
 // gone without a trace.
 
+import { roughnessOf, roughnessPatch } from './canvas-sloppy.js';
+
 // Tools that draw something carrying colour, width or a text level.
 const STYLED_TOOLS = new Set(['pen', 'highlighter', 'text', 'sticky', 'rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star', 'line', 'arrow', 'curve', 'elbow']);
 // A line or an arrow has no inside, so only these can hold a fill.
 const CLOSED_SHAPES = new Set(['rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star']);
+// Sloppiness (hand-drawn strokes) covers shapes, arrows and connectors; the pen, text and notes stay as they are.
+const SLOPPY_TOOLS = new Set(['rect', 'ellipse', 'triangle', 'diamond', 'hexagon', 'star', 'line', 'arrow', 'curve', 'elbow']);
 
 // Drawn arrows switch route by switching kind; connectors keep a route.
 export const ARROW_KINDS = { straight: 'arrow', curved: 'curve', elbow: 'elbow' };
@@ -87,6 +91,8 @@ export function panelFor({ tool, selection, shapes = [], links = [], items = [],
     // No stroke: the same shapes as fill. A line, an arrow or a pen mark is its stroke, so hiding it would hide the mark.
     // ponytail: closed shapes only. A note's border and a connector's line have no separate outline to hide; add if asked.
     noStroke: CLOSED_SHAPES.has(tool) || allShapes(CLOSED_SHAPES),
+    // Shapes, arrows and connectors only: a text box or note in the mix hides it, as it hides the widths.
+    sloppy: SLOPPY_TOOLS.has(tool) || ([...pickedShapes, ...pickedLinks].some(free) && !pickedTexts.length && !pickedStickies.length),
     corners: tool === 'rect' || allShapes(new Set(['rect'])),
     order: targets.length > 0,
     // Straight / curved / elbow: for connectors and drawn arrows, and only
@@ -137,24 +143,30 @@ export const headsOf = entry => ({
 // Copy style / paste style: appearance only - never words, identity or position - and only what the target can show.
 const TEXT_STYLE = ['font', 'fontSize', 'bold', 'italic', 'underline', 'textColor', 'align', 'level'];
 export function styleKeysFor(entry, link = false) {
-  if (link) return ['color', 'startHead', 'endHead', ...TEXT_STYLE.filter(key => key !== 'level')];
+  if (link) return ['color', 'roughness', 'startHead', 'endHead', ...TEXT_STYLE.filter(key => key !== 'level')];
   if (entry.kind === 'text') return ['color', 'opacity', ...TEXT_STYLE.filter(key => key !== 'textColor')];
   if (entry.kind === 'sticky') return ['color', 'opacity', ...TEXT_STYLE.filter(key => key !== 'level')];
   if (entry.kind === 'equation') return ['color'];
-  if (LINEAR_SHAPES.has(entry.kind)) return ['color', 'width', 'dash', 'opacity', 'startHead', 'endHead', ...TEXT_STYLE];
-  if (CLOSED_SHAPES.has(entry.kind)) return ['color', 'noStroke', 'width', 'dash', 'fill', 'fillOpacity', 'opacity', 'valign', ...TEXT_STYLE, ...(entry.kind === 'rect' ? ['round'] : [])];
+  if (LINEAR_SHAPES.has(entry.kind)) return ['color', 'width', 'dash', 'roughness', 'opacity', 'startHead', 'endHead', ...TEXT_STYLE];
+  if (CLOSED_SHAPES.has(entry.kind)) return ['color', 'noStroke', 'width', 'dash', 'roughness', 'fill', 'fillOpacity', 'opacity', 'valign', ...TEXT_STYLE, ...(entry.kind === 'rect' ? ['round'] : [])];
   return [];
 }
 export function copyStyle(entry, link = false) {
   const style = {};
-  for (const key of styleKeysFor(entry, link)) if (entry[key] !== undefined) style[key] = entry[key];
+  const keys = styleKeysFor(entry, link);
+  for (const key of keys) if (entry[key] !== undefined) style[key] = entry[key];
+  // An object saved before Sloppiness has no field: it copies as Clean, so pasting it makes the target Clean too.
+  if (keys.includes('roughness')) style.roughness = roughnessOf(entry);
   // A text box's colour is its words' colour: it pastes as the text colour of anything that keeps one apart.
   if (entry.kind === 'text' && entry.color) style.textColor = entry.color;
   return style;
 }
 export function pasteStyle(entry, style, link = false) {
   const next = { ...entry };
-  for (const key of styleKeysFor(entry, link)) if (key in style) next[key] = style[key];
+  const keys = styleKeysFor(entry, link);
+  for (const key of keys) if (key in style) next[key] = style[key];
+  // The target keeps its own seed (its own wobble): one is stored the first time it goes sketchy, so a copy of it matches.
+  if ('roughness' in style && keys.includes('roughness')) Object.assign(next, roughnessPatch(entry, roughnessOf(style)));
   // A pasted colour brings the outline back, unless its source had none.
   if (CLOSED_SHAPES.has(entry.kind) && 'color' in style && !style.noStroke) delete next.noStroke;
   // Onto a text box, a source's text colour is the box's colour.

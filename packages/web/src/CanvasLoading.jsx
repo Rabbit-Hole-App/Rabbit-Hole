@@ -33,8 +33,9 @@ export const SHARED_HEADER = 'grid shrink-0 grid-cols-[auto_1fr_auto] items-cent
 export const SHARED_HEADER_LEFT = 'col-start-1 row-start-1 flex min-w-0 items-center @5xl:col-auto @5xl:row-auto';
 export const SHARED_HEADER_CENTER = 'col-span-3 row-start-2 flex min-w-0 flex-col items-center @5xl:col-span-1 @5xl:col-auto @5xl:row-auto';
 export const SHARED_HEADER_RIGHT = 'col-start-3 row-start-1 flex min-w-0 items-start justify-end gap-2 @5xl:col-auto @5xl:row-auto [&_[data-panel-toggle]]:h-11 [&_[data-panel-toggle]]:w-11 @5xl:[&_[data-panel-toggle]]:h-8 @5xl:[&_[data-panel-toggle]]:w-8';
-// The title row with the creator's @handle line below it, flush with the title's left edge (owner brief 2026-10-23); centred as one block.
-export const SHARED_TITLE_BLOCK = 'flex min-w-0 max-w-full flex-col items-start';
+// Fork's column (the note sits under it) and the row of the creator's @handle beside Fork (owner decision 2026-10-23): the handle is the one item that shrinks.
+export const SHARED_FORK_COLUMN = 'flex min-w-0 flex-col items-end gap-1';
+export const SHARED_FORK_ROW = 'flex min-w-0 max-w-full items-center gap-2';
 export const SHARED_TITLE_ROW = 'flex min-w-0 max-w-full items-center gap-2';
 export const GUEST_NOTE = "Changes aren't saved. Fork to keep them";
 export const GUEST_NOTE_BOX = 'max-w-36 text-right text-xs leading-tight';
@@ -177,7 +178,7 @@ export function CanvasPageLoading() {
   return <div className={CANVAS_PAGE_COLUMN}><OwnerCanvasLoading /></div>;
 }
 
-// A share link (/b) or an Explore canvas (/e): logo; the title, menus and the creator's @handle line centred as one block; Fork with its note and the panel
+// A share link (/b) or an Explore canvas (/e): logo; the title and menus centred; the creator's @handle beside Fork, Fork with its note, and the panel
 // toggle at the right; the canvas; the right panel. Laid out for a visitor (their temporary copy has the toolbar and the note).
 export function SharedCanvasLoading() {
   return (
@@ -188,19 +189,19 @@ export function SharedCanvasLoading() {
           <header data-loading-header className={SHARED_HEADER}>
             <div className={SHARED_HEADER_LEFT}><SharedBrand tabIndex={-1} /></div>
             <div className={SHARED_HEADER_CENTER}>
-              <div className={SHARED_TITLE_BLOCK}>
-                <div className={SHARED_TITLE_ROW}>
-                  <Bone className="h-5 w-40 max-w-full rounded-md" />
-                  <span className="hidden items-center gap-0.5 @5xl:flex">{bones(4, 'h-8 w-[72px]')}</span>
-                  <Bone className="h-11 w-11 @5xl:hidden" />
-                </div>
-                {/* The creator's @handle line: one line of text-xs, kept by a no-break space. */}
-                <span aria-hidden="true" className="block w-28 max-w-full rounded-xs bg-hover text-xs">&nbsp;</span>
+              <div className={SHARED_TITLE_ROW}>
+                <Bone className="h-5 w-40 max-w-full rounded-md" />
+                <span className="hidden items-center gap-0.5 @5xl:flex">{bones(4, 'h-8 w-[72px]')}</span>
+                <Bone className="h-11 w-11 @5xl:hidden" />
               </div>
             </div>
             <div className={SHARED_HEADER_RIGHT}>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                <Bone className="h-11 w-[72px] @5xl:h-8" />
+              <div className={SHARED_FORK_COLUMN}>
+                <div className={SHARED_FORK_ROW}>
+                  {/* The creator's @handle beside Fork: one line of text-xs, kept by a no-break space. */}
+                  <span aria-hidden="true" className="block w-24 min-w-0 max-w-28 rounded-xs bg-hover text-xs @5xl:max-w-40">&nbsp;</span>
+                  <Bone className="h-11 w-[72px] @5xl:h-8" />
+                </div>
                 {/* The note's own text, unseen, so the column is the note's height at every width and text size. */}
                 <span aria-hidden="true" className={`${GUEST_NOTE_BOX} rounded-xs bg-hover text-transparent select-none`}>{GUEST_NOTE}</span>
               </div>

@@ -1,7 +1,7 @@
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
-import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -22,6 +22,7 @@ import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorder
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
 const CodeBoxEditor = lazyFeature(() => import('./CodeBoxEditor.jsx'), 'The code editor');
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
+import { jitterPoint, roughnessOf, roughnessPatch, seedOf, sloppyLink, sloppyShape } from './canvas-sloppy.js';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
@@ -41,7 +42,7 @@ import { objectKind, objectName, selectionName, selectionRef } from './selection
 import LearnWiki from './LearnWiki.jsx';
 import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
-import CardPrompt from './CardPrompt.jsx';
+import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -285,7 +286,7 @@ const CanvasEdit = createContext({ locked: new Set(), altDrag: null });
 // Shared node chrome for everything card-shaped on the canvas: drag with
 // lift, corner resize, selection ring, top/bottom connection ports, and the
 // layout observer that keeps connector geometry fresh. Content is children.
-function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, children }) {
+function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, wide = false, space = 0, connected = null, autoMax = 420, width = 380, height = undefined, extraHeight = 0, saved = null, cardLayout = null, onSelect, onMove, onSize, onLayout, onConnect, onSnap = null, nodeRef = null, resizable = true, tools = null, children }) {
   const [lifted, setLifted] = useState(false);
   // A card with a Rabbit Hole under it (docs/features/dive-v1.md): derived from the dive link, never stored on the card.
   const dive = useContext(DivePortals), portal = dive?.portals?.[id];
@@ -382,13 +383,24 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
       } : undefined}
       style={{ transform: `translate(${layoutDrag?.dx ?? dx}px, ${dy}px)${lifted ? ' scale(1.02)' : ''}`, ...(cardLayout?.slot ? { position: 'absolute', left: 0, top: 0, margin: 0 } : { marginTop: space || undefined }), width: displayWidth, height: full ? undefined : (cornerDrag?.h ? cornerDrag.h + (cardLayout ? 0 : extraHeight + refsHeight) : null) || cardLayout?.scrollableSize?.h || (size.h || height ? (size.h || height) + extraHeight + refsHeight : undefined), maxHeight: full || cardLayout ? undefined : size.h || height || autoMax == null ? undefined : autoMax + refsHeight }}
       className={`group relative ${selected ? 'z-[5]' : ''} ${wide ? 'self-center' : 'mx-auto'} flex cursor-default flex-col rounded-xl border transition-shadow duration-150 select-text focus-visible:ring-[3px] focus-visible:ring-[#2383e2]/40 focus-visible:ring-offset-4 ${portal ? '' : 'outline-none'} ${ghost ? 'border-transparent bg-transparent hover:border-line' : 'border-line bg-white'} ${selected ? 'ring-2 ring-select' : ''} ${portal ? (portal.pending ? 'outline-8 outline-offset-1 outline-hole-pending/40' : 'outline-8 outline-offset-1 outline-hole/80') : ''} ${lifted ? 'z-20 shadow-xl' : ghost ? 'hover:shadow-sm' : 'shadow-sm hover:shadow-md'}`}>
-      {/* The one selected card says how it opens: a small Open, never a big button on every card (touch has no double-click). */}
-      {selected && opens && opener.single === id && (
-        <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
-          onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
-          className="absolute -top-10 left-0 z-30 flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
-          Open<ArrowUpRight size={13} />
-        </button>
+      {/* The selected card's controls above it are ONE row (owner finding 2026-10-23: Open at the left edge and the CAD controls with
+          Add to chat / Quick Edit from the right edge were anchored apart and met when the card was narrow). Open leads, `tools`
+          follow right-aligned; one gap, one height (34px, the old selection bar's; 38px when the CAD tools are in it); the 8px gap above the card is the first-row
+          card's limit: it sits 24px under the floating canvas header, and the row must keep its centre below the header's buttons
+          (panel-header-check presses Add to chat there); when they do not fit the row wraps upward from the card (bottom-full) so it never
+          lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
+          (touch has no double-click). */}
+      {selected && ((opens && opener.single === id) || tools) && (
+        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
+          {opens && opener.single === id && (
+            <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
+              onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
+              className="pointer-events-auto flex items-center gap-1 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium whitespace-nowrap text-ink shadow-md hover:bg-hover">
+              Open<ArrowUpRight size={13} />
+            </button>
+          )}
+          {tools && <div className="pointer-events-auto ml-auto flex flex-wrap items-stretch justify-end gap-1.5 [&>:not([data-open-notebook])]:min-h-[34px] has-[[data-cad-tools]]:[&>:not([data-open-notebook])]:min-h-[38px]">{tools}</div>}
+        </div>
       )}
       {/* Only this strip drags; the body keeps a normal cursor so text can be
           selected and links inside the block stay clickable. */}
@@ -864,6 +876,9 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A practice section and the INTERACT row grow it the same way, by their
   // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
+  // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
+  const [slotted, setSlotted] = useState(false);
+  const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
   const [practiceHeight, setPracticeHeight] = useState(0);
   const [controlsHeight, setControlsHeight] = useState(0);
   // A YouTube moment (videoId) gets its own card; a hosted or generated clip
@@ -896,19 +911,17 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
       extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
-      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
-      {selected && (
-        <div data-thumbnail-hide className="absolute -top-10 right-0 z-30 flex items-center gap-1.5">
-          {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
-          <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
-          <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
-        </div>
-      )}
-      <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
+      onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
+      tools={selected ? <>
+        {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
+        <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
+        <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
+      </> : null}>
+      <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
-      </PerfContext.Provider>
+      </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.promptUsed && <CardPrompt text={block.promptUsed} selected={selected} />}
+      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
     </CanvasNode>
   );
 }
@@ -1279,14 +1292,16 @@ const inkPath = (stroke, index) => (stroke.tool === 'pen'
   : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />);
 
 // An arrowhead (learn-style-panel.js HEADS) at `tip`, pointing away from `from`: open arrow, filled triangle, dot or bar.
-const headMark = (kind, tip, from, stroke, key = undefined) => {
+// sloppy: { roughness, seed } of a hand-drawn line - the head's arms wobble with it, the tip stays on the line's end.
+const headMark = (kind, tip, from, stroke, key = undefined, sloppy = null) => {
   if (!kind || kind === 'none' || !tip || !from) return null;
   const angle = Math.atan2(tip.y - from.y, tip.x - from.x), size = 8 + stroke.strokeWidth * 2;
-  const at = (turn, reach) => `${tip.x - reach * Math.cos(angle + turn)} ${tip.y - reach * Math.sin(angle + turn)}`;
+  const arm = (x, y, salt) => { const p = sloppy ? jitterPoint({ x, y }, sloppy.roughness, sloppy.seed + salt) : { x, y }; return `${p.x} ${p.y}`; };
+  const at = (turn, reach) => arm(tip.x - reach * Math.cos(angle + turn), tip.y - reach * Math.sin(angle + turn), turn < 0 ? 31 : 37);
   const solid = { stroke: stroke.stroke, strokeWidth: stroke.strokeWidth, opacity: stroke.opacity, strokeLinecap: 'round', strokeLinejoin: 'round' };
   if (kind === 'triangle') return <path key={key} data-head="triangle" d={`M${at(-0.42, size)} L${tip.x} ${tip.y} L${at(0.42, size)} Z`} {...solid} fill={stroke.stroke} />;
   if (kind === 'dot') { const r = 2.5 + stroke.strokeWidth; return <circle key={key} data-head="dot" cx={tip.x - r * Math.cos(angle)} cy={tip.y - r * Math.sin(angle)} r={r} {...solid} fill={stroke.stroke} />; }
-  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${tip.x + half * Math.sin(angle)} ${tip.y - half * Math.cos(angle)} L${tip.x - half * Math.sin(angle)} ${tip.y + half * Math.cos(angle)}`} {...solid} fill="none" />; }
+  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${arm(tip.x + half * Math.sin(angle), tip.y - half * Math.cos(angle), 31)} L${arm(tip.x - half * Math.sin(angle), tip.y + half * Math.cos(angle), 37)}`} {...solid} fill="none" />; }
   return <path key={key} data-head="arrow" d={`M${at(-0.45, size)} L${tip.x} ${tip.y} L${at(0.45, size)}`} {...solid} fill="none" />;
 };
 
@@ -1351,6 +1366,10 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   const elbow = kind === 'elbow' ? freeElbow(shape) : null;
   const middle = kind === 'curve' ? { x: 0.25 * x1 + 0.5 * control.x + 0.25 * x2, y: 0.25 * y1 + 0.5 * control.y + 0.25 * y2 } : elbow ? polylineMid(elbow) : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
   const heads = headsOf(shape);
+  // Sloppiness (canvas-sloppy.js): Sketchy and Rough redraw only the visible outline; Clean renders the elements below untouched.
+  const roughness = roughnessOf(shape);
+  const sloppy = roughness ? sloppyShape(shape, { polygon: POLYGONS[kind], control, elbow }) : null;
+  const sloppyHead = roughness ? { roughness, seed: seedOf(shape) } : null;
   const textBox = TEXT_BOX[kind];
   const textRef = useRef(null);
   const base = textBox ? shapeBase(shape) : null;
@@ -1397,19 +1416,26 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
         if (textBox && onEdit) onEdit(shape.id, { x: event.clientX, y: event.clientY });
         else if (linear && onLabel) onLabel(shape.id);
       }}>
-      {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
-      {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
-      {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
-      {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
-      {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
-      {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
+      {sloppy ? (
+        // One group carries the opacity so Rough's two overlapping strokes do not darken where they cross; the second stroke has no fill.
+        <g data-sloppy={roughness} opacity={opacity}>
+          {sloppy.map((d, index) => (index && shape.noStroke ? null : <path key={index} d={d} {...stroke} opacity={undefined} fill={index || linear ? 'none' : stroke.fill} fillOpacity={index || linear ? undefined : stroke.fillOpacity} />))}
+        </g>
+      ) : <>
+        {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
+        {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
+        {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
+        {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
+        {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
+        {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
+      </>}
       {/* A 2px line is a 2px target. This invisible band gives lines, arrows
           and curves the same easy grab a filled shape's interior has. */}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {elbow && <path d={pathOf(elbow)} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinejoin="round" />}
-      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end')}
-      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start')}
+      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end', sloppyHead)}
+      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start', sloppyHead)}
       {linear && <LineLabel at={middle} entry={shape} editing={labelEditing} pickable={selected && tool === 'select' && !locked} onPick={() => onLabel?.(shape.id)} onDone={(runs, how) => onLabelDone(shape.id, runs, how)} onApi={onEditorApi} />}
       {linear && selected && tool === 'select' && !locked && !labelEditing && !shape.label && onLabel && <LabelHandle at={middle} zoom={zoom} onPick={() => onLabel(shape.id)} />}
       {/* Text in the middle of a closed shape: it wraps inside the outline and
@@ -1577,6 +1603,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState('solid');
+  // Sloppiness armed for the next shape, arrow or connector (0 Clean, 1 Sketchy, 2 Rough; canvas-sloppy.js).
+  const [rough, setRough] = useState(() => uiPrefs().sloppiness);
   const [fill, setFill] = useState(null);
   const [noStroke, setNoStroke] = useState(false);
   const [opacity, setOpacity] = useState(1);
@@ -4153,7 +4181,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (!to || to === from || present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) return;
       const diagram = fromShape || shapesRef.current.some(shape => shape.id === to);
       snapshot();
-      setLinks(previous => [...previous, { id: crypto.randomUUID(), from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}) }]);
+      const id = crypto.randomUUID();
+      setLinks(previous => [...previous, { id, from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}), ...(diagram && rough ? roughnessPatch({ id }, rough) : {}) }]);
     };
     trace(event);
     const move = e => trace(e);
@@ -4354,7 +4383,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       event.preventDefault();
       const start = store.local(event);
       const linear = tool === 'line' || tool === 'arrow' || tool === 'curve' || tool === 'elbow';
-      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round,
+      const draftId = crypto.randomUUID();
+      const draft = { id: draftId, kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round, ...(rough ? roughnessPatch({ id: draftId }, rough) : {}),
         ...(TEXT_BOX[tool] && fill ? { fillOpacity } : {}), ...(TEXT_BOX[tool] && noStroke ? { noStroke: true } : {}), ...(linear && heads.start ? { startHead: heads.start } : {}), ...(linear && heads.end ? { endHead: heads.end } : {}) };
       // Shift squares the box or snaps the line to 45 degrees; Alt draws from the centre. Pressing or letting go of
       // either mid-drag redraws the preview at once, and the shape saved is the preview's (learn-draw-modifiers.js).
@@ -5067,6 +5097,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const closed = entry => !!TEXT_BOX[entry.kind];
   const linear = entry => isLink(entry) || ['line', 'arrow', 'curve', 'elbow'].includes(entry.kind);
+  const sloppyCapable = entry => closed(entry) || linear(entry);
   const panelValues = {
     color: pick(entry => entry.color || COLORS[0], color),
     stroke: pick(entry => strokeOf(entry, COLORS[0]), panel.noStroke && noStroke ? null : color),
@@ -5074,6 +5105,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     fillOpacity: pick(entry => entry.fillOpacity ?? 0.25, fillOpacity, closed),
     width: pick(entry => entry.width ?? WIDTHS[0], width, entry => !isLink(entry)),
     dash: pick(entry => dashStyle(entry.dash), dash, entry => !isLink(entry)),
+    rough: pick(roughnessOf, rough, sloppyCapable),
     opacity: pick(entry => entry.opacity ?? 1, opacity, entry => !isLink(entry)),
     round: pick(entry => !!entry.round, round, entry => entry.kind === 'rect'),
     startHead: pick(entry => headsOf(entry).start, heads.start || 'none', linear),
@@ -5129,6 +5161,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     opacity: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); },
     opacitySlide: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets, true); },
     round: value => { setRound(value); applyStyle({ round: value }, panel.targets); },
+    // One press is one undo step, on every selected shape, arrow and connector that is not locked (panel.targets).
+    sloppiness: value => {
+      setRough(value);
+      try { saveUiPref('sloppiness', value); } catch { /* storage refused: the level holds in this page until a reload */ }
+      const ids = panel.targets.filter(id => { const entry = entryOf(id); return entry && sloppyCapable(entry) && roughnessOf(entry) !== value; });
+      if (!ids.length) return;
+      if (!editorRef.current || editorRef.current.state().code) snapshot();
+      const apply = entry => (ids.includes(entry.id) ? { ...entry, ...roughnessPatch(entry, value) } : entry);
+      markLists().setShapes(previous => previous.map(apply));
+      if (!drawTarget) setLinks(previous => previous.map(apply));
+    },
     head: (end, kind) => { setHeads(previous => ({ ...previous, [end]: kind })); applyStyle({ [`${end}Head`]: kind }, panel.targets.filter(id => linear(entryOf(id) || {}))); },
     route: value => {
       setConnectorRoute(value);
@@ -5525,11 +5568,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const path = linkRoute(link);
             if (!path || connecting?.hide === link.id) return null;
             const ink = inkAware(link.color);
+            // Sloppiness (canvas-sloppy.js): the drawn line is redrawn by hand; the hit path below stays the real route.
+            const roughness = roughnessOf(link), sloppy = roughness ? sloppyLink(path.d, link) : null, sloppyHead = roughness ? { roughness, seed: seedOf(link) } : null;
             return (
               <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
-                <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />
-                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
-                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
+                {(sloppy || [path.d]).map((d, index) => <path key={index} data-sloppy={sloppy ? roughness : undefined} d={d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />)}
+                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end', sloppyHead)}
+                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start', sloppyHead)}
                 {/* A view-only board edits no connection, so its hit path takes no press: a press on a card a connection crosses
                     selects the card (r38: answers about a selected card are linked chat cards, so connections cross cards). */}
                 <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: readOnly ? 'none' : 'stroke', cursor: 'pointer' }}

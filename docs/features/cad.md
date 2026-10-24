@@ -175,6 +175,9 @@ future model adoption. See [scope and limitations](cad-scope.md).
 - Until the person clicks into the model (or presses Interact), a press selects the card and the wheel pans the canvas.
   Interact, Fit view and Show dimensions sit in the selected card's toolbar above the card, and in the expanded panel's
   toolbar; nothing is drawn over the model. Esc, Done, a press outside or deselecting hands control back to the canvas.
+  Open, those three, Add to chat and Quick Edit are ONE row (CanvasNode `data-card-chrome-row`, owner finding 2026-10-23): same
+  height, one gap, the width of the card, and when they do not fit the row wraps upward, never over the card or its top
+  connection handle. There is no overflow menu. `cad-controls-check` step 14 measures it.
   Fit view frames the model in its own viewport only. Show dimensions is a per-browser preference keyed by account and
   card (localStorage `rh.cad-dimensions:<org>:<email>:<card>`), never on the board; its overlay is lane C's.
 - Expand and Download are icon buttons; Download is also in the card's right-click menu (one row per saved format).

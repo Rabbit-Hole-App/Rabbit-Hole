@@ -41,12 +41,18 @@ test('Settings > Profile can change the handle; the server is the authority', ()
 
 test('the shared header names the creator by @handle only when there is one', () => {
   const page = read('./SharedBoardPage.jsx');
-  // Owner brief 2026-10-23: the blue @handle alone on its own line below the title, at the title's left edge; no handle, no line.
-  assert.ok(page.includes("{shared.creator?.handle && <span data-shared-creator className=\"max-w-full truncate text-xs text-ink-3\">"));
+  // Owner decision 2026-10-23 (replacing the line below the title): the blue @handle alone, immediately left of Fork in the right-hand group, truncating; no handle, nothing drawn.
+  assert.ok(page.includes("{shared.creator?.handle && <span data-shared-creator className=\"min-w-0 max-w-28 truncate text-xs text-ink-3 @5xl:max-w-40\">"));
   assert.doesNotMatch(page, /Published by|Shared by/, 'the old inline attribution is gone');
   assert.doesNotMatch(page, /<ViewerAccount|<CommentsToggle|data-viewer-account/, 'no account circle and no Comments button in the shared header');
-  const block = page.slice(page.indexOf('<div className={SHARED_TITLE_BLOCK}>'), page.indexOf('<div className={SHARED_HEADER_RIGHT}>'));
-  assert.ok(block.indexOf('className={SHARED_TITLE_ROW}') < block.indexOf('data-shared-creator'), 'the handle comes after the title row');
+  assert.doesNotMatch(page, /SHARED_TITLE_BLOCK/, 'no title block: the title is a single row again');
+  const centre = page.slice(page.indexOf('<div data-header-center'), page.indexOf('<div className={SHARED_HEADER_RIGHT}>'));
+  assert.ok(!centre.includes('data-shared-creator'), 'no handle line under the title');
+  const right = page.slice(page.indexOf('<div className={SHARED_HEADER_RIGHT}>'), page.indexOf('<PanelToggle panel={panel} />'));
+  assert.ok(right.indexOf('data-shared-creator') > 0 && right.indexOf('data-shared-creator') < right.indexOf('<ForkButton'), 'the handle comes right before Fork, inside the right-hand group');
+  const loading = read('./CanvasLoading.jsx');
+  const skeleton = loading.slice(loading.indexOf('export function SharedCanvasLoading'), loading.indexOf('<PanelLoading panel={SHARED_PANEL} tabs={3} tools={1} />'));
+  assert.ok(!skeleton.includes('SHARED_TITLE_BLOCK') && skeleton.indexOf('SHARED_FORK_ROW') > skeleton.indexOf('SHARED_HEADER_RIGHT') && skeleton.indexOf('rounded-xs bg-hover') < skeleton.indexOf('<Bone className="h-11 w-[72px]'), 'the loading skeleton has the handle bone beside the Fork bone and none under the title');
   // Every @handle links to the public profile, a share link's too (owner, 2026-10-08; docs/features/creator-profile.md).
   assert.ok(page.includes("<a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className=\"rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60\">@{shared.creator.handle}</a>"));
   assert.doesNotMatch(page, /shared\.owner\b/, 'the owner email is gone from the page');

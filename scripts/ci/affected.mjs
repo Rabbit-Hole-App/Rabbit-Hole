@@ -70,7 +70,10 @@ export function partArgs(argv) {
 // run-part.sh). An unmapped path is a warning, not a failure.
 export function plan({ part, of, changes, map, baseline: base, force }) {
   const s = select(changes, map, force);
-  const out = { part, checks: parts(s.checks, map, of)[part - 1], reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
+  const checks = parts(s.checks, map, of)[part - 1];
+  // engines: the non-Chromium browsers this part launches; fast-e2e installs their system libraries before the build (engine-deps.sh).
+  const engines = [...new Set(checks.map(c => map.checks[c]?.engine).filter(Boolean))].sort();
+  const out = { part, checks, engines, reasons: s.reasons, notCovered: s.notCovered, baseline: base, unmapped: s.unmapped };
   const r = s.unmapped.length ? { code: 0, out, warning: `no mapping for ${s.unmapped.join(', ')}: ran the default set (${map.defaultChecks.length} checks); add it to scripts/ci/check-map.json` } : { code: 0, out };
   const unknown = s.checks.filter(c => !map.checks[c]);
   return unknown.length ? { ...r, code: 1, err: unknown.map(c => `${c}: not in scripts/ci/check-map.json; add it there with runner fork, harness or windows-only`).join('\n') } : r;

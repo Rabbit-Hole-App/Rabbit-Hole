@@ -65,6 +65,21 @@ const BLOCKED = {
   storage: 'This browser is not keeping data for this page, so a reload could lose work. The page will not reload.',
   repeat: 'The page reloaded for an update moments ago, so it will not reload again now.',
 };
+// A failed dynamic import stays failed for the page: the browser keeps the failed module record for its URL, so importing the
+// same specifier again (Retry) rejects at once without asking the server, and only a reload cleared it (owner bug report
+// 2026-10-23). This imports the chunk the failure names under a query no import has failed with yet. `name`: the export the
+// caller needs; a failure that named another chunk (a dependency) rethrows the original error. `chunkImport.load` is the
+// browser's import (a test stands in for it).
+export const chunkImport = { load: url => import(/* @vite-ignore */ url), count: 0 };
+export async function importFresh(load, name, origin) {
+  try { return await load(); } catch (error) {
+    const url = moduleLoadFailed(error) && failedChunkUrl(error, origin ?? window.location.origin);
+    if (!url) throw error;
+    const module = await chunkImport.load(`${url}?retry=${++chunkImport.count}`);
+    if (!(name in module)) throw error;
+    return module;
+  }
+}
 const session = () => { try { return window.sessionStorage; } catch { return null; } };
 const reloadBlock = () => updateReloadBlock({ online: navigator.onLine, durable: workDurable(), drafts: draftsPending(document.querySelectorAll('textarea:not([readonly]):not([disabled]), input[data-cad-answer]')), storage: session() });
 
@@ -95,6 +110,10 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
     else if(!interacting){setSlot(false);releaseViewer(viewerId.current);}
   },[active,visible,glb?.url,failure,attempt]);
   useEffect(()=>()=>{releaseViewer(viewerId.current);deactivateViewer(viewerId.current);},[]);
+  // The viewer's code loads when the card mounts, not when its model first arrives: a card that waits minutes in Building
+  // would otherwise ask for chunks a deploy may have replaced meanwhile (owner bug report 2026-10-23). A failure here is
+  // left to the real load below, which retries it.
+  useEffect(()=>{import('./three-d-renderer.js').catch(()=>{});import('./model-loaders.js').catch(()=>{});},[]);
   useEffect(()=>{
     if(!thumb?.url){setPoster(null);return;}
     let live=true,url;const abort=new AbortController();
@@ -107,7 +126,7 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
     let disposed=false, instance; const abort=new AbortController();
     // The renderer reports a failure by its message; a module that could not load is told apart by those words.
     const fail=problem=>{if(!disposed){setReady(false);setFailure({message:String(problem?.message ?? problem),module:moduleLoadFailed(problem),url:failedChunkUrl(problem,window.location.origin)});}};
-    import('./three-d-renderer.js').then(({createThreeDRenderer})=>{
+    importFresh(()=>import('./three-d-renderer.js'),'createThreeDRenderer').then(({createThreeDRenderer})=>{
       if(disposed) return;
       const load=async context=>{
         const response=await apiFetch(readUrl(glb.url,{ownerRead}),{signal:abort.signal});
@@ -116,7 +135,7 @@ export function CadPreview({ manifest, active = false, ownerRead = false, id = n
         const chunks=[],reader=response.body.getReader();let size=0;
         try{for(;;){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>MAX_MODEL_BYTES){await reader.cancel();throw new Error('Preview exceeds the 20 MB viewer limit.');}chunks.push(value);}}finally{reader.releaseLock();}
         const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}inspectGlb(bytes.buffer);
-        const {loadModel}=await import('./model-loaders.js');
+        const {loadModel}=await importFresh(()=>import('./model-loaders.js'),'loadModel');
         return loadModel({files:new Map([['model.glb',bytes]]),entry:{path:'model.glb',format:'glb',render:'mesh',deps:[]},...context});
       };
       instance=createThreeDRenderer(host.current,{modelUrl:'',camera:cameras.get(cameraKey)||{},animation:{autoplay:false},animationTime:0,autoRotate:false},()=>{},()=>{if(!disposed)setReady(true);},fail,{load,background:colour,onFrame:()=>frame.current?.()});

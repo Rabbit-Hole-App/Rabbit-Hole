@@ -11,9 +11,9 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { pdfRef } from './pdf-source.js';
 import { objectName } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
-import { authorizePinnedSource } from './study-attach.js';
+import { attachStillCurrent, authorizePinnedSource, createPinnedAttacher } from './study-attach.js';
 import { wsHeaders } from './api.js';
-import { SWITCH_ROW, pinRef, pinnedAttachRef, studyOffsets, versionLine } from './study-ref.js';
+import { SWITCH_ROW, pinRef, pinnedAttachSnapshot, studyOffsets, versionLine } from './study-ref.js';
 import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, studyStatusText, writeStudy } from './study-state.js';
 
 const TYPE_LABELS = { pdf: 'PDF', text: 'Note', explanation: 'Explanation' };
@@ -193,19 +193,31 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
     return !!selected.current && !!range && !range.isCollapsed && !!box.current?.contains(element) && !!element?.closest('.textLayer');
   };
   useEffect(() => { selected.current = null; }, [pin?.cardId]);
-  // Add pinned reference (lane 2, study-attach.js): authorize the source again, then the current card's ref at the reader's page
-  // (or the PDF text still selected in this pane), then Chat. A refusal says Reference unavailable and adds no chip.
+  // Add pinned reference (lane 2, study-attach.js): one press is one operation on a snapshot taken now (pin, ref at the reader's
+  // page or the PDF text still selected here, canvas scope, destination Chat). The source is authorized again; the result is
+  // applied to that snapshot only, and only if the same canvas, Chat and pinned card are still there. A refusal says Reference
+  // unavailable and adds no chip; a newer press for the same Chat supersedes this one.
   // ponytail: a region (picture) selection attaches its page; attaching the picture needs addToChat's fileRef path.
   const [attach, setAttach] = useState(null);
+  const attacher = useRef(null), alive = useRef(true), now = useRef(null);
+  attacher.current ||= createPinnedAttacher();
+  const destinationOf = c => ({ canvas: c?.canvas, board: c?.board, thread: c?.thread?.id ?? null });
+  now.current = { study, chat, api: canvasApi.current };
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const addPinned = async () => {
     const at = pin;
+    const snap = pinnedAttachSnapshot({ pin: at, object: objectOf(canvasApi.current, at.cardId), reader: study.reader(),
+      excerpt: at.kind === 'pdf' && selectionHere() ? selected.current : null, unavailable: refused === at.cardId, scope: study.scope, destination: destinationOf(chat) });
+    if (!snap || !chat) { setAttach({ cardId: at.cardId, refused: true, reason: 'no-reference' }); return; }
     setAttach({ cardId: at.cardId, busy: true });
-    const auth = await authorizePinnedSource(at, { app: chat?.canvas, headers: wsHeaders(), cardExists: id => !!objectOf(canvasApi.current, id) });
-    // The card as it is now (an edited note or Explanation sends only its current text); the stored pin names the card.
-    const ref = auth.ok ? pinnedAttachRef({ pin: at, object: objectOf(canvasApi.current, at.cardId), reader: study.reader(),
-      excerpt: at.kind === 'pdf' && selectionHere() ? selected.current : null, unavailable: refused === at.cardId }) : null;
-    if (ref && chat) chat.addToChat(ref, {});
-    setAttach(ref && chat ? null : { cardId: at.cardId, refused: true, reason: auth.ok ? 'no-reference' : auth.reason });
+    const result = await attacher.current(snap, {
+      authorize: source => authorizePinnedSource(source, { app: snap.destination.canvas, headers: wsHeaders(), cardExists: id => !!objectOf(canvasApi.current, id) }),
+      current: operation => attachStillCurrent(operation, { alive: alive.current, scope: now.current.study.scope, destination: destinationOf(now.current.chat),
+        pinCardId: now.current.study.state.pin?.cardId, cardExists: !!objectOf(now.current.api, operation.pin.cardId) }),
+      attach: ref => now.current.chat.addToChat(ref, {}),
+    });
+    if (!alive.current || result.status === 'superseded') return;
+    setAttach(result.status === 'attached' ? null : result.status === 'refused' ? { cardId: at.cardId, refused: true, reason: result.reason } : { abandoned: true, reason: result.reason });
   };
   const attachRefused = attach?.refused && attach.cardId === pin?.cardId;
   const notebooks = notebooksOf(api);
@@ -262,6 +274,7 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
             <MessageSquarePlus size={13} aria-hidden="true" />Add pinned reference</button>
         </div>}
         {pin && attachRefused && <p data-study-attach-refused data-reason={attach.reason} role="alert" className="text-xs text-red-700">Reference unavailable</p>}
+        {pin && attach?.abandoned && <p data-study-attach-abandoned data-reason={attach.reason} role="status" className="text-xs text-ink-2">Not added</p>}
       </div>
       {!pin || choosing ? chooser : unavailable ? <div data-study-unavailable role="status" className="space-y-2 p-3 text-sm">
         <p className="font-medium">Reference unavailable</p>

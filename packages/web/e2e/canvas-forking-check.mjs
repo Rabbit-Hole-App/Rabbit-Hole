@@ -39,12 +39,16 @@ const source = await api(owner, '/api/canvases', { method: 'POST', body: JSON.st
 const catalog = await api(owner, '/api/apps');
 const base = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${source.name}`;
 const style = { color: '#37352f', width: 2, dash: 'solid', fill: null, opacity: 1, round: false };
-const SEED = { strokes: [], links: [], items: [], blocks: [], shapes: [{ id: 'seed-rect', kind: 'rect', x1: 80, y1: 140, x2: 320, y2: 240, ...style, text: 'Softmax' }] };
+const SEED = { strokes: [], links: [], items: [], blocks: [], shapes: [{ id: 'seed-rect', kind: 'rect', x1: 80, y1: 140, x2: 320, y2: 240, ...style, text: 'Softmax', roughness: 2, seed: 4242 }] };
 const CHAT = [{ id: 'seed-q', question: 'Why exponentiate?', answer: 'Scores become positive weights that add to 1.', status: 'done', dx: 0, dy: 0 }];
 const ownerPage = await pageFor(owner, { fn: ([key, seed, chat]) => { if (localStorage.getItem(`${key}:ink`)) return; localStorage.setItem(`${key}:ink`, JSON.stringify(seed)); localStorage.setItem(`${key}:chat`, JSON.stringify(chat)); }, arg: [base, SEED, CHAT] });
 await ownerPage.goto(`${BASE}/apps/${source.name}`);
 await ownerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
 await ownerPage.waitForTimeout(1200);
+// Sloppiness (UI-34): the rectangle is saved Rough with a seed; every view of the board draws the same hand-drawn strokes.
+const lookOf = page => page.locator('[data-shape-id="seed-rect"] g[data-sloppy="2"] path').evaluateAll(nodes => JSON.stringify(nodes.map(node => node.getAttribute('d'))));
+const ownerLook = await lookOf(ownerPage);
+check('the owner sees the rectangle drawn Rough: two hand-drawn strokes', JSON.parse(ownerLook).length === 2, ownerLook);
 // No Fork on your own canvas (owner, 2026-10-08): Duplicate in the Library's ⋮ copies it.
 check('your own canvas top bar has Share and no Fork', await ownerPage.locator('[data-fork-button]').count() === 0 && await ownerPage.locator('[data-share-button]').count() === 1);
 check('no content card carries a fork control', await ownerPage.locator('[data-block-id] [data-fork-button], [data-shape-id] [data-fork-button]').count() === 0);
@@ -55,6 +59,7 @@ const shared = await api(owner, `/api/learn/boards/${source.name}/main/share`, {
 const viewerPage = await pageFor(viewer);
 await viewerPage.goto(`${BASE}/b/${shared.sharing.view}`);
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 60000 });
+check('a shared view draws the very same strokes as the owner', await lookOf(viewerPage) === ownerLook);
 // The header's one Fork control carries the count (owner, 2026-10-06): [fork icon  Fork  N], no separate label.
 // Zero forks: Fork alone - no count element, no count in the accessible name, no separator or reserved space.
 const zeroHeader = async page => { const button = page.locator('header [data-fork-button]'); return (await button.locator('[data-fork-count-value]').count()) === 0 && (await button.getAttribute('aria-label')) === null && (await button.innerText()).trim() === 'Fork' && await page.locator('header [data-fork-count]').count() === 0; };
@@ -88,6 +93,7 @@ await dialog(viewerPage).getByRole('button', { name: 'Fork', exact: true }).dblc
 await viewerPage.waitForURL(/\/apps\/canvas-[a-f0-9]{8}\?tab=learn$/, { timeout: 20000 });
 const viewerFork = new URL(viewerPage.url()).pathname.split('/').pop();
 await viewerPage.locator('[data-shape-id="seed-rect"]').waitFor({ timeout: 30000 });
+check('the fork keeps the level and the seed, and draws the same strokes', await lookOf(viewerPage) === ownerLook && (await api(viewer, `/api/learn/boards/${viewerFork}/main`)).state?.shapes?.find(shape => shape.id === 'seed-rect')?.seed === 4242);
 // The fork's origin is the header's fork-history button (decisions 1A and 4A, C:/s/spec/hdr-provenance.md): the label beside the
 // title is gone; the button names the source, and its popover links each ancestor this viewer may open, in a new tab.
 const forkButton = viewerPage.locator('[data-provenance-fork]');

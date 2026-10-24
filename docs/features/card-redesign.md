@@ -120,3 +120,12 @@ Server persistence and the cross-device proof retired these for every canvas who
 - `e2e/card-redesign-check.mjs` also checks (2026-10-08) the `Shapes` canvas icon, no Fork on any own card, the select-not-open click with Open on hover, the footer as the last line with the count beside Updated, no "0 forks", Enter opening the selected card, Sort beside Filters, and the Explore card's soft `[Fork | N]` with its dialog's Cancel.
 - `e2e/canvas-forking-check.mjs` reads no count at zero on your own card and no Fork on it.
 - `e2e/card-thumbnails-check.mjs` (13 checks) covers the picture, one card per row, the fixed size and the phone layout (card-thumbnails.md).
+
+## Small cards (owner brief 2026-10-23)
+
+Small permits 220px cards (186px of content), so the card follows its own width, not the viewport's: the card element is a named size container (`@container/card`) and `index.css` ("Small cards") has two breakpoints on that content width.
+
+- Under 40rem the picture stacks above the text on every size (beside it the text column would be under 22rem).
+- Under 22rem the header is a grid: icon and title; the creator, the project and the fork source on a full-width row; then the visibility pill (Private, Unlisted, Public, Varies by canvas) with the Card options button at the row's end. The text column is 296px instead of 196px, the footer wraps so Open has its own line.
+- A title, creator or project label that wraps past two lines is clamped and gets a Show full title button (`aria-expanded`); opened, that one card grows to its text. The title link always carries the whole title.
+- `e2e/card-size-check.mjs` (fork runner) reads the boxes: for every size, Library canvases and projects, Explore and Home, a phone, a tablet and dark, no two of icon, title, pill, creator, project, Card options, footer metadata and Open overlap, every control's centre hits the control, nothing is cut short without the button, and hovered or focused cards keep every part where it was.
