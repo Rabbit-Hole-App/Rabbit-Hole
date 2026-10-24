@@ -16,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 9; // the number of check() steps below; keep it equal
+const total = 10; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -313,6 +313,30 @@ await check('9 scrolled up, new replies show New replies and the reading place s
   for (const id of [...replies, later, away]) assert.ok(shown.includes(id), `${id} shown`);
   await expect(page.locator('[data-comments-panel] [data-comment-composer] textarea')).toHaveValue('Typed before going offline');
   assert.deepEqual([asks, stray], [[], []]);
+});
+
+// Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. The owner comments in the hole through the app; a
+// person with no access to the hole (the visitor here, a stranger to both) gets 404 with no content; Share says the people are the hole's own.
+await check('10 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
+  const hole = `canvas-${run.replace(/[^a-f0-9]/g, '0').padEnd(8, '0').slice(0, 8)}`;
+  const made = await post(api, '/api/canvases/dives', { name: hole, title: `Inside ${run}`, parent: { app: canvas.name, board: 'main' }, origin_block_id: 'd-card', dive: { concept: 'ice' } });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  const board = await api(`/api/learn/boards/${hole}/main`, { method: 'PUT', body: JSON.stringify({ state: { ...STATE, blocks: [{ id: 'h-card', type: 'explanation', dx: 0, dy: 0, title: 'Inside the hole', body: 'Only here.' }], shapes: [], groups: [] } }) });
+  assert.equal(board.status, 200);
+  const holeBase = `/api/learn/c/${board.body.board_id}`;
+  const own = await start(api, holeBase, on('h-card', 'block', 'Inside the hole'), 'A comment inside the hole');
+  assert.equal((await viewer(`${holeBase}/threads`)).status, 404, 'a person with no access to the hole');
+  assert.equal((await nobody(`${holeBase}/threads`)).status, 401);
+  assert.equal((await api(`${base}/threads/${own}`)).status, 404, 'the hole\'s thread is not the canvas\'s');
+  await page.goto(`${BASE}/apps/${hole}`);
+  await card('h-card').waitFor({ timeout: 60000 });
+  await page.locator('[data-comments-header]').click();
+  await expect(row(own)).toHaveCount(1, { timeout: 20000 });
+  await expect(row(T.point)).toHaveCount(0);
+  await page.getByRole('button', { name: 'Share', exact: true }).click();
+  await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/10-nested-hole.png` });
 });
 
 await browser.close();

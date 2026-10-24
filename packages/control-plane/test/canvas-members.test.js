@@ -312,3 +312,23 @@ test('a kept hash is never claimable again: not after joining, not after Remove,
   assert.equal((await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token: fresh } })).status, 200);
   assert.equal(f.mail.length, sent + 2, 'only the re-invite and its code were sent');
 });
+
+test('D2: the owner invites to a nested Rabbit Hole on its own; joining it opens that hole only, never its parent', async t => {
+  const f = setup(t);
+  const HOLE = 'canvas-0000000b', HOLE_BOARD = '7a2d0b3f-4c5e-4f60-9b1c-1d2e3f4a5b6c';
+  f.sqlite.exec(`INSERT INTO canvases (org, name, owner_email, title) VALUES ('ana-ws', '${HOLE}', 'ana@test', 'Inside the softmax');
+    INSERT INTO learn_boards (id, org, owner_email, app, board, state_json, updated_at) VALUES ('${HOLE_BOARD}', 'ana-ws', 'ana@test', '${HOLE}', 'main', '{"blocks":[]}', '2026-10-07');
+    INSERT INTO canvas_dives (org, owner_email, child, parent_app, origin_block_id, dive_json) VALUES ('ana-ws', 'ana@test', '${HOLE}', '${CANVAS}', 'b1', '{}');`);
+  const hole = `/api/learn/c/${HOLE_BOARD}`;
+  assert.equal((await invite(f, ['bob@lab.org'])).status, 200, 'the parent can still invite');
+  assert.equal((await f.call('GET', `${hole}/members`, { as: 'ana' })).body.nested, true);
+  assert.equal((await f.call('GET', `${f.base}/members`, { as: 'ana' })).body.nested, undefined);
+  assert.equal((await f.call('GET', `${hole}/members`, { as: 'ben' })).status, 404, 'a stranger to the hole cannot list its people');
+  assert.deepEqual((await f.call('POST', `${hole}/members`, { as: 'ana', body: { emails: ['bob@lab.org'] } })).body.invited.map(i => i.email_status), ['sent'], 'the hole has its own invitation for the same address');
+  const token = f.tokenOf(f.mail.at(-1));
+  await f.call('POST', '/api/learn/invites/code', { as: 'ben', body: { token } });
+  const joined = await f.call('POST', '/api/learn/invites/accept', { as: 'ben', body: { token, code: f.codeOf(f.mail.at(-1)) } });
+  assert.deepEqual(joined.body, { joined: true, url: `/c/${HOLE_BOARD}` });
+  assert.equal((await f.call('GET', hole, { as: 'ben' })).body.role, 'member');
+  assert.equal((await f.call('GET', f.base, { as: 'ben' })).status, 404, 'the hole\'s member holds nothing of the parent');
+});

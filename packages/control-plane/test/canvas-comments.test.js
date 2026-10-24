@@ -341,15 +341,115 @@ test('public family: a publication only; Open, Closed, Off; signed out reads; me
   assert.equal((await comments(f, 'POST', `${pub}/threads`, { as: 'cara', body: { id: crypto.randomUUID(), anchor: ON_CARD, body: 'back' } })).status, 201);
 });
 
-test('Trash suspends the member family for everyone but the owner; nested Rabbit Holes have no comments', async t => {
+test('Trash suspends the member family for everyone but the owner', async t => {
   const f = setup(t);
   const { name, base } = await canvas(f);
   f.sqlite.prepare("INSERT INTO library_trash (org, name, trashed_at) VALUES ('ana-ws', ?, '2026-10-07')").run(name);
   assert.equal((await comments(f, 'GET', `${base}/threads`, { as: 'ben' })).status, 404);
   assert.equal((await comments(f, 'GET', `${base}/threads`, { as: 'ana' })).status, 200);
-  f.sqlite.prepare("DELETE FROM library_trash").run();
-  f.sqlite.prepare("INSERT INTO canvas_dives (org, owner_email, child, parent_app, origin_block_id, dive_json) VALUES ('ana-ws', 'ana@test', ?, 'canvas-00000001', 'b1', '{}')").run(name);
-  assert.equal((await comments(f, 'GET', `${base}/threads`, { as: 'ana' })).status, 404);
+});
+
+// Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. Its comments need access to THAT hole; the parent's
+// members, threads and settings are never inherited, and a hole's members never reach the parent.
+let holes = 0;
+async function hole(f, parent, { member = false, id = 'm2' } = {}) {
+  const name = `canvas-${(++holes + 4096).toString(16).padStart(8, '0')}`;
+  const made = await f.call('POST', '/api/canvases/dives', { as: 'ana', body: { name, title: 'Inside the softmax', parent: { app: parent.name, board: 'main' }, origin_block_id: `b-${name}`, dive: { concept: 'softmax' } } });
+  assert.equal(made.status, 201, made.text);
+  const saved = await f.call('PUT', `/api/learn/boards/${name}/main`, { as: 'ana', body: { state: BOARD } });
+  if (member) f.sqlite.prepare("INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES (?, 'ana-ws', ?, 'ben@test', 'u-ben-9a2b', 'ben@test', 'active', 'sent', 'u-ana-5d1e', 0, 0)").run(id, name);
+  return { name, boardId: saved.body.board_id, base: `/api/learn/c/${saved.body.board_id}` };
+}
+
+test('D2 nested Rabbit Holes: the owner comments; a parent member sees nothing there; only a member of THAT hole does, and only there', async t => {
+  const f = setup(t);
+  const parent = await canvas(f); // ben is a member of the parent
+  const child = await hole(f, parent);
+  const parentThread = (await start(f, parent.base, 'ana', 'Parent only')).body.thread.id;
+  const own = await start(f, child.base, 'ana', 'About the hole');
+  assert.equal(own.status, 201, JSON.stringify(own.body));
+  assert.equal((await comments(f, 'GET', child.base, { as: 'ana' })).body.nested, true);
+  assert.equal((await comments(f, 'GET', parent.base, { as: 'ana' })).body.nested, undefined, 'a top-level canvas is not nested');
+  // ben holds the parent only: every route of the hole answers 404 with no content, the parent still works for him.
+  for (const [method, sub] of [['GET', ''], ['GET', '/threads'], ['GET', `/threads/${own.body.thread.id}`], ['POST', `/threads/${own.body.thread.id}/comments`], ['POST', '/threads'], ['GET', '/board'], ['GET', '/people']]) {
+    const seen = await comments(f, method, `${child.base}${sub}`, { as: 'ben', body: method === 'GET' ? undefined : { id: crypto.randomUUID(), anchor: ON_CARD, body: 'x' } });
+    assert.equal(seen.status, 404, `parent member ${method} ${sub}`);
+    assert.doesNotMatch(JSON.stringify(seen.body), /About the hole|Inside the softmax/);
+  }
+  assert.equal((await comments(f, 'GET', `${parent.base}/threads`, { as: 'ben' })).status, 200);
+  // The parent's thread id never opens through the hole's board, and the hole's through the parent's.
+  assert.equal((await comments(f, 'GET', `${child.base}/threads/${parentThread}`, { as: 'ana' })).status, 404);
+  assert.equal((await comments(f, 'GET', `${parent.base}/threads/${own.body.thread.id}`, { as: 'ana' })).status, 404);
+  assert.deepEqual((await comments(f, 'GET', `${child.base}/threads`, { as: 'ana' })).body.threads.map(x => x.id), [own.body.thread.id]);
+  assert.deepEqual((await comments(f, 'GET', `${parent.base}/threads`, { as: 'ana' })).body.threads.map(x => x.id), [parentThread]);
+  // Invited to the hole, ben reads and replies there.
+  f.sqlite.prepare("INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) VALUES ('m3', 'ana-ws', ?, 'ben@test', 'u-ben-9a2b', 'ben@test', 'active', 'sent', 'u-ana-5d1e', 0, 0)").run(child.name);
+  const reply = await comments(f, 'POST', `${child.base}/threads/${own.body.thread.id}/comments`, { as: 'ben', body: { id: crypto.randomUUID(), body: 'I can see this' } });
+  assert.equal(reply.status, 201);
+  assert.equal((await comments(f, 'GET', `${child.base}/threads`, { as: 'cara' })).status, 404, 'cara belongs to neither');
+  // Revocation: ending ben's membership of the hole closes it for him at once; the parent is unchanged.
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE id = 'm3'").run();
+  assert.equal((await comments(f, 'GET', `${child.base}/threads/${own.body.thread.id}`, { as: 'ben' })).status, 404);
+  assert.equal((await comments(f, 'GET', `${parent.base}/threads`, { as: 'ben' })).status, 200);
+  // And removing him from the parent does not touch a hole he was invited to on its own.
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'active' WHERE id = 'm3'").run();
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE id = 'm1'").run();
+  assert.equal((await comments(f, 'GET', `${parent.base}/threads`, { as: 'ben' })).status, 404);
+  assert.equal((await comments(f, 'GET', `${child.base}/threads`, { as: 'ben' })).status, 200);
+});
+
+test('D2 nested Rabbit Holes: settings and Shared with you are the hole\'s own; a hole is in Trash with the canvas above it, at any depth', async t => {
+  const f = setup(t);
+  const parent = await canvas(f, { member: false });
+  const inner = await hole(f, parent, { member: true });
+  const deep = await hole(f, inner, { member: true, id: 'm4' }); // a hole inside the hole
+  const made = (await start(f, inner.base, 'ana', 'Needs a look')).body.thread.id;
+  // Allow comments is per board: turning it off on the hole leaves the parent's setting alone.
+  assert.equal((await comments(f, 'PUT', `${inner.base}/comment-settings`, { as: 'ana', body: { comments_enabled: false } })).status, 200);
+  assert.equal((await comments(f, 'GET', parent.base, { as: 'ana' })).body.comments_enabled, true);
+  assert.equal((await comments(f, 'POST', `${inner.base}/threads/${made}/comments`, { as: 'ben', body: { id: crypto.randomUUID(), body: 'x' } })).body.code, 'comments_off');
+  assert.equal((await comments(f, 'PUT', `${inner.base}/comment-settings`, { as: 'ana', body: { comments_enabled: true } })).status, 200);
+  assert.equal((await comments(f, 'PUT', `${inner.base}/comment-settings`, { as: 'ben', body: { comments_enabled: false } })).status, 403, 'only the hole\'s owner');
+  // A hole's news counts on the hole, by its own board id, for the person invited to it.
+  const shared = (await comments(f, 'GET', '/api/learn/c/shared-with-me', { as: 'ben' })).body.canvases;
+  assert.deepEqual(Object.fromEntries(shared.map(c => [c.board_id, c.unread])), { [inner.boardId]: 1, [deep.boardId]: 0 });
+  // Trash: the canvas above takes every hole under it out of reach for members; the owner keeps access.
+  f.sqlite.prepare("INSERT INTO library_trash (org, name, trashed_at) VALUES ('ana-ws', ?, '2026-10-07')").run(parent.name);
+  for (const b of [inner, deep]) {
+    assert.equal((await comments(f, 'GET', `${b.base}/threads`, { as: 'ben' })).status, 404, 'a member of a hole under a canvas in Trash');
+    assert.equal((await comments(f, 'GET', `${b.base}/threads`, { as: 'ana' })).status, 200);
+  }
+  assert.deepEqual((await comments(f, 'GET', '/api/learn/c/shared-with-me', { as: 'ben' })).body.canvases, []);
+  f.sqlite.prepare('DELETE FROM library_trash').run();
+  assert.equal((await comments(f, 'GET', `${deep.base}/threads`, { as: 'ben' })).status, 200);
+});
+
+test('a project\'s Main canvas has comments for its owner alone', async t => {
+  const f = setup(t);
+  const repoBoard = (await f.call('PUT', '/api/learn/boards/repo-0a1b2c3d-nanogpt/main', { as: 'ana', body: { state: BOARD } })).body.board_id;
+  assert.match(repoBoard, /^[0-9a-f-]{36}$/);
+  const base = `/api/learn/c/${repoBoard}`;
+  const made = await start(f, base, 'ana', 'About the repository');
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal((await comments(f, 'GET', base, { as: 'ana' })).body.title, 'karpathy/nanoGPT');
+  for (const as of ['ben', 'cara']) assert.equal((await comments(f, 'GET', `${base}/threads`, { as })).status, 404, `${as} has no way in`);
+  assert.equal((await comments(f, 'GET', `${base}/threads`)).status, 401);
+  assert.equal((await comments(f, 'GET', '/api/learn/c/00000000-0000-4000-8000-000000000000/threads', { as: 'ana' })).status, 404, 'an id that is no board');
+});
+
+test('deleting a Rabbit Hole takes its comments and nobody else\'s', async t => {
+  const f = setup(t);
+  const parent = await canvas(f);
+  const child = await hole(f, parent, { member: true });
+  await start(f, parent.base, 'ana', 'Stays');
+  const gone = (await start(f, child.base, 'ana', 'Goes with the hole')).body.thread.id;
+  await comments(f, 'POST', `${child.base}/threads/${gone}/read`, { as: 'ben' });
+  const count = table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n;
+  assert.deepEqual([count('canvas_comment_threads'), count('canvas_comments'), count('canvas_comment_reads')], [2, 2, 1]);
+  const deleted = await f.call('DELETE', `/api/canvases/dives/${child.name}`, { as: 'ana' });
+  assert.equal(deleted.status, 200, deleted.text);
+  assert.deepEqual([count('canvas_comment_threads'), count('canvas_comments'), count('canvas_comment_reads')], [1, 1, 0]);
+  assert.equal((await comments(f, 'GET', `${parent.base}/threads`, { as: 'ana' })).body.threads.length, 1);
 });
 
 test('a failure inside a comment route answers JSON with a reason, never the platform error page (owner bug, 2026-10-09)', async t => {

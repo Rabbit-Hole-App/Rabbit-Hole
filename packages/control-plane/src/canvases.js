@@ -16,7 +16,7 @@ import { purgeTutorRows } from './learn-coaching-store.js';
 // and mentions only (no attachment column or table, and no attachment code in canvas-comments.js), so there is none to
 // purge. Unread and Shared with you count from these rows, so they count nothing for it after. Here, not in
 // canvas-comments.js, which imports this module.
-const purgeCommentRows = (db, org, canvas) => {
+export const purgeCommentRows = (db, org, canvas) => {
   const threads = 'SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ?';
   return [
     db.prepare(`DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id IN (${threads}))`).bind(org, canvas),

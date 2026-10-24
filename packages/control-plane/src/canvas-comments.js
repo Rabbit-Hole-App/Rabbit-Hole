@@ -9,7 +9,7 @@
 import { repositoryIdentity } from './repositories.js';
 import { HANDLE_OF, NAME_OF } from './canvases.js';
 import { sharedState } from './shared-privacy.js';
-import { NOT_TRASHED } from './library-trash.js';
+import { IN_TRASH_TREE } from './library-trash.js';
 import { sha256Hex } from './learn-grade-jev.js';
 import { boardAsset } from './learn-boards.js';
 import { redactRepositoryCards } from './repository-cards.js';
@@ -70,15 +70,30 @@ export function person(row, p = '') {
     ...(handle && row[`${p}has_avatar`] ? { avatar_url: `/api/learn/creators/${handle}/avatar?v=${encodeURIComponent(row[`${p}since`] || '')}` } : {}) };
 }
 
-// A top-level canvas's main board (Q5): never a nested Rabbit Hole, never a project board. Archive changes nothing
-// here; Trash suspends everyone but the owner; a publication counts while the canvas is live.
-const BOARD_ROW = `SELECT b.id, b.org, b.app AS canvas, b.owner_email, c.title, b.public_view = 1 AS public_view_open, NOT ${NOT_TRASHED('c.org', 'c.name')} AS trashed,
+// The one board resolver (owner decision D2, 2026-10-23). A board here is the main board of a canvas row - top-level, a
+// project canvas or a nested Rabbit Hole - or the Main canvas of a project (repo-*). Each is its own board: its owner, its
+// members and its settings are its own, read from its own (org, canvas) key, and nothing is inherited from a parent. A
+// parent's members are not the hole's: the hole's people are those invited to the hole. A project's Main canvas has no
+// members or publication, so only its owner reaches its comments. Archive changes nothing here; Trash suspends everyone but
+// the owner, and a hole is in Trash with the canvas above it; a publication counts while the canvas is live.
+const BOARD_ROW = `SELECT b.id, b.org, b.app AS canvas, b.owner_email, c.title, b.public_view = 1 AS public_view_open, ${IN_TRASH_TREE('c.org', 'c.name')} AS trashed,
     (c.archived_at IS NULL AND EXISTS (SELECT 1 FROM canvas_publications pub WHERE pub.org = c.org AND pub.canvas = c.name)) AS published,
+    EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name AND d.parent_app NOT LIKE 'share:%') AS nested,
     COALESCE(s.comments_enabled, 1) AS comments_enabled, COALESCE(s.public_mode, 'off') AS public_mode, COALESCE(l.public_mode, 'off') AS link_mode, ${PERSON('c.owner_email', 'owner_')}
   FROM learn_boards b JOIN canvases c ON c.org = b.org AND c.name = b.app AND c.owner_email = b.owner_email
   LEFT JOIN canvas_comment_settings s ON s.org = c.org AND s.canvas = c.name
   LEFT JOIN canvas_comment_settings l ON l.org = c.org AND l.canvas = 'link:' || c.name
-  WHERE b.board = 'main' AND c.name NOT IN (SELECT d.child FROM canvas_dives d WHERE d.org = c.org AND d.parent_app NOT LIKE 'share:%')`;
+  WHERE b.board = 'main'`;
+const PROJECT_BOARD = `SELECT b.id, b.org, b.app AS canvas, b.owner_email, r.repo AS title, 0 AS public_view_open, ${IN_TRASH_TREE('r.org', 'r.name')} AS trashed, 0 AS published, 0 AS nested,
+    COALESCE(s.comments_enabled, 1) AS comments_enabled, 'off' AS public_mode, 'off' AS link_mode, ${PERSON('r.owner_email', 'owner_')}
+  FROM learn_boards b JOIN repository_apps r ON r.org = b.org AND r.name = b.app AND r.owner_email = b.owner_email
+  LEFT JOIN canvas_comment_settings s ON s.org = r.org AND s.canvas = r.name
+  WHERE b.board = 'main' AND b.app LIKE 'repo-%'`;
+export async function boardOf(env, boardId) {
+  if (!BOARD_ID.test(boardId)) return null;
+  const db = env.LEARN_DB;
+  return (await db.prepare(`${BOARD_ROW} AND b.id = ?`).bind(boardId).first()) || (await db.prepare(`${PROJECT_BOARD} AND b.id = ?`).bind(boardId).first()) || null;
+}
 
 async function viewerOf(req, env) {
   if (isEmbed(req)) return null; // an embed is the public's, the owner's own page or not (SHARE-04)
@@ -96,8 +111,7 @@ async function actorOn(env, board, viewer) {
 const settingsOf = board => ({ mode: board.published ? board.public_mode : 'off', enabled: !!board.comments_enabled });
 
 export async function memberContext(req, env, boardId) {
-  if (!BOARD_ID.test(boardId)) return notFound();
-  const board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND b.id = ?`).bind(boardId).first();
+  const board = await boardOf(env, boardId);
   if (!board) return notFound();
   const viewer = await viewerOf(req, env);
   if (!viewer) return refuse('Sign in to see the comments on this canvas.', 'sign_in', 401, { signIn: true });
@@ -113,13 +127,13 @@ const linkName = mode => Object.keys(LINK_MODES).find(name => LINK_MODES[name] =
 
 async function publicContext(req, env, token) {
   if (!TOKEN.test(token)) return notFound();
-  let board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND c.archived_at IS NULL AND ${NOT_TRASHED('c.org', 'c.name')}
+  let board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND c.archived_at IS NULL AND NOT ${IN_TRASH_TREE('c.org', 'c.name')}
     AND EXISTS (SELECT 1 FROM canvas_publications pub WHERE pub.org = c.org AND pub.canvas = c.name AND pub.token = ?)`).bind(token).first();
   const viewer = await viewerOf(req, env);
   if (!board) {
     // A share link's token (/b/): only while the link is on, and for a signed-out visitor only when it is public. The retained
     // token alone proves nothing (permanent link, owner decision 2026-10-22). Its mode is the link's, not Explore's.
-    board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND b.shared = 1 AND b.view_token = ? AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(token).first();
+    board = await env.LEARN_DB.prepare(`${BOARD_ROW} AND b.shared = 1 AND b.view_token = ? AND NOT ${IN_TRASH_TREE('c.org', 'c.name')}`).bind(token).first();
     if (!board || !(board.public_view_open || viewer)) return (await env.LEARN_DB.prepare('SELECT 1 FROM learn_boards WHERE view_token = ?').bind(token).first()) ? refuse(NO_ACCESS, 'not_found', 404) : notFound();
     board = { ...board, published: 1, public_mode: board.link_mode };
   }
@@ -686,7 +700,7 @@ async function sharedWithMe(req, env) {
   if (!viewer?.userId) return refuse('Sign in to see what is shared with you.', 'sign_in', 401, { signIn: true });
   const from = `FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
     JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'`;
-  const where = `WHERE m.member_user_id = ?1 AND m.status = 'active' AND ${NOT_TRASHED('c.org', 'c.name')}`;
+  const where = `WHERE m.member_user_id = ?1 AND m.status = 'active' AND NOT ${IN_TRASH_TREE('c.org', 'c.name')}`;
   const { results } = await env.LEARN_DB.prepare(`SELECT b.id AS board_id, c.title, COALESCE(md.updated_at, c.created_at) AS updated_at, ${PERSON('c.owner_email', 'owner_')}
     ${from} LEFT JOIN canvas_metadata md ON md.org = c.org AND md.canvas = c.name ${where} ORDER BY updated_at DESC`).bind(viewer.userId).all();
   const unread = await countVisible(env, (await env.LEARN_DB.prepare(`SELECT b.id AS key, t.id, t.board_id, t.anchor_json ${from}
@@ -698,7 +712,7 @@ function about(ctx) {
   const { owner, member, signedIn } = ctx.actor;
   const audience = ctx.family === 'public' ? 'public' : 'members';
   return json({
-    role: owner ? 'owner' : member ? 'member' : 'viewer', title: ctx.board.title, owner: person(ctx.board, 'owner_'),
+    role: owner ? 'owner' : member ? 'member' : 'viewer', title: ctx.board.title, ...(ctx.board.nested ? { nested: true } : {}), owner: person(ctx.board, 'owner_'),
     comments_enabled: ctx.enabled, public_mode: ctx.board.published ? ctx.board.public_mode : 'off', ...(owner ? { link_comments: linkName(ctx.board.link_mode) } : {}), published: !!ctx.board.published, signed_in: signedIn,
     can: { post: allowed(ctx, 'post', audience), post_public: allowed(ctx, 'post', 'public'), settings: owner, blocked: ctx.actor.blocked },
   });
@@ -714,7 +728,7 @@ async function unreadCounts(req, env) {
       JOIN canvas_comment_threads t ON t.board_id = b.id WHERE c.org = ?2 AND c.owner_email = ?3 AND t.resolved_at IS NULL AND ${unreadSql(false)}`).bind(viewer.userId, viewer.org, viewer.email).all();
   const shared = await db.prepare(`SELECT b.id AS key, t.id, t.board_id, t.anchor_json FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas
       JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' JOIN canvas_comment_threads t ON t.board_id = b.id
-      WHERE m.member_user_id = ?1 AND m.status = 'active' AND t.resolved_at IS NULL AND ${unreadSql(false)} AND ${NOT_TRASHED('c.org', 'c.name')}`).bind(viewer.userId).all();
+      WHERE m.member_user_id = ?1 AND m.status = 'active' AND t.resolved_at IS NULL AND ${unreadSql(false)} AND NOT ${IN_TRASH_TREE('c.org', 'c.name')}`).bind(viewer.userId).all();
   return json({ owned: await countVisible(env, owned.results), shared: await countVisible(env, shared.results) });
 }
 

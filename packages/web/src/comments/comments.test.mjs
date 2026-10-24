@@ -167,7 +167,8 @@ test('seams: the canvas menu offers Add comment on an object only (owner, 2026-1
   assert.match(canvas, /\{commentPins && presenting === null && <CommentPins /, 'no pins while presenting');
   assert.match(page, /<AdaptiveCanvas key=\{canvasEpoch\} \{\.\.\.comments\.canvasProps\} /);
   assert.match(page, /\{comments\.active && <CommentsPanel hidden=\{panelTab !== 'comments'\} \{\.\.\.comments\.panelProps\} \/>\}/);
-  assert.match(page, /enabled: isCanvas && !hole && boardName === 'main'/, 'top-level canvases\' main board only (Q5)');
+  assert.match(page, /enabled: \(isCanvas \|\| isRepository\) && !hole && boardName === 'main'/, 'a canvas (top-level, project or nested Rabbit Hole) or a project\'s Main canvas, never a pending hole or a review board (D2, 2026-10-23)');
+  assert.match(read('./PeopleWithAccess.jsx'), /list\?\.nested && <p data-nested-note[^>]*>Only people invited here can see this Rabbit Hole's comments\. Members of the canvas it is in are not included\./, 'a hole says its people are its own');
   assert.doesNotMatch(panel + read('./comments-api.js'), /\.email\b|user_id|author_id/, 'the browser never handles an email or an account id');
   assert.doesNotMatch(panel, /dangerouslySetInnerHTML/, 'text renders as React text');
 });

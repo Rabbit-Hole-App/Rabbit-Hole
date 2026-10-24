@@ -56,7 +56,12 @@ one, in dives and canvases), the phone bottom sheet check, and Home's cards.**
 - Comments are stored apart from board state, with no canvas-version change and no owner-save conflicts.
 - Private discussions cannot leak through publication or forks.
 - **Q1:** recipient-only invitations, with stable account ids and account lookup and linking unchanged.
-- **Q5:** top-level canvases only in V1.
+- **Q5 (replaced by D2, 2026-10-23):** V1 was top-level canvases only. Owner decision D2 widens it: every canvas's `main` board
+  (top-level, project canvas or nested Rabbit Hole) and a project's Main canvas have comments, each as its own board. A nested
+  Rabbit Hole's comments need access to THAT hole: the parent's members get nothing there, and the hole's members get nothing
+  of the parent. The owner invites to a hole in its own Share dialog, which says so. A project's Main canvas has no members or
+  publication, so only its owner comments there. A hole is in Trash with the canvas above it, and deleting a hole deletes its
+  comments. One server resolver, `boardOf` in `canvas-comments.js`; no migration.
 - **Allow comments (owner, 2026-10-07):** when sharing a canvas, the owner chooses whether others may comment at all (section 4).
 - **Full scope (owner, 2026-10-07):** the whole feature is built as designed. The one-day "published canvases only" MVP
   relayed by Home is not adopted.
@@ -185,7 +190,7 @@ otherwise.
 - A thread belongs to one board row: `board_id` = `learn_boards.id` of the canvas's main board, plus `org` and `canvas`.
 - The public route family is keyed by the publication token and never accepts or returns a board id.
 - The member family is keyed by the board id and needs owner or member identity.
-- Top-level `canvas-*` canvases and their `main` board only (Q5).
+- Every `canvas-*` canvas's `main` board, nested Rabbit Holes included (D2, replacing Q5), and a project's (`repo-*`) Main canvas for its owner.
 
 **Audience**
 - `members` threads: readable only by the owner and active members.
