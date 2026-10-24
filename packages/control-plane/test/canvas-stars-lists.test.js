@@ -296,3 +296,33 @@ test('star events are delivered to the telemetry sink in order, once each, and a
   assert.ok(SURFACES.includes('personal_stars') && !SURFACES.includes('not-a-surface'));
   assert.equal((await starEnvelope({ ...f.sqlite.prepare('SELECT * FROM canvas_star_events').get() })).payload.canvas_ref.length, 32);
 });
+
+// Weekly Top 5 reads the first 'added' event per (canvas, account) as the first-star time (C:/s/spec/weekly-top5/stars-request.md),
+// because canvas_stars.created_at is only the latest add. These three guarantees are part of the Stars contract.
+test('canvas_star_events is append-only: one added event per real add, first-star time survives remove, re-add and deletion', async t => {
+  const f = setup(t);
+  const a = await published(f);
+  const mine = (await f.call('POST', '/api/canvases', { as: 'ana', body: { title: 'Scratch' } })).body;
+  await f.call('PUT', `/api/apps/${mine.name}/star`, { as: 'ana' });
+  await star(f, a.token, 'ben'); await star(f, a.token, 'ben'); // add, and a repeat that is no add
+  await star(f, a.token, 'ben', 'DELETE'); await star(f, a.token, 'ben', 'DELETE'); // remove, and a repeat
+  await star(f, a.token, 'ben'); // a real second add
+  const added = () => f.sqlite.prepare("SELECT event_id, user_id, canvas, owner_star, at FROM canvas_star_events WHERE kind = 'added' ORDER BY at, rowid").all().map(e => ({ ...e }));
+  const first = added();
+  assert.equal(first.filter(e => e.user_id === BEN).length, 2, 'exactly one added event per real add: two adds, two events, the repeat wrote none');
+  assert.ok(first.every(e => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}$/.test(e.at)), 'at is YYYY-MM-DD HH:MM:SS.fff');
+  assert.deepEqual(first.map(e => [e.user_id, e.owner_star]).sort(), [[ANA, 1], [BEN, 0], [BEN, 0]], 'owner_star is set from the canvas owner at that moment');
+  // Deletion of the canvas appends lifecycle removals and keeps every earlier added event; delivery only sets delivered_at.
+  assert.equal((await f.call('DELETE', `/api/apps/${mine.name}`, { as: 'ana' })).status, 200);
+  await deliverStarEvents(f.db, async () => {});
+  const after = added();
+  assert.deepEqual(after.map(e => e.event_id), first.map(e => e.event_id), 'no added event was removed or rewritten (event_id, at, owner_star unchanged)');
+  assert.deepEqual(after, first);
+  assert.equal(f.sqlite.prepare("SELECT count(*) AS n FROM canvas_star_events WHERE kind = 'removed' AND reason = 'lifecycle'").get().n, 1);
+  // No code path deletes events or rewrites anything but delivered_at: a retention job must not be added without revisiting Weekly Top 5.
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('../src/', import.meta.url);
+  const writes = readdirSync(dir).filter(file => file.endsWith('.js')).flatMap(file => [...readFileSync(new URL(file, dir), 'utf8').matchAll(/(DELETE\s+FROM|UPDATE|INSERT\s+OR\s+REPLACE\s+INTO|REPLACE\s+INTO)\s+canvas_star_events\b[^`'"]*/gi)].map(m => `${file}: ${m[0].replace(/\s+/g, ' ').slice(0, 60)}`));
+  assert.equal(writes.length, 1, writes.join(' | '));
+  assert.match(writes[0], /^canvas-star-events.js: UPDATE canvas_star_events SET delivered_at/);
+});
