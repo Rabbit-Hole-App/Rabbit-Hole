@@ -134,3 +134,42 @@ model, webpage, video, code, quiz and the rest. CAD keeps its own 3D "Fit view" 
    This predates this work; WP1 owns the one-line fix and its test.
 4. `captureNavigation` records scroll positions inside every card, the focused one included. Restoring them as they are
    would revert the reader's latest page (brief 2.4); `exitNavigation` drops the focused card's entries.
+
+## 7. Seam as landed (WP2, b49b215d)
+
+Commands on the canvas api (`apiRef.current`, the same object StudyPane's `canvasApi` reads):
+
+- `enterFocus(id) -> boolean`: `false` (and nothing happens) when no adapter claims the object or the canvas is not mounted;
+  otherwise `captureNavigation()`, the measured frame and `dispatch enter`, then the selection is cleared (the card's row and
+  the selection bar stand down; the saved selection comes back on exit). Focusing another card while focused switches cards
+  and keeps the first saved navigation. Callers: the card toolbar's Focus button, the right-click Focus row
+  (`ctx.canvas.focus(id)`), Study > Notebook (`showNotebook`, `reframe`).
+- `exitFocus()`: Back to canvas, Escape, Study > Canvas. Harmless when nothing is focused.
+- `focusState() -> { id, kind } | null`.
+- `onState(...).focus`: `{ id, kind }` or `null`, published when the id or kind changes (StudyPane follows it back to Canvas).
+- `ctx.canvas.focus(id)` and `ctx.canvas.focusable(object)` (false for the card already focused) for `card.focus`.
+
+What the seam does (AdaptiveCanvas.jsx, `syncFocus` in `focus-adapters.js`):
+
+- The adapter's `host` is the card's own `[data-block][data-block-id]` element (`[data-item-id]` for a canvas item).
+  `enter(host, frame, { view, readOnly })` once; `update` on every new frame (`workspace-changed`) and on every camera move or
+  zoom while focused; `exit` once, then `restoreNavigation(exitNavigation(previous))`. The seam never styles the host: the
+  adapter places it (WP3's `[data-focus-host]` rule in `index.css` is generic and reusable).
+- `frame` is the content rectangle in surface px: the surface less the floating toolbar and header (`controlArea`), the
+  contents rail (`edgeInset`) and the bottom chrome (`chromeTop`), less the controller's inset, less FocusFrame's header row
+  (`FOCUS_BAR`, 52 px). The header is drawn in that row only, above the world layer, never over the focused host.
+- Re-measured on a ResizeObserver over the surface (panels, the Study divider's margins), the page header and the bottom
+  strip's columns, and on window resize. Blocks, items, exchanges or `readOnly` changing so that no adapter claims the focused
+  object dispatches `content-gone`.
+- Escape: in the canvas key handler after the dialog and menu guard and before the view-only branch,
+  `shouldExitOnEscape(event, { focusing, menuOpen, gesture })` exits.
+- Presentation only: while focused, the focused id is skipped by `shift` (no move), refused by `resizeCard` (no resize, and the
+  full-mode card's automatic width write), and keeps its previous measured bounds in `measureNow`, so its temporary size
+  reaches no board save, connector or placement.
+
+Controls: the Focus button leads the selection actions (`data-focus-button`, Lucide `Maximize` 16 px, 32 px high, 8 px radius,
+8 px before the next action, a 44 x 44 press area, accessible name and tooltip = the adapter's `label`); it shows only when an
+adapter claims the one selected object, on view-only boards too (Add to chat and Quick Edit stay hidden there). The menu row
+`card.focus` ("Focus", `data-menu-focus`, capability `canvas.view`) has the same rule. FocusFrame: `data-focus-frame=<id>`,
+`data-focus-kind`, the title (`objectName`) and "Back to canvas" (`data-focus-back`, Lucide `Minimize`). Browser coverage:
+`packages/web/e2e/focus-chrome-check.mjs` (needs the notebook adapter; CI only).
