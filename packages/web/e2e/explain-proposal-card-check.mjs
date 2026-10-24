@@ -136,7 +136,7 @@ const results = [];
 const total = 7;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
-  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n')[0]}`); }
+  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n').slice(0, 4).join(' | ')}`); } // the locator a timeout waited for is on the following lines
 };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 150)); } throw Error(`timed out: ${label}`); };
 
@@ -153,7 +153,8 @@ await page.locator('[data-chat-pane] [data-chat-composer]').first().waitFor({ ti
 const dock = page.locator('[data-chat-pane]');
 const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
 const send = async text => { const box = composer(); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
-const cardOf = title => dock.locator('[data-generation-proposal="explain"]').filter({ has: page.locator('h3', { hasText: title }) }).last();
+// A brief's card by its request, which the card shows unchanged in every state (the title's h3 becomes an input while Edit details is open).
+const cardOf = request => dock.locator('[data-generation-proposal="explain"]').filter({ has: page.locator('[data-proposal-request]', { hasText: request }) }).last();
 const slotAlert = card => card.locator('xpath=following-sibling::p[@role="alert"]');
 const approvesOf = job => approves.filter(a => a.jobId === job.id);
 // One /explain line -> its job and the brief card the thread shows once the job waits for approval.
@@ -163,8 +164,9 @@ const brief = async (line, shape = null) => {
   await send(line);
   await until(async () => creates.length === count + 1, `one job for ${line}`);
   const job = [...jobs.values()].at(-1), b = briefs.at(-1), p = proposals.get(b.messageId);
-  const card = cardOf(p.title);
+  const card = cardOf(job.prompt);
   await card.waitFor({ timeout: 20000 });
+  assert.equal((await card.locator('h3').innerText()).trim(), p.title, 'the brief\'s title');
   return { job, id: b.messageId, card, title: p.title };
 };
 
@@ -206,8 +208,9 @@ await step('Edit details: Generate waits while the form is open; Save sends one 
   await card.locator('[data-proposal-list="assumptions"]').fill(MORE.join('\n'));
   assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true, 'Generate waits for the saved revision');
   await card.locator('[data-proposal-save]').click();
-  const card3 = cardOf(RETITLED);
+  const card3 = card;
   await until(async () => (await card3.getAttribute('data-proposal-version')) === '3', 'version 3 after Save');
+  assert.equal((await card3.locator('h3').innerText()).trim(), RETITLED, 'the saved title');
   const mine = puts.filter(p => p.id === id).map(p => p.body);
   assert.equal(mine.length, 2, 'one more save');
   assert.deepEqual(mine[1], { expected_version: 2, title: RETITLED, assumptions: MORE }, 'only the changed keys, from version 2');
@@ -250,7 +253,7 @@ await step('a refused Generate (409 brief_stale) says why under the card: one ap
 
 await step('a refused reference (409 reference_blocked): the reason is on the card once; removing it saves version 2 and its Generate sends one approve with no reference', async () => {
   const BLOCKED = 'Heap notes was deleted. Remove it or attach it again.';
-  const { card, job, id, title } = await brief('/explain how the heap notes card orders its items', { references: [REF],
+  const { card, job, id } = await brief('/explain how the heap notes card orders its items', { references: [REF],
     answers: [{ status: 409, json: { error: BLOCKED, code: 'reference_blocked', references: [{ id: 'r1', state: 'deleted', message: 'This card was deleted.' }] } }] });
   await card.locator('[data-proposal-pill="r1"]').first().waitFor();
   await card.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 10000 });
@@ -261,7 +264,7 @@ await step('a refused reference (409 reference_blocked): the reason is on the ca
   await card.locator('[data-proposal-edit]').click();
   await card.locator('[data-proposal-remove-reference="r1"]').click();
   await card.locator('[data-proposal-save]').click();
-  const saved = cardOf(title);
+  const saved = card;
   await until(async () => (await saved.getAttribute('data-proposal-version')) === '2', 'version 2 without the reference');
   const sent = puts.filter(p => p.id === id).map(p => p.body);
   assert.equal(sent.length, 1, 'one save');
