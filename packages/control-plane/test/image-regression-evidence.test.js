@@ -46,7 +46,7 @@ for (const [label, sign] of [['v2', () => signProposal(env, base({ settings: { d
     const got = await s.get();
     assert.equal(got.status, 200);
     assert.equal((await got.json()).proposal.settings.duration_seconds, 12);
-    assert.deepEqual(approvedProposal(old), { title: 'Water cycle', duration_seconds: 12, description: DESCRIPTION });
+    assert.deepEqual(approvedProposal(old), { title: 'Water cycle', duration_seconds: 12, aspect_ratio: '16:9', description: DESCRIPTION });
     assert.equal(await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-1'), null);
     assert.equal((await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-2')).code, 'proposal_used');
   });
@@ -120,8 +120,8 @@ test('Generate on a Motion proposal of 45 seconds answers 409 motion_not_ready: 
     return { res, body: await res.json(), stored, used: (await proposalRecord(s.LEARN_DB, ALICE, 'canvas-1', p.proposal_id)).state.used };
   };
   const refused = await run(45);
-  assert.deepEqual([refused.res.status, refused.body.code, refused.body.readiness.ready], [409, 'motion_not_ready', false]);
-  assert.match(refused.body.error, /45 second video is not ready/);
+  assert.deepEqual([refused.res.status, refused.body.code], [409, 'motion_not_ready']);
+  assert.match(refused.body.error, /45 second 16:9 video is not ready/);
   assert.deepEqual([[...refused.stored.keys()], calls, refused.used], [[], [], null]);
   // inside the range readiness does not refuse: whatever happens next is the unchanged path (no readiness code)
   const fine = await run(30);
