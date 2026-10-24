@@ -12,7 +12,7 @@ Owner briefs, 2026-10-06 (#63: the creator profile, and the rule that any user b
 
 ```
 [avatar]  Display Name                                  [Edit profile] [Analytics]   (your own profile only)
-          @handle  [✓ Your profile]                     (the check: your own profile only)
+ 128px    @handle [✓]  [Copy profile link]              (the check: your own profile only; the link may wrap below)
           The profile description, as text              (only when they wrote one)
           N public explainers · M forks
 
@@ -39,7 +39,9 @@ Public explainers                    [Search projects and canvases]  Sort: Newes
 ## The blue check
 
 - Another creator's profile and cards: no blue check anywhere. Nothing implies verification.
-- Your own profile: "Your profile" beside your @handle, with the existing `OwnerCheck` drawing (`owned`, tooltip "Owned by you · This is yours. It does not verify identity."). Your own cards carry it as they do in Explore.
+- Your own profile (owner brief 2026-10-23): the existing `OwnerCheck` drawing (`owned`, accessible name "Owned by you", tooltip "Owned by you · This is yours. It does not verify identity.") sits directly after your @handle, vertically centred with it; there is no "Your profile" text. With a display name the name is the heading and the next row is `@handle` then the check; with none, `@handle` is the heading and carries the check, and is not repeated. Other viewers see no check. Your own cards carry it as they do in Explore.
+- Sizes (owner brief 2026-10-23): the header picture is 128px from the `md` breakpoint up and 96px below, 24px (16px on a phone) from the identity; Creators rows in Explore use the same `CreatorAvatar` at 96px (72px on a phone). Uploaded pictures and initials fill identical boxes.
+- Explore > Creators (owner brief 2026-10-23): the search, the matching count, Recommended creators and the rows share one column of at most 760px, left-aligned with the heading and tabs. The Canvases tab is not narrowed.
 - Real creator verification is a separate future feature.
 
 ## Your own profile

@@ -1,4 +1,4 @@
-// Explore > Creators as compact rows (owner brief 2026-10-23), against the LOCAL stack only: local D1 and fresh browser
+// Explore > Creators as compact rows (owner brief 2026-10-23; the 760px column and the larger pictures, owner brief 2026-10-23 creators-ui), against the LOCAL stack only: local D1 and fresh browser
 // profiles. No model is called and nothing is sent from a composer. Prints no secrets. Every row is made through the routes
 // (profiles, canvases, publications) except the public projects, seeded in local D1 as project-canvases-check.mjs does
 // (importing needs the indexer). The stack is shared with other checks, so every Creators read searches this run's handles.
@@ -135,12 +135,24 @@ check('a bare profile: no name or description line, the initial, and only the no
   && (await bare.locator('span[title]').first().innerText()).trim().toUpperCase() === H.bare[0].toUpperCase(), JSON.stringify(await meta(bare)));
 check('private, unlisted and archived canvases never count: 2 projects and 3 canvases', (await meta(long))[3] === '2 projects · 3 canvases', (await meta(long))[3]);
 check('the unpublished creator is not listed', await row(viewer, H.none).count() === 0);
-const sizes64 = [await box(full.locator('img')), await box(bare.locator('span[title]').first())];
-check('the avatar is 64px on desktop, picture or initial', sizes64.every(b => Math.round(b.width) === 64 && Math.round(b.height) === 64), JSON.stringify(sizes64));
+const sizes96 = [await box(full.locator('img')), await box(bare.locator('span[title]').first())];
+check('the avatar is 96px on desktop, picture or initial: the same box, the same offset in the row, no layout shift', sizes96.every(b => Math.round(b.width) === 96 && Math.round(b.height) === 96) && Math.round(sizes96[0].x - (await box(full)).x) === Math.round(sizes96[1].x - (await box(bare)).x), JSON.stringify(sizes96));
+check('the avatar is a circle, a picture crops rather than stretches, and it never shrinks', await full.locator('img').evaluate(i => getComputedStyle(i).borderTopLeftRadius !== '0px' && getComputedStyle(i).objectFit === 'cover' && getComputedStyle(i).flexShrink === '0'));
 const padding = await full.evaluate(r => { const s = getComputedStyle(r); return [s.paddingLeft, s.paddingTop]; });
 const [img, text] = [await box(full.locator('img')), await box(full.locator('[data-creator-handle]'))];
 const gap = Math.round(text.x - (img.x + img.width));
-check('about 24px of row padding and 16-20px between the avatar and the text', JSON.stringify(padding) === '["24px","24px"]' && gap >= 16 && gap <= 20, JSON.stringify([padding, gap]));
+check('24px of row padding and 20-24px between the avatar and the text', JSON.stringify(padding) === '["24px","24px"]' && gap >= 20 && gap <= 24, JSON.stringify([padding, gap]));
+// One column (owner brief 2026-10-23, creators-ui): the heading, the tabs, the search, the count and the rows share a left edge; the
+// search and the rows share a right edge, at most 760px wide, narrower than the 958px content area at 1440.
+const column = await viewer.evaluate(() => {
+  const r = el => el.getBoundingClientRect(), h1 = r(document.querySelector('main[data-explore] h1')), tabs = r(document.querySelector('[data-explore-tabs]'));
+  const field = r(document.querySelector('[data-explore-search]').closest('div')), count = r(document.querySelector('[data-creator-count]'));
+  const rows = [...document.querySelectorAll('[data-explore-creators] [data-creator-card]')].map(r);
+  return { h1: h1.left, tabs: tabs.left, tabsWidth: tabs.width, field: [field.left, field.right, field.width], count: count.left, rows: rows.map(b => [b.left, b.right, b.width]) };
+});
+check('Creators: the search, the count and every row share one 760px column, aligned with the heading and the tabs; the tabs strip stays full width',
+  Math.abs(column.field[0] - column.h1) <= 1 && Math.abs(column.count - column.h1) <= 1 && Math.abs(column.tabs - column.h1) <= 1 && column.tabsWidth > 900
+  && column.field[2] <= 760.5 && column.field[2] >= 758 && column.rows.every(b => Math.abs(b[0] - column.h1) <= 1 && Math.abs(b[1] - column.field[1]) <= 1 && b[2] <= 760.5), JSON.stringify(column));
 const rowBoxes = await viewer.locator('[data-explore-creators] [data-creator-card]').evaluateAll(rs => rs.map(r => { const b = r.getBoundingClientRect(); return [b.top, b.bottom, b.left, b.width]; }));
 const between = rowBoxes.slice(1).map((b, i) => Math.round(b[0] - rowBoxes[i][1]));
 // Sized to their content: a row is far wider than tall (the old cards were squares).
@@ -214,10 +226,20 @@ await search(viewer, `zz${run}`, null);
 check('no match: the empty state, no count and no rows', (await viewer.locator('[data-search-empty]').innerText()).trim() === `No creators match “zz${run}”.`
   && await viewer.locator('[data-creator-count], [data-creator-card]').count() === 0);
 await shot(viewer, '02-creators-empty');
+// Recommended creators (the AI find is stubbed at the route: no model is called) are the same rows in the same column.
+await viewer.route('**/api/learn/boards/published/find', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ canvases: [], creators: listed.creators.filter(c => c.handle === H.full) }) }));
+await viewer.locator('[data-explore-search]').fill(`${run} best creators for kernels`);
+await viewer.locator('[data-explore-recommended="creators"] [data-creator-card]').waitFor({ timeout: 20000 });
+check('Recommended creators: the same row at the same 760px column as the search results', await viewer.evaluate(() => {
+  const f = document.querySelector('[data-explore-search]').closest('div').getBoundingClientRect(), r = document.querySelector('[data-explore-recommended="creators"] [data-creator-card]').getBoundingClientRect(), a = document.querySelector('[data-explore-recommended="creators"] [data-creator-card] img').getBoundingClientRect();
+  return Math.abs(r.left - f.left) <= 1 && Math.abs(r.right - f.right) <= 1 && r.width <= 760.5 && Math.round(a.width) === 96;
+}));
+await viewer.unroute('**/api/learn/boards/published/find');
 await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Canvases' }).click();
 await viewer.locator('[data-explore-search]').fill('');
 await viewer.locator('[data-explore-list] [data-explore-card]').first().waitFor({ timeout: 30000 });
 check('the Canvases tab keeps its card grid and card size control', await viewer.locator('[data-explore-list] [data-explore-card]').count() > 0 && await viewer.locator('[data-card-size-slider]').count() === 1);
+check('the Canvases tab is not narrowed: its toolbar is wider than the 760px Creators column', await viewer.locator('[data-explore-search]').evaluate(i => i.closest('div').getBoundingClientRect().width > 900));
 await viewer.context().close();
 
 // ---- phone, 390 wide ----
@@ -226,14 +248,30 @@ await phone.goto(`${BASE}/explore?tab=creators`);
 await phone.locator('[data-explore-search]').waitFor({ timeout: 60000 });
 await search(phone, run, '3 creators');
 const p = { full: row(phone, H.full), long: row(phone, H.long), bare: row(phone, H.bare) };
-const sizes48 = [await box(p.full.locator('img')), await box(p.bare.locator('span[title]').first())];
-check('phone: the avatar is 48px', sizes48.every(b => Math.round(b.width) === 48 && Math.round(b.height) === 48), JSON.stringify(sizes48));
+const sizes72 = [await box(p.full.locator('img')), await box(p.bare.locator('span[title]').first())];
+check('phone: the avatar is 72px, picture or initial', sizes72.every(b => Math.round(b.width) === 72 && Math.round(b.height) === 72), JSON.stringify(sizes72));
+const phoneGap = Math.round((await box(p.full.locator('[data-creator-handle]'))).x - (sizes72[0].x + sizes72[0].width));
+check('phone: 16px between the avatar and the text, closer than on desktop', phoneGap === 16, String(phoneGap));
+check('phone: the search and the rows fill the screen width and share both edges', await phone.evaluate(() => { const f = document.querySelector('[data-explore-search]').closest('div').getBoundingClientRect(), r = document.querySelector('[data-creator-card]').getBoundingClientRect(); return Math.abs(f.left - r.left) <= 1 && Math.abs(f.right - r.right) <= 1 && r.width >= window.innerWidth - 40; }));
 const below = async r => { const [t, v] = [await box(r.locator('[data-creator-handle]')), await box(r.locator('[data-creator-view]'))]; return v.y >= t.y + t.height; };
 check('phone: View profile sits below the content', await below(p.full) && await below(p.long) && await below(p.bare));
 check('phone: the long description clamps to two lines and the long name truncates, with no sideways scroll', await clampOk(p.long, true)
   && await p.long.locator('[data-creator-name]').evaluate(n => n.scrollWidth > n.clientWidth) && await noOverflow(phone));
 await shot(phone, '03-creators-phone');
 await phone.context().close();
+
+// ---- tablet, 768 wide: the content area (704px) is already narrower than the 760px cap, so the column shrinks to it ----
+const tablet = await pageFor({ k: 'none', width: 768 });
+await tablet.goto(`${BASE}/explore?tab=creators`);
+await tablet.locator('[data-explore-search]').waitFor({ timeout: 60000 });
+await search(tablet, run, '3 creators');
+check('tablet: 96px avatars, one column that shrinks to the page with the search and the rows sharing both edges, no overflow', await tablet.evaluate(() => {
+  const f = document.querySelector('[data-explore-search]').closest('div').getBoundingClientRect(), rows = [...document.querySelectorAll('[data-creator-card]')].map(r => r.getBoundingClientRect());
+  const a = document.querySelector('[data-creator-card] img, [data-creator-card] span[title]').getBoundingClientRect();
+  return Math.round(a.width) === 96 && f.width <= 760.5 && rows.every(b => Math.abs(b.left - f.left) <= 1 && Math.abs(b.right - f.right) <= 1);
+}) && await noOverflow(tablet));
+await shot(tablet, '03b-creators-tablet');
+await tablet.context().close();
 
 // ---- dark theme (the system preference; Appearance defaults to it) ----
 const dark = await pageFor({ k: 'none', dark: true });
@@ -253,7 +291,7 @@ await dark.context().close();
 
 check('no page errors', errors.length === 0, errors.join(' | '));
 await browser.close();
-const total = 32;
+const total = 39;
 const passed = results.filter(Boolean).length;
 console.log(`${passed}/${total} checks passed`);
 process.exit(passed === total && results.length === total ? 0 : 1);
