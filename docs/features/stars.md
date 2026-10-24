@@ -4,13 +4,17 @@ Owner brief: `C:/s/spec/stars/brief.md` (Tasks 1-10, 2026-10-23). Branch `feat/s
 
 Status by increment (delivery order, brief Task 10):
 
-1. **Done on this branch:** this contract, migration 0028, idempotent mutations, authorization and visibility, integration-point
-   discovery, and one end-to-end surface: the shared canvas viewing page (`SharedBoardPage.jsx`) with the shared Star control.
-2. Cards and the remaining sharing surfaces (Home, Library, Explore, profile cards, canvas header). Not started.
-3. Personal Stars page and the public profile Stars tab. Not started.
-4. Creator analytics, owner telemetry, remaining regression coverage. Not started.
+1. **Done:** this contract, migration 0028, idempotent mutations, authorization and visibility, integration-point discovery, and
+   one end-to-end surface: the shared canvas viewing page (`SharedBoardPage.jsx`) with the shared Star control.
+2. **Server and data side done, UI not started:** the owner's star by name, star counts on the Home, Library, Explore and profile
+   card queries, and the state route for public cards. The Star control on cards waits for `fix/card-size-description` to land.
+3. **Server side done, UI not started:** my personal Stars list and the public profile Stars query. The Stars page and the profile
+   tab wait for `fix/creators-ui`.
+4. **Server side done, wiring pending:** creator star analytics and the event delivery adapter. Folding the analytics fields into
+   the analytics lane's endpoint, the owner dashboard and the telemetry sink wait for those lanes.
 
-Nothing here is applied to any database or deployed. Evidence is unit/fixture only; there is no browser check yet.
+Browser check: `packages/web/e2e/stars-check.mjs` (tier `fork`, executed by fast-e2e), written and registered; not run by the
+lane that wrote it. Nothing here is applied to any database or deployed. Other evidence is unit/fixture only.
 
 ## Product contract (Task 1)
 
@@ -79,16 +83,20 @@ Three counts with three names (brief 8.4):
 
 ## Data (Task 3, migration `learn-migrations/0028-canvas-stars.sql`)
 
-- `canvas_stars (org, canvas, user_id, user_email, created_at)`, PRIMARY KEY `(org, canvas, user_id)`: uniqueness, and the
-  canvas-count index (the key prefix). `canvas_stars_mine (user_id, created_at DESC, org, canvas)` serves "recently starred"
-  with `(org, canvas)` as the tie-breaker; `canvas_stars_person (user_email, created_at DESC, org, canvas)` serves a profile.
+- `canvas_stars (org, canvas, user_id, user_email, created_at, id, via_token)`, PRIMARY KEY `(org, canvas, user_id)`: uniqueness, and the
+  canvas-count index (the key prefix). `id` is the star's own random opaque handle (unique): the only thing a list sends the client
+  to remove a star, so no list names a workspace. `via_token` is the share link the person starred through, kept only as proof they
+  held it: the personal list reopens the star at `/b/<via_token>` while that exact link is live, and never looks up another link;
+  it is null for a star made through Explore or the owner's own canvas. `canvas_stars_mine (user_id, created_at DESC, id DESC)`
+  serves "recently starred" with `id` as the tie-breaker; `canvas_stars_person (user_email, created_at DESC, id DESC)` serves a profile.
 - **No counter.** Counts are indexed `count(*)`. If measurement later justifies a counter it needs a transactional update and a
   reconciliation job (brief 3.5); not built.
-- `canvas_star_events (event_id, kind added|removed, reason voluntary|lifecycle, org, canvas, user_id, owner_star, at,
+- `canvas_star_events (event_id, kind added|removed, reason voluntary|lifecycle, org, canvas, user_id, owner_star, surface, at,
   delivered_at)`: one row per real transition, inserted in the same D1 batch as the change, and only when the change will
   happen, so a retry or a concurrent duplicate writes none. This is the durable outbox for telemetry and creator analytics
-  (increment 4 reads `delivered_at IS NULL` rows and marks them); a telemetry outage loses nothing and delivery cannot
-  duplicate a transition. No title, token, URL or content is stored. Increment 1 emits nothing.
+  (`deliverStarEvents` reads `delivered_at IS NULL` rows oldest first and marks each only after the sink stored it); a telemetry
+  outage loses nothing and delivery cannot duplicate a transition (the sink inserts by `event_id`). `surface` comes from a fixed
+  list (`SURFACES` in `canvas-star-events.js`); anything else is dropped. No title, token, URL or content is stored.
 - Creation time has millisecond precision. Existing data: no backfill.
 
 ## API (Tasks 3-4)
@@ -99,15 +107,57 @@ or header cannot supply either.
 | Request | Answer |
 |---|---|
 | `GET /api/learn/boards/shared/<token>/star` | `{ starred_by_me, star_count }` (signed out: `starred_by_me: false`). `<token>` is a share or publication token. |
-| `PUT .../star` | Star. `200 { starred_by_me: true, star_count }`. Idempotent. |
+| `PUT .../star` | Star. `200 { starred_by_me: true, star_count }`. Idempotent. Optional body `{ surface }`. A share token is kept as `via_token`. |
 | `DELETE .../star` | Unstar. `200 { starred_by_me: false, star_count }`. Idempotent. |
-| `DELETE /api/learn/stars/canvas/<org>/<canvas>` | Remove my own star by canonical reference, with no access check, for a canvas I can no longer open. Touches only my row. `200 { starred_by_me: false }` whether or not a star existed; no count. |
+| `PUT` / `DELETE /api/apps/<canvas-name>/star` | The owner's star on their own canvas (owner only; another workspace is 404). Same answers. `PUT` on a canvas in Trash is 409. |
 | `GET /api/learn/boards/shared/<token>` (existing) | Adds `star_count` (`null` when the page is not a canvas) and `starred_by_me`. |
+| `GET /api/canvases`, `GET /api/apps/<name>` (existing, owner) | Each canvas adds `star_count` and `starred_by_me`. |
+| `GET /api/learn/boards/published`, `GET /api/learn/creators/<handle>` (existing, public) | Each card adds `star_count`. Never `starred_by_me`: a public list is the same for everyone. |
+| `POST /api/learn/stars/state { tokens }` | Which of these publication tokens I have starred: `{ starred: [token] }`. Signed out: `{ starred: [] }`. For the cards of public lists. |
+| `GET /api/learn/stars?q=&limit=&cursor=` | My personal list (below). |
+| `DELETE /api/learn/stars/<id>` | Remove my star by its own opaque id, with no access check: the way out of a star whose canvas stopped being reachable. Only my own row; `200 { starred_by_me: false }` for any id, so it probes nothing. |
+| `GET /api/learn/creators/<handle>` (existing) | Adds `starred_count`: public canvases this person has starred. |
+| `GET /api/learn/creators/<handle>/stars?q=&limit=&cursor=` | The profile Stars collection (below). Public, signed out too. |
+| `GET /api/learn/stars/analytics?range=7d, 30d or all` | Creator star analytics (below). |
 
 Errors: `401 { signIn: true }` signed out on PUT/DELETE (and on GET for a link that is not public); `403 no_account` for a
 session without `users.id`; `404` for a link that is not live now (unknown, revoked, link off, unpublished, canvas in Trash, or
 a deleted canvas), before anything is written; `404 not_starrable` for a project board. There is no toggle endpoint and no
-star-by-reference: access is decided by a live route, never by a stored reference.
+star-by-id or by-name for others: access is decided by a live route, never by a stored reference.
+
+### My personal Stars list
+
+Every star I hold, `starred_at` newest first with the star's `id` as the tie-breaker, in pages of 24 (`limit` 1 to 50) by a keyset
+`next_cursor` (`<time>|<id>`), so a star added or removed meanwhile never shifts or repeats a page. `total` counts every star I
+hold, unavailable ones included, and `unavailable` how many cannot be opened; neither depends on `q`, and neither is the public
+profile's count. Each star opens only through a route that authorizes now (`access`):
+`owner` (my own canvas in this workspace, not in Trash: `/apps/<name>`), `public` (in Explore now, the `PUBLISHED` predicate as it
+stands: `/e/<token>`), or `link` (the share link I starred through is still the live link of its canvas: `/b/<via_token>`). Anything
+else - revoked, unpublished, in Trash, deleted, someone's private canvas - is `unavailable`: the entry carries only `id`, `access`,
+`unavailable: true` and `starred_at` (no title, creator, thumbnail, counts or link), and Remove still works. Search (`q`: title,
+description, creator handle or name) runs in SQL over accessible rows before the limit, so it covers the whole collection and can
+never match a hidden title. An accessible entry has Explore's card fields plus `starred_by_me: true`, `access`, `url`, `starred_at`.
+A star made through Explore never reveals a private share link the person did not hold: if the canvas is later unpublished, the entry
+is unavailable even though the owner shares a link with others.
+
+### Public profile Stars
+
+`creators.js` `profileStars`: the stars of the person behind the handle (`user_handles.email`) on canvases in the `PUBLISHED` set -
+so private, unlisted, archived, nested and trashed canvases are filtered out before the count and the page, and a canvas that
+turns private leaves both at once (the star is kept; publishing again brings it back). Their own public canvases are included, each
+card with its actual creator. A profile with no publication still has its Stars. Pages, cursor and search work as above (the cursor
+holds only the star's time and opaque id). The answer is identical for every viewer and contains no viewer state; a person with only
+private stars looks exactly like one with none. `starred_count` is "public canvases this person has starred".
+
+### Star analytics (creators)
+
+`canvas-star-analytics.js`, aggregate only, scope: the creator's own canvases in Explore now. `current` = relationships that exist now
+(authoritative; not a sum of history). `period` (7d, 30d or all): `additions` (gross, `unique_users`, `by_owner`, `by_others`),
+`voluntary_removals` (gross, `unique_users`), `net_change` = additions minus voluntary removals (gross actions, not the change in
+current stars); lifecycle removals are not voluntary removals. History starts at `collection_started_at` (the first recorded event):
+before it nothing was collected - `period` is `{ value: null, reason: 'not_collected' }`, not zero - and a range that begins earlier
+is `partial`. `opens_from_stars` is not collected yet. The definitions are returned with the numbers. Fold into the analytics lane's
+endpoint by calling `starAnalytics`; do not add a second dashboard.
 
 ## Authorization and visibility (Task 4)
 
@@ -116,11 +166,11 @@ star-by-reference: access is decided by a live route, never by a stored referenc
 - Revoked link, link switched off, canvas in Trash or unpublished: PUT, DELETE and GET on that token are 404 and write nothing.
   The relationship is kept (Restore brings the same row back). Stars never preserve access: a personal Stars page opens a star
   through a currently authorized route and shows "Canvas unavailable" otherwise (increment 3), with Remove served by the
-  by-reference DELETE above.
+  DELETE-by-id above.
 - A star's count includes every active relationship, including accounts that have since lost access. That reveals a number to
   someone who can already open the canvas, never who.
-- Public profile queries (increment 3) filter by `PUBLISHED` before totals and pagination.
-- Explore and creator payloads carry no star field in this increment.
+- Public profile queries filter by `PUBLISHED` before totals and pagination.
+- Explore and creator cards carry `star_count` only; the viewer's own state comes from the separate state route.
 
 ## Control (Task 5, increment 1 scope)
 
@@ -135,18 +185,24 @@ menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert
 `sm` width the label is screen-reader-only and the icon, state and count remain, to protect the header's phone layout. This is
 unverified in a browser. The embed header does not show it (an embed is a public guest, with no account).
 
-## Telemetry request (Task 9; the telemetry lane owns the contract)
+## Telemetry events (Task 9; the telemetry lane owns the envelope)
 
-Needed events and fields, for the integrator to request. Common envelope fields per the telemetry contract (`user_ref` =
-`users.id`, never an email). The durable source is `canvas_star_events` (its `event_id` is the dedup key).
+Stars' own definitions are in `canvas-star-events.js` (`STAR_EVENTS`), delivered by `deliverStarEvents(db, emit)`; `emit` is the
+telemetry sink's insert, which must throw when the event was not stored. The durable source is `canvas_star_events`; `event_id` is
+the dedup key; `user_ref` is `users.id`; `canvas_ref` is a one-way hash of the canonical canvas (never the workspace, name or a
+token); `occurred_at` is the transition's time.
 
-- `star.added`: `canvas_ref` (`org/canvas`), `owner_star` (bool), `surface`, `outcome`.
+- `star.added`: `canvas_ref` (hex), `owner_star` (boolean), `surface` (optional token).
 - `star.removed`: the same plus `reason` `voluntary` | `lifecycle`.
-- `star.opened`: `canvas_ref`, `surface` (`personal_stars` | `profile_stars`), `owner_star`.
-- Failure and latency: `star.mutation` with `outcome`, `error_code`, duration, so failures and mutation latency show on the owner
-  dashboard. Count-reconciliation: n/a (no counter).
-- `surface` values: `shared_page`, `card_home`, `card_library`, `card_explore`, `card_profile`, `canvas_header`.
-No raw token, URL or content in any field.
+- `star.opened`: `canvas_ref`, `owner_star`, `surface` (`personal_stars` | `profile_stars`). Defined, not produced yet: the opening
+  surface emits it (increment 3 UI).
+- `surface` values: `shared_page`, `card_home`, `card_library`, `card_explore`, `card_profile`, `canvas_header`, `personal_stars`,
+  `profile_stars`.
+- Not defined by Stars: mutation latency and failure events - measured at the route by the telemetry lane's request instrumentation.
+  There is no counter, so there is no reconciliation event.
+
+Nothing runs the delivery yet (there is no cron on any Rabbit Hole worker): call `deliverStarEvents` from the owner dashboard's
+bounded catch-up, as the telemetry lane does for its accounting projection, once its sink lands.
 
 ## Material conflicts and decisions
 
@@ -169,12 +225,17 @@ release that reads the tables):
 
 `cd packages/control-plane && npx wrangler d1 execute rabbit-hole-learn-prod --remote --config wrangler.rabbit-hole-prod.jsonc --file learn-migrations/0028-canvas-stars.sql -y`
 
-## Tests (increment 1)
+## Tests
 
-`packages/control-plane/test/canvas-stars.test.js` (fixture, node:sqlite from `repository-schema.sql`): migration shape;
-idempotent star/unstar and one event per real change; concurrent identical requests; owner star; no client-supplied actor or
-count; shared-page fields and `no-store`; signed out; guessed tokens and references; revoked link, unpublish, Trash and Restore;
-project board; session without `users.id`; deletion cleanup with lifecycle reasons (canvas and Rabbit Hole).
+`packages/control-plane/test/canvas-stars.test.js` (shared link and publication surface), `canvas-stars-lists.test.js` (owner route,
+personal list, profile Stars, state route, `starsFor`, analytics, event delivery), helpers in `stars-helpers.js`; fixture: node:sqlite
+built from `repository-schema.sql`. They cover migration shape; idempotent star/unstar and one event per real change; concurrent
+identical requests; owner star; no client-supplied actor, count or surface; signed out; guessed tokens and ids; revoked link,
+unpublish, Trash and Restore; project board; session without `users.id`; deletion cleanup with lifecycle reasons; the mixed
+collection, unavailable entries without leaks, no private link for a star not made through it, stable pages with ties, search over
+the whole collection; the public profile filtered before count and page and identical for every viewer; analytics gross against
+unique and not-collected against zero; delivery order, outage and replay. Existing tests updated for the new card fields:
+`canvas-publications.test.js`, `creator-profile.test.js`.
 `packages/web/src/canvas-star.test.mjs`: the client action's ordering, collapse, failure and refresh rules.
-Fixture limits: the fixture serializes batches on one connection as D1 does but cannot show real D1 contention; no browser
-check is registered yet (increment 2 adds it for the CI tiers).
+`packages/web/e2e/stars-check.mjs` (fork tier) and the updated `shared-header-check.mjs`: browser coverage, written but not run by the
+lane. Fixture limits: the fixture serializes batches on one connection as D1 does but cannot show real D1 contention.

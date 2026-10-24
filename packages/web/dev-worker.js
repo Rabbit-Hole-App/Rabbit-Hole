@@ -339,7 +339,7 @@ const routes = {
     // Public creator profiles, Explore's creator row and creator search (docs/features/creator-profile.md).
     if (path.startsWith('/api/learn/creators')) { const creators = await creatorsRoute(path, req, env); if (creators) return creators; }
     // Canvas Stars (docs/features/stars.md): remove my own star by canonical reference. Starring itself rides the link routes above.
-    if (path.startsWith('/api/learn/stars/')) { const stars = await starsRoute(path, req, env); if (stars) return stars; }
+    if (path === '/api/learn/stars' || path.startsWith('/api/learn/stars/')) { const stars = await starsRoute(path, req, env); if (stars) return stars; }
     if (path === '/api/learn/search') return canvasSearch(req, env);
     // The Learn canvas's bug / idea button (docs/features/learn-feedback.md).
     if (path === '/api/learn/feedback') return feedbackFetch(req, env);

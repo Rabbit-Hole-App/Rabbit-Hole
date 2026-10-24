@@ -7,32 +7,10 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { setup, BOARD } from './shared-canvas-fixture.js';
 import { learnBoardsRoute } from '../src/learn-boards.js';
-import { starsRoute } from '../src/canvas-stars.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../learn-migrations/0028-canvas-stars.sql', import.meta.url), 'utf8');
-const BEN = 'u-ben-9a2b', CARA = 'u-cara-71f0', ANA = 'u-ana-5d1e';
-
-const handle = (f, email, h) => {
-  f.sqlite.prepare('INSERT INTO user_profiles (email, name) VALUES (?, ?) ON CONFLICT(email) DO NOTHING').run(email, null);
-  f.sqlite.prepare('INSERT INTO user_handles (email, handle) VALUES (?, ?)').run(email, h);
-};
-// ana's published canvas: its publication token opens at /e/<token>.
-const published = async f => {
-  handle(f, 'ana@test', 'ana');
-  const canvas = (await f.call('POST', '/api/canvases', { as: 'ana', body: { title: 'Why ice floats' } })).body;
-  await f.call('PUT', `/api/learn/boards/${canvas.name}/main`, { as: 'ana', body: { state: BOARD } });
-  const made = (await f.call('POST', `/api/apps/${canvas.name}/publish`, { as: 'ana' })).body;
-  return { canvas, token: made.publication_token };
-};
-const star = (f, token, as, method = 'PUT', body) => f.call(method, `/api/learn/boards/shared/${token}/star`, { as, body });
-const rows = f => f.sqlite.prepare('SELECT org, canvas, user_id, user_email FROM canvas_stars ORDER BY user_id').all().map(r => ({ ...r }));
-// The by-reference route, which the fixture's dispatcher does not serve (dev-worker.js registers it).
-const byRef = async (f, method, path, as) => {
-  const res = await starsRoute(path, new Request(`https://app.test${path}`, { method, headers: as ? { cookie: `small_session=${as}` } : {} }), f.env);
-  return { status: res.status, body: await res.json() };
-};
-const events = f => f.sqlite.prepare('SELECT kind, reason, user_id, owner_star, delivered_at FROM canvas_star_events ORDER BY at, rowid').all().map(e => ({ ...e }));
+import { BEN, CARA, ANA, api, events, published, rows, star } from './stars-helpers.js';
 
 test('0028 is additive, re-runnable and exactly what repository-schema.sql applies; it backfills nothing and creates no counter', t => {
   const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
@@ -40,7 +18,7 @@ test('0028 is additive, re-runnable and exactly what repository-schema.sql appli
   assert.equal(sqlite.prepare('SELECT count(*) AS n FROM canvas_stars').get().n, 0);
   assert.ok(schema.replace(/\r/g, '').includes(migration.replace(/\r/g, '').trim()));
   assert.doesNotMatch(migration.replace(/--[^\n]*/g, ''), /\b(DROP|ALTER|DELETE|UPDATE|INSERT)\b/i);
-  assert.deepEqual(sqlite.prepare('PRAGMA table_info(canvas_stars)').all().map(c => c.name), ['org', 'canvas', 'user_id', 'user_email', 'created_at'], 'no count column');
+  assert.deepEqual(sqlite.prepare('PRAGMA table_info(canvas_stars)').all().map(c => c.name), ['org', 'canvas', 'user_id', 'user_email', 'created_at', 'id', 'via_token'], 'no count column');
 });
 
 test('star and unstar are desired state: one relationship however often it is asked, never a negative count, one event per real change', async t => {
@@ -94,8 +72,10 @@ test('the shared page carries the count and my state; signed out sees the public
   // Viewer-specific, so never cacheable: the page JSON and the star answers are no-store (route called directly for its headers).
   const headers = async (path, method = 'GET') => (await learnBoardsRoute(path, new Request(`https://app.test${path}`, { method, headers: { cookie: 'small_session=ben' } }), f.env)).headers.get('cache-control');
   assert.deepEqual([await headers(`/api/learn/boards/shared/${token}`), await headers(`/api/learn/boards/shared/${token}/star`), await headers(`/api/learn/boards/shared/${token}/star`, 'PUT')], ['no-store', 'no-store', 'no-store']);
-  // Explore carries no star field yet (a public list is shared-cacheable data, so my state must never join it).
-  assert.doesNotMatch((await f.call('GET', '/api/learn/boards/published')).text, /star/);
+  // Explore's card carries the public count and never my own state (a public list is the same for everyone).
+  const explore = await f.call('GET', '/api/learn/boards/published', { as: 'ben' });
+  assert.equal(explore.body.canvases[0].star_count, 2);
+  assert.doesNotMatch(explore.text, /starred_by_me|u-ben/);
 });
 
 test('signed out cannot star (sign-in is offered); a private link needs sign-in to read the count; a guessed token or canvas names nothing', async t => {
@@ -110,13 +90,14 @@ test('signed out cannot star (sign-in is offered); a private link needs sign-in 
   assert.deepEqual([(await star(f, closed, undefined, 'GET')).status, (await star(f, closed, undefined)).status], [401, 401], 'a link that is not public asks who you are first');
   assert.equal((await star(f, closed, 'ben')).status, 200, 'any signed-in account may open a share link, so may star it');
   for (const guess of ['not-a-token', 'A'.repeat(32), `${token}x`]) assert.equal((await star(f, guess, 'ben')).status, 404, guess);
-  // The by-reference unstar answers the same for a star that never existed: it cannot be used to probe a canvas or its count.
-  const ghost = await byRef(f, 'DELETE', '/api/learn/stars/canvas/ana-ws/canvas-deadbeef', 'ben');
-  const real = await byRef(f, 'DELETE', '/api/learn/stars/canvas/ana-ws/canvas-00000000', 'ben');
-  assert.deepEqual([ghost.status, ghost.body, real.status, real.body], [200, { starred_by_me: false }, 200, { starred_by_me: false }]);
-  for (const bad of ['/api/learn/stars/canvas/ana-ws/not-a-canvas', '/api/learn/stars/canvas/%E0%A4%A/canvas-00000000', '/api/learn/stars/other']) assert.equal((await byRef(f, 'DELETE', bad, 'ben')).status, 404, bad);
-  assert.equal((await byRef(f, 'DELETE', '/api/learn/stars/canvas/ana-ws/canvas-00000000')).status, 401, 'signed out');
-  assert.equal((await byRef(f, 'PUT', '/api/learn/stars/canvas/ana-ws/canvas-00000000', 'ben')).status, 405, 'no star by reference: access is decided by a live route');
+  // Remove by the star's own id answers the same for a star that never existed (or is someone else's): it probes nothing.
+  assert.deepEqual((await api(f, 'DELETE', `/api/learn/stars/${'0'.repeat(32)}`, 'ben')).body, { starred_by_me: false });
+  const mine = f.sqlite.prepare('SELECT id FROM canvas_stars WHERE user_id = ?').get(BEN).id;
+  const theirs = await api(f, 'DELETE', `/api/learn/stars/${mine}`, 'cara');
+  assert.deepEqual([theirs.status, theirs.body, rows(f).length], [200, { starred_by_me: false }, 1], "another person's id removes nothing");
+  for (const bad of ['/api/learn/stars/not-an-id', '/api/learn/stars/canvas/ana-ws/canvas-00000000']) assert.equal((await api(f, 'DELETE', bad, 'ben')).status, 404, bad);
+  assert.equal((await api(f, 'DELETE', `/api/learn/stars/${mine}`)).status, 401, 'signed out');
+  assert.equal((await api(f, 'PUT', `/api/learn/stars/${mine}`, 'ben')).status, 405, 'no star by id: access is decided by a live route');
 });
 
 test('a revoked link, an unpublished canvas and a canvas in Trash accept no star and show no count; restoring brings the relationship back', async t => {
@@ -140,12 +121,13 @@ test('a revoked link, an unpublished canvas and a canvas in Trash accept no star
   assert.equal(rows(f).filter(r => r.canvas === shared.name).length, 2, 'Trash keeps the relationships');
   await f.call('POST', `/api/apps/${shared.name}/untrash`, { as: 'ana' });
   assert.deepEqual((await star(f, link, 'cara', 'GET')).body, { starred_by_me: true, star_count: 2 }, 'restored: the same relationships, nothing re-created');
-  // The way out of a star whose route is gone: by reference, own row only.
+  // The way out of a star whose route is gone: by its own id, own row only.
   await f.call('POST', `/api/learn/boards/${shared.name}/main/share`, { as: 'ana', body: { shared: false } });
-  const out = await byRef(f, 'DELETE', `/api/learn/stars/canvas/ana-ws/${shared.name}`, 'cara');
+  const id = f.sqlite.prepare('SELECT id FROM canvas_stars WHERE user_id = ? AND canvas = ?').get(CARA, shared.name).id;
+  const out = await api(f, 'DELETE', `/api/learn/stars/${id}`, 'cara');
   assert.deepEqual(out.body, { starred_by_me: false });
   assert.deepEqual(rows(f).filter(r => r.canvas === shared.name).map(r => r.user_id), [BEN], 'only the caller\'s own star went');
-  assert.deepEqual(events(f).at(-1), { kind: 'removed', reason: 'voluntary', user_id: CARA, owner_star: 0, delivered_at: null });
+  assert.deepEqual(events(f).at(-1), { kind: 'removed', reason: 'voluntary', user_id: CARA, owner_star: 0, surface: null, delivered_at: null });
 });
 
 test('a project board is not a canvas: it has no stars and no count, never a 0', async t => {

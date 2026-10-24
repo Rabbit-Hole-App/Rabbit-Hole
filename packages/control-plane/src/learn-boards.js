@@ -13,7 +13,7 @@ import { sniffImageType } from './learn-media.js';
 import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
-import { STAR_COUNT, noAccount, setStar, starActor, starState } from './canvas-stars.js';
+import { STAR_COUNT, noAccount, setStar, starActor, starState, surfaceFrom } from './canvas-stars.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
 import { NO_CAP, admitUsage, askShared, embedOf, embedSession, embedSessionRequired, guestChatAllowance, guestOf, isEmbed, withGuestCookie, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
@@ -399,7 +399,9 @@ async function starShared(req, env, token) {
   if (req.method === 'GET') return json(await starState(env.LEARN_DB, ref, actor?.userId));
   if (viewer instanceof Response) return json({ error: 'Sign in to star this canvas.', signIn: true }, 401);
   if (!actor) return noAccount();
-  const { starred, star_count } = await setStar(env.LEARN_DB, ref, actor, req.method === 'PUT');
+  // A share link is kept with the star as proof the person held it (their Stars list reopens it only while that exact link is live);
+  // a publication is public and is looked up live instead.
+  const { starred, star_count } = await setStar(env.LEARN_DB, ref, actor, req.method === 'PUT', { surface: await surfaceFrom(req), via: found.publication ? null : token });
   return json({ starred_by_me: starred, star_count });
 }
 
@@ -923,7 +925,7 @@ const EXPLORE_SORTS = {
 // confirmed public (repository_visibility, as linkSource reads it for a publication) and the project is not in Trash: an
 // unknown or private repository is never named on a card and never matches a project filter. A project has no title of
 // its own, so the label is its repository, with @branch only when public projects of that repository sit on two branches.
-export const PUBLISHED_CARDS = `SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
+export const PUBLISHED_CARDS = `SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count, ${STAR_COUNT} AS star_count,
     m.description, COALESCE(m.updated_at, c.created_at) AS updated_at, r.repo AS project_repo, r.branch AS project_branch,
     (SELECT count(DISTINCT r2.branch) FROM repository_apps r2 JOIN repository_visibility v2 ON v2.app_id = r2.id AND v2.visibility = 'public' WHERE r2.repo = r.repo COLLATE NOCASE) AS project_branches`;
 export const PUBLISHED = `FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
@@ -933,7 +935,7 @@ export const PUBLISHED = `FROM canvas_publications p JOIN canvases c ON c.org = 
       AND EXISTS (SELECT 1 FROM repository_visibility v WHERE v.app_id = r.id AND v.visibility = 'public')
     WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}`;
 const projectLabel = r => (r.project_repo ? (r.project_branches > 1 ? `${r.project_repo}@${r.project_branch}` : r.project_repo) : null);
-export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, project: projectLabel(r), fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
+export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, project: projectLabel(r), fork_count: r.fork_count, star_count: r.star_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
 // Explore's project filter (?project=owner/repo, or owner/repo@branch as a label names it): the published canvases of
 // public projects of that repository, every creator's - the same `r` the label comes from, so nothing else ever matches.
 const PROJECT_KEY = /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})(?:@(.{1,250}))?$/;
