@@ -280,7 +280,7 @@ const UNAVAILABLE_TEXT = {
   no_criteria: 'Your answer is saved. This goal has no agreed skills to check it against yet.',
   rubric_not_supported: 'Your answer is saved. This kind of answer cannot be checked yet, so it is not assessed.',
   visual_not_supported: 'Your drawing is saved. Drawings cannot be checked yet, so it is not assessed.',
-  allowance_refused: 'Your answer is saved. It could not be checked now because the AI allowance is used up; your progress is unchanged.',
+  allowance_refused: 'Your answer is saved. It could not be checked now because your AI credits are used up; your progress is unchanged.',
   activity_changed: 'Your answer is saved for the question you answered; that question has changed since, so it was not checked.',
   source_unavailable: 'Your answer is saved. The code it is about is not available to you now, so it was not checked and your progress is unchanged.',
 };
