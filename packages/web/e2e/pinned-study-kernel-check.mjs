@@ -5,7 +5,9 @@
 // the full gate, not in fast-e2e. Owner rule 2026-10-21: Claude does not run browser checks.
 // Asserts: the same iframe element and no second load; a cell started before the switches is still running across them and
 // its output arrives in the same document; a variable set before the switches is still defined (no kernel restart); an
-// unsaved cell edit survives; no cell is rerun.
+// unsaved cell edit survives; no cell is rerun. Focus (docs/features/focus-study.md, steps 5a to 5c): Study > Notebook is Focus
+// on the notebook's own host; a cell started before Back to canvas, Study > Notebook, the divider and the right panel keeps
+// running in the same iframe, runs once, and leaves every earlier counter and output as it was.
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 TEST_BYPASS_SECRET=<named> (or VARS=<cp .dev.vars>)
 //        [NOTEBOOK_ORIGIN=<the notebook site the build points at>] node e2e/pinned-study-kernel-check.mjs [shotsDir]
 import { chromium } from '@playwright/test';
@@ -13,7 +15,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { closeMenus, openMenu } from './canvas-menu-helpers.mjs';
 
-const total = 7; // the number of check() steps below; keep it equal
+const total = 10; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878', CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 const approvedDev = new Set(['https://rabbit-hole-cp-dev.tryrabbithole.workers.dev']);
 for (const origin of [BASE, CP]) assert.ok(/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin) || approvedDev.has(origin) || /^https:\/\/rabbit-hole-web-dev-[a-z0-9-]+\.tryrabbithole\.workers\.dev$/.test(origin), 'Only a dev clone or the local integration stack is allowed');
@@ -55,6 +57,17 @@ const sameFrame = async label => {
 };
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
+// Focus (focus-adapter-notebook.js): the notebook's own host carries data-focus-host; its iframe lies inside the canvas, takes
+// most of its width, and is drawn at its CSS size (scale 1: normal text size) whatever the camera's zoom.
+const focusView = () => page.evaluate(() => {
+  const host = document.querySelector('[data-block-id="nb"]'), node = host?.querySelector('[data-notebook-frame]'), canvas = document.querySelector('[aria-label="Lesson canvas"]');
+  if (!host || !node || !canvas) return null;
+  const r = node.getBoundingClientRect(), c = canvas.getBoundingClientRect();
+  return { focused: host.hasAttribute('data-focus-host'), inside: r.left >= c.left - 1 && r.right <= c.right + 1 && r.top >= c.top - 1 && r.bottom <= c.bottom + 1, share: r.width / c.width, scale: r.width / node.offsetWidth };
+});
+const fits = async () => { const at = await focusView(); return !!at?.focused && at.inside && at.share > 0.6 && Math.abs(at.scale - 1) < 0.02; };
+const inFocus = async label => { try { await until(fits, label, 5000); } catch { assert.fail(`${label}: the notebook fills the working pane at normal text size ${JSON.stringify(await focusView())}`); } };
+const outOfFocus = async label => { try { await until(async () => (await focusView())?.focused === false, label, 5000); } catch { assert.fail(`${label}: Focus ended ${JSON.stringify(await focusView())}`); } };
 // A canvas card is pressed with the mouse where it shows (locator.click's scroll-into-view would scroll the clipped canvas
 // surface); off screen, View > Fit canvas brings it in first.
 const shownPart = selector => page.evaluate(sel => { const r = document.querySelector(sel)?.getBoundingClientRect(), f = document.querySelector('[aria-label="Lesson canvas"]')?.getBoundingClientRect(); if (!r || !f) return null; const left = Math.max(r.left, f.left), right = Math.min(r.right, f.right), top = Math.max(r.top, f.top), bottom = Math.min(r.bottom, f.bottom); return right - left > 8 && bottom - top > 8 ? { x: (left + right) / 2, y: (top + bottom) / 2 } : null; }, selector);
@@ -150,6 +163,58 @@ try {
     await runCell(2);
     await until(async () => (await output(2)).includes('kept'), 'marker is still defined');
     assert.match(await prompt(0), /\[1\]/, 'cell a was not rerun');
+  });
+
+  await check('5a Study > Notebook is Focus: the notebook\'s own iframe fills the working pane beside the pinned reference, at normal text size', async () => {
+    await page.locator('[data-study-work="notebook"]').waitFor(); // step 3 ended on Notebook
+    await inFocus('Study > Notebook');
+    assert.ok(await page.locator('[data-study-pane][data-pin="ex"]').isVisible(), 'the pinned reference stays beside the focused notebook');
+    await sameFrame('Focus');
+  });
+
+  await check('5b a long cell started in Focus keeps running through Back to canvas, Study > Notebook, the divider and the right panel: the same iframe, never reloaded', async () => {
+    await runCell(1);
+    await until(async () => /\[\*\]/.test(await prompt(1)), 'cell b is running again');
+    await page.getByRole('button', { name: 'Back to canvas', exact: true }).click();
+    await page.locator('[data-study-work="canvas"]').waitFor();
+    await outOfFocus('Back to canvas');
+    await sameFrame('Back to canvas');
+    await work('notebook').click();
+    await page.locator('[data-study-work="notebook"]').waitFor();
+    await inFocus('Study > Notebook again');
+    await sameFrame('Focus again');
+    const divider = page.getByRole('separator', { name: 'Resize pinned reference' });
+    await divider.focus(); await page.keyboard.press('ArrowRight');
+    await inFocus('divider right');
+    await page.keyboard.press('ArrowLeft');
+    await inFocus('divider left');
+    await sameFrame('divider in Focus');
+    await page.getByRole('button', { name: 'Hide the right panel', exact: true }).click();
+    await inFocus('right panel hidden');
+    await page.getByRole('button', { name: 'Show the right panel', exact: true }).click();
+    await inFocus('right panel shown');
+    await sameFrame('right panel in Focus');
+    await work('canvas').click();
+    await page.locator('[data-study-work="canvas"]').waitFor();
+    await outOfFocus('Study > Canvas');
+    await sameFrame('Study > Canvas');
+    assert.match(await prompt(1), /\[\*\]/, 'the cell is still running across every Focus switch');
+    await page.screenshot({ path: `${SHOTS}/5b-running-through-focus.png` });
+  });
+
+  await check('5c the output arrives once in the same document; no cell was rerun or lost its output; the kernel keeps its variables', async () => {
+    await until(async () => (await output(1)).includes(`slept ${SLEEP}`), 'the output arrived', (SLEEP + 60) * 1000);
+    assert.match(await prompt(1), /\[4\]/, 'cell b ran once more, as the fourth run, and only once');
+    assert.equal((await output(1)).split(`slept ${SLEEP}`).length - 1, 1, 'one output');
+    assert.match(await prompt(0), /\[1\]/, 'cell a was not rerun');
+    assert.match(await prompt(2), /\[3\]/, 'cell c was not rerun');
+    assert.ok((await output(2)).includes('kept'), 'cell c kept its output');
+    await sameFrame('output after Focus');
+    await work('notebook').click(); // the state step 6 starts from: Notebook, in Focus
+    await inFocus('Study > Notebook for step 6');
+    await runCell(2);
+    await until(async () => /\[5\]/.test(await prompt(2)) && (await output(2)).includes('kept'), 'marker is still defined after Focus');
+    await sameFrame('kernel after Focus');
   });
 
   await check('6 the unsaved edit and the cell count survive; Unpin leaves the notebook as it is', async () => {
