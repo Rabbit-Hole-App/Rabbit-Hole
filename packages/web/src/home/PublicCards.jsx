@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowRight, Check, FolderGit2, Link2, X } from 'lucide-react';
 import { navigate } from '../api.js';
 import ForkButton from '../ForkButton.jsx';
+import { PublicCardStar, useStarredCards } from '../CardStar.jsx';
 import RabbitHoleChoice from '../RabbitHoleChoice.jsx';
 import { startHref } from '../shared-rabbit-hole.js';
 import LearningCard, { CARD_ROWS, menuAt } from './LearningCard.jsx';
@@ -20,7 +21,12 @@ const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 // /e/<token> and /@handle are their own pages (main.jsx Root), so they load in full rather than through navigate().
 const go = (url) => window.location.assign(url);
 
+// A Star press says where it happened (canvas-star.js SURFACES), read off the list's own attribute: Explore and its Recommended
+// picks, the profile's canvases, the profile's Stars tab.
+const SURFACE = { 'data-profile-card': 'card_profile', 'data-profile-star-card': 'profile_stars' };
 export default function PublicCards({ cards, me, attr }) {
+  const surface = SURFACE[attr] || 'card_explore';
+  const known = useStarredCards(cards);
   const [menu, setMenu] = useState(null); // { card, top | bottom, left }
   const [starting, setStarting] = useState(null); // the card whose Start Rabbit Hole is asking
   const copy = async (card) => {
@@ -37,7 +43,7 @@ export default function PublicCards({ cards, me, attr }) {
           const m = cardModel({ kind: 'canvas', name: card.url, title: card.title, description: card.description, fork_count: mine ? card.fork_count : null, updated_at: card.updated_at, owner_handle: card.creator?.handle, owner_name: card.creator?.name, project_label: card.project });
           return (
             <LearningCard key={card.url} kind="canvas" m={m} attrs={{ [attr]: '' }} href={card.url} onOpen={() => go(card.url)} mine={mine} access="public" thumbnail={publishedThumbnail(card.url)}
-              creatorHref={card.creator?.handle ? `/@${card.creator.handle}` : null}
+              creatorHref={card.creator?.handle ? `/@${card.creator.handle}` : null} star={typeof card.star_count === 'number' ? <PublicCardStar card={card} known={known} surface={surface} /> : null}
               onMore={(e) => setMenu({ card, anchor: e.currentTarget, ...menuAt(e.currentTarget, 192, 60) })}
               actions={mine ? null : (
                 <>

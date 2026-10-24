@@ -79,5 +79,6 @@ test('the learning card and the browse pages use the tokens; no other page does'
   assert.match(css, /\.browse-page \{\s*background-color: var\(--browse-bg\);\s*background-image: radial-gradient\(var\(--dots\) 1px, transparent 1px\);/);
   assert.ok(css.indexOf(':where(.browse-card)') < css.indexOf('.select-card:focus-within'), 'the focus ring still follows the hover edge');
   const users = readdirSync(here, { recursive: true }).filter((f) => /\.jsx$/.test(f) && /browse-page/.test(read(f))).map((f) => f.replace(/\\/g, '/')).sort();
-  assert.deepEqual(users, ['App.jsx', 'Home.jsx'], 'Library, Home and Explore only - not the canvas, Learn or shared pages');
+  // StarsPage.jsx is the personal Stars view of the Library (docs/features/stars.md, Task 7), so it wears the Library's page.
+  assert.deepEqual(users, ['App.jsx', 'Home.jsx', 'StarsPage.jsx'], 'Library (with its Stars view), Home and Explore only - not the canvas, Learn or shared pages');
 });

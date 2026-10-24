@@ -10,6 +10,7 @@ import { learnPreview } from './flags.js';
 import { onAnotherDevice } from './home/continue.js';
 import { chipHref, isMine, libraryQuery, ofType } from './library-filter.js';
 import LibraryViews, { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
+import { StarsLink } from './CardStar.jsx';
 import { FolderCrumb, FolderTitle, useLibraryFolders } from './LibraryFolders.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
 import { SortMenu } from './home/LearningCard.jsx';
@@ -234,6 +235,7 @@ function AppContent({ data, load }) {
           {openFolder && <FolderCrumb folder={openFolder} onDropOut={lib.unfile} />}
           {/* Library header (owner brief 2026-10-23): title row = Library, New folder, Start a rabbit hole; controls row = Search by name + Filters, then Sort and Size at the far right. */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pb-5"><h1 className="min-w-0 text-[40px] leading-[1.2] font-bold tracking-[-0.01em]">{openFolder ? <FolderTitle folder={openFolder} /> : title}</h1>{learnPreview && <div data-library-actions className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-3">
+            {data && !data.error && <StarsLink />}
             {/* New folder beside the filters (library-folders.md); inside a folder, its ⋮ (Rename, Colour, Delete) takes the spot. */}
             {!archived && type !== 'apps' && data && !data.error && (openFolder
               ? <IconBtn title="Folder options" aria-label={`Options for ${openFolder.name}`} data-folder-more className="h-8 w-8 rounded-lg border border-line-strong bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)]" onClick={lib.onMore(openFolder)}><MoreHorizontal size={16} strokeWidth={1.5} /></IconBtn>

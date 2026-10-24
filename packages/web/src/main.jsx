@@ -16,6 +16,7 @@ import SharePage from './SharePage.jsx';
 const previewBuild = (import.meta.env.VITE_RABBIT_HOLE === 'true' || import.meta.env.VITE_COACHING_DEV === 'true') && learnPreview;
 const Home = previewBuild ? lazy(() => import('./Home.jsx')) : null;
 const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
+const StarsPreview = previewBuild ? lazy(() => import('./StarsPage.jsx')) : null;
 const CreatorProfilePage = previewBuild ? lazy(() => import('./CreatorProfile.jsx')) : null;
 import Shell, { storedSidebar } from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
@@ -158,7 +159,7 @@ function AppRoot() {
   }, [path]);
   return (
     <>
-      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
+      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : at.page === 'library' && StarsPreview && new URLSearchParams(search).get('view') === 'stars' ? <Suspense fallback={null}><StarsPreview /></Suspense> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
       {AgentBar && <Suspense fallback={null}><AgentBar /></Suspense>}

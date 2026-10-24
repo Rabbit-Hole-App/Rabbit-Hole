@@ -10,21 +10,22 @@ import { Button, toast } from './ui.jsx';
 // `initial` is { starred, count } from the page's own answer. `signedIn` false: a press goes to sign-in, which returns to this
 // canvas with ?star=1; `auto` (that return) stars once, and the server re-checks access like any press. Presses made while a
 // request is in flight collapse to the last one (canvas-star.js). It re-reads when the tab comes back, so another tab's
-// change shows.
-export default function StarButton({ token, initial, signedIn, auto = false, variant = 'secondary', size, className = '', labelClass = 'max-sm:sr-only' }) {
-  const store = useMemo(() => starStore(token, initial), [token]); // eslint-disable-line react-hooks/exhaustive-deps
+// change shows. A card passes its own `api` (canvas-star.js: the owner route, or the shared route with its surface), `signInMark` (its
+// token, so the return stars that card), and `pending` while the list's starred state is still loading (a disabled, named button).
+export default function StarButton({ token, initial, signedIn, auto = false, variant = 'secondary', size, className = '', labelClass = 'max-sm:sr-only', api, signInMark = '1', pending = false }) {
+  const store = useMemo(() => starStore(token, initial, api), [token]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = useSyncExternalStore(store.subscribe, store.get);
-  const toSignIn = () => { window.location.href = starSignInUrl(window.location.pathname, window.location.search); };
+  const toSignIn = () => { window.location.href = starSignInUrl(window.location.pathname, window.location.search, signInMark); };
   const press = async next => {
     if (signedIn === false) { toSignIn(); return; }
     await store.set(next);
     const { error } = store.get();
     if (!error) return;
-    if (error.status === 401 && error.data?.signIn) { toSignIn(); return; }
+    if (error.status === 401 && error.data?.signIn && !auto) { toSignIn(); return; } // back from sign-in and still refused: no loop
     toast(error.message, { tone: 'error' });
   };
   const once = useRef(false);
-  useEffect(() => { if (auto && signedIn && !once.current) { once.current = true; press(true); } }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (auto && signedIn !== false && !pending && !once.current) { once.current = true; press(true); } }, [auto, pending]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const again = () => { if (document.visibilityState === 'visible') store.refresh(); };
     document.addEventListener('visibilitychange', again);
@@ -35,7 +36,7 @@ export default function StarButton({ token, initial, signedIn, auto = false, var
   const label = shown ? 'Starred' : 'Star';
   const counts = typeof state.count === 'number';
   return (
-    <Button type="button" data-star-button data-starred={shown ? 'true' : 'false'} variant={variant} size={size} aria-pressed={shown} aria-busy={state.saving}
+    <Button type="button" data-star-button data-starred={shown ? 'true' : 'false'} variant={variant} size={size} aria-pressed={shown} aria-busy={state.saving} disabled={pending}
       title={shown ? 'Starred: saved to your Stars. Press to remove it' : 'Star: save this canvas to your Stars'} className={className}
       aria-label={counts ? `${label}, ${starLabel(state.count)}` : label}
       onClick={event => { event.stopPropagation(); press(!shown); }} onPointerDown={event => event.stopPropagation()}>

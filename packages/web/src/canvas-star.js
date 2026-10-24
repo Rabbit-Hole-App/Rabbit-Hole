@@ -8,19 +8,44 @@ const failure = async response => {
   return Object.assign(new Error(data.error || 'The star could not be saved. Try again.'), { status: response.status, data });
 };
 
+// `surface` (a fixed list on the server: card_library, card_home, card_explore, card_profile, personal_stars, profile_stars,
+// shared_page, canvas_header) says where the press happened, for analytics only; the server drops anything else.
+const call = async (url, method, surface) => {
+  const response = await fetch(url, { method, credentials: 'same-origin', headers: { ...wsHeaders(), ...(surface ? { 'Content-Type': 'application/json' } : {}) }, ...(surface && method !== 'GET' ? { body: JSON.stringify({ surface }) } : {}) });
+  if (!response.ok) throw await failure(response);
+  return response.json();
+};
+
 // A shared link's star: PUT stars, DELETE unstars (desired state, never a toggle), GET reads. `token` is the link the page
-// is open on (a share or a publication token); the server resolves it to the canvas.
-export const starApi = {
-  async read(token) {
-    const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/star`, { credentials: 'same-origin', headers: wsHeaders() });
-    if (!response.ok) throw await failure(response);
-    return response.json();
-  },
-  async send(token, starred) {
-    const response = await fetch(`/api/learn/boards/shared/${encodeURIComponent(token)}/star`, { method: starred ? 'PUT' : 'DELETE', credentials: 'same-origin', headers: wsHeaders() });
-    if (!response.ok) throw await failure(response);
-    return response.json();
-  },
+// is open on (a share or a publication token); the server resolves it to the canvas. A card in Explore or on a profile uses its
+// publication token the same way.
+export const sharedStarApi = surface => ({
+  read: token => call(`/api/learn/boards/shared/${encodeURIComponent(token)}/star`, 'GET'),
+  send: (token, starred) => call(`/api/learn/boards/shared/${encodeURIComponent(token)}/star`, starred ? 'PUT' : 'DELETE', surface),
+});
+export const starApi = sharedStarApi();
+
+// The owner's star on their own canvas (Library and Home cards): the canvas's name, not a link. The owner route has no GET of
+// its own, so the canvas answer is read for the state.
+export const ownerStarApi = (name, surface) => ({
+  read: async () => { const app = await call(`/api/apps/${encodeURIComponent(name)}`, 'GET'); return { starred_by_me: !!app.starred_by_me, star_count: app.star_count }; },
+  send: (_token, starred) => call(`/api/apps/${encodeURIComponent(name)}/star`, starred ? 'PUT' : 'DELETE', surface),
+});
+
+// Which of these publication tokens (cards in a public list) I have starred: a Set. Signed out is an empty one. A failed read
+// is an empty one too: the cards then show unstarred and the press itself still answers with the truth.
+export async function starredTokens(tokens) {
+  if (!tokens.length) return new Set();
+  try {
+    const response = await fetch('/api/learn/stars/state', { method: 'POST', credentials: 'same-origin', headers: { ...wsHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ tokens: tokens.slice(0, 100) }) });
+    return new Set(response.ok ? (await response.json()).starred || [] : []);
+  } catch { return new Set(); }
+}
+
+// My personal Stars (GET /api/learn/stars?q=&cursor=) and the way out of any one star by its own id (DELETE).
+export const starsApi = {
+  list: ({ q = '', cursor = '' } = {}) => call(`/api/learn/stars?${new URLSearchParams({ ...(q ? { q } : {}), ...(cursor ? { cursor } : {}) })}`, 'GET'),
+  remove: id => call(`/api/learn/stars/${encodeURIComponent(id)}`, 'DELETE', 'personal_stars'),
 };
 
 // State: { starred, count, saving, desired, error }. `starred` and `count` are the last confirmed answer; `desired` is what
@@ -71,8 +96,18 @@ export function starStore(token, initial = {}, api = starApi) {
 export const starNumber = n => (n < 1000 ? String(n) : `${+(n / 1000).toFixed(1)}k`);
 export const starLabel = n => `${n.toLocaleString('en-US')} ${n === 1 ? 'star' : 'stars'}`;
 
-// Where a signed-out press goes: sign-in, returning to this canvas with ?star=1, which the page reads once and drops.
-export const starSignInUrl = (pathname, search = '') => {
-  const params = new URLSearchParams(search); params.set('star', '1');
+// Where a signed-out press goes: sign-in, returning to this page with ?star=1 (the shared page) or ?star=<publication token>
+// (a list of cards, `mark`), which the page reads once and drops.
+export const starSignInUrl = (pathname, search = '', mark = '1') => {
+  const params = new URLSearchParams(search); params.set('star', mark);
   return `/login?next=${encodeURIComponent(`${pathname}?${params}`)}`;
 };
+
+// Back from sign-in on a list of cards: the publication token to star once, and the address without it, so Back never stars again.
+export function takeStarReturn(win = window) {
+  const query = new URLSearchParams(win.location.search), token = query.get('star');
+  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) return null;
+  query.delete('star');
+  win.history.replaceState(null, '', win.location.pathname + (query.size ? `?${query}` : ''));
+  return token;
+}

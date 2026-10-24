@@ -1,7 +1,7 @@
 // The client star action (canvas-star.js): desired state, one request at a time per canvas, the confirmed state after a failure.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { starLabel, starNumber, starSignInUrl, starStore } from './canvas-star.js';
+import { ownerStarApi, sharedStarApi, starLabel, starNumber, starSignInUrl, starStore, starredTokens, takeStarReturn } from './canvas-star.js';
 
 // A server that answers when told to, so a test controls the order in which answers arrive.
 function fakeApi(start = { starred: false, count: 0 }) {
@@ -106,4 +106,31 @@ test('counts are compact on screen and exact in the name; zero is shown', () => 
 test('signed out, a press goes to sign-in and returns to this canvas with ?star=1, keeping its other parameters', () => {
   assert.equal(starSignInUrl('/e/abc'), `/login?next=${encodeURIComponent('/e/abc?star=1')}`);
   assert.equal(starSignInUrl('/b/abc', '?x=1&star=0'), `/login?next=${encodeURIComponent('/b/abc?x=1&star=1')}`);
+});
+
+test('a list of cards returns from sign-in with the card\'s own token, read once and dropped from the address', () => {
+  const TOKEN = 'AbCdEfGhIjKlMnOp';
+  assert.equal(starSignInUrl('/explore', '?tab=x', TOKEN), `/login?next=${encodeURIComponent(`/explore?tab=x&star=${TOKEN}`)}`);
+  const win = { location: { pathname: '/@ana', search: `?tab=stars&star=${TOKEN}` }, history: { replaceState: (_s, _t, url) => { win.location.search = url.slice('/@ana'.length); } } };
+  assert.equal(takeStarReturn(win), TOKEN);
+  assert.equal(win.location.search, '?tab=stars');
+  assert.equal(takeStarReturn(win), null, 'the second read finds nothing');
+  assert.equal(takeStarReturn({ location: { pathname: '/e/x', search: '?star=1' }, history: {} }), null, 'the shared page\'s ?star=1 is not a card token');
+});
+
+test('the card APIs speak the stars routes: desired state with the surface, the owner route by name, the state route by tokens', async () => {
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => { calls.push([init.method || 'GET', url, init.body || null]); return Response.json(url.includes('/stars/state') ? { starred: ['AbCdEfGhIjKlMnOp'] } : { starred_by_me: true, star_count: 3 }); };
+  await sharedStarApi('card_explore').send('tok', true);
+  await sharedStarApi('card_explore').send('tok', false);
+  await ownerStarApi('canvas-0123abcd', 'card_library').send(null, true);
+  assert.deepEqual(calls.map(([method, url, body]) => [method, url, body]), [
+    ['PUT', '/api/learn/boards/shared/tok/star', '{"surface":"card_explore"}'],
+    ['DELETE', '/api/learn/boards/shared/tok/star', '{"surface":"card_explore"}'],
+    ['PUT', '/api/apps/canvas-0123abcd/star', '{"surface":"card_library"}'],
+  ]);
+  assert.deepEqual([...await starredTokens(['AbCdEfGhIjKlMnOp', 'other'])], ['AbCdEfGhIjKlMnOp']);
+  assert.deepEqual([...await starredTokens([])], [], 'no tokens, no request');
+  globalThis.fetch = async () => { throw new Error('offline'); };
+  assert.deepEqual([...await starredTokens(['AbCdEfGhIjKlMnOp'])], [], 'a failed read shows nothing starred');
 });

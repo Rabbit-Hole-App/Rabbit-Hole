@@ -6,15 +6,17 @@ Status by increment (delivery order, brief Task 10):
 
 1. **Done:** this contract, migration 0028, idempotent mutations, authorization and visibility, integration-point discovery, and
    one end-to-end surface: the shared canvas viewing page (`SharedBoardPage.jsx`) with the shared Star control.
-2. **Server and data side done, UI not started:** the owner's star by name, star counts on the Home, Library, Explore and profile
-   card queries, and the state route for public cards. The Star control on cards waits for `fix/card-size-description` to land.
-3. **Server side done, UI not started:** my personal Stars list and the public profile Stars query. The Stars page and the profile
-   tab wait for `fix/creators-ui`.
+2. **Done (branch feat/stars-ui-r2):** the Star control on cards: the owner's Library and Home cards (by canvas name), Explore, Recommended and
+   profile cards (by publication token, with the viewer's starred state from one batched `POST /api/learn/stars/state`). `CardStar.jsx`,
+   `canvas-star.js`; `LearningCard` takes a `star` slot, first in the card's actions row. Both fix/card-size-description and fix/creators-ui are
+   already in main (dfab2e55), so nothing waits on them.
+3. **Done (branch feat/stars-ui-r2):** my personal Stars (`StarsPage.jsx`, a Library view at `/library?view=stars`, reached by the Stars button on Home
+   and on the Library header) and the public profile Stars tab (`CreatorProfile.jsx`, `?tab=stars`).
 4. **Server side done, wiring pending:** creator star analytics and the event delivery adapter. Folding the analytics fields into
    the analytics lane's endpoint, the owner dashboard and the telemetry sink wait for those lanes.
 
-Browser check: `packages/web/e2e/stars-check.mjs` (tier `fork`, executed by fast-e2e), written and registered; not run by the
-lane that wrote it. Nothing here is applied to any database or deployed. Other evidence is unit/fixture only.
+Browser checks: `packages/web/e2e/stars-check.mjs` (the shared page) and `packages/web/e2e/stars-surfaces-check.mjs` (cards, profile tab, personal
+Stars; both tier `fork`, executed by fast-e2e), written and registered; not run by the lane that wrote them (CI reads them). Nothing here is applied to any database or deployed. Other evidence is unit/fixture only.
 
 ## Product contract (Task 1)
 
@@ -184,6 +186,29 @@ the page, reading `?star=1` once and removing it, stars once on return; the serv
 left of the creator @handle, so the handle stays immediately left of Fork (owner decision 2026-10-23); keyboard order is logo,
 menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert it; written, not run by this lane). In the shared header, below the
 `@6xl` container width (1152px) the label is screen-reader-only and the icon, state and count remain: at a 1024px header the label left the @handle about 48px, a cut "@hdr_..." that overlapped Fork (fast-e2e run 40135548596, shared-header 36/39). The shared-header and stars checks assert it. Unverified in a browser until CI reads it. The embed header does not show it (an embed is a public guest, with no account).
+
+## Surfaces: cards, profile tab, personal Stars (Tasks 6-8, UI)
+
+- **Card control.** The one `StarButton` in the card's actions row, visible at rest, outlined "Star" or filled "Starred" with the count (0 shown,
+  `1.2k`, exact in the accessible name), `aria-pressed`, a title that says what it does, a visible focus ring, 44px minimum on touch (`pointer-coarse`).
+  A press stops at the button: it never opens, selects, forks or drags the card. The card keeps its Fork button (others' canvases) or Owned-by-you
+  badge; the Fork count still sits inside Fork alone.
+- **Which route.** Own canvas (Library, Home Recent and Continue): `PUT`/`DELETE /api/apps/<name>/star`, initial state from the canvas row's
+  `star_count` and `starred_by_me`. Published canvas (Explore, Recommended, profile): the publication token on the shared route. Pending state:
+  until the batched state answer arrives the button is disabled and keeps its name.
+- **Surface** sent with each mutation (analytics only): `card_library`, `card_home`, `card_explore`, `card_profile`, `profile_stars`, `personal_stars`.
+- **Signed out.** A press goes to `/login?next=<page>?star=<publication token>`; back on the list, that card (and only it) stars once, the address loses
+  `star`, and a refusal does not loop back to sign-in.
+- **Profile.** Tabs Canvases (default, unchanged address) and Stars (`?tab=stars`, count = public canvases this person starred). The tab lists
+  `GET /api/learn/creators/<handle>/stars` in pages of 24 with Show more. Empty wording does not say whether private stars exist. Search on the
+  Stars tab is not built (the route supports `q`).
+- **Personal Stars.** `/library?view=stars` (the sidebar keeps Library lit; no new route or navigation row). Search over the whole collection, the
+  total "N stars, M unavailable", cards with Star and (others' canvases) Fork but no card options, an unavailable star as one generic row
+  "Canvas unavailable" with Remove, Show more by the server's cursor, loading, empty and retry states.
+- **Not built.** `star.opened` (a canvas opened from personal Stars or a profile Stars list) is defined but nothing emits it yet; the Stars analytics
+  fields are not folded into the creator dashboard; the Home Continue card has no Star when its canvas row is not in the catalog.
+- **Unverified in a browser** until `stars-surfaces-check.mjs` has been read from CI on the candidate SHA: layout at small card sizes and widths,
+  light and dark appearance (the control is the shared `Button` with theme tokens; no dark-specific assertion), and the touch target on a real device.
 
 ## Telemetry events (Task 9; the telemetry lane owns the envelope)
 

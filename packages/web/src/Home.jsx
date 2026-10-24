@@ -11,6 +11,7 @@ import { useLibraryFolders } from './LibraryFolders.jsx';
 import CardSize from './home/CardSize.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
 import { cardModel } from './home/provenance.js';
+import { ownerStar, StarsLink } from './CardStar.jsx';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { EXPLORE_TYPES, exploreType, isMine } from './library-filter.js';
 import { ActiveFilters, LibraryFilters } from './LibraryViews.jsx';
@@ -62,7 +63,7 @@ function HomeContent({ data, load }) {
         {ready && (
           <div className="flex items-center justify-between gap-4 max-md:flex-wrap">
             {!cont && !items.length ? <p className="text-sm text-ink-2">Start from a repository or a blank canvas.</p> : <span />}
-            <div className="flex flex-wrap items-center gap-3 max-md:w-full">{(cont || items.length > 0) && <CardSize />}{startButton}</div>
+            <div className="flex flex-wrap items-center gap-3 max-md:w-full">{(cont || items.length > 0) && <CardSize />}<StarsLink />{startButton}</div>
           </div>
         )}
         {fixtures && <div role="note" className="rounded-md bg-code px-3 py-2 text-xs text-ink-2">Review fixtures are on: made-up cards, mixed in for design review. They open nothing and are stored nowhere. <a className="text-accent hover:underline" href="?fixtures=0">Turn off</a></div>}
@@ -94,7 +95,7 @@ function Continue({ item, app, email }) {
     <section aria-label="Continue">
       <h2 className={HEADING}>Continue learning</h2>
       <ul className={CARD_ROWS}>
-        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)}
+        <LearningCard kind={a.kind} schedule={a.schedule} m={cardModel(a)} attrs={{ 'data-continue-card': '' }} href={openHref(item)} onOpen={go} thumbnail={cardThumbnail(a)} star={ownerStar(a, 'card_home')}
           mine={isMine(a, email)} access={a.kind === 'canvas' || a.kind === 'repository' ? a.access || null : null}
           note={(
             <>
@@ -122,7 +123,7 @@ function RecentCard({ app, card, email, onMore, onVaries }) {
     : meta.join(' · ');
   const link = 'inline-flex items-center gap-1 rounded-sm text-[13px] font-medium text-accent hover:underline';
   return (
-    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)}
+    <LearningCard kind={app.kind} schedule={app.schedule} m={cardModel(app)} attrs={{ 'data-recent-card': '' }} thumbnail={cardThumbnail(app)} star={ownerStar(app, 'card_home')}
       href={action?.to && !app.fixture ? action.to : null} onOpen={action?.to ? () => go(action.to) : null}
       mine={!app.fixture && isMine(app, email)} access={(app.kind === 'canvas' || app.kind === 'repository') && !app.fixture ? app.access || null : null} onVaries={onVaries} note={note} onMore={onMore}
       onForkedFromOpen={(id) => go(`/apps/${id}`)}
