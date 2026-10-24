@@ -280,6 +280,7 @@ await check('B files, a stored PDF and links: one canvas; each source in the des
   await choice.locator('[data-import-choice="code"]').click();
   await choice.getByRole('button', { name: 'Add to canvas' }).click();
   await settledOk('B retry');
+  await waitFor(async () => (await blocks(slugB)).some(b => b.type === 'repo-code'), 30000, 'the Code card was not saved on the board');
   assert.equal((await blocks(slugB)).filter(b => b.type === 'repo-code').length, 1, 'the Code card landed once');
   assert.equal(requests.slice(before).filter(r => /^\/api\/learn\/(context|files)/.test(r.path)).length, 0, 'the retry stored nothing again');
   // What Chat can use: the context_refs of a question and the chips. The .py and the arXiv card are not in it.
