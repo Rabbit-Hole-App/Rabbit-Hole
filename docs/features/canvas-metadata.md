@@ -35,14 +35,14 @@ Every canvas row the owner reads carries `description` and `updated_at`: `GET /a
 
 ## description
 
-- **What it is:** optional plain text, at most 500 characters, trimmed. Empty clears it to null.
+- **What it is:** optional plain text, at most 340 characters (owner, 2026-10-23; counted by code point, one limit in `control-plane/src/canvas-description.js` shared by the server and the Edit description dialog), trimmed. Empty clears it to null. One saved over 340 before the limit stays whole: a rename or an unchanged save of it passes, and only a changed text over 340 is refused.
 - **Who writes it:** only the canvas's owner, through `PATCH /api/apps/<canvas>` `{ description }`. The same route takes `{ title }`; either may come alone.
 - **Never generated:** no LLM writes it at render time, and no Tutor or private chat ever stands in for it.
 - **Where it travels:**
   - Duplicate carries it (the owner's own words).
   - A fork starts without one.
   - Explore's listing returns it, with `updated_at`, for the public card.
-- The Edit description menu row arrives with the owned-card ⋮ (visibility menu step). Cards clamp it to 2-3 lines (card redesign).
+- The Edit description menu row arrives with the owned-card ⋮ (visibility menu step). Cards show it whole at every size (card redesign).
 
 ## Ordering
 

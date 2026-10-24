@@ -773,47 +773,51 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await url.inputValue() === typed, 'the error cleared the URL');
     const text = await dialog.innerText();
     for (const fact of [ONLY_YOU, "can't be deleted yet", "private repositories aren't supported yet"]) must(text.includes(fact), `missing: ${fact}`);
-    await dialog.getByRole('tab', { name: 'Blank canvas', exact: true }).click();
-    await dialog.getByPlaceholder('Untitled canvas').fill('kept');
-    await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
-    must(await url.inputValue() === typed, 'switching tabs lost the URL');
-    await dialog.getByRole('tab', { name: 'Blank canvas', exact: true }).click();
-    must(await dialog.getByPlaceholder('Untitled canvas').inputValue() === 'kept', 'switching tabs lost the title');
+    // Combined sources: Add link and Connect repository share the dialog, and switching between them keeps what was typed.
+    await dialog.getByRole('button', { name: 'Add link', exact: true }).click();
+    await dialog.getByPlaceholder('https://', { exact: true }).fill('https://example.com/kept');
+    await dialog.getByRole('button', { name: 'Connect repository', exact: true }).click();
+    must(await url.inputValue() === typed, 'switching inputs lost the URL');
+    await dialog.getByRole('button', { name: 'Add link', exact: true }).click();
+    must(await dialog.getByPlaceholder('https://', { exact: true }).inputValue() === 'https://example.com/kept', 'switching inputs lost the link');
     await page.context().close();
   });
 
-  await check('start: a GitHub URL shows the connect card with workspace, target and branch, Confirm and Cancel but no Change; Cancel keeps the URL', async () => {
+  await check('start: a GitHub URL shows the Branch select and Add repository, no Confirm or Change; Cancel keeps the URL; nothing is created', async () => {
     const page = await open();
     const writes = [];
     page.on('request', (r) => { if (r.method() !== 'GET') writes.push(`${r.method()} ${new URL(r.url()).pathname}`); });
-    // A canned lookup: the check never reaches GitHub and never clicks Confirm, so no project is created.
+    // A canned lookup: the check never reaches GitHub and never clicks Start, so no project is created.
     await page.route('**/api/repositories/branches**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ repo: 'rabbit-hole-e2e/demo', defaultBranch: 'main', branches: ['main'], hasMore: false, page: 1 }) }));
     await openStart(page, 'repository');
     const dialog = startDialog(page);
     const url = dialog.getByPlaceholder(URL_FIELD);
     await url.fill('https://github.com/rabbit-hole-e2e/demo');
     await dialog.getByRole('button', { name: 'Check repository' }).click();
-    const card = dialog.locator('[data-confirm-card]');
-    await card.waitFor({ timeout: 10000 });
-    const text = await card.innerText();
-    for (const fact of [wsLabel, 'rabbit-hole-e2e/demo', 'main']) must(text.includes(fact), `card lacks ${fact}: ${text}`);
-    must(await card.getByRole('button', { name: 'Confirm' }).isEnabled(), 'connect_repository is Blocked, but T02 §16 allows it on the review copy');
+    const add = dialog.getByRole('button', { name: 'Add repository', exact: true });
+    await add.waitFor({ timeout: 10000 });
+    must((await dialog.locator('[data-branch-select]').innerText()).trim() === 'main', 'the default branch is not preselected');
+    must(await add.isEnabled(), 'connect_repository is Blocked, but T02 §16 allows it on the review copy');
     // Owner, 2026-10-08: "Remove Change button"; Cancel goes back to the field with the URL kept, to fix or re-check it.
-    must(await card.getByRole('button', { name: 'Change' }).count() === 0, 'the connect card still offers Change');
-    await card.getByRole('button', { name: 'Cancel' }).click();
-    await card.waitFor({ state: 'detached', timeout: 3000 });
+    must(await dialog.getByRole('button', { name: 'Change' }).count() === 0 && await dialog.getByRole('button', { name: 'Confirm' }).count() === 0, 'the dialog still offers Change or Confirm');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await add.waitFor({ state: 'detached', timeout: 3000 });
     must(await url.inputValue() === 'https://github.com/rabbit-hole-e2e/demo', 'Cancel lost the URL');
     must(await url.isEditable() && await dialog.getByRole('button', { name: 'Check repository' }).count() === 1, 'the field is not back for another repository');
+    // Adding it only lists it: no write is made until Start rabbit hole.
+    await dialog.getByRole('button', { name: 'Check repository' }).click();
+    await add.click();
+    await dialog.locator('[data-start-row="repository"]').waitFor({ timeout: 5000 });
     must(!writes.some((w) => w.endsWith('/api/repositories')), `a repository create was sent: ${writes}`);
     await page.context().close();
   });
 
   // Owner, 2026-10-08: "start a rabbit hole with a repository should allow us to choose which branch".
-  await check('start: the connect card has a Branch select - the default preselected, a pick rebuilds the card, More branches loads the next page', async () => {
+  await check('start: the Branch select - the default preselected, a pick takes, More branches loads the next page', async () => {
     const page = await open();
     const writes = [], pages = [];
     page.on('request', (r) => { if (r.method() !== 'GET') writes.push(`${r.method()} ${new URL(r.url()).pathname}`); });
-    // Canned lookups (page 1, then page 2): never GitHub, and Confirm is never clicked, so no project is created.
+    // Canned lookups (page 1, then page 2): never GitHub, and Start is never clicked, so no project is created.
     await page.route('**/api/repositories/branches**', (route) => {
       const n = Number(new URL(route.request().url()).searchParams.get('page') || 1);
       pages.push(n);
@@ -825,15 +829,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const dialog = startDialog(page);
     await dialog.getByPlaceholder(URL_FIELD).fill('https://github.com/rabbit-hole-e2e/demo');
     await dialog.getByRole('button', { name: 'Check repository' }).click();
-    const card = dialog.locator('[data-confirm-card]'), select = dialog.locator('[data-branch-select]');
-    await card.waitFor({ timeout: 10000 });
+    const add = dialog.getByRole('button', { name: 'Add repository', exact: true }), select = dialog.locator('[data-branch-select]');
+    await add.waitFor({ timeout: 10000 });
     must((await select.innerText()).trim() === 'main', `the default is not preselected: ${await select.innerText()}`);
-    must((await card.innerText()).includes('branch main'), 'the card does not name main');
     await select.click();
     await page.getByRole('button', { name: 'dev', exact: true }).click();
     await page.waitForTimeout(300);
-    must((await select.innerText()).trim() === 'dev' && (await card.innerText()).includes('branch dev'), `the pick did not rebuild the card: ${await card.innerText()}`);
-    must(await card.getByRole('button', { name: 'Confirm' }).isEnabled(), 'Confirm is not offered for the picked branch');
+    must((await select.innerText()).trim() === 'dev', `the pick did not take: ${await select.innerText()}`);
+    must(await add.isEnabled(), 'Add repository is not offered for the picked branch');
     await select.click();
     await page.getByRole('button', { name: 'More branches', exact: true }).click();
     await page.waitForTimeout(600);
@@ -842,28 +845,32 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await page.getByRole('button', { name: 'feature/x', exact: true }).count() === 1 && await page.getByRole('button', { name: 'More branches', exact: true }).count() === 0, 'page 2 is not listed, or More branches stayed');
     await page.getByRole('button', { name: 'feature/x', exact: true }).click();
     await page.waitForTimeout(300);
-    must((await card.innerText()).includes('branch feature/x'), 'the page-2 branch did not rebuild the card');
+    must((await select.innerText()).trim() === 'feature/x', 'the page-2 branch was not picked');
     must(!writes.some((w) => w.endsWith('/api/repositories')), `a repository create was sent: ${writes}`);
     await page.context().close();
   });
 
-  await check('start: the dialog opens on the path it was asked for', async () => {
+  await check('start: the dialog opens on the path it was asked for: repository shows its input, start shows none', async () => {
     const page = await open();
-    await openStart(page, 'question');
-    must(await startDialog(page).getByRole('tab', { name: 'Question', exact: true }).getAttribute('data-state') === 'active', 'the Question tab is not active');
+    await openStart(page, 'repository');
+    must(await startDialog(page).getByPlaceholder(URL_FIELD).count() === 1, 'the repository input is not shown');
+    await page.keyboard.press('Escape');
+    await startDialog(page).waitFor({ state: 'detached', timeout: 5000 });
+    await openStart(page, 'start');
+    must(await startDialog(page).getByPlaceholder(URL_FIELD).count() === 0, 'the repository input shows without being asked');
     await page.context().close();
   });
 
-  // MVP surface cleanup: every connection source is planned, so Sources offers PDF upload only and
-  // advertises nothing it cannot do (StartDialog.jsx connectionSources). This replaces J17/J18/J19's planned tiles.
-  await check('J17: Start Sources offers PDF upload only, with no planned connection sources', async () => {
+  // MVP surface cleanup: every connection source is planned, so Start offers files, links and a repository only and
+  // advertises nothing it cannot do. This replaces J17/J18/J19's planned tiles.
+  await check('J17: Start offers Add files, Add link, Connect repository and a blank canvas, with no planned connection sources', async () => {
     const page = await open();
-    await openStart(page, 'sources');
+    await openStart(page, 'start');
     const dialog = startDialog(page);
-    must(await dialog.getByRole('radio', { name: 'From a connection' }).count() === 0, 'Sources still offers From a connection');
-    must(!/Planned|Google Slides|Google Drive|Notion/.test(await dialog.innerText()), 'Sources still advertises a planned provider');
-    must((await dialog.innerText()).includes('Sources → PDF'), 'Sources lost its PDF upload guidance');
-    must(await dialog.getByRole('button', { name: 'Create canvas' }).isEnabled(), 'Create canvas is disabled for PDF upload');
+    for (const name of ['Add files', 'Add link', 'Connect repository', 'Start with a blank canvas']) must(await dialog.getByRole('button', { name, exact: true }).count() === 1, `${name} is missing`);
+    must(!/Planned|Google Slides|Google Drive|Notion/.test(await dialog.innerText()), 'Start still advertises a planned provider');
+    must(await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).isDisabled(), 'Start rabbit hole is enabled with no source');
+    must(await dialog.getByRole('button', { name: 'Start with a blank canvas', exact: true }).isEnabled(), 'the blank canvas shortcut is not available');
     await page.context().close();
   });
 
@@ -877,15 +884,18 @@ await check('build: the browser runs the dist-dev entry script', async () => {
   };
   const nanoUrl = `https://github.com/${repo.repo}`;
 
-  await check('start-link: a connected repository opens its project, with no card and no create', async () => {
+  await check('start-link: a connected repository is listed as that project, and Start opens it with no create', async () => {
     const page = await open();
     const creates = await noCreate(page);
     await openStart(page, 'repository');
     const dialog = startDialog(page);
     await dialog.getByPlaceholder(URL_FIELD).fill(nanoUrl);
     await dialog.getByRole('button', { name: 'Check repository' }).click();
+    await dialog.locator('[data-start-row="repository"]').waitFor({ timeout: 10000 });
+    must(await dialog.getByRole('button', { name: 'Add repository', exact: true }).count() === 0 && await dialog.locator('[data-confirm-card]').count() === 0, 'a card or Add repository was offered for a connected repository');
+    must(new URL(page.url()).pathname === '/apps', 'listing the project navigated');
+    await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).click();
     await page.waitForURL((u) => u.pathname === `/apps/${repo.name}`, { timeout: 10000 });
-    must(await startDialog(page).count() === 0, 'the dialog stayed open');
     must(creates.length === 0, `a repository create was sent: ${creates}`);
     await page.context().close();
   });
@@ -904,12 +914,14 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     must(await connectIt.count() === 1, 'no Connect-this-branch option');
     must(await dialog.getByRole('alert').count() === 0, `an error replaced the choice: ${await dialog.innerText()}`);
     await openIt.click();
+    await dialog.locator('[data-start-row="repository"]').waitFor({ timeout: 10000 });
+    await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).click();
     await page.waitForURL((u) => u.pathname === `/apps/${repo.name}`, { timeout: 10000 });
     must(creates.length === 0, `a repository create was sent: ${creates}`);
     await page.context().close();
   });
 
-  await check('start-link: with a stale list, another branch found at Confirm offers open or connect, never a dead end', async () => {
+  await check('start-link: with a stale list, another branch found at Start fails that row with the reason, never a dead end', async () => {
     const page = await open();
     const creates = await noCreate(page);
     let stale = true;
@@ -923,22 +935,22 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const dialog = startDialog(page);
     await dialog.getByPlaceholder(URL_FIELD).fill(`${nanoUrl}/tree/rabbit-hole-e2e-branch`);
     await dialog.getByRole('button', { name: 'Check repository' }).click();
-    const card = dialog.locator('[data-confirm-card]');
-    await card.waitFor({ timeout: 15000 });
+    await dialog.getByRole('button', { name: 'Add repository', exact: true }).click();
+    await dialog.locator('[data-start-row="repository"]').waitFor({ timeout: 15000 });
     stale = false;
-    await card.getByRole('button', { name: 'Confirm' }).click();
-    await dialog.getByRole('button', { name: `Connect ${repo.repo} at rabbit-hole-e2e-branch` }).waitFor({ timeout: 15000 });
-    await dialog.getByRole('button', { name: new RegExp(`^${repo.repo.replace('/', '\\/')} \\(`) }).first().waitFor();
-    must(await dialog.locator('[data-confirm-card="failed"]').count() === 0, 'a Failed card is left');
+    await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).click();
+    await dialog.locator('[data-start-row="repository"][data-status="failed"]').waitFor({ timeout: 15000 });
+    must(/another branch/.test(await dialog.locator('[data-start-row="repository"] [data-start-status]').innerText()), 'the failed row does not say why');
+    must(await dialog.getByRole('button', { name: /^Remove / }).count() === 1, 'the failed row cannot be removed');
     must(creates.length === 0, `a repository create was sent: ${creates}`);
     await page.context().close();
   });
 
-  await check('start-link: with a stale list the card shows, and Confirm opens the connected project instead of creating one', async () => {
+  await check('start-link: with a stale list the repository can be added, and Start opens the connected project instead of creating one', async () => {
     const page = await open();
     const creates = await noCreate(page);
-    // Until Confirm, the page's catalog lacks nanoGPT (a colleague connected it a minute ago);
-    // Confirm's executor re-reads /api/apps and must find it.
+    // Until Start, the page's catalog lacks nanoGPT (a colleague connected it a minute ago);
+    // the executor re-reads /api/apps and must find it.
     let stale = true;
     await page.route('**/api/apps', async (route) => {
       if (!stale || route.request().method() !== 'GET') return route.continue();
@@ -950,10 +962,10 @@ await check('build: the browser runs the dist-dev entry script', async () => {
     const dialog = startDialog(page);
     await dialog.getByPlaceholder(URL_FIELD).fill(nanoUrl);
     await dialog.getByRole('button', { name: 'Check repository' }).click();
-    const card = dialog.locator('[data-confirm-card]');
-    await card.waitFor({ timeout: 15000 });
+    await dialog.getByRole('button', { name: 'Add repository', exact: true }).click();
+    await dialog.locator('[data-start-row="repository"]').waitFor({ timeout: 15000 });
     stale = false;
-    await card.getByRole('button', { name: 'Confirm' }).click();
+    await dialog.getByRole('button', { name: 'Start rabbit hole', exact: true }).click();
     await page.waitForURL((u) => u.pathname === `/apps/${repo.name}`, { timeout: 15000 });
     must(creates.length === 0, `a repository create was sent: ${creates}`);
     await page.context().close();
@@ -962,16 +974,15 @@ await check('build: the browser runs the dist-dev entry script', async () => {
 
 {
   // ── agent-ui (T02 §3.3, §5): the one Start host, with the workspace identity in its ctx ──
-  await check('start-host: small:start opens one Start dialog on the asked tab, naming the workspace after a navigation', async () => {
+  await check('start-host: small:start opens one Start dialog on the asked path, naming the workspace after a navigation', async () => {
     const page = await open();
     await loaded(page, '/apps');
     await spa(page, '/library'); // a new page and a new Root baseline: the identity must survive both
-    await page.evaluate(() => dispatchEvent(new CustomEvent('small:start', { detail: { path: 'question' } })));
+    await page.evaluate(() => dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } })));
     const dialog = startDialog(page);
     await dialog.waitFor({ timeout: 10000 });
     must(await page.getByRole('dialog', { name: 'Start a rabbit hole' }).count() === 1, 'more than one Start dialog');
-    must(await dialog.getByRole('tab', { name: 'Question', exact: true }).getAttribute('aria-selected') === 'true', 'the Question tab is not selected');
-    await dialog.getByRole('tab', { name: 'Repository', exact: true }).click();
+    must(await dialog.getByPlaceholder('https://github.com/owner/repository').count() === 1, 'the repository input is not shown');
     await dialog.getByText(ONLY_YOU, { exact: false }).waitFor({ timeout: 10000 });
     must(!/anyone who signs in|everyone in /.test(await dialog.innerText()), 'Start names a domain or workspace audience');
     await page.context().close();

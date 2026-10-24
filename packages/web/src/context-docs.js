@@ -9,7 +9,8 @@ const toast = message => window.dispatchEvent(new CustomEvent('small:toast', { d
 
 export const ATTACHED_LIMIT = 10; // the server's (learn-context-docs.js), pinned by context-docs.test.mjs
 export const CONTEXT_ACCEPT = '.pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown';
-export const isContextCanvas = app => /^canvas-[a-f0-9]{8}$/.test(String(app || ''));
+// A canvas, or a repository project's Main canvas (the server's CANVAS, learn-context-docs.js): files supplement a repository's context.
+export const isContextCanvas = app => /^(?:canvas-[a-f0-9]{8}|repo-[a-f0-9]{8}-[a-z0-9-]{1,64})$/.test(String(app || ''));
 export const EVENT = 'small:context-docs'; // a change on one canvas: every list of it re-reads
 
 async function request(method, path, body) {
@@ -45,6 +46,26 @@ export async function uploadContextDoc(app, file) {
     } finally { pdf.destroy?.(); }
     return send();
   });
+}
+
+// A link kept as context with no card (Start a rabbit hole): the server resolves it into a small text note and stores that as a
+// context document; the same link twice answers with the one note. Throws the server's reason.
+export async function uploadContextLink(app, url) {
+  const data = await request('POST', '/api/learn/context/link', { app, url });
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  return data.document;
+}
+
+// A stored file source (file-source-client.js uploadSource) made context without sending its bytes again: the server copies it
+// inside its own storage, for the source's owner and the revision named only.
+export async function uploadContextSource(app, source) {
+  const body = new FormData();
+  body.append('app', app);
+  body.append('source_id', source.id);
+  body.append('source_rev', source.rev);
+  const data = await request('POST', '/api/learn/context', body);
+  window.dispatchEvent(new CustomEvent(EVENT, { detail: { app } }));
+  return data.document;
 }
 
 // Retry (contract-pdf-status.md section 3): read a stored PDF's pages again in this browser and store them. Resolves with

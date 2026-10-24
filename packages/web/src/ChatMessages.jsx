@@ -13,45 +13,81 @@ import AnswerSuggestions from './AnswerSuggestions.jsx';
 import SyllabusMessage from './SyllabusMessage.jsx';
 import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
-import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict } from './generation-proposal-chat.js';
+import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
+import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
+import { retryImageSave, runImageJob } from './generate-image.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
 // Generate adds its capability's card (proposalBlock, an adapter per capability) with the exact approved proposal, once (insertCard finds one it already made).
 function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   const p = m.meta.proposal;
+  const chat = useChatWorkspace(); // a reference pill opens its source beside the Chat, as an attached chip does
   const [busy, setBusy] = useState(false), [error, setError] = useState(null), [pressed, setPressed] = useState(false);
   const made = pressed || !!ops?.proposalMade?.(p.proposal_id);
   const saved = /^\d+$/.test(String(m.messageId ?? ''));
-  const active = !made && !!ops?.insertCard && !!proposalBlock(p) && proposalActive(p, msgs);
+  // Generate is enabled by the command's own start adapter: an output card (Motion) or an existing job (Explain).
+  const active = !made && !!startAdapter(p, ops) && proposalActive(p, msgs);
+  // UI-15.1: each reference's state from the server (changed, deleted, inaccessible, unsupported), read now; a blocked one is said before Generate.
+  const [states, setStates] = useState(null), [problem, setProblem] = useState(null);
+  const wanted = saved && p.references?.length > 0;
+  useEffect(() => {
+    if (!wanted) { setStates(null); return undefined; }
+    let live = true;
+    fetchProposal(api, m.messageId).then(found => { if (live) setStates(found.references); }, () => {});
+    return () => { live = false; };
+  }, [wanted, m.messageId, p.version]); // eslint-disable-line react-hooks/exhaustive-deps
   // MOT-22: a save names the revision it was made from. Refused because the proposal changed (another tab, a chat refinement or a
   // Generate), it keeps the learner's choice beside the latest (settingsConflict), and the card shows the latest when it is this one.
   const [conflict, setConflict] = useState(null);
-  const onSettingsChange = async (settings, base = p) => {
+  // UI-15.1: one save for every edit (a setting or the details): the next revision, no model call. A refusal keeps the draft: the card
+  // says why (stale, used, invalid, references) and a failed save rejects so the card keeps its form open.
+  const onSave = async (edit, base = p) => {
     if (!saved) return;
-    setBusy(true); setError(null); setConflict(null);
+    setBusy(true); setError(null); setConflict(null); setProblem(null);
     try {
-      const { proposal } = await api(`/api/learn/chat/messages/${m.messageId}/proposal`, { method: 'PUT', body: JSON.stringify({ settings, expected_version: base.version }) });
-      setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal } } : x)));
+      const result = await saveProposal(api, m.messageId, base, edit);
+      setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: result.proposal } } : x)));
+      setStates(result.references?.length ? result.references : null);
     } catch (failure) {
-      const next = settingsConflict(failure, settings, m.messageId);
+      const next = edit.settings && Object.keys(edit).length === 1 ? settingsConflict(failure, edit.settings, m.messageId) : null;
       if (next?.here) setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: next.current } } : x)));
-      if (next) setConflict(next); else setError(failure.message);
+      if (next) setConflict(next); else { const why = problemOf(failure); setProblem(why); if (why.kind === 'stale' && why.current && String(why.currentMessageId) === String(m.messageId)) setMsgs(ms => ms.map((x, j) => (j === i ? { ...x, meta: { ...x.meta, proposal: why.current } } : x))); }
+      throw failure;
     } finally { setBusy(false); }
   };
+  const onSettingsChange = (settings, base = p) => onSave({ settings }, base).catch(() => {});
   // MOT-22: the server refused this proposal's Generate (its card is marked, not counted as made): live again, with the reason.
   useEffect(() => {
     const refused = event => { if (event.detail?.proposalId === p.proposal_id) { setPressed(false); setError(event.detail.message); } };
     window.addEventListener(PROPOSAL_REFUSED_EVENT, refused);
     return () => window.removeEventListener(PROPOSAL_REFUSED_EVENT, refused);
   }, [p.proposal_id]);
+  // IMG-01: Generate on an image proposal starts the job and follows it here (generate-image.js); a failed or unknown outcome is said in
+  // words and is never sent again. The same press after a reload reaches the same job.
+  const [image, setImage] = useState(null);
+  const generateImage = () => {
+    if (pressed) return;
+    setPressed(true); setError(null); setImage({ tone: 'working', text: 'Making your image.', retry: false });
+    runImageJob({ api, proposal: p, app: p.input.app, ops, onStatus: setImage }).then(job => { if (job.cardId) ops.locate?.(job.cardId); }).catch(failure => {
+      const why = problemOf(failure);
+      if (why.kind !== 'used') setPressed(false);
+      setProblem(why); setImage(null); setError(why.kind === 'references' ? null : why.message);
+    });
+  };
   const onGenerate = () => {
+    if (p.command === 'generate-image') { generateImage(); return; }
     // /explain (EXP-T20): its card already waits on the canvas for this job; Generate approves the job's reviewed brief there.
     if (approvesJob(p)) {
       if (pressed || !ops.approveExplain) return;
       setPressed(true); setError(null);
-      ops.approveExplain(p).then(id => { if (id) ops.locate?.(id); }).catch(failure => { setPressed(false); setError(failure.message); });
+      ops.approveExplain(p).then(id => { if (id) ops.locate?.(id); }).catch(failure => {
+        const why = problemOf(failure);
+        // already made (a reload, another tab): the proposal is spent, so it is shown as made rather than pressable again
+        if (why.kind !== 'used') setPressed(false);
+        setProblem(why); setError(why.kind === 'references' ? null : why.message);
+      });
       return;
     }
     const id = generateProposal(p, { inFlight: pressed, insertCard: ops.insertCard, wrap: block => withPrompt(block, p.input.request) });
@@ -61,8 +97,16 @@ function ProposalSlot({ m, i, msgs, setMsgs, ops }) {
   };
   return (
     <div className="mt-2">
-      <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} onGenerate={onGenerate} onSettingsChange={onSettingsChange} />
+      <GenerationProposalCard proposal={p} active={active} made={made} busy={busy || !saved} states={states} problem={problem?.kind === 'references' ? { message: problem.message } : null}
+        onGenerate={onGenerate} onSave={onSave} onOpenReference={ref => chat?.openSource?.({ sourceId: ref.sourceId, kind: ref.kind, name: ref.label, version: ref.revision, range: ref.range })} />
       {error && <p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
+      {image && (
+        <p role="status" data-image-job-status={image.tone} className={cn('mt-1 text-xs', image.tone === 'failed' ? 'text-danger' : 'text-ink-2')}>
+          {image.text}
+          {image.retry && <button type="button" data-image-retry-save onClick={() => retryImageSave(api, `img-${p.proposal_id}`).catch(() => {})} className="ml-2 rounded border border-line px-2 py-0.5 text-ink hover:bg-hover">Try saving again</button>}
+        </p>
+      )}
+      {problem?.kind === 'invalid' && problem.errors?.length > 0 && <ul role="alert" data-proposal-save-errors className="mt-1 text-xs text-danger">{problem.errors.map((e, k) => <li key={k}>{e.message}</li>)}</ul>}
       {conflict && (
         <div role="alert" data-proposal-settings-conflict className="mt-1 flex flex-wrap items-center gap-2 text-xs text-danger">
           <span>{conflict.message}</span>

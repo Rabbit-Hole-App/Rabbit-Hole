@@ -10,6 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
+import { FAKE_REACT } from './fake-react-hooks.mjs';
 import { activeThread, rememberThread, saveMessage, turnSaver } from './chat-persist.js';
 
 const read = name => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -136,29 +137,6 @@ test('the active thread: its id, null when unset or for a canvas the route does 
 
 // ---- useChatThread, over a one-component React stand-in: hooks by call order, effects after each render, a state change
 // renders again on a microtask. Enough for a hook; never a component tree.
-const FAKE_REACT = `
-let slots = [], cursor = 0, hook = null, props, alive = false, queued = false, result, effects = null;
-const same = (a, b) => !!a && !!b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
-function render() { cursor = 0; effects = []; result = hook(props); const run = effects; effects = null; for (const effect of run) effect(); }
-function schedule() { if (queued || !alive) return; queued = true; queueMicrotask(() => { queued = false; if (alive) render(); }); }
-export function useState(init) {
-  const i = cursor++;
-  if (!(i in slots)) { const slot = { value: typeof init === 'function' ? init() : init }; slot.set = next => { const value = typeof next === 'function' ? next(slot.value) : next; if (!Object.is(value, slot.value)) { slot.value = value; schedule(); } }; slots[i] = slot; }
-  return [slots[i].value, slots[i].set];
-}
-export function useRef(value) { const i = cursor++; if (!(i in slots)) slots[i] = { current: value }; return slots[i]; }
-export function useMemo(make, deps) { const i = cursor++; if (!(i in slots) || !same(slots[i].deps, deps)) slots[i] = { value: make(), deps }; return slots[i].value; }
-export const useCallback = (fn, deps) => useMemo(() => fn, deps);
-export function useEffect(effect, deps) {
-  const i = cursor++, previous = slots[i];
-  if (previous && deps && same(previous.deps, deps)) return;
-  slots[i] = { deps, cleanup: previous?.cleanup };
-  effects.push(() => { previous?.cleanup?.(); const cleanup = effect(); slots[i] = { deps, cleanup: typeof cleanup === 'function' ? cleanup : null }; });
-}
-export function mount(run, first) {
-  slots = []; hook = run; props = first; alive = true; render();
-  return { get current() { return result; }, rerender(next) { props = next; render(); }, unmount() { alive = false; for (const slot of slots) slot?.cleanup?.(); } };
-}`;
 const dir = mkdtempSync(join(tmpdir(), 'chat-persist-')), outfile = join(dir, 'threads.cjs');
 await esbuild.build({
   stdin: { contents: "export * from './chat-threads.js'; export { mount } from 'react';", resolveDir: fileURLToPath(new URL('.', import.meta.url)), loader: 'js' },
