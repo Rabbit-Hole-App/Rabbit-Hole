@@ -160,7 +160,8 @@ test('Copy profile link: the absolute /@handle only, on the profile beside the n
 // the profile picture is 96px on a phone and 128px from md up, the same CreatorAvatar as the rows.
 test('Creators column: 760px for the search row and the section on the Creators tab only; the profile avatar is 96px / 128px', () => {
   const home = read('./Home.jsx'), explore = home.slice(home.indexOf('function Explore()'));
-  assert.match(explore, /<div className=\{`flex items-center gap-3 pb-6 max-md:flex-wrap \$\{tab === 'creators' \? 'max-w-\[760px\]' : ''\}`\}>/, 'the search row narrows on Creators only');
+  // The toolbar wrapper keeps the Creators-only 760px; the Canvases row itself changed with the owner brief 2026-10-23 §3 (one scrolling row).
+  assert.match(explore, /<div className=\{`pb-6 \$\{tab === 'creators' \? 'max-w-\[760px\]' : ''\}`\}>/, 'the search row narrows on Creators only');
   assert.match(explore, /<section data-explore-creators aria-label="Creators" className="max-w-\[760px\]">/, 'count, Recommended and rows: the same column');
   assert.equal(explore.split('760px').length, 3, 'nowhere else: the Canvases tab is unchanged');
   const profile = read('./CreatorProfile.jsx');
@@ -219,7 +220,8 @@ test('Explore and the Library render the same Filters control with the same Type
   assert.deepEqual(EXPLORE_TYPES.map(k => TYPES[k].label), ['Projects', 'Canvas'], 'the Library\'s own labels');
   const home = read('./Home.jsx'), explore = home.slice(home.indexOf('function Explore()'));
   assert.match(home, /import \{ ActiveFilters, LibraryFilters \} from '\.\/LibraryViews\.jsx';/);
-  assert.match(explore, /\{tab === 'explainers' && <LibraryFilters type=\{type\} path="\/explore" types=\{EXPLORE_TYPES\} \/>\}\n\s+\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'beside Sort, as in the Library');
+  // Owner brief 2026-10-23 §3: the toolbar scrolls inside itself on a narrow window, so both menus open portaled.
+  assert.match(explore, /\{tab === 'explainers' && <LibraryFilters portal type=\{type\} path="\/explore" types=\{EXPLORE_TYPES\} \/>\}\n\s+\{tab === 'explainers' && cards\?\.length !== 0 && <SortMenu /, 'beside Sort, as in the Library');
   assert.match(explore, /<ActiveFilters type=\{type\} path="\/explore" \/>/, 'the same active-filter chip');
   assert.match(read('./App.jsx'), /<LibraryFilters type=\{type\} section=\{section\} archived=\{archived\} menuClass=\{[^\n]*\} \/>/, 'the Library\'s (its menu opens left when the search is hidden; owner brief 2026-10-23)');
   const views = read('./LibraryViews.jsx'), control = views.slice(views.indexOf('export function LibraryFilters'), views.indexOf('export function ActiveFilters'));
