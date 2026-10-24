@@ -58,7 +58,7 @@ meaning depends on its working directory.
 | Web build | `packages/web` | `npm run build` | env flags for the target ([Development deployments](#development-deployments)) | `vite build` compiles and bundles | No |
 | Control-plane tests | `packages/control-plane` | `npm test` | `npm ci` in `packages/control-plane` | `node --test` suites pass (fixture keys) | No browser; intended offline |
 | Release unit suite | repo root | `make test-unit` | `uv`, both packages installed | `run.sh test:unit`: Python unit tests, both JS suites, Motion, evals and `scripts/*.test.mjs` | No browser; `run.sh` marks it "no network" |
-| Integration suite | repo root | `make test-integration` | `uv`, Fly access | `run.sh test:integration`: legacy CLI deploy to Fly | **Real Fly deploy, external cost** |
+| Integration suite (retired) | repo root | `make test-integration` | `uv` | `run.sh test:integration` over `tests/integration_tests` (legacy CLI deploys to Fly). `tests/integration_tests/conftest.py` marks every test skipped, so it executes nothing and proves nothing | Skipped as configured; with the skip removed it would be a real Fly deploy with external cost |
 | Browser tests | `packages/web` | `npm test` | none for Claude | `playwright test` over `e2e/`, building and starting a preview server | **Browser automation: Claude does not run it** ([Browser verification](#browser-verification)) |
 
 A successful build proves compilation and bundling only, not user interaction or real-provider behavior. Browser
@@ -241,8 +241,11 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 ### Release requirements
 
 - Release readiness on the exact candidate: `make test-unit`; the production build plus
-  `packages/web/e2e/production-bundle-check.mjs`; the CI gate; `make test-integration` before merge. After changing
-  the gate harness or a workflow, run the changed phase locally before pushing.
+  `packages/web/e2e/production-bundle-check.mjs`; the CI gate. `make test-integration` is not a requirement: it targets
+  the retired CLI/BYOC deploy path and its conftest skips every test, so it produces no evidence. After changing the
+  gate harness or a workflow, run the changed phase locally before pushing when that phase is not browser automation. A
+  phase that drives a browser runs only in the approved CI or designated runner ([Browser verification](#browser-verification)),
+  and pushing a workflow file needs the owner's `!` command.
 - Every deploy, dev or production, full gate or reused, needs the newest `fast-e2e` and `verify` runs of the exact
   candidate SHA to be completed successes (OPS-04, owner 2026-10-21). A green ancestor never stands in for them.
 - **Full-gate reuse for eligible UI and copy changes** (owner, 2026-10-21). A candidate whose changes since the last
@@ -359,16 +362,21 @@ what is genuinely blocked, and what starts next.
 
   Start with an "As of" timestamp in Pacific time, converted with `America/Los_Angeles` so daylight saving is handled.
   Show real UUIDs, never invented ones. Give clock times or ranges (for example 6:30-6:45 PM PT), with the date when
-  needed, and name the milestone: **ready for release** or **live**. A Done task shows its actual completion time. If an
-  ETA is not supportable, write **Not yet estimable**, name the dependency and the milestone that will make it
-  estimable. Approval-dependent timing is stated as such (for example "live about 2 minutes after the release command;
-  ready time not yet known"). Never move an ETA silently: say why it changed. Report concrete completed and remaining
-  milestones, not invented percentages.
-- ETAs stay evidence-based: derived from the remaining steps and their measured durations. Report implementation
-  readiness, validation readiness and production release separately; account for concurrent work rather than adding
-  lane durations as if development were serial; name the actual release queue and critical dependencies. When a
-  duration is unknown, say what is unknown and which milestone will make it estimable. Do not present guessed clock
-  times as a delivery commitment; if the owner asks for an approximation, label it as an estimate.
+  needed, and name the milestone: **ready for release** or **live**. A Done task shows its actual completion time.
+  Every open top-level task also gets: the actual execution activity (agent running, CI running, queued or blocked);
+  the latest concrete progress and the remaining milestones; a best-estimate **ready-for-release range in Pacific
+  time**; the confidence with its basis (measured duration, similar previous work, or engineering judgment); the
+  release dependency with a conditional live estimate; and the blocker, its owner and the next executable action.
+  Uncertain work still gets an explicitly labeled best estimate; "Not yet estimable" is the exception, used only when
+  no basis exists (then name the dependency and the milestone that will make it estimable). When timing depends on an
+  owner action with no known completion time, give the duration after that action and a conditional clock estimate
+  with the assumed action time stated (for example "live about 2 minutes after the release command; if the command
+  runs at 8:00 PM, about 8:02 PM"). Never present an estimate as a firm date. Never move an estimate silently: update
+  it when evidence changes and say why. Report concrete completed and remaining milestones, not invented percentages.
+- Estimates rest on evidence: measured durations of the remaining steps first, similar previous work next, engineering
+  judgment last, and the basis is stated. Report implementation readiness, validation readiness and production release
+  separately; account for concurrent work rather than adding lane durations as if development were serial; name the
+  actual release queue and critical dependencies.
 - Measure elapsed delivery time, debugging time, post-integration bugs, gate attempts and runner minutes, keeping
   overlapping categories separate.
 - Update this file when a recurring failure reveals a missing rule; consolidate rather than accumulate.
