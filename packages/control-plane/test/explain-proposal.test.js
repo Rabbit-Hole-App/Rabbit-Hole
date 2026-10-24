@@ -17,7 +17,7 @@ const hmac = async (secret, text) => hex(await crypto.subtle.sign('HMAC', await 
 
 test('/explain is signable without being offered to the chat tool; Motion stays the only wired command', () => {
   assert.deepEqual(WIRED, ['motion']);
-  assert.deepEqual(SIGNABLE, ['motion', 'explain']);
+  assert.deepEqual(SIGNABLE, ['motion', 'explain', 'generate-image']);
 });
 
 test('v2: /explain signs and verifies with Motion unconfigured; no secret at all is an explicit refusal', async () => {
