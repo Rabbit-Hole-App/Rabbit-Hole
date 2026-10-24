@@ -5,8 +5,10 @@ response shape 6199db1a-7cc2-4acd-b6cd-ab267c3fbf76; deterministic queries, boun
 b08ce50b-c3ad-4e98-8a85-c7c672dc680d. Branch `feat/weekly-top5-api`, built on `feat/stars`. This file is the contract the UI lane
 codes against; `packages/web/src/home/weekly-top-fixture.js` is its machine-readable example (same shapes; import it in tests).
 
-Status: contract, queries (`packages/control-plane/src/weekly-top.js`), route, migration 0029 and fixture tests are on the branch. UI is a separate
-lane. Nothing here is applied to a database or deployed.
+Status (branch `feat/weekly-top5-r2`): contract, queries (`packages/control-plane/src/weekly-top.js`), route, migration 0029, the Explore toolbar
+and the weekly section (`home/WeeklyTop.jsx`, `home/weekly-top.js`) are integrated and read the real route. Nothing here is applied to a database or
+deployed. Analytics events still leave through the marked `sendWeeklyEvent` seam (a `weekly-top:event` DOM event) because no telemetry client is on
+main; swap that one function when it lands.
 
 ## Endpoint
 
@@ -154,3 +156,14 @@ repeated and re-added stars, unstarred stars, repeated forks, deleted and re-cre
 creator; unpublish, Trash, archive, delete and a lost handle against a cached answer; the staleness window; no private data in any
 answer; the route's status codes and its key-for-key match with the committed UI fixture. Fixture limits: no deployed D1, no real
 query timing (the indexes are checked by query plan only), no browser.
+
+## Browser checks
+
+All run in the `fork` tier of fast-e2e (check-map). The fixture-driven ones answer the route from `weekly-top-fixture.js` so rows and states are exact;
+the real-endpoint ones seed through the star, fork, publish and archive routes and read the server's own answer.
+
+- `explore-creators-check.mjs`: fixture: heading, five ranked rows, order on the page, spacing, no collapse, visual spec, link targets, hover with no
+  layout shift, keyboard, analytics events, search hides and restores, Filters/Sort/Size leave the ranking alone, Creators rows, empty week, failed
+  request, 390px touch, dark theme. Real endpoint: six fans' stars and forks, owner star not counted, repeated forks counted once, creators' distinct
+  supporters, an archived canvas and its creator absent, no private data, then the same rows in the page (links, counts, viewed once, opened rank).
+- `card-size-check.mjs`: Search, Filters, Sort, Size adjacent on one row; Size does not reorder the weekly list and survives a reload.
