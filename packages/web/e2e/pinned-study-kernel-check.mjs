@@ -154,7 +154,8 @@ try {
 
   await check('6 the unsaved edit and the cell count survive; Unpin leaves the notebook as it is', async () => {
     assert.ok((await cell(3).locator('.cm-content').first().innerText()).includes('unsaved = 42'));
-    await page.locator('[data-study-pane]').getByRole('button', { name: 'Unpin', exact: true }).first().click();
+    await page.locator('[data-study-options]').click(); // WP6: Unpin is in the header's Reference options
+    await page.getByRole('dialog', { name: 'Reference options' }).getByRole('button', { name: 'Unpin', exact: true }).click();
     await page.locator('[data-study-pane]').waitFor({ state: 'detached' });
     await sameFrame('unpin');
     assert.equal(await frame().locator('.jp-CodeCell').count(), 4, 'no cell was added or removed');
