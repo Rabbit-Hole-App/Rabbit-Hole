@@ -53,3 +53,14 @@ test('/motion with no words asks what to explain inside the Motion flow, keeps t
     assert.deepEqual(calls, []);
   }
 });
+
+// MOT-22: a start the server refuses for its proposal ends after Generate returned, so the card's one-press guard (sent, sentKey)
+// was never released and its Generate stayed disabled for good (found by motion-command-check step 8 once /motion reached the Chat).
+// The slot bumps `released` on the refusal event and the card gives the press back. The browser check is the behavioral proof.
+test('a refused Generate gives the press back: the slot releases the card on the refusal event', () => {
+  const card = readFileSync(new URL('./GenerationProposalCard.jsx', import.meta.url), 'utf8');
+  const slot = readFileSync(new URL('./ChatMessages.jsx', import.meta.url), 'utf8');
+  assert.ok(card.includes('useEffect(() => { sent.current = null; setSentKey(null); }, [released]);'), 'the card clears its press guard when released changes');
+  assert.ok(slot.includes('setPressed(false); setReleased(n => n + 1);'), 'the refusal event releases the card');
+  assert.ok(slot.includes('<GenerationProposalCard proposal={p} active={active} made={made} released={released}'), 'the slot hands it down');
+});

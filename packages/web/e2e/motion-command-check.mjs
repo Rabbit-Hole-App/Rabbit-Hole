@@ -99,7 +99,7 @@ const results = [];
 let failShot = null; // set per theme: what the page showed when a step failed (a screenshot beside the others, and the dock's words)
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
-  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n')[0]}`); await failShot?.(results.length); }
+  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n')[0]}`); console.log(error.message.split('\n').slice(1, 6).map(line => `      ${line.slice(0, 240)}`).join('\n')); await failShot?.(results.length); }
 };
 const until = async (fn, what, ms = 15000) => { const end = Date.now() + ms; for (;;) { if (await fn()) return; if (Date.now() > end) throw Error(`timed out: ${what}`); await new Promise(r => setTimeout(r, 200)); } };
 
@@ -148,6 +148,9 @@ for (const theme of ['light', 'dark']) {
     const body = JSON.parse(route.request().postData() || '{}');
     asks.push(body);
     const n = asks.length, words = String(body.message || ''), id = String(900000 + n);
+    // The dark run opens the canvas the light run saved, whose cards name the proposals they were made from (madeFrom): a dark
+    // proposal with a light one's id would read as already made and could never Generate, so each theme has its own ids.
+    const k = n + (theme === 'dark' ? 0x100000 : 0);
     const threadId = body.thread_id ?? `canvaschat-mock-${run}-${n}`;
     if (body.command !== 'motion' && !body.route_token) {
       const actions = nextActions.map((a, i) => ({ id: `a${i + 1}`, sourceMessageId: id, contextRefs: [], generationRequired: true, paid: true, ...a })); nextActions = [];
@@ -157,7 +160,7 @@ for (const theme of ['light', 'dark']) {
         + sse('done', { ok: true, threadId, userMessageId: String(800000 + n), messageId: id }) });
     }
     const seconds = Math.min(30, Math.max(5, Number(/(\d+)s\b/.exec(words)?.[1] || 10)));
-    const proposal = { proposal_id: `gp-${(run + n.toString(16).padStart(6, '0')).replace(/[^0-9a-f]/g, '0').padStart(16, '0').slice(-16)}`, version: 1, command: 'motion',
+    const proposal = { proposal_id: `gp-${(run + k.toString(16).padStart(6, '0')).replace(/[^0-9a-f]/g, '0').padStart(16, '0').slice(-16)}`, version: 1, command: 'motion',
       title: `Motion: ${words}`.slice(0, 120), description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.',
       settings: { duration_seconds: seconds, audio: false }, source_refs: [],
       input: { request: `/motion ${words}`.slice(0, 500), concept: body.generation?.motion?.concept ?? null, ...(body.generation?.motion?.context ? { context: body.generation.motion.context } : {}) },
@@ -515,6 +518,8 @@ for (const theme of ['light', 'dark']) {
     assert.ok(ids.every(id => /^[A-Za-z0-9_-]{8,64}$/.test(id || '')), `request ids ${ids.join(', ')}`);
     assert.notEqual(ids[0], ids[1], 'each press has its own request id');
     stub.held = false;
+    // Both cards finish before the next step starts its own, which finds its card by its progress words (one match).
+    await until(async () => (await page.locator('[data-block-id]', { hasText: 'Planning, reviewing and rendering' }).count()) === 0, 'both videos finished', 40000);
     await dismiss();
   });
 
