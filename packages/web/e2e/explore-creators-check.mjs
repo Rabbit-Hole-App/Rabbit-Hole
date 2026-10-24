@@ -302,11 +302,11 @@ check('Canvases toolbar: Search, Filters, Sort, Size in that order on one row, n
 check('Canvases toolbar: the search is about 280px (at most 360px), the gaps 10-12px, every control about 36px tall',
   bar.search.width >= 279 && bar.search.width <= 360.5 && barParts.every((b, i) => i === 0 || (b.x - barParts[i - 1].right >= 9.5 && b.x - barParts[i - 1].right <= 12.5))
   && barParts.every(b => Math.abs(b.height - 36) <= 1), JSON.stringify(bar));
+const weeklySection = page => page.locator('[data-weekly-top]');
+const weeklyRows = page => page.locator('[data-weekly-top] [data-weekly-row]');
 const events = (page, name) => page.evaluate(n => window.__weekly.filter(e => e.name === n), name);
 {
 // ---- Weekly Top 5 (owner brief 2026-10-23 sections 3-6, 9) against the contract fixture ----
-const weeklySection = page => page.locator('[data-weekly-top]');
-const weeklyRows = page => page.locator('[data-weekly-top] [data-weekly-row]');
 await weeklySection(viewer).waitFor({ timeout: 30000 });
 const requestsAtStart = viewer.weeklyRequests; // this page may have loaded Explore before this section; the claim is that nothing below asks again
 check('Canvases: "Top canvases this week", five rows ranked 1 to 5 in the fixture order, after the toolbar and before the results',
