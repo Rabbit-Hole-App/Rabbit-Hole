@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EVENTS, LIMITS, SCHEMA_VERSION, makeEvent, retentionConfig, routeTemplate, telemetryEnvironment, usageSnapshot, validateBatch, validateEvent } from '../src/telemetry-contract.js';
+import { readdirSync, readFileSync } from 'node:fs';
+import { BROWSER_NAMESPACES, ERROR_CODES, EVENTS, LIMITS, defineEvents, SCHEMA_VERSION, makeEvent, retentionConfig, routeTemplate, telemetryEnvironment, usageSnapshot, validateBatch, validateEvent } from '../src/telemetry-contract.js';
 
 const producer = { environment: 'dev', service: 'app_worker', now: 1_760_000_000_000 };
 const finished = (fields = {}, payload = {}) => makeEvent('model_call.finished', { outcome: 'completed', feature: 'ask', action_id: 'act-1', attempt_id: 'chat-1',
@@ -100,6 +101,54 @@ test('retention defaults are the brief starting values and overrides are bounded
 test('every registered event has a payload allowlist with only known field shapes', () => {
   for (const [name, rules] of Object.entries(EVENTS)) {
     assert.match(name, /^[a-z_]+\.[a-z_]+$/, name);
-    for (const [field, rule] of Object.entries(rules)) assert.ok(rule.check || ['id', 'token', 'hex', 'route', 'int', 'ms', 'bool', 'rate', 'usage'].includes(rule.type), `${name}.${field}`);
+    for (const [field, rule] of Object.entries(rules)) assert.ok(rule.check || rule.enum || ['id', 'token', 'hex', 'route', 'int', 'ms', 'bool', 'rate', 'usage', 'ids'].includes(rule.type), `${name}.${field}`);
+  }
+});
+
+// The adapter extension point (docs/features/telemetry.md "Adding an event").
+const feature = (extra = {}) => ({ namespace: 'cad', events: { 'cad.build': { duration_ms: { type: 'ms', required: true }, stage: { enum: ['parse', 'build'] } } }, ...extra });
+const define = features => defineEvents({ 'stage.finished': {} }, features, ['unknown']);
+test('a feature registers its events and error codes additively, beside the core ones', () => {
+  const { events, errorCodes, browserNamespaces } = define([feature({ errorCodes: ['cad_parse_failed'], browser: true })]);
+  assert.deepEqual(Object.keys(events), ['stage.finished', 'cad.build']);
+  assert.deepEqual([errorCodes, browserNamespaces], [['unknown', 'cad_parse_failed'], ['cad']]);
+  assert.deepEqual(define([feature()]).browserNamespaces, [], 'browser ingestion is opt-in');
+});
+
+test('a malformed or colliding registration throws at load, naming the problem', () => {
+  const bad = (features, pattern) => assert.throws(() => define(features), pattern);
+  bad([feature({ namespace: 'Cad' })], /no valid namespace/);
+  bad([feature({ namespace: 'stage' })], /already registered/);
+  bad([feature(), feature()], /namespace "cad" is already registered/);
+  bad([feature({ events: { 'other.build': {} } })], /must be named cad\.<name>/);
+  bad([feature({ events: { 'cad.Build': {} } })], /must be named cad\.<name>/);
+  bad([feature({ events: { 'cad.build': { Duration: { type: 'ms' } } } })], /invalid field name/);
+  bad([feature({ events: { 'cad.build': { text: { type: 'string' } } } })], /a rule is/);
+  bad([feature({ events: { 'cad.build': { stage: { enum: [] } } } })], /a rule is/);
+  bad([feature({ events: { 'cad.build': { stage: { enum: ['two words'] } } } })], /a rule is/);
+  bad([feature({ events: { 'cad.build': { stage: { check: () => true } } } })], /a rule is/);
+  bad([feature({ errorCodes: ['unknown'] })], /already registered/);
+  bad([feature({ errorCodes: ['Bad Code'] })], /invalid error code/);
+});
+
+test('the shipped registry: client and support events, error codes in one list, only the client namespace from the browser', () => {
+  assert.deepEqual(BROWSER_NAMESPACES, ['client']);
+  assert.ok(EVENTS['client.error'] && EVENTS['support.report'] && EVENTS['model_call.finished']);
+  assert.equal(new Set(ERROR_CODES).size, ERROR_CODES.length);
+  const event = makeEvent('client.error', { payload: { kind: 'slow_interaction', fingerprint: 'ab12cd34', route: '/apps/:id', source: 'observer', error_name: 'TypeError', count: 3, dropped: 2, online: true } }, { environment: 'dev', service: 'web' });
+  assert.equal(validateEvent(event).ok, true);
+  assert.deepEqual(codes(validateEvent({ ...event, payload: { ...event.payload, kind: 'made_up' } })), ['invalid_field:payload.kind']);
+  const report = makeEvent('support.report', { payload: { ref: 'RH-7QK2-M9XD', kind: 'bug', fingerprints: ['ab12cd34', 'ef56ab78'], traces: ['0f3a9c21d4e5b678'] } }, { environment: 'dev', service: 'app_worker' });
+  assert.equal(validateEvent(report).ok, true);
+  assert.deepEqual(codes(validateEvent({ ...report, payload: { ...report.payload, fingerprints: Array.from({ length: 6 }, (_, i) => `fp-${i}`) } })), ['invalid_field:payload.fingerprints']);
+});
+
+test('every feature file under telemetry-events/ is listed in its index, so an adapter cannot forget the import', () => {
+  const dir = new URL('../src/telemetry-events/', import.meta.url);
+  const index = readFileSync(new URL('index.js', dir), 'utf8');
+  for (const file of readdirSync(dir).filter(name => name !== 'index.js')) {
+    const name = file.replace(/\.js$/, '');
+    assert.match(index, new RegExp(`import ${name} from './${file}';`), `${file} is imported in index.js`);
+    assert.match(index, new RegExp(`^  ${name},$`, 'm'), `${file} is in FEATURE_EVENTS`);
   }
 });
