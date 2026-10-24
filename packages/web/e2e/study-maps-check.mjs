@@ -169,10 +169,12 @@ await check('6 A Canvas toggle is a Canvas preference only: it never writes the 
 
 await check('7 An older saved Study arrangement with no maps field opens with both maps hidden and no map ever painted; leaving it keeps the Canvas maps', async () => {
   await open({ study: OLDER });
-  assert.equal(await page.evaluate(() => window.__minimapSeen), false, 'neither the minimap nor its loading placeholder flashed in on load');
   await page.locator('[data-study-pane]').waitFor({ timeout: 10000 });
   await expectMaps('older arrangement', { minimap: false, holeMap: false });
   assert.equal(await stored(PREFS), null, 'restoring it wrote no Canvas preference');
+  // Read after the hidden-maps assertions (so a flash does not hide their result) and before View > Canvas shows the minimap: the
+  // flag is set once for the page's life, from its first node.
+  assert.equal(await page.evaluate(() => window.__minimapSeen), false, 'neither the minimap nor its loading placeholder flashed in on load');
   await view('Canvas');
   await expectMaps('canvas after the older arrangement', { minimap: true, holeMap: true });
   await shot('07-older-arrangement');
