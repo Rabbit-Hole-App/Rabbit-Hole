@@ -46,7 +46,7 @@ const SEL = {
   card: '[data-block-id="study-pdf"]',
   menu: '[data-canvas-menu]',
   pinRow: '[data-menu-pin-study]',
-  add: { role: 'button', name: 'Add pinned reference' },
+  add: '[data-study-attach]', // WP6: the header's Add to chat
   nextPage: { role: 'button', name: 'Next paper page' },
   reader: '[data-source-reader]',
   chat: '[data-chat-pane]',
@@ -130,7 +130,7 @@ const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message.slice(0, 160)));
 // what: a message, or a function that builds it when the wait fails (so it reports the state then, not before the wait).
 const waitFor = async (test, ms = 8000, what = 'timed out') => { const end = Date.now() + ms; for (;;) { const value = await test(); if (value) return value; if (Date.now() > end) throw Error(typeof what === 'function' ? await what() : what); await page.waitForTimeout(150); } };
-const addButton = () => page.getByRole(SEL.add.role, { name: SEL.add.name, exact: true });
+const addButton = () => page.locator(SEL.add);
 // Every chip in Chat, and the page chips of this document. A new upload is switched on as canvas context (control-plane
 // learn-context-docs.js: attached while under the limit), so Chat already shows the whole document's own chip (range null)
 // before anything is pinned; this check is about the page chips Add pinned reference makes, and that the rest never change.
