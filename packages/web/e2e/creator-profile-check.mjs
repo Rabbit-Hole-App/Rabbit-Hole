@@ -419,11 +419,11 @@ await check('16 long name and handle at 1440, 768 and 390 in light and dark: pic
       const r = el => el.getBoundingClientRect(), header = document.querySelector('[data-creator-profile] header');
       const avatar = header.querySelector('img, span[title]'), id = document.querySelector('[data-profile-name]').closest('div.flex-col'), buttons = [...header.querySelectorAll('[data-copy-profile], [data-edit-profile], [data-creator-analytics-open]')];
       const a = r(avatar), i = r(id), apart = (x, y) => x.right <= y.left + 0.5 || y.right <= x.left + 0.5 || x.bottom <= y.top + 0.5 || y.bottom <= x.top + 0.5;
-      const name = r(document.querySelector('[data-profile-name]')), handle = r(document.querySelector('[data-profile-handle]')), badge = r(header.querySelector('[data-owned-badge]'));
+      const handleGroup = document.querySelector('[data-profile-handle-group]'), name = r(document.querySelector('[data-profile-name]')), handle = r(document.querySelector('[data-profile-handle]')), badge = r(header.querySelector('[data-owned-badge]'));
       const boxes = [name, handle, badge, ...buttons.map(r)];
       const overlaps = []; boxes.forEach((x, n) => boxes.slice(n + 1).forEach((y, m) => { if (!apart(x, y)) overlaps.push([n, n + 1 + m]); }));
       return { w: a.width, h: a.height, radius: getComputedStyle(avatar).borderTopLeftRadius, gap: i.left - a.right, scroll: document.documentElement.scrollWidth - window.innerWidth,
-        outside: boxes.filter(x => x.right > window.innerWidth + 0.5 || x.left < -0.5).length, overlaps, buttons: buttons.length, badgeRight: badge.right <= r(header).right + 0.5, handleInside: handle.right <= i.right + 0.5 };
+        outside: boxes.filter(x => x.right > window.innerWidth + 0.5 || x.left < -0.5).length, overlaps, buttons: buttons.length, badgeRight: badge.right <= r(header).right + 0.5 && badge.right <= r(handleGroup).right + 0.5, handleInside: handle.right <= i.right + 0.5 };
     });
     assert.deepEqual([Math.round(g.w), Math.round(g.h)], [size, size], `picture ${label}: ${JSON.stringify(g)}`);
     assert.notEqual(g.radius, '0px', `a circle ${label}`);

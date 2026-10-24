@@ -89,14 +89,15 @@ function Profile({ handle }) {
                 : (
                   <div data-profile-handle-group className="flex min-w-0 items-center gap-2">
                     <h1 data-profile-name className="min-w-0 break-words text-[32px] font-bold leading-[1.15] tracking-[-0.01em] text-ink">@{p.handle}</h1>
-                    {own && <OwnerCheck owned size={22} />}
+                    {own && <span className="inline-flex shrink-0"><OwnerCheck owned size={22} /></span>}
                   </div>
                 )}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-ink-2">
                 {p.name && (
                   <span data-profile-handle-group className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                     <span data-profile-handle className="min-w-0 [overflow-wrap:anywhere]">@{p.handle}</span>
-                    {own && <OwnerCheck owned size={16} />}
+                    {/* shrink-0: Tip is min-w-0 and would squeeze the badge */}
+                    {own && <span className="inline-flex shrink-0"><OwnerCheck owned size={16} /></span>}
                   </span>
                 )}
                 {/* Beside the name and handle, for everyone - signed out too (owner, 2026-10-08). */}

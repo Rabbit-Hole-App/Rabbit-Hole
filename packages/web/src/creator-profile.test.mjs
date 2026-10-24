@@ -54,8 +54,8 @@ test('/@handle: routed to anyone in Rabbit Hole, served by the dev worker, and t
   assert.match(read('../dev-worker.js'), /\/\^\\\/@\[A-Za-z0-9_\]\{1,40\}\$\/\.test\(path\)/);
   const profile = read('./CreatorProfile.jsx');
   // Owner brief 2026-10-23: no "Your profile" label; the blue check sits right after the @handle (the heading itself when there is no display name), own profile only.
-  assert.match(profile, /<span data-profile-handle className="[^"]+">@\{p\.handle\}<\/span>\n\s+\{own && <OwnerCheck owned size=\{16\} \/>\}/, 'named: the check directly after the @handle');
-  assert.match(profile, /<h1 data-profile-name [^>]*>@\{p\.handle\}<\/h1>\n\s+\{own && <OwnerCheck owned size=\{22\} \/>\}/, 'unnamed: the @handle is the heading and carries the check');
+  assert.match(profile, /<span data-profile-handle className="[^"]+">@\{p\.handle\}<\/span>\n(?:\s+\{\/\*[^\n]*\*\/\})?\n\s+\{own && <span className="inline-flex shrink-0"><OwnerCheck owned size=\{16\} \/><\/span>\}/, 'named: the check directly after the @handle');
+  assert.match(profile, /<h1 data-profile-name [^>]*>@\{p\.handle\}<\/h1>\n\s+\{own && <span className="inline-flex shrink-0"><OwnerCheck owned size=\{22\} \/><\/span>\}/, 'unnamed: the @handle is the heading and carries the check');
   assert.equal(profile.split('<OwnerCheck').length, 3, 'the one badge, in its two placements');
   assert.doesNotMatch(profile, /Your profile|data-own-profile/, 'no visible label and no separate identity marker');
   assert.match(profile, /\{own && \(\n\s+<div className="flex shrink-0 gap-2 pt-1">\n\s+<Button size="sm" variant="secondary" data-edit-profile/);
