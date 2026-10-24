@@ -50,7 +50,7 @@ export function ChooseHandle({ onDone }) {
           <input id="handle-input" autoFocus value={value} maxLength={HANDLE_MAX + 1} spellCheck={false} autoCapitalize="none" autoComplete="off"
             aria-describedby="handle-help handle-feedback" aria-invalid={problem ? true : undefined}
             onChange={event => { setValue(fieldHandle(event.target.value)); setError(''); }} placeholder="yourname"
-            className={`h-12 w-full rounded-lg border bg-white pr-3.5 pl-8 text-base text-ink outline-none placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-accent/60 ${problem ? 'border-fail' : 'border-line-strong focus-visible:border-accent'}`} />
+            className={`h-12 w-full rounded-lg border bg-white pr-3.5 pl-8 text-base text-ink placeholder:text-ink-3 focus-visible:outline-2 focus-visible:outline-accent/60 ${problem ? 'border-fail' : 'border-line-strong focus-visible:border-accent'}`} />
         </div>
         <p id="handle-help" className="mt-2 text-[13px] leading-5 text-ink-3">3–30 letters, numbers, or underscores.</p>
         <p id="handle-feedback" data-handle-hint role={problem ? 'alert' : undefined} className="min-h-5 text-[13px] leading-5 text-fail">{problem}</p>

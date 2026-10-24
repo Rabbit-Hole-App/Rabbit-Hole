@@ -81,6 +81,8 @@ test('the Choose your handle screen: copy, field, feedback and a solid backgroun
   assert.match(gate, /id="handle-input"[\s\S]*aria-describedby="handle-help handle-feedback" aria-invalid=\{problem \? true : undefined\}/);
   assert.match(gate, /<p id="handle-feedback" data-handle-hint role=\{problem \? 'alert' : undefined\}[^>]*min-h-5/, 'the feedback row keeps its height, so no layout jump');
   assert.match(gate, /spellCheck=\{false\} autoCapitalize="none"/);
+  // outline-none sets Tailwind's --tw-outline-style to none, which outline-2 then inherits: the ring never drew (fast-e2e run 40049284699).
+  assert.doesNotMatch(gate.slice(gate.indexOf('<input id="handle-input"')), /outline-none/, 'the field keeps a visible focus ring');
   // Format errors are the shared module's own words; a failed save keeps the value (only onChange clears the error).
   assert.match(gate, /const problem = error \|\| checked\?\.error/);
   assert.match(gate, /catch \(problem\) \{ setError\(problem\.message\); setBusy\(false\); \}/);
