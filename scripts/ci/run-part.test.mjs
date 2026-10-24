@@ -40,7 +40,9 @@ const keys = ['BASE', 'PRACTICE_BASE', 'VOICE_BASE', 'SMALL_CP', 'PERSIST', 'D1_
 appendFileSync(new URL('../../../calls.jsonl', import.meta.url), JSON.stringify({ check: '${c}', args: process.argv.slice(2), up, env: Object.fromEntries(keys.map(k => [k, process.env[k] ?? null])) }) + '\\n');
 const once = new URL('../../../failed-once-${c}', import.meta.url);
 if (${Boolean(v.failOnce)} && !existsSync(once)) { writeFileSync(once, ''); process.exit(1); }
-console.log('1/1 checks passed'); process.exit(${v.fail ? 1 : 0});
+console.log(${JSON.stringify(v.out ?? '1/1 checks passed')});
+if (${Boolean(v.throws)}) throw new Error('scenario threw');
+process.exit(${v.fail ? 1 : 0});
 `);
   writeFileSync(`${t}/sel.json`, JSON.stringify({ checks: Object.keys(checks) }));
   const lines = f => existsSync(`${t}/${f}`) ? readFileSync(`${t}/${f}`, 'utf8').trim().split('\n').filter(Boolean) : [];
@@ -124,4 +126,41 @@ test('a server that never starts fails its checks without running them; a runner
   assert.match(r.stdout, /x-check\.mjs: runner 'windows-only' cannot run in the fast tier/);
   assert.match(r.stdout, /y-check\.mjs: not in scripts\/ci\/check-map\.json; add it there with runner fork or harness/);
   assert.deepEqual(s.calls(), []);
+});
+
+// These use fork checks only (no harness port), so a busy port on the machine does not skip them.
+// Run 40048376786 part 6: inline-ai ran 239 assertions but its "N/N passed" line was not read, so the part logged "exit 0  0/0 checks passed";
+// the same read hid a check that ran nothing. Run 40049284699: creator-profile exited 1 and the line still read 17/17 checks passed.
+const fastLog = s => readFileSync(`${s.t}/out/fast.log`, 'utf8');
+
+test('a check that exited 0 having executed no assertions fails, whatever it prints; counted lines and "N/N passed" are passes', { skip: !tools }, () => {
+  const s = scratch({ 'zero-check.mjs': { runner: 'fork', out: '0/0 passed' }, 'silent-check.mjs': { runner: 'fork', out: '' },
+    'ticks-check.mjs': { runner: 'fork', out: '✓ one\n✓ two\n\n2/2 passed' }, 'bare-ticks-check.mjs': { runner: 'fork', out: '✓ one\n✓ two' } });
+  const r = s.run();
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  const log = fastLog(s);
+  assert.match(log, /^zero exit 96 {2}no assertions executed/m);
+  assert.match(log, /^silent exit 96 {2}no assertions executed/m);
+  assert.match(log, /^ticks exit 0 {2}2\/2 checks passed /m);
+  assert.match(log, /^bare-ticks exit 0 {2}2\/2 checks passed /m);
+  assert.doesNotMatch(log, /^(zero|silent) exit 0/m);
+});
+
+test('a scenario that throws, or a nonzero exit after the log counted N/N, never reads as checks passed', { skip: !tools }, () => {
+  const s = scratch({ 'threw-check.mjs': { runner: 'fork', out: '3/3 checks passed', throws: true }, 'late-check.mjs': { runner: 'fork', out: '17/17 checks passed', fail: true } });
+  const r = s.run();
+  assert.equal(r.status, 1, r.stdout + r.stderr);
+  const log = fastLog(s);
+  assert.match(log, /^threw exit 1 {2}fail: exit 1, the log's own count was 3\/3 /m);
+  assert.match(log, /^late exit 1 {2}fail: exit 1, the log's own count was 17\/17 /m);
+  assert.doesNotMatch(log, /exit [1-9]\d* {2}\d+\/\d+ checks passed/);
+});
+
+test('an empty selection is reported as NOT SELECTED and is not a pass', { skip: !tools }, () => {
+  const s = scratch({});
+  const r = s.run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /^NOT SELECTED: .* names no checks; nothing ran$/m);
+  assert.doesNotMatch(r.stdout, /passed/);
+  assert.deepEqual(s.stack(), []);
 });

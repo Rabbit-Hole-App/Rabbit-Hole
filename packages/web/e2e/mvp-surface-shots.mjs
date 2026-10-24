@@ -62,7 +62,7 @@ dialog = await settings(page, 'connections');
 must(!/AWS|Planned|Slack|Notion|Google/.test(await dialog.innerText()), 'connections: hidden provider shown');
 await shot(page, '3-settings-connections-aws-unconfigured');
 await page.keyboard.press('Escape');
-for (const path of ['repository', 'sources', 'question', 'blank']) {
+for (const path of ['start', 'repository']) {
   await page.evaluate((p) => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: p } })), path);
   const start = page.getByRole('dialog', { name: 'Start a rabbit hole' });
   await start.waitFor({ timeout: 5000 });

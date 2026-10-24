@@ -151,7 +151,7 @@ export function CopyProfileLink({ handle, className = '' }) {
 }
 
 // One creator in Explore's Creators tab, its Recommended creators and creator search (owner brief 2026-10-23): a compact
-// row - the picture (64px, 48px on a phone; the initial without one), the saved display name, the blue @handle link, the
+// row - the picture (96px, 72px on a phone; the initial without one), the saved display name, the blue @handle link, the
 // profile description in two lines at most (omitted when there is none), then the public project and canvas counts
 // (creators.js COUNTS: only what a signed-out visitor can see; a zero count is hidden), and View profile at the right,
 // under the text on a phone. The @handle and View profile are two separate links to the same /@handle; the row itself is
@@ -162,8 +162,8 @@ function CreatorRow({ c }) {
   const counts = [c.project_count && count(c.project_count, 'project', 'projects'), c.explainer_count && count(c.explainer_count, 'canvas', 'canvases')].filter(Boolean);
   return (
     <li data-creator-card={c.handle} className="flex min-w-0 items-center gap-5 rounded-lg border border-line bg-white p-6 max-sm:flex-col max-sm:items-stretch max-sm:gap-4 max-sm:p-4">
-      <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
-        <CreatorAvatar c={c} className="h-12 w-12 text-lg! sm:h-16 sm:w-16 sm:text-2xl!" />
+      <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-6">
+        <CreatorAvatar c={c} className="h-18 w-18 text-2xl! sm:h-24 sm:w-24 sm:text-4xl!" />
         <div className="min-w-0 flex-1">
           {c.name && <p data-creator-name className="truncate text-base font-semibold leading-6 text-ink">{c.name}</p>}
           <a data-creator-handle href={c.url} className={`inline-block max-w-full truncate rounded-sm align-top text-sm leading-5 text-accent hover:underline ${FOCUS}`}>@{c.handle}</a>

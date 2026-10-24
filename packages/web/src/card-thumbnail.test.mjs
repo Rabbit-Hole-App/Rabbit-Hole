@@ -169,18 +169,17 @@ test('the card: the picture on the right from md, on top on a phone; one per row
   assert.match(card, /export const CARD_ROWS = 'card-grid grid gap-4'/);
   assert.match(read('./index.css'), /\.card-grid \{ grid-template-columns: repeat\(auto-fill, minmax\(min\(100%, var\(--card-min, 100%\)\), 1fr\)\); \}/);
   // Owner, 2026-10-09: the picture's inset above equals its inset below, and the footer ends on its bottom edge - the text
-  // column and the picture are one fixed height from md, the card that plus its padding.
+  // column is at least the picture's fixed height from md, the card that plus its padding.
   assert.match(card, /export const CARD_BODY_H = 'md:h-\[190px\]';/);
   assert.match(card, /aspect-\[2\/1\][^`]*md:order-last \$\{CARD_BODY_H\} md:w-\[min\(380px,42%\)\] md:aspect-auto/, 'right of the text from md, the body\'s height, 2:1 where the card is wide');
-  // Owner brief 2026-10-23 (small-card layout): an opened title (Show full title) lets that one card grow to its text, so the column carries data-open and h-auto then.
-  assert.match(card, /<div data-card-text data-open=\{open \|\| undefined\} className=\{`flex min-h-0 min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_BODY_H\} \$\{CARD_TEXT_PHONE\}\$\{open \? ' h-auto!' : ''\}`\}>/);
-  assert.match(card, /<div data-card-body className="flex min-h-0 min-w-0 shrink! flex-col gap-1 overflow-hidden pt-2">/, 'only the description gives way');
+  // Owner brief 2026-10-23 (card size and description, replacing the Show full title button): the text column's height is a minimum, so a longer title makes the card taller.
+  assert.match(card, /<div data-card-text className=\{`flex min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_TEXT_MIN\}`\}>/);
+  assert.match(card, /const CARD_TEXT_MIN = 'md:min-h-\[190px\] max-md:min-h-\[196px\] max-md:flex-none';/);
   assert.doesNotMatch(card, /CARD_HEIGHT/, 'no fixed card height: the body sets it');
   assert.match(card, /max-md:flex-col/, 'a phone stacks it above the text');
-  assert.match(card, /max-md:h-\[196px\]/, 'and the text under it keeps one height');
+  assert.match(card, /max-md:min-h-\[196px\]/, 'and the text under it is at least that high');
   assert.match(card, /object-cover/, 'a custom picture is cropped to 2:1');
   assert.match(card, /data-card-thumbnail=\{shown \? 'image' : 'placeholder'\}/);
-  assert.doesNotMatch(card, /min-h-\[186px\]/, 'a fixed height, not a floor');
   for (const [file, uses] of [['./Home.jsx', 2], ['./LibraryViews.jsx', 2], ['./home/PublicCards.jsx', 2]]) {
     const src = read(file);
     assert.equal(src.split('className={CARD_ROWS}').length - 1, uses, file);

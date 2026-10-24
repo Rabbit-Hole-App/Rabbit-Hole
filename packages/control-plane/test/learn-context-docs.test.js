@@ -219,3 +219,69 @@ test('remove from canvas context: gone from the list and whole-document sends, b
   // A removed document no longer counts toward the 20 per canvas or the ten switched on.
   for (let i = 0; i < 19; i++) assert.equal((await upload(`n${i}.txt`, new TextEncoder().encode(`n${i}`))).status, 200, `upload ${i + 2}`);
 });
+
+// Start a rabbit hole (docs/features/start-sources.md): a link kept as context with no card, a stored file source made context
+// without sending its bytes again, and a repository project's Main canvas holding context documents.
+const text = bytes => new TextDecoder().decode(bytes);
+test('a link is kept as context without a card: a note stored like any text file, never twice', async t => {
+  const { env, canvas, deps, call, objects } = fixture(t);
+  deps.linkNote = async url => ({ name: `Note for ${url}`, text: `Link: ${url}\nAbstract: attention` });
+  const first = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, url: 'https://arxiv.org/abs/1706.03762' } });
+  assert.equal(first.status, 200);
+  assert.deepEqual({ kind: first.body.document.kind, attached: first.body.document.attached }, { kind: 'text', attached: true });
+  const again = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, url: 'https://arxiv.org/abs/1706.03762' } });
+  assert.equal(again.body.reused, true);
+  assert.equal(again.body.document.id, first.body.document.id);
+  assert.equal(objects.size, 1, 'a retry stores nothing new');
+  const [block] = await contextDocumentBlocks(env, canvas);
+  assert.match(block.source.data, /Abstract: attention/);
+  assert.equal((await call('POST', '/api/learn/context/link', { body: { app: 'canvas-ffffffff', url: 'https://example.com' } })).status, 404, 'not the owner');
+  deps.linkNote = async () => { throw Error('arXiv metadata unavailable (503)'); };
+  const failed = await call('POST', '/api/learn/context/link', { body: { app: canvas.name, url: 'https://arxiv.org/abs/1706.03761' } });
+  assert.equal(failed.status, 502);
+  assert.match(failed.body.error, /could not be read: arXiv metadata unavailable/);
+});
+
+test('the link note says what was read: the abstract for arXiv, the introduction for Wikipedia, only the address for a page or a video', async () => {
+  const { linkNote } = await import('../src/learn-context-link.js');
+  const arxiv = await linkNote('https://arxiv.org/abs/1706.03762', { readPaper: async id => ({ id, title: 'Attention Is All You Need', authors: ['Vaswani', 'Shazeer'], abstract: 'The dominant sequence transduction models.' }) });
+  assert.equal(arxiv.name, 'Attention Is All You Need (arXiv 1706.03762)');
+  assert.match(arxiv.text, /Authors: Vaswani, Shazeer[\s\S]*Abstract:\nThe dominant sequence/);
+  const wiki = await linkNote('https://en.wikipedia.org/wiki/Transformer_(deep_learning)', { readWiki: async () => ({ title: 'Transformer', displayTitle: 'Transformer (deep learning)', text: 'A transformer is a model.' }) });
+  assert.match(wiki.text, /Introduction:\nA transformer is a model/);
+  const page = await linkNote('https://example.com/post');
+  assert.equal(page.name, 'example.com/post');
+  assert.match(page.text, /Only the name and address of this link are kept here[\s\S]*has not been read/);
+  const video = await linkNote('https://youtu.be/dQw4w9WgXcQ');
+  assert.equal(video.name, 'YouTube video dQw4w9WgXcQ');
+  await assert.rejects(() => linkNote('ftp://example.com'), /Only web links/);
+});
+
+test('a stored file source becomes context without being sent again, for its owner and revision only', async t => {
+  const f2 = fixture(t);
+  f2.env.LEARN_DB.prepare("INSERT INTO file_sources (id, org, owner_email, app, board_id, family, name, media_type, bytes, sha256, r2_key, status, created_at) VALUES ('fs_one', 'team', 'owner@test', 'canvas-0a1b2c3d', 1, 'markdown', 'notes.md', 'text/markdown', 11, 'abc', 'file-sources/fs_one/original', 'stored', 1)").run();
+  await f2.env.LEARN_MEDIA.put('file-sources/fs_one/original', new TextEncoder().encode('# Softmax\n\n'));
+  const send = (rev, id = 'fs_one') => f2.call('POST', '/api/learn/context', { form: { app: f2.canvas.name, source_id: id, source_rev: rev } });
+  assert.equal((await send('wrong')).status, 404, 'a revision the card does not name');
+  assert.equal((await send('abc', 'fs_two')).status, 404);
+  const ok = await send('abc');
+  assert.equal(ok.status, 200);
+  assert.deepEqual({ name: ok.body.document.name, kind: ok.body.document.kind }, { name: 'notes.md', kind: 'text' });
+  const [key] = [...f2.objects.keys()].filter(k => k.startsWith('learn-context/'));
+  assert.equal(text(f2.objects.get(key)), '# Softmax\n\n');
+  assert.equal((await send('abc')).body.reused, true, 'the same file is never copied twice');
+  assert.equal([...f2.objects.keys()].filter(k => k.startsWith('learn-context/')).length, 1);
+});
+
+test('a repository project holds context documents on its Main canvas, and only a well-formed project name', async t => {
+  const { env, deps, call } = fixture(t);
+  const repo = { org: 'team', name: 'repo-0a1b2c3d-nanogpt', email: 'owner@test' };
+  deps.authorize = async (req, _env, name) => (name === repo.name ? repo : Response.json({ error: 'Not yours' }, { status: 404 }));
+  const upload = await call('POST', '/api/learn/context', { form: { app: repo.name, file: new File([new TextEncoder().encode('The training loop lives in train.py')], 'notes.txt') } });
+  assert.equal(upload.status, 200);
+  const [block] = await contextDocumentBlocks(env, repo);
+  assert.match(block.source.data, /training loop lives in train\.py/);
+  assert.equal((await call('GET', '/api/learn/context?app=repo-x')).status, 400);
+  assert.equal((await call('GET', '/api/learn/context?app=repo-0a1b2c3d-')).status, 400);
+  assert.equal(contextDocsRoute(new URL('https://dev.test/api/learn/context/link')), true);
+});

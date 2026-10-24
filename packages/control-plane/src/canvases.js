@@ -1,4 +1,5 @@
 import { validOpen } from './chat-modes.js';
+import { DESCRIPTION_MAX, descriptionLength } from './canvas-description.js';
 import { FILE_SOURCE, validFileRange } from '../../web/src/file-chat-ref.js';
 import { progressScope } from '../../web/src/learn-progress-question.js';
 import { CANVAS_SOURCE } from '../../web/src/canvas-mention-ref.js';
@@ -55,13 +56,13 @@ export const touchCanvas = (db, org, canvas) => db.prepare(`INSERT INTO canvas_m
 export const EMPTY_BOARD = JSON.stringify({ strokes: [], shapes: [], items: [], links: [], blocks: [], groups: [], areas: [], exchanges: [], sources: [] });
 export const emptyBoard = (db, org, owner, app, board = 'main') => db.prepare('INSERT OR IGNORE INTO learn_boards (id, org, owner_email, app, board, state_json, version, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)')
   .bind(crypto.randomUUID(), org, owner, app, board, EMPTY_BOARD, owner, new Date().toISOString());
-// An optional description, written by its owner (never generated): plain text up to 500 characters; empty clears it.
-const DESCRIPTION = 500;
-function canvasDescription(value) {
+// An optional description, written by its owner (never generated): plain text up to 340 characters; empty clears it. One saved
+// before the limit (up to 500) stays whole: only a changed text is checked, so a rename or an unchanged save never rejects it.
+function canvasDescription(value, current = null) {
   if (value === null) return null;
   if (typeof value !== 'string') throw Error('Write the description as text');
   const text = value.trim();
-  if (text.length > DESCRIPTION) throw Error(`Use a description of up to ${DESCRIPTION} characters`);
+  if (descriptionLength(text) > DESCRIPTION_MAX && text !== current) throw Error(`Use a description of up to ${DESCRIPTION_MAX} characters`);
   return text || null;
 }
 function canvasTitle(value) {
@@ -461,7 +462,7 @@ export async function canvasesFetch(req, env) {
       const body = await req.json();
       const title = body.title === undefined ? app.title : canvasTitle(body.title);
       if (!title) throw Error('Title required');
-      const description = body.description === undefined ? app.description ?? null : canvasDescription(body.description);
+      const description = body.description === undefined ? app.description ?? null : canvasDescription(body.description, app.description);
       if (title === app.title && description === (app.description ?? null)) return json(app);
       await db.batch([
         db.prepare('UPDATE canvases SET title=? WHERE id=?').bind(title, app.id),
