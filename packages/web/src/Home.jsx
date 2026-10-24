@@ -195,14 +195,18 @@ function Explore() {
         <Tabs value={tab} onValueChange={choose}>
           <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id} className={EXPLORE_TAB}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
-        <div className={`flex items-center gap-3 pb-6 max-md:flex-wrap ${tab === 'creators' ? 'max-w-[760px]' : ''}`}>
-          <label className="relative block min-w-0 flex-1 max-md:basis-full">
-            <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
-            <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
-          </label>
-          {tab === 'explainers' && <LibraryFilters type={type} path="/explore" types={EXPLORE_TYPES} />}
-          {tab === 'explainers' && cards?.length !== 0 && <SortMenu options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
-          {tab === 'explainers' && <CardSize />}
+        {/* Canvases: Search, Filters, Sort, Size on one row (owner brief 2026-10-23 §3); the row scrolls inside itself when the
+            window is too narrow, so their menus open portaled. Creators: the compact search alone. */}
+        <div className={`pb-6 ${tab === 'creators' ? 'max-w-[760px]' : ''}`}>
+          <div data-explore-toolbar className={`flex items-center gap-3 ${tab === 'creators' ? 'max-md:flex-wrap' : '-mx-1 -my-1 flex-nowrap overflow-x-auto px-1 py-1 [&_[data-card-size-control]]:h-9 [&_button]:h-9 [&>*:not(label)]:shrink-0'}`}>
+            <label className={`relative block min-w-0 ${tab === 'creators' ? 'flex-1 max-md:basis-full' : 'max-w-[360px] min-w-[180px] flex-[0_1_280px]'}`}>
+              <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
+              <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
+            </label>
+            {tab === 'explainers' && <LibraryFilters portal type={type} path="/explore" types={EXPLORE_TYPES} />}
+            {tab === 'explainers' && cards?.length !== 0 && <SortMenu portal options={EXPLORE_SORTS} value={order} onChange={setOrder} />}
+            {tab === 'explainers' && <CardSize />}
+          </div>
         </div>
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators" className="max-w-[760px]">

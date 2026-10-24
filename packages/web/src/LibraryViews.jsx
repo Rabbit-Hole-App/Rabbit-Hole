@@ -11,7 +11,7 @@ import { sortCards } from './home/card-sort.js';
 import { chipHref, isMine, libraryHref, librarySections, ofType, SCOPES, SECTION_LIMIT, TYPES } from './library-filter.js';
 import { DRAG_TYPE, inView } from './library-folders.js';
 import { FolderEmpty, FolderTiles } from './LibraryFolders.jsx';
-import { Button, KindIcon, Menu, MenuItem, Pill, toast } from './ui.jsx';
+import { Button, KindIcon, Menu, MenuItem, Pill, toast, useMenuButton } from './ui.jsx';
 import SharedWithYou from './comments/SharedWithYou.jsx';
 import { newComments, useCommentUnread } from './comments/unread.js';
 
@@ -72,26 +72,31 @@ const setFilter = (key, value, path) => navigate(chipHref(window.location.search
 const FILTER_ICONS = { projects: FolderGit2, canvases: Shapes, apps: AppWindow };
 // `path` and `types`: the page and the Type rows it shows - Explore passes /explore and its two types (library-filter.js
 // EXPLORE_TYPES); Archived and Ownership are the Library's alone.
-export function LibraryFilters({ type, section, archived, path = '/library', types = Object.keys(TYPES), menuClass = 'top-10 right-0 w-56' }) {
-  const [open, setOpen] = useState(false);
+export function LibraryFilters({ type, section, archived, path = '/library', types = Object.keys(TYPES), menuClass = 'top-10 right-0 w-56', portal = false }) {
+  const [own, setOwn] = useState(false);
+  const pm = useMenuButton(); // portal: the menu opens in the page body, clear of a scrolling toolbar (Explore's)
+  const open = portal ? pm.open : own;
+  const close = () => (portal ? pm.close() : setOwn(false));
   const library = path === '/library';
   const count = [type, section].filter(Boolean).length;
   const item = (label, on, pick, icon) => (
-    <MenuItem key={label} icon={icon} onClick={() => { pick(); setOpen(false); }}>
+    <MenuItem key={label} icon={icon} onClick={() => { pick(); close(); }}>
       <span className="flex w-full items-center justify-between">{label}{on && <Check size={14} strokeWidth={2} />}</span>
     </MenuItem>
   );
   const heading = (text) => <div className="px-2 pb-1 pt-2 text-xs text-ink-3">{text}</div>;
   return (
     <div className="relative">
-      <Button variant="secondary" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><ListFilter size={14} /> Filters{count > 0 && ` · ${count}`}</Button>
-      <Menu open={open} onClose={() => setOpen(false)} className={menuClass}>
+      <Button variant="secondary" aria-haspopup="menu" aria-expanded={open} {...(portal ? pm.buttonProps : { onClick: () => setOwn(!own) })}><ListFilter size={14} /> Filters{count > 0 && ` · ${count}`}</Button>
+      <Menu portal={portal} anchor={portal ? pm.button.current : null} open={open} onClose={portal ? pm.onClose : () => setOwn(false)} style={portal ? pm.style : undefined} className={portal ? 'w-56' : menuClass}>
+        <div {...(portal && { 'data-menu-button-open': '' })}>
         {heading('Type')}
         {types.map((k) => item(TYPES[k].label, type === k && !archived, () => setFilter('type', type === k && !archived ? null : k, path), FILTER_ICONS[k]))}
         {library && item('Archived canvas', archived, () => { const q = new URLSearchParams(window.location.search); navigate(libraryHref({ d: q.get('d'), f: q.get('f'), s: q.get('s'), ...(archived ? {} : { type: 'canvases', archived: '1' }) })); }, Archive)}
         {library && heading('Ownership')}
         {library && Object.entries(SCOPES).map(([k, label]) => item(label, section === k, () => setFilter('s', section === k ? null : k), UserRound))}
-        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem icon={X} className="text-ink-2" onClick={() => { navigate(libraryHref({ d: new URLSearchParams(window.location.search).get('d'), project: new URLSearchParams(window.location.search).get('project') }, path)); setOpen(false); }}>Clear filters</MenuItem></>}
+        {count > 0 && <><div className="my-1 border-t border-line" /><MenuItem icon={X} className="text-ink-2" onClick={() => { navigate(libraryHref({ d: new URLSearchParams(window.location.search).get('d'), project: new URLSearchParams(window.location.search).get('project') }, path)); close(); }}>Clear filters</MenuItem></>}
+        </div>
       </Menu>
     </div>
   );
