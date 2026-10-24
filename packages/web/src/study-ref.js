@@ -40,8 +40,17 @@ export function pinnedAttachSnapshot({ scope, destination, ...input }) {
   return attachSnapshot({ pin: input.pin, ref: pinnedAttachRef(input), scope, destination });
 }
 
-// The line under the pinned title when the ref has no version of its own (doc and paper PDFs): binding is source and place.
+// The version line (Reference options' details) when the ref has no version of its own (doc and paper PDFs): binding is source and place.
 export const versionLine = ref => (ref && versionStatus(ref) === 'unavailable' ? 'Version verification unavailable' : null);
+
+// A pinned PDF's source in Reference options' details, the line the reader showed above its pages (LearnPaper): an upload or a
+// context document says Your upload, a paper its arXiv number. null for a note or an Explanation (the canvas is the source).
+export function sourceOrigin(kind, ref) {
+  const id = String(ref?.sourceId || '');
+  if (kind !== 'pdf') return null;
+  if (id.startsWith('doc:') || id.startsWith('paper:upload:')) return 'Your upload';
+  return id.startsWith('paper:') ? `arXiv:${id.slice('paper:'.length)}` : null;
+}
 
 // Where the pane, the Notebook / Canvas row and the canvas go, in the slot parent's pixels. top: below the frame's top and any
 // header floating over it; the working-view row has its own strip above the canvas, so it never lies over a card or a control.
