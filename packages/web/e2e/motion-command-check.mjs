@@ -191,7 +191,8 @@ for (const theme of ['light', 'dark']) {
   const dock = page.locator('[data-chat-pane]');
   const composer = () => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
   const picker = dock.locator('[data-slash-picker]');
-  const pill = dock.locator('[data-command-pill]');
+  // The composer's own pill: a sent message (and a restored thread) shows its own read-only command pill too.
+  const pill = dock.locator('[data-chat-composer] [data-command-pill]');
   const notice = dock.locator('[data-slash-result]');
   const videoPosts = () => seen.filter(r => r.path === '/api/learn/video' && r.method === 'POST' && !r.body.includes('"action"'));
   // MOT-20: a /motion line is a chat turn whose answer draws a proposal card; its Generate is enabled once the answer is saved.
@@ -199,7 +200,11 @@ for (const theme of ['light', 'dark']) {
   const propose = async line => {
     const before = await proposalCards.count();
     await composer().fill(line); await composer().press('Enter');
-    await until(async () => (await proposalCards.count()) > before, `the proposal card for ${line}`);
+    // The failure names what was asked and what the chat shows, so a missing card is diagnosed from the log alone.
+    try { await until(async () => (await proposalCards.count()) > before, `the proposal card for ${line}`); } catch (error) {
+      const tail = await dock.evaluate(node => node.innerText.slice(-500)).catch(() => '');
+      throw new Error(`${error.message}; chat turns ${asks.length}, last ${JSON.stringify({ command: asks.at(-1)?.command, route_token: !!asks.at(-1)?.route_token, message: asks.at(-1)?.message }).slice(0, 200)}; page errors ${JSON.stringify(errors).slice(0, 300)}; chat tail ${JSON.stringify(tail)}`);
+    }
     const card = proposalCards.last();
     await card.locator('[data-proposal-generate]:not([disabled])').waitFor();
     return card;
@@ -624,7 +629,8 @@ for (const theme of ['light', 'dark']) {
     // The canvas behind the window keeps its own persistence (the board thumbnail is drawn after its saves pause, LearnPage.jsx
     // thumbnailScheduler) and may reload a saved card's clip (a GET of its asset). Choosing /motion reads the server's reservation
     // (a GET of the video list, owner message 25). The window itself sends nothing: no POST, no generation or model route.
-    const persistence = r => r.method === 'PUT' && /^\/api\/learn\/boards\/[^/]+\/main(\/thumbnail)?$/.test(r.path);
+    // The chat's own saved state (its draft and mode, chat-workspace persistence) is not generation either.
+    const persistence = r => r.method === 'PUT' && /^\/api\/learn\/(boards\/[^/]+\/main(\/thumbnail)?|chat\/threads\/[^/]+\/state)$/.test(r.path);
     const sent = during.filter(r => !persistence(r) && (r.method !== 'GET' || (/\/api\/learn\/(artifact|scene|image)/.test(r.path) && !r.query.includes('asset=')))).map(r => `${r.method} ${r.path}${r.query}`);
     console.log(`   ${theme}: requests while the window was open: ${during.map(r => `${r.method} ${r.path}`).join(', ') || 'none'}`);
     assert.deepEqual(sent, [], `the window sends nothing: ${sent.join(' ')}`);

@@ -631,7 +631,7 @@ await step('the controls above a selected card are one row: Open, Interact, Fit 
         assert.ok(b.w > 0 && b.h > 0, `${c.name}: ${name} has a box`);
         assert.ok(b.x >= -1 && b.right <= c.width + 1, `${c.name}: ${name} stays inside the window`);
         assert.ok(b.x >= m.card.x - tol && b.right <= m.card.right + tol, `${c.name}: ${name} stays within the card's width ${JSON.stringify([b, m.card])}`);
-        assert.ok(b.bottom <= m.card.y - 2 * m.scale && m.card.y - b.bottom <= 60 * m.scale, `${c.name}: ${name} stands a few px above the card's outline ${JSON.stringify([b, m.card])}`);
+        assert.ok(b.bottom <= m.card.y - 2 * m.scale && m.card.y - b.bottom <= 60 * m.scale, `${c.name}: ${name} stands a few px above the card's outline ${JSON.stringify([b, m.card])} all parts ${JSON.stringify(m.parts)} heights ${JSON.stringify(m.heights)} scale ${m.scale}`);
         assert.ok(m.hits[name], `${c.name}: a press at the centre of ${name} reaches it`);
         assert.ok(b.right <= m.port.x || b.x >= m.port.right || b.bottom <= m.port.y + 0.5, `${c.name}: ${name} does not cover the top connection handle`);
       }

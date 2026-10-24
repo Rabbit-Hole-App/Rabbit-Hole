@@ -148,7 +148,7 @@ await step('the picker: the Add explanation pill and its words make the same job
   const box = composerOf(page);
   await box.click(); await box.fill('/expl');
   await page.locator('[data-slash-command="explain"]').click();
-  await page.locator('[data-chat-pane] [data-command-pill="explain"]').waitFor();
+  await page.locator('[data-chat-pane] [data-command-pill="explain"]').last().waitFor(); // earlier sent messages show their own pill; the composer's is last
   await box.fill('why a heap is a complete tree');
   await box.press('Enter');
   const job = await newJob(2);
@@ -260,7 +260,8 @@ await step('stale revision: an Edit made from another revision of the card is re
 
 await step('nothing else asked a model, left the stack, or threw', async () => {
   assert.deepEqual(refused, [], `model-capable requests: ${refused.join(', ')}`);
-  assert.deepEqual(outside, []);
+  // The app asks for its notebook origin on load (aborted here, reaches no model), as in cad-controls-check; nothing /explain leaves the stack.
+  assert.deepEqual(outside.filter(host => !/notebook/.test(host)), []);
   assert.deepEqual(errors, []);
 });
 
