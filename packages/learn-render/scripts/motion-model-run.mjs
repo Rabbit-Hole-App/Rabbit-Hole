@@ -8,7 +8,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { anthropic } from '../../control-plane/src/ask.js';
 import { resolveLearnerTurn } from '../../control-plane/src/learner-intent.js';
 import { groundTarget } from '../../control-plane/src/source-grounding.js';
 import { budgetLedger, worstCase } from '../motion/benchmark.mjs';
@@ -16,6 +15,7 @@ import { directorContext, directorRequest } from '../motion/director.js';
 import { durationDecision } from '../motion/duration.js';
 import { fixtureSource } from '../motion/fixture-source.js';
 import { resolveRole } from '../motion/model-config.js';
+import { apiCall } from '../motion/orchestrator-main.mjs';
 import { runMotionRequest } from '../motion/pipeline.mjs';
 import { serviceClient } from '../motion/render-job.mjs';
 
@@ -45,7 +45,7 @@ const run = RUNS[name];
 if (!run || !opt('--service')) { console.error(`usage: node scripts/motion-model-run.mjs ${Object.keys(RUNS).join('|')} --service <url> [--call]`); process.exit(2); }
 const live = rest.includes('--call');
 const url = opt('--service').replace(/\/+$/, '');
-const runId = `mmr-${name}`;
+const runId = `mmr-${name}${process.env.MOTION_MODEL_RUN_SUFFIX || ''}`;
 const OUT = process.env.MOTION_MODEL_RUN_OUT ? resolve(process.env.MOTION_MODEL_RUN_OUT) : join(PKG, 'out', 'motion', 'model-runs', name);
 const write = (f, v) => { mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, typeof v === 'string' ? v : JSON.stringify(v, null, 2)); };
 const money = n => `$${(+n).toFixed(4)}`;
@@ -98,7 +98,7 @@ const ledger = budgetLedger(join(OUT, 'ledger.json'), MODEL_CEILING_USD);
 const errors = [];
 // The provider's own words for any refusal, recorded verbatim (an error body carries no secret).
 // MOTION_MODEL_RUN_STUB=refuse: the free rehearsal of this script's paid path (a provider refusal, no network, a temporary ledger).
-const send = process.env.MOTION_MODEL_RUN_STUB === 'refuse' ? async () => Response.json({ type: 'error', error: { type: 'invalid_request_error', message: 'stub refusal' } }, { status: 400 }) : anthropic;
+const send = process.env.MOTION_MODEL_RUN_STUB === 'refuse' ? async () => Response.json({ type: 'error', error: { type: 'invalid_request_error', message: 'stub refusal' } }, { status: 400 }) : apiCall; // the orchestrator's own transport (api.anthropic.com, the key and workspace headers), not the Learn worker's spend-gated ask.js
 const call = async (e, body, m) => {
   const response = await ledger.guard(send, { run: name })(e, body, m);
   if (!response.ok) errors.push({ at: new Date().toISOString(), status: response.status, body: (await response.clone().text()).slice(0, 2000) });
