@@ -47,7 +47,7 @@ tabs costs no request). `HEAD` is allowed; any other method is `405`.
 
 Eligibility is `PUBLISHED` (learn-boards.js) unchanged: a live publication of a not-archived, not-trashed, top-level canvas (not a
 Rabbit Hole) whose owner has a handle. It is applied to the activity before anything is aggregated or ranked, so a creator's totals
-count only eligible canvases, and it is **re-applied on every response**, including one served from the candidate cache. Private,
+count only eligible canvases, and it is **re-applied on every response**, including one served from the cache. Private,
 unlisted, archived, trashed, deleted and nested canvases, and their titles, links, contributors and totals, are not reachable from
 this endpoint. No response carries an email, a user id, a share token other than the public publication token already on Explore
 cards, or the identity of any supporter (only counts).
@@ -63,7 +63,7 @@ cards, or the identity of any supporter (only counts).
   "week_start_local": "2026-10-19",
   "week_end_local": "2026-10-26",
   "calculated_at": "2026-10-23T18:04:11.532Z",
-  "freshness": { "max_age_seconds": 60, "pool_calculated_at": "2026-10-23T18:03:40.102Z" },
+  "freshness": { "max_age_seconds": 60 },
   "star_history_since": "2026-10-22T19:30:12.004Z",
   "canvases": { "entries": [], "empty_message": null },
   "creators": { "entries": [], "empty_message": null }
@@ -73,10 +73,10 @@ cards, or the identity of any supporter (only counts).
 - `week_start` / `week_end`: UTC instants (ISO), `week_end` exclusive. `week_start_local` / `week_end_local`: the Los Angeles dates
   (`week_end_local` exclusive). Label the week from these; do not recompute boundaries in the browser.
 - `ranking_version`: bumped on any change to the definitions above; analytics carry it.
-- `calculated_at`: when this response's counts and eligibility were read from the database (always this request).
-  `freshness.max_age_seconds` / `pool_calculated_at`: the server remembers *which* canvases and creators lead for up to 60 seconds;
-  their counts and eligibility are re-read on every request. A newcomer can therefore take up to 60 seconds to appear; an
-  unpublish, trash or delete disappears at once. The UI may say "updated every minute" if it wants; it must not claim a longer
+- `calculated_at`: when the counts, order and titles were read from the database. `freshness.max_age_seconds`: the server may serve an
+  answer up to 60 seconds old, so a new star or a newly public canvas can take that long to appear. **Eligibility is never that old:**
+  before every reuse the server re-checks that each canvas behind the answer is still public, and recomputes if any is not, so an
+  unpublish, trash, archive or delete disappears at once. The UI may say "updated every minute"; it must not claim a longer
   interval.
 - `star_history_since`: the first star transition ever recorded (`min(canvas_star_events.at)`) or `null`. Weekly stars before it
   were never collected (nothing is backfilled or fabricated), so if it falls inside the shown week the star counts cover only the
