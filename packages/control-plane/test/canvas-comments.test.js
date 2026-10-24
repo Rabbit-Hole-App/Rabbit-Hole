@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { setup, BOARD } from './shared-canvas-fixture.js';
-import { canvasCommentsRoute, can, anchorOf, BODY_MAX, PIN_COLORS } from '../src/canvas-comments.js';
+import { canvasCommentsRoute, can, anchorOf, BODY_MAX, PIN_COLORS, REACTIONS } from '../src/canvas-comments.js';
 import { applySync } from '../../web/src/comments/comment-sync.js';
 
 const schema = readFileSync(new URL('../repository-schema.sql', import.meta.url), 'utf8');
@@ -745,10 +745,12 @@ test('a canvas deleted for good takes every comment row and count; comments have
   await comments(f, 'POST', `${base}/blocks`, { as: 'ana', body: { comment_id: pub } });
   await comments(f, 'POST', `${base}/threads/${made}/read`, { as: 'ben' });
   await comments(f, 'PUT', `${base}/threads/${made}/color`, { as: 'ana', body: { color: PIN_COLORS[2] } });
+  assert.equal((await comments(f, 'PUT', `${base}/comments/${reply}/reactions`, { as: 'ana', body: { emoji: REACTIONS[0], on: true } })).status, 200);
+  assert.equal((await comments(f, 'PATCH', `${base}/comments/${reply}`, { as: 'ben', body: { body: 'A reply, edited', mentions: [] } })).status, 200);
   assert.ok(reply);
   // The comment tables, read from the schema, not listed by hand: any new one fails this test until the purge covers it.
   const tables = f.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'canvas_comment%' ORDER BY name").all().map(row => row.name);
-  assert.deepEqual(tables, ['canvas_comment_blocks', 'canvas_comment_colors', 'canvas_comment_mentions', 'canvas_comment_reads', 'canvas_comment_settings', 'canvas_comment_threads', 'canvas_comments']);
+  assert.deepEqual(tables, ['canvas_comment_blocks', 'canvas_comment_colors', 'canvas_comment_edits', 'canvas_comment_mentions', 'canvas_comment_reactions', 'canvas_comment_reads', 'canvas_comment_settings', 'canvas_comment_threads', 'canvas_comment_touches', 'canvas_comments']);
   // No attachment: a message row is text and mentions, nothing else.
   assert.deepEqual(f.sqlite.prepare('SELECT name FROM pragma_table_info(?) ORDER BY cid').all('canvas_comments').map(row => row.name), ['id', 'thread_id', 'author_id', 'author_email', 'body', 'create_hash', 'created_at', 'edited_at', 'deleted_at', 'deleted_by']);
   const rows = () => Object.fromEntries(tables.map(table => [table, f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n]));
@@ -814,4 +816,98 @@ test('sync (Comments v2 item 1): an open thread sees a second session reply, edi
   // Membership ends mid-session: the next sync is refused, so the open view drops the thread.
   f.sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE id = 'm1'").run();
   assert.equal((await read('ben', ben.cursor)).status, 404, 'a removed member reads nothing more');
+});
+
+const reactionsMigration = readFileSync(new URL('../learn-migrations/0030-canvas-comment-reactions-history.sql', import.meta.url), 'utf8');
+test('0030 is additive, re-runnable and exactly what repository-schema.sql applies', t => {
+  const sqlite = new DatabaseSync(':memory:'); t.after(() => sqlite.close());
+  sqlite.exec(reactionsMigration); sqlite.exec(reactionsMigration);
+  assert.ok(schema.replace(/\r/g, '').includes(reactionsMigration.replace(/\r/g, '').trim()));
+  assert.doesNotMatch(reactionsMigration, /^\s*(DROP|ALTER|DELETE|UPDATE|INSERT)\b/im);
+  assert.deepEqual(sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name").all().map(r => r.name), ['canvas_comment_edits', 'canvas_comment_reactions', 'canvas_comment_touches']);
+});
+
+test('reactions (Comments v2 item 3): a fixed set, one per person per emoji, counted without naming anyone, found by the other session\'s sync, gone with access', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const made = await start(f, base, 'ana', 'Which scale?');
+  const tid = made.body.thread.id, cid = made.body.comment.id, url = `${base}/comments/${cid}/reactions`;
+  const [UP, HEART] = REACTIONS;
+  assert.deepEqual(made.body.comment.reactions, []);
+  const on = (as, emoji, state = true) => comments(f, 'PUT', url, { as, body: { emoji, on: state } });
+  assert.deepEqual((await on('ben', UP)).body.comment.reactions, [{ emoji: UP, count: 1, mine: true }]);
+  assert.deepEqual((await on('ben', UP)).body.comment.reactions, [{ emoji: UP, count: 1, mine: true }], 'idempotent');
+  assert.deepEqual((await on('ana', UP)).body.comment.reactions, [{ emoji: UP, count: 2, mine: true }]);
+  await on('ana', HEART);
+  // Each reader sees their own `mine`, in the set's order; nobody is named.
+  const seenByBen = (await comments(f, 'GET', `${base}/threads/${tid}`, { as: 'ben' })).body.messages[0];
+  assert.deepEqual(seenByBen.reactions, [{ emoji: UP, count: 2, mine: true }, { emoji: HEART, count: 1, mine: false }]);
+  assert.equal(seenByBen.can.react, true);
+  // A reaction leaves no timestamp on the comment: the since-read finds it through the touch row. Age the comment itself
+  // so only the touch can explain its return.
+  f.sqlite.prepare("UPDATE canvas_comments SET created_at = '2026-01-01T00:00:00.000Z'").run();
+  f.sqlite.prepare("UPDATE canvas_comment_touches SET touched_at = '2026-01-01T00:00:00.000Z'").run();
+  const since = ms => `${base}/threads/${tid}?since=${encodeURIComponent(new Date(Date.now() + ms).toISOString())}`;
+  assert.deepEqual((await comments(f, 'GET', since(0), { as: 'ben' })).body.messages, [], 'nothing changed since now');
+  await on('ana', HEART, false);
+  const later = await comments(f, 'GET', since(0), { as: 'ben' });
+  assert.deepEqual(later.body.messages.map(m => [m.id, m.reactions]), [[cid, [{ emoji: UP, count: 2, mine: true }]]], 'the removed reaction arrives with the touched comment');
+  // Refused: outside the set, a malformed body, someone with no access, a signed-out caller.
+  assert.equal((await on('ben', '\u{1F4A9}')).body.code, 'bad_reaction');
+  assert.equal((await comments(f, 'PUT', url, { as: 'ben', body: { emoji: UP } })).body.code, 'bad_reaction');
+  assert.equal((await on('cara', UP)).status, 404);
+  assert.equal((await comments(f, 'PUT', url, { body: { emoji: UP, on: true } })).status, 401);
+  // Allow comments off: members read but do not react; the owner still can. Ending membership closes it.
+  await comments(f, 'PUT', `${base}/comment-settings`, { as: 'ana', body: { comments_enabled: false } });
+  assert.equal((await on('ben', HEART)).body.code, 'comments_off');
+  assert.equal((await comments(f, 'GET', `${base}/threads/${tid}`, { as: 'ben' })).body.messages[0].can.react, false);
+  assert.equal((await on('ana', HEART)).status, 200);
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed'").run();
+  assert.equal((await on('ben', HEART)).status, 404);
+  // A deleted comment keeps no reactions.
+  assert.equal((await comments(f, 'DELETE', `${base}/comments/${cid}`, { as: 'ana' })).status, 200);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_comment_reactions').get().n, 0);
+  assert.equal((await on('ana', UP)).status, 404);
+});
+
+test('edit history (Comments v2 item 3): the text an edit replaced, for the author and the owner only; capped at 20; gone when the comment is deleted', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const made = await start(f, base, 'ana', 'Thread');
+  const reply = (await comments(f, 'POST', `${base}/threads/${made.body.thread.id}/comments`, { as: 'ben', body: { id: crypto.randomUUID(), body: 'version 0 @ana', mentions: [{ pos: 10, len: 4, handle: 'ana' }] } })).body.comment;
+  assert.deepEqual([reply.can.history, reply.edited], [false, false], 'no history before an edit');
+  const edit = body => comments(f, 'PATCH', `${base}/comments/${reply.id}`, { as: 'ben', body: { body, mentions: [] } });
+  const one = await edit('version 1');
+  assert.deepEqual([one.body.comment.can.history, one.body.comment.edited], [true, true]);
+  for (let i = 2; i <= 22; i += 1) await edit(`version ${i}`);
+  const mine = await comments(f, 'GET', `${base}/comments/${reply.id}/history`, { as: 'ben' });
+  assert.equal(mine.body.edits.length, 20, 'the newest 20 stay');
+  assert.deepEqual([mine.body.edits[0].body, mine.body.edits.at(-1).body], ['version 21', 'version 2']);
+  assert.equal((await comments(f, 'GET', `${base}/comments/${reply.id}/history`, { as: 'ana' })).body.edits.length, 20, 'the owner reads it too');
+  const seen = (await comments(f, 'GET', `${base}/threads/${made.body.thread.id}`, { as: 'ana' })).body.messages.find(m => m.id === reply.id);
+  assert.equal(seen.can.history, true);
+  // Another member can read the thread but not its history; once removed, nothing.
+  f.sqlite.prepare("INSERT INTO canvas_members (id, org, canvas, invited_email, member_user_id, member_email, status, email_status, invited_by, invited_at, expires_at) SELECT 'm9', org, canvas, 'cara@test', 'u-cara-71f0', 'cara@test', 'active', 'sent', 'u-ana-5d1e', 0, 0 FROM canvas_members WHERE id = 'm1'").run();
+  assert.equal((await comments(f, 'GET', `${base}/comments/${reply.id}/history`, { as: 'cara' })).status, 403);
+  const caraSees = (await comments(f, 'GET', `${base}/threads/${made.body.thread.id}`, { as: 'cara' })).body.messages.find(m => m.id === reply.id);
+  assert.equal(caraSees.can.history, false);
+  f.sqlite.prepare("UPDATE canvas_members SET status = 'removed' WHERE id = 'm9'").run();
+  assert.equal((await comments(f, 'GET', `${base}/comments/${reply.id}/history`, { as: 'cara' })).status, 404);
+  // Deleting the comment purges its history; the endpoint then answers gone.
+  assert.equal((await comments(f, 'DELETE', `${base}/comments/${reply.id}`, { as: 'ben' })).status, 200);
+  assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM canvas_comment_edits').get().n, 0);
+  assert.equal((await comments(f, 'GET', `${base}/comments/${reply.id}/history`, { as: 'ben' })).body.code, 'comment_gone');
+});
+
+test('deleting a thread purges its reactions, history and touches', async t => {
+  const f = setup(t);
+  const { base } = await canvas(f);
+  const made = await start(f, base, 'ben', 'Mine to delete');
+  const cid = made.body.comment.id;
+  await comments(f, 'PUT', `${base}/comments/${cid}/reactions`, { as: 'ana', body: { emoji: REACTIONS[2], on: true } });
+  await comments(f, 'PATCH', `${base}/comments/${cid}`, { as: 'ben', body: { body: 'changed', mentions: [] } });
+  const counts = () => ['canvas_comment_reactions', 'canvas_comment_edits', 'canvas_comment_touches'].map(table => f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n);
+  assert.deepEqual(counts(), [1, 1, 1]);
+  assert.equal((await comments(f, 'DELETE', `${base}/threads/${made.body.thread.id}`, { as: 'ana' })).status, 200);
+  assert.deepEqual(counts(), [0, 0, 0]);
 });

@@ -1413,3 +1413,25 @@ Recorded for when the owner gives S1 its GO. They are not authorization to start
 - Home reviews the actual migration file before any remote application. Remote migrations and deploy need a separate GO (H6).
 - Public-comment UI decisions (Q2-Q4, Q7, Q19-Q21, Q23) stay with their stages (S2-S5) and do not block an
   invitations/membership checkpoint.
+
+
+## 15. Comments v2 additions (owner decisions D2 to D6, 2026-10-23)
+
+Stage 1 (freshness, section 10 Sync protocol) and Stage 2 (board types, Q5 replaced above) are built. This section records
+the later stages as they land. The migrations here take the next free learn numbers (0027 Credits, 0028 Stars and 0029 Weekly
+Top 5 are taken) and are applied by the owner in production; a lane never applies one.
+
+### Reactions and edit history (migration 0030)
+
+- **Reactions.** One emoji of a fixed set (`web/src/comments/comment-reactions.js`, shared by the server and the panel) per
+  account per comment. `PUT /comments/:id/reactions` with `{ emoji, on }` sets or clears the caller's own, idempotently.
+  Whoever may post in the thread may react (so Allow comments off leaves reactions to the owner, a blocked account cannot
+  react publicly, a removed member gets 404). A message carries `reactions: [{ emoji, count, mine }]` in the set's order and
+  never who reacted, plus `can.react`.
+- **Sync.** A reaction leaves no timestamp on `canvas_comments`, so it touches `canvas_comment_touches`; the since-read
+  (section 10) returns a comment whose touch row is newer than the cursor less the overlap.
+- **Edit history.** Each edit keeps the text and mention ranges it replaced in `canvas_comment_edits` (the newest 20 per
+  comment). `GET /comments/:id/history` answers `{ edits: [{ body, replaced_at }] }` newest first, to the comment's author and
+  the canvas owner only; a message carries `can.history` for them. The "edited" mark in the panel opens the list.
+- **Purge.** Deleting a comment (its author, the owner, Block and remove their comments), a thread, a hole or a canvas deletes
+  its reactions, history and touch rows. A deleted comment's history answers `comment_gone`.

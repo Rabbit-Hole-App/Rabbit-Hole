@@ -16,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 10; // the number of check() steps below; keep it equal
+const total = 11; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -315,9 +315,30 @@ await check('9 scrolled up, new replies show New replies and the reading place s
   assert.deepEqual([asks, stray], [[], []]);
 });
 
+// Comments v2 item 3 (migration 0030): a reaction from another session arrives on the open thread without Back or reload, the
+// owner reacts and un-reacts from the chip, and an edited comment's "edited" lists what the edit replaced (the owner may read it).
+await check('10 reactions and edit history: a reaction from another session arrives on the open thread; the owner toggles one from the picker and the chip; edited lists the replaced text', async () => {
+  const target = await reply('A visitor reply to react to');
+  await expect(message(target)).toHaveCount(1, SYNC);
+  assert.equal((await viewer(`${pub}/comments/${target}/reactions`, { method: 'PUT', body: JSON.stringify({ emoji: '\u{1F44D}', on: true }) })).status, 200);
+  await expect(message(target).getByRole('button', { name: 'Thumbs up, 1' })).toHaveAttribute('aria-pressed', 'false', SYNC);
+  await message(target).getByRole('button', { name: 'Add reaction' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Heart' }).click();
+  await expect(message(target).getByRole('button', { name: 'Heart, 1' })).toHaveAttribute('aria-pressed', 'true', SYNC);
+  await message(target).getByRole('button', { name: 'Heart, 1' }).click();
+  await expect(message(target).getByRole('button', { name: 'Heart, 1' })).toHaveCount(0, SYNC);
+  await expect(message(target).getByRole('button', { name: 'Thumbs up, 1' })).toHaveCount(1);
+  assert.equal((await viewer(`${pub}/comments/${target}`, { method: 'PATCH', body: JSON.stringify({ body: 'The visitor edited the reply to react to', mentions: [] }) })).status, 200);
+  await expect(message(target)).toContainText('The visitor edited the reply to react to', SYNC);
+  await message(target).locator('[data-edit-history]').click();
+  await expect(page.locator('[data-edit-history-list]')).toContainText('A visitor reply to react to');
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/10-reactions-history.png` });
+});
+
 // Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. The owner comments in the hole through the app; a
 // person with no access to the hole (the visitor here, a stranger to both) gets 404 with no content; Share says the people are the hole's own.
-await check('10 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
+await check('11 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
   const hole = `canvas-${run.replace(/[^a-f0-9]/g, '0').padEnd(8, '0').slice(0, 8)}`;
   const made = await post(api, '/api/canvases/dives', { name: hole, title: `Inside ${run}`, parent: { app: canvas.name, board: 'main' }, origin_block_id: 'd-card', dive: { concept: 'ice' } });
   assert.equal(made.status, 201, JSON.stringify(made.body));
@@ -336,7 +357,7 @@ await check('10 (D2) a nested Rabbit Hole has its own comments: the owner reads 
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
   assert.deepEqual([asks, stray, errors], [[], [], []]);
-  await page.screenshot({ path: `${SHOTS}/10-nested-hole.png` });
+  await page.screenshot({ path: `${SHOTS}/11-nested-hole.png` });
 });
 
 await browser.close();

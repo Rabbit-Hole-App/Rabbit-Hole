@@ -3,6 +3,7 @@ import { ChevronLeft, Globe, Link2, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
 import { anchorText } from './anchors.js';
+import { EditedMark, Reactions } from './Reactions.jsx';
 import { SYNC_MS, applySync, mergeMessages, newFromOthers } from './comment-sync.js';
 import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
 
@@ -302,7 +303,7 @@ function Message({ message, audience, owner, client, act }) {
         <div className="flex items-center gap-1.5 text-xs">
           <span className="truncate font-medium text-ink">{displayName(message.author)}</span>
           {message.author.name && message.author.handle && <span className="truncate text-ink-3">@{message.author.handle}</span>}
-          <span className="shrink-0 text-ink-3">{when(message.created_at)}{message.edited ? ' · edited' : ''}</span>
+          <span className="shrink-0 text-ink-3">{when(message.created_at)}</span>{message.edited && <EditedMark message={message} client={client} />}
           {rows.length > 0 && (
             <span className="relative ml-auto">
               <button type="button" aria-label="Comment actions" aria-expanded={menu} onClick={() => { setMenu(open => !open); setConfirm(false); }}
@@ -328,6 +329,7 @@ function Message({ message, audience, owner, client, act }) {
               </div>
             </div>
           ) : <p className="text-sm break-words whitespace-pre-wrap text-ink">{message.segments.map((segment, index) => (segment.mention ? <span key={index} data-mention title={segment.mention.name || undefined} className="rounded bg-accent/10 px-0.5 font-medium text-accent">@{segment.mention.handle}</span> : <span key={index}>{segment.text}</span>))}</p>}
+        {!message.deleted && editing === null && <Reactions message={message} client={client} act={act} />}
       </div>
     </li>
   );

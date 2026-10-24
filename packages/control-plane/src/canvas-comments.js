@@ -15,6 +15,7 @@ import { boardAsset } from './learn-boards.js';
 import { redactRepositoryCards } from './repository-cards.js';
 import { isEmbed } from './learn-shared-ask.js';
 import { changesFrom } from '../../web/src/comments/comment-sync.js';
+import { REACTIONS } from '../../web/src/comments/comment-reactions.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
@@ -255,13 +256,34 @@ function threadShape(ctx, row) {
   };
 }
 const MESSAGE_COLUMNS = `m.id, m.author_id, m.body, m.created_at, m.edited_at, m.deleted_at, m.deleted_by, ${PERSON('m.author_email', 'a_')}`;
-function messageShape(ctx, audience, row, mentions = []) {
+function messageShape(ctx, audience, row, mentions = [], reactions = []) {
   const mine = !!ctx.actor.uid && row.author_id === ctx.actor.uid;
   const deleted = row.deleted_at ? (row.deleted_by === row.author_id ? 'author' : 'owner') : null;
   return {
     id: row.id, author: person(row, 'a_'), segments: deleted ? [] : segmentsOf(row.body, mentions), created_at: row.created_at, edited: !!row.edited_at && !deleted, deleted, mine,
-    can: { edit: !deleted && mine && allowed(ctx, 'edit_own', audience), delete: !deleted && ((mine && allowed(ctx, 'delete_own', audience)) || allowed(ctx, 'delete_any', audience)) },
+    reactions: deleted ? [] : reactions,
+    can: { edit: !deleted && mine && allowed(ctx, 'edit_own', audience), delete: !deleted && ((mine && allowed(ctx, 'delete_own', audience)) || allowed(ctx, 'delete_any', audience)),
+      react: !deleted && allowed(ctx, 'post', audience), history: !deleted && !!row.edited_at && (mine || ctx.actor.owner) },
   };
+}
+
+// Reactions (migration 0030): one emoji of the shared set (comment-reactions.js) per account per comment, shown as {emoji, count, mine} in the set's
+// order. Never who reacted: a tap does not name a person.
+export { REACTIONS };
+async function reactionsFor(env, ctx, ids) {
+  if (!ids.length) return new Map();
+  const { results } = await env.LEARN_DB.prepare(`SELECT comment_id, emoji, count(*) AS n, max(user_id = ?) AS mine FROM canvas_comment_reactions WHERE comment_id IN (${ids.map(() => '?').join(', ')}) GROUP BY comment_id, emoji`)
+    .bind(ctx.actor.uid || '', ...ids).all();
+  const by = new Map();
+  for (const row of results) by.set(row.comment_id, [...(by.get(row.comment_id) || []), { emoji: row.emoji, count: row.n, mine: !!row.mine }]);
+  for (const list of by.values()) list.sort((a, b) => REACTIONS.indexOf(a.emoji) - REACTIONS.indexOf(b.emoji));
+  return by;
+}
+// Message rows as the actor sees them: mentions and reactions read once for the whole page.
+async function shapes(env, ctx, audience, rows) {
+  const ids = rows.map(row => row.id);
+  const [mentions, reactions] = await Promise.all([mentionsFor(env, ids), reactionsFor(env, ctx, ids)]);
+  return rows.map(row => messageShape(ctx, audience, row, mentions.get(row.id), reactions.get(row.id)));
 }
 
 // A thread of this board (and public, through the public family) that the actor may read; anything else is 404, so
@@ -316,6 +338,8 @@ async function countVisible(env, rows) {
   for (const row of rows) if (!hidden.has(row.id)) counts[row.key] = (counts[row.key] || 0) + 1;
   return counts;
 }
+// What a comment leaves beside it (reactions and edit history) goes with the comment, however it goes (migration 0030).
+const purgeSide = (db, where, ...binds) => ['canvas_comment_reactions', 'canvas_comment_edits'].map(table => db.prepare(`DELETE FROM ${table} WHERE ${where}`).bind(...binds));
 const missingThread = () => refuse("This thread isn't available.", 'thread_gone', 404);
 
 // Unread (section 5): someone else posted after my last read. The member family tracks it for the owner and members;
@@ -386,18 +410,17 @@ async function readThread(env, ctx, id, params) {
   const from = before ? null : changesFrom(params.get('since'));
   if (from) {
     const { results } = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ?1
-        AND (m.created_at > ?2 OR m.edited_at > ?2 OR m.deleted_at > ?2) ORDER BY m.created_at, m.id LIMIT ${MESSAGES + 1}`).bind(thread.id, from).all();
+        AND (m.created_at > ?2 OR m.edited_at > ?2 OR m.deleted_at > ?2
+          OR m.id IN (SELECT x.comment_id FROM canvas_comment_touches x WHERE x.thread_id = ?1 AND x.touched_at > ?2)) ORDER BY m.created_at, m.id LIMIT ${MESSAGES + 1}`).bind(thread.id, from).all();
     if (results.length <= MESSAGES) {
-      const mentions = await mentionsFor(env, results.map(row => row.id));
-      return json({ thread: threadShape(ctx, thread), messages: results.map(row => messageShape(ctx, thread.audience, row, mentions.get(row.id))), since: true, cursor });
+      return json({ thread: threadShape(ctx, thread), messages: await shapes(env, ctx, thread.audience, results), since: true, cursor });
     }
   }
   const { results } = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ?1
       ${before ? 'AND (m.created_at < ?2 OR (m.created_at = ?2 AND m.id < ?3))' : ''} ORDER BY m.created_at DESC, m.id DESC LIMIT ${MESSAGES + 1}`)
     .bind(thread.id, ...(before ? [before[1], before[2]] : [])).all();
   const page = results.slice(0, MESSAGES).reverse();
-  const mentions = await mentionsFor(env, page.map(row => row.id));
-  return json({ thread: threadShape(ctx, thread), messages: page.map(row => messageShape(ctx, thread.audience, row, mentions.get(row.id))),
+  return json({ thread: threadShape(ctx, thread), messages: await shapes(env, ctx, thread.audience, page),
     before: results.length > MESSAGES ? `${page[0].created_at}|${page[0].id}` : null, cursor, ...(from ? { reset: true } : {}) });
 }
 
@@ -446,7 +469,7 @@ async function threadReply(env, ctx, id, status) {
   const thread = await env.LEARN_DB.prepare(`SELECT ${THREAD_COLUMNS} FROM canvas_comment_threads t WHERE t.id = ?`).bind(id).first();
   const first = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ? ORDER BY m.created_at, m.id LIMIT 1`).bind(id).first();
   const mentions = (await mentionsFor(env, [first.id])).get(first.id) || [];
-  return json({ thread: threadShape(ctx, thread), comment: messageShape(ctx, thread.audience, first, mentions), accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
+  return json({ thread: threadShape(ctx, thread), comment: (await shapes(env, ctx, thread.audience, [first]))[0], accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
 }
 // An id that exists already: the same author retrying the same post to the same target gets it back; anything else
 // is a conflict with no content, so someone else's id never returns their comment.
@@ -503,7 +526,7 @@ async function commentReply(env, ctx, thread, id, status) {
   const row = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.id = ? AND m.thread_id = ?`).bind(id, thread.id).first();
   if (!row) return idConflict();
   const mentions = (await mentionsFor(env, [id])).get(id) || [];
-  return json({ comment: messageShape(ctx, thread.audience, row, mentions), accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
+  return json({ comment: (await shapes(env, ctx, thread.audience, [row]))[0], accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
 }
 
 // A comment of a thread this actor may read on this board; else 404.
@@ -527,9 +550,13 @@ async function editComment(req, env, ctx, id) {
   if (error) return error;
   // An edit sends the whole new body and its full mentions; the stored ones are replaced.
   const kept = await acceptMentions(env, ctx, found.thread.audience, body, mentionsOf(input.mentions));
-  const db = env.LEARN_DB;
+  const db = env.LEARN_DB, now = new Date().toISOString();
   await db.batch([
-    db.prepare('UPDATE canvas_comments SET body = ?, edited_at = ? WHERE id = ?').bind(body, new Date().toISOString(), id),
+    // The text this edit replaces, with its mention ranges, for the author and the owner (migration 0030); the newest 20 stay.
+    db.prepare(`INSERT INTO canvas_comment_edits (id, comment_id, body, mentions_json, replaced_at)
+      SELECT ?, c.id, c.body, COALESCE((SELECT json_group_array(json_object('pos', mm.pos, 'len', mm.len)) FROM canvas_comment_mentions mm WHERE mm.comment_id = c.id), '[]'), ? FROM canvas_comments c WHERE c.id = ?`).bind(crypto.randomUUID(), now, id),
+    db.prepare('DELETE FROM canvas_comment_edits WHERE comment_id = ?1 AND id NOT IN (SELECT e.id FROM canvas_comment_edits e WHERE e.comment_id = ?1 ORDER BY e.replaced_at DESC, e.id DESC LIMIT 20)').bind(id),
+    db.prepare('UPDATE canvas_comments SET body = ?, edited_at = ? WHERE id = ?').bind(body, now, id),
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id = ?').bind(id),
     ...mentionRows(db, id, kept),
   ]);
@@ -545,8 +572,34 @@ async function deleteComment(env, ctx, id) {
   await db.batch([
     db.prepare('UPDATE canvas_comments SET deleted_at = ?, deleted_by = ? WHERE id = ?').bind(new Date().toISOString(), ctx.actor.uid, id),
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id = ?').bind(id),
+    ...purgeSide(db, 'comment_id = ?', id),
   ]);
   return commentReply(env, ctx, found.thread, id, 200);
+}
+
+// A reaction (migration 0030): { emoji, on } sets or clears the caller's own, idempotently; whoever may post here may react.
+async function react(req, env, ctx, id) {
+  const found = await commentIn(env, ctx, id);
+  if (!found || found.row.deleted_at) return refuse('This comment was deleted.', 'comment_gone', 404);
+  if (!allowed(ctx, 'post', found.thread.audience)) return postRefusal(ctx, found.thread.audience);
+  const input = await readJson(req);
+  if (!REACTIONS.includes(input?.emoji) || typeof input?.on !== 'boolean') return refuse('Pick one of the reactions.', 'bad_reaction', 400);
+  const db = env.LEARN_DB, now = new Date().toISOString();
+  await db.batch([
+    input.on ? db.prepare('INSERT OR IGNORE INTO canvas_comment_reactions (comment_id, user_id, emoji, created_at) VALUES (?, ?, ?, ?)').bind(id, ctx.actor.uid, input.emoji, now)
+      : db.prepare('DELETE FROM canvas_comment_reactions WHERE comment_id = ? AND user_id = ? AND emoji = ?').bind(id, ctx.actor.uid, input.emoji),
+    db.prepare('INSERT INTO canvas_comment_touches (comment_id, thread_id, touched_at) VALUES (?, ?, ?) ON CONFLICT (comment_id) DO UPDATE SET touched_at = excluded.touched_at').bind(id, found.row.thread_id, now),
+  ]);
+  return commentReply(env, ctx, found.thread, id, 200);
+}
+
+// What an edit replaced, newest first: the comment's author and the canvas owner only, and nothing once it is deleted.
+async function editHistory(env, ctx, id) {
+  const found = await commentIn(env, ctx, id);
+  if (!found || found.row.deleted_at) return refuse('This comment was deleted.', 'comment_gone', 404);
+  if (found.row.author_id !== ctx.actor.uid && !ctx.actor.owner) return refuse("You can't see this comment's history.", 'forbidden', 403);
+  const { results } = await env.LEARN_DB.prepare('SELECT body, replaced_at FROM canvas_comment_edits WHERE comment_id = ? ORDER BY replaced_at DESC, id DESC').bind(id).all();
+  return json({ edits: results.map(row => ({ body: row.body, replaced_at: row.replaced_at })) });
 }
 
 // A pin's colour (section 8, owner 2026-10-08): the palette only, by whoever may resolve the thread; never the board.
@@ -573,6 +626,8 @@ async function deleteThread(env, ctx, id) {
   const db = env.LEARN_DB;
   await db.batch([
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)').bind(thread.id),
+    ...purgeSide(db, 'comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)', thread.id),
+    db.prepare('DELETE FROM canvas_comment_touches WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comments WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comment_reads WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comment_colors WHERE thread_id = ?').bind(thread.id),
@@ -671,7 +726,8 @@ async function addBlock(req, env, ctx) {
   const statements = [db.prepare('INSERT INTO canvas_comment_blocks (id, org, canvas, user_id, user_email, blocked_by, blocked_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (org, canvas, user_id) DO NOTHING')
     .bind(crypto.randomUUID(), ctx.board.org, ctx.board.canvas, target.author_id, target.author_email, ctx.actor.uid, now)];
   if (input.remove_comments === true) statements.push(db.prepare(`UPDATE canvas_comments SET deleted_at = ?, deleted_by = ? WHERE author_id = ? AND deleted_at IS NULL
-    AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public')`).bind(now, ctx.actor.uid, target.author_id, ctx.board.org, ctx.board.canvas));
+    AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public')`).bind(now, ctx.actor.uid, target.author_id, ctx.board.org, ctx.board.canvas),
+    ...purgeSide(db, `comment_id IN (SELECT id FROM canvas_comments WHERE author_id = ? AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public'))`, target.author_id, ctx.board.org, ctx.board.canvas));
   await db.batch(statements);
   return listBlocks(env, ctx);
 }
@@ -770,6 +826,8 @@ async function commentsRoute(path, req, env) {
     return part[2] === 'read' ? markRead(env, ctx, part[1]) : resolve(env, ctx, part[1], part[2] === 'reopen');
   }
   if ((part = rest.match(/^\/comments\/([^/]+)$/))) return method === 'PATCH' ? editComment(req, env, ctx, part[1]) : method === 'DELETE' ? deleteComment(env, ctx, part[1]) : not();
+  if ((part = rest.match(/^\/comments\/([^/]+)\/reactions$/))) return method === 'PUT' ? react(req, env, ctx, part[1]) : not();
+  if ((part = rest.match(/^\/comments\/([^/]+)\/history$/))) return method === 'GET' ? editHistory(env, ctx, part[1]) : not();
   if (rest === '/people') return method === 'GET' ? suggest(env, ctx, url.searchParams) : not();
   if (family === 'member' && rest === '/anchors') return method === 'POST' ? moveAnchors(req, env, ctx) : not();
   if (family === 'member' && rest === '/comment-settings') return method === 'PUT' ? saveSettings(req, env, ctx) : not();

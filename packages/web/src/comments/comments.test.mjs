@@ -469,3 +469,18 @@ test('the open thread syncs itself (Comments v2 item 1): its own timer, focus an
   assert.match(panel, /data-new-replies onClick=\{showNew\}[^>]*>New replies<\/button>/);
 });
 
+
+test('reactions and edit history (Comments v2 item 3): one shared set, a toggle per chip, history only where the server allows it', async () => {
+  const { REACTIONS, REACTION_NAMES } = await import('./comment-reactions.js');
+  assert.equal(new Set(REACTIONS).size, REACTIONS.length);
+  assert.equal(REACTION_NAMES.length, REACTIONS.length, 'every reaction has an accessible name');
+  const view = read('./Reactions.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js');
+  assert.match(api, /react: \(id, emoji, on\) => send\(`\$\{base\}\/comments\/\$\{id\}\/reactions`, \{ emoji, on \}, 'PUT'\)/);
+  assert.match(api, /history: id => api\(`\$\{base\}\/comments\/\$\{id\}\/history`\)/);
+  assert.match(view, /aria-pressed=\{chip\.mine\}/, 'a chip is a toggle of the reader\'s own');
+  assert.match(view, /message\.can\.react/, 'the server decides who reacts');
+  assert.match(view, /if \(!message\.can\.history\) return <span className="shrink-0 text-ink-3">· edited<\/span>/, 'history only for the author and the owner');
+  assert.match(panel, /<Reactions message=\{message\} client=\{client\} act=\{act\} \/>/);
+  assert.doesNotMatch(view, /\.\.\.|…/, 'no ellipsis in labels');
+  assert.doesNotMatch(view, /user_id|\.email\b/);
+});

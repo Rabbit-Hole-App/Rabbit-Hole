@@ -27,6 +27,8 @@ export const commentsApi = base => ({
   edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: mentionsIn(body) }, 'PATCH'),
   people: (q, scope) => api(`${base}/people?q=${encodeURIComponent(q)}&${scope.thread ? `thread=${scope.thread}` : `audience=${scope.audience}`}`),
   remove: id => changed(api(`${base}/comments/${id}`, { method: 'DELETE' })),
+  react: (id, emoji, on) => send(`${base}/comments/${id}/reactions`, { emoji, on }, 'PUT'),
+  history: id => api(`${base}/comments/${id}/history`),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
   color: (id, color) => send(`${base}/threads/${id}/color`, { color }, 'PUT'),
   removeThread: id => changed(api(`${base}/threads/${id}`, { method: 'DELETE' })),
