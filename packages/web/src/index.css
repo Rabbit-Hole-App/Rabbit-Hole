@@ -1012,3 +1012,14 @@ html[data-reduce-motion] :not(:where([data-canvas-world] *))::after {
   scroll-behavior: auto !important;
 }
 html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation: none; background: none; color: var(--color-ink-2); }
+
+/* Focus (focus-adapter-notebook.js, docs/features/focus-study.md section 4): a focused card's own host fills the working frame
+   in place. !important wins over the inline width, height and transform React keeps writing; the custom properties are the
+   adapter's. The host stays in the column's flow at its old footprint (margin-bottom), so no other card moves. Its drag
+   strip, selection row, ports and resize corner are hidden: moving or resizing would save geometry. No transition. */
+[data-focus-host] {
+  width: var(--focus-w) !important; height: var(--focus-h) !important; max-height: none !important;
+  margin-left: 0 !important; margin-right: 0 !important; margin-bottom: var(--focus-mb) !important;
+  transform: var(--focus-transform) !important; transform-origin: 0 0; z-index: 40; transition: none;
+}
+[data-focus-host] > :is([data-drag-handle], [data-card-chrome-row], [data-node-tool]) { display: none; }

@@ -85,6 +85,14 @@ export const TYPE_ACTIONS = [
     applies: (t, ctx) => ['reader', 'external'].includes(reader(t, ctx)?.kind),
     run: (t, ctx) => { const open = reader(t, ctx); return open.kind === 'reader' ? ctx.canvas.cardAction(open.action, open.payload) : ctx.canvas.openUrl(open.url); },
   },
+  // Focus (docs/features/focus-study.md): the clicked card alone in the working pane, through the canvas's one enterFocus (the
+  // same as the card toolbar's Focus). Only where an adapter claims it, so it never does nothing; presentation only (no save,
+  // no undo entry, no model call), so a view-only viewer has it too. Distinct from Zoom to selection.
+  {
+    id: 'card.focus', label: 'Focus', icon: 'Maximize', group: 'primary', order: 45,
+    targets: ['card', 'object'], requires: 'navigate', data: 'data-menu-focus',
+    applies: (t, ctx) => !!ctx.canvas.focusable?.(t.object), run: (t, ctx) => ctx.canvas.focus(t.id),
+  },
   // Pinned Study (UI-27): the clicked PDF, note or Explanation becomes the pinned reference; the owner's canvas only (the page
   // supplies pinForStudy). No request, no model call, no board save.
   {
