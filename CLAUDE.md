@@ -315,20 +315,55 @@ standing rule authorizes safe cleanup; no further routine permission is needed.
 - A review finding identifies a concrete correctness problem, missed requirement or meaningful risk, with supporting
   code. Style preferences and speculative improvements do not become release requirements.
 - Stop optional investigation once the behavior is sufficiently verified and required checks pass.
-- **Task ledger.** The coordinator keeps a compact ledger in the existing task notes (not in this file). For each task:
-  the task and next deliverable; agent or lane identifier; branch and latest committed SHA; state (queued, running,
-  blocked, ready for integration, validating, ready for release, completed); last concrete progress with a timestamp;
-  the dependency or blocker and its owner; the next executable action.
+- **Task identity.** Every actionable task the owner gives gets a permanent UUID from a standard generator, and the
+  coordinator acknowledges its title and ID. The UUID is kept through implementation, reassignment, rebases,
+  integration, deployment and follow-up verification. A clarification or correction updates the existing task; it does
+  not create a duplicate. Independently deliverable requests get separate UUIDs; subtasks get their own UUID with a
+  `parent_id`. Agent IDs, branch names, commit SHAs and CI run IDs are separate fields and never replace the UUID.
+  General questions do not become tasks.
+- **Progress states.** Use exactly: **To Do** (accepted and recorded, execution not started); **Doing** (started and
+  still being implemented, reviewed, validated, integrated or released); **Done** (the agreed acceptance criteria and
+  delivery requirements are satisfied). Phase (implementation, review, CI, integration, deployment, verification),
+  blocker and execution activity are tracked separately, for example "Doing - blocked on migration approval". Doing
+  does not mean an agent is executing right now. A production feature is Done only after its agreed deployment and
+  verification; a research or documentation task is Done when its own deliverable is complete.
+- **The ledger.** One authoritative ledger, written only by the coordinator: `C:/s/spec/ledger/ledger.json`, kept
+  outside any worktree so cleanup cannot remove it. Read it first after a restart or context compaction, before creating
+  tasks or launching agents. `node C:/s/spec/ledger/ledger.mjs table [--all]` prints the standard status table;
+  `node C:/s/spec/ledger/ledger.mjs set <uuid-prefix> key=value ...` updates a record. Task records stay out of this
+  file and out of worktrees. Each record holds: UUID and title; parent UUID; scope and acceptance criteria; progress;
+  phase and execution activity; assigned agent or lane; branch and latest candidate SHA; created, updated and completed
+  timestamps; latest concrete progress; dependencies by UUID; blocker, blocker owner and required next action; ETA with
+  its milestone and basis; test, release and completion evidence. Agents report updates with their task UUID; the
+  coordinator gives each agent its UUID when assigning work.
+- **Keeping it true.** Update the ledger when a task is accepted, when an agent starts, pauses, resumes or hands back,
+  when scope or dependencies change, when a check fails or passes, when integration changes the candidate, when a
+  release completes and when acceptance is verified. Before reporting status, reconcile it with actual agent, process
+  and CI state. Reopen the same UUID when a Done task's original acceptance was not met and record why; a genuinely new
+  follow-up gets a linked new UUID. Preserve history; do not delete inconvenient failures.
 - Only call work "running" or "building" when an agent or process is actually executing it. An assigned but paused
-  agent, an existing branch or a planned task is not active execution.
-- At hand-backs, failures and status updates, reconcile the ledger with actual agent and process state. Investigate
-  stalled work before resuming or reassigning it; preserve its changes and prevent duplicate writers.
+  agent, an existing branch or a planned task is not active execution. Investigate stalled work before resuming or
+  reassigning it; preserve its changes and prevent duplicate writers.
 
 ## Reporting
 
 Report the result, verification evidence, remaining risks and the exact commit. A status update says what advanced,
 what is genuinely blocked, and what starts next.
 
+- **ETA format.** When the owner asks for an ETA, report the requested tasks (for an overall request, every open
+  top-level task and recently completed ones, with subtasks expanded where they explain a blocker or critical
+  dependency) as a table, generated from the ledger:
+
+  | Task | Task ID | Progress | Current phase / latest progress | ETA (PT) | Blocker / next action |
+  |---|---|---|---|---|---|
+
+  Start with an "As of" timestamp in Pacific time, converted with `America/Los_Angeles` so daylight saving is handled.
+  Show real UUIDs, never invented ones. Give clock times or ranges (for example 6:30-6:45 PM PT), with the date when
+  needed, and name the milestone: **ready for release** or **live**. A Done task shows its actual completion time. If an
+  ETA is not supportable, write **Not yet estimable**, name the dependency and the milestone that will make it
+  estimable. Approval-dependent timing is stated as such (for example "live about 2 minutes after the release command;
+  ready time not yet known"). Never move an ETA silently: say why it changed. Report concrete completed and remaining
+  milestones, not invented percentages.
 - ETAs stay evidence-based: derived from the remaining steps and their measured durations. Report implementation
   readiness, validation readiness and production release separately; account for concurrent work rather than adding
   lane durations as if development were serial; name the actual release queue and critical dependencies. When a
