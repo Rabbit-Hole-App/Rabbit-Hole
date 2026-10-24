@@ -10,6 +10,8 @@ import { useCardMenu } from './home/CardMenu.jsx';
 import { useLibraryFolders } from './LibraryFolders.jsx';
 import CardSize from './home/CardSize.jsx';
 import { EXPLORE_SORTS, EXPLORE_TABS, exploreTab } from './home/card-sort.js';
+import WeeklyTop, { useWeeklyTop } from './home/WeeklyTop.jsx';
+import { weeklyVisible } from './home/weekly-top.js';
 import { cardModel } from './home/provenance.js';
 import { fixturesOn, useFixtures } from './home/review-fixtures.js';
 import { EXPLORE_TYPES, exploreType, isMine } from './library-filter.js';
@@ -170,6 +172,7 @@ function Explore() {
   // A sentence-length search also gets AI picks, Recommended above the tab's keyword results (explore-publish.md "AI find");
   // not while a project filter narrows the list.
   const found = useExploreFind(term, !!me);
+  const weekly = useWeeklyTop(); // Weekly Top 5: one request, both tabs, no AI call (home/WeeklyTop.jsx)
   useEffect(() => { let live = true; loadProfile().then((p) => { if (live) setMe(p?.handle || null); }); return () => { live = false; }; }, []);
   useEffect(() => {
     if (tab !== 'explainers') return;
@@ -208,6 +211,8 @@ function Explore() {
             {tab === 'explainers' && <CardSize />}
           </div>
         </div>
+        {/* Weekly Top 5 sits between the controls and the regular discovery; a typed search hides it at once and clearing restores it. */}
+        {weeklyVisible(typed) && <WeeklyTop weekly={weekly} tab={tab} />}
         {tab === 'creators' ? (
           <section data-explore-creators aria-label="Creators" className="max-w-[760px]">
             <Recommended found={found} me={me} kind="creators" />
