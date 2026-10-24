@@ -86,6 +86,17 @@ explainer videos) is not available here." and runs nothing. Generate also needs 
 before any provider call: the card says "Motion is not available in this environment yet. Nothing was started." and stays
 retryable, and nothing is recorded or stored.
 
+**Routing in Auto mode (owner, 2026-10-24, ledger 69b00255).** An explicit `/motion` command (typed, picked, Ctrl+K, a
+retry) requests the Motion review and confirmation flow in every Chat mode, Auto included: the command's words go to
+`/api/learn/ask` with `command: 'motion'` and the chat route proposes it on the shared card (`chat-route.js` `tutorTurn`
+`explicit`, set in `ask.jsx` from `reviewRequired(commandName)`); the Tutor's plan route never answers it. Ordinary prose that
+merely mentions motion has no command and stays under normal Tutor routing; the Tutor may still offer Motion through its own
+paths (create_material, suggestions), each of which ends on the same proposal card. A bare `/motion` asks "What should the video
+explain?" inside the command (the line is kept) instead of starting anything. Recognising the command is not permission to
+generate: Generate on the card still needs the existing confirmation, readiness and credit checks. Before 2026-10-24 a typed
+`/motion` in Auto went to the Tutor and showed no card (from the 2026-10-14 mode-aware routing); regression tests:
+`packages/web/src/motion-auto-route.test.mjs`; browser check: `motion-command-check.mjs`.
+
 **/animate** is removed from every user surface (`REMOVED_COMMANDS`: picker, window, examples, typed lines) and from new
 chat-answer suggestions (`chat-answer-meta.js` no longer offers `animate`). It stays a Tutor material tool
 (`MATERIAL_TOOLS`), so create_material, journey steps and Ctrl+K automatic routing still make animations, and saved

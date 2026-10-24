@@ -282,7 +282,7 @@ test('/motion: development and review builds only; the line becomes a chat turn,
   const out = await run('/motion 15s explain me softmax func');
   assert.deepEqual(out, { prompt: '15s explain me softmax func' }, 'the chat asks; the proposal comes back as its card');
   assert.deepEqual(did, [], 'no request, no card, no held place and no Rabbit Hole');
-  assert.equal((await run('/motion')).notice.text, 'Add what you want after /motion.');
+  assert.deepEqual([(await run('/motion')).notice.tone, (await run('/motion')).keep], ['question', '/motion '], 'missing words are asked for inside the Motion flow (owner, 2026-10-24)');
 });
 
 // ---------- Professor Next Steps (contract §2.5): the commands a hook turn may run, and running them ----------
