@@ -47,7 +47,7 @@ A leaf module with no imports: the browser (`packages/web/src`), the Workers, Du
 |---|---|---|---|
 | Actions, attempts, reservations, charges, refunds, grants | LEARN_DB (`rabbit-hole-learn-prod` / `-dev`) | `LEARN_DB` | Financial truth, Credits-owned. Never written by telemetry. |
 | Operational events, delivery health, owner access log | Telemetry D1 | `TELEMETRY_DB` | `telemetry-migrations/0001-telemetry.sql` |
-| Accounting projections (`accounting_actions`, `accounting_attempts`) | Telemetry D1 | `TELEMETRY_DB` | Rebuildable copies by id; not a ledger. |
+| Accounting projections (`accounting_actions`, `accounting_attempts` with Credits' price detail and refunds, `accounting_grants`) | Telemetry D1 | `TELEMETRY_DB` | Rebuildable copies by id of Credits' interface (`docs/features/credits-2500.md`); not a ledger. |
 | Hourly/daily aggregates | Telemetry D1 | `TELEMETRY_DB` | Increment 5. |
 | Redacted diagnostic archives, imported billing evidence | Private R2 | `TELEMETRY_ARCHIVE` | No public access, no custom domain; owner-guarded retrieval only. |
 | Job outboxes | Each Durable Object's own SQLite | (DO storage) | `telemetry_outbox`, created on first use. |
@@ -152,6 +152,9 @@ Run from `packages/web`. Creating resources and production migrations need expli
    (production: `rabbit-hole-telemetry --remote --config wrangler.rabbit-hole-prod.jsonc`, after its own GO). Effect: the
    tables in `0001-telemetry.sql`; no other database is touched. Verify:
    `npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc --command "SELECT name FROM sqlite_master WHERE type='table'"`.
+   If Credits' LEARN_DB migration 0027 is applied after the projection has run, rebuild once so earlier attempts pick up their
+   price detail: `POST /api/owner/telemetry/project` reads from the stored cursor, so reset it first with
+   `--command "DELETE FROM projection_cursors"` on the telemetry database (projections only; LEARN_DB is untouched).
 4. Owner identity on the serving worker: dev `wrangler.dev.jsonc` sets `SUBSCRIPTION_OWNER_EMAIL`; production sets none in
    config. Verify with `npx wrangler secret list --config wrangler.rabbit-hole-prod.jsonc` (names only); if absent,
    `npx wrangler secret put SUBSCRIPTION_OWNER_EMAIL --config wrangler.rabbit-hole-prod.jsonc` with the owner's sign-in

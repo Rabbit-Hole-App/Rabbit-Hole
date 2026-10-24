@@ -86,7 +86,7 @@ test('the owner: overview keeps cost states apart, projection is POST only, each
   const { env, telemetry } = setup(t);
   assert.equal((await call(env, '/api/owner/telemetry/project', { session: 'owner-session' })).status, 405);
   const projected = await (await call(env, '/api/owner/telemetry/project', { session: 'owner-session', method: 'POST' })).json();
-  assert.deepEqual(projected.copied, { usage_actions: 1, usage_attempts: 1 });
+  assert.deepEqual(projected.copied, { usage_actions: 1, usage_attempts: 1, usage_grants: null }, 'main has no usage_grants yet');
   const overview = await (await call(env, '/api/owner/telemetry/overview?days=7', { session: 'owner-session' })).json();
   assert.deepEqual(overview.attempts, [{ cost_state: 'settled', charge_class: 'would_charge', attempts: 1, cost_micros: 1234, reserved_micros: 50000 }]);
   assert.equal(overview.days, 7);

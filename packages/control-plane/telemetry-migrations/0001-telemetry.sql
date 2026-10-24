@@ -61,12 +61,23 @@ CREATE TABLE IF NOT EXISTS accounting_attempts (
   status TEXT,
   input_tokens INTEGER, output_tokens INTEGER,
   started_at INTEGER, settled_at INTEGER, -- seconds
-  -- Fields requested from Credits (C:/s/spec/telemetry/credits-interface-request.md); NULL until its interface lands.
-  price_version TEXT, tier TEXT, quantities TEXT, refunded_micros INTEGER,
+  -- From Credits' usage_attempt_detail (learn-migrations 0027, docs/features/credits-2500.md); NULL where that table is absent
+  -- or has no row. quantities and unverified are its JSON as recorded; refunded_micros is part of cost_micros given back.
+  price_version TEXT, tier TEXT, quantities TEXT, unverified TEXT, refunded_micros INTEGER, refunded_at INTEGER,
   projected_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS accounting_attempts_action ON accounting_attempts (action_id);
 CREATE INDEX IF NOT EXISTS accounting_attempts_state ON accounting_attempts (cost_state, started_at);
+-- Credits' usage_grants (0027): each account's allowance for one UTC month, as granted. Read for reporting; never decided here.
+CREATE TABLE IF NOT EXISTS accounting_grants (
+  user_ref TEXT NOT NULL,
+  period TEXT NOT NULL,
+  allowance_micros INTEGER NOT NULL,
+  source TEXT,
+  granted_at INTEGER NOT NULL,    -- seconds
+  projected_at INTEGER NOT NULL,
+  PRIMARY KEY (user_ref, period)
+);
 -- Where each projection last read up to (LEARN_DB seconds), so a catch-up reads only what changed since.
 CREATE TABLE IF NOT EXISTS projection_cursors (
   source TEXT PRIMARY KEY,

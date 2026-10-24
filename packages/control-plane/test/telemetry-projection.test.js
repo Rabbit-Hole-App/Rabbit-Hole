@@ -22,7 +22,7 @@ test('a settlement after the first pass is picked up, each attempt is one row, a
   learn.action('act-1', 100);
   learn.attempt('att-1', 'act-1', 100);
   learn.attempt('att-2', 'act-1', 101, { state: 'unknown', status: 'failed', settled: 101 });
-  assert.deepEqual(await projectAccounting(learn.db, telemetry.db, { now: 1 }), { copied: { usage_actions: 1, usage_attempts: 2 }, done: true });
+  assert.deepEqual(await projectAccounting(learn.db, telemetry.db, { now: 1 }), { copied: { usage_actions: 1, usage_attempts: 2, usage_grants: null }, done: true });
   learn.sqlite.prepare("UPDATE usage_attempts SET cost_micros = 1234, cost_state = 'settled', status = 'settled', settled_at = 200 WHERE attempt_id = 'att-1'").run();
   await projectAccounting(learn.db, telemetry.db, { now: 2 });
   assert.deepEqual(projected(telemetry.sqlite), [
@@ -54,7 +54,7 @@ test('a telemetry outage leaves the cursor where it was, so the next pass copies
   await assert.rejects(projectAccounting(learn.db, flaky, { now: 1 }));
   assert.equal(telemetry.sqlite.prepare('SELECT COUNT(*) AS n FROM projection_cursors').get().n, 0);
   down = false;
-  assert.deepEqual((await projectAccounting(learn.db, flaky, { now: 2 })).copied, { usage_actions: 1, usage_attempts: 1 });
+  assert.deepEqual((await projectAccounting(learn.db, flaky, { now: 2 })).copied, { usage_actions: 1, usage_attempts: 1, usage_grants: null });
 });
 
 test('a bounded pass says when more remain', async t => {
@@ -64,4 +64,27 @@ test('a bounded pass says when more remain', async t => {
   let passes = 1;
   while (!(await projectAccounting(learn.db, telemetry.db, { limit: 2 })).done) assert.ok(++passes < 5, 'the cursor advances');
   assert.equal(telemetry.sqlite.prepare('SELECT COUNT(*) AS n FROM accounting_actions').get().n, 3);
+});
+
+// Credits' committed 0027 (rabbit-hole/release/credits 962e571b, learn-migrations/0027-usage-grants.sql), the tables only: the
+// interface docs/features/credits-2500.md names for observers. Fixture until Credits lands on main.
+const CREDITS_0027 = `CREATE TABLE usage_grants (user_id TEXT NOT NULL, period TEXT NOT NULL, allowance_micros INTEGER NOT NULL CHECK (allowance_micros > 0),
+  source TEXT NOT NULL CHECK (source IN ('default', 'legacy_transition')), granted_at INTEGER NOT NULL, PRIMARY KEY (user_id, period));
+CREATE TABLE usage_attempt_detail (attempt_id TEXT PRIMARY KEY, price_version TEXT, tier TEXT, quantities TEXT, unverified TEXT,
+  refunded_micros INTEGER NOT NULL DEFAULT 0 CHECK (refunded_micros >= 0), refunded_at INTEGER, refund_reason TEXT);`;
+
+test('with Credits 0027: price detail and grants are projected, and a later refund is picked up by the cursor', async t => {
+  const learn = learnDb(t), telemetry = telemetryDb(t);
+  learn.sqlite.exec(CREDITS_0027);
+  learn.action('act-1', 100);
+  learn.attempt('att-1', 'act-1', 100, { cost: 2500, state: 'settled', status: 'settled', settled: 101 });
+  learn.sqlite.prepare("INSERT INTO usage_attempt_detail (attempt_id, price_version, tier, quantities) VALUES ('att-1', '2026-10-23.1', 'standard', '{\"input\":120,\"output\":40,\"cache_read\":2048}')").run();
+  learn.sqlite.prepare("INSERT INTO usage_grants (user_id, period, allowance_micros, source, granted_at) VALUES ('user-1', '2026-10', 25000000, 'default', 99)").run();
+  assert.deepEqual((await projectAccounting(learn.db, telemetry.db, { now: 1 })).copied, { usage_actions: 1, usage_attempts: 1, usage_grants: 1 });
+  learn.sqlite.prepare("UPDATE usage_attempt_detail SET refunded_micros = 2500, refunded_at = 500, refund_reason = 'platform_failure' WHERE attempt_id = 'att-1'").run();
+  await projectAccounting(learn.db, telemetry.db, { now: 2 });
+  const row = { ...telemetry.sqlite.prepare('SELECT cost_micros, cost_state, price_version, tier, quantities, refunded_micros, refunded_at FROM accounting_attempts').get() };
+  assert.deepEqual(row, { cost_micros: 2500, cost_state: 'settled', price_version: '2026-10-23.1', tier: 'standard', quantities: '{"input":120,"output":40,"cache_read":2048}', refunded_micros: 2500, refunded_at: 500 },
+    'the original cost stays beside what was refunded; neither is netted here');
+  assert.deepEqual({ ...telemetry.sqlite.prepare('SELECT user_ref, period, allowance_micros, source FROM accounting_grants').get() }, { user_ref: 'user-1', period: '2026-10', allowance_micros: 25000000, source: 'default' });
 });
