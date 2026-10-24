@@ -6,6 +6,7 @@ import { canvasApp } from './canvases.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
+import { purgeStars } from './canvas-stars.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const CANVAS = /^canvas-[a-f0-9]{8}$/;
@@ -136,6 +137,7 @@ export async function divesFetch(req, env, user) {
       dropFileRefs(db, user.org, user.email, name),
       db.prepare('DELETE FROM learn_boards WHERE org=? AND owner_email=? AND app=?').bind(user.org, user.email, name),
       ...purgeTutorRows(db, user.org, name), // ruling Q2, as a canvas delete's (canvases.js)
+      ...purgeStars(db, user.org, name, user.email), // stars on the hole, as a canvas delete's
     ]));
     return json({ ok: true, deleted: names });
   }
