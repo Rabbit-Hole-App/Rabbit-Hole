@@ -166,7 +166,7 @@ await check('9 Edit description: up to 340 characters (owner, 2026-10-23), saved
   await button('Edit description').click();
   const dialog = page.getByRole('dialog', { name: 'Edit description' });
   await dialog.getByLabel('Description').fill('How light bends at a boundary, hands on.');
-  assert.match(await dialog.innerText(), /40\/500/);
+  assert.match(await dialog.innerText(), /40\/340/);
   await shot('04-edit-description');
   await dialog.getByRole('button', { name: 'Save' }).click();
   await page.waitForTimeout(1000);
