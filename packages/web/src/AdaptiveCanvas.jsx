@@ -64,7 +64,7 @@ import { waitingText } from './waiting-text.js';
 import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
 import CommentPins, { PIN_DEFAULT } from './comments/CommentPins.jsx';
-import { anchorAt, objectLabel } from './comments/anchors.js';
+import { anchorAt, objectLabel, selectedIn, targetFor } from './comments/anchors.js';
 import { MathText } from './MathText.jsx';
 import { EQUATION_LEVELS, EQUATION_SIZE, equationLevel, levelSize, newEquation, scaledSize, typingIn } from './canvas-equation.js';
 import { drawThumbnail, thumbnailRegion } from './card-thumbnail.js';
@@ -4063,7 +4063,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const entry = id && !group ? [...exchanges, ...blocks, ...items, ...shapes].find(candidate => candidate.id === id) : null;
     const kind = group ? 'group' : !entry ? null : exchanges.includes(entry) ? 'exchange' : blocks.includes(entry) ? 'block' : items.includes(entry) ? 'item' : 'shape';
     const label = group ? group.label || `${groupMembers[id].length} items` : objectLabel(entry);
-    onAddComment?.(anchorAt(world, (group || entry) && { id, kind, label }, commentBoard));
+    // A selection inside the card, or the page a PDF card shows, says what in it the comment is about (comments/anchors.js targetFor).
+    const target = kind === 'block' ? targetFor(entry, selectedIn(document.querySelector(`[data-block-id="${CSS.escape(id)}"]`))) : null;
+    onAddComment?.(anchorAt(world, (group || entry) && { id, kind, label }, commentBoard, target));
   };
   // C (Q14): the selection gets the comment - a card, a shape or text, a whole group, or the first of several selected
   // objects. Nothing selected: false, and C does nothing (owner, 2026-10-08).

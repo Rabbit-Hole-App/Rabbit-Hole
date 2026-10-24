@@ -2,7 +2,8 @@
 // child canvas to the board and card it was entered from. The client keeps an empty hole in the
 // browser and calls POST only when the first canvas object lands, so an abandoned dive never
 // reaches D1. Rename is the canvas PATCH (canvases.js); the tree is owner-private like canvases.
-import { canvasApp } from './canvases.js';
+import { canvasApp, purgeCommentRows } from './canvases.js';
+import { purgeCanvasAttachments } from './comment-attachments.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
@@ -129,6 +130,7 @@ export async function divesFetch(req, env, user) {
     // ponytail: the holes' Learn chat threads stay in LEARN_DB, unreachable; delete them when canvas threads get a retention rule.
     // Its boards go too (as a canvas delete's does, canvases.js): a board row kept would keep its share link alive with no
     // owner route left to revoke it.
+    for (const name of names) await purgeCanvasAttachments(env, user.org, name); // comment files leave the bucket before their holes go
     await db.batch(names.flatMap(name => [
       db.prepare('DELETE FROM canvas_dives WHERE org=? AND owner_email=? AND child=?').bind(user.org, user.email, name),
       db.prepare('DELETE FROM canvases WHERE org=? AND owner_email=? AND name=?').bind(user.org, user.email, name),
@@ -136,6 +138,8 @@ export async function divesFetch(req, env, user) {
       dropFileRefs(db, user.org, user.email, name),
       db.prepare('DELETE FROM learn_boards WHERE org=? AND owner_email=? AND app=?').bind(user.org, user.email, name),
       ...purgeTutorRows(db, user.org, name), // ruling Q2, as a canvas delete's (canvases.js)
+      ...purgeCommentRows(db, user.org, name), // a hole has its own comments now (D2); deleted with it, as a canvas delete's
+      // ponytail: the hole's canvas_members rows stay unreachable (every read joins canvases); delete them with the invitation tables' retention.
     ]));
     return json({ ok: true, deleted: names });
   }
