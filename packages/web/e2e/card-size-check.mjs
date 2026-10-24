@@ -20,6 +20,7 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { weeklyTopFixture } from '../src/home/weekly-top-fixture.js';
 
 const BASE = process.env.BASE || process.env.PRACTICE_BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -657,6 +658,32 @@ await check('Explore at 1440, all four sizes: public canvases (a long name and h
   await onExplore(page, '?type=projects');
   await page.locator('[data-explore-project]').nth(1).waitFor({ timeout: 30000 });
   await sweep(page, '[data-explore-project]', 'Explore projects');
+  await page.context().close();
+});
+
+// Weekly Top 5 brief section 3 (owner, 2026-10-23): Size is the fourth control of Explore's one-row Canvases toolbar, right after Sort,
+// 12px apart; moving it changes the cards (this file's job), never the weekly list, and the setting is kept across a reload.
+await check('Explore Canvases toolbar at 1440: Search, Filters, Sort, Size adjacent on one row; Size keeps its step across a reload and leaves the weekly list alone', async () => {
+  const page = await seeded();
+  const weeklyHits = [];
+  await page.route('**/api/learn/boards/published/weekly-top', (route) => { weeklyHits.push(1); return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(weeklyTopFixture) }); });
+  await onExplore(page);
+  await page.locator('[data-explore-card]').nth(3).waitFor({ timeout: 30000 });
+  const [search, filters, sort, size] = await Promise.all([boxOf(page.locator('[data-explore-search]')), boxOf(page.getByRole('button', { name: /^Filters/ })), boxOf(page.locator('[data-sort-control]')), boxOf(page.locator('[data-card-size-control]'))]);
+  const parts = [search, filters, sort, size];
+  assert.ok(parts.every((b, k) => k === 0 || (b.x - parts[k - 1].right >= 9.5 && b.x - parts[k - 1].right <= 12.5)), `adjacent, 10-12px apart: ${JSON.stringify(parts.map((b) => [b.x, b.right]))}`);
+  assert.ok(parts.every((b) => Math.abs(b.cy - search.cy) <= 1.5), 'one row, centres aligned');
+  await page.locator('[data-weekly-list]').waitFor({ timeout: 30000 });
+  const ranking = () => page.locator('[data-weekly-list] [data-weekly-title]').allInnerTexts();
+  const before = await ranking();
+  await slider(page).fill('1');
+  await page.locator('[data-sort-control]').click();
+  await page.locator('[data-sort-option="forks"]').click();
+  assert.deepEqual(await ranking(), before, 'Sort and Size never reorder the weekly list');
+  assert.equal(weeklyHits.length, 1, 'one weekly request, not one per control');
+  await page.reload();
+  await slider(page).waitFor({ timeout: 60000 });
+  assert.equal(await value(page), 1, 'the Size step survives the reload');
   await page.context().close();
 });
 
