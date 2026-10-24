@@ -68,7 +68,7 @@ test('the small card: a size container, a 22rem header breakpoint and a 40rem st
 
 // Owner brief 2026-10-23 (card size and description): the chevron is gone and nothing is clamped or measured for it; at Small and Medium
 // small the card is as tall as its content and shows the whole description; Medium large and Large keep their look.
-test('no Show full title chevron; Small and Medium small are content-height with the whole description, the larger sizes keep their minimum and clamp', () => {
+test('no Show full title chevron and no clamp at any size; Small and Medium small are content-height, the larger sizes keep their minimum', () => {
   const card = read('LearningCard.jsx');
   const css = read('../index.css');
   const code = card.replace(/^\s*\/\/.*$/gm, ''); // comments may name the old button
@@ -79,12 +79,16 @@ test('no Show full title chevron; Small and Medium small are content-height with
   assert.match(card, /<div data-card-text className=\{`flex min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_TEXT_MIN\}`\}>/);
   assert.match(card, /<div data-card-body className="flex min-w-0 flex-col gap-1 pt-2">/, 'the description wrapper neither shrinks nor hides overflow');
   assert.match(card, /const CARD_TEXT_MIN = 'md:min-h-\[190px\] max-md:min-h-\[196px\] max-md:flex-none';/);
-  assert.match(card, /<p data-card-description className=\{`\$\{actions \|\| note \? 'line-clamp-2' : 'line-clamp-3'\} text-\[13px\] leading-5 text-ink-2 \[overflow-wrap:anywhere\]`\}>/, 'a long word or address wraps');
-  assert.doesNotMatch(code, /break-words/);
-  // Sizes 0 and 1 only: content height (no minimum), cards not stretched to the row's tallest, the description whole.
+  // Owner decision (task 2f608983): the complete description at all four sizes, so no line clamp anywhere in the card.
+  assert.match(card, /<p data-card-description className="text-\[13px\] leading-5 text-ink-2 \[overflow-wrap:anywhere\]">/, 'a long word or address wraps');
+  assert.doesNotMatch(code, /break-words|line-clamp/);
+  // The repository link is truncated to the column, not to its own text: with no overflow-hidden on the wrapper a 66-character label made the
+  // Explore project card 566px wide in a 469px card (fast-e2e run 40049284699, card-size).
+  assert.match(code, /<a data-source-link [\s\S]*?className="inline-flex max-w-full min-w-0 items-center gap-1 self-start/);
+  assert.doesNotMatch(css, /data-card-description/, 'no size overrides a clamp: there is none');
+  // Sizes 0 and 1 only: content height (no minimum), cards not stretched to the row's tallest.
   assert.match(css, /html:is\(\[data-card-size="0"\], \[data-card-size="1"\]\) \.card-grid \{ align-items: start; \}/);
   assert.match(css, /html:is\(\[data-card-size="0"\], \[data-card-size="1"\]\) \.card-grid > li > \[data-card-text\] \{ min-height: 0; flex: none; \}/);
-  assert.match(css, /html:is\(\[data-card-size="0"\], \[data-card-size="1"\]\) \.card-grid \[data-card-description\] \{ display: block; overflow: visible; -webkit-line-clamp: unset; \}/);
   assert.match(css, /html\[data-card-size="2"\] \.card-grid > li > \[data-card-text\] \{ min-height: 196px; flex: none; \}/);
   assert.doesNotMatch(css, /\[data-card-text\] \{ height: \d+px/, 'no fixed text height anywhere');
 });

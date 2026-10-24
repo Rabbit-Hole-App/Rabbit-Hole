@@ -99,11 +99,15 @@ async function oneSize(cards, { min = 900, max = 1000 } = {}) {
   // and a 1px assertion would see the move, not the layout.
   const parts = await cards.evaluateAll(ns => ns.map(n => {
     const box = el => { if (!el) return null; const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; };
-    return { card: box(n), pic: box(n.querySelector('[data-card-thumbnail]')), foot: box(n.querySelector('[data-card-footer]')) };
+    return { card: box(n), pic: box(n.querySelector('[data-card-thumbnail]')), foot: box(n.querySelector('[data-card-footer]')), text: box(n.querySelector('[data-card-text]')) };
   }));
   const all = parts.map(p => p.card);
-  for (const b of all) { assert.ok(b.w >= min && b.w <= max, `width ${b.w}`); assert.ok(b.h >= CARD_H[0] && b.h <= CARD_H[1], `height ${b.h}`); }
-  assert.equal(new Set(all.map(b => b.h)).size, 1, `one height for every card: ${all.map(b => b.h)}`);
+  // Owner decision (task 2f608983): the whole description shows, so a card whose text is taller than the 190px body is taller than the rest:
+  // it keeps the picture at the top, and is exempt only from the fixed height and the footer-on-the-picture's-edge claims.
+  const grown = parts.map(p => p.text.h > 191);
+  for (const b of all) assert.ok(b.w >= min && b.w <= max, `width ${b.w}`);
+  all.forEach((b, i) => { if (grown[i]) assert.ok(b.h > CARD_H[0], `height ${b.h}`); else assert.ok(b.h >= CARD_H[0] && b.h <= CARD_H[1], `height ${b.h}`); });
+  assert.equal(new Set(all.filter((b, i) => !grown[i]).map(b => b.h)).size, 1, `one height for every card whose text fits: ${all.map(b => b.h)}`);
   assert.equal(new Set(all.map(b => b.x)).size, 1, `one card per row: x at ${[...new Set(all.map(b => b.x))]}`);
   for (let i = 1; i < all.length; i += 1) assert.ok(all[i].y >= all[i - 1].y + all[i - 1].h, `card ${i} starts its own row`);
   const pics = parts.map(p => p.pic).filter(Boolean), feet = parts.map(p => p.foot);
@@ -112,6 +116,8 @@ async function oneSize(cards, { min = 900, max = 1000 } = {}) {
     const c = all[i], above = t.y - c.y, below = c.y + c.h - (t.y + t.h);
     assert.ok(Math.abs(t.x + t.w - (c.x + c.w - 17)) <= 2, `card ${i}: the picture at the right (${JSON.stringify(t)} in ${JSON.stringify(c)})`);
     assert.ok(t.w / c.w > 0.35 && t.w / c.w < 0.42 && Math.abs(t.w / t.h - 2) < 0.05, `card ${i}: about 40% wide and 2:1 (${t.w} x ${t.h} of ${c.w})`);
+    assert.ok(Math.abs(above - 17) <= 1, `card ${i}: the picture starts one padding below the card's top (${above})`);
+    if (grown[i]) return;
     assert.ok(Math.abs(above - below) <= 1, `card ${i}: the picture's inset above (${above}) equals its inset below (${below})`);
     assert.ok(Math.abs(feet[i].y + feet[i].h - (t.y + t.h)) <= 1, `card ${i}: the footer ends on the picture's bottom edge (${feet[i].y + feet[i].h} vs ${t.y + t.h})`);
   });
@@ -216,13 +222,14 @@ await check('6 the read-only fork count shows only once forked (none at 0), besi
   assert.ok(c.y + c.h - (f.y + f.h) <= 24, `the footer ends the card: card ${JSON.stringify(c)} footer ${JSON.stringify(f)}`);
   assert.ok(Math.abs(n.y + n.h / 2 - (u.y + u.h / 2)) <= 2 && u.x > n.x && u.x - (n.x + n.w) <= 16, `count ${JSON.stringify(n)} beside Updated ${JSON.stringify(u)}`);
 });
-// Since r30's fixed card height (card-thumbnails.md): three lines, two on a card that also carries a note or actions.
-await check('7 the description clamps to three lines, two beside a note or actions', async () => {
+// Owner decision (task 2f608983, replacing r30's three-line clamp): the complete description shows at every size; the 310-character one is
+// not clamped or clipped, and it makes its card taller than the 224px of a card whose text fits.
+await check('7 the description is shown whole: not clamped, not clipped, and a long one makes its card taller', async () => {
   const card = titled(lib, '[data-library-card="canvas"]', T.tides);
-  const lines = (await card.locator('[data-card-note]').count()) ? 2 : 3;
-  const m = await card.locator('[data-card-description]').evaluate(n => ({ clamp: getComputedStyle(n).webkitLineClamp, line: parseFloat(getComputedStyle(n).lineHeight), h: n.clientHeight, full: n.scrollHeight }));
-  assert.equal(m.clamp, String(lines));
-  assert.ok(m.h <= lines * m.line + 1 && m.full > m.h, JSON.stringify(m));
+  const m = await card.locator('[data-card-description]').evaluate(n => ({ clamp: getComputedStyle(n).webkitLineClamp, text: n.textContent, line: parseFloat(getComputedStyle(n).lineHeight), h: n.clientHeight, full: n.scrollHeight, card: n.closest('li').getBoundingClientRect().height }));
+  assert.equal(m.clamp, 'none');
+  assert.equal(m.text, LONG);
+  assert.ok(m.full <= m.h + 1 && m.h >= 3 * m.line, JSON.stringify(m));
 });
 await check('8 the truthful browser states stay on older board-less canvases: Content in this browser, and On another device with the stored-only line', async () => {
   assert.equal((await titled(lib, '[data-library-card="canvas"]', T.tides).locator('[data-card-note]').innerText()).trim(), 'Content in this browser');

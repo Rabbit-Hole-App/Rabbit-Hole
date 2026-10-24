@@ -42,7 +42,7 @@ Every canvas row the owner reads carries `description` and `updated_at`: `GET /a
   - Duplicate carries it (the owner's own words).
   - A fork starts without one.
   - Explore's listing returns it, with `updated_at`, for the public card.
-- The Edit description menu row arrives with the owned-card ⋮ (visibility menu step). Small and Medium small cards show it whole; larger cards clamp it to 2-3 lines (card redesign).
+- The Edit description menu row arrives with the owned-card ⋮ (visibility menu step). Cards show it whole at every size (card redesign).
 
 ## Ordering
 

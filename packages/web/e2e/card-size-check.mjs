@@ -12,9 +12,10 @@
 // Small-card layout (owner brief 2026-10-23): the last seven steps read the card's own boxes at all four sizes - no overlap, every control hit at its
 // centre, nothing cut short, hovered and focused cards unmoved - on Library, Explore and Home, a phone, a tablet and dark.
 // Card size and description (owner brief 2026-10-23, replacing the Show full title button): no disclosure button anywhere; at Small and Medium small
-// a card is as tall as its content and shows its whole description (up to 340 characters, or an older longer one), with no clipped text, no
-// overlap, no sideways overflow and no blank band above the footer or below it; sizes 2 and 3 keep their look. Clipping is read from the
-// boxes (scrollHeight against clientHeight), never inferred from textContent.
+// a card is as tall as its content, with no blank band above the footer or below it. Every size (0 to 3) shows the whole description (up to 340
+// characters, or an older longer one; owner decision, task 2f608983-76d4-4bab-9609-3e837a05f5c8, replacing the three-line clamp at Medium large and
+// Large) with no clipped text, no overlap and no sideways overflow; a longer description makes the card taller and the picture keeps its place.
+// Clipping is read from the boxes (scrollHeight against clientHeight), never inferred from textContent.
 //   BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 node e2e/card-size-check.mjs [shotsDir]
 import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
@@ -496,9 +497,9 @@ const measure = (page, selector, index = -1) => page.evaluate(({ selector, index
       if (parseFloat(getComputedStyle(el).fontSize) < 12) problems.push(`${name}: ${k} is ${getComputedStyle(el).fontSize}`);
     }
     // There is no disclosure button (owner brief 2026-10-23): the title, the creator and the project are cut nowhere, at any size; the
-    // description is whole at Small and Medium small (Medium large and Large keep their three-line clamp). The card never scrolls sideways.
+    // description is whole at every size (owner decision, task 2f608983). The card never scrolls sideways.
     const size = document.documentElement.dataset.cardSize;
-    const wholeText = [['the title', q('[data-card-title]')], ['the creator', q('[data-creator] > span')], ['the project', q('[data-card-project] > span')], ...(size === '0' || size === '1' ? [['the description', q('[data-card-description]')]] : [])];
+    const wholeText = [['the title', q('[data-card-title]')], ['the creator', q('[data-creator] > span')], ['the project', q('[data-card-project] > span')], ['the description', q('[data-card-description]')]];
     for (const [what, el] of wholeText) {
       if (el && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1)) problems.push(`${name}: ${what} is cut short (${el.scrollWidth}x${el.scrollHeight} in ${el.clientWidth}x${el.clientHeight})`);
     }
@@ -652,12 +653,12 @@ const whole = async (locator, text, where) => {
   assert.deepEqual(await locator.evaluate((n) => ({ clip: n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1, clamp: getComputedStyle(n).webkitLineClamp, overflow: getComputedStyle(n).overflowY })), { clip: false, clamp: 'none', overflow: 'visible' }, `${where}: the description is not clamped or clipped`);
 };
 
-await check('Small and Medium small show the whole description: 340 characters, an unbroken address and one saved over the limit, on Library, Explore and Home; light, dark and a phone; no chevron, no clipping, no blank band; it survives a size change and a reload', async () => {
+await check('All four sizes show the whole description: 340 characters, an unbroken address and one saved over the limit, on Library, Explore and Home; light, dark and a phone; no chevron, no clipping; no blank band at Small and Medium small; it survives a size change and a reload', async () => {
   for (const [label, viewport, mobile, scheme] of [['desktop', { width: 1440, height: 900 }, false, 'light'], ['dark', { width: 1440, height: 900 }, false, 'dark'], ['phone', { width: 390, height: 844 }, true, 'light']]) {
     const page = await seeded(viewport, { mobile });
     await page.emulateMedia({ colorScheme: scheme });
     await onLibrary(page);
-    for (const n of [0, 1]) {
+    for (const n of [0, 1, 2, 3]) {
       await slider(page).fill(String(n));
       const where = `${label} Library, size ${n}`;
       await whole(descriptionOf(page, '[data-library-card="canvas"]', LONG_START), DESC340, `${where}, 340 characters`);
@@ -680,7 +681,7 @@ await check('Small and Medium small show the whole description: 340 characters, 
     // Explore (public cards carrying actions and counts), then Home.
     await onExplore(page);
     await page.locator('[data-explore-card]').nth(3).waitFor({ timeout: 30000 });
-    for (const n of [0, 1]) {
+    for (const n of [0, 1, 2, 3]) {
       await slider(page).fill(String(n));
       await whole(descriptionOf(page, '[data-explore-card]', LONG_START), DESC340, `${label} Explore, size ${n}`);
       await whole(descriptionOf(page, '[data-explore-card]', ADDRESS_DESC.slice(0, 30)), ADDRESS_DESC, `${label} Explore, size ${n}, an unbroken address`);
@@ -690,7 +691,7 @@ await check('Small and Medium small show the whole description: 340 characters, 
     await page.screenshot({ path: `${SHOTS}/card-description-${label}-explore.png` });
     await page.goto(`${BASE}/apps`);
     await page.locator('[data-recent-card]').nth(3).waitFor({ timeout: 60000 });
-    for (const n of [0, 1]) {
+    for (const n of [0, 1, 2, 3]) {
       await slider(page).fill(String(n));
       await whole(descriptionOf(page, '[data-recent-card]', LONG_START), DESC340, `${label} Home, size ${n}`);
       await settled(page, '[data-recent-card]', `${label} Home, size ${n}`);
@@ -700,16 +701,20 @@ await check('Small and Medium small show the whole description: 340 characters, 
   }
 });
 
-await check('sizes 2 and 3 keep their look: no chevron, every card in a row the same height, the description still clamped, and a long title is whole', async () => {
+await check('sizes 2 and 3 keep the picture where it was while the whole description grows the card: stacked above the text at Medium large, beside it at Large, 2:1, no chevron (owner decision, task 2f608983, replacing the clamp this check asserted)', async () => {
   const page = await seeded();
   await onLibrary(page);
   for (const n of [2, 3]) {
     await slider(page).fill(String(n));
     await expect(page.locator('[data-card-title-toggle]')).toHaveCount(0);
     await settled(page, '[data-library-card="canvas"]', `Library, size ${n}`);
-    const rows = await page.locator('[data-library-card="canvas"]').evaluateAll((els) => { const byTop = new Map(); for (const e of els) { const r = e.getBoundingClientRect(); const key = Math.round(r.top); byTop.set(key, [...(byTop.get(key) || []), Math.round(r.height)]); } return [...byTop.values()]; });
-    for (const heights of rows) assert.equal(new Set(heights).size, 1, `size ${n}: the cards in a row differ in height (${heights})`);
-    assert.equal(await descriptionOf(page, '[data-library-card="canvas"]', LONG_START).evaluate((d) => getComputedStyle(d).webkitLineClamp !== 'none'), true, `size ${n}: the description is still clamped`);
+    const boxes = await page.locator('[data-library-card="canvas"]').evaluateAll((els) => els.map((e) => { const t = e.querySelector('[data-card-thumbnail]').getBoundingClientRect(), x = e.querySelector('[data-card-text]').getBoundingClientRect(), c = e.getBoundingClientRect(); return { thumb: { w: t.width, h: t.height, top: t.top, inset: t.top - c.top, left: t.left, right: t.right }, text: { left: x.left, right: x.right, top: x.top, bottom: x.bottom }, card: { h: c.height } }; }));
+    for (const [i, b] of boxes.entries()) {
+      assert.ok(Math.abs(b.thumb.w / b.thumb.h - 2) < 0.05, `size ${n} card ${i}: the picture is 2:1 (${b.thumb.w} x ${b.thumb.h})`);
+      if (n === 3) assert.ok(b.text.right <= b.thumb.left + 1 && Math.abs(b.thumb.inset - 17) <= 1, `size ${n} card ${i}: the picture stays beside the text at the top`);
+      else assert.ok(b.text.top >= b.thumb.top + b.thumb.h - 1, `size ${n} card ${i}: the picture stays above the text`);
+    }
+    await whole(descriptionOf(page, '[data-library-card="canvas"]', LONG_START), DESC340, `Library, size ${n}`);
   }
   await page.context().close();
 });

@@ -882,12 +882,11 @@ html[data-card-size="2"] { --card-min: 460px; }
 html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li { flex-direction: column; }
 html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
 html[data-card-size="2"] .card-grid > li > [data-card-text] { min-height: 196px; flex: none; }
-/* Small and Medium small (owner brief 2026-10-23): a card is as tall as its content and shows the whole description. No minimum,
-   and a row's cards do not stretch to its tallest, so a short card has no blank band above its footer. Larger sizes keep their
-   minimum, stretch and clamp the description. */
+/* Small and Medium small (owner brief 2026-10-23): a card is as tall as its content. No minimum, and a row's cards do not
+   stretch to its tallest, so a short card has no blank band above its footer. Larger sizes keep their minimum and stretch.
+   Every size shows the whole description (owner decision, task 2f608983-76d4-4bab-9609-3e837a05f5c8). */
 html:is([data-card-size="0"], [data-card-size="1"]) .card-grid { align-items: start; }
 html:is([data-card-size="0"], [data-card-size="1"]) .card-grid > li > [data-card-text] { min-height: 0; flex: none; }
-html:is([data-card-size="0"], [data-card-size="1"]) .card-grid [data-card-description] { display: block; overflow: visible; -webkit-line-clamp: unset; }
 
 /* Small cards (owner brief 2026-10-23, home/LearningCard.jsx). Each card is a size container (@container/card, named card), so
    these rules follow the CARD's content width - a Small card is 220px wide, 186px of content - and not the viewport's. Two
@@ -899,7 +898,7 @@ html:is([data-card-size="0"], [data-card-size="1"]) .card-grid [data-card-descri
      repository and the fork source on a full-width row; then the visibility pill with the Card options button at the row's
      end. The footer wraps, so Open has its own line.
    The text column has a minimum height (196px; 296px in the narrow layout, taller by the pill row) that Small and Medium small
-   drop; a longer title or creator makes the card taller at every size. */
+   drop; a longer title, creator or description makes the card taller at every size. */
 @container card (width < 40rem) {
   .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
   .card-grid > li > [data-card-text] { min-height: 196px; flex: none; width: 100%; }

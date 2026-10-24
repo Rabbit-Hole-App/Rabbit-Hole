@@ -12,7 +12,7 @@ import { Creator, ForkedFrom, Forks, OwnerCheck } from './Provenance.jsx';
 //           From owner/repo                          (a published canvas in a project: Explore filtered to it)
 //           Forked from "…" · @alice
 //   github.com/owner/repo ↗          (a project only)
-//   Description (up to 340 characters when written): whole at Small and Medium small, three lines (two beside actions) larger
+//   Description (up to 340 characters when written; an older longer one too), always whole
 //   this browser's content state     (only a canvas or project whose board is not on the server)
 //   actions                          (Start Rabbit Hole and [Fork | N] on others' cards)
 //   [fork] N forks · Updated 2h ago                  Open →   (one footer line; Continue → on Home instead of Open)
@@ -40,9 +40,9 @@ export const CARD_ROWS = 'card-grid grid gap-4';
 // image that can be seen"). From md the picture is a fixed height and the text column at least that high, so the picture's inset above
 // equals its inset below and the footer (N canvases, Updated, Open) ends on the picture's bottom edge (owner, 2026-10-09);
 // the card is that height plus its padding (224px). On a phone the picture is on top and the text below it is at least 196px.
-// Title, creator and project are never clamped (owner, 2026-10-23): text longer than the minimum makes the column, and the card,
-// taller. The description keeps its clamp at Medium large and Large (their look is unchanged); at Small and Medium small
-// index.css shows it whole and drops the minimum, so the card is exactly as tall as its content.
+// Nothing is clamped (owner, 2026-10-23): the title, creator, project and the complete description show at every size, and text
+// longer than the minimum makes the column, and the card, taller (the picture keeps its place and size). At Small and Medium
+// small index.css also drops the minimum, so the card is exactly as tall as its content.
 export const CARD_BODY_H = 'md:h-[190px]';
 const CARD_TEXT_MIN = 'md:min-h-[190px] max-md:min-h-[196px] max-md:flex-none';
 
@@ -179,11 +179,11 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           <div data-card-body className="flex min-w-0 flex-col gap-1 pt-2">
             {repo && (
               <a data-source-link href={m.sourceUrl} target="_blank" rel="noreferrer" title="Open the repository on GitHub" onClick={(e) => e.stopPropagation()}
-                className="inline-flex min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">
+                className="inline-flex max-w-full min-w-0 items-center gap-1 self-start text-[13px] text-accent hover:underline">
                 <span className="truncate">{m.source}</span><ArrowUpRight size={13} strokeWidth={1.75} className="shrink-0" />
               </a>
             )}
-            {m.description && <p data-card-description className={`${actions || note ? 'line-clamp-2' : 'line-clamp-3'} text-[13px] leading-5 text-ink-2 [overflow-wrap:anywhere]`}>{m.description}</p>}
+            {m.description && <p data-card-description className="text-[13px] leading-5 text-ink-2 [overflow-wrap:anywhere]">{m.description}</p>}
           </div>
         )}
         {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-(color:--browse-meta)">{note}</div>}
