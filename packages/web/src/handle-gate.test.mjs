@@ -68,3 +68,26 @@ test('a handle field never shows @@: a typed or pasted leading @ leaves the valu
   assert.ok(gate.includes('onChange={event => { setValue(fieldHandle(event.target.value));'), 'the setup field');
   assert.ok(sidebar.includes('onChange={(e) => { setDraft(fieldHandle(e.target.value));'), 'the Settings field');
 });
+
+// Owner brief 2026-10-23 (polish the Choose your handle screen): one field, one action, truthful feedback.
+test('the Choose your handle screen: copy, field, feedback and a solid background, with the same shared rules', () => {
+  const gate = read('./HandleGate.jsx'), css = read('./index.css');
+  for (const copy of ['Choose your handle', 'Your public name on {PRODUCT}.', '>Handle</label>', '3–30 letters, numbers, or underscores.', "{busy ? 'Saving' : 'Continue'}", 'You can change this later in Settings.', 'placeholder="yourname"'])
+    assert.ok(gate.includes(copy), copy);
+  assert.doesNotMatch(gate, /\.\.\.|…/, 'no ellipsis in a label');
+  assert.doesNotMatch(gate, /You will be|Available/, 'a valid format is never announced as a result; the server decides uniqueness');
+  // The visible label, the persistent helper and the feedback area are tied to the input; the @ prefix is not read out.
+  assert.match(gate, /<label htmlFor="handle-input"/);
+  assert.match(gate, /id="handle-input"[\s\S]*aria-describedby="handle-help handle-feedback" aria-invalid=\{problem \? true : undefined\}/);
+  assert.match(gate, /<p id="handle-feedback" data-handle-hint role=\{problem \? 'alert' : undefined\}[^>]*min-h-5/, 'the feedback row keeps its height, so no layout jump');
+  assert.match(gate, /spellCheck=\{false\} autoCapitalize="none"/);
+  // Format errors are the shared module's own words; a failed save keeps the value (only onChange clears the error).
+  assert.match(gate, /const problem = error \|\| checked\?\.error/);
+  assert.match(gate, /catch \(problem\) \{ setError\(problem\.message\); setBusy\(false\); \}/);
+  assert.match(gate, /disabled=\{!checked\?\.handle \|\| busy\}/);
+  assert.match(gate, /h-12 w-full[^"]*bg-primary-fill/, 'full-width 48px primary action');
+  // No dot grid on this screen only: the scoped rule beats main's, and nothing else in the stylesheet changed its dots.
+  assert.match(css, /\[data-handle-setup\] \{\s*background-image: none;\s*\}/);
+  assert.match(css, /main \{\s*background-image: radial-gradient\(var\(--color-line\) 1px, transparent 1px\);/);
+  assert.match(gate, /<main data-handle-setup className="[^"]*bg-white/);
+});
