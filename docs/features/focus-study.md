@@ -112,6 +112,16 @@ restarts Python. Focus therefore never portals, clones or remounts the notebook.
 notebook scroll its own cells. CSS changes on the host or its ancestors are safe; a React key change, a moved subtree or
 a conditional wrapper around the card is not. StudyPane already follows this rule (it only sets the frame's margins).
 
+WP3 (`focus-adapter-notebook.js`): `enter` sets `data-focus-host` and four custom properties (`--focus-w`, `--focus-h`,
+`--focus-mb`, `--focus-transform`) on the `[data-block-id]` host; the `[data-focus-host]` rule in `index.css` applies them with
+`!important` (React keeps writing the inline width, height and transform) and hides the drag strip, selection row, ports and
+resize corner. The host stays in the column's flow at its old height (`margin-bottom` returns the difference), so no other
+card reflows (Finding 2), and `transform: translate(...) scale(1 / view.z)` from its untransformed `offsetLeft` /
+`offsetTop` places it on the frame. A press on a drag zone is stopped while focused (a drag would save a position). `exit`
+removes the attribute, the properties and the guard. The rule is generic: another adapter may reuse it. Study > Notebook
+calls `enterFocus`, Study > Canvas `exitFocus`; when Focus ends elsewhere (Back to canvas, Escape) the switch follows
+`onState().focus` back to Canvas. Kernel coverage: `pinned-study-kernel-check.mjs` steps 5a to 5c.
+
 ## 5. Inventory (WP4 TODO)
 
 WP4 lists every card renderer with: kind, file, Focus behavior (brief 3.2 and 3.3), or "unsupported" with the reason.
