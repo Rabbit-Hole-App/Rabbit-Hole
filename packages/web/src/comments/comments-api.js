@@ -20,6 +20,8 @@ export const commentsApi = base => ({
   about: () => api(base),
   threads: (status = 'open', audience = 'all', cursor = null) => api(`${base}/threads?status=${status}${audience !== 'all' ? `&audience=${audience}` : ''}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`),
   thread: (id, before = null) => api(`${base}/threads/${id}${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+  // What changed in a thread since a read's cursor (comment-sync.js, section 10 Sync protocol).
+  sync: (id, since) => api(`${base}/threads/${id}?since=${encodeURIComponent(since)}`),
   start: body => send(`${base}/threads`, body),
   reply: (threadId, body) => send(`${base}/threads/${threadId}/comments`, body),
   edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: mentionsIn(body) }, 'PATCH'),

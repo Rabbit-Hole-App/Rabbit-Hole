@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { CONTACT, INTO, anchorAt, anchorText, objectOrigin, pinCount, pinPoint, pinSpot, pinTopCentre } from './anchors.js';
 import { displayName, failureText, freshDraft, loadDraft, saveDraft, sendDraft, when } from './comments-api.js';
 import { badgeText, openCount } from './useCanvasComments.js';
+import { SYNC_OVERLAP_MS, applySync, changesFrom, mergeMessages, newFromOthers } from './comment-sync.js';
 import { allActions } from '../canvas-actions.js';
 
 const read = file => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -432,3 +433,38 @@ test('the wiring: the canvas reports its objects, the panel shows the visible li
   assert.match(canvas, /if \(comments\) step\.comments = comments;/, 'the move rides in the Ungroup step');
   assert.match(canvas, /if\(next\.comments\)\{before\.comments=next\.comments;\(from===history\?next\.comments\.undo:next\.comments\.redo\)\(\)/, 'Undo moves them back, Redo again');
 });
+
+test('sync contract: a since-read reaches back by the overlap; the merge never shows a message twice and keeps loaded older replies', () => {
+  assert.equal(changesFrom('2026-10-23T20:00:00.000Z'), new Date(Date.parse('2026-10-23T20:00:00.000Z') - SYNC_OVERLAP_MS).toISOString());
+  for (const bad of [null, '', 'yesterday', '2026-10-23 20:00:00', "2026-10-23T20:00:00Z' OR 1=1"]) assert.equal(changesFrom(bad), null, `${bad}: a full read`);
+  const m = (id, at, extra = {}) => ({ id, created_at: `2026-10-23T20:00:0${at}.000Z`, mine: false, deleted: null, segments: [{ text: id }], ...extra });
+  const shown = [m('b', 2), m('c', 3)];
+  const merged = mergeMessages(shown, [m('c', 3, { segments: [{ text: 'c edited' }] }), m('d', 4), m('d', 4)]);
+  assert.deepEqual(merged.map(x => x.id), ['b', 'c', 'd'], 'an edit in place, a new one once, in order');
+  assert.equal(merged[1].segments[0].text, 'c edited');
+  assert.deepEqual(mergeMessages(merged, merged).map(x => x.id), ['b', 'c', 'd'], 'a replayed cursor changes nothing');
+  assert.deepEqual(mergeMessages(shown, [m('a', 1)], true).map(x => x.id), ['b', 'c'], 'older than the loaded window: stays out until Earlier replies');
+  assert.deepEqual(mergeMessages(shown, [m('a', 1)], false).map(x => x.id), ['a', 'b', 'c'], 'nothing earlier on the server: it joins');
+  assert.equal(newFromOthers(shown, [m('c', 3), m('d', 4), m('e', 5, { mine: true }), m('f', 6, { deleted: 'author' })]), 1, "only someone else's new reply counts");
+  const first = applySync(null, { thread: { id: 't' }, messages: shown, before: 'x|y', cursor: 'c1' });
+  const next = applySync(first, { thread: { id: 't', status: 'resolved' }, messages: [m('d', 4)], since: true, cursor: 'c2' });
+  assert.deepEqual([next.thread.status, next.messages.map(x => x.id), next.before, next.cursor], ['resolved', ['b', 'c', 'd'], 'x|y', 'c2'], 'the thread as it now is; Earlier replies kept');
+  const reset = applySync(next, { thread: { id: 't' }, messages: [m('z', 9)], before: null, reset: true, cursor: 'c3' });
+  assert.deepEqual([reset.messages.map(x => x.id), reset.before], [['z'], null], 'a reset replaces');
+});
+
+test('the open thread syncs itself (Comments v2 item 1): its own timer, focus and online, from the cursor; nothing re-reads it whole', () => {
+  const panel = read('./CommentsPanel.jsx'), client = read('./comments-api.js');
+  assert.match(client, /sync: \(id, since\) => api\(`\$\{base\}\/threads\/\$\{id\}\?since=\$\{encodeURIComponent\(since\)\}`\)/);
+  assert.match(panel, /const answer = cursor \? await client\.sync\(id, cursor\) : await client\.thread\(id\);/, 'a full read only before the first cursor');
+  assert.match(panel, /setData\(current => applySync\(current, answer\)\);/, 'merged into what is shown now');
+  assert.match(panel, /const timer = setInterval\(tick, SYNC_MS\);\n\s+window\.addEventListener\('focus', tick\);\n\s+window\.addEventListener\('online', tick\);/);
+  assert.match(panel, /if \(hidden \|\| lost\) return undefined;/, 'no sync behind a hidden panel or after access ended');
+  assert.match(panel, /<ThreadView key=\{selected\} client=\{client\} about=\{about\} id=\{selected\} hidden=\{hidden\}/);
+  assert.doesNotMatch(panel, /setData\(await client\.thread\(id\)\)/, 'the old whole re-read that dropped Earlier replies');
+  assert.match(panel, /messages: mergeMessages\(current\.messages, older\.messages\), before: older\.before/, 'Earlier replies merge too');
+  assert.match(panel, /if \(error\.status === 404 \|\| error\.status === 401\) \{ setLost\(/, 'lost access drops the thread');
+  assert.match(panel, /aria-label="Your unsent reply"/, 'and keeps the unsent reply to copy');
+  assert.match(panel, /data-new-replies onClick=\{showNew\}[^>]*>New replies<\/button>/);
+});
+
