@@ -114,22 +114,23 @@ a conditional wrapper around the card is not. StudyPane already follows this rul
 
 ## 5. Inventory (WP4)
 
-Every renderer the canvas draws, audited on c4690f0b. Unsupported and deferred kinds register no adapter, so they show no
-Focus control. Every block card is a `CanvasNode` host (`[data-block-id]`, AdaptiveCanvas.jsx) in the column's flex flow,
+Every renderer the canvas draws, audited on c4690f0b and against WP2 0752c73a and WP3 14d51846. Unsupported and deferred
+kinds register no adapter (or, for CAD, are not imported), so they show no Focus control. Every block card is a `CanvasNode` host (`[data-block-id]`, AdaptiveCanvas.jsx) in the column's flex flow,
 or inside a `[data-card-slot]` wrapper for a card layout; canvas items (notes, text, shapes) are absolutely placed
 `[data-item-id]` elements outside the column.
 
 **How a supported kind focuses** (`focus-host.js`, shared by the WP4 adapters). The host is restyled in place, never
-moved or remounted: a `data-focus-host` attribute plus CSS custom properties, applied by one stylesheet rule with
-`!important`, so React's own inline `width`, `height`, `max-height` and `transform` stay untouched and come back on exit.
-The rule sets the focused width and height (CSS px), `transform: translate(...) scale(1 / view.z)` from `frameInWorld`
-(normal text size, any canvas zoom) and a negative `margin-bottom` equal to the height it gained, so the column keeps the
-card's entry footprint and no neighbour moves (Finding 2). While focused the drag strip, the ports and the resize handles
-are hidden and a press on a drag zone does not start a move, so nothing writes `dx` / `dy` / `w` / `h`. A direct
-`[data-scroll]` body scrolls inside the card. The selected card's chrome row above it (Open, CAD tools) keeps its height
-inside the frame. Three placements: **fill** (the frame), **reading** (fill, at most 760 px wide, centred) and **contain**
-(the picture or video at its own aspect ratio, as large as the frame allows with the card's other rows, centred, never
-cropped; no picture yet: fill).
+moved or remounted, through the one `[data-focus-host]` rule in index.css (WP3) and its custom properties: `--focus-w`,
+`--focus-h`, `--focus-transform` (`translate(...) scale(1 / view.z)` from `frameInWorld`: normal text size at any canvas
+zoom) and `--focus-mb` (the height gained, given back, so the column keeps the card's entry footprint and no neighbour moves,
+Finding 2). React's inline `width`, `height` and `transform` stay untouched and return on exit. The in-flow position
+includes a card-layout slot's offset. While focused: a press on a drag zone does not start a move (nothing writes `dx` /
+`dy` / `w` / `h`); the host carries `data-scroll`, so the canvas wheel scrolls the card instead of panning the board; a
+direct `[data-scroll]` body takes the height and scrolls inside; the PDF and YouTube iframes take the pointer (they ignore
+it until the card is selected, and `enterFocus` deselects); a card-layout slot rises with its card; a note gets the
+surface token, a border and padding, and scrolls. Three placements: **fill** (the frame), **reading** (fill, at most 760 px
+wide, centred) and **contain** (the picture or video at its own aspect ratio, as large as the frame allows with the card's
+other rows, centred, never cropped; no picture yet: fill).
 
 | Kind (`type` / file `kind`) | Renderer | Layout and scroll | Live state | Verdict |
 |---|---|---|---|---|
@@ -144,11 +145,11 @@ cropped; no picture yet: fill).
 | `video` with `src` (Motion and other generated or hosted clips) | `VideoBody` | `[data-scroll]`, `<video w-full controls>` | playback position, play state, generation polling | **SUPPORTED** "Focus video", contain; the `<video>` is resized in place and keeps playing |
 | `video` with `videoId` (YouTube moment) | `VideoCard` (AdaptiveCanvas.jsx) | fixed height, iframe `flex-1` (YouTube letterboxes) | playback in the cross-origin player | **SUPPORTED** "Focus video", fill; the iframe keeps its key, so playback continues |
 | file `clip` (dropped video) | `MediaCard.jsx` video player | `<video>` | playback | **SUPPORTED** "Focus video", contain |
-| `cad` | `CadCard.jsx` (`CadPreview`, three.js `three-d-renderer.js`) | fixed height, viewer `flex-1`, ResizeObserver resizes the renderer | camera, Interact (orbit) mode, dimensions toggle, edit state, generation polling | **SUPPORTED** "Focus CAD model", fill. Container Focus only resizes the viewer box; the camera is untouched and Fit view, Interact and Show dimensions stay the card's own controls in its toolbar row (kept visible in the frame) |
-| file `model` (imported 3D model, point cloud, splat, CAD file) | `ModelCard.jsx` (same renderer) | fixed height, viewer `flex-1` | camera, Interact mode | **SUPPORTED** "Focus 3D model", fill; its own Fit is untouched |
+| `cad` | `CadCard.jsx` (`CadPreview`, three.js `three-d-renderer.js`) | fixed height, viewer `flex-1`, ResizeObserver resizes the renderer | camera, Interact (orbit) mode, dimensions toggle, edit state, generation polling | **DEFERRED**: `focus-adapter-cad.js` is ready (container fill, camera untouched, never calls Fit view) but not imported. `enterFocus` deselects the card, which ends CadPreview's Interact, and Interact, Fit view and Show dimensions live in the card's chrome row, which the shared rule hides, so a focused CAD model could not be orbited or framed. Needs WP2 to keep those tools in reach while focused (for example `CadViewerTools` in the Focus header for kind `cad`, and the card's view selection kept). Size: small in the seam, one import line here |
+| file `model` (imported 3D model, point cloud, splat, CAD file) | `ModelCard.jsx` (same renderer) | fixed height, viewer `flex-1` | camera, Interact mode | **SUPPORTED** "Focus 3D model", fill; its Interact and Fit buttons are in its own header, in reach. An Interact running when Focus starts ends (deselection, ModelCard's own rule); Interact again inside Focus |
 | `notebook` | `NotebookCard` / `NotebookCard.jsx` | iframe | kernel, cells, unsaved edits | WP3 (`focus-adapter-notebook.js`) |
-| text and sticky items (notes) | `ItemView` (AdaptiveCanvas.jsx), RichText | absolute `[data-item-id]`, a note grows with its words, no inner scroll | editing caret, unsaved typing | **DEFERRED**: they are canvas items, not blocks. The seam's `enterFocus(id)` looks the id up in `blocks` and the host by `[data-block-id]`; a note adapter would be a button that does nothing. Needs WP2 to resolve item ids too (host `[data-item-id]`) and a decision on whether Focus opens the note for reading or editing. Size: small (one adapter with the reading placement, about 15 lines, plus the item lookup in the seam) |
-| `model3d`, `scene` (Blender, when ready) | `ThreeDBody` (LearningBlocks.jsx) | viewer `flex-1`, ResizeObserver | camera, clip, play state | UNSUPPORTED for now (not in brief 3.2/3.3); the CAD adapter's fill would work unchanged, a one-line follow-up |
+| sticky and text items (notes; not code boxes) | `ItemView` (AdaptiveCanvas.jsx), RichText | absolute `[data-item-id]` in the items layer, a note grows with its words, no inner scroll | editing caret, typing | **SUPPORTED** "Focus note", reading, at its own text size, scrolling inside; editing while focused saves as usual. WP2's `enterFocus` and host lookup already resolve items |
+| `model3d`, `scene` (Blender, when ready) | `ThreeDBody` (LearningBlocks.jsx) | viewer `flex-1`, ResizeObserver | camera, clip, play state | UNSUPPORTED for now (not in brief 3.2/3.3); the 3D model adapter's fill would work unchanged, a one-line follow-up |
 | `scene` interactive activity | `SceneActivityBody` | fixed size | attempt state | UNSUPPORTED (not in the brief) |
 | `wiki` | `WikiCard` > `LearnWiki.jsx` | `[data-scroll]` article | section, highlights, scroll | UNSUPPORTED (not in the brief); reading placement would work, follow-up |
 | `webpage` | `WebpageCard.jsx` | captured tiles scrolled by a CSS transform | scroll, highlights, lock | UNSUPPORTED (not in the brief); its own transform scroll needs checking first |
@@ -163,22 +164,7 @@ cropped; no picture yet: fill).
 | `heading`, `divider`, `canvas-ref`, file `attachment`, file `audio`, region excerpts (file with `excerpt`) | `HeadingCard`, `DividerCard`, `CanvasRefCard`, `FileCard` | auto height | heading text editing | UNSUPPORTED (structure, links and file stubs: nothing to enlarge; a region excerpt is a crop plus a note, not a picture to view) |
 | code boxes, equations, sections, shapes, ink, connectors, groups, areas | AdaptiveCanvas items and SVG layers | absolute, world units | editing | UNSUPPORTED (drawn objects, not content cards) |
 
-Follow-ups the seam owner (WP2) must cover for the adapters to stay in place: call the adapter's `update` when the canvas
-view changes while focused (or keep the camera still), and when the column relays out above the focused card (its
-translate is measured against its in-flow position at `enter`/`update`).
-
-## 6. Findings (code against the brief)
-
-1. Map footprint. Both maps already release it when hidden, and the release reads AdaptiveCanvas's `minimap` /
-   `holeMap` state: the minimap unmounts (`{minimap && ...}` in the bottom strip, so `chromeTop` and `--chrome-left`
-   shrink), and the Rabbit Hole Map stays mounted under `display: none` in the floating tools gutter (state kept, brief
-   4.5). Hence the seam in section 2 feeds those same names, rather than adding a second hide path.
-2. The world layer is `translate(view.x, view.y) scale(view.z)` and card hosts flow inside a column (`measureNow` reads
-   `offsetLeft` / `offsetTop`). A focused host taken out of flow would let its neighbours reflow and change the measured
-   bounds. WP2 must keep the slot's footprint while the host is focused, and confirm that a bounds change from Focus
-   reaches no board save.
-3. `ui-prefs.js` lists `toolbar` in `UI_PREF_DEFAULTS` but not in `VALID`, so `saveUiPref('toolbar', ...)` throws
-   "Unknown toolbar" (caught silently by `showWidget`) and View > Show / hide > Toolbar is never remembered across a reload.
-   This predates this work; WP1 owns the one-line fix and its test.
-4. `captureNavigation` records scroll positions inside every card, the focused one included. Restoring them as they are
-   would revert the reader's latest page (brief 2.4); `exitNavigation` drops the focused card's entries.
+Follow-ups for the seam owner (WP2): a card in Full card layout (`data-card-layout="full"`) still pans the board on the wheel
+while focused (the wheel handler's Full-layout exception); its body scrolls by scrollbar and keyboard. A press that selects
+the focused card brings back its selection pill (a dropped image's and a slide's sit 40 px above the card, over the Focus
+header).
