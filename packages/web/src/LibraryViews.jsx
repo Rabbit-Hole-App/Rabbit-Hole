@@ -4,6 +4,7 @@ import { titleOf } from './agent/catalog.js';
 import { ago, navigate } from './api.js';
 import { browserOnly, onAnotherDevice, readRecent } from './home/continue.js';
 import { cardModel } from './home/provenance.js';
+import { ownerStar } from './CardStar.jsx';
 import LearningCard, { CARD_ROWS, IN_THIS_BROWSER, ON_ANOTHER_DEVICE } from './home/LearningCard.jsx';
 import { cardThumbnail, subscribeThumbnails, thumbnailBumps } from './card-thumbnail.js';
 import { hasCardMenu, useCardMenu } from './home/CardMenu.jsx';
@@ -130,7 +131,7 @@ function LibraryCard({ a, ctx, onMore, onVaries, drag = {} }) {
   return (
     <LearningCard kind={a.kind} m={cardModel(a)} attrs={{ 'data-library-card': a.kind === 'repository' ? 'project' : 'canvas', ...drag }}
       href={a.fixture ? null : `/apps/${a.name}`} onOpen={() => open(a)} mine={!a.fixture && isMine(a, ctx.email)}
-      access={!a.fixture ? a.access || null : null} onVaries={onVaries} onMore={onMore} note={note} thumbnail={cardThumbnail(a)}
+      access={!a.fixture ? a.access || null : null} onVaries={onVaries} onMore={onMore} note={note} thumbnail={cardThumbnail(a)} star={ownerStar(a, 'card_library')}
       onForkedFromOpen={(id) => open({ name: id, fixture: a.fixture })} />
   );
 }

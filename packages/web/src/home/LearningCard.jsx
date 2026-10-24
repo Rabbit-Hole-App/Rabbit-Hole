@@ -130,6 +130,7 @@ const plain = (e) => e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey &
 // overflow-wrap:anywhere alone: Tailwind emits break-words after it, so both classes would leave break-word, whose min-content is the whole word (card-size.test.mjs).
 const TITLE = 'text-left text-base font-semibold leading-snug [overflow-wrap:anywhere]';
 
+// `star`: the Star control (CardStar.jsx), first in the actions row, on every canvas card that has a count.
 // `attrs`: the surface's data attributes (data-library-card, data-recent-card, data-continue-card, data-explore-card).
 // `onOpen`: what the title and Open open (null: not openable, as a canvas whose content is in another browser);
 // `href`: the title's link, so it opens in a new tab too. `mine`: the viewer owns it. `onMore`: the Card options button (the three dots). `onVaries`: a project's Varies by canvas badge opens its Share window. `note`: this
@@ -137,7 +138,7 @@ const TITLE = 'text-left text-base font-semibold leading-snug [overflow-wrap:any
 // (Home's Continue →). `onForkedFromOpen`: a review fixture's original. `creatorHref`: the creator's public profile
 // (/@handle; docs/features/creator-profile.md), else the card's own @handle's (cardModel), on every surface. `thumbnail`:
 // the picture's address (card-thumbnail.js); a canvas or project without one shows the placeholder.
-export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null }) {
+export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, mine = false, access = null, onVaries = null, onMore, note, actions, cta, onForkedFromOpen, creatorHref: given, thumbnail = null, star = null }) {
   const learning = kind === 'repository' || kind === 'canvas';
   const creatorHref = given || m.creator?.url; // every surface's @handle opens the profile (owner, 2026-10-08)
   const repo = kind === 'repository' && m.sourceUrl;
@@ -187,9 +188,11 @@ export default function LearningCard({ kind, schedule, m, attrs, href, onOpen, m
           </div>
         )}
         {note && <div data-card-note className="flex min-w-0 flex-col gap-0.5 pt-2 text-xs text-(color:--browse-meta)">{note}</div>}
-        {actions && <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">{actions}</div>}
+        {actions && <div data-card-actions className="mt-auto flex flex-wrap items-center gap-2 pt-3">{star}{actions}</div>}
+        {/* a card with a Star and no other action (the owner's own canvas) */}
+        {!actions && star && <div data-card-actions className="mt-auto flex flex-wrap items-center gap-2 pt-3">{star}</div>}
         {learning && (
-          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-(color:--browse-meta) ${actions ? 'pt-2' : 'mt-auto pt-3'}`}>
+          <div data-card-footer className={`flex min-w-0 items-center gap-3 text-xs text-(color:--browse-meta) ${actions || star ? 'pt-2' : 'mt-auto pt-3'}`}>
             {/* m.forks is null at 0, so no "0 forks"; a project row carries no fork count, so it shows none */}
             <Forks m={m} />
             {/* a project's canvases, Main canvas included (docs/features/project-canvases.md) */}

@@ -13,6 +13,7 @@ import { sniffImageType } from './learn-media.js';
 import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { FORK_COUNT, HANDLE_OF, NAME_OF, NOW, emptyBoard, freeTitle, touchCanvas } from './canvases.js';
 import { NOT_TRASHED } from './library-trash.js';
+import { STAR_COUNT, noAccount, setStar, starActor, starState, surfaceFrom } from './canvas-stars.js';
 import { boardRefs, indexStatements, reidRefs, tooManyRefs } from './canvas-refs.js';
 import { NO_CAP, admitUsage, askShared, embedOf, embedSession, embedSessionRequired, guestChatAllowance, guestOf, isEmbed, withGuestCookie, boardRevision, boardSources, importerOf, limitsFrom, publicationKey, shareKey, sharePin, shareSource, sharedTitle } from './learn-shared-ask.js';
 import { NEXT_STEPS_BODY_CHARS, sharedNextSteps, sharedStepIds, titleFingerprint } from './learn-next-steps-routes.js';
@@ -379,6 +380,29 @@ export async function sharedAccess(req, env, token) {
     found.viewer = viewer;
   }
   return found;
+}
+
+// The star on the canvas a link opens (docs/features/stars.md). Whoever the link admits may read the count; starring needs a
+// signed-in account with a users.id, and the link must be live right now (a revoked, suspended or unpublished link answers as it
+// does to any read, before anything is written). The canvas is the link's own main board resolved to its canonical (org, name);
+// the token is never stored. The actor and the count come from the session and the database, never from the request.
+async function starShared(req, env, token) {
+  if (!['GET', 'PUT', 'DELETE'].includes(req.method)) return json({ error: 'Method not allowed' }, 405);
+  const found = await sharedAccess(req, env, token);
+  if (found instanceof Response) return found;
+  const canvas = found.row.board === 'main' && CANVAS.test(found.row.app) ? await env.LEARN_DB.prepare('SELECT org, name FROM canvases WHERE org = ? AND name = ? AND owner_email = ?').bind(found.row.org, found.row.app, found.row.owner_email).first() : null;
+  if (!canvas) return json({ error: 'This page is not a canvas, so it has no stars.', code: 'not_starrable' }, 404);
+  const ref = { org: canvas.org, canvas: canvas.name };
+  const viewer = await viewerOf(req, env, found);
+  if (viewer instanceof Response && viewer.status !== 401) return viewer;
+  const actor = viewer instanceof Response ? null : starActor(viewer);
+  if (req.method === 'GET') return json(await starState(env.LEARN_DB, ref, actor?.userId));
+  if (viewer instanceof Response) return json({ error: 'Sign in to star this canvas.', signIn: true }, 401);
+  if (!actor) return noAccount();
+  // A share link is kept with the star as proof the person held it (their Stars list reopens it only while that exact link is live);
+  // a publication is public and is looked up live instead.
+  const { starred, star_count } = await setStar(env.LEARN_DB, ref, actor, req.method === 'PUT', { surface: await surfaceFrom(req), via: found.publication ? null : token });
+  return json({ starred_by_me: starred, star_count });
 }
 
 // Asking about a shared canvas (docs/features/shared-canvas-ask.md): whoever may open the link. Signed out (a public link or
@@ -853,7 +877,7 @@ async function openShared(req, env, token) {
   const { row, role } = found;
   // A canvas's link shows the canvas's own title and its direct fork count (docs/features/canvas-forking.md); a link
   // to a board that is not a canvas (a project's) has no canvas to count, so its count is null, never a stale 0.
-  const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare(`SELECT title, ${FORK_COUNT} AS fork_count FROM canvases c WHERE org = ? AND name = ?`).bind(row.org, row.app).first() : null;
+  const canvas = CANVAS.test(row.app) ? await env.LEARN_DB.prepare(`SELECT org, name, title, ${FORK_COUNT} AS fork_count, ${STAR_COUNT} AS star_count FROM canvases c WHERE org = ? AND name = ?`).bind(row.org, row.app).first() : null;
   // The composer (docs/features/shared-canvas-ask.md): who is viewing (their own email, or null signed out),
   // and the context pills - the repository at the share's pinned commit, and the sources on the board. A private
   // repository shows nothing of itself to anyone but its original importer: no name, commit or pill, and a project
@@ -873,7 +897,11 @@ async function openShared(req, env, token) {
   const member = canvas && row.board === 'main' && !found.publication && signedIn && (signedIn.email === row.owner_email
     || (signedIn.userId && await env.LEARN_DB.prepare("SELECT 1 FROM canvas_members WHERE org = ? AND canvas = ? AND member_user_id = ? AND status = 'active'").bind(row.org, row.app, signedIn.userId).first()));
   const projectCanvases = row.app.startsWith('repo-') && row.board === 'main' ? await projectCanvasLinks(env.LEARN_DB, row, !!signedIn) : null;
-  return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, ...(projectCanvases ? { project_canvases: projectCanvases } : {}), title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, version: row.version, updated_at: row.updated_at,
+  // Stars (docs/features/stars.md): the canvas's own star count, and whether this viewer holds one. Only a canvas's main board is a
+  // canvas to star (null count: nothing to count, never a 0). Per viewer, so this answer stays no-store.
+  const starrable = canvas && row.board === 'main';
+  const mine = starrable && signedIn?.userId ? (await starState(env.LEARN_DB, { org: canvas.org, canvas: canvas.name }, signedIn.userId)).starred_by_me : false;
+  return json({ role, published: !!found.publication, app: hidden ? null : row.app, board: row.board, ...(projectCanvases ? { project_canvases: projectCanvases } : {}), title: sharedTitle(row, canvas?.title, source), creator, fork_count: canvas ? canvas.fork_count : null, star_count: starrable ? canvas.star_count : null, starred_by_me: mine, version: row.version, updated_at: row.updated_at,
     ...(member ? { member_board_id: row.id } : {}), access: linkAccess({ found, viewer: signedIn, member }),
     viewer: viewer instanceof Response ? null : viewer.email, context: { repository: source?.allowed ? { repo: source.repo, commit: source.commit } : null, sources: boardSources(state) }, state });
 }
@@ -897,7 +925,7 @@ const EXPLORE_SORTS = {
 // confirmed public (repository_visibility, as linkSource reads it for a publication) and the project is not in Trash: an
 // unknown or private repository is never named on a card and never matches a project filter. A project has no title of
 // its own, so the label is its repository, with @branch only when public projects of that repository sit on two branches.
-export const PUBLISHED_CARDS = `SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count,
+export const PUBLISHED_CARDS = `SELECT p.token, p.published_at, c.title, h.handle, ${NAME_OF('c.owner_email')} AS name, ${FORK_COUNT} AS fork_count, ${STAR_COUNT} AS star_count,
     m.description, COALESCE(m.updated_at, c.created_at) AS updated_at, r.repo AS project_repo, r.branch AS project_branch,
     (SELECT count(DISTINCT r2.branch) FROM repository_apps r2 JOIN repository_visibility v2 ON v2.app_id = r2.id AND v2.visibility = 'public' WHERE r2.repo = r.repo COLLATE NOCASE) AS project_branches`;
 export const PUBLISHED = `FROM canvas_publications p JOIN canvases c ON c.org = p.org AND c.name = p.canvas AND c.archived_at IS NULL
@@ -907,7 +935,7 @@ export const PUBLISHED = `FROM canvas_publications p JOIN canvases c ON c.org = 
       AND EXISTS (SELECT 1 FROM repository_visibility v WHERE v.app_id = r.id AND v.visibility = 'public')
     WHERE NOT EXISTS (SELECT 1 FROM canvas_dives d WHERE d.org = c.org AND d.child = c.name) AND ${NOT_TRASHED('c.org', 'c.name')}`;
 const projectLabel = r => (r.project_repo ? (r.project_branches > 1 ? `${r.project_repo}@${r.project_branch}` : r.project_repo) : null);
-export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, project: projectLabel(r), fork_count: r.fork_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
+export const exploreCard = r => ({ title: r.title, description: r.description ?? null, creator: { handle: r.handle, name: r.name ?? null }, project: projectLabel(r), fork_count: r.fork_count, star_count: r.star_count, url: `/e/${r.token}`, published_at: r.published_at, updated_at: r.updated_at });
 // Explore's project filter (?project=owner/repo, or owner/repo@branch as a label names it): the published canvases of
 // public projects of that repository, every creator's - the same `r` the label comes from, so nothing else ever matches.
 const PROJECT_KEY = /^([A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100})(?:@(.{1,250}))?$/;
@@ -975,6 +1003,9 @@ export async function learnBoardsRoute(path, req, env) {
   if (sharedPicture) return sharedThumbnail(req, env, decodeURIComponent(sharedPicture[1]));
   const asking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/ask$/);
   if (asking) return ['GET', 'POST'].includes(req.method) ? askAboutShared(req, env, decodeURIComponent(asking[1])) : json({ error: 'Method not allowed' }, 405);
+  // Star / Unstar (docs/features/stars.md): PUT stars, DELETE unstars - desired state, never a toggle - and GET reads the state.
+  const starring = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/star$/);
+  if (starring) return starShared(req, env, decodeURIComponent(starring[1]));
   const hooking = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/next-steps$/);
   if (hooking) return req.method === 'POST' ? nextStepsAboutShared(req, env, decodeURIComponent(hooking[1])) : json({ error: 'Method not allowed' }, 405);
   // The read-only Rabbit Holes Map of a shared canvas: only holes this viewer could open by their own link.

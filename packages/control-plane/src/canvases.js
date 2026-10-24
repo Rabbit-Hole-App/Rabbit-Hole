@@ -10,6 +10,7 @@ import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
+import { noAccount, purgeStars, setStar, starActor, starsFor, surfaceFrom } from './canvas-stars.js';
 
 // A permanently deleted canvas takes every comment row (owner decision 2026-10-23, canvas-comments.md Q13): the seven
 // canvas_comment* tables of learn-migrations 0011 and 0014 - threads, messages, mentions, read marks, colours, its comment
@@ -146,9 +147,14 @@ export async function freeTitle(db, org, owner, title) {
 // out: they belong to their root's tree and open through its navigator and portals (dives.js), never
 // as top-level canvases in Home, Library or Search. They still open directly by their URL. A hole started
 // from someone's shared canvas (parent `share:...`) is a root of the viewer's own, so it is listed.
+// Star count and my own star on each owned canvas (docs/features/stars.md), for a list or a card, in one query. The owner may star their own.
+async function withStars(db, rows, user) {
+  const stars = await starsFor(db, rows.map(row => ({ org: row.org, canvas: row.name })), user.userId);
+  return rows.map(row => ({ ...row, ...stars.get(`${row.org}/${row.name}`) }));
+}
 export async function ownerCanvases(env, user, archived = false) {
   const { results } = await env.LEARN_DB.prepare(`${CANVAS_ROW} WHERE c.org=? AND c.owner_email=? AND c.archived_at IS ${archived ? 'NOT ' : ''}NULL AND ${NOT_TRASHED('c.org', 'c.name')} AND c.name NOT IN (SELECT child FROM canvas_dives WHERE org=? AND owner_email=? AND parent_app NOT LIKE 'share:%') ORDER BY updated_at DESC, c.id DESC`).bind(user.org, user.email, user.org, user.email).all();
-  return (await withForkSources(env, results, user)).map(row => canvasApp(row, user));
+  return (await withStars(env.LEARN_DB, await withForkSources(env, results, user), user)).map(row => canvasApp(row, user));
 }
 
 // Exactly the slugs canvasesFetch creates, so a live app that merely starts with canvas- stays live.
@@ -419,12 +425,21 @@ export async function canvasesFetch(req, env) {
       }
       return repositoryThreads(new Request(req, { method: action === 'delete' ? 'DELETE' : action === 'rename' ? 'PATCH' : req.method }), db, user, app, id);
     }
-    const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course|publish|unpublish|trash|untrash))?$/);
+    const match = path.match(/^\/api\/apps\/(canvas-[a-f0-9]{8})(?:\/(archive|restore|learn-course|publish|unpublish|trash|untrash|star))?$/);
     if (!match) return json({ error: 'Not found' }, 404);
     const [, name, action] = match;
     const app = await ownedCanvas(env, user, name); if (app instanceof Response) return app;
     // Learn loads a course on mount (LearnCourse.jsx:22-27); canvases have none. Shape of learn-course.js:67.
     if (action === 'learn-course') return req.method === 'GET' ? json({ course: null, revision: 0, canAuthor: false }) : json({ error: 'Courses are not available on canvases' }, 405);
+    // Star / Unstar my own canvas (docs/features/stars.md): the owner may star their own. PUT stars, DELETE unstars - desired state,
+    // never a toggle. Only the owner reaches this (ownedCanvas refused anyone else above); a canvas in Trash cannot be newly starred.
+    if (action === 'star') {
+      if (!['PUT', 'DELETE'].includes(req.method)) return json({ error: 'PUT or DELETE required' }, 405);
+      const actor = starActor(user); if (!actor) return noAccount();
+      if (req.method === 'PUT' && app.trashed_at) return json({ error: 'Restore this canvas from Trash before starring it.' }, 409);
+      const { starred, star_count } = await setStar(db, { org: user.org, canvas: name }, actor, req.method === 'PUT', { surface: await surfaceFrom(req) });
+      return json({ starred_by_me: starred, star_count });
+    }
     if (action) {
       if (req.method !== 'POST') return json({ error: 'POST required' }, 405);
       // Publish to Explore / Remove from Explore (docs/features/explore-publish.md): the owner's explicit action, and the
@@ -456,7 +471,7 @@ export async function canvasesFetch(req, env) {
       await db.prepare(`UPDATE canvases SET archived_at=${action === 'archive' ? "datetime('now')" : 'NULL'} WHERE id=?`).bind(app.id).run();
       return json(await ownedCanvas(env, user, name));
     }
-    if (req.method === 'GET') return json(app);
+    if (req.method === 'GET') return json((await withStars(db, [app], user))[0]);
     // Rename and Edit description; either one that changes something is the canvas's latest meaningful change.
     if (req.method === 'PATCH') {
       const body = await req.json();
@@ -482,6 +497,7 @@ export async function canvasesFetch(req, env) {
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
           ...purgeTutorRows(db, user.org, name), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
           ...purgeCommentRows(db, user.org, name),
+          ...purgeStars(db, user.org, name, user.email), // every star on it goes, recorded as a lifecycle removal (docs/features/stars.md)
         ]);
       }
       return meta.changes ? json({ ok: true }) : json({ error: 'This canvas has been used. Archive it instead.' }, 405);

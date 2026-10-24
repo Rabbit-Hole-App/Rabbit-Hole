@@ -126,7 +126,7 @@ for (const theme of ['light', 'dark']) {
   const canvasBox = await box(page.locator('[aria-label="Lesson canvas"]'));
   const blockers = await page.evaluate(([x, y, w, h]) => [[x + w / 2, y + h / 2], [x + 8, y + 8], [x + w - 8, y + 8], [x + w / 2, y + 8]].map(([px, py]) => !!document.elementFromPoint(px, py)?.closest('[aria-label="Lesson canvas"]')), [canvasBox.x, canvasBox.y, canvasBox.w, canvasBox.h]);
   check(`${theme}: the header ends where the canvas begins and nothing invisible covers the canvas`, headerBox.bottom <= canvasBox.y + 1 && blockers.every(Boolean), JSON.stringify(blockers));
-  // Keyboard: Tab reaches the logo, then the menus, then Fork, then the toggle, and Fork shows a focus indicator.
+  // Keyboard: Tab reaches the logo, then the menus, then Star (stars.md; left of the @handle), then Fork, then the toggle, and Fork shows a focus indicator.
   await page.locator('body').click({ position: { x: 2, y: 2 } }).catch(() => {});
   await page.evaluate(() => document.activeElement?.blur());
   const order = [];
@@ -134,12 +134,12 @@ for (const theme of ['light', 'dark']) {
   for (let i = 0; i < 40 && order.length < 40; i++) {
     await page.keyboard.press('Tab');
     const seen = await page.evaluate(() => { const a = document.activeElement; if (!a) return null; const s = getComputedStyle(a);
-      return { id: a.matches('[data-shared-brand]') ? 'logo' : a.matches('[role="menubar"] [role="menuitem"]') ? 'menu' : a.matches('[data-fork-button]') ? 'fork' : a.matches('[data-panel-toggle]') ? 'toggle' : null, outline: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0, ring: s.boxShadow !== 'none' }; });
+      return { id: a.matches('[data-shared-brand]') ? 'logo' : a.matches('[role="menubar"] [role="menuitem"]') ? 'menu' : a.matches('[data-star-button]') ? 'star' : a.matches('[data-fork-button]') ? 'fork' : a.matches('[data-panel-toggle]') ? 'toggle' : null, outline: s.outlineStyle !== 'none' && parseFloat(s.outlineWidth) > 0, ring: s.boxShadow !== 'none' }; });
     if (seen?.id && order[order.length - 1] !== seen.id) order.push(seen.id);
     if (seen?.id === 'fork') forkFocus = seen;
     if (seen?.id === 'toggle') break;
   }
-  check(`${theme}: keyboard order is logo, menus, Fork, panel toggle, and Fork shows visible focus`, JSON.stringify(order) === JSON.stringify(['logo', 'menu', 'fork', 'toggle']) && !!(forkFocus?.outline || forkFocus?.ring), JSON.stringify([order, forkFocus]));
+  check(`${theme}: keyboard order is logo, menus, Star, Fork, panel toggle, and Fork shows visible focus`, JSON.stringify(order) === JSON.stringify(['logo', 'menu', 'star', 'fork', 'toggle']) && !!(forkFocus?.outline || forkFocus?.ring), JSON.stringify([order, forkFocus]));
   await shot(page, `${theme}-desktop`);
   await context.close();
 }

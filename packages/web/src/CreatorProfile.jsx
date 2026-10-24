@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Compass, FolderGit2, Search, UserRound, UserPen } from 'lucide-react';
+import { BarChart3, Compass, FolderGit2, Search, Star, UserRound, UserPen } from 'lucide-react';
 import { CreatorDashboard } from './CreatorAnalytics.jsx';
 import { PRODUCT } from './flags.js';
 import { SortMenu } from './home/LearningCard.jsx';
@@ -8,13 +8,16 @@ import { OwnerCheck } from './home/Provenance.jsx';
 import { forkNumber, matchingProjects } from './home/provenance.js';
 import { loadProfile, useProfile } from './session-display.js';
 import Shell from './Shell.jsx';
-import { Button, EmptyState, Input, SkeletonRows, Toasts } from './ui.jsx';
+import { Button, EmptyState, Input, SkeletonRows, Tabs, TabsList, TabsTrigger, Toasts } from './ui.jsx';
 
 // /@handle: a creator's public profile (owner 2026-10-06 #63, docs/features/creator-profile.md) - identity, public
 // explainers and the public-safe counters, for discovery and reputation; not a social network. Everyone sees the same
 // page; the owner also gets Edit profile and their private Analytics, opened beside it, never mixed in. Signed in, it
 // sits in the app's Shell; signed out, it stands alone, as /e/<token> does.
 const SORTS = [{ id: 'newest', label: 'Newest' }, { id: 'forks', label: 'Most forked' }];
+// The profile's two tabs (docs/features/stars.md, Task 8): ?tab=stars is the Stars collection, anything else the canvases they published.
+const TAB = 'rounded-t-sm data-[state=active]:border-accent! focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent';
+const tabOf = search => (new URLSearchParams(search).get('tab') === 'stars' ? 'stars' : 'canvases');
 const plural = (n, word) => `${forkNumber(n)} ${word}${n === 1 ? '' : 's'}`;
 
 export default function CreatorProfilePage({ handle }) {
@@ -41,6 +44,13 @@ function Profile({ handle }) {
   const [sort, setSort] = useState('newest');
   const [p, setP] = useState(null); // null: loading; { missing }; the profile
   const [analytics, setAnalytics] = useState(false);
+  const [tab, setTab] = useState(() => tabOf(window.location.search));
+  const choose = next => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    if (next === 'stars') url.searchParams.set('tab', 'stars'); else url.searchParams.delete('tab');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}`);
+  };
   // Search this creator's projects and canvases (owner 2026-10-08), as Explore's field: the server filters (the list is
   // capped), a pause after typing; Esc clears. The answer keeps the term it was asked for (p.q).
   const [typed, setTyped] = useState('');
@@ -115,6 +125,14 @@ function Profile({ handle }) {
             </div>
           )}
         </header>
+        {/* Canvases they published, and the public canvases they starred: a profile with no publication still has Stars. */}
+        <Tabs value={tab} onValueChange={choose}>
+          <TabsList data-profile-tabs className="mb-4">
+            <TabsTrigger value="canvases" className={TAB}>Canvases</TabsTrigger>
+            <TabsTrigger value="stars" data-profile-stars-tab className={TAB}>Stars<span data-profile-stars-count className="ml-1.5 tabular-nums text-ink-3">{forkNumber(p.starred_count || 0)}</span></TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {tab === 'stars' ? <ProfileStars handle={p.handle} own={own} me={me?.handle || null} /> : <>
         <div className="flex flex-wrap items-center gap-3 pb-4">
           <h2 className="mr-auto text-xs text-ink-2">Public Learning Boards</h2>
           {/* Explore's search field, compact beside Sort; full width under them on a phone. Signed out too. */}
@@ -133,6 +151,7 @@ function Profile({ handle }) {
         {p.explainers.length ? <PublicCards cards={p.explainers} me={me?.handle || null} attr="data-profile-card" />
           : p.q ? <p data-profile-search-empty className="text-sm text-ink-3">No canvases or projects match &ldquo;{p.q}&rdquo;.</p>
           : <div data-profile-empty><EmptyState icon={Compass}>{own ? 'You have no public learning boards yet. Publish a canvas to Explore from its Share panel.' : `@${p.handle} has no public learning boards yet.`}</EmptyState></div>}
+        </>}
       </div>
       {own && analytics && <CreatorDashboard profile={p} onClose={() => setAnalytics(false)} />}
     </main>
@@ -154,6 +173,30 @@ function ProjectMatches({ projects }) {
           </a>
         ))}
       </div>
+    </section>
+  );
+}
+
+// The Stars tab: the public canvases this person starred, newest star first (creators.js profileStars), the same for every viewer.
+// A canvas that is private now is not here and not counted; the answer never says whether there are others. Show more asks for
+// the next page by the server's cursor.
+function ProfileStars({ handle, own, me }) {
+  const [list, setList] = useState({ cards: null, next: null, more: false, error: false });
+  const load = cursor => {
+    setList(prev => ({ ...prev, more: !!cursor, error: false }));
+    fetch(`/api/learn/creators/${encodeURIComponent(handle)}/stars${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, { credentials: 'same-origin' })
+      .then(async r => { const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error('failed'); setList(prev => ({ cards: [...(cursor ? prev.cards : []), ...body.starred], next: body.next_cursor, more: false, error: false })); })
+      .catch(() => setList(prev => ({ ...prev, more: false, error: true, retry: cursor })));
+  };
+  useEffect(() => { load(null); }, [handle]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { cards, next, more, error } = list;
+  return (
+    <section data-profile-stars aria-label="Stars">
+      {error && <div data-profile-stars-error className="flex items-center gap-3 pb-4 text-sm text-ink-2">The Stars could not load. <Button size="sm" variant="secondary" onClick={() => load(list.retry)}>Retry</Button></div>}
+      {!cards && !error && <SkeletonRows rows={3} />}
+      {cards?.length === 0 && <div data-profile-stars-empty><EmptyState icon={Star}>{own ? 'You have not starred any public canvases yet.' : `@${handle} has not starred any public canvases yet.`}</EmptyState></div>}
+      {cards?.length > 0 && <PublicCards cards={cards} me={me} attr="data-profile-star-card" />}
+      {next && <div className="flex justify-center pt-6"><Button variant="secondary" data-profile-stars-more disabled={more} onClick={() => load(next)}>Show more</Button></div>}
     </section>
   );
 }
