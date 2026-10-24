@@ -100,10 +100,10 @@ export function usageSnapshot(usage) {
 export const EVENTS = Object.freeze({
   // One Learn model call (learn-models.js loggedModel): its start, and its terminal outcome with timings and usage.
   'model_call.started': { task: { type: 'token', required: true }, provider: { type: 'token', required: true },
-    requested_model: { type: 'token' }, source: { type: 'token' }, prompt_hash: { type: 'hex' }, stream: { type: 'bool' } },
+    requested_model: { type: 'token' }, source: { type: 'token' }, prompt_hash: { type: 'id' }, stream: { type: 'bool' } },
   'model_call.finished': { task: { type: 'token', required: true }, provider: { type: 'token', required: true },
     requested_model: { type: 'token' }, served_model: { type: 'token' }, source: { type: 'token' }, fell_back: { type: 'bool' },
-    prompt_hash: { type: 'hex' }, stream: { type: 'bool' }, status_code: { type: 'int' }, stop_reason: { type: 'token' },
+    prompt_hash: { type: 'id' }, stream: { type: 'bool' }, status_code: { type: 'int' }, stop_reason: { type: 'token' },
     request_id: { type: 'id' }, response_ms: { type: 'ms' }, first_chunk_ms: { type: 'ms' }, duration_ms: { type: 'ms' },
     chunks: { type: 'int' }, usage: { type: 'usage' } },
   // One stage of an action or job, timed on one process's monotonic clock (Task 10).
