@@ -21,7 +21,8 @@
 //   5b. MOCKED reload mid-job (lane mact): a card saved while its job runs keeps that job's placement id, so after a reload it
 //      follows the same job (polls only, no second start) and shows the video once ready;
 //   6. REAL refusal (no stub): the stack's worker has no orchestrator, so Generate's one request is refused and the card
-//      says Motion is not available in this environment, retryable;
+//      says Motion is not available in this environment and offers no start action (the server offers none while Motion cannot
+//      start: learn-video.js motionRecovery; this step used to expect Generate again, before that policy);
 //   7. the Slash commands window: opening it and choosing /motion sends no request but the committed clip's own GET; its card
 //      plays that real Motion video (job 8a2015a4) from memory, pauses and seeks (static assets answer without byte ranges, so
 //      the plain path could not seek); no /animate row;
@@ -602,7 +603,11 @@ for (const theme of ['light', 'dark']) {
     await generate(`/motion 12s explain layer norm ${theme}`);
     const mine = page.locator('[data-block-id]', { hasText: REFUSED });
     await mine.waitFor({ timeout: 20000 });
-    assert.equal((await mine.locator('[data-generate-video]').innerText()).trim(), 'Generate again'); // owner message 38
+    // The failed job's recovery arrives with the list read (its usage line); the server offers no start action, not even Generate
+    // again, while Motion cannot start (control-plane learn-video.js motionRecovery: every action and regenerate need startable;
+    // owner message 38 item 4, "only the actions that can run now"). With an orchestrator the card offers Generate again (step 5).
+    await mine.locator('[data-motion-usage]').waitFor({ timeout: 15000 });
+    assert.equal(await mine.locator('[data-generate-video], [data-recovery-action]').count(), 0, 'nothing that starts work is offered while Motion cannot start');
     assert.equal(videoPosts().length - posts, 1, 'one request, answered by the real worker');
     await mine.scrollIntoViewIfNeeded();
     await mine.screenshot({ path: `${OUT}/${theme}-07-refused-card.png` });
