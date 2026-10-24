@@ -12,6 +12,7 @@ import { spendTransport } from '../src/learn-spend.js';
 import { beginAttempt, settleAttempt, refundAttempt, usageTotals, withUsage, noteUsageIdentity, periodOf, periodReset } from '../src/learn-usage.js';
 import { usageFetch } from '../src/learn-usage-route.js';
 import { costUsd } from '../src/learn-models.js';
+import { imageEstimate } from '../src/learn-usage-estimates.js';
 
 const sql = name => readFileSync(new URL(`../learn-migrations/${name}`, import.meta.url), 'utf8');
 const CREDIT = 10_000; // micros
@@ -75,7 +76,7 @@ test('conversion and pricing: $1 = 100 credits = 1,000,000 micros; the worked ex
   assert.equal(rateOf('jev', 'jev-1.13.0', 'output').usd, 0);
   assert.equal(priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: 1_000_000 } }).micros / CREDIT, 1500); // 1,500 credits per million bytes
   assert.equal(priceUsage({ provider: 'elevenlabs', model: 'scribe_v2_realtime', quantities: { audio_hour: 3600 } }).micros / CREDIT, 39);
-  assert.equal(rateOf('openai', 'gpt-4o-transcribe', 'audio_minute').status, 'approximate');
+  assert.equal(rateOf('openai', 'gpt-4o-transcribe', 'audio_minute').status, 'estimate');
 });
 
 test('image models are priced per modality, never one price per image', () => {
@@ -98,10 +99,22 @@ test('Sonnet 5.5 cached input is $0.10 per million and Sonnet 5 keeps its own ro
   assert.equal(rateOf('anthropic', 'claude-sonnet-5-5', 'cache_read').status, 'verified');
   assert.equal(rateOf('anthropic', 'claude-sonnet-5', 'cache_read').usd, 0.2);
   assert.notEqual(rateOf('anthropic', 'claude-sonnet-5', 'input'), rateOf('anthropic', 'claude-sonnet-5-5', 'input'));
-  const unverified = unverifiedRows();
-  for (const category of ['cache_write_5m', 'cache_write_1h']) assert.ok(unverified.some(r => r.model === 'claude-opus-5-5' && r.category === category));
-  assert.ok(unverified.some(r => r.model === 'claude-opus-5-5' && r.tier === 'fast'));
-  assert.ok([...REGISTRY.values()].every(r => ['verified', 'unverified', 'approximate'].includes(r.status)));
+  assert.ok([...REGISTRY.values()].every(r => ['verified', 'unverified', 'estimate'].includes(r.status) && r.source));
+  // Official pricing page (read 2026-10-23): caching and fast mode are verified, each row carrying its source and retrieval date.
+  for (const [model, cacheRead, write5m, write1h] of [['claude-opus-5-5', 0.2, 5, 8], ['claude-opus-5', 0.5, 6.25, 10], ['claude-sonnet-5-5', 0.1, 2.5, 4], ['claude-sonnet-5', 0.2, 2.5, 4], ['claude-haiku-4-5-20251001', 0.1, 1.25, 2]]) {
+    for (const [category, usd] of [['cache_read', cacheRead], ['cache_write_5m', write5m], ['cache_write_1h', write1h]]) {
+      const found = rateOf('anthropic', model, category);
+      assert.deepEqual([found.usd, found.status, found.retrieved, /^https:\/\/platform\.claude\.com\//.test(found.source)], [usd, 'verified', '2026-10-23', true], `${model} ${category}`);
+    }
+  }
+  assert.deepEqual(['input', 'output', 'cache_read', 'cache_write_5m', 'cache_write_1h'].map(c => rateOf('anthropic', 'claude-opus-5-5', c, 'fast').usd), [8, 40, 0.4, 10, 16]);
+  assert.deepEqual(['input', 'output', 'cache_read', 'cache_write_5m', 'cache_write_1h'].map(c => rateOf('anthropic', 'claude-opus-5', c, 'fast').usd), [10, 50, 1, 12.5, 20]);
+  assert.equal(rateOf('openai', 'gpt-4.1-mini', 'cache_read').status, 'verified');
+  assert.equal(rateOf('exa', 'search', 'request').usd, 7);
+  // What is left is named, not hidden: an estimate with its basis, and Bedrock rows no official table could confirm.
+  assert.deepEqual([...new Set(unverifiedRows().map(r => `${r.provider}:${r.status}`))].sort(), ['bedrock:unverified', 'openai:estimate']);
+  assert.equal(rateOf('openai', 'gpt-image-1', 'output_image'), null, 'no official rate: no row, so no guess');
+  assert.equal(imageEstimate('a cat'), null);
   // Cached tokens are counted once: input_tokens excludes them, a TTL split prices writes by TTL.
   const split = anthropicQuantities({ input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 100, cache_creation_input_tokens: 70, cache_creation: { ephemeral_5m_input_tokens: 20, ephemeral_1h_input_tokens: 50 } });
   assert.deepEqual(split, { input: 10, output: 5, cache_read: 100, cache_write_5m: 20, cache_write_1h: 50 });
@@ -262,4 +275,22 @@ test('duplicate settlement charges once; an unknown cost stays unknown and held,
   assert.deepEqual({ ...sqlite.prepare('SELECT cost_micros, cost_state FROM usage_attempts WHERE attempt_id = ?').get('att-lost') }, { cost_micros: null, cost_state: 'unknown' });
   const totals = await usageTotals(LEARN_DB, 'u-dup', periodOf(OCT));
   assert.deepEqual([totals.used, totals.reserved], [25_000, 90_000]);
+});
+
+test('the cutover each environment ships: 2026-10 is the last 5,000-credit month, 2026-11 is the first 2,500 grant', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
+  for (const path of ['../../web/wrangler.dev.jsonc', '../../web/wrangler.rabbit-hole-prod.jsonc', '../../../scripts/ci/config/integ-local.jsonc']) {
+    const text = read(path), pick = name => text.match(new RegExp(`"${name}":\\s*"([^"]*)"`))?.[1];
+    const env = config(LEARN_DB, { AI_MONTHLY_ALLOWANCE_USD: pick('AI_MONTHLY_ALLOWANCE_USD'), AI_LEGACY_ALLOWANCE_USD: pick('AI_LEGACY_ALLOWANCE_USD'), AI_ALLOWANCE_CUTOVER_PERIOD: pick('AI_ALLOWANCE_CUTOVER_PERIOD') });
+    const user = `u-${path.length}`;
+    seedUsage(sqlite, user, '2026-09', 1000);
+    const grants = {};
+    for (const period of ['2026-09', '2026-10', '2026-11', '2026-12', '2027-01']) grants[period] = (await allowanceFor(LEARN_DB, env, user, period)) / CREDIT;
+    assert.deepEqual(grants, { '2026-09': 5000, '2026-10': 5000, '2026-11': 2500, '2026-12': 2500, '2027-01': 2500 }, path);
+    assert.equal((await allowanceFor(LEARN_DB, env, `${user}-no-history`, '2026-10')) / CREDIT, 2500, `${path}: no recorded usage gets the default (owner 2026-10-23)`);
+  }
+  // The boundary is the instant the month changes, in UTC.
+  assert.equal(periodOf(at('2026-10-31T23:59:59Z')), '2026-10');
+  assert.equal(periodOf(at('2026-11-01T00:00:00Z')), '2026-11');
 });

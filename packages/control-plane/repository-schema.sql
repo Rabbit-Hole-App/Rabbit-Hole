@@ -966,9 +966,11 @@ CREATE INDEX IF NOT EXISTS learn_observations_goal ON learn_observations (org, o
 -- Monthly AI allowance grants, and what each charge was priced with and refunded (owner credits brief 2026-10-23: 2,500 AI credits every month).
 -- usage_grants: the allowance a person was granted for one UTC month ('YYYY-MM'), written once, on the first admission or
 -- balance read of that month, and never lowered afterwards. It is how an account keeps the allowance it already had through the
--- month the default changes: the new default applies to the periods that start after the cutover (AI_ALLOWANCE_CUTOVER_PERIOD),
--- and a person with earlier usage keeps AI_LEGACY_ALLOWANCE_USD for the cutover month and before. Admission and the usage screen
--- read it through the same function (learn-entitlement.js). source: 'default' | 'legacy_transition'. Amounts are integer micro-USD.
+-- month the default changes. Boundary (learn-entitlement.js firstGrant): a month BEFORE AI_ALLOWANCE_CUTOVER_PERIOD is granted
+-- AI_LEGACY_ALLOWANCE_USD to a person with earlier usage, so with the cutover 2026-11 the last legacy month is 2026-10; every month
+-- FROM the cutover on (2026-11, starting 2026-11-01 00:00 UTC) is granted the default AI_MONTHLY_ALLOWANCE_USD. A person with no
+-- recorded usage, and every new account, gets the default in every month. Admission and the usage screen read it through the same
+-- function (learn-entitlement.js). source: 'default' | 'legacy_transition'. Amounts are integer micro-USD.
 CREATE TABLE IF NOT EXISTS usage_grants (
   user_id TEXT NOT NULL,
   period TEXT NOT NULL,

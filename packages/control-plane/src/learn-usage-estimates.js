@@ -9,11 +9,13 @@ export const ESTIMATE_PRICE = Object.freeze({ priceVersion: PRICE_VERSION });
 
 const bytes = text => new TextEncoder().encode(String(text ?? '')).length;
 
-// OpenAI gpt-image-1, 1024x1024, quality low (dev-worker.js /api/learn/image): 272 image output tokens
+// Legacy gpt-image-1 (dev-worker.js /api/learn/image, off unless LEGACY_IMAGE_GENERATION): the official OpenAI pricing page lists no rate for it
+// (read 2026-10-23), so there is no registry row and the estimate is null: the attempt is recorded unknown, never zero. History of the
+// old estimate: 272 image output tokens
 // (https://developers.openai.com/api/docs/guides/image-generation, table "Low | 272 tokens", read 2026-10-16) at $40 per 1M
 // image output tokens = 40 micros a token, plus the prompt's text input at $5 per 1M = 5 micros a token
 // (https://developers.openai.com/api/docs/pricing, read 2026-10-16), its UTF-8 bytes standing in as a token upper bound.
-export const imageEstimate = prompt => priceUsage({ provider: 'openai', model: 'gpt-image-1', quantities: { output_image: 272, input_text: bytes(prompt) } }).micros;
+export const imageEstimate = prompt => priceUsage({ provider: 'openai', model: 'gpt-image-1', quantities: { output_image: 272, input_text: bytes(prompt) } })?.micros ?? null; // no registry row: unknown, not 0
 
 // OpenAI gpt-4o-transcribe (/api/learn/transcribe): "$0.006 / minute (estimated cost)"
 // (https://developers.openai.com/api/docs/pricing, read 2026-10-16). The server does not know the clip's length; one

@@ -487,7 +487,7 @@ test('ledger-bypass media: reported cost is settled, a documented estimate is es
   await recordMedia(env, { provider: 'elevenlabs' });
   await recordMedia(env, { provider: 'exa', costMicros: 5000, estimateMicros: 7000 });
   assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.kind, a.status, a.cost_state, a.cost_micros, a.reserved_micros]), [
-    ['media', 'settled', 'estimated', 272 * 40 + 5 * 5, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
+    ['media', 'settled', 'unknown', null, null], ['media', 'failed', 'unknown', null, null], ['media', 'settled', 'unknown', null, null], ['media', 'settled', 'settled', 5000, null]]);
   assert.equal(TRANSCRIBE_ESTIMATE, 6000);
   // A legacy call with no request context (review.js on the control plane) is its own system action, platform-funded.
   await recordMedia({ LEARN_DB }, { kind: 'generation', provider: 'anthropic', ok: true });
@@ -546,7 +546,7 @@ test('the dev worker records an image generation as an estimated media attempt o
     body: JSON.stringify({ app: 'canvas-0a1b2c3d', prompt: 'a cat', confirmed: true }) }), env, { waitUntil() {} });
   assert.equal(response.status, 200);
   assert.deepEqual(rows(sqlite, 'usage_actions').map(a => [a.user_id, a.feature, a.status, a.result]), [['u-owner-3c9f', 'image', 'completed', 'full']]);
-  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'estimated', imageEstimate('a cat')]]);
+  assert.deepEqual(rows(sqlite, 'usage_attempts').map(a => [a.provider, a.model, a.cost_state, a.cost_micros]), [['openai', 'gpt-image-1', 'unknown', null]]);
 });
 
 // Owner 2026-10-23: legacy image generation is off unless LEGACY_IMAGE_GENERATION is the exact string 'true' (gpt-image-1 is shut down).

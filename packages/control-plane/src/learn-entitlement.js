@@ -8,11 +8,13 @@
 // or a linked sign-in provider reaches the same user id and the same row. No timer or onboarding task: a month's grant is
 // made on demand from the month boundary, so a person who was offline at the 1st gets the new month's allowance on return.
 //
-// The transition to the new default: an account with any earlier AI usage keeps AI_LEGACY_ALLOWANCE_USD for the months up to
-// AI_ALLOWANCE_CUTOVER_PERIOD (exclusive), then the default from that month on; an account with no usage yet, and every new
-// account, gets the default at once.
-// shortcut: an account that never used AI before the cutover gets the default for the cutover month's remainder, since its
-// account age is not known to this database; it loses no usage. Add the account's creation time to the session if that matters.
+// The transition to the new default (owner 2026-10-23): a month BEFORE AI_ALLOWANCE_CUTOVER_PERIOD is granted
+// AI_LEGACY_ALLOWANCE_USD to an account with any recorded usage, so with the cutover 2026-11 the last legacy month is 2026-10;
+// every month FROM the cutover on (2026-11, from 2026-11-01 00:00 UTC) is granted the default. An account with no recorded usage,
+// and every new account, gets the default in every month.
+// Owner decision 2026-10-23: no account-creation plumbing. An account with no usage recorded here gets the default even for the
+// month before the cutover; missing history is not proof that nothing happened before, so a grant already made, and any usage,
+// are never changed.
 import { allowanceCutoverPeriod, legacyAllowanceMicros, monthlyAllowanceMicros } from './learn-usage-config.js';
 
 async function firstGrant(db, env, userId, period) {
