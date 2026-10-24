@@ -53,8 +53,11 @@ test('/@handle: routed to anyone in Rabbit Hole, served by the dev worker, and t
   assert.match(main, /const CREATOR = \/\^\\\/@\(\[A-Za-z0-9_\]\{1,40\}\)\$\/;/);
   assert.match(read('../dev-worker.js'), /\/\^\\\/@\[A-Za-z0-9_\]\{1,40\}\$\/\.test\(path\)/);
   const profile = read('./CreatorProfile.jsx');
-  assert.match(profile, /\{own && <span data-own-profile className="[^"]+"><OwnerCheck owned \/>Your profile<\/span>\}/, 'the blue check on your own profile only');
-  assert.equal(profile.split('<OwnerCheck').length, 2);
+  // Owner brief 2026-10-23: no "Your profile" label; the blue check sits right after the @handle (the heading itself when there is no display name), own profile only.
+  assert.match(profile, /<span data-profile-handle className="[^"]+">@\{p\.handle\}<\/span>\n\s+\{own && <OwnerCheck owned size=\{16\} \/>\}/, 'named: the check directly after the @handle');
+  assert.match(profile, /<h1 data-profile-name [^>]*>@\{p\.handle\}<\/h1>\n\s+\{own && <OwnerCheck owned size=\{22\} \/>\}/, 'unnamed: the @handle is the heading and carries the check');
+  assert.equal(profile.split('<OwnerCheck').length, 3, 'the one badge, in its two placements');
+  assert.doesNotMatch(profile, /Your profile|data-own-profile/, 'no visible label and no separate identity marker');
   assert.match(profile, /\{own && \(\n\s+<div className="flex shrink-0 gap-2 pt-1">\n\s+<Button size="sm" variant="secondary" data-edit-profile/);
   assert.match(profile, /<PublicCards cards=\{p\.explainers\} me=\{me\?\.handle \|\| null\} attr="data-profile-card" \/>/, 'Explore\'s own card list');
   const code = (profile + read('./home/PublicCards.jsx')).replace(/\/\/[^\n]*|\{\/\*[\s\S]*?\*\/\}/g, ''); // what renders, not the comments
@@ -106,7 +109,8 @@ test('creator rows: picture, name, @handle link, two-line description, non-zero 
   const cards = read('./home/PublicCards.jsx');
   const row = cards.slice(cards.indexOf('function CreatorRow'), cards.indexOf('export function CreatorCards'));
   assert.match(row, /<li data-creator-card=\{c\.handle\} className="[^"]*\bp-6\b[^"]*max-sm:flex-col/, 'a row, 24px padding; stacked on a phone');
-  assert.match(row, /<CreatorAvatar c=\{c\} className="h-12 w-12 text-lg! sm:h-16 sm:w-16 sm:text-2xl!" \/>/, '48px on a phone, 64px above');
+  // Owner brief 2026-10-23 (replaces 48px/64px): 72px on a phone, 96px above, 24px to the text on desktop.
+  assert.match(row, /items-start gap-4 sm:gap-6">\n\s+<CreatorAvatar c=\{c\} className="h-18 w-18 text-2xl! sm:h-24 sm:w-24 sm:text-4xl!" \/>/, '72px on a phone, 96px above, 24px gap');
   assert.match(row, /\{c\.name && <p data-creator-name [^>]*>\{c\.name\}<\/p>\}/, 'the saved display name, omitted when unset');
   assert.match(row, /<a data-creator-handle href=\{c\.url\} className=\{`[^`]*text-accent[^`]*`\}>@\{c\.handle\}<\/a>/, 'the blue @handle opens /@handle');
   assert.match(row, /\{c\.description && <p data-creator-description className="line-clamp-2 break-words [^"]*">\{c\.description\}<\/p>\}/, 'two lines at most, text, no empty line');
@@ -148,8 +152,19 @@ test('Copy profile link: the absolute /@handle only, on the profile beside the n
   assert.match(button, /aria-label=\{label\} title=\{label\}/);
   assert.match(button, /<span aria-live="polite">\{label\}<\/span>/);
   // On the profile, in the name and handle row, for every viewer (no own or signed-in condition).
-  assert.match(profile, /\{p\.name && <span data-profile-handle>@\{p\.handle\}<\/span>\}\n[\s\S]{0,400}<CopyProfileLink handle=\{p\.handle\} \/>/);
+  assert.match(profile, /<span data-profile-handle className="[^"]+">@\{p\.handle\}<\/span>[\s\S]{0,400}<CopyProfileLink handle=\{p\.handle\} \/>/);
   assert.doesNotMatch(profile, /\{own && <CopyProfileLink|\{me && <CopyProfileLink/);
+});
+
+// Owner brief 2026-10-23: the Creators search, count, Recommended and rows share one column of at most 760px (Creators only);
+// the profile picture is 96px on a phone and 128px from md up, the same CreatorAvatar as the rows.
+test('Creators column: 760px for the search row and the section on the Creators tab only; the profile avatar is 96px / 128px', () => {
+  const home = read('./Home.jsx'), explore = home.slice(home.indexOf('function Explore()'));
+  assert.match(explore, /<div className=\{`flex items-center gap-3 pb-6 max-md:flex-wrap \$\{tab === 'creators' \? 'max-w-\[760px\]' : ''\}`\}>/, 'the search row narrows on Creators only');
+  assert.match(explore, /<section data-explore-creators aria-label="Creators" className="max-w-\[760px\]">/, 'count, Recommended and rows: the same column');
+  assert.equal(explore.split('760px').length, 3, 'nowhere else: the Canvases tab is unchanged');
+  const profile = read('./CreatorProfile.jsx');
+  assert.match(profile, /<CreatorAvatar c=\{p\} className="h-24 w-24 text-4xl! md:h-32 md:w-32 md:text-5xl!" \/>/);
 });
 
 // Owner, 2026-10-08: "in creators profile put a search bar so they can search projects or canvas by name for that specific creator".

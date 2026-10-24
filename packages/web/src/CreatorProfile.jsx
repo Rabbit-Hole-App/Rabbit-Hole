@@ -76,21 +76,36 @@ function Profile({ handle }) {
   return (
     <main className="flex-1 overflow-y-auto">
       <div data-creator-profile={p.handle} className={wrap}>
-        <header className="flex flex-wrap items-start gap-5 pb-8">
-          <CreatorAvatar c={p} className="h-20 w-20 text-3xl!" />
-          {/* basis-60: on a phone your own Edit profile and Analytics wrap below, never squeezing the name and description. */}
-          <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1 pt-1">
-            <h1 data-profile-name className="break-words text-[32px] font-bold leading-[1.15] tracking-[-0.01em] text-ink">{p.name || `@${p.handle}`}</h1>
-            {/* The blue owner check only on your own profile, meaning "this is yours" - never verification (owner rule). */}
-            <div className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
-              {p.name && <span data-profile-handle>@{p.handle}</span>}
-              {own && <span data-own-profile className="inline-flex items-center gap-1 text-xs text-ink-2"><OwnerCheck owned />Your profile</span>}
-              {/* Beside the name and handle, for everyone - signed out too (owner, 2026-10-08). */}
-              <CopyProfileLink handle={p.handle} />
+        <header className="flex flex-wrap items-start gap-x-6 gap-y-4 pb-8">
+          {/* The picture and the identity never wrap apart; on a phone your own Edit profile and Analytics wrap below them,
+              never squeezing the name and description. 96px on a phone, 128px from md up (owner brief 2026-10-23). */}
+          <div className="flex min-w-0 flex-1 basis-80 items-start gap-4 md:gap-6">
+            <CreatorAvatar c={p} className="h-24 w-24 text-4xl! md:h-32 md:w-32 md:text-5xl!" />
+            <div className="flex min-w-0 flex-1 flex-col gap-1 pt-1">
+              {/* The blue owner check sits right after the @handle, only on your own profile, meaning "this is yours" - never
+                  verification (owner rule). With a display name the name is the heading and the @handle follows in its own
+                  row; with none the @handle is the heading and carries the check, never repeated beneath. */}
+              {p.name ? <h1 data-profile-name className="break-words text-[32px] font-bold leading-[1.15] tracking-[-0.01em] text-ink">{p.name}</h1>
+                : (
+                  <div data-profile-handle-group className="flex min-w-0 items-center gap-2">
+                    <h1 data-profile-name className="min-w-0 break-words text-[32px] font-bold leading-[1.15] tracking-[-0.01em] text-ink">@{p.handle}</h1>
+                    {own && <OwnerCheck owned size={22} />}
+                  </div>
+                )}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-ink-2">
+                {p.name && (
+                  <span data-profile-handle-group className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                    <span data-profile-handle className="min-w-0 [overflow-wrap:anywhere]">@{p.handle}</span>
+                    {own && <OwnerCheck owned size={16} />}
+                  </span>
+                )}
+                {/* Beside the name and handle, for everyone - signed out too (owner, 2026-10-08). */}
+                <CopyProfileLink handle={p.handle} />
+              </div>
+              {/* The profile description (Settings > Profile): plain text, rendered as text - never HTML or a link. */}
+              {description && <p data-profile-description className="max-w-[60ch] break-words pt-1 text-sm text-ink">{description}</p>}
+              <p data-profile-stats className="pt-2 text-sm text-ink-2">{plural(p.explainer_count, 'public learning board')} · {plural(p.fork_count, 'fork')}</p>
             </div>
-            {/* The profile description (Settings > Profile): plain text, rendered as text - never HTML or a link. */}
-            {description && <p data-profile-description className="max-w-[60ch] break-words pt-1 text-sm text-ink">{description}</p>}
-            <p data-profile-stats className="pt-2 text-sm text-ink-2">{plural(p.explainer_count, 'public learning board')} · {plural(p.fork_count, 'fork')}</p>
           </div>
           {own && (
             <div className="flex shrink-0 gap-2 pt-1">
