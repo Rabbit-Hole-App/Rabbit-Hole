@@ -72,11 +72,11 @@ export function usageView(state) {
   if (state.status === 'ready') {
     const { usage } = state;
     const empty = usage.remaining === 0;
-    const label = empty ? 'No AI allowance remaining' : `AI allowance: ${formatCredits(usage.remaining)} remaining`;
+    const label = empty ? 'No AI credits remaining' : `AI credits: ${formatCredits(usage.remaining)} remaining`;
     const note = usage.enforced ? null : TRACKING_NOTE;
     return { tone: empty ? 'empty' : 'ok', label, note, title: note ? `${label}. ${note}` : label, usage };
   }
-  const label = state.status === 'signed_out' ? 'Sign in to see your AI allowance'
+  const label = state.status === 'signed_out' ? 'Sign in to see your AI credits'
     : state.status === 'unavailable' || state.status === 'error' ? 'AI usage unavailable' : 'Loading AI usage';
   return { tone: 'neutral', label, note: null, title: label, usage: null };
 }

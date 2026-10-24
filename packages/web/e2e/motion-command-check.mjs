@@ -323,7 +323,7 @@ for (const theme of ['light', 'dark']) {
     assert.equal((await card.locator('h3').innerText()).trim(), `Motion: ${LINE.replace(/^\/motion /, '')}`);
     assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '15');
     assert.deepEqual([await card.locator('[data-proposal-audio="off"]').getAttribute('aria-pressed'), await card.locator('[data-proposal-audio="on"]').isDisabled()], ['true', true]);
-    assert.match(await card.locator('[data-proposal-usage]').innerText(), /^About 100 credits/);
+    assert.match(await card.locator('[data-proposal-usage]').innerText(), /^Estimated cost: 100 AI credits/);
     assert.doesNotMatch(await card.innerText(), /\$\d|Will show|Cancel/);
     assert.deepEqual([await card.locator('[data-proposal-generate]').count(), (await card.locator('[data-proposal-generate]').innerText()).trim()], [1, 'Generate']);
     assert.equal(await card.getByRole('button', { name: 'Cancel' }).count(), 0, 'no Cancel');
