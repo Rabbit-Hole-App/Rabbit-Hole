@@ -105,7 +105,7 @@ for (let tries = 0; tries < 16; tries++) {
 }
 const entryOf = title => weekly.canvases.entries.find(e => e.title === title);
 check('weekly endpoint (real): six fans seeded through the star and fork routes; 200, no-store, one answer for both tabs',
-  fanStars.every(x => x === 200) && fanForks.every(x => x === 200) && weeklyRes.status === 200 && weeklyRes.headers.get('cache-control') === 'no-store' && weekly.ranking_version === 'weekly-top-v1' && weekly.timezone === 'America/Los_Angeles'
+  fanStars.every(x => x === 200) && fanForks.every(x => x === 201) && weeklyRes.status === 200 && weeklyRes.headers.get('cache-control') === 'no-store' && weekly.ranking_version === 'weekly-top-v1' && weekly.timezone === 'America/Los_Angeles'
   && Array.isArray(weekly.canvases.entries) && Array.isArray(weekly.creators.entries) && weekly.canvases.entries.length <= 5 && weekly.creators.entries.length <= 5, JSON.stringify([fanStars, fanForks, weeklyRes.status]));
 check('weekly endpoint (real): six distinct fans make 6 weekly stars, the owner own star adds none; repeated forks by one fan count once (2 forks from 2 fans); stars rank first, then forks',
   entryOf(`Paged attention ${run}`)?.weekly_star_count === 6 && entryOf(`Paged attention ${run}`)?.weekly_fork_count === 0 && entryOf(`Gradient descent ${run}`)?.weekly_star_count === 3 && entryOf(`Gradient descent ${run}`)?.weekly_fork_count === 2
@@ -456,7 +456,7 @@ touch.on('pageerror', error => errors.push(error.message));
 await touch.goto(`${BASE}/explore`);
 await weeklySection(touch).waitFor({ timeout: 60000 });
 const touchLook = await touch.evaluate(() => ({ actions: [...document.querySelectorAll('[data-weekly-action]')].map(a => getComputedStyle(a).opacity), hover: matchMedia('(hover: none)').matches,
-  fits: [...document.querySelectorAll('[data-weekly-row]')].every(r => r.scrollWidth <= r.clientWidth + 1), page: document.documentElement.scrollWidth <= window.innerWidth, title: document.querySelector('[data-weekly-title]').getBoundingClientRect().width }));
+  fits: [...document.querySelectorAll('[data-weekly-row]')].every(r => r.scrollWidth <= r.clientWidth + 1), page: document.documentElement.scrollWidth <= window.innerWidth, title: document.querySelector('[data-weekly-title]').parentElement.getBoundingClientRect().width })); // the title column, not the link: the link is as wide as its text (run ba6ed201: a short title measured 87)
 check('touch and narrow (390 wide): Open is always visible, every row fits, the page does not scroll sideways and the title keeps a readable width', touchLook.hover && touchLook.actions.length === 5 && touchLook.actions.every(o => o === '1') && touchLook.fits && touchLook.page && touchLook.title >= 90, JSON.stringify(touchLook));
 await shot(touch, '03c-canvases-weekly-phone');
 await touchContext.close();

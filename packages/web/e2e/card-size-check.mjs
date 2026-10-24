@@ -622,7 +622,9 @@ const sweep = async (page, selector, where, { long = null, narrow = [0, 1], larg
 };
 const visibilities = (page, selector) => page.locator(selector).locator('[data-card-visibility]').evaluateAll((els) => [...new Set(els.map((e) => e.getAttribute('data-card-visibility') + (e.tagName === 'BUTTON' ? ':button' : '')))].sort());
 const onProjects = async (page) => { await page.goto(`${BASE}/library?type=projects`); await slider(page).waitFor({ timeout: 60000 }); await page.locator('[data-library-card="project"]').nth(4).waitFor({ timeout: 30000 }); };
-const onExplore = async (page, query = '') => { await page.goto(`${BASE}/explore${query}`); await slider(page).waitFor({ timeout: 60000 }); };
+// Weekly Top 5 loads after the first paint and pushes the cards down when it arrives; wait for it so no card is measured or hovered while the page still moves
+// (run ba6ed201 shard 6: card 0 changed between the resting and the hovered measurement).
+const onExplore = async (page, query = '') => { await page.goto(`${BASE}/explore${query}`); await slider(page).waitFor({ timeout: 60000 }); await page.locator('[data-weekly-top]').waitFor({ timeout: 60000 }); };
 
 await check('Library canvases at 1440, all four sizes: Private, Unlisted and Public pills, a long title, a 30-character handle with a long name, one unbroken word; nothing overlaps, every control is hit at its centre, nothing is cut short without a way to read it, hovered and focused cards keep every part where it was', async () => {
   const page = await seeded();
