@@ -21,6 +21,9 @@
 //  14. a pill line sent while another command runs stays in the composer and runs once that ends
 //  15. a line typed while the saved chat is still restoring (its GET held by the router until released) stays in the composer when the
 //      history lands, and is saved to the restored thread (owner decision A, 2026-10-22; chat-restore-draft.test.mjs is the unit twin)
+//  16. a context chip attached and a mode switched while the same saved chat is still restoring both survive it: the chip and the mode
+//      show when the history lands, are saved to the restored thread, ride the next /api/learn/ask body (mode, context_refs) and are
+//      there after a reload (fix/chat-restore-context; the CONTEXT and MODE tests of chat-restore-draft.test.mjs are the unit twin)
 // Before this change step 1 fails: a / line never shows as a message. Step 14 fails on be869fa1 and main e3fc9671 (L1b): the
 // pill and its words clear and nothing is sent. /api/learn/ask and the Tutor plan get canned answers here.
 // Usage: BASE=http://127.0.0.1:9141 SMALL_CP=http://127.0.0.1:9143 VARS=<cp .dev.vars> node e2e/chat-outputs-check.mjs [shotsDir]
@@ -28,6 +31,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { unavailableCommand } from '../src/agent/slash.js';
+import { mockChatRoute } from './dev-cp.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9141';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9143';
@@ -108,7 +112,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 15;
+const total = 16;
 let page = null;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -418,6 +422,47 @@ await step('a line typed while the saved chat is still restoring stays in the co
     assert.equal(await composerOf(page).inputValue(), LINE, 'the restore kept the line typed meanwhile');
     await until(async () => (await thread())?.draft?.text === LINE, 'the line was not saved to the restored thread');
     await page.screenshot({ path: `${OUT}/15-typed-while-restoring-${THEME}.png` });
+  } finally { release(); threadHold = null; }
+  await context.close();
+});
+
+// fix/chat-restore-context: the same held restore, with a context chip and a mode instead of a line. The saved thread is Tutor with no chips,
+// so Auto and the chip can only come from the learner. Add to chat attaches the card and selects Ask; the Mode menu then picks Auto, so the
+// last choice made while loading is the one that must win.
+await step('a chip attached and a mode switched while the saved chat is still restoring both survive it, are saved, ride the next message and survive a reload', async () => {
+  let release = () => {};
+  const saved = await thread();
+  await api(`/api/learn/chat/threads/${saved.id}/state`, { method: 'PUT', body: JSON.stringify({ mode: 'tutor', contextRefs: [] }) });
+  threadHold = new Promise(done => { release = done; });
+  try {
+    ({ context, page } = await open());
+    await mockChatRoute(context);
+    const chips = () => pane(page).locator('[data-context-chip]'), modeIs = mode => pane(page).locator(`[data-chat-mode="${mode}"]`);
+    await page.locator('[data-chat-pane][data-chat-restore="loading"]').waitFor();
+    await card(page, OLD.id).locator('[data-drag-zone]').first().click();
+    await page.getByRole('button', { name: 'Add to chat', exact: true }).click();
+    await chips().first().waitFor();
+    const refKey = await chips().first().getAttribute('data-ref-key'), sourceId = refKey.split('|')[0];
+    await pane(page).getByRole('button', { name: 'Mode', exact: true }).click();
+    await page.getByRole('menuitemradio', { name: /^Auto/ }).click();
+    await modeIs('auto').waitFor();
+    release(); threadHold = null;
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
+    await bubble(page, CAD_LINE).waitFor();
+    assert.equal(await pane(page).locator(`[data-context-chip][data-ref-key="${refKey}"]`).count(), 1, 'the restore kept the chip attached meanwhile');
+    assert.equal(await modeIs('auto').count(), 1, 'and the mode chosen meanwhile, not the saved Tutor');
+    await until(async () => { const now = await thread(); return now?.mode === 'auto' && now.contextRefs?.some(ref => ref.sourceId === sourceId); }, 'the chip and the mode were not saved to the restored thread');
+    const before = asks.length;
+    await send(page, 'why is a token id only an index');
+    await until(async () => asks.length > before, 'the next message was not sent to /api/learn/ask');
+    assert.equal(asks.at(-1).mode, 'auto', 'the message names the mode chosen meanwhile');
+    assert.ok(asks.at(-1).context_refs?.some(ref => ref.sourceId === sourceId), 'and carries the chip attached meanwhile');
+    await page.screenshot({ path: `${OUT}/16-chip-and-mode-while-restoring-${THEME}.png` });
+    await page.reload();
+    await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
+    await pane(page).locator(`[data-context-chip][data-ref-key="${refKey}"]`).waitFor();
+    assert.equal(await modeIs('auto').count(), 1, 'after a reload the thread opens in the same mode');
   } finally { release(); threadHold = null; }
   await context.close();
 });
