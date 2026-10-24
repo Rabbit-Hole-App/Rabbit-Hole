@@ -179,3 +179,15 @@ test('inbox: a public thread elsewhere reaches a participant only while it is pu
   assert.equal((await comments(f, 'POST', `${base}/blocks`, { as: 'ana', body: { comment_id: caraComment } })).status, 200);
   assert.deepEqual((await inbox(f, 'cara')).items, [], 'blocked');
 });
+
+// The tests above call canvasCommentsRoute directly, which skips the worker's route gate. fast-e2e step 14 of comments-delete caught
+// the inbox answering nothing in the browser because dev-worker.js only let /api/learn/comments/unread through. dev-worker.js imports
+// .html and .py, so node reads its source (as canvases.test.js does).
+test('the app worker hands every /api/learn/comments/ route of canvas-comments.js to canvasCommentsRoute', () => {
+  const comments = readFileSync(new URL('../src/canvas-comments.js', import.meta.url), 'utf8');
+  const gate = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8').split('\n').find(line => line.includes('canvasCommentsRoute(path'));
+  assert.ok(gate, 'dev-worker.js calls canvasCommentsRoute');
+  const routes = [...comments.matchAll(/path === '(\/api\/learn\/comments\/[^']+)'/g)].map(match => match[1]);
+  assert.ok(routes.includes('/api/learn/comments/inbox') && routes.includes('/api/learn/comments/unread'), 'both flat routes are found');
+  for (const route of routes) assert.ok(gate.includes(`'${route}'`) || gate.includes("startsWith('/api/learn/comments/')"), `${route} is not routed by dev-worker.js`);
+});
