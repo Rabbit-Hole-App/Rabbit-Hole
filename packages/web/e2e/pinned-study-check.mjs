@@ -132,8 +132,10 @@ const visiblePart = selector => page.evaluate(sel => {
 }, selector);
 const fitCanvas = async () => { const panel = await openMenu(page, 'View'); await panel.locator('[data-menu-item="Fit canvas"]').click(); /* its accessible name carries the Shift 1 hint */ await closeMenus(page); };
 const press = async (selector, { button = 'left', x = null, y = null, double = false } = {}) => {
+  const diag = async tag => console.log('DIAG', tag, selector, 'visible', JSON.stringify(await visiblePart(selector)), 'zoom', await zoom(), 'box', JSON.stringify(await box(selector)), 'hdr', JSON.stringify(await page.evaluate(() => { const h = document.querySelector('[data-block-id="nb"] [data-notebook-header]'); return h && [h.offsetHeight, h.getBoundingClientRect().height, h.getBoundingClientRect().top]; })), 'frame', JSON.stringify(await box('[aria-label="Lesson canvas"]')), 'mm', await page.locator('[data-canvas-minimap]').count());
   let at = await visiblePart(selector);
-  if (!at) { await fitCanvas(); await until(async () => !!(at = await visiblePart(selector)), `${selector} is on screen`); }
+  await diag('before');
+  if (!at) { await fitCanvas(); await diag('after-fit'); await until(async () => !!(at = await visiblePart(selector)), `${selector} is on screen`); }
   const px = x == null ? (at.left + at.right) / 2 : Math.min(at.right - 2, Math.max(at.left + 2, at.x + x));
   const py = y == null ? (at.top + at.bottom) / 2 : Math.min(at.bottom - 2, Math.max(at.top + 2, at.y + y));
   // The point must hit the object itself: its lower part can sit under the minimap, the zoom, the tools or the selection bar, and a
