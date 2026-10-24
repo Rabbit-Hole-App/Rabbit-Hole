@@ -107,7 +107,8 @@ async function oneSize(cards, { min = 900, max = 1000 } = {}) {
   const grown = parts.map(p => p.text.h > 191);
   for (const b of all) assert.ok(b.w >= min && b.w <= max, `width ${b.w}`);
   all.forEach((b, i) => { if (grown[i]) assert.ok(b.h > CARD_H[0], `height ${b.h}`); else assert.ok(b.h >= CARD_H[0] && b.h <= CARD_H[1], `height ${b.h}`); });
-  assert.equal(new Set(all.filter((b, i) => !grown[i]).map(b => b.h)).size, 1, `one height for every card whose text fits: ${all.map(b => b.h)}`);
+  // fast-e2e 40053200672: Home's Continue card is alone and grown (233px), so no card fits to compare; the claim is at most one height among those that fit.
+  assert.ok(new Set(all.filter((b, i) => !grown[i]).map(b => b.h)).size <= 1, `one height for every card whose text fits: ${all.map(b => b.h)}`);
   assert.equal(new Set(all.map(b => b.x)).size, 1, `one card per row: x at ${[...new Set(all.map(b => b.x))]}`);
   for (let i = 1; i < all.length; i += 1) assert.ok(all[i].y >= all[i - 1].y + all[i - 1].h, `card ${i} starts its own row`);
   const pics = parts.map(p => p.pic).filter(Boolean), feet = parts.map(p => p.foot);

@@ -722,6 +722,8 @@ await check('sizes 2 and 3 keep the picture where it was while the whole descrip
 await browser.close();
 assert.deepEqual(asks, [], 'no ask request was made');
 assert.deepEqual(errors, [], 'no page errors');
-const TOTAL = 22;
+// The count of the checks in this file, so a lane that adds one (a merge of two lanes did: 23 ran, 22 declared) cannot leave the total stale;
+// a check that is skipped or never reached still fails, because results then falls short of the file's own count.
+const TOTAL = readFileSync(new URL(import.meta.url), 'utf8').match(/^await check\(/gm).length;
 console.log(`${results.length}/${TOTAL} checks passed`);
 process.exit(results.length === TOTAL ? 0 : 1);
