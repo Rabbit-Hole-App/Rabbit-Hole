@@ -1,7 +1,8 @@
 // Pinned Study (UI-27 Release 1, contract C:/s/spec/pinned-study/contract.md): a reference pinned beside the canvas's own
 // notebook and canvas. The pane is a sibling of LearnPage's canvas frame, never its parent: the frame only gets a margin, so the
-// notebook card's iframe never moves to another parent (a moved iframe reloads and restarts its Python). "Notebook" is the same
-// canvas with its camera framed on the notebook card; "Canvas" puts back the camera and selection the learner left.
+// notebook card's iframe never moves to another parent (a moved iframe reloads and restarts its Python). "Notebook" is Focus on
+// the notebook card (focus-adapter-notebook.js restyles its host in place); "Canvas" leaves Focus, which puts back the camera
+// and selection the learner left.
 // Layout actions make no model call and no board save; the arrangement is remembered in this browser only (study-state.js).
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LocateFixed, MessageSquarePlus, MoreHorizontal, Pin, PinOff, Replace } from 'lucide-react';
@@ -12,6 +13,7 @@ import { useChatWorkspace } from './chat-workspace.jsx';
 import { pdfRef } from './pdf-source.js';
 import { objectName } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
+import { endStudyFocus } from './study-focus.js';
 import { attachStillCurrent, authorizePinnedSource, createPinnedAttacher } from './study-attach.js';
 import { wsHeaders } from './api.js';
 import { SWITCH_ROW, pinRef, pinnedAttachSnapshot, sourceOrigin, studyOffsets, versionLine } from './study-ref.js';
@@ -42,9 +44,9 @@ export function useStudy(canvasKey, board, canvasApi) {
     return { scope: at, value: readStudy(storage, at), status: stored ? (storage.memory === true ? 'error' : 'saved') : null };
   };
   const [held, setHeld] = useState(() => read(scope));
-  const live = useRef(held), timer = useRef(null), nav = useRef(null);
+  const live = useRef(held), timer = useRef(null);
   let current = held;
-  if (held.scope !== scope) { current = read(scope); live.current = current; nav.current = null; setHeld(current); }
+  if (held.scope !== scope) { current = read(scope); live.current = current; setHeld(current); }
   // A reader write still waiting for the canvas just left is dropped, never written to the new one.
   useEffect(() => () => clearTimeout(timer.current), [scope]);
   const save = (at, value) => { const result = writeStudy(browserStorage(), at, value); return result.ok ? 'saved' : 'error'; };
@@ -80,11 +82,12 @@ export function useStudy(canvasKey, board, canvasApi) {
     state, mode: state.mode, open: state.mode === 'study', status: current.status, scope,
     reader: () => live.current.value.reader,
     readerAt,
-    setMode: mode => apply([{ type: 'setMode', mode }]),
+    // Leaving Study (View > Canvas) ends the Focus Study > Notebook started; the remembered work brings it back on return.
+    setMode: mode => { if (mode !== 'study') endStudyFocus(api(), live.current.value); apply([{ type: 'setMode', mode }]); },
     setSplit: split => apply([{ type: 'setSplit', split }]),
     // View > Show / hide in Study: this canvas's Study choice, written like every other Study change (Not saved when storage refuses).
     setMap: (name, on) => apply([{ type: 'setMap', name, on }]),
-    unpin: () => { nav.current = null; apply([{ type: 'unpin' }]); },
+    unpin: () => { endStudyFocus(api(), live.current.value); apply([{ type: 'unpin' }]); },
     // Pin for study, Change reference and Choose a reference: the actual card clicked, never another of the same name.
     pinCard: id => {
       const object = objectOf(api(), id), ref = object && pinRef(object);
@@ -92,31 +95,32 @@ export function useStudy(canvasKey, board, canvasApi) {
       apply([{ type: 'pin', cardId: id, kind: eligible(object), ref }]);
       return true;
     },
-    // Notebook: the existing notebook card framed in the same canvas (never a second notebook), the camera saved first.
+    // Notebook: Focus on the existing notebook card (never a second notebook), the same expanded view as the card's Focus
+    // button; the Focus controller holds the camera and selection to put back. The camera is also kept with the arrangement.
     showNotebook: id => {
       const canvas = api();
       if (!canvas || !canvas.block?.(id)) return;
-      if (!nav.current) nav.current = canvas.captureNavigation?.() || null;
-      apply([{ type: 'saveCamera', view: nav.current?.view || canvas.getView?.() || null }, { type: 'setWork', work: 'notebook', notebookId: id }]);
+      apply([...(canvas.focusState?.() ? [] : [{ type: 'saveCamera', view: canvas.getView?.() || null }]), { type: 'setWork', work: 'notebook', notebookId: id }]);
       unslide();
-      canvas.focusBlock(id);
+      canvas.enterFocus(id);
     },
-    // Canvas: the camera, selection and card scroll the learner left (this visit), else the camera saved with the arrangement.
+    // Canvas: leaving Focus puts back the camera, selection and card scroll the learner left (this visit); with no Focus held
+    // (it ended elsewhere, or never began), the camera saved with the arrangement.
     showCanvas: () => {
-      const canvas = api(), saved = nav.current;
-      nav.current = null;
+      const canvas = api();
       unslide();
-      const back = saved && canvas?.restoreNavigation?.(saved);
-      if (!back?.found && live.current.value.canvasView) canvas?.setView?.(live.current.value.canvasView);
+      if (!endStudyFocus(canvas, live.current.value) && live.current.value.canvasView) canvas?.setView?.(live.current.value.canvasView);
       apply([{ type: 'setWork', work: 'canvas' }]);
     },
-    // Entering Study with the notebook as the work: frame it again from where the learner is now.
-    reframe: id => { const canvas = api(); if (!canvas?.block?.(id)) return false; nav.current = canvas.captureNavigation?.() || null; unslide(); canvas.focusBlock(id); return true; },
+    // Focus ended by Back to canvas, Escape or another card's Focus: the switch says Canvas, the navigation is already back.
+    focusEnded: () => { if (live.current.value.work === 'notebook') apply([{ type: 'setWork', work: 'canvas' }]); },
+    // Entering Study with the notebook as the work: Focus on it from where the learner is now.
+    reframe: id => { const canvas = api(); if (!canvas?.block?.(id)) return false; unslide(); return canvas.enterFocus(id) !== false; },
     locate: () => {
       const canvas = api(), id = live.current.value.pin?.cardId;
       if (!canvas || !id) return;
-      nav.current = null;
-      if (live.current.value.work !== 'canvas') apply([{ type: 'setWork', work: 'canvas' }]);
+      // Study's Focus ends first: exitFocus restores the camera at once, so the focusObject below is the camera that stays.
+      if (live.current.value.work !== 'canvas') { endStudyFocus(canvas, live.current.value); apply([{ type: 'setWork', work: 'canvas' }]); }
       unslide();
       canvas.focusObject?.(id);
     },
@@ -179,6 +183,13 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
     if (framed.current || !ready) return;
     if (study.reframe(state.notebookId)) framed.current = true;
   }, [ready, canvasState]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The notebook's Focus ended outside this switch (Back to canvas, Escape, another card's Focus): the switch follows it.
+  const focusId = canvasState?.focus?.id ?? null, lastFocus = useRef(focusId);
+  useEffect(() => {
+    const was = lastFocus.current;
+    lastFocus.current = focusId;
+    if (was && was !== focusId && was === state.notebookId) study.focusEnded();
+  }, [focusId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setRefused(null); setChoosing(false); }, [pin?.cardId]);
 
   const card = pin && api ? objectOf(api, pin.cardId) : null;

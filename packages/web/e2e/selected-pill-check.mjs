@@ -304,8 +304,9 @@ for (const kind of KINDS) {
     await sharedPill.waitFor({ timeout: 5000 }).catch(async error => { await page.screenshot({ path: `${SHOTS}/shared-failed-${kind.id}.png` }); console.log('debug', await page.evaluate(() => [document.querySelector('[data-view-selection]')?.dataset.viewSelection, document.activeElement?.outerHTML.slice(0, 120), document.querySelector('[data-canvas-surface]')?.className])); throw error; });
     assert.equal(await sharedPill.getAttribute('data-selected-card'), kind.id);
     assert.equal(await page.locator('[data-shared-ask] [data-canvas-target]').count(), 1);
-    // A view-only board has no selection actions on the object (the cards' rule): the shared composer is the way to ask.
-    assert.equal(await page.locator('[data-selection-bar]').count(), 0, 'no selection actions on a view-only board');
+    // A view-only board has no Add to chat or Quick Edit on the object (the cards' rule): the shared composer is the way to ask.
+    // Focus may show there (owner brief 2026-10-24, docs/features/focus-study.md section 7: presentation only, view-only boards too).
+    assert.equal(await page.locator('[data-selection-bar] :is([data-add-to-chat], [data-quick-edit])').count(), 0, 'no Add to chat or Quick Edit on a view-only board');
     if (kind === KINDS[0]) await page.screenshot({ path: `${SHOTS}/shared-${kind.id}.png` });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(250);
