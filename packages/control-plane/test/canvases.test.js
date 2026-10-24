@@ -138,7 +138,7 @@ test('the dev worker routes canvas traffic early, merges owner canvases, refuses
   const source = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
   const at = text => { const i = source.indexOf(text); assert.ok(i >= 0, `dev-worker.js is missing: ${text}`); return i; };
   assert.ok(at('if (canvasRoute(new URL(req.url))) return canvasesFetch(req, env);') < at('const repositoryRoute ='));
-  assert.match(source.slice(at("if (path === '/api/apps' && req.method === 'GET')"), at('const repositoryRoute =')), /\.\.\.\(await ownerCanvases\(env, catalog\)\)/);
+  assert.match(source.slice(at("if (path === '/api/apps' && req.method === 'GET')"), at('const repositoryRoute =')), /\.\.\.\(await ownerCanvases\(env, user\)\)/); // user, not catalog: starred_by_me needs users.id (stars.md)
   assert.ok(at('const refused = await refuseCanvasAsk(req);') < at("if (['/api/learn/selection', '/api/learn/ask'].includes(path)"));
   at("'learn', access.kind === 'canvas' ? canvasAskSeam(env, access) : undefined);");
 });

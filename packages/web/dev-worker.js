@@ -166,7 +166,7 @@ const routes = {
       const { userId, ...catalog } = user; // users.id stays server-side (journeys key on it, adaptive-learning-path-v1-architecture.md §10.2)
       // Dev apps only: listing live apps is production GET /api/apps, whose sweepStaleRuns writes
       // (docs/features/dev-prod-write-barrier.md). A live app still opens by name (GET /api/apps/<name>).
-      return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, catalog))] }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({ ...catalog, folders: [], apps: [...(await ownerRepositories(env, catalog)), ...(await ownerCanvases(env, user))] }, { headers: { 'Cache-Control': 'no-store' } });
     }
     // Library trash (docs/features/library-trash.md): the Trash list, and a project's Move to Trash / Restore.
     if (libraryTrashRoute(path)) return libraryTrashFetch(req, env);

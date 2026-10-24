@@ -326,3 +326,11 @@ test('canvas_star_events is append-only: one added event per real add, first-sta
   assert.equal(writes.length, 1, writes.join(' | '));
   assert.match(writes[0], /^canvas-star-events.js: UPDATE canvas_star_events SET delivered_at/);
 });
+
+test('the Library and Home list (GET /api/apps) reads the owner stars as that account: starred_by_me needs users.id, which the answer itself never carries', async () => {
+  const { readFileSync } = await import('node:fs');
+  const worker = readFileSync(new URL('../../web/dev-worker.js', import.meta.url), 'utf8');
+  assert.ok(worker.includes('ownerCanvases(env, user)'), 'the canvases are listed with the identity that has users.id');
+  assert.ok(!worker.includes('ownerCanvases(env, catalog)'), 'catalog has users.id stripped, so every canvas would read as not starred');
+  assert.ok(worker.includes('const { userId, ...catalog } = user;'), 'the catalog answer still drops users.id');
+});
