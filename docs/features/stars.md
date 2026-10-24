@@ -97,6 +97,7 @@ Three counts with three names (brief 8.4):
   (`deliverStarEvents` reads `delivered_at IS NULL` rows oldest first and marks each only after the sink stored it); a telemetry
   outage loses nothing and delivery cannot duplicate a transition (the sink inserts by `event_id`). `surface` comes from a fixed
   list (`SURFACES` in `canvas-star-events.js`); anything else is dropped. No title, token, URL or content is stored.
+- **Append-only events (Weekly Top 5 depends on it).** No code path deletes or rewrites a `canvas_star_events` row except delivery setting `delivered_at` (asserted by a source scan in `canvas-stars-lists.test.js`); a retention job must not prune `added` rows. Each real add writes exactly one `added` event in the same batch as the `canvas_stars` insert, so the first-star time of a (canvas, account) is `min(at)` over its `added` events - `canvas_stars.created_at` is only the latest add. `purgeStars` only appends lifecycle `removed` rows and keeps earlier `added` ones. A future account-deletion path may delete by `user_id`. `at` is `YYYY-MM-DD HH:MM:SS.fff` UTC. Weekly Top 5 adds its own migration 0029 (an index on `added` events); Stars does not take 0029.
 - Creation time has millisecond precision. Existing data: no backfill.
 
 ## API (Tasks 3-4)
