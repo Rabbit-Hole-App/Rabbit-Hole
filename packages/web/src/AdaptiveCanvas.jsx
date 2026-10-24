@@ -5,7 +5,7 @@ import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutE
 import { flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
-import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum } from './card-layout.js';
+import { supportsCardLayout, switchCardLayout, resizeCardLayout, preserveCardEditLayout, widthLimits, fitWidth, contentMinimum, clampBox, patchBlock } from './card-layout.js';
 import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-rename.js';
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
@@ -59,7 +59,7 @@ import { pageRef, pdfRef, pdfSource } from './pdf-source.js';
 import { chromeObstacles, columnEntries, fillSlot, freeArea, freeSlot, homeView, indexAfter, pairStart, panInto, slotIndex, slotSize } from './canvas-slots.js';
 import { holdsSceneHighlight, releaseSceneHighlights } from './scene-selection.js';
 import { areaTarget, cropBinding } from './area-crop.js';
-import { lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
+import { flushBoard, lightBlocks, pendingWork, persistBoard } from './canvas-persist.js';
 import { waitingText } from './waiting-text.js';
 import { isWebUrl, looksLikeCode, pasteKind } from './canvas-paste.js';
 import { copiedCode } from './map-files.js';
@@ -358,8 +358,8 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
     // it is saved, so releasing never grows the card by them. A card layout's saved height is its whole frame.
     const extra = cardLayout ? 0 : extraHeight + refsHeight;
     let last = null;
-    const apply = (w, h) => { last = { w: Math.min(1200, Math.max(280, w)), h: Math.min(1000, Math.max(140, h)) }; setSize(last); setCornerDrag(last); };
-    apply.done = () => { if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else onSize?.(id, last.w, last.h); } setCornerDrag(null); };
+    const apply = (w, h) => { last = clampBox(w, h); setSize(last); setCornerDrag(last); };
+    apply.done = () => { if (last) { if (cardLayout) edit.resizeCard?.(id, last.w, last.h); else if (onSize) onSize(id, last.w, last.h); else edit.patchBlock?.(id, last); } setCornerDrag(null); };
     startDrag(event, { x: element.offsetWidth, y: element.offsetHeight - extra }, apply, zoom);
   };
   const node = (
@@ -543,7 +543,7 @@ function HeadingCard({ block, zoom, selected, connected, onSelect, onMove, onCha
   }, [block.text]);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost space={block.space}
-      connected={connected} width={COLUMN} autoMax={240}
+      connected={connected} width={COLUMN} autoMax={240} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div data-scroll className="min-h-0 flex-1 px-4 pt-1 pb-3">
         <div ref={body} contentEditable suppressContentEditableWarning data-placeholder={level.placeholder}
@@ -572,7 +572,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
   }, [block.assetKey]);
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
-      connected={connected} width={SLIDE_W} autoMax={null}
+      connected={connected} width={SLIDE_W} autoMax={null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div data-slide={block.number} className="px-1 pb-1">
@@ -587,7 +587,7 @@ function SlideCard({ block, zoom, selected, connected, onSelect, onMove, onLayou
 function DividerCard({ block, zoom, selected, connected, onSelect, onMove, onLayout, onConnect, onSnap }) {
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost wide space={block.space}
-      connected={connected} width={SLIDE_W} autoMax={null}
+      connected={connected} width={SLIDE_W} autoMax={null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div data-slide-divider className="flex items-center gap-2 px-1 pb-2 text-[11px] text-ink-3"><span className="h-px flex-1 bg-line-strong" />{block.label}<span className="h-px flex-1 bg-line-strong" /></div>
     </CanvasNode>
@@ -612,7 +612,6 @@ function PdfCard({ block, zoom, selected, connected, onSelect, onMove, onChange,
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />PDF<span className="truncate normal-case tracking-normal text-ink-3">{block.label}</span>
@@ -658,7 +657,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
   if (block.kind === 'attachment') return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={360} autoMax={200} saved={{ w: block.w }}
-      onSize={(id, w) => onChange({ ...block, w })}
+      onSize={(id, w) => editing.patchBlock?.(id, { w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div data-file-attachment className="flex items-center gap-3 px-4 pb-3">
         <Paperclip size={16} className="shrink-0 text-ink-2" />
@@ -674,7 +673,7 @@ function FileCard({ block, zoom, selected, connected, onSelect, onMove, onChange
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} autoMax={620} saved={{ w: block.w }}
-      onSize={(id, w) => onChange({ ...block, w })}
+      onSize={(id, w) => editing.patchBlock?.(id, { w })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       {selected && block.kind === 'image' && <div data-thumbnail-hide className="absolute -top-10 right-0 z-30"><SelectionActionsHost id={block.id} /></div>}
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
@@ -731,7 +730,6 @@ function VideoCard({ block, zoom, selected, connected, appName, onSelect, onMove
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 420} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />Video<span className="truncate normal-case tracking-normal text-ink-3">{block.title}</span>
@@ -820,7 +818,6 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <div className="flex shrink-0 items-center gap-2 px-4 pb-2 text-[11px] font-semibold tracking-wider text-ink-2 uppercase">
         <span className="h-1.5 w-1.5 rounded-full bg-ink" />Wikipedia
@@ -843,11 +840,13 @@ function WikiCard({ block, zoom, selected, connected, appName, onSelect, onMove,
 
 // A real Jupyter notebook on the canvas (docs/features/canvas-notebook.md).
 // Notebook edits are saved quietly: they are not canvas undo steps.
-function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onMove, onChange, onChangeQuiet, onLayout, onConnect, onSnap }) {
+function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onMove, onLayout, onConnect, onSnap }) {
+  const edit = useContext(CanvasEdit);
   const latest = useRef(block);
   latest.current = block;
-  // Two reports can land before a re-render, so each builds on the last one.
-  const save = patch => { latest.current = { ...latest.current, ...patch }; onChangeQuiet(latest.current); };
+  // Two reports can land before a re-render, so each builds on the last one. Only the patch goes to the canvas, which applies it to
+  // the block as it holds it then: a report never puts back a size committed since this render.
+  const save = patch => { latest.current = { ...latest.current, ...patch }; edit.patchBlock?.(block.id, patch, true); };
   const manifest = ({ active_path, files }) => {
     if (active_path === latest.current.active_path && JSON.stringify(files) === JSON.stringify(latest.current.files)) return;
     save({ active_path, files });
@@ -857,7 +856,6 @@ function NotebookCard({ block, zoom, selected, connected, appName, onSelect, onM
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space}
       connected={connected} width={640} height={block.h || 540} autoMax={undefined} saved={{ w: block.w, h: block.h }}
-      onSize={(id, w, h) => onChange({ ...block, w, h })}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
       <NotebookBody block={block} onSelect={onSelect} onDocument={copyNotebook} onManifest={manifest} onEditCells={notebook=>window.dispatchEvent(new CustomEvent('learn:notebook-inline',{detail:{appName,id:block.id,notebook}}))} />
     </CanvasNode>
@@ -885,32 +883,32 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // (the + menu's Video blocks, src) renders as a lesson block.
   if (block.type === 'video' && block.videoId) return <VideoCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWatch={onWatch} />;
   // A webpage card (WebpageCard.jsx): a saved capture of a public page, scrolled and selected inside the card.
-  if (block.type === 'webpage') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+  if (block.type === 'webpage') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || COLUMN} height={block.h || 640} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <WebpageCard block={block} appName={appName} selected={selected} zoom={zoom} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onChange={onChange} onChangeQuiet={onChangeQuiet} onRemove={onRemove} /></CanvasNode>;
   if (block.type === 'wiki') return <WikiCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} onWiki={onWiki} />;
-  if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+  if (block.type === 'file' && DOC_KINDS.has(block.kind)) return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || DOC_CARD[block.kind].w} height={block.h || DOC_CARD[block.kind].h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Opening the file</p>}><FileDocCard block={block} onChange={onChange} /></Suspense></CanvasNode>;
   // An imported 3D model, point cloud, splat or CAD model (ModelCard.jsx): the header strip moves it, the viewer is explicit.
-  if (block.type === 'file' && block.kind === 'model') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || 560} height={block.h || 460} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+  if (block.type === 'file' && block.kind === 'model') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || 560} height={block.h || 460} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the 3D viewer</p>}><ModelCard block={block} selected={selected} onChange={onChange} onSelect={onSelect} /></Suspense></CanvasNode>;
   if (block.type === 'file') return <FileCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} appName={appName} />;
   if (block.type === 'divider') return <DividerCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'slide') return <SlideCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   if (block.type === 'pdf') return <PdfCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
-  if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onChange={onChange} onChangeQuiet={onChangeQuiet} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
+  if (block.type === 'notebook') return <NotebookCard block={block} zoom={zoom} selected={selected} connected={connected} appName={appName} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A code card (repo-graph Release 2, code-card.js): resizable; Expand grows it unless the learner sized it.
-  if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={block.expanded ? CODE_CARD.h * 2 : CODE_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} onChange={onChange} /></CanvasNode>;
+  if (block.type === 'repo-code') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={CODE_CARD.w} height={block.expanded ? CODE_CARD.h * 2 : CODE_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CodeCard block={block} onChange={onChange} /></CanvasNode>;
   if (block.type === 'canvas-ref') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={REF_CARD.w} height={REF_CARD.h} autoMax={undefined} resizable={false} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}><CanvasRefCard block={block} /></CanvasNode>;
   if (block.type === 'heading') return <HeadingCard block={block} zoom={zoom} selected={selected} connected={connected} onSelect={onSelect} onMove={onMove} onChange={onChange} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap} />;
   // A repository graph card (GraphCard.jsx): its header strip moves it, its frame resizes it, the graph inside keeps its own pointer.
-  if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
+  if (block.type === 'repo-graph') return <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} space={block.space} connected={connected} width={block.w || GRAPH_CARD.w} height={block.h || GRAPH_CARD.h} autoMax={undefined} saved={{ w: block.w, h: block.h }} onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}>
     <Suspense fallback={<p role="status" className="px-3 text-sm text-ink-2">Loading the graph</p>}><GraphCard block={block} selected={selected} /></Suspense></CanvasNode>;
   return (
     <CanvasNode id={block.id} dx={block.dx} dy={block.dy} zoom={zoom} selected={selected} ghost={!!BLOCK_TYPES[block.type]?.ghost} space={block.space} connected={connected}
       autoMax={BLOCK_TYPES[block.type]?.autoMaxFor?.(block) ?? BLOCK_TYPES[block.type]?.autoMax}
       width={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.width ?? BLOCK_TYPES[block.type]?.width}
       height={BLOCK_TYPES[block.type]?.sizeFor?.(block)?.height ?? BLOCK_TYPES[block.type]?.height}
-      extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }} onSize={(id, w, h) => onChange({ ...block, w, h })}
+      extraHeight={sourcesHeight + practiceHeight + controlsHeight} cardLayout={supportsCardLayout(block) ? block.cardLayout : null} saved={{ w: block.w, h: block.h }}
       onSelect={onSelect} onMove={onMove} onLayout={onLayout} onConnect={onConnect} onSnap={onSnap}
       tools={selected ? <>
         {cadTools && <CadViewerTools viewKey={block.id} account={cadPermissions.account} cardId={block.id} />}
@@ -1811,13 +1809,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // (owner: cancelling a pending save or remounting never discards work). Not for a retired canvas - the page has put its
   // work on the server's copy - and not when the board is what this canvas last wrote or mounted with. Declared before the
   // document's flush, which then adds the last words typed onto this copy.
-  useEffect(() => () => {
-    const key = storageKeyRef.current;
-    if (retired.current || (!key && !onSaveRef.current)) return;
-    const state = savedShape(boardRef.current), text = JSON.stringify(state);
-    if (text === lastWritten.current) return;
-    if (key) { try { localStorage.setItem(key, text); docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = text; } catch { /* full or blocked storage: the push below still carries it */ } }
-    onSaveRef.current?.(state, { now: true });
+  // A reload or a closed tab runs no unmount, so pagehide does the same: a resize or move made less than 400 ms before it was lost.
+  useEffect(() => {
+    const flushBoardNow = () => {
+      const key = storageKeyRef.current;
+      if (retired.current || (!key && !onSaveRef.current)) return;
+      const state = savedShape(boardRef.current);
+      const result = flushBoard({ state, lastWritten: lastWritten.current, storageKey: key, storage: () => localStorage, onSave: onSaveRef.current });
+      if (result?.wrote) { docWritten.current = JSON.stringify(state.doc ?? null); lastWritten.current = result.text; }
+    };
+    window.addEventListener('pagehide', flushBoardNow);
+    return () => { window.removeEventListener('pagehide', flushBoardNow); flushBoardNow(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Typing goes to docLive at once and into the board after a pause (one canvas render per pause, not per key).
   const onDocDirtyRef = useRef(onDocDirty);
@@ -4661,6 +4663,11 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // A continuous gesture must not snapshot: one scrub drag would evict the whole
   // 100-entry undo ring. Same reasoning as moveBlock, which has never snapshotted.
   const changeBlockQuietly = updated => setBlocks(previous => putBlock(previous, updated));
+  // A card's size, or a report from inside it, as a patch on the block as it is now (card-layout.js patchBlock). quiet: no undo step.
+  const patchBlockNow = (id, patch, quiet = false) => {
+    if (!quiet) { if (readOnly || lockedRef.current.has(id)) return; snapshot(); }
+    setBlocks(previous => patchBlock(previous, id, patch));
+  };
   // A style press sets the default for the next thing drawn, and restyles
   // whatever is selected. Connectors only carry a colour.
   // quiet: a slider's drag, whose one undo step was taken when it started.
@@ -5423,7 +5430,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // the field it belongs to is left alone, so typing still works.
     // account (CanvasEdit): whose viewing preferences this browser keeps (a CAD card's Show dimensions); storageKey is
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
-    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
+    <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, patchBlock: patchBlockNow, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
     <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly || localCopy} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
