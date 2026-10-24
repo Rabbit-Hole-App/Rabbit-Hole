@@ -156,3 +156,43 @@ test('persistence status: durable storage is Saved; blocked, throwing or memory-
   assert.equal(NOT_SAVED, 'Not saved: this browser is not allowing Rabbit Hole to store this. It applies until you reload.');
   assert.equal(studyStatusText(null), '');
 });
+
+// Study map choices (docs/features/focus-study.md): an older v:1 arrangement without maps, or with a malformed one, keeps its
+// pin, divider and reader and reads as no Study choice (both maps hidden while studying).
+test('maps: old v:1 data without maps and malformed maps keep pin, split and reader and get the default', () => {
+  const storage = memory();
+  const old = { v: 1, mode: 'study', work: 'canvas', pin: { cardId: 'pdf1', kind: 'pdf', ref: PDF_REF }, notebookId: null, split: 0.5, reader: { page: 3 }, canvasView: null };
+  storage.setItem(studyKey(KEY), JSON.stringify(old));
+  assert.deepEqual(readStudy(storage, KEY), { ...old, maps: {} });
+  for (const maps of [null, 'on', [true], { minimap: 'yes', holeMap: 1, curious: true }]) {
+    storage.setItem(studyKey(KEY), JSON.stringify({ ...old, maps }));
+    const state = readStudy(storage, KEY);
+    assert.deepEqual([state.maps, state.pin?.cardId, state.split, state.reader], [{}, 'pdf1', 0.5, { page: 3 }], JSON.stringify(maps));
+  }
+  storage.setItem(studyKey(KEY), JSON.stringify({ ...old, maps: { minimap: true, holeMap: 'x' } }));
+  assert.deepEqual(readStudy(storage, KEY).maps, { minimap: true }, 'each map is cleaned on its own');
+  assert.deepEqual(defaultStudy().maps, {});
+});
+
+test('maps: setMap records an explicit Study choice, survives a write and read, and outlives unpin and mode changes', () => {
+  const storage = memory();
+  let s = studyReducer(defaultStudy(), { type: 'pin', cardId: 'pdf1', kind: 'pdf', ref: PDF_REF });
+  s = studyReducer(s, { type: 'setMap', name: 'holeMap', on: true });
+  assert.deepEqual(s.maps, { holeMap: true });
+  s = studyReducer(s, { type: 'setMap', name: 'minimap', on: false });
+  assert.deepEqual(s.maps, { holeMap: true, minimap: false });
+  for (const bad of [{ name: 'curious', on: true }, { name: 'toolbar', on: false }, { name: 'minimap', on: 'yes' }, {}]) assert.deepEqual(studyReducer(s, { type: 'setMap', ...bad }), s, JSON.stringify(bad));
+  assert.deepEqual(writeStudy(storage, KEY, s), { ok: true, durable: true });
+  assert.deepEqual(readStudy(storage, KEY).maps, { holeMap: true, minimap: false });
+  assert.deepEqual(studyReducer(s, { type: 'unpin' }).maps, s.maps);
+  assert.deepEqual(studyReducer(studyReducer(s, { type: 'setMode', mode: 'canvas' }), { type: 'setMode', mode: 'study' }).maps, s.maps);
+});
+
+test('maps: blocked storage keeps the choice for the page and never reports it saved', async () => {
+  const { memoryStorage } = await import('./storage-fallback.js');
+  const s = studyReducer(defaultStudy(), { type: 'setMap', name: 'minimap', on: true });
+  assert.equal(writeStudy(null, KEY, s).ok, false);
+  const page = memoryStorage();
+  assert.equal(writeStudy(page, KEY, s).ok, false);
+  assert.deepEqual(readStudy(page, KEY).maps, { minimap: true });
+});
