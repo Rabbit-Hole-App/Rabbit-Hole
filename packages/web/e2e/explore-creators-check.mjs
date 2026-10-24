@@ -518,6 +518,12 @@ await tablet.context().close();
 const dark = await pageFor({ k: 'none', dark: true });
 await dark.goto(`${BASE}/explore?tab=creators`);
 await dark.locator('[data-explore-search]').waitFor({ timeout: 60000 });
+// The weekly list is read before the search narrows the page to this run's creators: typing hides the section (brief 4.5).
+await dark.locator('[data-weekly-list]').waitFor({ timeout: 30000 }).catch(async (error) => {
+  console.log('weekly list missing on the dark Creators page:', JSON.stringify({ requests: dark.weeklyRequests, url: dark.url(), section: await dark.locator('[data-weekly-top]').count(), text: (await dark.locator('main').innerText().catch(() => '')).slice(0, 400), events: await dark.evaluate(() => window.__weekly).catch(() => null), errors }));
+  throw error;
+});
+const darkWeekly = await dark.evaluate(() => { const row = document.querySelector('[data-weekly-row="1"]'); return [getComputedStyle(document.querySelector('[data-weekly-list]')).backgroundColor, getComputedStyle(row.querySelector('[data-weekly-title]')).color, getComputedStyle(row.querySelector('a[data-weekly-target="profile"]:not([data-weekly-title]):not([tabindex])')).color, getComputedStyle(document.querySelector('[data-weekly-list]')).borderTopColor]; });
 await search(dark, run, '3 creators');
 const lum = c => { const [r, g, b] = c.match(/\d+(\.\d+)?/g).map(Number); return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255; };
 const darkColors = await row(dark, H.full).evaluate(r => [getComputedStyle(r).backgroundColor, getComputedStyle(r.querySelector('[data-creator-name]')).color, getComputedStyle(r.querySelector('[data-creator-description]')).color]);
@@ -527,11 +533,6 @@ const darkBlue = await accent(dark);
 check('dark theme: the dot grid, the handle and the active tab underline in the theme\'s blue', /radial-gradient/.test(await dark.locator('main[data-explore]').evaluate(m => getComputedStyle(m).backgroundImage))
   && await row(dark, H.full).locator('[data-creator-handle]').evaluate(a => getComputedStyle(a).color) === darkBlue
   && (await underline(dark))[0] === darkBlue);
-await dark.locator('[data-weekly-list]').waitFor({ timeout: 30000 }).catch(async (error) => {
-  console.log('weekly list missing on the dark Creators page:', JSON.stringify({ requests: dark.weeklyRequests, url: dark.url(), section: await dark.locator('[data-weekly-top]').count(), text: (await dark.locator('main').innerText().catch(() => '')).slice(0, 400), events: await dark.evaluate(() => window.__weekly).catch(() => null), errors }));
-  throw error;
-});
-const darkWeekly = await dark.evaluate(() => { const row = document.querySelector('[data-weekly-row="1"]'); return [getComputedStyle(document.querySelector('[data-weekly-list]')).backgroundColor, getComputedStyle(row.querySelector('[data-weekly-title]')).color, getComputedStyle(row.querySelector('a[data-weekly-target="profile"]:not([data-weekly-title]):not([tabindex])')).color, getComputedStyle(document.querySelector('[data-weekly-list]')).borderTopColor]; });
 check('dark theme: the Weekly Top 5 list is a dark surface with bright titles and readable muted handles, from the theme tokens', lum(darkWeekly[0]) < 0.3 && lum(darkWeekly[1]) > 0.6 && lum(darkWeekly[2]) > 0.45 && lum(darkWeekly[3]) < 0.5, JSON.stringify(darkWeekly));
 await shot(dark, '04-creators-dark');
 await dark.context().close();
