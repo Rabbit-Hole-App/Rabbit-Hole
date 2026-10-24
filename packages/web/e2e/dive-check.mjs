@@ -350,7 +350,7 @@ await page.waitForFunction(() => location.search.includes('hole=')); await page.
 await nav().locator('[aria-current="location"]').hover();
 await nav().getByRole('button', { name: 'Delete Logits' }).click(); // "Leave this empty hole"
 await page.waitForFunction(() => !location.search.includes('hole=')); await page.waitForSelector('[data-tool-gutter]'); await page.waitForTimeout(1200);
-const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace(/(Add to chat|Quick Edit)\s*(Ctrl|Cmd)\+[KL]/g, '').replace(/^Open\s*/, '').trim() === 'Logits')?.dataset.blockId || null); // the selected card's own Open pill and selection actions aside
+const logits = await page.$$eval('[data-block-id]:not([data-chat-block])', nodes => nodes.find(node => node.innerText.replace(/(Add to chat|Quick Edit)\s*(Ctrl|Cmd)\+[KL]/g, '').replace(/^Open\s*/, '').replace(/^Focus\s*/, '').trim() === 'Logits')?.dataset.blockId || null); // the selected card's own Open pill and selection actions aside (Focus leads them: docs/features/focus-study.md section 7)
 assert.ok(logits, 'the anchor reads just "Logits": no duplicate body, no kicker');
 assert.equal(await page.locator(`[data-block-id="${logits}"] [data-dive-portal]`).count(), 0, 'an abandoned pending child leaves no portal');
 await page.locator(`[data-block-id="${logits}"]`).scrollIntoViewIfNeeded();
