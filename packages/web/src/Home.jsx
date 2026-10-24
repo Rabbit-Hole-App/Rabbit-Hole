@@ -28,7 +28,7 @@ const HEADING = 'pb-2 text-xs text-ink-2';
 const stop = (fn) => (e) => { e.stopPropagation(); fn(e); };
 const fixtureNote = () => toast('Review fixture: there is nothing behind this card.');
 // The Start dialog lives once in main.jsx Root (StartHost); pages only ask for it.
-const start = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'repository' } }));
+const start = () => window.dispatchEvent(new CustomEvent('small:start', { detail: { path: 'start' } }));
 
 export default function Home() {
   return <Shell>{(data, load) => <HomeContent data={data} load={load} />}</Shell>;
@@ -187,15 +187,15 @@ function Explore() {
   }, [tab, q]);
   const searchLabel = tab === 'creators' ? 'Search creators' : 'Search canvases';
   return (
-    // bg-none!: Explore is a page, not a workspace - no dot grid (index.css main; owner brief 2026-10-23).
-    <main data-explore className="browse-page flex-1 overflow-y-auto bg-none!">
+    // Explore keeps the browse-page dot grid like Home and Library (owner 2026-10-23, reversing the earlier no-dots brief).
+    <main data-explore className="browse-page flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-6 pt-1 text-sm text-ink-2">Discover canvases and the people behind them.</p>
         <Tabs value={tab} onValueChange={choose}>
           <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id} className={EXPLORE_TAB}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
-        <div className="flex items-center gap-3 pb-6 max-md:flex-wrap">
+        <div className={`flex items-center gap-3 pb-6 max-md:flex-wrap ${tab === 'creators' ? 'max-w-[760px]' : ''}`}>
           <label className="relative block min-w-0 flex-1 max-md:basis-full">
             <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
@@ -205,7 +205,7 @@ function Explore() {
           {tab === 'explainers' && <CardSize />}
         </div>
         {tab === 'creators' ? (
-          <section data-explore-creators aria-label="Creators">
+          <section data-explore-creators aria-label="Creators" className="max-w-[760px]">
             <Recommended found={found} me={me} kind="creators" />
             {creators === null && <SkeletonRows rows={2} />}
             {creators?.length > 0 && <p data-creator-count className="pb-3 text-sm text-ink-2">{creatorTotal} {creatorTotal === 1 ? 'creator' : 'creators'}</p>}

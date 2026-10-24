@@ -36,6 +36,8 @@
 //   14-15. Ctrl+K on the selected card hands /motion to the Chat's proposal card (the editor says Sent to Chat, stages nothing,
 //      the Chat draft stays); a reload restores the saved proposals (MOCKED thread restore): the newest live, the generated one
 //      inactive, nothing sent;
+//   16. readiness (motion-readiness.js): a MOCKED 45 s proposal keeps its value, says it is not ready and cannot Generate; choosing
+//      30 saves version 2 (MOCKED PUT) and Generate is enabled; Generate is never pressed and nothing reaches the video route;
 // MOTION=off (a production-like build: VITE_RABBIT_HOLE=true only). Per theme: no /motion or /animate in the picker or the
 //   window, and a typed /motion says Motion is not available here and runs nothing.
 // Usage: BASE=http://127.0.0.1:9261 SMALL_CP=http://127.0.0.1:9263 VARS=C:/s/toc-uimotion/.dev.vars [MOTION=off] node e2e/motion-command-check.mjs [shotsDir]
@@ -44,6 +46,7 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { causalAttentionScene } from '../src/reference-scenes.js';
+import { motionInputs, motionReadiness } from '../../control-plane/src/motion-readiness.js';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9261';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9263';
@@ -86,7 +89,7 @@ const savedCanvas = async theme => {
   return made;
 };
 
-const total = OFF ? 6 : 44; // per theme: 22 steps with Motion on (7 for MOT-20b entry points, decisions and reload; 1 for MOT-22's refusal), 3 with it off
+const total = OFF ? 6 : 46; // per theme: 23 steps with Motion on (7 for MOT-20b entry points, decisions and reload; 1 for MOT-22's refusal; 1 for readiness), 3 with it off
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -782,6 +785,65 @@ for (const theme of ['light', 'dark']) {
       assert.deepEqual([asks.length - a0, routes.length - r0, videoPosts().length - posts], [0, 0, 0], 'a reload sends no turn, route or start');
       await shot('13-reloaded-proposals');
     } finally { restoring = null; }
+  });
+
+  // Motion readiness (motion-readiness.js, release/image-r3): a duration the deployed orchestrator does not accept (above 30 s) stays
+  // selectable, but the card says why and Generate is disabled; choosing 30 saves the next revision (MOCKED PUT) and enables it.
+  // Self-contained: its own MOCKED turn and save (page routes, which win over the context's), in Ask mode so a typed /motion is a
+  // chat turn whatever the Chat's default mode; the mode is put back afterwards. Generate is never pressed.
+  await step(`${theme}: readiness: a 45-second proposal says it is not ready and cannot Generate; choosing 30 saves version 2 and can`, async () => {
+    const id = String(990045 + (theme === 'dark' ? 1 : 0)), words = `45s readiness ${theme}`, posts = videoPosts().length;
+    const ready = s => motionReadiness({}, motionInputs(s));
+    const slow = { proposal_id: `gp-${'45'.repeat(4)}${theme === 'dark' ? 'dddd' : 'aaaa'}0000`, version: 1, command: 'motion', title: `Motion: ${words}`,
+      description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.', settings: { duration_seconds: 45, audio: false }, source_refs: [],
+      input: { request: `/motion ${words}`, concept: null }, expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64),
+      usage: { estimate_credits: 100, reserve_credits: 896 }, readiness: ready({ duration_seconds: 45 }) };
+    assert.equal(slow.readiness.ready, false, 'the fixture is the server\'s own not-ready answer');
+    let saved = slow;
+    const puts = [];
+    const askRoute = /\/api\/learn\/ask(\?|$)/, saveRoute = new RegExp(`/api/learn/chat/messages/${id}/proposal$`);
+    await page.route(askRoute, route => {
+      const body = JSON.parse(route.request().postData() || '{}');
+      if (!String(body.message || '').includes('readiness')) return route.fallback();
+      const threadId = body.thread_id ?? `canvaschat-mock-${run}-ready-${theme}`;
+      return route.fulfill({ headers: { 'content-type': 'text/event-stream' }, body: sse('chunk', { text: 'Here is a video proposal.' })
+        + sse('answer_meta', { messageId: id, actions: [], followUps: [], alternatives: [id], kind: 'answer', syllabus: null, proposal: slow })
+        + sse('done', { ok: true, threadId, userMessageId: String(Number(id) + 100000), messageId: id }) });
+    });
+    await page.route(saveRoute, route => {
+      const sent = JSON.parse(route.request().postData() || '{}');
+      puts.push(sent);
+      if (sent.expected_version !== saved.version) return route.fulfill({ status: 409, json: { error: 'changed', code: 'proposal_stale', current: saved, current_message_id: id } });
+      saved = { ...saved, version: saved.version + 1, settings: sent.settings, readiness: ready(sent.settings) };
+      return route.fulfill({ json: { proposal: saved } });
+    });
+    const modeButton = dock.getByRole('button', { name: 'Mode', exact: true });
+    const mode = (await modeButton.innerText()).trim().split(/\s/)[0];
+    try {
+      if (mode !== 'Ask') { await modeButton.click(); await page.getByRole('menuitemradio', { name: /^Ask/ }).click(); }
+      const before = await proposalCards.count();
+      await composer().fill(`/motion ${words}`); await composer().press('Enter');
+      await until(async () => (await proposalCards.count()) > before, 'the 45-second proposal card');
+      const card = proposalCards.last();
+      assert.equal((await card.locator('h3').innerText()).trim(), `Motion: ${words}`);
+      assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '45', 'never clamped');
+      const why = card.locator('[data-proposal-error-path="readiness"]');
+      await why.waitFor({ timeout: 5000 });
+      assert.match(await why.innerText(), /A 45 second video is not ready to generate yet/);
+      assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true, 'Generate is disabled while not ready');
+      assert.equal(await card.locator('[data-proposal-duration]').isDisabled(), false, 'the duration stays selectable');
+      await card.locator('[data-proposal-duration]').selectOption('30');
+      await until(async () => (await card.getAttribute('data-proposal-version')) === '2', 'version 2 after choosing 30 seconds');
+      assert.deepEqual(puts.map(p => [p.expected_version, p.settings?.duration_seconds]), [[1, 30]], 'one save, from version 1, with 30 seconds');
+      await card.locator('[data-proposal-generate]:not([disabled])').waitFor({ timeout: 5000 });
+      assert.equal(await card.locator('[data-proposal-error-path="readiness"]').count(), 0, 'the reason is gone once ready');
+      assert.equal(videoPosts().length, posts, 'nothing reached the video route');
+      await card.screenshot({ path: `${OUT}/${theme}-14-readiness.png` });
+    } finally {
+      await page.unroute(askRoute); await page.unroute(saveRoute);
+      if (mode !== 'Ask') await modeButton.click().then(() => page.getByRole('menuitemradio', { name: new RegExp(`^${mode}`) }).click()).catch(() => {});
+      await composer().fill('').catch(() => {});
+    }
   });
 
 

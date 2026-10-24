@@ -47,9 +47,9 @@ serve() {
 }
 
 # The gate's count for its attested-gate parser: the check's own "N/N checks passed", else its PASS / ok lines counted.
-cnt() { local L=$1 s p f; s=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -aoE '[0-9]+/[0-9]+ checks passed|[0-9]+ checks passed' | tail -1)
+cnt() { local L=$1 s p f; s=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -aoE '[0-9]+/[0-9]+ (checks )?passed|[0-9]+ checks passed' | tail -1 | sed -E 's/( checks)? passed/ checks passed/')
   [ -n "$s" ] && { echo "$s"; return; }
-  p=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^(PASS|ok)\b|^ok:|^flow [A-Za-z0-9]+ ok')
+  p=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^(PASS|ok)\b|^ok:|^✓|^flow [A-Za-z0-9]+ ok')
   f=$(sed 's/\x1b\[[0-9;]*m//g' "$L" | grep -acE '^FAIL|^not ok')
   if [ "$f" != 0 ]; then echo "fail $f"; else echo "$p/$p checks passed"; fi; }
 
@@ -60,7 +60,7 @@ dead() { [ -f "$OUT/stack/pids" ] && ! xargs kill -0 < "$OUT/stack/pids" 2>/dev/
 
 # run_check <check> [args...]: one check from packages/web with the env in ENVV, REPEAT times; a failure prints the log tail.
 run_check() {
-  local c=$1 n=${1%.mjs} L T0 rc i t= r first; shift
+  local c=$1 n=${1%.mjs} L T0 rc i t= r s first; shift
   for i in $(seq 1 "$REPEAT"); do
     L=$OUT/$n.log; [ "$REPEAT" = 1 ] || { L=$OUT/$n-$i.log; t=" run $i/$REPEAT"; }; T0=$(date +%s); r=
     (cd "$W/packages/web" && env "${ENVV[@]}" timeout 900 node "e2e/$c" "$@" > "$L" 2>&1); rc=$?
@@ -73,7 +73,14 @@ run_check() {
       r="  after a stack restart (first attempt exit $first)"
       [ -z "${GITHUB_STEP_SUMMARY:-}" ] || echo "- ${n%-check}$t: exit $rc after a stack restart (first attempt exit $first)" >> "$GITHUB_STEP_SUMMARY"
     fi
-    echo "${n%-check}$t exit $rc  $(cnt "$L")  ($(( $(date +%s) - T0 ))s)$r" | tee -a "$OUT/fast.log"
+    # Exit 0 is a pass only when something was counted (inline-ai ran 239 assertions, run 40048376786, but this line read 0/0),
+    # and a nonzero exit never reads as the log's own "N/N checks passed" (creator-profile 17/17, run 40049284699).
+    s=$(cnt "$L")
+    case $s in
+      0/0*|'0 checks'*) [ $rc != 0 ] || { rc=96; s='no assertions executed: exit 0 but the log counts none, so not a pass'; } ;;
+    esac
+    [ $rc = 0 ] || case $s in *'checks passed'*) s="fail: exit $rc, the log's own count was ${s% checks passed}" ;; esac
+    echo "${n%-check}$t exit $rc  $s  ($(( $(date +%s) - T0 ))s)$r" | tee -a "$OUT/fast.log"
     [ $rc = 0 ] || { FAIL=1; echo "--- ${n%-check}$t log tail ---"; sed 's/\x1b\[[0-9;]*m//g' "$L" | tail -n 20; }
   done
 }
@@ -96,6 +103,8 @@ if [ ${#FORK[@]} != 0 ]; then
   for c in "${FORK[@]}"; do run_check "$c" "$OUT/${c%.mjs}-shots"; done
 fi
 
+# An empty selection is a deliberate non-selection, reported as such and never as a pass.
+[ ${#FORK[@]} != 0 ] || [ ${#HARNESS[@]} != 0 ] || [ $FAIL != 0 ] || echo "NOT SELECTED: $SEL names no checks; nothing ran"
 ENVV=()
 for port in 5189 5186 5391 5397 0; do
   G=(); for c in "${HARNESS[@]}"; do [ "${PORT[$c]}" = "$port" ] && G+=("$c"); done

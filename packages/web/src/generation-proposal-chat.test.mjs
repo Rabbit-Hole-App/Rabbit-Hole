@@ -40,7 +40,7 @@ test('generic: only declared capabilities are proposed; fields and the Generate 
   const { CHAT_CAPABILITIES } = await import('./inline-ai-route.js');
   assert.deepEqual(Object.keys(CHAT_CAPABILITIES).filter(reviewRequired), ['motion']);
   assert.deepEqual(['motion', 'search', 'dive', 'notebook', 'whiteboard', 'explain', 'video', 'flashcards'].map(reviewRequired), [true, false, false, false, false, false, false, false], 'search, navigation and blank inserts stay direct; nothing else is enabled');
-  assert.deepEqual(proposalFields('motion').map(f => [f.key, f.type, f.available ?? true]), [['duration_seconds', 'integer', true], ['audio', 'boolean', false]]);
+  assert.deepEqual(proposalFields('motion').map(f => [f.key, f.type, f.available ?? true]), [['aspect_ratio', 'select', false], ['duration_seconds', 'select', true], ['audio', 'boolean', false]]);
   assert.deepEqual(proposalFields('flashcards'), [], 'no duration or audio where a capability does not declare them');
   assert.equal(proposalBlock(p('gp-x', 1, { command: 'flashcards' })), null, 'no adapter: no card to add');
   assert.equal(proposalBlock(p('gp-y', 1)).operation.op, 'motion_request');
@@ -185,4 +185,36 @@ test('a refused settings save keeps the draft beside the latest; a lost chat ref
   // A conflict changes no canvas card: the latest stays live with Generate.
   const msgs = [answer(p('gp-a', 1)), answer(v2)];
   assert.equal(proposalActive(v2, msgs, () => false), true);
+});
+
+// UI-15.1: /explain's Generate approves an existing job, so its enablement comes from its own adapter. It was gated on Motion's output-card
+// adapter (proposalBlock), which Explain has none of, so its Generate could never be pressed.
+test('each command starts by its own adapter: Motion adds its output card, Explain approves its existing job, anything else cannot start', async () => {
+  const { startAdapter, settingsText, approvesJob } = await import('./generation-proposal-chat.js');
+  const motion = p('gp-m', 1), explain = { proposal_id: 'gp-e', version: 1, command: 'explain', title: 'Pendulum', settings: { presentation: 'steps' }, input: { request: 'Explain a pendulum.', job: 'ej_1' }, expires_at: soon };
+  const insertCard = () => {}, approveExplain = async () => 'card-1';
+  assert.equal(proposalBlock(explain), null, 'Explain has no output-card adapter');
+  assert.equal(approvesJob(explain), true);
+  const before = ops => !!ops?.insertCard && !!proposalBlock(explain);
+  assert.equal(before({ approveExplain }), false, 'the old gate left Explain\'s Generate disabled');
+  assert.equal(startAdapter(explain, { approveExplain }), 'job');
+  assert.equal(startAdapter(explain, { approveExplain, insertCard }), 'job');
+  assert.equal(startAdapter(explain, { insertCard }), null, 'no way to approve the job: not pressable');
+  assert.equal(startAdapter({ ...explain, input: { request: 'x' } }, { approveExplain }), null, 'no job bound to it');
+  assert.equal(startAdapter(motion, { insertCard }), 'output');
+  assert.equal(startAdapter(motion, { approveExplain }), null);
+  assert.equal(startAdapter(p('gp-x', 1, { command: 'flashcards' }), { insertCard, approveExplain }), null);
+  assert.equal(startAdapter(null, { insertCard }), null);
+  // Explain's Generate presses once: the card's own press guard and the proposal's one-shot state do the rest
+  assert.equal(settingsText('motion', { duration_seconds: 20, audio: false }), '20 seconds');
+  assert.equal(settingsText('explain', { presentation: 'steps' }), 'Steps');
+  assert.equal(settingsText('explain', {}), '');
+  assert.equal(settingsText('generate-image', { model: 'gpt-image-2.5-flare', quality: 'high', aspect_ratio: '16:9' }), 'GPT Image 2.5 Flare, High, 16:9');
+});
+
+test('a refused save or Generate keeps the learner\'s choice and says what it was, per command', () => {
+  const explain = p('gp-e', 3, { command: 'explain', settings: { presentation: 'time' } });
+  const refusal = (code, id) => Object.assign(new Error('x'), { status: 409, data: { code, current: explain, current_message_id: id } });
+  assert.equal(settingsConflict(refusal('proposal_stale', '40'), { presentation: 'steps' }, 40).message, 'Not saved: this proposal changed meanwhile. Latest: Over time (version 3). Yours: Steps.');
+  assert.equal(settingsConflict(refusal('proposal_used', '40'), { presentation: 'steps' }, 40).message, 'Not saved: this proposal already made an explanation. Your choice was Steps.');
 });

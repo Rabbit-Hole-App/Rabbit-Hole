@@ -18,7 +18,7 @@ const KIND = Symbol('usage attempt kind');
 // One string per entry point (the design's list). Keep it here, the only list.
 export const FEATURES = ['ask', 'auto', 'tutor', 'tutor_evaluate', 'next_steps', 'shared_next_steps', 'shared_ask', 'home_ask',
   'explore_find', 'journey', 'artifact', 'board', 'inline_route', 'inline_decide', 'inline_generate', 'assess', 'grade', 'course',
-  'image', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
+  'image', 'image_generate', 'transcribe', 'tts', 'voice_tts', 'voice_scribe', 'video', 'scene', 'search', 'handoff', 'image_edit', 'legacy', 'render',
   'webpage_capture'];
 export const ATTEMPT_KINDS = ['routing', 'generation', 'repair', 'retry', 'evaluation', 'escalation', 'tool', 'media'];
 

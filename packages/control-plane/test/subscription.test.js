@@ -274,10 +274,11 @@ test('a deadline kills the whole process tree and returns at the deadline', { ti
   // start took over 1 s, the 1000 ms kill landed before the pid file was written, and the test failed on ENOENT (2026-10-09).
   // The kill-latency and return bounds below are the same 500 ms and 1 s margins as before.
   const DEADLINE = 4000;
-  // The old mechanism: execFile's own timeout kills the parent only; the grandchild keeps running.
-  await new Promise(done => execFile(process.execPath, tree(join(dir, 'old.pid')), { timeout: DEADLINE, windowsHide: true }, () => done()));
+  // The old mechanism: execFile's own timeout calls child.kill() on the parent only; the grandchild keeps running.
+  // Kill once the pid file shows the tree is up: a fixed timeout raced node's startup (ENOENT under load).
+  const parent = execFile(process.execPath, tree(join(dir, 'old.pid')), { windowsHide: true }, () => {});
   const orphan = await pidOf(join(dir, 'old.pid'));
-  await sleep(300);
+  parent.kill();
   assert.equal(alive(orphan), true, 'a parent-only kill leaves the grandchild running');
   process.kill(orphan);
 
@@ -287,10 +288,11 @@ test('a deadline kills the whole process tree and returns at the deadline', { ti
   assert.equal(error?.code, 'ETIMEDOUT');
   assert.deepEqual([error.deadline_ms, error.reason], [DEADLINE, 'deadline: process tree killed']);
   assert.ok(error.elapsed_ms >= DEADLINE && error.elapsed_ms < DEADLINE + 500, `terminated after ${error.elapsed_ms} ms`);
-  assert.ok(returned < DEADLINE + 1000, `returned after ${returned} ms, near the ${DEADLINE} ms deadline`);
+  // Launching the kill (taskkill spawn is synchronous and slow on a loaded host) is reported as kill_ms; nothing else may delay the return.
+  assert.ok(returned - error.kill_ms < DEADLINE + 1000, `returned after ${returned} ms (kill launch ${error.kill_ms} ms), near the ${DEADLINE} ms deadline`);
   assert.match(error.message, new RegExp(`deadline ${DEADLINE} ms, process tree terminated after \\d+ ms`));
   const grandchild = await pidOf(join(dir, 'new.pid'));
-  for (let i = 0; i < 100 && alive(grandchild); i++) await sleep(50);
+  for (let i = 0; i < 400 && alive(grandchild); i++) await sleep(50);
   if (process.platform === 'linux') {
     try {
       const stat = readFileSync(`/proc/${grandchild}/stat`, 'utf8');

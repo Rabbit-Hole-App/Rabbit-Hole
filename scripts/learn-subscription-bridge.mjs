@@ -55,8 +55,10 @@ export function runWithDeadline(command, args, { input = '', timeout = 180000, e
       done = true;
       const elapsed = Date.now() - started;
       terminate();
-      reject(Object.assign(new Error(`Claude Code timed out: deadline ${timeout} ms, process tree terminated after ${elapsed} ms`), { code: 'ETIMEDOUT', deadline_ms: timeout, elapsed_ms: elapsed, reason: 'deadline: process tree killed' }));
-    }, timeout);
+      const kill_ms = Date.now() - started - elapsed;
+      reject(Object.assign(new Error(`Claude Code timed out: deadline ${timeout} ms, process tree terminated after ${elapsed} ms`), { code: 'ETIMEDOUT', deadline_ms: timeout, elapsed_ms: elapsed, kill_ms, reason: 'deadline: process tree killed' }));
+    // Arm for what remains: spawn() is synchronous and took up to 0.6 s on a loaded Windows host, which delayed the kill past the deadline.
+    }, Math.max(0, timeout - (Date.now() - started)));
     child.stdin.on('error', () => {});
     child.stdin.end(input);
   });
