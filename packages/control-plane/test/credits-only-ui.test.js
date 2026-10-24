@@ -18,9 +18,12 @@ const MONEY = [/(^|[\s("'`>])\$(\d{2,}|\d+[.,]\d+|\d(?=\s+[A-Za-z]))/, /\$\$\{[^
 // Internal, never rendered to a person: server price tables and fixtures whose text is data for a model.
 // LearningBlocks.jsx holds TeX in lesson text ($65 	imes 384$), which is not money.
 const INTERNAL = new Set(['pricing-registry.js', 'learn-usage-estimates.js', 'inline-ai-fixtures.js', 'LearningBlocks.jsx']);
+// The owner telemetry dashboard is an operator surface for the owner only (the API answers 404 to everyone else; owner decisions
+// 2026-10-23): it shows provider cost in dollars. It is never shown to a person using the product.
+const OPERATOR_ONLY = new Set(['OwnerTelemetry.jsx']);
 
 test('no user-facing source shows a dollar amount, a provider price or the word dollar', () => {
-  const files = [...walk(web), ...walk(control)].filter(isSource).filter(file => !INTERNAL.has(basename(file)));
+  const files = [...walk(web), ...walk(control)].filter(isSource).filter(file => !INTERNAL.has(basename(file)) && !OPERATOR_ONLY.has(basename(file)));
   const hits = [];
   for (const file of files) {
     strip(readFileSync(file, 'utf8')).split('\n').forEach((line, index) => {
