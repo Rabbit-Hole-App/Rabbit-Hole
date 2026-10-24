@@ -1,7 +1,7 @@
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
-import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -94,6 +94,9 @@ const VIEW_ONLY_HIDDEN = new Set(['canvas.local-edit', 'source.write', 'generate
 const rowGroup = id => allActions().find(entry => entry.id === id)?.group || null;
 // S1's one permission model (canvas-permissions.js, contract-permissions.md): the menu, the card ⋮ and the shortcuts ask it.
 import { can as permit } from './canvas-permissions.js';
+import { adapterFor, focusReducer, focusSnapshot, shouldExitOnEscape } from './focus-controller.js';
+import { syncFocus, workspaceFrame } from './focus-adapters.js';
+import FocusFrame from './FocusFrame.jsx';
 import { rabbitHoleTarget } from './canvas-actions-types.js';
 import { loadMediaOriginal } from './media-storage.js';
 
@@ -2014,6 +2017,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // here rather than lifting the canvas's own state out of it.
   // The same table serves the keyboard, so a shortcut and its menu row can
   // never drift apart.
+  // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
+  // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
+  const [focus, dispatchFocus] = useReducer(focusReducer, null);
+  const focusRef = useRef(null), focusShown = useRef(null);
+  focusRef.current = focus;
+  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }); };
+  useLayoutEffect(() => { focusShown.current = syncFocus(focusShown.current, focus, { view, readOnly, find: id => surface.current?.querySelector(`[data-block][data-block-id="${CSS.escape(id)}"],[data-item-id="${CSS.escape(id)}"]`), restore: saved => commandsRef.current.restoreNavigation(saved), gone: id => dispatchFocus({ type: 'content-gone', id }) }); }, [focus, view, readOnly]);
+  useLayoutEffect(() => () => { syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current }); }, []);
+  // The pane measured again when a panel opens, the Study divider moves, the window or the bottom chrome resizes.
+  useEffect(() => {
+    if (!focus?.id || !surface.current || typeof ResizeObserver === 'undefined') return undefined;
+    let tick = 0;
+    const measure = () => { cancelAnimationFrame(tick); tick = requestAnimationFrame(() => { if (surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }); };
+    const observer = new ResizeObserver(measure);
+    for (const node of [surface.current, pageHeader(), ...(bottomStrip.current?.children || [])]) if (node) observer.observe(node);
+    window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); cancelAnimationFrame(tick); };
+  }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Deleted, or no longer focusable (read-only now, failed): a clean exit.
+  useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  const focusSole = useCallback(() => commandsRef.current?.enterFocus(selectedRef.current[0]), []);
   const commandsRef = useRef(null);
   useEffect(() => {
     commandsRef.current = {
@@ -2267,6 +2291,18 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([id]);
         cameraRef.current = { id, frame: true };
       },
+      // Focus (docs/features/focus-study.md): the toolbar button, the right-click row, the keyboard and Study > Notebook all call
+      // these. enterFocus returns false when no adapter claims the object (nothing happens); the camera and selection are saved
+      // first and put back by exitFocus. The card is deselected while focused, so its row and the selection bar stand down.
+      enterFocus: id => {
+        const adapter = adapterFor(objectById(id), { view: viewRef.current, readOnly: readOnlyRef.current });
+        if (!adapter || !surface.current) return false;
+        dispatchFocus({ type: 'enter', id, kind: adapter.kind, saved: commandsRef.current.captureNavigation(), frame: focusWorkspace() });
+        setSelection([]);
+        return true;
+      },
+      exitFocus: () => dispatchFocus({ type: 'exit' }),
+      focusState: () => focusSnapshot(focusRef.current),
       // A Search result dropped on the canvas (search-drag.js): this same object, its top-left at a world point, one undo step.
       moveTo: (id, spot) => {
         const box = boxesOf([id])[0];
@@ -2791,7 +2827,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const next = {};
     for (const element of column.current?.querySelectorAll('[data-block-id]') || []) {
       const owner = exchangesRef.current.find(item => item.id === element.dataset.blockId) || blocksRef.current.find(item => item.id === element.dataset.blockId);
-      if (owner) { const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null; next[owner.id] = { x: element.offsetLeft + (slot?.offsetLeft || 0) + owner.dx, y: element.offsetTop + (slot?.offsetTop || 0) + owner.dy, w: element.offsetWidth, h: element.offsetHeight }; }
+      // A focused card keeps the box it had: its temporary Focus size is never a bound (connectors, minimap, placement).
+      if (owner && owner.id === focusRef.current?.id && boundsRef.current[owner.id]) next[owner.id] = boundsRef.current[owner.id];
+      else if (owner) { const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null; next[owner.id] = { x: element.offsetLeft + (slot?.offsetLeft || 0) + owner.dx, y: element.offsetTop + (slot?.offsetTop || 0) + owner.dy, w: element.offsetWidth, h: element.offsetHeight }; }
     }
     return next;
   };
@@ -3018,7 +3056,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -3573,6 +3611,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // An open dialog or menu handles its own Esc first (the shortcuts sheet, the canvas menu, a composer menu), and so
       // does the New comment panel: its Esc is Cancel (canvas-comments.md, owner 2026-10-13).
       if (event.key === 'Escape' && (held?.closest?.('[role="dialog"],[role="menu"],[data-comment-draft]') || document.querySelector('[role="dialog"][aria-modal="true"]'))) return;
+      // An unclaimed Esc leaves Focus first, on any board: a view-only viewer can leave it too.
+      if (shouldExitOnEscape(event, { focusing: !!focusRef.current, menuOpen: menuOpenRef.current, gesture: gestureLive })) { event.preventDefault(); commandsRef.current.exitFocus(); return; }
       // A view-only board: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
       if (readOnlyRef.current) {
@@ -4615,7 +4655,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
-      if (lockedRef.current.has(id)) continue; // a locked object keeps its place, whatever moves around it
+      if (lockedRef.current.has(id) || id === focusRef.current?.id) continue; // a locked or focused object keeps its place, whatever moves around it
       const exchange = exchangesRef.current.find(item => item.id === id);
       if (exchange) { onMove(id, exchange.dx + ddx, exchange.dy + ddy); continue; }
       const block = blocksRef.current.find(item => item.id === id);
@@ -4636,7 +4676,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
   const resizeCard = (id, w, h, x, minimum, quiet = false) => {
-    if (readOnly || lockedRef.current.has(id)) return;
+    if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
     setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum) : block));
   };
@@ -5322,6 +5362,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       styleable: ids => ids.length > 0 && ids.every(id => { const found = menuObject(id); return !!found && (found.family === 'link' || found.family === 'shape' || (found.family === 'item' && found.object.kind !== 'section')); }),
       canPaste, canPasteStyle,
       zoomToSelection,
+      // Focus (canvas-actions-types.js card.focus): the same enterFocus as the card toolbar's button; only where an adapter claims it.
+      focus: id => commandsRef.current.enterFocus(id),
+      focusable: object => !!object && object.id !== focusRef.current?.id && !!adapterFor(object, { view: viewRef.current, readOnly }),
       supportsCardLayout: object => !!object && supportsCardLayout(object),
       fullContent: object => object?.cardLayout?.mode === 'full',
       setCardLayout: (id, mode) => setCardLayout(id, mode),
@@ -5414,6 +5457,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rows: (id, groups) => actionsFor(cardTarget(id), actionCtx).filter(row => row.separator || !groups || groups.includes(rowGroup(row.id))),
     run: (id, actionId) => { const done = runAction(actionId, cardTarget(id), actionCtx); if (!done.ran && done.reason) toast(done.reason); },
   };
+  const soleFocus = selection.length === 1 && !focus ? adapterFor(objectById(selection[0]), { view, readOnly }) : null;
   const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
@@ -5425,7 +5469,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly || localCopy} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
@@ -5493,6 +5537,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
+        {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
         {urlPaste && <div role="dialog" aria-label="Paste a link" data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
