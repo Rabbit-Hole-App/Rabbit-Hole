@@ -356,6 +356,9 @@ const askMode = async page => {
 // Owner, 2026-10-20 (L7): the five commands that answered with a prompt are removed, so none reaches the chat as a turn.
 await step('the removed prompt commands, typed in Auto and in Ask, say they are unavailable and send no chat turn', async () => {
   ({ context, page } = await open());
+  // The saved thread restores after the board and replaces the composer's draft: a line typed before it lands is lost (fast-e2e
+  // 40048376786 e2e (6): no message, no notice, empty composer). Wait for it, as step 12 does, before typing.
+  await bubble(page, CAD_LINE).waitFor();
   const before = { asks: asks.length, plans: plans.length };
   assert.equal(await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'auto', 'Auto first');
   for (const mode of ['auto', 'ask']) {
