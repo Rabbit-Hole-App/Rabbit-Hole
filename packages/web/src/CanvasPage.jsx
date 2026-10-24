@@ -6,7 +6,8 @@ import { api, navigate } from './api.js';
 import { Button } from './ui.jsx';
 import LearnPage from './LearnPage.jsx';
 import { titleOf } from './agent/catalog.js';
-import { canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
+import { browserStorage, canvasKeys, NOT_HERE, NOT_HERE_WHY, opensHere } from './home/canvas-local.js';
+import { savedStudy } from './study-loading.js';
 import { CodeRefs } from './code-refs.js';
 import { useRepositoryCanvas } from './repository-canvas.jsx';
 import { CANVAS_PAGE_COLUMN, OwnerCanvasLoading } from './CanvasLoading.jsx';
@@ -23,7 +24,7 @@ export function CanvasLearn({ app, project, switcher = null, canvasProps = null 
     api(`/api/learn/boards/${encodeURIComponent(app.name)}/main`).then(data => data.exists !== false, () => false).then(found => { if (live) setHere(found); });
     return () => { live = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  if (here === null) return <OwnerCanvasLoading />; // the canvas's shell, not an empty page, while the server is asked
+  if (here === null) return <OwnerCanvasLoading study={savedStudy(browserStorage(), { app })} />; // the canvas's shell, not an empty page, while the server is asked
   // Inside its project (RepositoryPage, which gives the switcher) the title names the project too; CanvasPage has its own row.
   if (here) return <LearnPage app={app} switcher={switcher} project={switcher ? project : null} {...canvasProps} />;
   return <main data-canvas-gate className="min-w-0 flex-1 overflow-auto"><div className="mx-auto max-w-md px-6 pt-[18vh] text-center">

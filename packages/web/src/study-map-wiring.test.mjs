@@ -29,3 +29,7 @@ test('the canvas loading placeholder applies the same effective visibility, from
   assert.match(loading, /const prefs = effectiveWidgets\(\{ mode: study\?\.mode === 'study' \? 'study' : 'canvas', canvas: uiPrefs\(\), study: study\?\.state\?\.maps \}\);/);
   assert.match(read('./LearnPage.jsx'), /<CanvasChromeLoading feedback top=\{48\} study=\{study\} \/>/);
 });
+
+test('the View menu toolbar checkmark follows the canvas: LearnPage keeps a changed toolbar value (it was left out of the state comparison)', () => {
+  assert.match(read('./LearnPage.jsx'), /previous\.curious === next\.curious && previous\.toolbar === next\.toolbar && previous\.pages === next\.pages/);
+});

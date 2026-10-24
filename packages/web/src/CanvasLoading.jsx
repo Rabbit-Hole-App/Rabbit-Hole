@@ -5,6 +5,8 @@ import { DOCK_PAD } from './ChatComposer.jsx';
 import { MINIMAP_SIZE } from './CanvasMinimap.jsx';
 import { uiPrefs } from './ui-prefs.js';
 import { effectiveWidgets } from './widget-visibility.js';
+import { savedStudy } from './study-loading.js';
+import { browserStorage } from './home/canvas-local.js';
 import { PRODUCT } from './flags.js';
 import logoBlack from './assets/rabbit-hole-black.png';
 import logoWhite from './assets/rabbit-hole-white.png';
@@ -140,7 +142,8 @@ function PanelLoading({ panel, tabs, tools, chat = true }) {
 
 // The owner's canvas, inside the Shell (SharePage, CanvasPage): Back at the top-left corner, then one centred group - the title,
 // the menubar (Insert, Edit, Arrange, View) and the one-press actions - over the canvas; Chat's panel at the right.
-export function OwnerCanvasLoading() {
+// study: the saved Study arrangement (study-loading.js), so a reload into Study draws no map placeholder Study hides.
+export function OwnerCanvasLoading({ study = null }) {
   const frame = useRef(null);
   const [phoneHeight, setPhoneHeight] = useState(null);
   useLayoutEffect(() => {
@@ -165,7 +168,7 @@ export function OwnerCanvasLoading() {
             </div>
             <div className="flex min-h-0 flex-1 flex-col">
               <div ref={frame} data-loading-canvas className={OWNER_CANVAS} style={phoneHeight ? { '--phone-canvas-h': `${phoneHeight}px` } : undefined}>
-                <CanvasChromeLoading feedback top={48} />
+                <CanvasChromeLoading feedback top={48} study={study} />
               </div>
             </div>
           </div>
@@ -177,8 +180,8 @@ export function OwnerCanvasLoading() {
 }
 
 // The owner's canvas as CanvasPage places it (SharePage, before the canvas record or CanvasPage's code is here).
-export function CanvasPageLoading() {
-  return <div className={CANVAS_PAGE_COLUMN}><OwnerCanvasLoading /></div>;
+export function CanvasPageLoading({ app = null, name = null }) {
+  return <div className={CANVAS_PAGE_COLUMN}><OwnerCanvasLoading study={savedStudy(browserStorage(), { app, name })} /></div>;
 }
 
 // A share link (/b) or an Explore canvas (/e): logo; the title and menus centred; the creator's @handle beside Fork, Fork with its note, and the panel

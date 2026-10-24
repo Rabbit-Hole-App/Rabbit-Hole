@@ -92,8 +92,12 @@ const expectMaps = async (label, { minimap, holeMap }) => {
   if (hole !== null) assert.equal(hole, holeMap, `${label}: the Rabbit Hole Map is ${holeMap ? 'shown' : 'hidden'}`);
   assert.deepEqual(await checks(), { Minimap: minimap, 'Rabbit Hole Map': holeMap }, `${label}: the View checkmarks match what is visible`);
 };
-// The zoom group has no empty room above it when the minimap is gone.
-const stackExtra = () => page.evaluate(() => { const stack = document.querySelector('[data-zoom-stack]')?.getBoundingClientRect(), zoom = document.querySelector('[data-zoom]')?.getBoundingClientRect(); return stack && zoom ? Math.round(stack.height - zoom.height) : null; });
+// The zoom group has no empty room above it when the minimap is gone: its height less the zoom row and the row's own bottom margin
+// (AdaptiveCanvas @max-[1024px]:mb-2, there with or without a minimap) is what the minimap and its gap occupy.
+const stackExtra = () => page.evaluate(() => {
+  const zoomEl = document.querySelector('[data-zoom]'), stack = document.querySelector('[data-zoom-stack]')?.getBoundingClientRect(), zoom = zoomEl?.getBoundingClientRect();
+  return stack && zoom ? Math.round(stack.height - zoom.height - parseFloat(getComputedStyle(zoomEl).marginBottom || '0')) : null;
+});
 
 await open();
 
