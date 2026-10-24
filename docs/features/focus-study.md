@@ -229,6 +229,12 @@ What the seam does (AdaptiveCanvas.jsx, `syncFocus` in `focus-adapters.js`):
   full-mode card's automatic width write), and keeps its previous measured bounds in `measureNow`, so its temporary size
   reaches no board save, connector or placement.
 
+Kind-specific seam rules (WP4 findings): a focused CAD card's viewer counts as selected (`viewSelected`), so Interact is not
+ended by the deselection, and its Interact, Fit view and Show dimensions (`CadViewerTools`, the row the shared CSS hides) sit in
+the Focus header beside Back to canvas: container Focus and the 3D Fit view stay separate controls. A wheel inside
+`[data-focus-host]` scrolls the card, Full card layout included (Ctrl/Cmd+wheel still zooms). The selection actions (pill,
+floating bar, Focus button) are all hidden while Focus is active, so no pill sits over the header.
+
 Controls: the Focus button leads the selection actions (`data-focus-button`, Lucide `Maximize` 16 px, 32 px high, 8 px radius,
 8 px before the next action, a 44 x 44 press area, accessible name and tooltip = the adapter's `label`); it shows only when an
 adapter claims the one selected object, on view-only boards too (Add to chat and Quick Edit stay hidden there). The menu row
