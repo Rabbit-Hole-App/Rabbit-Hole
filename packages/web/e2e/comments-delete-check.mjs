@@ -466,8 +466,19 @@ await check('15 (D2) a nested Rabbit Hole has its own comments: the owner reads 
   await page.locator('[data-comments-header]').click();
   await expect(row(own)).toHaveCount(1, { timeout: 20000 });
   await expect(row(T.point)).toHaveCount(0);
+  // The invitation routes belong to the control plane; this stack's app worker is dev-worker.js, whose barrier answers /members with 403
+  // (dev-forwarding.js; comments-invite-check runs app-worker.js for that reason). So the page's members read goes to the stack's own
+  // control plane with the owner's session: the same route and the same database, and the note is the real answer's `nested`.
+  let members = null;
+  await page.route(/\/api\/learn\/c\/[^/]+\/members$/, async route => {
+    if (route.request().method() !== 'GET') return route.abort();
+    const answer = await fetch(`${CP}${new URL(route.request().url()).pathname}`, { headers: { cookie: `small_session=${ownerSession}` } });
+    members = { status: answer.status, body: await answer.json() };
+    await route.fulfill({ status: answer.status, contentType: 'application/json', body: JSON.stringify(members.body) });
+  });
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
+  assert.deepEqual([members?.status, members?.body?.nested], [200, true], 'the control plane says the hole is nested');
   assert.deepEqual([asks, stray, errors], [[], [], []]);
   await page.screenshot({ path: `${SHOTS}/15-nested-hole.png` });
 });
