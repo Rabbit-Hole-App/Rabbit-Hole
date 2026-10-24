@@ -15,7 +15,8 @@ test('the live build routes exactly as today (main.jsx:57-70)', () => {
 });
 
 test('the preview serves Home at bare /apps and keeps filtered links on the Library (T02 §1)', () => {
-  for (const p of ['/library', '/explore']) assert.equal(canonicalPath(p, true), null);
+  for (const p of ['/library', '/explore', '/owner/telemetry']) assert.equal(canonicalPath(p, true), null);
+  assert.equal(canonicalPath('/owner/telemetry', false), '/apps', 'the live build has no owner page');
   // Solo v1: the preview has no members page; /members (like /chat) goes to /apps, and an in-app visit is Home.
   for (const p of ['/members', '/chat']) assert.equal(canonicalPath(p, true), '/apps');
   assert.deepEqual(pageFor('/members', '', true), { page: 'home' });
@@ -24,6 +25,7 @@ test('the preview serves Home at bare /apps and keeps filtered links on the Libr
   for (const s of ['?s=shared', '?f=Team']) assert.deepEqual(pageFor('/apps', s, true), { page: 'library' });
   assert.deepEqual(pageFor('/library', '?type=projects', true), { page: 'library' });
   assert.deepEqual(pageFor('/explore', '', true), { page: 'explore' });
+  assert.deepEqual(pageFor('/owner/telemetry', '', true), { page: 'owner_telemetry' });
   assert.deepEqual(pageFor('/@ada_l', '', true), { page: 'explore' }, 'a creator profile lights Explore');
   assert.deepEqual(pageFor('/apps/canvas-1a2b3c4d', '', true), { page: 'app', slug: 'canvas-1a2b3c4d', runId: undefined });
 });
@@ -51,6 +53,7 @@ test('the baseline surface names the place and hides the bar where another input
   assert.deepEqual(at('/library?type=canvases'), ['library', true]);
   assert.deepEqual(at('/apps?s=shared'), ['library', true]);
   assert.deepEqual(at('/explore'), ['explore', true]);
+  assert.deepEqual(at('/owner/telemetry'), ['owner_telemetry', true]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt'), ['learn', true]); // a repository opens on its canvas (owner, 2026-10-15)
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=map'), ['learn', true]);
   assert.deepEqual(at('/apps/repo-1a2b3c4d-nanogpt?tab=learn'), ['learn', true]);

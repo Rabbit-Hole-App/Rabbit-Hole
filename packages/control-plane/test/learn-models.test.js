@@ -225,7 +225,8 @@ test('each Learn model call logs one sanitized learn_model line with the served 
   await chat({ SMALL_ENV: 'test', ANTHROPIC_API_KEY: 'secret-anthropic-key' }, null);
   const [line] = logged();
   assert.equal(logged().length, 1);
-  assert.deepEqual({ ...line, prompt: typeof line.prompt }, { event: 'learn_model', task: 'chat', provider: 'anthropic', requested: 'auto', source: 'auto', fallback: 'default', served: 'claude-opus-4-8', fellBack: true, prompt: 'string', status: 200, stopReason: 'end_turn' });
+  // The terminal outcome and the call's duration (telemetry brief Task 5) ride on the same line.
+  assert.deepEqual({ ...line, prompt: typeof line.prompt, durationMs: typeof line.durationMs }, { event: 'learn_model', task: 'chat', provider: 'anthropic', requested: 'auto', source: 'auto', fallback: 'default', served: 'claude-opus-4-8', fellBack: true, prompt: 'string', status: 200, stopReason: 'end_turn', outcome: 'completed', error: null, durationMs: 'number' });
   assert.equal(line.prompt.length, 12);
   const text = JSON.stringify(logged());
   for (const secret of ['What is a sigmoid?', 'context', 'secret-anthropic-key']) assert.equal(text.includes(secret), false, secret);

@@ -7,6 +7,9 @@ import { sha256 } from './token.js';
 import { anthropicQuantities, mtokRates, priceUsage } from './pricing-registry.js';
 import { spendEnforced } from './learn-spend-ledger.js'; // imports nothing
 import { sha256Hex } from './learn-grade-jev.js'; // learn-grade-jev.js imports nothing, so this module stays a leaf
+import { usageContext } from './learn-usage.js'; // already reached through learn-spend-ledger.js
+import { makeEvent, usageSnapshot } from './telemetry-contract.js'; // a leaf
+import { emitTelemetry } from './telemetry-delivery.js'; // imports only the contract
 
 export const MODEL = 'claude-opus-5';
 // Auto where spend is enforced (owner, 2026-10-12): exactly MODEL, without the server-side fallback, whose fallback
@@ -101,25 +104,95 @@ export const planUsesOpenAI = env => env.SUBSCRIPTION_ONLY !== 'true' && !!env.O
 // One sanitized log line per Learn model call (models-11): what was asked for,
 // where it came from and what actually served it. Never the message, the
 // context, tool input or a key; the prompt is named by a 12-character hash.
-// Wraps a callModel(env, body, model, org) and returns the response untouched.
+// Wraps a callModel(env, body, model, org). A JSON reply is read from a clone; an event stream is passed through chunk by chunk
+// (never buffered), its model, usage and stop reason read as it goes, and logged when it ends, fails or is cancelled. A thrown
+// transport is logged and rethrown. Also the model_call.started / .finished telemetry events (docs/features/telemetry.md), a
+// no-op until TELEMETRY_DB is bound. Logging never changes, delays to completion or fails the response.
+// The contract's model-call event, joined to the request's usage action when it has one. Its own failure is swallowed.
+async function modelEvent(env, name, line, { result = null, stream, status, outcome, error, requestId, responseMs, firstChunkMs, chunks, durationMs } = {}) {
+  const ctx = usageContext(env);
+  const actionId = await Promise.resolve(ctx?.action).catch(() => null);
+  const payload = { task: line.task, provider: line.provider, requested_model: line.requested, source: line.source, prompt_hash: line.prompt, stream };
+  if (name === 'model_call.finished') Object.assign(payload, { served_model: result?.model, fell_back: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
+    status_code: status, stop_reason: result?.stop_reason, request_id: requestId, response_ms: responseMs, first_chunk_ms: firstChunkMs, duration_ms: durationMs,
+    chunks, usage: usageSnapshot(result?.usage) });
+  return emitTelemetry(env, makeEvent(name, { service: 'app_worker', feature: ctx?.feature, ...(env.TELEMETRY_TRACE ? { trace_id: env.TELEMETRY_TRACE } : {}), action_id: actionId || undefined, user_ref: ctx?.identity?.userId || undefined,
+    outcome: name === 'model_call.started' ? 'started' : outcome, error_code: error || undefined, payload }, { service: 'app_worker', release: /^[0-9a-f]{7,40}$/.test(env.RELEASE_SHA || '') ? env.RELEASE_SHA : null }));
+}
+
+const clock = () => globalThis.performance?.now?.() ?? Date.now();
 export function loggedModel(task, callModel) {
   return async (env, body, model, org) => {
-    const response = await callModel(env, body, model, org);
+    const begun = clock();
+    let line = null;
     try {
-      const result = response.ok ? await response.clone().json() : null;
       const provider = env.SUBSCRIPTION_ONLY === 'true' ? 'subscription' : LEARN_TASKS[task].provider === 'plan' && planUsesOpenAI(env) ? 'openai' : 'anthropic';
-      console.log(JSON.stringify({
-        event: 'learn_model', task, provider,
+      line = { event: 'learn_model', task, provider,
         requested: provider === 'openai' ? env.LEARN_PLAN_MODEL : model ?? (provider === 'anthropic' ? autoModel(env) : null) ?? 'auto',
         source: provider === 'openai' ? 'LEARN_PLAN_MODEL' : model == null ? 'auto' : model === LEARN_TASKS[task].model ? 'task' : 'request',
         fallback: provider === 'anthropic' && model == null && !autoModel(env) ? 'default' : 'none',
-        served: result?.model ?? null,
-        fellBack: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
-        prompt: (await sha256(String(body.system ?? ''))).slice(0, 12),
-        status: response.status, stopReason: result?.stop_reason ?? null,
-      }));
+        prompt: (await sha256(String(body.system ?? ''))).slice(0, 12) };
     } catch { /* a log line is never worth a failed answer */ }
-    return response;
+    const started = line ? modelEvent(env, 'model_call.started', line, { stream: !!body.stream }) : null;
+    let ended = false;
+    const finish = async (result, fields) => {
+      if (ended || !line) return;
+      ended = true;
+      try {
+        const durationMs = Math.round(clock() - begun);
+        console.log(JSON.stringify({ ...line, served: result?.model ?? null, fellBack: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
+          status: fields.status ?? null, stopReason: result?.stop_reason ?? null, outcome: fields.outcome, error: fields.error ?? null, durationMs }));
+        await started;
+        await modelEvent(env, 'model_call.finished', line, { result, ...fields, durationMs });
+      } catch { /* as above */ }
+    };
+    let response;
+    try { response = await callModel(env, body, model, org); }
+    catch (error) { await finish(null, { outcome: 'unknown', error: 'transport_thrown' }); throw error; }
+    const meta = { status: response.status, requestId: response.headers?.get?.('request-id') ?? null, responseMs: Math.round(clock() - begun) };
+    if (!response.ok) { await finish(null, { ...meta, outcome: 'failed', error: 'http_error' }); return response; }
+    if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
+      const result = await response.clone().json().catch(() => null);
+      await finish(result, { ...meta, outcome: result ? 'completed' : 'unknown', error: result ? null : 'invalid_json' });
+      return response;
+    }
+    // The settlement path's incremental parse (learn-spend.js spendTransport): message_start's message, message_delta's usage,
+    // message_stop. A parse problem stops the reading, never the stream.
+    const reader = response.body.getReader(), decoder = new TextDecoder();
+    let pending = '', result = null, complete = false, reading = true, chunks = 0, firstChunkMs = null;
+    const parse = chunk => {
+      pending += decoder.decode(chunk, { stream: true });
+      const events = pending.split(/\r?\n\r?\n/); pending = events.pop();
+      for (const event of events) {
+        try {
+          const value = JSON.parse(event.split(/\r?\n/).filter(l => l.startsWith('data:')).map(l => l.slice(5).trim()).join('\n'));
+          if (value.type === 'message_start') result = { ...value.message, content: undefined };
+          if (value.type === 'message_delta' && result) result = { ...result, stop_reason: value.delta?.stop_reason ?? result.stop_reason, usage: { ...result.usage, ...value.usage } };
+          if (value.type === 'message_stop') complete = true;
+        } catch { /* a non-JSON event */ }
+      }
+      if (pending.length > 1024 * 1024) reading = false;
+    };
+    const streamed = () => ({ ...meta, firstChunkMs, chunks });
+    return new Response(new ReadableStream({
+      async pull(controller) {
+        let read;
+        try { read = await reader.read(); }
+        catch (error) { await finish(result, { ...streamed(), outcome: 'unknown', error: 'stream_failed' }); controller.error(error); return; }
+        if (read.done) {
+          // Before close, as settlement does: the write stays inside the response the Worker is still serving.
+          await finish(result, { ...streamed(), outcome: complete ? 'completed' : 'unknown', error: complete ? null : 'stream_incomplete' });
+          controller.close();
+          return;
+        }
+        if (chunks++ === 0) firstChunkMs = Math.round(clock() - begun);
+        controller.enqueue(read.value);
+        if (reading) { try { parse(read.value); } catch { reading = false; } }
+      },
+      async cancel(reason) {
+        try { await reader.cancel(reason); } finally { await finish(result, { ...streamed(), outcome: 'cancelled', error: 'stream_cancelled' }); }
+      },
+    }), { status: response.status, statusText: response.statusText, headers: response.headers });
   };
 }
 

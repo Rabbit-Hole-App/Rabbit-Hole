@@ -17,6 +17,7 @@ const previewBuild = (import.meta.env.VITE_RABBIT_HOLE === 'true' || import.meta
 const Home = previewBuild ? lazy(() => import('./Home.jsx')) : null;
 const ExplorePreview = previewBuild ? lazy(() => import('./Home.jsx').then((m) => ({ default: m.ExplorePreview }))) : null;
 const CreatorProfilePage = previewBuild ? lazy(() => import('./CreatorProfile.jsx')) : null;
+const OwnerTelemetryPage = previewBuild ? lazy(() => import('./OwnerTelemetry.jsx')) : null;
 import Shell, { storedSidebar } from './Shell.jsx';
 import { applyTheme, getTheme, navigate, setWs, workspaceLabel } from './api.js';
 import { applyUiPrefs } from './ui-prefs.js';
@@ -30,6 +31,7 @@ import { learnPreview, PRODUCT } from './flags.js';
 import { baseSurfaceFor, canonicalPath, pageFor, takeWs } from './routes.js';
 import { editorOpen, reloadForNewBuild } from './chunk-reload.js';
 import { installAiRefusalHook } from './ai-refusal.js';
+import { installClientTelemetry, reportClientError } from './client-telemetry.js';
 import { embedRoute, fullHref, installEmbedFetch } from './embed-api.js';
 import { EmbedCanvasLoading, MemberCanvasLoading, SharedCanvasLoading } from './CanvasLoading.jsx';
 
@@ -40,6 +42,8 @@ installAiRefusalHook();
 // is the host's choice (?theme=) or the visitor's system setting, never this browser's saved Rabbit Hole theme.
 const embedded = embedRoute(window.location.pathname, window.location.search);
 if (embedded) installEmbedFetch();
+// Centralized browser errors (client-telemetry.js, docs/features/telemetry.md): Rabbit Hole builds, never inside an embedding site.
+if (learnPreview && !embedded) installClientTelemetry(window, { release: /^[0-9a-f]{7,40}$/.test(import.meta.env.VITE_RELEASE_SHA || '') ? import.meta.env.VITE_RELEASE_SHA : null });
 applyTheme(embedded ? embedded.theme || 'system' : getTheme()); // before first paint - no light flash for dark users
 applyUiPrefs(); // text size and reduced motion (Settings > Appearance & input), also before first paint
 // The live build keeps index.html's title and icons; Rabbit Hole uses the website's mark in the tab, as v3: the same
@@ -158,7 +162,7 @@ function AppRoot() {
   }, [path]);
   return (
     <>
-      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : <App />}
+      {at.page === 'app' ? <SharePage slug={at.slug} runId={at.runId} /> : at.page === 'members' ? <MembersPage /> : at.page === 'chat' ? <ChatPage /> : at.page === 'home' ? <Suspense fallback={null}><Home /></Suspense> : at.page === 'explore' ? <Suspense fallback={null}><ExplorePreview /></Suspense> : at.page === 'owner_telemetry' && OwnerTelemetryPage ? <Suspense fallback={null}><OwnerTelemetryPage /></Suspense> : <App />}
       <SearchModal />
       {StartHost && <Suspense fallback={null}><StartHost takeEarly={takeEarlyStart} /></Suspense>}
       {AgentBar && <Suspense fallback={null}><AgentBar /></Suspense>}
@@ -175,6 +179,7 @@ let reloading = false;
 window.addEventListener('vite:preloadError', (e) => {
   let store = null;
   try { store = window.sessionStorage; } catch { /* blocked: never reload */ }
+  reportClientError('load_failed', e.payload, { source: 'chunk' });
   if (!reloadForNewBuild({ online: navigator.onLine, editing: editorOpen(), storage: store, now: Date.now() })) return;
   reloading = true;
   e.preventDefault();
@@ -190,4 +195,4 @@ const crashed = () => {
 };
 
 // The error is logged before the root is replaced, so a crash leaves its stack in the console.
-createRoot(rootEl, { onUncaughtError: (error, info) => { console.error(error, info?.componentStack); crashed(); } }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);
+createRoot(rootEl, { onUncaughtError: (error, info) => { console.error(error, info?.componentStack); reportClientError('boundary', error); crashed(); } }).render(isPrivateByoc ? <PrivateAuthGate><Root /></PrivateAuthGate> : <Root />);

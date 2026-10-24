@@ -37,7 +37,7 @@ for (const [label, viewport] of [['desktop', { width: 1440, height: 900 }], ['ph
   await page.screenshot({ path: `${SHOTS}/feedback-panel.png` });
   const [response] = await Promise.all([page.waitForResponse(r => r.url().includes('/api/learn/feedback')), panel.locator('[data-feedback-submit]').click()]);
   ok('Submit stores the report', response.status() === 201, `${response.status()} ${JSON.stringify(await response.json())}`);
-  ok('the button confirms in place (no corner toast) and the panel closes', await panel.count() === 0 && (await button.getAttribute('title')) === 'Sent, thank you');
+  ok('the button confirms in place (no corner toast) and the panel closes', await panel.count() === 0 && (await button.getAttribute('title') || '').startsWith('Sent, thank you'));
   await page.screenshot({ path: `${SHOTS}/feedback-sent.png` });
   await context.close();
 }

@@ -16,6 +16,7 @@ import GenerationProposalCard from './GenerationProposalCard.jsx';
 import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, refinementConflictText, settingsConflict, startAdapter } from './generation-proposal-chat.js';
 import { fetchProposal, problemOf, saveProposal } from './generation-review-client.js';
 import { withPrompt } from './card-prompt.js';
+import { reportClientError } from './client-telemetry.js';
 import { retryImageSave, runImageJob } from './generate-image.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
@@ -233,7 +234,7 @@ function OutputRow({ runId, name, size }) {
 export class AnswerBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('[chat answer]', error); }
+  componentDidCatch(error) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer' }); }
   render() { return this.state.failed ? <div data-answer className="min-w-0 whitespace-pre-wrap text-sm">{String(this.props.text ?? '')}</div> : this.props.children; }
 }
 

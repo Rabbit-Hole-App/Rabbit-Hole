@@ -72,6 +72,10 @@ import { forwardToProduction, guardControlPlane, devIdentity } from '../control-
 import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia } from '../control-plane/src/learn-usage.js';
 import { imageEstimate, TRANSCRIBE_ESTIMATE, ESTIMATE_PRICE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
+import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
+import { clientTelemetryRoute } from '../control-plane/src/telemetry-client-route.js';
+import { tutorTelemetryRoute } from '../control-plane/src/telemetry-tutor-route.js';
+import { withTrace } from '../control-plane/src/telemetry-delivery.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 import { isEmbed } from '../control-plane/src/learn-shared-ask.js';
@@ -94,7 +98,7 @@ export default {
 };
 
 async function respond(req, env, ctx) {
-  env = guardControlPlane(env);
+  env = withTrace(req, guardControlPlane(env));
   // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
   // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
   // monthly allowance and the platform guard; a stream passes through byte for byte.
@@ -176,6 +180,12 @@ const routes = {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
       return repositoriesFetch(new Request(target, req), env, ctx);
     }
+    // Browser error batches (docs/features/telemetry.md "Browser errors"): same-origin, bounded, 204 where telemetry is not provisioned.
+    if (path === '/api/telemetry/client') { const accepted = await clientTelemetryRoute(path, req, env); if (accepted) return accepted; }
+    // The signed-in learner's Tutor evidence events (docs/features/telemetry.md "Tutor evidence"): ids, enums and counts, never their words.
+    if (path === '/api/telemetry/tutor') { const accepted = await tutorTelemetryRoute(path, req, env); if (accepted) return accepted; }
+    // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
+    if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
     // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).
     if (path === '/api/learn/usage') return usageFetch(req, env);
     if (path === '/api/learn/graph-config' && req.method === 'GET') {
@@ -366,7 +376,7 @@ const routes = {
     }
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
     // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path === '/owner/telemetry' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });
