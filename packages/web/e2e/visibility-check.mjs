@@ -161,7 +161,7 @@ await check('8 Rename keeps a typed title exactly; a repeat only earns a quiet n
   await api(owner, `/api/apps/${c.name}`, { method: 'PATCH', body: JSON.stringify({ title: TITLE }) });
   await library();
 });
-await check('9 Edit description: up to 500 characters, saved on the canvas', async () => {
+await check('9 Edit description: up to 340 characters (owner, 2026-10-23), saved on the canvas', async () => {
   await menuOf(TITLE);
   await button('Edit description').click();
   const dialog = page.getByRole('dialog', { name: 'Edit description' });
