@@ -134,12 +134,41 @@ continuation brief rather than repeating the same approach without new evidence.
 
 ## Parallel lanes
 
-- A lane assignment states its objective and scope, base branch and commit, the files or interfaces it owns, its
-  dependencies, required deliverables and acceptance checks.
-- Shared schemas, accounting semantics and contracts have one owner. Dependent lanes consume the committed interface;
-  they do not invent variants.
-- Independent lanes use isolated worktrees and avoid overlapping edits.
-- Keep unrelated ready work moving when another lane is blocked.
+When multiple approved tasks can proceed independently, launch or resume agents for them without waiting for the owner
+to request parallel work. The coordinating agent owns scheduling, dependency resolution, integration and delivery. Do
+not leave executable work unassigned while suitable agent and execution capacity are available.
+
+- **Assignments.** Divide substantial work into bounded assignments. Each states its objective and scope, base branch
+  and commit, the files or interfaces it owns, dependencies, required deliverables, acceptance checks and a required
+  hand-back. Independent implementation uses isolated worktrees and avoids overlapping edits.
+- **Ownership.** Shared contracts, migrations, accounting semantics and integration each have one owner. Dependent
+  lanes consume the committed interface; they do not invent variants.
+- **Priority and capacity.** Prioritize work that unlocks other tasks or shortens the path to a usable release. If
+  agent slots are full, keep an explicit ready queue and assign the next task when a slot opens. Never start a second
+  agent for work already running. Use enough parallelism to improve delivery time, but do not run competing builds,
+  shared-database mutations or render jobs that overload the same resource.
+- **Scheduling check before waiting.** Before waiting for agents, CI, deployment, paid validation or owner input, review
+  the ready queue and start any independent authorized work that can proceed. Waiting is appropriate only when no
+  useful independent work is available, execution capacity is exhausted, or a concrete dependency blocks it. While
+  waiting, the coordinator integrates ready hand-backs, prepares the next candidate and its checks, diagnoses unrelated
+  failures, prepares migration commands, receipts, fixtures and documentation, resolves interface questions between
+  lanes, and safely closes completed worktrees. Do not repeatedly report "waiting for agents" while ready tasks remain
+  unassigned.
+- **Blockers are per subtask.** A missing decision blocks only the work that depends on it. Continue independent
+  investigation, implementation, tests and preparation, and do not invent an answer to a consequential unresolved
+  decision. Pending production provisioning does not by itself block schema design, migration preparation,
+  deterministic tests or work against a committed contract. Keep unrelated ready work moving when another lane fails or
+  is blocked.
+- **Development, validation and release.** Production promotion may be serialized; development and independent
+  candidate validation should proceed concurrently where the existing workflow and resources permit. Prepare later
+  candidates while the current one is in CI or awaiting its release command; run independent checks concurrently;
+  serialize only operations that share mutable resources or need ordering; keep a single integration and release owner.
+  Freeze a candidate before release verification instead of adding unrelated work and restarting its checks. When
+  integration or rebasing changes the candidate SHA, obtain the required evidence for the resulting SHA. Use the
+  existing gate-reuse eligibility and batching rules; do not weaken a gate or alter workflow policy to shorten the
+  queue.
+- **Budgets.** Paid work stays inside the existing shared budget and authorization; more agents do not receive
+  separate budgets.
 - A hand-back contains: commit SHA; changes made; tests actually executed and their results; remaining limitations;
   integration dependencies; required migration or deployment steps; and a short "how to try it" for the owner.
 - A lane's passing tests do not establish that the combined integration candidate passes; the integrator reruns the
@@ -286,14 +315,28 @@ standing rule authorizes safe cleanup; no further routine permission is needed.
 - A review finding identifies a concrete correctness problem, missed requirement or meaningful risk, with supporting
   code. Style preferences and speculative improvements do not become release requirements.
 - Stop optional investigation once the behavior is sufficiently verified and required checks pass.
+- **Task ledger.** The coordinator keeps a compact ledger in the existing task notes (not in this file). For each task:
+  the task and next deliverable; agent or lane identifier; branch and latest committed SHA; state (queued, running,
+  blocked, ready for integration, validating, ready for release, completed); last concrete progress with a timestamp;
+  the dependency or blocker and its owner; the next executable action.
+- Only call work "running" or "building" when an agent or process is actually executing it. An assigned but paused
+  agent, an existing branch or a planned task is not active execution.
+- At hand-backs, failures and status updates, reconcile the ledger with actual agent and process state. Investigate
+  stalled work before resuming or reassigning it; preserve its changes and prevent duplicate writers.
 
 ## Reporting
 
-Report the result, verification evidence, remaining risks and the exact commit. Give ETAs only when derived from the
-remaining steps and their measured durations; when a duration is unknown, say what is unknown and when it will be
-known. Measure elapsed delivery time, debugging time, post-integration bugs, gate attempts and runner minutes, keeping
-overlapping categories separate. Update this file when a recurring failure reveals a missing rule; consolidate rather
-than accumulate.
+Report the result, verification evidence, remaining risks and the exact commit. A status update says what advanced,
+what is genuinely blocked, and what starts next.
+
+- ETAs stay evidence-based: derived from the remaining steps and their measured durations. Report implementation
+  readiness, validation readiness and production release separately; account for concurrent work rather than adding
+  lane durations as if development were serial; name the actual release queue and critical dependencies. When a
+  duration is unknown, say what is unknown and which milestone will make it estimable. Do not present guessed clock
+  times as a delivery commitment; if the owner asks for an approximation, label it as an estimate.
+- Measure elapsed delivery time, debugging time, post-integration bugs, gate attempts and runner minutes, keeping
+  overlapping categories separate.
+- Update this file when a recurring failure reveals a missing rule; consolidate rather than accumulate.
 
 ## Trigger word: `learn-cleanup`
 
