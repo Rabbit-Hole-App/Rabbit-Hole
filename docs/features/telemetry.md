@@ -96,6 +96,82 @@ No transaction spans two services; each path says what it guarantees.
 There are no cron triggers on any Rabbit Hole worker, so nothing drains on a schedule: the owner dashboard runs a bounded
 projection catch-up when opened, and jobs drain themselves.
 
+## Adding an event (adapter lanes)
+
+The contract owner (the telemetry lane) owns `telemetry-contract.js`. An adapter never edits it; it adds one registration file
+and one line to a list, and the contract owner reviews the pull request.
+
+1. Create `packages/control-plane/src/telemetry-events/<feature>.js`: a plain object with **no imports**.
+   ```js
+   export default {
+     namespace: 'cad',                       // lower case, unique; core namespaces (model_call, stage, telemetry) are reserved
+     browser: false,                         // true only if the browser may send it (then the ingestion route accepts the namespace)
+     errorCodes: ['cad_parse_failed'],       // optional: extra error_code tokens, unique across features
+     events: {
+       'cad.build': {                        // every name is <namespace>.<name>, lower case
+         duration_ms: { type: 'ms', required: true },
+         stage: { enum: ['parse', 'build'] },
+       },
+     },
+   };
+   ```
+   A field rule is `{ type }` with a type from the contract (`id`, `token`, `hex`, `route`, `int`, `ms`, `bool`, `rate`, `usage`,
+   `ids`) or `{ enum: [tokens] }`, plus `required: true`. There is no free-text type: a prompt, message, URL or email cannot be a
+   field. If a feature needs a new type, ask the contract owner.
+2. Add `import cad from './cad.js';` and `  cad,` to `telemetry-events/index.js`. That file is merged with git's union driver
+   (`.gitattributes`), so two adapters adding a line each do not conflict. A test fails if a file is not listed.
+3. Emit with `emitTelemetry(env, makeEvent('cad.build', { feature, action_id, attempt_id, job_id, outcome, payload }, { service }))`
+   from a request, or `telemetryOutbox(...).append(...)` from a Durable Object job (see Delivery). Add the ids you have so the
+   dashboard can join: `action_id`, `attempt_id`, `job_id`, and `user_ref` (users.id) where the server knows the account.
+4. Add unit tests with a success and a failed or cancelled example, and a test that no private text reaches the event.
+5. A bad registration (wrong name, duplicate, unknown type) throws when the contract loads, so every test run catches it.
+
+## Browser errors (Task 11)
+
+`packages/web/src/client-telemetry.js`, installed once in `main.jsx` for Rabbit Hole builds (never inside an embedding site).
+
+- **What is reported** (`client.error`, kind): `uncaught` and `unhandled_rejection` (window); `boundary` (the root's uncaught
+  React error); `render_failed` (a card's own boundary: the graph card and the chat answer today, with the artifact name);
+  `save_failed` and `load_failed` (a 5xx or a thrown request to a saved resource such as boards, canvases, files, progress or
+  library; also a code chunk that failed to load); `network` (any other failed API request); `long_task` (500 ms or more) and
+  `slow_interaction` (an event of 500 ms or more) where the browser reports them.
+- **What leaves the page:** the kind, a 16-hex fingerprint, a route template, the error's constructor name, browser and device
+  class, a status code or duration, a repeat count, and the page's drop count. The fingerprint hashes the error name and its
+  top stack frame with URLs, line numbers and the bundler's content hash removed. Never a message, a stack, a URL, a query string,
+  a share token, a request body or any page content. `/b/<token>`, `/apps/<slug>` and handles become `/b/:token`, `/apps/:id`
+  and `/:handle` (`routeTemplate`). 4xx answers are not reported (sign-in, validation and refusals are the product speaking), nor
+  aborted requests, nor requests to the telemetry route itself.
+- **Limits in the browser:** the same failure inside 60 seconds is counted, not sent (folded into one event when its window ends
+  or the page is hidden); a burst of 10 distinct events, then one every 6 seconds; 50 events a page load; a batch is at most 50
+  events and 64 KB; a 429 silences the page for a minute. Delivery is `sendBeacon` when the page is hidden, else `fetch` with
+  `keepalive`, and it is never retried. What the page dropped is reported on its next event (`payload.dropped`), so incomplete
+  delivery is measured.
+- **Server (`POST /api/telemetry/client`, `telemetry-client-route.js`):** same-origin only; 64 KB; the browser is untrusted. Of
+  each event only the name (client namespace only, `BROWSER_NAMESPACES`), the trace id, a release hash and the validated payload
+  are kept; the environment, service, time, account (from the session, anonymous allowed) and event id are the server's. Dedup:
+  the stored id is derived from the payload (without its counters), the account or a hashed network address, and a 10-minute
+  bucket, so the same failure from the same account in the same bucket is one row. A per-isolate token bucket (60 events burst,
+  2 a second) per account or address answers 429. `TELEMETRY_CLIENT_DISABLED=true` is a kill switch. Where telemetry is not
+  provisioned it answers 204. The network address is only hashed in memory, never stored.
+- **Linking a failure to its action:** the browser adds a random `x-rh-trace` header (16 hex) to each same-origin API request;
+  the app worker keeps it on the request's env (`withTrace`), the model logger puts it on `model_call.*`, and a failed request's
+  `client.error` carries the same trace id. The action explorer shows an action's events and the browser failures sharing its
+  traces. Accounting is untouched: no `X-RH-Action-Key` or ledger change. An uncaught error with no request has no trace; it is
+  linked only through a support report.
+- **Support references:** `POST /api/learn/feedback` now returns `{ id, ref }` with `ref` like `RH-7QK2-M9XD` (40 random bits,
+  Crockford base 32), stores it in the report, and writes a `support.report` event with the ref, the kind, the page's route
+  template and the page's latest fingerprints and trace ids (hex only, at most five each). The report text never reaches
+  telemetry. The feedback button's confirmation reads "Sent, thank you. Your reference is RH-...". The owner enters the reference
+  (or an `act-` id) in the action explorer, which shows the report, the browser failures it saw, the server events on the same
+  traces and buttons to open their actions. `GET /api/owner/telemetry/support/<ref>` and `/client-errors?days=` serve it.
+- **Dashboard:** a Browser errors table (kind, route, release, occurrences, accounts, last seen) on `/owner/telemetry`.
+- **Known limits.** Repeats after the first in a 10-minute bucket are counted only by the page's own fold. Anonymous callers can
+  send arbitrary fingerprints, so the real bound on rows is the per-isolate bucket: add a Cloudflare rate limiting rule on
+  `POST /api/telemetry/client` (owner action; see the runbook). The release is empty until a deploy sets `RELEASE_SHA` on the
+  worker and `VITE_RELEASE_SHA` at build time (neither is set today). The reference appears on the confirmation button's tooltip,
+  which keeps the owner's "confirmation stays on the button" pattern; a visible reference is an owner design decision. Offline
+  and reconnect behavior appears only as `online` on other failures; there is no dedicated offline event yet.
+
 ## Model logger (`learn-models.js` `loggedModel`)
 
 Wraps every Learn model transport. It no longer reads the response body before returning it: a JSON reply is read from a
@@ -161,6 +237,13 @@ Run from `packages/web`. Creating resources and production migrations need expli
    email. Setting it there does not turn on subscription mode (`SUBSCRIPTION_ONLY` stays unset).
 5. Deploy through the normal release path. Verify: signed in as the owner, `/owner/telemetry` loads and Health shows the
    database as configured; signed out and as another account, `/api/owner/telemetry/overview` is 404.
+6. Browser errors need two owner-side settings that the code only reads:
+   - A hard bound on the public ingestion path: a Cloudflare rate limiting rule on `POST /api/telemetry/client` for the
+     digrabbithole.com zone (dashboard, Security, WAF, Rate limiting rules; for example 60 requests a minute per IP, action
+     Block). Without it the only bound is the per-isolate bucket. Verify by sending 70 requests from one address and seeing 429.
+   - The release on events: the release path (`scripts/prod-release.mjs`, `scripts/dev-deploy.mjs`) would need to set a
+     `RELEASE_SHA` var on the app worker and `VITE_RELEASE_SHA=<sha>` for the web build. Neither is wired (the release owner
+     decides how; deploys are never run by hand). Both are optional: events carry no release until they are set.
 
 ## Ongoing cost (bounded estimate, not measured)
 

@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS telemetry_events (
 CREATE INDEX IF NOT EXISTS telemetry_events_window ON telemetry_events (environment, event_name, occurred_at);
 -- Action explorer: one action, attempt or job's timeline.
 CREATE INDEX IF NOT EXISTS telemetry_events_action ON telemetry_events (action_id, occurred_at) WHERE action_id IS NOT NULL;
+-- A request's trace: its browser failure and its server events (model_call.*) share one trace id.
+CREATE INDEX IF NOT EXISTS telemetry_events_trace ON telemetry_events (trace_id, occurred_at) WHERE trace_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS telemetry_events_job ON telemetry_events (job_id, occurred_at) WHERE job_id IS NOT NULL;
 -- Support investigation by account.
 CREATE INDEX IF NOT EXISTS telemetry_events_user ON telemetry_events (user_ref, occurred_at) WHERE user_ref IS NOT NULL;

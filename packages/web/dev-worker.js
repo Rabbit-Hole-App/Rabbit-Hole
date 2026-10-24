@@ -71,6 +71,8 @@ import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia 
 import { imageEstimate, TRANSCRIBE_ESTIMATE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
+import { clientTelemetryRoute } from '../control-plane/src/telemetry-client-route.js';
+import { withTrace } from '../control-plane/src/telemetry-delivery.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 import { isEmbed } from '../control-plane/src/learn-shared-ask.js';
@@ -93,7 +95,7 @@ export default {
 };
 
 async function respond(req, env, ctx) {
-  env = guardControlPlane(env);
+  env = withTrace(req, guardControlPlane(env));
   // Usage (learn-usage.js): a route that makes provider calls gets its own per-request context, so its attempts share one
   // action whose payer is this request's session user. Admission (learn-spend-ledger.js admitSpend) enforces that user's
   // monthly allowance and the platform guard; a stream passes through byte for byte.
@@ -175,6 +177,8 @@ const routes = {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
       return repositoriesFetch(new Request(target, req), env, ctx);
     }
+    // Browser error batches (docs/features/telemetry.md "Browser errors"): same-origin, bounded, 204 where telemetry is not provisioned.
+    if (path === '/api/telemetry/client') { const accepted = await clientTelemetryRoute(path, req, env); if (accepted) return accepted; }
     // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
     if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
     // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).

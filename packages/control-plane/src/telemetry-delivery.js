@@ -22,6 +22,13 @@ export async function writeEvents(db, events, now = Date.now()) {
   return results.reduce((sum, r) => sum + (r.meta?.changes || 0), 0);
 }
 
+// The browser's per-request trace id (x-rh-trace, client-telemetry.js), kept on the request's env so the server events for that
+// request (model_call.*) carry it and a client failure can be linked to its server timeline. Anything that is not 16 hex is ignored.
+export function withTrace(req, env) {
+  const id = req.headers.get('x-rh-trace') || '';
+  return /^[0-9a-f]{16}$/.test(id) ? { ...env, TELEMETRY_TRACE: id } : env;
+}
+
 // Per-isolate counts of what emitTelemetry could not deliver, reported in the next telemetry.delivery event and the logs.
 export const deliveryCounts = { delivered: 0, rejected: 0, dropped: 0 };
 

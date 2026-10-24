@@ -15,7 +15,7 @@ is used in two places:
 2. Choose **Report a bug** or **Suggest a feature**.
 3. Describe it in up to 2000 characters, then **Submit**.
 
-The button then turns into a tick ("Sent, thank you") for a moment. There is
+The button then turns into a tick ("Sent, thank you. Your reference is RH-7QK2-M9XD", where the server gave one) for a moment. There is
 no corner toast.
 
 ## What is stored
@@ -30,7 +30,11 @@ object per report to Learn media (`learnMedia(env)`) at
 
 - the kind (bug or idea) and the text;
 - the app, org and email of the sender;
-- the board, page path, screen size and user agent.
+- the board, page path, screen size and user agent;
+- a support reference (`ref`, like `RH-7QK2-M9XD`), also returned to the browser and shown on the button's confirmation, and the
+  page's latest browser-error fingerprints and failed-request trace ids when it has any (`diagnostics`, hex ids only). A
+  `support.report` telemetry event carries the reference and those ids, never the text
+  ([telemetry.md](telemetry.md) "Browser errors").
 
 On dev and review, Learn media is the `small-learn-media-dev` bucket.
 Production has no LEARN_MEDIA binding, so there it would write to `small-runs`,

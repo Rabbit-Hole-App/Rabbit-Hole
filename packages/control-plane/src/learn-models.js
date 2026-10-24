@@ -115,7 +115,7 @@ async function modelEvent(env, name, line, { result = null, stream, status, outc
   if (name === 'model_call.finished') Object.assign(payload, { served_model: result?.model, fell_back: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
     status_code: status, stop_reason: result?.stop_reason, request_id: requestId, response_ms: responseMs, first_chunk_ms: firstChunkMs, duration_ms: durationMs,
     chunks, usage: usageSnapshot(result?.usage) });
-  return emitTelemetry(env, makeEvent(name, { service: 'app_worker', feature: ctx?.feature, action_id: actionId || undefined, user_ref: ctx?.identity?.userId || undefined,
+  return emitTelemetry(env, makeEvent(name, { service: 'app_worker', feature: ctx?.feature, ...(env.TELEMETRY_TRACE ? { trace_id: env.TELEMETRY_TRACE } : {}), action_id: actionId || undefined, user_ref: ctx?.identity?.userId || undefined,
     outcome: name === 'model_call.started' ? 'started' : outcome, error_code: error || undefined, payload }, { service: 'app_worker', release: /^[0-9a-f]{7,40}$/.test(env.RELEASE_SHA || '') ? env.RELEASE_SHA : null }));
 }
 

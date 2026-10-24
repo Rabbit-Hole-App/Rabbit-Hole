@@ -12,7 +12,7 @@ import { readRecent } from './home/continue.js';
 import { isLearnResource } from './library-filter.js';
 import { recentLaunch } from './sidebar-nav.js';
 import { pageFor, sectionActive, sectionHref } from './routes.js';
-import FeedbackButton from './FeedbackButton.jsx';
+import FeedbackButton, { sentTitle } from './FeedbackButton.jsx';
 import RabbitHoleSettings from './RabbitHoleSettings.jsx';
 import { Avatar, Button, cn, ConfirmDialog, IconBtn, Input, KindIcon, Mark, Menu, MenuItem, Select, SettingsRow, ShareInput, SlidePanel, toast, Toggle } from './ui.jsx';
 import { isInternalPrincipal, personLabel, useShownIdentity } from './session-display.js';
@@ -1157,9 +1157,9 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           )}
           <div className="sticky bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-0.5 border-t border-line bg-side pt-2">
             {navRow({ label: 'Trash', icon: Trash2, open: trashOpen, onClick: openTrash })}
-            <FeedbackSlot width={rail ? RAIL_W : width} className={cn(!resizing && SLIDE)} row={({ open, sent, icon, toggle }) => navRow({
+            <FeedbackSlot width={rail ? RAIL_W : width} className={cn(!resizing && SLIDE)} row={({ open, sent, ref, icon, toggle }) => navRow({
               label: 'Feedback', icon, open, onClick: toggle, 'data-feedback': true, 'aria-expanded': open,
-              title: sent ? 'Sent, thank you' : undefined, className: sent ? 'text-green-700!' : undefined,
+              title: sent ? sentTitle(ref) : undefined, className: sent ? 'text-green-700!' : undefined,
             })} />
           </div>
         </>

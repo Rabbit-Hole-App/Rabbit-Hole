@@ -8,6 +8,7 @@ import { nodeRef } from './repo-context.js';
 import { CARD_NODE_CAP, cardRepository, setCardScope, setCardSelection, subgraph, useCardSelection } from './graph-card.js';
 import { insertCodeCard, nodeCodeCard } from './code-card.js';
 import { useCardSource } from './use-card-source.js';
+import { reportClientError } from './client-telemetry.js';
 
 // An interactive graph card on the canvas (repo-canvas-graph.md clarification section 4): the indexed graph of one repository
 // at one commit, whole or a selected subgraph - the companion Graph's renderer, not a picture. Its node selection is its own
@@ -21,7 +22,7 @@ const short = commit => (commit || '').slice(0, 7);
 class GraphCardBoundary extends Component {
   state = { failed: false, attempt: 0 };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('[graph card]', error); }
+  componentDidCatch(error) { console.error('[graph card]', error); reportClientError('render_failed', error, { artifact: 'graph_card' }); }
   render() {
     if (!this.state.failed) return <GraphCardBody key={this.state.attempt} block={this.props.block} />;
     return <div role="status" data-graph-card data-graph-card-state="failed" className="flex flex-1 flex-col items-start gap-2 px-3 pb-3 text-sm text-ink-2">

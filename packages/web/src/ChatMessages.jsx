@@ -15,6 +15,7 @@ import { ChatOutputs } from './ChatOutputs.jsx';
 import GenerationProposalCard from './GenerationProposalCard.jsx';
 import { PROPOSAL_REFUSED_EVENT, approvesJob, generateProposal, proposalActive, proposalBlock, refinementConflictText, settingsConflict } from './generation-proposal-chat.js';
 import { withPrompt } from './card-prompt.js';
+import { reportClientError } from './client-telemetry.js';
 
 // UI-15 / MOT-20: an answer's generation proposal, drawn by the shared card under it. Live only as the newest version of its
 // proposal that has not made its card yet. A settings change saves the next version over this message (chat-proposal-route.js);
@@ -189,7 +190,7 @@ function OutputRow({ runId, name, size }) {
 export class AnswerBoundary extends Component {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(error) { console.error('[chat answer]', error); }
+  componentDidCatch(error) { console.error('[chat answer]', error); reportClientError('render_failed', error, { artifact: 'chat_answer' }); }
   render() { return this.state.failed ? <div data-answer className="min-w-0 whitespace-pre-wrap text-sm">{String(this.props.text ?? '')}</div> : this.props.children; }
 }
 

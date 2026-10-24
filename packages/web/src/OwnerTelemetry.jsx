@@ -3,7 +3,7 @@
 // its own. Dollar amounts appear only here, for the owner. Measured, estimated, unknown and reserved amounts are separate rows
 // and are never added together.
 import { useEffect, useState } from 'react';
-import { Activity, CircleDollarSign, Hash, Layers, Search, Tag, Timer } from 'lucide-react';
+import { Activity, Bug, CircleDollarSign, Hash, Layers, Route, Search, Tag, Timer, Users } from 'lucide-react';
 import Shell from './Shell.jsx';
 import { Button, ExpandedPageFrame, Input } from './ui.jsx';
 
@@ -37,14 +37,14 @@ function OwnerTelemetry() {
     if (access.hidden) return setState({ hidden: true });
     if (!access.body?.configured) return setState({ access: access.body });
     await get('/project', { method: 'POST' }); // one bounded catch-up of the accounting projection before reading
-    const [overview, health] = await Promise.all([get(`/overview?days=${days}`), get('/health')]);
-    setState({ access: access.body, overview: overview.body, health: health.body });
+    const [overview, health, clientErrors] = await Promise.all([get(`/overview?days=${days}`), get('/health'), get(`/client-errors?days=${days}`)]);
+    setState({ access: access.body, overview: overview.body, health: health.body, clientErrors: clientErrors.body });
   };
   useEffect(() => { load(); }, [days]);
 
   if (state.hidden) return <p className="text-sm text-ink-2">Not found.</p>;
   if (state.loading && !state.access) return <p className="text-sm text-ink-2">Loading telemetry</p>;
-  const { access, overview, health } = state;
+  const { access, overview, health, clientErrors } = state;
   return (
     <>
       <div className="flex items-baseline gap-3 pb-6">
@@ -71,6 +71,14 @@ function OwnerTelemetry() {
               <tbody>{(overview?.events || []).map(row => <tr key={`${row.event_name}-${row.outcome}`} className="border-t border-line"><td className="py-1.5 pr-4">{row.event_name}</td><td className="pr-4">{row.outcome || 'none'}</td><td>{row.n}</td></tr>)}</tbody></table>
             {!overview?.events?.length && <p className="pt-2 text-xs text-ink-2">No events in this window.</p>}
           </Section>
+          <Section title="Browser errors">
+            <p className="pb-2 text-xs text-ink-2">Grouped by fingerprint, route and release. Occurrences count repeats a page folded together; accounts count signed-in people affected (anonymous pages are not counted). Delivery is best effort: a page that hit its limits says how many it dropped.</p>
+            <table className="w-full text-sm"><thead><tr><Head icon={Bug}>Kind</Head><Head icon={Route}>Route</Head><Head icon={Tag}>Release</Head><Head icon={Hash}>Occurrences</Head><Head icon={Users}>Accounts</Head><Head icon={Timer}>Last seen</Head></tr></thead>
+              <tbody>{(clientErrors?.groups || []).map(g => <tr key={`${g.fingerprint}-${g.kind}-${g.route}-${g.release_sha}`} className="border-t border-line">
+                <td className="py-1.5 pr-4" title={g.fingerprint}>{g.kind}</td><td className="pr-4 font-mono text-xs">{g.route}</td><td className="pr-4 font-mono text-xs">{g.release_sha ? g.release_sha.slice(0, 8) : 'unknown'}</td>
+                <td className="pr-4">{g.occurrences}</td><td className="pr-4">{g.accounts}</td><td>{time(g.last_seen)}</td></tr>)}</tbody></table>
+            {!clientErrors?.groups?.length && <p className="pt-2 text-xs text-ink-2">No browser errors in this window.</p>}
+          </Section>
           <Section title="Telemetry health">
             <p className="text-xs text-ink-2">Last event ingested {time(health?.lastIngestedAt)}. This server instance: {health?.isolate?.delivered ?? 0} delivered, {health?.isolate?.rejected ?? 0} refused, {health?.isolate?.dropped ?? 0} dropped.</p>
             <table className="mt-2 w-full text-sm"><thead><tr><Head icon={Activity}>Source</Head><Head icon={Timer}>Observed</Head><Head icon={Hash}>Pending</Head><Head icon={Hash}>Dead</Head><Head icon={Timer}>Oldest</Head></tr></thead>
@@ -85,18 +93,34 @@ function OwnerTelemetry() {
 function ActionExplorer() {
   const [id, setId] = useState('');
   const [result, setResult] = useState(null);
-  const look = async event => {
-    event.preventDefault();
-    const found = await get(`/actions/${encodeURIComponent(id.trim())}`);
+  const [support, setSupport] = useState(null);
+  const lookup = async value => {
+    const key = value.trim();
+    setResult(null); setSupport(null);
+    if (/^RH-/i.test(key)) {
+      const found = await get(`/support/${encodeURIComponent(key.toUpperCase())}`);
+      setSupport(found.hidden ? { error: 'Not found.' } : found.body);
+      return;
+    }
+    const found = await get(`/actions/${encodeURIComponent(key)}`);
     setResult(found.hidden ? { error: 'Not found.' } : found.body);
   };
+  const look = event => { event.preventDefault(); lookup(id); };
+  const open = actionId => { setId(actionId); lookup(actionId); };
   return (
     <Section title="Action explorer">
       <form onSubmit={look} className="flex gap-2 pb-3">
-        <Input aria-label="Action id" placeholder="act-" value={id} onChange={e => setId(e.target.value)} />
+        <Input aria-label="Action id or support reference" placeholder="act- or RH-" value={id} onChange={e => setId(e.target.value)} />
         <Button type="submit" variant="secondary" disabled={!id.trim()}><Search size={14} strokeWidth={1.5} />Look up</Button>
       </form>
-      {result?.error && <p className="text-sm text-ink-2">{result.error}</p>}
+      {(result?.error || support?.error) && <p className="text-sm text-ink-2">{result?.error || support?.error}</p>}
+      {support?.report && <div className="pb-4 text-sm">
+        <p className="pb-2">Report {support.report.ref}, {support.report.kind}, from {support.report.route || 'an unknown page'}, account {support.report.account || 'none'}, {time(support.report.at)}</p>
+        <ol className="pb-2 text-xs text-ink-2">{support.clientErrors.map(e => <li key={e.event_id}>{time(e.occurred_at)} browser {e.payload.kind} {e.payload.route} {e.payload.status_code ?? ''} {e.payload.fingerprint}</li>)}
+          {support.serverEvents.map(e => <li key={e.event_id}>{time(e.occurred_at)} server {e.event_name} {e.outcome || ''} {e.error_code || ''}</li>)}</ol>
+        {support.actionIds.map(a => <Button key={a} size="sm" variant="secondary" onClick={() => open(a)}>Open {a}</Button>)}
+        {!support.clientErrors.length && !support.serverEvents.length && <p className="text-xs text-ink-2">The report carried no matching browser errors or requests.</p>}
+      </div>}
       {result?.action && <div className="text-sm">
         <p className="pb-2">{result.action.feature}, {result.action.status}, {result.action.charge_class}, period {result.action.period}, started {time(result.action.started_at)}</p>
         <table className="w-full"><thead><tr><Head icon={Hash}>Attempt</Head><Head icon={Layers}>Kind</Head><Head icon={Tag}>Model</Head><Head icon={Layers}>State</Head><Head icon={CircleDollarSign}>Cost</Head><Head icon={CircleDollarSign}>Reserved</Head></tr></thead>
