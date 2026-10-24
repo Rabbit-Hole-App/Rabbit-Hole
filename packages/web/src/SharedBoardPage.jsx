@@ -352,7 +352,7 @@ function SharedBoard({ token, embed = null }) {
           <div className={SHARED_FORK_COLUMN}>
             <div className={SHARED_FORK_ROW}>
               {/* Star (docs/features/stars.md), left of the @handle, which stays immediately left of Fork (owner decision 2026-10-23). Only a canvas has stars: a project's board shows none. */}
-              {typeof shared.star_count === 'number' && <StarButton key={token} token={token} initial={{ starred: shared.starred_by_me, count: shared.star_count }} signedIn={!!shared.viewer} auto={starRequested} className="min-h-11 @5xl:min-h-8" />}
+              {typeof shared.star_count === 'number' && <StarButton key={token} token={token} initial={{ starred: shared.starred_by_me, count: shared.star_count }} signedIn={!!shared.viewer} auto={starRequested} className="min-h-11 @5xl:min-h-8" labelClass="sr-only @6xl:not-sr-only" />}
               {/* The creator (docs/features/user-handles.md; owner decision 2026-10-23): the blue @handle immediately left of Fork, a link to the
                   creator's public profile on a publication and a share link alike. It truncates before Fork or the toggle move. No handle: nothing drawn. */}
               {shared.creator?.handle && <span data-shared-creator className="min-w-0 max-w-28 truncate text-xs text-ink-3 @5xl:max-w-40">

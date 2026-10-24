@@ -11,7 +11,7 @@ import { Button, toast } from './ui.jsx';
 // canvas with ?star=1; `auto` (that return) stars once, and the server re-checks access like any press. Presses made while a
 // request is in flight collapse to the last one (canvas-star.js). It re-reads when the tab comes back, so another tab's
 // change shows.
-export default function StarButton({ token, initial, signedIn, auto = false, variant = 'secondary', size, className = '' }) {
+export default function StarButton({ token, initial, signedIn, auto = false, variant = 'secondary', size, className = '', labelClass = 'max-sm:sr-only' }) {
   const store = useMemo(() => starStore(token, initial), [token]); // eslint-disable-line react-hooks/exhaustive-deps
   const state = useSyncExternalStore(store.subscribe, store.get);
   const toSignIn = () => { window.location.href = starSignInUrl(window.location.pathname, window.location.search); };
@@ -40,7 +40,7 @@ export default function StarButton({ token, initial, signedIn, auto = false, var
       aria-label={counts ? `${label}, ${starLabel(state.count)}` : label}
       onClick={event => { event.stopPropagation(); press(!shown); }} onPointerDown={event => event.stopPropagation()}>
       {state.saving ? <Loader2 size={13} strokeWidth={1.8} className="animate-spin" aria-hidden /> : <Star size={13} strokeWidth={1.8} fill={shown ? 'currentColor' : 'none'} aria-hidden />}
-      <span className="max-sm:sr-only">{label}</span>
+      <span className={labelClass}>{label}</span>
       {counts && <span data-star-count-value className={`ml-0.5 border-l pl-2 tabular-nums ${variant === 'primary' ? 'border-white/40 text-white' : 'border-line text-ink-2'}`}>{starNumber(state.count)}</span>}
     </Button>
   );
