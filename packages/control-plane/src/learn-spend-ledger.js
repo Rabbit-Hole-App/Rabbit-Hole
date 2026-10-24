@@ -2,7 +2,7 @@
 // paid provider call: the platform daily guard (usage_operations, 0016) and, for chargeable work, the payer's monthly AI
 // allowance (usage_actions/usage_attempts, 0022; owner L12 2026-10-20), checked and reserved in one D1 transaction.
 import { admissionPayer, attemptKind, beginAttempt, noteUsageRefusal, periodOf, periodReset, toMicros, usagePayer, usageRefusal, usageTotals, BALANCE_SCOPE, USED_SUM, HELD_SUM } from './learn-usage.js';
-import { monthlyAllowanceMicros } from './learn-usage-config.js';
+import { allowanceFor } from './learn-entitlement.js';
 
 export const spendError = reason => Object.assign(new Error(reason), { code: reason });
 const number = value => { const n = Number(String(value ?? '').trim()); return Number.isFinite(n) && n > 0 ? n : null; };
@@ -110,19 +110,19 @@ export const spendEnforced = env => env.SMALL_ENV !== 'test';
 
 // What the person is told when a paid call is refused. Their monthly allowance and the platform's daily limit read
 // differently (owner D3/D4): the allowance names its reset date; the platform limit is temporary and not theirs.
-const resetDate = period => new Date(periodReset(period)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const resetDate = period => new Date(periodReset(period)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
 export function spendMessage(reason, period = null) {
-  const resets = period ? ` It resets on ${resetDate(period)}.` : '';
+  const resets = period ? ` Renews on ${resetDate(period)}.` : '';
   switch (reason) {
-    case 'allowance_exhausted': return `You've used your monthly AI allowance.${resets}`;
-    case 'allowance_insufficient': return `This action needs more than your remaining AI allowance.${resets}`;
-    case 'allowance_reserved': return 'Your remaining AI allowance is reserved by AI work that is still running. Try again when it finishes.';
-    case 'allowance_unavailable': return 'AI is temporarily unavailable: your AI allowance cannot be checked right now. Your work is saved; try again shortly.';
+    case 'allowance_exhausted': return `Not enough AI credits.${resets}`;
+    case 'allowance_insufficient': return `This needs more AI credits than you have left.${resets}`;
+    case 'allowance_reserved': return 'Your remaining AI credits are temporarily reserved by AI work that is still running. Try again when it finishes.';
+    case 'allowance_unavailable': return 'AI is temporarily unavailable: your AI credits cannot be checked right now. Your work is saved; try again shortly.';
     case 'payer_unavailable': return 'AI is temporarily unavailable: your sign-in could not be confirmed. Your work is saved; reload and try again.';
-    case 'cap_unset': return 'Paid Learn calls are paused until the platform daily dollar cap is configured.';
-    case 'spend_bound_unavailable': return 'This model request is paused because its maximum dollar cost cannot be bounded with the configured prices.';
-    case 'daily_cap_reached': return 'Paid Learn calls are paused because the platform daily dollar cap has been reached.';
-    default: return 'Paid Learn calls are temporarily unavailable because spend controls are not ready.';
+    case 'cap_unset': return 'AI is paused until the platform spending limit is set.';
+    case 'spend_bound_unavailable': return 'This request is paused because its maximum cost cannot be estimated.';
+    case 'daily_cap_reached': return 'AI is paused for now because the platform daily limit has been reached.';
+    default: return 'AI is temporarily unavailable because spend controls are not ready.';
   }
 }
 
@@ -154,7 +154,7 @@ export async function allowanceFirst(env) {
   if (!spendEnforced(env) || !platformCaps(env).usd) return null;
   const payer = await usagePayer(env);
   if (payer?.chargeClass !== 'would_charge') return null; // free, public, or no session: the route's own rules answer
-  const allowance = monthlyAllowanceMicros(env);
+  const allowance = await allowanceFor(env.LEARN_DB, env, payer.userId, payer.period);
   let reason = null;
   if (allowance == null || !env.LEARN_DB) reason = 'allowance_unavailable';
   else {

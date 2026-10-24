@@ -1,22 +1,13 @@
 // Runtime admission for paid Learn operations. Every production/dev paid call must pass here before a provider request.
 // The platform cap is deliberately fail-closed: an unset cap or missing 0016 table refuses admission.
-import { MODEL_PRICES } from './learn-models.js';
+import { anthropicQuantities, mtokRates, priceUsage } from './pricing-registry.js';
 
 import { platformCaps, admitSpend, settleSpend, operationId, spendEnforced, refusalReply } from './learn-spend-ledger.js';
 import { settleAttempt, toMicros, usageRefusal } from './learn-usage.js';
 export { spendError, platformCaps, platformSpendStatus, admitSpend, settleSpend, operationId, spendEnforced, spendMessage } from './learn-spend-ledger.js';
 
-// Prices for the existing picker models, verified 2026-10-12 (not aliases of 5.5):
-// https://platform.claude.com/docs/en/models/opus-5/overview
-// https://platform.claude.com/docs/en/models/sonnet-5/overview
-// Keep this runtime extension separate from the evaluator's pinned price contract.
-const prices = { ...MODEL_PRICES, 'claude-opus-5': [5, 25, 0.5], 'claude-sonnet-5': [2, 10, 0.2] };
-// https://developers.openai.com/api/docs/models/gpt-4.1-mini
-const openaiPrices = { 'gpt-4.1-mini': [0.4, 1.6, 0.1], 'gpt-4.1-mini-2025-04-14': [0.4, 1.6, 0.1] };
-// AWS's published Opus 5.5 launch rates; only the global profile has a verified identity here.
-// https://aws.amazon.com/jp/blogs/news/aws-weekly-20260921/
-const bedrockPrices = { 'global.anthropic.claude-opus-5-5': [4, 20, 0.2], 'claude-opus-5-5': [4, 20, 0.2] };
-const priceFor = (model, provider) => (provider === 'anthropic' ? prices : provider === 'openai' ? openaiPrices : provider === 'bedrock' ? bedrockPrices : {})[model];
+// Every rate comes from the one price registry (pricing-registry.js): provider, exact model, billing category and tier.
+const priceFor = (model, provider) => mtokRates(provider, model);
 // Conservative admission policy, independently implemented from the evaluator ledger.
 // UTF-8 bytes + 1000 framing tokens is an assumption, not a published tokenizer/billing guarantee.
 // If reported usage breaks the bound, keep the actual charge and block further admission.
@@ -100,15 +91,16 @@ export async function spendTransport(env, body, model, org, transport, identity 
       && ['cache_creation_input_tokens', 'cache_read_input_tokens'].every(key => usage[key] == null || Number.isSafeInteger(usage[key]) && usage[key] >= 0);
     // Price the served model, never assume the requested model proves the response's billing identity.
     const price = priceFor(result?.model, provider);
-    let cost = valid && price ? Math.ceil((usage.input_tokens * price[0] + usage.output_tokens * price[1] + (usage.cache_creation_input_tokens || 0) * price[0] * 1.25 + (usage.cache_read_input_tokens || 0) * price[2]) * ((usage.speed || body.speed) === 'fast' ? 2 : 1)) / 1e6 : null;
-    if (usage?.iterations?.length) cost = null; // Multiple billed fallback attempts need individual price identities.
+    const priced = valid && price && !usage.iterations?.length // Multiple billed fallback attempts need individual price identities.
+      ? priceUsage({ provider, model: result?.model, tier: (usage.speed || body.speed) === 'fast' ? 'fast' : 'standard', quantities: anthropicQuantities(usage) }) : null;
+    let cost = priced ? priced.micros / 1e6 : null;
     // The shared price helper accounts for five-minute cache writes. Without a reliable
     // per-TTL breakdown, a one-hour write keeps its conservative reservation.
     if (JSON.stringify(body).includes('\"ttl\":\"1h\"') && usage?.cache_creation_input_tokens > 0) cost = null;
     if (refused) cost = 0; // the provider refused the request outright (providerUnavailable): nothing ran, nothing is billed
     await settleSpend(env.LEARN_DB, opId, { status: error ? 'failed' : 'settled', calls: 1, costUsd: cost, model: result?.model || model, provider, error });
     await settleAttempt(env, begun, { costMicros: toMicros(cost), status: error === 'stream_cancelled' ? 'cancelled' : error ? 'failed' : 'settled',
-      model: result?.model || model, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens });
+      model: result?.model || model, inputTokens: usage?.input_tokens, outputTokens: usage?.output_tokens, price: cost == null ? null : priced });
   };
   try {
     const response = await transport({ ...env, [admission]: token });

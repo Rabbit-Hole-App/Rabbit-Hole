@@ -71,7 +71,11 @@
     // Its bearer SCENE_WORKER_TOKEN is a fresh production-only secret set on both sides at the production GO.
     "SCENE_WORKER_URL": "https://rabbit-hole-lesson-renderer-prod.fly.dev",
     // Monthly AI allowance per signed-in user (owner D3 2026-10-16; credits Phase 1 shows it, enforcement comes later).
-    "AI_MONTHLY_ALLOWANCE_USD": "50",
+    "AI_MONTHLY_ALLOWANCE_USD": "25",
+    // 2,500 AI credits every month (owner 2026-10-23). Accounts that already used AI keep AI_LEGACY_ALLOWANCE_USD through the
+    // months before AI_ALLOWANCE_CUTOVER_PERIOD, then the default (learn-entitlement.js). Not a place to change a granted month.
+    "AI_LEGACY_ALLOWANCE_USD": "50",
+    "AI_ALLOWANCE_CUTOVER_PERIOD": "2026-11",
     // Codebase assessment (owner production GO 2026-10-21): the rubric route for the five codebase goals only, against the cited
     // repository revision. The general TUTOR_RUBRIC_ASSESSMENT_ENABLED and TUTOR_VISUAL_ASSESSMENT_ENABLED stay off.
     "TUTOR_CODEBASE_ASSESSMENT_ENABLED": "true",

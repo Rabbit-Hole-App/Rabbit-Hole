@@ -11,7 +11,7 @@ import { guardedCaptions, enqueueForIndex, warmMoments, semanticWindowScorer, ho
 import { topPassages } from './learn-moment-retrieve.js';
 import { learnMomentsDb } from './learn-storage.js';
 import { recordMedia } from './learn-usage.js';
-import { exaCost, exaSearchBound, EXA_SEARCH_ESTIMATE } from './learn-usage-estimates.js';
+import { exaCost, exaSearchBound, EXA_SEARCH_ESTIMATE, ESTIMATE_PRICE } from './learn-usage-estimates.js';
 import { admitTool } from './learn-paid-transport.js';
 import { VIDEO_SYSTEM as VIDEO_TOOLS_SYSTEM, VIDEO_SHOWN_NOTE } from './agents/learn-chat.js';
 
@@ -112,7 +112,7 @@ export async function searchYouTube(query, env, fetcher = fetch) {
     // Once per dispatched search whatever its outcome: Exa's reported cost settles it, else its hold stays as unknown cost
     // (never 0). Where spend is not enforced (test), the Phase 1 record.
     if (metered) await metered.settle({ ok, costMicros: exaCost(data) });
-    else await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE });
+    else await recordMedia(env, { kind: 'tool', provider: 'exa', model: 'search', ok, costMicros: exaCost(data), estimateMicros: EXA_SEARCH_ESTIMATE, price: ESTIMATE_PRICE });
   }
   return parseExaResults(data);
 }

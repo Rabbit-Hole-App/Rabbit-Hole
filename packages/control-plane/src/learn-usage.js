@@ -10,7 +10,7 @@
 // admission (admissionPayer) refuses a paid call with no context unless code marked it system work (withSystemUsage).
 // Amounts are integer micro-USD (1 USD = 1_000_000 micros); unknown cost is NULL with its reservation kept, never 0.
 
-import { monthlyAllowanceMicros } from './learn-usage-config.js';
+import { allowanceFor } from './learn-entitlement.js';
 
 const USAGE = Symbol('usage accounting context');
 const KIND = Symbol('usage attempt kind');
@@ -199,7 +199,8 @@ export async function admissionPayer(env, db) {
   const payer = payerOf(ctx);
   if (payer.payerReason === 'system' && !ctx.system) return { refused: true, reason: 'payer_unavailable' };
   if (payer.chargeClass !== 'would_charge') return { chargeable: false, actionId: await actionOf(env, db) };
-  const period = periodOf(ctx.startedAt ?? nowSeconds()), allowance = monthlyAllowanceMicros(env);
+  // The grant is made before the action row, so a first-ever action is not mistaken for earlier usage (learn-entitlement.js).
+  const period = periodOf(ctx.startedAt ?? nowSeconds()), allowance = await allowanceFor(db, env, payer.userId, period, { create: true });
   if (allowance == null) return { refused: true, reason: 'allowance_unavailable', period }; // never unlimited, nothing written
   const actionId = await actionOf(env, db);
   if (!actionId) return { refused: true, reason: 'allowance_unavailable', period };
@@ -213,11 +214,22 @@ export function noteUsageRefusal(env, refusal) {
 }
 export const usageRefusal = env => env?.[USAGE]?.refusal || null;
 
+// What an attempt was priced with (pricing-registry.js): version, tier, billable quantities and unverified rates, beside the attempt (0027). Best effort: a missing
+// table loses the version, never the charge. Once per attempt.
+async function notePrice(db, attemptId, price) {
+  if (!price?.priceVersion) return;
+  const json = value => (value == null ? null : JSON.stringify(value));
+  try {
+    await db.prepare('INSERT OR IGNORE INTO usage_attempt_detail (attempt_id, price_version, tier, quantities, unverified) VALUES (?, ?, ?, ?, ?)')
+      .bind(attemptId, price.priceVersion, price.tier ?? null, json(price.quantities), json(price.unverified?.length ? price.unverified : null)).run();
+  } catch (error) { warn(`price not recorded: ${error?.message}`); }
+}
+
 // Records one provider attempt. reservedMicros: the bound held at start (NULL when the path has none). costState
 // 'reserved' (settled later by settleAttempt), or 'estimated' / 'unknown' for a ledger-bypass call recorded once, finished.
 // Returns the attempt id, or null when nothing could be recorded. Never throws.
 export async function beginAttempt(env, { attemptId = `att-${crypto.randomUUID()}`, kind, provider = null, model = null, reservedMicros = null,
-  costState = 'reserved', costMicros = null, status = 'running', now = nowSeconds() } = {}) {
+  costState = 'reserved', costMicros = null, status = 'running', price = null, now = nowSeconds() } = {}) {
   const db = env?.LEARN_DB;
   if (!db) return null;
   try {
@@ -228,6 +240,7 @@ export async function beginAttempt(env, { attemptId = `att-${crypto.randomUUID()
     await db.prepare(`INSERT INTO usage_attempts (attempt_id, action_id, kind, provider, model, reserved_micros, cost_micros, cost_state, status, started_at, settled_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (attempt_id) DO NOTHING`)
       .bind(attemptId, actionId, chosen, provider, model, reservedMicros, costMicros, costState, status, now, status === 'running' ? null : now).run();
+    await notePrice(db, attemptId, price);
     return attemptId;
   } catch (error) {
     await markError(env, db, error);
@@ -256,16 +269,17 @@ export function usageFromForwarded(env, req, feature) {
 // A ledger-bypass media call, recorded once when it has finished (design "Attempt recording"): the provider's own reported
 // cost when it gives one (settled), else a documented estimate (learn-usage-estimates.js, 'estimated'), else 'unknown'.
 // A failed call keeps no estimate: whether it was charged is unknown. Never throws; nothing is admitted or refused here.
-export function recordMedia(env, { kind = 'media', provider, model = null, ok = true, costMicros = null, estimateMicros = null }) {
+export function recordMedia(env, { kind = 'media', provider, model = null, ok = true, costMicros = null, estimateMicros = null, price = null }) {
   const reported = Number.isSafeInteger(costMicros) && costMicros >= 0 ? costMicros : null;
   const estimate = ok && reported == null && Number.isSafeInteger(estimateMicros) && estimateMicros >= 0 ? estimateMicros : null;
   return beginAttempt(env, { kind, provider, model, status: ok ? 'settled' : 'failed',
-    costState: reported != null ? 'settled' : estimate != null ? 'estimated' : 'unknown', costMicros: reported ?? estimate });
+    costState: reported != null ? 'settled' : estimate != null ? 'estimated' : 'unknown', costMicros: reported ?? estimate,
+    price: reported == null && estimate != null ? price : null });
 }
 
 // Settles a running attempt once: a known cost is 'settled', else 'unknown' with its reservation kept. A duplicate
 // completion finds the row no longer running and changes nothing. Never throws.
-export async function settleAttempt(env, attemptId, { costMicros = null, status = 'settled', model = null, inputTokens = null, outputTokens = null, now = nowSeconds() } = {}) {
+export async function settleAttempt(env, attemptId, { costMicros = null, status = 'settled', model = null, inputTokens = null, outputTokens = null, price = null, now = nowSeconds() } = {}) {
   const db = env?.LEARN_DB;
   if (!db || !attemptId) return;
   const known = Number.isSafeInteger(costMicros) && costMicros >= 0 ? costMicros : null;
@@ -274,6 +288,7 @@ export async function settleAttempt(env, attemptId, { costMicros = null, status 
     await db.prepare(`UPDATE usage_attempts SET status = ?, cost_micros = ?, cost_state = ?, model = COALESCE(?, model), input_tokens = ?, output_tokens = ?, settled_at = ?
       WHERE attempt_id = ? AND status = 'running'`)
       .bind(status, known, known == null ? 'unknown' : 'settled', model, tokens(inputTokens), tokens(outputTokens), now, attemptId).run();
+    if (known != null) await notePrice(db, attemptId, price);
   } catch (error) { await markError(env, db, error); }
 }
 
@@ -336,6 +351,23 @@ export async function finishWithResponse(env, response) {
   return new Response(stream, { status: response.status, statusText: response.statusText, headers: response.headers });
 }
 
+// Gives a settled charge back to the person's balance (a platform failure, a duplicate charge), once: the attempt's cost stays
+// as recorded, usage_attempt_detail.refunded_micros says how much of it is returned, and the balance counts the difference. A second
+// call finds it refunded and changes nothing. micros defaults to the whole cost and never exceeds it. -> micros refunded, or 0.
+// ponytail: the audit row in usage_adjustments follows the refund as a second statement; a crash between them loses the audit line,
+// never the refund.
+export async function refundAttempt(db, attemptId, { reason, micros = null, now = nowSeconds() }) {
+  if (!db || !attemptId || typeof reason !== 'string' || !reason) throw new Error('a refund needs an attempt and a reason');
+  const part = Number.isSafeInteger(micros) && micros > 0 ? micros : null;
+  await db.prepare('INSERT OR IGNORE INTO usage_attempt_detail (attempt_id) VALUES (?)').bind(attemptId).run();
+  const done = await db.prepare(`UPDATE usage_attempt_detail SET refunded_micros = MIN(COALESCE(?, 1e18), (SELECT cost_micros FROM usage_attempts WHERE attempt_id = ? AND cost_state = 'settled')), refunded_at = ?, refund_reason = ?
+    WHERE attempt_id = ? AND refunded_micros = 0 AND COALESCE((SELECT cost_micros FROM usage_attempts WHERE attempt_id = ? AND cost_state = 'settled'), 0) > 0`).bind(part, attemptId, now, reason, attemptId, attemptId).run();
+  if (done.meta?.changes !== 1) return 0;
+  const row = await db.prepare('SELECT d.refunded_micros AS refunded, a.action_id, a.user_id FROM usage_attempt_detail d JOIN usage_attempts t ON t.attempt_id = d.attempt_id JOIN usage_actions a ON a.action_id = t.action_id WHERE d.attempt_id = ?').bind(attemptId).first();
+  await recordAdjustment(db, { actionId: row.action_id, userId: row.user_id, micros: -row.refunded, reason, now });
+  return Number(row.refunded);
+}
+
 // A refund or adjustment (Phase 1: the writer only, no UI flow). micros is signed: a refund is negative.
 export async function recordAdjustment(db, { actionId = null, userId = null, micros, reason, now = nowSeconds() }) {
   if (!Number.isSafeInteger(micros) || typeof reason !== 'string' || !reason) throw new Error('adjustment needs integer micros and a reason');
@@ -349,8 +381,10 @@ export async function recordAdjustment(db, { actionId = null, userId = null, mic
 // outstanding hold (running reservations, and finished attempts whose cost is unknown). Available = allowance - used - held.
 // GET /api/learn/usage (usageTotals) and admission (learn-spend-ledger.js) read exactly these, so the screen and the gate agree.
 export const BALANCE_SCOPE = `FROM usage_actions a JOIN usage_attempts t ON t.action_id = a.action_id
+    LEFT JOIN usage_attempt_detail d ON d.attempt_id = t.attempt_id
     WHERE a.user_id = ? AND a.period = ? AND a.charge_class = 'would_charge'`;
-export const USED_SUM = "COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros END), 0)";
+// A refund (refundAttempt) gives back part of a settled cost: it counts as used only for what was not refunded.
+export const USED_SUM = "COALESCE(SUM(CASE WHEN t.cost_state = 'settled' THEN t.cost_micros - COALESCE(d.refunded_micros, 0) END), 0)";
 export const HELD_SUM = "COALESCE(SUM(CASE WHEN t.cost_state IN ('reserved', 'unknown') THEN t.reserved_micros END), 0)";
 
 // GET /api/learn/usage's sums for one user and period. Settled cost is used; reservations (running) and unknown attempts are
