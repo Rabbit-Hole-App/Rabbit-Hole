@@ -9,6 +9,7 @@ import { NOT_TRASHED, trashStatements } from './library-trash.js';
 import { dropRefs } from './canvas-refs.js';
 import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
+import { purgeStars } from './canvas-stars.js';
 
 // A permanently deleted canvas takes every comment row (owner decision 2026-10-23, canvas-comments.md Q13): the seven
 // canvas_comment* tables of learn-migrations 0011 and 0014 - threads, messages, mentions, read marks, colours, its comment
@@ -481,6 +482,7 @@ export async function canvasesFetch(req, env) {
           db.prepare("DELETE FROM learn_boards WHERE org = ? AND owner_email = ? AND app = ? AND board = 'main'").bind(user.org, user.email, name),
           ...purgeTutorRows(db, user.org, name), // ruling Q2: a permanent delete takes its Tutor rows; Trash keeps them
           ...purgeCommentRows(db, user.org, name),
+          ...purgeStars(db, user.org, name, user.email), // every star on it goes, recorded as a lifecycle removal (docs/features/stars.md)
         ]);
       }
       return meta.changes ? json({ ok: true }) : json({ error: 'This canvas has been used. Archive it instead.' }, 405);

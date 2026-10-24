@@ -13,6 +13,7 @@ import { setRemoteAssets, setWorkspaceStore } from './learn-board-assets.js';
 import { setFileScope } from './file-source-client.js';
 import { CardSourceScope } from './use-card-source.js';
 import ForkButton from './ForkButton.jsx';
+import StarButton from './StarButton.jsx';
 import { ProvenanceRow, useProvenance } from './ProvenanceGroup.jsx';
 import { Button, Menu, MenuItem, toast } from './ui.jsx';
 import { wsHeaders } from './api.js';
@@ -91,6 +92,15 @@ function SharedBoard({ token, embed = null }) {
     const asked = new URLSearchParams(window.location.search).get('fork') === '1';
     if (asked) window.history.replaceState(null, '', window.location.pathname);
     return asked;
+  });
+  // Back from signing in to star (?star=1, canvas-star.js starSignInUrl): read once and dropped from the address, so Back never stars again.
+  const [starRequested] = useState(() => {
+    if (embed) return false;
+    const query = new URLSearchParams(window.location.search);
+    if (query.get('star') !== '1') return false;
+    query.delete('star');
+    window.history.replaceState(null, '', window.location.pathname + (query.size ? `?${query}` : ''));
+    return true;
   });
   // Back from signing in to send (?ask=1): the kept draft and its card return to Chat, unsent, and the flag leaves the address.
   const [askBack] = useState(() => {
@@ -341,6 +351,8 @@ function SharedBoard({ token, embed = null }) {
               in the temporary-edit experience only, never for an owner's saved editing view. */}
           <div className={SHARED_FORK_COLUMN}>
             <div className={SHARED_FORK_ROW}>
+              {/* Star (docs/features/stars.md), left of the @handle, which stays immediately left of Fork (owner decision 2026-10-23). Only a canvas has stars: a project's board shows none. */}
+              {typeof shared.star_count === 'number' && <StarButton key={token} token={token} initial={{ starred: shared.starred_by_me, count: shared.star_count }} signedIn={!!shared.viewer} auto={starRequested} className="min-h-11 @5xl:min-h-8" />}
               {/* The creator (docs/features/user-handles.md; owner decision 2026-10-23): the blue @handle immediately left of Fork, a link to the
                   creator's public profile on a publication and a share link alike. It truncates before Fork or the toggle move. No handle: nothing drawn. */}
               {shared.creator?.handle && <span data-shared-creator className="min-w-0 max-w-28 truncate text-xs text-ink-3 @5xl:max-w-40">
