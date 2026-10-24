@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { MotionProvider, MotionRequestProvider, motionCacheKey, motionGrant, motionRequestCacheKey, motionReservationMicros, validateMotionRender, validateMotionRequest } from '../src/motion-provider.js';
 import { signGrant } from '../../learn-render/motion/orchestrator.mjs';
 import { LearnVideos, canvasRepository, withCanvasRepository } from '../src/learn-video.js';
+import { READY } from './motion-ready-env.js';
 
 const id = '0123456789abcdef0123456789abcdef';
 const env = { MOTION_RENDERER_URL: 'https://motion.example/', MOTION_RENDERER_TOKEN: 'secret' };
@@ -115,7 +116,7 @@ test('a Motion render that is missing at submit fails with its reason and stays 
 // A /motion request run by the Motion orchestrator. These are wiring tests with spend admission off (SMALL_ENV test);
 // learn-allowance.test.js runs the same Durable Object against the real ledger.
 const job = '89abcdef0123456789abcdef01234567';
-const orch = { MOTION_ORCHESTRATOR_URL: 'https://orchestrator.example/', MOTION_ORCHESTRATOR_TOKEN: 'secret', MOTION_JOB_RESERVATION_USD: '2', SMALL_ENV: 'test' };
+const orch = { MOTION_ORCHESTRATOR_URL: 'https://orchestrator.example/', MOTION_ORCHESTRATOR_TOKEN: 'secret', MOTION_JOB_RESERVATION_USD: '2', SMALL_ENV: 'test', ...READY };
 const spend = { opId: 'motion-0f0e0d0c-0b0a-4908-8706-050403020100', grant: { micros: 2000000, issued_at: 1, sig: 'x' } };
 const line = '/motion 15s explain me softmax func';
 const motionOp = { op: 'motion_request', request: line, location: { concept: 'Attention' } };

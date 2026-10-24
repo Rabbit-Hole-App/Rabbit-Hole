@@ -59,7 +59,8 @@ function cssErrors(css, where, e) {
 }
 
 // Safety and the HyperFrames root: what may run at all.
-export function checkHyperFramesComposition(source, { compositionId, durationSeconds }) {
+// stage: the brief's stage (contracts.js stageOf), default the original 1920x1080.
+export function checkHyperFramesComposition(source, { compositionId, durationSeconds, stage = STAGE }) {
   const e = [];
   if (typeof source !== 'string' || !source.trim()) return ['source: required'];
   if (Buffer.byteLength(source) > SOURCE_MAX_BYTES) e.push(`source: ${Buffer.byteLength(source)} bytes, at most ${SOURCE_MAX_BYTES}`);
@@ -85,7 +86,7 @@ export function checkHyperFramesComposition(source, { compositionId, durationSec
   const roots = [...document.querySelectorAll('[data-composition-id]')];
   if (roots.length !== 1) e.push(`root: exactly one element with data-composition-id (found ${roots.length}); no nested compositions`);
   else {
-    const r = roots[0], want = { 'data-composition-id': compositionId, 'data-start': '0', 'data-duration': String(durationSeconds), 'data-width': String(STAGE.width), 'data-height': String(STAGE.height) };
+    const r = roots[0], want = { 'data-composition-id': compositionId, 'data-start': '0', 'data-duration': String(durationSeconds), 'data-width': String(stage.width), 'data-height': String(stage.height) };
     for (const [k, v] of Object.entries(want)) if (r.getAttribute(k) !== v) e.push(`root: ${k}="${v}"${r.hasAttribute(k) ? ` (got "${r.getAttribute(k)}")` : ''}`);
     if (!r.hasAttribute('data-no-timeline')) e.push('root: data-no-timeline (CSS animation only; no script registers a timeline)');
     if (r.parentElement?.tagName?.toLowerCase() !== 'body') e.push('root: a direct child of <body>');

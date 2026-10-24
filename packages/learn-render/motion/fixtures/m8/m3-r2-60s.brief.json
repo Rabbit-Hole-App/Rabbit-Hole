@@ -1,0 +1,150 @@
+{
+  "id": "brief-dcaa02b8",
+  "prompt_spec_version": "motion-v1.0/director-2",
+  "raw_user_request": "/motion 60s explain this",
+  "resolved_target": {
+    "kind": "code_span",
+    "label": "character-level data preparation (<module>, data/shakespeare_char/prepare.py:23-45)",
+    "resolution": "deictic",
+    "repository_context": {
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "label": "character-level data preparation",
+      "range": {
+        "path": "data/shakespeare_char/prepare.py",
+        "start": 23,
+        "end": 45
+      }
+    },
+    "candidates_considered": []
+  },
+  "title": "From Characters to Integers: nanoGPT's Shakespeare Prep",
+  "objective": "Follow the code in data/shakespeare_char/prepare.py:23-45 as it builds a character vocabulary from the text, maps each character to an integer and back, splits the raw text 90/10 into train and validation, and then encodes both splits into integer ids.",
+  "audience_context": "The learner has this code span open (data/shakespeare_char/prepare.py lines 23-45 in nanoGPT) and asked for a 60-second explanation of it. The raw text is already loaded into `data` before this span begins.",
+  "scope_note": "Covers only lines 23-45 as given. Loading or downloading the text before this span, and anything after the train token-count print (such as saving the ids or metadata), are left out because the excerpt doesn't show them.",
+  "source_refs": [
+    {
+      "id": "S1",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "data/shakespeare_char/prepare.py",
+      "start_line": 23,
+      "end_line": 45
+    }
+  ],
+  "evidence": [
+    {
+      "source_ref_id": "S1",
+      "excerpt": "# get all the unique characters that occur in this text\nchars = sorted(list(set(data)))\nvocab_size = len(chars)\nprint(\"all the unique characters:\", ''.join(chars))\nprint(f\"vocab size: {vocab_size:,}\")\n\n# create a mapping from characters to integers\nstoi = { ch:i for i,ch in enumerate(chars) }\nitos = { i:ch for i,ch in enumerate(chars) }\ndef encode(s):\n    return [stoi[c] for c in s] # encoder: take a string, output a list of integers\ndef decode(l):\n    return ''.join([itos[i] for i in l]) # decoder: take a list of integers, output a string\n\n# create the train and test splits\nn = len(data)\ntrain_data = data[:int(n*0.9)]\nval_data = data[int(n*0.9):]\n\n# encode both to integers\ntrain_ids = encode(train_data)\nval_ids = encode(val_data)\nprint(f\"train has {len(train_ids):,} tokens\")"
+    }
+  ],
+  "implementation_conditions": [],
+  "claim_registry": [
+    {
+      "id": "C1",
+      "text": "`chars = sorted(list(set(data)))` collects every unique character in the whole text `data` and sorts them, and `vocab_size = len(chars)` is the number of those unique characters.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C2",
+      "text": "`stoi = { ch:i for i,ch in enumerate(chars) }` gives each character its position in the sorted `chars` list as its integer id, and `itos` is the reverse mapping from integer back to character.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C3",
+      "text": "`encode(s)` turns a string into a list of integers, one per character, using `stoi`. `decode(l)` turns a list of integers back into a string using `itos` and `''.join`.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C4",
+      "text": "The raw text is split by position: `train_data = data[:int(n*0.9)]` takes the first 90% of the characters and `val_data = data[int(n*0.9):]` takes the remaining 10%. Each split is one contiguous slice, not a random sample.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C5",
+      "text": "Only after the split are both parts encoded: `train_ids = encode(train_data)` and `val_ids = encode(val_data)`. Each character becomes exactly one token, so the token count printed for train equals its character count.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    }
+  ],
+  "duration": {
+    "requested_text": "60s",
+    "requested_seconds": 60,
+    "seconds": 60
+  },
+  "aspect_ratio": "16:9",
+  "teaching_mode": "code_walkthrough",
+  "must_show": [
+    "The line `chars = sorted(list(set(data)))`, with a short illustrative text dropping its duplicate characters and the remaining unique characters lining up in sorted order",
+    "`vocab_size` shown as the count of that sorted character row",
+    "A two-way lookup table built from the sorted row: characters with their index numbers (`stoi`) and the same pairs read from number to character (`itos`)",
+    "`encode` turning a short string into a list of integers one character at a time, and `decode` turning that list back into the same string",
+    "The full text as one long strip cut at the 90% mark into `train_data` (first, larger part) and `val_data` (last 10%)",
+    "Both slices then passing through `encode` to become `train_ids` and `val_ids`",
+    "The matching code line highlighted at each step, moving down the span from line 23 to line 45"
+  ],
+  "must_not_claim": [
+    "The vocabulary is built from the training split only",
+    "Integer ids are assigned by how often a character appears or by the order it first appears in the text",
+    "The train/validation split shuffles or randomly samples characters",
+    "The text is encoded first and then the integer list is split",
+    "encode merges several characters into one token or compresses the text, as subword tokenizers do",
+    "decode loses information or cannot rebuild the original string",
+    "This code span writes the encoded ids to files"
+  ],
+  "visual_direction": "Landscape frame. Keep a narrow code panel on one side with the active line highlighted, and the data transformation on the larger side. Focus moves top to bottom through the code while the data moves left to right. First, a short illustrative string collapses into a deduplicated, sorted row of characters, and a counter shows vocab_size. Index numbers then appear under each character to form the stoi/itos table, with arrows showing both directions. A sample word goes through encode, each character dropping into its integer, then through decode and back to the same word, so the viewer sees the round trip is exact. The camera pulls back to the whole text as one long strip, a cut marker falls at 90%, and the two pieces separate as train_data and val_data. Only then does each piece pass through the encode machine and come out as integer strips train_ids and val_ids. The order of the steps (vocabulary → mapping → split → encode) should read clearly as cause and sequence. Label any sample characters and numbers as illustrative.",
+  "narration_policy": "concise",
+  "output_requirements": {
+    "stage_width": 1920,
+    "stage_height": 1080,
+    "fps": 30,
+    "preview_scale": 0.45,
+    "poster": true
+  },
+  "qa_requirements": {
+    "blocking_categories": [
+      "unsupported_claim",
+      "must_not_claim_violation",
+      "required_claim_contradicted",
+      "wrong_source_branch",
+      "blank_frame",
+      "clipped_text",
+      "overlapping_text",
+      "missing_must_show",
+      "duration_over_max",
+      "corrupt_output",
+      "renderer_failure",
+      "narration_contradicts_visuals",
+      "storyboard_fidelity"
+    ],
+    "keyframe_times": [
+      8,
+      20,
+      32,
+      44,
+      54
+    ]
+  },
+  "provenance": {
+    "created_at": "2026-10-24T22:29:26.095Z"
+  }
+}

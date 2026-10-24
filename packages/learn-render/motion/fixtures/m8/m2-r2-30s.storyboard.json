@@ -1,0 +1,340 @@
+{
+ "id": "storyboard-7f02f5d2",
+ "brief_id": "brief-4f3af081",
+ "version": 2,
+ "beats": [
+  {
+   "id": "B1",
+   "start_time": 0,
+   "end_time": 3,
+   "pedagogical_role": "hook",
+   "visible_objects": [
+    {
+     "id": "code_panel",
+     "description": "Compact code panel pinned across the top of the tall frame showing the forward method of the MLP class: def forward, the four forward lines and return x. No line highlighted yet.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 87,
+      "end_line": 92
+     },
+     "label": "forward",
+     "change": "Slides in at the top and settles."
+    },
+    {
+     "id": "token_bar_input",
+     "description": "A short horizontal bar of cells below the code panel: one token's input vector, n_embd values wide.",
+     "label": "n_embd",
+     "change": "Fades in just below the code panel, centred."
+    }
+   ],
+   "claim_ids": [
+    "C4"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [],
+   "transition": "Opens on the code panel; the single token bar appears beneath it.",
+   "framing": "Code panel across the top third; one token bar centred below with empty space beneath for the flow downward.",
+   "on_screen_text": "Follow one token's vector through forward.",
+   "narration_line": "Follow one token's vector through forward."
+  },
+  {
+   "id": "B2",
+   "start_time": 3,
+   "end_time": 8.5,
+   "pedagogical_role": "implementation",
+   "visible_objects": [
+    {
+     "id": "code_panel",
+     "description": "Same code panel; the line x = self.c_fc(x) is highlighted as its step runs.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 87,
+      "end_line": 92
+     },
+     "label": "forward",
+     "change": "Highlight lands on the self.c_fc line."
+    },
+    {
+     "id": "init_line_c_fc",
+     "description": "Small secondary code strip under the panel showing the __init__ line defining self.c_fc as nn.Linear(config.n_embd, 4 * config.n_embd).",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 82,
+      "end_line": 82
+     },
+     "change": "Drops in beneath the highlighted forward line."
+    },
+    {
+     "id": "token_bar_input",
+     "description": "The one token's vector labeled n_embd at its original width.",
+     "label": "n_embd",
+     "change": "Stays put but dims as a ghost so the input width remains visible."
+    },
+    {
+     "id": "token_bar_wide",
+     "description": "One token's vector after the c_fc step: the n_embd bar widening into a bar labeled 4 * n_embd that fills the frame's width. Still one bar for one token, not more tokens.",
+     "label": "4 * n_embd",
+     "change": "Grows out of the input bar, stretching outward to full frame width, moving down a row."
+    }
+   ],
+   "claim_ids": [
+    "C1",
+    "C4"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "One token's vector labeled n_embd widening to a vector labeled 4 * n_embd at the c_fc step"
+   ],
+   "transition": "Focus drops from the highlighted self.c_fc line down to the token bar, which stretches.",
+   "framing": "Highlighted c_fc line at top; the bar widening to full width is centred; ghost input bar recedes.",
+   "on_screen_text": "self.c_fc runs first and widens each token's vector from n_embd to 4 * n_embd.",
+   "narration_line": "c_fc widens one token's vector from n_embd to 4 * n_embd values."
+  },
+  {
+   "id": "B3",
+   "start_time": 8.5,
+   "end_time": 13.5,
+   "pedagogical_role": "mechanism",
+   "visible_objects": [
+    {
+     "id": "code_panel",
+     "description": "Same code panel; highlight moves to x = self.gelu(x).",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 87,
+      "end_line": 92
+     },
+     "label": "forward",
+     "change": "Highlight steps down from the c_fc line to the self.gelu line."
+    },
+    {
+     "id": "init_line_c_fc",
+     "description": "The c_fc definition strip.",
+     "change": "Exits upward."
+    },
+    {
+     "id": "token_bar_wide",
+     "description": "The widened vector at the GELU step: values in each cell reshaped one by one, each cell bending in value separately, the bar width staying exactly 4 * n_embd. Cells bend smoothly; none snap flat.",
+     "label": "4 * n_embd",
+     "change": "A sweep passes across the cells; each cell's value bends in turn while the bar's outline width stays fixed."
+    },
+    {
+     "id": "gelu_marker",
+     "description": "Small tag beside the wide bar naming GELU as a fixed nonlinearity applied per value.",
+     "label": "fixed nonlinearity",
+     "change": "Appears next to the bar as the sweep begins."
+    }
+   ],
+   "claim_ids": [
+    "C2",
+    "C4"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "Values in the widened vector reshaped one by one at the GELU step, with the width staying 4 * n_embd"
+   ],
+   "transition": "Highlight steps down one line; the same wide bar is reshaped in place.",
+   "framing": "Wide bar centred, filling the width; code panel at top with gelu line lit; ghost input bar faint above.",
+   "on_screen_text": "self.gelu bends each value separately; the width stays 4 * n_embd.",
+   "narration_line": "GELU bends each value; it does not change the vector's size."
+  },
+  {
+   "id": "B4",
+   "start_time": 13.5,
+   "end_time": 19,
+   "pedagogical_role": "implementation",
+   "visible_objects": [
+    {
+     "id": "code_panel",
+     "description": "Same code panel; highlight moves to x = self.c_proj(x).",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 87,
+      "end_line": 92
+     },
+     "label": "forward",
+     "change": "Highlight steps down to the self.c_proj line."
+    },
+    {
+     "id": "gelu_marker",
+     "description": "The fixed nonlinearity tag.",
+     "label": "fixed nonlinearity",
+     "change": "Fades out."
+    },
+    {
+     "id": "init_line_c_proj",
+     "description": "Small code strip showing the __init__ line defining self.c_proj as nn.Linear(4 * config.n_embd, config.n_embd).",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 84,
+      "end_line": 84
+     },
+     "change": "Drops in beneath the highlighted forward line."
+    },
+    {
+     "id": "token_bar_wide",
+     "description": "The widened 4 * n_embd vector after GELU.",
+     "label": "4 * n_embd",
+     "change": "Stays in place as the source of the combination lines, then dims."
+    },
+    {
+     "id": "combination_lines",
+     "description": "Fan of lines: each output cell gathers lines from all of the wide cells, showing a learned combination of every value, not truncation of the extra cells.",
+     "label": "each output cell gathers all wide cells",
+     "change": "Lines draw down from every wide cell into each output cell."
+    },
+    {
+     "id": "token_bar_output",
+     "description": "The widened vector narrowing back to a vector labeled n_embd at the c_proj step, same width as the ghost input bar.",
+     "label": "n_embd",
+     "change": "Forms below the wide bar as the lines converge, squeezing to the original width."
+    }
+   ],
+   "claim_ids": [
+    "C3",
+    "C4"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "The widened vector narrowing back to a vector labeled n_embd at the c_proj step"
+   ],
+   "transition": "Highlight steps down; the wide bar squeezes downward into a narrow bar through converging lines.",
+   "framing": "Wide bar above, narrow output bar below, lines between them centred; code panel stays at top.",
+   "on_screen_text": "self.c_proj projects the widened vector back to n_embd values.",
+   "narration_line": "c_proj projects the widened vector back to n_embd values, a learned combination."
+  },
+  {
+   "id": "B5",
+   "start_time": 19,
+   "end_time": 21.5,
+   "pedagogical_role": "mechanism",
+   "visible_objects": [
+    {
+     "id": "code_panel",
+     "description": "Same code panel showing the four forward lines from model.py (self.c_fc, self.gelu, self.c_proj, self.dropout); each has been highlighted in turn as its step runs, and now the self.dropout line is highlighted.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 87,
+      "end_line": 92
+     },
+     "label": "forward",
+     "change": "Highlight steps down to the self.dropout line, completing the sequence."
+    },
+    {
+     "id": "init_line_c_proj",
+     "description": "The c_proj definition strip.",
+     "change": "Exits upward."
+    },
+    {
+     "id": "combination_lines",
+     "description": "The fan of combination lines.",
+     "label": "each output cell gathers all wide cells",
+     "change": "Fades out."
+    },
+    {
+     "id": "dropout_marker",
+     "description": "A thin band the output bar passes through, marking dropout as the final pass after c_proj at the same width.",
+     "label": "final pass",
+     "change": "Appears and sweeps once over the output bar."
+    },
+    {
+     "id": "token_bar_output",
+     "description": "The n_embd output bar.",
+     "label": "n_embd",
+     "change": "Passes through the dropout band, keeping its n_embd width."
+    }
+   ],
+   "claim_ids": [
+    "C6",
+    "C4"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "The four forward lines from model.py (self.c_fc, self.gelu, self.c_proj, self.dropout), each highlighted in turn as its step runs"
+   ],
+   "transition": "Highlight takes its last step down; a brief pass sweeps the output bar.",
+   "framing": "Code panel with dropout line lit at top; output bar centred below; wide bar receded.",
+   "on_screen_text": "self.dropout runs last; width stays n_embd.",
+   "narration_line": "Dropout is a final pass."
+  },
+  {
+   "id": "B6",
+   "start_time": 21.5,
+   "end_time": 26.5,
+   "pedagogical_role": "mechanism",
+   "visible_objects": [
+    {
+     "id": "code_panel",
+     "description": "Same code panel; highlight spans the self.c_fc, self.gelu and self.c_proj lines together.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 87,
+      "end_line": 92
+     },
+     "label": "forward",
+     "change": "Highlight widens to cover the three lines."
+    },
+    {
+     "id": "dropout_marker",
+     "description": "The final pass band.",
+     "label": "final pass",
+     "change": "Fades out."
+    },
+    {
+     "id": "token_stack",
+     "description": "Several token vectors stacked as rows, each going through the same c_fc → gelu → c_proj path side by side: narrow, widen, bend, narrow, in parallel. No arrows or lines between rows; nothing is exchanged between tokens.",
+     "label": "c_fc → gelu → c_proj",
+     "change": "Camera pulls back; the single row multiplies into a short vertical stack and all rows animate the three stages in step."
+    }
+   ],
+   "claim_ids": [
+    "C5"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "Several token vectors going through the same c_fc → gelu → c_proj path side by side without exchanging anything"
+   ],
+   "transition": "Pull back from the single bar to reveal a stack of token rows running the same path.",
+   "framing": "Code panel at top; stack of rows fills the middle, each row isolated with clear gaps between rows.",
+   "on_screen_text": "The same weights act on every token's vector independently; no information mixes between tokens.",
+   "narration_line": "The same weights act on each token's vector; tokens do not mix."
+  },
+  {
+   "id": "B7",
+   "start_time": 26.5,
+   "end_time": 30,
+   "pedagogical_role": "takeaway",
+   "visible_objects": [
+    {
+     "id": "token_stack",
+     "description": "The stack of token rows.",
+     "label": "c_fc → gelu → c_proj",
+     "change": "Collapses back to a single row and fades."
+    },
+    {
+     "id": "token_bar_input",
+     "description": "The input vector, n_embd wide.",
+     "label": "n_embd",
+     "change": "Returns to full brightness on the left."
+    },
+    {
+     "id": "token_bar_output",
+     "description": "The output vector, n_embd wide; shown together with the input at the end at the same n_embd width.",
+     "label": "n_embd",
+     "change": "Slides beside the input bar; their widths visibly match."
+    }
+   ],
+   "claim_ids": [
+    "C3"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "The input and output vectors shown together at the same n_embd width at the end"
+   ],
+   "transition": "Stack folds away; input and output bars meet side by side.",
+   "framing": "Input and output bars side by side at centre with equal width; code panel recedes at top.",
+   "on_screen_text": "Output keeps the same n_embd width as the input.",
+   "narration_line": "Same width in, same width out."
+  }
+ ]
+}

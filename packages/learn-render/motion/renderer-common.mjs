@@ -9,7 +9,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
-import { STAGE } from './contracts.js';
+import { DURATION, STAGE, stageOf } from './contracts.js';
 import { contactFrames, nonblankFrames } from './render-coverage.js';
 
 const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -93,7 +93,7 @@ export class MotionRendererBase {
 
 export async function validateFinalVideo(job) {
   const file = join(job.dir, 'final.mp4');
-  const checks = finalChecks(await probe(file), job.brief.duration.seconds);
+  const checks = finalChecks(await probe(file), job.brief.duration.seconds, stageOf(job.brief));
   const sample = nonblankFrames(job.brief, job.storyboard);
   const keyframes = (await decodeFrames(file, sample, join(job.dir, 'final-frames'))).map(({ frame, pixels_sha256, luma_stddev }) => ({ frame, pixels_sha256, luma_stddev }));
   checks.push(nonblankCheck(keyframes, sample));
@@ -103,14 +103,15 @@ export async function validateFinalVideo(job) {
 }
 
 // The final MP4 contract from ffprobe output: [name, ok, detail] rows.
-export function finalChecks({ v, duration, size }, seconds) {
+// stage: the brief's own stage (contracts.js stageOf); the original 1920x1080 when a caller names none.
+export function finalChecks({ v, duration, size }, seconds, stage = STAGE) {
   const frames = seconds * STAGE.fps, video = Number(v.duration);
   return [
     // the video stream, not the container: an AAC narration track pads the container by ~60 ms
-    ['duration', Math.abs(video - seconds) <= 1 / STAGE.fps + 1e-6 && duration <= 30 + 1e-6, `video ${video}s, container ${duration}s (want ${seconds}s within one frame, <= 30s)`],
+    ['duration', Math.abs(video - seconds) <= 1 / STAGE.fps + 1e-6 && duration <= DURATION.max + 1e-6, `video ${video}s, container ${duration}s (want ${seconds}s within one frame, <= ${DURATION.max}s)`],
     ['frame count', Number(v.nb_read_frames) === frames, `${v.nb_read_frames} (want ${frames})`],
     ['fps', v.r_frame_rate === `${STAGE.fps}/1`, v.r_frame_rate],
-    ['resolution', v.width === STAGE.width && v.height === STAGE.height, `${v.width}x${v.height}`],
+    ['resolution', v.width === stage.width && v.height === stage.height, `${v.width}x${v.height} (want ${stage.width}x${stage.height})`],
     ['codec', v.codec_name === 'h264' && v.pix_fmt === 'yuv420p' && v.color_space === 'bt709', `${v.codec_name} ${v.pix_fmt} ${v.color_space}`],
     ['size', size <= OUTPUT_MAX_BYTES, `${size} bytes (cap ${OUTPUT_MAX_BYTES})`],
   ];

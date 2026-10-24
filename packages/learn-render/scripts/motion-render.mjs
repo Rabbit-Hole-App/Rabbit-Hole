@@ -2,6 +2,7 @@
 // service and its sandbox, artifact validation on this side, one RenderResult. No model calls:
 // the inputs are the real M4 Author outputs (motion/fixtures/m5/inputs.json).
 //   node scripts/motion-render.mjs softmax|generate|reference [--service <url>] [--out <dir>]
+//   node scripts/motion-render.mjs fixture --run D13 --service <url> --run-id <id> --machine-usd-per-hour <n>   (capacity runs; --dry-run uses a fake service)
 // Without --service it starts the same service in this process with the unsandboxed child (the
 // authoring host). With --service it uses that deployment; the bearer token comes from
 // MOTION_RENDERER_TOKEN and is never printed.
@@ -14,6 +15,8 @@ const PKG = dirname(dirname(fileURLToPath(import.meta.url)));
 const FIX = join(PKG, 'motion', 'fixtures');
 const INPUTS = JSON.parse(readFileSync(join(FIX, 'm5', 'inputs.json'), 'utf8'));
 const argv = process.argv.slice(2);
+// Fixed-composition capacity runs (no saved Author input, no model call): see motion/validation-run.mjs and the validation RUNBOOK.
+if (argv[0] === 'fixture') process.exit(await (await import('../motion/validation-run.mjs')).main(argv.slice(1), process.env));
 const opt = name => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : null; };
 const name = argv[0];
 if (!INPUTS[name]) { console.error(`usage: node scripts/motion-render.mjs ${Object.keys(INPUTS).join('|')} [--service <url>] [--out <dir>]`); process.exit(2); }

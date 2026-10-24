@@ -1,0 +1,413 @@
+{
+ "id": "storyboard-8386fb41",
+ "brief_id": "brief-dcaa02b8",
+ "version": 2,
+ "beats": [
+  {
+   "id": "B1",
+   "start_time": 0,
+   "end_time": 6,
+   "pedagogical_role": "hook",
+   "visible_objects": [
+    {
+     "id": "code_upper",
+     "description": "Narrow code panel on the left showing lines 23-35 of the span: building the vocabulary, the stoi/itos mapping, and encode/decode.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 23,
+      "end_line": 35
+     },
+     "change": "Enters at the top of the narrow code panel."
+    },
+    {
+     "id": "code_lower",
+     "description": "Lower part of the same code panel showing lines 37-45: the 90/10 split and the encoding of both splits.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 37,
+      "end_line": 45
+     },
+     "change": "Enters below code_upper, so the whole span shows for a moment."
+    },
+    {
+     "id": "step_order",
+     "description": "Row of four step names on the larger right side, read left to right in the order the code runs them.",
+     "label": "vocabulary → mapping → split → encode",
+     "change": "Each step name appears left to right, one after another."
+    }
+   ],
+   "claim_ids": [
+    "C1",
+    "C5"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [],
+   "transition": "Opens on the code span, with the four steps fading in beside it.",
+   "framing": "Code panel narrow on the left, step row centred on the larger right side.",
+   "on_screen_text": "From characters to integers in lines 23-45.",
+   "narration_line": "This span turns the text into integer ids, step by step."
+  },
+  {
+   "id": "B2",
+   "start_time": 6,
+   "end_time": 16,
+   "pedagogical_role": "mechanism",
+   "visible_objects": [
+    {
+     "id": "code_upper",
+     "description": "Code panel lines 23-35. code_lower has scrolled away.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 23,
+      "end_line": 35
+     },
+     "change": "Stays in place while the highlight moves inside it."
+    },
+    {
+     "id": "active_line_highlight",
+     "description": "Highlight bar over the active code line, showing the matching code line at each step.",
+     "change": "Sits on line 24 `chars = sorted(list(set(data)))`, then moves down to line 25 `vocab_size = len(chars)` and the prints on lines 26-27."
+    },
+    {
+     "id": "sample_text",
+     "description": "Short illustrative text 'Shakespeare' as one row of separate characters: S h a k e s p e a r e.",
+     "label": "Shakespeare (illustrative)",
+     "change": "Enters as a row. The duplicate characters (extra a, extra e's) drop out and fade, leaving the remaining unique characters."
+    },
+    {
+     "id": "sorted_row",
+     "description": "The remaining unique characters lining up in sorted order: S a e h k p r s (illustrative).",
+     "label": "sorted unique characters",
+     "change": "The unique characters slide into sorted order to form this row."
+    },
+    {
+     "id": "vocab_counter",
+     "description": "Counter beside the sorted row showing vocab_size as the count of that sorted character row (8 in this illustrative case).",
+     "label": "vocab_size",
+     "change": "Counts up once per character in the sorted row and stops at 8."
+    }
+   ],
+   "claim_ids": [
+    "C1"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "The line `chars = sorted(list(set(data)))`, with a short illustrative text dropping its duplicate characters and the remaining unique characters lining up in sorted order",
+    "`vocab_size` shown as the count of that sorted character row"
+   ],
+   "transition": "step_order exits. The highlight lands on line 24 as the sample text enters on the right.",
+   "framing": "The data side is centred on the sample text collapsing into the sorted row. The code panel stays narrow on the left.",
+   "on_screen_text": "Duplicate characters drop; unique characters line up in sorted order. vocab_size is their count.",
+   "narration_line": "set drops duplicate characters, sorted lines them up, and len gives vocab_size."
+  },
+  {
+   "id": "B3",
+   "start_time": 16,
+   "end_time": 26,
+   "pedagogical_role": "mechanism",
+   "visible_objects": [
+    {
+     "id": "code_upper",
+     "description": "Code panel lines 23-35.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 23,
+      "end_line": 35
+     },
+     "change": "Stays in place."
+    },
+    {
+     "id": "active_line_highlight",
+     "description": "Highlight bar over the matching code line.",
+     "change": "Moves down to line 30 (stoi), then to line 31 (itos)."
+    },
+    {
+     "id": "sorted_row",
+     "description": "The sorted unique character row S a e h k p r s, now the top row of a lookup table.",
+     "label": "sorted unique characters",
+     "change": "Moves up to become the top row of the table."
+    },
+    {
+     "id": "index_numbers",
+     "description": "Index numbers 0 to 7 under each character in the sorted row: each character's position in sorted chars (illustrative).",
+     "label": "index numbers (illustrative)",
+     "change": "The numbers appear one by one under each character, left to right."
+    },
+    {
+     "id": "stoi_arrows",
+     "description": "Downward arrows from each character to its index number, the stoi direction of the two-way lookup table.",
+     "label": "stoi: character to integer",
+     "change": "The arrows draw downward, character to number, while line 30 is highlighted."
+    },
+    {
+     "id": "itos_arrows",
+     "description": "Upward arrows from each number back to its character, reading the same pairs from number to character, the itos direction.",
+     "label": "itos: integer to character",
+     "change": "The arrows draw upward while line 31 is highlighted."
+    }
+   ],
+   "claim_ids": [
+    "C2"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "A two-way lookup table built from the sorted row: characters with their index numbers (`stoi`) and the same pairs read from number to character (`itos`)"
+   ],
+   "transition": "sample_text and vocab_counter exit. The sorted row stays and grows into the table.",
+   "framing": "The two-way table is centred on the data side, with arrows in both directions. The code panel stays narrow.",
+   "on_screen_text": "Each character's position in sorted chars is its integer id. itos reads the same pairs back.",
+   "narration_line": "stoi gives each character its index number; itos maps that number back to the character."
+  },
+  {
+   "id": "B4",
+   "start_time": 26,
+   "end_time": 36,
+   "pedagogical_role": "implementation",
+   "visible_objects": [
+    {
+     "id": "code_upper",
+     "description": "Code panel lines 23-35.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 23,
+      "end_line": 35
+     },
+     "change": "Stays in place."
+    },
+    {
+     "id": "active_line_highlight",
+     "description": "Highlight bar over the matching code line.",
+     "change": "Moves to lines 32-33 (encode), then down to lines 34-35 (decode)."
+    },
+    {
+     "id": "stoi_table",
+     "description": "Compact version of the stoi/itos table from the previous beat, used as the lookup reference.",
+     "label": "stoi / itos",
+     "change": "Shrinks and recedes to the top corner of the data side."
+    },
+    {
+     "id": "sample_text",
+     "description": "The short illustrative string 'Shakespeare' as a row of characters.",
+     "label": "Shakespeare (illustrative)",
+     "change": "Re-enters on the left of the data side and moves into encode."
+    },
+    {
+     "id": "encode_box",
+     "description": "A machine labelled encode that uses stoi.",
+     "label": "encode",
+     "change": "Enters. Each character drops in one at a time and comes out as its integer."
+    },
+    {
+     "id": "id_list",
+     "description": "List of integers, one per character: 0 3 1 4 2 7 5 2 1 6 2 (illustrative).",
+     "label": "list of integers (illustrative)",
+     "change": "Builds up one integer per character as encode runs, then moves into decode."
+    },
+    {
+     "id": "decode_box",
+     "description": "A machine labelled decode that uses itos and ''.join.",
+     "label": "decode",
+     "change": "Enters while lines 34-35 are highlighted, and takes in the list of integers."
+    },
+    {
+     "id": "round_trip_word",
+     "description": "The output of decode: the same string 'Shakespeare', placed under the original so the viewer sees the round trip is exact.",
+     "label": "same string",
+     "change": "Appears out of decode, and its characters match the original one by one."
+    }
+   ],
+   "claim_ids": [
+    "C3"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "`encode` turning a short string into a list of integers one character at a time, and `decode` turning that list back into the same string"
+   ],
+   "transition": "The table shrinks into a reference corner as the sample word comes back.",
+   "framing": "Left-to-right flow on the data side: string, then encode, list of integers, decode, same string. The code panel stays narrow.",
+   "on_screen_text": "encode uses stoi: one integer per character. decode uses itos to turn the list back into the same string.",
+   "narration_line": "Each character drops into its integer, and decode turns that list back into the same word."
+  },
+  {
+   "id": "B5",
+   "start_time": 36,
+   "end_time": 45,
+   "pedagogical_role": "mechanism",
+   "visible_objects": [
+    {
+     "id": "code_lower",
+     "description": "Code panel now showing lines 37-45. code_upper has scrolled away above.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 37,
+      "end_line": 45
+     },
+     "change": "Scrolls into the narrow code panel."
+    },
+    {
+     "id": "active_line_highlight",
+     "description": "Highlight bar over the matching code line.",
+     "change": "Moves to line 38 `n = len(data)`, then line 39 (train_data), then line 40 (val_data)."
+    },
+    {
+     "id": "full_text_strip",
+     "description": "The full text `data` as one long strip of characters, n characters long.",
+     "label": "full text",
+     "change": "The camera pulls back from the sample word to show the whole strip."
+    },
+    {
+     "id": "cut_marker",
+     "description": "A cut marker that falls at the 90% mark of the strip, int(n*0.9).",
+     "label": "cut at 90%",
+     "change": "Falls onto the strip at the 90% mark."
+    },
+    {
+     "id": "train_slice",
+     "description": "The first, larger part of the strip: one contiguous slice data[:int(n*0.9)].",
+     "label": "train_data (first 90%)",
+     "change": "Separates to the left when line 39 is highlighted."
+    },
+    {
+     "id": "val_slice",
+     "description": "The last 10% of the strip: one contiguous slice data[int(n*0.9):].",
+     "label": "val_data (last 10%)",
+     "change": "Separates to the right when line 40 is highlighted."
+    }
+   ],
+   "claim_ids": [
+    "C4"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "The full text as one long strip cut at the 90% mark into `train_data` (first, larger part) and `val_data` (last 10%)"
+   ],
+   "transition": "Encode/decode objects exit. The camera pulls back to the whole text as one strip, and the code panel scrolls down.",
+   "framing": "The long strip runs across the wide data side. The two slices pull apart in place, with no reordering.",
+   "on_screen_text": "The full text is cut at the 90% mark: train_data first, val_data the last 10%. One contiguous slice each, not a random sample.",
+   "narration_line": "Pulling back to the whole text, a cut at 90% gives train_data first and val_data last."
+  },
+  {
+   "id": "B6",
+   "start_time": 45,
+   "end_time": 54,
+   "pedagogical_role": "implementation",
+   "visible_objects": [
+    {
+     "id": "code_lower",
+     "description": "Code panel lines 37-45.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 37,
+      "end_line": 45
+     },
+     "change": "Stays in place."
+    },
+    {
+     "id": "active_line_highlight",
+     "description": "Highlight bar over the matching code line.",
+     "change": "Moves to line 43 (train_ids), then line 44 (val_ids), then line 45 (the train token-count print)."
+    },
+    {
+     "id": "train_slice",
+     "description": "The train_data slice, still separate from val_data.",
+     "label": "train_data (first 90%)",
+     "change": "Moves into encode_box first."
+    },
+    {
+     "id": "val_slice",
+     "description": "The val_data slice.",
+     "label": "val_data (last 10%)",
+     "change": "Moves into encode_box after train_data."
+    },
+    {
+     "id": "encode_box",
+     "description": "The same encode machine from the encode/decode beat.",
+     "label": "encode",
+     "change": "Re-enters in the middle of the data side and takes in each slice."
+    },
+    {
+     "id": "train_ids_strip",
+     "description": "Integer strip that comes out of encode for train_data, one integer per character and the same length as train_data.",
+     "label": "train_ids",
+     "change": "Comes out of encode, matching train_data's length."
+    },
+    {
+     "id": "val_ids_strip",
+     "description": "Integer strip that comes out of encode for val_data, one integer per character.",
+     "label": "val_ids",
+     "change": "Comes out of encode after train_ids."
+    },
+    {
+     "id": "token_count_note",
+     "description": "Note beside train_ids for the line 45 print: train's token count equals its character count.",
+     "label": "token count = character count",
+     "change": "Appears when line 45 is highlighted."
+    }
+   ],
+   "claim_ids": [
+    "C5"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "Both slices then passing through `encode` to become `train_ids` and `val_ids`"
+   ],
+   "transition": "The cut marker and full-text label exit, and the encode machine returns between the slices and their outputs.",
+   "framing": "Slices on the left, encode in the middle, integer strips on the right, so the data moves left to right.",
+   "on_screen_text": "Only after the split are both parts encoded. One token per character, so train's token count equals its character count.",
+   "narration_line": "Then each slice passes through encode to become train_ids and val_ids, one token per character."
+  },
+  {
+   "id": "B7",
+   "start_time": 54,
+   "end_time": 60,
+   "pedagogical_role": "takeaway",
+   "visible_objects": [
+    {
+     "id": "code_upper",
+     "description": "Lines 23-35, stacked above code_lower so the whole span is visible.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 23,
+      "end_line": 35
+     },
+     "change": "Re-enters above code_lower as the panel zooms out."
+    },
+    {
+     "id": "code_lower",
+     "description": "Lines 37-45 below code_upper.",
+     "source": {
+      "source_ref_id": "S1",
+      "start_line": 37,
+      "end_line": 45
+     },
+     "change": "Moves down to make room for code_upper."
+    },
+    {
+     "id": "active_line_highlight",
+     "description": "Highlight bar that recaps the matching code line at each step, moving down the span from line 23 to line 45.",
+     "change": "Sweeps down the span from line 23 to line 45, pausing on lines 24, 30, 39 and 43."
+    },
+    {
+     "id": "step_order",
+     "description": "The four-step row from the hook, each step lighting up as the highlight reaches its code.",
+     "label": "vocabulary → mapping → split → encode",
+     "change": "Returns, and each step lights up in turn, in sync with the highlight."
+    }
+   ],
+   "claim_ids": [
+    "C1",
+    "C2",
+    "C4",
+    "C5"
+   ],
+   "condition_ids": [],
+   "must_show_covered": [
+    "The matching code line highlighted at each step, moving down the span from line 23 to line 45"
+   ],
+   "transition": "The data objects shrink away and the code panel zooms out to the full span.",
+   "framing": "The whole code span and the step row share the frame, and focus moves top to bottom.",
+   "on_screen_text": "The highlight moves down the span, line 23 to line 45, at each step.",
+   "narration_line": "Vocabulary from the whole text, then mapping, then split, and only then encode."
+  }
+ ]
+}

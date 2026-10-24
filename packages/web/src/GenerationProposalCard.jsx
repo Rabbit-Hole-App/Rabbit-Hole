@@ -19,6 +19,7 @@
 // attributes for its own element names (the CAD review keeps its data-cad-review-* names this way).
 import { useEffect, useId, useRef, useState } from 'react';
 import { ChartColumnIncreasing, CircleAlert, FileCheck2, FileCode2, FileText, Film, Globe, Group, Image as ImageIcon, Shapes, StickyNote } from 'lucide-react';
+import AspectRatioSelect from './AspectRatioSelect.jsx';
 import CommandPill from './CommandPill.jsx';
 import { SECTIONS, changedKeys, commandDefinition, fieldsFor, isEditable, proposalView, visibleSections } from './generation-confirmation-schema.js';
 import { escapeText, isReviewProposal, promptSegments, removeReference } from './generation-review.js';
@@ -59,6 +60,12 @@ function SelectField({ f, value, settings, disabled, onChange }) {
       </select>
     </label>
   );
+}
+
+// An aspect ratio field (control: 'aspect_ratio') is the shared dropdown over the ratios THIS command or model declares, so Motion's nine
+// and an image model's own list never leak into each other. A proposal saved without one reads the field's default.
+function RatioField({ f, value, disabled, onChange }) {
+  return <div data-proposal-field={f.key} title={f.available === false ? f.unavailable_reason : undefined}><AspectRatioSelect label={f.label} options={f.options.map(o => o.value)} value={value ?? f.default} disabled={disabled} onChange={onChange} data-proposal-select={f.key} data-proposal-aspect-ratio /></div>;
 }
 
 function NumberField({ f, value, disabled, onChange }) {
@@ -169,7 +176,7 @@ function Settings({ command, settings, disabled, onChange, groups, groupProblem,
         // field is live only where the command lets the person change it.
         const locked = disabled || (f.available !== false && !(f.editable && isEditable(command, f.key))), set = value => onChange({ ...settings, [f.key]: value });
         if (f.type === 'parameter_group') return <GroupField key={f.key} f={f} group={groups?.[f.key]} value={settings?.[f.key]} disabled={locked} readOnly={mode === 'form' && !editing} onChange={set} problem={(id, v) => groupProblem?.(f.key, id, v)} attrs={attrs} />;
-        const Field = FIELDS[f.type];
+        const Field = f.control === 'aspect_ratio' ? RatioField : FIELDS[f.type];
         return Field ? <Field key={f.key} f={f} value={settings?.[f.key]} settings={settings} disabled={f.type === 'boolean' ? locked : locked || f.available === false} onChange={set} /> : null;
       })}
     </div>
@@ -323,6 +330,7 @@ export default function GenerationProposalCard({ proposal = null, view: given = 
           </div>
         );
       })}
+      {view.notices?.length > 0 && <ul data-proposal-notices className="flex flex-col gap-0.5 text-xs text-ink-2">{view.notices.map((n, i) => <li key={i} data-proposal-notice={n.path}>{n.message}</li>)}</ul>}
       {extraSections.filter(x => x.items?.length).map(x => (
         <div key={x.key} data-proposal-section={x.key}>
           <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{x.title}</p>

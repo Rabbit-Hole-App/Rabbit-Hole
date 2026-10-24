@@ -61,7 +61,7 @@ export const SLASH = [
   { name: '3d', kind: 'generate', group: 'create', places: CTRLK, label: '3D', desc: 'Add 3D scene', about: 'Creates a 3D scene card on the canvas. Generating it is paid, so it asks first. With a card selected, it uses that card as context.', family: ['3d_model', 'blender_scene'] },
   // The command for the Motion explainer-video pipeline (owner, 2026-10-20: it replaces /animate). Development and review
   // builds only (needs motion_dev); a paid proposal with no model call before Generate.
-  { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Motion', desc: 'Create an animated explainer video', about: 'Creates an animated explainer video card: Motion plans, reviews and renders a 5 to 30 second video of what you type. Generating it is paid, so it asks first.', action: 'motion', deterministic: true, needs: 'motion_dev' },
+  { name: 'motion', kind: 'generate', group: 'create', places: CTRLK, label: 'Motion', desc: 'Create an animated explainer video', about: 'Creates an animated explainer video card: Motion plans, reviews and renders a 5 to 60 second video of what you type. Generating it is paid, so it asks first.', action: 'motion', deterministic: true, needs: 'motion_dev' },
   { name: 'notebook', kind: 'dialog', group: 'create', places: ['learn'], label: 'Notebook', desc: 'Add a notebook', about: 'Adds an empty notebook card to the canvas.', family: ['notebook'], action: 'insert_notebook', deterministic: true },
   // Source search (owner 4A, 2026-10-16): the shared source finder opens on the source with the query, searches at once
   // when there is one, and adds nothing until Add to canvas. No model routes or reads them. /arxiv takes a topic or an

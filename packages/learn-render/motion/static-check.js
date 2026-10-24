@@ -68,7 +68,8 @@ const bindings = (p, out) => {
 const keyName = k => k?.type === 'Identifier' ? k.name : k?.type === 'StringLiteral' ? k.value : null;
 
 // -> list of "line:col message" errors; [] = passes.
-export function checkComposition(source, { durationSeconds }) {
+// stage: the brief's stage (contracts.js stageOf), default the original 1920x1080.
+export function checkComposition(source, { durationSeconds, stage: size = STAGE }) {
   if (typeof source !== 'string' || !source.trim()) return ['source: empty'];
   const bytes = new TextEncoder().encode(source).length;
   if (bytes > SOURCE_MAX_BYTES) return [`source: ${bytes} bytes exceeds the ${SOURCE_MAX_BYTES}-byte cap`];
@@ -101,8 +102,8 @@ export function checkComposition(source, { durationSeconds }) {
     }
   }
 
-  // The stage the brief fixes: 1920x1080, 30 fps, exactly duration x 30 frames, as literals.
-  const want = { ...STAGE, durationInFrames: durationSeconds * STAGE.fps };
+  // The stage the brief fixes: its ratio's size, 30 fps, exactly duration x 30 frames, as literals.
+  const want = { width: size.width, height: size.height, fps: size.fps, durationInFrames: durationSeconds * size.fps };
   if (stage?.type !== 'ObjectExpression') errors.push(`stage: missing \`export const stage = {width: ${want.width}, height: ${want.height}, fps: ${want.fps}, durationInFrames: ${want.durationInFrames}}\``);
   else {
     const got = Object.fromEntries(stage.properties.map(p => [keyName(p.key), p.value?.type === 'NumericLiteral' ? p.value.value : NaN]));

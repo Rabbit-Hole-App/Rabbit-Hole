@@ -5,16 +5,17 @@
 // nothing. Positions are measured from a zero-size marker at the stage origin, because Remotion
 // parks the page off-screen while it prepares.
 import { useLayoutEffect, useRef } from 'react';
-import { continueRender, delayRender, useCurrentFrame } from 'remotion';
+import { continueRender, delayRender, useCurrentFrame, useVideoConfig } from 'remotion';
 import { probeDom } from './probe-dom.js';
 
 export const Probe = () => {
   const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig(); // the composition's stage, which the renderer has already matched to the brief's
   const origin = useRef(null);
   useLayoutEffect(() => {
     const handle = delayRender('probe');
     document.fonts.ready.then(() => requestAnimationFrame(() => {
-      console.log('MOTION_PROBE ' + JSON.stringify(probeDom(frame, origin.current.getBoundingClientRect())));
+      console.log('MOTION_PROBE ' + JSON.stringify(probeDom(frame, origin.current.getBoundingClientRect(), { width, height })));
       continueRender(handle);
     }));
   });

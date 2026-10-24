@@ -15,9 +15,15 @@ test('Demo A becomes a video block with a motion_render operation and Motion pro
   assert.equal(block.title, 'How softmax turns attention scores into weights');
   assert.deepEqual(block.operation, { op: 'motion_render', render_id: '0123456789abcdef0123456789abcdef' });
   assert.deepEqual({ ...block.motion, source_refs: undefined }, {
-    job_id: 'motion-job-demo-a', duration_seconds: 15, renderer: 'remotion', teaching_mode: 'mechanism_first',
+    job_id: 'motion-job-demo-a', duration_seconds: 15, aspect_ratio: '16:9', renderer: 'remotion', teaching_mode: 'mechanism_first',
     prompt_spec_version: 'motion-v1.0', source_refs: undefined, claim_ids: ['C1', 'C2', 'C3'],
   });
   assert.deepEqual(block.motion.source_refs.map(r => `${r.path}:${r.start_line}-${r.end_line}`), ['model.py:44-45', 'model.py:62-64', 'model.py:65-71', 'model.py:48-50']);
   assert.doesNotMatch(JSON.stringify(block), /manim|sigmoid|maths animation/i);
+});
+
+test('the block records the selected aspect ratio with the duration', () => {
+  const portrait = { ...brief, aspect_ratio: '9:16', duration: { seconds: 45, requested_seconds: 45 } };
+  const block = motionVideoBlock({ brief: portrait, renderId: '0123456789abcdef0123456789abcdef', jobId: 'motion-job-demo-a' });
+  assert.deepEqual([block.motion.duration_seconds, block.motion.aspect_ratio], [45, '9:16']);
 });

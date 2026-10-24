@@ -22,6 +22,13 @@ export const LIMITS = Object.freeze({
   source_lines: 15, // one code object
   coverage_ratio: 0.4, // share of a must_show item's terms its covering beat must show
 });
+// How much the Author must write and lay out grows with the object appearances (an object counted once per beat it is visible in).
+// Measured 2026-10-24 (M1 to M3): about 1300 Author output tokens per appearance at effort high, 57 appearances at 60 s hit the 64000 cap, and
+// a 40-appearance 60 s storyboard (22 objects) came back with labels drawn over another object (a blocking overlapping_text after the repair).
+// 15 s -> 25 and 30 s -> 34 admit the sizes that rendered (M1 23, M2 31, M2 retry 27); 36 is where the Author's output stays at effort high
+// (author.js AUTHOR_OUTPUT_BUDGET / AUTHOR_TOKENS_PER_OCCURRENCE, tied by a test). Fewer appearances per beat, not fewer beats.
+export const OCCURRENCES = Object.freeze({ base: 16, per_second: 0.6, ceiling: 36 });
+export const maxOccurrences = seconds => Math.min(OCCURRENCES.ceiling, Math.floor(OCCURRENCES.base + OCCURRENCES.per_second * seconds));
 // Implementation detail that belongs to the Author, never the storyboard.
 const IMPLEMENTATION = /\b\d+(?:\.\d+)?\s*(?:px|rem|em|pt|vh|vw)\b|#[0-9a-f]{6}\b|#[0-9a-f]{3}\b|\b(?:rgba?|hsla?)\s*\(|cubic-bezier|\bease(?:In|Out|InOut)\w*|\b(?:useCurrentFrame|useVideoConfig|interpolate|spring|AbsoluteFill|requestAnimationFrame|className|zIndex|z-index|translate[XYZ]?|div)\b/i;
 const CONDITION_WORDS = new Set(['self', 'not', 'is', 'None', 'True', 'False', 'and', 'or', 'in']);
@@ -153,6 +160,9 @@ export function checkStoryboard(storyboard, brief) {
   // Scope fits the duration: few beats for a short video, each long enough to see.
   const maxBeats = Math.max(2, Math.min(8, Math.floor(seconds / LIMITS.seconds_per_beat)));
   if (beats.length > maxBeats) e.push(`storyboard: ${beats.length} beats for ${seconds}s (at most ${maxBeats}); narrow the beats, not the brief`);
+
+  const appearances = beats.reduce((n, b) => n + b.visible_objects.length, 0), maxAppearances = maxOccurrences(seconds);
+  if (appearances > maxAppearances) e.push(`storyboard: ${appearances} object appearances for ${seconds}s (at most ${maxAppearances}); show fewer objects per beat`);
 
   const coverageShow = new Map(brief.must_show.map(m => [m, []]));
   const declared = new Map(brief.must_show.map(m => [m, []]));

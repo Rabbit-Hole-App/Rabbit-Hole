@@ -8,7 +8,9 @@
 //   2. the selected pill reads Motion (no /) with Remove Motion, picked or typed;
 //   3. typed /motion (MOT-20/UI-15, owner messages 39 and 40) is a chat turn: the chat answer (MOCKED /api/learn/ask, a proposal
 //      in answer_meta) draws the generation proposal card: title, Duration, Audio Off with On disabled, the server's credits line
-//      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); nothing reaches the video route;
+//      and one Generate, no Cancel; a duration change saves version 2 (MOCKED PUT .../proposal); Duration offers exactly 5 to 60 in
+//      fives and Aspect ratio the nine shared ratios (a proposal without one reads 16:9), and a change of either keeps the other
+//      (owner brief 2026-10-23); nothing reaches the video route;
 //   4. MOCKED generation (/api/learn/video stubbed here): the card's Generate adds one video card and starts exactly one confirmed
 //      motion_request carrying the approved proposal; the card shows its progress, then the ready video with the job's title
 //      (no meta line, owner message 31);
@@ -42,7 +44,7 @@
 //   14-15. Ctrl+K on the selected card hands /motion to the Chat's proposal card (the editor says Sent to Chat, stages nothing,
 //      the Chat draft stays); a reload restores the saved proposals (MOCKED thread restore): the newest live, the generated one
 //      inactive, nothing sent;
-//   16. readiness (motion-readiness.js): a MOCKED 45 s proposal keeps its value, says it is not ready and cannot Generate; choosing
+//   16. readiness (motion-settings.js, test-configured policy): a MOCKED 45 s proposal keeps its value, says it is not ready and cannot Generate; choosing
 //      30 saves version 2 (MOCKED PUT) and Generate is enabled; Generate is never pressed and nothing reaches the video route;
 // MOTION=off (a production-like build: VITE_RABBIT_HOLE=true only). Per theme: no /motion or /animate in the picker or the
 //   window, and a typed /motion says Motion is not available here and runs nothing.
@@ -52,7 +54,9 @@ import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { causalAttentionScene } from '../src/reference-scenes.js';
-import { motionInputs, motionReadiness } from '../../control-plane/src/motion-readiness.js';
+import { motionQuoteInputs, motionReadiness } from '../../control-plane/src/motion-settings.js';
+// The readiness policy this check configures (5 to 30 s at 16:9); it says nothing about what is validated.
+const READY_ENV = { MOTION_RENDERER_CONFIG: 'r-test', MOTION_READY_POLICY: JSON.stringify({ version: 'orchestrator-5-30', renderer_config: 'r-test', entries: [{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple', 'standard', 'heavy'] }] }) };
 
 const BASE = process.env.BASE || 'http://127.0.0.1:9261';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:9263';
@@ -362,6 +366,19 @@ for (const theme of ['light', 'dark']) {
     await until(async () => (await card.getAttribute('data-proposal-version')) === '2', 'version 2 after the duration change');
     assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '20');
     assert.ok(seen.some(r => r.method === 'PUT' && /\/proposal$/.test(r.path) && JSON.parse(r.body || '{}').expected_version === 1), 'the save names the revision it was made from (MOT-22)');
+    // Owner brief 2026-10-23: Duration offers exactly 5 to 60 in fives; Aspect ratio lists the nine shared ratios and a proposal saved without one reads 16:9.
+    assert.deepEqual(await card.locator('[data-proposal-duration] option').evaluateAll(o => o.map(x => x.value)), ['5', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55', '60']);
+    assert.deepEqual(await card.locator('[data-proposal-aspect-ratio] option').evaluateAll(o => o.map(x => x.textContent)), ['9:16 portrait', '1:1 square', '16:9 landscape', '3:4 portrait', '4:3', '2:3', '3:2', '4:5', '5:4']);
+    assert.equal(await card.locator('[data-proposal-aspect-ratio]').inputValue(), '16:9');
+    await card.locator('[data-proposal-aspect-ratio]').selectOption('9:16');
+    await until(async () => (await card.getAttribute('data-proposal-version')) === '3', 'version 3 after the aspect ratio change');
+    assert.equal(await card.locator('[data-proposal-aspect-ratio]').inputValue(), '9:16');
+    assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '20', 'the duration is kept');
+    const ratioSave = seen.filter(r => r.method === 'PUT' && /\/proposal$/.test(r.path)).map(r => JSON.parse(r.body || '{}')).find(b => b.expected_version === 2);
+    assert.deepEqual(ratioSave?.settings, { duration_seconds: 20, audio: false, aspect_ratio: '9:16' }, 'the save carries both selections');
+    await card.locator('[data-proposal-duration]').selectOption('60');
+    await until(async () => (await card.getAttribute('data-proposal-version')) === '4', 'version 4 after choosing 60 seconds');
+    assert.equal(await card.locator('[data-proposal-aspect-ratio]').inputValue(), '9:16', 'the ratio is kept');
     assert.equal(asks.length - turns, 1, 'a settings change is no chat turn');
     await card.screenshot({ path: `${OUT}/${theme}-03-proposal.png` });
     // Nothing reaches the video route before Generate (a saved card's clip may load meanwhile, a GET of its asset), and no card lands.
@@ -837,13 +854,13 @@ for (const theme of ['light', 'dark']) {
     } finally { restoring = null; }
   });
 
-  // Motion readiness (motion-readiness.js, release/image-r3): a duration the deployed orchestrator does not accept (above 30 s) stays
+  // Motion readiness (motion-settings.js motionReadiness with a test-configured policy): a duration the deployed orchestrator does not accept (above 30 s) stays
   // selectable, but the card says why and Generate is disabled; choosing 30 saves the next revision (MOCKED PUT) and enables it.
   // Self-contained: its own MOCKED turn and save (page routes, which win over the context's), in Ask mode so a typed /motion is a
   // chat turn whatever the Chat's default mode; the mode is put back afterwards. Generate is never pressed.
   await step(`${theme}: readiness: a 45-second proposal says it is not ready and cannot Generate; choosing 30 saves version 2 and can`, async () => {
     const id = String(990045 + (theme === 'dark' ? 1 : 0)), words = `45s readiness ${theme}`, posts = videoPosts().length;
-    const ready = s => motionReadiness({}, motionInputs(s));
+    const ready = s => motionReadiness(READY_ENV, motionQuoteInputs(s));
     const slow = { proposal_id: `gp-${'45'.repeat(4)}${theme === 'dark' ? 'dddd' : 'aaaa'}0000`, version: 1, command: 'motion', title: `Motion: ${words}`,
       description: 'A row of scores appears. Softmax turns it into weights. The weights add up to one.', settings: { duration_seconds: 45, audio: false }, source_refs: [],
       input: { request: `/motion ${words}`, concept: null }, expires_at: Math.floor(Date.now() / 1000) + 3600, sig: 'a'.repeat(64),

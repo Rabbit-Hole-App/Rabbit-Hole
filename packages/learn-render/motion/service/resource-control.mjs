@@ -14,6 +14,18 @@ import * as realFs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 export const LIMITS = Object.freeze({ memory_bytes: 3 * 1024 ** 3, pids_max: 1024, cpu_period_us: 100000, cpu_quota_us: 150000 });
+// Deployment settings for the DEV machine-size comparison only: MOTION_CPU_QUOTA (CPUs, 0.5 to 16) and MOTION_MEMORY_GIB (1 to 64).
+// Neither set returns the frozen LIMITS above (production keeps them: fly.prod.toml sets neither). A set but invalid value throws.
+export function resolveLimits({ cpus, memoryGiB } = {}) {
+  const given = v => v !== undefined && v !== null && v !== '';
+  if (!given(cpus) && !given(memoryGiB)) return LIMITS;
+  const c = given(cpus) ? Number(cpus) : LIMITS.cpu_quota_us / LIMITS.cpu_period_us, m = given(memoryGiB) ? Number(memoryGiB) : LIMITS.memory_bytes / 1024 ** 3;
+  if (!(c >= 0.5 && c <= 16)) throw new Error(`MOTION_CPU_QUOTA must be a number of CPUs from 0.5 to 16 (got ${cpus})`);
+  if (!(m >= 1 && m <= 64)) throw new Error(`MOTION_MEMORY_GIB must be a number from 1 to 64 (got ${memoryGiB})`);
+  return Object.freeze({ ...LIMITS, memory_bytes: Math.round(m * 1024 ** 3), cpu_quota_us: Math.round(c * LIMITS.cpu_period_us) });
+}
+export const limitsFromEnv = env => resolveLimits({ cpus: env.MOTION_CPU_QUOTA, memoryGiB: env.MOTION_MEMORY_GIB });
+export const limitsSetting = limits => ({ cpus: limits.cpu_quota_us / limits.cpu_period_us, memory_gib: limits.memory_bytes / 1024 ** 3 });
 export const cpuQuota = (quotaUs, periodUs) => (quotaUs > 0 && periodUs > 0 ? quotaUs / periodUs : null);
 const JOBS = '/var/motion/jobs';
 const V1_REQUIRED = ['memory', 'pids', 'cpu', 'cpuacct'];
@@ -70,7 +82,7 @@ export function detect({ fs = realFs, root = '', mounts } = {}) {
 class CgroupV2Controller {
   constructor(d, f) { Object.assign(this, { backend: 'cgroup-v2', d, f, base: d.mount }); }
   dirs(id) { return [this.base + jobPath(id)]; }
-  create(id) {
+  create(id, limits = LIMITS) {
     const { f, base } = this, g = this.dirs(id)[0];
     f.mkdir(`${base}/motion`);
     for (const parent of [base, `${base}/motion`]) for (const c of V2_REQUIRED) {
@@ -79,10 +91,10 @@ class CgroupV2Controller {
     }
     f.mkdir(g);
     if (!f.exists(`${g}/memory.swap.max`)) throw new ResourceLimitsUnavailable('swap_controller_unavailable', 'cgroup v2 memory has no memory.swap.max (swap accounting is off)');
-    f.write(`${g}/memory.max`, LIMITS.memory_bytes);
+    f.write(`${g}/memory.max`, limits.memory_bytes);
     f.write(`${g}/memory.swap.max`, 0);
-    f.write(`${g}/pids.max`, LIMITS.pids_max);
-    f.write(`${g}/cpu.max`, `${LIMITS.cpu_quota_us} ${LIMITS.cpu_period_us}`);
+    f.write(`${g}/pids.max`, limits.pids_max);
+    f.write(`${g}/cpu.max`, `${limits.cpu_quota_us} ${limits.cpu_period_us}`);
   }
   root() { return [this.base]; }
   freeze(id, on) {
@@ -112,16 +124,16 @@ class CgroupV1Controller {
   hierarchies() { return [...new Set(['memory', 'pids', 'cpu', 'cpuacct', 'freezer'].map(c => this.d.mounts[c]).filter(Boolean))]; }
   dirs(id) { return this.hierarchies().map(h => h + jobPath(id)); }
   at(c, id) { return this.d.mounts[c] + jobPath(id); }
-  create(id) {
+  create(id, limits = LIMITS) {
     const { f } = this;
     for (const h of this.hierarchies()) { f.mkdir(`${h}/motion`); f.mkdir(h + jobPath(id)); }
     const mem = this.at('memory', id), cpu = this.at('cpu', id);
     // Limit first, then memory+swap at the same value: the job gets no swap allowance.
-    f.write(`${mem}/memory.limit_in_bytes`, LIMITS.memory_bytes);
-    f.write(`${mem}/memory.memsw.limit_in_bytes`, LIMITS.memory_bytes);
-    f.write(`${this.at('pids', id)}/pids.max`, LIMITS.pids_max);
-    f.write(`${cpu}/cpu.cfs_period_us`, LIMITS.cpu_period_us);
-    f.write(`${cpu}/cpu.cfs_quota_us`, LIMITS.cpu_quota_us);
+    f.write(`${mem}/memory.limit_in_bytes`, limits.memory_bytes);
+    f.write(`${mem}/memory.memsw.limit_in_bytes`, limits.memory_bytes);
+    f.write(`${this.at('pids', id)}/pids.max`, limits.pids_max);
+    f.write(`${cpu}/cpu.cfs_period_us`, limits.cpu_period_us);
+    f.write(`${cpu}/cpu.cfs_quota_us`, limits.cpu_quota_us);
   }
   root() { return this.hierarchies(); }
   freeze(id, on) {
@@ -265,6 +277,14 @@ export function procStatusField(status, name) {
   return m ? m[1].trim() : null;
 }
 
+// The limits file the service wrote into the job directory before the launcher started (only when the deployment overrides the defaults).
+function jobLimits(id) {
+  let text;
+  try { text = realFs.readFileSync(`${JOBS}/${id}/limits.json`, 'utf8'); } catch { return LIMITS; }
+  try { const j = JSON.parse(text); return resolveLimits({ cpus: j.cpus, memoryGiB: j.memory_gib }); }
+  catch (error) { throw new ResourceLimitsUnavailable('limits_invalid', error.message); }
+}
+
 async function cli([cmd, id, shell, status]) {
   jobPath(id);
   if (!/^[1-9]\d*$/.test(String(shell))) throw new Error('shell pid must be a positive integer');
@@ -276,7 +296,7 @@ async function cli([cmd, id, shell, status]) {
       const ctl = controllerFor(d);
       // Old job groups are empty once their processes are gone.
       for (const h of ctl.root()) for (const old of ctl.f.list(`${h}/motion`)) if (/^[0-9a-f]{32}$/.test(old)) ctl.f.rmdir(`${h}/motion/${old}`);
-      ctl.create(id);
+      ctl.create(id, jobLimits(id));
       // The launcher shell joins every group before it starts anything: the job is limited from its first instruction.
       attach(ctl, id, Number(shell));
       const s = ctl.stats(id);

@@ -799,7 +799,7 @@ test('a /motion chat turn proposes on the chat path: one model turn, the signed 
   assert.match(f.calls[0].system, /Generation proposals:/);
   const meta = events.find(e => e.event === 'answer_meta').data;
   const p = meta.proposal;
-  assert.deepEqual([p.command, p.version, p.title, p.description, p.settings, p.input, p.usage], ['motion', 1, 'Water cycle: evaporation to rain', WATER, { duration_seconds: 10, audio: false }, { request: '/motion explain the water cycle', concept: 'Weather', org: 'workspace-a', app: 'canvas-0a1b2c3d' }, { estimate_credits: 100, reserve_credits: 896 }], 'signed for the canvas and workspace it was asked on (MOT-22)');
+  assert.deepEqual([p.command, p.version, p.title, p.description, p.settings, p.input, p.usage], ['motion', 1, 'Water cycle: evaporation to rain', WATER, { duration_seconds: 10, aspect_ratio: '16:9', audio: false }, { request: '/motion explain the water cycle', concept: 'Weather', org: 'workspace-a', app: 'canvas-0a1b2c3d', binding: { inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat', estimate_credits: 100, policy_version: null, renderer_config: null } }, { estimate_credits: 100, reserve_credits: 896, inputs: { duration_seconds: 10, aspect_ratio: '16:9' }, price_version: 'flat' }], 'signed for the canvas and workspace it was asked on (MOT-22)');
   assert.equal(await verifyProposal(f.env, p, 'owner@example.test'), null, 'signed for the asker');
   const stored = JSON.parse(f.rows("SELECT meta_json FROM chat_message_meta WHERE role = 'assistant'")[0].meta_json);
   assert.deepEqual(stored.proposal, p, 'kept with the answer, so a reload draws the card again');
@@ -815,7 +815,7 @@ test('refinement through chat: the learner\'s words change the unanswered propos
   const clouds = 'Sunlight warms the sea and water evaporates. The vapour rises and cools into tiny droplets. The droplets gather into clouds that grow darker. The clouds release rain over the land.';
   f.replies.push(proposeCall('tu2', { description: clouds, settings: { duration_seconds: 20, audio: false } }), 'Updated.\n<answer_meta>{}</answer_meta>');
   const second = (await f.ask({ message: 'make it 20 seconds and focus more on clouds', mode: 'auto', generation: { motion: { concept: 'Weather' }, current: first } })).events.find(e => e.event === 'answer_meta').data.proposal;
-  assert.deepEqual([second.proposal_id, second.version, second.settings.duration_seconds, second.description, second.input], [first.proposal_id, 2, 20, clouds, first.input]);
+  assert.deepEqual([second.proposal_id, second.version, second.settings.duration_seconds, second.description, second.input], [first.proposal_id, 2, 20, clouds, { ...first.input, binding: { ...first.input.binding, inputs: { duration_seconds: 20, aspect_ratio: '16:9' } } }]);
   assert.match(lastText(f.calls[2]), /The proposal you made, not generated yet \(version 1\)/, 'the model sees the card it revises');
   // A proposal changed in the browser is not a current one: the next proposal starts over as a new one.
   f.replies.push(proposeCall('tu3'), 'New.\n<answer_meta>{}</answer_meta>');
@@ -841,7 +841,7 @@ test('CR-1 hand-off: a signed chat route to Motion makes the ordinary turn its p
   assert.equal(res.status, 200);
   assert.deepEqual(f.calls[0].tools.map(tool => tool.name), ['propose_generation'], 'the proposal tool alone, as a typed /motion');
   const p = events.find(e => e.event === 'answer_meta').data.proposal;
-  assert.deepEqual([p.command, p.version, p.input], ['motion', 1, { request: `/motion ${words}`, concept: 'Weather', org: 'workspace-a', app: 'canvas-0a1b2c3d' }]);
+  assert.deepEqual([p.command, p.version, { ...p.input, binding: undefined }], ['motion', 1, { request: `/motion ${words}`, concept: 'Weather', org: 'workspace-a', app: 'canvas-0a1b2c3d', binding: undefined }]);
   assert.equal(f.calls.length, 2, 'the proposal and the reply: no Director, author or render call');
 });
 

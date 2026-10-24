@@ -13,7 +13,7 @@ export function motionVideoBlock({ brief, renderId, jobId, renderer = DEFAULT_RE
     caption: '',
     operation: { op: 'motion_render', render_id: renderId },
     // An ungrounded brief says so on the card (brief.grounding: no source supplied, or not in what was searched).
-    motion: { job_id: motion_job_id, duration_seconds: brief.duration.seconds, renderer, teaching_mode: brief.teaching_mode, ...provenance, ...(brief.grounding ? { grounding: brief.grounding } : {}) },
+    motion: { job_id: motion_job_id, duration_seconds: brief.duration.seconds, aspect_ratio: brief.aspect_ratio, renderer, teaching_mode: brief.teaching_mode, ...provenance, ...(brief.grounding ? { grounding: brief.grounding } : {}) },
     status: 'idle',
   };
 }

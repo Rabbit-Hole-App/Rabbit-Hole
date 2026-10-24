@@ -11,10 +11,12 @@ import { LearnVideos } from '../src/learn-video.js';
 import { forwardUsagePayer } from '../src/learn-usage.js';
 import { validateJobRequest } from '../../learn-render/motion/orchestrator.mjs';
 import { proposalView, settingsOf } from '../../web/src/generation-confirmation-schema.js';
-import { MOTION_NOT_READY, MOTION_READY_SECONDS, motionInputs, motionReadiness } from '../src/motion-readiness.js';
+import { MOTION_NOT_READY, motionQuoteInputs, motionReadiness } from '../src/motion-settings.js';
 
 const ALICE = 'alice@example.test';
-const env = { ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
+// The readiness policy THIS test configures (5 to 30 s at 16:9, as the deployed orchestrator accepted); it says nothing about what is validated.
+const MOTION_READY_SECONDS = { max: 30 };
+const env = { MOTION_RENDERER_CONFIG: 'r-test', MOTION_READY_POLICY: JSON.stringify({ version: 'orchestrator-5-30', renderer_config: 'r-test', entries: [{ aspect_ratio: '16:9', min_seconds: 5, max_seconds: 30, complexity: ['simple', 'standard', 'heavy'] }] }), ANTHROPIC_API_KEY: 'a'.repeat(40), MOTION_ORCHESTRATOR_URL: 'https://orchestrator.test/', MOTION_ORCHESTRATOR_TOKEN: 'm'.repeat(48), MOTION_ESTIMATE_USD: '1.00', MOTION_JOB_RESERVATION_USD: '8.96' };
 const DEST = { org: 'w', app: 'canvas-1' };
 const CARD = { id: 'r1', label: 'CAD · Roller assembly', kind: 'card', sourceId: 'card:cad-1', revision: 'rev-1', range: null };
 const DESCRIPTION = 'Sunlight warms a body of water. Moist air rises and cools. Droplets fall as rain.';
@@ -44,7 +46,7 @@ for (const [label, sign] of [['v2', () => signProposal(env, base({ settings: { d
     const got = await s.get();
     assert.equal(got.status, 200);
     assert.equal((await got.json()).proposal.settings.duration_seconds, 12);
-    assert.deepEqual(approvedProposal(old), { title: 'Water cycle', duration_seconds: 12, description: DESCRIPTION });
+    assert.deepEqual(approvedProposal(old), { title: 'Water cycle', duration_seconds: 12, aspect_ratio: '16:9', description: DESCRIPTION });
     assert.equal(await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-1'), null);
     assert.equal((await consumeProposal(s.LEARN_DB, old, ALICE, DEST, 'press-2')).code, 'proposal_used');
   });
@@ -101,7 +103,7 @@ test('every Motion duration stays offered; the ones the orchestrator would 400 a
     }
     assert.equal(p.readiness.ready, seconds <= 30);
   }
-  assert.equal(motionReadiness(env, motionInputs({ duration_seconds: 12 })).ready, true, 'a saved whole-second duration inside the range is ready');
+  assert.equal(motionReadiness(env, motionQuoteInputs({ duration_seconds: 12 })).ready, true, 'a saved whole-second duration inside the range is ready');
 });
 
 test('Generate on a Motion proposal of 45 seconds answers 409 motion_not_ready: not consumed, no job, no hold, no orchestrator call; 30 seconds is not refused by readiness', async t => {
@@ -118,8 +120,8 @@ test('Generate on a Motion proposal of 45 seconds answers 409 motion_not_ready: 
     return { res, body: await res.json(), stored, used: (await proposalRecord(s.LEARN_DB, ALICE, 'canvas-1', p.proposal_id)).state.used };
   };
   const refused = await run(45);
-  assert.deepEqual([refused.res.status, refused.body.code, refused.body.readiness.ready], [409, 'motion_not_ready', false]);
-  assert.match(refused.body.error, /45 second video is not ready/);
+  assert.deepEqual([refused.res.status, refused.body.code], [409, 'motion_not_ready']);
+  assert.match(refused.body.error, /45 second 16:9 video is not ready/);
   assert.deepEqual([[...refused.stored.keys()], calls, refused.used], [[], [], null]);
   // inside the range readiness does not refuse: whatever happens next is the unchanged path (no readiness code)
   const fine = await run(30);
