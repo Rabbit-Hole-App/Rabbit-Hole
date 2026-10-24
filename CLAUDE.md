@@ -47,6 +47,39 @@ command, and never rename a resource in place.
 - Credentials: each secret lives on the Worker or service that uses it (see the config comments and feature docs).
   Private provider keys stay server-side; the browser never receives them.
 
+## Commands
+
+Verified against `packages/*/package.json`, `Makefile`, `run.sh` and `packages/web/playwright.config.js`. A command's
+meaning depends on its working directory.
+
+| Purpose | Directory | Command | Prerequisites | What it proves | Browser / external cost |
+|---|---|---|---|---|---|
+| Web unit tests | `packages/web` | `npm run test:unit` | `npm ci` in `packages/web` | `node --test "src/**/*.test.mjs"` passes | No browser; intended offline |
+| Web build | `packages/web` | `npm run build` | env flags for the target ([Development deployments](#development-deployments)) | `vite build` compiles and bundles | No |
+| Control-plane tests | `packages/control-plane` | `npm test` | `npm ci` in `packages/control-plane` | `node --test` suites pass (fixture keys) | No browser; intended offline |
+| Release unit suite | repo root | `make test-unit` | `uv`, both packages installed | `run.sh test:unit`: Python unit tests, both JS suites, Motion, evals and `scripts/*.test.mjs` | No browser; `run.sh` marks it "no network" |
+| Integration suite | repo root | `make test-integration` | `uv`, Fly access | `run.sh test:integration`: legacy CLI deploy to Fly | **Real Fly deploy, external cost** |
+| Browser tests | `packages/web` | `npm test` | none for Claude | `playwright test` over `e2e/`, building and starting a preview server | **Browser automation: Claude does not run it** ([Browser verification](#browser-verification)) |
+
+A successful build proves compilation and bundling only, not user interaction or real-provider behavior. Browser
+coverage and deployment go through the approved CI and release procedure ([Release requirements](#release-requirements),
+`docs/features/parallel-dev-deploys.md`); do not invent alternative commands.
+
+## Repository gotchas
+
+Non-obvious traps that have caused mistakes. Remove an entry when its condition no longer holds.
+
+- **`npm test` means different things.** In `packages/web` it is Playwright (browser automation); in
+  `packages/control-plane` it is `node --test`. Use the table above. (Each package's `package.json`.)
+- **`node --test` with an absolute glob under Git Bash runs 0 tests and exits 0.** Use a relative glob from the right
+  directory; `run.sh` wraps suites in `nonzero-tests` for this reason. (`run.sh`, `test:unit`.)
+- **An isolated dev clone is not an isolated database.** All clones share the dev D1, and they do not inherit secrets
+  installed on another Worker. ([Development deployments](#development-deployments).)
+- **Green CI can mean zero relevant checks.** `fast-e2e` selects checks by diff from `scripts/ci/check-map.json`;
+  confirm your check was selected and executed. ([Verification and evidence](#verification-and-evidence).)
+- **Legacy names are still live.** `small-cp-dev` and other `small-*` identifiers remain operational under Rabbit Hole.
+  ([Retired areas and legacy names](#retired-areas-and-legacy-names).)
+
 ## Standing owner rules
 
 - Credentials: read only from `C:\Users\cyudhist\Desktop\workspace\small-deploy\.env`, never a worktree's own `.env`.
