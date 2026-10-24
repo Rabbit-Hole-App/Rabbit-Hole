@@ -70,6 +70,7 @@ import { forwardToProduction, guardControlPlane, devIdentity } from '../control-
 import { usageFeature, withUsage, finishAction, finishWithResponse, recordMedia } from '../control-plane/src/learn-usage.js';
 import { imageEstimate, TRANSCRIBE_ESTIMATE } from '../control-plane/src/learn-usage-estimates.js';
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
+import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
 import { isEmbed } from '../control-plane/src/learn-shared-ask.js';
@@ -174,6 +175,8 @@ const routes = {
       const target = new URL(req.url); target.pathname = `/api/repositories/${repositoryRoute[1]}${repositoryRoute[2] || ''}`;
       return repositoriesFetch(new Request(target, req), env, ctx);
     }
+    // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
+    if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
     // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).
     if (path === '/api/learn/usage') return usageFetch(req, env);
     if (path === '/api/learn/graph-config' && req.method === 'GET') {
@@ -362,7 +365,7 @@ const routes = {
     }
     // /b/<token> is a shared board, /e/<token> a canvas published to Explore (docs/features/explore-publish.md): served to
     // anyone, the page decides what they may see. /@<handle> is a creator's public profile (docs/features/creator-profile.md).
-    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
+    if (path === '/apps' || path === '/dash' || path === '/chat' || path === '/members' || path === '/library' || path === '/explore' || path === '/owner/telemetry' || path.startsWith('/apps/') || /^\/[be]\/[A-Za-z0-9_-]{20,64}$/.test(path) || EMBED_SHELL.test(path) || /^\/@[A-Za-z0-9_]{1,40}$/.test(path)) {
       return new Response(SHELL, {
         headers: { 'Content-Type': 'text/html;charset=utf-8', 'Cache-Control': 'no-store' },
       });

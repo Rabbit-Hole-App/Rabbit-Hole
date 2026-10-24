@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, BadgeCheck, Bell, Braces, Check, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
+import { Activity, AlertTriangle, BadgeCheck, Bell, Braces, Check, Compass, ChevronDown, ChevronUp, ChevronRight, ChevronsLeft, Copy, Download, ExternalLink, Folder, FolderPlus, Globe, House, LayoutGrid, LayoutPanelLeft, Library, Link, LogOut, Mail, MessageSquare, MessageSquarePlus, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings, Share2, Shield, SlidersHorizontal, Smile, Trash2, Users, X } from 'lucide-react';
 import { ago, api, getTheme, navigate, sectionOf, setTheme, setWs, wsName, workspaceLabel } from './api.js';
 import AwsConnection from './AwsConnection.jsx';
 import ByocDevBadge from './ByocDevBadge.jsx';
@@ -492,6 +492,13 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
   ]).then(([people, teams]) => setPool({ people, teams }));
   const [wsMenu, setWsMenu] = useState(false);
   const [wsList, setWsList] = useState(null); // workspaces the user belongs to, loaded when the menu opens
+  // The owner's Telemetry entry (docs/features/telemetry.md): shown only when the owner-only API answers 200 for this session.
+  // A convenience: the server guards the page's data, not this item. Checked once, when the menu first opens.
+  const [ownerTelemetry, setOwnerTelemetry] = useState(null);
+  useEffect(() => {
+    if (!wsMenu || !learnPreview || ownerTelemetry !== null) return;
+    fetch('/api/owner/telemetry/access', { credentials: 'same-origin' }).then((r) => setOwnerTelemetry(r.ok)).catch(() => setOwnerTelemetry(false));
+  }, [wsMenu]);
   const [newWs, setNewWs] = useState(null); // string while the create dialog is up
   const [newApp, setNewApp] = useState(false); // the how-to-ship dialog
   useEffect(() => {
@@ -993,6 +1000,7 @@ export default function Sidebar({ org, orgName, email, apps, folders, awsError, 
           <div className="my-1 border-t border-line" />
           </>}
           <MenuItem icon={Settings} onClick={() => { setWsMenu(false); setShowSettings(true); }}>Settings</MenuItem>
+          {ownerTelemetry && <MenuItem icon={Activity} onClick={() => { setWsMenu(false); navigate('/owner/telemetry'); }}>Telemetry</MenuItem>}
           {!learnPreview && <MenuItem className="text-accent hover:text-accent" onClick={() => { setWsMenu(false); setNewWs(''); }}>
             <span className="flex items-center gap-2 text-accent"><Plus size={16} strokeWidth={1.5} /> New workspace</span>
           </MenuItem>}

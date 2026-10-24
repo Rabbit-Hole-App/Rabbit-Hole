@@ -80,5 +80,6 @@ test('the card title wraps with overflow-wrap anywhere alone, because break-word
 
 test('Home, Library and Explore have no composer: the Agent Bar is hidden there and the card grid is the only thing that resizes', () => {
   const routes = read('../routes.js');
-  assert.match(routes, /barHidden: \['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore'\]\.includes\(place\)/);
+  // The owner's telemetry page has no composer either (docs/features/telemetry.md).
+  assert.match(routes, /barHidden: \['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore', 'owner_telemetry'\]\.includes\(place\)/);
 });

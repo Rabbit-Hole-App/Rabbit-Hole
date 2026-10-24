@@ -7,10 +7,15 @@
 // nothing is refused here, so public links and every normal worker are unchanged.
 export function subscriptionOwnerRefusal(env, access) {
   if (env.SUBSCRIPTION_ONLY !== 'true') return null;
-  const owner = env.SUBSCRIPTION_OWNER_EMAIL, email = access?.email;
-  if (typeof owner === 'string' && owner !== '' && email === owner) return null;
+  if (ownerEmailMatches(env, access?.email)) return null;
   return Response.json({ error: 'This personal dev subscription is available only to its owner.' }, { status: 403 });
 }
+// The one owner comparison, shared with the unconditional owner guard (owner-guard.js): a nonempty configured
+// SUBSCRIPTION_OWNER_EMAIL, exactly equal to a nonempty email. It never reads SUBSCRIPTION_ONLY.
+export const ownerEmailMatches = (env, email) => {
+  const owner = env?.SUBSCRIPTION_OWNER_EMAIL;
+  return typeof owner === 'string' && owner !== '' && typeof email === 'string' && email === owner;
+};
 // Course authoring's model actions are not connected to the bridge yet.
 export function subscriptionCourseRefusal(env, action) {
   if (env.SUBSCRIPTION_ONLY !== 'true' || !['draft', 'generate', 'revise_section'].includes(action)) return null;

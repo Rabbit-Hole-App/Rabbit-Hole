@@ -3,12 +3,14 @@
 // answer is today's main.jsx:57-70 and Sidebar.jsx:714,717.
 const KNOWN = /^\/(apps(\/[a-z0-9-]+(\/runs\/[\w-]+)?)?|dash|members|chat)$/;
 const PREVIEW_ONLY = /^\/(library|explore)$/;
+// The owner's telemetry dashboard (docs/features/telemetry.md): Rabbit Hole only. Its data is guarded by the server, not by this route.
+const OWNER_TELEMETRY = '/owner/telemetry';
 
 // The path an unknown URL is replaced with, or null when the URL is served.
 // The preview has no /chat page: that page writes live chat history (D7). Nor /members: Rabbit Hole v1 is
 // solo, so the members page is not a destination (the /api/members routes stay for the live build).
 export const canonicalPath = (pathname, preview) =>
-  (preview && (pathname === '/chat' || pathname === '/members') ? '/apps' : KNOWN.test(pathname) || (preview && PREVIEW_ONLY.test(pathname)) ? null : '/apps');
+  (preview && (pathname === '/chat' || pathname === '/members') ? '/apps' : KNOWN.test(pathname) || (preview && (PREVIEW_ONLY.test(pathname) || pathname === OWNER_TELEMETRY)) ? null : '/apps');
 
 // D7 (WP7): on the preview api() sends only the writes the dev worker serves itself - repositories, canvases and
 // their chats, Learn and BYOC (dev-worker.js; the canvas half is control-plane/src/canvases.js canvasRoute). Any
@@ -31,6 +33,7 @@ export function pageFor(pathname, search, preview) {
   if ((pathname === '/members' && !preview) || pathname === '/chat') return { page: pathname.slice(1) }; // solo v1: the preview's /members is Home
   if (!preview) return { page: 'library' };
   if (PREVIEW_ONLY.test(pathname)) return { page: pathname.slice(1) };
+  if (pathname === OWNER_TELEMETRY) return { page: 'owner_telemetry' };
   // A creator's profile (/@handle, main.jsx Root) is where Explore's @handle leads, so the sidebar lights Explore.
   if (/^\/@[A-Za-z0-9_]{1,40}$/.test(pathname)) return { page: 'explore' };
   // Bare /apps (and /dash) is Home; the sidebar's ?s= and ?f= links keep the Library.
@@ -77,7 +80,7 @@ export function baseSurfaceFor(pathname, search, from = {}) {
     : at.slug.startsWith('repo-') ? 'learn' // a repository opens on its canvas (repo-canvas-graph.md); an app's ?tab=learn is its Runbook (D7)
     : 'app';
   const identity = Object.fromEntries(IDENTITY.filter((k) => from[k] !== undefined).map((k) => [k, from[k]]));
-  return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore'].includes(place), resultsHost: 'sheet', handlers: {} };
+  return { ...identity, place, resource: null, selected: null, barHidden: ['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore', 'owner_telemetry'].includes(place), resultsHost: 'sheet', handlers: {} };
 }
 
 // A repository opens on its canvas, always (owner, 2026-10-15, repo-canvas-graph.md correction to decision 2: no repository
