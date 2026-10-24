@@ -161,6 +161,7 @@ const press = async (selector, { button = 'left', x = null, y = null, double = f
   // The point must hit the object itself: its lower part can sit under the minimap, the zoom, the tools or the selection bar, and a
   // press there is theirs. The wanted point first, then a grid over the part the canvas shows; none: the cover is named.
   const hit = await page.evaluate(([sel, wx, wy, part]) => {
+    window.__mark?.('hit ' + sel + ' ' + Math.round(wx) + ',' + Math.round(wy)); // DIAG ONLY (revert)
     const node = document.querySelector(sel), on = (a, b) => { const top = document.elementFromPoint(a, b); return !!top && node.contains(top); };
     if (on(wx, wy)) return { x: wx, y: wy };
     for (let r = 0; r <= 12; r++) for (let c = 0; c <= 12; c++) {
@@ -359,16 +360,27 @@ await check('8 Pin for study from the right-click menu: on the Explanation, from
 
 await check('8b the Context reader of the PDF offers Pin for study, which pins that same card; the reader opens the PDF in the pane', async () => {
   const before = counts();
+  // DIAG ONLY (revert): a frame timeline of the canvas width, camera and the ex and pdf1 corners, with marks; printed at step 9.
+  await page.evaluate(() => {
+    const T = window.__tl = [], t0 = performance.now(), at = () => Math.round(performance.now() - t0), s = () => document.querySelector('[aria-label="Lesson canvas"] [data-canvas-surface]'), w = () => document.querySelector('[data-canvas-world]');
+    const rect = id => { const r = document.querySelector(`[data-block-id="${id}"]`)?.getBoundingClientRect(); return r ? [Math.round(r.left), Math.round(r.top)] : null; };
+    let last = '';
+    const tick = () => { const now = JSON.stringify([s()?.clientWidth, getComputedStyle(w()).transform, rect('ex'), rect('pdf1')]); if (now !== last) { last = now; T.push([at(), now]); } if (!window.__tlStop) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    window.__mark = name => T.push([at(), name]);
+    document.addEventListener('contextmenu', e => T.push([at(), 'CONTEXTMENU ' + (e.target.closest?.('[data-block-id]')?.dataset.blockId || e.target.tagName)]), true);
+  });
+  const mark = name => page.evaluate(n => window.__mark(n), name);
   await press('[data-block-id="pdf1"]', { button: 'right', x: 40, y: 40 }); await menu().waitFor();
-  await menu().locator('[data-menu-open]').click();
+  await menu().locator('[data-menu-open]').click(); await mark('open clicked');
   await page.locator('[data-reader-pin-study]').waitFor({ timeout: 15000 });
-  await page.locator('[data-reader-pin-study]').click();
+  await page.locator('[data-reader-pin-study]').click(); await mark('pin clicked');
   await until(async () => (await pane().getAttribute('data-pin')) === 'pdf1', 'the reader pinned its own card');
   await page.locator('[data-study-pane] [data-source-reader]').waitFor({ timeout: 15000 });
   await page.locator('[data-study-options]').click();
   assert.equal((await page.getByRole('dialog', { name: 'Reference options' }).locator('[data-study-version]').innerText()).trim(), 'Version verification unavailable', 'a PDF says its version is not verified');
   await page.keyboard.press('Escape');
-  await sameFrame('reader pin');
+  await sameFrame('reader pin'); await mark('before press ex');
   await press('[data-block-id="ex"]', { button: 'right' }); await menu().waitFor();
   await menu().locator('[data-menu-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'ex', 'back to the Explanation');
@@ -376,6 +388,7 @@ await check('8b the Context reader of the PDF offers Pin for study, which pins t
   void before; // opening the reader may read the document; the board itself is untouched
 });
 
+console.log('DIAG 8b ' + JSON.stringify(await page.evaluate(() => { window.__tlStop = true; return window.__tl; }))); // DIAG ONLY (revert)
 await check('9 opening and closing the right panel resizes the panes from the space left beside it, never the window width; the notebook is untouched', async () => {
   const before = counts(), width = (await box('[data-study-pane]')).w;
   await page.getByRole('button', { name: 'Hide the right panel', exact: true }).click();
