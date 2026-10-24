@@ -1435,3 +1435,27 @@ Top 5 are taken) and are applied by the owner in production; a lane never applie
   the canvas owner only; a message carries `can.history` for them. The "edited" mark in the panel opens the list.
 - **Purge.** Deleting a comment (its author, the owner, Block and remove their comments), a thread, a hole or a canvas deletes
   its reactions, history and touch rows. A deleted comment's history answers `comment_gone`.
+
+### Attachments (migration 0031, owner decision D3)
+
+- **What.** Images (PNG, JPEG, GIF, WebP) and PDFs only, checked by their first bytes as well as their declared type; never SVG or a
+  page. At most 10 MB a file, 5 files a comment and 200 MB a canvas (a hole is its own canvas). The limits are in
+  `COMMENT_LIMITS` (`COMMENT_ATTACH_FILE_BYTES`, `COMMENT_ATTACH_COMMENT_MAX`, `COMMENT_ATTACH_CANVAS_BYTES`, overridable by worker
+  variables like the others) and `GET about` reports the ones the panel needs.
+- **Upload.** `POST …/attachments` (both families; `?audience=public` for a new public thread's file): the raw file is the body,
+  its type is Content-Type, its name is `X-File-Name`. Whoever may post may upload. The file is first RESERVED by one conditional
+  INSERT that holds the canvas total and the uploader's waiting uploads to their caps in the same statement, so parallel uploads
+  cannot both pass a check; only then is it written to LEARN_MEDIA under `comment-attachments/<board id>/<id>`, and a failed write
+  drops the reservation. It waits unattached until a post names it (`attachments: [id]` on a new thread, a reply or an edit); an
+  hour later it is swept and stops counting. A post attaches only the caller's own waiting uploads, and the attaching statements
+  re-check the 5-a-comment cap inside the batch, so two parallel edits cannot pass it either.
+- **Download.** `GET …/attachments/:id` re-runs the thread's read check on every request (a removed member, a turned-off link or
+  publication, a deleted comment or thread all end access on the next request). Images are served inline, PDFs as a download, both
+  with `nosniff`, a sandbox CSP and `private, no-store`. A waiting file is its uploader's alone. A message carries
+  `attachments: [{ id, name, mime, bytes }]`, never the object key or the uploader.
+- **Deletion.** Deleting a comment, dropping a file in an edit, deleting a thread, Block and remove their comments, deleting a hole
+  or a canvas for good sets `purged_at` in the same batch (access is gone at once); the object then leaves the bucket unless another
+  live row still names the same object, and the row goes. A bucket failure leaves the purged row for the next upload's sweep.
+  Deleting a canvas or hole purges its files before the canvas rows go (`comment-attachments.js purgeCanvasAttachments`).
+- **Not built.** No image preview before posting beyond the chip, no rename, no per-person upload rate beyond the waiting limit,
+  and no attachment on an edit through the panel (the route accepts it).

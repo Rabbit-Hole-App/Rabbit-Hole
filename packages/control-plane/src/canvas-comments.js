@@ -16,6 +16,10 @@ import { redactRepositoryCards } from './repository-cards.js';
 import { isEmbed } from './learn-shared-ask.js';
 import { changesFrom } from '../../web/src/comments/comment-sync.js';
 import { REACTIONS } from '../../web/src/comments/comment-reactions.js';
+import { uploadBody } from './upload-body.js';
+import { FORMATS, HEAD_BYTES } from './file-sniff.js';
+import { learnMedia } from './learn-storage.js';
+import { ATTACHMENT_NOTE, ATTACHMENT_TYPES, releasePurged, safeName } from './comment-attachments.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const refuse = (error, code, status, extra = {}) => json({ error, code, ...extra }, status);
@@ -31,7 +35,9 @@ const MESSAGES = 50;
 const MODES = ['off', 'open', 'closed'];
 
 // Section 9, each overridable by a worker variable of the same name (the SHARED_ASK_LIMITS pattern).
-export const COMMENT_LIMITS = { COMMENT_CANVAS_10MIN: 30, COMMENT_CANVAS_DAY: 300, COMMENT_PERSON_DAY: 1000, COMMENT_THREAD_MAX: 1000 };
+// Attachments (owner decision D3): 10 MB a file, 5 a comment, 200 MB a canvas; images and PDFs only.
+export const COMMENT_LIMITS = { COMMENT_CANVAS_10MIN: 30, COMMENT_CANVAS_DAY: 300, COMMENT_PERSON_DAY: 1000, COMMENT_THREAD_MAX: 1000,
+  COMMENT_ATTACH_FILE_BYTES: 10 * 1024 * 1024, COMMENT_ATTACH_COMMENT_MAX: 5, COMMENT_ATTACH_CANVAS_BYTES: 200 * 1024 * 1024 };
 export const commentLimits = env => Object.fromEntries(Object.entries(COMMENT_LIMITS).map(([name, fallback]) => {
   const value = String(env?.[name] ?? '').trim();
   return [name, /^\d+$/.test(value) ? Number(value) : fallback];
@@ -256,12 +262,12 @@ function threadShape(ctx, row) {
   };
 }
 const MESSAGE_COLUMNS = `m.id, m.author_id, m.body, m.created_at, m.edited_at, m.deleted_at, m.deleted_by, ${PERSON('m.author_email', 'a_')}`;
-function messageShape(ctx, audience, row, mentions = [], reactions = []) {
+function messageShape(ctx, audience, row, mentions = [], reactions = [], attachments = []) {
   const mine = !!ctx.actor.uid && row.author_id === ctx.actor.uid;
   const deleted = row.deleted_at ? (row.deleted_by === row.author_id ? 'author' : 'owner') : null;
   return {
     id: row.id, author: person(row, 'a_'), segments: deleted ? [] : segmentsOf(row.body, mentions), created_at: row.created_at, edited: !!row.edited_at && !deleted, deleted, mine,
-    reactions: deleted ? [] : reactions,
+    reactions: deleted ? [] : reactions, attachments: deleted ? [] : attachments,
     can: { edit: !deleted && mine && allowed(ctx, 'edit_own', audience), delete: !deleted && ((mine && allowed(ctx, 'delete_own', audience)) || allowed(ctx, 'delete_any', audience)),
       react: !deleted && allowed(ctx, 'post', audience), history: !deleted && !!row.edited_at && (mine || ctx.actor.owner) },
   };
@@ -279,11 +285,19 @@ async function reactionsFor(env, ctx, ids) {
   for (const list of by.values()) list.sort((a, b) => REACTIONS.indexOf(a.emoji) - REACTIONS.indexOf(b.emoji));
   return by;
 }
-// Message rows as the actor sees them: mentions and reactions read once for the whole page.
+// A comment's files as {id, name, mime, bytes}: never the object key. They download through GET /attachments/:id.
+async function attachmentsFor(env, ids) {
+  if (!ids.length) return new Map();
+  const { results } = await env.LEARN_DB.prepare(`SELECT id, comment_id, name, mime, bytes FROM canvas_comment_attachments WHERE purged_at IS NULL AND comment_id IN (${ids.map(() => '?').join(', ')}) ORDER BY created_at, id`).bind(...ids).all();
+  const by = new Map();
+  for (const row of results) by.set(row.comment_id, [...(by.get(row.comment_id) || []), { id: row.id, name: row.name, mime: row.mime, bytes: row.bytes }]);
+  return by;
+}
+// Message rows as the actor sees them: mentions, reactions and files read once for the whole page.
 async function shapes(env, ctx, audience, rows) {
   const ids = rows.map(row => row.id);
-  const [mentions, reactions] = await Promise.all([mentionsFor(env, ids), reactionsFor(env, ctx, ids)]);
-  return rows.map(row => messageShape(ctx, audience, row, mentions.get(row.id), reactions.get(row.id)));
+  const [mentions, reactions, files] = await Promise.all([mentionsFor(env, ids), reactionsFor(env, ctx, ids), attachmentsFor(env, ids)]);
+  return rows.map(row => messageShape(ctx, audience, row, mentions.get(row.id), reactions.get(row.id), files.get(row.id)));
 }
 
 // A thread of this board (and public, through the public family) that the actor may read; anything else is 404, so
@@ -426,6 +440,29 @@ async function readThread(env, ctx, id, params) {
 
 const hashOf = parts => sha256Hex(JSON.stringify(parts));
 
+// Files on a post (migration 0031). A post names the uploads it carries by id: `attachments: [id]`. The ids are parsed first
+// (so a replayed post is recognised by its hash before anything is checked), then checked to be the caller's own waiting
+// uploads on this canvas, then attached by statements that re-check the per-comment cap inside the batch.
+function attachmentIds(env, value) {
+  if (value === undefined) return { ids: null };
+  const max = commentLimits(env).COMMENT_ATTACH_COMMENT_MAX;
+  const ids = Array.isArray(value) ? [...new Set(value)] : null;
+  if (!ids || !ids.every(id => typeof id === 'string' && UUID.test(id))) return { error: refuse('Those attachments are not valid.', 'bad_attachment', 400) };
+  if (ids.length > max) return { error: refuse(`A comment holds at most ${max} attachments.`, 'too_many_attachments', 413) };
+  return { ids: ids.sort() };
+}
+async function attachmentsReady(env, ctx, fresh) {
+  if (!fresh.length) return null;
+  const { results } = await env.LEARN_DB.prepare(`SELECT id FROM canvas_comment_attachments WHERE id IN (${fresh.map(() => '?').join(', ')}) AND uploader_id = ? AND org = ? AND canvas = ? AND comment_id IS NULL AND purged_at IS NULL`)
+    .bind(...fresh, ctx.actor.uid, ctx.board.org, ctx.board.canvas).all();
+  return results.length === fresh.length ? null : refuse('An attachment is no longer available. Remove it and attach it again.', 'bad_attachment', 409);
+}
+const attachRows = (env, ctx, commentId, threadId, ids) => ids.map(id => env.LEARN_DB.prepare(`UPDATE canvas_comment_attachments SET comment_id = ?1, thread_id = ?2 WHERE id = ?3 AND uploader_id = ?4 AND org = ?5 AND canvas = ?6
+    AND comment_id IS NULL AND purged_at IS NULL AND (SELECT count(*) FROM canvas_comment_attachments a WHERE a.comment_id = ?1 AND a.purged_at IS NULL) < ?7`)
+  .bind(commentId, threadId, id, ctx.actor.uid, ctx.board.org, ctx.board.canvas, commentLimits(env).COMMENT_ATTACH_COMMENT_MAX));
+// Access to files goes at once (purged_at is set in the caller's batch); the objects follow in releasePurged.
+const purgeAttachments = (db, where, ...binds) => db.prepare(`UPDATE canvas_comment_attachments SET purged_at = ? WHERE purged_at IS NULL AND ${where}`).bind(new Date().toISOString(), ...binds);
+
 async function startThread(req, env, ctx) {
   const input = await readJson(req);
   if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
@@ -441,11 +478,15 @@ async function startThread(req, env, ctx) {
   const { body, error } = bodyOf(input.body);
   if (error) return error;
   const mentions = mentionsOf(input.mentions);
-  const hash = await hashOf([ctx.actor.uid, ctx.board.id, audience, anchor, body, mentions]);
+  const files = attachmentIds(env, input.attachments);
+  if (files.error) return files.error;
+  const hash = await hashOf([ctx.actor.uid, ctx.board.id, audience, anchor, body, mentions, ...(files.ids?.length ? [files.ids] : [])]);
   const replay = await sameCreate(env, 'canvas_comment_threads', input.id, hash);
   if (replay) return replay === 'conflict' ? idConflict() : threadReply(env, ctx, input.id, 200);
   const over = await limited(env, ctx);
   if (over) return over;
+  const notReady = await attachmentsReady(env, ctx, files.ids || []);
+  if (notReady) return notReady;
   const now = new Date().toISOString();
   const db = env.LEARN_DB;
   const kept = await acceptMentions(env, ctx, audience, body, mentions), first = crypto.randomUUID();
@@ -456,6 +497,7 @@ async function startThread(req, env, ctx) {
       db.prepare('INSERT INTO canvas_comments (id, thread_id, author_id, author_email, body, create_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
         .bind(first, input.id, ctx.actor.uid, ctx.actor.email, body, hash, now),
       ...mentionRows(db, first, kept),
+      ...attachRows(env, ctx, first, input.id, files.ids || []),
     ]);
   } catch (failure) {
     // Two copies of one post raced: the loser reads the winner's row, or the id belongs to someone else.
@@ -498,13 +540,17 @@ async function reply(req, env, ctx, threadId) {
   const { body, error } = bodyOf(input.body);
   if (error) return error;
   const mentions = mentionsOf(input.mentions);
-  const hash = await hashOf([ctx.actor.uid, thread.id, body, mentions]);
+  const files = attachmentIds(env, input.attachments);
+  if (files.error) return files.error;
+  const hash = await hashOf([ctx.actor.uid, thread.id, body, mentions, ...(files.ids?.length ? [files.ids] : [])]);
   const replay = await sameCreate(env, 'canvas_comments', input.id, hash);
   if (replay) return replay === 'conflict' ? idConflict() : commentReply(env, ctx, thread, input.id, 200);
   // ponytail: check-then-insert, so concurrent replies can pass the thread cap by a few; a conditional insert if that matters.
   if (thread.message_count >= commentLimits(env).COMMENT_THREAD_MAX) return refuse('This thread is full. Start a new thread.', 'thread_full', 409);
   const over = await limited(env, ctx);
   if (over) return over;
+  const notReady = await attachmentsReady(env, ctx, files.ids || []);
+  if (notReady) return notReady;
   const now = new Date().toISOString();
   const db = env.LEARN_DB;
   const kept = await acceptMentions(env, ctx, thread.audience, body, mentions);
@@ -514,6 +560,7 @@ async function reply(req, env, ctx, threadId) {
         .bind(input.id, thread.id, ctx.actor.uid, ctx.actor.email, body, hash, now),
       db.prepare('UPDATE canvas_comment_threads SET message_count = message_count + 1, last_activity_at = ? WHERE id = ?').bind(now, thread.id),
       ...mentionRows(db, input.id, kept),
+      ...attachRows(env, ctx, input.id, thread.id, files.ids || []),
     ]);
   } catch (failure) {
     const raced = await sameCreate(env, 'canvas_comments', input.id, hash);
@@ -548,7 +595,14 @@ async function editComment(req, env, ctx, id) {
   if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
   const { body, error } = bodyOf(input?.body);
   if (error) return error;
-  // An edit sends the whole new body and its full mentions; the stored ones are replaced.
+  // An edit sends the whole new body and its full mentions; the stored ones are replaced. `attachments`, when sent, is the whole
+  // list the comment keeps: ids left out are removed, new ones (the caller's waiting uploads) are added.
+  const files = attachmentIds(env, input.attachments);
+  if (files.error) return files.error;
+  const had = (await env.LEARN_DB.prepare('SELECT id FROM canvas_comment_attachments WHERE comment_id = ? AND purged_at IS NULL').bind(id).all()).results.map(row => row.id);
+  const fresh = files.ids ? files.ids.filter(file => !had.includes(file)) : [], removed = files.ids ? had.filter(file => !files.ids.includes(file)) : [];
+  const notReady = await attachmentsReady(env, ctx, fresh);
+  if (notReady) return notReady;
   const kept = await acceptMentions(env, ctx, found.thread.audience, body, mentionsOf(input.mentions));
   const db = env.LEARN_DB, now = new Date().toISOString();
   await db.batch([
@@ -559,7 +613,10 @@ async function editComment(req, env, ctx, id) {
     db.prepare('UPDATE canvas_comments SET body = ?, edited_at = ? WHERE id = ?').bind(body, now, id),
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id = ?').bind(id),
     ...mentionRows(db, id, kept),
+    ...removed.map(file => purgeAttachments(db, 'comment_id = ? AND id = ?', id, file)),
+    ...attachRows(env, ctx, id, found.thread.id, fresh),
   ]);
+  if (removed.length) await releasePurged(env, ctx.board.org, ctx.board.canvas);
   return commentReply(env, ctx, found.thread, id, 200);
 }
 
@@ -573,7 +630,9 @@ async function deleteComment(env, ctx, id) {
     db.prepare('UPDATE canvas_comments SET deleted_at = ?, deleted_by = ? WHERE id = ?').bind(new Date().toISOString(), ctx.actor.uid, id),
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id = ?').bind(id),
     ...purgeSide(db, 'comment_id = ?', id),
+    purgeAttachments(db, 'comment_id = ?', id),
   ]);
+  await releasePurged(env, ctx.board.org, ctx.board.canvas);
   return commentReply(env, ctx, found.thread, id, 200);
 }
 
@@ -602,6 +661,72 @@ async function editHistory(env, ctx, id) {
   return json({ edits: results.map(row => ({ body: row.body, replaced_at: row.replaced_at })) });
 }
 
+// Upload (migration 0031, D3): the raw file as the body, its type in Content-Type and its name in X-File-Name (URL-encoded),
+// `?audience=public` for a new public thread's file. The caller must be able to post here. The file is checked by its first bytes,
+// then RESERVED by one conditional INSERT that holds the canvas total and the caller's waiting uploads to their caps in the same
+// statement - parallel uploads cannot both pass a check - and only then written to the bucket; a failed write drops the reservation.
+// It waits, unattached, until a post names it; an hour later it is swept.
+const typed = value => { try { return decodeURIComponent(value || '').slice(0, 300); } catch { return ''; } };
+async function uploadAttachment(req, env, ctx, params) {
+  const bucket = learnMedia(env);
+  if (!bucket) return refuse('Attachments need the R2 bucket on this worker.', 'unavailable', 503);
+  const audience = ctx.family === 'public' || params.get('audience') === 'public' ? 'public' : 'members';
+  if (!allowed(ctx, 'post', audience)) return postRefusal(ctx, audience);
+  const mime = (req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const format = ATTACHMENT_TYPES[mime];
+  if (!format) return refuse(ATTACHMENT_NOTE, 'bad_type', 415);
+  const limits = commentLimits(env), mb = bytes => `${Math.round(bytes / (1024 * 1024))} MB`;
+  const got = await uploadBody(req, { cap: limits.COMMENT_ATTACH_FILE_BYTES, sniffBytes: HEAD_BYTES });
+  if (got.refused === 'over') return refuse(`Files are at most ${mb(limits.COMMENT_ATTACH_FILE_BYTES)}.`, 'file_too_big', 413);
+  if (got.refused === 'length') return refuse('Send this file with its Content-Length.', 'length_required', 411);
+  if (!got.length) return refuse('That file is empty.', 'empty', 400);
+  if (!FORMATS[format](got.head)) return refuse('This file is not what its type says.', 'bad_file', 415);
+  const db = env.LEARN_DB, now = new Date(), { org, canvas } = ctx.board;
+  // Uploads nobody attached within the hour no longer count against the caps.
+  await db.prepare('UPDATE canvas_comment_attachments SET purged_at = ? WHERE org = ? AND canvas = ? AND comment_id IS NULL AND purged_at IS NULL AND created_at < ?')
+    .bind(now.toISOString(), org, canvas, new Date(now.getTime() - 3600_000).toISOString()).run();
+  await releasePurged(env, org, canvas);
+  const id = crypto.randomUUID(), key = `comment-attachments/${ctx.board.id}/${id}`, name = safeName(typed(req.headers.get('x-file-name')));
+  const reserved = await db.prepare(`INSERT INTO canvas_comment_attachments (id, org, canvas, uploader_id, object_key, name, mime, bytes, created_at)
+    SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
+    WHERE (SELECT COALESCE(SUM(a.bytes), 0) FROM canvas_comment_attachments a WHERE a.org = ?2 AND a.canvas = ?3 AND a.purged_at IS NULL) + ?8 <= ?10
+      AND (SELECT count(*) FROM canvas_comment_attachments a WHERE a.org = ?2 AND a.canvas = ?3 AND a.uploader_id = ?4 AND a.comment_id IS NULL AND a.purged_at IS NULL) < ?11`)
+    .bind(id, org, canvas, ctx.actor.uid, key, name, mime, got.length, now.toISOString(), limits.COMMENT_ATTACH_CANVAS_BYTES, limits.COMMENT_ATTACH_COMMENT_MAX).run();
+  if (!reserved.meta?.changes) {
+    const waiting = await db.prepare('SELECT count(*) AS n FROM canvas_comment_attachments WHERE org = ? AND canvas = ? AND uploader_id = ? AND comment_id IS NULL AND purged_at IS NULL').bind(org, canvas, ctx.actor.uid).first();
+    return waiting.n >= limits.COMMENT_ATTACH_COMMENT_MAX ? refuse('Send or remove the files you already attached first.', 'too_many_waiting', 429)
+      : refuse(`This canvas's comment attachments are full (${mb(limits.COMMENT_ATTACH_CANVAS_BYTES)}). Delete a comment with files to make room.`, 'canvas_full', 413);
+  }
+  try { await bucket.put(key, got.body, { httpMetadata: { contentType: mime } }); } catch (error) {
+    await db.prepare('DELETE FROM canvas_comment_attachments WHERE id = ?').bind(id).run();
+    throw error;
+  }
+  return json({ attachment: { id, name, mime, bytes: got.length } }, 201);
+}
+
+// A file, to whoever may read its thread NOW (threadIn re-runs on every request, so a removed member, a turned-off link, a
+// deleted comment or a purged file ends access at once). A file still waiting to be attached is its uploader's alone.
+async function downloadAttachment(env, ctx, id) {
+  const gone = () => refuse("This file isn't available.", 'attachment_gone', 404);
+  if (!UUID.test(id)) return gone();
+  const row = await env.LEARN_DB.prepare('SELECT thread_id, comment_id, uploader_id, object_key, name, mime FROM canvas_comment_attachments WHERE id = ? AND org = ? AND canvas = ? AND purged_at IS NULL')
+    .bind(id, ctx.board.org, ctx.board.canvas).first();
+  if (!row) return gone();
+  if (row.comment_id) {
+    const thread = await threadIn(env, ctx, row.thread_id);
+    const live = thread && await env.LEARN_DB.prepare('SELECT 1 FROM canvas_comments WHERE id = ? AND thread_id = ? AND deleted_at IS NULL').bind(row.comment_id, row.thread_id).first();
+    if (!live) return gone();
+  } else if (!ctx.actor.uid || row.uploader_id !== ctx.actor.uid) return gone();
+  const object = await learnMedia(env)?.get(row.object_key);
+  if (!object) return gone();
+  const image = row.mime.startsWith('image/');
+  return new Response(object.body, { headers: {
+    'Content-Type': row.mime, 'Content-Length': String(object.size ?? ''),
+    'Content-Disposition': `${image ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(row.name)}`,
+    'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "sandbox; default-src 'none'", 'Cache-Control': 'private, no-store',
+  } });
+}
+
 // A pin's colour (section 8, owner 2026-10-08): the palette only, by whoever may resolve the thread; never the board.
 async function setColor(req, env, ctx, id) {
   const thread = await threadIn(env, ctx, id);
@@ -628,11 +753,13 @@ async function deleteThread(env, ctx, id) {
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)').bind(thread.id),
     ...purgeSide(db, 'comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)', thread.id),
     db.prepare('DELETE FROM canvas_comment_touches WHERE thread_id = ?').bind(thread.id),
+    purgeAttachments(db, 'thread_id = ?', thread.id),
     db.prepare('DELETE FROM canvas_comments WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comment_reads WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comment_colors WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comment_threads WHERE id = ?').bind(thread.id),
   ]);
+  await releasePurged(env, ctx.board.org, ctx.board.canvas);
   return json({ deleted: thread.id });
 }
 
@@ -727,8 +854,10 @@ async function addBlock(req, env, ctx) {
     .bind(crypto.randomUUID(), ctx.board.org, ctx.board.canvas, target.author_id, target.author_email, ctx.actor.uid, now)];
   if (input.remove_comments === true) statements.push(db.prepare(`UPDATE canvas_comments SET deleted_at = ?, deleted_by = ? WHERE author_id = ? AND deleted_at IS NULL
     AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public')`).bind(now, ctx.actor.uid, target.author_id, ctx.board.org, ctx.board.canvas),
-    ...purgeSide(db, `comment_id IN (SELECT id FROM canvas_comments WHERE author_id = ? AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public'))`, target.author_id, ctx.board.org, ctx.board.canvas));
+    ...purgeSide(db, `comment_id IN (SELECT id FROM canvas_comments WHERE author_id = ? AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public'))`, target.author_id, ctx.board.org, ctx.board.canvas),
+    purgeAttachments(db, `comment_id IN (SELECT id FROM canvas_comments WHERE author_id = ? AND thread_id IN (SELECT id FROM canvas_comment_threads WHERE org = ? AND canvas = ? AND audience = 'public'))`, target.author_id, ctx.board.org, ctx.board.canvas));
   await db.batch(statements);
+  if (input.remove_comments === true) await releasePurged(env, ctx.board.org, ctx.board.canvas);
   return listBlocks(env, ctx);
 }
 async function removeBlock(env, ctx, id) {
@@ -764,13 +893,14 @@ async function sharedWithMe(req, env) {
   return json({ canvases: results.map(row => ({ board_id: row.board_id, title: row.title, owner: person(row, 'owner_'), updated_at: row.updated_at, unread: unread[row.board_id] || 0 })) });
 }
 
-function about(ctx) {
+function about(env, ctx) {
   const { owner, member, signedIn } = ctx.actor;
   const audience = ctx.family === 'public' ? 'public' : 'members';
   return json({
     role: owner ? 'owner' : member ? 'member' : 'viewer', title: ctx.board.title, ...(ctx.board.nested ? { nested: true } : {}), owner: person(ctx.board, 'owner_'),
     comments_enabled: ctx.enabled, public_mode: ctx.board.published ? ctx.board.public_mode : 'off', ...(owner ? { link_comments: linkName(ctx.board.link_mode) } : {}), published: !!ctx.board.published, signed_in: signedIn,
     can: { post: allowed(ctx, 'post', audience), post_public: allowed(ctx, 'post', 'public'), settings: owner, blocked: ctx.actor.blocked },
+    attachments: { types: Object.keys(ATTACHMENT_TYPES), file_bytes: commentLimits(env).COMMENT_ATTACH_FILE_BYTES, per_comment: commentLimits(env).COMMENT_ATTACH_COMMENT_MAX },
   });
 }
 
@@ -813,7 +943,7 @@ async function commentsRoute(path, req, env) {
   if (ctx instanceof Response) return ctx;
   const { method } = req;
   const not = () => json({ error: 'Method not allowed' }, 405);
-  if (rest === '' || rest === '/') return method === 'GET' ? about(ctx) : not();
+  if (rest === '' || rest === '/') return method === 'GET' ? about(env, ctx) : not();
   let part;
   if (family === 'member' && rest === '/board') return method === 'GET' ? readBoard(env, ctx) : not();
   if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? boardAsset(env, ctx.board, decodeURIComponent(part[1]), req) : not();
@@ -826,6 +956,8 @@ async function commentsRoute(path, req, env) {
     return part[2] === 'read' ? markRead(env, ctx, part[1]) : resolve(env, ctx, part[1], part[2] === 'reopen');
   }
   if ((part = rest.match(/^\/comments\/([^/]+)$/))) return method === 'PATCH' ? editComment(req, env, ctx, part[1]) : method === 'DELETE' ? deleteComment(env, ctx, part[1]) : not();
+  if (rest === '/attachments') return method === 'POST' ? uploadAttachment(req, env, ctx, url.searchParams) : not();
+  if ((part = rest.match(/^\/attachments\/([^/]+)$/))) return method === 'GET' ? downloadAttachment(env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/comments\/([^/]+)\/reactions$/))) return method === 'PUT' ? react(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/comments\/([^/]+)\/history$/))) return method === 'GET' ? editHistory(env, ctx, part[1]) : not();
   if (rest === '/people') return method === 'GET' ? suggest(env, ctx, url.searchParams) : not();

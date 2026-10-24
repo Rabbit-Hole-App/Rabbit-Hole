@@ -27,6 +27,8 @@ export const commentsApi = base => ({
   edit: (id, body) => send(`${base}/comments/${id}`, { body, mentions: mentionsIn(body) }, 'PATCH'),
   people: (q, scope) => api(`${base}/people?q=${encodeURIComponent(q)}&${scope.thread ? `thread=${scope.thread}` : `audience=${scope.audience}`}`),
   remove: id => changed(api(`${base}/comments/${id}`, { method: 'DELETE' })),
+  // A file for a post (migration 0031): the raw file as the body; `audience` is the new or existing thread's.
+  upload: (file, audience = 'members') => api(`${base}/attachments${audience === 'public' ? '?audience=public' : ''}`, { method: 'POST', body: file, headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) } }),
   react: (id, emoji, on) => send(`${base}/comments/${id}/reactions`, { emoji, on }, 'PUT'),
   history: id => api(`${base}/comments/${id}/history`),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
@@ -39,6 +41,9 @@ export const commentsApi = base => ({
   blocks: () => api(`${base}/blocks`),
   unblock: id => api(`${base}/blocks/${id}`, { method: 'DELETE' }),
 });
+
+// The files a draft carries, as a post sends them: nothing at all when there are none, so a post without files is unchanged.
+export const filesOf = draft => (draft.attachments?.length ? { attachments: draft.attachments } : {});
 
 // Every @handle typed in a body, as the server's mapping wants it (UTF-16 pos and len of '@handle'). The server keeps only
 // those in the audience's set; the rest stay plain text.

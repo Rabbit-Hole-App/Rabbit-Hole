@@ -16,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 11; // the number of check() steps below; keep it equal
+const total = 12; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -336,9 +336,36 @@ await check('10 reactions and edit history: a reaction from another session arri
   await page.screenshot({ path: `${SHOTS}/10-reactions-history.png` });
 });
 
+// Comments v2 item 3, D3 (migration 0031): the owner attaches an image to a reply, it shows in the thread as a picture, another
+// session that may read the thread downloads it, and deleting the comment ends that access at once.
+const DOT = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+await check('11 attachments: an image attached to a reply shows as a picture; a reader of the thread downloads it; deleting the comment ends that at once and the picture goes', async () => {
+  const composer = page.locator('[data-comments-panel] [data-comment-composer]');
+  await composer.locator('[data-attach-input]').setInputFiles({ name: 'dot.png', mimeType: 'image/png', buffer: DOT });
+  await expect(composer.locator('[data-attachment-chip="ready"]')).toHaveCount(1, { timeout: 20000 });
+  await composer.locator('textarea').fill('A reply with a picture');
+  await page.keyboard.press('Enter');
+  const sent = page.locator('[data-comments-panel] [data-comment-message]').filter({ hasText: 'A reply with a picture' });
+  await expect(sent).toHaveCount(1, { timeout: 20000 });
+  const picture = sent.locator('[data-message-file] img');
+  await expect(picture).toBeVisible();
+  await expect.poll(() => picture.evaluate(image => image.complete && image.naturalWidth), { timeout: 10000 }).toBeGreaterThan(0);
+  const href = await sent.locator('[data-message-file] a').getAttribute('href');
+  const id = href.split('/').pop(), messageId = await sent.getAttribute('data-comment-message');
+  const raw = (session, path) => fetch(`${BASE}${path}`, { headers: session ? { cookie: `small_session=${session}` } : {} });
+  assert.equal((await raw(viewerSession, `${pub}/attachments/${id}`)).status, 200, 'a reader of the public thread downloads it');
+  assert.equal((await raw(null, `${base}/attachments/${id}`)).status, 401, 'signed out, the member route asks for a sign-in');
+  assert.equal((await api(`${base}/comments/${messageId}`, { method: 'DELETE' })).status, 200);
+  assert.equal((await raw(viewerSession, `${pub}/attachments/${id}`)).status, 404, 'the very next request');
+  assert.equal((await raw(ownerSession, `${base}/attachments/${id}`)).status, 404, 'even the owner');
+  await expect(sent.locator('[data-message-file]')).toHaveCount(0, SYNC);
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/11-attachment.png` });
+});
+
 // Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. The owner comments in the hole through the app; a
 // person with no access to the hole (the visitor here, a stranger to both) gets 404 with no content; Share says the people are the hole's own.
-await check('11 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
+await check('12 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
   const hole = `canvas-${run.replace(/[^a-f0-9]/g, '0').padEnd(8, '0').slice(0, 8)}`;
   const made = await post(api, '/api/canvases/dives', { name: hole, title: `Inside ${run}`, parent: { app: canvas.name, board: 'main' }, origin_block_id: 'd-card', dive: { concept: 'ice' } });
   assert.equal(made.status, 201, JSON.stringify(made.body));
@@ -357,7 +384,7 @@ await check('11 (D2) a nested Rabbit Hole has its own comments: the owner reads 
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
   assert.deepEqual([asks, stray, errors], [[], [], []]);
-  await page.screenshot({ path: `${SHOTS}/11-nested-hole.png` });
+  await page.screenshot({ path: `${SHOTS}/12-nested-hole.png` });
 });
 
 await browser.close();

@@ -4,8 +4,9 @@ import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
 import { anchorText } from './anchors.js';
 import { EditedMark, Reactions } from './Reactions.jsx';
+import { AttachButton, AttachmentChips, MessageFiles, useAttachments } from './Attachments.jsx';
 import { SYNC_MS, applySync, mergeMessages, newFromOthers } from './comment-sync.js';
-import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
+import { BODY_MAX, COMMENT_RESUME, COUNTER_FROM, commentsApi, displayName, failureText, filesOf, freshDraft, loadDraft, mentionsIn, saveDraft, sendDraft, when } from './comments-api.js';
 
 // The right panel's Comments view (docs/features/canvas-comments.md section 5): the thread list, one thread, or a
 // new-thread draft from Add comment. `base` picks the route family; the panel is the same on both. Every message shows
@@ -166,11 +167,11 @@ function NewThread({ client, about, anchor, live, beforePost, onCancel, onPosted
           </div>
         )}
       </div>
-      <CommentComposer people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={live ? blockedLine(about, canPost) : DELETED}
+      <CommentComposer upload={file => client.upload(file, audience)} limits={about.attachments} people={q => client.people(q, { audience })} storeKey={`${client.base}:new:${JSON.stringify(anchor)}`} autoFocus placeholder="Add a comment" blocked={live ? blockedLine(about, canPost) : DELETED}
         resume={`?${COMMENT_RESUME}=${encodeURIComponent(JSON.stringify(anchor))}`}
         onSend={async draft => {
           if (anchor.kind === 'object') await beforePost?.();
-          return sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(made => onPosted(made.thread));
+          return sendDraft(id => client.start({ id, anchor, audience, body: draft.body, mentions: mentionsIn(draft.body), ...filesOf(draft) }), draft).then(made => onPosted(made.thread));
         }} />
     </div>
   );
@@ -275,8 +276,8 @@ function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBa
       </ol>
       {fresh > 0 && <button type="button" data-new-replies onClick={showNew} className="mb-1 self-center rounded-full bg-accent px-3 py-1 text-xs font-medium text-white shadow-pop hover:opacity-90">New replies</button>}
       <p className="mb-1 text-[11px] text-ink-3">Replying in {thread.audience === 'public' ? 'Public' : 'Members only'}</p>
-      <CommentComposer people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)} resume={`?thread=${id}`}
-        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body) }), draft).then(() => { stick.current = true; sync(); onChange(); })} />
+      <CommentComposer upload={file => client.upload(file, thread.audience)} limits={about.attachments} people={q => client.people(q, { thread: thread.id })} storeKey={`${id}`} placeholder="Reply" blocked={blockedLine(about, thread.can.reply)} resume={`?thread=${id}`}
+        onSend={draft => sendDraft(cid => client.reply(thread.id, { id: cid, body: draft.body, mentions: mentionsIn(draft.body), ...filesOf(draft) }), draft).then(() => { stick.current = true; sync(); onChange(); })} />
     </div>
   );
 }
@@ -329,6 +330,7 @@ function Message({ message, audience, owner, client, act }) {
               </div>
             </div>
           ) : <p className="text-sm break-words whitespace-pre-wrap text-ink">{message.segments.map((segment, index) => (segment.mention ? <span key={index} data-mention title={segment.mention.name || undefined} className="rounded bg-accent/10 px-0.5 font-medium text-accent">@{segment.mention.handle}</span> : <span key={index}>{segment.text}</span>))}</p>}
+        {!message.deleted && editing === null && <MessageFiles files={message.attachments} client={client} />}
         {!message.deleted && editing === null && <Reactions message={message} client={client} act={act} />}
       </div>
     </li>
@@ -387,26 +389,29 @@ function useMentionMenu(people, input, body, setBody) {
 // with Discard and Retry; while it has failed, Retry is the one send control (section 5).
 // Signed out (SHARE-02), the draft is typed here as usual and kept in this tab; posting goes through sign-in and comes back
 // to this page with `resume` (the thread, or the new comment's anchor), where the same draft waits, never sent by itself.
-function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false, resume = '' }) {
+function CommentComposer({ storeKey, placeholder, blocked, onSend, people, autoFocus = false, resume = '', upload = null, limits = null }) {
   const [draft, setDraft] = useState(() => loadDraft(storage, storeKey) || freshDraft());
   const [busy, setBusy] = useState(false);
   const key = useRef(storeKey);
   const input = useRef(null);
   const mention = useMentionMenu(people, input, draft.body, body => setDraft(current => ({ ...current, body })));
+  const attachments = useAttachments({ upload: upload || (() => Promise.reject(new Error('Attachments are not available here.'))), limits });
   useEffect(() => { if (key.current !== storeKey) { key.current = storeKey; setDraft(loadDraft(storage, storeKey) || freshDraft()); } }, [storeKey]);
   useEffect(() => { saveDraft(storage, storeKey, draft); }, [storeKey, draft]);
   const signIn = blocked === SIGN_IN && `/login?next=${encodeURIComponent(window.location.pathname + resume)}`;
   if (blocked && !signIn) return <p data-comment-blocked className="rounded-md bg-hover px-2 py-1.5 text-xs text-ink-2">{blocked}</p>;
   const send = signIn ? () => { window.location.href = signIn; } : async () => {
     setBusy(true);
-    try { await onSend(draft); setDraft(freshDraft()); } catch (error) { setDraft(current => ({ ...current, failed: failureText(error, navigator.onLine) })); } finally { setBusy(false); }
+    try { await onSend({ ...draft, attachments: attachments.ids }); setDraft(freshDraft()); attachments.clear(); } catch (error) { setDraft(current => ({ ...current, failed: failureText(error, navigator.onLine) })); } finally { setBusy(false); }
   };
   const over = draft.body.length > BODY_MAX;
   return (
     <div data-comment-composer className="relative">
       {mention.menu}
       <ChatComposer multiline autoFocus={autoFocus} inputRef={input} value={draft.body} placeholder={placeholder} busy={busy} disabled={!!draft.failed || over}
-        onKeyDown={mention.onKeyDown} onChange={body => { setDraft(current => ({ ...current, body })); mention.update(); }} onSubmit={send} />
+        leading={upload && !signIn ? <AttachButton attachments={attachments} full={attachments.files.length >= (limits?.per_comment ?? 5)} /> : undefined}
+        onKeyDown={mention.onKeyDown} onChange={body => { setDraft(current => ({ ...current, body })); mention.update(); }} onSubmit={() => (attachments.busy ? undefined : send())} />
+      <AttachmentChips attachments={attachments} />
       {signIn && <a data-comment-sign-in href={signIn} className="mt-1 block rounded-md bg-hover px-2 py-1.5 text-xs text-ink hover:underline">Sign in to post</a>}
       {draft.body.length >= COUNTER_FROM && <p className={`mt-0.5 text-right text-[11px] tabular-nums ${over ? 'text-red-700' : 'text-ink-3'}`}>{draft.body.length.toLocaleString('en-US')} / {BODY_MAX.toLocaleString('en-US')}</p>}
       {draft.failed && (

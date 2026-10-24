@@ -484,3 +484,20 @@ test('reactions and edit history (Comments v2 item 3): one shared set, a toggle 
   assert.doesNotMatch(view, /\.\.\.|…/, 'no ellipsis in labels');
   assert.doesNotMatch(view, /user_id|\.email\b/);
 });
+
+test('attachments (Comments v2 item 3, D3): the picker offers what the server accepts, the post carries ids only, a posted file is served by the checked route', async () => {
+  const { ATTACHMENT_TYPES } = await import('../../../control-plane/src/comment-attachments.js');
+  const ACCEPT = read('./Attachments.jsx').match(/ACCEPT = '([^']+)'/)[1];
+  assert.deepEqual(ACCEPT.split(',').sort(), Object.keys(ATTACHMENT_TYPES).sort(), 'the file picker and the server accept the same types');
+  const view = read('./Attachments.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js');
+  assert.match(api, /upload: \(file, audience = 'members'\) => api\(`\$\{base\}\/attachments\$\{audience === 'public' \? '\?audience=public' : ''\}`, \{ method: 'POST', body: file, headers: \{ 'Content-Type': file\.type, 'X-File-Name': encodeURIComponent\(file\.name\) \} \}\)/);
+  assert.match(api, /export const filesOf = draft => \(draft\.attachments\?\.length \? \{ attachments: draft\.attachments \} : \{\}\);/, 'a post without files is unchanged');
+  assert.match(panel, /\.\.\.filesOf\(draft\) \}\), draft\)\.then\(made => onPosted\(made\.thread\)\)/, 'a new thread carries its files');
+  assert.match(panel, /client\.reply\(thread\.id, \{ id: cid, body: draft\.body, mentions: mentionsIn\(draft\.body\), \.\.\.filesOf\(draft\) \}\)/, 'a reply carries its files');
+  assert.match(panel, /onSubmit=\{\(\) => \(attachments\.busy \? undefined : send\(\)\)\}/, 'nothing is sent while a file is still uploading');
+  assert.match(panel, /<MessageFiles files=\{message\.attachments\} client=\{client\} \/>/);
+  assert.match(view, /`\$\{client\.base\}\/attachments\/\$\{file\.id\}`/, 'a file is read from its comment route, never from storage');
+  assert.match(view, /rel="noopener noreferrer"/);
+  assert.doesNotMatch(view, /object_key|\.\.\.'|…/, 'no storage key, no ellipsis in labels');
+  assert.doesNotMatch(view, /dangerouslySetInnerHTML/);
+});
