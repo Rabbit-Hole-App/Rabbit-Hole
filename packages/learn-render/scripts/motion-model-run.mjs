@@ -91,7 +91,7 @@ if (existsSync(join(OUT, 'pipeline.json'))) { console.error(`✗ ${name} already
 const env = credentials();
 const budget = await import(BUDGET);
 const reserved = budget.reserve(runId, LANE, RESERVE_USD);
-if (!reserved.ok) { console.error(`✗ shared ledger refused: ${JSON.stringify(reserved)}`); process.exit(3); }
+if (!reserved.ok || reserved.reused) { console.error(`✗ shared ledger refused (a reused run id holds no new reservation; set MOTION_MODEL_RUN_SUFFIX): ${JSON.stringify(reserved)}`); process.exit(3); }
 console.log(`reserved ${money(RESERVE_USD)} on the shared ledger: ${JSON.stringify(budget.status())}`);
 
 const ledger = budgetLedger(join(OUT, 'ledger.json'), MODEL_CEILING_USD);

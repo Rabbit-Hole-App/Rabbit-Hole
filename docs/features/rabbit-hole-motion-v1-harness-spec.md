@@ -3228,6 +3228,24 @@ Unit-tested only. Nothing here has been rendered, model-tested or run against a 
 - Renderer configuration binding: the signed proposal records the renderer configuration (`input.binding.renderer_config`) and the job records it. A different live configuration refuses with `motion_renderer_changed`; the orchestrator also refuses a different `approved_proposal.renderer_config` (409 `renderer_config_mismatch`) before any model call.
 - Pre-render validation (`learn-render/motion/composition-limits.js`): after a composition is authored and before any review or render, it is measured (layers, elements, text characters, asset bytes, duration) against a stable limit table with three complexity classes. Beyond the heaviest class, or in a class the policy entry does not list (`approved_proposal.allowed_complexity`), the job fails before rendering with `composition limits: ...`. The numbers are unmeasured placeholders (`UNMEASURED`) until evidence sets them. Passing the check is not a promise of success.
 
+### Measured readiness policy (owner 2026-10-24; `control-plane/src/motion-ready-policy.js`)
+
+When `MOTION_READY_POLICY` is unset, the product reads this checked-in policy, and only while `MOTION_RENDERER_CONFIG` equals `03f2a1efc08e-1.5cpu-3gib-420s` (the dev renderer at revision 03f2a1efc08e8d5c0d73aadced534b614c13f3d5, 1.5 CPU, 3 GiB, 420 s). Any other value, or none, makes nothing ready. A set variable still overrides it. Set `MOTION_RENDERER_CONFIG` to that id only with a renderer deploy that carries that revision.
+
+Evidence: the deterministic matrix "c4" (21 runs, receipts `mv-Dnn-c4`; 18 passed with identical determinism hashes, 3 heavy scenes timed out at 420 s). A (ratio, duration) pair is ready only if a receipt shows it passing. Nothing is interpolated. All 9 ratios and all 12 durations (5 to 60 in fives) stay visible; a pair without a receipt is refused with the not-ready line and Generate stays disabled while the options remain selectable.
+
+| Ratio | Ready durations (seconds) | Receipts (service total / 420 s) |
+|---|---|---|
+| 16:9 | 5, 15, 30, 45, 60 | D10 64 s, D01 121 s (simple D17 109 s), D11 197 s, D12 271 s, D13 348 s (simple D19 308 s) |
+| 9:16 | 15, 60 | D02 121 s, D14 345 s |
+| 1:1 | 15, 60 | D03 100 s, D15 278 s |
+| 3:4 | 15, 60 | D04 113 s, D16 320 s |
+| 4:3, 2:3, 3:2, 4:5, 5:4 | 15 | D05 112 s, D06 110 s, D07 113 s, D08 111 s, D09 113 s |
+
+Not ready (no receipt): every other pair, for example 10 s or 20 s at any ratio, 30 s and 45 s at any ratio except 16:9, and 60 s at 4:3, 2:3, 3:2, 4:5, 5:4. 16 of 108 pairs are ready.
+
+What ready does not mean: the receipts are fixture scenes (simple and medium). The heavy fixtures timed out (D18 at 15 s, D20 and D21 at 60 s, 16:9) and the static composition gate cannot tell them apart: it measures every fixture as class `simple`, which is why the policy lists `simple` only and why a ready pair is not a statement about a model composition. A timeout is a renderer failure and charges zero credits. 60 s at 16:9 and 9:16 passes with a thin margin (348 s and 345 s of 420 s).
+
 ### Quotes
 
 - Inputs: `motionQuoteInputs(settings)` is the one function from settings to everything that can change price or readiness.
