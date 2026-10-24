@@ -185,7 +185,7 @@ state and toasts the error; it re-reads on focus and visibility. Signed out, a p
 the page, reading `?star=1` once and removing it, stars once on return; the server re-checks access. In the shared header it sits
 left of the creator @handle, so the handle stays immediately left of Fork (owner decision 2026-10-23); keyboard order is logo,
 menus, Star, Fork, panel toggle (`e2e/shared-header-check.mjs` updated to assert it; written, not run by this lane). In the shared header, below the
-`@6xl` container width (1152px) the label is screen-reader-only and the icon, state and count remain: at a 1024px header the label left the @handle about 48px, a cut "@hdr_..." that overlapped Fork (fast-e2e run 40135548596, shared-header 36/39). The shared-header and stars checks assert it. Unverified in a browser until CI reads it. The embed header does not show it (an embed is a public guest, with no account).
+`@6xl` container width (1152px) the control is `tight`: the label is screen-reader-only, the count loses its divider and the padding drops to 8px, so the icon, state and count remain in about 50px. At a 1024px header the full control left the @handle about 48px, then 83px with only the label gone, a cut "@hdr_..." that overlapped Fork (fast-e2e runs 40135548596 and 40136801962, shared-header 36/39). The shared-header and stars checks assert the result. Unverified in a browser until CI reads it. The embed header does not show it (an embed is a public guest, with no account).
 
 ## Surfaces: cards, profile tab, personal Stars (Tasks 6-8, UI)
 
