@@ -76,8 +76,9 @@ const view = async label => { const panel = await openMenu(page, 'View'); await 
 
 // What the learner can see and what the View menu says, side by side.
 const minimapShown = async () => (await page.locator('[data-canvas-minimap]').count()) === 1 && await page.locator('[data-canvas-minimap]').isVisible();
-// The Rabbit Hole Map wrapper exists only on a canvas with a dive; with none, its View checkbox is the whole signal.
-const holeMapShown = async () => { const wrapper = page.locator('[data-gutter-top]'); return (await wrapper.count()) === 0 ? null : await wrapper.first().isVisible(); };
+// The Rabbit Hole Map (Dive.jsx data-dive-navigator, inside the gutter top's hidden-when-off wrapper) exists only on a canvas with a
+// dive; with none, its View checkbox is the whole signal. Never [data-gutter-top] itself: that slot is always drawn, 0 px wide.
+const holeMapShown = async () => { const map = page.locator('[data-gutter-top] [data-dive-navigator]'); return (await map.count()) === 0 ? null : await map.first().isVisible(); };
 const checks = async () => {
   await openShowHide(page);
   const out = {};
@@ -92,8 +93,14 @@ const expectMaps = async (label, { minimap, holeMap }) => {
   if (hole !== null) assert.equal(hole, holeMap, `${label}: the Rabbit Hole Map is ${holeMap ? 'shown' : 'hidden'}`);
   assert.deepEqual(await checks(), { Minimap: minimap, 'Rabbit Hole Map': holeMap }, `${label}: the View checkmarks match what is visible`);
 };
-// The zoom group has no empty room above it when the minimap is gone.
-const stackExtra = () => page.evaluate(() => { const stack = document.querySelector('[data-zoom-stack]')?.getBoundingClientRect(), zoom = document.querySelector('[data-zoom]')?.getBoundingClientRect(); return stack && zoom ? Math.round(stack.height - zoom.height) : null; });
+// The zoom group has no empty room above it when the minimap is gone. The zoom row's own margins are counted as the row's: under a
+// 1024 px canvas (Study's narrower canvas) it carries @max-[1024px]:mb-2, which is not the minimap's room.
+const stackExtra = () => page.evaluate(() => {
+  const stack = document.querySelector('[data-zoom-stack]'), zoom = document.querySelector('[data-zoom]');
+  if (!stack || !zoom) return null;
+  const style = getComputedStyle(zoom);
+  return Math.round(stack.getBoundingClientRect().height - (zoom.getBoundingClientRect().height + parseFloat(style.marginTop) + parseFloat(style.marginBottom)));
+});
 
 await open();
 
@@ -162,10 +169,12 @@ await check('6 A Canvas toggle is a Canvas preference only: it never writes the 
 
 await check('7 An older saved Study arrangement with no maps field opens with both maps hidden and no map ever painted; leaving it keeps the Canvas maps', async () => {
   await open({ study: OLDER });
-  assert.equal(await page.evaluate(() => window.__minimapSeen), false, 'neither the minimap nor its loading placeholder flashed in on load');
   await page.locator('[data-study-pane]').waitFor({ timeout: 10000 });
   await expectMaps('older arrangement', { minimap: false, holeMap: false });
   assert.equal(await stored(PREFS), null, 'restoring it wrote no Canvas preference');
+  // Read after the hidden-maps assertions (so a flash does not hide their result) and before View > Canvas shows the minimap: the
+  // flag is set once for the page's life, from its first node.
+  assert.equal(await page.evaluate(() => window.__minimapSeen), false, 'neither the minimap nor its loading placeholder flashed in on load');
   await view('Canvas');
   await expectMaps('canvas after the older arrangement', { minimap: true, holeMap: true });
   await shot('07-older-arrangement');
