@@ -1610,4 +1610,4 @@ if (errors.length) { console.log('page errors:'); for (const error of errors) co
 check('no page errors', errors.length === 0, errors.length ? `${errors.length}` : '');
 const failed = results.filter(result => !result.ok);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
-process.exit(failed.length ? 1 : 0);
+process.exit(!results.length || failed.length ? 1 : 0); // no assertions executed is a failure, not a pass
