@@ -9,7 +9,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { closeMenus, menubar, openMenu } from './canvas-menu-helpers.mjs';
+import { closeMenus, menubar, openMenu, setShown } from './canvas-menu-helpers.mjs';
 
 const total = 16; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -216,6 +216,12 @@ await check('1 View lists Canvas and Study as radios (Canvas checked); View > St
   assert.deepEqual(await viewChecked(), [['Canvas', 'true'], ['Study', 'false']]);
   await view('Study');
   await pane().waitFor({ timeout: 10000 });
+  // Study hides both maps until the learner shows one (focus-study.md, owner brief 2026-10-24). The camera moves below (Fit canvas, the
+  // reveal of a selected card) were framed around the bottom strip with the minimap in it, and the reveal and the fit differ by that
+  // room: this check is about pinning, so it shows both maps first, as an explicit Study choice. study-maps-check.mjs asserts the defaults.
+  await setShown(page, 'Minimap', true);
+  await setShown(page, 'Rabbit Hole Map', true);
+  await closeMenus(page);
   await page.getByText('Choose a reference', { exact: true }).waitFor();
   const choices = await page.locator('[data-study-choice]').evaluateAll(rows => rows.map(row => row.getAttribute('data-study-choice')));
   assert.deepEqual(choices.sort(), ['ex', 'pdf1', 'st1', 'st2'], `eligible only: ${choices.join()}`);

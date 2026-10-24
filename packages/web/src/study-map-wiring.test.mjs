@@ -30,9 +30,11 @@ test('the canvas loading placeholder applies the same effective visibility, from
   assert.match(read('./LearnPage.jsx'), /<CanvasChromeLoading feedback top=\{48\} study=\{study\} \/>/);
 });
 
-// WP5 P2/P3: LearnPage's onCanvasState keeps the previous state only when every field the panes read is unchanged; toolbar (View > Show / hide checkmark) and focus (Study's Notebook/Canvas switch) are among them.
-test('onCanvasState re-renders when toolbar or focus changes', () => {
-  const page = readFileSync(new URL('./LearnPage.jsx', import.meta.url), 'utf8');
-  assert.ok(page.includes('previous.toolbar === next.toolbar'));
-  assert.ok(page.includes('JSON.stringify(previous.focus) === JSON.stringify(next.focus)'));
+test('the View menu toolbar checkmark follows the canvas: LearnPage keeps a changed toolbar value (it was left out of the state comparison)', () => {
+  assert.match(read('./LearnPage.jsx'), /previous\.curious === next\.curious && previous\.toolbar === next\.toolbar && previous\.pages === next\.pages/);
+});
+
+// WP5 P2: the Study Notebook/Canvas switch follows Focus: onCanvasState keeps a changed focus.
+test('onCanvasState re-renders when focus changes', () => {
+  assert.ok(read('./LearnPage.jsx').includes('JSON.stringify(previous.focus) === JSON.stringify(next.focus)'));
 });

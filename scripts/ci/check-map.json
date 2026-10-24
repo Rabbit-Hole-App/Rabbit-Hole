@@ -223,6 +223,7 @@
     "packages/web/src/selection-*.js",
     "packages/web/src/shortcut-owner.js",
     "packages/web/src/canvas-sloppy.js",
+    "packages/web/src/study-loading.js",
     "packages/web/src/focus-controller.js"
   ],
   "defaultChecks": [
@@ -419,6 +420,7 @@
     "packages/web/src/focus-adapter-video.js": ["focus-adapters-check.mjs", "focus-chrome-check.mjs"],
     "packages/web/src/focus-adapter-model.js": ["focus-adapters-check.mjs", "focus-chrome-check.mjs"],
     "packages/web/src/focus-adapter-cad.js": ["focus-adapters-check.mjs", "focus-chrome-check.mjs"],
+    "packages/web/src/study-focus.js": ["pinned-study-kernel-check.mjs", "pinned-study-check.mjs", "focus-chrome-check.mjs"],
     "packages/web/src/focus-adapters.js": ["focus-chrome-check.mjs", "focus-adapters-check.mjs", "pinned-study-check.mjs", "pinned-study-kernel-check.mjs"],
     "packages/web/src/FocusFrame.jsx": ["focus-chrome-check.mjs", "focus-adapters-check.mjs", "pinned-study-kernel-check.mjs"],
     "packages/web/src/study-ref.js": ["pinned-study-check.mjs", "pinned-study-attach-check.mjs", "study-compact-header-check.mjs"],
