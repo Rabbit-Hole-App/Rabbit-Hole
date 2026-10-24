@@ -3,8 +3,8 @@
 // For each supported kind: the selected card shows its labelled Focus control; entering fills the working pane in place
 // (the card's own element, data-focus-host) and Back to canvas puts the card, the camera and the saved geometry back. The PDF
 // (a paper card, pdf.js) fits its page to the reader's width, is not shrunk to fit vertically and keeps its page; the image
-// keeps its aspect ratio, uncropped; the explanation and the note read in a capped column that scrolls inside. Unsupported and
-// deferred kinds (a quiz; CAD until its tools stay in reach) show no Focus control. No model is called: every model-capable non-GET route is aborted and counted (none may happen); board saves
+// keeps its aspect ratio, uncropped; the explanation and the note read in a capped column that scrolls inside. An unsupported
+// kind (a quiz) shows no Focus control; a CAD card shows Focus CAD model (its 3D tools under Focus: focus-cad-check.mjs). No model is called: every model-capable non-GET route is aborted and counted (none may happen); board saves
 // (PUT /api/learn/boards/...) are counted and entering or leaving Focus may make none. Owner rule 2026-10-21: Claude does not
 // run browser checks; CI runs this one.
 // Prints `ok <label>` per step, ids and counts only (no cookies, no secrets), then `N/total checks passed`; exits 1 on a failure.
@@ -160,15 +160,15 @@ await page.locator(card('p1')).waitFor({ timeout: 60000 });
 await page.locator(`${card('p1')} canvas[aria-label="Paper PDF page"]`).waitFor({ timeout: 30000 });
 await settle();
 
-await check('1 Each supported kind, selected, shows its own labelled Focus control; a quiz and a CAD card (deferred) show none', async () => {
-  for (const [id, name] of [['p1', 'Focus PDF'], ['ex', 'Focus explanation'], ['tb', 'Focus table'], ['st1', 'Focus note'], ['im', 'Focus image'], ['sl', 'Focus page'], ['vd', 'Focus video']]) {
+await check('1 Each supported kind, selected, shows its own labelled Focus control (a CAD card too, container Focus); a quiz shows none', async () => {
+  for (const [id, name] of [['p1', 'Focus PDF'], ['ex', 'Focus explanation'], ['tb', 'Focus table'], ['st1', 'Focus note'], ['im', 'Focus image'], ['sl', 'Focus page'], ['vd', 'Focus video'], ['cad', 'Focus CAD model']]) {
     await select(id);
     await focusButton(name).waitFor({ timeout: 5000 });
     assert.ok(await focusButton(name).isVisible(), `${id}: ${name}`);
     const names = await page.getByRole('button', { name: /^Focus / }).evaluateAll(nodes => nodes.filter(node => node.offsetParent).map(node => node.getAttribute('aria-label') || node.textContent.trim()));
     assert.deepEqual([...new Set(names)], [name], `${id}: only its own Focus control (${names.join(', ')})`);
   }
-  for (const id of ['qz', 'cad']) {
+  for (const id of ['qz']) {
     await select(id);
     await page.waitForTimeout(300);
     assert.equal(await page.getByRole('button', { name: /^Focus / }).count(), 0, `no Focus control on ${id}`);
