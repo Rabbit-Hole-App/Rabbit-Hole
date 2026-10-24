@@ -110,3 +110,15 @@ test('the drawing sloppiness level is kept on this device: read, odd values, sav
   assert.equal(uiPrefs(blocked).sloppiness, 2, 'blocked storage: it holds in this page, and a reload does not have it');
   assert.equal(readUiPrefs(blocked).sloppiness, 0);
 });
+
+test('View > Show / hide > Toolbar is remembered: read back, odd values, saved, refused (focus-study.md finding 3)', () => {
+  assert.equal(UI_PREF_DEFAULTS.toolbar, true);
+  assert.equal(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ toolbar: false }) })).toolbar, false);
+  for (const odd of ['no', 0, null]) assert.equal(readUiPrefs(memory({ 'rh.ui-prefs': JSON.stringify({ toolbar: odd }) })).toolbar, true, String(odd));
+  const storage = memory(), html = root();
+  saveUiPref('toolbar', false, { storage, root: html });
+  assert.equal(readUiPrefs(storage).toolbar, false, 'a fresh read (a reload) finds it');
+  const blocked = { getItem: () => null, setItem: () => { throw new Error('denied'); } };
+  assert.throws(() => saveUiPref('toolbar', false, { storage: blocked, root: html }), /Not saved/);
+  assert.equal(uiPrefs(blocked).toolbar, false);
+});
