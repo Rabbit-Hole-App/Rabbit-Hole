@@ -187,8 +187,8 @@ function Explore() {
   }, [tab, q]);
   const searchLabel = tab === 'creators' ? 'Search creators' : 'Search canvases';
   return (
-    // bg-none!: Explore is a page, not a workspace - no dot grid (index.css main; owner brief 2026-10-23).
-    <main data-explore className="browse-page flex-1 overflow-y-auto bg-none!">
+    // Explore keeps the browse-page dot grid like Home and Library (owner 2026-10-23, reversing the earlier no-dots brief).
+    <main data-explore className="browse-page flex-1 overflow-y-auto">
       <div className="mx-auto max-w-[1150px] px-24 pb-12 pt-12 max-lg:px-8 max-md:px-4 max-md:pt-6">
         <h1 className="text-[40px] font-bold leading-[1.2] tracking-[-0.01em]">Explore</h1>
         <p className="pb-6 pt-1 text-sm text-ink-2">Discover canvases and the people behind them.</p>

@@ -92,7 +92,7 @@ test('Explore: Canvases and Creators tabs; each tab asks the server for its own 
   assert.match(explore, />Discover canvases and the people behind them\.<\/p>/);
   assert.match(home, /const EXPLORE_TAB = '[^']*data-\[state=active\]:border-accent! [^']*focus-visible:outline-accent';/);
   assert.match(explore, /<TabsTrigger key=\{id\} value=\{id\} className=\{EXPLORE_TAB\}>/);
-  assert.match(explore, /<main data-explore className="browse-page flex-1 overflow-y-auto bg-none!">/, 'no dot grid (index.css main)');
+  assert.match(explore, /<main data-explore className="browse-page flex-1 overflow-y-auto">/, 'the browse-page dot grid like Home and Library, no bg-none override (owner 2026-10-23)');
   // The matching creator count is the server's total, past the list's cap.
   assert.match(explore, /setCreatorTotal\(data\.total \?\? \(data\.creators \|\| \[\]\)\.length\)/);
   assert.match(explore, /\{creatorTotal\} \{creatorTotal === 1 \? 'creator' : 'creators'\}/);

@@ -119,7 +119,7 @@ const tabs = (await viewer.locator('[data-explore-tabs] [role="tab"]').allInnerT
 check('the tabs are Canvases and Creators, Canvases active; the subtitle is the brief\'s', JSON.stringify(tabs) === '["Canvases","Creators"]'
   && (await viewer.locator('[data-explore-tabs] [role="tab"][data-state="active"]').innerText()).trim() === 'Canvases'
   && await viewer.getByText('Discover canvases and the people behind them.', { exact: true }).count() === 1, JSON.stringify(tabs));
-check('no dot grid behind Explore: the plain page background', await viewer.locator('main[data-explore]').evaluate(m => getComputedStyle(m).backgroundImage) === 'none');
+check('the dot grid behind Explore, like Home and Library (owner 2026-10-23)', /radial-gradient/.test(await viewer.locator('main[data-explore]').evaluate(m => getComputedStyle(m).backgroundImage)));
 const blue = await accent(viewer);
 check('the active tab has a blue underline', JSON.stringify(await underline(viewer)) === JSON.stringify([blue, '2px']), JSON.stringify([await underline(viewer), blue]));
 await viewer.locator('[data-explore-tabs]').getByRole('tab', { name: 'Creators' }).click();
@@ -245,7 +245,7 @@ const darkColors = await row(dark, H.full).evaluate(r => [getComputedStyle(r).ba
 check('dark theme: a dark row with light text, from the theme tokens', await dark.evaluate(() => document.documentElement.classList.contains('dark'))
   && lum(darkColors[0]) < 0.3 && lum(darkColors[1]) > 0.6 && lum(darkColors[2]) > 0.45, JSON.stringify(darkColors));
 const darkBlue = await accent(dark);
-check('dark theme: no dot grid, the handle and the active tab underline in the theme\'s blue', await dark.locator('main[data-explore]').evaluate(m => getComputedStyle(m).backgroundImage) === 'none'
+check('dark theme: the dot grid, the handle and the active tab underline in the theme\'s blue', /radial-gradient/.test(await dark.locator('main[data-explore]').evaluate(m => getComputedStyle(m).backgroundImage))
   && await row(dark, H.full).locator('[data-creator-handle]').evaluate(a => getComputedStyle(a).color) === darkBlue
   && (await underline(dark))[0] === darkBlue);
 await shot(dark, '04-creators-dark');
