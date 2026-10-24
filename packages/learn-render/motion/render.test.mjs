@@ -221,9 +221,10 @@ test('differingFrames names the frames whose hashes differ between two contexts'
 test('the Remotion stage mounts the composition only after its fonts are in, and releases the render after that commit', () => {
   const src = f => readFileSync(join(HERE, '..', 'src', 'motion', f), 'utf8');
   const index = src('index.jsx'), fonts = src('fonts.jsx');
-  assert.match(index, /useMotionFonts\(\) \? <><Motion \/>/, 'content is rendered only when the fonts are ready');
+  assert.match(index, /useMotionFonts\(\) \? <><Clip><Motion \/><\/Clip>/, 'content is rendered only when the fonts are ready, clipped to the stage');
+  assert.match(index, /overflow: 'hidden'/, 'the stage clips what a composition draws past its edges');
   assert.equal(index.split('<Motion />').length, 2, 'the composition has no other, ungated mount');
-  assert.match(fonts, /useEffect\(\(\) => \{ if \(ready\) continueRender\(handle\); \}, \[ready, handle\]\)/, 'the render continues from an effect after the ready commit');
+  assert.match(fonts, /if \(!ready\) return undefined;[\s\S]*requestAnimationFrame\([\s\S]*requestAnimationFrame\(\(\) => continueRender\(handle\)\)/, 'the render continues from an effect, two animation frames after the ready commit');
   assert.equal(fonts.split('continueRender(').length, 2, 'continueRender is called once, not from the font promise');
 });
 

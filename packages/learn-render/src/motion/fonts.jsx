@@ -31,6 +31,12 @@ export const useMotionFonts = () => {
       })
       .catch(e => cancelRender(new Error(`font failed to load: ${e.message || e}`)));
   }, [handle]);
-  useEffect(() => { if (ready) continueRender(handle); }, [ready, handle]);
+  // Two animation frames after the commit: the mounted frame has been painted by the page itself before the capture asks for one.
+  useEffect(() => {
+    if (!ready) return undefined;
+    let second;
+    const first = requestAnimationFrame(() => { second = requestAnimationFrame(() => continueRender(handle)); });
+    return () => { cancelAnimationFrame(first); cancelAnimationFrame(second); };
+  }, [ready, handle]);
   return ready;
 };
