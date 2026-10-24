@@ -83,8 +83,15 @@ local Motion stack's build (`VITE_MOTION_DEV`) (`MOTION_DEV` in agent/slash.js).
 (`scripts/prod-release.mjs` strips both), so production and preview have no /motion; typed there it says "Motion (animated
 explainer videos) is not available here." and runs nothing. Generate also needs `MOTION_ORCHESTRATOR_URL` and
 `MOTION_ORCHESTRATOR_TOKEN` on the worker; only the local Motion stack sets them. Elsewhere the worker refuses the start
-before any provider call: the card says "Motion is not available in this environment yet. Nothing was started." and stays
-retryable, and nothing is recorded or stored.
+before any provider call: the card says "Motion is not available in this environment yet. Nothing was started.", with
+"Used 0 credits · reservation released", and offers no start action: the server offers none, not even Generate again, while
+Motion cannot start (control-plane `learn-video.js` `motionRecovery`: every recovery action and `regenerate` need Motion to be
+startable; owner message 38, "only the actions that can run now"). With an orchestrator configured a failed card offers
+Generate again. This is a refused Generate, not a refused proposal. A refused PROPOSAL (MOT-22: the server refused the start
+for its proposal, for example because a newer version exists) is different: the card is marked "Not generated" with the
+reason, is never the card the proposal made, and releases the proposal card's one-press guard, so its Generate works again
+after the settings change. Browser checks: `motion-command-check.mjs` step "MOCKED refusal for its proposal (MOT-22)" and step
+"REAL refusal".
 
 **Routing in Auto mode (owner, 2026-10-24, ledger 69b00255).** An explicit `/motion` command (typed, picked, Ctrl+K, a
 retry) requests the Motion review and confirmation flow in every Chat mode, Auto included: the command's words go to
