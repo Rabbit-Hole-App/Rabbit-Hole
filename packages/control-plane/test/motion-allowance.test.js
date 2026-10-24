@@ -27,7 +27,7 @@ const LINUX = { ok: true, busy: false, sandbox: 'linux' };
 function d1(t) {
   const sqlite = new DatabaseSync(':memory:');
   t.after(() => sqlite.close());
-  for (const file of [sql('0016-usage-operations.sql'), sql('0022-usage-accounting.sql')]) sqlite.exec(file);
+  for (const file of [sql('0016-usage-operations.sql'), sql('0022-usage-accounting.sql'), sql('0027-usage-grants.sql')]) sqlite.exec(file);
   const LEARN_DB = {
     prepare(text) {
       let args = [];
@@ -171,7 +171,7 @@ test('exhausted allowance: refused before anything starts, zero orchestrator, mo
   const actor = new LearnVideos(durable('video-a'), env0(LEARN_DB));
   const v = (await (await actor.fetch(ask())).json()).videos[0];
   assert.deepEqual([v.status, v.retryable], ['failed', true]);
-  assert.match(v.error, /needs more than your remaining AI allowance\. It resets on .+\. Nothing was started\./);
+  assert.match(v.error, /needs more AI credits than you have left\. Renews on .+\. Nothing was started\./);
   await actor.alarm();
   assert.deepEqual([w.orchestrator.posts, w.model.calls.length, w.renders.length, motionAttempts(sqlite).length], [0, 0, 0, 0]);
   assert.equal((await balance(LEARN_DB)).reserved, 0);
@@ -251,7 +251,7 @@ test('an orchestrator restart mid-job: the job fails clearly, its hold is kept a
   assert.deepEqual(v.hold, { usd: 2, state: 'pending' }, 'the card says reconciliation is pending');
   // Retry: the whole $2 ceiling counts as used by the interrupted attempt, so nothing more can start for this video.
   const retried = (await (await actor.fetch(ask({ retry: true }))).json()).videos[0];
-  assert.match(retried.error, /used its \$2\.00 AI spending limit across its attempts/);
+  assert.match(retried.error, /used its 200 AI credits limit across its attempts/);
   assert.deepEqual([w.orchestrator.posts, motionAttempts(sqlite).length], [1, 1], 'no second admission or job');
 });
 

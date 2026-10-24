@@ -4,6 +4,7 @@
 // A leaf module, so ask.js, learn-research.js and the browser-side test can
 // all import it without a cycle.
 import { sha256 } from './token.js';
+import { anthropicQuantities, mtokRates, priceUsage } from './pricing-registry.js';
 import { spendEnforced } from './learn-spend-ledger.js'; // imports nothing
 import { sha256Hex } from './learn-grade-jev.js'; // learn-grade-jev.js imports nothing, so this module stays a leaf
 
@@ -122,15 +123,14 @@ export function loggedModel(task, callModel) {
   };
 }
 
-// USD per MTok [input, output, cache read] (claude-api skill, cached 2026-09-25; the numbers web/e2e/journey-corpus-run.mjs:100
-// and web/e2e/tutor-corpus-run.mjs:43 use). A 5-minute cache write is 1.25x input; Opus 5.5 fast mode doubles everything.
+// USD per MTok [input, output, cache read], read from the one price registry (pricing-registry.js, owner rates 2026-10-23). A
+// 5-minute cache write is 1.25x input; fast mode is its own registry tier. Kept for the callers that want the three-number shape.
 // ponytail: the e2e runners keep their own copy; point them here when they are next edited.
-export const MODEL_PRICES = Object.freeze({ 'claude-opus-5-5': [4, 20, 0.2], 'claude-sonnet-5-5': [2, 10, 0.2], 'claude-haiku-4-5-20251001': [1, 5, 0.1] });
+export const MODEL_PRICES = Object.freeze(Object.fromEntries(['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-4-5-20251001'].map(model => [model, mtokRates('anthropic', model)])));
 export function costUsd({ model, input_tokens = 0, output_tokens = 0, cache_creation_input_tokens = 0, cache_read_input_tokens = 0, speed = null }) {
-  const p = MODEL_PRICES[model];
-  if (!p) return null;
-  const usd = ((input_tokens || 0) * p[0] + (output_tokens || 0) * p[1] + (cache_creation_input_tokens || 0) * p[0] * 1.25 + (cache_read_input_tokens || 0) * p[2]) / 1e6;
-  return +((speed === 'fast' ? 2 : 1) * usd).toFixed(6);
+  if (!MODEL_PRICES[model]) return null;
+  const priced = priceUsage({ model, tier: speed === 'fast' ? 'fast' : 'standard', quantities: anthropicQuantities({ input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens }) });
+  return priced ? priced.micros / 1e6 : null;
 }
 // The decision telemetry's prompt_version: the system text and the tool schemas actually sent (transport flags such as
 // cache_control or eager_input_streaming left out), so a prompt or tool change shows and a cache or stream setting does not.

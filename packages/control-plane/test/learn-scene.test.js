@@ -33,7 +33,7 @@ function fixture() {
   const data = new Map(), assets = new Map(); let lock = Promise.resolve();
   const state = { id: 'test-scene', storage: { get: async k => structuredClone(data.get(k)), put: async (k, v) => data.set(k, structuredClone(v)), list: async ({ prefix }) => new Map([...data].filter(([k]) => k.startsWith(prefix)).map(([k, v]) => [k, structuredClone(v)])), setAlarm: async () => {} }, blockConcurrencyWhile: fn => { const result = lock.then(fn); lock = result.catch(() => {}); return result; } };
   // A render takes the learner's render slot (learn-render-admission.js, render fairness 2026-10-21): the usage tables and the payer the worker forwards.
-  const sqlite = new DatabaseSync(':memory:'); sqlite.exec(readFileSync(new URL('../learn-migrations/0022-usage-accounting.sql', import.meta.url), 'utf8'));
+  const sqlite = new DatabaseSync(':memory:'); for (const name of ['0022-usage-accounting.sql', '0027-usage-grants.sql']) sqlite.exec(readFileSync(new URL('../learn-migrations/' + name, import.meta.url), 'utf8'));
   const LEARN_DB = { prepare: text => { let args = []; const stmt = sqlite.prepare(text); return { bind(...v) { args = v; return this; }, first: async () => stmt.get(...args) || null, now: () => ({ meta: stmt.run(...args) }) }; },
     batch: async statements => { sqlite.exec('BEGIN'); try { const out = statements.map(s => s.now()); sqlite.exec('COMMIT'); return out; } catch (error) { sqlite.exec('ROLLBACK'); throw error; } } };
   const env = { LEARN_DB, SCENE_WORKER_URL: 'https://renderer.test', SCENE_WORKER_TOKEN: 'secret', LEARN_MEDIA: { put: async (k, bytes) => assets.set(k, bytes), get: async k => assets.has(k) ? { body: assets.get(k), size: assets.get(k).byteLength } : null }, RUNS: liveRuns() };

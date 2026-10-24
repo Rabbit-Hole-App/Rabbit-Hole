@@ -127,7 +127,7 @@ test('a data object with no authored size gets the size the renderer draws, so t
 });
 
 test('a refused spend admission is said in its own words, never as a bare status', async () => {
-  const refusal = { error: 'Paid Learn calls are paused because the platform daily dollar cap has been reached.', code: 'spend_limited', reason: 'daily_cap_reached' };
+  const refusal = { error: 'AI is paused for now because the platform daily limit has been reached.', code: 'spend_limited', reason: 'daily_cap_reached' };
   await assert.rejects(generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, { callModel: async () => Response.json(refusal, { status: 429 }) }),
     { message: refusal.error });
 });
@@ -223,14 +223,14 @@ test('when the verifier pass cannot run, nothing is added and nothing is repaire
     const callModel = async (env, body) => {
       seen.push(body);
       if (body.tools.some(tool => tool.name === VERIFY_TOOL.name)) {
-        return status === 429 ? Response.json({ error: 'Paid Learn calls are paused because the platform daily dollar cap has been reached.', code: 'spend_limited' }, { status })
+        return status === 429 ? Response.json({ error: 'AI is paused for now because the platform daily limit has been reached.', code: 'spend_limited' }, { status })
           : status ? new Response('overloaded', { status }) : Response.json({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'Looks fine.' }] });
       }
       return Response.json({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'c1', name: 'make_animation', input: scene() }] });
     };
     return { callModel, seen };
   };
-  for (const [status, said] of [[503, /could not be checked \(model HTTP 503\), so nothing was added/], [429, /platform daily dollar cap/], [null, /could not be checked \(the check gave no verdict\)/]]) {
+  for (const [status, said] of [[503, /could not be checked \(model HTTP 503\), so nothing was added/], [429, /platform daily limit/], [null, /could not be checked \(the check gave no verdict\)/]]) {
     const run = failing(status);
     await assert.rejects(generateArtifact({}, { command: 'explain', args: 'interactive weighted grades' }, run), { message: said });
     assert.equal(run.seen.length, 2, `${status}: no repair after a check that did not run`);

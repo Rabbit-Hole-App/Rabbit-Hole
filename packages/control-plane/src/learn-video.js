@@ -16,7 +16,7 @@ const POLL_MS = 10000; // Clips take minutes; background polling does not depend
 const MAX_WAIT_MS = 30 * 60 * 1000;
 // A /motion request plans, reviews, may repair once and renders twice: longer.
 const maxWait = job => (job.provider === 'motion_request' ? 60 * 60 * 1000 : MAX_WAIT_MS);
-const dollars = micros => `$${(micros / 1e6).toFixed(2)}`;
+const aiCredits = micros => `${Math.ceil(micros / 10_000).toLocaleString('en-US')} AI credits`; // 1 credit = 10,000 micro-USD
 // A Motion job's model spending (owner items 1 and 6, 2026-10-21): one hold per attempt, admitted against the learner's
 // allowance before anything starts, sized to what is left of the job's ceiling (MOTION_JOB_RESERVATION_USD) across its
 // attempts, and settled once with the orchestrator's real cost. Stopped jobs keep polling until their cost is known.
@@ -363,7 +363,7 @@ export class LearnVideos {
     const ceiling = motionReservationMicros(this.env);
     if (ceiling == null) return 'Motion is not available here yet: its per-video spending limit is not configured. Nothing was started.';
     const left = Math.min(ceiling - (job.consumedMicros || 0), cap > 0 ? cap : Infinity);
-    if (left <= 0) return `This video has used its ${dollars(ceiling)} AI spending limit across its attempts (an interrupted attempt's unknown cost stays counted). Nothing was started; ask for it in different words to make a new one.`;
+    if (left <= 0) return `This video has used its ${aiCredits(ceiling)} limit across its attempts (an interrupted attempt's unknown cost stays counted). Nothing was started; ask for it in different words to make a new one.`;
     const scoped = usageFromForwarded(this.env, req, 'video');
     job.payer = usageContext(scoped)?.identity || null;
     const now = Math.floor(Date.now() / 1000), opId = operationId('motion');

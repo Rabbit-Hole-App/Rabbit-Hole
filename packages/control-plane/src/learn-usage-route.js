@@ -4,6 +4,7 @@
 // enforced is true wherever admission enforces the allowance. Indexed sums (in total and by feature), no AI call.
 import { devIdentity } from './dev-forwarding.js';
 import { spendEnforced } from './learn-spend-ledger.js';
+import { allowanceFor } from './learn-entitlement.js';
 import { monthlyAllowanceMicros } from './learn-usage-config.js';
 import { periodOf, periodReset, usageByFeature, usageTotals } from './learn-usage.js';
 
@@ -17,9 +18,11 @@ export async function usageFetch(req, env, { identity = devIdentity, now = Math.
   if (!userId) return json({ error: 'Sign in to see your AI usage.' }, 401);
   // The subscription bridge (dev only) sends no paid request through admission; everywhere else the allowance is enforced.
   const enforced = spendEnforced(env) && env.SUBSCRIPTION_ONLY !== 'true';
-  const allowance = monthlyAllowanceMicros(env);
-  if (allowance == null) return json({ enforced, unavailable: 'config' }); // never unlimited: chargeable AI is refused
   const period = periodOf(now);
+  // The same function admission uses (learn-entitlement.js), so the screen shows exactly what the gate enforces.
+  if (monthlyAllowanceMicros(env) == null) return json({ enforced, unavailable: 'config' }); // never unlimited: chargeable AI is refused
+  const allowance = await allowanceFor(env.LEARN_DB, env, userId, period);
+  if (allowance == null) return json({ enforced, unavailable: 'accounting' }, 503);
   let totals, byFeature;
   try { [totals, byFeature] = await Promise.all([usageTotals(env.LEARN_DB, userId, period), usageByFeature(env.LEARN_DB, userId, period)]); }
   catch { return json({ enforced, unavailable: 'accounting' }, 503); }

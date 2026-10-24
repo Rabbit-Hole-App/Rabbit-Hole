@@ -2,6 +2,7 @@
 // A diagnostic read cannot authorize spending: only the bounded Fish path below can admit.
 import { admitSpend, settleSpend, operationId, platformSpendStatus, spendEnforced, refusalReply, spendMessage, ALLOWANCE_REASONS } from './learn-spend-ledger.js';
 import { settleAttempt, toMicros, usageRefusal } from './learn-usage.js';
+import { priceUsage } from './pricing-registry.js';
 
 const message = code => code === 'cap_unset' ? 'Daily paid-operation spend cap is not configured.'
   : code === 'daily_cap_reached' ? 'Daily paid-operation spend cap reached.'
@@ -28,11 +29,11 @@ export async function requirePaidSubmission(env) {
   if (refused) { const { code, error } = await refused.json(); throw Object.assign(new Error(error), { code, definite: true }); }
 }
 
-// Fish S1 charges $15/M UTF-8 input bytes, not Unicode character count:
-// https://fish.audio/developers/ (verified 2026-10-12). No output-duration estimate.
+// Fish S1 charges per UTF-8 input byte, not Unicode character count (rate: pricing-registry.js, owner table 2026-10-23). No output-duration estimate.
 export async function fishSpendTransport(env, text, transport) {
   if (!spendEnforced(env)) return transport();
-  const reservedUsd = Math.ceil(new TextEncoder().encode(text).length * 15) / 1e6;
+  const fishPrice = priceUsage({ provider: 'fish', model: 's1', quantities: { input_bytes: new TextEncoder().encode(text).length } });
+  const reservedUsd = fishPrice.micros / 1e6;
   const opId = operationId('fish_tts');
   const gate = await admitSpend(env.LEARN_DB, env, { opId, userId: 'provider:platform', org: 'platform', category: 'fish_tts', reservedUsd, kind: 'media', provider: 'fish', model: 's1' });
   if (gate.refused) return paidSpendReply(gate.reason, usageRefusal(env)?.period);
@@ -48,7 +49,7 @@ export async function fishSpendTransport(env, text, transport) {
   }
   // Preserve the entire input charge even if audio later disconnects; no refund is assumed.
   await settleSpend(env.LEARN_DB, opId, { status: response.ok ? 'settled' : 'failed', calls: 1, provider: 'fish', model: 's1', error: response.ok ? null : `http_${response.status}` });
-  await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? reservedMicros : null });
+  await settleAttempt(env, begun, { status: response.ok ? 'settled' : 'failed', costMicros: response.ok ? reservedMicros : null, price: response.ok ? fishPrice : null });
   return response;
 }
 
