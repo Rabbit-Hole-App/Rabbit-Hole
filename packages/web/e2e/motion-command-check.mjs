@@ -90,7 +90,7 @@ const total = OFF ? 6 : 44; // per theme: 22 steps with Motion on (7 for MOT-20b
 const results = [];
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
-  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n')[0]}`); }
+  catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message.split('\n').slice(0, 4).join(' | ').slice(0, 900)}`); }
 };
 const until = async (fn, what, ms = 15000) => { const end = Date.now() + ms; for (;;) { if (await fn()) return; if (Date.now() > end) throw Error(`timed out: ${what}`); await new Promise(r => setTimeout(r, 200)); } };
 

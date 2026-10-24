@@ -653,7 +653,7 @@ await step('the controls above a selected card are one row: Open, Interact, Fit 
       const heights = Object.values(m.heights).filter(h => h);
       assert.ok(Math.max(...heights) - Math.min(...heights) <= 1 * Math.max(1, m.scale), `${c.name}: the three groups share one height ${JSON.stringify(m.heights)}`);
       await shot(view, `after-14-${c.name}`);
-    } finally { await context.close(); }
+    } catch (error) { await view.screenshot({ path: `${OUT}/fail-14-${c.name}.png` }).catch(() => {}); error.message = `${c.name}: ${error.message}`; throw error; } finally { await context.close(); }
   }
 });
 

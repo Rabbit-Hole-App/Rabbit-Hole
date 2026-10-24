@@ -114,6 +114,13 @@ const open = async name => {
   return { context, page };
 };
 const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"]):not([data-slash-search])').first();
+// A click on a card names where the card is and what is on top of that point when it fails, so an overlay is diagnosed from the log.
+const clickCard = async card => {
+  try { await card.click({ position: { x: 70, y: 22 } }); } catch (error) {
+    const info = await card.evaluate(node => { const r = node.getBoundingClientRect(), hit = document.elementFromPoint(r.x + 70, r.y + 22); return { rect: [r.x, r.y, r.width, r.height].map(Math.round), viewport: [innerWidth, innerHeight], hit: hit ? `${hit.tagName} ${[...hit.attributes].map(a => a.name).slice(0, 5).join(' ')}` : null }; }).catch(() => null);
+    throw new Error(`${error.message.split('\n')[0]} ${JSON.stringify(info)}`);
+  }
+};
 const send = async (page, text) => { const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
 const pending = (page, id) => page.locator(`[data-block-id="${id}"] [data-explain-pending]`);
 const drawn = (page, id) => page.locator(`[data-block-id="${id}"] svg [data-animation-object]`).first();
@@ -191,7 +198,7 @@ await step('natural language the server routes to explain is the same job path',
 });
 
 await step('a command-bearing Ctrl+K /explain on a selected card: one job, source command, the card\'s words as context', async () => {
-  await page.locator('[data-block-id="notes"]').click({ position: { x: 70, y: 22 } });
+  await clickCard(page.locator('[data-block-id="notes"]'));
   await page.keyboard.press('Control+k');
   const editor = page.locator('[data-inline-ai]');
   await editor.waitFor();
@@ -247,7 +254,7 @@ await step('provider_unavailable: paused with the request kept; Retry twice send
 await step('stale revision: an Edit made from another revision of the card is refused at Apply; the card and candidate stay', async () => {
   const card = page.locator(`[data-block-id="${first.cardId}"]`);
   const before = (await board(canvasA.name)).blocks.find(block => block.id === first.cardId);
-  await card.click({ position: { x: 70, y: 22 } });
+  await clickCard(card);
   await page.keyboard.press('Control+k');
   const editor = page.locator('[data-inline-ai]');
   await editor.waitFor();
