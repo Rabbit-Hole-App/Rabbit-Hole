@@ -16,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 12; // the number of check() steps below; keep it equal
+const total = 13; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -363,9 +363,43 @@ await check('11 attachments: an image attached to a reply shows as a picture; a 
   await page.screenshot({ path: `${SHOTS}/11-attachment.png` });
 });
 
+// Comments v2 item 5: a thread that names a quoted text says so in the panel; when the card changes around the quote it says the
+// card changed, and when the quote is gone it says the text is gone. The board is changed through the API, then the page is reloaded.
+await check('12 an anchored thread reads with its quote; after the card changes it says so, and after the quote goes it says the text is gone', async () => {
+  const boardPath = `/api/learn/boards/${canvas.name}/main`;
+  const quote = 'Quartz is silicon dioxide.';
+  const card = body => ({ id: 'a-card', type: 'explanation', dx: 0, dy: 0, title: 'Anchor card', body });
+  const putCard = async body => {
+    const current = (await api(boardPath)).body;
+    const next = { ...current.state, blocks: [...current.state.blocks.filter(block => block.id !== 'a-card'), card(body)] };
+    const saved = await api(boardPath, { method: 'PUT', body: JSON.stringify({ state: next, version: current.version }) });
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  };
+  await putCard(`${quote} It is the second most common mineral.`);
+  const made = await post(api, `${base}/threads`, { id: crypto.randomUUID(), anchor: { kind: 'object', object_id: 'a-card', object_kind: 'block', dx: 6, dy: 6, label: 'Anchor card', target: { kind: 'text', quote } }, body: 'Is this precise?', mentions: [] });
+  assert.equal(made.status, 201, JSON.stringify(made.body));
+  assert.equal(made.body.thread.anchor_state, 'ok');
+  const id = made.body.thread.id;
+  const reopen = async () => { await page.goto(`${BASE}/apps/${canvas.name}`); await card_('a-card').waitFor({ timeout: 60000 }); await page.locator('[data-comments-header]').click(); await page.locator('[data-comments-panel]').waitFor(); await status().selectOption('all'); };
+  const card_ = id_ => page.locator(`[data-block-id="${id_}"]`);
+  await reopen();
+  await expect(row(id)).toContainText('Anchor card, \u201cQuartz is silicon dioxide.\u201d', { timeout: 20000 });
+  await expect(row(id)).not.toContainText('Card changed');
+  await putCard(`${quote} It is common in sand.`);
+  await reopen();
+  await expect(row(id)).toContainText('Card changed', { timeout: 20000 });
+  await row(id).click();
+  await expect(page.locator('[data-anchor-state="outdated"]')).toContainText('The card changed after this comment was made.');
+  await putCard('Granite is an igneous rock.');
+  await reopen();
+  await expect(row(id)).toContainText('Text gone', { timeout: 20000 });
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/12-anchor-state.png` });
+});
+
 // Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. The owner comments in the hole through the app; a
 // person with no access to the hole (the visitor here, a stranger to both) gets 404 with no content; Share says the people are the hole's own.
-await check('12 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
+await check('13 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
   const hole = `canvas-${run.replace(/[^a-f0-9]/g, '0').padEnd(8, '0').slice(0, 8)}`;
   const made = await post(api, '/api/canvases/dives', { name: hole, title: `Inside ${run}`, parent: { app: canvas.name, board: 'main' }, origin_block_id: 'd-card', dive: { concept: 'ice' } });
   assert.equal(made.status, 201, JSON.stringify(made.body));
@@ -384,7 +418,7 @@ await check('12 (D2) a nested Rabbit Hole has its own comments: the owner reads 
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
   assert.deepEqual([asks, stray, errors], [[], [], []]);
-  await page.screenshot({ path: `${SHOTS}/12-nested-hole.png` });
+  await page.screenshot({ path: `${SHOTS}/13-nested-hole.png` });
 });
 
 await browser.close();

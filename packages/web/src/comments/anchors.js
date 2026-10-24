@@ -54,10 +54,27 @@ export function pinTopCentre(box, index, size, gap) {
 }
 
 // The anchor a right-click makes: on the object under it, relative to the object's origin, else on the canvas.
-export function anchorAt(world, hit, board) {
+export function anchorAt(world, hit, board, target = null) {
   const origin = hit ? objectOrigin(hit.id, board) : null;
   if (!origin) return { kind: 'point', x: Math.round(world.x), y: Math.round(world.y) };
-  return { kind: 'object', object_id: hit.id, object_kind: hit.kind, dx: Math.round(world.x - origin.x), dy: Math.round(world.y - origin.y), label: (hit.label || '').trim().slice(0, 120) };
+  return { kind: 'object', object_id: hit.id, object_kind: hit.kind, dx: Math.round(world.x - origin.x), dy: Math.round(world.y - origin.y), label: (hit.label || '').trim().slice(0, 120), ...(target ? { target } : {}) };
+}
+
+// What in a card a new comment is about (Comments v2 item 5; the server's comment-anchors.js validates and baselines it): the
+// text the reader has selected in the card (a code card's selection is a code quote), or the page a PDF card shows. Nothing
+// selected on any other card: no target, the comment is on the card as before. Video times need the player's position, which
+// no card exposes yet, so a video card takes no target.
+export function targetFor(entry, selected = '') {
+  if (!entry) return null;
+  const quote = String(selected || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (entry.type === 'paper' && Number.isInteger(entry.paper?.page) && entry.paper.page >= 1) return { kind: 'pdf', page: entry.paper.page, ...(quote ? { quote } : {}) };
+  if (!quote) return null;
+  return { kind: entry.type === 'code' || entry.type === 'snippet' ? 'code' : 'text', quote };
+}
+// The text selected inside `root`, or '' (the selection of another part of the page is not this card's).
+export function selectedIn(root, selection = typeof window !== 'undefined' ? window.getSelection?.() : null) {
+  if (!root || !selection || selection.isCollapsed || !selection.rangeCount) return '';
+  return root.contains(selection.anchorNode) && root.contains(selection.focusNode) ? selection.toString() : '';
 }
 
 // "on Card B: bulges", "on the canvas", "Card deleted · bulges", "on a shape", "Group removed · Setup".
@@ -66,8 +83,20 @@ export function anchorText(anchor, live) {
   if (anchor?.kind !== 'object') return 'on the canvas';
   const [noun, gone] = NOUNS[anchor.object_kind] || ['a card', 'Card deleted'];
   if (!live) return anchor.label ? `${gone} · ${anchor.label}` : gone;
-  return `on ${anchor.label || noun}`;
+  return `on ${anchor.label || noun}${targetText(anchor.target)}`;
 }
+const clock = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+// ", “the quoted text”", ", lines 2 to 3", ", page 3", ", at 1:23": what in the card a thread is about.
+export function targetText(target) {
+  if (!target) return '';
+  const quote = target.quote ? `\u201c${target.quote.slice(0, 60)}\u201d` : '';
+  if (target.kind === 'pdf') return `, page ${target.page}${quote ? ` ${quote}` : ''}`;
+  if (target.kind === 'video') return `, at ${clock(target.t)}`;
+  if (target.kind === 'code' && target.line_from) return `, ${target.line_to > target.line_from ? `lines ${target.line_from} to ${target.line_to}` : `line ${target.line_from}`}`;
+  return quote ? `, ${quote}` : '';
+}
+// A targeted thread whose card moved on (anchor_state from the server): said once, plainly.
+export const STATE_NOTE = { outdated: 'The card changed after this comment was made.', detached: 'The text this comment is about is no longer on the card.' };
 
 // What a pin says (owner, 2026-10-08): its thread's live message count, capped so it fits the pin without resizing it.
 export const pinCount = count => (count > 99 ? '99+' : String(count));

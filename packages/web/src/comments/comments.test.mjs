@@ -501,3 +501,45 @@ test('attachments (Comments v2 item 3, D3): the picker offers what the server ac
   assert.doesNotMatch(view, /object_key|\.\.\.'|…/, 'no storage key, no ellipsis in labels');
   assert.doesNotMatch(view, /dangerouslySetInnerHTML/);
 });
+
+test('anchor targets (Comments v2 item 5): what in a card a comment is about, how it reads, and where the canvas takes it from', async () => {
+  const { anchorAt, anchorText, selectedIn, STATE_NOTE, targetFor, targetText } = await import('./anchors.js');
+  // targetFor: a selection is a text quote (a code quote on a code card), a PDF card gives its page, other cards give nothing.
+  assert.deepEqual(targetFor({ type: 'explanation' }, '  sqrt(d)\n scaling '), { kind: 'text', quote: 'sqrt(d) scaling' });
+  assert.deepEqual(targetFor({ type: 'code' }, 'return x'), { kind: 'code', quote: 'return x' });
+  assert.deepEqual(targetFor({ type: 'snippet' }, 'x'), { kind: 'code', quote: 'x' });
+  assert.deepEqual(targetFor({ type: 'paper', paper: { id: 'p', page: 4 } }), { kind: 'pdf', page: 4 });
+  assert.deepEqual(targetFor({ type: 'paper', paper: { id: 'p', page: 4 } }, 'softmax'), { kind: 'pdf', page: 4, quote: 'softmax' });
+  assert.equal(targetFor({ type: 'explanation' }, ''), null, 'nothing selected: the comment is on the card, as before');
+  assert.equal(targetFor({ type: 'video', start: 10 }, ''), null, 'a video card takes no target until its player reports a time');
+  assert.equal(targetFor(null, 'x'), null);
+  assert.equal(targetFor({ type: 'explanation' }, 'x'.repeat(500)).quote.length, 300);
+  // anchorAt carries a target; an anchor without one is byte for byte what it was.
+  const board = { bounds: { b1: { x: 100, y: 50 } } };
+  assert.deepEqual(anchorAt({ x: 110, y: 60 }, { id: 'b1', kind: 'block', label: 'Card' }, board), { kind: 'object', object_id: 'b1', object_kind: 'block', dx: 10, dy: 10, label: 'Card' });
+  assert.deepEqual(anchorAt({ x: 110, y: 60 }, { id: 'b1', kind: 'block', label: 'Card' }, board, { kind: 'text', quote: 'q' }).target, { kind: 'text', quote: 'q' });
+  assert.equal(anchorAt({ x: 1, y: 2 }, null, board, { kind: 'text', quote: 'q' }).target, undefined, 'a canvas point has no target');
+  // How a targeted thread reads (no ellipsis): the quote, the lines, the page, the time.
+  const at = target => anchorText({ kind: 'object', object_id: 'b1', object_kind: 'block', label: 'Card', target }, true);
+  assert.equal(at({ kind: 'text', quote: 'hello world' }), 'on Card, “hello world”');
+  assert.equal(at({ kind: 'code', quote: 'x', line_from: 2, line_to: 2 }), 'on Card, line 2');
+  assert.equal(at({ kind: 'code', quote: 'x', line_from: 2, line_to: 4 }), 'on Card, lines 2 to 4');
+  assert.equal(at({ kind: 'code', quote: 'x' }), 'on Card, “x”');
+  assert.equal(at({ kind: 'pdf', page: 3 }), 'on Card, page 3');
+  assert.equal(at({ kind: 'video', t: 83 }), 'on Card, at 1:23');
+  assert.equal(targetText(undefined), '');
+  assert.equal(anchorText({ kind: 'object', object_id: 'b1', object_kind: 'block', label: 'Card', target: { kind: 'pdf', page: 3 } }, false), 'Card deleted · Card', 'a deleted card shows no target');
+  assert.deepEqual(Object.keys(STATE_NOTE), ['outdated', 'detached']);
+  // selectedIn: only a selection that starts and ends inside the card.
+  const inside = {}, outside = {};
+  const root = { contains: node => node === inside };
+  assert.equal(selectedIn(root, { isCollapsed: false, rangeCount: 1, anchorNode: inside, focusNode: inside, toString: () => 'picked' }), 'picked');
+  assert.equal(selectedIn(root, { isCollapsed: false, rangeCount: 1, anchorNode: inside, focusNode: outside, toString: () => 'picked' }), '');
+  assert.equal(selectedIn(root, { isCollapsed: true, rangeCount: 1, anchorNode: inside, focusNode: inside, toString: () => '' }), '');
+  assert.equal(selectedIn(null, null), '');
+  // The canvas asks both (a block's DOM root and its entry), and the panel says a moved-on card once.
+  const canvas = read('../AdaptiveCanvas.jsx'), panel = read('./CommentsPanel.jsx');
+  assert.match(canvas, /const target = kind === 'block' \? targetFor\(entry, selectedIn\(document\.querySelector\(`\[data-block-id="\$\{CSS\.escape\(id\)\}"\]`\)\)\) : null;/);
+  assert.match(canvas, /onAddComment\?\.\(anchorAt\(world, \(group \|\| entry\) && \{ id, kind, label \}, commentBoard, target\)\);/);
+  assert.match(panel, /\{STATE_NOTE\[thread\.anchor_state\] && <p data-anchor-state=\{thread\.anchor_state\}/);
+});

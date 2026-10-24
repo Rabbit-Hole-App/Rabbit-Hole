@@ -1459,3 +1459,25 @@ Top 5 are taken) and are applied by the owner in production; a lane never applie
   Deleting a canvas or hole purges its files before the canvas rows go (`comment-attachments.js purgeCanvasAttachments`).
 - **Not built.** No image preview before posting beyond the chip, no rename, no per-person upload rate beyond the waiting limit,
   and no attachment on an edit through the panel (the route accepts it).
+
+### Anchor targets (no migration)
+
+- **What.** A thread on a card may name what in the card it is about. The anchor stays the object anchor of section 8 (so a
+  deleted card still hides its threads and Ungroup, pins and counts are untouched) and gains `v: 2` and `target`, one of:
+  `{ kind: 'text', quote }`, `{ kind: 'code', quote }` (the server adds `line_from` and `line_to` of the field that holds the
+  quote), `{ kind: 'pdf', page, quote?, region?: { x, y, w, h } }` (region in 0 to 1 of the page) and `{ kind: 'video', t }`
+  (seconds). A quote is at most 300 characters, whitespace folded. Only a card (a block) takes a target; anything invalid is
+  `bad_anchor`; a text or code quote the card does not hold is `quote_not_on_card`. `anchor_json` is JSON, so there is no schema
+  change and a thread without a target (every thread made before this) reads exactly as before.
+- **Baseline and state.** When the thread starts the server stores `target.hash`, a fingerprint of the card's own words and the
+  places it points to (`page`, `start`, `end`, `from`, `to`, `line`, `time`), never its identifiers or layout
+  (`comment-anchors.js`). Every read of the thread answers `anchor_state`: `ok` (the card is as it was), `outdated` (the card
+  changed and the quoted text, if any, is still there) or `detached` (the quoted text is gone). A card put back as it was reads
+  `ok` again. A retry of the same post is recognised by the anchor as sent, not by the fingerprint.
+- **Panel.** The list row and the thread read "on Card, “quote”", "on Card, lines 2 to 4", "on Card, page 3" or "on Card, at 1:23",
+  and a moved-on card says "The card changed after this comment was made." or "The text this comment is about is no longer on
+  the card." once.
+- **Capture.** Add comment on a card (menu or C) takes the text selected inside the card as a text quote (a code card's selection
+  as a code quote), and a PDF card's shown page. Not built, for the card owners to review: a PDF region drawn on the page, the
+  video player's time, and a code card's line range picked in the editor. The server and the panel already accept and show all of
+  them.

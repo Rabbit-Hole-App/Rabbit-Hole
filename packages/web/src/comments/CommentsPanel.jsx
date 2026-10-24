@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { ChevronLeft, Globe, Link2, MoreHorizontal, Users } from 'lucide-react';
 import ChatComposer from '../ChatComposer.jsx';
 import { Button } from '../ui.jsx';
-import { anchorText } from './anchors.js';
+import { STATE_NOTE, anchorText } from './anchors.js';
 import { EditedMark, Reactions } from './Reactions.jsx';
 import { AttachButton, AttachmentChips, MessageFiles, useAttachments } from './Attachments.jsx';
 import { SYNC_MS, applySync, mergeMessages, newFromOthers } from './comment-sync.js';
@@ -111,7 +111,7 @@ function ThreadList({ list, about, status, setStatus, audience, setAudience, obj
                   {thread.unread && <span data-comment-unread aria-label="Unread" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-accent" />}
                 </span>
                 <span className="flex items-center gap-1.5"><Audience audience={thread.audience} />{thread.hidden_from_public && <span className="text-[11px] text-ink-3">· Hidden from the published page</span>}</span>
-                <span className="block truncate text-[11px] text-ink-3">{anchorText(thread.anchor, objectLive(thread.anchor))}</span>
+                <span className="block truncate text-[11px] text-ink-3">{anchorText(thread.anchor, objectLive(thread.anchor))}{STATE_NOTE[thread.anchor_state] ? ` · ${thread.anchor_state === 'detached' ? 'Text gone' : 'Card changed'}` : ''}</span>
                 <span className="block truncate text-sm text-ink">{thread.preview ?? 'This comment was deleted'}</span>
                 {thread.replies > 0 && <span className="text-xs text-ink-2">{thread.replies} {thread.replies === 1 ? 'reply' : 'replies'}</span>}
               </span>
@@ -269,6 +269,7 @@ function ThreadView({ client, about, id, hidden, objectLive, onFocusAnchor, onBa
         {thread.status === 'resolved' && <span className="text-[11px] text-ink-3">· Resolved</span>}
         <button type="button" disabled={!live} onClick={() => onFocusAnchor?.(thread.anchor)} className="min-w-0 truncate text-left text-xs text-ink-2 hover:text-ink disabled:cursor-default disabled:hover:text-ink-2">{anchorText(thread.anchor, live)}</button>
       </div>
+      {STATE_NOTE[thread.anchor_state] && <p data-anchor-state={thread.anchor_state} className="mb-2 text-xs text-ink-3">{STATE_NOTE[thread.anchor_state]}</p>}
       {failed && <p role="alert" className="mb-2 text-xs text-red-700">{failed}</p>}
       <ol ref={scroller} onScroll={scrolled} data-comment-messages className="-mx-2 mb-2 min-h-0 flex-1 space-y-1 overflow-y-auto">
         {data.before && <li><button type="button" data-earlier-replies onClick={earlier} className="w-full rounded-lg px-2 py-1 text-left text-xs text-ink-2 hover:bg-hover hover:text-ink">Earlier replies</button></li>}

@@ -19,6 +19,7 @@ import { REACTIONS } from '../../web/src/comments/comment-reactions.js';
 import { uploadBody } from './upload-body.js';
 import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { learnMedia } from './learn-storage.js';
+import { fingerprint, holdsQuote, locate, stateOf, targetOf } from './comment-anchors.js';
 import { ATTACHMENT_NOTE, ATTACHMENT_TYPES, releasePurged, safeName } from './comment-attachments.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -226,7 +227,12 @@ const round = n => Math.round(n * 10) / 10;
 export function anchorOf(a) {
   if (a?.kind === 'point' && finite(a.x) && finite(a.y)) return { kind: 'point', x: round(a.x), y: round(a.y) };
   if (a?.kind === 'object' && typeof a.object_id === 'string' && /^[\x21-\x7e]{1,100}$/.test(a.object_id) && OBJECT_KINDS.includes(a.object_kind) && finite(a.dx) && finite(a.dy))
-    return { kind: 'object', object_id: a.object_id, object_kind: a.object_kind, dx: round(a.dx), dy: round(a.dy), label: typeof a.label === 'string' ? a.label.trim().slice(0, 120) : '' };
+  {
+    // Comments v2 item 5: a card anchor may name what in the card it is about (comment-anchors.js). Only a card (block) has one.
+    const target = targetOf(a.target);
+    if (target === null || (target && a.object_kind !== 'block')) return null;
+    return { kind: 'object', object_id: a.object_id, object_kind: a.object_kind, dx: round(a.dx), dy: round(a.dy), label: typeof a.label === 'string' ? a.label.trim().slice(0, 120) : '', ...(target ? { v: 2, target } : {}) };
+  }
   return null;
 }
 
@@ -255,7 +261,7 @@ const mayDeleteThread = (ctx, row) => allowed(ctx, 'delete_any', row.audience)
 function threadShape(ctx, row) {
   const starter = !!ctx.actor.uid && row.created_by === ctx.actor.uid;
   return {
-    id: row.id, audience: row.audience, anchor: JSON.parse(row.anchor_json), color: row.color || null, status: row.resolved_at ? 'resolved' : 'open', author: person(row, 'a_'),
+    id: row.id, audience: row.audience, anchor: JSON.parse(row.anchor_json), ...(row.anchor_state ? { anchor_state: row.anchor_state } : {}), color: row.color || null, status: row.resolved_at ? 'resolved' : 'open', author: person(row, 'a_'),
     created_at: row.created_at, last_activity_at: row.last_activity_at, replies: Math.max(0, row.message_count - 1), comments: row.live,
     hidden_from_public: row.audience === 'public' && ctx.mode === 'off',
     can: { reply: allowed(ctx, 'post', row.audience), resolve: allowed(ctx, 'resolve', row.audience, starter), color: allowed(ctx, 'resolve', row.audience, starter), delete: mayDeleteThread(ctx, row) },
@@ -307,7 +313,11 @@ async function threadIn(env, ctx, id) {
   const row = await env.LEARN_DB.prepare(`SELECT ${THREAD_COLUMNS} FROM canvas_comment_threads t WHERE t.id = ? AND t.board_id = ?${ctx.family === 'public' ? " AND t.audience = 'public'" : ''}`).bind(id, ctx.board.id).first();
   if (!row || !allowed(ctx, 'read', row.audience)) return null;
   const anchor = JSON.parse(row.anchor_json);
-  return anchor.kind !== 'object' || (await boardLive(env, ctx.board.id)).has(anchor) ? row : null;
+  if (anchor.kind !== 'object') return row;
+  const live = await boardLive(env, ctx.board.id);
+  if (!live.has(anchor)) return null;
+  if (anchor.target) row.anchor_state = await stateOf(anchor.target, live.entry(anchor));
+  return row;
 }
 
 // A deleted object's threads (owner decision 2026-10-23): hidden from every list, count and read - reloads, other sessions,
@@ -316,12 +326,12 @@ async function threadIn(env, ctx, id) {
 // A group is live while an object carries its groupId: state.groups keeps a group whose members were all deleted.
 const CONTENT = ['blocks', 'exchanges', 'items', 'shapes'];
 export function liveObjects(state) {
-  const ids = new Set(), groups = new Set();
+  const ids = new Set(), groups = new Set(), entries = new Map();
   for (const key of CONTENT) for (const entry of Array.isArray(state?.[key]) ? state[key] : []) {
-    if (entry?.id) ids.add(entry.id);
+    if (entry?.id) { ids.add(entry.id); entries.set(entry.id, entry); }
     if (entry?.groupId) groups.add(entry.groupId);
   }
-  return { has: anchor => anchor?.kind !== 'object' || (anchor.object_kind === 'group' ? groups : ids).has(anchor.object_id) };
+  return { entry: anchor => entries.get(anchor?.object_id), has: anchor => anchor?.kind !== 'object' || (anchor.object_kind === 'group' ? groups : ids).has(anchor.object_id) };
 }
 async function boardLive(env, boardId) {
   const row = await env.LEARN_DB.prepare('SELECT state_json FROM learn_boards WHERE id = ?').bind(boardId).first();
@@ -401,6 +411,10 @@ async function listThreads(env, ctx, params) {
     .bind(ctx.actor.uid, ctx.board.id, hidden, ...(cursor ? [cursor[1], cursor[2]] : [])).all();
   const readable = results.filter(row => allowed(ctx, 'read', row.audience));
   const page = readable.slice(0, PAGE);
+  if (page.some(row => row.anchor_json.includes('"target"'))) {
+    const live = await boardLive(env, ctx.board.id);
+    for (const row of page) { const anchor = JSON.parse(row.anchor_json); if (anchor.target) row.anchor_state = await stateOf(anchor.target, live.entry(anchor) ?? {}); }
+  }
   // The toolbar badge (owner, 2026-10-21): every open thread with a live comment this reader may read, whatever page,
   // status or audience filter the list is on; the same read rule as the list, per audience.
   const { results: open } = await env.LEARN_DB.prepare(`SELECT t.audience, count(*) AS n FROM canvas_comment_threads t WHERE t.board_id = ?1 AND t.resolved_at IS NULL AND ${NOT_HIDDEN(2)}
@@ -470,17 +484,25 @@ async function startThread(req, env, ctx) {
   const audience = ctx.family === 'public' ? 'public' : input.audience === 'public' ? 'public' : 'members';
   if (!allowed(ctx, 'post', audience)) return postRefusal(ctx, audience);
   const anchor = anchorOf(input.anchor);
-  if (!anchor || JSON.stringify(anchor).length > 1024) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
+  if (!anchor || JSON.stringify(anchor).length > 2048) return refuse('Choose where the comment goes.', 'bad_anchor', 400);
   // SHARE-02: a visitor's temporary copy has objects only they see; a comment may name only an object on the canvas itself.
   // The owner too (owner decision 2026-10-23: no new comment on a deleted object): the owner's page saves its board before
   // posting on an object, so an object drawn a moment ago is on the server copy by then.
-  if (anchor.kind === 'object' && !(await boardLive(env, ctx.board.id)).has(anchor)) return refuse("That object isn't on this canvas, so it can't take a comment.", 'object_not_on_canvas', 409);
+  const sent = JSON.stringify(anchor); // the anchor as sent: the retry hash must not depend on the card's fingerprint taken below
+  const live = anchor.kind === 'object' ? await boardLive(env, ctx.board.id) : null;
+  if (live && !live.has(anchor)) return refuse("That object isn't on this canvas, so it can't take a comment.", 'object_not_on_canvas', 409);
+  if (anchor.target) {
+    // What the card holds NOW is the baseline the thread is compared with later; a quote the card does not hold is refused.
+    const card = live.entry(anchor), { target } = anchor;
+    if ((target.kind === 'text' || target.kind === 'code') && !holdsQuote(card, target.quote)) return refuse("That text isn't on this card any more.", 'quote_not_on_card', 409);
+    Object.assign(target, target.kind === 'code' ? locate(card, target.quote) || {} : {}, { hash: await fingerprint(card) });
+  }
   const { body, error } = bodyOf(input.body);
   if (error) return error;
   const mentions = mentionsOf(input.mentions);
   const files = attachmentIds(env, input.attachments);
   if (files.error) return files.error;
-  const hash = await hashOf([ctx.actor.uid, ctx.board.id, audience, anchor, body, mentions, ...(files.ids?.length ? [files.ids] : [])]);
+  const hash = await hashOf([ctx.actor.uid, ctx.board.id, audience, sent, body, mentions, ...(files.ids?.length ? [files.ids] : [])]);
   const replay = await sameCreate(env, 'canvas_comment_threads', input.id, hash);
   if (replay) return replay === 'conflict' ? idConflict() : threadReply(env, ctx, input.id, 200);
   const over = await limited(env, ctx);
@@ -509,6 +531,8 @@ async function startThread(req, env, ctx) {
 }
 async function threadReply(env, ctx, id, status) {
   const thread = await env.LEARN_DB.prepare(`SELECT ${THREAD_COLUMNS} FROM canvas_comment_threads t WHERE t.id = ?`).bind(id).first();
+  const anchor = JSON.parse(thread.anchor_json);
+  if (anchor.target) thread.anchor_state = await stateOf(anchor.target, (await boardLive(env, ctx.board.id)).entry(anchor) ?? {}); // 'ok' for a thread just started
   const first = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ? ORDER BY m.created_at, m.id LIMIT 1`).bind(id).first();
   const mentions = (await mentionsFor(env, [first.id])).get(first.id) || [];
   return json({ thread: threadShape(ctx, thread), comment: (await shapes(env, ctx, thread.audience, [first]))[0], accepted_mentions: mentions.map(m => ({ pos: m.pos, len: m.len, handle: m.p_handle })) }, status);
