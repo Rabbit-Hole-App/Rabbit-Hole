@@ -112,12 +112,60 @@ restarts Python. Focus therefore never portals, clones or remounts the notebook.
 notebook scroll its own cells. CSS changes on the host or its ancestors are safe; a React key change, a moved subtree or
 a conditional wrapper around the card is not. StudyPane already follows this rule (it only sets the frame's margins).
 
-## 5. Inventory (WP4 TODO)
+## 5. Inventory (WP4)
 
-WP4 lists every card renderer with: kind, file, Focus behavior (brief 3.2 and 3.3), or "unsupported" with the reason.
-Unsupported kinds register no adapter, so they show no Focus control. Start from the `type` values in
-`canvas-actions-types.js` and `LearningBlocks.jsx`: PDF, Explanation, note and sticky, table, image, Motion, CAD and
-model, webpage, video, code, quiz and the rest. CAD keeps its own 3D "Fit view" distinct from container Focus.
+Every renderer the canvas draws, audited on c4690f0b. Unsupported and deferred kinds register no adapter, so they show no
+Focus control. Every block card is a `CanvasNode` host (`[data-block-id]`, AdaptiveCanvas.jsx) in the column's flex flow,
+or inside a `[data-card-slot]` wrapper for a card layout; canvas items (notes, text, shapes) are absolutely placed
+`[data-item-id]` elements outside the column.
+
+**How a supported kind focuses** (`focus-host.js`, shared by the WP4 adapters). The host is restyled in place, never
+moved or remounted: a `data-focus-host` attribute plus CSS custom properties, applied by one stylesheet rule with
+`!important`, so React's own inline `width`, `height`, `max-height` and `transform` stay untouched and come back on exit.
+The rule sets the focused width and height (CSS px), `transform: translate(...) scale(1 / view.z)` from `frameInWorld`
+(normal text size, any canvas zoom) and a negative `margin-bottom` equal to the height it gained, so the column keeps the
+card's entry footprint and no neighbour moves (Finding 2). While focused the drag strip, the ports and the resize handles
+are hidden and a press on a drag zone does not start a move, so nothing writes `dx` / `dy` / `w` / `h`. A direct
+`[data-scroll]` body scrolls inside the card. The selected card's chrome row above it (Open, CAD tools) keeps its height
+inside the frame. Three placements: **fill** (the frame), **reading** (fill, at most 760 px wide, centred) and **contain**
+(the picture or video at its own aspect ratio, as large as the frame allows with the card's other rows, centred, never
+cropped; no picture yet: fill).
+
+| Kind (`type` / file `kind`) | Renderer | Layout and scroll | Live state | Verdict |
+|---|---|---|---|---|
+| `pdf` | `PdfCard` (AdaptiveCanvas.jsx): the browser's own PDF viewer in an iframe (blob URL) | fixed height (`h` or 640), the viewer scrolls and zooms itself | page, scroll, zoom, text selection inside the viewer | **SUPPORTED** "Focus PDF", fill. The iframe is resized in place, so page, scroll, selection and the viewer's own page and zoom controls are kept; nothing is shrunk to fit vertically. The width fit is the viewer's own (Chrome and Edge re-fit width on resize at their default zoom); the native viewer cannot be scripted, and changing its URL to force `#view=FitH` would reload it and lose the page, so that is not done |
+| `paper` | `PaperBody` > `LearnPaper.jsx` (pdf.js canvas and text layer) | fixed height, inner `overflow-auto` scroller; the page is `zoom x 100%` of the scroller's width | page (`block.paper.page`), scroll, zoom, highlights, text selection | **SUPPORTED** "Focus PDF", fill. At zoom 1 the page is exactly the available width (its own CSS), the text layer refits by its ResizeObserver, no re-render; the reader's page, zoom, Previous/Next and zoom buttons are kept |
+| `slide` (a PDF page as an image) | `SlideCard` | `img w-full h-auto`, no scroll | none | **SUPPORTED** "Focus page", contain |
+| `explanation` (and a PDF text excerpt) | `ExplanationBody` / `ExcerptBody` (LearningBlocks.jsx) | `[data-scroll]` body, `autoMax` 520 | open "more" sections, excerpt note being typed | **SUPPORTED** "Focus explanation", reading, internal scroll, normal text size |
+| `animation` (learner-facing "Explanation", /explain scenes) | `AnimationBody` > `AnimatedScene.jsx` | frame is `flex-1`; the SVG viewBox follows the frame's own aspect (pads, never crops) | playback (play/pause, time), selection, practice | **SUPPORTED** "Focus explanation", fill; playback state is component state and survives the resize |
+| `table` | `TableBody` | `[data-scroll]` body, `overflow-x-auto` table, sticky header | none | **SUPPORTED** "Focus table", fill (tables want the width), internal scroll both ways |
+| `image` | `ImageBody` | `[data-scroll]`, `img w-full`, variants, caption, search row below | variant shown, search results, typed query, confirm | **SUPPORTED** "Focus image", contain |
+| file `image`, `svg` (not an excerpt) | `FileCard` / `MediaCard.jsx` image and SVG previews | `img w-full`, `autoMax` 620 | none | **SUPPORTED** "Focus image", contain |
+| `video` with `src` (Motion and other generated or hosted clips) | `VideoBody` | `[data-scroll]`, `<video w-full controls>` | playback position, play state, generation polling | **SUPPORTED** "Focus video", contain; the `<video>` is resized in place and keeps playing |
+| `video` with `videoId` (YouTube moment) | `VideoCard` (AdaptiveCanvas.jsx) | fixed height, iframe `flex-1` (YouTube letterboxes) | playback in the cross-origin player | **SUPPORTED** "Focus video", fill; the iframe keeps its key, so playback continues |
+| file `clip` (dropped video) | `MediaCard.jsx` video player | `<video>` | playback | **SUPPORTED** "Focus video", contain |
+| `cad` | `CadCard.jsx` (`CadPreview`, three.js `three-d-renderer.js`) | fixed height, viewer `flex-1`, ResizeObserver resizes the renderer | camera, Interact (orbit) mode, dimensions toggle, edit state, generation polling | **SUPPORTED** "Focus CAD model", fill. Container Focus only resizes the viewer box; the camera is untouched and Fit view, Interact and Show dimensions stay the card's own controls in its toolbar row (kept visible in the frame) |
+| file `model` (imported 3D model, point cloud, splat, CAD file) | `ModelCard.jsx` (same renderer) | fixed height, viewer `flex-1` | camera, Interact mode | **SUPPORTED** "Focus 3D model", fill; its own Fit is untouched |
+| `notebook` | `NotebookCard` / `NotebookCard.jsx` | iframe | kernel, cells, unsaved edits | WP3 (`focus-adapter-notebook.js`) |
+| text and sticky items (notes) | `ItemView` (AdaptiveCanvas.jsx), RichText | absolute `[data-item-id]`, a note grows with its words, no inner scroll | editing caret, unsaved typing | **DEFERRED**: they are canvas items, not blocks. The seam's `enterFocus(id)` looks the id up in `blocks` and the host by `[data-block-id]`; a note adapter would be a button that does nothing. Needs WP2 to resolve item ids too (host `[data-item-id]`) and a decision on whether Focus opens the note for reading or editing. Size: small (one adapter with the reading placement, about 15 lines, plus the item lookup in the seam) |
+| `model3d`, `scene` (Blender, when ready) | `ThreeDBody` (LearningBlocks.jsx) | viewer `flex-1`, ResizeObserver | camera, clip, play state | UNSUPPORTED for now (not in brief 3.2/3.3); the CAD adapter's fill would work unchanged, a one-line follow-up |
+| `scene` interactive activity | `SceneActivityBody` | fixed size | attempt state | UNSUPPORTED (not in the brief) |
+| `wiki` | `WikiCard` > `LearnWiki.jsx` | `[data-scroll]` article | section, highlights, scroll | UNSUPPORTED (not in the brief); reading placement would work, follow-up |
+| `webpage` | `WebpageCard.jsx` | captured tiles scrolled by a CSS transform | scroll, highlights, lock | UNSUPPORTED (not in the brief); its own transform scroll needs checking first |
+| file document kinds (text, Markdown, table, workbook, Word, presentation) | `FileDocCard.jsx` | `[data-scroll]` bodies | slide index, scroll | UNSUPPORTED (not in the brief); reading or fill would work, follow-up |
+| `repo-code` | `CodeCard.jsx` | `pre[data-scroll]` | scroll | UNSUPPORTED (not in the brief) |
+| `repo-graph` | `GraphCard.jsx` | own graph viewport | pan, zoom, selection | UNSUPPORTED (not in the brief) |
+| `graph` (Desmos / Plotly) | `GraphBody` | renderer in a fixed box | sliders, pan, zoom | UNSUPPORTED (not in the brief; third-party renderers need their own resize check) |
+| `flow`, `mermaid`, `knowledge` | `FlowBody` (React Flow), `MermaidBody`, `KnowledgeBody` (RepositoryGraph) | fixed height, own viewport or `overflow-auto` | pan, zoom, selected node | UNSUPPORTED (not in the brief) |
+| `whiteboard` | `WhiteboardBlock.jsx` (tldraw) | fixed height | tldraw camera, drawing | UNSUPPORTED (an embedded canvas inside the canvas; needs its own check) |
+| `quiz`, `flashcards`, `challenge`, `code`, `snippet`, `audio` | `QuizBody`, `FlashcardsBody`, `ChallengeBody`, `CodeBody`, `SnippetBody`, `AudioBody` | `[data-scroll]` or auto height | choice, card side, typed answer, editor draft, audio playback | UNSUPPORTED (not in the brief; short practice cards that already fit) |
+| chat exchanges | `ChatCard` | `[data-scroll]` answer | reply composer | UNSUPPORTED (not a block; not in the brief) |
+| `heading`, `divider`, `canvas-ref`, file `attachment`, file `audio`, region excerpts (file with `excerpt`) | `HeadingCard`, `DividerCard`, `CanvasRefCard`, `FileCard` | auto height | heading text editing | UNSUPPORTED (structure, links and file stubs: nothing to enlarge; a region excerpt is a crop plus a note, not a picture to view) |
+| code boxes, equations, sections, shapes, ink, connectors, groups, areas | AdaptiveCanvas items and SVG layers | absolute, world units | editing | UNSUPPORTED (drawn objects, not content cards) |
+
+Follow-ups the seam owner (WP2) must cover for the adapters to stay in place: call the adapter's `update` when the canvas
+view changes while focused (or keep the camera still), and when the column relays out above the focused card (its
+translate is measured against its in-flow position at `enter`/`update`).
 
 ## 6. Findings (code against the brief)
 
