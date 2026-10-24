@@ -195,7 +195,7 @@ function Explore() {
         <Tabs value={tab} onValueChange={choose}>
           <TabsList data-explore-tabs className="mb-4">{EXPLORE_TABS.map(([id, name]) => <TabsTrigger key={id} value={id} className={EXPLORE_TAB}>{name}</TabsTrigger>)}</TabsList>
         </Tabs>
-        <div className="flex items-center gap-3 pb-6 max-md:flex-wrap">
+        <div className={`flex items-center gap-3 pb-6 max-md:flex-wrap ${tab === 'creators' ? 'max-w-[760px]' : ''}`}>
           <label className="relative block min-w-0 flex-1 max-md:basis-full">
             <Search size={15} strokeWidth={1.75} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-3" />
             <Input type="search" data-explore-search aria-label={searchLabel} placeholder={searchLabel} value={typed} onChange={(e) => setTyped(e.target.value)} className="h-9 w-full pl-9" />
@@ -205,7 +205,7 @@ function Explore() {
           {tab === 'explainers' && <CardSize />}
         </div>
         {tab === 'creators' ? (
-          <section data-explore-creators aria-label="Creators">
+          <section data-explore-creators aria-label="Creators" className="max-w-[760px]">
             <Recommended found={found} me={me} kind="creators" />
             {creators === null && <SkeletonRows rows={2} />}
             {creators?.length > 0 && <p data-creator-count className="pb-3 text-sm text-ink-2">{creatorTotal} {creatorTotal === 1 ? 'creator' : 'creators'}</p>}
