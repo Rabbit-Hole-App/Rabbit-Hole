@@ -9,7 +9,7 @@ const WEEK = {
   week_start_local: '2026-10-19',
   week_end_local: '2026-10-26',
   calculated_at: '2026-10-23T18:04:11.532Z',
-  freshness: { max_age_seconds: 60, pool_calculated_at: '2026-10-23T18:03:40.102Z' },
+  freshness: { max_age_seconds: 60 },
   star_history_since: '2026-10-19T09:30:12.004Z',
 };
 const canvas = (rank, token, title, handle, name, stars, forks) => ({
