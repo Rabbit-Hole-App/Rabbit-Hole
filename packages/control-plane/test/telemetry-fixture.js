@@ -1,7 +1,7 @@
 // node:sqlite stand-ins for the telemetry tests: a D1 binding (prepare/bind/run/first/all, batch as one transaction) over the
 // real migration files, and a synchronous sql() like a Durable Object's storage.sql.exec().toArray().
 import { DatabaseSync } from 'node:sqlite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 export const migration = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -27,10 +27,11 @@ export function d1(sqlite, { fail = () => false } = {}) {
   };
 }
 
-// A fresh telemetry database with 0001 applied. fail(sql) simulates an outage.
+// A fresh telemetry database with every migration applied. fail(sql) simulates an outage.
 export function telemetryDb(t, options) {
   const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(migration('telemetry-migrations/0001-telemetry.sql'));
+  // Every telemetry migration, in order, as wrangler would apply them.
+  for (const file of readdirSync(new URL('../telemetry-migrations/', import.meta.url)).sort()) sqlite.exec(migration(`telemetry-migrations/${file}`));
   t.after(() => sqlite.close());
   return { sqlite, db: d1(sqlite, options) };
 }

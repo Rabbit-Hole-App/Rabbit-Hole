@@ -86,7 +86,7 @@ test('the owner: overview keeps cost states apart, projection is POST only, each
   const { env, telemetry } = setup(t);
   assert.equal((await call(env, '/api/owner/telemetry/project', { session: 'owner-session' })).status, 405);
   const projected = await (await call(env, '/api/owner/telemetry/project', { session: 'owner-session', method: 'POST' })).json();
-  assert.deepEqual(projected.copied, { usage_actions: 1, usage_attempts: 1, usage_grants: null }, 'main has no usage_grants yet');
+  assert.deepEqual(projected.copied, { usage_actions: 1, usage_attempts: 1, usage_grants: null, learning_attempts: null, learning_assessments: null, learning_observations: null, learning_criteria: null }, 'main has no usage_grants yet, and this LEARN_DB has no coaching tables');
   const health = await (await call(env, '/api/owner/telemetry/health', { session: 'owner-session' })).json();
   assert.deepEqual(health.delivery.map(({ source, delivered, failed, pending }) => ({ source, delivered, failed, pending })), [{ source: 'projection', delivered: 2, failed: 0, pending: 0 }]);
   const overview = await (await call(env, '/api/owner/telemetry/overview?days=7', { session: 'owner-session' })).json();
@@ -104,4 +104,13 @@ test('subscription transport behavior is unchanged by the shared comparison', ()
   assert.equal(subscriptionOwnerRefusal(env, { email: 'learner@example.com' }).status, 403);
   assert.equal(subscriptionOwnerRefusal({ SUBSCRIPTION_ONLY: 'true' }, { email: undefined }).status, 403);
   assert.equal(subscriptionOwnerRefusal({ SUBSCRIPTION_OWNER_EMAIL: OWNER }, { email: 'learner@example.com' }), null, 'mode off: nothing refused here');
+});
+
+test('the owner\'s learning view answers with its definitions and its declared gaps, bounded to 30 days', async t => {
+  const { env } = setup(t);
+  const view = await (await call(env, '/api/owner/telemetry/learning?days=90', { session: 'owner-session' })).json();
+  assert.equal(view.days, 30, 'the window is capped');
+  assert.equal(view.environment, 'dev');
+  assert.deepEqual(view.unavailable.map(u => u.id), ['difficulty', 'human_reviewed_grading_quality', 'hook_completion', 'displayed_assistance']);
+  assert.equal(view.stalls.denominator, 0);
 });

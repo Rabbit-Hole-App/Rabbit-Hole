@@ -20,7 +20,7 @@ const json = (body, status = 200, headers = {}) => Response.json(body, { status,
 // 120 events a minute burst 60 per account or address: a broken page sends at most 10 a minute (client-telemetry.js).
 const limiter = tokenBucket({ capacity: 60, refillPerSec: 2 });
 
-export async function clientTelemetryRoute(path, req, env, { identity = devIdentity, now = Date.now } = {}) {
+export async function clientTelemetryRoute(path, req, env, { identity = devIdentity, now = Date.now, limit = limiter } = {}) {
   if (path !== CLIENT_PATH) return null;
   if (req.method !== 'POST') return json({ error: 'POST required' }, 405, { Allow: 'POST' });
   if (env.TELEMETRY_CLIENT_DISABLED === 'true') return new Response(null, { status: 204 });
@@ -43,7 +43,7 @@ export async function clientTelemetryRoute(path, req, env, { identity = devIdent
   try { const who = await identity(req, env); if (who && !(who instanceof Response)) userRef = who.userId || null; } catch { /* anonymous */ }
   const address = req.headers.get('cf-connecting-ip') || 'unknown';
   const who = userRef ? `u:${userRef}` : `a:${(await sha256(address)).slice(0, 16)}`;
-  const taken = limiter.take(who, Math.max(1, batch.events.length));
+  const taken = limit.take(who, Math.max(1, batch.events.length));
   if (!taken.ok) return json({ error: 'Slow down' }, 429, { 'Retry-After': String(Math.ceil(taken.retryAfterMs / 1000)) });
 
   const at = now(), bucket = Math.floor(at / BUCKET_MS);

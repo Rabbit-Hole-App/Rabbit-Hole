@@ -4,8 +4,10 @@
 // each add a line here do not conflict; keep one entry per line. The contract owner reviews each addition.
 import client from './client.js';
 import support from './support.js';
+import tutor from './tutor.js';
 
 export const FEATURE_EVENTS = [
   client,
   support,
+  tutor,
 ];

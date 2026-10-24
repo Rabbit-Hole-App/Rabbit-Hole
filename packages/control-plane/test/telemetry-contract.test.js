@@ -109,10 +109,11 @@ test('every registered event has a payload allowlist with only known field shape
 const feature = (extra = {}) => ({ namespace: 'cad', events: { 'cad.build': { duration_ms: { type: 'ms', required: true }, stage: { enum: ['parse', 'build'] } } }, ...extra });
 const define = features => defineEvents({ 'stage.finished': {} }, features, ['unknown']);
 test('a feature registers its events and error codes additively, beside the core ones', () => {
-  const { events, errorCodes, browserNamespaces } = define([feature({ errorCodes: ['cad_parse_failed'], browser: true })]);
+  const { events, errorCodes, ingest } = define([feature({ errorCodes: ['cad_parse_failed'], ingest: 'client' })]);
   assert.deepEqual(Object.keys(events), ['stage.finished', 'cad.build']);
-  assert.deepEqual([errorCodes, browserNamespaces], [['unknown', 'cad_parse_failed'], ['cad']]);
-  assert.deepEqual(define([feature()]).browserNamespaces, [], 'browser ingestion is opt-in');
+  assert.deepEqual([errorCodes, ingest], [['unknown', 'cad_parse_failed'], { client: ['cad'], tutor: [] }]);
+  assert.deepEqual(define([feature()]).ingest, { client: [], tutor: [] }, 'browser ingestion is opt-in');
+  assert.deepEqual(define([feature({ ingest: 'tutor' })]).ingest, { client: [], tutor: ['cad'] });
 });
 
 test('a malformed or colliding registration throws at load, naming the problem', () => {
@@ -127,6 +128,7 @@ test('a malformed or colliding registration throws at load, naming the problem',
   bad([feature({ events: { 'cad.build': { stage: { enum: [] } } } })], /a rule is/);
   bad([feature({ events: { 'cad.build': { stage: { enum: ['two words'] } } } })], /a rule is/);
   bad([feature({ events: { 'cad.build': { stage: { check: () => true } } } })], /a rule is/);
+  bad([feature({ ingest: 'everywhere' })], /ingest is one of/);
   bad([feature({ errorCodes: ['unknown'] })], /already registered/);
   bad([feature({ errorCodes: ['Bad Code'] })], /invalid error code/);
 });

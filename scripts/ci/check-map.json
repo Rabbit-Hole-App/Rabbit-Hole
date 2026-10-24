@@ -236,7 +236,8 @@
   "mapped": {
     "packages/web/src/client-telemetry.js": ["client-telemetry-check.mjs"],
     "packages/web/src/OwnerTelemetry.jsx": ["client-telemetry-check.mjs"],
-    "packages/control-plane/src/telemetry-events/*.js": ["client-telemetry-check.mjs"],
+    "packages/control-plane/src/telemetry-events/*.js": ["client-telemetry-check.mjs","tutor-telemetry-check.mjs"],
+    "packages/web/src/tutor-telemetry.js": ["tutor-telemetry-check.mjs"],
     "packages/file-convert/**": ["file-converter-ui-check.mjs","file-step-retry-check.mjs"],
     "packages/control-plane/file-jobs-demo.mjs": ["file-converter-ui-check.mjs","file-step-retry-check.mjs"],
     "packages/control-plane/file-jobs-dev-demo.mjs": ["file-converter-ui-check.mjs","file-step-retry-check.mjs"],
@@ -757,6 +758,7 @@
   "secondsSource": "Linux checks: their own run time in fast-e2e run 38501772960 (Task B4), rounded up to 5 s, at least 10; windows-only: placeholder",
   "checks": {
     "client-telemetry-check.mjs": {"runner": "fork", "seconds": 60},
+    "tutor-telemetry-check.mjs": {"runner": "fork", "seconds": 40},
     "explain-gate-check.mjs": {"runner": "windows-only", "why": "a local-stack check (BASE, SMALL_CP, VARS) on a stub stack (TRIPWIRE=1 STUB=1: the dev worker starts from e2e/explain-gate-stub-worker.js, which answers only the /explain scene tools from e2e/explain-gate-fixtures.js; every other provider request is refused by the tripwire) for EXP-04 (owner, 2026-10-21): the real server gate refuses a combination-only error and a scene over 64 settings after one repair, in its exact words, with no card, the line kept and no automatic retry. New and needs the stub stack, so it runs by hand on the local stack", "seconds": 60},
     "explain-entry-check.mjs": {"runner": "windows-only", "why": "a local-stack check (BASE, SMALL_CP, VARS) for /explain v2 entry points (EXP-T20 slice 3, EXP-T21, Lane L2): the job API is a fake job server in the browser (no model, EXPLAIN_V2_ENABLED may stay off); typed, picker, Use example, routed natural language and command-bearing Ctrl+K make one job each, reload and canvas switch, provider_unavailable Retry, a stale-revision Edit refused at Apply. New, not yet passed three times on Linux, so it runs by hand on the local stack", "seconds": 120},
     "explain-scene-check.mjs": {"runner": "windows-only", "why": "a local-stack check (BASE, SMALL_CP, VARS) for /explain's interactive explanation (L10, owner 2026-10-21): the artifact answer replayed in the browser (the contract example, or recorded real /explain answers with SCENES=dir), every other model-capable route aborted; controls against the scene evaluator, board save and a fresh reload, the invalid-scene offer and the Slash commands examples. New, not yet passed three times on Linux, so it runs by hand on the local stack", "seconds": 150},

@@ -7,11 +7,14 @@
 //   GET  /health                 delivery health, projection cursors and this isolate's emit counts
 //   GET  /client-errors?days=    browser failures grouped by fingerprint, route and release, with occurrences and affected accounts
 //   GET  /support/<ref>          a support reference: its report, the client errors it saw, and the server events and actions they link to
-//   POST /project                one bounded accounting projection pass
+//   GET  /learning?days=         the Tutor and learning view: evidence metrics, milestones, hook funnel and decision sequences, each with its definition
+//   POST /project                one bounded projection pass: accounting, then the Tutor's learning evidence
 import { ownerOnly, ownerNotFound } from './owner-guard.js';
 import { telemetryEnvironment } from './telemetry-contract.js';
 import { deliveryCounts } from './telemetry-delivery.js';
 import { projectAccounting } from './telemetry-projection.js';
+import { projectLearning } from './telemetry-learning-projection.js';
+import { learningMetrics } from './telemetry-learning-metrics.js';
 
 const PREFIX = '/api/owner/telemetry/';
 const ACTION_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
@@ -39,6 +42,7 @@ const ROUTES = {
     const { days, sinceMs } = span(req);
     return json({ configured, environment, days, groups: await rows(db.prepare(CLIENT_ERRORS).bind(environment, sinceMs)) });
   } },
+  learning: { method: 'GET', storage: true, run: async ({ db, req, environment }) => json(await learningMetrics(db, { environment, days: span(req).days })) },
   overview: { method: 'GET', storage: true, run: async ({ db, req, configured, environment }) => {
     const { days, sinceMs } = span(req);
     return json({ configured, environment, days,
@@ -73,13 +77,15 @@ export async function ownerTelemetryRoute(path, req, env, deps = {}) {
   return route.run({ req, env, db, id, owner, configured, environment });
 }
 
-// One bounded accounting projection pass; each pass is also a delivery-health row (source 'projection').
+// One bounded projection pass (accounting, then the Tutor's learning evidence); each pass is also a delivery-health row (source 'projection').
 async function projection(env, db) {
   if (!env.LEARN_DB) return json({ error: 'LEARN_DB is not bound on this deployment.' }, 503);
   const record = (delivered, failed, pending) => db.prepare('INSERT OR IGNORE INTO telemetry_delivery_health (source, observed_at, delivered, failed, pending) VALUES (?, ?, ?, ?, ?)')
     .bind('projection', Date.now(), delivered, failed, pending).run().catch(() => {});
   try {
-    const pass = await projectAccounting(env.LEARN_DB, db, { limit: 500 });
+    const accounting = await projectAccounting(env.LEARN_DB, db, { limit: 500 });
+    const learning = await projectLearning(env.LEARN_DB, db, { limit: 500 });
+    const pass = { copied: { ...accounting.copied, ...learning.copied }, done: accounting.done && learning.done };
     await record(Object.values(pass.copied).reduce((sum, n) => sum + (n || 0), 0), 0, pass.done ? 0 : 1);
     return json(pass);
   } catch (error) {

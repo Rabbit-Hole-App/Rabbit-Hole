@@ -68,18 +68,23 @@ const CORE_EVENTS = {
 };
 const CORE_NAMESPACES = ['model_call', 'stage', 'telemetry'];
 
-// Validates the feature registrations and assembles the registry: { events, errorCodes, browserNamespaces }. A feature is
-// { namespace, events: { '<namespace>.<name>': { field: rule } }, errorCodes?: [token], browser?: true }. browser: true lets
-// the browser ingestion route accept that namespace; anything else a browser sends is refused. Throws on any malformed or
+// Validates the feature registrations and assembles the registry: { events, errorCodes, ingest }. A feature is
+// { namespace, events: { '<namespace>.<name>': { field: rule } }, errorCodes?: [token], ingest?: 'client' | 'tutor' }. ingest names the
+// one browser route that may accept that namespace ('client': anonymous error batches; 'tutor': signed-in Tutor events);
+// anything else a browser sends is refused. Throws on any malformed or
 // colliding registration, so a bad adapter fails every test that imports the contract instead of corrupting the registry.
+export const INGEST_ROUTES = ['client', 'tutor'];
 export function defineEvents(core, features, coreCodes) {
-  const events = { ...core }, codes = [...coreCodes], namespaces = new Set(CORE_NAMESPACES), browser = [];
+  const events = { ...core }, codes = [...coreCodes], namespaces = new Set(CORE_NAMESPACES), ingest = Object.fromEntries(INGEST_ROUTES.map(route => [route, []]));
   for (const feature of features) {
     const { namespace } = feature || {};
     if (typeof namespace !== 'string' || !/^[a-z][a-z_]{1,31}$/.test(namespace)) throw new Error(`telemetry feature has no valid namespace: ${JSON.stringify(namespace)}`);
     if (namespaces.has(namespace)) throw new Error(`telemetry namespace "${namespace}" is already registered`);
     namespaces.add(namespace);
-    if (feature.browser === true) browser.push(namespace);
+    if (feature.ingest !== undefined) {
+      if (!INGEST_ROUTES.includes(feature.ingest)) throw new Error(`${namespace}: ingest is one of ${INGEST_ROUTES.join(', ')}`);
+      ingest[feature.ingest].push(namespace);
+    }
     for (const code of feature.errorCodes || []) {
       if (typeof code !== 'string' || !/^[a-z][a-z0-9_]{1,47}$/.test(code)) throw new Error(`${namespace}: invalid error code ${JSON.stringify(code)}`);
       if (codes.includes(code)) throw new Error(`${namespace}: error code "${code}" is already registered`);
@@ -96,13 +101,15 @@ export function defineEvents(core, features, coreCodes) {
       events[name] = rules;
     }
   }
-  return { events: Object.freeze(events), errorCodes: Object.freeze(codes), browserNamespaces: Object.freeze(browser) };
+  return { events: Object.freeze(events), errorCodes: Object.freeze(codes), ingest: Object.freeze(Object.fromEntries(Object.entries(ingest).map(([route, list]) => [route, Object.freeze(list)]))) };
 }
 const REGISTRY = defineEvents(CORE_EVENTS, FEATURE_EVENTS, CORE_ERROR_CODES);
 export const EVENTS = REGISTRY.events;
 export const ERROR_CODES = REGISTRY.errorCodes;
-// Namespaces the browser may send (validated again server-side): a browser can never forge a model call or delivery health.
-export const BROWSER_NAMESPACES = REGISTRY.browserNamespaces;
+// The namespaces each browser route may accept (validated again server-side): a browser can never forge a model call or delivery
+// health, and the anonymous error route can never accept a Tutor event.
+export const INGEST_NAMESPACES = REGISTRY.ingest;
+export const BROWSER_NAMESPACES = REGISTRY.ingest.client;
 
 // The envelope. required: true must be present; ingested_at is the sink's, never the producer's.
 const ENVELOPE = {
@@ -125,7 +132,7 @@ const ENVELOPE = {
   sample_rate: { type: 'rate' }, // present only on a sampled event: the probability it was kept
   payload: { required: true },
 };
-const VERSION_KEYS = ['settings', 'model', 'prompt', 'rubric', 'pricing', 'renderer'];
+const VERSION_KEYS = ['settings', 'model', 'prompt', 'rubric', 'pricing', 'renderer', 'planner', 'mapping'];
 
 // Provider usage, as the provider reported it, flattened to dotted keys (Task 6: the allowlisted original for reconciliation).
 // Subcategories are kept apart and never summed here: whether a provider's total includes them is documented in

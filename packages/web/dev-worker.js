@@ -72,6 +72,7 @@ import { imageEstimate, TRANSCRIBE_ESTIMATE } from '../control-plane/src/learn-u
 import { usageFetch } from '../control-plane/src/learn-usage-route.js';
 import { ownerTelemetryRoute } from '../control-plane/src/owner-telemetry-routes.js';
 import { clientTelemetryRoute } from '../control-plane/src/telemetry-client-route.js';
+import { tutorTelemetryRoute } from '../control-plane/src/telemetry-tutor-route.js';
 import { withTrace } from '../control-plane/src/telemetry-delivery.js';
 import { searchPexels } from '../control-plane/src/pexels.js';
 import { subscriptionOwnerRefusal, subscriptionCourseRefusal } from '../control-plane/src/subscription-transport.js';
@@ -179,6 +180,8 @@ const routes = {
     }
     // Browser error batches (docs/features/telemetry.md "Browser errors"): same-origin, bounded, 204 where telemetry is not provisioned.
     if (path === '/api/telemetry/client') { const accepted = await clientTelemetryRoute(path, req, env); if (accepted) return accepted; }
+    // The signed-in learner's Tutor evidence events (docs/features/telemetry.md "Tutor evidence"): ids, enums and counts, never their words.
+    if (path === '/api/telemetry/tutor') { const accepted = await tutorTelemetryRoute(path, req, env); if (accepted) return accepted; }
     // The owner's telemetry API (docs/features/telemetry.md): 404 to anyone but SUBSCRIPTION_OWNER_EMAIL's session, whatever the mode.
     if (path.startsWith('/api/owner/telemetry')) { const owned = await ownerTelemetryRoute(path, req, env); if (owned) return owned; }
     // The signed-in user's AI usage this month (credits Phase 1: accounting, not enforcement).

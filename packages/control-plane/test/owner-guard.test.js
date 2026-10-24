@@ -79,7 +79,7 @@ for (const mode of ['true', 'false', 'TRUE', '', undefined]) {
 test('every registered owner route is guarded: any method, no session, chin01 or another account gets one identical 404 and reaches no handler', async t => {
   const { env } = envFor(t);
   const spies = { ...env, TELEMETRY_DB: trap('TELEMETRY_DB'), LEARN_DB: trap('LEARN_DB') };
-  assert.deepEqual(Object.keys(OWNER_ROUTES).sort(), ['access', 'actions', 'client-errors', 'health', 'overview', 'project', 'support'],
+  assert.deepEqual(Object.keys(OWNER_ROUTES).sort(), ['access', 'actions', 'client-errors', 'health', 'learning', 'overview', 'project', 'support'],
     'a new owner route is added to ROUTES, which is guarded; update this list and review what it exposes');
   const names = [...Object.keys(OWNER_ROUTES), 'export', 'diagnostics', 'reconciliation', 'archive', 'nothing', 'a%2fb'];
   for (const name of names) for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']) for (const session of [undefined, 'chin01', 'learner']) {

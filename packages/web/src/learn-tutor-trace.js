@@ -7,6 +7,8 @@
 import { HANDOFF_ACTION, MODE_SLASHES, NEXT_SECTION_ACTION, TRACE_SCHEMA_VERSION, TUTOR_PLANNER_VERSION, goalWords, repeatsLearnerWords } from '../../control-plane/src/agents/learn-tutor.js';
 import { STATES } from './learn-tutor-evidence.js';
 import { resolveTarget } from './learn-target.js';
+import { learnPreview } from './flags.js';
+import { browserTutorSink } from './tutor-telemetry.js';
 
 // Fix round 2 (R1-M3): a Stop or barge-in (AbortError) is stopped, never timeout; a TimeoutError or a timed-out message is timeout.
 const statusOf = error => (error?.name === 'AbortError' ? 'stopped' : /timed? ?out|timeout|abort/i.test(`${error?.name || ''} ${error?.message || ''}`) ? 'timeout' : 'error');
@@ -274,3 +276,6 @@ export function harnessSink({ target = globalThis, me: who = meFromServer } = {}
 }
 // v1: one sink, only when an evaluation harness sets the flag before the page loads (e.g. a Playwright init script).
 if (globalThis.__SMALL_TUTOR_TRACE__ === true) { globalThis.__smallTutorTraces ??= []; addSink(harnessSink()); }
+// The production sink (docs/features/telemetry.md "Tutor evidence"): Rabbit Hole builds in a browser only. It sends ids, enums, counts and
+// timings of each finished event to the signed-in route, never the learner's words, goal or hook text, and never fails a turn.
+if (learnPreview && typeof window !== 'undefined') addSink(browserTutorSink(window));

@@ -3,7 +3,7 @@
 // its own. Dollar amounts appear only here, for the owner. Measured, estimated, unknown and reserved amounts are separate rows
 // and are never added together.
 import { useEffect, useState } from 'react';
-import { Activity, Bug, CircleDollarSign, Hash, Layers, Route, Search, Tag, Timer, Users } from 'lucide-react';
+import { Activity, Bug, CircleDollarSign, GraduationCap, Hash, Layers, Route, Search, Tag, Timer, Users } from 'lucide-react';
 import Shell from './Shell.jsx';
 import { Button, ExpandedPageFrame, Input } from './ui.jsx';
 
@@ -37,14 +37,14 @@ function OwnerTelemetry() {
     if (access.hidden) return setState({ hidden: true });
     if (!access.body?.configured) return setState({ access: access.body });
     await get('/project', { method: 'POST' }); // one bounded catch-up of the accounting projection before reading
-    const [overview, health, clientErrors] = await Promise.all([get(`/overview?days=${days}`), get('/health'), get(`/client-errors?days=${days}`)]);
-    setState({ access: access.body, overview: overview.body, health: health.body, clientErrors: clientErrors.body });
+    const [overview, health, clientErrors, learning] = await Promise.all([get(`/overview?days=${days}`), get('/health'), get(`/client-errors?days=${days}`), get(`/learning?days=${days}`)]);
+    setState({ access: access.body, overview: overview.body, health: health.body, clientErrors: clientErrors.body, learning: learning.body });
   };
   useEffect(() => { load(); }, [days]);
 
   if (state.hidden) return <p className="text-sm text-ink-2">Not found.</p>;
   if (state.loading && !state.access) return <p className="text-sm text-ink-2">Loading telemetry</p>;
-  const { access, overview, health, clientErrors } = state;
+  const { access, overview, health, clientErrors, learning } = state;
   return (
     <>
       <div className="flex items-baseline gap-3 pb-6">
@@ -79,6 +79,7 @@ function OwnerTelemetry() {
                 <td className="pr-4">{g.occurrences}</td><td className="pr-4">{g.accounts}</td><td>{time(g.last_seen)}</td></tr>)}</tbody></table>
             {!clientErrors?.groups?.length && <p className="pt-2 text-xs text-ink-2">No browser errors in this window.</p>}
           </Section>
+          <Section title="Tutor and learning"><LearningView learning={learning} /></Section>
           <Section title="Telemetry health">
             <p className="text-xs text-ink-2">Last event ingested {time(health?.lastIngestedAt)}. This server instance: {health?.isolate?.delivered ?? 0} delivered, {health?.isolate?.rejected ?? 0} refused, {health?.isolate?.dropped ?? 0} dropped.</p>
             <table className="mt-2 w-full text-sm"><thead><tr><Head icon={Activity}>Source</Head><Head icon={Timer}>Observed</Head><Head icon={Hash}>Pending</Head><Head icon={Hash}>Dead</Head><Head icon={Timer}>Oldest</Head></tr></thead>
@@ -88,6 +89,29 @@ function OwnerTelemetry() {
       <ActionExplorer />
     </>
   );
+}
+
+// A metric is always shown with what it is a rate of: its count, its denominator and the basis it rests on. The definition is the
+// row's tooltip. AI-assessed outcomes are labelled as assessments, never as verified outcomes.
+const rate = m => (m.denominator ? `${m.numerator} of ${m.denominator} (${Math.round((m.numerator / m.denominator) * 100)} percent)` : `${m.numerator} of ${m.denominator}`);
+function MetricTable({ rows }) {
+  if (!rows?.length) return <p className="text-xs text-ink-2">No data in this window.</p>;
+  return <table className="w-full text-sm"><thead><tr><Head icon={Tag}>Metric</Head><Head icon={Hash}>Count of total</Head></tr></thead>
+    <tbody>{rows.map(m => <tr key={m.label} className="border-t border-line" title={m.definition}><td className="py-1.5 pr-4">{m.label}</td><td>{rate(m)}</td></tr>)}</tbody></table>;
+}
+function LearningView({ learning }) {
+  if (!learning) return <p className="text-xs text-ink-2">Not loaded.</p>;
+  const funnel = learning.hookFunnel, milestone = learning.milestone;
+  return <>
+    <p className="pb-2 text-xs text-ink-2">Outcomes are grouped by how they were assessed (keyed rubric match, or an AI evaluator and its version). An AI assessment is not a verified outcome. Hover a row for its definition and denominator.</p>
+    <MetricTable rows={[...(learning.independentSuccess || []), ...(learning.assistedSuccess || []), ...(learning.retention || []), ...(learning.transfer || [])]} />
+    <p className="pb-1 pt-4 text-xs font-medium">Tutor decisions ({learning.decisions} in this window{learning.truncated ? ', truncated' : ''})</p>
+    <MetricTable rows={[learning.stalls, learning.explanationLoops, learning.repeatedMisconceptions, learning.prematureProgression, learning.adaptationAfterFailure, learning.adaptationAfterMisconception]} />
+    <p className="pt-3 text-xs text-ink-2">Help offered by decisions: {Object.entries(learning.assistanceOffered || {}).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'}. Help used in assessed attempts: {(learning.assistanceUsed || []).map(a => `${a.assistance} ${a.attempts}`).join(', ') || 'none'}.</p>
+    <p className="pt-3 text-xs text-ink-2" title={funnel.definition}>Hook sets: {funnel.generated} generated ({funnel.cached} cached, {funnel.discarded} discarded), {funnel.shown} shown: {funnel.selected} selected, {funnel.superseded} replaced by a later set, {funnel.unknown} unknown.</p>
+    <p className="pt-3 text-xs text-ink-2" title={milestone.cost.definition}>Milestones in this window: {milestone.milestones}; median {milestone.medianElapsedSeconds ?? 'none'} seconds and {milestone.medianObservations ?? 'none'} observations to reach one. Tutor AI cost in those spans: measured ${(milestone.cost.measuredMicros / 1e6).toFixed(4)}, estimated ${(milestone.cost.estimatedMicros / 1e6).toFixed(4)}, {milestone.cost.unknownAttempts} unknown attempts. Not added together.</p>
+    <ul className="pt-3 text-xs text-ink-2">{(learning.unavailable || []).map(u => <li key={u.id}><GraduationCap size={11} className="mr-1 inline" />Unavailable, {u.id.replaceAll('_', ' ')}: {u.reason}</li>)}</ul>
+  </>;
 }
 
 function ActionExplorer() {

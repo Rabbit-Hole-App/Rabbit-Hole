@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { clientTelemetryRoute, CLIENT_PATH } from '../src/telemetry-client-route.js';
 import { makeEvent } from '../src/telemetry-contract.js';
+import { tokenBucket } from '../src/telemetry-limit.js';
 import { telemetryDb } from './telemetry-fixture.js';
 
 let seq = 0;
@@ -84,9 +85,11 @@ test('one account cannot flood: a burst beyond its bucket gets 429 with Retry-Af
   const { env } = setup(t);
   const id = user();
   const statuses = [];
-  for (let i = 0; i < 4; i++) statuses.push((await call(env, post(Array.from({ length: 20 }, (_, n) => failure({ fingerprint: `${i}${n}`.padStart(16, '0') }))), as(id))).status);
+  // The same bucket the route uses, on a frozen clock: no refill, so a slow machine cannot change the count.
+  const bucket = tokenBucket({ capacity: 60, refillPerSec: 2, now: () => 1_000_000 });
+  for (let i = 0; i < 4; i++) statuses.push((await call(env, post(Array.from({ length: 20 }, (_, n) => failure({ fingerprint: `${i}${n}`.padStart(16, '0') }))), { ...as(id), limit: bucket })).status);
   assert.deepEqual(statuses, [202, 202, 202, 429]);
-  const limited = await call(env, post([failure()]), as(id));
+  const limited = await call(env, post([failure()]), { ...as(id), limit: bucket });
   assert.equal(limited.status, 429);
   assert.ok(Number(limited.headers.get('retry-after')) >= 1);
   assert.equal((await call(env, post([failure()]), as(user()))).status, 202);

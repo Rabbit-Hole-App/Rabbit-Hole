@@ -47,6 +47,7 @@ A leaf module with no imports: the browser (`packages/web/src`), the Workers, Du
 |---|---|---|---|
 | Actions, attempts, reservations, charges, refunds, grants | LEARN_DB (`rabbit-hole-learn-prod` / `-dev`) | `LEARN_DB` | Financial truth, Credits-owned. Never written by telemetry. |
 | Operational events, delivery health, owner access log | Telemetry D1 | `TELEMETRY_DB` | `telemetry-migrations/0001-telemetry.sql` |
+| Learning evidence projections (`learning_attempts`, `learning_assessments`, `learning_observations`, `learning_criteria`) and Tutor events | Telemetry D1 | `TELEMETRY_DB` | Ids, enums and counts only; rebuildable copies of the Tutor's records (migration 0002). |
 | Accounting projections (`accounting_actions`, `accounting_attempts` with Credits' price detail and refunds, `accounting_grants`) | Telemetry D1 | `TELEMETRY_DB` | Rebuildable copies by id of Credits' interface (`docs/features/credits-2500.md`); not a ledger. |
 | Hourly/daily aggregates | Telemetry D1 | `TELEMETRY_DB` | Increment 5. |
 | Redacted diagnostic archives, imported billing evidence | Private R2 | `TELEMETRY_ARCHIVE` | No public access, no custom domain; owner-guarded retrieval only. |
@@ -105,7 +106,7 @@ and one line to a list, and the contract owner reviews the pull request.
    ```js
    export default {
      namespace: 'cad',                       // lower case, unique; core namespaces (model_call, stage, telemetry) are reserved
-     browser: false,                         // true only if the browser may send it (then the ingestion route accepts the namespace)
+     ingest: undefined,                      // 'client' or 'tutor' only if a browser route may accept the namespace (see Browser errors, Tutor evidence)
      errorCodes: ['cad_parse_failed'],       // optional: extra error_code tokens, unique across features
      events: {
        'cad.build': {                        // every name is <namespace>.<name>, lower case
@@ -171,6 +172,90 @@ and one line to a list, and the contract owner reviews the pull request.
   worker and `VITE_RELEASE_SHA` at build time (neither is set today). The reference appears on the confirmation button's tooltip,
   which keeps the owner's "confirmation stays on the button" pattern; a visible reference is an owner design decision. Offline
   and reconnect behavior appears only as `online` on other failures; there is no dedicated offline event yet.
+
+## Tutor evidence (Task 12)
+
+Plan and decisions: `C:/s/spec/telemetry/task12-tutor-evidence-plan.md`; owner decisions A to F, 2026-10-23. Evidence class for everything
+below: **fixture-tested**. No real Tutor model turn, no real learner records and no deployed environment have exercised it.
+
+**Two sources, kept apart.**
+
+1. *Decisions* come from the browser. `web/src/tutor-telemetry.js` maps the finished TutorDecisionEvent v1 events
+   (`learn-tutor-trace.js`: `tutor_decision`, `next_steps_computed`, `next_steps_shown`) into `tutor.decision`,
+   `tutor.hooks_computed` and `tutor.hooks_shown` (`telemetry-events/tutor.js`, `ingest: 'tutor'`) and posts them to
+   `POST /api/telemetry/tutor` (`telemetry-tutor-route.js`). The sink is registered in `learn-tutor-trace.js` for Rabbit Hole builds in a
+   browser; it is built from finished results only, after them, and every failure is swallowed.
+2. *Learning evidence* is projected from LEARN_DB by `telemetry-learning-projection.js` into `learning_attempts`,
+   `learning_assessments`, `learning_observations` and `learning_criteria` (migration `0002-learning-evidence.sql`): read-only, cursor
+   based, rebuildable, run beside the accounting projection by the owner dashboard's `POST /project`.
+
+**What is carried, and what is not.** Ids, enums, counts, versions and timings, assembled field by field: no goal text, hook text,
+rationale, canvas summary, modality text, question, plan text, answer, excerpt, title or public identifier. The attempt's answer
+(`content_json`), its source and assistance references, goal and criterion text, an activity's objective and prompt, an
+assessment's free reason and the raw provenance are never selected. A test builds real v1 events from fixture text and asserts none
+of it reaches the output. The contract has no text type, so a text field cannot be registered by mistake.
+
+**Server rules (`POST /api/telemetry/tutor`).** Signed-in learners only (401 otherwise, whether or not storage is provisioned).
+Same-origin, 64 KB, at most 20 events, a per-account bucket (40 burst, 2 a second), the `tutor` namespace only (the anonymous error
+route can never accept it, and this route refuses everything else). Identity, time, environment and event id are the server's; the
+stored id is derived from the account and the browser's event id, so a retry or replay is one row; the events of a batch are spaced
+one millisecond apart in batch order. The learner's goal, activity, activity type and criteria are read from the server's own
+coaching records (`learn_coaching_state`, `learn_activities`), never from the browser. A canvas reference (decision D) is kept only for
+a canvas the account owns (a `learn_boards` or coaching row for that account, app and board) and never for a shared scope, which
+carries only its one-way share key.
+
+**Assistance (decision B).** Offered, displayed and used help are different things and are kept apart:
+
+- *Offered*: `tutor.decision.assistance_offered`, derived from the accepted actions by `assistance-map-v1`
+  (`tutor-telemetry.js`; the version is on the event as `versions.mapping`). explanation: `respond_text`, `handoff`, `suggest_depth`,
+  `suggest_avatar_clip`. material: a card shown, focused or made that is read or watched. scaffold: such a card that the learner acts on
+  (the INTERACTIVE modalities, kept equal to `learn-tutor-actions.js` by a test). none: `ask_question`, `suggest_practice`,
+  `suggest_dive`, `open_dive`, `return_from_dive`, `suggest_journey`, `suggest_research`, `next_section`, `no_action`. unknown: any other
+  type, or a card with no known modality. A turn takes its strongest action (explanation, material, scaffold, none). Reviewed
+  against `ACTION_TYPES` and the handoff, avatar and next-section actions in `learn-tutor.js`, and what each does in
+  `learn-tutor-actions.js`; a test fails if a Tutor action type is unmapped.
+- *Displayed*: for hooks, `tutor.hooks_shown` (sets first on screen, cached or not). The Tutor does not record that an offered
+  action was displayed, so there is no displayed field for decisions; it is not inferred.
+- *Used*: `learning_attempts.assistance` (none, assisted, unknown) and the observation's `assistance`: the help the server resolved at
+  submission. For hooks, a turn that names a hook (`selected_hook`).
+
+**Hook outcomes (decision C).** Computed (`hooks_computed`: also cached and discarded), shown, and selected are recorded.
+*Superseded* is derived, never captured: a set is superseded only when a later set was shown on the same surface (account, session,
+canvas or share key). A shown set that was neither selected nor superseded is **unknown**; the absence of a selection is not read as
+rejection or dismissal. There is no `hook_outcome` event, and completion beyond the turn that selected a hook is not measured.
+
+**Metrics (`GET /api/owner/telemetry/learning`, the dashboard's Tutor and learning view; `telemetry-learning-metrics.js`).** Every
+metric returns its numerator, denominator, basis and definition:
+
+| Metric | Numerator over denominator |
+|---|---|
+| Independent success; assisted success | valid observations with fit met and no help (or recorded help), over valid observations scored met, partly met or not met; the first scored observation of each criterion version per account and goal; grouped by route and evaluator version; help not recorded is its own bucket |
+| Retention | valid retests (`retention_of`) with fit met over scored ones, bucketed by time since the original |
+| Transfer | applied and met over scored valid observations, on criteria that require transfer |
+| Milestones | first moment a criterion version is `demonstrated_independently` under the product's own `deriveCriterionSummary`; median elapsed time and observations; Tutor-feature AI cost of the account in the span, measured and estimated apart |
+| Stalls | runs of 3 consecutive decisions in a session on the same target claims with no evidence change |
+| Explanation loops | 2 consecutive text replies on the same claims with no attempt between |
+| Repeated misconceptions | claims with 2 or more single-claim turns that moved them into misconception, over claims with any |
+| Premature progression candidates | advance-goal decisions made while the claims held a misconception or gap, over all advance-goal decisions (a candidate, not a confirmed error) |
+| Adaptation after failure | the next decision after a valid not-met observation (or a misconception turn) carries a repair reason, over all such next decisions |
+| Hook funnel | generated, cached, discarded, shown, selected (by position), superseded, unknown |
+
+"Valid": assessment completed, validity valid, no conflict, not superseded by a later completed assessment. AI-assessed (route `jev`
+or `larger`) is not verified: outcomes are always grouped by how they were produced. Declared unavailable, not estimated: difficulty
+(the product has none; decision A), human-reviewed grading quality (decision E: reviewer, sampling rule and permitted evidence are
+undefined, so nothing is collected and no review table exists; learner conversations are never collected for review), hook
+completion, and displayed help.
+
+**Learner notice (decision F).** Settings, Privacy & security, "Learning analytics" (`RabbitHoleSettings.jsx`,
+`data-learning-analytics-notice`): what is recorded, scoped to analytics ("These analytics events do not include the text of your
+messages, questions or answers ... That statement is about analytics only"), without claiming conversations are not stored, and who can
+see it. A source test ties its claims to the registered fields. **Release dependency:** the notice describes collection, so it should
+ship with the provisioned telemetry; it is not conditional on a server flag.
+
+**Limits.** An observation's later validity change is picked up for the newest 500 observations of the last 7 days; an older change waits
+for a full rebuild (`from: 0`). The canvas reference needs a saved board or a coaching row. The metrics read the newest 20000 Tutor
+events in the window and report `truncated`. Shared-canvas viewers who are signed in send events under their own account; anonymous
+viewers send none.
 
 ## Model logger (`learn-models.js` `loggedModel`)
 
@@ -329,12 +414,12 @@ npx wrangler deploy --dry-run --config wrangler.dev.jsonc | grep TELEMETRY
 npx wrangler d1 migrations apply rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc
 ```
 
-Effect: wrangler lists `0001-telemetry.sql` and asks to confirm; on yes it creates the telemetry tables in the dev telemetry database only
+Effect: wrangler lists `0001-telemetry.sql` and `0002-learning-evidence.sql` and asks to confirm; on yes it creates the telemetry tables in the dev telemetry database only
 (plus wrangler's `d1_migrations` table). No other database is touched. Verify:
 
 ```bash
 npx wrangler d1 execute rabbit-hole-telemetry-dev --remote --config wrangler.dev.jsonc --command "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-# expected, at least: accounting_actions, accounting_attempts, accounting_grants, owner_access_log, projection_cursors, telemetry_delivery_health, telemetry_events
+# expected, at least: accounting_actions, accounting_attempts, accounting_grants, learning_assessments, learning_attempts, learning_criteria, learning_observations, owner_access_log, projection_cursors, telemetry_delivery_health, telemetry_events
 ```
 
 **D5. Deploy a dev clone** (the repo's own path; never a bare `wrangler deploy`):

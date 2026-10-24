@@ -1,12 +1,12 @@
 // Browser failures (brief Task 11): what failed and where, never the message text, the stack, a URL, a query string or a share
-// token. The browser sends only this namespace (browser: true); the server stamps the environment, release and account.
+// token. The anonymous error route accepts only this namespace (ingest: 'client'); the server stamps the environment, release and account.
 //   fingerprint: a hash of the error's name and its top stack frame with URLs and line numbers removed (web client-telemetry.js).
 //   route: a route template (routeTemplate in the contract). A failed request carries the request's trace_id (the envelope
 //   field, from the x-rh-trace header the browser sent), which the server stamps on its own events for that request, so the
 //   dashboard links the failure to the server timeline and its action.
 export default {
   namespace: 'client',
-  browser: true,
+  ingest: 'client',
   events: {
     'client.error': {
       kind: { enum: ['uncaught', 'unhandled_rejection', 'boundary', 'save_failed', 'load_failed', 'render_failed', 'network', 'long_task', 'slow_interaction'], required: true },

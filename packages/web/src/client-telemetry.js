@@ -156,7 +156,7 @@ export function installClientTelemetry(target = globalThis, { release = null, se
     const hooked = async (input, init) => {
       let url = null;
       try { url = new URL(typeof input === 'string' || input instanceof URL ? String(input) : input?.url, location().href || location().origin); } catch { /* not a URL: pass through */ }
-      const ours = url && url.origin === location().origin && url.pathname.startsWith('/api/') && url.pathname !== ENDPOINT;
+      const ours = url && url.origin === location().origin && url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/telemetry/');
       const method = (init?.method || input?.method || 'GET').toUpperCase();
       let traceId = null, args = [input, init];
       if (ours && (typeof input === 'string' || input instanceof URL)) {
