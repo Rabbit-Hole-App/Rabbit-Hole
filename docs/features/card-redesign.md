@@ -9,7 +9,7 @@ Owner rules, 2026-10-06 (card decisions §11-20). Library, Home and Explore rend
         @handle [Owned by you]
         Forked from "Title" ↗ · @alice
 github.com/owner/repository ↗        (a repository project only)
-Optional description, at most three lines
+Optional description, always whole (no clamp since the owner decision of 2026-10-23)
 Content in this browser               (only when its content is not on the server; canvas-persistence.md step 8)
 [Start Rabbit Hole] [Fork | 14]       (actions: others' cards only)
 [fork] 14 forks · Updated 2h ago                    Open →
@@ -45,12 +45,12 @@ Owner changes, 2026-10-08:
     - the floor is 186 px, from 220;
     - the padding is 16 px, from 20;
     - the gaps above the description, actions and footer are each 4 px tighter.
-  - Nothing else changed: the title still clamps to two lines and the description to three, and the footer is still the last line.
+  - Nothing else changed: the footer is still the last line. (The title and description no longer clamp; see Small cards below.)
 - **Type icons:** a project is `FolderGit2` on a purple tile and a canvas is `Shapes` on a green tile (2026-10-08; it was `PenLine`). Jobs and servers keep `KindIcon` on a neutral tile. There is no textual Canvas, Project or Standalone pill. A screen reader hears the type from the tile's label.
 - **Colour:** blue is navigation and the primary action: the title, the GitHub link, the owner badge, Start Rabbit Hole and Home's Continue →. Everything else is neutral: the @handle, description, times, forks, visibility and ⋮. Fork on others' cards is the soft accent fill (2026-10-08), below the primary.
 - **Owner badge:** the existing `OwnerCheck` drawing, with `owned`. It sits beside the @handle on the viewer's own cards, with the tooltip "Owned by you · This is yours. It does not verify identity." (`data-owned-badge`). The source-owner check is unchanged.
 - **Attribution:** `@handle` through `creatorLabel` (user-handles.md), with the display name first when set. Never an email.
-- **Description:** the owner's own words (canvas-metadata.md), clamped to three lines. A project's server `description` ("Learn from owner/repo") is a placeholder and is not shown.
+- **Description:** the owner's own words (canvas-metadata.md), shown whole at every size. A project's server `description` ("Learn from owner/repo") is a placeholder and is not shown.
 - **Forks:** the canonical direct-fork count, read-only on your own card and only above 0 (2026-10-08; §12 showed "0 forks"); inside the Fork button on others' cards, 0 included. A project row carries no fork count, so a project shows none.
 - **Updated:** `updated_at`, else `created_at` (0009). A project row has no `updated_at`, so it shows `created_at` under the same rule.
 - **Visibility:** a neutral pill on canvases, Private, Unlisted or Public (visibility-menu.md). Explore cards read Public. Projects show none, because their rows carry no access state.
@@ -106,7 +106,7 @@ Server persistence and the cross-device proof retired these for every canvas who
   - colour and hierarchy;
   - the owner badge on own cards only;
   - fork counts and Updated;
-  - the description clamp;
+  - the description shown whole;
   - the browser states;
   - the ⋮ menu;
   - the Library sorts and their memory;
@@ -127,5 +127,6 @@ Small permits 220px cards (186px of content), so the card follows its own width,
 
 - Under 40rem the picture stacks above the text on every size (beside it the text column would be under 22rem).
 - Under 22rem the header is a grid: icon and title; the creator, the project and the fork source on a full-width row; then the visibility pill (Private, Unlisted, Public, Varies by canvas) with the Card options button at the row's end. The text column is 296px instead of 196px, the footer wraps so Open has its own line.
-- A title, creator or project label that wraps past two lines is clamped and gets a Show full title button (`aria-expanded`); opened, that one card grows to its text. The title link always carries the whole title.
-- `e2e/card-size-check.mjs` (fork runner) reads the boxes: for every size, Library canvases and projects, Explore and Home, a phone, a tablet and dark, no two of icon, title, pill, creator, project, Card options, footer metadata and Open overlap, every control's centre hits the control, nothing is cut short without the button, and hovered or focused cards keep every part where it was.
+- There is no Show full title button (owner brief 2026-10-23, card size and description; it replaced the 2026-10-23 button). The title, creator and project label wrap and are never clamped, at every size; a longer one makes that card taller.
+- Small and Medium small (sizes 0 and 1) are as tall as their content: no minimum text height, cards in a row are not stretched to the tallest (`align-items: start`), and the description is shown whole (up to 340 characters when written; one saved earlier, up to 500, is shown whole too). Medium large and Large keep their minimum text height (196px; 190px beside the picture) and the picture's place and size, and also show the whole description (owner decision, 2026-10-23, task 2f608983-76d4-4bab-9609-3e837a05f5c8, replacing the three-line clamp): a longer text makes that card taller, and the footer follows the text.
+- `e2e/card-size-check.mjs` (fork runner) reads the boxes: for every size, Library canvases and projects, Explore and Home, a phone, a tablet and dark, no two of icon, title, pill, creator, project, Card options, footer metadata and Open overlap, every control's centre hits the control, nothing is cut short (title, creator, project; the description too at Small and Medium small), no sideways overflow, no blank band above or below the footer at Small and Medium small, and hovered or focused cards keep every part where it was. It also reads 340-character, unbroken-address and over-the-limit descriptions on Library, Explore and Home in light, dark and on a phone, across a size change and a reload.
