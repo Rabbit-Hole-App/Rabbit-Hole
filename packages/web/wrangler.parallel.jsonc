@@ -38,6 +38,11 @@
       {
         "name": "EXPLAIN_JOBS",
         "class_name": "ExplainJobs"
+      },
+      // IMG-01 image generation jobs, one object per generation (control-plane/src/image-jobs.js); same binding as production.
+      {
+        "name": "IMAGE_JOBS",
+        "class_name": "ImageJobs"
       }
     ]
   },
@@ -70,6 +75,12 @@
       "tag": "explain-jobs-1",
       "new_sqlite_classes": [
         "ExplainJobs"
+      ]
+    },
+    {
+      "tag": "image-jobs-1",
+      "new_sqlite_classes": [
+        "ImageJobs"
       ]
     }
   ],
@@ -127,6 +138,8 @@
   "vars": {
     // /explain v2 (EXP-T12): switched on at R1 (EXP-T23, owner production GO 2026-10-22; live runs C:/s/spec/explain/renders/r2-live).
     "EXPLAIN_V2_ENABLED": "true",
+    // IMG-01 image generation (docs/features/image-jobs.md): off, as in production. Only "true" accepts new jobs.
+    "IMAGE_GENERATE_ENABLED": "false",
     // A simple request within these goes straight to authoring; missing thresholds would review every request (explain-brief.js).
     "EXPLAIN_BRIEF_THRESHOLDS": "{\"components\":12,\"credits\":400}",
     "LEARN_VIDEO_PROVIDER": "fal-seedance-lite",

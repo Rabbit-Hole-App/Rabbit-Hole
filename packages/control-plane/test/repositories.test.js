@@ -571,3 +571,27 @@ test('an answer stays with the node it was asked about, whatever is asked about 
   assert.deepEqual(await read('model'),['about Model','The Model answer.']);
   assert.deepEqual(await read('forward'),['about forward','The forward answer.']);
 });
+
+// Start a rabbit hole (docs/features/start-sources.md): files supplement a repository's context. A context document on the
+// project's Main canvas rides the project's chat, exactly the ones a Chat turn names, and never another project's.
+test('a context document on the project\'s Main canvas rides its chat; a turn that names none sends none',async t=>{
+  const {contextDocsFetch}=await import('../src/learn-context-docs.js');
+  const f=fixture(t),original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+  const name='repo-0a1b2c3d-example';
+  f.sqlite.exec(`UPDATE repository_apps SET name='${name}' WHERE id=1`);
+  f.sqlite.exec(readFileSync(new URL('../learn-migrations/0003-canvas-context-documents.sql',import.meta.url),'utf8'));
+  f.env.LEARN_MEDIA=memoryBucket();
+  const form=new FormData();form.append('app',name);form.append('file',new File([new TextEncoder().encode('The loss is cross entropy over the shifted tokens.')],'training-notes.txt'));
+  const stored=await contextDocsFetch(new Request('https://dev.test/api/learn/context',{method:'POST',body:form}),f.env,{authorize:async()=>({org:'team',name,email:'owner@test'})});
+  assert.equal(stored.status,200);
+  const doc=(await stored.json()).document;
+  const prompts=[];
+  globalThis.fetch=async(_,options)=>{prompts.push(JSON.stringify(JSON.parse(options.body).messages));return Response.json({content:[{type:'text',text:'It is cross entropy.'}],stop_reason:'end_turn'});};
+  const ask=async body=>{const response=await repositoriesFetch(new Request(`https://dev.test/api/repositories/${name}/ask`,{method:'POST',body:JSON.stringify({message:'What is the loss?',repository_context:{commit:sha,path:'model.py',label:'model.py'},...body})}),f.env,{});assert.equal(response.status,200);await response.text();};
+  await ask({});
+  assert.match(prompts.at(-1),/cross entropy over the shifted tokens/,'an ask without refs sends the switched-on documents');
+  await ask({context_refs:[{sourceId:`doc:${doc.id}`,kind:'doc',name:doc.name,version:'',range:null}],mode:'ask'});
+  assert.match(prompts.at(-1),/cross entropy over the shifted tokens/,'a Chat turn that names the document sends it');
+  await ask({context_refs:[],mode:'ask'});
+  assert.doesNotMatch(prompts.at(-1),/cross entropy over the shifted tokens/,'a Chat turn that chose no context sends none');
+});

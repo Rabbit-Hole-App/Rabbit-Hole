@@ -102,8 +102,10 @@ test('both roads share one flow, pages keep their numbers, and nothing is upload
   assert.match(canvas, /insertSlides: \(\{ pages, label, pdf, home \}\) => \{/);
   assert.doesNotMatch(canvas, /number: index \+ 1/);
   assert.match(canvas, /number, pdf, \.\.\.\(home \? \{ home \} : \{\}\) \}/);
-  // Upload and Sources both go through placePdf; Sources reads stored bytes and posts nothing.
-  assert.equal(page.match(/placePdf\(/g).length, 2, 'used by takePdf and by Add to canvas from Sources');
+  // Upload and Sources both go through placePdf; Sources reads stored bytes and posts nothing. A combined Start (owner brief
+  // 2026-10-23, start-sources.md) is the third caller: a PDF it already stored as a context document is placed from that copy.
+  assert.equal(page.match(/placePdf\(/g).length, 3, 'used by takePdf, by Add to canvas from Sources and by a combined Start');
+  assert.match(page, /await placePdf\(\{ file: item\.file, source: `doc:\$\{item\.doc\.id\}`[^\n]*\{ mode: 'pdf' \}, \(\) => \{\}\);/);
   // Only a canvas is a home: a project board names none, so a page question there never sends a home the server refuses.
   assert.match(page, /const pdfHome = \/\^canvas-\[a-f0-9\]\{8\}\$\/\.test\(app\.name\) \? app\.name : null;/);
   assert.equal(page.match(/home: pdfHome/g).length, 2, 'the PDF card and the pages name it');
