@@ -46,7 +46,7 @@ export function orchestratorConfig(e = process.env) {
     host: e.HOST || '0.0.0.0', port: int('PORT', 8080, 1, 65535), workDir: e.MOTION_WORK_DIR || '/tmp/motion-jobs',
     maxCalls: int('MOTION_MAX_CALLS', 9, 1, 32), jobTimeoutMs: int('MOTION_JOB_TIMEOUT_S', 3300, 60, 3500) * 1000,
     renderer: renderer && { url: renderer.href.replace(/\/$/, ''), token: e.MOTION_RENDERER_TOKEN }, token: e.MOTION_ORCHESTRATOR_TOKEN,
-    env: Object.fromEntries(['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', ...ROLES].filter(k => e[k]).map(k => [k, e[k]])),
+    env: Object.fromEntries(['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID', 'MOTION_RENDERER_CONFIG', ...ROLES].filter(k => e[k]).map(k => [k, e[k]])),
     missing: ['ANTHROPIC_API_KEY', 'ANTHROPIC_WORKSPACE_ID'].filter(k => !e[k]),
   };
   return errors.length ? { errors } : { config };

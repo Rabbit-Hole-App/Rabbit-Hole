@@ -1,0 +1,153 @@
+{
+  "id": "brief-4f3af081",
+  "prompt_spec_version": "motion-v1.0/director-2",
+  "raw_user_request": "/motion 30s explain this",
+  "resolved_target": {
+    "kind": "code_span",
+    "label": "MLP (MLP, model.py:78-92)",
+    "resolution": "deictic",
+    "repository_context": {
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "label": "MLP",
+      "range": {
+        "path": "model.py",
+        "start": 78,
+        "end": 92
+      }
+    },
+    "candidates_considered": []
+  },
+  "title": "The MLP block in nanoGPT",
+  "objective": "Follow one token's vector through MLP.forward in model.py: c_fc widens it from n_embd to 4 * n_embd, GELU bends each value, and c_proj brings it back to n_embd.",
+  "audience_context": "The learner is looking at the MLP class in nanoGPT's model.py (lines 78-92) and asked for a 30-second explanation of this code span. No other lesson concept is active.",
+  "scope_note": "Dropout appears only as the final line in the order. How it behaves in training versus evaluation is left out, along with why the width factor is 4 and where the MLP sits in the transformer Block (residual connection and layer norm). The approved description covers only the two linear layers and the GELU, and the excerpt doesn't show the surrounding block.",
+  "source_refs": [
+    {
+      "id": "S1",
+      "kind": "code",
+      "repository": "karpathy/nanoGPT",
+      "commit": "3adf61e154c3fe3fca428ad6bc3818b27a3b8291",
+      "path": "model.py",
+      "start_line": 78,
+      "end_line": 92
+    }
+  ],
+  "evidence": [
+    {
+      "source_ref_id": "S1",
+      "excerpt": "class MLP(nn.Module):\n\n    def __init__(self, config):\n        super().__init__()\n        self.c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias)\n        self.gelu    = nn.GELU()\n        self.c_proj  = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias)\n        self.dropout = nn.Dropout(config.dropout)\n\n    def forward(self, x):\n        x = self.c_fc(x)\n        x = self.gelu(x)\n        x = self.c_proj(x)\n        x = self.dropout(x)\n        return x"
+    }
+  ],
+  "implementation_conditions": [],
+  "claim_registry": [
+    {
+      "id": "C1",
+      "text": "self.c_fc = nn.Linear(config.n_embd, 4 * config.n_embd, bias=config.bias) is applied first in forward and widens each token's vector from n_embd values to 4 * n_embd values.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C2",
+      "text": "self.gelu = nn.GELU() is applied next, between the two linear layers. It is a fixed nonlinearity applied to each of the 4 * n_embd values separately, and it does not change the vector's size.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C3",
+      "text": "self.c_proj = nn.Linear(4 * config.n_embd, config.n_embd, bias=config.bias) projects the widened vector back to n_embd values, so the MLP's output has the same width as its input.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C4",
+      "text": "forward runs the steps in this order: x = self.c_fc(x), x = self.gelu(x), x = self.c_proj(x), x = self.dropout(x), return x.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C5",
+      "text": "Each nn.Linear acts on the last dimension of x, which is the n_embd-sized vector. The same weights are applied to every token's vector independently, so the MLP does not mix information between tokens.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": true
+    },
+    {
+      "id": "C6",
+      "text": "The last step, self.dropout = nn.Dropout(config.dropout), is applied after c_proj, and the output keeps the same n_embd width.",
+      "source_ref_ids": [
+        "S1"
+      ],
+      "condition_ids": [],
+      "required": false
+    }
+  ],
+  "duration": {
+    "requested_text": "30s",
+    "requested_seconds": 30,
+    "seconds": 30
+  },
+  "aspect_ratio": "9:16",
+  "teaching_mode": "code_walkthrough",
+  "must_show": [
+    "The four forward lines from model.py (self.c_fc, self.gelu, self.c_proj, self.dropout), each highlighted in turn as its step runs",
+    "One token's vector labeled n_embd widening to a vector labeled 4 * n_embd at the c_fc step",
+    "Values in the widened vector reshaped one by one at the GELU step, with the width staying 4 * n_embd",
+    "The widened vector narrowing back to a vector labeled n_embd at the c_proj step",
+    "Several token vectors going through the same c_fc → gelu → c_proj path side by side without exchanging anything",
+    "The input and output vectors shown together at the same n_embd width at the end"
+  ],
+  "must_not_claim": [
+    "c_proj runs before c_fc, or GELU runs after c_proj",
+    "c_fc creates more tokens or lengthens the sequence instead of widening each token's vector",
+    "The MLP mixes or passes information between different tokens",
+    "GELU is a learned layer with its own weights",
+    "GELU changes the vector's size",
+    "GELU sets every negative value to exactly zero",
+    "c_proj simply cuts off the extra 3 * n_embd values instead of computing a learned linear combination of all of them",
+    "The MLP output is 4 * n_embd wide",
+    "Dropout is part of the widening step"
+  ],
+  "visual_direction": "Use a tall 9:16 frame laid out top to bottom. Pin a compact code panel with the forward lines across the top. The token data flows down the frame below it. Start the viewer's focus on the highlighted self.c_fc line, then let it drop to a horizontal bar for one token labeled n_embd. That bar stretches outward to fill the frame's width and is labeled 4 * n_embd. When the self.gelu line lights up, each cell of the wide bar visibly bends in value while the bar keeps its width. When self.c_proj lights up, the wide bar squeezes back to its original width, and each output cell gathers lines from all of the wide cells to show a learned combination, not truncation. Briefly mark dropout as a final pass at the same width. In the last beat, pull back to show a short vertical stack of token bars going through the same three stages in parallel, with no arrows between rows. End with the input and output bars side by side at equal width. Keep motion moving downward so the reading order matches the code order.",
+  "narration_policy": "concise",
+  "output_requirements": {
+    "stage_width": 1080,
+    "stage_height": 1920,
+    "fps": 30,
+    "preview_scale": 0.45,
+    "poster": true
+  },
+  "qa_requirements": {
+    "blocking_categories": [
+      "unsupported_claim",
+      "must_not_claim_violation",
+      "required_claim_contradicted",
+      "wrong_source_branch",
+      "blank_frame",
+      "clipped_text",
+      "overlapping_text",
+      "missing_must_show",
+      "duration_over_max",
+      "corrupt_output",
+      "renderer_failure",
+      "narration_contradicts_visuals",
+      "storyboard_fidelity"
+    ]
+  },
+  "provenance": {
+    "created_at": "2026-10-24T22:43:20.016Z"
+  }
+}

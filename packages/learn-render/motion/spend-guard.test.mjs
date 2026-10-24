@@ -215,5 +215,8 @@ test('MOTION_JOB_CEILING_USD: a dollar amount sets the ceiling; anything else st
   const base = { MOTION_ORCHESTRATOR_TOKEN: 'x'.repeat(40), MOTION_RENDERER_URL: 'https://r.test', MOTION_RENDERER_TOKEN: 't' };
   assert.equal(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: '3.00' }).config.ceilingMicros, 3_000_000);
   assert.equal(orchestratorConfig(base).config.ceilingMicros, Infinity);
+  // The orchestrator compares an approved proposal's renderer_config with its own env's; without this key every proposal that names one is refused.
+  assert.equal(orchestratorConfig({ ...base, MOTION_RENDERER_CONFIG: 'cfg-1' }).config.env.MOTION_RENDERER_CONFIG, 'cfg-1');
+  assert.equal(orchestratorConfig(base).config.env.MOTION_RENDERER_CONFIG, undefined);
   for (const bad of ['0', '-1', 'three', '3e6']) assert.deepEqual(orchestratorConfig({ ...base, MOTION_JOB_CEILING_USD: bad }).errors, ['MOTION_JOB_CEILING_USD: a dollar amount above 0'], bad);
 });

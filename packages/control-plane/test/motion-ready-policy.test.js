@@ -1,7 +1,8 @@
 // The measured readiness policy (src/motion-ready-policy.js): enabled strictly where a receipt on the measured renderer shows a pass.
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CONFIG, PASSED, TIMED_OUT } from '../src/motion-ready-policy.js';
+import { MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CONFIG, MEASURED_RENDERER_REVISION, PASSED, TIMED_OUT } from '../src/motion-ready-policy.js';
 import { MOTION_NOT_READY, MOTION_RATIOS, motionExecutionTerms, motionGenerationCheck, motionReadiness, readyPolicy } from '../src/motion-settings.js';
 
 const live = { MOTION_RENDERER_CONFIG: MEASURED_RENDERER_CONFIG };
@@ -63,4 +64,17 @@ test('the variable still overrides the measured policy, and the checks and execu
   assert.equal(motionGenerationCheck(live, proposal({ duration_seconds: 20, aspect_ratio: '2:3', audio: false })).code, MOTION_NOT_READY);
   assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '3:4' }), { renderer_config: MEASURED_RENDERER_CONFIG, allowed_complexity: ['simple'] });
   assert.deepEqual(motionExecutionTerms(live, { duration_seconds: 60, aspect_ratio: '5:4' }), { renderer_config: MEASURED_RENDERER_CONFIG }, 'not validated: no cover, the start is refused first');
+});
+
+// Owner ruling 2026-10-24 (option A): the configuration id is committed in both places that must agree with the policy, never set by hand.
+test('MOTION_RENDERER_CONFIG in the production worker vars and in the orchestrator env is the measured configuration id', () => {
+  const read = p => readFileSync(new URL(p, import.meta.url), 'utf8');
+  const worker = read('../../web/wrangler.rabbit-hole-prod.jsonc').replace(/^\s*\/\/.*$/gm, '');
+  const orchestrator = read('../../learn-render/motion/service/fly.orchestrator.toml').replace(/^\s*#.*$/gm, '');
+  assert.equal(JSON.parse(worker).vars.MOTION_RENDERER_CONFIG, MEASURED_RENDERER_CONFIG);
+  assert.match(orchestrator, new RegExp(`^\\s*MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG.replaceAll('.', '\\.')}"$`, 'm'));
+  // The id names the revision the receipts were taken on.
+  assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
+  // ...and the policy built on it stays closed for any other value, e.g. a renderer deploy that has not been measured.
+  assert.equal(motionReadiness({ MOTION_RENDERER_CONFIG: MEASURED_RENDERER_CONFIG.replace('03f2a1efc08e', 'ffffffffffff') }, { duration_seconds: 15, aspect_ratio: '16:9' }).ready, false);
 });

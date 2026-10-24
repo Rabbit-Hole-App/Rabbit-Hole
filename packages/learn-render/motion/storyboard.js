@@ -7,7 +7,7 @@
 // shape (contracts.js) and the teaching (storyboard-check.js). A malformed call gets one
 // schema-only re-ask; a semantically wrong storyboard is returned as storyboard_invalid with its
 // reasons. M3 never spends the repair round: that is wired with the full QA loop (M6).
-import { LIMITS, checkStoryboard } from './storyboard-check.js';
+import { LIMITS, OCCURRENCES, checkStoryboard, maxOccurrences } from './storyboard-check.js';
 import { MODEL_ROLES, OBJECT_FIELDS, PEDAGOGICAL_ROLES, TIME_GRID, afterMalformed, repairFindings } from './contracts.js';
 import { callRecord } from './director.js';
 import { resolveRole } from './model-config.js';
@@ -77,6 +77,7 @@ export const HARD_LIMITS = [
   `3. must_show: the beat that lists an item in must_show_covered shows at least ${LIMITS.coverage_ratio * 100}% of the item's own content words in its labels, on_screen_text, object descriptions, changes or shown code lines. Reuse the item's wording there.`,
   '4. Both sides of a condition: when any beat cites (claim_ids) a claim that runs on one side of an implementation condition, and the brief has claims on the other side, some beat also cites at least one claim from the other side, and names that condition as the rules above require.',
   '5. Order words: a text that orders code steps (then, before, after, an arrow) puts them in the order the code runs them. Each order word relates the step on either side of it, so "B after A, before C" states A, B, C.',
+  `6. Scope: the object appearances (each object counted once for every beat it is visible in) number at most floor(${OCCURRENCES.base} + ${OCCURRENCES.per_second} x duration.seconds), never more than ${OCCURRENCES.ceiling} (15 s -> ${maxOccurrences(15)}, 30 s -> ${maxOccurrences(30)}, 60 s -> ${maxOccurrences(60)}). Show fewer objects per beat and drop an object once it has done its job; crowded beats overlap their labels.`,
 ].join('\n');
 
 export const STORYBOARD_EXAMPLES = [

@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { leakErrors } from './contracts.js';
-import { checkStoryboard } from './storyboard-check.js';
+import { OCCURRENCES, checkStoryboard, maxOccurrences } from './storyboard-check.js';
+import { AUTHOR_OUTPUT_BUDGET, AUTHOR_TOKENS_PER_OCCURRENCE } from './author.js';
 import { HARD_LIMITS, STORYBOARD_EXAMPLES, STORYBOARD_SYSTEM, STORYBOARD_TOOL, runStoryboard, storyboardContext, storyboardRequest } from './storyboard.js';
 
 const read = f => JSON.parse(readFileSync(new URL(f, import.meta.url), 'utf8'));
@@ -342,7 +343,9 @@ test('one storyboard prompt for every domain: the brief is the only topic input,
     assert.ok(body.messages[0].content.includes(JSON.stringify(brief.title)), `${domain}: the brief travels in the user message`);
     for (const claim of brief.claim_registry) assert.ok(!STORYBOARD_SYSTEM.includes(claim.text), `${domain}: claim ${claim.id} is not in the system prompt`);
     for (const item of brief.must_show) if (item.length > 50) assert.ok(!STORYBOARD_SYSTEM.includes(item), `${domain}: must_show is not in the system prompt`);
-    assert.deepEqual(checkStoryboard(board, brief).errors, [], `${domain}: a valid storyboard passes the same checks`);
+    // The scope limit (object appearances by duration) came after these recordings: the 56-appearance generation storyboard is the one over it.
+    const errors = checkStoryboard(board, brief).errors.filter(e => !/object appearances/.test(e));
+    assert.deepEqual(errors, [], `${domain}: a valid storyboard passes the same checks`);
   }
   assert.ok(!read('./fixtures/m7a/mlp-forward.brief.json').claim_registry.some(c => /softmax|attention|mask/i.test(c.text)), 'the third domain shares no topic with the first');
 });
@@ -389,4 +392,18 @@ test('code steps come from the evidence alone: language words and shared parts n
   const shared = { ...read('./fixtures/m7a/mlp-forward.brief.json') };
   shared.evidence = shared.evidence.map(e => ({ ...e, excerpt: 'x = self.proj_in(x)\nx = self.gelu(x)\nx = self.proj_out(x)' }));
   assert.deepEqual(briefFacts(shared).ops.flatMap(s => s.map(o => `${o.name}[${o.terms.join(',')}]`)), ['gelu[gelu]'], 'proj names two calls, so neither is identified by it');
+});
+
+// 2026-10-24, M1 to M3: a 60 s storyboard with 40 object appearances (22 objects, up to 8 in one beat) made the Author write 40k tokens at a
+// reduced effort and still came back with labels drawn over another object (blocking overlapping_text after its repair); 57 appearances hit the
+// Author's 64000-token cap. The limit is by duration so long videos stay inside what the Author renders at full effort.
+test('scope by duration: object appearances are bounded, the recorded 60 s storyboard is over the bound and the sizes that rendered are not', () => {
+  assert.deepEqual([5, 15, 30, 45, 60].map(maxOccurrences), [19, 25, 34, 36, 36]);
+  assert.ok(OCCURRENCES.ceiling * AUTHOR_TOKENS_PER_OCCURRENCE <= AUTHOR_OUTPUT_BUDGET, 'the ceiling keeps the Author at effort high');
+  const appearances = sb => sb.beats.reduce((n, b) => n + b.visible_objects.length, 0);
+  const errorsOf = name => { const b = read(`./fixtures/m8/${name}.brief.json`), s = read(`./fixtures/m8/${name}.storyboard.json`); return [appearances(s), checkStoryboard(s, b).errors]; };
+  assert.deepEqual(errorsOf('m3-r2-60s'), [40, ['storyboard: 40 object appearances for 60s (at most 36); show fewer objects per beat']]);
+  assert.deepEqual(errorsOf('m2-r2-30s'), [27, []], 'the 30 s portrait storyboard that rendered passes every check');
+  assert.deepEqual([appearances(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json')), checkStoryboard(read('./fixtures/m3/softmax-15s-attention.real.storyboard.json'), read('./fixtures/m2/softmax-15s-attention.brief.json')).errors.filter(e => /appearances/.test(e))], [23, []]);
+  assert.match(HARD_LIMITS, /6\. Scope: the object appearances .* at most floor\(16 \+ 0\.6 x duration\.seconds\), never more than 36 \(15 s -> 25, 30 s -> 34, 60 s -> 36\)/);
 });

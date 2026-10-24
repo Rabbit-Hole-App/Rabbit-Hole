@@ -91,6 +91,10 @@
     "MOTION_ESTIMATE_USD": "1.00",
     // Owner message 28 (2026-10-21): new Motion generation was paused ("1") until MOT-06/07 were fixed; restored ("0") with the
     // verified MOT-06..09 fix under the same GO. "1" refuses every new start; jobs already started still poll, stop, settle and play.
+    // The renderer configuration the measured Motion readiness policy applies to (control-plane motion-ready-policy.js; owner ruling
+    // 2026-10-24, option A: committed, non-secret, the same value as fly.orchestrator.toml, compared by a unit test). Release this commit only
+    // AFTER rabbit-hole-motion-renderer runs the 03f2a1ef renderer code and the orchestrator carries the same id: with it set, the policy's pairs are ready.
+    "MOTION_RENDERER_CONFIG": "03f2a1efc08e-1.5cpu-3gib-420s",
     "MOTION_GENERATION_PAUSED": "0"
   }
   // Secrets (required): ANTHROPIC_API_KEY, ANTHROPIC_WORKSPACE_ID (the key needs the workspace header), TYPESAFE_API_KEY,

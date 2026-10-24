@@ -14,6 +14,9 @@ primary_region = "iad"
   MOTION_RENDERER_URL = "https://rabbit-hole-motion-renderer.fly.dev"
   MOTION_MAX_CALLS = "9"
   MOTION_JOB_TIMEOUT_S = "3300"
+  # The renderer configuration the readiness policy was measured on (owner ruling 2026-10-24: committed, non-secret). A job whose approved
+  # proposal names another configuration is refused before any model call. Same value as the worker's MOTION_RENDERER_CONFIG.
+  MOTION_RENDERER_CONFIG = "03f2a1efc08e-1.5cpu-3gib-420s"
 
 # No [mounts]: the durable job record is the worker's (LearnVideos Durable Object + the D1 reservation). A restart loses the
 # running job; the worker keeps its hold as unknown cost and this process refuses that job's grant.
