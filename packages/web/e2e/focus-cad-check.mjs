@@ -40,7 +40,8 @@ const manifest = { schema: 'cad-model/1', revisionId: 'revision-1', title: 'Fixt
 const CAD = { type: 'cad', id: MAIN, jobId: 'job-focus-cad', modelId: 'm', revisionId: 'revision-1', status: 'ready', title: 'Fixture plate', units: 'mm', w: 460, h: 420, dx: 0, dy: 140, briefSummary: 'Fixture.', manifest, acceptedManifest: manifest };
 const JOB = { id: CAD.jobId, cardId: MAIN, modelId: 'm', state: 'ready', stage: 'ready', attempt: 1, revisionId: 'revision-1', manifest, createdAt: Date.now() - 4000, updatedAt: Date.now() };
 const STATE = { strokes: [], shapes: [], items: [], links: [], groups: [], areas: [], exchanges: [], blocks: [CAD] };
-const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Focus CAD ${run}` }) });
+// The board's name never starts with "Focus": its name button would match step 1's page-wide /^Focus / control count.
+const canvas = await api('/api/canvases', { method: 'POST', body: JSON.stringify({ title: `CAD plate ${run}` }) });
 const catalog = await api('/api/apps');
 const INK = `small.adaptive-canvas:${catalog.org}:${catalog.email}:${canvas.name}:ink`;
 
