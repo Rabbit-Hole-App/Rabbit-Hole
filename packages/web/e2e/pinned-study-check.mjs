@@ -9,7 +9,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { closeMenus, menubar, openMenu } from './canvas-menu-helpers.mjs';
+import { closeMenus, menubar, openMenu, setShown } from './canvas-menu-helpers.mjs';
 
 const total = 16; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
@@ -121,6 +121,8 @@ const counts = () => [model.length, saves.length];
 const view = async label => { const panel = await openMenu(page, 'View'); await panel.getByRole('menuitemradio', { name: label, exact: true }).first().click(); await closeMenus(page); };
 const viewChecked = async () => { const panel = await openMenu(page, 'View'); const out = await panel.locator(':scope > [role="menuitemradio"], :scope [role="menuitemradio"]').evaluateAll(rows => rows.filter(row => !row.closest('[role="menu"] [role="menu"]')).map(row => [row.textContent.trim(), row.getAttribute('aria-checked')])); await closeMenus(page); return out.filter(([name]) => name === 'Canvas' || name === 'Study'); };
 const work = option => page.locator(`[data-study-work-option="${option}"]`);
+// WP6: Change reference, Locate on canvas, Unpin and the version line are in the header's Reference options.
+const option = async name => { await page.locator('[data-study-options]').click(); return page.getByRole('dialog', { name: 'Reference options' }).getByRole('button', { name, exact: true }); };
 // Canvas objects are pressed with the mouse at a point on screen, never through locator.click: its scroll-into-view scrolls the
 // canvas surface (overflow hidden), which slides the whole world under a camera that never moved. An object off screen is first
 // brought into view with View > Fit canvas.
@@ -194,6 +196,12 @@ await check('1 View lists Canvas and Study as radios (Canvas checked); View > St
   assert.deepEqual(await viewChecked(), [['Canvas', 'true'], ['Study', 'false']]);
   await view('Study');
   await pane().waitFor({ timeout: 10000 });
+  // Study hides both maps until the learner shows one (focus-study.md, owner brief 2026-10-24). The camera moves below (Fit canvas, the
+  // reveal of a selected card) were framed around the bottom strip with the minimap in it, and the reveal and the fit differ by that
+  // room: this check is about pinning, so it shows both maps first, as an explicit Study choice. study-maps-check.mjs asserts the defaults.
+  await setShown(page, 'Minimap', true);
+  await setShown(page, 'Rabbit Hole Map', true);
+  await closeMenus(page);
   await page.getByText('Choose a reference', { exact: true }).waitFor();
   const choices = await page.locator('[data-study-choice]').evaluateAll(rows => rows.map(row => row.getAttribute('data-study-choice')));
   assert.deepEqual(choices.sort(), ['ex', 'pdf1', 'st1', 'st2'], `eligible only: ${choices.join()}`);
@@ -286,7 +294,7 @@ await check('6 Change reference replaces the pin only when chosen; selecting ano
   await press('[data-block-id="qz"]', { x: 20, y: 10 });
   await until(async () => (await selectedIds()).join() === 'qz', 'the quiz is selected');
   assert.equal(await pane().getAttribute('data-pin'), 'ex', 'a selection is not a pin');
-  await page.getByRole('button', { name: 'Change reference', exact: true }).click();
+  await (await option('Change reference')).click();
   await page.locator('[data-study-choice="st1"]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'st1', 'the sticky note is pinned');
   await page.locator('[data-study-pane] [data-source-text-view]').waitFor();
@@ -321,7 +329,7 @@ await check('8 Pin for study from the right-click menu: on the Explanation, from
   await until(async () => (await pane().getAttribute('data-pin')) === 'ex', 'the right-clicked card is pinned');
   await work('notebook').click();
   await shown('nb', 'the notebook is framed');
-  await page.getByRole('button', { name: 'Locate on canvas', exact: true }).click();
+  await (await option('Locate on canvas')).click();
   await until(async () => (await page.locator('[data-study-work]').getAttribute('data-study-work')) === 'canvas', 'Locate switches the work to Canvas');
   await until(async () => (await selectedIds()).join() === 'ex' && await inView('ex'), 'the pinned card is selected and shown');
   await sameFrame('pin from menu and locate');
@@ -337,7 +345,9 @@ await check('8b the Context reader of the PDF offers Pin for study, which pins t
   await page.locator('[data-reader-pin-study]').click();
   await until(async () => (await pane().getAttribute('data-pin')) === 'pdf1', 'the reader pinned its own card');
   await page.locator('[data-study-pane] [data-source-reader]').waitFor({ timeout: 15000 });
-  assert.equal((await page.locator('[data-study-version]').innerText()).trim(), 'Version verification unavailable', 'a PDF says its version is not verified');
+  await page.locator('[data-study-options]').click();
+  assert.equal((await page.getByRole('dialog', { name: 'Reference options' }).locator('[data-study-version]').innerText()).trim(), 'Version verification unavailable', 'a PDF says its version is not verified');
+  await page.keyboard.press('Escape');
   await sameFrame('reader pin');
   await press('[data-block-id="ex"]', { button: 'right' }); await menu().waitFor();
   await menu().locator('[data-menu-pin-study]').click();
@@ -422,7 +432,7 @@ await check('12b a pinned note edited after pinning attaches only its edited tex
   await page.keyboard.press('Escape');
   await until(async () => (await page.locator('[data-item-id="st2"]').innerText()).includes('Neap tides'), 'the note is edited');
   await page.locator('[data-study-pane] [data-source-text-view]').getByText('Neap tides').waitFor({ timeout: 5000 });
-  await page.getByRole('button', { name: 'Add pinned reference', exact: true }).click();
+  await page.locator('[data-study-attach]').click();
   const chips = () => page.locator('[data-chat-pane] [data-context-chip]').allInnerTexts();
   await until(async () => (await chips()).some(text => text.includes('Neap tides')), 'the edited note is attached');
   assert.ok(!(await chips()).some(text => text.includes('Spring tides')), 'nothing of the text it was pinned with');
@@ -439,7 +449,7 @@ await check('13 a pinned card that is deleted shows Reference unavailable with C
   await menu().getByRole('menuitem', { name: 'Delete', exact: true }).click();
   await page.locator('[data-study-unavailable]').getByText('Reference unavailable', { exact: true }).waitFor({ timeout: 10000 });
   for (const name of ['Choose another reference', 'Unpin']) assert.ok(await page.locator('[data-study-pane]').getByRole('button', { name, exact: true }).first().isVisible(), name);
-  assert.ok(await page.getByRole('button', { name: 'Add pinned reference', exact: true }).isDisabled(), 'nothing to attach');
+  assert.ok(await page.locator('[data-study-attach]').isDisabled(), 'nothing to attach');
   await work('notebook').click();
   await shown('nb', 'the notebook still works beside an unavailable reference');
   await work('canvas').click();
@@ -453,7 +463,7 @@ await check('13 a pinned card that is deleted shows Reference unavailable with C
 await check('14 Unpin returns to Canvas and clears the pin; the source card and the notebook stay; no model call at any point, no page error', async () => {
   await settle();
   const before = counts();
-  await page.locator('[data-study-pane]').getByRole('button', { name: 'Unpin', exact: true }).first().click();
+  await (await option('Unpin')).click();
   await pane().waitFor({ state: 'detached', timeout: 10000 });
   assert.deepEqual(await viewChecked(), [['Canvas', 'true'], ['Study', 'false']]);
   assert.equal(await page.locator('[data-block-id="ex"]').count(), 1, 'the source card stays');

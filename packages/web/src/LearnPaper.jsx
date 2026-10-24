@@ -1,8 +1,8 @@
 import { usePerf } from './learn-perf.js';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, GripVertical, Highlighter, MessageSquarePlus, Minus, Plus, RotateCw, SquareDashed, SquarePlus, Trash2, X } from 'lucide-react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, ExternalLink, GripVertical, Highlighter, Info, MessageSquarePlus, Minus, MoreHorizontal, Plus, RotateCw, SquareDashed, SquarePlus, Trash2, X } from 'lucide-react';
 import { wsHeaders } from './api.js';
-import { Button } from './ui.jsx';
+import { Button, Menu, MenuItem as MenuRow, useMenuButton } from './ui.jsx';
 import { paperBytesUrl } from './pdf-source.js';
 import { quoteFromRange, locateQuote, rangeFromOffsets, containsOffset, paintHighlights } from './learn-wiki-highlights.js';
 import { EXCERPT_LIMIT, rectsFor, regionAnchor, splitText, textAnchor, toViewport } from './pdf-anchor.js';
@@ -37,8 +37,15 @@ const arrows = event => { // Up/Down move between a menu's items
 // selected text as the excerpt draft the toolbar's Add to chat would send (one part only).
 // `zoomStart` / `onZoom`, `rotationStart` / `onRotation`: the zoom and Rotate page turn to open at, and a report of each change
 // (SourceReader keeps both across Open source).
+// `presentation`: 'study' (the Pinned Study pane, WP6) draws the controls as one 40 px row: the page count beside the arrows, no
+// source line (Study's Reference options show it), an information button beside Select region on a page with no text instead of
+// the banner, and below 400 px the secondary tools in More PDF tools. Anything else: the reader as before.
+const NO_TEXT_INFO = 'This page has no selectable text, so text selection cannot pick from it. Select region picks a part of the page instead.';
 export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1, onZoom = null, rotationStart = 0, onRotation = null,
-  highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, src = null, companion = null }) {
+  highlights = null, onHighlights = null, highlighting = false, onHighlighting = null, paintKey = null, src = null, companion = null, presentation = 'default' }) {
+  const compact = presentation === 'study';
+  const more = useMenuButton(), whyId = useId();
+  const [why, setWhy] = useState(false);
   const report = usePerf();
   const [document, setDocument] = useState(null);
   const [error, setError] = useState('');
@@ -381,25 +388,41 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
   const pageHighlights = saved.filter(h => pageOf(h).index === paper.page);
   const dragHandle = onDragStart => <button type="button" draggable aria-label="Drag to canvas" title="Drag onto the canvas" onDragStart={onDragStart}
     className="flex h-8 min-w-6 cursor-grab items-center justify-center rounded-lg text-ink-3 select-none hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35"><GripVertical size={15} /></button>;
-  return <section ref={sectionEl} aria-label="Paper reader" className="relative flex min-h-0 flex-1 flex-col">
+  // Study's row (compact): 30 px controls, 44 px on a touch screen; FOLD hides a secondary tool below 400 px, where More PDF tools
+  // shows instead. ponytail: the 400 / 340 px folds are measured from the 300 px narrowest pane, not computed from the row.
+  const TOOL = 'h-[30px] min-w-[30px] shrink-0 items-center justify-center rounded-md text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35 disabled:opacity-40 pointer-coarse:h-11 pointer-coarse:min-w-11';
+  const tool = `inline-flex ${TOOL}`, FOLD = '@max-[400px]:hidden';
+  const original = src ? `${src}#page=${paper.page}` : paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : paperBytesUrl(app, paper.id, paper.home);
+  const count = !document ? '' : label && label !== String(paper.page) ? `${label} (${paper.page} / ${document.numPages})` : `${paper.page} / ${document.numPages}`;
+  const scanned = !!companion && noText && !!view && !error;
+  return <section ref={sectionEl} aria-label="Paper reader" className={`relative flex min-h-0 flex-1 flex-col${compact ? ' @container' : ''}`}>
     {/* One control row: title, pages, zoom and the region picker together. In the companion (the Context reader) the title
         is the Context header's, shown once (UI-26); pages and zoom are each one group. */}
-    <header className={`flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink ${companion ? 'flex-wrap' : ''}`}>
-      <div className={`min-w-0 flex-1 ${companion ? 'basis-full' : ''}`}>{!companion && <h3 className="truncate text-sm font-medium">{paper.title}</h3>}<p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{companion ? where : document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>
+    <header className={compact ? 'flex h-10 shrink-0 items-center gap-1 border-b border-line px-3 text-xs text-ink pointer-coarse:h-12' : `flex shrink-0 items-center gap-2 border-b border-line pb-2 text-xs text-ink ${companion ? 'flex-wrap' : ''}`}>
+      {!compact && <div className={`min-w-0 flex-1 ${companion ? 'basis-full' : ''}`}>{!companion && <h3 className="truncate text-sm font-medium">{paper.title}</h3>}<p className="truncate text-xs text-ink-2">{uploaded ? 'Your upload' : `arXiv:${paper.id}`}{companion ? where : document ? ` · page ${paper.page} of ${document.numPages}` : ''}</p></div>}
       {document && <>
-        <div role="group" aria-label="Pages" className="flex items-center gap-0.5">
-          <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronLeft size={14} /></button>
-          <button type="button" aria-label="Next paper page" title="Next page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><ChevronRight size={14} /></button>
+        <div role="group" aria-label="Pages" className={compact ? 'flex min-w-0 items-center gap-0.5' : 'flex items-center gap-0.5'}>
+          <button type="button" aria-label="Previous paper page" title="Previous page" disabled={paper.page <= 1} onClick={() => onPage(paper.page - 1)} className={compact ? tool : 'rounded border border-line p-1 hover:bg-hover disabled:opacity-40'}><ChevronLeft size={14} /></button>
+          {compact && <span data-pdf-page-count title={`Page ${paper.page} of ${document.numPages}`} className="min-w-0 truncate px-1 tabular-nums">{count}</span>}
+          <button type="button" aria-label="Next paper page" title="Next page" disabled={paper.page >= document.numPages} onClick={() => onPage(paper.page + 1)} className={compact ? tool : 'rounded border border-line p-1 hover:bg-hover disabled:opacity-40'}><ChevronRight size={14} /></button>
         </div>
         <div role="group" aria-label="Zoom" className="flex items-center gap-0.5">
-          <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Minus size={14} /></button>
-          <span aria-label="Paper zoom" className="min-w-9 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-          <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className="rounded border border-line p-1 hover:bg-hover disabled:opacity-40"><Plus size={14} /></button>
+          <button type="button" aria-label="Zoom out paper" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(z => Math.max(0.5, z - 0.25))} className={compact ? tool : 'rounded border border-line p-1 hover:bg-hover disabled:opacity-40'}><Minus size={14} /></button>
+          <span aria-label="Paper zoom" className={compact ? 'min-w-9 text-center tabular-nums @max-[340px]:sr-only pointer-coarse:@max-[400px]:sr-only' : 'min-w-9 text-center tabular-nums'}>{Math.round(zoom * 100)}%</span>
+          <button type="button" aria-label="Zoom in paper" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(z => Math.min(3, z + 0.25))} className={compact ? tool : 'rounded border border-line p-1 hover:bg-hover disabled:opacity-40'}><Plus size={14} /></button>
         </div>
-        {companion && <button type="button" aria-label="Rotate page" title="Rotate page" onClick={() => setRotation(r => (r + 90) % 360)} className="rounded border border-line p-1 hover:bg-hover"><RotateCw size={14} /></button>}
+        {companion && <button type="button" aria-label="Rotate page" title="Rotate page" onClick={() => setRotation(r => (r + 90) % 360)} className={compact ? `${tool} ${FOLD}` : 'rounded border border-line p-1 hover:bg-hover'}><RotateCw size={14} /></button>}
+        {/* A page with no text keeps Select region in the row at every width: it is the way to take part of that page. */}
         {regionTool && <button type="button" aria-label="Select region" aria-pressed={!!area} disabled={!ready} title={area ? 'Stop selecting a region (Esc)' : 'Select a region of the page'}
           onClick={event => (area ? setArea(null) : startArea(event.detail === 0))}
-          className={`rounded border p-1 disabled:opacity-40 ${area ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-line hover:bg-hover'}`}><SquareDashed size={14} /></button>}
+          className={compact ? `${tool} ${area ? 'bg-blue-50 text-blue-700' : ''} ${noText || area ? '' : FOLD}` : `rounded border p-1 disabled:opacity-40 ${area ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-line hover:bg-hover'}`}><SquareDashed size={14} /></button>}
+        {/* Study: the no-text banner's sentence, on a click, a key or a tap (never hover alone). */}
+        {compact && scanned && <span className="relative flex shrink-0">
+          <button type="button" data-pdf-no-text aria-label="About this page" title="About this page" aria-expanded={why} aria-controls={whyId}
+            onClick={() => setWhy(open => !open)} onKeyDown={event => { if (event.key === 'Escape' && why) { event.stopPropagation(); setWhy(false); } }} className={tool}><Info size={14} /></button>
+          {why && <p id={whyId} data-pdf-no-text-info role="note" className="absolute top-full right-0 z-30 mt-1 w-56 rounded-lg border border-line bg-white p-2 text-xs text-ink-2 shadow-pop">
+            {regionTool ? NO_TEXT_INFO : 'This page has no selectable text.'}</p>}
+        </span>}
       </>}
       {document && onHighlighting && <button type="button" aria-label="Highlighter" aria-pressed={highlighting}
         title={highlighting ? 'Highlighter on - select text to highlight it, click a highlight to remove it' : 'Highlight text'}
@@ -408,8 +431,16 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
         <Highlighter size={14} />
         {mine.length > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-3.5 rounded-full bg-yellow-400 px-1 text-[9px] leading-3.5 font-semibold text-ink">{mine.length}</span>}
       </button>}
-      <a href={src ? `${src}#page=${paper.page}` : paper.pdfUrl ? `${paper.pdfUrl}#page=${paper.page}` : paperBytesUrl(app, paper.id, paper.home)} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className="rounded border border-line p-1 hover:bg-hover"><ExternalLink size={14} /></a>
+      <a href={original} target="_blank" rel="noreferrer" title="Open original PDF" aria-label="Open original PDF" className={compact ? `${tool} ml-auto ${FOLD}` : 'rounded border border-line p-1 hover:bg-hover'}><ExternalLink size={14} /></a>
       {onClose && <button type="button" onClick={onClose} title="Close paper" aria-label="Close paper" className="rounded border border-line p-1 hover:bg-hover"><X size={14} /></button>}
+      {compact && <button type="button" data-pdf-more {...more.buttonProps} aria-label="More PDF tools" title="More PDF tools" className={`hidden ${TOOL} ml-auto @max-[400px]:inline-flex`}><MoreHorizontal size={16} /></button>}
+      {compact && <Menu portal anchor={more.button.current} open={more.open} onClose={more.onClose} style={more.style} className="w-52 border border-line">
+        <div role="menu" aria-label="More PDF tools" data-pdf-more-menu data-menu-button-open onKeyDown={arrows}>
+          {document && companion && <MenuRow role="menuitem" icon={RotateCw} className="pointer-coarse:h-11" onClick={() => { more.close(); setRotation(r => (r + 90) % 360); }}>Rotate page</MenuRow>}
+          {document && regionTool && !noText && !area && <MenuRow role="menuitem" icon={SquareDashed} disabled={!ready} className="pointer-coarse:h-11" onClick={event => { more.close(false); startArea(event.detail === 0); }}>Select region</MenuRow>}
+          <MenuRow role="menuitem" icon={ExternalLink} className="pointer-coarse:h-11" onClick={() => { more.close(); window.open(original, '_blank', 'noreferrer'); }}>Open original PDF</MenuRow>
+        </div>
+      </Menu>}
     </header>
     {notice && <div data-pdf-notice role={notice.retry ? 'alert' : 'status'} className="flex shrink-0 items-center gap-2 border-b border-line py-1.5 text-xs text-ink-2">
       <span className="min-w-0 flex-1">{notice.text}</span>
@@ -417,7 +448,7 @@ export default function LearnPaper({ app, paper, onClose, onPage, zoomStart = 1,
       <button type="button" aria-label="Dismiss" onClick={() => setNotice(null)} className="rounded p-1 hover:bg-hover"><X size={13} /></button>
     </div>}
     {companion && changed && <p data-pdf-source-changed role="status" className="shrink-0 border-b border-line py-1.5 text-xs text-ink-2">This document changed after the excerpt was taken, so the excerpt can{'’'}t be shown on it.</p>}
-    {companion && noText && view && !error && <div data-pdf-no-text role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line py-1.5 text-xs text-ink-2">
+    {companion && noText && view && !error && !compact && <div data-pdf-no-text role="status" className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line py-1.5 text-xs text-ink-2">
       <span>This page has no selectable text.</span>
       {regionTool && ready && !area && <Button size="sm" variant="secondary" onClick={event => startArea(event.detail === 0)}>Select a region instead</Button>}
     </div>}

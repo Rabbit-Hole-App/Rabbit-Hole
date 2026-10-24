@@ -18,6 +18,7 @@ const VALID = {
   holeMap: value => typeof value === 'boolean',
   curious: value => typeof value === 'boolean',
   comments: value => typeof value === 'boolean',
+  toolbar: value => typeof value === 'boolean',
   sloppiness: value => value === 0 || value === 1 || value === 2,
 };
 
