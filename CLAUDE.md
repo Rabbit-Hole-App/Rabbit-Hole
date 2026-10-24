@@ -58,7 +58,7 @@ meaning depends on its working directory.
 | Web build | `packages/web` | `npm run build` | env flags for the target ([Development deployments](#development-deployments)) | `vite build` compiles and bundles | No |
 | Control-plane tests | `packages/control-plane` | `npm test` | `npm ci` in `packages/control-plane` | `node --test` suites pass (fixture keys) | No browser; intended offline |
 | Release unit suite | repo root | `make test-unit` | `uv`, both packages installed | `run.sh test:unit`: Python unit tests, both JS suites, Motion, evals and `scripts/*.test.mjs` | No browser; `run.sh` marks it "no network" |
-| Integration suite | repo root | `make test-integration` | `uv`, Fly access | `run.sh test:integration`: legacy CLI deploy to Fly | **Real Fly deploy, external cost** |
+| Integration suite (retired) | repo root | `make test-integration` | `uv` | `run.sh test:integration` over `tests/integration_tests` (legacy CLI deploys to Fly). `tests/integration_tests/conftest.py` marks every test skipped, so it executes nothing and proves nothing | Skipped as configured; with the skip removed it would be a real Fly deploy with external cost |
 | Browser tests | `packages/web` | `npm test` | none for Claude | `playwright test` over `e2e/`, building and starting a preview server | **Browser automation: Claude does not run it** ([Browser verification](#browser-verification)) |
 
 A successful build proves compilation and bundling only, not user interaction or real-provider behavior. Browser
@@ -241,8 +241,11 @@ This rule changes how a GO is carried out; it does not itself authorize any prod
 ### Release requirements
 
 - Release readiness on the exact candidate: `make test-unit`; the production build plus
-  `packages/web/e2e/production-bundle-check.mjs`; the CI gate; `make test-integration` before merge. After changing
-  the gate harness or a workflow, run the changed phase locally before pushing.
+  `packages/web/e2e/production-bundle-check.mjs`; the CI gate. `make test-integration` is not a requirement: it targets
+  the retired CLI/BYOC deploy path and its conftest skips every test, so it produces no evidence. After changing the
+  gate harness or a workflow, run the changed phase locally before pushing when that phase is not browser automation. A
+  phase that drives a browser runs only in the approved CI or designated runner ([Browser verification](#browser-verification)),
+  and pushing a workflow file needs the owner's `!` command.
 - Every deploy, dev or production, full gate or reused, needs the newest `fast-e2e` and `verify` runs of the exact
   candidate SHA to be completed successes (OPS-04, owner 2026-10-21). A green ancestor never stands in for them.
 - **Full-gate reuse for eligible UI and copy changes** (owner, 2026-10-21). A candidate whose changes since the last
