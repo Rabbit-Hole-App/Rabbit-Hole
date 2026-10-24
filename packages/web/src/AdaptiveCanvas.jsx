@@ -391,7 +391,7 @@ function CanvasNode({ id, dx, dy, zoom, selected, chat = false, ghost = false, w
           lies over the card or its top port. The one selected card says how it opens: a small Open, never a big button on every card
           (touch has no double-click). */}
       {selected && ((opens && opener.single === id) || tools) && (
-        <div data-card-chrome-row data-thumbnail-hide className="pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
+        <div data-card-chrome-row data-thumbnail-hide className="@container/chrome pointer-events-none absolute right-0 bottom-full left-0 z-30 mb-2 flex flex-wrap items-stretch gap-x-2 gap-y-1.5 [&>*]:min-h-[34px] has-[[data-cad-tools]]:[&>*]:min-h-[38px]">
           {opens && opener.single === id && (
             <button type="button" data-card-open={opens.kind} title={opens.label} aria-label={opens.label}
               onPointerDown={event => event.stopPropagation()} onClick={() => opener.open(id, 'learner_open')}
