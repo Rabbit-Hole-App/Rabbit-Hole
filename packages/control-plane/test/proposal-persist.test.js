@@ -262,7 +262,7 @@ test('MOT-22 two tabs: a settings change and a chat refinement, out-of-order and
   const late = await putSettings(s, first, 30, 2);
   assert.deepEqual([late.status, late.body.code, late.body.current], [409, 'proposal_stale', v3], 'the current revision comes back with the refusal');
   // Both tabs change the current card at once, each from v3: exactly one save lands; the others conflict and change nothing.
-  const saves = await Promise.all([putSettings(s, second, 10, 3), putSettings(s, second, 15, 3), putSettings(s, second, 35, 3)]);
+  const saves = await Promise.all([putSettings(s, second, 10, 3), putSettings(s, second, 15, 3), putSettings(s, second, 25, 3)]);
   const won = saves.filter(r => r.status === 200).map(r => r.body.proposal);
   assert.equal(won.length, 1, 'one save from v3 lands');
   for (const r of saves.filter(r => r.status !== 200)) assert.deepEqual([r.status, r.body.code], [409, 'proposal_stale']);
@@ -417,7 +417,7 @@ test('MOT-22 delayed and out-of-order settings saves from an old revision: 409 w
   // A save with no expected revision is refused outright.
   assert.equal((await s.read('PUT', `/api/learn/chat/messages/${second}/proposal`, { settings: { duration_seconds: 15, audio: false } })).status, 400);
   // A save on a card that is not the root (the refinement's) lands through the root's state, from v3.
-  const v4 = (await putSettings(s, second, 45, 3)).body.proposal;
+  const v4 = (await putSettings(s, second, 30, 3)).body.proposal;
   assert.equal(v4.version, 4);
   assert.deepEqual((await restore(s, threadId, second)).proposal, v4);
   for (const stale of [v1, v2, v3]) assert.equal((await generate(s, press(stale))).body.code, 'proposal_stale');
@@ -425,7 +425,7 @@ test('MOT-22 delayed and out-of-order settings saves from an old revision: 409 w
   const started = await generate(s, press(v4));
   assert.equal(started.status, 202);
   await untilReady(s, started.body.placementId);
-  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length, s.orchestrator.jobs[0].body.approved_proposal.duration_seconds], [1, 1, 45]);
-  const after = await putSettings(s, second, 50, 4);
+  assert.deepEqual([s.orchestrator.jobs.length, s.reservations().length, s.orchestrator.jobs[0].body.approved_proposal.duration_seconds], [1, 1, 30]);
+  const after = await putSettings(s, second, 20, 4);
   assert.deepEqual([after.status, after.body.code], [409, 'proposal_used']);
 });

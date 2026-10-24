@@ -117,7 +117,7 @@ There are three states, read from the canvas row's `access`. Each is done throug
 ## Rename and Edit description
 
 - **Rename:** the typed title is kept exactly (canvas-naming.md). A title you already use only earns a quiet note: "You already have another canvas with this name."
-- **Edit description:** plain text up to 500 characters, with a counter (canvas-metadata.md).
+- **Edit description:** plain text up to 340 characters, with a `current/340` counter; Save is off, with a message, while a changed text is over the limit (canvas-metadata.md).
 - **Route:** both use `PATCH /api/apps/<canvas>`. Either one that changes something is a meaningful change.
 
 ## Share / Manage link

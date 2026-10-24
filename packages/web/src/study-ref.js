@@ -2,7 +2,7 @@
 // no DOM. study-state.js holds the remembered arrangement; this holds what is built from the live canvas.
 import { pdfRef } from './pdf-source.js';
 import { objectName, selectionRef } from './selection-ref.js';
-import { pinnedChatRef, versionStatus } from './study-attach.js';
+import { attachSnapshot, pinnedChatRef, versionStatus } from './study-attach.js';
 import { eligible } from './study-state.js';
 
 const textOf = (object, kind) => (kind === 'explanation'
@@ -34,8 +34,23 @@ export function pinnedAttachRef({ pin, object, reader = null, excerpt = null, un
   return now ? pinnedChatRef(now, { page: reader?.page, excerpt, unavailable }) : null;
 }
 
-// The line under the pinned title when the ref has no version of its own (doc and paper PDFs): binding is source and place.
+// The whole Add pinned reference operation as it is when the button is pressed (study-attach.js attachSnapshot): the pin, its ref
+// at the reader's page or selection, the canvas scope and the destination Chat. null: nothing to attach.
+export function pinnedAttachSnapshot({ scope, destination, ...input }) {
+  return attachSnapshot({ pin: input.pin, ref: pinnedAttachRef(input), scope, destination });
+}
+
+// The version line (Reference options' details) when the ref has no version of its own (doc and paper PDFs): binding is source and place.
 export const versionLine = ref => (ref && versionStatus(ref) === 'unavailable' ? 'Version verification unavailable' : null);
+
+// A pinned PDF's source in Reference options' details, the line the reader showed above its pages (LearnPaper): an upload or a
+// context document says Your upload, a paper its arXiv number. null for a note or an Explanation (the canvas is the source).
+export function sourceOrigin(kind, ref) {
+  const id = String(ref?.sourceId || '');
+  if (kind !== 'pdf') return null;
+  if (id.startsWith('doc:') || id.startsWith('paper:upload:')) return 'Your upload';
+  return id.startsWith('paper:') ? `arXiv:${id.slice('paper:'.length)}` : null;
+}
 
 // Where the pane, the Notebook / Canvas row and the canvas go, in the slot parent's pixels. top: below the frame's top and any
 // header floating over it; the working-view row has its own strip above the canvas, so it never lies over a card or a control.

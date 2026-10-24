@@ -1,7 +1,7 @@
 import { equationTransaction } from './inline-equation-apply.js';
 import { CAD_DOWNLOADS, CadViewerTools, cadCanMutate, cadPersistenceChanged, downloadCadArtifact } from './CadCard.jsx';
 import { cadArtifact, cadClient, cadRunning, mergeCadBlock } from './cad-client.js';
-import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { Heading1, Heading2, Heading3, ChevronDown, ChevronLeft as Back, ChevronRight as Forward, ChevronUp, Ellipsis, GripHorizontal, Loader2, MessageCircle, Scan, X, ArrowUpRight, Circle, CornerDownRight, Diamond, Eraser, Grid3x3, Hand, Hexagon, Highlighter, Lock, LockOpen, ArrowUp, ArrowDown, Minus, MousePointer2, Pencil, Plus, Slash, Spline, Square, Star, StickyNote, Triangle, Type, Download, Paperclip, Copy, Group, NotebookPen, Ungroup, Sigma, Globe } from 'lucide-react';
 import { Md } from './ask.jsx';
@@ -10,6 +10,7 @@ import { renamable, renameBlock, groupEditText, groupLabelFrom } from './card-re
 import './card-layout.css';
 import { IconBtn, toast } from './ui.jsx';
 import { saveUiPref, uiPrefs } from './ui-prefs.js';
+import { effectiveWidgets, widgetToggle } from './widget-visibility.js';
 import { notebookEditor } from './notebook-inline-client.js';
 import { notebookHistoryController } from './notebook-history.js';
 import { boardAsk } from './board-ask.js';
@@ -22,6 +23,7 @@ import { panelFor, textStyle, stickyTone, dashArray, dashStyle, reorder, reorder
 import RichText, { measureHeight, offsetsOf, readRuns } from './RichText.jsx';
 const CodeBoxEditor = lazyFeature(() => import('./CodeBoxEditor.jsx'), 'The code editor');
 import StylePanel, { COLORS, WIDTHS } from './CanvasStylePanel.jsx';
+import { jitterPoint, roughnessOf, roughnessPatch, seedOf, sloppyLink, sloppyShape } from './canvas-sloppy.js';
 import { ALIGNS, baseOf, compactRuns, fontSize as validSize, formatObject, objectStyle, objectsValue, plainOf, reconcileRuns, runsOf, textPatch, valueOver } from './learn-rich-text.js';
 import { drawGeometry, moveEnd, resizeBox } from './learn-draw-modifiers.js';
 import CanvasMinimap from './CanvasMinimap.jsx';
@@ -41,7 +43,7 @@ import { objectKind, objectName, selectionName, selectionRef } from './selection
 import LearnWiki from './LearnWiki.jsx';
 import WebpageCard, { askCapture } from './WebpageCard.jsx';
 import SourcesDisclosure from './SourcesDisclosure.jsx';
-import CardPrompt from './CardPrompt.jsx';
+import CardPrompt, { PromptSlot } from './CardPrompt.jsx';
 import { momentGeometry, seekTo, clock, embedUrl } from './learn-video-moment.js';
 import { snapMove, snapGrid, SNAP_TOLERANCE, GRID } from './learn-snap.js';
 import NotebookBody from './NotebookCard.jsx';
@@ -93,6 +95,9 @@ const VIEW_ONLY_HIDDEN = new Set(['canvas.local-edit', 'source.write', 'generate
 const rowGroup = id => allActions().find(entry => entry.id === id)?.group || null;
 // S1's one permission model (canvas-permissions.js, contract-permissions.md): the menu, the card ⋮ and the shortcuts ask it.
 import { can as permit } from './canvas-permissions.js';
+import { adapterFor, focusReducer, focusSnapshot, shouldExitOnEscape } from './focus-controller.js';
+import { syncFocus, workspaceFrame } from './focus-adapters.js';
+import FocusFrame from './FocusFrame.jsx';
 import { rabbitHoleTarget } from './canvas-actions-types.js';
 import { loadMediaOriginal } from './media-storage.js';
 
@@ -875,6 +880,9 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
   // A practice section and the INTERACT row grow it the same way, by their
   // measured heights (wrapped rows included).
   const [sourcesHeight, setSourcesHeight] = useState(0);
+  // The stored prompt's Prompt control sits in the card's own top-right pill when its body draws one (Kicker claims the slot), else in the card's top strip.
+  const [slotted, setSlotted] = useState(false);
+  const promptSlot = useMemo(() => block.promptUsed ? { text: block.promptUsed, selected, claim: setSlotted } : null, [block.promptUsed, selected]);
   const [practiceHeight, setPracticeHeight] = useState(0);
   const [controlsHeight, setControlsHeight] = useState(0);
   // A YouTube moment (videoId) gets its own card; a hosted or generated clip
@@ -913,11 +921,11 @@ function LessonBlockCard({ block, zoom, selected, viewSelected = selected, conne
         <NotebookButton entry={block} onNotebook={onNotebook} className="h-[30px] w-[30px] self-center rounded-full border border-line bg-white text-ink shadow-md hover:bg-hover" />
         <SelectionActionsHost id={block.id} divider={cadTools || ['code', 'snippet'].includes(block.type)} />
       </> : null}>
-      <PerfContext.Provider value={phase => perfMark(block.id, phase)}>
+      <PerfContext.Provider value={phase => perfMark(block.id, phase)}><PromptSlot.Provider value={promptSlot}>
         <LearningBlockBody block={block} onChange={onChange} onChangeQuiet={onChangeQuiet} onFile={onFile} appName={appName} onGrade={onGrade} selected={block.type === 'cad' ? viewSelected : selected} readOnly={cadPermissions.readOnly || cadPermissions.localCopy || cadPermissions.locked.has(block.id)} onCadEdit={() => cadOpen('edit')} cadAccount={cadPermissions.account} onPracticeHeight={setPracticeHeight} onControlsHeight={setControlsHeight} />
-      </PerfContext.Provider>
+      </PromptSlot.Provider></PerfContext.Provider>
       {block.sources && <SourcesDisclosure sources={block.sources} onFile={onFile} onHeight={setSourcesHeight} />}
-      {block.promptUsed && <CardPrompt text={block.promptUsed} selected={selected} />}
+      {block.promptUsed && !slotted && <CardPrompt text={block.promptUsed} selected={selected} />}
     </CanvasNode>
   );
 }
@@ -1288,14 +1296,16 @@ const inkPath = (stroke, index) => (stroke.tool === 'pen'
   : <path key={index} d={pathOf(stroke.points)} fill="none" stroke="#fde047" strokeWidth={stroke.width || 14} strokeOpacity=".5" strokeLinecap="round" strokeLinejoin="round" />);
 
 // An arrowhead (learn-style-panel.js HEADS) at `tip`, pointing away from `from`: open arrow, filled triangle, dot or bar.
-const headMark = (kind, tip, from, stroke, key = undefined) => {
+// sloppy: { roughness, seed } of a hand-drawn line - the head's arms wobble with it, the tip stays on the line's end.
+const headMark = (kind, tip, from, stroke, key = undefined, sloppy = null) => {
   if (!kind || kind === 'none' || !tip || !from) return null;
   const angle = Math.atan2(tip.y - from.y, tip.x - from.x), size = 8 + stroke.strokeWidth * 2;
-  const at = (turn, reach) => `${tip.x - reach * Math.cos(angle + turn)} ${tip.y - reach * Math.sin(angle + turn)}`;
+  const arm = (x, y, salt) => { const p = sloppy ? jitterPoint({ x, y }, sloppy.roughness, sloppy.seed + salt) : { x, y }; return `${p.x} ${p.y}`; };
+  const at = (turn, reach) => arm(tip.x - reach * Math.cos(angle + turn), tip.y - reach * Math.sin(angle + turn), turn < 0 ? 31 : 37);
   const solid = { stroke: stroke.stroke, strokeWidth: stroke.strokeWidth, opacity: stroke.opacity, strokeLinecap: 'round', strokeLinejoin: 'round' };
   if (kind === 'triangle') return <path key={key} data-head="triangle" d={`M${at(-0.42, size)} L${tip.x} ${tip.y} L${at(0.42, size)} Z`} {...solid} fill={stroke.stroke} />;
   if (kind === 'dot') { const r = 2.5 + stroke.strokeWidth; return <circle key={key} data-head="dot" cx={tip.x - r * Math.cos(angle)} cy={tip.y - r * Math.sin(angle)} r={r} {...solid} fill={stroke.stroke} />; }
-  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${tip.x + half * Math.sin(angle)} ${tip.y - half * Math.cos(angle)} L${tip.x - half * Math.sin(angle)} ${tip.y + half * Math.cos(angle)}`} {...solid} fill="none" />; }
+  if (kind === 'bar') { const half = size / 2; return <path key={key} data-head="bar" d={`M${arm(tip.x + half * Math.sin(angle), tip.y - half * Math.cos(angle), 31)} L${arm(tip.x - half * Math.sin(angle), tip.y + half * Math.cos(angle), 37)}`} {...solid} fill="none" />; }
   return <path key={key} data-head="arrow" d={`M${at(-0.45, size)} L${tip.x} ${tip.y} L${at(0.45, size)}`} {...solid} fill="none" />;
 };
 
@@ -1360,6 +1370,10 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
   const elbow = kind === 'elbow' ? freeElbow(shape) : null;
   const middle = kind === 'curve' ? { x: 0.25 * x1 + 0.5 * control.x + 0.25 * x2, y: 0.25 * y1 + 0.5 * control.y + 0.25 * y2 } : elbow ? polylineMid(elbow) : { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
   const heads = headsOf(shape);
+  // Sloppiness (canvas-sloppy.js): Sketchy and Rough redraw only the visible outline; Clean renders the elements below untouched.
+  const roughness = roughnessOf(shape);
+  const sloppy = roughness ? sloppyShape(shape, { polygon: POLYGONS[kind], control, elbow }) : null;
+  const sloppyHead = roughness ? { roughness, seed: seedOf(shape) } : null;
   const textBox = TEXT_BOX[kind];
   const textRef = useRef(null);
   const base = textBox ? shapeBase(shape) : null;
@@ -1406,19 +1420,26 @@ function ShapeView({ shape, tool, zoom, selected, editing = false, editPoint = n
         if (textBox && onEdit) onEdit(shape.id, { x: event.clientX, y: event.clientY });
         else if (linear && onLabel) onLabel(shape.id);
       }}>
-      {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
-      {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
-      {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
-      {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
-      {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
-      {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
+      {sloppy ? (
+        // One group carries the opacity so Rough's two overlapping strokes do not darken where they cross; the second stroke has no fill.
+        <g data-sloppy={roughness} opacity={opacity}>
+          {sloppy.map((d, index) => (index && shape.noStroke ? null : <path key={index} d={d} {...stroke} opacity={undefined} fill={index || linear ? 'none' : stroke.fill} fillOpacity={index || linear ? undefined : stroke.fillOpacity} />))}
+        </g>
+      ) : <>
+        {kind === 'rect' && <rect x={x} y={y} width={w} height={h} rx={round ? 14 : 2} {...stroke} />}
+        {kind === 'ellipse' && <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...stroke} />}
+        {POLYGONS[kind] && <polygon points={POLYGONS[kind].map(([u, v]) => `${x + u * w},${y + v * h}`).join(' ')} {...stroke} />}
+        {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} {...stroke} />}
+        {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} {...stroke} />}
+        {elbow && <path d={pathOf(elbow)} {...stroke} fill="none" />}
+      </>}
       {/* A 2px line is a 2px target. This invisible band gives lines, arrows
           and curves the same easy grab a filled shape's interior has. */}
       {(kind === 'line' || kind === 'arrow') && <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {kind === 'curve' && <path d={`M${x1} ${y1} Q${control.x} ${control.y} ${x2} ${y2}`} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinecap="round" />}
       {elbow && <path d={pathOf(elbow)} fill="none" stroke="transparent" strokeWidth={Math.max(14 / zoom, width + 8)} strokeLinejoin="round" />}
-      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end')}
-      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start')}
+      {linear && headMark(heads.end, kind === 'elbow' ? elbow[elbow.length - 1] : { x: x2, y: y2 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[elbow.length - 2] : { x: x1, y: y1 }, stroke, 'end', sloppyHead)}
+      {linear && headMark(heads.start, { x: x1, y: y1 }, kind === 'curve' ? control : kind === 'elbow' ? elbow[1] : { x: x2, y: y2 }, stroke, 'start', sloppyHead)}
       {linear && <LineLabel at={middle} entry={shape} editing={labelEditing} pickable={selected && tool === 'select' && !locked} onPick={() => onLabel?.(shape.id)} onDone={(runs, how) => onLabelDone(shape.id, runs, how)} onApi={onEditorApi} />}
       {linear && selected && tool === 'select' && !locked && !labelEditing && !shape.label && onLabel && <LabelHandle at={middle} zoom={zoom} onPick={() => onLabel(shape.id)} />}
       {/* Text in the middle of a closed shape: it wraps inside the outline and
@@ -1525,7 +1546,7 @@ function GroupChip({ group, onSelect, onLabel, editOn = false }) {
 
 const CARDS_COPIED = 'rabbit-hole:copied-cards';
 
-export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, permissions = null, onSignIn = null }) {
+export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bottomLeft = null, onDelete = null, onRestore = null, onAskTarget = null, askTargetId = null, onOpenFile = null, onAdd = null, onGrade = null, onResize = null, onReply = null, appName = null, apiRef = null, onState = null, storageKey = null, seedBlocks = null, composer = null, renderBlockComposer = null, onWiki = null, onWatch = null, onDropFiles = null, onCardAction = null, attachedIds = null, onGroupShot = null, onAreaShot = null, onPaper = null, edgeInset = 0, boardState = null, onSave = null, readOnly = false, localCopy = false, gutterTop = null, leftRail = null, hooks = null, onStartRabbitHole = null, onAddComment = null, commentPins = null, onCommentPin = null, onPinColor = null, onPinDelete = null, onCommentObjects = null, onUngroupComments = null, onPasteCode = null, inlineAi = null, docView = 'canvas', docReady = true, docError = null, onDocRetry = null, onDocDirty = null, refLinks = null, onLinkCanvas = null, onPinForStudy = null, study = null, permissions = null, onSignIn = null }) {
   // A view-only board pans and zooms with the hand and edits nothing.
   const [tool, setTool] = useState(readOnly ? 'hand' : 'select');
   const readOnlyRef = useRef(readOnly);
@@ -1586,6 +1607,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[0]);
   const [dash, setDash] = useState('solid');
+  // Sloppiness armed for the next shape, arrow or connector (0 Clean, 1 Sketchy, 2 Rough; canvas-sloppy.js).
+  const [rough, setRough] = useState(() => uiPrefs().sloppiness);
   const [fill, setFill] = useState(null);
   const [noStroke, setNoStroke] = useState(false);
   const [opacity, setOpacity] = useState(1);
@@ -1858,13 +1881,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   const [grid, setGrid] = useState(false);
   // View > Minimap, Rabbit Hole Map, Curious (owner brief 2026-10-21 item 3): this device's choice (ui-prefs.js), on by default.
   // Hidden, the Rabbit Hole Map and Curious stay mounted (display: none), so their state is there when they come back.
-  const [minimap, setMinimap] = useState(() => uiPrefs().minimap);
-  const [holeMap, setHoleMap] = useState(() => uiPrefs().holeMap);
+  const [minimapPref, setMinimapPref] = useState(() => uiPrefs().minimap);
+  const [holeMapPref, setHoleMapPref] = useState(() => uiPrefs().holeMap);
   const [curious, setCurious] = useState(() => uiPrefs().curious);
   // View > Show / hide > Toolbar (owner brief 2026-10-22): the drawing toolbar; this person's choice on this device, never the canvas.
   const [toolbar, setToolbar] = useState(() => uiPrefs().toolbar);
+  // Study (focus-study.md): there both maps are hidden unless the learner chose one in Study. minimap and holeMap below are what
+  // is shown (render, footprint, onState checkmarks); the Canvas preferences above are never written by Study.
+  const widgetMode = study?.mode === 'study' ? 'study' : 'canvas';
+  const { minimap, holeMap } = effectiveWidgets({ mode: widgetMode, canvas: { minimap: minimapPref, holeMap: holeMapPref }, study: study?.state?.maps });
   const showWidget = (name, on) => {
-    ({ minimap: setMinimap, holeMap: setHoleMap, curious: setCurious, toolbar: setToolbar })[name](on);
+    const route = widgetToggle({ mode: widgetMode, name, on });
+    if (!route) return;
+    if (route.store === 'study') { study?.setMap(name, on); return; }
+    ({ minimap: setMinimapPref, holeMap: setHoleMapPref, curious: setCurious, toolbar: setToolbar })[name](on);
     try { saveUiPref(name, on); } catch { /* storage refused: the choice holds in this page until a reload */ }
   };
   const [pages, setPages] = useState(false);
@@ -1995,6 +2025,27 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // here rather than lifting the canvas's own state out of it.
   // The same table serves the keyboard, so a shortcut and its menu row can
   // never drift apart.
+  // Focus (docs/features/focus-study.md): one card alone in the working pane, through focus-controller.js. Presentation only:
+  // no board write, no undo entry (snapshot is never called for it), no model call. The adapter restyles the card's own host.
+  const [focus, dispatchFocus] = useReducer(focusReducer, null);
+  const focusRef = useRef(null), focusShown = useRef(null);
+  focusRef.current = focus;
+  const focusWorkspace = () => { const area = controlArea(); return workspaceFrame({ ...area, right: Math.min(area.right, surface.current.clientWidth - edgeInset), bottom: Math.min(area.bottom, chromeTop(area.left, area.right)) }); };
+  useLayoutEffect(() => { focusShown.current = syncFocus(focusShown.current, focus, { view, readOnly, find: id => surface.current?.querySelector(`[data-block][data-block-id="${CSS.escape(id)}"],[data-item-id="${CSS.escape(id)}"]`), restore: saved => commandsRef.current.restoreNavigation(saved), gone: id => dispatchFocus({ type: 'content-gone', id }) }); }, [focus, view, readOnly]);
+  useLayoutEffect(() => () => { syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current }); }, []);
+  // The pane measured again when a panel opens, the Study divider moves, the window or the bottom chrome resizes.
+  useEffect(() => {
+    if (!focus?.id || !surface.current || typeof ResizeObserver === 'undefined') return undefined;
+    let tick = 0;
+    const measure = () => { cancelAnimationFrame(tick); tick = requestAnimationFrame(() => { if (surface.current) dispatchFocus({ type: 'workspace-changed', frame: focusWorkspace() }); }); };
+    const observer = new ResizeObserver(measure);
+    for (const node of [surface.current, pageHeader(), ...(bottomStrip.current?.children || [])]) if (node) observer.observe(node);
+    window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); cancelAnimationFrame(tick); };
+  }, [focus?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Deleted, or no longer focusable (read-only now, failed): a clean exit.
+  useEffect(() => { const id = focusRef.current?.id; if (id && !adapterFor(objectById(id), { view: viewRef.current, readOnly })) dispatchFocus({ type: 'content-gone', id }); }, [blocks, exchanges, items, readOnly]); // eslint-disable-line react-hooks/exhaustive-deps
+  const focusSole = useCallback(() => commandsRef.current?.enterFocus(selectedRef.current[0]), []);
   const commandsRef = useRef(null);
   useEffect(() => {
     commandsRef.current = {
@@ -2064,7 +2115,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // Insert > Equation: an empty equation opens for typing at the view's centre, as the Equation tool does where it is clicked.
       insertEquation: () => { if (readOnlyRef.current || localCopyRef.current) return; snapshot(); setEquationDraft(newEquation(viewCenter())); },
       // Insert > Webpage: asks for the address, then makes the capture a pasted link makes.
-      insertWebpage: () => { if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); },
+      // With a link (the Start dialog's sources) the card is added at once and its id returned; without one, the address prompt opens.
+      insertWebpage: url => { if (typeof url === 'string' && url) return addWebpage(url); if (!readOnlyRef.current && !localCopyRef.current) setWebpageAsk(''); return null; },
       // The inline AI editor from the page's Edit menu, and whether Ctrl/Cmd+K is the inline editor's right now (Dive asks).
       inlineAi: (mode = null) => openInline(performance.now(), false, mode), inlineClaims: () => !!inlineRef.current || !!inlineTarget(true),
       copy: copySelection,
@@ -2248,6 +2300,20 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([id]);
         cameraRef.current = { id, frame: true };
       },
+      // Focus (docs/features/focus-study.md): the toolbar button, the right-click row, the keyboard and Study > Notebook all call
+      // these. enterFocus returns false when no adapter claims the object (nothing happens); the camera and selection are saved
+      // first and put back by exitFocus. The card is deselected while focused, so its row and the selection bar stand down.
+      enterFocus: id => {
+        const adapter = adapterFor(objectById(id), { view: viewRef.current, readOnly: readOnlyRef.current });
+        if (!adapter || !surface.current) return false;
+        dispatchFocus({ type: 'enter', id, kind: adapter.kind, saved: commandsRef.current.captureNavigation(), frame: focusWorkspace() });
+        setSelection([]);
+        return true;
+      },
+      // The adapter's exit and the navigation restore run now, not after the next commit, so a camera or selection command
+      // issued right after (Study's Locate on canvas) is never undone by the restore.
+      exitFocus: () => { focusShown.current = syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current, restore: saved => commandsRef.current.restoreNavigation(saved) }); dispatchFocus({ type: 'exit' }); },
+      focusState: () => focusSnapshot(focusRef.current),
       // A Search result dropped on the canvas (search-drag.js): this same object, its top-left at a world point, one undo step.
       moveTo: (id, spot) => {
         const box = boxesOf([id])[0];
@@ -2772,7 +2838,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     const next = {};
     for (const element of column.current?.querySelectorAll('[data-block-id]') || []) {
       const owner = exchangesRef.current.find(item => item.id === element.dataset.blockId) || blocksRef.current.find(item => item.id === element.dataset.blockId);
-      if (owner) { const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null; next[owner.id] = { x: element.offsetLeft + (slot?.offsetLeft || 0) + owner.dx, y: element.offsetTop + (slot?.offsetTop || 0) + owner.dy, w: element.offsetWidth, h: element.offsetHeight }; }
+      // A focused card keeps the box it had: its temporary Focus size is never a bound (connectors, minimap, placement).
+      if (owner && owner.id === focusRef.current?.id && boundsRef.current[owner.id]) next[owner.id] = boundsRef.current[owner.id];
+      else if (owner) { const slot = element.parentElement?.hasAttribute('data-card-slot') ? element.parentElement : null; next[owner.id] = { x: element.offsetLeft + (slot?.offsetLeft || 0) + owner.dx, y: element.offsetTop + (slot?.offsetTop || 0) + owner.dy, w: element.offsetWidth, h: element.offsetHeight }; }
     }
     return next;
   };
@@ -2999,7 +3067,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // The section being viewed (learn-present.js activeSection), for the Table of contents' marker.
   // ponytail: follows the camera and the layout, not a window resize on its own; the next pan catches up.
   const viewing = surface.current ? activeSection(blocks, bounds, { x: -view.x / view.z, y: -view.y / view.z, w: surface.current.clientWidth / view.z, h: surface.current.clientHeight / view.z }) : null;
-  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]);
+  useEffect(() => { onState?.({ grid, lock, minimap, holeMap, curious, toolbar, pages, presenting: presenting !== null, focus: focusSnapshot(focus), outline: JSON.parse(outlineKey), cards: JSON.parse(cardsKey), selected: selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, activeSection: tocEntryFor(toc, viewing), card: JSON.parse(cardKey), content, attempts, semanticFingerprint, semanticSettling }); }, [grid, lock, minimap, holeMap, curious, toolbar, pages, presenting, focus?.id, focus?.kind, outlineKey, cardsKey, selectedCount, units, grouped, canPaste, canPasteStyle, selectionLocked, viewing, toc, cardKey, content, attempts, semanticFingerprint, semanticSettling, onState]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => connectionCleanup.current?.(), []);
   // Deleting is a command as well as a key, so it lives outside the key handler.
   const deleteSelection = async () => {
@@ -3215,7 +3283,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     };
     const wheel = event => {
       // Scrollable card bodies keep native wheel scrolling.
-      if (!(event.ctrlKey || event.metaKey) && event.target.closest?.('[data-scroll]') && !event.target.closest?.('[data-card-layout="full"]')) return;
+      // A focused card scrolls inside itself, Full card layout included (focus-study.md section 7); Ctrl/Cmd still zooms.
+      if (!(event.ctrlKey || event.metaKey) && (event.target.closest?.('[data-focus-host]') || (event.target.closest?.('[data-scroll]') && !event.target.closest?.('[data-card-layout="full"]')))) return;
       // A graph card zooms its own graph; the wheel never also moves the canvas (repo-canvas-graph.md Clarification 5).
       if (event.target.closest?.('[data-graph-card]')) return;
       // The document's own menus scroll themselves, and a wide code block or table its own sideways overflow; reading down
@@ -3554,6 +3623,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       // An open dialog or menu handles its own Esc first (the shortcuts sheet, the canvas menu, a composer menu), and so
       // does the New comment panel: its Esc is Cancel (canvas-comments.md, owner 2026-10-13).
       if (event.key === 'Escape' && (held?.closest?.('[role="dialog"],[role="menu"],[data-comment-draft]') || document.querySelector('[role="dialog"][aria-modal="true"]'))) return;
+      // An unclaimed Esc leaves Focus first, on any board: a view-only viewer can leave it too.
+      if (shouldExitOnEscape(event, { focusing: !!focusRef.current, menuOpen: menuOpenRef.current, gesture: gestureLive })) { event.preventDefault(); commandsRef.current.exitFocus(); return; }
       // A view-only board: Esc puts the hand back, and lets go of the selected card
       // (and its pill above the shared composer, owner 2026-10-08) unless it is pressed in the composer, as below.
       if (readOnlyRef.current) {
@@ -4162,7 +4233,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       if (!to || to === from || present.current.links.some(link => link.from === from && link.fromSide === fromSide && link.to === to && link.toSide === toSide)) return;
       const diagram = fromShape || shapesRef.current.some(shape => shape.id === to);
       snapshot();
-      setLinks(previous => [...previous, { id: crypto.randomUUID(), from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}) }]);
+      const id = crypto.randomUUID();
+      setLinks(previous => [...previous, { id, from, fromSide, to, toSide, color: linkColor, ...(diagram ? { route: connectorRoute, head: true } : {}), ...(diagram && rough ? roughnessPatch({ id }, rough) : {}) }]);
     };
     trace(event);
     const move = e => trace(e);
@@ -4363,7 +4435,8 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       event.preventDefault();
       const start = store.local(event);
       const linear = tool === 'line' || tool === 'arrow' || tool === 'curve' || tool === 'elbow';
-      const draft = { id: crypto.randomUUID(), kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round,
+      const draftId = crypto.randomUUID();
+      const draft = { id: draftId, kind: tool, x1: start.x, y1: start.y, x2: start.x, y2: start.y, color, width, dash, fill, opacity, round, ...(rough ? roughnessPatch({ id: draftId }, rough) : {}),
         ...(TEXT_BOX[tool] && fill ? { fillOpacity } : {}), ...(TEXT_BOX[tool] && noStroke ? { noStroke: true } : {}), ...(linear && heads.start ? { startHead: heads.start } : {}), ...(linear && heads.end ? { endHead: heads.end } : {}) };
       // Shift squares the box or snaps the line to 45 degrees; Alt draws from the centre. Pressing or letting go of
       // either mid-drag redraws the preview at once, and the shape saved is the preview's (learn-draw-modifiers.js).
@@ -4594,7 +4667,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   // Dragging one member of a multi-selection carries the whole group.
   const shift = (ddx, ddy, ids) => {
     for (const id of ids) {
-      if (lockedRef.current.has(id)) continue; // a locked object keeps its place, whatever moves around it
+      if (lockedRef.current.has(id) || id === focusRef.current?.id) continue; // a locked or focused object keeps its place, whatever moves around it
       const exchange = exchangesRef.current.find(item => item.id === id);
       if (exchange) { onMove(id, exchange.dx + ddx, exchange.dy + ddy); continue; }
       const block = blocksRef.current.find(item => item.id === id);
@@ -4615,7 +4688,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     if (item) shift(x - item.x, y - item.y, groupTargets(id));
   };
   const resizeCard = (id, w, h, x, minimum, quiet = false) => {
-    if (readOnly || lockedRef.current.has(id)) return;
+    if (readOnly || lockedRef.current.has(id) || id === focusRef.current?.id) return; // Focus's temporary size is never saved
     if (!quiet) snapshot();
     setBlocks(previous => previous.map(block => block.id === id ? resizeCardLayout(block, w, h, x, minimum) : block));
   };
@@ -5076,6 +5149,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
   };
   const closed = entry => !!TEXT_BOX[entry.kind];
   const linear = entry => isLink(entry) || ['line', 'arrow', 'curve', 'elbow'].includes(entry.kind);
+  const sloppyCapable = entry => closed(entry) || linear(entry);
   const panelValues = {
     color: pick(entry => entry.color || COLORS[0], color),
     stroke: pick(entry => strokeOf(entry, COLORS[0]), panel.noStroke && noStroke ? null : color),
@@ -5083,6 +5157,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     fillOpacity: pick(entry => entry.fillOpacity ?? 0.25, fillOpacity, closed),
     width: pick(entry => entry.width ?? WIDTHS[0], width, entry => !isLink(entry)),
     dash: pick(entry => dashStyle(entry.dash), dash, entry => !isLink(entry)),
+    rough: pick(roughnessOf, rough, sloppyCapable),
     opacity: pick(entry => entry.opacity ?? 1, opacity, entry => !isLink(entry)),
     round: pick(entry => !!entry.round, round, entry => entry.kind === 'rect'),
     startHead: pick(entry => headsOf(entry).start, heads.start || 'none', linear),
@@ -5138,6 +5213,17 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     opacity: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets); },
     opacitySlide: value => { setOpacity(value); applyStyle({ opacity: value }, panel.targets, true); },
     round: value => { setRound(value); applyStyle({ round: value }, panel.targets); },
+    // One press is one undo step, on every selected shape, arrow and connector that is not locked (panel.targets).
+    sloppiness: value => {
+      setRough(value);
+      try { saveUiPref('sloppiness', value); } catch { /* storage refused: the level holds in this page until a reload */ }
+      const ids = panel.targets.filter(id => { const entry = entryOf(id); return entry && sloppyCapable(entry) && roughnessOf(entry) !== value; });
+      if (!ids.length) return;
+      if (!editorRef.current || editorRef.current.state().code) snapshot();
+      const apply = entry => (ids.includes(entry.id) ? { ...entry, ...roughnessPatch(entry, value) } : entry);
+      markLists().setShapes(previous => previous.map(apply));
+      if (!drawTarget) setLinks(previous => previous.map(apply));
+    },
     head: (end, kind) => { setHeads(previous => ({ ...previous, [end]: kind })); applyStyle({ [`${end}Head`]: kind }, panel.targets.filter(id => linear(entryOf(id) || {}))); },
     route: value => {
       setConnectorRoute(value);
@@ -5288,6 +5374,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
       styleable: ids => ids.length > 0 && ids.every(id => { const found = menuObject(id); return !!found && (found.family === 'link' || found.family === 'shape' || (found.family === 'item' && found.object.kind !== 'section')); }),
       canPaste, canPasteStyle,
       zoomToSelection,
+      // Focus (canvas-actions-types.js card.focus): the same enterFocus as the card toolbar's button; only where an adapter claims it.
+      focus: id => commandsRef.current.enterFocus(id),
+      focusable: object => !!object && object.id !== focusRef.current?.id && !!adapterFor(object, { view: viewRef.current, readOnly }),
       supportsCardLayout: object => !!object && supportsCardLayout(object),
       fullContent: object => object?.cardLayout?.mode === 'full',
       setCardLayout: (id, mode) => setCardLayout(id, mode),
@@ -5380,6 +5469,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     rows: (id, groups) => actionsFor(cardTarget(id), actionCtx).filter(row => row.separator || !groups || groups.includes(rowGroup(row.id))),
     run: (id, actionId) => { const done = runAction(actionId, cardTarget(id), actionCtx); if (!done.ran && done.reason) toast(done.reason); },
   };
+  const soleFocus = selection.length === 1 && !focus ? adapterFor(objectById(selection[0]), { view, readOnly }) : null;
   const hasPin = commentPins && presenting === null ? id => commentPins.some(pin => pin.anchor?.kind === 'object' && pin.anchor.object_id === id) : null;
   return (
     // Delete, ctrl+z, copy and paste all stand down while a text field has focus,
@@ -5391,7 +5481,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
     // small.adaptive-canvas:<org>:<email>:<canvas> (home/canvas-local.js canvasKeys), absent on shared and member pages.
     <CanvasEdit.Provider value={{ locked: lockedIds, altDrag, readOnly, localCopy, hasPin, resizeCard, selectionCount: selection.length, account: storageKey ? storageKey.split(':').slice(1, 3).join(':') : '' }}>
     <CardActions.Provider value={cardActions}>
-    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || readOnly || localCopy} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly ? quickEdit : null}>
+    <SelectionActionsProvider sole={selection.length === 1 ? selection[0] : null} hidden={!!inline || presenting !== null || !!focus} focusLabel={soleFocus?.label || null} onFocus={focusSole} narrow={(surface.current?.clientWidth || 1200) < 640} pinned={hasPin} onAddToChat={readOnly || localCopy ? null : addToChat} added={!!(chatWorkspace && selection.length === 1 && objectById(selection[0]) && chatWorkspace.context.isAttached(chatRefOf(objectById(selection[0]))))} onQuickEdit={inlineAi && !readOnly && !localCopy ? quickEdit : null}>
     <div ref={shell} className="@container relative flex h-full min-h-0 flex-col"
       onPointerDownCapture={event => {
         // An open text edit whose focus went to a style-panel field ends when the press lands anywhere else.
@@ -5459,6 +5549,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         <LaserPointer on={presenting !== null && laser} />
         <div ref={searchMark} hidden aria-hidden="true" data-search-drop="" data-thumbnail-hide className="pointer-events-none absolute z-40 rounded-lg border-2 border-dashed border-accent bg-accent/5 data-[search-drop=refuse]:border-line-strong data-[search-drop=refuse]:bg-surface data-[search-drop=refuse]:px-3 data-[search-drop=refuse]:py-2 data-[search-drop=refuse]:shadow-md"><span className="absolute -top-6 left-0 rounded-md bg-ink px-1.5 py-0.5 text-[11px] whitespace-nowrap text-surface in-data-[search-drop=refuse]:static in-data-[search-drop=refuse]:whitespace-normal in-data-[search-drop=refuse]:bg-transparent in-data-[search-drop=refuse]:p-0 in-data-[search-drop=refuse]:text-xs in-data-[search-drop=refuse]:text-ink" /></div>
         <SelectionActionBar anchor={barAnchor} box={barBox} />
+        {focus && <FocusFrame id={focus.id} kind={focus.kind} frame={focus.frame} title={objectName(objectById(focus.id), objectById(focus.id) && describeObject(objectById(focus.id)))} tools={focus.kind === 'cad' && cadArtifact(objectById(focus.id)?.manifest, 'glb') ? <CadViewerTools viewKey={focus.id} account={storageKey ? storageKey.split(':').slice(1, 3).join(':') : ''} cardId={focus.id} /> : null} onBack={() => commandsRef.current.exitFocus()} />}
         {/* A pasted URL (canvas-paste.js 'url'): two choices, keyboard first - Tab between them, Enter picks, Esc places nothing. */}
         {urlPaste && <div role="dialog" aria-label="Paste a link" data-paste-url data-thumbnail-hide onPointerDown={event => event.stopPropagation()}
           onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); choosePaste(null); } }}
@@ -5534,11 +5625,13 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             const path = linkRoute(link);
             if (!path || connecting?.hide === link.id) return null;
             const ink = inkAware(link.color);
+            // Sloppiness (canvas-sloppy.js): the drawn line is redrawn by hand; the hit path below stays the real route.
+            const roughness = roughnessOf(link), sloppy = roughness ? sloppyLink(path.d, link) : null, sloppyHead = roughness ? { roughness, seed: seedOf(link) } : null;
             return (
               <g key={link.id} data-connection={link.id} className="dark:[filter:brightness(1.5)_saturate(1.2)]">
-                <path d={path.d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />
-                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end')}
-                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start')}
+                {(sloppy || [path.d]).map((d, index) => <path key={index} data-sloppy={sloppy ? roughness : undefined} d={d} fill="none" stroke={ink} strokeWidth={isSelected(link.id) ? 4 : 2.5} strokeLinejoin="round" strokeDasharray={link.kind === 'annotation' ? '6 5' : undefined} />)}
+                {headMark(headsOf(link).end, path.tip, path.from, { stroke: ink, strokeWidth: 2.5 }, 'end', sloppyHead)}
+                {headMark(headsOf(link).start, portPosition(link.from, link.fromSide), path.next, { stroke: ink, strokeWidth: 2.5 }, 'start', sloppyHead)}
                 {/* A view-only board edits no connection, so its hit path takes no press: a press on a card a connection crosses
                     selects the card (r38: answers about a selected card are linked chat cards, so connections cross cards). */}
                 <path d={path.d} fill="none" stroke="transparent" strokeWidth={14 / view.z} style={{ pointerEvents: readOnly ? 'none' : 'stroke', cursor: 'pointer' }}
@@ -5578,7 +5671,7 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
             ? <div key={exchange.id} className="-mb-5 h-0 overflow-visible"><ChatCard exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} /></div>
             : <ChatCard key={exchange.id} exchange={exchange} zoom={view.z} selected={isSelected(exchange.id)} connected={portsInUse[exchange.id]} boardId={boardOf(exchange.linkFrom)} onSelect={select} onMove={moveNode} onSize={onResize} onReply={onReply} renderComposer={renderBlockComposer && ((exchange, receive) => renderBlockComposer(exchange, receive, linkedTarget(exchange)))} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} />))}
           <SketchHost.Provider value={sketchHost}><CardOpen.Provider value={cardOpen}><CanvasRefs.Provider value={refLinks && { ...refLinks, refsOf: id => { const entry = blocks.find(block => block.id === id); return entry?.type === 'canvas-ref' ? null : entry?.refs; } }}>
-            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id)} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
+            {columnEntries(blocks, slots).map(({ block, slot }) => slot ? <SlotCard key={slot.id} slot={slot} /> : <LessonBlockCard key={block.id} block={block} zoom={view.z} selected={isSelected(block.id)} viewSelected={selection.includes(block.id) || focus?.id === block.id} connected={portsInUse[block.id]} onSelect={select} onMove={moveNode} onChange={changeBlock} onChangeQuiet={changeBlockQuietly} onLayout={measureBlocks} onConnect={connect} onSnap={snapForNode} onFile={onOpenFile} appName={appName} onGrade={onGrade} onWiki={onWiki} onWatch={onWatch} onNotebook={readOnly || localCopy ? null : openInNotebook} onRemove={readOnly ? null : removeBlock} />)}
           </CanvasRefs.Provider></CardOpen.Provider></SketchHost.Provider>
         </div>
         {/* A7: the card ghost, where the card will go - the next slot at the end of the column (the column's height plus its

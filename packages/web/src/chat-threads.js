@@ -6,7 +6,8 @@ import { activeThread, rememberThread } from './chat-persist.js';
 // Shape every other sub-lane relies on:
 //   { id: string | null, title, mode: 'auto' | 'ask' | 'tutor', setMode(mode), holdMode(mode | null),
 //     historyOpen, setHistoryOpen(open), newChat(), open(id) (a Promise; it rejects with the server's error), adopt(id, title) (the first send's done event names the new thread),
-//     restore: { key, mode, contextRefs, draft, messages } (a new key resets the draft and the attached refs; messages is the transcript to show),
+//     restore: { key, mode, contextRefs, draft, messages, after? } (a new key resets the draft and the attached refs; messages is the transcript to show;
+//       after: only on a canvas's initial restore, the key showing when it began, so chat-draft.js keeps what the learner changed meanwhile),
 //     turnKey: string (changes whenever the open thread changes; a stream started under another key is dropped, contract A5),
 //     liveKey() (turnKey read now; null once this canvas's Chat is gone, so a turn sent before is late wherever it lands),
 //     status: 'loading' | 'ready' | 'error' (restoring this canvas's conversation; never shown as an empty New chat while it
@@ -97,12 +98,12 @@ export function useChatThread(canvas, { slot = null } = {}) {
     show(blank(`${canvas}:new:${turn}`));
   }, [canvas, flush]);
   // Shows a saved thread, unless a later open, New chat or the learner's own turn (claim) came first.
-  const load = useCallback(async (threadId, turn) => {
+  const load = useCallback(async (threadId, turn, after) => {
     const thread = await api(`/api/ask/threads/${encodeURIComponent(threadId)}`);
     if (turn !== request.current) return false;
     const mode = restoredMode(held.current, thread.mode);
     select(thread.id); setTitle(thread.title || ''); setModeState(mode); setHistoryOpen(false); setStatus('ready');
-    show({ key: `${canvas}:${thread.id}:${turn}`, mode, contextRefs: thread.contextRefs || [], draft: thread.draft ?? null, messages: restoredMessages(thread.messages) });
+    show({ key: `${canvas}:${thread.id}:${turn}`, mode, contextRefs: thread.contextRefs || [], draft: thread.draft ?? null, messages: restoredMessages(thread.messages), ...(after ? { after } : {}) });
     return true;
   }, [canvas]);
   // History's open: the thread shown becomes this canvas's active one.
@@ -140,7 +141,7 @@ export function useChatThread(canvas, { slot = null } = {}) {
   // Opening a canvas (a Rabbit Hole, a return, a reload) resumes its ACTIVE thread; with none set, its latest (what the
   // Learn panel did before), which then becomes the active one. A failure is status 'error' with retry, never a New chat.
   const restoreActive = useCallback(async () => {
-    const turn = ++request.current;
+    const turn = ++request.current, after = keyRef.current;
     setStatus('loading');
     try {
       const active = await activeThread(canvas, api, slot);
@@ -151,7 +152,7 @@ export function useChatThread(canvas, { slot = null } = {}) {
       }
       if (turn !== request.current) return;
       if (!threadId) { setStatus('ready'); return; }
-      if (await load(threadId, turn) && !active) remember(threadId);
+      if (await load(threadId, turn, after) && !active) remember(threadId);
     } catch { if (turn === request.current) setStatus('error'); }
   }, [canvas, slot, load, remember]);
   const claim = useCallback(() => { request.current++; setStatus('ready'); }, []);

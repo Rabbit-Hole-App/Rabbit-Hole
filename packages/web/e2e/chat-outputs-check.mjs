@@ -19,6 +19,8 @@
 //  13. the commands that answered with a prompt (/simplify, /deeper, /example, /ask, /teach) are removed (owner, 2026-10-20, L7):
 //      typed in Auto and in Ask each says it is unavailable, makes no pill and sends no Tutor plan or /api/learn/ask
 //  14. a pill line sent while another command runs stays in the composer and runs once that ends
+//  15. a line typed while the saved chat is still restoring (its GET held by the router until released) stays in the composer when the
+//      history lands, and is saved to the restored thread (owner decision A, 2026-10-22; chat-restore-draft.test.mjs is the unit twin)
 // Before this change step 1 fails: a / line never shows as a message. Step 14 fails on be869fa1 and main e3fc9671 (L1b): the
 // pill and its words clear and nothing is sent. /api/learn/ask and the Tutor plan get canned answers here.
 // Usage: BASE=http://127.0.0.1:9141 SMALL_CP=http://127.0.0.1:9143 VARS=<cp .dev.vars> node e2e/chat-outputs-check.mjs [shotsDir]
@@ -88,11 +90,12 @@ const artifacts = [], refused = [], outside = [], errors = [];
 // Steps 13-14: any chat turn a command would make (/api/learn/ask bodies, Tutor plans), and a gate that holds /api/learn/artifact so a
 // command is still running.
 const asks = [], plans = [];
-let artifactHold = null;
+let artifactHold = null, threadHold = null; // threadHold: the saved thread's GET, held until step 15 releases it
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course))/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(url.hostname); return route.abort(); }
+  if (threadHold && request.method() === 'GET' && /^\/api\/ask\/threads\/[^/]+$/.test(url.pathname)) await threadHold;
   if (url.pathname === '/api/learn/artifact') { artifacts.push(request.postDataJSON()); await artifactHold; return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a vector.' } } }).catch(() => {}); }
   if (url.pathname === '/api/learn/ask') { const body = request.postDataJSON(); asks.push(body); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'Canned answer.' })}\n\nevent: done\ndata: ${JSON.stringify({ threadId: body.thread_id })}\n\n` }); }
   if (url.pathname === '/api/learn/tutor/plan') { plans.push(request.postDataJSON()); return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } }); }
@@ -105,32 +108,59 @@ const router = async route => {
 };
 
 const results = [];
-const total = 14;
+const total = 15;
 let page = null;
+// Diagnostics (owner, 2026-10-24): step start/end and the restore/send boundaries, in ms since the check began. Method, route
+// template and status only: never a message's text. Lines start with "diag", so run-part.sh's ok/FAIL count ignores them.
+const T0 = Date.now();
+const diag = text => console.log(`  diag +${Date.now() - T0}ms ${text}`);
+const TRACED = [['GET', /^\/api\/ask\/threads\/[^/]+$/, '/api/ask/threads/:id'], ['GET', /^\/api\/learn\/chat\/active$/, '/api/learn/chat/active'],
+  ['POST', /^\/api\/learn\/chat\/threads\/[^/]+\/messages$/, '/api/learn/chat/threads/:id/messages']];
+let pages = 0;
+const trace = (page, n) => page.on('response', response => {
+  const method = response.request().method(), path = new URL(response.url()).pathname;
+  const hit = TRACED.find(([m, re]) => m === method && re.test(path));
+  if (hit) diag(`page ${n} ${method} ${hit[2]} ${response.status()}`);
+});
 const step = async (name, fn) => {
+  const n = results.length + 1, began = Date.now() - T0;
+  diag(`step ${n} start`);
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
   catch (error) { results.push(false); console.log(`FAIL ${results.length}. ${name}: ${error.message}`); await page?.screenshot({ path: `${OUT}/fail-${results.length}-${THEME}.png` }).catch(() => {}); }
+  diag(`step ${n} end (${Date.now() - T0 - began}ms)`);
 };
 const until = async (fn, label, ms = 15000) => { const end = Date.now() + ms; while (Date.now() < end) { if (await fn().catch(() => false)) return; await new Promise(r => setTimeout(r, 100)); } throw Error(label); };
 
 const browser = await chromium.launch();
 const open = async () => {
   const context = await browser.newContext({ viewport: { width: 1500, height: 1000 }, colorScheme: THEME });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
   await context.addCookies([{ name: 'small_session', value: session, url: BASE }]);
   await context.addInitScript(theme => { try { localStorage.setItem('small.theme', theme); } catch { /* storage off */ } }, THEME);
   await context.route('**/*', router);
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on('pageerror', error => errors.push(error.message));
+  trace(page, ++pages);
   page.on('dialog', dialog => dialog.accept());
   await page.goto(`${BASE}/apps/${canvas.name}`);
   await page.locator(`[data-block-id="${OLD.id}"]`).waitFor({ timeout: 60000 });
+  diag(`page ${pages} board visible`);
   return { context, page };
 };
 const pane = page => page.locator('[data-chat-pane]');
 const composerOf = page => page.locator('[data-chat-pane] [data-chat-composer] textarea, [data-chat-pane] [data-chat-composer] input:not([type="file"])').first();
-const send = async (page, text) => { const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150); await box.press('Enter'); };
-const bubble = (page, text) => pane(page).locator('div.rounded-lg.bg-hover', { hasText: text });
+// traced: log what the composer held at Enter (its length, never its text): a line lost before Enter reads 0.
+const send = async (page, text, traced = false) => {
+  const box = composerOf(page); await box.click(); await box.fill(text); await page.waitForTimeout(150);
+  if (traced) diag(`Enter with ${await box.inputValue().then(value => value.length, () => '?')} composer characters`);
+  await box.press('Enter');
+};
+// A sent message shows its command as a read-only pill and then the words, never the printed /cad (UI-16, owner 2026-10-21).
+const bubble = (page, line) => {
+  const [, name, words] = line.match(/^\/(\w+) (.+)$/);
+  return pane(page).locator('div.rounded-lg.bg-hover', { hasText: words }).filter({ has: page.locator(`[data-command-pill="${name}"]`) });
+};
 const card = (page, id) => page.locator(`[data-block-id="${id}"]`);
 const indicator = (page, id) => pane(page).locator(`[data-gen-indicator="${id}"]`);
 const output = (page, id) => pane(page).locator(`[data-chat-output="${id}"]`);
@@ -147,15 +177,31 @@ const settledIndicator = async (page, id, phase) => {
 
 let context;
 ({ context, page } = await open());
-// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Show prompt (the card's own reveal).
+// Owner brief 2026-10-23: the status shows the lowercase cad pill and hides the prompt until Prompt (the same control and popover as the
+// cards'): hidden at rest, drawn on hover or focus in the row, the popover (portalled to the page) holds the words after /cad and
+// Copy writes the whole original line; the status words, Go to card and the cad pill stay visible throughout.
 const statusPrompt = async (page, id) => {
-  const line = indicator(page, id).locator('[data-gen-prompt]');
+  const line = indicator(page, id).locator('[data-gen-prompt]'), button = line.locator('[data-card-prompt-button]'), popover = page.locator('[data-card-prompt]');
   assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad');
   assert.ok(!/\/cad|educational/.test(await line.innerText()), 'at rest the status shows neither the slash nor the prompt');
-  await line.locator('[data-card-prompt-show]').click();
-  assert.equal(await line.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
-  await line.locator('[data-card-prompt-hide]').click();
-  await line.locator('[data-card-prompt-show]').waitFor();
+  // The pointer left on Generate (or on the old row) sits over the status row, which draws Prompt on hover: rest means it is away.
+  await page.mouse.move(5, 5);
+  await until(async () => (await button.count()) === 0, 'at rest there is no Prompt control either (owner review 2026-10-23): it appears on hover, focus or a tap');
+  await indicator(page, id).hover();
+  assert.equal(await button.innerText(), 'Prompt', 'the same wording as the cards');
+  await button.click();
+  assert.equal(await popover.locator('[data-card-prompt-text]').innerText(), CAD_LINE.replace('/cad ', ''));
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(300);
+  assert.equal(await popover.count(), 1, 'the popover stays open when the pointer leaves');
+  assert.equal(await line.locator('[data-command-pill="cad"]').innerText(), 'cad', 'the cad pill stays visible');
+  assert.equal(await indicator(page, id).locator('[data-gen-open]').innerText(), 'Go to card', 'and so does Go to card');
+  await page.evaluate(() => navigator.clipboard.writeText('before'));
+  await popover.locator('[data-card-prompt-copy]').click();
+  await page.waitForFunction(expected => navigator.clipboard.readText().then(text => text === expected), CAD_LINE);
+  assert.equal(await popover.getByRole('status').innerText(), 'Copied');
+  await page.keyboard.press('Escape');
+  await popover.waitFor({ state: 'detached' });
 };
 let cadId = null;
 await step('a /cad line shows as the message at once, and the confirmation shows a cad pill and that prompt', async () => {
@@ -322,7 +368,9 @@ const pillSend = async (page, name, words = WORDS) => {
   await box.fill(words); await page.waitForTimeout(150); await box.press('Enter');
 };
 const idle = page => until(async () => (await pane(page).locator('[data-chat-composer] button[aria-label="Stop"]').count()) === 0, 'the chat stays busy');
-const composerClear = async page => { assert.equal(await composerOf(page).inputValue(), ''); assert.equal(await pane(page).locator('[data-command-pill]').count(), 0); };
+// The composer's own pill: a sent message keeps its read-only pill in the history (UI-16).
+const composerPills = page => pane(page).locator('[data-chat-composer] [data-command-pill]');
+const composerClear = async page => { assert.equal(await composerOf(page).inputValue(), ''); assert.equal(await composerPills(page).count(), 0); };
 const askMode = async page => {
   if ((await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode')) === 'ask') return;
   await pane(page).locator('[data-chat-mode]').click();
@@ -332,15 +380,22 @@ const askMode = async page => {
 
 // Owner, 2026-10-20 (L7): the five commands that answered with a prompt are removed, so none reaches the chat as a turn.
 await step('the removed prompt commands, typed in Auto and in Ask, say they are unavailable and send no chat turn', async () => {
+  // Step 12 saved the CAD line to the server thread: say so plainly if it did not, rather than time out waiting for it below.
+  assert.ok((await thread())?.messages?.some(m => m.role === 'user' && m.content === CAD_LINE), 'the saved thread has no CAD line: step 12 left nothing to restore');
   ({ context, page } = await open());
+  // Likely restore race; historical timing not captured (fast-e2e 40048376786 e2e (6): no message, no notice, empty composer).
+  // The saved thread restores after the board and may replace the composer's draft: wait for it, as step 12 does, before typing.
+  await bubble(page, CAD_LINE).waitFor();
+  diag(`page ${pages} restored thread shown`);
   const before = { asks: asks.length, plans: plans.length };
   assert.equal(await pane(page).locator('[data-chat-mode]').getAttribute('data-chat-mode'), 'auto', 'Auto first');
   for (const mode of ['auto', 'ask']) {
     if (mode === 'ask') await askMode(page);
     for (const name of ['simplify', 'deeper', 'example', 'ask', 'teach']) {
-      await send(page, `/${name} ${WORDS}`);
+      await send(page, `/${name} ${WORDS}`, true);
       await pane(page).locator('[data-slash-result]', { hasText: unavailableCommand(name) }).waitFor();
-      assert.equal(await pane(page).locator('[data-command-pill]').count(), 0, `${mode}: /${name} makes no pill`);
+      diag(`${mode} /${name} unavailable notice shown`);
+      assert.equal(await composerPills(page).count(), 0, `${mode}: /${name} makes no pill`);
     }
   }
   await idle(page);
@@ -353,9 +408,10 @@ await step('a pill line sent while another command runs stays in the composer an
   artifactHold = new Promise(done => { release = done; });
   try {
     await askMode(page);
+    const requested = artifacts.length; // step 10's /explain is already in the list: wait for this one's own request
     await send(page, '/explain softmax as a ratio');
     await pane(page).locator('[data-slash-result]', { hasText: 'Working on /explain' }).waitFor();
-    await until(async () => artifacts.at(-1)?.command === 'explain', '/explain made no request');
+    await until(async () => artifacts.length === requested + 1 && artifacts.at(-1)?.command === 'explain', '/explain made no request');
     // A retained card command as the pill (owner, 2026-10-20, L7: the prompt commands this step used are removed).
     const before = artifacts.length, asked = asks.length;
     await pillSend(page, 'quiz', 'while it works');
@@ -371,6 +427,27 @@ await step('a pill line sent while another command runs stays in the composer an
     assert.deepEqual([artifacts.length, asks.length], [before + 1, asked], 'it ran once, as its card command');
     await composerClear(page);
   } finally { release(); artifactHold = null; }
+  await context.close();
+});
+
+// Owner decision A, 2026-10-22: the saved chat restores after the board, and a line typed before it lands used to be replaced by the
+// thread's own (empty) draft (fast-e2e 40048376786). The thread's GET is held, so the order is the check's, not the network's.
+await step('a line typed while the saved chat is still restoring stays in the composer when the history lands, and is saved to that thread', async () => {
+  const LINE = 'softmax typed while the chat loads';
+  let release = () => {};
+  threadHold = new Promise(done => { release = done; });
+  try {
+    ({ context, page } = await open());
+    await page.locator('[data-chat-pane][data-chat-restore="loading"]').waitFor();
+    await composerOf(page).fill(LINE);
+    assert.equal(await composerOf(page).inputValue(), LINE);
+    release(); threadHold = null;
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
+    await bubble(page, CAD_LINE).waitFor();
+    assert.equal(await composerOf(page).inputValue(), LINE, 'the restore kept the line typed meanwhile');
+    await until(async () => (await thread())?.draft?.text === LINE, 'the line was not saved to the restored thread');
+    await page.screenshot({ path: `${OUT}/15-typed-while-restoring-${THEME}.png` });
+  } finally { release(); threadHold = null; }
   await context.close();
 });
 await browser.close();

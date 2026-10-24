@@ -15,7 +15,7 @@ Owner layout, the same day: "then the image will be on the right of the card. yo
 ```
 [type]  Title                          Visibility  ⋮   ┌──────────────────────┐
         @handle                                         │  picture, 2:1        │
-Description, three lines (two beside actions or a note) │  about 40% of the card│
+Description, whole (no clamp) │  about 40% of the card│
 actions                                                 └──────────────────────┘
 [fork] N forks · Updated 2h ago                  Open →
 ```
@@ -23,9 +23,7 @@ actions                                                 └───────
 - **One card per row** (`CARD_ROWS`) on Home's Continue and Recent, the Library and Explore, and the creator profile. At 1440 px two per row left the picture at about 180 × 90 px, too small to make out. One per row shows it at about 350 × 175 px (about 205 × 102 px at 1024 px with the sidebar open).
   - Shared with you keeps its small cards on `CARD_GRID`.
 - **Every card is the same size.** From `md`, the text column and the picture are one fixed 190 px height (`CARD_BODY_H`), the card that plus its padding, 224 px. Owner, 2026-10-09: the picture's inset above equals its inset below, and the footer (N canvases · Updated · Open) ends on the picture's bottom edge, each within 1 px (`card-redesign-check`, `project-menu-check`).
-  - The title clamps to two lines.
-  - The description clamps to three lines, or two when the card has actions or a note.
-  - Nothing grows a card.
+  - The title and the description are not clamped (owner decision, 2026-10-23, task 2f608983-76d4-4bab-9609-3e837a05f5c8): the 190 px is a minimum, so a long text makes that card taller; the picture keeps its place and size.
 - **The picture** is at the card's right from `md`, the body's 190 px high and 2:1 (380 px) where the card is wide enough (the 1440 pages, about 40% of the card); narrower pages crop it to at most 42% of the card. It is cropped with `object-fit: cover`.
   - On a phone, the picture sits above the text at full width, still 2:1. The text below it is a fixed 196 px high, so phone cards are the same size too.
 - **No picture yet** (a new or empty canvas, or one whose owner has not opened it since thumbnails shipped): the slot shows a quiet placeholder.

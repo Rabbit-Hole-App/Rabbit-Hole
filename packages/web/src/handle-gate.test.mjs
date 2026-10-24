@@ -41,12 +41,18 @@ test('Settings > Profile can change the handle; the server is the authority', ()
 
 test('the shared header names the creator by @handle only when there is one', () => {
   const page = read('./SharedBoardPage.jsx');
-  // Owner brief 2026-10-23: the blue @handle alone on its own line below the title, at the title's left edge; no handle, no line.
-  assert.ok(page.includes("{shared.creator?.handle && <span data-shared-creator className=\"max-w-full truncate text-xs text-ink-3\">"));
+  // Owner decision 2026-10-23 (replacing the line below the title): the blue @handle alone, immediately left of Fork in the right-hand group, truncating; no handle, nothing drawn.
+  assert.ok(page.includes("{shared.creator?.handle && <span data-shared-creator className=\"min-w-0 max-w-28 truncate text-xs text-ink-3 @5xl:max-w-40\">"));
   assert.doesNotMatch(page, /Published by|Shared by/, 'the old inline attribution is gone');
   assert.doesNotMatch(page, /<ViewerAccount|<CommentsToggle|data-viewer-account/, 'no account circle and no Comments button in the shared header');
-  const block = page.slice(page.indexOf('<div className={SHARED_TITLE_BLOCK}>'), page.indexOf('<div className={SHARED_HEADER_RIGHT}>'));
-  assert.ok(block.indexOf('className={SHARED_TITLE_ROW}') < block.indexOf('data-shared-creator'), 'the handle comes after the title row');
+  assert.doesNotMatch(page, /SHARED_TITLE_BLOCK/, 'no title block: the title is a single row again');
+  const centre = page.slice(page.indexOf('<div data-header-center'), page.indexOf('<div className={SHARED_HEADER_RIGHT}>'));
+  assert.ok(!centre.includes('data-shared-creator'), 'no handle line under the title');
+  const right = page.slice(page.indexOf('<div className={SHARED_HEADER_RIGHT}>'), page.indexOf('<PanelToggle panel={panel} />'));
+  assert.ok(right.indexOf('data-shared-creator') > 0 && right.indexOf('data-shared-creator') < right.indexOf('<ForkButton'), 'the handle comes right before Fork, inside the right-hand group');
+  const loading = read('./CanvasLoading.jsx');
+  const skeleton = loading.slice(loading.indexOf('export function SharedCanvasLoading'), loading.indexOf('<PanelLoading panel={SHARED_PANEL} tabs={3} tools={1} />'));
+  assert.ok(!skeleton.includes('SHARED_TITLE_BLOCK') && skeleton.indexOf('SHARED_FORK_ROW') > skeleton.indexOf('SHARED_HEADER_RIGHT') && skeleton.indexOf('rounded-xs bg-hover') < skeleton.indexOf('<Bone className="h-11 w-[72px]'), 'the loading skeleton has the handle bone beside the Fork bone and none under the title');
   // Every @handle links to the public profile, a share link's too (owner, 2026-10-08; docs/features/creator-profile.md).
   assert.ok(page.includes("<a data-creator-link href={`/@${shared.creator.handle}`} title={creatorLabel(shared.creator)} className=\"rounded-sm text-accent outline-none hover:underline focus-visible:ring-2 focus-visible:ring-accent/60\">@{shared.creator.handle}</a>"));
   assert.doesNotMatch(page, /shared\.owner\b/, 'the owner email is gone from the page');
@@ -61,4 +67,29 @@ test('a handle field never shows @@: a typed or pasted leading @ leaves the valu
   const gate = read('./HandleGate.jsx'), sidebar = read('./RabbitHoleSettings.jsx');
   assert.ok(gate.includes('onChange={event => { setValue(fieldHandle(event.target.value));'), 'the setup field');
   assert.ok(sidebar.includes('onChange={(e) => { setDraft(fieldHandle(e.target.value));'), 'the Settings field');
+});
+
+// Owner brief 2026-10-23 (polish the Choose your handle screen): one field, one action, truthful feedback.
+test('the Choose your handle screen: copy, field, feedback and a solid background, with the same shared rules', () => {
+  const gate = read('./HandleGate.jsx'), css = read('./index.css');
+  for (const copy of ['Choose your handle', 'Your public name on {PRODUCT}.', '>Handle</label>', '3–30 letters, numbers, or underscores.', "{busy ? 'Saving' : 'Continue'}", 'You can change this later in Settings.', 'placeholder="yourname"'])
+    assert.ok(gate.includes(copy), copy);
+  assert.doesNotMatch(gate, /\.\.\.|…/, 'no ellipsis in a label');
+  assert.doesNotMatch(gate, /You will be|Available/, 'a valid format is never announced as a result; the server decides uniqueness');
+  // The visible label, the persistent helper and the feedback area are tied to the input; the @ prefix is not read out.
+  assert.match(gate, /<label htmlFor="handle-input"/);
+  assert.match(gate, /id="handle-input"[\s\S]*aria-describedby="handle-help handle-feedback" aria-invalid=\{problem \? true : undefined\}/);
+  assert.match(gate, /<p id="handle-feedback" data-handle-hint role=\{problem \? 'alert' : undefined\}[^>]*min-h-5/, 'the feedback row keeps its height, so no layout jump');
+  assert.match(gate, /spellCheck=\{false\} autoCapitalize="none"/);
+  // outline-none sets Tailwind's --tw-outline-style to none, which outline-2 then inherits: the ring never drew (fast-e2e run 40049284699).
+  assert.doesNotMatch(gate.slice(gate.indexOf('<input id="handle-input"')), /outline-none/, 'the field keeps a visible focus ring');
+  // Format errors are the shared module's own words; a failed save keeps the value (only onChange clears the error).
+  assert.match(gate, /const problem = error \|\| checked\?\.error/);
+  assert.match(gate, /catch \(problem\) \{ setError\(problem\.message\); setBusy\(false\); \}/);
+  assert.match(gate, /disabled=\{!checked\?\.handle \|\| busy\}/);
+  assert.match(gate, /h-12 w-full[^"]*bg-primary-fill/, 'full-width 48px primary action');
+  // No dot grid on this screen only: the scoped rule beats main's, and nothing else in the stylesheet changed its dots.
+  assert.match(css, /\[data-handle-setup\] \{\s*background-image: none;\s*\}/);
+  assert.match(css, /main \{\s*background-image: radial-gradient\(var\(--color-line\) 1px, transparent 1px\);/);
+  assert.match(gate, /<main data-handle-setup className="[^"]*bg-white/);
 });

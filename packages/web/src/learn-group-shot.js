@@ -5,6 +5,7 @@
 // the tutor to see the arrangement the learner is asking about.
 
 import { stickyTone } from './learn-style-panel.js';
+import { sloppyShape } from './canvas-sloppy.js';
 
 const CARD_FALLBACK = { w: 560, h: 120 };
 
@@ -79,6 +80,15 @@ export async function groupShot({ box, members, strokes, shapes, items, blocks, 
     ctx.globalAlpha = shape.opacity ?? 1;
     const x = Math.min(shape.x1, shape.x2), y = Math.min(shape.y1, shape.y2);
     const w = Math.abs(shape.x2 - shape.x1), h = Math.abs(shape.y2 - shape.y1);
+    // Sketchy and Rough keep their look in the picture (canvas-sloppy.js); the other kinds are drawn as before.
+    const sloppy = typeof Path2D === 'function' && ['rect', 'ellipse', 'line', 'arrow', 'curve'].includes(shape.kind) ? sloppyShape(shape) : null;
+    if (sloppy) {
+      const [first, ...more] = sloppy.map(d => new Path2D(d));
+      if (shape.fill && shape.kind !== 'line' && shape.kind !== 'arrow' && shape.kind !== 'curve') { ctx.fillStyle = shape.fill; ctx.globalAlpha = 0.25; ctx.fill(first); ctx.globalAlpha = shape.opacity ?? 1; }
+      if (!shape.noStroke) for (const path of [first, ...more]) ctx.stroke(path);
+      ctx.globalAlpha = 1;
+      continue;
+    }
     ctx.beginPath();
     if (shape.kind === 'ellipse') ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
     else if (shape.kind === 'line' || shape.kind === 'arrow' || shape.kind === 'curve') { ctx.moveTo(shape.x1, shape.y1); ctx.lineTo(shape.x2, shape.y2); }

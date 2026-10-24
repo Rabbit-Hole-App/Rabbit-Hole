@@ -1518,4 +1518,4 @@ await browser.close();
 if (errors.length) { console.log(`page errors:\n${errors.join('\n')}`); }
 const failed = results.filter(result => !result.ok);
 console.log(`\n${results.length - failed.length}/${results.length} passed${errors.length ? `, ${errors.length} page errors` : ''}`);
-process.exit(failed.length || errors.length ? 1 : 0);
+process.exit(!results.length || failed.length || errors.length ? 1 : 0); // no assertions executed is a failure, not a pass

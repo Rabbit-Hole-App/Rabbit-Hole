@@ -13,8 +13,8 @@ const SHOTS = process.argv[2] || 'creator-profile-shots';
 mkdirSync(SHOTS, { recursive: true });
 const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta.url), 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
-const EMAIL = { full: `cp-full-${run}@example.com`, min: `cp-min-${run}@example.org`, viewer: `cp-viewer-${run}@example.net` };
-const H = { full: `mayank_${run}`, min: `alice_${run}`, viewer: `viewer_${run}` };
+const EMAIL = { full: `cp-full-${run}@example.com`, min: `cp-min-${run}@example.org`, viewer: `cp-viewer-${run}@example.net`, lng: `cp-lng-${run}@example.io` };
+const H = { full: `mayank_${run}`, min: `alice_${run}`, viewer: `viewer_${run}`, lng: `l${run}_`.padEnd(30, 'x') };
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, handle }) })).json()).session;
 const who = {};
 for (const k of Object.keys(EMAIL)) who[k] = { session: await sessionFor(EMAIL[k], H[k]) };
@@ -57,6 +57,8 @@ await scratch.context().close();
 // The profile description (owner, 2026-10-08: "in profile add a discription"), through the same route Settings uses.
 const DESC = 'Explains LLM inference one memory trip at a time: KV caches, attention kernels and the prefill/decode split.';
 assert.equal((await api(who.full, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Mayank', avatar: AVATAR, description: DESC }) })).status, 200);
+const LONG_NAME = `Bartholomew-Alexander-Fitzgerald-Montgomery-${run}`.padEnd(60, 'x').slice(0, 60);
+assert.equal((await api(who.lng, '/api/profile', { method: 'PUT', body: JSON.stringify({ name: LONG_NAME, description: DESC }) })).status, 200);
 
 // ---- rows: the full creator's three public explainers (one forked twice) and three that must never show; the minimal
 // creator's one; the viewer's own private canvas ----
@@ -116,12 +118,13 @@ await check('1 Explore: Canvases by default with no creator row; the Creators ta
   assert.equal(await full.locator('img').count(), 1, 'the uploaded picture');
   assert.deepEqual(await meta(min), [null, `@${H.min}`, null, '1 canvas'], 'no name and no description: no empty line; a zero count is hidden');
   assert.equal(await min.locator('img').count(), 0, 'initials');
-  // One row per line at 1440, sized to its content, with a 64px avatar, picture or initial.
+  // One row per line at 1440, sized to its content, with a 96px avatar, picture or initial, in a column of at most 760px.
   const [a, b] = [await full.boundingBox(), await min.boundingBox()];
   assert.ok(Math.abs(a.x - b.x) <= 1 && Math.abs(a.width - b.width) <= 1 && a.y !== b.y, `one per line: ${JSON.stringify([a, b])}`);
+  assert.ok(a.width <= 760.5, `the column is at most 760px: ${a.width}`);
   for (const h of [H.full, H.min]) {
     const avatar = await viewer.locator(`[data-creator-card="${h}"]`).locator('img, span[title]').first().boundingBox();
-    assert.deepEqual([Math.round(avatar.width), Math.round(avatar.height)], [64, 64], `the avatar 64px: ${h}`);
+    assert.deepEqual([Math.round(avatar.width), Math.round(avatar.height)], [96, 96], `the avatar 96px (owner brief 2026-10-23): ${h}`);
   }
   assert.equal(await viewer.locator(`[data-creator-card="${H.viewer}"]`).count(), 0, 'no publication, no creator row');
   await viewer.reload();
@@ -176,6 +179,8 @@ await check('3 Explore → @handle → the creator profile: name, @handle, expla
   assert.ok(!(await viewer.content()).includes('SECRET'), 'never private, unlisted or archived');
   assert.equal(await viewer.locator('[data-creator-profile] img').first().getAttribute('src').then(s => s.startsWith(`/api/learn/creators/${H.full}/avatar`)), true);
   assert.equal((await viewer.locator('[data-profile-description]').innerText()).trim(), DESC, 'the description under the name');
+  const picture = await viewer.locator('[data-creator-profile] header img').first().boundingBox();
+  assert.deepEqual([Math.round(picture.width), Math.round(picture.height)], [128, 128], 'the profile picture 128px (owner brief 2026-10-23)');
   assert.equal(await viewer.locator('[data-category]').count(), 0, 'no category storage: no empty row');
   // Copy profile link beside the name and handle.
   const button = viewer.locator('[data-creator-profile] header [data-copy-profile]');
@@ -235,7 +240,9 @@ await check('6 a profile explainer opens its canonical /e route, whose header li
   await viewer.waitForURL(`${BASE}/e/${tokens.flash}`);
   const by = viewer.locator('[data-shared-creator]');
   await by.waitFor({ timeout: 60000 });
-  assert.equal((await by.innerText()).trim(), `@${H.full}`, 'owner brief 2026-10-23: the blue @handle alone under the title');
+  assert.equal((await by.innerText()).trim(), `@${H.full}`, 'owner decision 2026-10-23: the blue @handle alone, beside Fork');
+  const beside = await viewer.evaluate(() => { const c = document.querySelector('[data-shared-creator]').getBoundingClientRect(), f = document.querySelector('[data-canvas-header] [data-fork-button]').getBoundingClientRect(); return { left: c.right <= f.left, centred: Math.abs((c.top + c.height / 2) - (f.top + f.height / 2)) <= 1, gap: f.left - c.right }; });
+  assert.ok(beside.left && beside.centred && Math.abs(beside.gap - 8) <= 1.5, 'owner decision 2026-10-23: immediately left of Fork, centred with it ' + JSON.stringify(beside));
   assert.equal(await by.locator('[data-creator-link]').getAttribute('title'), `Mayank · @${H.full}`);
   assert.equal(await by.locator('[data-creator-link]').getAttribute('href'), `/@${H.full}`);
   await by.locator('[data-creator-link]').click();
@@ -247,6 +254,8 @@ await check('7 the minimal creator: initials, @handle as the name, their card; n
   assert.equal((await viewer.locator('[data-profile-name]').innerText()).trim(), `@${H.min}`);
   assert.equal(await viewer.locator('[data-profile-handle]').count(), 0, '@handle once, as the name');
   assert.equal(await viewer.locator('[data-creator-profile] header img').count(), 0, 'initials');
+  const initials = await viewer.locator('[data-creator-profile] header span[title]').first().boundingBox();
+  assert.deepEqual([Math.round(initials.width), Math.round(initials.height)], [128, 128], 'the initials fill the same 128px as a picture');
   assert.equal((await viewer.locator('[data-profile-stats]').innerText()).trim(), '1 public learning board · 0 forks');
   assert.deepEqual(await titles(viewer, '[data-profile-card]'), [T.grad]);
   assert.equal(await viewer.locator('[data-owner-badge]').count(), 0);
@@ -294,11 +303,25 @@ await check('9 Explore search applies to the active tab only: Explainers by @han
   await noEmail(viewer, EMAIL.viewer);
 });
 const owner = await contextFor(who.full);
-await check('10 your own profile: the same page, plus "Your profile" with the blue check, Edit profile and Analytics; your cards badged, no Start or Fork', async () => {
+// Beside the handle, vertically centred with it, a small gap, and the Copy profile link a separate control that never overlaps either.
+const beside = (page, group) => page.evaluate(g => {
+  const q = s => document.querySelector(s).getBoundingClientRect(), badge = q(g + ' [data-owned-badge]'), copy = q('[data-creator-profile] header [data-copy-profile]');
+  const text = q(g + ' [data-profile-handle], ' + g + ' [data-profile-name]');
+  const apart = (a, b) => a.right <= b.left + 0.5 || b.right <= a.left + 0.5 || a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5;
+  return { right: badge.left >= text.right - 0.5, gap: badge.left - text.right, centred: Math.abs((badge.top + badge.height / 2) - (text.top + text.height / 2)) <= 3, copyApart: apart(copy, badge) && apart(copy, text), inView: badge.right <= window.innerWidth };
+}, group);
+await check('10 your own profile: the same page, plus the blue check right after the @handle (no "Your profile" text), Edit profile and Analytics; your cards badged, no Start or Fork', async () => {
   await profileOf(owner, H.full);
-  await owner.locator('[data-own-profile]').waitFor({ timeout: 10000 });
-  assert.match(await owner.locator('[data-own-profile]').innerText(), /Your profile/);
-  assert.equal(await owner.locator('[data-own-profile] [data-owned-badge]').count(), 1);
+  await owner.locator('[data-profile-handle-group] [data-owned-badge]').waitFor({ timeout: 10000 });
+  assert.equal(await owner.locator('[data-creator-profile]').getByText('Your profile').count(), 0, 'the label left (owner brief 2026-10-23)');
+  assert.equal(await owner.locator('[data-own-profile]').count(), 0, 'and its separate marker');
+  assert.equal(await owner.locator('[data-creator-profile] header [data-owned-badge]').count(), 1);
+  assert.equal(await owner.locator('[data-creator-profile] header').getByRole('img', { name: 'Owned by you' }).count(), 1, 'the existing accessible name');
+  assert.equal((await owner.locator('[data-profile-name]').innerText()).trim(), 'Mayank', 'with a display name the name stays the heading');
+  assert.equal((await owner.locator('[data-profile-handle]').innerText()).trim(), `@${H.full}`);
+  const at = await beside(owner, '[data-profile-handle-group]');
+  assert.ok(at.right && at.gap >= 0 && at.gap <= 8 && at.centred && at.copyApart && at.inView, `the badge sits right after the @handle: ${JSON.stringify(at)}`);
+  assert.equal(await owner.locator('[data-creator-profile] header [data-copy-profile]').count(), 1, 'Copy profile link stays');
   assert.equal(await owner.locator('[data-edit-profile]').count(), 1);
   assert.equal(await owner.locator('[data-creator-analytics-open]').count(), 1);
   assert.equal(await owner.locator('[data-profile-card] [data-owned-badge]').count(), 3);
@@ -366,7 +389,55 @@ await check('13 a changed handle moves the profile and every attribution at once
   assert.deepEqual(new Set(listed), new Set([T.kv, T.flash, T.prefill]));
   await api(who.full, '/api/profile', { method: 'PUT', body: JSON.stringify({ handle: H.full }) });
 });
+await check('15 your own profile without a display name: the @handle is the heading, once, with the blue check beside it; the initials are 128px', async () => {
+  await profileOf(viewer, H.viewer);
+  const header = viewer.locator('[data-creator-profile] header');
+  assert.equal((await viewer.locator('[data-profile-name]').innerText()).trim(), `@${H.viewer}`);
+  assert.equal(await viewer.locator('[data-profile-handle]').count(), 0, 'not repeated underneath');
+  assert.equal(((await header.innerText()).match(new RegExp(`@${H.viewer}`, 'g')) || []).length, 1, 'the handle appears once');
+  assert.equal(await header.locator('[data-profile-handle-group] [data-owned-badge]').count(), 1);
+  assert.equal(await header.getByText('Your profile').count(), 0);
+  const at = await beside(viewer, '[data-profile-handle-group]');
+  assert.ok(at.right && at.gap >= 0 && at.gap <= 10 && at.centred && at.copyApart && at.inView, `the badge sits right after the @handle heading: ${JSON.stringify(at)}`);
+  const initials = await header.locator('span[title]').first().boundingBox();
+  assert.deepEqual([Math.round(initials.width), Math.round(initials.height)], [128, 128]);
+  assert.equal(await header.locator('[data-edit-profile], [data-creator-analytics-open]').count(), 2, 'Edit profile and Analytics stay for the owner');
+});
+await shot(viewer, 'H-own-profile-no-name');
+// Rendered geometry, not class names: the longest name and handle, your own profile (the badge, Copy profile link, Edit profile
+// and Analytics all present), at desktop, tablet and phone widths in light and dark. The picture is 128px from md up and 96px
+// below, 24px / 16px from the identity; nothing scrolls sideways, leaves the screen or overlaps.
+await check('16 long name and handle at 1440, 768 and 390 in light and dark: picture 128px / 96px, a circle, no sideways scroll, no overlapping controls', async () => {
+  for (const [width, size, gap, dark] of [[1440, 128, 24, false], [768, 128, 24, false], [390, 96, 16, false], [1440, 128, 24, true], [390, 96, 16, true]]) {
+    const context = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: dark ? 'dark' : 'light' });
+    await context.addCookies([{ name: 'small_session', value: who.lng.session, url: BASE }]);
+    const page = await context.newPage();
+    page.on('pageerror', error => errors.push(error.message));
+    await profileOf(page, H.lng);
+    const label = `${width} ${dark ? 'dark' : 'light'}`;
+    const g = await page.evaluate(() => {
+      const r = el => el.getBoundingClientRect(), header = document.querySelector('[data-creator-profile] header');
+      const avatar = header.querySelector('img, span[title]'), id = document.querySelector('[data-profile-name]').closest('div.flex-col'), buttons = [...header.querySelectorAll('[data-copy-profile], [data-edit-profile], [data-creator-analytics-open]')];
+      const a = r(avatar), i = r(id), apart = (x, y) => x.right <= y.left + 0.5 || y.right <= x.left + 0.5 || x.bottom <= y.top + 0.5 || y.bottom <= x.top + 0.5;
+      const handleGroup = document.querySelector('[data-profile-handle-group]'), name = r(document.querySelector('[data-profile-name]')), handle = r(document.querySelector('[data-profile-handle]')), badge = r(header.querySelector('[data-owned-badge]'));
+      const boxes = [name, handle, badge, ...buttons.map(r)];
+      const overlaps = []; boxes.forEach((x, n) => boxes.slice(n + 1).forEach((y, m) => { if (!apart(x, y)) overlaps.push([n, n + 1 + m]); }));
+      return { w: a.width, h: a.height, radius: getComputedStyle(avatar).borderTopLeftRadius, gap: i.left - a.right, scroll: document.documentElement.scrollWidth - window.innerWidth,
+        outside: boxes.filter(x => x.right > window.innerWidth + 0.5 || x.left < -0.5).length, overlaps, buttons: buttons.length, badgeRight: badge.right <= r(header).right + 0.5 && badge.right <= r(handleGroup).right + 0.5, handleInside: handle.right <= i.right + 0.5 };
+    });
+    assert.deepEqual([Math.round(g.w), Math.round(g.h)], [size, size], `picture ${label}: ${JSON.stringify(g)}`);
+    assert.notEqual(g.radius, '0px', `a circle ${label}`);
+    assert.ok(Math.abs(g.gap - gap) <= 1.5, `gap to the identity ${label}: ${g.gap}`);
+    assert.ok(g.scroll <= 0, `no sideways scroll ${label}: ${g.scroll}`);
+    assert.equal(g.outside, 0, `nothing off screen ${label}`);
+    assert.deepEqual(g.overlaps, [], `no overlapping controls ${label}`);
+    assert.equal(g.buttons, 3, `Copy profile link, Edit profile and Analytics ${label}`);
+    assert.ok(g.badgeRight && g.handleInside, `the badge stays attached to the handle group ${label}: ${JSON.stringify(g)}`);
+    await shot(page, `I-long-profile-${width}-${dark ? 'dark' : 'light'}`, page.locator('[data-creator-profile] header'));
+    await context.close();
+  }
+});
 await check('no page errors', async () => assert.deepEqual(errors, []));
 await browser.close();
-console.log(`${results.length}/17 checks passed`);
-process.exit(results.length === 17 ? 0 : 1);
+console.log(`${results.length}/19 checks passed`);
+process.exit(results.length === 19 ? 0 : 1);

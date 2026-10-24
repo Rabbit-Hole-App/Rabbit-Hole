@@ -88,7 +88,7 @@ before its provider call. Without `confirmed: true` it answers HTTP 428 with
 | `/api/learn/video`, `generate_video` (FAL) | yes | `confirmed` in the LearnVideos DO |
 | `/api/learn/video`, `generate_math_animation` (Manim worker) | yes | same |
 | `/api/learn/scene`, `generate_3d_animation` (Blender worker) | yes | `confirmed` in the LearnScenes DO |
-| `/api/learn/image` (OpenAI images) | yes | `confirmed` in the dev worker |
+| `/api/learn/image` (OpenAI images) | yes | `confirmed` in the dev worker; off unless `LEGACY_IMAGE_GENERATION` is exactly `true` (set nowhere; 503 `image_generation_unavailable`, owner 2026-10-23) |
 | `/api/learn/tts` (fish.audio narration) | yes | `confirmed` in the dev worker |
 | Existing glTF (`three_d`), hosted MP4/WebM, graphs, Pexels, arXiv | no | none |
 

@@ -48,6 +48,60 @@ test('the slider, its placement on all three pages, and the grid rule that makes
   assert.doesNotMatch(css.match(/Card size \(owner[\s\S]*?(?=\/\* Rabbit Hole dev, below md)/)[0], /font-size|\bmain\b|data-shell-sidebar|zoom/);
 });
 
+// Owner brief 2026-10-23 (small-card layout): Small permits 220px cards, and the header must follow the CARD's width - a container query on the
+// card, not the viewport - with the visibility pill on its own row, the Card options button in reserved space and the footer wrapping.
+// Owner brief 2026-10-23 (card size and description) supersedes its Show full title button: the title and creator are never clamped.
+test('the small card: a size container, a 22rem header breakpoint and a 40rem stacking breakpoint, the pill on its own row, no disclosure button', () => {
+  const card = read('LearningCard.jsx');
+  const css = read('../index.css');
+  assert.match(card, /select-card @container\/card flex min-w-0 flex-wrap/, 'the card element is the named size container');
+  assert.match(css, /@container card \(width < 40rem\) \{[^}]*\[data-card-thumbnail\][^}]*\}[^}]*\[data-card-text\] \{ min-height: 196px; flex: none; width: 100%; \}/, 'under 40rem the picture stacks above the text on every size, at least 196px of text');
+  const narrow = css.match(/@container card \(width < 22rem\) \{[\s\S]*?\n\}/)[0];
+  assert.match(narrow, /\[data-card-text\] \{ min-height: 296px; \}/, 'the narrow column is at least as tall as the pill row needs');
+  assert.match(narrow, /\[data-card-head\] \{ display: grid;/);
+  assert.match(narrow, /\[data-card-head-actions\] \{ grid-column: 1 \/ -1; grid-row: 3; flex-wrap: wrap; \}/, 'the visibility pill and Card options have a row of their own');
+  assert.match(narrow, /\[data-card-meta\] \{ grid-column: 1 \/ -1; grid-row: 2; \}/, 'the creator has the full width');
+  assert.match(narrow, /\[data-card-footer\] \{ flex-wrap: wrap;/, 'Open has its own line when the footer metadata fills the width');
+  assert.match(read('Provenance.jsx'), /<span className="min-w-0 \[overflow-wrap:anywhere\]">\{m\.creator\.name\}<\/span>/, 'a handle wraps, whole');
+  assert.doesNotMatch(css.match(/Small cards \(owner[\s\S]*?\n\}\n(?=\n\/\* Rabbit Hole dev)/)[0], /\.\.\.|\u2026/, 'no ellipsis in the new rules');
+});
+
+// Owner brief 2026-10-23 (card size and description): the chevron is gone and nothing is clamped or measured for it; at Small and Medium
+// small the card is as tall as its content and shows the whole description; Medium large and Large keep their look.
+test('no Show full title chevron and no clamp at any size; Small and Medium small are content-height, the larger sizes keep their minimum', () => {
+  const card = read('LearningCard.jsx');
+  const css = read('../index.css');
+  const code = card.replace(/^\s*\/\/.*$/gm, ''); // comments may name the old button
+  assert.doesNotMatch(code, /Show full title|Show less|data-card-title-toggle|data-open|data-clamp|ResizeObserver|useLayoutEffect|Chevrons/, 'the disclosure, its state and its measuring are gone');
+  assert.doesNotMatch(read('Provenance.jsx'), /data-clamp|line-clamp-2/);
+  assert.doesNotMatch(css, /data-open|data-clamp/);
+  assert.doesNotMatch(card.match(/^const TITLE = '([^']*)';/m)[1], /line-clamp/, 'the title is whole');
+  assert.match(card, /<div data-card-text className=\{`flex min-w-0 flex-1 flex-col \*:shrink-0 \$\{CARD_TEXT_MIN\}`\}>/);
+  assert.match(card, /<div data-card-body className="flex min-w-0 flex-col gap-1 pt-2">/, 'the description wrapper neither shrinks nor hides overflow');
+  assert.match(card, /const CARD_TEXT_MIN = 'md:min-h-\[190px\] max-md:min-h-\[196px\] max-md:flex-none';/);
+  // Owner decision (task 2f608983): the complete description at all four sizes, so no line clamp anywhere in the card.
+  assert.match(card, /<p data-card-description className="text-\[13px\] leading-5 text-ink-2 \[overflow-wrap:anywhere\]">/, 'a long word or address wraps');
+  assert.doesNotMatch(code, /break-words|line-clamp/);
+  // The repository link is truncated to the column, not to its own text: with no overflow-hidden on the wrapper a 66-character label made the
+  // Explore project card 566px wide in a 469px card (fast-e2e run 40049284699, card-size).
+  assert.match(code, /<a data-source-link [\s\S]*?className="inline-flex max-w-full min-w-0 items-center gap-1 self-start/);
+  assert.doesNotMatch(css, /data-card-description/, 'no size overrides a clamp: there is none');
+  // Sizes 0 and 1 only: content height (no minimum), cards not stretched to the row's tallest.
+  assert.match(css, /html:is\(\[data-card-size="0"\], \[data-card-size="1"\]\) \.card-grid \{ align-items: start; \}/);
+  assert.match(css, /html:is\(\[data-card-size="0"\], \[data-card-size="1"\]\) \.card-grid > li > \[data-card-text\] \{ min-height: 0; flex: none; \}/);
+  assert.match(css, /html\[data-card-size="2"\] \.card-grid > li > \[data-card-text\] \{ min-height: 196px; flex: none; \}/);
+  assert.doesNotMatch(css, /\[data-card-text\] \{ height: \d+px/, 'no fixed text height anywhere');
+});
+
+// CI run 40037110708: a 77-character unbroken title overlapped the visibility pill and Card options at Large. Tailwind emits .break-words
+// (overflow-wrap: break-word) AFTER [overflow-wrap:anywhere], so with both classes break-word won and the title's min-content stayed the
+// whole word: its box was as wide as the word and ran under the header's buttons. anywhere alone lets the box shrink to the column.
+test('the card title wraps with overflow-wrap anywhere alone, because break-words would override it', () => {
+  const title = read('LearningCard.jsx').match(/^const TITLE = '([^']*)';/m)[1];
+  assert.match(title, /\[overflow-wrap:anywhere\]/);
+  assert.doesNotMatch(title, /break-words|break-all/);
+});
+
 test('Home, Library and Explore have no composer: the Agent Bar is hidden there and the card grid is the only thing that resizes', () => {
   const routes = read('../routes.js');
   assert.match(routes, /barHidden: \['learn', 'canvas', 'chat', 'run', 'home', 'library', 'explore'\]\.includes\(place\)/);

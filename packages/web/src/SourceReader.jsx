@@ -55,7 +55,7 @@ function TextView({ text, quote, position, save }) {
 
 // A canvas context document (doc:<id>), read once through GET /api/learn/context/<id> (A4a's route): a PDF opens in the paper
 // view at its page from those same bytes, a .txt or .md as text. Anything else, or a failed read, says it can't preview here.
-function DocReader({ app, sourceRef, position, save, startPage, startZoom, startRotation, plainChat, unavailable, picked }) {
+function DocReader({ app, sourceRef, position, save, startPage, startZoom, startRotation, plainChat, unavailable, picked, presentation }) {
   const [doc, setDoc] = useState(null);
   const id = sourceRef.sourceId.slice('doc:'.length);
   useEffect(() => {
@@ -73,12 +73,12 @@ function DocReader({ app, sourceRef, position, save, startPage, startZoom, start
   }, [app, id]);
   const range = sourceRef.range || {};
   if (!doc) return <p role="status" className="p-3 text-sm text-ink-2">Opening {sourceRef.name}</p>;
-  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} startPage={startPage} startZoom={startZoom} startRotation={startRotation} quote={range.quote} quotePage={range.page || 1} save={save}
+  if (doc.pdf) return <PaperReader app={app} id={sourceRef.sourceId} src={doc.pdf} title={sourceRef.name} presentation={presentation} startPage={startPage} startZoom={startZoom} startRotation={startRotation} quote={range.quote} quotePage={range.page || 1} save={save}
     companion={{ key: pdfKeyOfRef(sourceRef), home: null, anchor: range.excerpt || null, plainChat, onUnavailable: () => unavailable.current?.(), onSelection: draft => picked.current?.(draft) }} />;
   return doc.text == null ? <Unavailable sourceRef={sourceRef} refused={!!doc.refused} /> : <TextView text={doc.text} quote={range.quote} position={position} save={save} />;
 }
 
-function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, chat }) {
+function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, chat, presentation }) {
   const app = chat?.canvas, reader = readerFor(sourceRef), range = sourceRef.range || {};
   // Where the reader is now; every report also goes to the session position store (chat-sources.js).
   // The memoized reader below outlives renders, so it reaches the latest workspace and onPosition through refs.
@@ -117,11 +117,11 @@ function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, c
     if (reader === 'paper') {
       const id = sourceRef.sourceId.slice('paper:'.length);
       const key = pdfKeyOfRef(sourceRef);
-      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} quote={range.quote} quotePage={range.page || 1} save={save}
+      return <PaperReader app={app} id={id} home={sourceRef.home} title={sourceRef.name} presentation={presentation} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} quote={range.quote} quotePage={range.page || 1} save={save}
         companion={{ key, home: key ? sourceRef.home || app : null, anchor: range.excerpt || null, plainChat, onUnavailable: () => unavailable.current?.(), onSelection: draft => picked.current?.(draft) }} />;
     }
     if (reader === 'wiki') return <LearnWiki app={app} article={{ title: sourceRef.sourceId.slice('wiki:'.length), section: position?.section || 0 }} onSection={section => save({ section })} />;
-    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} unavailable={unavailable} picked={picked} />;
+    if (reader === 'doc') return <DocReader app={app} sourceRef={sourceRef} position={position} save={save} presentation={presentation} startPage={here.current.page} startZoom={here.current.zoom} startRotation={here.current.rotation} plainChat={plainChat} unavailable={unavailable} picked={picked} />;
     if (reader === 'text') return <TextView text={sourceRef.text} quote={range.quote} position={position} save={save} />;
     if (reader === 'code') {
       const code = codeSource(sourceRef), owned = /^[\w.-]+\/[\w.-]+$/.test(code.repo);
@@ -135,7 +135,7 @@ function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, c
         </div> : undefined} />;
     }
     return <Unavailable sourceRef={sourceRef} />;
-  }, [app, sourceRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [app, sourceRef, presentation]); // eslint-disable-line react-hooks/exhaustive-deps
   return <div ref={box} data-source-reader={reader || 'none'} onMouseUp={reader === 'code' ? undefined : pick} onKeyUp={reader === 'code' ? undefined : pick} className="flex min-h-0 flex-1 flex-col">
     {reader === 'code' ? <SourceSelectionContext.Provider value={codeSelection}>{body}</SourceSelectionContext.Provider> : body}
     {passage && chat && <div className="flex shrink-0 justify-end border-t border-line pt-2">{passage.length > QUOTE_MAX
@@ -144,19 +144,20 @@ function Reader({ sourceRef, position, onPosition, onUnavailable, onSelection, c
 }
 
 // A paper turns its own pages; the page is the reading position. The cited quote is painted on its page.
-function PaperReader({ app, id, home = null, src = null, title, startPage, startZoom, startRotation, quote, quotePage, save, companion }) {
+function PaperReader({ app, id, home = null, src = null, title, startPage, startZoom, startRotation, quote, quotePage, save, companion, presentation }) {
   const [page, setPage] = useState(startPage);
   const paper = useMemo(() => ({ id, title, pdfUrl: src || id.startsWith('upload:') ? null : `https://arxiv.org/pdf/${id}`, page, ...(home ? { home } : {}) }), [id, home, src, title, page]);
   const highlights = useMemo(() => (quote ? [{ page: quotePage, exact: quote, prefix: '', suffix: '' }] : null), [quote, quotePage]);
-  return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null} companion={companion}
+  return <LearnPaper app={app} paper={paper} src={src} selectButton={false} highlights={highlights} paintKey={quote ? 'source-reader' : null} companion={companion} presentation={presentation}
     zoomStart={startZoom} onZoom={zoom => save({ zoom })} rotationStart={startRotation} onRotation={rotation => save({ rotation })} onPage={next => { setPage(next); save({ page: next }); }} />;
 }
 
 // One reader per ref: another source, or another range of the same one (a new citation), starts a fresh reader.
 // onUnavailable (Pinned Study): called when a document's or paper's bytes are refused to this learner or cannot be read.
 // onSelection(draft): the text selected in a PDF, as the excerpt draft its own toolbar would send, or null.
-export default function SourceReader({ sourceRef, position, onPosition, onUnavailable, onSelection }) {
+// presentation: 'study' (the Pinned Study pane) draws a PDF's controls as one compact row (LearnPaper); omitted, as before.
+export default function SourceReader({ sourceRef, position, onPosition, onUnavailable, onSelection, presentation }) {
   const chat = useChatWorkspace();
   if (!sourceRef) return null;
-  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} onUnavailable={onUnavailable} onSelection={onSelection} chat={chat} />;
+  return <Reader key={`${sourceRef.sourceId} ${JSON.stringify(sourceRef.range ?? null)} ${sourceRef.opened ?? ''}`} sourceRef={sourceRef} position={position} onPosition={onPosition} onUnavailable={onUnavailable} onSelection={onSelection} chat={chat} presentation={presentation} />;
 }

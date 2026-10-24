@@ -73,24 +73,28 @@ export function useChatDraft(canvas, thread) {
   const key = draftKey(canvas, thread.id);
   // A new restore key (open, New chat, canvas change) loads that thread's draft. The same restore key with a new id is the
   // first done naming a new chat (adopt): the draft moves to the thread's key, so text typed during that send stays.
+  // The exception is the canvas's initial restore (restore.after names the key it started from): what the learner changed
+  // meanwhile (slot.edited, set by an edit, never by a restore) is newer than the saved draft and goes to the resolved thread.
   let current = slot;
-  if (slot.restoreKey !== thread.restore?.key) current = restored(canvas, thread);
-  else if (slot.key !== key) current = { ...slot, key };
+  if (slot.restoreKey !== thread.restore?.key) {
+    const fresh = restored(canvas, thread);
+    current = slot.edited && thread.restore?.after === slot.restoreKey ? { ...fresh, draft: pickDraft(slot.draft, fresh.draft), edited: true, carried: true } : fresh;
+  } else if (slot.key !== key) current = { ...slot, key };
   if (current !== slot) setSlot(current);
   // Only a touched draft is stored (savedAt), so opening a thread writes nothing. Clearing stores the empty draft with its
   // time, so an older server copy of a sent draft never wins over it.
   // A draft the learner changed (not one just restored) also goes to the thread state (A2's debounced PUT); empty is null.
   const stored = useRef(current);
   useEffect(() => {
-    const same = stored.current.restoreKey === current.restoreKey;
+    const same = stored.current.restoreKey === current.restoreKey || current.carried; // carried: moved off the new chat's key
     if (same && stored.current.key !== current.key) drop(stored.current.key);
-    if (same && stored.current.draft !== current.draft) thread.saveState?.({ draft: current.draft.text || current.draft.command ? { text: current.draft.text, command: current.draft.command } : null });
+    if (same && (stored.current.draft !== current.draft || current.carried)) thread.saveState?.({ draft: current.draft.text || current.draft.command ? { text: current.draft.text, command: current.draft.command } : null });
     stored.current = current;
     if (current.draft.savedAt) write(current.key, current.draft);
   }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
   const { draft } = current;
   return useMemo(() => {
-    const apply = action => setSlot(previous => ({ ...previous, draft: draftSlot(previous.draft, typeof action === 'function' ? action(previous.draft) : action) }));
+    const apply = action => setSlot(previous => ({ ...previous, edited: true, carried: false, draft: draftSlot(previous.draft, typeof action === 'function' ? action(previous.draft) : action) }));
     const focus = () => requestAnimationFrame(() => inputRef.current?.focus());
     return {
       text: draft.text, command: draft.command, draft, inputRef, focus,

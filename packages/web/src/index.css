@@ -503,6 +503,11 @@ main {
   background-size: 18px 18px;
 }
 
+/* The Choose your handle screen (HandleGate) is one solid column: no dot grid (owner brief 2026-10-23); the page colour is bg-white. */
+[data-handle-setup] {
+  background-image: none;
+}
+
 /* The browse pages (Home, Library, Explore) sit on the scoped grey with quieter dots; the canvas pages keep main's own. */
 .browse-page {
   background-color: var(--browse-bg);
@@ -881,7 +886,39 @@ html[data-card-size="1"] { --card-min: 300px; }
 html[data-card-size="2"] { --card-min: 460px; }
 html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li { flex-direction: column; }
 html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
-html:is([data-card-size="0"], [data-card-size="1"], [data-card-size="2"]) .card-grid > li > [data-card-text] { height: 196px; flex: none; }
+html[data-card-size="2"] .card-grid > li > [data-card-text] { min-height: 196px; flex: none; }
+/* Small and Medium small (owner brief 2026-10-23): a card is as tall as its content. No minimum, and a row's cards do not
+   stretch to its tallest, so a short card has no blank band above its footer. Larger sizes keep their minimum and stretch.
+   Every size shows the whole description (owner decision, task 2f608983-76d4-4bab-9609-3e837a05f5c8). */
+html:is([data-card-size="0"], [data-card-size="1"]) .card-grid { align-items: start; }
+html:is([data-card-size="0"], [data-card-size="1"]) .card-grid > li > [data-card-text] { min-height: 0; flex: none; }
+
+/* Small cards (owner brief 2026-10-23, home/LearningCard.jsx). Each card is a size container (@container/card, named card), so
+   these rules follow the CARD's content width - a Small card is 220px wide, 186px of content - and not the viewport's. Two
+   breakpoints, both tied to that width:
+   - under 40rem the picture stacks above the text on every size, Large included: beside it the text column is 0.58 of the card
+     less 16px, which is under 22rem exactly when the card is under 40rem (flex-wrap on the card lets the text take its own row);
+   - under 22rem (352px: a Small card 186, a Medium small one 266; the icon, a 140px title, the widest pill "Varies by canvas"
+     at 126px and the 28px options button need 352 in one row) the header is a grid: the icon and the title; the creator, the
+     repository and the fork source on a full-width row; then the visibility pill with the Card options button at the row's
+     end. The footer wraps, so Open has its own line.
+   The text column has a minimum height (196px; 296px in the narrow layout, taller by the pill row) that Small and Medium small
+   drop; a longer title, creator or description makes the card taller at every size. */
+@container card (width < 40rem) {
+  .card-grid > li > [data-card-thumbnail] { order: 0; width: 100%; max-width: none; height: auto; aspect-ratio: 2 / 1; }
+  .card-grid > li > [data-card-text] { min-height: 196px; flex: none; width: 100%; }
+}
+@container card (width < 22rem) {
+  html .card-grid > li > [data-card-text] { min-height: 296px; }
+  [data-card-head] { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.75rem; row-gap: 0.25rem; }
+  [data-card-head-text] { display: contents; }
+  [data-card-heading] { grid-column: 2; grid-row: 1; }
+  [data-card-meta] { grid-column: 1 / -1; grid-row: 2; }
+  [data-card-head-actions] { grid-column: 1 / -1; grid-row: 3; flex-wrap: wrap; }
+  [data-card-footer] { flex-wrap: wrap; row-gap: 0.25rem; }
+  [data-card-footer] > [data-card-spacer] { display: none; }
+  [data-card-footer] > :last-child { margin-left: auto; }
+}
 
 /* Rabbit Hole dev, below md: the sidebar is a drawer opened from a fixed top strip (Shell.jsx),
    which publishes --shell-top-h; pages start below it. The live build never sets it, and no
@@ -975,3 +1012,14 @@ html[data-reduce-motion] :not(:where([data-canvas-world] *))::after {
   scroll-behavior: auto !important;
 }
 html[data-reduce-motion] .shimmer:not(:where([data-canvas-world] *)) { animation: none; background: none; color: var(--color-ink-2); }
+
+/* Focus (focus-adapter-notebook.js, docs/features/focus-study.md section 4): a focused card's own host fills the working frame
+   in place. !important wins over the inline width, height and transform React keeps writing; the custom properties are the
+   adapter's. The host stays in the column's flow at its old footprint (margin-bottom), so no other card moves. Its drag
+   strip, selection row, ports and resize corner are hidden: moving or resizing would save geometry. No transition. */
+[data-focus-host] {
+  width: var(--focus-w) !important; height: var(--focus-h) !important; max-height: none !important;
+  margin-left: 0 !important; margin-right: 0 !important; margin-bottom: var(--focus-mb) !important;
+  transform: var(--focus-transform) !important; transform-origin: 0 0; z-index: 40; transition: none;
+}
+[data-focus-host] > :is([data-drag-handle], [data-card-chrome-row], [data-node-tool]) { display: none; }

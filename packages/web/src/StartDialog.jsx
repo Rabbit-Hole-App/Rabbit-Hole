@@ -1,234 +1,253 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, X } from 'lucide-react';
-import { executeCommand, moreBranches, prepareCommand, withBranch } from './agent/commands.js';
-import ConfirmCard from './agent/ConfirmCard.jsx';
-import { learnAction } from './agent/learn-hook.js';
-import { learnHandoff } from './flags.js';
-import { connectionsFor } from './connections.js';
-import { PATH_ICONS } from './start-icons.js';
-import { canSubmit, START_PATHS, pathOr, repositoryDecision, slugOf, teachPrompt, titleFromQuestion, UNTITLED } from './start.js';
-import { Button, cn, IconBtn, Input, Pill, Select, Tabs, TabsContent, TabsList, TabsTrigger, toast } from './ui.jsx';
+import { BookOpen, CircleAlert, Check, File, FileText, FolderGit2, Globe, Link2, Loader2, Upload, Video, X } from 'lucide-react';
+import { moreBranches, prepareCommand, withBranch } from './agent/commands.js';
+import { acceptList } from './file-capabilities.js';
+import { repositoryDecision } from './start.js';
+import { COPY, capabilities, canBlank, canStart, contextNote, effective, editable, excluded, problems, statusText, summaryText } from './start-draft.js';
+import { startJob, useStartDraft } from './start-run.js';
+import { Button, cn, IconBtn, Input, Select } from './ui.jsx';
 
-const PLANNED = connectionsFor().filter((c) => c.availability === 'planned');
-// ponytail: every connection source is planned (connections.js), so Sources offers PDF upload only.
-// Flip when a provider can supply sources and canSubmit (start.js) accepts it.
-const connectionSources = false;
-const LOCAL = 'Only you can see this canvas. Its content stays in this browser.';
 const MORE = 'More branches'; // the Branch select's last option while GitHub has more than this page
+const REPOSITORY_FACTS = "Only you can see it. Connected repositories can't be deleted yet. Public GitHub only; private repositories aren't supported yet.";
+const LINK_ICONS = { arxiv: FileText, youtube: Video, wikipedia: BookOpen, webpage: Globe };
+const rowIcon = (row) => (row.kind === 'repository' ? FolderGit2 : row.kind === 'link' ? LINK_ICONS[row.meta.type] || Link2 : /\.(md|txt|pdf|docx?)$/i.test(row.label) ? FileText : File);
 
-// T02 §5: one portaled dialog with four paths, hosted once by StartHost (main.jsx) on
-// 'small:start'. Radix mounts only the active tab, so Enter submits the one form on screen.
-// Fields live here, so a tab switch, Settings on top, or a failed request never clears them.
-// Every action is a registry entry the Agent Bar also uses; run() navigates, this never does.
-// ponytail: Start lands on Learn, where the bar yields, so 'Canvas created · Undo' (T02 §8.4)
-// has no surface from here; Archive in the Library row menu covers removal. Recorded in T02 §17.
+// Start a rabbit hole (owner brief 2026-10-23, docs/features/start-sources.md): one dialog, one draft of files, links and at
+// most one repository, each source with its own Use as context and Add to canvas. The draft and the start job live in
+// start-run.js, so closing this never cancels a start; the dialog only renders them. Hosted once by StartHost on 'small:start'.
 export default function StartDialog({ ctx, initial, onClose }) {
-  const self = useRef(null);
-  const inFlight = useRef(false); // one request at a time: no duplicate projects or canvases
-  const [path, setPath] = useState(() => pathOr(initial));
-  useEffect(() => { setPath(pathOr(initial)); }, [initial]);
-  const [f, setF] = useState({ url: '', sources: '', method: 'upload', question: '', depth: null, blank: '' });
-  const [card, setCard] = useState(null); // connect_repository: { prepared, createdAt, phase, error, page }
+  const self = useRef(null), picker = useRef(null);
+  const draft = useStartDraft();
+  const [adding, setAdding] = useState(initial === 'repository' ? 'repository' : null); // 'link' | 'repository' | null
+  const [linkText, setLinkText] = useState(''), [url, setUrl] = useState('');
+  const [card, setCard] = useState(null); // a checked repository: { prepared, page }
   const [choose, setChoose] = useState(null); // the router's open-or-connect options for another branch
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const set = (key, value) => { setF((s) => ({ ...s, [key]: value })); setError(''); if (key === 'url') { setCard(null); setChoose(null); } };
-  const field = (key) => ({ value: f[key], onChange: (e) => set(key, e.target.value) });
-  const close = () => { if (!inFlight.current) onClose(); };
+  const [busy, setBusy] = useState(false), [error, setError] = useState(''), [over, setOver] = useState(false);
+  useEffect(() => { if (initial === 'repository') setAdding('repository'); }, [initial]);
+  const starting = draft.phase === 'starting';
+  const close = () => onClose();
+
   useEffect(() => {
-    // Only the top dialog takes Esc: Settings, or a confirm opened over this one, closes first.
-    const esc = (e) => {
+    // Only the top dialog takes Esc: Settings, or a window opened over this one, closes first. Tab stays inside.
+    const keys = (e) => {
       const dialogs = document.querySelectorAll('[role="dialog"]');
-      if (e.key === 'Escape' && dialogs[dialogs.length - 1] === self.current) close();
+      if (dialogs[dialogs.length - 1] !== self.current) return;
+      if (e.key === 'Escape') close();
+      if (e.key !== 'Tab') return;
+      const items = [...self.current.querySelectorAll('button, input, select, [href], [tabindex]:not([tabindex="-1"])')].filter((el) => !el.disabled && el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !self.current.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     };
-    window.addEventListener('keydown', esc);
-    return () => window.removeEventListener('keydown', esc);
+    window.addEventListener('keydown', keys);
+    return () => window.removeEventListener('keydown', keys);
   }, [onClose]);
-  const run = (work) => async (e) => {
+
+  const hide = () => { setAdding(null); setUrl(''); setLinkText(''); setCard(null); setChoose(null); setError(''); };
+  // Cancel on a checked repository goes back to the field with the URL kept (owner, 2026-10-08); on a bare input it hides it. Either way the list stays.
+  const cancel = () => { if (card || choose) { setCard(null); setChoose(null); } else hide(); };
+  const reveal = (kind) => { setError(''); setAdding(adding === kind ? null : kind); };
+  const addFiles = (list) => { if (list?.length) startJob.addFiles(list); };
+
+  // ---- link
+  const onLink = (e) => {
+    e.preventDefault();
+    const before = startJob.getDraft().rows.length;
+    startJob.dispatch({ type: 'add-link', text: linkText });
+    if (startJob.getDraft().rows.length > before) hide();
+  };
+
+  // ---- repository: the bar's rule (start.js repositoryDecision) decides, the dialog renders it; nothing is created here
+  const attempt = (work) => async (e) => {
     e?.preventDefault();
-    if (inFlight.current) return;
-    inFlight.current = true;
-    setBusy(true);
-    setError('');
-    try { await work(); } catch (er) { setError(er.message); } finally { inFlight.current = false; setBusy(false); }
+    if (busy) return;
+    setBusy(true); setError('');
+    try { await work(); } catch (er) { setError(er.message); } finally { setBusy(false); }
   };
-  // open: true makes create_canvas.run navigate to the new canvas (contract: callers never navigate after run).
-  const canvas = async (title) => {
-    const result = await executeCommand('create_canvas', { title, open: true }, ctx);
-    onClose();
-    return result;
+  const addExisting = (found, from) => {
+    startJob.dispatch({ type: 'add-repository', url: from, repo: found.repo || found.title, branch: found.branch || 'default', existing: { slug: found.slug, kind: found.kind, title: found.title } });
+    hide();
   };
-  // WP1's decision for this workspace (router rule 2 and the connect_repository executor), rendered,
-  // never re-derived: open what is connected, offer the choice for another branch, else the card.
+  const connected = (slug) => (ctx.catalog || []).find((row) => row.name === slug) || {};
   const decide = async ({ name, args }) => {
-    if (name === 'open_resource') { await executeCommand('open_resource', args, ctx); onClose(); return; }
-    // resolve() reads the default branch, so a private or missing repository fails here, before any card.
+    if (name === 'open_resource') { const row = connected(args.slug); addExisting({ ...args, repo: row.repo, branch: row.branch }, url); return; }
+    // resolve() reads the default branch, so a private or missing repository fails here, before anything is added.
     const prepared = await prepareCommand('connect_repository', args, ctx);
-    // Defensive: resolve reads the same catalog the router used, so this is normally unreachable; a
-    // stale list is caught at Confirm, where run() re-reads /api/apps and opens the existing project.
-    if (!prepared.card) { await executeCommand('connect_repository', prepared.args, ctx); onClose(); return; }
+    if (prepared.args.existing) { const row = connected(prepared.args.existing); addExisting({ slug: prepared.args.existing, kind: 'repository', title: row.repo || prepared.args.repo, repo: prepared.args.repo, branch: row.branch }, url); return; }
     setChoose(null);
-    setCard({ prepared, createdAt: Date.now() });
+    setCard({ prepared });
   };
-  const onRepository = run(async () => {
-    const decision = repositoryDecision(f.url, ctx);
+  const onCheck = attempt(async () => {
+    if (startJob.getDraft().rows.some((row) => row.kind === 'repository')) throw Error(COPY.oneRepository);
+    const decision = repositoryDecision(url, ctx);
     if (!decision) throw Error('Enter a public GitHub repository URL, like https://github.com/owner/repository.');
     if (decision.type === 'choose') { setChoose(decision.options); return; }
     await decide(decision);
   });
-  // Branch (owner, 2026-10-08): GitHub's default, or the /tree/<branch> a link named, preselected; another pick rebuilds the
-  // card for that branch (commands.js withBranch), or offers Open when that branch is already connected.
+  // Branch (owner, 2026-10-08): GitHub's default, or the /tree/<branch> a link named, preselected; another pick rebuilds
+  // the choice for that branch (commands.js withBranch), or offers the project already connected on it.
   const branches = card && [...new Set([card.prepared.args.branch, ...(card.prepared.args.branches || [])])];
   const pickBranch = (value) => {
-    if (value !== MORE) { setCard((c) => ({ ...c, prepared: withBranch(c.prepared, value, ctx), createdAt: Date.now(), phase: null, error: null })); return; }
-    run(async () => {
+    if (value !== MORE) { setCard((c) => ({ ...c, prepared: withBranch(c.prepared, value, ctx) })); return; }
+    attempt(async () => {
       const page = (card.page || 1) + 1, meta = await moreBranches(card.prepared.args.url, page);
       setCard((c) => ({ ...c, page, prepared: { ...c.prepared, args: { ...c.prepared.args, branches: [...c.prepared.args.branches, ...(meta.branches || [])], hasMore: !!meta.hasMore } } }));
     })();
   };
-  const onConfirm = run(async () => {
-    setCard((c) => ({ ...c, phase: 'executing', error: null }));
-    try {
-      // run() opens the new project, or the one it finds already connected
-      const result = await executeCommand('connect_repository', card.prepared.args, ctx);
-      if (result?.choose) { setCard(null); setChoose(result.choose); return; } // connected meanwhile on another branch
-      if (result?.message) toast(result.message);
-      onClose();
-    } catch (er) {
-      setCard((c) => ({ ...c, phase: 'failed', error: er }));
-    }
-  });
-  const onSources = run(() => canvas(f.sources.trim() || UNTITLED));
-  const onBlank = run(() => canvas(f.blank.trim() || UNTITLED));
-  const onQuestion = run(async () => {
-    const prompt = teachPrompt(f.question, f.depth);
-    // Handoff off: copy the question while the submit gesture is still active, so the fallback line is true.
-    const copied = !learnHandoff && (await navigator.clipboard?.writeText(prompt).then(() => true, () => false));
-    const { href } = await canvas(titleFromQuestion(f.question));
-    // T02 §9 through the one hook: with learnHandoff off nothing is sent and the fallback copy comes back.
-    const r = await learnAction('teach', { app: slugOf(href), prompt, from: 'start' }, ctx);
-    // learnAction owns navigation and every outcome line (contract v3): it sees the canvas already open,
-    // so it does not navigate again, and this shows only its message (null on prefilled).
-    if (r.status === 'fallback' && !copied) toast("Opened your canvas. Your question wasn't transferred.");
-    else if (r.message) toast(r.message);
-  });
-  const foot = (label, disabled) => (
-    <div className="flex items-center justify-end gap-2 pt-4">
-      <Button type="button" variant="secondary" onClick={close} disabled={busy}>Cancel</Button>
-      {label && <Button type="submit" variant="primary" disabled={busy || disabled}>{busy && <Loader2 size={14} className="animate-spin" />}{label}</Button>}
-    </div>
-  );
-  const choice = (key, value, label) => (
-    <button key={value} type="button" role="radio" aria-checked={f[key] === value}
-      onClick={() => set(key, key === 'depth' && f.depth === value ? null : value)}
-      className={cn('h-8 rounded-lg border px-3 text-sm', f[key] === value ? 'border-ink bg-hover font-medium text-ink' : 'border-line text-ink-2 hover:bg-hover hover:text-ink')}>{label}</button>
-  );
+  const addRepository = () => {
+    const { prepared } = card, args = prepared.args;
+    if (prepared.open) { addExisting({ slug: prepared.open.slug, kind: prepared.open.kind, title: prepared.open.title, repo: args.repo, branch: prepared.open.branch || args.branch }, args.url); return; }
+    const { url: from, repo, branch, newBranch, defaulted } = args;
+    startJob.dispatch({ type: 'add-repository', url: from, repo, branch, connect: { url: from, repo, branch, ...(newBranch ? { newBranch } : {}), ...(defaulted ? { defaulted } : {}) } });
+    hide();
+  };
+
+  // ---- start
+  const act = (work) => async () => { setError(''); try { await work(); } catch (er) { setError(er.message); } };
+  // A start that finished cleanly has nothing left to show; one that needs another try keeps the list (or the chip) up.
+  const onStart = act(async () => { if (await startJob.start(ctx)) { const d = startJob.getDraft(); if (!d.error && d.phase !== 'partial') onClose(); } });
+  const onBlank = act(async () => { if (await startJob.blank(ctx) && !startJob.getDraft().error) onClose(); });
+
+  const list = problems(draft), global = list.filter((p) => p.id === null);
+  const hasRows = draft.rows.length > 0;
+  const shown = error || draft.error;
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/20 px-4 animate-[fade-in_100ms_ease-out]" onMouseDown={close}>
-      <div ref={self} role="dialog" aria-modal="true" aria-labelledby="start-title" className="mt-[12vh] w-[520px] max-w-full rounded-2xl bg-white p-4 text-ink shadow-pop" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={self} role="dialog" aria-modal="true" aria-labelledby="start-title" data-start-dialog data-start-phase={draft.phase} onMouseDown={(e) => e.stopPropagation()}
+        className="mt-[8vh] flex max-h-[84vh] w-[560px] max-w-full flex-col rounded-2xl bg-white p-4 text-ink shadow-pop">
         <div className="flex items-center justify-between">
-          <h2 id="start-title" className="text-sm font-semibold">Start a rabbit hole</h2>
-          <IconBtn aria-label="Close" onClick={close} disabled={busy}><X size={14} /></IconBtn>
+          <h2 id="start-title" className="text-sm font-semibold">{COPY.title}</h2>
+          <IconBtn aria-label="Close" onClick={close}><X size={14} /></IconBtn>
         </div>
-        <p className="pb-3 text-xs text-ink-2">Start from a repository or a blank canvas.</p>
-        <Tabs value={path} onValueChange={(p) => { setPath(p); setError(''); }}>
-          <TabsList pill className="max-w-full overflow-x-auto">
-            {START_PATHS.map(([id, label]) => { const Icon = PATH_ICONS[id]; return <TabsTrigger key={id} pill value={id} className="gap-1.5"><Icon size={14} strokeWidth={1.75} aria-hidden="true" />{label}</TabsTrigger>; })}
-          </TabsList>
-          <TabsContent value="repository">
-            <form onSubmit={onRepository} className="pt-4">
-              <label className="block text-sm">GitHub URL
-                <Input autoFocus inputMode="url" placeholder="https://github.com/owner/repository" className="mt-1" {...field('url')} />
+        <p className="pb-3 text-xs text-ink-2">{COPY.subtitle}</p>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" disabled={starting} onClick={() => picker.current?.click()} autoFocus={!adding}><Upload size={14} aria-hidden="true" />{COPY.addFiles}</Button>
+            <Button variant="secondary" disabled={starting} aria-expanded={adding === 'link'} onClick={() => reveal('link')}><Link2 size={14} aria-hidden="true" />{COPY.addLink}</Button>
+            <Button variant="secondary" disabled={starting} aria-expanded={adding === 'repository'} onClick={() => reveal('repository')}><FolderGit2 size={14} aria-hidden="true" />{COPY.connectRepository}</Button>
+            <input ref={picker} type="file" multiple accept={acceptList()} className="hidden" tabIndex={-1} data-start-file-input aria-label="Choose files"
+              onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+          </div>
+
+          {adding === 'link' && (
+            <form onSubmit={onLink} data-start-input="link" className="flex flex-wrap items-end gap-2 pt-3">
+              <label className="block min-w-0 flex-1 basis-56 text-sm">Link
+                <Input autoFocus inputMode="url" placeholder="https://" className="mt-1" value={linkText} onChange={(e) => { setLinkText(e.target.value); startJob.dispatch({ type: 'dismiss-notices' }); }} />
               </label>
-              <p className="mt-3 text-xs text-ink-2">Only you can see it. Connected repositories can't be deleted yet. Public GitHub only; private repositories aren't supported yet.</p>
-              {/* The Branch select is on the card below; a repository GitHub names no default for stops with its branches (commands.js noDefaultBranch). */}
-              {!card && !choose && foot('Check repository', !canSubmit('repository', f))}
+              <Button type="submit" variant="primary" disabled={!linkText.trim()}>Add</Button>
+              <Button type="button" variant="secondary" onClick={cancel}>Cancel</Button>
             </form>
-            {choose && (
-              <div className="pt-3">
-                <p className="pb-2 text-xs text-ink-2">This repository is already connected on another branch.</p>
-                <div className="flex flex-wrap gap-2">
-                  {choose.map((option) => <Button key={option.label} size="sm" onClick={run(() => decide(option))} disabled={busy}>{option.label}</Button>)}
+          )}
+
+          {adding === 'repository' && (
+            <div data-start-input="repository" className="pt-3">
+              <form onSubmit={onCheck} className="flex flex-wrap items-end gap-2">
+                <label className="block min-w-0 flex-1 basis-56 text-sm">GitHub URL
+                  <Input autoFocus inputMode="url" placeholder="https://github.com/owner/repository" className="mt-1" value={url} onChange={(e) => { setUrl(e.target.value); setError(''); setCard(null); setChoose(null); }} />
+                </label>
+                {!card && !choose && <Button type="submit" variant="primary" disabled={busy || !url.trim()}>{busy && <Loader2 size={14} className="animate-spin" />}Check repository</Button>}
+                <Button type="button" variant="secondary" onClick={hide}>Cancel</Button>
+              </form>
+              <p className="mt-2 text-xs text-ink-2">{REPOSITORY_FACTS}</p>
+              {choose && (
+                <div className="pt-3">
+                  <p className="pb-2 text-xs text-ink-2">This repository is already connected on another branch.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {choose.map((option) => <Button key={option.label} size="sm" disabled={busy} onClick={attempt(() => decide(option))}>{option.label}</Button>)}
+                  </div>
                 </div>
-                {foot(null)}
-              </div>
-            )}
-            {/* Outside the form: the card's buttons are plain <button>s and would submit it (ui.jsx:23-41). */}
-            {card && (
-              <div className="pt-3">
-                {branches && card.phase !== 'executing' && (
-                  <div className="flex items-center gap-3 pb-3 text-sm"><span aria-hidden="true">Branch</span>
-                    <span className="min-w-0 flex-1">
-                      <Select aria-label="Branch" data-branch-select value={card.prepared.args.branch} options={card.prepared.args.hasMore ? [...branches, MORE] : branches} onChange={pickBranch} />
-                    </span>
-                  </div>
-                )}
-                {card.prepared.open ? (
-                  <div data-branch-connected className="rounded-md border border-line p-3 text-sm">
-                    <p className="pb-2">{card.prepared.args.repo} at {card.prepared.args.branch} is already connected: {card.prepared.open.title}{card.prepared.open.branch ? ` (${card.prepared.open.branch})` : ''}.</p>
-                    <Button size="sm" variant="primary" disabled={busy} onClick={run(() => decide({ name: 'open_resource', args: { slug: card.prepared.open.slug, kind: card.prepared.open.kind, title: card.prepared.open.title } }))}>Open</Button>
-                  </div>
-                ) : (
-                  <ConfirmCard
-                    card={{ model: card.prepared.card, blocked: card.prepared.policy.blocked, reason: card.prepared.policy.reason, createdAt: card.createdAt, phase: card.phase, error: card.error }}
-                    onConfirm={onConfirm}
-                    onCancel={() => setCard(null)}
-                  />
-                )}
-                {foot(null)}
-              </div>
-            )}
-          </TabsContent>
-          <TabsContent value="sources">
-            <form onSubmit={onSources} className="pt-4">
-              <label className="block text-sm">Canvas title
-                <Input autoFocus placeholder={UNTITLED} className="mt-1" {...field('sources')} />
-              </label>
-              {connectionSources && <div role="radiogroup" aria-label="Add sources by" className="flex flex-wrap gap-2 pt-3">
-                {choice('method', 'upload', 'Upload (PDF)')}
-                {choice('method', 'connection', 'From a connection')}
-              </div>}
-              {f.method === 'upload'
-                ? <p className="mt-3 text-xs text-ink-2">After the canvas opens, add the PDF from the canvas menu: Insert → Upload a file. {LOCAL}</p>
-                : (
-                  <div className="mt-3 grid grid-cols-3 gap-2 max-sm:grid-cols-1">
-                    {PLANNED.map((c) => (
-                      <div key={c.id} aria-disabled="true" className="rounded-lg border border-line p-2 text-sm text-ink-2">
-                        <div className="flex items-center justify-between gap-1 text-ink">{c.name}<Pill>Planned</Pill></div>
-                        <div className="pt-1 text-xs">{c.adds}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              {foot('Create canvas', !canSubmit('sources', f))}
-            </form>
-          </TabsContent>
-          <TabsContent value="question">
-            <form onSubmit={onQuestion} className="pt-4">
-              <label className="block text-sm">Question
-                <Input autoFocus placeholder="What do you want to understand?" className="mt-1" {...field('question')} />
-              </label>
-              <div role="radiogroup" aria-label="Depth (optional)" className="flex flex-wrap gap-2 pt-3">
-                {['Overview', 'Guided', 'Deep dive'].map((d) => choice('depth', d, d))}
-              </div>
-              <p className="mt-3 text-xs text-ink-2">Opens a new canvas named after your question. {LOCAL}</p>
-              {foot('Create canvas', !canSubmit('question', f))}
-            </form>
-          </TabsContent>
-          <TabsContent value="blank">
-            <form onSubmit={onBlank} className="pt-4">
-              <label className="block text-sm">Title
-                <Input autoFocus placeholder={UNTITLED} className="mt-1" {...field('blank')} />
-              </label>
-              <p className="mt-3 text-xs text-ink-2">{LOCAL}</p>
-              {foot('Create canvas', !canSubmit('blank', f))}
-            </form>
-          </TabsContent>
-        </Tabs>
-        {error && <p role="alert" className="pt-3 text-sm text-danger">{error}</p>}
+              )}
+              {card && (
+                <div className="pt-3">
+                  {branches && (
+                    <div className="flex items-center gap-3 pb-3 text-sm"><span aria-hidden="true">Branch</span>
+                      <span className="min-w-0 flex-1">
+                        <Select aria-label="Branch" data-branch-select value={card.prepared.args.branch} options={card.prepared.args.hasMore ? [...branches, MORE] : branches} onChange={pickBranch} />
+                      </span>
+                    </div>
+                  )}
+                  {card.prepared.open && (
+                    <p data-branch-connected className="pb-3 text-sm">{card.prepared.args.repo} at {card.prepared.args.branch} is already connected: {card.prepared.open.title}{card.prepared.open.branch ? ` (${card.prepared.open.branch})` : ''}. It opens, and the other sources are added to it.</p>
+                  )}
+                  {card.prepared.policy.blocked && <p role="note" className="pb-3 text-xs text-warn">{card.prepared.policy.reason}</p>}
+                  <Button variant="primary" disabled={busy || card.prepared.policy.blocked} onClick={addRepository}>Add repository</Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <button type="button" disabled={starting} data-start-drop aria-label="Drop files here or choose them" onClick={() => picker.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+            onDrop={(e) => { e.preventDefault(); setOver(false); if (!starting) addFiles(e.dataTransfer.files); }}
+            className={cn('mt-3 flex h-20 w-full flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-line-strong bg-code text-sm text-ink-2 transition-colors duration-100 hover:bg-hover disabled:opacity-50', over && 'bg-hover')}>
+            <Upload size={16} strokeWidth={1.5} aria-hidden="true" />
+            Drop files here
+          </button>
+
+          {draft.notices.length > 0 && <ul role="status" data-start-notices className="pt-3 text-xs text-warn">{draft.notices.map((n) => <li key={n} className="break-words">{n}</li>)}</ul>}
+
+          {hasRows && (
+            <div className="pt-4">
+              <p className="text-xs text-ink-2">{COPY.explainContext}</p>
+              <p className="pb-2 text-xs text-ink-2">{COPY.explainCanvas}</p>
+              <ul data-start-list className="space-y-2">
+                {draft.rows.map((row) => <Row key={row.id} row={row} draft={draft} problem={list.find((p) => p.id === row.id)?.message || (excluded(row, draft) ? `${COPY.choose} ${COPY.excluded}` : '')} />)}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="pt-3">
+          <p data-start-summary className="text-xs text-ink-2">{summaryText(draft)}</p>
+          {global.map((p) => <p key={p.code} role="alert" className="pt-1 text-xs text-danger">{p.message}</p>)}
+          {shown && <p role="alert" data-start-error className="pt-2 text-sm text-danger">{shown}</p>}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
+            <Button variant="ghost" disabled={!canBlank(draft)} onClick={onBlank}>{COPY.blank}</Button>
+            <Button variant="primary" disabled={!canStart(draft)} onClick={onStart}>{starting && <Loader2 size={14} className="animate-spin" />}{COPY.start}</Button>
+          </div>
+        </div>
       </div>
     </div>,
     document.body,
+  );
+}
+
+function Row({ row, draft, problem }) {
+  const Icon = rowIcon(row), can = capabilities(row, draft), on = effective(row, draft), free = editable(row, draft);
+  const status = statusText(row), working = ['checking', 'uploading', 'importing'].includes(row.status);
+  const set = (option) => (e) => startJob.dispatch({ type: 'set-option', id: row.id, option, value: e.target.checked });
+  const note = contextNote(row);
+  const option = (key, label) => (
+    <label className={cn('inline-flex min-h-8 items-center gap-2 text-sm', !(can[key] && free) && 'opacity-50')}>
+      <input type="checkbox" data-start-option={key} className="h-4 w-4 accent-ink" checked={on[key]} disabled={!can[key] || !free} onChange={set(key)} aria-describedby={problem ? `${row.id}-problem` : undefined} />
+      {label}
+    </label>
+  );
+  return (
+    <li data-start-row={row.kind} data-status={row.status} className="rounded-lg border border-line p-3">
+      <div className="flex items-start gap-2">
+        <Icon size={16} strokeWidth={1.5} aria-hidden="true" className="mt-0.5 shrink-0 text-ink-2" />
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm font-medium">{row.label}</p>
+          <p className="break-words text-xs text-ink-2">{row.detail}</p>
+          <p aria-live="polite" data-start-status className={cn('flex items-start gap-1 break-words text-xs', row.status === 'failed' ? 'text-danger' : 'text-ink-2')}>
+            {working && <Loader2 size={12} className="mt-0.5 shrink-0 animate-spin" aria-hidden="true" />}
+            {row.status === 'ready' && <Check size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
+            {row.status === 'failed' && <CircleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
+            <span className="min-w-0">{status}{row.status === 'failed' && row.kind === 'link' && row.meta.type === 'webpage' ? ' Add the file, or paste its text on the canvas.' : ''}</span>
+          </p>
+        </div>
+        {row.status !== 'ready' && <Button size="sm" variant="ghost" className="shrink-0" aria-label={`Remove ${row.label}`} disabled={!free} onClick={() => startJob.dispatch({ type: 'remove', id: row.id })}>{COPY.remove}</Button>}
+      </div>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0 pl-6">
+        {option('context', row.kind === 'repository' ? COPY.connectContext : COPY.context)}
+        {option('canvas', row.kind === 'repository' ? COPY.overview : COPY.canvas)}
+      </div>
+      {note && <p data-start-context-note className="pl-6 text-xs text-ink-2">{note}</p>}
+      {problem && <p id={`${row.id}-problem`} data-start-problem className="pl-6 pt-1 text-xs text-danger">{problem}</p>}
+    </li>
   );
 }

@@ -211,8 +211,12 @@ test('the cap holds on actual bytes when the client bypasses its own check: no C
   assert.deepEqual([chunked.status, chunked.body.error], [411, 'Send this file with its Content-Length.'], 'no Content-Length: counted, and past 1 MiB it must say its length');
   assert.equal((await call('PUT', key, asVideo(mp4(1000), 'video/mp4', null))).status, 200, 'a small body without Content-Length is counted and stored');
   objects.clear();
-  assert.equal((await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000))).status, 413, 'a Content-Length smaller than the body: counted');
-  assert.equal((await call('PUT', key, asVideo(mp4(16), 'video/mp4', 50 * MiB + 1))).status, 413, 'a declared size over the cap is refused before reading');
+  const REFUSED = 'This file is over 50 MiB, so it was not saved to your account and stays in your browser.';
+  const lying = await call('PUT', key, asVideo(mp4(50 * MiB + 1), 'video/mp4', 1000));
+  assert.deepEqual([lying.status, lying.body.error], [413, REFUSED], 'a Content-Length smaller than the body: counted, and refused with the stable JSON error');
+  const declared = await call('PUT', key, asVideo(mp4(16), 'video/mp4', 50 * MiB + 1));
+  assert.deepEqual([declared.status, declared.body.error], [413, REFUSED], 'a declared size over the cap is refused before reading, with the same JSON error');
+  assert.match(declared.headers.get('content-type'), /application\/json/, 'every refusal is a JSON body, never an empty one');
   assert.equal(objects.size, 0);
 });
 

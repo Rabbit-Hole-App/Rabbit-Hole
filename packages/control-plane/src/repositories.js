@@ -7,7 +7,8 @@ import { askStream, attachmentBlocks, readAskRequest, ATTACHMENT_LIMIT } from '.
 import { askModel, MESSAGE_LIMIT, MENTION_LIMIT } from './learn-models.js';
 import { LEARN_SYSTEM, LEARN_SNAPSHOT_SYSTEM, validateLessonSnapshot } from './learn-context.js';
 import { REPOSITORY_TOOLS, REPOSITORY_SYSTEM, repositoryTool, parseCodeRef, resolveCodeRefs, SELECTED_NOTE } from './repository-context.js';
-import { contextRefs } from './chat-modes.js';
+import { contextRefs, docIds, pageDocIds } from './chat-modes.js';
+import { contextDocumentBlocks } from './learn-context-docs.js';
 import { readArxivPaper } from './arxiv.js';
 import { uploadedMediaAsImage } from './learn-media.js';
 import { uploadedPaperAsDocument } from './learn-paper.js';
@@ -422,6 +423,13 @@ async function repositoryAsk(req,env,user,app){
   let source;
   try{source=await readLearnSource(env,body,app,{extraBlocks,papers,foundVideos:videos.found,videoContext,wikiTool:false},{readArxivPaper,uploadedPaperAsDocument,uploadedMediaAsImage,readWikipedia});}
   catch(error){return json({error:error.message},502);}
+  // Context documents on the project's Main canvas (Start a rabbit hole: files supplement a repository's context, owner 2026-10-23),
+  // as /api/learn/ask reads them: a Chat turn's doc refs name exactly the ones that ride, an ask without refs sends the switched-on
+  // ones. A node question reads its node only.
+  if(body.node===undefined){
+    try{extraBlocks.push(...await contextDocumentBlocks(env,app,docIds(chat?.contextRefs),{pages:pageDocIds(chat?.contextRefs),query:body.message}));}
+    catch(error){return json({error:`Context documents: ${error.message}`},502);}
+  }
   // Mentioned canvases, as on /api/learn/ask (canvas-refs.js canvasMentions): read under this asker's access, else refused
   // before anything is stored or sent, naming no title. Loaded here: canvas-refs.js imports this module.
   const canvasRefs=chat?.contextRefs?.some(ref=>ref.kind==='canvas')?await import('./canvas-refs.js').then(m=>m.canvasMentions(env,user,chat.contextRefs).then(found=>({...found,error:m.CANVAS_UNAVAILABLE}))):null;

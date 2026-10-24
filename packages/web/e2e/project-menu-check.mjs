@@ -362,6 +362,7 @@ await check('4 the project\'s Share window: Share is the project link only, Canv
   await library();
   const again = await shareProject(libraryCard('repository', NAME2));
   await again.getByRole('tab', { name: 'Canvases' }).click();
+  await canvasRows(again).nth(2).waitFor({ timeout: 30000 }); // the breakdown loads after the tab opens: Main canvas and both canvases
   assert.equal(await again.locator('[data-canvas-published]').count(), 2, 'both canvases say Published on Explore; the project row does not');
   assert.equal(await rowOf(again, 'Main canvas').locator('[data-canvas-published]').count(), 0);
   await closeShare();
@@ -467,11 +468,18 @@ await check('9 New canvas in project, from the project card\'s ⋮: a canvas in 
 const aligned = async (cards, label) => {
   const all = await cards.evaluateAll(els => els.map(el => {
     const box = n => { const r = n.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
-    return { card: box(el), pic: box(el.querySelector('[data-card-thumbnail]')), foot: box(el.querySelector('[data-card-footer]')) };
+    return { card: box(el), pic: box(el.querySelector('[data-card-thumbnail]')), foot: box(el.querySelector('[data-card-footer]')), text: box(el.querySelector('[data-card-text]')) };
   }));
   assert.ok(all.length > 0, label);
   for (const [i, c] of all.entries()) {
     const above = c.pic.top - c.card.top, below = c.card.bottom - c.pic.bottom;
+    // Owner brief 2026-10-23 (small-card layout): under 40rem of card content (the Large card of a 1024 window is 538px) the picture stacks above the text,
+    // so it is not the bottom edge. The claim then reads: the inset above the picture equals the inset below the footer, the card's last row.
+    if (c.text.top >= c.pic.bottom - 1) {
+      const footBelow = c.card.bottom - c.foot.bottom;
+      assert.ok(Math.abs(above - footBelow) <= 1, `${label} ${i} (stacked): the picture's inset above ${above} and the footer's inset below ${footBelow}`);
+      continue;
+    }
     assert.ok(Math.abs(above - below) <= 1, `${label} ${i}: the picture's inset above ${above} and below ${below}`);
     assert.ok(Math.abs(c.foot.bottom - c.pic.bottom) <= 1, `${label} ${i}: the footer ends at ${c.foot.bottom}, the picture at ${c.pic.bottom}`);
   }

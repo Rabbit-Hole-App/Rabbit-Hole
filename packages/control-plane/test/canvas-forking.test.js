@@ -368,6 +368,15 @@ test('forkState keeps the board content and settles chat cards', () => {
   assert.deepEqual(forkState(null), {});
 });
 
+test('a fork and a shared view keep the sloppiness level and seed of shapes and connectors (UI-34)', async () => {
+  const { sharedState } = await import('../src/shared-privacy.js');
+  const board = { shapes: [{ id: 's', kind: 'rect', roughness: 2, seed: 4242 }], links: [{ id: 'l', from: 's', to: 't', roughness: 1, seed: 7 }] };
+  for (const copy of [forkState(board), sharedState(board)]) {
+    assert.deepEqual(copy.shapes, board.shapes);
+    assert.deepEqual(copy.links, board.links);
+  }
+});
+
 // Beta hardening 3d (regression only): a fork's own board, its files and the notebook workspace it uses now survive
 // whatever happens to the source - a file and a notebook removed from the source board, the source hole deleted, the
 // source's parent trashed and restored. The fork reads from its own board (boardAssetKeys of the fork's state, never the

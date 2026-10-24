@@ -21,6 +21,8 @@ export { FileJobs } from '../control-plane/src/file-jobs.js';
 export { CadJobs } from '../control-plane/src/cad-jobs.js';
 import { cadRoute } from '../control-plane/src/cad-jobs.js';
 export { ExplainJobs } from '../control-plane/src/explain-job.js';
+export { ImageJobs } from '../control-plane/src/image-jobs.js';
+import { imageJobsRoute } from '../control-plane/src/image-jobs.js';
 import { explainRoute } from '../control-plane/src/explain-job.js';
 import { fileJobsRoute } from '../control-plane/src/file-jobs.js';
 import SHELL from './dist-dev/index.html';
@@ -179,7 +181,7 @@ const routes = {
     if (path === '/api/learn/graph-config' && req.method === 'GET') {
       const app = await authorizedBoardApp(req, env, new URL(req.url).searchParams.get('app'));
       if (app instanceof Response) return app;
-      return Response.json({ desmosApiKey: env.DESMOS_API_KEY || null }, { headers: { 'Cache-Control': 'no-store' } });
+      return Response.json({ desmosApiKey: env.DESMOS_API_KEY || null, imageGeneration: env.LEGACY_IMAGE_GENERATION === 'true' }, { headers: { 'Cache-Control': 'no-store' } });
     }
     if (path === '/api/learn/photos' && req.method === 'GET') {
       const url = new URL(req.url);
@@ -189,6 +191,9 @@ const routes = {
       catch (error) { return Response.json({ error: error.message }, { status: 400 }); }
     }
     if (path === '/api/learn/image' && req.method === 'POST') {
+      // Legacy image generation (gpt-image-1, shut down by OpenAI 2026-10-23; owner 2026-10-23) is off unless LEGACY_IMAGE_GENERATION is exactly 'true'.
+      // The flag is set in no wrangler config or secret. Refused first: no session read, provider call, allowance or usage record.
+      if (env.LEGACY_IMAGE_GENERATION !== 'true') return Response.json({ error: 'Generating images is not available right now. You can still search for a photo.', code: 'image_generation_unavailable' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
       let body; try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
       const access = await authorizedBoardApp(req, env, body?.app);
       if (access instanceof Response) return access;
@@ -322,6 +327,8 @@ const routes = {
     // /explain v2 jobs (explain-job.js): 404 unless EXPLAIN_V2_ENABLED is 'true'.
     if (path.startsWith('/api/learn/explain/')) { const explained = await explainRoute(path, req, env); if (explained) return explained; }
     if (path.startsWith('/api/learn/code-runs')) { const codeRun = await inlineCodeRoute(path, req, env); if (codeRun) return codeRun; }
+    // IMG-01 durable image generation jobs (image-jobs.js): no new job unless IMAGE_GENERATE_ENABLED is 'true'.
+    if (path.startsWith('/api/learn/image-jobs')) { const imageGen = await imageJobsRoute(path, req, env); if (imageGen) return imageGen; }
     if (path.startsWith('/api/learn/files/image-edits')) { const imageJobs = await inlineImageJobsRoute(path, req, env); if (imageJobs) return imageJobs; }
     if (path.startsWith('/api/learn/files/')) { const jobs = await fileJobsRoute(path, req, env); if (jobs) return jobs; }
     if (path.startsWith('/api/learn/boards/')) { const boards = await learnBoardsRoute(path, req, env); if (boards) return boards; }
