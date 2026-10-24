@@ -107,6 +107,18 @@ export const planUsesOpenAI = env => env.SUBSCRIPTION_ONLY !== 'true' && !!env.O
 // (never buffered), its model, usage and stop reason read as it goes, and logged when it ends, fails or is cancelled. A thrown
 // transport is logged and rethrown. Also the model_call.started / .finished telemetry events (docs/features/telemetry.md), a
 // no-op until TELEMETRY_DB is bound. Logging never changes, delays to completion or fails the response.
+// The contract's model-call event, joined to the request's usage action when it has one. Its own failure is swallowed.
+async function modelEvent(env, name, line, { result = null, stream, status, outcome, error, requestId, responseMs, firstChunkMs, chunks, durationMs } = {}) {
+  const ctx = usageContext(env);
+  const actionId = await Promise.resolve(ctx?.action).catch(() => null);
+  const payload = { task: line.task, provider: line.provider, requested_model: line.requested, source: line.source, prompt_hash: line.prompt, stream };
+  if (name === 'model_call.finished') Object.assign(payload, { served_model: result?.model, fell_back: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
+    status_code: status, stop_reason: result?.stop_reason, request_id: requestId, response_ms: responseMs, first_chunk_ms: firstChunkMs, duration_ms: durationMs,
+    chunks, usage: usageSnapshot(result?.usage) });
+  return emitTelemetry(env, makeEvent(name, { service: 'app_worker', feature: ctx?.feature, action_id: actionId || undefined, user_ref: ctx?.identity?.userId || undefined,
+    outcome: name === 'model_call.started' ? 'started' : outcome, error_code: error || undefined, payload }, { service: 'app_worker', release: /^[0-9a-f]{7,40}$/.test(env.RELEASE_SHA || '') ? env.RELEASE_SHA : null }));
+}
+
 const clock = () => globalThis.performance?.now?.() ?? Date.now();
 export function loggedModel(task, callModel) {
   return async (env, body, model, org) => {
@@ -181,18 +193,6 @@ export function loggedModel(task, callModel) {
       },
     }), { status: response.status, statusText: response.statusText, headers: response.headers });
   };
-}
-
-// The contract's model-call event, joined to the request's usage action when it has one. Its own failure is swallowed.
-async function modelEvent(env, name, line, { result = null, stream, status, outcome, error, requestId, responseMs, firstChunkMs, chunks, durationMs } = {}) {
-  const ctx = usageContext(env);
-  const actionId = await Promise.resolve(ctx?.action).catch(() => null);
-  const payload = { task: line.task, provider: line.provider, requested_model: line.requested, source: line.source, prompt_hash: line.prompt, stream };
-  if (name === 'model_call.finished') Object.assign(payload, { served_model: result?.model, fell_back: !!result?.usage?.iterations?.some(step => step.type === 'fallback_message'),
-    status_code: status, stop_reason: result?.stop_reason, request_id: requestId, response_ms: responseMs, first_chunk_ms: firstChunkMs, duration_ms: durationMs,
-    chunks, usage: usageSnapshot(result?.usage) });
-  return emitTelemetry(env, makeEvent(name, { service: 'app_worker', feature: ctx?.feature, action_id: actionId || undefined, user_ref: ctx?.identity?.userId || undefined,
-    outcome: name === 'model_call.started' ? 'started' : outcome, error_code: error || undefined, payload }, { service: 'app_worker', release: /^[0-9a-f]{7,40}$/.test(env.RELEASE_SHA || '') ? env.RELEASE_SHA : null }));
 }
 
 // USD per MTok [input, output, cache read] (claude-api skill, cached 2026-09-25; the numbers web/e2e/journey-corpus-run.mjs:100
