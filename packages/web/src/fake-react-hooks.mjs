@@ -1,4 +1,4 @@
-// A one-component React stand-in for hook tests (chat-persist.test.mjs, chat-restore-draft.test.mjs): hooks by call order, effects
+// A one-component React stand-in (not a browser) for hook tests (chat-persist.test.mjs, chat-restore-draft.test.mjs): hooks by call order, effects
 // after each render, a state change renders again on a microtask. Enough for a hook; never a component tree.
 export const FAKE_REACT = `
 let slots = [], cursor = 0, hook = null, props, alive = false, queued = false, result, effects = null;
@@ -9,6 +9,11 @@ export function useState(init) {
   const i = cursor++;
   if (!(i in slots)) { const slot = { value: typeof init === 'function' ? init() : init }; slot.set = next => { const value = typeof next === 'function' ? next(slot.value) : next; if (!Object.is(value, slot.value)) { slot.value = value; schedule(); } }; slots[i] = slot; }
   return [slots[i].value, slots[i].set];
+}
+export function useReducer(reducer, arg, init) {
+  const i = cursor++;
+  if (!(i in slots)) { const slot = { value: init ? init(arg) : arg }; slot.dispatch = action => { const value = reducer(slot.value, action); if (!Object.is(value, slot.value)) { slot.value = value; schedule(); } }; slots[i] = slot; }
+  return [slots[i].value, slots[i].dispatch];
 }
 export function useRef(value) { const i = cursor++; if (!(i in slots)) slots[i] = { current: value }; return slots[i]; }
 export function useMemo(make, deps) { const i = cursor++; if (!(i in slots) || !same(slots[i].deps, deps)) slots[i] = { value: make(), deps }; return slots[i].value; }
