@@ -4,16 +4,17 @@
 // canvas with its camera framed on the notebook card; "Canvas" puts back the camera and selection the learner left.
 // Layout actions make no model call and no board save; the arrangement is remembered in this browser only (study-state.js).
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LocateFixed, MessageSquarePlus, Pin, PinOff, Replace } from 'lucide-react';
+import { LocateFixed, MessageSquarePlus, MoreHorizontal, Pin, PinOff, Replace } from 'lucide-react';
 import SourceReader from './SourceReader.jsx';
 import { LearningBlockBody } from './LearningBlocks.jsx';
+import { Menu, MenuItem, useMenuButton } from './ui.jsx';
 import { useChatWorkspace } from './chat-workspace.jsx';
 import { pdfRef } from './pdf-source.js';
 import { objectName } from './selection-ref.js';
 import { browserStorage } from './home/canvas-local.js';
 import { attachStillCurrent, authorizePinnedSource, createPinnedAttacher } from './study-attach.js';
 import { wsHeaders } from './api.js';
-import { SWITCH_ROW, pinRef, pinnedAttachSnapshot, studyOffsets, versionLine } from './study-ref.js';
+import { SWITCH_ROW, pinRef, pinnedAttachSnapshot, sourceOrigin, studyOffsets, versionLine } from './study-ref.js';
 import { eligible, readStudy, readerPinTarget, setStudyReaderPin, studyKey, studyLayout, studyReducer, studyScope, studyStatusText, writeStudy } from './study-state.js';
 
 const TYPE_LABELS = { pdf: 'PDF', text: 'Note', explanation: 'Explanation' };
@@ -130,6 +131,7 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   const [choosing, setChoosing] = useState(false);
   const [refused, setRefused] = useState(null);
   const [pickNotebook, setPickNotebook] = useState(false);
+  const options = useMenuButton();
   const chat = useChatWorkspace();
   const { state } = study, pin = state.pin, api = canvasApi.current;
   void canvasState; // the canvas's cards changed: read the pin and the lists again (this render)
@@ -247,6 +249,12 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   // The working-view row: its own strip above the canvas (the frame starts below it), never over a card or a control.
   const switchStyle = { top: place.switchTop, left: place.switchLeft, right: 0, height: SWITCH_ROW };
   const button = 'flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-ink-2 hover:bg-hover hover:text-ink disabled:pointer-events-none disabled:opacity-40';
+  // The header's controls: 30 px, 44 px on a touch screen; the options' rows likewise.
+  const tool = 'inline-flex h-[30px] shrink-0 items-center justify-center gap-1.5 rounded-md text-[13px] text-ink-2 hover:bg-hover hover:text-ink focus-visible:outline-2 focus-visible:outline-accent/35 disabled:pointer-events-none disabled:opacity-40 pointer-coarse:h-11';
+  const item = 'pointer-coarse:h-11 focus-visible:outline-2 focus-visible:outline-accent/35';
+  const name = pin ? (card && objectName(card)) || pin.ref.name : '';
+  // Reference options open under their button, right edges together (Menu keeps them inside the window).
+  const optionsAt = () => { const r = options.button.current?.getBoundingClientRect(); return r ? { top: r.bottom + 4, left: Math.max(8, r.right - 288) } : undefined; };
   const list = eligibleCards(api);
   const chooser = <div data-study-choose className="min-h-0 flex-1 overflow-y-auto p-3">
     <p className="mb-2 text-sm font-medium">Choose a reference</p>
@@ -260,22 +268,35 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
   return <>
     <aside ref={box} aria-label="Pinned reference" data-study-pane data-layout={layout.stacked ? 'stacked' : 'wide'} data-pin={pin?.cardId || ''}
       className={`absolute z-20 flex flex-col bg-white ${layout.stacked ? 'border-b' : 'border-r'} border-line`} style={paneStyle}>
-      <div className="shrink-0 space-y-1 border-b border-line px-3 pt-2 pb-2">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wider text-ink-2 uppercase"><Pin size={12} aria-hidden="true" />Pinned reference</div>
-        {pin && <div className="flex min-w-0 items-center gap-2">
-          <span data-study-title title={pin.ref.name} className="min-w-0 flex-1 truncate text-sm font-medium">{(card && objectName(card)) || pin.ref.name}</span>
-          <span className="shrink-0 text-xs text-ink-3">{TYPE_LABELS[pin.kind]}</span></div>}
-        {pin && version && <p data-study-version className="text-[11px] text-ink-3">{version}</p>}
-        {pin && <div className="flex flex-wrap items-center gap-0.5">
-          <button type="button" data-study-change className={button} aria-pressed={choosing} onClick={() => setChoosing(open => !open)}><Replace size={13} aria-hidden="true" />Change reference</button>
-          <button type="button" data-study-locate className={button} disabled={!card} onClick={study.locate}><LocateFixed size={13} aria-hidden="true" />Locate on canvas</button>
-          <button type="button" data-study-unpin className={button} onClick={study.unpin}><PinOff size={13} aria-hidden="true" />Unpin</button>
-          <button type="button" data-study-attach className={button} disabled={!canAttach || !chat || (attach?.busy && attach.cardId === pin.cardId)} onMouseDown={event => event.preventDefault()} onClick={addPinned}>
-            <MessageSquarePlus size={13} aria-hidden="true" />Add pinned reference</button>
-        </div>}
-        {pin && attachRefused && <p data-study-attach-refused data-reason={attach.reason} role="alert" className="text-xs text-red-700">Reference unavailable</p>}
-        {pin && attach?.abandoned && <p data-study-attach-abandoned data-reason={attach.reason} role="status" className="text-xs text-ink-2">Not added</p>}
+      {/* One 42 px row (WP6, owner brief 2026-10-24): pin, the name, Add to chat and Reference options. The pane keeps its
+          "Pinned reference" name; the type, version and source sit in the options' details. Below 360 px Add to chat is its icon. */}
+      <div data-study-header className="@container flex h-[42px] shrink-0 items-center gap-1.5 border-b border-line px-3 pointer-coarse:h-12">
+        <Pin size={14} aria-hidden="true" className="shrink-0 text-ink-3" />
+        {pin ? <span data-study-title title={name} className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{name}</span>
+          : <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink-2">Pinned reference</span>}
+        {pin && <button type="button" data-study-attach title="Add to chat" className={`${tool} px-2`} disabled={!canAttach || !chat || (attach?.busy && attach.cardId === pin.cardId)} onMouseDown={event => event.preventDefault()} onClick={addPinned}>
+          <MessageSquarePlus size={14} aria-hidden="true" /><span className="@max-[360px]:sr-only">Add to chat</span></button>}
+        {pin && <button type="button" data-study-options {...options.buttonProps} aria-haspopup="dialog" aria-label="Reference options" title="Reference options" className={`${tool} w-[30px] pointer-coarse:w-11`}>
+          <MoreHorizontal size={16} aria-hidden="true" /></button>}
       </div>
+      {pin && options.open && <Menu portal anchor={options.button.current} open onClose={options.onClose} style={optionsAt()} className="w-72 border border-line">
+        <div role="dialog" aria-label="Reference options" data-study-options-menu data-menu-button-open>
+          <MenuItem icon={Replace} autoFocus data-study-change aria-pressed={choosing} className={item} onClick={() => { options.close(); setChoosing(open => !open); }}>Change reference</MenuItem>
+          <MenuItem icon={LocateFixed} data-study-locate disabled={!card} className={item} onClick={() => { options.close(); study.locate(); }}>Locate on canvas</MenuItem>
+          <MenuItem icon={PinOff} data-study-unpin className={item} onClick={() => { options.close(false); study.unpin(); }}>Unpin</MenuItem>
+          <div className="my-1 border-t border-line" />
+          <div role="group" aria-label="Source details" data-study-details className="px-2 py-1 text-xs">
+            <dl>{[['Name', name], ['Type', TYPE_LABELS[pin.kind]], ['Source', sourceOrigin(pin.kind, liveRef)]].filter(([, value]) => value).map(([term, value]) =>
+              <div key={term} className="flex gap-2 py-0.5"><dt className="w-12 shrink-0 text-ink-3">{term}</dt><dd className="min-w-0 break-words text-ink">{value}</dd></div>)}</dl>
+            {version && <p data-study-version className="pt-1 text-ink-3">{version}</p>}
+          </div>
+        </div>
+      </Menu>}
+      {/* Failures stay in view, never inside the options. */}
+      {pin && (attachRefused || attach?.abandoned) && <div className="shrink-0 border-b border-line px-3 py-1">
+        {attachRefused && <p data-study-attach-refused data-reason={attach.reason} role="alert" className="text-xs text-red-700">Reference unavailable</p>}
+        {attach?.abandoned && <p data-study-attach-abandoned data-reason={attach.reason} role="status" className="text-xs text-ink-2">Not added</p>}
+      </div>}
       {!pin || choosing ? chooser : unavailable ? <div data-study-unavailable role="status" className="space-y-2 p-3 text-sm">
         <p className="font-medium">Reference unavailable</p>
         <div className="flex flex-wrap gap-1">
@@ -285,7 +306,7 @@ export function StudyPane({ study, canvasApi, canvasFrame, canvasState, ready })
       </div> : <div data-study-reader className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {pin.kind === 'explanation' && card
           ? <ExplanationReader block={card} position={study.reader()} onPosition={study.readerAt} />
-          : <SourceReader sourceRef={sourceRef} position={study.reader()} onPosition={study.readerAt} onUnavailable={() => setRefused(pin.cardId)} onSelection={draft => { if (draft) selected.current = draft; }} />}
+          : <SourceReader presentation="study" sourceRef={sourceRef} position={study.reader()} onPosition={study.readerAt} onUnavailable={() => setRefused(pin.cardId)} onSelection={draft => { if (draft) selected.current = draft; }} />}
       </div>}
       <p data-study-status data-state={study.status || 'none'} role="status" className={`shrink-0 border-t border-line px-3 py-1 text-[11px] ${study.status === 'error' ? 'text-red-700' : 'text-ink-3'}`}>
         {studyStatusText(study.status)}</p>
