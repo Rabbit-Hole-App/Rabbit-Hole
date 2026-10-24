@@ -24,6 +24,8 @@ const as = session => async (path, init = {}) => {
 };
 const owner = { session: await sessionFor(`comments-owner-${run}@example.com`, `owner_${run}`) };
 const member = { session: await sessionFor(`comments-member-${run}@example.com`, `member_${run}`) };
+// Minted before any page is open: /test/session writes D1 through the standalone control plane, a second wrangler process on the same sqlite files, and a write there while a page polls the app's session read gives SQLITE_BUSY, which sessionOf fails closed to 401 and the page leaves for /login (CI runs 40140822538, 40136801962).
+const visitor = { session: await sessionFor(`comments-visitor-${run}@example.com`, `visitor_${run}`) };
 const api = as(owner.session), memberApi = as(member.session);
 
 const BLOCKS = [
@@ -275,7 +277,6 @@ await check('8 comments never touch the board: same version; a reload keeps thre
 });
 
 // Increment 2: the owner's Share settings and the published page (/e).
-const visitor = { session: await sessionFor(`comments-visitor-${run}@example.com`, `visitor_${run}`) };
 let token;
 const share = () => page.locator('[role="dialog"][aria-label="Share canvas"]');
 // Owner 2026-10-21: View > Comments is a switch like Minimap; off hides the pins, on brings them back, remembered on this device.

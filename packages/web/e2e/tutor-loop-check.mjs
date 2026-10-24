@@ -31,6 +31,8 @@ const secret = varsText.match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const EMAIL = `tutorloop-${Date.now().toString(36)}@example.com`;
 const sessionFor = async () => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: EMAIL, secret }) })).json()).session;
 const session = await sessionFor();
+// Minted before any page is open: /test/session writes D1 through the standalone control plane, a second wrangler process on the same sqlite files, and a write there while a page polls the app's session read gives SQLITE_BUSY, which sessionOf fails closed to 401 and the page leaves for /login (CI runs 40140822538, 40136801962).
+const secondSession = await sessionFor();
 if (!session) throw Error('the control plane minted no session (is the stack up with SMALL_ENV=test?)');
 const api = async (path, init = {}) => {
   const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } });
@@ -64,7 +66,7 @@ const MODEL = (path, method) => path === '/api/learn/ask' || path === '/api/lear
   || (path.startsWith('/api/learn/tutor/') && !path.startsWith('/api/learn/tutor/attempts'));
 async function learner(label) {
   const context = await browser.newContext({ viewport: { width: 1600, height: 900 } });
-  await context.addCookies([{ name: 'small_session', value: label === 'second' ? await sessionFor() : session, url: BASE }]);
+  await context.addCookies([{ name: 'small_session', value: label === 'second' ? secondSession : session, url: BASE }]);
   await context.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url());
     if (url.pathname === '/api/learn/tutor/plan' && net.plan) { plans.push(request.postDataJSON()); return route.fulfill({ json: net.plan }); }

@@ -16,6 +16,8 @@ const secret = readFileSync(new URL('../../control-plane/.dev.vars', import.meta
 const run = Date.now().toString(36);
 const login = async (who) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `${who}-${run}@example.com`, secret, handle: `${who}_${run}` }) })).json()).session;
 const session = await login('set');
+// Minted before any page is open: /test/session writes D1 through the standalone control plane, a second wrangler process on the same sqlite files, and a write there while a page polls the app's session read gives SQLITE_BUSY, which sessionOf fails closed to 401 and the page leaves for /login (CI runs 40140822538, 40136801962).
+const outSession = await login('out'); // its own account: logout revokes every session of the user
 const HANDLE = `set_${run}`;
 const api = async (path, init = {}) => { const r = await fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${session}`, 'content-type': 'application/json' } }); return { status: r.status, body: await r.json().catch(() => null) }; };
 await api('/api/profile', { method: 'PUT', body: JSON.stringify({ name: 'Setta Learner' }) });
@@ -367,7 +369,7 @@ await check('13 narrow screen (390px): Settings fits, the nav and every pane sta
 });
 
 await check('14 Privacy & security: the real sign-in method (never an assumed email link) and a logout that ends every session', async () => {
-  const other = await login('out'); // its own account: logout revokes every session of the user
+  const other = outSession;
   // The dev/preview app refuses /auth/* and /logout (dev-forwarding.js barrier), as the local stack's app does: no method is
   // shown then, never a guessed one. One origin in production serves them; that answer is replayed here per provider.
   let page = await fresh({ cookie: other });

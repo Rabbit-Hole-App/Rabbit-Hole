@@ -28,6 +28,8 @@ const vars = process.env.VARS || new URL('../../control-plane/.dev.vars', import
 const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1].trim();
 const run = Date.now().toString(36);
 const { session } = await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `p2c-${run}@example.com`, secret }) })).json();
+// Minted before any page is open: /test/session writes D1 through the standalone control plane, a second wrangler process on the same sqlite files, and a write there while a page polls the app's session read gives SQLITE_BUSY, which sessionOf fails closed to 401 and the page leaves for /login (CI runs 40140822538, 40136801962).
+const otherSession = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `p2c-other-${run}@example.com`, secret }) })).json()).session;
 const cookie = `small_session=${session}`;
 const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { cookie, 'content-type': 'application/json', ...init.headers } })).json();
 
@@ -768,7 +770,7 @@ await check('follow-up 2: another person never reads the PDF - their fork of the
   const state = (await boardOf()).state;
   const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
   assert.ok(shared.sharing?.view, 'the canvas is shared by link');
-  const other = (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: `p2c-other-${run}@example.com`, secret }) })).json()).session;
+  const other = otherSession;
   const as = (path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${other}`, 'content-type': 'application/json', ...init.headers } });
   try {
     const fork = await (await as('/api/learn/boards/fork', { method: 'POST', body: JSON.stringify({ source: { token: shared.sharing.view }, key: `other-${run}` }) })).json();

@@ -23,6 +23,10 @@ const run = Date.now().toString(36);
 const HANDLE = `hdr_${run}`;
 const sessionFor = async (email, handle) => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret, ...(handle !== undefined ? { handle } : {}) }) })).json()).session;
 const owner = { session: await sessionFor(`hdr-owner-${run}@example.com`, HANDLE) }, viewer = { session: await sessionFor(`hdr-viewer-${run}@example.org`) };
+// Minted before any page is open: /test/session writes D1 through the standalone control plane, a second wrangler process on the same sqlite files, and a write there while a page polls the app's session read gives SQLITE_BUSY, which sessionOf fails closed to 401 and the page leaves for /login (CI runs 40140822538, 40136801962).
+const LONG = `lh${run}`.padEnd(30, 'x');
+const longOwner = { session: await sessionFor(`hdr-long-${run}@example.com`, LONG) };
+const plain = { session: await sessionFor(`hdr-plain-${run}@example.org`, null) }; // handle: null keeps none (a bare /test/session invents one)
 const api = (who, path, init = {}) => fetch(`${BASE}${path}`, { ...init, headers: { cookie: `small_session=${who.session}`, 'content-type': 'application/json', ...(init.headers || {}) } }).then(r => r.json());
 const canvases = who => api(who, '/api/canvases').then(d => d.canvases);
 
@@ -234,8 +238,6 @@ for (const [width, full] of [[1424, true], [1280, false]]) {
 
 // ---- a long handle (30 characters) truncates before it can move Fork or the toggle; no handle draws nothing and the space collapses ----
 {
-  const LONG = `lh${run}`.padEnd(30, 'x');
-  const longOwner = { session: await sessionFor(`hdr-long-${run}@example.com`, LONG) };
   const longSource = await api(longOwner, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `Long handle ${run}` }) });
   const longShared = await api(longOwner, `/api/learn/boards/${longSource.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: SEED }) });
   for (const [label, size, maxW] of [['desktop', {}, 160], ['phone, 390px', { width: 390, height: 844 }, 112]]) {
@@ -246,7 +248,6 @@ for (const [width, full] of [[1424, true], [1280, false]]) {
       && (label !== 'desktop' || Math.abs(long.forkRight - desktopForkRight) <= 1), long.detail);
     await context.close();
   }
-  const plain = { session: await sessionFor(`hdr-plain-${run}@example.org`, null) }; // handle: null keeps none (a bare /test/session invents one)
   const plainSource = await api(plain, '/api/canvases', { method: 'POST', body: JSON.stringify({ title: `No handle ${run}` }) });
   const plainShared = await api(plain, `/api/learn/boards/${plainSource.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, public_view: true, state: SEED }) });
   const { context, page } = await contextFor(null);
