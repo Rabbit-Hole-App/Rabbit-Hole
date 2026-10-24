@@ -29,6 +29,12 @@ const secret = readFileSync(vars, 'utf8').match(/^TEST_BYPASS_SECRET=(.*)$/m)[1]
 const run = Date.now().toString(36);
 const mint = async email => (await (await fetch(`${CP}/test/session`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, secret }) })).json()).session;
 const session = await mint(`pdfx-${run}@example.com`);
+// The other two people are minted here, before any page is open. /test/session writes D1 through the standalone control plane, a second
+// wrangler process on the same sqlite files; a write there while the owner's page polls the app's session read gives SQLITE_BUSY,
+// which sessionOf fails closed to 401, so the page leaves for /login and every later step fails on the JSON page (CI runs 40140822538
+// and 40136801962: the ERROR line in app.log, then GET /api/ask/threads 401, GET /login 403, then Rotate page .. Remove from context).
+const otherSession = await mint(`pdfx-other-${run}@example.com`), other = `small_session=${otherSession}`;
+const viewerSession = await mint(`pdfx-viewer-${run}@example.com`), viewer = `small_session=${viewerSession}`;
 const cookie = `small_session=${session}`;
 const api = async (path, init = {}) => (await fetch(`${BASE}${path}`, { ...init, headers: { cookie, 'content-type': 'application/json', ...init.headers } })).json();
 
@@ -1252,7 +1258,6 @@ await check('another person\'s fork of the shared canvas: the crop shows, Open s
   const state = (await boardOf()).state;
   const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
   assert.ok(shared.sharing?.view, 'the canvas is shared by link');
-  const otherSession = await mint(`pdfx-other-${run}@example.com`), other = `small_session=${otherSession}`;
   const O = await profile('other', otherSession);
   const mine = page;
   try {
@@ -1367,7 +1372,6 @@ await check('a share-link viewer who has not forked (R4 audit gap 5): Open sourc
   const state = (await boardOf()).state;
   const shared = await api(`/api/learn/boards/${canvas.name}/main/share`, { method: 'POST', body: JSON.stringify({ shared: true, view: true, state }) });
   assert.ok(shared.sharing?.view, 'the canvas is shared by link');
-  const viewerSession = await mint(`pdfx-viewer-${run}@example.com`), viewer = `small_session=${viewerSession}`;
   const V = await profile('viewer', viewerSession);
   const mine = page;
   try {
