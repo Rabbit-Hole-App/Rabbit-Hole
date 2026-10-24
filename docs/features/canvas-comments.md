@@ -1481,3 +1481,49 @@ Top 5 are taken) and are applied by the owner in production; a lane never applie
   as a code quote), and a PDF card's shown page. Not built, for the card owners to review: a PDF region drawn on the page, the
   video player's time, and a code card's line range picked in the editor. The server and the panel already accept and show all of
   them.
+
+### Inbox, follow and mute (migration 0032, owner decision D4: in-app first, no email)
+
+- **Inbox.** `GET /api/learn/comments/inbox` answers `{ items, count }`, at most 50 threads, newest first, each `{ thread_id,
+  reason, canvas, audience, news, status, preview, last_activity_at, link }`. News is a live comment by someone else after my last
+  read of the thread. A thread reaches the inbox when I was mentioned in it (`mention`), I started it or posted in it (`reply`), I
+  follow it (`follow`), or it is on a canvas I own (`canvas`), in that order of strength; never when I muted it. It is computed
+  from threads, mentions (by account id, or by the mentioned address for an account the lane could not resolve to an id) and read
+  marks, and read only as far as the reader's access goes NOW: my own canvases; canvases I am an active member of and that are not
+  in Trash (a hole is in Trash with the canvas above it); and public threads elsewhere that I took part in or was mentioned in,
+  while the canvas is published with public comments on and I am not blocked. A deleted comment, a deleted card's threads and a
+  deleted thread are gone from it. A public thread's link is the published page; any other is `/c/<board id>?thread=`.
+- **Follow and mute.** `PUT …/threads/:id/follow` with `{ state: 'follow' | 'mute' | 'default' }` for whoever may read and is signed
+  in; a thread read carries my `follow`. Stored in `canvas_comment_follows` (one row per thread and person, deleted with the
+  thread). The Library lists the inbox above Shared with you; a thread has a Notifications control (default, follow, mute).
+- **Not built (D4).** No email, no batching, no preferences, no mark-all-read. Opening a thread marks it read, as before.
+
+### Public mention lookup (owner decision D5, no migration)
+
+- A mention is kept only when its handle names someone in the thread's audience set (a members thread: the owner and members; a
+  public thread: the owner and public participants) - and, in a PUBLIC thread only, an account that made itself public: a handle
+  with a profile description (the line its /@handle page shows) or a live Explore publication, not blocked on this canvas. Anyone
+  else stays plain text. A mention notifies at most, and NEVER grants access: a members thread cannot mention an outsider at all,
+  and a public thread was already readable by any signed-in person while public comments are on.
+- Suggestions follow the same rule: a public thread also offers those accounts from two typed characters, at most 8 in all; a
+  members thread offers only its own people. A comment keeps at most `COMMENT_MENTIONS_MAX` (10) mentions.
+- **To confirm with the owner:** "explicitly public profile" is read as a profile description (a handle exists for everyone who
+  comments, so a handle alone is not an explicit act). Widening it later is one function (`DISCOVERABLE`).
+
+### A public thread from my own words (owner decision D6, no migration)
+
+- `POST …/threads/:id/public-copy` (member family) with `{ id, comment_id, text? }`: the author of a live comment in a MEMBERS
+  thread offers a verbatim piece of their own comment (all of it when `text` is omitted) as a new PUBLIC thread of theirs, on the
+  same anchor, under the usual public rules (the public setting, Allow comments, blocks, the rate limits). Nothing else is copied:
+  no other reply, file, mention, reaction, participant or history, and no row or field links the two threads, so the public thread
+  says nothing of the private one. The panel offers it in a comment's menu ("Share in a new public thread"): the author selects the
+  words (or shares all of it) and the new thread opens.
+
+### Limits (one config)
+
+- `web/src/comments/comment-limits.js` holds every comment number and its default (body length, posts per window, thread size,
+  mentions, attachments); the server enforces each and a worker variable of the same name overrides it; the panel reads the body
+  length from the same file. The member cap and the invitation caps stay in `canvas-members.js` (with `retry_after`).
+- A rate-limit refusal now carries `retry_after` (seconds until the oldest post in the full window leaves it) and a `Retry-After`
+  header; the panel says how long to wait. A full thread offers "Continue in a new thread": a new thread on the same anchor and
+  audience whose draft holds the person's own unsent words, never the old thread's content.

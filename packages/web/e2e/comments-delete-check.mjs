@@ -16,7 +16,7 @@ import { chromium, expect } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
-const total = 13; // the number of check() steps below; keep it equal
+const total = 15; // the number of check() steps below; keep it equal
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
 for (const url of [BASE, CP]) if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(url)) throw Error('comments-delete-check runs against the local stack only');
@@ -397,9 +397,60 @@ await check('12 an anchored thread reads with its quote; after the card changes 
   await page.screenshot({ path: `${SHOTS}/12-anchor-state.png` });
 });
 
+// Owner decision D6 (2026-10-23): the author of a comment in a members thread offers some of their OWN words in a new public
+// thread; nothing else of the members thread goes with it, and the new thread does not point back.
+await check('13 (D6) some of my own words from a members thread become a new public thread; the private reply and the rest of the comment stay private', async () => {
+  const members = await start(api, base, { kind: 'point', x: 300, y: 700 }, 'Private budget note. Public idea: dye the water to see the layers.');
+  assert.equal((await post(api, `${base}/threads/${members}/comments`, { id: crypto.randomUUID(), body: 'A private reply nobody outside should see', mentions: [] })).status, 201);
+  await page.goto(`${BASE}/apps/${canvas.name}`);
+  await page.locator('[data-comments-header]').click();
+  await page.locator('[data-comments-panel]').waitFor();
+  await status().selectOption('all');
+  await row(members).click();
+  const mine = page.locator('[data-comments-panel] [data-comment-message]').filter({ hasText: 'Private budget note' });
+  await mine.hover();
+  await mine.getByRole('button', { name: 'Comment actions' }).click();
+  await page.getByRole('menuitem', { name: 'Share in a new public thread' }).click();
+  await page.locator('[data-public-copy] textarea').evaluate(field => { field.focus(); field.setSelectionRange(field.value.indexOf('Public idea'), field.value.length); });
+  await page.getByRole('button', { name: 'Start public thread' }).click();
+  const shown = page.locator('[data-comments-panel] [data-comment-message]');
+  await expect(shown).toHaveCount(1, { timeout: 20000 });
+  await expect(shown).toContainText('Public idea: dye the water to see the layers.');
+  await expect(shown).not.toContainText('budget');
+  await expect(page.locator('[data-comments-panel] [data-comment-audience="public"]')).toHaveCount(1);
+  const copy = (await api(`${base}/threads?status=all`)).body.threads.find(thread => thread.audience === 'public' && thread.preview?.startsWith('Public idea'));
+  assert.ok(copy, 'the new public thread exists');
+  const seen = await viewer(`${pub}/threads/${copy.id}`);
+  assert.equal(seen.status, 200);
+  assert.equal(JSON.stringify(seen.body).includes('budget'), false, 'only the chosen words are public');
+  assert.equal((await viewer(`${pub}/threads/${members}`)).status, 404, 'the members thread stays private');
+  assert.equal((await api(`${base}/threads/${members}`)).body.messages.length, 2, 'and keeps both of its messages');
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/13-public-copy.png` });
+});
+
+// Owner decision D4 (2026-10-23): in-app notifications first. The Library lists a thread with news for the owner and why; muting
+// the thread takes it out.
+await check('14 the Library lists a thread with news and its reason; a muted thread leaves it', async () => {
+  const tid = (await post(api, `${base}/threads`, { id: crypto.randomUUID(), anchor: { kind: 'point', x: 320, y: 760 }, body: 'The owner asks the public', audience: 'public', mentions: [] })).body.thread.id;
+  assert.equal((await post(viewer, `${pub}/threads/${tid}/comments`, { id: crypto.randomUUID(), body: 'A visitor answers', mentions: [] })).status, 201);
+  await page.goto(`${BASE}/library`);
+  await page.locator('h1').waitFor();
+  const item = page.locator(`[data-comment-inbox] [data-inbox-item="${tid}"]`);
+  await expect(item).toBeVisible({ timeout: 30000 });
+  await expect(item).toContainText('Replies to you');
+  await expect(item).toContainText('The owner asks the public');
+  assert.equal((await api(`${base}/threads/${tid}/follow`, { method: 'PUT', body: JSON.stringify({ state: 'mute' }) })).status, 200);
+  await page.reload();
+  await page.locator('h1').waitFor();
+  await expect(page.locator(`[data-inbox-item="${tid}"]`)).toHaveCount(0, { timeout: 30000 });
+  assert.deepEqual([asks, stray, errors], [[], [], []]);
+  await page.screenshot({ path: `${SHOTS}/14-inbox.png` });
+});
+
 // Owner decision D2 (2026-10-23): a nested Rabbit Hole is its own board. The owner comments in the hole through the app; a
 // person with no access to the hole (the visitor here, a stranger to both) gets 404 with no content; Share says the people are the hole's own.
-await check('13 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
+await check('15 (D2) a nested Rabbit Hole has its own comments: the owner reads and posts in it, a stranger to it gets nothing, and Share says its people are its own', async () => {
   const hole = `canvas-${run.replace(/[^a-f0-9]/g, '0').padEnd(8, '0').slice(0, 8)}`;
   const made = await post(api, '/api/canvases/dives', { name: hole, title: `Inside ${run}`, parent: { app: canvas.name, board: 'main' }, origin_block_id: 'd-card', dive: { concept: 'ice' } });
   assert.equal(made.status, 201, JSON.stringify(made.body));
@@ -418,7 +469,7 @@ await check('13 (D2) a nested Rabbit Hole has its own comments: the owner reads 
   await page.getByRole('button', { name: 'Share', exact: true }).click();
   await expect(page.locator('[role="dialog"][aria-label="Share canvas"] [data-nested-note]')).toContainText('Only people invited here can see this Rabbit Hole', { timeout: 20000 });
   assert.deepEqual([asks, stray, errors], [[], [], []]);
-  await page.screenshot({ path: `${SHOTS}/13-nested-hole.png` });
+  await page.screenshot({ path: `${SHOTS}/15-nested-hole.png` });
 });
 
 await browser.close();

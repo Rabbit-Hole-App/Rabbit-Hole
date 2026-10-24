@@ -12,7 +12,7 @@ import { dropFileRefs } from './file-refs.js';
 import { purgeTutorRows } from './learn-coaching-store.js';
 
 // A permanently deleted canvas takes every comment row (owner decision 2026-10-23, canvas-comments.md Q13): the
-// canvas_comment* tables of learn-migrations 0011, 0014 and 0030 - threads, messages, mentions, read marks, colours, reactions,
+// canvas_comment* tables of learn-migrations 0011, 0014, 0030 and 0032 - threads, messages, mentions, read marks, colours, reactions,
 // edit history, its comment settings (the canvas's and its link's) and its blocks. Trash keeps them. Their attached files are purged by
 // comment-attachments.js (bucket objects and rows, migration 0031) before this batch runs. Unread and Shared with you count from these rows, so they count nothing for it after. Here, not in
 // canvas-comments.js, which imports this module.
@@ -21,7 +21,7 @@ export const purgeCommentRows = (db, org, canvas) => {
   return [
     db.prepare(`DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id IN (${threads}))`).bind(org, canvas),
     ...['canvas_comment_reactions', 'canvas_comment_edits'].map(table => db.prepare(`DELETE FROM ${table} WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id IN (${threads}))`).bind(org, canvas)),
-    ...['canvas_comment_reads', 'canvas_comment_colors', 'canvas_comment_touches', 'canvas_comments'].map(table => db.prepare(`DELETE FROM ${table} WHERE thread_id IN (${threads})`).bind(org, canvas)),
+    ...['canvas_comment_reads', 'canvas_comment_colors', 'canvas_comment_touches', 'canvas_comment_follows', 'canvas_comments'].map(table => db.prepare(`DELETE FROM ${table} WHERE thread_id IN (${threads})`).bind(org, canvas)),
     db.prepare('DELETE FROM canvas_comment_threads WHERE org = ? AND canvas = ?').bind(org, canvas),
     db.prepare('DELETE FROM canvas_comment_settings WHERE org = ? AND canvas IN (?, ?)').bind(org, canvas, `link:${canvas}`),
     db.prepare('DELETE FROM canvas_comment_blocks WHERE org = ? AND canvas = ?').bind(org, canvas),

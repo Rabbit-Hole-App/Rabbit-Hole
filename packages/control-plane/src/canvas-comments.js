@@ -19,6 +19,7 @@ import { REACTIONS } from '../../web/src/comments/comment-reactions.js';
 import { uploadBody } from './upload-body.js';
 import { FORMATS, HEAD_BYTES } from './file-sniff.js';
 import { learnMedia } from './learn-storage.js';
+import { BODY_MAX, LIMIT_DEFAULTS } from '../../web/src/comments/comment-limits.js';
 import { fingerprint, holdsQuote, locate, stateOf, targetOf } from './comment-anchors.js';
 import { ATTACHMENT_NOTE, ATTACHMENT_TYPES, releasePurged, safeName } from './comment-attachments.js';
 
@@ -29,16 +30,16 @@ const notFound = () => refuse("This canvas isn't available to you.", 'not_found'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const BOARD_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[A-Za-z0-9_-]{20,64}$/;
-export const BODY_MAX = 5000;
+export { BODY_MAX };
 const RAW_MAX = 16 * 1024;
 const PAGE = 30;
 const MESSAGES = 50;
 const MODES = ['off', 'open', 'closed'];
 
 // Section 9, each overridable by a worker variable of the same name (the SHARED_ASK_LIMITS pattern).
-// Attachments (owner decision D3): 10 MB a file, 5 a comment, 200 MB a canvas; images and PDFs only.
-export const COMMENT_LIMITS = { COMMENT_CANVAS_10MIN: 30, COMMENT_CANVAS_DAY: 300, COMMENT_PERSON_DAY: 1000, COMMENT_THREAD_MAX: 1000,
-  COMMENT_ATTACH_FILE_BYTES: 10 * 1024 * 1024, COMMENT_ATTACH_COMMENT_MAX: 5, COMMENT_ATTACH_CANVAS_BYTES: 200 * 1024 * 1024 };
+// The numbers and their defaults live in the web's comment-limits.js (one config, shared with the panel); a worker variable of the
+// same name overrides a number here.
+export const COMMENT_LIMITS = LIMIT_DEFAULTS;
 export const commentLimits = env => Object.fromEntries(Object.entries(COMMENT_LIMITS).map(([name, fallback]) => {
   const value = String(env?.[name] ?? '').trim();
   return [name, /^\d+$/.test(value) ? Number(value) : fallback];
@@ -182,17 +183,29 @@ async function audienceSet(env, ctx, audience) {
   for (const row of results) if (!people.has(row.email)) people.set(row.email, row.id);
   return people;
 }
+// Public mention lookup (owner decision D5, 2026-10-23): in a PUBLIC thread an account may also be mentioned when it has made itself
+// public - a handle with a profile description (the line its /@handle page shows) or with a live Explore publication. Everyone
+// else is mentionable only through authorized participation (audienceSet above). A members thread never takes this: a mention
+// there is only ever of someone who can already read it. A mention notifies at most and NEVER grants access to anything.
+// `h` is a user_handles alias; blocked accounts are not offered.
+const DISCOVERABLE = (h, org, canvas) => `(EXISTS (SELECT 1 FROM user_profile_descriptions d WHERE d.email = ${h}.email)
+    OR EXISTS (SELECT 1 FROM canvas_publications pub JOIN canvases pc ON pc.org = pub.org AND pc.name = pub.canvas
+      WHERE pc.owner_email = ${h}.email AND pc.archived_at IS NULL AND NOT ${IN_TRASH_TREE('pc.org', 'pc.name')}))
+  AND ${h}.email NOT IN (SELECT k.user_email FROM canvas_comment_blocks k WHERE k.org = ${org} AND k.canvas = ${canvas})`;
 // The mentions a post may keep: `@handle` exactly at its range (any case), naming an account in the audience's set.
 // Anything else stays plain text and notifies nobody; the post still succeeds.
 async function acceptMentions(env, ctx, audience, body, mentions) {
   if (!mentions.length) return [];
   const set = await audienceSet(env, ctx, audience), kept = [], used = new Set();
+  const most = commentLimits(env).COMMENT_MENTIONS_MAX;
   for (const { pos, len, handle } of mentions) {
+    if (kept.length >= most) break;
     if (pos < 0 || len < 2 || pos + len > body.length || used.has(pos) || body.slice(pos, pos + len).toLowerCase() !== `@${handle}`.toLowerCase()) continue;
     const row = await env.LEARN_DB.prepare('SELECT email, handle FROM user_handles WHERE handle = ?').bind(handle).first();
-    if (!row || !set.has(row.email)) continue;
+    if (!row) continue;
+    if (!set.has(row.email) && !(audience === 'public' && await env.LEARN_DB.prepare(`SELECT 1 FROM user_handles h WHERE h.email = ? AND ${DISCOVERABLE('h', '?', '?')}`).bind(row.email, ctx.board.org, ctx.board.canvas).first())) continue;
     used.add(pos);
-    kept.push({ pos, len, handle: row.handle, user_id: set.get(row.email), user_email: row.email });
+    kept.push({ pos, len, handle: row.handle, user_id: set.get(row.email) ?? '', user_email: row.email });
   }
   return kept;
 }
@@ -245,8 +258,19 @@ async function limited(env, ctx) {
       (SELECT count(*) FROM canvas_comments m JOIN canvas_comment_threads t ON t.id = m.thread_id WHERE m.author_id = ?1 AND t.org = ?2 AND t.canvas = ?3 AND m.created_at > ?5) AS today,
       (SELECT count(*) FROM canvas_comments m WHERE m.author_id = ?1 AND m.created_at > ?5) AS everywhere`)
     .bind(ctx.actor.uid, ctx.board.org, ctx.board.canvas, since(10 * 60_000), since(24 * 3600_000)).first();
-  return row.recent >= limits.COMMENT_CANVAS_10MIN || row.today >= limits.COMMENT_CANVAS_DAY || row.everywhere >= limits.COMMENT_PERSON_DAY
-    ? refuse("You've posted a lot in a short time. Try again in a few minutes.", 'limited', 429, { limited: true }) : null;
+  // The window that is full, and when its oldest post leaves it: the first moment a post is allowed again.
+  const full = row.recent >= limits.COMMENT_CANVAS_10MIN ? ['canvas', 10 * 60_000] : row.today >= limits.COMMENT_CANVAS_DAY ? ['canvas', 24 * 3600_000]
+    : row.everywhere >= limits.COMMENT_PERSON_DAY ? ['person', 24 * 3600_000] : null;
+  if (!full) return null;
+  const [scope, window] = full;
+  const db = env.LEARN_DB, from = since(window);
+  const oldest = await (scope === 'canvas'
+    ? db.prepare('SELECT min(m.created_at) AS at FROM canvas_comments m JOIN canvas_comment_threads t ON t.id = m.thread_id WHERE m.author_id = ? AND t.org = ? AND t.canvas = ? AND m.created_at > ?').bind(ctx.actor.uid, ctx.board.org, ctx.board.canvas, from)
+    : db.prepare('SELECT min(m.created_at) AS at FROM canvas_comments m WHERE m.author_id = ? AND m.created_at > ?').bind(ctx.actor.uid, from)).first();
+  const retry = Math.max(1, Math.ceil((Date.parse(oldest?.at) + window - now) / 1000) || 60);
+  const refused = refuse("You've posted a lot in a short time. Try again in a few minutes.", 'limited', 429, { limited: true, retry_after: retry });
+  refused.headers.set('Retry-After', String(retry));
+  return refused;
 }
 
 const THREAD_COLUMNS = `t.id, t.audience, t.anchor_json, t.created_by, t.created_at, t.resolved_at, t.last_activity_at, t.message_count, ${PERSON('t.created_by_email', 'a_')},
@@ -385,13 +409,17 @@ async function suggest(env, ctx, params) {
   }
   if (!allowed(ctx, 'post', audience)) return json({ people: [] });
   const set = [...(await audienceSet(env, ctx, audience)).keys()].filter(email => email !== ctx.actor.email);
-  if (!set.length) return json({ people: [] });
   const q = (params.get('q') || '').trim().toLowerCase().replace(/^@/, '').slice(0, 40);
   const like = `${q.replace(/[\\%_]/g, char => `\\${char}`)}%`;
-  const { results } = await env.LEARN_DB.prepare(`SELECT ${PERSON('h.email', 'a_')} FROM user_handles h WHERE h.email IN (${set.map(() => '?').join(', ')})
-      AND (lower(h.handle) LIKE ? ESCAPE '\\' OR lower(COALESCE(${NAME_OF('h.email')}, '')) LIKE ? ESCAPE '\\') ORDER BY h.handle LIMIT 8`)
-    .bind(...set, like, like).all();
-  return json({ people: results.map(row => person(row, 'a_')) });
+  const match = `(lower(h.handle) LIKE ? ESCAPE '\\' OR lower(COALESCE(${NAME_OF('h.email')}, '')) LIKE ? ESCAPE '\\')`;
+  const found = set.length ? (await env.LEARN_DB.prepare(`SELECT ${PERSON('h.email', 'a_')} FROM user_handles h WHERE h.email IN (${set.map(() => '?').join(', ')}) AND ${match} ORDER BY h.handle LIMIT 8`)
+    .bind(...set, like, like).all()).results : [];
+  // A public thread also offers accounts that made themselves public (D5), once two characters are typed, so the list is never a directory.
+  const open = audience === 'public' && q.length >= 2 && found.length < 8
+    ? (await env.LEARN_DB.prepare(`SELECT ${PERSON('h.email', 'a_')} FROM user_handles h WHERE ${match} AND h.email <> ? AND ${DISCOVERABLE('h', '?', '?')} ORDER BY h.handle LIMIT 8`)
+      .bind(like, like, ctx.actor.email, ctx.board.org, ctx.board.canvas).all()).results : [];
+  const seen = new Set(found.map(row => row.a_handle));
+  return json({ people: [...found, ...open.filter(row => !seen.has(row.a_handle))].slice(0, 8).map(row => person(row, 'a_')) });
 }
 
 async function listThreads(env, ctx, params) {
@@ -441,7 +469,7 @@ async function readThread(env, ctx, id, params) {
         AND (m.created_at > ?2 OR m.edited_at > ?2 OR m.deleted_at > ?2
           OR m.id IN (SELECT x.comment_id FROM canvas_comment_touches x WHERE x.thread_id = ?1 AND x.touched_at > ?2)) ORDER BY m.created_at, m.id LIMIT ${MESSAGES + 1}`).bind(thread.id, from).all();
     if (results.length <= MESSAGES) {
-      return json({ thread: threadShape(ctx, thread), messages: await shapes(env, ctx, thread.audience, results), since: true, cursor });
+      return json({ thread: threadShape(ctx, thread), messages: await shapes(env, ctx, thread.audience, results), since: true, cursor, follow: await followOf(env, ctx, thread.id) });
     }
   }
   const { results } = await env.LEARN_DB.prepare(`SELECT ${MESSAGE_COLUMNS} FROM canvas_comments m WHERE m.thread_id = ?1
@@ -449,7 +477,7 @@ async function readThread(env, ctx, id, params) {
     .bind(thread.id, ...(before ? [before[1], before[2]] : [])).all();
   const page = results.slice(0, MESSAGES).reverse();
   return json({ thread: threadShape(ctx, thread), messages: await shapes(env, ctx, thread.audience, page),
-    before: results.length > MESSAGES ? `${page[0].created_at}|${page[0].id}` : null, cursor, ...(from ? { reset: true } : {}) });
+    before: results.length > MESSAGES ? `${page[0].created_at}|${page[0].id}` : null, cursor, follow: await followOf(env, ctx, thread.id), ...(from ? { reset: true } : {}) });
 }
 
 const hashOf = parts => sha256Hex(JSON.stringify(parts));
@@ -685,6 +713,45 @@ async function editHistory(env, ctx, id) {
   return json({ edits: results.map(row => ({ body: row.body, replaced_at: row.replaced_at })) });
 }
 
+// A new PUBLIC thread from a members thread (owner decision D6, 2026-10-23): the author of a comment offers some of their OWN words
+// publicly. `{ id, comment_id, text? }`: the text is a verbatim piece of that author's own comment (all of it when omitted).
+// Nothing else is copied - no other reply, no file, no mention, no reaction, no participant, no history - and nothing links the
+// new thread to the old one, so the public thread says nothing of the private one. The new thread is the author's, on the same
+// anchor, under the usual public rules (the public setting, blocks, the rate limits).
+async function publicCopy(req, env, ctx, threadId) {
+  const thread = await threadIn(env, ctx, threadId);
+  if (!thread) return missingThread();
+  if (thread.audience !== 'members') return refuse('This thread is already public.', 'already_public', 400);
+  if (!allowed(ctx, 'post', 'public')) return postRefusal(ctx, 'public');
+  const input = await readJson(req);
+  if (input?.tooLarge) return refuse('That comment is too long.', 'too_long', 413);
+  if (!UUID.test(input?.id || '') || !UUID.test(input?.comment_id || '')) return refuse('A public copy needs a client id and a comment (UUIDs).', 'bad_id', 400);
+  const source = await env.LEARN_DB.prepare('SELECT body, author_id, deleted_at FROM canvas_comments WHERE id = ? AND thread_id = ?').bind(input.comment_id, thread.id).first();
+  if (!source || source.deleted_at) return refuse('This comment was deleted.', 'comment_gone', 404);
+  if (source.author_id !== ctx.actor.uid) return refuse('You can only share your own words.', 'forbidden', 403);
+  const text = input.text === undefined ? source.body : input.text;
+  if (typeof text !== 'string' || !text.trim() || !source.body.includes(text)) return refuse('Choose words from your own comment.', 'bad_text', 400);
+  const hash = await hashOf([ctx.actor.uid, ctx.board.id, 'public-copy', thread.id, input.comment_id, text]);
+  const replay = await sameCreate(env, 'canvas_comment_threads', input.id, hash);
+  if (replay) return replay === 'conflict' ? idConflict() : threadReply(env, ctx, input.id, 200);
+  const over = await limited(env, ctx);
+  if (over) return over;
+  const now = new Date().toISOString(), db = env.LEARN_DB, first = crypto.randomUUID();
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO canvas_comment_threads (id, board_id, org, canvas, audience, anchor_json, created_by, created_by_email, create_hash, created_at, last_activity_at, message_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
+        .bind(input.id, ctx.board.id, ctx.board.org, ctx.board.canvas, 'public', thread.anchor_json, ctx.actor.uid, ctx.actor.email, hash, now, now),
+      db.prepare('INSERT INTO canvas_comments (id, thread_id, author_id, author_email, body, create_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .bind(first, input.id, ctx.actor.uid, ctx.actor.email, text, hash, now),
+    ]);
+  } catch (failure) {
+    const raced = await sameCreate(env, 'canvas_comment_threads', input.id, hash);
+    if (!raced) throw failure;
+    return raced === 'conflict' ? idConflict() : threadReply(env, ctx, input.id, 200);
+  }
+  return threadReply(env, ctx, input.id, 201);
+}
+
 // Upload (migration 0031, D3): the raw file as the body, its type in Content-Type and its name in X-File-Name (URL-encoded),
 // `?audience=public` for a new public thread's file. The caller must be able to post here. The file is checked by its first bytes,
 // then RESERVED by one conditional INSERT that holds the canvas total and the caller's waiting uploads to their caps in the same
@@ -777,6 +844,7 @@ async function deleteThread(env, ctx, id) {
     db.prepare('DELETE FROM canvas_comment_mentions WHERE comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)').bind(thread.id),
     ...purgeSide(db, 'comment_id IN (SELECT id FROM canvas_comments WHERE thread_id = ?)', thread.id),
     db.prepare('DELETE FROM canvas_comment_touches WHERE thread_id = ?').bind(thread.id),
+    db.prepare('DELETE FROM canvas_comment_follows WHERE thread_id = ?').bind(thread.id),
     purgeAttachments(db, 'thread_id = ?', thread.id),
     db.prepare('DELETE FROM canvas_comments WHERE thread_id = ?').bind(thread.id),
     db.prepare('DELETE FROM canvas_comment_reads WHERE thread_id = ?').bind(thread.id),
@@ -942,6 +1010,73 @@ async function unreadCounts(req, env) {
   return json({ owned: await countVisible(env, owned.results), shared: await countVisible(env, shared.results) });
 }
 
+// The inbox (owner decision D4, 2026-10-23: in-app first, no email): the threads with news for me that I can read NOW, across
+// canvases, newest first. News is a comment by someone else, live, after my last read of the thread. It reaches the inbox when I
+// was mentioned in it, I started it or posted in it, I follow it, or it is on a canvas I own - and never when I muted the thread.
+// Three places are read, each only as far as the reader's access goes: my own canvases, canvases I am an active member of (not in
+// Trash), and public threads elsewhere that I took part in, while the canvas is published with public comments on and I am not
+// blocked. A deleted object's threads are hidden as everywhere. Computed from threads, mentions and read marks (nothing stored but
+// follow and mute, migration 0032).
+const READ_AT = "COALESCE((SELECT r.read_at FROM canvas_comment_reads r WHERE r.thread_id = t.id AND r.user_id = ?1), '')";
+const INBOX_COLUMNS = `t.id AS thread_id, t.board_id, t.audience, t.anchor_json, t.last_activity_at, t.resolved_at,
+  (SELECT count(*) FROM canvas_comments x WHERE x.thread_id = t.id AND x.author_id != ?1 AND x.deleted_at IS NULL AND x.created_at > ${READ_AT}) AS news,
+  EXISTS (SELECT 1 FROM canvas_comment_mentions mm JOIN canvas_comments z ON z.id = mm.comment_id WHERE z.thread_id = t.id AND z.deleted_at IS NULL AND z.author_id != ?1
+    AND (mm.user_id = ?1 OR mm.user_email = ?2) AND z.created_at > ${READ_AT}) AS mentioned,
+  (t.created_by = ?1 OR EXISTS (SELECT 1 FROM canvas_comments y WHERE y.thread_id = t.id AND y.author_id = ?1)) AS took_part,
+  (SELECT g.state FROM canvas_comment_follows g WHERE g.thread_id = t.id AND g.user_id = ?1) AS follow,
+  (SELECT f.body FROM canvas_comments f WHERE f.thread_id = t.id ORDER BY f.created_at, f.id LIMIT 1) AS first_body,
+  (SELECT f.deleted_at IS NOT NULL FROM canvas_comments f WHERE f.thread_id = t.id ORDER BY f.created_at, f.id LIMIT 1) AS first_deleted`;
+const INBOX_FROM = "FROM canvases c JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main' JOIN canvas_comment_threads t ON t.board_id = b.id";
+const INBOX_MAX = 50;
+async function inbox(req, env) {
+  const viewer = await viewerOf(req, env);
+  if (!viewer?.userId) return refuse('Sign in first.', 'sign_in', 401, { signIn: true });
+  const db = env.LEARN_DB, who = [viewer.userId, viewer.email];
+  const query = (from, where, extra) => `SELECT * FROM (SELECT ${INBOX_COLUMNS}, c.title AS canvas_title, ${extra} ${from} WHERE ${where}) WHERE news > 0 ORDER BY last_activity_at DESC LIMIT 100`;
+  const mine = await db.prepare(query(INBOX_FROM, 'c.org = ?3 AND c.owner_email = ?2', "'owner' AS kind, NULL AS token")).bind(...who, viewer.org).all();
+  const member = await db.prepare(query(`FROM canvas_members m JOIN canvases c ON c.org = m.org AND c.name = m.canvas JOIN learn_boards b ON b.org = c.org AND b.owner_email = c.owner_email AND b.app = c.name AND b.board = 'main'
+      JOIN canvas_comment_threads t ON t.board_id = b.id`, `m.member_user_id = ?1 AND m.status = 'active' AND NOT ${IN_TRASH_TREE('c.org', 'c.name')}`, "'member' AS kind, NULL AS token")).bind(...who).all();
+  // ponytail: public threads elsewhere are found by this person's own posts and mentions (indexed by author and by user), not by scanning every public thread.
+  const open = await db.prepare(query(`${INBOX_FROM} LEFT JOIN canvas_comment_settings s ON s.org = c.org AND s.canvas = c.name`,
+    `t.audience = 'public' AND c.owner_email <> ?2 AND c.archived_at IS NULL AND NOT ${IN_TRASH_TREE('c.org', 'c.name')} AND COALESCE(s.public_mode, 'off') <> 'off'
+      AND EXISTS (SELECT 1 FROM canvas_publications pub WHERE pub.org = c.org AND pub.canvas = c.name)
+      AND NOT EXISTS (SELECT 1 FROM canvas_members cm WHERE cm.org = c.org AND cm.canvas = c.name AND cm.member_user_id = ?1 AND cm.status = 'active')
+      AND NOT EXISTS (SELECT 1 FROM canvas_comment_blocks k WHERE k.org = c.org AND k.canvas = c.name AND k.user_id = ?1)
+      AND (t.created_by = ?1 OR t.id IN (SELECT y.thread_id FROM canvas_comments y WHERE y.author_id = ?1)
+        OR t.id IN (SELECT z.thread_id FROM canvas_comment_mentions mm JOIN canvas_comments z ON z.id = mm.comment_id WHERE mm.user_id = ?1 OR mm.user_email = ?2)
+        OR t.id IN (SELECT g.thread_id FROM canvas_comment_follows g WHERE g.user_id = ?1 AND g.state = 'follow'))`,
+    "'public' AS kind, (SELECT pub.token FROM canvas_publications pub WHERE pub.org = c.org AND pub.canvas = c.name) AS token")).bind(...who).all();
+  const seen = new Set(), rows = [...mine.results, ...member.results, ...open.results].filter(row => !seen.has(row.thread_id) && seen.add(row.thread_id));
+  const hidden = new Set(await hiddenAmong(env, rows.map(row => ({ id: row.thread_id, board_id: row.board_id, anchor_json: row.anchor_json }))));
+  const items = rows.filter(row => !hidden.has(row.thread_id) && row.follow !== 'mute')
+    .map(row => ({ row, reason: row.mentioned ? 'mention' : row.took_part ? 'reply' : row.follow === 'follow' ? 'follow' : row.kind === 'owner' ? 'canvas' : null }))
+    .filter(entry => entry.reason).sort((a, b) => (a.row.last_activity_at < b.row.last_activity_at ? 1 : -1)).slice(0, INBOX_MAX)
+    .map(({ row, reason }) => ({
+      thread_id: row.thread_id, reason, canvas: row.canvas_title, audience: row.audience, news: row.news, status: row.resolved_at ? 'resolved' : 'open',
+      preview: row.first_deleted ? null : (row.first_body || '').slice(0, 200), last_activity_at: row.last_activity_at,
+      link: row.kind === 'public' ? `/e/${row.token}?thread=${row.thread_id}` : `/c/${row.board_id}?thread=${row.thread_id}`,
+    }));
+  return json({ items, count: items.length });
+}
+
+// Follow or mute one thread (migration 0032): `{ state: 'follow' | 'mute' | 'default' }`. Whoever may read and is signed in.
+async function followOf(env, ctx, threadId) {
+  if (!ctx.actor.uid) return null;
+  return (await env.LEARN_DB.prepare('SELECT state FROM canvas_comment_follows WHERE thread_id = ? AND user_id = ?').bind(threadId, ctx.actor.uid).first())?.state ?? null;
+}
+async function setFollow(req, env, ctx, id) {
+  const thread = await threadIn(env, ctx, id);
+  if (!thread) return missingThread();
+  if (!allowed(ctx, 'mark_read', thread.audience)) return refuse('Sign in to follow or mute a thread.', 'sign_in', 401, { signIn: true });
+  const input = await readJson(req);
+  if (!['follow', 'mute', 'default'].includes(input?.state)) return refuse('Choose follow, mute or default.', 'bad_state', 400);
+  const db = env.LEARN_DB;
+  if (input.state === 'default') await db.prepare('DELETE FROM canvas_comment_follows WHERE thread_id = ? AND user_id = ?').bind(thread.id, ctx.actor.uid).run();
+  else await db.prepare('INSERT INTO canvas_comment_follows (thread_id, user_id, state, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT (thread_id, user_id) DO UPDATE SET state = excluded.state, updated_at = excluded.updated_at')
+    .bind(thread.id, ctx.actor.uid, input.state, new Date().toISOString()).run();
+  return json({ follow: input.state === 'default' ? null : input.state });
+}
+
 // Whatever fails inside answers JSON (owner bug, 2026-10-09: an uncaught error reached the browser as the platform's HTML
 // error page, which the panel could only call "Couldn't send."). The error goes to the Worker's logs with its route.
 export async function canvasCommentsRoute(path, req, env) {
@@ -952,6 +1087,7 @@ export async function canvasCommentsRoute(path, req, env) {
 }
 async function commentsRoute(path, req, env) {
   if (path === '/api/learn/comments/unread') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? unreadCounts(req, env) : json({ error: 'Method not allowed' }, 405);
+  if (path === '/api/learn/comments/inbox') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? inbox(req, env) : json({ error: 'Method not allowed' }, 405);
   if (path === '/api/learn/c/shared-with-me') return !env.LEARN_DB ? json({ error: 'Comments need the Learn database on this worker.' }, 503) : req.method === 'GET' ? sharedWithMe(req, env) : json({ error: 'Method not allowed' }, 405);
   let match = path.match(/^\/api\/learn\/c\/([^/]+)(\/.*)?$/), family = 'member';
   if (!match) { match = path.match(/^\/api\/learn\/boards\/shared\/([^/]+)\/comments(\/.*)?$/); family = 'public'; }
@@ -973,8 +1109,10 @@ async function commentsRoute(path, req, env) {
   if (family === 'member' && (part = rest.match(/^\/assets\/([^/]+)$/))) return method === 'GET' ? boardAsset(env, ctx.board, decodeURIComponent(part[1]), req) : not();
   if (rest === '/threads') return method === 'GET' ? listThreads(env, ctx, url.searchParams) : method === 'POST' ? startThread(req, env, ctx) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)$/))) return method === 'GET' ? readThread(env, ctx, part[1], url.searchParams) : method === 'DELETE' ? deleteThread(env, ctx, part[1]) : not();
+  if ((part = rest.match(/^\/threads\/([^/]+)\/follow$/))) return method === 'PUT' ? setFollow(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/color$/))) return method === 'PUT' ? setColor(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/comments$/))) return method === 'POST' ? reply(req, env, ctx, part[1]) : not();
+  if (family === 'member' && (part = rest.match(/^\/threads\/([^/]+)\/public-copy$/))) return method === 'POST' ? publicCopy(req, env, ctx, part[1]) : not();
   if ((part = rest.match(/^\/threads\/([^/]+)\/(resolve|reopen|read)$/))) {
     if (method !== 'POST') return not();
     return part[2] === 'read' ? markRead(env, ctx, part[1]) : resolve(env, ctx, part[1], part[2] === 'reopen');

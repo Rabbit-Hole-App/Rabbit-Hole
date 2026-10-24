@@ -39,6 +39,6 @@ export function newFromOthers(current, changed) {
 // The thread view's data after an answer: a full read (the first, or a reset) replaces it; a since-read merges into it and
 // keeps the loaded older replies and their Earlier replies cursor.
 export function applySync(data, answer) {
-  if (!data || !answer.since) return { thread: answer.thread, messages: answer.messages, before: answer.before ?? null, cursor: answer.cursor ?? null };
-  return { ...data, thread: answer.thread, messages: mergeMessages(data.messages, answer.messages, !!data.before), cursor: answer.cursor ?? data.cursor };
+  if (!data || !answer.since) return { thread: answer.thread, messages: answer.messages, before: answer.before ?? null, cursor: answer.cursor ?? null, follow: answer.follow ?? null };
+  return { ...data, thread: answer.thread, messages: mergeMessages(data.messages, answer.messages, !!data.before), cursor: answer.cursor ?? data.cursor, follow: answer.follow ?? null };
 }

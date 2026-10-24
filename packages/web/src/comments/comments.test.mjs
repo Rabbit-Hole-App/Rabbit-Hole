@@ -543,3 +543,47 @@ test('anchor targets (Comments v2 item 5): what in a card a comment is about, ho
   assert.match(canvas, /onAddComment\?\.\(anchorAt\(world, \(group \|\| entry\) && \{ id, kind, label \}, commentBoard, target\)\);/);
   assert.match(panel, /\{STATE_NOTE\[thread\.anchor_state\] && <p data-anchor-state=\{thread\.anchor_state\}/);
 });
+
+test('D6 public copy: offered on the author\'s own comment in a members thread, the chosen words only, no link back', async () => {
+  const view = read('./PublicCopy.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js');
+  assert.match(api, /publicCopy: \(threadId, body\) => send\(`\$\{base\}\/threads\/\$\{threadId\}\/public-copy`, body\)/);
+  assert.match(view, /readOnly/, 'the words are selected, not edited: the server takes only a verbatim piece of the author\'s own comment');
+  assert.match(view, /\.\.\.\(chosen\.trim\(\) \? \{ text: chosen \} : \{\}\)/, 'nothing selected offers the whole comment');
+  assert.match(view, /Nothing else from this thread is copied: no replies, files, people or history\./);
+  assert.match(panel, /publish && message\.mine && !message\.deleted && \['Share in a new public thread'/, 'only the author, on their own live comment');
+  assert.match(panel, /publish=\{thread\.audience === 'members' && about\.can\.post_public \? \{/, 'only in a members thread, and only where the public rules let this person post');
+  assert.doesNotMatch(view, /thread_id|from_thread|backlink|\.\.\.'|…/, 'no link back, no ellipsis');
+});
+
+test('limits (Comments v2 item 9): one config, a wait the person can read, and a full thread continues in a new one with the person\'s own words', async () => {
+  const limits = await import('./comment-limits.js'), api = await import('./comments-api.js');
+  assert.deepEqual([api.BODY_MAX, api.COUNTER_FROM], [limits.BODY_MAX, limits.COUNTER_FROM], 'the panel\'s counter is the server\'s limit');
+  assert.ok(limits.COUNTER_FROM < limits.BODY_MAX);
+  assert.deepEqual([5, 59, 60, 61, 300, 3599, 3600, 7300].map(api.waitText), ['5 seconds', '59 seconds', 'a minute', '2 minutes', '5 minutes', 'an hour', 'an hour', '3 hours']);
+  assert.equal(api.failureText({ data: { error: 'x', retry_after: 240 } }), "You've posted a lot in a short time. Try again in 4 minutes.");
+  assert.equal(api.failureText({ data: { error: 'Comments are turned off.' } }), 'Comments are turned off.', 'other refusals say what the server said');
+  const panel = read('./CommentsPanel.jsx');
+  assert.match(panel, /full: error\?\.data\?\.code === 'thread_full'/);
+  assert.match(panel, /\{draft\.full && onContinue && <Button size="sm" variant="secondary" data-continue-thread onClick=\{\(\) => onContinue\(draft\.body\)\}>Continue in a new thread<\/Button>\}/);
+  assert.match(panel, /saveDraft\(storage, newKey\(client\.base, thread\.anchor, true\), \{ id: crypto\.randomUUID\(\), body, failed: null \}\)/, 'the person\'s own draft text is carried, nothing of the thread');
+  assert.match(panel, /const newKey = \(base, anchor, carried\) => `\$\{base\}:new:\$\{JSON\.stringify\(anchor\)\}\$\{carried \? ':carried' : ''\}`;/, 'a carried draft never overwrites one already there');
+});
+
+test('inbox and follow (Comments v2 item 6, D4): the Library lists news with its reason, a thread has its own follow control, sync keeps the choice', async () => {
+  const { applySync } = await import('./comment-sync.js');
+  const inbox = read('./CommentInbox.jsx'), panel = read('./CommentsPanel.jsx'), api = read('./comments-api.js'), library = read('../LibraryViews.jsx');
+  assert.match(api, /follow: \(id, state\) => api\(`\$\{base\}\/threads\/\$\{id\}\/follow`, \{ method: 'PUT', body: JSON\.stringify\(\{ state \}\) \}\)/);
+  assert.match(inbox, /fetch\('\/api\/learn\/comments\/inbox'/);
+  assert.match(inbox, /REASONS = \{ mention: 'Mentioned you', reply: 'Replies to you', follow: 'Following', canvas: 'On your canvas' \}/, 'one label per reason the server gives');
+  assert.match(inbox, /if \(!items\?\.length\) return null;/, 'no news, no section');
+  assert.doesNotMatch(inbox, /user_id|owner_email|\.email|\.\.\.'/);
+  assert.match(library, /\{!type && <CommentInbox \/>\}\n?\r?\n?\s*\{!type && <SharedWithYou/, 'the Library lists it above Shared with you');
+  assert.match(panel, /about\.signed_in && \(\s*<select aria-label="Notifications for this thread" data-thread-follow value=\{data\.follow \|\| 'default'\}/);
+  assert.match(panel, /<option value="default">Notifications: default<\/option><option value="follow">Follow<\/option><option value="mute">Mute<\/option>/);
+  // The choice rides every read: a full read sets it, a since-read keeps what the server last said, and none says default.
+  const thread = { id: 't' }, full = applySync(null, { thread, messages: [], cursor: 'c1', follow: 'mute' });
+  assert.equal(full.follow, 'mute');
+  assert.equal(applySync(full, { since: true, thread, messages: [], cursor: 'c2', follow: 'follow' }).follow, 'follow');
+  assert.equal(applySync(full, { since: true, thread, messages: [], cursor: 'c2' }).follow, null);
+  assert.equal(applySync(null, { thread, messages: [], cursor: 'c1' }).follow, null);
+});

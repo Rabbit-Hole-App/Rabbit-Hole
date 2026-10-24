@@ -205,6 +205,13 @@ test('limits: 5,000 characters, per-person rate, the thread cap; a refusal write
   assert.equal((await start(f, base, 'ben', 'two')).status, 201);
   const third = await start(f, base, 'ben', 'three');
   assert.deepEqual([third.status, third.body.limited], [429, true]);
+  // The refusal says when to try again: the oldest post in the full window leaves it ten minutes after it was made.
+  assert.ok(third.body.retry_after >= 1 && third.body.retry_after <= 600, `retry_after ${third.body.retry_after}`);
+  const ages = f.sqlite.prepare("SELECT id FROM canvas_comments WHERE author_id = 'u-ben-9a2b' ORDER BY created_at LIMIT 1").get();
+  f.sqlite.prepare('UPDATE canvas_comments SET created_at = ? WHERE id = ?').run(new Date(Date.now() - 9 * 60_000).toISOString(), ages.id);
+  const soon = await start(f, base, 'ben', 'three again');
+  assert.ok(soon.body.retry_after <= 61, `the oldest is nine minutes old, so about a minute: ${soon.body.retry_after}`);
+  f.sqlite.prepare('UPDATE canvas_comments SET created_at = ? WHERE id = ?').run(new Date().toISOString(), ages.id);
   const tid = second.body.thread.id;
   assert.equal((await comments(f, 'POST', `${base}/threads/${tid}/comments`, { as: 'ana', body: { id: crypto.randomUUID(), body: 'r1' } })).status, 201);
   assert.equal((await comments(f, 'POST', `${base}/threads/${tid}/comments`, { as: 'ana', body: { id: crypto.randomUUID(), body: 'r2' } })).status, 409, 'the thread is full: the cap is checked before the rate');
@@ -748,10 +755,11 @@ test('a canvas deleted for good takes every comment row, count and attached file
   assert.equal((await comments(f, 'PUT', `${base}/comments/${reply}/reactions`, { as: 'ana', body: { emoji: REACTIONS[0], on: true } })).status, 200);
   assert.equal((await comments(f, 'PATCH', `${base}/comments/${reply}`, { as: 'ben', body: { body: 'A reply, edited', mentions: [] } })).status, 200);
   assert.ok(reply);
+  assert.equal((await comments(f, 'PUT', `${base}/threads/${made}/follow`, { as: 'ben', body: { state: 'mute' } })).status, 200);
   f.sqlite.prepare("INSERT INTO canvas_comment_attachments (id, org, canvas, thread_id, comment_id, uploader_id, object_key, name, mime, bytes, created_at) VALUES ('att-1', 'ana-ws', ?, ?, ?, 'u-ben-9a2b', 'comment-attachments/x/att-1', 'p.png', 'image/png', 10, '2026-10-23T00:00:00.000Z')").run(name, made, reply);
   // The comment tables, read from the schema, not listed by hand: any new one fails this test until the purge covers it.
   const tables = f.sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'canvas_comment%' ORDER BY name").all().map(row => row.name);
-  assert.deepEqual(tables, ['canvas_comment_attachments', 'canvas_comment_blocks', 'canvas_comment_colors', 'canvas_comment_edits', 'canvas_comment_mentions', 'canvas_comment_reactions', 'canvas_comment_reads', 'canvas_comment_settings', 'canvas_comment_threads', 'canvas_comment_touches', 'canvas_comments']);
+  assert.deepEqual(tables, ['canvas_comment_attachments', 'canvas_comment_blocks', 'canvas_comment_colors', 'canvas_comment_edits', 'canvas_comment_follows', 'canvas_comment_mentions', 'canvas_comment_reactions', 'canvas_comment_reads', 'canvas_comment_settings', 'canvas_comment_threads', 'canvas_comment_touches', 'canvas_comments']);
   // A file is its own row (canvas_comment_attachments): a message row is text and mentions, nothing else.
   assert.deepEqual(f.sqlite.prepare('SELECT name FROM pragma_table_info(?) ORDER BY cid').all('canvas_comments').map(row => row.name), ['id', 'thread_id', 'author_id', 'author_email', 'body', 'create_hash', 'created_at', 'edited_at', 'deleted_at', 'deleted_by']);
   const rows = () => Object.fromEntries(tables.map(table => [table, f.sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n]));

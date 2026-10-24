@@ -2,8 +2,9 @@
 // works the same on your canvas (member family, by board id) and on a published page (public family, by token).
 import { api } from '../api.js';
 
-export const BODY_MAX = 5000;
-export const COUNTER_FROM = 4500;
+import { BODY_MAX } from './comment-limits.js';
+export { BODY_MAX };
+export { COUNTER_FROM } from './comment-limits.js';
 export const memberBase = boardId => `/api/learn/c/${encodeURIComponent(boardId)}`;
 export const publicBase = token => `/api/learn/boards/shared/${encodeURIComponent(token)}/comments`;
 
@@ -29,6 +30,10 @@ export const commentsApi = base => ({
   remove: id => changed(api(`${base}/comments/${id}`, { method: 'DELETE' })),
   // A file for a post (migration 0031): the raw file as the body; `audience` is the new or existing thread's.
   upload: (file, audience = 'members') => api(`${base}/attachments${audience === 'public' ? '?audience=public' : ''}`, { method: 'POST', body: file, headers: { 'Content-Type': file.type, 'X-File-Name': encodeURIComponent(file.name) } }),
+  // D6: some of my own words from a members thread, as a new public thread (the server copies nothing else).
+  publicCopy: (threadId, body) => send(`${base}/threads/${threadId}/public-copy`, body),
+  // Follow or mute one thread for me (migration 0032): 'follow' | 'mute' | 'default'.
+  follow: (id, state) => api(`${base}/threads/${id}/follow`, { method: 'PUT', body: JSON.stringify({ state }) }),
   react: (id, emoji, on) => send(`${base}/comments/${id}/reactions`, { emoji, on }, 'PUT'),
   history: id => api(`${base}/comments/${id}/history`),
   resolve: (id, reopen) => send(`${base}/threads/${id}/${reopen ? 'reopen' : 'resolve'}`),
@@ -58,9 +63,20 @@ export async function sendDraft(post, draft, fresh = () => crypto.randomUUID()) 
   }
 }
 
+// "a minute", "5 minutes", "2 hours": how long a refusal asks a person to wait (retry_after, in seconds).
+export function waitText(seconds) {
+  const s = Math.max(1, Math.ceil(Number(seconds) || 60));
+  if (s < 60) return `${s} second${s === 1 ? '' : 's'}`;
+  const minutes = Math.ceil(s / 60);
+  if (minutes < 60) return minutes === 1 ? 'a minute' : `${minutes} minutes`;
+  const hours = Math.ceil(minutes / 60);
+  return hours === 1 ? 'an hour' : `${hours} hours`;
+}
+
 // What a failed send says (section 11). Offline never sends by itself: Retry is the one send control.
 export function failureText(error, online = true) {
   if (!online || error instanceof TypeError) return "You're offline. Your reply is saved here. Press Retry when you're back.";
+  if (error?.data?.retry_after) return `You've posted a lot in a short time. Try again in ${waitText(error.data.retry_after)}.`;
   return error?.data?.error || (error?.status ? `Couldn't send (HTTP ${error.status}).` : "Couldn't send.");
 }
 
