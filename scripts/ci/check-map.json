@@ -548,6 +548,7 @@
     "packages/web/src/learn-drop.js": ["drop-ui-check.mjs","canvas-file-drop-check.mjs","canvas-editing-check.mjs","repo-browser-check.mjs"],
     "packages/web/src/file-capabilities.js": ["canvas-file-drop-check.mjs","drop-ui-check.mjs","canvas-editing-check.mjs","repo-browser-check.mjs","pdf-long-check.mjs"],
     "packages/web/e2e/large-video-fixture.mjs": ["canvas-file-drop-check.mjs"],
+    "packages/web/e2e/upload-response.mjs": ["canvas-file-drop-check.mjs"],
     "packages/control-plane/src/learn-files.js": ["file-sources-check.mjs","file-edge-check.mjs"],
     "packages/control-plane/src/file-access.js": ["file-sources-check.mjs"],
     "packages/web/src/learn-file-import.js": ["drop-ui-check.mjs","canvas-file-drop-check.mjs","canvas-editing-check.mjs","repo-browser-check.mjs"],

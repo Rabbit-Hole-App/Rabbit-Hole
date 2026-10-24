@@ -8,8 +8,10 @@ import { chromium } from '@playwright/test';
 // the page's check (canvas-file-imports.md section 7; the fixture is generated, large-video-fixture.mjs).
 // Usage: BASE=http://127.0.0.1:8878 SMALL_CP=http://127.0.0.1:8879 [VARS=<.dev.vars>] node e2e/canvas-file-drop-check.mjs
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { largeVideo } from './large-video-fixture.mjs';
+import { classifyUpload } from './upload-response.mjs';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8878';
 const CP = process.env.SMALL_CP || 'http://127.0.0.1:8879';
@@ -222,38 +224,54 @@ const notVideo = await raw(`bypass:${run}:fake`, new Uint8Array(30 * MiB));
 ok('30 MiB that only claims to be a video is refused', notVideo.status === 415, String(notVideo.status));
 const afterFake = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
 ok('the refused fake-video upload was not stored', !afterFake.includes(`bypass:${run}:fake`));
-const exact = await raw(`bypass:${run}:exact`, webmOf(50 * MiB));
-ok('exactly 50 MiB is accepted by the server', exact.status === 200 && (await exact.json()).size === 50 * MiB, String(exact.status));
+// Every raw upload's answer goes through classifyUpload (upload-response.mjs): pass, a narrow recognized transport loss, or
+// a failure that prints status, content type, a body excerpt and the stack's log lines for it.
+const answer = (request, expected) => request.then(async response => {
+  const seen = { status: response.status, contentType: response.headers.get('content-type') || '' };
+  try { return classifyUpload({ ...seen, text: await response.text() }, expected); } catch (error) { return classifyUpload({ ...seen, error }, expected); }
+}, error => classifyUpload({ error }, expected));
+// The gate passes the shots directory beside the stack's app.log (int35.sh: node e2e/<check> $F/<stage>-shots-r35).
+const appLog = process.argv[2] ? join(process.argv[2], '..', 'app.log') : null;
+const serverLog = () => {
+  let lines;
+  try { lines = readFileSync(appLog, 'utf8').split(/\r?\n/).slice(-400); } catch { return console.log(`info server log: no app.log beside ${process.argv[2] || 'the shots directory (none given)'}`); }
+  // Only request and exception lines: wrangler's error dumps also print the Worker config.
+  const relevant = lines.filter(line => /ProxyWorker|uncaught exception|Network connection lost|assets\/bypass/.test(line)).slice(-15);
+  console.log(`info server log, last ${relevant.length} request/exception lines of app.log:`);
+  for (const line of relevant) console.log(`info   ${line.slice(0, 300)}`);
+};
+const okUpload = (name, result, condition = result.outcome === 'pass') => { ok(name, condition, result.detail); if (!condition) serverLog(); };
+const exact = await answer(raw(`bypass:${run}:exact`, webmOf(50 * MiB)), { status: 200 });
+okUpload('exactly 50 MiB is accepted by the server', exact, exact.outcome === 'pass' && exact.body?.size === 50 * MiB);
 // The Worker answers this refusal at once, while 50 MiB are still streaming in. Through `wrangler dev` (workerd and its proxy
 // worker) that early answer was lost in transit in about 7% of sends (a reset, or a chunked 413 that ended before its body)
-// when the Worker cancelled the request body first; upload-body.js no longer does. Send again until one complete answer
-// arrives, and assert that answer as before: status 413 and the stable error text.
+// when the Worker cancelled the request body first; upload-body.js no longer does. Send again only after a recognized
+// transport loss, until one complete answer arrives, and assert that answer as before: status 413 and the stable error text.
 const refusedUpload = async (key, size) => {
+  let result;
   for (let attempt = 1; attempt <= 5; attempt += 1) {
-    try {
-      const response = await raw(key, webmOf(size));
-      const text = await response.text();
-      if (text) return { status: response.status, body: JSON.parse(text) };
-      console.log(`info attempt ${attempt}: ${response.status} with an empty body (response cut short in transit), sending again`);
-    } catch (error) { console.log(`info attempt ${attempt}: ${error.cause?.code || error.message}, sending again`); }
+    result = await answer(raw(key, webmOf(size)), { status: 413, error: /over 50 MiB/ });
+    if (result.outcome !== 'transport-limited') return result;
+    console.log(`info attempt ${attempt}: ${result.detail}, sending again`);
   }
-  return { status: 0, body: {} };
+  return result;
 };
 const over = await refusedUpload(`bypass:${run}:over`, 50 * MiB + 1);
-ok('50 MiB + 1 byte is refused by the server', over.status === 413 && /over 50 MiB/.test(over.body.error), String(over.status));
+okUpload('50 MiB + 1 byte is refused by the server', over);
 const chunks = webmOf(50 * MiB + 1);
-// Without a length the Worker stops at its separate 1 MiB fallback limit and returns 411. Some local transports reset
-// the connection while this larger body is still being sent; that proves no status contract, only refusal plus the
-// no-stored-object assertion below. The isolated workerd boundary check covers the exact fallback independently.
-const chunked = await raw(`bypass:${run}:chunked`, new ReadableStream({ start(controller) { for (let at = 0; at < chunks.length; at += 4 * MiB) controller.enqueue(chunks.slice(at, at + 4 * MiB)); controller.close(); } }))
-  .then(async response => {
-    const text = await response.text().catch(() => '');
-    if (!text && response.status === 411) return { closed: 'the 411 arrived without its body' };
-    return { status: response.status, body: text ? JSON.parse(text) : {} };
-  }, error => ({ closed: error.cause?.code || error.message }));
-if (chunked.closed) console.log(`info no-length transport closed (${chunked.closed}); fallback status unobserved, checking no stored object`);
-ok('an upload without Content-Length requires a length past the fallback limit (or closes without storing)',
-  (chunked.status === 411 && chunked.body?.error === 'Send this file with its Content-Length.') || !!chunked.closed, JSON.stringify(chunked));
+// Without a length the Worker stops at its separate 1 MiB fallback limit and returns 411. A recognized transport loss here
+// (upload-response.mjs) is reported as TRANSPORT-LIMITED, not as a pass: the 411 was not seen. The exact no-length boundary
+// is asserted separately (control-plane test/learn-boards.test.js, "(c) 1048577 without a length"); the listing below
+// still proves nothing was stored.
+const chunked = await answer(raw(`bypass:${run}:chunked`, new ReadableStream({ start(controller) { for (let at = 0; at < chunks.length; at += 4 * MiB) controller.enqueue(chunks.slice(at, at + 4 * MiB)); controller.close(); } })),
+  { status: 411, error: 'Send this file with its Content-Length.' });
+const noLength = 'an upload without Content-Length requires a length past the fallback limit';
+let transportLimited = 0;
+if (chunked.outcome === 'transport-limited') {
+  transportLimited += 1;
+  console.log(`TRANSPORT-LIMITED  ${noLength}  (${chunked.detail}; the 411 refusal for this probe was NOT demonstrated; the no-length boundary rests on learn-boards.test.js (c), storage on the listing below)`);
+  serverLog();
+} else okUpload(noLength, chunked);
 const listed = (await (await fetch(`${ownBoard}/assets`, { headers: authed })).json()).keys || [];
 ok('neither refused upload was stored', listed.includes(`bypass:${run}:exact`) && !listed.includes(`bypass:${run}:over`) && !listed.includes(`bypass:${run}:chunked`), listed.filter(key => key.startsWith('bypass:')).join(', '));
 
@@ -265,5 +283,5 @@ const seen = (await Promise.all(page.frames().filter(f => /canvas-notebook/.test
 ok('the notebook card was opened with its cells and never told to run', seen.includes('init') && !seen.includes('run-all'), seen.join(', '));
 
 await browser.close();
-console.log(failed ? `${failed} FAILED` : 'all passed');
+console.log(failed ? `${failed} FAILED` : transportLimited ? `all passed; ${transportLimited} transport-limited (refusal not demonstrated)` : 'all passed');
 process.exit(failed ? 1 : 0);
