@@ -68,12 +68,12 @@ id IS the generation id and another person's lookup reaches an empty object (404
 
 Status, inspect and retry-save keep working with the flag off: disabling stops new submissions only.
 
-Integration note for the contract lane: the default `verify` is `verifyProposal` from `generation-proposal.js`, which on main does
-not sign `generate-image` and rejects the v3 fields, so this route refuses every image proposal until the UI-15.1 v3 envelope adds
-`generate-image` (tested: the default-verify case in `the approval is enforced before anything is consumed or reserved`). The
-contract should sign `quote` from `imageQuote(env, settings, references.length, promptBytes)` in `image-providers.js`, so the
-server can recompute and compare it here. The model table here and `IMAGE_MODELS` in the web schema must agree; the server's is
-the one enforced.
+Integration (branch `image/int`, 2026-10-23): the default `verify` is `verifyImageProposal` (generation-proposal.js), which accepts only a
+v3-signed `generate-image` proposal. The server makes that proposal itself, with no model call: `POST /api/learn/chat/image-proposals`
+(chat-proposal-route.js) takes `{ app, thread_id, prompt (with reference pills), settings, references?, title? }`, validates the settings
+with the canonical schema, signs a v3 proposal whose `quote` is the server's own `imageQuote()` (never a client's; `null` when unknown) and
+stores it as an answer row with its one-shot state, so the card's GET/PUT, revisions (which re-quote) and `consumeProposal` are the ones
+chat proposals use. Off with the same 503 `image_generation_disabled`. `readiness` (unsigned, like `usage`) is `imageReadiness()`.
 
 ## 4. Recovery matrix
 
@@ -162,6 +162,24 @@ out $30/M; Pro input $2/M, text and thinking $12/M, image $120/M; GPT Image 2.5 
 quote table (`PRICES`) is separate and unchanged. Real-payload bounds: C (Nano Banana 2.1, 14 text in, out 1439, image 1120, thought
 1000) $0.063621; D (Pro, 14 in, out 1218, image 1120, thought 80) $0.146188; E (Nano Banana 2.1, 14 text + 1120 image in, out 1407, image
 1120, thought 497) $0.050211; OpenAI A $0.005975 and B $0.010171 are measured.
+
+## 6b. Validated combinations (image-settings.js)
+
+Every option stays visible. Only combinations a live acceptance run covered (runs A to E, 2026-10-23; receipts `C:/s/img-01-accept/receipts`) may
+be generated; any other shows its reason on the card before confirmation (`readiness`, Generate disabled) and is refused by the route with 409
+`image_not_ready`, before the quote, the references and the consume. The list is data (`IMAGE_VALIDATED`, with its evidence); extending it needs a
+new run.
+
+| Model | Operation | Quality | Ratio, resolution | References | Run |
+|---|---|---|---|---|---|
+| gpt-image-2.5-flare | generate | low | 1:1, 1K (1024x1024) | 0 | A |
+| gpt-image-2.5-sunburst | edit | low | 1:1, 1K (1024x1024) | up to 2 | B |
+| gemini-nano-banana-2.1 | generate | none | 1:1, 1K | 0 | C |
+| gemini-3-pro-image | generate | none | 1:1, 1K | 0 | D |
+| gemini-nano-banana-2.1 | edit | none | 1:1, 1K | up to 1 | E |
+
+Ready is not startable: OpenAI has no price row and Nano Banana 2.1 with references has no per-image input price, so those stay `quote_unknown`
+(card: Price not available yet) until the owner approves a price row. Today the startable set is Nano Banana 2.1 generate and Pro generate.
 
 ## 7. Configuration and migration
 

@@ -87,6 +87,8 @@ function harness(t, envPatch = {}) {
     board: async () => ({ owner: { org: OWNER.org, email: OWNER.email }, row: { id: 'board-1' } }),
     source: async (req, e, id) => { const s = sqlite.prepare('SELECT * FROM file_sources WHERE id = ?').get(id); return s ? { source: { ...s } } : new Response(null, { status: 404 }); },
     verify: async (e, p) => (p.sig === 'fixture-signed' ? null : 'This proposal was not made for you, or it was changed. Ask for it again in chat.'),
+    // Readiness (image-settings.js) is tested on its own below; the lifecycle tests use combinations the live runs did not cover.
+    ready: () => ({ ready: true }),
     consume: async (db_, p, user, dest, key) => { const used = consumed.get(p.proposal_id); if (used && used !== key) return { error: 'used', code: 'proposal_used' }; consumed.set(p.proposal_id, key); return null; },
   };
   const proposal = (patch = {}) => {
