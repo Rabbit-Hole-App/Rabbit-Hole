@@ -19,6 +19,8 @@
 //  13. the commands that answered with a prompt (/simplify, /deeper, /example, /ask, /teach) are removed (owner, 2026-10-20, L7):
 //      typed in Auto and in Ask each says it is unavailable, makes no pill and sends no Tutor plan or /api/learn/ask
 //  14. a pill line sent while another command runs stays in the composer and runs once that ends
+//  15. a line typed while the saved chat is still restoring (its GET held by the router until released) stays in the composer when the
+//      history lands, and is saved to the restored thread (owner decision A, 2026-10-22; chat-restore-draft.test.mjs is the unit twin)
 // Before this change step 1 fails: a / line never shows as a message. Step 14 fails on be869fa1 and main e3fc9671 (L1b): the
 // pill and its words clear and nothing is sent. /api/learn/ask and the Tutor plan get canned answers here.
 // Usage: BASE=http://127.0.0.1:9141 SMALL_CP=http://127.0.0.1:9143 VARS=<cp .dev.vars> node e2e/chat-outputs-check.mjs [shotsDir]
@@ -88,11 +90,12 @@ const artifacts = [], refused = [], outside = [], errors = [];
 // Steps 13-14: any chat turn a command would make (/api/learn/ask bodies, Tutor plans), and a gate that holds /api/learn/artifact so a
 // command is still running.
 const asks = [], plans = [];
-let artifactHold = null;
+let artifactHold = null, threadHold = null; // threadHold: the saved thread's GET, held until step 15 releases it
 const MODEL = /^\/api\/(ask$|repositories\/[^/]+\/ask$|learn\/(ask|selection|board$|tutor\/|assess|grade|home-ask|image|inline\/|journey|scene|video|transcribe|tts|voice\/|dive|explore|course))/;
 const router = async route => {
   const request = route.request(), url = new URL(request.url());
   if (url.origin !== BASE && !['data:', 'blob:'].includes(url.protocol)) { outside.push(url.hostname); return route.abort(); }
+  if (threadHold && request.method() === 'GET' && /^\/api\/ask\/threads\/[^/]+$/.test(url.pathname)) await threadHold;
   if (url.pathname === '/api/learn/artifact') { artifacts.push(request.postDataJSON()); await artifactHold; return route.fulfill({ json: { result: 'artifact', primitive: 'explanation', block: { type: 'explanation', title: 'A token id is only an index', body: 'The embedding table turns the index into a vector.' } } }).catch(() => {}); }
   if (url.pathname === '/api/learn/ask') { const body = request.postDataJSON(); asks.push(body); return route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream' }, body: `event: chunk\ndata: ${JSON.stringify({ text: 'Canned answer.' })}\n\nevent: done\ndata: ${JSON.stringify({ threadId: body.thread_id })}\n\n` }); }
   if (url.pathname === '/api/learn/tutor/plan') { plans.push(request.postDataJSON()); return route.fulfill({ json: { strategy: 'none', constraints_add: [], actions: [{ type: 'respond_text', text: 'Canned Tutor reply.' }] } }); }
@@ -105,7 +108,7 @@ const router = async route => {
 };
 
 const results = [];
-const total = 14;
+const total = 15;
 let page = null;
 const step = async (name, fn) => {
   try { await fn(); results.push(true); console.log(`ok ${results.length}. ${name}`); }
@@ -395,6 +398,27 @@ await step('a pill line sent while another command runs stays in the composer an
     assert.deepEqual([artifacts.length, asks.length], [before + 1, asked], 'it ran once, as its card command');
     await composerClear(page);
   } finally { release(); artifactHold = null; }
+  await context.close();
+});
+
+// Owner decision A, 2026-10-22: the saved chat restores after the board, and a line typed before it lands used to be replaced by the
+// thread's own (empty) draft (fast-e2e 40048376786). The thread's GET is held, so the order is the check's, not the network's.
+await step('a line typed while the saved chat is still restoring stays in the composer when the history lands, and is saved to that thread', async () => {
+  const LINE = 'softmax typed while the chat loads';
+  let release = () => {};
+  threadHold = new Promise(done => { release = done; });
+  try {
+    ({ context, page } = await open());
+    await page.locator('[data-chat-pane][data-chat-restore="loading"]').waitFor();
+    await composerOf(page).fill(LINE);
+    assert.equal(await composerOf(page).inputValue(), LINE);
+    release(); threadHold = null;
+    await page.locator('[data-chat-pane][data-chat-restore="ready"]').waitFor();
+    await bubble(page, CAD_LINE).waitFor();
+    assert.equal(await composerOf(page).inputValue(), LINE, 'the restore kept the line typed meanwhile');
+    await until(async () => (await thread())?.draft?.text === LINE, 'the line was not saved to the restored thread');
+    await page.screenshot({ path: `${OUT}/15-typed-while-restoring-${THEME}.png` });
+  } finally { release(); threadHold = null; }
   await context.close();
 });
 await browser.close();
