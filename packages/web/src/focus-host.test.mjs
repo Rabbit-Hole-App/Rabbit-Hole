@@ -98,7 +98,7 @@ test('which kinds show a Focus control, and their names', () => {
   assert.equal(name({ type: 'video', videoId: 'abc' }), 'Focus video');
   assert.equal(name({ type: 'file', kind: 'clip' }), 'Focus video');
   assert.equal(name({ type: 'file', kind: 'model' }), 'Focus 3D model');
-  assert.equal(name({ type: 'cad' }), 'Focus CAD model', 'ready, but not imported by focus-adapters.js (deferred)');
+  assert.equal(name({ type: 'cad' }), 'Focus CAD model', 'the CAD adapter label');
   for (const type of ['quiz', 'flashcards', 'challenge', 'code', 'snippet', 'audio', 'wiki', 'webpage', 'heading', 'divider', 'canvas-ref', 'repo-code', 'repo-graph', 'graph', 'flow', 'mermaid', 'knowledge', 'whiteboard', 'model3d', 'scene', 'notebook'])
     assert.equal(name({ type }), null, `${type} has no WP4 Focus control`);
   for (const kind of ['attachment', 'audio', 'markdown']) assert.equal(name({ type: 'file', kind }), null, `file ${kind}`);
