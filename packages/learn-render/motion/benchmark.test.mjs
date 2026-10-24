@@ -42,6 +42,18 @@ test('the ledger refuses a call that could pass the ceiling, counts calls in fli
   assert.throws(() => budgetLedger(file, 2), /opened with a \$1 ceiling/);
 });
 
+test('a call is settled before its response is handed back: the next call is judged against the real spend, not a finished call still in flight', async () => {
+  const ledger = budgetLedger(join(mkdtempSync(join(tmpdir(), 'm8-ledger-')), 'ledger.json'), 2);
+  const call = ledger.guard(async () => usage(1000, 1000), { case: 'X', renderer: 'r' });
+  const author = { max_tokens: 64000, messages: [] };
+  // Each Author-sized call is reserved at about .3; the second fits only because the first has settled at its real /usr/bin/bash.024.
+  const first = await call({}, author, 'claude-opus-5-5');
+  assert.equal(ledger.reserved, 0);
+  const second = await call({}, author, 'claude-opus-5-5');
+  assert.deepEqual([first.status, second.status], [200, 200]);
+  assert.equal(ledger.spent, +(2 * (1000 * 4 + 1000 * 20) / 1e6).toFixed(6));
+});
+
 test('the plan stage stops at the Author with a validated brief and storyboard; anything else is no plan', async () => {
   const stop = await freezeAtAuthor();
   assert.equal(stop.error, PLAN_FROZEN);

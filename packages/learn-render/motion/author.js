@@ -87,9 +87,21 @@ export function authorContext(brief, storyboard) {
   };
 }
 
+// The Author's output grows with the storyboard, and most of it is thinking (adaptive thinking at effort high). Measured on real runs
+// (M1 to M3, 2026-10-23/24, claude-opus-5-5): 29058 output tokens for 23 object-beat occurrences (a 16239 byte source), 40304 for 31 (19162
+// bytes), and 64000 = the cap, source never delivered, for 57. That is about 1300 output tokens per occurrence; a source is only about 700
+// bytes (about 230 tokens) per occurrence, the rest is thinking. A call that hits the cap wastes its whole price and cannot be sent again
+// inside the per-job ceiling, so the effort is chosen BEFORE the call: high while the expected output fits 75 percent of the cap, medium above.
+// ponytail: only the high rate is measured; medium's rate is checked by the next real run over the threshold (the M3 retry).
+export const AUTHOR_OUTPUT_CAP = 64000;
+export const AUTHOR_TOKENS_PER_OCCURRENCE = 1300;
+export const AUTHOR_OUTPUT_BUDGET = AUTHOR_OUTPUT_CAP * 0.75;
+export const storyboardOccurrences = storyboard => storyboard.beats.reduce((n, b) => n + b.visible_objects.length, 0);
+export const authorEffort = (storyboard, requested = 'high') => (requested === 'high' && storyboardOccurrences(storyboard) * AUTHOR_TOKENS_PER_OCCURRENCE > AUTHOR_OUTPUT_BUDGET ? 'medium' : requested);
+
 // 64000: at effort high the first real softmax call spent 32000 tokens (mostly thinking) before
 // finishing its tool call (2026-10-04); streaming keeps a long generation safe.
-export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 64000, repair = null, renderer = DEFAULT_RENDERER } = {}) {
+export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = AUTHOR_OUTPUT_CAP, repair = null, renderer = DEFAULT_RENDERER } = {}) {
   const base = authorContext(brief, storyboard);
   const hf = renderer === 'hyperframes';
   const ask = `Implement this storyboard${hf ? ' as a HyperFrames composition' : ''}.\n\ninput = ${JSON.stringify(hf ? { ...base, renderer: hfRendererFacts(base) } : base)}`;
@@ -97,7 +109,7 @@ export function authorRequest(brief, storyboard, { effort = 'high', maxTokens = 
     max_tokens: maxTokens,
     stream: true, // a long generation never waits on a silent connection (stream-message.js)
     thinking: { type: 'adaptive' },
-    output_config: { effort },
+    output_config: { effort: authorEffort(storyboard, effort) },
     fallbacks: 'default',
     betas: ['server-side-fallback-2026-07-01'],
     system: [{ type: 'text', text: hf ? hfAuthorSystem(stageOf(brief)) : authorSystem(stageOf(brief)), cache_control: { type: 'ephemeral' } }],
