@@ -44,6 +44,7 @@ export const contain = (frame, host, media) => (media ? containBox(frame, mediaF
 const CSS = `[data-card-slot]:has(>[data-focus-host]){z-index:40}
 [data-focus-host]>[data-scroll]{flex:1 1 0%!important;min-height:0!important;max-height:none!important;overflow:auto!important}
 [data-focus-host] [data-pointer-body] iframe{pointer-events:auto!important}
+[data-focus-host]{rotate:none!important}
 [data-focus-host][data-item-id]{overflow:auto!important;padding:16px;border-color:var(--color-line);background:var(--color-surface);box-shadow:0 4px 16px rgb(0 0 0/0.12)}`;
 const VARS = ['--focus-w', '--focus-h', '--focus-mb', '--focus-transform'];
 // host -> { height: its in-flow height when Focus began (the footprint the column keeps), scroll: had data-scroll before }

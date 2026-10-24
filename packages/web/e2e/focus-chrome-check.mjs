@@ -97,7 +97,8 @@ await check('1 The selected notebook shows Focus notebook in its toolbar (32 to 
   const size = await button.evaluate(node => { const r = node.getBoundingClientRect(), after = getComputedStyle(node, '::after'); return { h: r.height, hitW: r.width + parseFloat(after.left) * -1 + parseFloat(after.right) * -1, hitH: r.height + parseFloat(after.top) * -1 + parseFloat(after.bottom) * -1 }; });
   assert.ok(size.h >= 32 && size.h <= 36, `visual height ${size.h}`);
   assert.ok(size.hitW >= 44 && size.hitH >= 44, `press target ${size.hitW} x ${size.hitH}`);
-  const heading = await page.locator('[data-block-id="hd"]').boundingBox();
+  // By its drag strip: the heading's text is an editor that keeps its own press (HeadingCard stops it), and its own menu.
+  const heading = await page.locator('[data-block-id="hd"] [data-drag-handle]').boundingBox();
   await page.mouse.click(heading.x + heading.width / 2, heading.y + heading.height / 2);
   await until(async () => (await selectedIds()).includes('hd'), 'the heading is selected');
   assert.equal(await page.locator('[data-focus-button]').count(), 0, 'no Focus button on the heading');

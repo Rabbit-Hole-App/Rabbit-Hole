@@ -165,13 +165,14 @@ await check('1 Each supported kind, selected, shows its own labelled Focus contr
     await select(id);
     await focusButton(name).waitFor({ timeout: 5000 });
     assert.ok(await focusButton(name).isVisible(), `${id}: ${name}`);
-    const names = await page.getByRole('button', { name: /^Focus / }).evaluateAll(nodes => nodes.filter(node => node.offsetParent).map(node => node.getAttribute('aria-label') || node.textContent.trim()));
+    // Scoped to the selection actions: the canvas header's board-name button (this board is named Focus adapters <run>) is no Focus control.
+    const names = await page.locator('[data-selection-bar]').getByRole('button', { name: /^Focus / }).evaluateAll(nodes => nodes.filter(node => node.offsetParent).map(node => node.getAttribute('aria-label') || node.textContent.trim()));
     assert.deepEqual([...new Set(names)], [name], `${id}: only its own Focus control (${names.join(', ')})`);
   }
   for (const id of ['qz', 'cad']) {
     await select(id);
     await page.waitForTimeout(300);
-    assert.equal(await page.getByRole('button', { name: /^Focus / }).count(), 0, `no Focus control on ${id}`);
+    assert.equal(await page.locator('[data-selection-bar]').getByRole('button', { name: /^Focus / }).count(), 0, `no Focus control on ${id}`);
   }
 });
 

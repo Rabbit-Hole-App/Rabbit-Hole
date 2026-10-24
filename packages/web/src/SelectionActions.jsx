@@ -45,9 +45,11 @@ function Actions({ ctx, mode, className = '', style }) {
     <div role="toolbar" aria-label="Selection actions" data-selection-bar={mode} data-thumbnail-hide style={style}
       onPointerDown={event => { event.preventDefault(); event.stopPropagation(); }}
       className={`pointer-events-auto flex w-max items-center gap-0.5 rounded-lg border border-line bg-white p-0.5 shadow-md ${className}`}>
+      {/* Icon only, 32 px, its margin box the 28 px of the other actions (-my-0.5): the row keeps its 34 px height and nearly its
+          width, so a first-row card's row still centres below the floating header's buttons and does not wrap upward. */}
       {ctx.focusLabel && <button type="button" aria-label={ctx.focusLabel} title={ctx.focusLabel} onClick={ctx.onFocus} data-focus-button
-        className="relative flex h-8 cursor-pointer items-center gap-1.5 rounded-lg px-2 text-xs font-medium whitespace-nowrap text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
-        <Maximize size={16} strokeWidth={1.8} aria-hidden="true" />Focus
+        className="relative -my-0.5 flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink after:absolute after:-inset-1.5 not-last:mr-1.5 hover:bg-hover focus-visible:ring-2 focus-visible:ring-[#2383e2]/40 focus-visible:outline-none">
+        <Maximize size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>}
       {ctx.onAddToChat && <Action label={ctx.added ? 'Added to chat' : 'Add to chat'} chord="add-to-chat" Icon={ctx.added ? Check : MessageSquarePlus} mac={ctx.mac} onClick={ctx.onAddToChat} data-add-to-chat data-added={ctx.added || undefined} />}
       {ctx.onQuickEdit && <Action label="Quick Edit" chord="quick-edit" Icon={Wand} mac={ctx.mac} onClick={ctx.onQuickEdit} data-quick-edit />}

@@ -2309,7 +2309,9 @@ export default function AdaptiveCanvas({ exchanges, onMove, onSearch = null, bot
         setSelection([]);
         return true;
       },
-      exitFocus: () => dispatchFocus({ type: 'exit' }),
+      // The adapter's exit and the navigation restore run now, not after the next commit, so a camera or selection command
+      // issued right after (Study's Locate on canvas) is never undone by the restore.
+      exitFocus: () => { focusShown.current = syncFocus(focusShown.current, null, { view: viewRef.current, readOnly: readOnlyRef.current, restore: saved => commandsRef.current.restoreNavigation(saved) }); dispatchFocus({ type: 'exit' }); },
       focusState: () => focusSnapshot(focusRef.current),
       // A Search result dropped on the canvas (search-drag.js): this same object, its top-left at a world point, one undo step.
       moveTo: (id, spot) => {

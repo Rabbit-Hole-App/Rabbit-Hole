@@ -126,3 +126,16 @@ test('CAD, wheel and pill: the seam keeps a focused card usable', async () => {
   assert.match(canvas, /event\.target\.closest\?\.\('\[data-focus-host\]'\) \|\| \(event\.target\.closest\?\.\('\[data-scroll\]'\)/, 'a focused card scrolls inside itself');
   assert.match(canvas, /<SelectionActionsProvider [^>]*hidden=\{!!inline \|\| presenting !== null \|\| !!focus\}/, 'no selection pill while focused');
 });
+
+// fast-e2e 40083477849: the Focus button made the selected card's row 38 px tall (h-8 in a 28 px row), so on a first-row card
+// the row's centre rose under the floating header's buttons (panel-header, focus-adapters step 2), and its visible "Focus" text
+// changed what the card reads (dive). And Study's Locate ran before the exit's restore, which then undid its camera.
+test('the Focus button keeps the row 34 px and adds no words; exitFocus restores at once', async () => {
+  const { readFileSync } = await import('node:fs');
+  const bar = readFileSync(new URL('./SelectionActions.jsx', import.meta.url), 'utf8');
+  const button = bar.match(/\{ctx\.focusLabel && <button[^]*?<\/button>\}/)?.[0] || '';
+  assert.match(button, /className="relative -my-0\.5 flex h-8 w-8 /, '32 px visual, a 28 px margin box like the other actions');
+  assert.match(button, /<Maximize size=\{16\} strokeWidth=\{1\.8\} aria-hidden="true" \/>\n\s+<\/button>/, 'icon only: the name is the aria-label');
+  const canvas = readFileSync(new URL('./AdaptiveCanvas.jsx', import.meta.url), 'utf8');
+  assert.match(canvas, /exitFocus: \(\) => \{ focusShown\.current = syncFocus\(focusShown\.current, null, \{[^}]*restore: saved => commandsRef\.current\.restoreNavigation\(saved\) \}\); dispatchFocus\(\{ type: 'exit' \}\); \}/);
+});
