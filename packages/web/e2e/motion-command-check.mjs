@@ -896,7 +896,7 @@ for (const theme of ['light', 'dark']) {
       assert.equal(await card.locator('[data-proposal-duration]').inputValue(), '45', 'never clamped');
       const why = card.locator('[data-proposal-error-path="readiness"]');
       await why.waitFor({ timeout: 5000 });
-      assert.match(await why.innerText(), /A 45 second video is not ready to generate yet/);
+      assert.match(await why.innerText(), /A 45 second 16:9 video is not ready to generate yet/);
       assert.equal(await card.locator('[data-proposal-generate]').isDisabled(), true, 'Generate is disabled while not ready');
       assert.equal(await card.locator('[data-proposal-duration]').isDisabled(), false, 'the duration stays selectable');
       await card.locator('[data-proposal-duration]').selectOption('30');
