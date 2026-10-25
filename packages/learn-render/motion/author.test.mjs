@@ -248,6 +248,10 @@ test('the Author effort is chosen before the call from the storyboard size: the 
   assert.equal(storyboardOccurrences(sized(57)), 57);
   assert.deepEqual([23, 31, 36].map(n => authorEffort(sized(n))), ['high', 'high', 'high'], 'sizes that completed at high keep high (36 x 1300 is exactly 75 percent of the cap)');
   assert.deepEqual([37, 57].map(n => authorEffort(sized(n))), ['medium', 'medium']);
+  // Longer videos spend more per appearance (M3-r4: 31 appearances at 60 s hit the 64000 cap at high): above 30 s the estimate is 2100 each.
+  assert.deepEqual([23, 31, 36].map(n => authorEffort(sized(n), 'high', 30)), ['high', 'high', 'high'], 'up to 30 s the measured sizes stay high');
+  assert.deepEqual([22, 23, 31, 40].map(n => authorEffort(sized(n), 'high', 60)), ['high', 'medium', 'medium', 'medium']);
+  assert.equal(authorEffort(sized(31), 'high', 45), 'medium');
   assert.equal(authorEffort(sized(57), 'low'), 'low', 'only the default is stepped down');
   const brief = A.brief(), real = A.storyboard();
   assert.equal(authorRequest(brief, real).output_config.effort, 'high', 'the reference storyboard (' + storyboardOccurrences(real) + ' occurrences)');

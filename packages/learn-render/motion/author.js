@@ -126,9 +126,15 @@ export function authorContext(brief, storyboard) {
 // ponytail: only the high rate is measured; medium's rate is checked by the next real run over the threshold (the M3 retry).
 export const AUTHOR_OUTPUT_CAP = 64000;
 export const AUTHOR_TOKENS_PER_OCCURRENCE = 1300;
+// Output per appearance is NOT constant: it grows with the duration. At effort high, 60 s videos took 1538 (33 appearances, 50770 tokens),
+// at least 2065 (31 appearances, the 64000 cap hit, M3-r4 2026-10-25), against 1263 to 1300 at 15 and 30 s
+// (M1, M2) and 1130 (M2 retry, 27 at 30 s). Above 30 s the estimate is 2100 per appearance, which sends every 60 s storyboard of 23 or more
+// appearances to medium (one sample at 60 s: 40 appearances, 39679 tokens, 990 each, rendered a preview).
+export const AUTHOR_TOKENS_PER_OCCURRENCE_LONG = 2100;
+export const LONG_SECONDS = 30;
 export const AUTHOR_OUTPUT_BUDGET = AUTHOR_OUTPUT_CAP * 0.75;
 export const storyboardOccurrences = storyboard => storyboard.beats.reduce((n, b) => n + b.visible_objects.length, 0);
-export const authorEffort = (storyboard, requested = 'high') => (requested === 'high' && storyboardOccurrences(storyboard) * AUTHOR_TOKENS_PER_OCCURRENCE > AUTHOR_OUTPUT_BUDGET ? 'medium' : requested);
+export const authorEffort = (storyboard, requested = 'high', seconds = 0) => (requested === 'high' && storyboardOccurrences(storyboard) * (seconds > LONG_SECONDS ? AUTHOR_TOKENS_PER_OCCURRENCE_LONG : AUTHOR_TOKENS_PER_OCCURRENCE) > AUTHOR_OUTPUT_BUDGET ? 'medium' : requested);
 
 // 64000: at effort high the first real softmax call spent 32000 tokens (mostly thinking) before
 // finishing its tool call (2026-10-04); streaming keeps a long generation safe.
@@ -143,7 +149,7 @@ export function authorRequest(brief, storyboard, { effort = 'high', maxTokens, r
     max_tokens: maxTokens,
     stream: true, // a long generation never waits on a silent connection (stream-message.js)
     thinking: { type: 'adaptive' },
-    output_config: { effort: authorEffort(storyboard, effort) },
+    output_config: { effort: authorEffort(storyboard, effort, brief.duration?.seconds) },
     fallbacks: 'default',
     betas: ['server-side-fallback-2026-07-01'],
     system: [{ type: 'text', text: hf ? hfAuthorSystem(stageOf(brief)) : authorSystem(stageOf(brief)), cache_control: { type: 'ephemeral' } }],
