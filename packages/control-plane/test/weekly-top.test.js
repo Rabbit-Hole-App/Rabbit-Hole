@@ -184,7 +184,9 @@ test('the cache is explicit about staleness: a new star appears after max_age_se
 test('no leakage: no email, user id, private title or private token in any answer', async t => {
   const { f, c, top } = await ranked(t);
   const text = JSON.stringify(await top());
-  for (const secret of ['@test', '@x.test', 'u1', 'veteran', 'SECRET', 'x-ws', c.A1.org, c.A1.name, c.C1.name, 'view_token', 'owner_email']) assert.equal(text.includes(secret), false, secret);
+  // 'u1' is matched as a whole value: published tokens are random base64url, and a token can contain the two characters by chance.
+  assert.equal(/(^|[^A-Za-z0-9_-])u1($|[^A-Za-z0-9_-])/.test(text), false, 'u1');
+  for (const secret of ['@test', '@x.test', 'veteran', 'SECRET', 'x-ws', c.A1.org, c.A1.name, c.C1.name, 'view_token', 'owner_email']) assert.equal(text.includes(secret), false, secret);
   const route = await learnBoardsRoute('/api/learn/boards/published/weekly-top', new Request('https://app.test/api/learn/boards/published/weekly-top'), f.env);
   assert.deepEqual([route.status, route.headers.get('cache-control')], [200, 'no-store']);
 });
