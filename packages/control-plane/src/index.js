@@ -1030,10 +1030,10 @@ export async function apiAsk(req, env, ctx, user, conversation = 'agent', seam =
     const motionInput = body.generation?.motion === undefined ? null : motionAbout(body.generation.motion);
     if (body.generation?.motion !== undefined && !motionInput) return json({ error: 'generation.motion must be {concept?, context?}' }, 400);
     const current = body.generation?.current && !(await verifyProposal(env, body.generation.current, user.email)) ? body.generation.current : null;
-    generation = motionInput && motionOffered(env) ? { motion: motionInput, current: current?.command === 'motion' ? current : null } : null;
+    generation = motionInput && motionOffered(env, user.email) ? { motion: motionInput, current: current?.command === 'motion' ? current : null } : null;
   }
   if (chat?.command === 'motion' && !generation) {
-    return json(motionPaused(env) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was started.', code: 'motion_unavailable' }, 503);
+    return json(motionPaused(env, user.email) ? { error: MOTION_PAUSED, code: 'motion_paused' } : { error: 'Motion is not available in this environment yet. Nothing was started.', code: 'motion_unavailable' }, 503);
   }
   let proposed = null, proposalMeta = null;
   let lessonSnapshot = null;

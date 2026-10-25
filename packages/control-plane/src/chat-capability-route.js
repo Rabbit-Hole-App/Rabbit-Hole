@@ -29,9 +29,9 @@ const bindingOf = (email, f) => sha256(canon([String(email).toLowerCase(), f.app
 
 // Whether this capability can run here now. Never enables anything: a build flag only the browser knows must be in its
 // enabled list, Motion also needs the server's own gate (orchestrator configured, not paused), image generation is off.
-function availability(env, cap, enabled) {
+function availability(env, cap, enabled, email = null) {
   if (Array.isArray(enabled) && !enabled.includes(cap.name)) return false;
-  if (cap.name === 'motion') return motionOffered(env);
+  if (cap.name === 'motion') return motionOffered(env, email);
   if (cap.needs === 'image_generation') return IMAGE_GENERATION;
   if (cap.needs) return Array.isArray(enabled);
   return true;
@@ -39,7 +39,7 @@ function availability(env, cap, enabled) {
 // The guarded capabilities plain words may reach here (EXP-T15): /explain v2 only where EXPLAIN_V2_ENABLED (explain-job.js
 // explainEnabled). Off, the router's question is exactly what it was; a typed /explain still dispatches either way.
 const offeredRoutes = env => chatRoutesWith(env.EXPLAIN_V2_ENABLED === 'true' ? ['explain'] : []);
-const unavailable = (env, name) => (name === 'motion' && motionPaused(env) ? MOTION_PAUSED : name === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${commandLabel(name)} isn't available here.`);
+const unavailable = (env, name, email = null) => (name === 'motion' && motionPaused(env, email) ? MOTION_PAUSED : name === 'motion' ? 'Video explainers (Motion) are not available on this canvas.' : `${commandLabel(name)} isn't available here.`);
 
 // One chat line's decision. deps.ask is the JEV call (counted in tests). Returns the response body.
 export async function decideChat(env, { email, app, requestId, fields, capability = null, enabled = null }, { ask = askJev, timeoutMs = ROUTE_TIMEOUT_MS, thresholds = ROUTE_THRESHOLDS } = {}) {
@@ -55,7 +55,7 @@ export async function decideChat(env, { email, app, requestId, fields, capabilit
     const declared = chatCapability(name);
     const entry = SLASH.find(command => command.name === name && command.places.includes('learn'));
     if (!entry) return refuse(via, `/${name} is not a Learn command.`);
-    if (!availability(env, { name, needs: entry.needs || null }, enabled)) return { ...refuse(via, unavailable(env, name)), ...extra };
+    if (!availability(env, { name, needs: entry.needs || null }, enabled, email)) return { ...refuse(via, unavailable(env, name, email)), ...extra };
     const flow = declared?.flow === 'proposal' && reviewRequired(name) ? 'proposal' : 'direct';
     const token = await sign({ t: 'chat-route', cap: name, flow, h: await bindingOf(email, fields), exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_S }, await signingKey(env));
     return { ...base, ...extra, route: `capability:${name}`, via, capability: name, flow, args, paid: paidOf(name), settings: flow === 'proposal' && declared?.settings?.length ? declared.settings : null, token };

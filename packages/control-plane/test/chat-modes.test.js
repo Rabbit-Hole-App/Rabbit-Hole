@@ -907,6 +907,30 @@ test('paused or with no orchestrator, a /motion chat turn is answered before any
   assert.match(JSON.stringify(f.calls.at(-1).messages), /Not proposed: the description must be 3 to 10 complete sentences/);
 });
 
+// Owner 2026-10-25, the controlled owner-only path on the CHAT turn: paused, the proposal turn is answered 503 for everyone except the signed-in
+// account listed in MOTION_ACCEPTANCE_EMAILS (the fixture's user is owner@example.test); the proposal it gets is signed for it and is the ordinary one.
+test('paused with MOTION_ACCEPTANCE_EMAILS, the /motion chat turn proposes only for the listed account; a list without it, an empty list and look-alikes are answered before any model call', async t => {
+  const f = fixture(t);
+  Object.assign(f.env, MOTION_ENV, { MOTION_GENERATION_PAUSED: '1' });
+  const turn = () => f.ask({ message: 'explain the water cycle', mode: 'ask', command: 'motion', generation: { motion: {} } });
+  const paused = { error: 'Motion generation is temporarily unavailable while we fix a reliability issue.', code: 'motion_paused' };
+  for (const list of [undefined, '', 'someone@example.test', 'xowner@example.test', 'owner@example.test.evil.test', 'example.test']) {
+    if (list === undefined) delete f.env.MOTION_ACCEPTANCE_EMAILS; else f.env.MOTION_ACCEPTANCE_EMAILS = list;
+    const r = await turn();
+    assert.equal(r.res.status, 503, String(list));
+    assert.deepEqual(await r.res.json(), paused);
+  }
+  assert.equal(f.calls.length, 0, 'no model call for any of them');
+  f.env.MOTION_ACCEPTANCE_EMAILS = ' Owner@Example.Test ';
+  f.replies.push(proposeCall('tu-owner'), 'Here is a proposal.\n<answer_meta>{}</answer_meta>');
+  const listed = await turn();
+  assert.equal(listed.res.status, 200);
+  const proposal = listed.events.find(e => e.event === 'answer_meta').data.proposal;
+  assert.equal(proposal.command, 'motion');
+  assert.equal(await verifyProposal(f.env, proposal, 'owner@example.test'), null, 'signed for the asker, like any proposal');
+  assert.deepEqual(proposal.settings, { duration_seconds: 10, aspect_ratio: '16:9', audio: false }, 'the public settings: the list grants no larger ones');
+});
+
 // MOT-20b: a submitted answer suggestion is an entry point. Motion is suggested only on a turn where a Motion video can start;
 // its Send is the Chat's /motion turn (web AnswerSuggestions prepares it, the composer sends it), so it is proposed first.
 test('answer suggestions: a motion action is offered only where Motion can start, and the prompt says so only there', async t => {

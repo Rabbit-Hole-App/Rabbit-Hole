@@ -55,6 +55,9 @@ const SLOW = 'The Motion service was too slow to answer. Nothing was started; ge
 // Owner message 28: new Motion generation is paused (MOTION_GENERATION_PAUSED "1") until MOT-06/07 are fixed. Nothing new starts or
 // is reserved; jobs already started keep polling, stopping, settling and playing, and their reservations stay.
 export { MOTION_PAUSED };
+// The VERIFIED email of the caller: the payer identity the Worker front forwarded (forwardUsagePayer replaces whatever a client sent), else null.
+// Only the owner-only acceptance path (generation-proposal.js MOTION_ACCEPTANCE_EMAILS) reads it, and only while generation is paused.
+const callerEmail = (env, req) => usageContext(usageFromForwarded(env, req, 'video'))?.identity?.email || null;
 // What the orchestrator reports for a job that never started: nothing spent, the whole hold released.
 const STORAGE_FAILED = 'Our video service could not save the finished video. You were not charged. Try again in a few minutes.';
 const NOTHING = { status: 'refused', spend: { cost_usd: 0, bound_usd: 0, calls: 0, in_flight: 0 }, renders: 0 };
@@ -185,7 +188,7 @@ export class LearnVideos {
       }
       // A job still reconciling with no alarm pending (stranded by older code, or an alarm whose retries ran out) is re-armed.
       if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(needsSettling) && await this.state.storage.getAlarm() == null) await this.state.storage.setAlarm(Date.now() + POLL_MS);
-      return json(await this.list());
+      return json(await this.list(callerEmail(this.env, req)));
     }
     // Serialize concurrent duplicate submissions, including the external POST.
     return this.state.blockConcurrencyWhile(async () => {
@@ -216,7 +219,7 @@ export class LearnVideos {
           await this.state.storage.put(`job:${p.key}`, job);
           // Its hold settles once the orchestrator reports what the stopped job really spent.
           if (needsSettling(job)) await this.state.storage.setAlarm(Date.now() + POLL_MS);
-          return json(await this.list());
+          return json(await this.list(callerEmail(this.env, req)));
         }
         // Recovery of a failed /motion job from its saved checkpoint: a new attempt under the same job, its own hold (fix) or
         // none (render), one settlement, Stop and duplicate protection as for Generate. Only an action the job offers runs.
@@ -227,7 +230,7 @@ export class LearnVideos {
           const offered = job.provider === 'motion_request' && job.status === 'failed' && !job.uncertain && job.recovery?.key ? job.recovery.actions : [];
           if (!['render', 'fix'].includes(body.mode) || !offered.includes(body.mode)) return json({ error: 'This video cannot be recovered that way.' }, 409);
           if (body.mode === 'fix') { const refusedFix = paidRefusal(body); if (refusedFix) return refusedFix; }
-          if (motionPaused(this.env)) return json({ error: MOTION_PAUSED, code: 'motion_paused' }, 503);
+          if (motionPaused(this.env, callerEmail(this.env, req))) return json({ error: MOTION_PAUSED, code: 'motion_paused' }, 503);
           if ([...(await this.state.storage.list({ prefix: 'job:' })).values()].some(j => j.status === 'generating')) return json({ error: 'One video is already generating. Wait for it before requesting another.' }, 409);
           if (needsSettling(job)) return json({ error: 'The last attempt is still finishing. Try again in a moment.' }, 409);
           const saved = await learnMedia(this.env).get(job.recovery.key);
@@ -238,7 +241,7 @@ export class LearnVideos {
           await this.state.storage.setAlarm(Date.now() + POLL_MS);
           await this.startMotion(req, job, new MotionRequestProvider(this.env), entered, { mode: body.mode, checkpoint: artifacts.checkpoint, seal: artifacts.seal, holdMicros: job.recovery.holdFixMicros });
           await this.state.storage.put(`job:${p.key}`, job);
-          return json({ ...await this.list(), placementId: p.id }, 202);
+          return json({ ...await this.list(callerEmail(this.env, req)), placementId: p.id }, 202);
         }
         // A paid job starts only from the learner's explicit confirmation.
         const refused = paidRefusal(body); if (refused) return refused;
@@ -246,7 +249,7 @@ export class LearnVideos {
         const motion = body.operation?.op === 'motion_render';
         const motionRequest = body.operation?.op === 'motion_request';
         // Before any admission or hold: Generate, Retry, inline Motion and Ctrl+K all start here.
-        if (motionRequest && motionPaused(this.env)) return json({ error: MOTION_PAUSED, code: 'motion_paused' }, 503);
+        if (motionRequest && motionPaused(this.env, callerEmail(this.env, req))) return json({ error: MOTION_PAUSED, code: 'motion_paused' }, 503);
         const provider = maths ? new ManimProvider(this.env) : motion ? new MotionProvider(this.env) : motionRequest ? new MotionRequestProvider(this.env) : videoProvider(this.env);
         const input = maths ? { spec: validateMathAnimation(body.operation), id: body.operation.id, caption: body.operation.caption } : motion ? validateMotionRender(body.operation) : motionRequest ? validateMotionRequest(body.operation) : validateVideo(body.operation);
         if (typeof body.lessonId !== 'string' || body.lessonId.length > 150 || typeof body.page !== 'string' || body.page.length > 150) throw new Error('Lesson and page are required');
@@ -318,16 +321,16 @@ export class LearnVideos {
         const operation = maths ? body.operation : input;
         const previous = await this.state.storage.get(`placement:${placementId}`);
         await this.state.storage.put(`placement:${placementId}`, previous || { id: placementId, key, lessonId: body.lessonId, page: body.page, operation, position: null });
-        return json({ ...await this.list(), placementId }, 202);
+        return json({ ...await this.list(callerEmail(this.env, req)), placementId }, 202);
       } catch (error) { return json({ error: error.message }, 400); }
     });
   }
-  async list() {
+  async list(email = null) {
     const placements = await this.state.storage.list({ prefix: 'placement:' });
     const jobs = await this.state.storage.list({ prefix: 'job:' });
     // motionHoldUsd: the per-job reservation the server admits (MOTION_JOB_RESERVATION_USD), only where Motion can start, so the
     // confirmation states the amount the server will hold (owner message 25), never a figure of the browser's own.
-    const paused = motionPaused(this.env);
+    const paused = motionPaused(this.env, email);
     const holdMicros = !paused && !new MotionRequestProvider(this.env).unavailable() && motionReservationMicros(this.env);
     // The confirmation's estimate (owner message 32: 1 credit = $0.01), only where Motion can start; the hold stays internal.
     const estimate = holdMicros && motionEstimateCredits(this.env);

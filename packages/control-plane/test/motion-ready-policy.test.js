@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { EVIDENCE_LIMITATIONS, LEGACY_POLICY_VERSION, LEGACY_READY_POLICY, MEASURED_POLICY_VERSION, MEASURED_READY_POLICY, MEASURED_RENDERER_CODE_HASH, MEASURED_RENDERER_CONFIG, MEASURED_RENDERER_REVISION, MODEL_RUNS, MODEL_RUNS_NOT_COMPLETED, PASSED, TIMED_OUT, evidenceGroups } from '../src/motion-ready-policy.js';
 import { MOTION_NOT_READY, MOTION_RATIOS, motionBinding, motionExecutionTerms, motionGenerationCheck, motionReadiness, readyPolicy } from '../src/motion-settings.js';
-import { approvedProposal } from '../src/generation-proposal.js';
+import { approvedProposal, acceptanceEmails, motionPaused } from '../src/generation-proposal.js';
 import { rendererCodeHashes } from '../../learn-render/motion/orchestrator.mjs';
 
 const live = { MOTION_RENDERER_CONFIG: MEASURED_RENDERER_CONFIG };
@@ -97,7 +97,15 @@ test('the committed config does not activate: MOTION_RENDERER_CONFIG is absent f
   assert.doesNotMatch(noComments(orchestrator, '#'), /MOTION_RENDERER_CONFIG/, 'off in the orchestrator');
   assert.ok(worker.includes(`// "MOTION_RENDERER_CONFIG": "${MEASURED_RENDERER_CONFIG}",`), 'the one-line activation in the Worker');
   assert.ok(orchestrator.includes(`# MOTION_RENDERER_CONFIG = "${MEASURED_RENDERER_CONFIG}"`), 'the one-line activation in the orchestrator');
-  assert.equal(JSON.parse(noComments(worker, '//')).vars.MOTION_GENERATION_PAUSED, '0', 'working Motion is not paused');
+  // R1: public Motion is paused ON PURPOSE (owner 2026-10-25) with exactly one account on the owner-only path; R2 flips the pause and uncomments the activation.
+  const vars = JSON.parse(noComments(worker, '//')).vars;
+  assert.equal(vars.MOTION_GENERATION_PAUSED, '1');
+  assert.equal(vars.MOTION_ACCEPTANCE_EMAILS, 'yudhisteer.chin@gmail.com');
+  assert.deepEqual(acceptanceEmails(vars), ['yudhisteer.chin@gmail.com']);
+  assert.equal(motionPaused(vars, 'yudhisteer.chin@gmail.com'), false);
+  assert.equal(motionPaused(vars, 'yudhisteer.chin01@gmail.com'), true, 'the look-alike account is a different person');
+  assert.equal(motionPaused(vars, 'YUDHISTEER.CHIN@GMAIL.COM'), false, 'case is normalised');
+  assert.match(noComments(orchestrator, '#'), /^\s*MOTION_JOB_CEILING_USD = "2\.00"$/m, 'the acceptance window bounds one job to the US$2.00 reserve');
   assert.ok(MEASURED_RENDERER_REVISION.startsWith(MEASURED_RENDERER_CONFIG.split('-')[0]));
 });
 

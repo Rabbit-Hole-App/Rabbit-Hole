@@ -14,6 +14,9 @@ primary_region = "iad"
   MOTION_RENDERER_URL = "https://rabbit-hole-motion-renderer.fly.dev"
   MOTION_MAX_CALLS = "9"
   MOTION_JOB_TIMEOUT_S = "3300"
+  # ACCEPTANCE WINDOW (owner 2026-10-25, R1): one job may spend at most US$2.00 of model money, the production-acceptance reserve. The Worker still holds
+  # US$8.96 against the learner's allowance and releases the unused part. REMOVE this line in the activation release (R2): public jobs need the full hold.
+  MOTION_JOB_CEILING_USD = "2.00"
   # ACTIVATION (off): the renderer configuration the measured readiness policy applies to. Uncomment this line, with the Worker's
   # MOTION_RENDERER_CONFIG of the same value, only after the matching renderer and its job store are deployed and accepted. While it is absent
   # the orchestrator takes jobs exactly as it does today. A job whose approved proposal names another configuration is refused before any model call.

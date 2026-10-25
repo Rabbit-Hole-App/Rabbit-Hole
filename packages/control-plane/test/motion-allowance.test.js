@@ -615,6 +615,48 @@ test('paused: Generate, Retry and every other start are refused before admission
   assert.equal((await actor.fetch(ask({}, { ...motionOp, request: '/motion 10s explain layer norm' }))).status, 202);
 });
 
+// Owner 2026-10-25, the CONTROLLED OWNER-ONLY PATH: while paused, only a caller whose verified full email is in MOTION_ACCEPTANCE_EMAILS may start; the
+// admission, the hold, the settlement and the accounting are the public ones (no extra credits, no larger settings).
+const asUser = (email, userId, extra = {}) => forwardUsagePayer(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST',
+  body: JSON.stringify({ operation: motionOp, lessonId: 'canvas', page: 'canvas', confirmed: true, ...extra }) }), { userId, email });
+test('paused with MOTION_ACCEPTANCE_EMAILS: the listed account starts and settles exactly as anyone would; everyone else, look-alikes, a forged payer header and a missing identity are refused with no hold and no orchestrator call', async t => {
+  const { sqlite, LEARN_DB } = d1(t);
+  const w = world(t); await w.orchestrator.start(); w.script(FIRST_PASS);
+  const env = env0(LEARN_DB, '50', { MOTION_GENERATION_PAUSED: '1', MOTION_ACCEPTANCE_EMAILS: 'owner@example.test' });
+  const actor = new LearnVideos(durable('video-a'), env);
+  const state = () => [w.orchestrator.posts, motionAttempts(sqlite).length, w.model.calls.length];
+  const refused = async request => { const r = await actor.fetch(request); assert.equal(r.status, 503); assert.deepEqual(await r.json(), { error: MOTION_PAUSED, code: 'motion_paused' }); };
+  const start = state();
+  for (const email of ['alice@example.test', 'xowner@example.test', 'owner01@example.test', 'owner@example.test.evil.test', 'owner@example.testx']) await refused(asUser(email, 'u-x'));
+  // A client that sends the payer header itself: the Worker front (forwardUsagePayer) replaces it with the real identity, which is not listed.
+  const claimed = new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', headers: { 'x-rh-usage-payer': JSON.stringify({ userId: 'u-owner', email: 'owner@example.test' }) },
+    body: JSON.stringify({ operation: motionOp, lessonId: 'canvas', page: 'canvas', confirmed: true }) });
+  await refused(forwardUsagePayer(claimed, { userId: 'u-alice', email: 'alice@example.test' }));
+  // No verified identity at all (the request never went through the front): refused.
+  await refused(new Request('https://dev.test/api/learn/video?app=demo', { method: 'POST', body: JSON.stringify({ operation: motionOp, lessonId: 'canvas', page: 'canvas', confirmed: true }) }));
+  assert.deepEqual(state(), start, 'no admission, hold or orchestrator call for any of them');
+  // What the card is told: paused for everyone else, offered (and its hold stated) to the listed account.
+  assert.equal((await actor.list()).motionPaused, true);
+  assert.equal((await actor.list('alice@example.test')).motionPaused, true);
+  const mine = await actor.list('Owner@Example.Test');
+  assert.deepEqual([mine.motionPaused, mine.motionHoldUsd], [undefined, 2], 'the listed account sees the normal confirmation');
+  // The listed account is admitted (normalised) and the job runs the public rules.
+  const ok = await actor.fetch(asUser(' Owner@Example.Test ', 'u-owner'));
+  assert.equal(ok.status, 202);
+  assert.equal((await usageTotals(LEARN_DB, 'u-owner', PERIOD)).reserved, 2_000_000, 'the ordinary hold');
+  await settle(actor, async () => (await video(actor)).status === 'ready');
+  assert.deepEqual(motionAttempts(sqlite), [[2_000_000, 'settled', 800_000, 'settled']], 'settled at the real cost, as for any learner');
+  assert.equal((await usageTotals(LEARN_DB, 'u-owner', PERIOD)).reserved, 0, 'the unused hold is released');
+  assert.equal((await usageTotals(LEARN_DB, 'u-owner', PERIOD)).used, 800_000, 'charged what it cost: no extra credits, no waiver');
+  // Public access stays closed afterwards, and an empty or unset list admits nobody.
+  await refused(asUser('alice@example.test', 'u-alice'));
+  env.MOTION_ACCEPTANCE_EMAILS = '';
+  await refused(asUser('owner@example.test', 'u-owner'));
+  delete env.MOTION_ACCEPTANCE_EMAILS;
+  await refused(asUser('owner@example.test', 'u-owner'));
+});
+
+
 // MOT-07 (owner message 27) replaces the resend this test asserted: a lost submission is never resent, paused or not. Reconciling its
 // key starts nothing, so it runs while paused (message 28 keeps reconciliation), and a confirmed no-start releases its hold.
 test('paused: an unconfirmed start is never resent; reconciling its key starts nothing, and a confirmed no-start releases its hold', async t => {

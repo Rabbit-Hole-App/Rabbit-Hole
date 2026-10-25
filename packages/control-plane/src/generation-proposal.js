@@ -50,8 +50,16 @@ export const validateSettings = (command, value, options) => validateCommandSett
 // Offered only where a video can start: an orchestrator is configured and new generation is not paused (owner message 28:
 // MOTION_GENERATION_PAUSED "1"; nothing new starts or is reserved, and a /motion chat turn is answered before any model call).
 export const MOTION_PAUSED = 'Motion generation is temporarily unavailable while we fix a reliability issue.';
-export const motionPaused = env => env.MOTION_GENERATION_PAUSED === '1';
-export const motionOffered = env => !motionPaused(env) && !new MotionRequestProvider(env).unavailable();
+// The CONTROLLED OWNER-ONLY PATH (owner 2026-10-25): while generation is paused, a caller whose VERIFIED account email is listed in the worker
+// variable MOTION_ACCEPTANCE_EMAILS (plain, comma or space separated, full addresses) may still start Motion, so the production acceptance job can run
+// through the real renderer, orchestrator, storage and accounting before the public is let in. Empty or unset = nobody. The match is the whole
+// address, lower-cased and trimmed: never a prefix, a substring or a domain. The list grants nothing else: admission, hold, reservation, settlement,
+// credits, settings and readiness are exactly the public ones. An unverified or missing identity (email null) is never admitted.
+export const acceptanceEmails = env => String(env?.MOTION_ACCEPTANCE_EMAILS ?? '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(e => e.includes('@'));
+export const motionAcceptanceAllowed = (env, email) => typeof email === 'string' && email.includes('@') && acceptanceEmails(env).includes(email.trim().toLowerCase());
+// email: the VERIFIED account email of the caller (the session's, or the payer identity the Worker forwarded), or null/omitted.
+export const motionPaused = (env, email = null) => env.MOTION_GENERATION_PAUSED === '1' && !motionAcceptanceAllowed(env, email);
+export const motionOffered = (env, email = null) => !motionPaused(env, email) && !new MotionRequestProvider(env).unavailable();
 
 export const PROPOSAL_TOOL = {
   name: 'propose_generation',
